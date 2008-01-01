@@ -27,57 +27,45 @@
 #define jamLine(line)
 #define jamEntry()
 #define jamEntryLine(line)
-
-#else
-#ifdef NDB_WIN32
-
-#define jam() { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = __LINE__; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamLine(line) { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = line; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntry() { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | __LINE__); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntryLine(line) { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | line); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
+#define jamBlock(block)
+#define jamBlockLine(block, line)
+#define jamEntryBlock(block)
+#define jamEntryBlockLine(block, line)
+#define jamNoBlock()
+#define jamNoBlockLine(line)
 
 #else
 
-#define jam() { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = __LINE__; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamLine(line) { \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = line; \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntry() { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | __LINE__); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
-#define jamEntryLine(line) { \
-  theEmulatedJamBlockNumber = number(); \
-  Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
-  *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | line); \
-  theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
+#define _jamBlockLine(block, line, jam_buf_getter) \
+  do { \
+    EmulatedJamBuffer *jamBuffer = jam_buf_getter; \
+    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
+    jamBuffer->theEmulatedJam[jamIndex++] = line; \
+    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+  } while(0)
+#define jamBlockLine(block, line) \
+   _jamBlockLine(block, line, (block)->jamBuffer())
+#define jamBlock(block) jamBlockLine(block, __LINE__)
+#define jamLine(line) jamBlockLine(this, line)
+#define jam() jamLine(__LINE__)
+#define jamBlockEntryLine(block, line) \
+  do { \
+    EmulatedJamBuffer *jamBuffer = (block)->jamBuffer(); \
+    Uint32 blockNumber= (block)->number(); \
+    Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | line; \
+    jamBuffer->theEmulatedJamBlockNumber = blockNumber; \
+    jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
+  } while(0)
+#define jamEntryBlock(block) jamEntryBlockLine(block, __LINE__)
+#define jamEntryLine(line) jamBlockEntryLine(this, line)
+#define jamEntry() jamEntryLine(__LINE__)
+#define jamNoBlockLine(line) _jamBlockLine \
+    (block, line, (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM))
+#define jamNoBlock() jamNoBlockLine(__LINE__)
 
 #endif
 
-#endif
 #ifndef NDB_OPT
 #define ptrCheck(ptr, limit, rec) if (ptr.i < (limit)) ptr.p = &rec[ptr.i]; else ptr.p = NULL
 

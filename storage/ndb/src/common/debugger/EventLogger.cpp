@@ -998,6 +998,13 @@ void getTextStartReport(QQQQ) {
        mask1, mask2, mask3, mask4);
   }
 }
+void getTextMTSignalStatistics(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+		       "Signals delivered from thread %u: "
+                       "prio A %u (%u bytes) prio B %u (%u bytes)",
+		       theData[1],
+                       theData[2], theData[3], theData[4], theData[5]);
+}
 
 #if 0
 BaseString::snprintf(m_text, 
@@ -1074,6 +1081,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),
+  ROW(MTSignalStatistics,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
 
   // ERROR
   ROW(TransporterError,        LogLevel::llError,  2, Logger::LL_ERROR   ),

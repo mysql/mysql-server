@@ -13,6 +13,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+/*
+  This file is used to build both the multithreaded and the singlethreaded
+  ndbd. It is built twice, included from either SimulatedBlock_mt.cpp (with
+  the macro NDBD_MULTITHREADED defined) or SimulatedBlock_nonmt.cpp (with the
+  macro not defined).
+*/
+
 #include <ndb_global.h>
 
 #include "SimulatedBlock.hpp"
@@ -61,8 +68,11 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
     c_linearFragmentSendList(c_fragmentSendPool),
     c_segmentedFragmentSendList(c_fragmentSendPool),
     c_mutexMgr(* this),
-    c_counterMgr(* this)
+    c_counterMgr(* this),
+    m_threadId(0),
+    m_watchDogCounter(NULL)
 {
+  m_jamBuffer = (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
   NewVarRef = 0;
   
   globalData.setBlock(blockNumber, this);
@@ -141,6 +151,7 @@ SimulatedBlock::installSimulatedBlockFunctions(){
   a[GSN_NDB_TAMPER] = &SimulatedBlock::execNDB_TAMPER;
   a[GSN_SIGNAL_DROPPED_REP] = &SimulatedBlock::execSIGNAL_DROPPED_REP;
   a[GSN_CONTINUE_FRAGMENTED]= &SimulatedBlock::execCONTINUE_FRAGMENTED;
+  a[GSN_STOP_FOR_CRASH]= &SimulatedBlock::execSTOP_FOR_CRASH;
   a[GSN_UTIL_CREATE_LOCK_REF]   = &SimulatedBlock::execUTIL_CREATE_LOCK_REF;
   a[GSN_UTIL_CREATE_LOCK_CONF]  = &SimulatedBlock::execUTIL_CREATE_LOCK_CONF;
   a[GSN_UTIL_DESTROY_LOCK_REF]  = &SimulatedBlock::execUTIL_DESTORY_LOCK_REF;
@@ -170,6 +181,15 @@ SimulatedBlock::addRecSignalImpl(GlobalSignalNumber gsn,
     ERROR_SET(fatal, NDBD_EXIT_ILLEGAL_SIGNAL, errorMsg, errorMsg);
   }
   theExecArray[gsn] = f;
+}
+
+void
+SimulatedBlock::assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
+                               Uint32 *watchDogCounter)
+{
+  m_threadId = threadId;
+  m_jamBuffer = jamBuffer;
+  m_watchDogCounter = watchDogCounter;
 }
 
 void
@@ -276,8 +296,15 @@ SimulatedBlock::sendSignal(BlockReference ref,
   if(recNode == ourProcessor || recNode == 0) {
     signal->header.theSendersSignalId = tSignalId;
     signal->header.theSendersBlockRef = sendBRef;
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock,
 			    gsn);
+#endif
     return;
   } else { 
     // send distributed Signal
@@ -299,14 +326,87 @@ SimulatedBlock::sendSignal(BlockReference ref,
 	     getSignalName(gsn), gsn, getBlockName(recBlock),
 	     recNode);
 #endif
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
-							  &signal->theData[0],
-							  recNode, 
-							  (LinearSectionPtr*)0);
+
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, 0);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               (LinearSectionPtr*)0);
+#endif
     
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
   return;
+}
+
+/*
+ * This is a special version of sendSignal to correctly handle node failure
+ * in multithreaded ndbd.
+ *
+ * For single-threaded ndbd, it is identical to the above sendSignal().
+ *
+ * For multithreaded ndbd, is is special in that the signal is delivered to
+ * the same job queue that is used to deliver signals from the receiver thread.
+ * The sending of NODE_FAILREP is done using this method.
+ *
+ * The purpose of this is to ensure that after a block receives the
+ * NODE_FAILREP signal, it is guaranteed that the block will receive no further
+ * signals from the failing node. To ensure this we need to have the
+ * NODE_FAILREP correctly ordered with respect to other remotely received
+ * signals, and this is achieved by using the same job queue.
+ *
+ * It currently only works for local signals.
+ */
+void
+SimulatedBlock::sendSignalFromReceiver(BlockReference ref,
+                                       GlobalSignalNumber gsn,
+                                       Signal* signal,
+                                       Uint32 length,
+                                       JobBufferLevel jobBuffer) const {
+#ifndef NDBD_MULTITHREADED
+  sendSignal(ref, gsn, signal, length, jobBuffer);
+#else
+  BlockReference sendBRef = reference();
+  Uint32 noOfSections = signal->header.m_noOfSections;
+  Uint32 recBlock = refToBlock(ref);
+  Uint32 recNode   = refToNode(ref);
+  Uint32 ourProcessor         = globalData.ownId;
+
+  signal->header.theLength = length;
+  signal->header.theVerId_signalNumber = gsn;
+  signal->header.theReceiversBlockNumber = recBlock;
+  signal->header.m_noOfSections = 0;
+
+  check_sections(signal, noOfSections);
+
+  ndbassert(!((length == 0) || length > 25 || (recBlock == 0)));
+#ifdef VM_TRACE
+  if(globalData.testOn){
+    Uint16 proc =
+      (recNode == 0 ? globalData.ownId : recNode);
+    signal->header.theSendersBlockRef = sendBRef;
+    globalSignalLoggers.sendSignal(signal->header,
+                                   jobBuffer,
+                                   &signal->theData[0],
+                                   proc);
+  }
+#endif
+
+  ndbassert(refToNode(ref) == ourProcessor || refToNode(ref) == 0);
+
+  /* Now lock the receiver and deliver into queue 2 (receiver thread). */
+  mt_receive_lock();
+  if (jobBuffer == JBB)
+    sendlocal(receiverThreadId, recBlock, &signal->header, signal->theData,
+              NULL);
+  else
+    sendprioa(receiverThreadId, recBlock, &signal->header, signal->theData,
+              NULL);
+  mt_receive_unlock();
+#endif
 }
 
 void 
@@ -360,7 +460,15 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 				     ourProcessor);
     }
 #endif
+
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData, NULL);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
     
     rg.m_nodes.clear((Uint32)0);
     rg.m_nodes.clear(ourProcessor);
@@ -388,10 +496,16 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 	     recNode);
 #endif
 
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
-							  &signal->theData[0],
-							  recNode,
-							  (LinearSectionPtr*)0);
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, 0);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
+                                               &signal->theData[0], recNode,
+                                               (LinearSectionPtr*)0);
+#endif
+
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
 
@@ -456,8 +570,17 @@ SimulatedBlock::sendSignal(BlockReference ref,
       signal->theData[length+i] = segptr[i].i;
     }
     
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData+length);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData+length);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock,
 			    gsn);
+#endif
     signal->header.m_noOfSections = 0;
     return;
   } else { 
@@ -482,10 +605,16 @@ SimulatedBlock::sendSignal(BlockReference ref,
 	     recNode);
 #endif
 
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
-							  &signal->theData[0],
-							  recNode, 
-							  ptr);
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               ptr);
+#endif
+
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
 
@@ -555,7 +684,17 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
       ndbrequire(import(segptr[i], ptr[i].p, ptr[i].sz));
       signal->theData[length+i] = segptr[i].i;
     }
+
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
     
     rg.m_nodes.clear((Uint32)0);
     rg.m_nodes.clear(ourProcessor);
@@ -585,10 +724,16 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 	     recNode);
 #endif
 
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer, 
-							  &signal->theData[0],
-							  recNode,
-							  ptr);
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               ptr);
+#endif
+
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
   
@@ -653,7 +798,16 @@ SimulatedBlock::sendSignal(BlockReference ref,
     * dst ++ = sections->m_ptr[1].i;
     * dst ++ = sections->m_ptr[2].i;
 
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
   } else {
     // send distributed Signal
     SignalHeader sh;
@@ -675,11 +829,17 @@ SimulatedBlock::sendSignal(BlockReference ref,
 	     recNode);
 #endif
 
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-							  &signal->theData[0],
-							  recNode,
-							  g_sectionSegmentPool,
-							  sections->m_ptr);
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, &g_sectionSegmentPool, sections->m_ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               g_sectionSegmentPool,
+                                               sections->m_ptr);
+#endif
+
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
     ::releaseSections(noOfSections, sections->m_ptr);
   }
@@ -753,7 +913,16 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
     * dst ++ = sections->m_ptr[0].i;
     * dst ++ = sections->m_ptr[1].i;
     * dst ++ = sections->m_ptr[2].i;
+#ifdef NDBD_MULTITHREADED
+    if (jobBuffer == JBB)
+      sendlocal(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+    else
+      sendprioa(m_threadId, recBlock, &signal->header, signal->theData,
+                signal->theData + length);
+#else
     globalScheduler.execute(signal, jobBuffer, recBlock, gsn);
+#endif
 
     rg.m_nodes.clear((Uint32)0);
     rg.m_nodes.clear(ourProcessor);
@@ -783,11 +952,17 @@ SimulatedBlock::sendSignal(NodeReceiverGroup rg,
 	     recNode);
 #endif
 
-    SendStatus ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
-							  &signal->theData[0],
-							  recNode,
-							  g_sectionSegmentPool,
-							  sections->m_ptr);
+    SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+    ss = mt_send_remote(m_threadId, &sh, jobBuffer, &signal->theData[0],
+                        recNode, &g_sectionSegmentPool, sections->m_ptr);
+#else
+    ss = globalTransporterRegistry.prepareSend(&sh, jobBuffer,
+                                               &signal->theData[0], recNode,
+                                               g_sectionSegmentPool,
+                                               sections->m_ptr);
+#endif
+
     ndbrequire(ss == SEND_OK || ss == SEND_BLOCKED || ss == SEND_DISCONNECTED);
   }
 
@@ -831,7 +1006,12 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     }
   }
 #endif
+
+#ifdef NDBD_MULTITHREADED
+  senddelay(m_threadId, &signal->header, delayInMilliSeconds);
+#else
   globalTimeQueue.insert(signal, bnr, gsn, delayInMilliSeconds);
+#endif
 
   // befor 2nd parameter to globalTimeQueue.insert
   // (Priority)theSendSig[sigIndex].jobBuffer
@@ -880,7 +1060,12 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
     }
   }
 #endif
+
+#ifdef NDBD_MULTITHREADED
+  senddelay(m_threadId, &signal->header, delayInMilliSeconds);
+#else
   globalTimeQueue.insert(signal, bnr, gsn, delayInMilliSeconds);
+#endif
 
   signal->header.m_noOfSections = 0;
   signal->header.m_fragmentInfo = 0;
@@ -1015,7 +1200,11 @@ SimulatedBlock::deallocRecord(void ** ptr,
 void
 SimulatedBlock::refresh_watch_dog(Uint32 place)
 {
+#ifdef NDBD_MULTITHREADED
+  (*m_watchDogCounter) = place;
+#else
   globalData.incrementWatchDogCounter(place);
+#endif
 }
 
 void
@@ -1084,8 +1273,13 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   signalT.header.theSignalId             = tSignalId;
   signalT.header.theLength               = ((len+3)/4)+1;
   
+#ifdef NDBD_MULTITHREADED
+  sendlocal(m_threadId, signalT.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, signalT.m_sectionPtrI);
+#else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
                           signalT.m_sectionPtrI);
+#endif
 }
 
 void 
@@ -1124,8 +1318,13 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   signalT.header.theSignalId             = tSignalId;
   signalT.header.theLength               = ((len+3)/4)+1;
 
+#ifdef NDBD_MULTITHREADED
+  sendlocal(m_threadId, signalT.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, signalT.m_sectionPtrI);
+#else
   globalScheduler.execute(&signalT.header, JBB, signalT.theData,
                           signalT.m_sectionPtrI);
+#endif
 }
 
 void
@@ -1223,6 +1422,14 @@ SimulatedBlock::execCONTINUE_FRAGMENTED(Signal * signal){
   ContinueFragmented * sig = (ContinueFragmented*)signal->getDataPtrSend();
   sig->line = __LINE__;
   sendSignal(reference(), GSN_CONTINUE_FRAGMENTED, signal, 1, JBB);
+}
+
+void
+SimulatedBlock::execSTOP_FOR_CRASH(Signal* signal)
+{
+#ifdef NDBD_MULTITHREADED
+  mt_execSTOP_FOR_CRASH();
+#endif
 }
 
 void
@@ -2036,6 +2243,17 @@ SimulatedBlock::setNodeInfo(NodeId nodeId) {
   ndbrequire(nodeId > 0 && nodeId < MAX_NODES);
   return globalData.m_nodeInfo[nodeId];
 }
+
+bool
+SimulatedBlock::isMultiThreaded() const
+{
+#ifdef NDBD_MULTITHREADED
+  return true;
+#else
+  return false;
+#endif
+}
+
 
 void 
 SimulatedBlock::execUTIL_CREATE_LOCK_REF(Signal* signal){

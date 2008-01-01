@@ -46,6 +46,7 @@ void Dbtup::initData()
 
   // Records with constant sizes
   init_list_sizes();
+  cpackedListIndex = 0;  
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)

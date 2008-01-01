@@ -84,6 +84,7 @@
 
 #include <signaldata/DropObj.hpp>
 #include <signaldata/CreateObj.hpp>
+#include <signaldata/BackupLockTab.hpp>
 #include <SLList.hpp>
 
 #include <EventLogger.hpp>
@@ -1716,7 +1717,7 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_CREATE_FILEGROUP_REF, &Dbdict::execCREATE_FILEGROUP_REF);
   addRecSignal(GSN_CREATE_FILEGROUP_CONF, &Dbdict::execCREATE_FILEGROUP_CONF);
 
-  addRecSignal(GSN_BACKUP_FRAGMENT_REQ, &Dbdict::execBACKUP_FRAGMENT_REQ);
+  addRecSignal(GSN_BACKUP_LOCK_TAB_REQ, &Dbdict::execBACKUP_LOCK_TAB_REQ);
 
   addRecSignal(GSN_DICT_COMMIT_REQ, &Dbdict::execDICT_COMMIT_REQ);
   addRecSignal(GSN_DICT_COMMIT_REF, &Dbdict::execDICT_COMMIT_REF);
@@ -3739,7 +3740,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       lockReq.lockId = 0;
       lockReq.requestInfo = UtilLockReq::SharedLock;
       lockReq.extra = DictLockReq::NodeFailureLock;
-      m_dict_lock.lock(m_dict_lock_pool, &lockReq, 0);
+      m_dict_lock.lock(this, m_dict_lock_pool, &lockReq, 0);
     }
   }
   
@@ -3970,16 +3971,18 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
 }
 
 void
-Dbdict::execBACKUP_FRAGMENT_REQ(Signal* signal)
+Dbdict::execBACKUP_LOCK_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  Uint32 tableId = signal->theData[0];
-  Uint32 lock = signal->theData[1];
+  const BackupLockTab *req = (const BackupLockTab *)signal->getDataPtrSend();
+  Uint32 senderRef = req->m_senderRef;
+  Uint32 tableId = req->m_tableId;
+  Uint32 lock = req->m_lock_unlock;
 
   TableRecordPtr tablePtr;
   c_tableRecordPool.getPtr(tablePtr, tableId, true);
 
-  if(lock)
+  if(lock == BackupLockTab::LOCK_TABLE)
   {
     ndbrequire(tablePtr.p->tabState == TableRecord::DEFINED);
     tablePtr.p->tabState = TableRecord::BACKUP_ONGOING;
@@ -3988,6 +3991,9 @@ Dbdict::execBACKUP_FRAGMENT_REQ(Signal* signal)
   {
     tablePtr.p->tabState = TableRecord::DEFINED;
   }
+
+  sendSignal(senderRef, GSN_BACKUP_LOCK_TAB_CONF, signal,
+             BackupLockTab::SignalLength, JBB);
 }
 
 bool
@@ -4120,13 +4126,12 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
 
     alterTabPtr.p->m_changeMask = changeMask;
     aParseRecord.requestType = DictTabInfo::AlterTableFromAPI;
-  
     SegmentedSectionPtr ptr;
     handle.getSection(ptr, AlterTableReq::DICT_TAB_INFO);
     SimplePropertiesSectionReader r(ptr, getSectionSegmentPool());
 
+    aParseRecord.requestType = DictTabInfo::AlterTableFromAPI;
     handleTabInfoInit(r, &aParseRecord, false); // Will not save info
-  
     if(aParseRecord.errorCode != 0)
     {
       jam();
@@ -4134,7 +4139,6 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
       c_opCreateTable.release(alterTabPtr);
       break;
     }
-
     releaseSections(handle);
 
     alterTabPtr.p->key = ++c_opRecordSequence;
@@ -4150,6 +4154,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     alterTabPtr.p->m_fragmentsPtrI = RNIL;
     alterTabPtr.p->m_dihAddFragPtr = RNIL;
     alterTabPtr.p->m_alterTableId = tablePtr.p->tableId;
+    alterTabPtr.p->m_changeMask = changeMask;
 
     // Send prepare request to all alive nodes
     SimplePropertiesSectionWriter w(getSectionSegmentPool());
@@ -5130,11 +5135,9 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   req->changeMask = alterTabPtr.p->m_changeMask;
 
   SectionHandle handle(this, alterTabPtr.p->m_tabInfoPtrI);
-  signal->theData[AlterTabReq::SignalLength] = alterTabPtr.p->m_tabInfoPtrI;
-  EXECUTE_DIRECT(SUMA, GSN_ALTER_TAB_REQ, signal,
-                 AlterTabReq::SignalLength + 1);
-  jamEntry();
-  releaseSections(handle);
+  sendSignal(SUMA_REF, GSN_ALTER_TAB_REQ, signal, AlterTabReq::SignalLength,
+             JBB, &handle);
+  /* SUMA will free the long signal section when receiving. */
   alterTabPtr.p->m_tabInfoPtrI = RNIL;
 
   AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
@@ -5696,14 +5699,14 @@ Dbdict::createTab_dih(Signal* signal,
 static
 void
 calcLHbits(Uint32 * lhPageBits, Uint32 * lhDistrBits, 
-	   Uint32 fid, Uint32 totalFragments) 
+	   Uint32 fid, Uint32 totalFragments, const Dbdict *dict) 
 {
   Uint32 distrBits = 0;
   Uint32 pageBits = 0;
   
   Uint32 tmp = 1;
   while (tmp < totalFragments) {
-    jam();
+    jamBlock(dict);
     tmp <<= 1;
     distrBits++;
   }//while
@@ -5758,7 +5761,7 @@ Dbdict::execADD_FRAGREQ(Signal* signal) {
    */
   Uint32 lhDistrBits = 0;
   Uint32 lhPageBits = 0;
-  ::calcLHbits(&lhPageBits, &lhDistrBits, fragId, fragCount);
+  ::calcLHbits(&lhPageBits, &lhDistrBits, fragId, fragCount, this);
 
   Uint64 maxRows = tabPtr.p->maxRowsLow +
     (((Uint64)tabPtr.p->maxRowsHigh) << 32);
@@ -7488,9 +7491,8 @@ Dbdict::dropTab_writeSchemaConf(Signal* signal,
       conf->senderRef = dropTabPtr.p->m_request.senderRef;
     else
       conf->senderRef = 0;
-    EXECUTE_DIRECT(SUMA, GSN_DROP_TAB_CONF, signal,
-		   DropTabConf::SignalLength);
-    jamEntry();
+    sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
+               DropTabConf::SignalLength, JBB);
     *conf= tmp;
   }
   dropTabPtr.p->m_participantData.m_gsn = GSN_DROP_TAB_CONF;
@@ -9678,42 +9680,43 @@ Dbdict::createEventComplete_RT_USER_CREATE(Signal* signal,
  */
 
 void interpretUtilPrepareErrorCode(UtilPrepareRef::ErrorCode errorCode,
-				   Uint32& error, Uint32& line)
+				   Uint32& error, Uint32& line,
+                                   const Dbdict *dict)
 {
   DBUG_ENTER("interpretUtilPrepareErrorCode");
   switch (errorCode) {
   case UtilPrepareRef::NO_ERROR:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARE_SEIZE_ERROR:
-    jam();
+    jamBlock(dict);
     error = 748;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::DICT_TAB_INFO_ERROR:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
   default:
-    jam();
+    jamBlock(dict);
     error = 1;
     line = __LINE__;
     DBUG_VOID_RETURN;
@@ -9789,7 +9792,7 @@ Dbdict::createEventUTIL_PREPARE(Signal* signal,
     ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
     interpretUtilPrepareErrorCode(errorCode, evntRecPtr.p->m_errorCode,
-				  evntRecPtr.p->m_errorLine);
+				  evntRecPtr.p->m_errorLine, this);
     evntRecPtr.p->m_errorNode = reference();
 
     createEvent_sendReply(signal, evntRecPtr);
@@ -10420,17 +10423,6 @@ void Dbdict::execSUB_START_REQ(Signal* signal)
   }
   OpSubEventPtr subbPtr;
   Uint32 errCode = 0;
-
-  LockQueue::Iterator iter;
-  if (m_dict_lock.first(m_dict_lock_pool, iter))
-  {
-    if (iter.m_curr.p->m_req.extra == DictLockReq::NodeRestartLock)
-    {
-      jam();
-      errCode = 1405;
-      goto busy;
-    }
-  }
 
   if (!c_opSubEvent.seize(subbPtr)) {
     errCode = SubStartRef::Busy;
@@ -11281,7 +11273,8 @@ Dbdict::dropEventUtilPrepareRef(Signal* signal,
   ndbrequire((evntRecPtr.p = c_opDropEvent.getPtr(evntRecPtr.i)) != NULL);
 
   interpretUtilPrepareErrorCode((UtilPrepareRef::ErrorCode)ref->getErrorCode(),
-				evntRecPtr.p->m_errorCode, evntRecPtr.p->m_errorLine);
+				evntRecPtr.p->m_errorCode,
+                                evntRecPtr.p->m_errorLine, this);
   evntRecPtr.p->m_errorNode = reference();
 
   dropEvent_sendReply(signal, evntRecPtr);
@@ -14112,7 +14105,7 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     goto ref;
   }
   
-  res = m_dict_lock.lock(m_dict_lock_pool, &lockReq, 0);
+  res = m_dict_lock.lock(this, m_dict_lock_pool, &lockReq, 0);
   switch(res){
   case 0:
     jam();
@@ -14199,7 +14192,7 @@ void
 Dbdict::removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes)
 {
   LockQueue::Iterator iter;
-  if (m_dict_lock.first(m_dict_lock_pool, iter))
+  if (m_dict_lock.first(this, m_dict_lock_pool, iter))
   {
     do {
       if (NodeBitmask::get(theFailedNodes, 
@@ -14239,7 +14232,7 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
   req.extra = _req->lockType;
   req.requestInfo = UtilLockReq::TryLock | UtilLockReq::Notify;
 
-  Uint32 res = m_dict_lock.lock(m_dict_lock_pool, &req, &lockOwner);
+  Uint32 res = m_dict_lock.lock(this, m_dict_lock_pool, &req, &lockOwner);
   switch(res){
   case UtilLockRef::OK:
     jam();
@@ -14274,7 +14267,7 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
   req.senderData = _req->userPtr;
   req.senderRef = _req->userRef;
   
-  Uint32 res = m_dict_lock.unlock(m_dict_lock_pool, &req);
+  Uint32 res = m_dict_lock.unlock(this, m_dict_lock_pool, &req);
   switch(res){
   case UtilUnlockRef::OK:
   case UtilUnlockRef::NotLockOwner:
@@ -14286,7 +14279,7 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
 
   UtilLockReq lockReq;
   LockQueue::Iterator iter;
-  if (m_dict_lock.first(m_dict_lock_pool, iter))
+  if (m_dict_lock.first(this, m_dict_lock_pool, iter))
   {
     int res;
     while ((res = m_dict_lock.checkLockGrant(iter, &lockReq)) > 0)

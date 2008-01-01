@@ -359,7 +359,7 @@ SHM_Transporter::connect_common(NDB_SOCKET_TYPE sockfd)
   return false;
 }
 
-void
+bool
 SHM_Transporter::doSend()
 {
   if(m_last_signal)
@@ -367,6 +367,7 @@ SHM_Transporter::doSend()
     m_last_signal = 0;
     kill(m_remote_pid, g_ndb_shm_signum);
   }
+  return true;
 }
 
 Uint32

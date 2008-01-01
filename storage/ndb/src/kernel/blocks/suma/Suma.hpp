@@ -95,6 +95,8 @@ public:
   void execDI_FCOUNTCONF(Signal* signal);
   void execDIGETPRIMREF(Signal* signal);
   void execDIGETPRIMCONF(Signal* signal);
+  void execCHECKNODEGROUPSCONF(Signal *signal);
+  void execGCP_PREPARE(Signal *signal);
 
   /**
    * Trigger administration
@@ -236,6 +238,7 @@ public:
     UintR &cerrorInsert;
 #endif
     BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       suma.progError(line, cause, extra); 
     }
@@ -404,7 +407,6 @@ public:
    */
 
   void getNodeGroupMembers(Signal* signal);
-
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execSTTOR(Signal* signal);
@@ -461,6 +463,8 @@ public:
     Restart(Suma& s);
 
     Suma & suma;
+    BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     Uint32 nodeId;
 
     DLHashTable<Subscription>::Iterator c_subIt;
@@ -597,8 +601,6 @@ private:
 		     Uint32 page_pos, Uint64 last_gci);
   void release_gci(Signal*, Uint32 bucket, Uint64 gci);
 
-  Uint64 get_current_gci(Signal*);
-
   Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
   Uint64 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
@@ -636,6 +638,10 @@ private:
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;
 #endif
+
+  /* Buffer used in Suma::execALTER_TAB_REQ(). */
+  Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint64 m_current_gci;
 
   Uint32 m_startphase;
   Uint32 m_typeOfStart;

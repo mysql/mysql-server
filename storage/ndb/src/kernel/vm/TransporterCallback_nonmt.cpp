@@ -1,4 +1,4 @@
-/* Copyright (C) 2003 MySQL AB
+/* Copyright (C) 2007 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,27 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef ThreadConfig_H
-#define ThreadConfig_H
-
-#include <kernel_types.h>
-#include <ErrorReporter.hpp>
-#include <NodeState.hpp>
-
-class IPCConfig;
-
-class ThreadConfig
-{
-public:
-  ThreadConfig();
-  ~ThreadConfig();
-  void init(EmulatorData *emulatorData);
-
-  void ipControlLoop(Uint32 thread_index);
-
-  int doStart(NodeState::StartLevel startLevel);
-private:
-
-  void scanTimeQueue();
-};
-#endif // ThreadConfig_H
+/* This stub file defines the SimulatedBlock class for singlethreaded NDBD. */
+#undef NDBD_MULTITHREADED
+#include "TransporterCallback.cpp"

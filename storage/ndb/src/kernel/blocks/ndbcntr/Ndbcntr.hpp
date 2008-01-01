@@ -335,6 +335,7 @@ public:
     void checkLqhTimeout_2(Signal* signal);
     
     BlockNumber number() const { return cntr.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       cntr.progError(line, cause, extra); 
     }
@@ -367,6 +368,7 @@ private:
     void sendNextREAD_CONFIG_REQ(Signal* signal);
     
     BlockNumber number() const { return cntr.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return cntr.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       cntr.progError(line, cause, extra); 
     }
