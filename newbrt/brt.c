@@ -199,16 +199,16 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
     BRT t =(BRT)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    printf("result=%p written_lsn=%p\n", result, written_lsn);
+    //printf("result=%p written_lsn=%p\n", result, written_lsn);
     int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
 					  t->compare_fun, t->dup_compare, t->db, toku_cachefile_filenum(t->cf));
     if (r == 0)
         *sizep = brtnode_size(*result);
-    printf("result=%p written_lsn=%p\n", result, written_lsn);
-    printf("disk_lsn=%lld\n", (*result)->disk_lsn.lsn);
-    printf("ok\n");
+    //printf("result=%p written_lsn=%p\n", result, written_lsn);
+    //printf("disk_lsn=%lld\n", (*result)->disk_lsn.lsn);
+    //printf("ok\n");
     *written_lsn = (*result)->disk_lsn;
-    printf("ok\n");
+    //printf("ok\n");
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
     return r;
