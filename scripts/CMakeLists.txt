@@ -67,7 +67,7 @@ CONFIGURE_FILE(mysql_explain_log.sh
 CONFIGURE_FILE(mysql_install_db.pl.in
                scripts/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
 
-CONFIGURE_FILE(mysql_secure_installation.sh
+CONFIGURE_FILE(mysql_secure_installation.pl.in
                scripts/mysql_secure_installation.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysql_tableinfo.sh
