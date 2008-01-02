@@ -151,7 +151,7 @@ endif
 
 clean:
 	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da
-	rm -rf test_oexcl.c.tmp 
+	rm -rf test_oexcl.c.tmp *.brt
 
 randdb4: LOADLIBES=-ldb
 randbrt: brt.o hashtable.o cachetable.o memory.o brt-serialize.o
