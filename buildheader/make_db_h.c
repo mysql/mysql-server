@@ -101,6 +101,13 @@ void print_defines (void) {
 #ifdef DB_DBT_MULTIPLE
     dodefine(DB_DBT_MULTIPLE);
 #endif
+
+    // flags for the env->set_flags function
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+    dodefine(DB_LOG_AUTOREMOVE);
+#endif
+    dodefine(DB_TXN_WRITE_NOSYNC);
+
     printf("#endif\n");
 }
 
