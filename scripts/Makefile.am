@@ -90,7 +90,7 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysqld_multi
 
-pkgplugindir =		$(libdir)/@PACKAGE@/plugin
+pkgplugindir =		$(pkglibdir)/plugin
 
 # Default same as 'pkgdatadir', but we can override it
 pkgsuppdir =		$(datadir)/@PACKAGE@

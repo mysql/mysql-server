@@ -15,7 +15,7 @@
 
 #Makefile.am example for a plugin
 
-pkgplugindir=$(libdir)/@PACKAGE@/plugin
+pkgplugindir=$(pkglibdir)/plugin
 INCLUDES= -I$(top_builddir)/include -I$(top_srcdir)/include
 #noinst_LTLIBRARIES= mypluglib.la
 pkgplugin_LTLIBRARIES= mypluglib.la
