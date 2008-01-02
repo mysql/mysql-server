@@ -597,23 +597,12 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
                              enum pagecache_page_type type,
                              myf flags)
 {
-  TRANSLOG_ADDRESS (*addr_callback)
-    (uchar *page, pgcache_page_no_t offset, uchar *data)=
-    filedesc->get_log_address_callback;
   DBUG_ENTER("pagecache_fwrite");
   DBUG_ASSERT(type != PAGECACHE_READ_UNKNOWN_PAGE);
-  if (addr_callback != NULL)
-  {
-    TRANSLOG_ADDRESS addr=
-      (*addr_callback)(buffer, pageno, filedesc->callback_data);
-    DBUG_PRINT("info", ("Log handler call"));
-    DBUG_ASSERT(LSN_VALID(addr));
-    if (translog_flush(addr))
-    {
-      (*filedesc->write_fail)(filedesc->callback_data);
-      DBUG_RETURN(1);
-    }
-  }
+
+  /* Todo: Integrate this with write_callback so we have only one callback */
+  if ((*filedesc->flush_log_callback)(buffer, pageno, filedesc->callback_data))
+    DBUG_RETURN(1);
   DBUG_PRINT("info", ("write_callback: 0x%lx  data: 0x%lx",
                       (ulong) filedesc->write_callback,
                       (ulong) filedesc->callback_data));
@@ -622,7 +611,6 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
     DBUG_PRINT("error", ("write callback problem"));
     DBUG_RETURN(1);
   }
-
   if (my_pwrite(filedesc->file, buffer, pagecache->block_size,
                 ((my_off_t) pageno << pagecache->shift), flags))
   {

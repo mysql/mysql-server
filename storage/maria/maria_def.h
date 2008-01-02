@@ -1068,10 +1068,10 @@ int _ma_update_create_rename_lsn(MARIA_SHARE *share,
                                  LSN lsn, my_bool do_sync);
 int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
                                      LSN lsn, my_bool do_sync);
-void set_data_pagecache_callbacks(PAGECACHE_FILE *file,
-                                  MARIA_SHARE *share);
-void set_index_pagecache_callbacks(PAGECACHE_FILE *file,
-                                   MARIA_SHARE *share);
+void _ma_set_data_pagecache_callbacks(PAGECACHE_FILE *file,
+                                      MARIA_SHARE *share);
+void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
+                                       MARIA_SHARE *share);
 void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
 void _ma_reenable_logging_for_table(MARIA_HA *info);
@@ -1106,5 +1106,10 @@ extern my_bool maria_page_filler_set_none(uchar *page,
                                           pgcache_page_no_t page_no,
                                           uchar *data_ptr);
 extern void maria_page_write_failure(uchar* data_ptr);
-
+extern my_bool maria_flush_log_for_page(uchar *page,
+                                        pgcache_page_no_t page_no,
+                                        uchar *data_ptr);
+extern my_bool maria_flush_log_for_page_none(uchar *page,
+                                             pgcache_page_no_t page_no,
+                                             uchar *data_ptr);
 extern PAGECACHE *maria_log_pagecache;

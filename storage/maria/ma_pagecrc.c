@@ -291,12 +291,52 @@ my_bool maria_page_filler_set_none(uchar *page __attribute__((unused)),
   return 0;
 }
 
+
 /**
   @brief Write failure callback (mark table as corrupted)
 
   @param data_ptr        Write callback data pointer (pointer to MARIA_SHARE)
 */
-void maria_page_write_failure (uchar* data_ptr)
+
+void maria_page_write_failure(uchar* data_ptr)
 {
   maria_mark_crashed_share((MARIA_SHARE *)data_ptr);
+}
+
+
+/**
+  @brief Maria flush log log if needed
+
+  @param page            The page data to set
+  @param page_no         The page number (<offset>/<page length>)
+  @param data_ptr        Write callback data pointer (pointer to MARIA_SHARE)
+
+  @retval 0  OK
+  @retval 1  error
+*/
+
+my_bool maria_flush_log_for_page(uchar *page,
+                                 pgcache_page_no_t page_no
+                                 __attribute__((unused)),
+                                 uchar *data_ptr)
+{
+  LSN lsn;
+  const MARIA_SHARE *share= (MARIA_SHARE*) data_ptr;
+  DBUG_ENTER("maria_flush_log_for_page");
+  /* share is 0 here only in unittest */
+  DBUG_ASSERT(!share || (share->page_type == PAGECACHE_LSN_PAGE &&
+                         share->now_transactional));
+  lsn= lsn_korr(page);
+  if (translog_flush(lsn))
+    DBUG_RETURN(1);
+  DBUG_RETURN(0);
+}
+
+
+my_bool maria_flush_log_for_page_none(uchar *page __attribute__((unused)),
+                                      pgcache_page_no_t page_no
+                                      __attribute__((unused)),
+                                      uchar *data_ptr __attribute__((unused)))
+{
+  return 0;
 }

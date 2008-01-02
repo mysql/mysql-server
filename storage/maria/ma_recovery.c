@@ -3010,8 +3010,8 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   info->trn= &dummy_transaction_object;
   share->page_type= PAGECACHE_PLAIN_PAGE;
   /* Functions below will pick up now_transactional and change callbacks */
-  set_data_pagecache_callbacks(&info->dfile, share);
-  set_index_pagecache_callbacks(&share->kfile, share);
+  _ma_set_data_pagecache_callbacks(&info->dfile, share);
+  _ma_set_index_pagecache_callbacks(&share->kfile, share);
   _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
 }
 
@@ -3035,8 +3035,8 @@ void _ma_reenable_logging_for_table(MARIA_HA *info)
     share->page_type= PAGECACHE_LSN_PAGE;
     info->trn= NULL; /* safety */
   }
-  set_data_pagecache_callbacks(&info->dfile, share);
-  set_index_pagecache_callbacks(&share->kfile, share);
+  _ma_set_data_pagecache_callbacks(&info->dfile, share);
+  _ma_set_index_pagecache_callbacks(&share->kfile, share);
   _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
 }
 

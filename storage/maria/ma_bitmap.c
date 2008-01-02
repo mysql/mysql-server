@@ -133,7 +133,6 @@
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
                                     ulonglong page);
-static TRANSLOG_ADDRESS _ma_bitmap_get_log_address();
 
 /* Write bitmap page to key cache */
 
@@ -2578,39 +2577,53 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
   @retval TRANSLOG_ADDRESS to flush up to.
 */
 
-TRANSLOG_ADDRESS
-_ma_bitmap_get_log_address(uchar *page __attribute__((unused)),
-                           pgcache_page_no_t page_no __attribute__((unused)),
-                           uchar* data_ptr)
+static my_bool
+flush_log_for_bitmap(uchar *page __attribute__((unused)),
+                     pgcache_page_no_t page_no __attribute__((unused)),
+                     uchar* data_ptr)
 {
 #ifndef DBUG_OFF
   const MARIA_SHARE *share= (MARIA_SHARE*)data_ptr;
 #endif
-  DBUG_ENTER("_ma_bitmap_get_log_address");
+  DBUG_ENTER("flush_log_for_bitmap");
   DBUG_ASSERT(share->page_type == PAGECACHE_LSN_PAGE &&
               share->now_transactional);
   /*
     WAL imposes that UNDOs reach disk before bitmap is flushed. We don't know
     the LSN of the last UNDO about this bitmap page, so we flush whole log.
   */
-  DBUG_RETURN(translog_get_horizon());
+  DBUG_RETURN(translog_flush(translog_get_horizon()));
 }
 
+
+/**
+   @brief Set callbacks for bitmap pages
+
+   @note
+   We don't use pagecache_file_init here, as we want to keep the
+   code readable
+*/
 
 void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
                                         MARIA_SHARE *share)
 {
+  file->callback_data= (uchar*) share;
+  file->flush_log_callback= maria_flush_log_for_page_none;
+  file->write_fail= maria_page_write_failure;
+
   if (share->temporary)
-    pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none,
-                        &maria_page_write_failure,
-                        NULL, share);
+  {
+    file->read_callback=  &maria_page_crc_check_none;
+    file->write_callback= &maria_page_filler_set_none;
+  }
   else
-    pagecache_file_init(*file, &maria_page_crc_check_bitmap,
-                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
-                         &maria_page_crc_set_normal :
-                         &maria_page_filler_set_bitmap),
-                        &maria_page_write_failure,
-                        share->now_transactional ?
-                        &_ma_bitmap_get_log_address : NULL, share);
+  {
+    file->read_callback=  &maria_page_crc_check_bitmap;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      file->write_callback= &maria_page_crc_set_normal;
+    else
+      file->write_callback= &maria_page_filler_set_bitmap;
+    if (share->now_transactional)
+      file->flush_log_callback= flush_log_for_bitmap;
+  }
 }

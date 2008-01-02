@@ -88,9 +88,9 @@ typedef struct st_pagecache_file
   my_bool (*write_callback)(uchar *page, pgcache_page_no_t offset,
                             uchar *data);
   void (*write_fail)(uchar *data);
-  /** Can be NULL */
-  TRANSLOG_ADDRESS (*get_log_address_callback)
-    (uchar *page, pgcache_page_no_t offset, uchar *data);
+  /** Cannot be NULL */
+  my_bool (*flush_log_callback)(uchar *page, pgcache_page_no_t offset,
+                                uchar *data);
   uchar *callback_data;
 } PAGECACHE_FILE;
 
@@ -267,7 +267,7 @@ extern void pagecache_unpin_by_link(PAGECACHE *pagecache,
   do{ \
     (F).read_callback= (RC); (F).write_callback= (WC); \
     (F).write_fail= (WF); \
-    (F).get_log_address_callback= (GLC); (F).callback_data= (uchar*)(D); \
+    (F).flush_log_callback= (GLC); (F).callback_data= (uchar*)(D); \
   } while(0)
 
 #define flush_pagecache_blocks(A,B,C)                   \

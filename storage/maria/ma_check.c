@@ -2914,7 +2914,9 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     if (transactional)
       bzero(buff, LSN_SIZE);
     length= _ma_get_page_used(share, buff);
-    if (length < block_size)
+    /* Skip mailformed blocks */
+    DBUG_ASSERT(length + share->keypage_header <= block_size);
+    if (length + share->keypage_header < block_size)
       bzero(buff + share->keypage_header + length, block_size - length -
             share->keypage_header);
     pagecache_unlock_by_link(share->pagecache, page_link.link,
@@ -3005,6 +3007,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
         /* Zerofille the not used part */
         offset= uint2korr(dir) + uint2korr(dir+2);
         dir_start= (uint) (dir - buff);
+        DBUG_ASSERT(dir_start >= offset);
         if (dir_start > offset)
           bzero(buff + offset, dir_start - offset);
       }
@@ -5864,17 +5867,11 @@ static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
                                         HA_OPEN_COPY | HA_OPEN_FOR_REPAIR)))
     DBUG_RETURN(1);
 
+  info->s->now_transactional= 0;
   new_info= sort_info->new_info;
-  pagecache_file_init(new_info->s->bitmap.file, &maria_page_crc_check_bitmap,
-                      (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_bitmap),
-                      &maria_page_write_failure, NULL, new_info->s);
-  pagecache_file_init(new_info->dfile, &maria_page_crc_check_data,
-                      (new_info->s->options & HA_OPTION_PAGE_CHECKSUM ?
-                       &maria_page_crc_set_normal :
-                       &maria_page_filler_set_normal),
-                      &maria_page_write_failure, NULL, new_info->s);
+  _ma_bitmap_set_pagecache_callbacks(&new_info->s->bitmap.file,
+                                     new_info->s);
+  _ma_set_data_pagecache_callbacks(&new_info->dfile, new_info->s);
   change_data_file_descriptor(new_info, new_file);
   maria_lock_database(new_info, F_EXTRA_LCK);
   if ((sort_info->param->testflag & T_UNPACK) &&

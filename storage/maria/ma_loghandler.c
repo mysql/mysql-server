@@ -1354,7 +1354,8 @@ static void translog_file_init(TRANSLOG_FILE *file, uint32 number,
 {
   pagecache_file_init(file->handler, &translog_page_validator,
                       &translog_dummy_callback,
-                      &translog_dummy_write_failure, NULL, file);
+                      &translog_dummy_write_failure,
+                      maria_flush_log_for_page_none, file);
   file->number= number;
   file->was_recovered= 0;
   file->is_sync= is_sync;

@@ -138,7 +138,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
-                      &dummy_fail_callback, NULL, NULL);
+                      &dummy_fail_callback, maria_flush_log_for_page, NULL);
   if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
   {
     fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",

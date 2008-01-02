@@ -152,7 +152,7 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
   if (share->options & HA_OPTION_TMP_TABLE)
     info.lock_type= F_WRLCK;
 
-  set_data_pagecache_callbacks(&info.dfile, share);
+  _ma_set_data_pagecache_callbacks(&info.dfile, share);
   bitmap_init(&info.changed_fields, changed_fields_bitmap,
               share->base.fields, 0);
   if ((*share->init)(&info))
@@ -722,7 +722,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     }
 
     share->kfile.file= kfile;
-    set_index_pagecache_callbacks(&share->kfile, share);
+    _ma_set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
     share->last_process= share->state.process;
     share->base.key_parts=key_parts;
@@ -1531,47 +1531,69 @@ uchar *_ma_column_nr_read(uchar *ptr, uint16 *offsets, uint columns)
   return ptr;
 }
 
+/**
+   @brief Set callbacks for data pages
 
-void set_data_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
+   @note
+   We don't use pagecache_file_init here, as we want to keep the
+   code readable
+*/
+
+void _ma_set_data_pagecache_callbacks(PAGECACHE_FILE *file,
+                                      MARIA_SHARE *share)
 {
-  /*
-    Note that non-BLOCK_RECORD formats don't use the pagecache for their data
-    files, so it does not matter that maria_page* calls are passed below for
-    them. On the other hand, index file can always have page CRCs, for all
-    data formats.
-  */
+  file->callback_data= (uchar*) share;
+  file->flush_log_callback= &maria_flush_log_for_page_none; /* Do nothing */
+
   if (share->temporary)
-    pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none,
-                        &maria_page_write_failure,
-                        NULL, share);
+  {
+    file->read_callback=  &maria_page_crc_check_none;
+    file->write_callback= &maria_page_filler_set_none;
+  }
   else
-    pagecache_file_init(*file, &maria_page_crc_check_data,
-                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
-                         &maria_page_crc_set_normal :
-                         &maria_page_filler_set_normal),
-                        &maria_page_write_failure,
-                        share->now_transactional ?
-                        &maria_page_get_lsn : NULL, share);
+  {
+    file->read_callback=  &maria_page_crc_check_data;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      file->write_callback= &maria_page_crc_set_normal;
+    else
+      file->write_callback= &maria_page_filler_set_normal;
+    if (share->now_transactional)
+      file->flush_log_callback= maria_flush_log_for_page;
+  }
 }
 
 
-void set_index_pagecache_callbacks(PAGECACHE_FILE *file, MARIA_SHARE *share)
+/**
+   @brief Set callbacks for index pages
+
+   @note
+   We don't use pagecache_file_init here, as we want to keep the
+   code readable
+*/
+
+void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
+                                       MARIA_SHARE *share)
 {
+  file->callback_data= (uchar*) share;
+  file->flush_log_callback= &maria_flush_log_for_page_none; /* Do nothing */
+  file->write_fail= maria_page_write_failure;
+
   if (share->temporary)
-    pagecache_file_init(*file, &maria_page_crc_check_none,
-                        &maria_page_filler_set_none,
-                        &maria_page_write_failure,
-                        NULL, share);
+  {
+    file->read_callback=  &maria_page_crc_check_none;
+    file->write_callback= &maria_page_filler_set_none;
+  }
   else
-    pagecache_file_init(*file, &maria_page_crc_check_index,
-                        ((share->options & HA_OPTION_PAGE_CHECKSUM) ?
-                         &maria_page_crc_set_index :
-                         &maria_page_filler_set_normal),
-                        &maria_page_write_failure,
-                        share->now_transactional ?
-                        &maria_page_get_lsn : NULL,
-                        share);
+  {
+    file->read_callback=  &maria_page_crc_check_index;
+    if (share->options & HA_OPTION_PAGE_CHECKSUM)
+      file->write_callback= &maria_page_crc_set_index;
+    else
+      file->write_callback= &maria_page_filler_set_normal;
+
+    if (share->now_transactional)
+      file->flush_log_callback= maria_flush_log_for_page;
+  }
 }
 
 

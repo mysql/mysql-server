@@ -1294,13 +1294,13 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
-      /**
-         @todo In REPAIR TABLE EXTENDED this will log
-         REDO_INDEX_NEW_PAGE and UNDO_KEY_INSERT though unneeded.
-         maria_chk -o does not have this problem as it disables
-         transactionality.
+      /*
+        Disable logging of index changes as the repair redo call will
+        make it for us
       */
+      _ma_tmp_disable_logging_for_table(file, 0);
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
+      _ma_reenable_logging_for_table(file);
       /**
          @todo RECOVERY BUG we do things with the index file
          (maria_sort_index() after the above which already has logged the
