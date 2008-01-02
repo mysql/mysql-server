@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <inttypes.h>
 
 #include "log_header.h"
 #include "log-internal.h"
@@ -110,7 +111,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     TAGMALLOC(BRTNODE, n);
     n->nodesize     = c->nodesize;
     n->thisnodename = c->diskoff;
-    n->log_lsn = n->disk_lsn  = c->lsn; printf("%s:%d %p->disk_lsn=%lld\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
+    n->log_lsn = n->disk_lsn  = c->lsn; printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
     n->layout_version = 0;
     n->parent_brtnode = 0;
     n->height         = c->height;
