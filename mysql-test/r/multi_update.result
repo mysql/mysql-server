@@ -545,7 +545,7 @@ a	b
 4	4
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	260		
+master-bin.000001	328		
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
@@ -555,7 +555,7 @@ UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 1
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	275		
+master-bin.000001	343		
 drop table t1, t2;
 drop table if exists t1, t2, t3;
 CREATE TABLE t1 (a int, PRIMARY KEY (a));
