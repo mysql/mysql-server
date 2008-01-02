@@ -30,8 +30,7 @@
 #    "pkglibdir"     is set to the same as "libdir"
 #    "pkgincludedir" is set to the same as "includedir"
 #    "pkgdatadir"    is set to the same as "datadir"
-#    "pkgplugindir"  is set to "@prefix@/lib/plugin",
-#                    normally "$libdir/plugin"
+#    "pkgplugindir"  is set to "$pkglibdir/plugin"
 #    "pkgsuppdir"    is set to "@prefix@/support-files",
 #                    normally the same as "datadir"
 #
