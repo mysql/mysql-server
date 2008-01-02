@@ -34,6 +34,7 @@ strip: $(LIBNAME).$(LIBEXT)
 
 clean:
 	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o
+	cd tests;make clean
 
 ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
 DBBINS = ydb.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/hashtable.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o
