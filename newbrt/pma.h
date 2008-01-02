@@ -17,8 +17,7 @@
 typedef struct pma *PMA;
 typedef struct pma_cursor *PMA_CURSOR;
 
-/* compare 2 DBT's
-   return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
+/* compare 2 DBT's. return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
 typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
 
 int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, DB *, FILENUM filenum, int maxsize);
@@ -46,12 +45,18 @@ int  toku_pma_n_entries (PMA);
 /* Any cursors should be updated. */
 /* Duplicates the key and keylen. */
 //enum pma_errors toku_pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
+
 // The DB pointer is there so that the comparison function can be called.
 enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, TOKUTXN, FILENUM, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
+
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
-/* This returns an error if the key is NOT present. */
-int toku_pma_delete (PMA, DBT *, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
+
+/* delete pairs from the pma
+   if val is 0 then delete all pairs from the pma that match the key
+   if val is not 0 then only delete the pair that matches both the key and the val */
+ 
+int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
 
 int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 				int */*replaced_v_size*/, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */

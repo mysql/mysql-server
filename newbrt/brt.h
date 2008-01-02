@@ -27,6 +27,7 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v);
 int toku_brt_delete (BRT brt, DBT *k);
+int toku_brt_delete_both (BRT brt, DBT *k, DBT *v);
 int toku_close_brt (BRT);
 int toku_dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */

@@ -199,16 +199,11 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
     BRT t =(BRT)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    //printf("result=%p written_lsn=%p\n", result, written_lsn);
     int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
 					  t->compare_fun, t->dup_compare, t->db, toku_cachefile_filenum(t->cf));
     if (r == 0)
         *sizep = brtnode_size(*result);
-    //printf("result=%p written_lsn=%p\n", result, written_lsn);
-    //printf("disk_lsn=%lld\n", (*result)->disk_lsn.lsn);
-    //printf("ok\n");
     *written_lsn = (*result)->disk_lsn;
-    //printf("ok\n");
     //(*result)->parent_brtnode = 0; /* Don't know it right now. */
     //printf("%s:%d installed %p (offset=%lld)\n", __FILE__, __LINE__, *result, nodename);
     return r;
@@ -332,7 +327,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     } else {
 	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, t->db, toku_cachefile_filenum(t->cf), n->nodesize);
         assert(r==0);
-        toku_pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP|TOKU_DB_DUPSORT));
+        toku_pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
         toku_pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
 	static int rcount=0;
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
@@ -723,7 +718,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
         int tochildnum = childnum;
         BRTNODE tochild = childa;
-        if (type == BRT_INSERT) {
+        if (type == BRT_INSERT || type == BRT_DELETE_BOTH) {
             int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
             if (cmp < 0) {
                 ;
@@ -975,7 +970,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     } else if (cmd->type == BRT_DELETE) {
         u_int32_t delta;
-        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, node->rand4fingerprint, &node->local_fingerprint, &delta);
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, 0, node->rand4fingerprint, &node->local_fingerprint, &delta);
         if (r == BRT_OK) {
             node->u.l.n_bytes_in_buffer -= delta;
             node->dirty = 1;
@@ -983,8 +978,19 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
         *did_split = 0;
         return BRT_OK;
 
-    } else 
+    } else if (cmd->type == BRT_DELETE_BOTH) {
+        u_int32_t delta;
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val, node->rand4fingerprint, &node->local_fingerprint, &delta);
+        if (r == BRT_OK) {
+            node->u.l.n_bytes_in_buffer -= delta;
+            node->dirty = 1;
+        }
+        *did_split = 0;
+        return BRT_OK;
+        
+    } else {
         return EINVAL;
+    }
 }
 
 /* find the rightmost child that the key/data will be inserted */
@@ -1076,7 +1082,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     }
     if (child_did_split) {
         if (0) printf("brt_nonleaf_insert child_split %p\n", child);
-        assert(cmd->type == BRT_INSERT || cmd->type == BRT_DELETE);
+        assert(cmd->type <= BRT_DELETE_BOTH);
         r = handle_split_of_child(t, node, childnum,
                                   childa, childb, &childsplitk,
                                   did_split, nodea, nodeb, splitk,
@@ -1362,13 +1368,12 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
     return 0;
 }
-
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
 				int debug,
 				TOKUTXN txn) {
-    if (cmd->type == BRT_INSERT)
+    if (cmd->type == BRT_INSERT || cmd->type == BRT_DELETE_BOTH)
         return brt_nonleaf_insert_cmd(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn);
     else if (cmd->type == BRT_DELETE)
         return brt_nonleaf_delete_cmd(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn);
@@ -1931,6 +1936,7 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v, BRTNODE parent
                 } else
                     result = DB_NOTFOUND;
             } else {
+                assert(0);
                 result = EINVAL;
             }
 	    //verify_local_fingerprint_nonleaf(node);
@@ -1980,6 +1986,17 @@ int toku_brt_delete(BRT brt, DBT *key) {
     brtcmd.type = BRT_DELETE;
     brtcmd.u.id.key = key;
     brtcmd.u.id.val = &val;
+    r = brt_root_put_cmd(brt, &brtcmd, 0);
+    return r;
+}
+
+int toku_brt_delete_both(BRT brt, DBT *key, DBT *val) {
+    int r;
+    BRT_CMD brtcmd;
+
+    brtcmd.type = BRT_DELETE_BOTH;
+    brtcmd.u.id.key = key;
+    brtcmd.u.id.val = val;
     r = brt_root_put_cmd(brt, &brtcmd, 0);
     return r;
 }

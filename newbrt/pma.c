@@ -1061,11 +1061,11 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
     }
 }    
 
-static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+static int pma_delete_dup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
     /* find the left most matching key in the pma */
     int found;
     unsigned int lefthere;
-    lefthere = pma_left_search(pma, k, 0, 0, pma->N, &found);
+    lefthere = pma_left_search(pma, k, v, 0, pma->N, &found);
     int rightfound = found, righthere = lefthere;
     while (rightfound) {
         struct kv_pair *kv = pma->pairs[righthere];
@@ -1081,7 +1081,7 @@ static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *finge
             }
         }
         /* find the next matching key in the pma */
-        righthere = pma_next_key(pma, k, 0, righthere+1, pma->N, &rightfound);
+        righthere = pma_next_key(pma, k, v, righthere+1, pma->N, &rightfound);
     }
     if (found) {
         /* check the density of the region centered around the deleted pairs */
@@ -1090,30 +1090,34 @@ static int pma_delete_dup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *finge
     return found ? BRT_OK : DB_NOTFOUND;
 }
 
-static int pma_delete_nodup (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
-    int idx = toku_pmainternal_find(pma, k);
-    struct kv_pair *kv = pma->pairs[idx];
-    if (!kv_pair_valid(kv)) {
-        if (0) printf("%s:%d l=%d r=%d\n", __FILE__, __LINE__, idx, DB_NOTFOUND);
+static int pma_delete_nodup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+    /* find the left most matching key in the pma */
+    int found;
+    unsigned int here;
+    here = pma_left_search(pma, k, v, 0, pma->N, &found);
+    if (!found)
         return DB_NOTFOUND;
-    }
+    struct kv_pair *kv = pma->pairs[here];
+    if (!kv_pair_valid(kv))
+        return DB_NOTFOUND;
     *deleted_size = PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv); 
     *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
-    pma->pairs[idx] = kv_pair_set_deleted(kv);
-    if (__pma_count_cursor_refs(pma, idx) == 0)
-        __pma_delete_finish(pma, idx);
+    pma->pairs[here] = kv_pair_set_deleted(kv);
+    if (__pma_count_cursor_refs(pma, here) == 0)
+        __pma_delete_finish(pma, here);
     return BRT_OK;
 }
 
-int toku_pma_delete (PMA pma, DBT *k, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+int toku_pma_delete (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+    v = v;
     u_int32_t my_deleted_size;
     if (!deleted_size)
         deleted_size = &my_deleted_size;
     *deleted_size = 0;
     if (pma->dup_mode & TOKU_DB_DUP) 
-        return pma_delete_dup(pma, k, rand4sem, fingerprint, deleted_size);
+        return pma_delete_dup(pma, k, v, rand4sem, fingerprint, deleted_size);
     else
-        return pma_delete_nodup(pma, k, rand4sem, fingerprint, deleted_size);
+        return pma_delete_nodup(pma, k, v, rand4sem, fingerprint, deleted_size);
 }
 
 void __pma_delete_resume(PMA pma, int here) {
