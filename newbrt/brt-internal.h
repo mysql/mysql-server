@@ -209,6 +209,7 @@ enum brt_cmd_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
     BRT_DELETE = 2,
+    BRT_DELETE_BOTH = 3,
 };
 
 struct brt_cmd {

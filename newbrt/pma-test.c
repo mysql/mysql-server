@@ -289,13 +289,26 @@ static void do_insert (PMA pma, const void *key, int keylen, const void *data, i
     toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
 }
 
-static void do_delete (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
+static int do_delete (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
     DBT k;
     assert(*sum==*expect_fingerprint);
-    int r = toku_pma_delete(pma, toku_fill_dbt(&k, key, keylen), rand4fingerprint, sum, 0);
-    assert(r==BRT_OK);
-    add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
-    toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+    int r = toku_pma_delete(pma, toku_fill_dbt(&k, key, keylen), 0, rand4fingerprint, sum, 0);
+    if (r==BRT_OK) {
+        add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
+        toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+    }
+    return r;
+}
+
+static int do_delete_both (PMA pma, const void *key, int keylen, const void *data, int datalen, u_int32_t rand4fingerprint, u_int32_t *sum, u_int32_t *expect_fingerprint) {
+    DBT k, v;
+    assert(*sum==*expect_fingerprint);
+    int r = toku_pma_delete(pma, toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, data, datalen), rand4fingerprint, sum, 0);
+    if (r==BRT_OK) {
+        add_fingerprint_and_check(-rand4fingerprint, *sum, expect_fingerprint, key, keylen, data, datalen); // negative rand4 means subtract.
+        toku_pma_verify_fingerprint(pma, rand4fingerprint, *sum);
+    }
+    return r;
 }
 
 static void test_pma_random_pick (void) {
@@ -319,11 +332,11 @@ static void test_pma_random_pick (void) {
     assert(keylen==6); assert(vallen==6);
     assert(strcmp(key,"hello")==0);
     assert(strcmp(val,"there")==0);
-    r = toku_pma_delete(pma, toku_fill_dbt(&k, "nothello", 9), rand4fingerprint, &sum, 0);
+    r = toku_pma_delete(pma, toku_fill_dbt(&k, "nothello", 9), 0, rand4fingerprint, &sum, 0);
     assert(r==DB_NOTFOUND);
     assert(sum==expect_fingerprint); // didn't change because nothing was deleted.
 
-    do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
+    r = do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
 
     r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==DB_NOTFOUND);
@@ -344,14 +357,14 @@ static void test_pma_random_pick (void) {
     do_insert(pma, "aaf", 4, "fthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     do_insert(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
     toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
-    do_delete(pma, "aaa", 4, "athere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    do_delete(pma, "aab", 4, "bthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    do_delete(pma, "aac", 4, "cthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    do_delete(pma, "aad", 4, "dthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    do_delete(pma, "aae", 4, "ethere", 7, rand4fingerprint, &sum, &expect_fingerprint);
+    r = do_delete(pma, "aaa", 4, "athere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
+    r = do_delete(pma, "aab", 4, "bthere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
+    r = do_delete(pma, "aac", 4, "cthere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
+    r = do_delete(pma, "aad", 4, "dthere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
+    r = do_delete(pma, "aae", 4, "ethere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
     /* don't delete aaf */
-    do_delete(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint);
-    do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint);
+    r = do_delete(pma, "aag", 4, "gthere", 7, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
+    r = do_delete(pma, "hello", 6, "there", 6, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
    
     r = toku_pma_random_pick(pma, &key, &keylen, &val, &vallen);
     assert(r==0);
@@ -729,7 +742,7 @@ static void test_pma_cursor_delete(int n) {
 
     /* delete the first key, which is (int)(0) with value (0) */
     k = 0; 
-    do_delete(pma, &k, sizeof k, &k, sizeof k, rand4fingerprint, &sum, &expect_fingerprint);
+    error = do_delete(pma, &k, sizeof k, &k, sizeof k, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
   
     /* cursor get should fail */
     toku_init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
@@ -1394,7 +1407,7 @@ static void test_pma_delete_shrink(int n) {
 	int v=i;
 
         snprintf(k, sizeof k, "%.10d", i);
-	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	r = do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
@@ -1442,7 +1455,7 @@ static void test_pma_delete_random(int n) {
 	int v = keys[i];
 
         snprintf(k, sizeof k, "%.10d", keys[i]);
-	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	r = do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
     }
     assert(pma->N == PMA_MIN_ARRAY_SIZE);
 
@@ -1520,7 +1533,7 @@ static void test_pma_delete_cursor(int n) {
 	int v=i;
 
         snprintf(k, sizeof k, "%.10d", i);
-	do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	r = do_delete(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(r == 0);
         if (i == n-1)
             assert_cursor_nokey(pmacursor);
         else
@@ -1574,7 +1587,7 @@ static void test_pma_delete_insert() {
     assert_cursor_equal(pmacursor, 1);
 
     k = 1; v = 1;
-    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
     assert_cursor_nokey(pmacursor);
 
     k = 1;
@@ -1623,12 +1636,12 @@ static void test_pma_double_delete() {
     assert_cursor_equal(pmacursor, 1);
 
     k = 1; v = 1;
-    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
     assert_cursor_nokey(pmacursor);
 
     k = 1;
     toku_fill_dbt(&key, &k, sizeof k);
-    error = toku_pma_delete(pma, &key, rand4fingerprint, &sum, 0);
+    error = toku_pma_delete(pma, &key, 0, rand4fingerprint, &sum, 0);
     assert(error == DB_NOTFOUND);
     assert(sum == expect_fingerprint);
 
@@ -1672,7 +1685,7 @@ static void test_pma_cursor_first_delete_last() {
 
     k = htonl(1);
     v = 1;
-    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
     assert(toku_pma_n_entries(pma) == 2);
 
     error = toku_pma_cursor_set_position_last(pmacursor);
@@ -1719,7 +1732,7 @@ static void test_pma_cursor_last_delete_first() {
 
     k = htonl(2);
     v = 2;
-    do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
     assert(toku_pma_n_entries(pma) == 2);
 
     error = toku_pma_cursor_set_position_first(pmacursor);
@@ -1733,6 +1746,82 @@ static void test_pma_cursor_last_delete_first() {
     assert(error == 0);
 }
 
+void test_pma_delete_both(int n) {
+    if (verbose) printf("test_pma_delete_both:%d\n", n);
+
+    int error;
+    PMA pma;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * 4 * sizeof (int)); assert(error == 0);
+    toku_pma_set_dup_mode(pma, TOKU_DB_DUP + TOKU_DB_DUPSORT);
+    toku_pma_set_dup_compare(pma, toku_default_compare_fun);
+
+    int i;
+    for (i=0; i<n; i++) {
+        int k = htonl(i); int v = htonl(i);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    }
+
+    for (i=0; i<n; i++) {
+        int k = htonl(i); int v = htonl(i+1);
+        error = do_delete_both(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == DB_NOTFOUND);
+    }
+
+    for (i=0; i<n; i++) {
+        int k = htonl(i); int v = htonl(i);
+        error = do_delete_both(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        int k = htonl(i); int v = htonl(i);
+        error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == DB_NOTFOUND);
+    }
+
+    error = toku_pma_free(&pma); assert(error == 0);
+}
+
+void test_pma_delete_both_dup(int n) {
+    if (verbose) printf("test_pma_delete_both:%d\n", n);
+
+    int error;
+    PMA pma;
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+    u_int32_t expect_fingerprint = 0;
+
+    error = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * 4 * sizeof (int)); assert(error == 0);
+    toku_pma_set_dup_mode(pma, TOKU_DB_DUP + TOKU_DB_DUPSORT);
+    toku_pma_set_dup_compare(pma, toku_default_compare_fun);
+
+    int i;
+    for (i=0; i<n; i++) {
+        int k = htonl(1); int v = htonl(i);
+	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+    }
+
+    {
+        int k = htonl(1); int v = htonl(n+1);
+        error = do_delete_both(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == DB_NOTFOUND);
+    }
+
+    for (i=0; i<n; i++) {
+        int k = htonl(1); int v = htonl(i);
+        error = do_delete_both(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        int k = htonl(1); int v = htonl(i);
+        error = do_delete(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint); assert(error == DB_NOTFOUND);
+    }
+
+    error = toku_pma_free(&pma); assert(error == 0);
+}
+
 static void test_pma_delete() {
     test_pma_delete_shrink(256);  local_memory_check_all_free();
     test_pma_delete_random(256);  local_memory_check_all_free();
@@ -1741,6 +1830,8 @@ static void test_pma_delete() {
     test_pma_double_delete();     local_memory_check_all_free();
     test_pma_cursor_first_delete_last(); local_memory_check_all_free();
     test_pma_cursor_last_delete_first(); local_memory_check_all_free();
+    test_pma_delete_both(512);    local_memory_check_all_free();
+    test_pma_delete_both_dup(512); local_memory_check_all_free();
 }
 
 static void test_pma_already_there() {
@@ -2275,7 +2366,7 @@ static void test_dup_key_delete(int n, int mode) {
     }
 
     k = htonl(2);
-    r = toku_pma_delete(pma, toku_fill_dbt(&key, &k, sizeof k), rand4fingerprint, &sum, 0);
+    r = toku_pma_delete(pma, toku_fill_dbt(&key, &k, sizeof k), 0, rand4fingerprint, &sum, 0);
     if (r != 0) assert(n == 0);
     expect_fingerprint = sum_before_all_the_duplicates;
     assert(sum == expect_fingerprint);
@@ -2506,7 +2597,6 @@ static void test_dup() {
 
 static void pma_tests (void) {
     toku_memory_check=1;
-
     toku_test_keycompare();            local_memory_check_all_free();
     test_pma_compare_fun(0);      local_memory_check_all_free();
     test_pma_compare_fun(1);      local_memory_check_all_free();

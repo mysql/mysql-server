@@ -4,6 +4,7 @@
 #include "brt.h"
 #include "key.h"
 #include "pma.h"
+#include "brt-internal.h"
 
 #include "memory.h"
 #include <assert.h>
@@ -2200,6 +2201,80 @@ static void test_insert_delete_lookup(int n) {
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
+/* insert <0,0>, <0,1>, .. <0,n>
+   delete_both <0,i> for all even i
+   verify <0,i> exists for all odd i */
+
+void test_brt_delete_both(int n) {
+    if (verbose) printf("test_brt_delete_both:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn);
+    assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(0); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0);
+        assert(r == 0);
+    }
+
+    for (i=0; i<n; i += 2) {
+        k = htonl(0); v = htonl(i);
+        r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v)); assert(r == 0);
+    }
+
+#if 0
+    for (i=1; i<n; i += 2) {
+        k = htonl(0);
+        toku_fill_dbt(&key, &k, sizeof k);
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = toku_brt_lookup(t, &key, &val); assert(r == 0);
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+        if (val.data) free(val.data);
+        r = toku_brt_delete_both(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &vv, sizeof vv)); assert(r == 0);
+    }
+#endif
+
+    /* cursor should find only odd pairs */
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    for (i=1; ; i += 2) {
+        toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);
+        if (r != 0) break;
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+        toku_free(key.data);
+        toku_free(val.data);
+    }
+
+    r = toku_brt_cursor_close(cursor);  assert(r == 0);
+
+    r = toku_close_brt(t);              assert(r==0);
+    r = toku_cachetable_close(&ct);     assert(r==0);
+}
+
 static void test_brt_delete() {
     test_brt_delete_empty(); toku_memory_check_all_free();
     test_brt_delete_present(1); toku_memory_check_all_free();
@@ -2217,7 +2292,7 @@ static void test_brt_delete() {
 
 static void brt_blackbox_test (void) {
     toku_memory_check = 1;
-
+    test_brt_delete_both(512);               toku_memory_check_all_free();
     test_wrongendian_compare(0, 2);          toku_memory_check_all_free();
     test_wrongendian_compare(1, 2);          toku_memory_check_all_free();
     test_wrongendian_compare(1, 257);        toku_memory_check_all_free();
