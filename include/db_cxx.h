@@ -153,10 +153,6 @@ class DbEnv {
     int open(const char *, u_int32_t, int);
     int set_cachesize(u_int32_t, u_int32_t, int);
     int set_flags(u_int32_t, int);
-#if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
-    // set_lk_max is only defined for versions up to 4.4
-    int set_lk_max(u_int32_t);
-#endif
     int txn_begin(DbTxn *, DbTxn **, u_int32_t);
     int set_data_dir(const char *dir);
     void set_errpfx(const char *errpfx);
@@ -164,6 +160,19 @@ class DbEnv {
     void set_errfile(FILE *errfile);
     void set_errcall(void (*)(const DbEnv *, const char *, const char *));
 
+    // locking
+#if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
+    // set_lk_max is only defined for versions up to 4.4
+    int set_lk_max(u_int32_t);
+#endif
+    int set_lk_max_locks(u_int32_t);
+    int get_lk_max_locks(u_int32_t *);
+    int set_lk_max_lockers(u_int32_t);
+    int get_lk_max_lockers(u_int32_t *);
+    int set_lk_max_objects(u_int32_t);
+    int get_lk_max_objects(u_int32_t *);
+
+// somewhat_private:
     int do_no_exceptions; // This should be private!!!
     void (*errcall)(const DbEnv *, const char *, const char *);
 

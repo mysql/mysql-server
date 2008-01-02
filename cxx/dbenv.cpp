@@ -119,3 +119,17 @@ void DbEnv::set_errcall(void (*db_errcall_fcn)(const DbEnv *, const char *, cons
     errcall = db_errcall_fcn;
     the_env->set_errcall(the_env, toku_db_env_errcall_c);
 }
+
+// locking not yet implemented
+
+int DbEnv::set_lk_max_locks(u_int32_t max_locks) {
+    return 0;
+}
+
+int DbEnv::set_lk_max_lockers(u_int32_t max_lockers) {
+    return 0;
+}
+
+int DbEnv::set_lk_max_objects(u_int32_t max_objects) {
+    return 0;
+}
