@@ -903,7 +903,7 @@ BackupRestore::table_equal(const TableS &tableS)
 bool
 BackupRestore::table_compatible_check(const TableS & tableS)
 {
-  if (!m_promote_attributes)
+  if (!m_promote_attributes || !m_restore)
     return true;
   const char *tablename = tableS.getTableName();
 
