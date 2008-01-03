@@ -150,7 +150,7 @@ CC_VERSION=`$CC --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_CHECKING("C Compiler version")
   AC_MSG_RESULT("$CC $CC_VERSION")
 else
 CC_VERSION=""
@@ -165,7 +165,7 @@ CXX_VERSION=`$CXX --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_CHECKING("C++ compiler version")
   AC_MSG_RESULT("$CXX $CXX_VERSION")
 else
 CXX_VERSION=""
@@ -389,12 +389,12 @@ if expr "$target_os" : "[[Ll]]inux.*" > /dev/null
 then
   MYSQLD_DEFAULT_SWITCHES="--skip-locking"
   TARGET_LINUX="true"
-  AC_MSG_RESULT("yes");
+  AC_MSG_RESULT("yes")
   AC_DEFINE([TARGET_OS_LINUX], [1], [Whether we build for Linux])
 else
   MYSQLD_DEFAULT_SWITCHES=""
   TARGET_LINUX="false"
-  AC_MSG_RESULT("no");
+  AC_MSG_RESULT("no")
 fi
 AC_SUBST(MYSQLD_DEFAULT_SWITCHES)
 AC_SUBST(TARGET_LINUX)
@@ -1289,7 +1289,7 @@ See the Installation chapter in the Reference Manual for more information.])
         else
           AC_MSG_RESULT("no need to check headers")
         fi
-        AC_MSG_CHECKING("for pthread_create in -lpthread");
+        AC_MSG_CHECKING("for pthread_create in -lpthread")
         ac_save_LIBS="$LIBS"
         LIBS="$LIBS -lpthread"
         AC_TRY_LINK( [#include <pthread.h>],
@@ -1359,7 +1359,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
@@ -1375,7 +1375,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     # Hack for SCO UnixWare 7.1.x
@@ -1419,7 +1419,7 @@ then
         AC_MSG_RESULT("no")
       fi
     else
-      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.]);
+      AC_MSG_ERROR([On SCO UNIX MySQL requires that the FSUThreads package is installed. See the Installation chapter in the Reference Manual.])
     fi
   else
     AC_MSG_RESULT("no")
@@ -1564,7 +1564,7 @@ else
   if test "$with_mit_threads" = "no"
   then
     # pthread_create is in standard libraries (As in BSDI 3.0)
-    AC_MSG_CHECKING("for pthread_create in -libc");
+    AC_MSG_CHECKING("for pthread_create in -libc")
     AC_TRY_LINK(
     [#include <pthread.h>],
     [ (void) pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1572,7 +1572,7 @@ else
     AC_MSG_RESULT("$with_posix_threads")
     if test "$with_posix_threads" = "no"
     then
-      AC_MSG_CHECKING("for pthread_create in -lpthread");
+      AC_MSG_CHECKING("for pthread_create in -lpthread")
       ac_save_LIBS="$LIBS"
       ac_save_TOOLS_LIBS="$TOOLS_LIBS"
       LIBS="$LIBS -lpthread"
@@ -1586,7 +1586,7 @@ else
       then
         LIBS=" $ac_save_LIBS -lpthreads"
         TOOLS_LIBS=" $ac_save_TOOLS_LIBS -lpthreads"
-        AC_MSG_CHECKING("for pthread_create in -lpthreads");
+        AC_MSG_CHECKING("for pthread_create in -lpthreads")
         AC_TRY_LINK(
         [#include <pthread.h>],
         [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1597,7 +1597,7 @@ else
 	  # This is for FreeBSD
 	  LIBS="$ac_save_LIBS -pthread"
 	  TOOLS_LIBS="$ac_save_TOOLS_LIBS -pthread"
-	  AC_MSG_CHECKING("for pthread_create in -pthread");
+	  AC_MSG_CHECKING("for pthread_create in -pthread")
 	  AC_TRY_LINK(
 	  [#include <pthread.h>],
 	  [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1840,7 +1840,7 @@ if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
   AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again]);
+again])
 fi
 fi
 MYSQL_PTHREAD_YIELD
@@ -1923,7 +1923,7 @@ CFLAGS="$ORG_CFLAGS"
 AC_CHECK_FUNCS(fseeko,
 [if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
-  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
+  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!")
 fi]
 )
 
@@ -2379,7 +2379,7 @@ do
   if test $charset_okay = 0;
   then
     AC_MSG_ERROR([Charset '$cs' not available. (Available $CHARSETS_AVAILABLE).
-    See the Installation chapter in the Reference Manual.]);
+    See the Installation chapter in the Reference Manual.])
   fi
 done
   
