@@ -22,7 +22,7 @@
 #define READLINE_LIBRARY
 
 #if defined (HAVE_CONFIG_H)
-#  include <config.h>
+#  include "config_readline.h"
 #endif
 
 #include <stdio.h>
