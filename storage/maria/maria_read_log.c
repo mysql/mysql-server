@@ -217,6 +217,12 @@ static void usage(void)
 
   puts("Display and apply log records from a MARIA transaction log");
   puts("found in the current directory (for now)");
+#ifndef IDENTICAL_PAGES_AFTER_RECOVERY
+  puts("\nNote: Maria is compiled without -DIDENTICAL_PAGES_AFTER_RECOVERY\n"
+       "which means that the table files are not byte-to-byte identical to\n"
+       "files created during normal execution. This should be ok, except for\n"
+       "test scripts that tries to compare files before and after recovery.");
+#endif
   VOID(printf("\nUsage: %s OPTIONS\n", my_progname_short));
   puts("You need to use one of -o or -a");
   my_print_help(my_long_options);

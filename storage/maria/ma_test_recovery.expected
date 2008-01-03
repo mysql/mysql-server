@@ -3,11 +3,15 @@ TEST WITH ma_test1 -s -M -T -c
 applying log
 testing idempotency
 applying log
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -d500
 applying log
 testing idempotency
 applying log
 TEST WITH ma_test2 -s -M -T -c -b65000
+applying log
+testing idempotency
+applying log
+TEST WITH ma_test2 -s -M -T -c -b65000 -d800
 applying log
 testing idempotency
 applying log

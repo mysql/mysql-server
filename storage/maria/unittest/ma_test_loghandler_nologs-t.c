@@ -107,12 +107,11 @@ int main(int argc __attribute__((unused)), char *argv[])
   ma_control_file_end();
 
   {
-    MY_STAT stat_buff;
     char file_name[FN_REFLEN];
     for (i= 1; i <= 2; i++)
     {
       translog_filename_by_fileno(i, file_name);
-      if (my_stat(file_name, &stat_buff, MY_WME) == NULL)
+      if (my_access(file_name, W_OK))
       {
         fprintf(stderr, "No file '%s'\n", file_name);
         exit(1);

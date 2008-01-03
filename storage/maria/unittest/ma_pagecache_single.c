@@ -537,13 +537,9 @@ int main(int argc __attribute__((unused)),
   my_delete(file2_name, MYF(0));
 
   DBUG_PRINT("info", ("file1: %d", file1.file));
-  if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
-  {
-    fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",
-	    errno);
+  if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
     exit(1);
-  }
-  my_pwrite(file1.file, "test file", 9, 0, MYF(0));
+  my_pwrite(file1.file, "test file", 9, 0, MYF(MY_WME));
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
   {
@@ -587,12 +583,7 @@ int main(int argc __attribute__((unused)),
   }
   DBUG_PRINT("info", ("Page cache %d pages", pagen));
 
-  if ((error=pthread_mutex_lock(&LOCK_thread_count)))
-  {
-    fprintf(stderr,"Got error: %d from pthread_mutex_lock (errno: %d)\n",
-            error,errno);
-    exit(1);
-  }
+  pthread_mutex_lock(&LOCK_thread_count);
   param=(int*) malloc(sizeof(int));
   *param= 1;
   if ((error= pthread_create(&tid, &thr_attr, test_thread, (void*) param)))
@@ -607,15 +598,13 @@ int main(int argc __attribute__((unused)),
 
   pthread_attr_destroy(&thr_attr);
 
-  if ((error= pthread_mutex_lock(&LOCK_thread_count)))
-    fprintf(stderr,"Got error: %d from pthread_mutex_lock\n",error);
+  pthread_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
     if ((error= pthread_cond_wait(&COND_thread_count,&LOCK_thread_count)))
       fprintf(stderr,"Got error: %d from pthread_cond_wait\n",error);
   }
-  if ((error= pthread_mutex_unlock(&LOCK_thread_count)))
-    fprintf(stderr,"Got error: %d from pthread_mutex_unlock\n",error);
+  pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
 
   end_pagecache(&pagecache, 1);
@@ -628,7 +617,6 @@ int main(int argc __attribute__((unused)),
   my_end(0);
 
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
-
   DBUG_PRINT("info", ("Program end"));
 
   DBUG_RETURN(exit_status());

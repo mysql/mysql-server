@@ -317,13 +317,7 @@ int main(int argc __attribute__((unused)),
   }
 
 
-  if ((error= pthread_mutex_lock(&LOCK_thread_count)))
-  {
-    fprintf(stderr, "LOCK_thread_count: %d from pthread_mutex_lock "
-            "(errno: %d)\n", error, errno);
-    exit(1);
-  }
-
+  pthread_mutex_lock(&LOCK_thread_count);
   while (number_of_writers != 0)
   {
     param= (int*) malloc(sizeof(int));
@@ -343,15 +337,13 @@ int main(int argc __attribute__((unused)),
   pthread_attr_destroy(&thr_attr);
 
   /* wait finishing */
-  if ((error= pthread_mutex_lock(&LOCK_thread_count)))
-    fprintf(stderr, "LOCK_thread_count: %d from pthread_mutex_lock\n", error);
+  pthread_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
     if ((error= pthread_cond_wait(&COND_thread_count, &LOCK_thread_count)))
       fprintf(stderr, "COND_thread_count: %d from pthread_cond_wait\n", error);
   }
-  if ((error= pthread_mutex_unlock(&LOCK_thread_count)))
-    fprintf(stderr, "LOCK_thread_count: %d from pthread_mutex_unlock\n", error);
+  pthread_mutex_unlock(&LOCK_thread_count);
 
   /* Find last LSN and flush up to it (all our log) */
   {

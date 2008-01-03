@@ -356,6 +356,30 @@ static void my_win_init(void)
 
   _tzset();
 
+  /* The following is used by time functions */
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define MS 10000000
+  {
+    FILETIME ft;
+    LARGE_INTEGER li, t_cnt;
+    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
+      query_performance_frequency= 0;
+    else
+    {
+      GetSystemTimeAsFileTime(&ft);
+      li.LowPart=  ft.dwLowDateTime;
+      li.HighPart= ft.dwHighDateTime;
+      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+      QueryPerformanceCounter(&t_cnt);
+      query_performance_offset-= (t_cnt.QuadPart /
+                                  query_performance_frequency * MS +
+                                  t_cnt.QuadPart %
+                                  query_performance_frequency * MS /
+                                  query_performance_frequency);
+    }
+  }
+
   /* apre la chiave HKEY_LOCAL_MACHINES\software\MySQL */
   if (RegOpenKeyEx(HKEY_LOCAL_MACHINE,(LPCTSTR)targetKey,0,
 		   KEY_READ,&hSoftMysql) != ERROR_SUCCESS)
@@ -393,27 +417,6 @@ static void my_win_init(void)
   /* chiude la chiave */
   RegCloseKey(hSoftMysql) ;
 
-  /* The following is used by time functions */
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-  {
-    FILETIME ft;
-    LARGE_INTEGER li, t_cnt;
-    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency))
-      query_performance_frequency= 0;
-    else
-    {
-      GetSystemTimeAsFileTime(&ft);
-      li.LowPart=  ft.dwLowDateTime;
-      li.HighPart= ft.dwHighDateTime;
-      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-      QueryPerformanceCounter(&t_cnt);
-      query_performance_offset-= (t_cnt.QuadPart / query_performance_frequency * MS +
-                                  t_cnt.QuadPart % query_performance_frequency * MS /
-                                  query_performance_frequency);
-    }
-  }
   DBUG_VOID_RETURN ;
 }
 

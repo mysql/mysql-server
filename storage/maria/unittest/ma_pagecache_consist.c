@@ -183,7 +183,6 @@ void put_rec(uchar *buff, uint end, uint len, uint tag)
   end+=  sizeof(uint);
   num++;
   *((uint *)buff)= num;
-  *((uint*)(buff + end))= len;
   for (i= end; i < (len + end); i++)
   {
     buff[i]= (uchar) num % 256;
@@ -348,12 +347,8 @@ int main(int argc __attribute__((unused)),
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
                       &dummy_fail_callback, &dummy_callback, NULL);
   DBUG_PRINT("info", ("file1: %d", file1.file));
-  if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
-  {
-    fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",
-	    errno);
+  if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
     exit(1);
-  }
   my_pwrite(file1.file, "test file", 9, 0, MYF(0));
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
@@ -411,12 +406,7 @@ int main(int argc __attribute__((unused)),
     flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
     free(buffr);
   }
-  if ((error= pthread_mutex_lock(&LOCK_thread_count)))
-  {
-    fprintf(stderr,"LOCK_thread_count: %d from pthread_mutex_lock (errno: %d)\n",
-            error,errno);
-    exit(1);
-  }
+  pthread_mutex_lock(&LOCK_thread_count);
   while (number_of_readers != 0 || number_of_writers != 0)
   {
     if (number_of_readers != 0)
@@ -454,15 +444,13 @@ int main(int argc __attribute__((unused)),
   pthread_attr_destroy(&thr_attr);
 
   /* wait finishing */
-  if ((error= pthread_mutex_lock(&LOCK_thread_count)))
-    fprintf(stderr,"LOCK_thread_count: %d from pthread_mutex_lock\n",error);
+  pthread_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
     if ((error= pthread_cond_wait(&COND_thread_count,&LOCK_thread_count)))
       fprintf(stderr,"COND_thread_count: %d from pthread_cond_wait\n",error);
   }
-  if ((error= pthread_mutex_unlock(&LOCK_thread_count)))
-    fprintf(stderr,"LOCK_thread_count: %d from pthread_mutex_unlock\n",error);
+  pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
 
   end_pagecache(&pagecache, 1);

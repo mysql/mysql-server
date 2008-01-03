@@ -63,10 +63,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (maria_log_remove())
     exit(1);
   /* be sure that we have no logs in the directory*/
-  if (my_stat(CONTROL_FILE_BASE_NAME, &st,  MYF(0)))
-    my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  if (my_stat(first_translog_file, &st,  MYF(0)))
-    my_delete(first_translog_file, MYF(0));
+  my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
+  my_delete(first_translog_file, MYF(0));
 
   bzero(long_tr_id, 6);
 #ifndef DBUG_OFF
@@ -139,12 +137,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
   pagecache_file_init(file1, &dummy_callback, &dummy_callback,
                       &dummy_fail_callback, maria_flush_log_for_page, NULL);
-  if (chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO) != 0)
-  {
-    fprintf(stderr, "Got error during file1 chmod() (errno: %d)\n",
-	    errno);
+  if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
     exit(1);
-  }
 
   {
     uchar page[PCACHE_PAGE];

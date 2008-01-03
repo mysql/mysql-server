@@ -24,7 +24,6 @@ int main(int argc __attribute__((unused)), char *argv[])
   uchar long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn, first_lsn, theor_lsn;
-  MY_STAT st;
   LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
@@ -36,10 +35,8 @@ int main(int argc __attribute__((unused)), char *argv[])
   if (maria_log_remove())
     exit(1);
   /* be sure that we have no logs in the directory*/
-  if (my_stat(CONTROL_FILE_BASE_NAME, &st,  MYF(0)))
-    my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
-  if (my_stat(first_translog_file, &st,  MYF(0)))
-    my_delete(first_translog_file, MYF(0));
+  my_delete(CONTROL_FILE_BASE_NAME, MYF(0));
+  my_delete(first_translog_file, MYF(0));
 
   bzero(long_tr_id, 6);
 #ifndef DBUG_OFF
