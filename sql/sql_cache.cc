@@ -371,6 +371,32 @@ TODO list:
   __LINE__,(ulong)(B)));B->query()->unlock_reading();}
 #define DUMP(C) DBUG_EXECUTE("qcache", {\
   (C)->cache_dump(); (C)->queries_dump();(C)->tables_dump();})
+
+
+/**
+  Causes the thread to wait in a spin lock for a query kill signal.
+  This function is used by the test frame work to identify race conditions.
+
+  The signal is caught and ignored and the thread is not killed.
+*/
+
+static void debug_wait_for_kill(const char *info)
+{
+  DBUG_ENTER("debug_wait_for_kill");
+  const char *prev_info;
+  THD *thd;
+  thd= current_thd;
+  prev_info= thd->proc_info;
+  thd->proc_info= info;
+  sql_print_information(info);
+  while(!thd->killed)
+    my_sleep(1000);
+  thd->killed= THD::NOT_KILLED;
+  sql_print_information("Exit debug_wait_for_kill");
+  thd->proc_info= prev_info;
+  DBUG_VOID_RETURN;
+}
+
 #else
 #define MUTEX_LOCK(M) pthread_mutex_lock(M)
 #define MUTEX_UNLOCK(M) pthread_mutex_unlock(M)
@@ -647,13 +673,16 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
   if (net->query_cache_query == 0)
     DBUG_VOID_RETURN;
 
+  DBUG_EXECUTE_IF("wait_in_query_cache_insert",
+                  debug_wait_for_kill("wait_in_query_cache_insert"); );
+
   STRUCT_LOCK(&query_cache.structure_guard_mutex);
   bool interrupt;
   query_cache.wait_while_table_flush_is_in_progress(&interrupt);
   if (interrupt)
   {
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   Query_cache_block *query_block= (Query_cache_block*)net->query_cache_query;
@@ -667,11 +696,11 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     DBUG_VOID_RETURN;
   }
 
+  BLOCK_LOCK_WR(query_block);
   Query_cache_query *header= query_block->query();
   Query_cache_block *result= header->result();
 
   DUMP(&query_cache);
-  BLOCK_LOCK_WR(query_block);
   DBUG_PRINT("qcache", ("insert packet %lu bytes long",length));
 
   /*
@@ -687,6 +716,7 @@ void query_cache_insert(NET *net, const char *packet, ulong length)
     DBUG_PRINT("qcache", ("free query 0x%lx", (ulong) query_block));
     // The following call will remove the lock on query_block
     query_cache.free_query(query_block);
+    query_cache.refused++;
     // append_result_data no success => we need unlock
     STRUCT_UNLOCK(&query_cache.structure_guard_mutex);
     DBUG_VOID_RETURN;
@@ -883,6 +913,31 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   m_cache_status= Query_cache::FLUSH_IN_PROGRESS;
   STRUCT_UNLOCK(&structure_guard_mutex);
 
+  /*
+    Wait for all readers and writers to exit. When the list of all queries
+    is iterated over with a block level lock, we are done.
+  */
+  Query_cache_block *block= queries_blocks;
+  if (block)
+  {
+    do
+    {
+      BLOCK_LOCK_WR(block);
+      Query_cache_query *query= block->query();
+      if (query && query->writer())
+      {
+        /*
+           Drop the writer; this will cancel any attempts to store 
+           the processed statement associated with this writer.
+         */
+        query->writer()->query_cache_query= 0;
+        query->writer(0);
+        refused++;
+      }
+      BLOCK_UNLOCK_WR(block);
+      block= block->next;
+    } while (block != queries_blocks);
+  }
   free_cache();
 
   query_cache_size= query_cache_size_arg;
