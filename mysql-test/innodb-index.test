@@ -264,6 +264,12 @@ explain select * from t1 where b like 'adfd%';
 #
 # Test locking
 #
+
+create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+insert into t2 select a,left(b,255) from t1;
+drop table t1;
+rename table t2 to t1;
+
 connect (a,localhost,root,,);
 connect (b,localhost,root,,);
 connection a;
@@ -273,7 +279,7 @@ select a from t1 limit 1 for update;
 connection b;
 # This would require an S lock on the table, conflicting with the IX lock.
 --error ER_LOCK_WAIT_TIMEOUT
-create index t1ba on t1 (b(10),a);
+create index t1ba on t1 (b,a);
 connection a;
 commit;
 begin;
@@ -281,7 +287,7 @@ begin;
 select a from t1 limit 1 lock in share mode;
 connection b;
 # This will require an S lock on the table.  No conflict with the IS lock.
-create index t1ba on t1 (b(10),a);
+create index t1ba on t1 (b,a);
 # This would require an X lock on the table, conflicting with the IS lock.
 --error ER_LOCK_WAIT_TIMEOUT
 drop index t1ba on t1;
