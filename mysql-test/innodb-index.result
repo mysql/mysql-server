@@ -848,24 +848,28 @@ test.t1	check	status	OK
 explain select * from t1 where b like 'adfd%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	b	b	769	NULL	11	Using where
+create table t2(a int, b varchar(255), primary key(a,b)) engine=innodb;
+insert into t2 select a,left(b,255) from t1;
+drop table t1;
+rename table t2 to t1;
 begin;
 select a from t1 limit 1 for update;
 a
 22
-create index t1ba on t1 (b(10),a);
+create index t1ba on t1 (b,a);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 begin;
 select a from t1 limit 1 lock in share mode;
 a
 22
-create index t1ba on t1 (b(10),a);
+create index t1ba on t1 (b,a);
 drop index t1ba on t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 explain select a from t1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	t1ba	16	NULL	60	Using index; Using filesort
+1	SIMPLE	t1	index	NULL	t1ba	261	NULL	15	Using index
 select a,sleep(2+a/100) from t1 order by b limit 3;
 select sleep(1);
 sleep(1)
@@ -877,12 +881,12 @@ a	sleep(2+a/100)
 66	0
 explain select a from t1 order by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	1028	NULL	60	Using index; Using filesort
+1	SIMPLE	t1	index	NULL	PRIMARY	261	NULL	15	Using index; Using filesort
 select a from t1 order by b limit 3;
 a
 22
-44
 66
+44
 commit;
 drop table t1;
 create table t1(a blob,b blob,c blob,d blob,e blob,f blob,g blob,h blob,
