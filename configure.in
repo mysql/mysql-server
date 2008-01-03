@@ -216,7 +216,7 @@ CC_VERSION=`$CC --version | sed 1q`
 esac
 if test $? -eq "0"
 then
-  AC_MSG_CHECKING("C Compiler version");
+  AC_MSG_CHECKING("C Compiler version")
   AC_MSG_RESULT("$CC $CC_VERSION")
 else
 CC_VERSION=""
@@ -1386,7 +1386,7 @@ See the Installation chapter in the Reference Manual for more information.])
             AC_MSG_RESULT("no need to check headers")
         fi
         
-        AC_MSG_CHECKING("for pthread_create in -lpthread");
+        AC_MSG_CHECKING("for pthread_create in -lpthread")
         ac_save_LIBS="$LIBS"
         LIBS="$LIBS -lpthread"
         AC_TRY_LINK( [#include <pthread.h>],
@@ -1446,7 +1446,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     elif test -f /usr/local/lib/libpthread.a -o -f /usr/local/lib/libpthread.so
@@ -1462,7 +1462,7 @@ then
       then
 	AC_MSG_RESULT("yes")
       else
-	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.]);
+	AC_MSG_ERROR([On SCO UNIX MySQL must be compiled with gcc. See the Installation chapter in the Reference Manual.])
       fi
       AC_MSG_RESULT("yes")
     # Hack for SCO UnixWare 7.1.x
@@ -1606,7 +1606,7 @@ else
   AC_MSG_RESULT("$with_posix_threads")
   if test "$with_posix_threads" = "no"
   then
-    AC_MSG_CHECKING("for pthread_create in -lpthread");
+    AC_MSG_CHECKING("for pthread_create in -lpthread")
     ac_save_LIBS="$LIBS"
     LIBS="$LIBS -lpthread"
     AC_TRY_LINK(
@@ -1617,7 +1617,7 @@ else
     if test "$with_posix_threads" = "no"
     then
       LIBS=" $ac_save_LIBS -lpthreads"
-      AC_MSG_CHECKING("for pthread_create in -lpthreads");
+      AC_MSG_CHECKING("for pthread_create in -lpthreads")
       AC_TRY_LINK(
       [#include <pthread.h>],
       [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1627,7 +1627,7 @@ else
       then
         # This is for FreeBSD
         LIBS="$ac_save_LIBS -pthread"
-        AC_MSG_CHECKING("for pthread_create in -pthread");
+        AC_MSG_CHECKING("for pthread_create in -pthread")
         AC_TRY_LINK(
         [#include <pthread.h>],
         [ pthread_create((pthread_t*) 0,(pthread_attr_t*) 0, 0, 0); ],
@@ -1927,7 +1927,7 @@ if test "$ac_cv_conv_longlong_to_float" != "yes"
 then
   AC_MSG_ERROR([Your compiler cannot convert a longlong value to a float!
 If you are using gcc 2.8.# you should upgrade to egcs 1.0.3 or newer and try
-again]);
+again])
 fi
 fi
 AC_CHECK_TYPES([sigset_t, off_t], [], [], [#include <sys/types.h>])
@@ -2088,7 +2088,7 @@ CFLAGS="$ORG_CFLAGS"
 AC_CHECK_FUNC(fseeko,
 [if test "$large_file_support" = no -a "$TARGET_LINUX" = "true";
 then
-  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!");
+  AC_MSG_ERROR("Found fseeko symbol but large_file_support is not enabled!")
 fi]
 )
 
