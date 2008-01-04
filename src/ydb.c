@@ -1206,7 +1206,8 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
     else {
         // It's a get on a secondary.
-        assert(flags == 0); // We aren't ready to handle flags such as DB_GET_BOTH  or DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+        if (flags == DB_GET_BOTH) return EINVAL;
+        assert(flags == 0); // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
         DBT primary_key;
         memset(&primary_key, 0, sizeof(primary_key));
         r = db->pget(db, txn, key, &primary_key, data, 0);
