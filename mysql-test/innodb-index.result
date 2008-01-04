@@ -964,3 +964,4 @@ t1	CREATE TABLE `t1` (
   KEY `t1t` (`t`(1)),
   KEY `t1st` (`s`(1),`t`(1))
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+drop table t1;
