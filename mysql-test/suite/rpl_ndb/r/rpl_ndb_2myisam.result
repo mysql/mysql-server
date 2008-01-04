@@ -4,7 +4,13 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-SET storage_engine=ndb;
+CREATE TABLE mysql.ndb_apply_status
+( server_id INT UNSIGNED NOT NULL,
+epoch BIGINT UNSIGNED NOT NULL,
+log_name VARCHAR(255) BINARY NOT NULL,
+start_pos BIGINT UNSIGNED NOT NULL,
+end_pos BIGINT UNSIGNED NOT NULL,
+PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 --- Doing pre test cleanup --- 
 DROP TABLE IF EXISTS t1;
 --- Start test 1 Basic testing ---
@@ -853,3 +859,4 @@ DELETE FROM t1;
 --- End test 5 key partition testing ---
 --- Do Cleanup ---
 DROP TABLE IF EXISTS t1;
+drop table mysql.ndb_apply_status;
