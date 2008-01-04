@@ -91,7 +91,7 @@ endif
 %.bdbrun: %.bdb
 	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
 # For a few of the tests bdb is making valgrind unhappy.
 FOO_NO_VGRIND = \
