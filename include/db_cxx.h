@@ -159,6 +159,7 @@ class DbEnv {
     void err(int error, const char *fmt, ...);
     void set_errfile(FILE *errfile);
     void set_errcall(void (*)(const DbEnv *, const char *, const char *));
+    int get_flags(u_int32_t *flagsp);
 
     // locking
 #if DB_VERSION_MAJOR<4 || (DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<=4)
