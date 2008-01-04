@@ -831,6 +831,7 @@ our @tags=
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
+ ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["require_manager", "require_manager", 1],
 );
 

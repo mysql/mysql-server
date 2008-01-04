@@ -1,1 +1,1 @@
---default-storage-engine=myisam --replicate-ignore-table=mysql.ndb_apply_status
+--default-storage-engine=myisam --ndbcluster=0
