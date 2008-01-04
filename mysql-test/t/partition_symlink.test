@@ -2,7 +2,9 @@
 # (DATA/INDEX DIR requires symlinks)
 -- source include/have_partition.inc
 -- source include/have_symlink.inc
-# remove the not_windows line after fixing bug#30459
+# remove the not_windows line after fixing bug#33687
+# symlinks must also work for files, not only directories
+# as in --skip-symbolic-links
 -- source include/not_windows.inc
 -- disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -118,4 +120,50 @@ connection default;
   DROP USER mysqltest_1@localhost;
   disconnect con1;
 
+#
+# Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables 
+#
+
+disable_query_log;
+eval create table t2 (i int )
+partition by range (i)
+(
+    partition p01 values less than (1000)
+    data directory="$MYSQLTEST_VARDIR/master-data/test/"
+    index directory="$MYSQLTEST_VARDIR/master-data/test/"
+);
+enable_query_log;
+
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+create table t1 (i int )
+partition by range (i)
+(
+    partition p01 values less than (1000)
+    data directory='/not/existing'
+    index directory='/not/existing'
+);
+
+show create table t2;
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+
+#
+# Bug 21350: Data Directory problems
+#
+-- error ER_WRONG_TABLE_NAME
+create table t1 (a int)
+partition by key (a)
+(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+
+#
+# Insert a test that manages to create the first partition and fails with
+# the second, ensure that we clean up afterwards in a proper manner.
+#
+--error ER_WRONG_TABLE_NAME
+create table t1 (a int)
+partition by key (a)
+(partition p0,
+ partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
 
