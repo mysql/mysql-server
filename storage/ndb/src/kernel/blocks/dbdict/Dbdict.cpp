@@ -6505,9 +6505,7 @@ Dbdict::dropTable_parse(Signal* signal, SchemaOpPtr op_ptr,
   bool ok = false;
   switch (tabState) {
   case TableRecord::NOT_DEFINED:
-  case TableRecord::REORG_TABLE_PREPARED:
   case TableRecord::DEFINING:
-  case TableRecord::CHECKED:
     jam();
     setError(error, DropTableRef::NoSuchTable, __LINE__);
     return;
@@ -7340,9 +7338,7 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr,
   bool ok = false;
   switch (tabState) {
   case TableRecord::NOT_DEFINED:
-  case TableRecord::REORG_TABLE_PREPARED:
   case TableRecord::DEFINING:
-  case TableRecord::CHECKED:
     jam();
     setError(error, AlterTableRef::NoSuchTable, __LINE__);
     return;
@@ -8600,7 +8596,6 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       if(DictTabInfo::isTable(type)){
 	switch (tablePtr.p->tabState) {
 	case TableRecord::DEFINING:
-	case TableRecord::CHECKED:
 	  conf->setTableState(pos, DictTabInfo::StateBuilding);
 	  break;
 	case TableRecord::PREPARE_DROPPING:
