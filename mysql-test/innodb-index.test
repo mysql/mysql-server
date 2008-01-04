@@ -355,3 +355,4 @@ create index t1u on t1 (u(1));
 create index t1ut on t1 (u(1), t(1));
 create index t1st on t1 (s(1), t(1));
 show create table t1;
+drop table t1;
