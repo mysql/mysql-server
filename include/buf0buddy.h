@@ -54,10 +54,15 @@ buf_buddy_free(
 Protected by buf_pool->mutex. */
 extern ulint buf_buddy_n_frames;
 /** Preferred minimum number of frames allocated from the buffer pool
-to the buddy system.  When this number is exceeded, the buddy allocator
-will not try to free clean compressed-only pages in order to satisfy
-an allocation request.  Protected by buf_pool->mutex. */
+to the buddy system.  Unless this number is exceeded or the buffer
+pool is scarce, the LRU algorithm will not free compressed-only pages
+in order to satisfy an allocation request.  Protected by buf_pool->mutex. */
 extern ulint buf_buddy_min_n_frames;
+/** Preferred maximum number of frames allocated from the buffer pool
+to the buddy system.  Unless this number is exceeded, the buddy allocator
+will not try to free clean compressed-only pages before falling back
+to the LRU algorithm.  Protected by buf_pool->mutex. */
+extern ulint buf_buddy_max_n_frames;
 /** Counts of blocks allocated from the buddy system.
 Protected by buf_pool->mutex. */
 extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
