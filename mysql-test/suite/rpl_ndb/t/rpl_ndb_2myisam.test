@@ -8,6 +8,18 @@
 # test and to have control over the tests.
 ##############################################################
 -- source include/have_ndb.inc
--- source include/ndb_master-slave.inc
-SET storage_engine=ndb;
+-- source include/master-slave.inc
+
+-- connection slave
+CREATE TABLE mysql.ndb_apply_status
+                   ( server_id INT UNSIGNED NOT NULL,
+                   epoch BIGINT UNSIGNED NOT NULL,
+                   log_name VARCHAR(255) BINARY NOT NULL,
+                   start_pos BIGINT UNSIGNED NOT NULL,
+                   end_pos BIGINT UNSIGNED NOT NULL,
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
+
 --source extra/rpl_tests/rpl_ndb_2multi_eng.test
+
+--connection slave
+drop table mysql.ndb_apply_status;
