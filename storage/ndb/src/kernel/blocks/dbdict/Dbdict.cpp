@@ -4062,9 +4062,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     bool ok = false;
     switch(tabState){
     case TableRecord::NOT_DEFINED:
-    case TableRecord::REORG_TABLE_PREPARED:
     case TableRecord::DEFINING:
-    case TableRecord::CHECKED:
       jam();
       aParseRecord.errorCode = AlterTableRef::NoSuchTable;
       break;
@@ -4330,9 +4328,7 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
       bool ok = false;
       switch(tabState){
       case TableRecord::NOT_DEFINED:
-      case TableRecord::REORG_TABLE_PREPARED:
       case TableRecord::DEFINING:
-      case TableRecord::CHECKED:
 	jam();
 	parseRecord.errorCode = AlterTableRef::NoSuchTable;
 	break;
@@ -6860,9 +6856,7 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
   bool ok = false;
   switch(tabState){
   case TableRecord::NOT_DEFINED:
-  case TableRecord::REORG_TABLE_PREPARED:
   case TableRecord::DEFINING:
-  case TableRecord::CHECKED:
     jam();
     dropTableRef(signal, req, DropTableRef::NoSuchTable);
     return;
@@ -7918,7 +7912,6 @@ Dbdict::execLIST_TABLES_REQ(Signal* signal)
       if(DictTabInfo::isTable(type)){
 	switch (tablePtr.p->tabState) {
 	case TableRecord::DEFINING:
-	case TableRecord::CHECKED:
 	  conf->setTableState(pos, DictTabInfo::StateBuilding);
 	  break;
 	case TableRecord::PREPARE_DROPPING:
