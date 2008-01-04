@@ -21,10 +21,10 @@ CLEANFILES = unit
 unittests = mytap mysys @mysql_se_unittest_dirs@  @mysql_pg_unittest_dirs@
 
 test:
-	perl unit.pl run $(unittests)
+	maria_path=../storage/maria perl unit.pl run $(unittests)
 
 test-verbose:
-	HARNESS_VERBOSE=1 perl unit.pl run $(unittests)
+	HARNESS_VERBOSE=1 maria_path=../storage/maria perl unit.pl run $(unittests)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

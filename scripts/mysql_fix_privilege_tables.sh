@@ -149,7 +149,7 @@ then
 fi
 
 # Find where first mysql_fix_privilege_tables.sql is located
-for i in $basedir/support-files $basedir/share $basedir/share/mysql \
+for i in scripts $basedir/support-files $basedir/share $basedir/share/mysql \
         $basedir/scripts $pkgdatadir . "$dirname"
 do
   if test -f $i/$file
