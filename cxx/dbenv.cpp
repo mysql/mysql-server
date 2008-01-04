@@ -3,7 +3,8 @@
 #include <stdarg.h>
 
 DbEnv::DbEnv (u_int32_t flags)
-    : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0)
+    : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0),
+      errcall(NULL)
 {
     int ret = db_env_create(&the_env, flags & ~DB_CXX_NO_EXCEPTIONS);
     assert(ret==0); // should do an error.
@@ -108,6 +109,11 @@ void DbEnv::err(int error, const char *fmt, ...) {
 
 void DbEnv::set_errfile(FILE *errfile) {
     the_env->set_errfile(the_env, errfile);
+}
+
+int DbEnv::get_flags(u_int32_t *flagsp) {
+    int ret = the_env->get_flags(the_env, flagsp);
+    return maybe_throw_error(ret);
 }
 
 extern "C" void toku_db_env_errcall_c(DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
