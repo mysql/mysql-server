@@ -3405,6 +3405,12 @@ btr_cur_mark_extern_inherited_fields(
 
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(!rec_offs_comp(offsets) || !rec_get_node_ptr_flag(rec));
+
+	if (!rec_offs_any_extern(offsets)) {
+
+		return;
+	}
+
 	n = rec_offs_n_fields(offsets);
 
 	for (i = 0; i < n; i++) {
