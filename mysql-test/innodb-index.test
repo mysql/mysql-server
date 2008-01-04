@@ -181,11 +181,11 @@ show create table t1;
 drop table t1;
 
 create table t1(a int not null, b int, c char(10), d varchar(20), primary key (a)) engine = innodb;
-insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe');
+insert into t1 values (1,1,'ab','ab'),(2,2,'ac','ac'),(3,3,'ac','ac'),(4,4,'afe','afe'),(5,4,'affe','affe');
 --error ER_DUP_ENTRY
 alter table t1 add unique index (b), add unique index (c), add unique index (d);
 --error ER_DUP_ENTRY
-alter table t1 add unique index (b), add index (d), add unique index (c);
+alter table t1 add unique index (c), add unique index (b), add index (d);
 show create table t1;
 drop table t1;
 
