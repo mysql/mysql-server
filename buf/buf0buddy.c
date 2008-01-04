@@ -30,10 +30,15 @@ Protected by buf_pool->mutex. */
 ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
-to the buddy system.  When this number is exceeded, the buddy allocator
-will not try to free clean compressed-only pages in order to satisfy
-an allocation request.  Protected by buf_pool->mutex. */
-ulint buf_buddy_min_n_frames = ULINT_UNDEFINED;
+to the buddy system.  Unless this number is exceeded or the buffer
+pool is scarce, the LRU algorithm will not free compressed-only pages
+in order to satisfy an allocation request.  Protected by buf_pool->mutex. */
+ulint buf_buddy_min_n_frames = 0;
+/** Preferred maximum number of frames allocated from the buffer pool
+to the buddy system.  Unless this number is exceeded, the buddy allocator
+will not try to free clean compressed-only pages before falling back
+to the LRU algorithm.  Protected by buf_pool->mutex. */
+ulint buf_buddy_max_n_frames = ULINT_UNDEFINED;
 
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
@@ -278,7 +283,7 @@ buf_buddy_alloc_clean(
 	ut_ad(mutex_own(&buf_pool->mutex));
 	ut_ad(!mutex_own(&buf_pool->zip_mutex));
 
-	if (buf_buddy_n_frames > buf_buddy_min_n_frames) {
+	if (buf_buddy_n_frames < buf_buddy_max_n_frames) {
 
 		goto free_LRU;
 	}
