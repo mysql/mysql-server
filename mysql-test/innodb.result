@@ -1727,10 +1727,10 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	69
+Innodb_rows_deleted	70
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1080
+Innodb_rows_inserted	1082
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	885
