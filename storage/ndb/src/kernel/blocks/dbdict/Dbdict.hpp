@@ -320,9 +320,7 @@ public:
 
     enum TabState {
       NOT_DEFINED = 0,
-      REORG_TABLE_PREPARED = 1,
       DEFINING = 2,
-      CHECKED = 3,
       DEFINED = 4,
       PREPARE_DROPPING = 5,
       DROPPING = 6,
