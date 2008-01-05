@@ -25,7 +25,7 @@ struct SchemaTransImplReq {
   Uint32 senderRef;
   Uint32 transKey;
   Uint32 opKey;
-  Uint32 phaseInfo;     // mode | phase subphase | piggy-backed gsn
+  Uint32 phaseInfo;     // mode | phase | piggy-backed gsn
   Uint32 requestInfo;   // 0 | op extra | global flags | local flags
   Uint32 operationInfo; // op index | op depth
   Uint32 iteratorInfo;  // list id | list index | repeat | 0
@@ -46,13 +46,6 @@ struct SchemaTransImplReq {
   static void setPhase(Uint32& info, Uint32 val) {
     assert(val < (1 << 4));
     BitmaskImpl::setField(1, &info, 8, 4, val);
-  }
-  static Uint32 getSubphase(const Uint32& info) {
-    return BitmaskImpl::getField(1, &info, 12, 4);
-  }
-  static void setSubphase(Uint32& info, Uint32 val) {
-    assert(val < (1 << 4));
-    BitmaskImpl::setField(1, &info, 12, 4, val);
   }
   static Uint32 getGsn(const Uint32& info) {
     return BitmaskImpl::getField(1, &info, 16, 16);

@@ -19098,7 +19098,6 @@ Dbdict::iteratorFirst(TransLoc& tLoc, int dir)
   ndbrequire(phaseEntry.m_phaseFlags & TransPhaseFlag::Simple);
   tLoc.m_phaseIndex = i;
   tLoc.m_phase = phaseEntry.m_phase;
-  tLoc.m_subphase = phaseEntry.m_subphase;
   tLoc.m_repeat = 0;
   tLoc.m_opKey = 0;
   return true;
@@ -19137,7 +19136,6 @@ Dbdict::iteratorNext(TransLoc& tLoc, int dir)
     }
     tLoc.m_phaseIndex = i;
     tLoc.m_phase = phaseEntry.m_phase;
-    tLoc.m_subphase = phaseEntry.m_subphase;
     tLoc.m_repeat = 0;
     return true;
   }
@@ -19199,7 +19197,6 @@ Dbdict::iteratorCopy(TransLoc& tLoc, Uint32 mode,
   tLoc.m_phaseIndex = phaseIndex;
   const TransPhaseEntry& phaseEntry = getPhaseEntry(tLoc);
   tLoc.m_phase = phaseEntry.m_phase;
-  tLoc.m_subphase = phaseEntry.m_subphase;
   tLoc.m_repeat = repeat;
   tLoc.m_opKey = op_key;
   D("iteratorCopy >" << tLoc);
@@ -19298,42 +19295,36 @@ Dbdict::getGlobFlags(SchemaTransPtr trans_ptr,
 const Dbdict::TransPhaseEntry
 Dbdict::g_defaultPhaseEntry[] = {
   { TransPhase::Undef,
-    TransSubphase::Undef,
     0,
     0,
     0
   },
   {
     TransPhase::Begin,
-    TransSubphase::Main,
     TransPhaseFlag::Simple,
     0,
     0
   },
   {
     TransPhase::Parse,
-    TransSubphase::Main,
     0,
     0,
     0
   },
   {
     TransPhase::Prepare,
-    TransSubphase::Main,
     0,
     0,
     0
   },
   {
     TransPhase::Commit,
-    TransSubphase::Main,
     0,
     0,
     0
   },
   {
     TransPhase::End,
-    TransSubphase::Main,
     TransPhaseFlag::Simple,
     0,
     0
@@ -19714,7 +19705,6 @@ Dbdict::sendTransReq(Signal* signal, SchemaTransPtr trans_ptr,
   Uint32 phaseInfo = 0;
   SchemaTransImplReq::setMode(phaseInfo, tLoc.m_mode);
   SchemaTransImplReq::setPhase(phaseInfo, tLoc.m_phase);
-  SchemaTransImplReq::setSubphase(phaseInfo, tLoc.m_subphase);
   SchemaTransImplReq::setGsn(phaseInfo, gsn);
 
   Uint32 requestInfo = 0;
@@ -20184,7 +20174,6 @@ Dbdict::recvTransReq(Signal* signal)
   // unpack phaseInfo
   const Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
   const Uint32 phase = SchemaTransImplReq::getPhase(phaseInfo);
-  const Uint32 subphase = SchemaTransImplReq::getSubphase(phaseInfo);
   const Uint32 gsn = SchemaTransImplReq::getGsn(phaseInfo);
 
   // unpack operation info
@@ -20235,7 +20224,6 @@ Dbdict::recvTransReq(Signal* signal)
       ndbrequire(trans_ptr.p->m_masterRef == senderRef);
       ndbrequire((Uint32)tLoc.m_mode == mode);
       ndbrequire((Uint32)tLoc.m_phase == phase);
-      ndbrequire((Uint32)tLoc.m_subphase == subphase);
     } else {
       jam();
       if (trans_ptr.p->m_masterRef == 0) {
@@ -20250,8 +20238,7 @@ Dbdict::recvTransReq(Signal* signal)
       }
       trans_ptr.p->m_opDepth = opDepth;
       iteratorCopy(tLoc, mode, phaseIndex, op_key, repeat);
-      ndbrequire((Uint32)tLoc.m_phase == phase &&
-                 (Uint32)tLoc.m_subphase == subphase);
+      ndbrequire((Uint32)tLoc.m_phase == phase);
     }
 
     if (tLoc.m_mode == TransMode::Normal) {
@@ -21251,8 +21238,6 @@ Dbdict::TransLoc::print(NdbOut& out) const
   out << dec << V(m_phaseIndex);
   out << dec << V(m_phase)
       << " [" << DictSignal::getTransPhaseName(m_phase) << "]";
-  out << dec << V(m_subphase)
-      << " [" << DictSignal::getTransSubphaseName(m_subphase) << "]";
   out << dec << V(m_repeat);
   out << dec << V(m_opKey);
   out << ")";

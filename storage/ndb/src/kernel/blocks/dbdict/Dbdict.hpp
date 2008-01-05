@@ -1293,25 +1293,13 @@ private:
     };
   };
 
-  // phase can be divided in 3 subphases (Pre,Post should be Simple)
-  struct TransSubphase {
-    enum Value {
-      Undef = 0,
-      Pre,
-      Main,
-      Post
-    };
-  };
-
   struct TransStep {
     TransMode::Value m_mode;
     TransPhase::Value m_phase;
-    TransSubphase::Value m_subphase;
     Uint32 m_repeat;
     TransStep() {
       m_mode = TransMode::Undef;
       m_phase = TransPhase::Undef;
-      m_subphase = TransSubphase::Undef;
       m_repeat = 0;
     }
   };
@@ -1325,7 +1313,6 @@ private:
 
   struct TransPhaseEntry {
     TransPhase::Value m_phase;
-    TransSubphase::Value m_subphase;
     Uint32 m_phaseFlags;
     // for Simple phase
     void (Dbdict::*m_run)(Signal*, SchemaTransPtr);
