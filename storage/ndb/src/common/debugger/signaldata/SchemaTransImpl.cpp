@@ -26,7 +26,6 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
   const Uint32 phaseInfo = sig->phaseInfo;
   Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
   Uint32 phase = SchemaTransImplReq::getPhase(phaseInfo);
-  Uint32 subphase = SchemaTransImplReq::getSubphase(phaseInfo);
   Uint32 gsn = SchemaTransImplReq::getGsn(phaseInfo);
   const Uint32 requestInfo = sig->requestInfo;
   Uint32 opExtra = DictSignal::getRequestExtra(requestInfo);
@@ -41,15 +40,14 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
   fprintf(output, " transKey: %u", sig->transKey);
   fprintf(output, " opKey: %u", sig->opKey);
   fprintf(output, "\n");
-  fprintf(output, " mode: %u [%s] phase: %u [%s] subphase: %u [%s]",
-      mode, DictSignal::getTransModeName(mode),
-      phase, DictSignal::getTransPhaseName(phase),
-      subphase, DictSignal::getTransSubphaseName(subphase));
+  fprintf(output, " mode: %u [%s] phase: %u [%s]",
+          mode, DictSignal::getTransModeName(mode),
+          phase, DictSignal::getTransPhaseName(phase));
   fprintf(output, "\n");
   fprintf(output, " requestInfo: 0x%x", requestInfo);
   fprintf(output, " opExtra: %u", opExtra);
   fprintf(output, " requestFlags: [%s]",
-      DictSignal::getRequestFlagsText(requestInfo));
+          DictSignal::getRequestFlagsText(requestInfo));
   fprintf(output, "\n");
   fprintf(output, " opIndex: %u", opIndex);
   fprintf(output, " opDepth: %u", opDepth);
@@ -67,7 +65,7 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
     const Uint32* pb_data = &theData[fixed_len];
     const Uint32 pb_len = len - fixed_len;
     switch (gsn) {
-    // internal operation signals
+      // internal operation signals
     case GSN_CREATE_TAB_REQ:
       printCREATE_TAB_REQ(output, pb_data, pb_len, rbn);
       break;
@@ -99,16 +97,16 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
       printBUILD_INDX_IMPL_REQ(output, pb_data, pb_len, rbn);
       break;
     default:
-      {
-        Uint32 i;
-        for (i = 0; i < len - fixed_len; i++) {
-          if (i > 0 && i % 7 == 0)
-            fprintf(output, "\n");
-          fprintf(output, " H'%08x", theData[fixed_len + i]);
-        }
-        fprintf(output, "\n");
+    {
+      Uint32 i;
+      for (i = 0; i < len - fixed_len; i++) {
+        if (i > 0 && i % 7 == 0)
+          fprintf(output, "\n");
+        fprintf(output, " H'%08x", theData[fixed_len + i]);
       }
-      break;
+      fprintf(output, "\n");
+    }
+    break;
     }
   }
   return true;

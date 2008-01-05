@@ -146,15 +146,6 @@ public:
   }
 
   static const char*
-  getTransSubphaseName(Uint32 val) {
-    static const char* name[] = {
-      "Undef", "Pre", "Main", "Post"
-    };
-    Uint32 size = sizeof(name)/sizeof(name[0]);
-    return val < size ? name[val] : "?";
-  }
-
-  static const char*
   getTransStateName(Uint32 val) {
     static const char* name[] = {
       "Undef", "Ok", "Error", "NodeFail", "NeedTrans", "NoTrans", "NeedOp", "NoOp"
