@@ -1047,15 +1047,18 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 }
 
 int
-TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
+TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, 
+                                    NodeId aNode,
+                                    Uint32 prio){
   Uint32* tDataPtr = aSignal->getDataPtrSend();
+  assert(prio >= 0 && prio <= 1);
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     LinearSectionPtr ptr[3];
     signalLogger.sendSignal(* aSignal,
-			    0,
+			    prio,
 			    tDataPtr,
 			    aNode, ptr, 0);
     signalLogger.flushSignalLog();
@@ -1066,7 +1069,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
          (aSignal->theLength <= 25) &&
          (aSignal->theReceiversBlockNumber != 0));
   SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-						      0, 
+						      prio, 
 						      tDataPtr,
 						      aNode, 
 						      0);
