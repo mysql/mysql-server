@@ -1578,7 +1578,7 @@ int log_loaded_block(IO_CACHE* file)
   lf_info= (LOAD_FILE_INFO*) file->arg;
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))
-    return 0;
+    DBUG_RETURN(0);
   
   for (block_len= my_b_get_bytes_in_buffer(file); block_len > 0;
        buffer += min(block_len, max_event_size),
