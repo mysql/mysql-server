@@ -1051,7 +1051,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal,
                                     NodeId aNode,
                                     Uint32 prio){
   Uint32* tDataPtr = aSignal->getDataPtrSend();
-  assert(prio >= 0 && prio <= 1);
+  assert(prio <= 1);
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
