@@ -12,3 +12,4 @@ flush logs;
 select * from t2;
 word
 Ada
+drop table t1,t2;
