@@ -4633,7 +4633,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tdata5 == 0);
+    //ndbassert(Tdata5 == 0);
     Thostptr.p->noOfPackedWordsLqh = Tindex + 4; // no gci_lo
   }
 }//Dbtc::sendCommitLqh()
@@ -8501,6 +8501,7 @@ void Dbtc::initApiConnectFail(Signal* signal)
     tmp.p->transid1      = ttransid1;
     tmp.p->transid2      = ttransid2;
     tmp.p->apiNodeId     = refToNode(tapplRef);
+    tmp.p->m_commit_ack_marker_nodes.clear();
     tmp.p->m_commit_ack_marker_nodes.set(tnodeid);
     tmp.p->apiConnectPtr = apiConnectptr.i;
 
@@ -8665,6 +8666,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       tmp.p->transid2      = ttransid2;
       tmp.p->apiNodeId     = refToNode(tapplRef);
       tmp.p->apiConnectPtr = apiConnectptr.i;
+      tmp.p->m_commit_ack_marker_nodes.clear();
 #if defined VM_TRACE || defined ERROR_INSERT
       {
 	CommitAckMarkerPtr check;
