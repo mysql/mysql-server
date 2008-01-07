@@ -102,7 +102,7 @@ static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
     va_start(ap, string);
     do_error_all_cases(dbenv, error, 1, 0, string, ap);
     va_end(ap);
-    return errno;
+    return error;
 }
 
 
