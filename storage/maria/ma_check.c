@@ -94,7 +94,8 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
 static void copy_data_file_state(MARIA_STATE_INFO *to,
                                  MARIA_STATE_INFO *from);
 static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
-static void report_keypage_fault(HA_CHECK *param, my_off_t position);
+static void report_keypage_fault(HA_CHECK *param, MARIA_HA *info,
+                                 my_off_t position);
 static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file);
 
 
@@ -496,7 +497,7 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
                            PAGECACHE_LOCK_LEFT_UNLOCKED, DFLT_INIT_HITS,
                            info->buff, 0, 0))
     {
-      report_keypage_fault(param, share->state.key_root[key]);
+      report_keypage_fault(param, info, share->state.key_root[key]);
       if (!(param->testflag & T_INFO))
 	DBUG_RETURN(-1);
       result= -1;
@@ -662,7 +663,7 @@ static int chk_index_down(HA_CHECK *param, MARIA_HA *info,
   if (!_ma_fetch_keypage(info, keyinfo, page, PAGECACHE_LOCK_LEFT_UNLOCKED,
                          DFLT_INIT_HITS, buff, 0, 0))
   {
-    report_keypage_fault(param, page);
+    report_keypage_fault(param, info, page);
     goto err;
   }
   param->key_file_blocks+=keyinfo->block_length;
@@ -1578,6 +1579,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
   uchar *dir_entry;
   uint row;
   char llbuff[22], llbuff2[22];
+  ulonglong page= page_pos / share->block_size;
   DBUG_ENTER("check_head_page");
 
   dir_entry= page_buff+ share->block_size - PAGE_SUFFIX_SIZE;
@@ -1593,25 +1595,24 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
     {
       _ma_check_print_error(param,
                             "Page %9s:  Row %3u is too short (%d bytes)",
-                            llstr(page_pos, llbuff), row, length);
+                            llstr(page, llbuff), row, length);
       DBUG_RETURN(1);
     }
     flag= (uint) (uchar) page_buff[pos];
     if (flag & ~(ROW_FLAG_ALL))
       _ma_check_print_error(param,
                             "Page %9s: Row %3u has wrong flag: %d",
-                            llstr(page_pos, llbuff), row, flag);
+                            llstr(page, llbuff), row, flag);
 
     DBUG_PRINT("info", ("rowid: %s  page: %lu  row: %u",
-                        llstr(ma_recordpos(page_pos/share->block_size, row),
-                              llbuff),
-                        (ulong) (page_pos / share->block_size), row));
+                        llstr(ma_recordpos(page, row), llbuff),
+                        (ulong) page, row));
     if (_ma_read_block_record2(info, record, page_buff+pos,
                                page_buff+pos+length))
     {
       _ma_check_print_error(param,
                             "Page %9s:  Row %3d is crashed",
-                            llstr(page_pos, llbuff), row);
+                            llstr(page, llbuff), row);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         DBUG_RETURN(1);
       continue;
@@ -1621,7 +1622,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
       ha_checksum checksum= (*share->calc_checksum)(info, record);
       if (info->cur_row.checksum != (checksum & 255))
         _ma_check_print_error(param, "Page %9s:  Row %3d has wrong checksum",
-                              llstr(page_pos, llbuff), row);
+                              llstr(page, llbuff), row);
       param->glob_crc+= checksum;
     }
     if (info->cur_row.extents_count)
@@ -1631,8 +1632,8 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
       /* Check that bitmap has the right marker for the found extents */
       for (i= 0 ; i < info->cur_row.extents_count ; i++)
       {
-        uint page, page_count, page_type;
-        page=        uint5korr(extents);
+        uint extent_page, page_count, page_type;
+        extent_page= uint5korr(extents);
         page_count=  uint2korr(extents+5) & ~START_EXTENT_BIT;
         extents+=    ROW_EXTENT_SIZE;
         page_type=   BLOB_PAGE;
@@ -1646,19 +1647,17 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
           Check the whole extent with one test and only do the loop if
           something is wrong (for exact error reporting)
         */
-        for ( ; page_count--; page++)
+        for ( ; page_count--; extent_page++)
         {
           uint bitmap_pattern;
-          if (_ma_check_if_right_bitmap_type(info, page_type, page,
+          if (_ma_check_if_right_bitmap_type(info, page_type, extent_page,
                                              &bitmap_pattern))
           {
             _ma_check_print_error(param,
                                   "Page %9s:  Row: %3d has an extent with wrong information in bitmap:  Page %9s  Page_type: %d  Bitmap: %d",
-                                  llstr(page_pos, llbuff), row,
-                                  llstr(page * share->bitmap.block_size,
-                                        llbuff2),
-                                  page_type,
-                                  bitmap_pattern);
+                                  llstr(page, llbuff), row,
+                                  llstr(extent_page, llbuff2),
+                                  page_type, bitmap_pattern);
             if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
               DBUG_RETURN(1);
           }
@@ -1668,8 +1667,7 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
     param->full_page_count+= info->cur_row.full_page_count;
     param->tail_count+= info->cur_row.tail_count;
     if (check_keys_in_record(param, info, extend,
-                             ma_recordpos(page_pos/share->block_size, row),
-                             record))
+                             ma_recordpos(page, row), record))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
@@ -1685,6 +1683,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
 {
   MARIA_SHARE *share= info->s;
   my_off_t pos;
+  ulonglong page;
   uchar *page_buff, *bitmap_buff, *data;
   char llbuff[22], llbuff2[22];
   uint block_size= share->block_size;
@@ -1705,10 +1704,11 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
   full_page_count= tail_count= 0;
   param->full_page_count= param->tail_count= 0;
   param->used= param->link_used= 0;
+  param->splits= info->state->data_file_length / block_size;
 
-  for (pos= 0;
+  for (pos= 0, page= 0;
        pos < info->state->data_file_length;
-       pos+= block_size)
+       pos+= block_size, page++)
   {
     uint row_count, real_row_count, empty_space, page_type, bitmap_pattern;
     LINT_INIT(row_count);
@@ -1719,19 +1719,19 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       _ma_scan_end_block_record(info);
       return -1;
     }
-    if (((pos / block_size) % share->bitmap.pages_covered) == 0)
+    if ((page % share->bitmap.pages_covered) == 0)
     {
       /* Bitmap page */
       if (pagecache_read(share->pagecache,
                          &info->s->bitmap.file,
-                         (pos / block_size), 1,
+                         page, 1,
                          bitmap_buff,
                          PAGECACHE_PLAIN_PAGE,
                          PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0)
       {
         _ma_check_print_error(param,
                               "Page %9s:  Got error: %d when reading datafile",
-                              llstr(pos, llbuff), my_errno);
+                              llstr(page, llbuff), my_errno);
         goto err;
       }
       param->used+= block_size;
@@ -1739,11 +1739,10 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       continue;
     }
     /* Skip pages marked as empty in bitmap */
-    offset_page= (((pos / block_size) % share->bitmap.pages_covered) -1) * 3;
+    offset_page= ((page % share->bitmap.pages_covered) -1) * 3;
     offset= offset_page & 7;
     data= bitmap_buff + offset_page / 8;
     bitmap_pattern= uint2korr(data);
-    param->splits++;
     if (!((bitmap_pattern >> offset) & 7))
     {
       param->empty+= block_size;
@@ -1753,22 +1752,22 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
 
     if (pagecache_read(share->pagecache,
                        &info->dfile,
-                       (pos / block_size), 1,
+                       page, 1,
                        page_buff,
                        share->page_type,
                        PAGECACHE_LOCK_LEFT_UNLOCKED, 0) == 0)
     {
       _ma_check_print_error(param,
                             "Page %9s:  Got error: %d when reading datafile",
-                            llstr(pos, llbuff), my_errno);
+                            llstr(page, llbuff), my_errno);
       goto err;
     }
     page_type= page_buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK;
     if (page_type == UNALLOCATED_PAGE || page_type >= MAX_PAGE_TYPE)
     {
       _ma_check_print_error(param,
-                            "Page %9s:  Found wrong page type %d",
-                            llstr(pos, llbuff), page_type);
+                            "Page: %9s  Found wrong page type %d",
+                            llstr(page, llbuff), page_type);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
       continue;
@@ -1782,20 +1781,22 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     case HEAD_PAGE:
       row_count= ((uchar*) page_buff)[DIR_COUNT_OFFSET];
       empty_space= uint2korr(page_buff + EMPTY_SPACE_OFFSET);
-      param->used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
-                     row_count * DIR_ENTRY_SIZE);
+      param->used+= block_size - empty_space;
       param->link_used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
                           row_count * DIR_ENTRY_SIZE);
+      if (empty_space < share->bitmap.sizes[3])
+        param->lost+= empty_space;
       full_dir= row_count == MAX_ROWS_PER_PAGE;
       break;
     case TAIL_PAGE:
       row_count= ((uchar*) page_buff)[DIR_COUNT_OFFSET];
       empty_space= uint2korr(page_buff + EMPTY_SPACE_OFFSET);
-      param->used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
-                     row_count * DIR_ENTRY_SIZE);
+      param->used+= block_size - empty_space;
       param->link_used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
                           row_count * DIR_ENTRY_SIZE);
       full_dir= row_count == MAX_ROWS_PER_PAGE;
+      if (empty_space < share->bitmap.sizes[6])
+        param->lost+= empty_space;
       break;
     case BLOB_PAGE:
       full_page_count++;
@@ -1805,19 +1806,19 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       param->used+= block_size;
       break;
     }
-    if (_ma_check_bitmap_data(info, page_type, pos / block_size,
+    if (_ma_check_bitmap_data(info, page_type, page,
                               full_dir ? 0 : empty_space,
                               &bitmap_pattern))
     {
       if (bitmap_pattern == ~(uint) 0)
         _ma_check_print_error(param,
-                              "Page: %9s: Wrong bitmap for data on page",
-                              llstr(pos, llbuff));
+                              "Page %9s: Wrong bitmap for data on page",
+                              llstr(page, llbuff));
       else
         _ma_check_print_error(param,
                               "Page %9s:  Wrong data in bitmap.  Page_type: %d  empty_space: %u  Bitmap-bits: %d",
-                              llstr(pos, llbuff), page_type, empty_space,
-                              bitmap_pattern);
+                              llstr(page, llbuff), page_type,
+                              empty_space, bitmap_pattern);
       if (param->err_count++ > MAXERR || !(param->testflag & T_VERBOSE))
         goto err;
     }
@@ -1839,11 +1840,11 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
 
   /* Verify that rest of bitmap is zero */
 
-  if ((pos / block_size) % share->bitmap.pages_covered)
+  if (page % share->bitmap.pages_covered)
   {
     /* Not at end of bitmap */
     uint bitmap_pattern;
-    offset_page= (((pos / block_size) % share->bitmap.pages_covered) -1) * 3;
+    offset_page= ((page % share->bitmap.pages_covered) -1) * 3;
     offset= offset_page & 7;
     data= bitmap_buff + offset_page / 8;
     bitmap_pattern= uint2korr(data);
@@ -1853,10 +1854,12 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                            data - 2)))
     {
       ulonglong bitmap_page;
-      bitmap_page= pos / block_size / share->bitmap.pages_covered;
+      bitmap_page= page / share->bitmap.pages_covered;
       bitmap_page*= share->bitmap.pages_covered;
 
-      _ma_check_print_error(param, "Bitmap at %s has pages reserved outside of data file length",
+      _ma_check_print_error(param,
+                            "Bitmap at page %s has pages reserved outside of "
+                            "data file length",
                             llstr(bitmap_page, llbuff));
       DBUG_EXECUTE("bitmap", _ma_print_bitmap(&share->bitmap, bitmap_buff,
                                               bitmap_page););
@@ -1874,9 +1877,6 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                           llstr(param->tail_count, llbuff),
                           llstr(tail_count, llbuff2));
 
-  /* Update splits to avoid warning */
-  share->state.split= param->splits;
-  info->state->del=     param->del_blocks;
   return param->error_printed != 0;
 
 err:
@@ -1910,6 +1910,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
   }
   param->records= param->del_blocks= 0;
   param->used= param->link_used= param->splits= param->del_length= 0;
+  param->lost= 0;
   param->tmp_record_checksum= param->glob_crc= 0;
   param->err_count= 0;
 
@@ -1953,7 +1954,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
 	   param->record_checksum != param->tmp_record_checksum)
   {
     _ma_check_print_error(param,
-			 "Key pointers and record positions doesn't match");
+                          "Key pointers and record positions doesn't match");
     error=1;
   }
   else if (param->glob_crc != info->state->checksum &&
@@ -1961,7 +1962,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
 	    (HA_OPTION_CHECKSUM | HA_OPTION_COMPRESS_RECORD)))
   {
     _ma_check_print_warning(param,
-			   "Record checksum is not the same as checksum stored in the index file");
+                            "Record checksum is not the same as checksum stored in the index file");
     error=1;
   }
   else if (!extend)
@@ -1973,7 +1974,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
           !(share->keyinfo[key].flag & (HA_FULLTEXT | HA_SPATIAL)))
       {
 	_ma_check_print_error(param,"Checksum for key: %2d doesn't match checksum for records",
-		    key+1);
+                              key+1);
 	error=1;
       }
     }
@@ -1982,37 +1983,41 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
   if (param->del_length != info->state->empty)
   {
     _ma_check_print_warning(param,
-			   "Found %s deleted space.   Should be %s",
-			   llstr(param->del_length,llbuff2),
-			   llstr(info->state->empty,llbuff));
+                            "Found %s deleted space.   Should be %s",
+                            llstr(param->del_length,llbuff2),
+                            llstr(info->state->empty,llbuff));
   }
-  if (param->used + param->empty + param->del_length !=
-      info->state->data_file_length)
+  /* Skip following checks for BLOCK RECORD as they don't make any sence */
+  if (share->data_file_type != BLOCK_RECORD)
   {
-    _ma_check_print_warning(param,
-			   "Found %s record data and %s unused data and %s deleted data",
-                            llstr(param->used, llbuff),
-                            llstr(param->empty,llbuff2),
-                            llstr(param->del_length,llbuff3));
-    _ma_check_print_warning(param,
-			   "Total %s   Should be: %s",
-			   llstr((param->used+param->empty+param->del_length),
-                                 llbuff),
-			   llstr(info->state->data_file_length,llbuff2));
-  }
-  if (param->del_blocks != info->state->del)
-  {
-    _ma_check_print_warning(param,
-			   "Found %10s deleted blocks       Should be: %s",
-			   llstr(param->del_blocks,llbuff),
-			   llstr(info->state->del,llbuff2));
-  }
-  if (param->splits != share->state.split)
-  {
-    _ma_check_print_warning(param,
-			   "Found %10s parts                Should be: %s parts",
-			   llstr(param->splits, llbuff),
-			   llstr(share->state.split,llbuff2));
+    if (param->used + param->empty + param->del_length !=
+        info->state->data_file_length)
+    {
+      _ma_check_print_warning(param,
+                              "Found %s record data and %s unused data and %s deleted data",
+                              llstr(param->used, llbuff),
+                              llstr(param->empty,llbuff2),
+                              llstr(param->del_length,llbuff3));
+      _ma_check_print_warning(param,
+                              "Total %s   Should be: %s",
+                              llstr((param->used+param->empty +
+                                     param->del_length), llbuff),
+                              llstr(info->state->data_file_length,llbuff2));
+    }
+    if (param->del_blocks != info->state->del)
+    {
+      _ma_check_print_warning(param,
+                              "Found %10s deleted blocks       Should be: %s",
+                              llstr(param->del_blocks,llbuff),
+                              llstr(info->state->del,llbuff2));
+    }
+    if (param->splits != share->state.split)
+    {
+      _ma_check_print_warning(param,
+                              "Found %10s parts                Should be: %s parts",
+                              llstr(param->splits, llbuff),
+                              llstr(share->state.split,llbuff2));
+    }
   }
   if (param->testflag & T_INFO)
   {
@@ -2044,18 +2049,20 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
         printf("Records:%18s\n", "0");
     }
     printf("Record blocks:%12s    Delete blocks:%10s\n",
-	   llstr(param->splits - param->del_blocks, llbuff),
+           llstr(param->splits - param->del_blocks, llbuff),
            llstr(param->del_blocks, llbuff2));
     printf("Record data:  %12s    Deleted data: %10s\n",
-	   llstr(param->used - param->link_used,llbuff),
+           llstr(param->used - param->link_used,llbuff),
            llstr(param->del_length, llbuff2));
-    printf("Lost space:   %12s    Linkdata:     %10s\n",
-	   llstr(param->empty, llbuff),llstr(param->link_used, llbuff2));
+    printf("Empty space:  %12s    Linkdata:     %10s\n",
+           llstr(param->empty, llbuff),llstr(param->link_used, llbuff2));
+    if (param->lost)
+      printf("Lost space:   %12s", llstr(param->lost, llbuff));
   }
   my_free((uchar*) record,MYF(0));
   DBUG_RETURN (error);
 
- err:
+err:
   my_free((uchar*) record,MYF(0));
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
@@ -2180,6 +2187,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
                                       rep_quick))
     goto err;
+  if (share->now_transactional)
+    _ma_tmp_disable_logging_for_table(info, 0);
 
   new_header_length= ((param->testflag & T_UNPACK) ? 0L :
                       share->pack.header_length);
@@ -2423,11 +2432,11 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   {
     if (start_records != info->state->records)
       printf("Data records: %s\n", llstr(info->state->records,llbuff));
-    if (sort_info.dupp)
-      _ma_check_print_warning(param,
-			     "%s records have been removed",
-			     llstr(sort_info.dupp,llbuff));
   }
+  if (sort_info.dupp)
+    _ma_check_print_warning(param,
+                            "%s records have been removed",
+                            llstr(sort_info.dupp,llbuff));
 
   got_error= 0;
   /* If invoked by external program that uses thr_lock */
@@ -2469,6 +2478,8 @@ err:
     */
     write_log_record_for_repair(param, info);
   }
+  _ma_reenable_logging_for_table(info);
+
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
@@ -2799,7 +2810,7 @@ static int sort_one_index(HA_CHECK *param, MARIA_HA *info,
   if (!_ma_fetch_keypage(info, keyinfo, pagepos,PAGECACHE_LOCK_LEFT_UNLOCKED,
                          DFLT_INIT_HITS, buff, 0, 0))
   {
-    report_keypage_fault(param, pagepos);
+    report_keypage_fault(param, info, pagepos);
     goto err;
   }
   if ((nod_flag=_ma_test_if_nod(share, buff)) || keyinfo->flag & HA_FULLTEXT)
@@ -2952,6 +2963,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
   my_off_t pos;
   ulonglong page;
   uint block_size= share->block_size;
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("maria_zerofill_data");
 
   /* This works only with BLOCK_RECORD files */
@@ -2989,7 +3001,13 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
       bzero(buff, block_size);
       break;
     case BLOB_PAGE:
-      bzero(buff, LSN_SIZE);
+      if (_ma_bitmap_get_page_bits(info, bitmap, page) == 0)
+      {
+        /* Unallocated page */
+        bzero(buff, block_size);
+      }
+      else
+        bzero(buff, LSN_SIZE);
       break;
     case HEAD_PAGE:
     case TAIL_PAGE:
@@ -3364,6 +3382,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                                  (size_t) param->sort_buffer_length))
     {
       param->retry_repair=1;
+      _ma_check_print_error(param, "Create index by sort failed");
       goto err;
     }
     DBUG_EXECUTE_IF("maria_flush_whole_log",
@@ -3404,7 +3423,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
       param->read_cache.end_of_file=sort_param.filepos;
       if (maria_write_data_suffix(&sort_info,1) ||
           end_io_cache(&sort_info.new_info->rec_cache))
+      {
+        _ma_check_print_error(param, "Got error when flushing row cache");
 	goto err;
+      }
       sort_info.new_info->opt_flag&= ~WRITE_CACHE_USED;
 
       if (param->testflag & T_SAFE_REPAIR)
@@ -3412,14 +3434,20 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 	/* Don't repair if we loosed more than one row */
 	if (info->state->records+1 < start_records)
 	{
-	  info->state->records=start_records;
+          _ma_check_print_error(param,
+                                "Rows lost; Aborting because safe repair was "
+                                "requested");
+          info->state->records=start_records;
 	  goto err;
 	}
       }
 
       /** @todo RECOVERY BUG seems misplaced in some cases */
       if (_ma_flush_table_files_after_repair(param, info))
+      {
+        _ma_check_print_error(param, "Got error when flushing caches");
         goto err;
+      }
 
       sort_info.new_info->state->data_file_length= sort_param.filepos;
       if (sort_info.new_info != sort_info.info)
@@ -3433,6 +3461,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
         copy_data_file_state(&share->state, &save_state);
         new_file= -1;
         sort_info.new_info= info;
+        info->rec_cache.file= info->dfile.file;
       }
 
       share->state.version=(ulong) time((time_t*) 0);	/* Force reopen */
@@ -3451,6 +3480,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                                   sync_dir) ||
           _ma_open_datafile(info, share, -1))
       {
+        _ma_check_print_error(param, "Couldn't change to new data file");
         goto err;
       }
       if (param->testflag & T_UNPACK)
@@ -3513,11 +3543,11 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   {
     if (start_records != info->state->records)
       printf("Data records: %s\n", llstr(info->state->records,llbuff));
-    if (sort_info.dupp)
-      _ma_check_print_warning(param,
-			     "%s records have been removed",
-			     llstr(sort_info.dupp,llbuff));
   }
+  if (sort_info.dupp)
+    _ma_check_print_warning(param,
+                            "%s records have been removed",
+                            llstr(sort_info.dupp,llbuff));
   got_error=0;
 
   if (&share->state.state != info->state)
@@ -3953,11 +3983,12 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   if (sort_param[0].fix_datafile)
   {
     /*
-      Append some nuls to the end of a memory mapped file. Destroy the
+      Append some nulls to the end of a memory mapped file. Destroy the
       write cache. The master thread did already detach from the share
       by remove_io_thread() in sort.c:thr_find_all_keys().
     */
-    if (maria_write_data_suffix(&sort_info,1) || end_io_cache(&info->rec_cache))
+    if (maria_write_data_suffix(&sort_info,1) ||
+        end_io_cache(&info->rec_cache))
       goto err;
     if (param->testflag & T_SAFE_REPAIR)
     {
@@ -4013,17 +4044,18 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 
   if (my_chsize(share->kfile.file, info->state->key_file_length, 0, MYF(0)))
     _ma_check_print_warning(param,
-			   "Can't change size of indexfile, error: %d", my_errno);
+			   "Can't change size of indexfile, error: %d",
+                            my_errno);
 
   if (!(param->testflag & T_SILENT))
   {
     if (start_records != info->state->records)
       printf("Data records: %s\n", llstr(info->state->records,llbuff));
-    if (sort_info.dupp)
-      _ma_check_print_warning(param,
-			     "%s records have been removed",
-			     llstr(sort_info.dupp,llbuff));
   }
+  if (sort_info.dupp)
+    _ma_check_print_warning(param,
+                            "%s records have been removed",
+                            llstr(sort_info.dupp,llbuff));
   got_error=0;
 
   if (&share->state.state != info->state)
@@ -5121,7 +5153,7 @@ static int sort_insert_key(MARIA_SORT_PARAM *sort_param,
   a_length+=t_length;
   _ma_store_page_used(share, anc_buff, a_length);
   key_block->end_pos+=t_length;
-  if (a_length <= keyinfo->block_length)
+  if (a_length <= (uint) (keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
   {
     VOID(_ma_move_key(keyinfo, key_block->lastkey, key));
     key_block->last_length=a_length-t_length;
@@ -5196,37 +5228,40 @@ static int sort_delete_record(MARIA_SORT_PARAM *sort_param)
   old_file= row_info->dfile.file;
   /* This only affects static and dynamic row formats */
   row_info->dfile.file= row_info->rec_cache.file;
-  if (sort_info->current_key)
-  {
-    key= key_info->lastkey + key_info->s->base.max_key_length;
-    if ((error=(*row_info->s->read_record)(row_info, sort_param->record,
-                                           key_info->cur_row.lastpos)) &&
+  if (flush_io_cache(&row_info->rec_cache))
+    DBUG_RETURN(1);
+
+  key= key_info->lastkey + key_info->s->base.max_key_length;
+  if ((error=(*row_info->s->read_record)(row_info, sort_param->record,
+                                         key_info->cur_row.lastpos)) &&
 	error != HA_ERR_RECORD_DELETED)
+  {
+    _ma_check_print_error(param,"Can't read record to be removed");
+    row_info->dfile.file= old_file;
+    DBUG_RETURN(1);
+  }
+  row_info->cur_row.lastpos= key_info->cur_row.lastpos;
+
+  for (i=0 ; i < sort_info->current_key ; i++)
+  {
+    uint key_length= _ma_make_key(key_info, i, key, sort_param->record,
+                                  key_info->cur_row.lastpos);
+    if (_ma_ck_delete(key_info, i, key, key_length))
     {
-      _ma_check_print_error(param,"Can't read record to be removed");
+      _ma_check_print_error(param,
+                            "Can't delete key %d from record to be removed",
+                            i+1);
       row_info->dfile.file= old_file;
       DBUG_RETURN(1);
     }
-
-    for (i=0 ; i < sort_info->current_key ; i++)
-    {
-      uint key_length= _ma_make_key(key_info, i, key, sort_param->record,
-                                    key_info->cur_row.lastpos);
-      if (_ma_ck_delete(key_info, i, key, key_length))
-      {
-	_ma_check_print_error(param,
-                              "Can't delete key %d from record to be removed",
-                              i+1);
-	row_info->dfile.file= old_file;
-	DBUG_RETURN(1);
-      }
-    }
-    if (sort_param->calc_checksum)
-      param->glob_crc-=(*key_info->s->calc_check_checksum)(key_info,
-                                                           sort_param->record);
   }
-  error= (flush_io_cache(&row_info->rec_cache) ||
-          (*row_info->s->delete_record)(row_info, sort_param->record));
+  if (sort_param->calc_checksum)
+    param->glob_crc-=(*key_info->s->calc_check_checksum)(key_info,
+                                                         sort_param->record);
+  error= (*row_info->s->delete_record)(row_info, sort_param->record);
+  if (error)
+    _ma_check_print_error(param,"Got error %d when deleting record",
+                          my_errno);
   row_info->dfile.file= old_file;           /* restore actual value */
   row_info->state->records--;
   DBUG_RETURN(error);
@@ -6024,7 +6059,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
         if (info->scan.dir < info->scan.dir_end)
         {
           _ma_check_print_info(sort_info->param,
-                               "Wrong directory on page: %s",
+                               "Wrong directory on page %s",
                                llstr(page, llbuff));
           goto read_next_page;
         }
@@ -6075,8 +6110,8 @@ read_next_page:
         if (my_errno == HA_ERR_WRONG_CRC)
         {
           _ma_check_print_info(sort_info->param,
-                               "Wrong CRC on page at %s",
-                               llstr(page * share->block_size, llbuff));
+                               "Wrong CRC on datapage at %s",
+                               llstr(page, llbuff));
           continue;
         }
         DBUG_RETURN(my_errno);
@@ -6089,15 +6124,14 @@ read_next_page:
              (uint) (uchar) info->scan.page_buff[DIR_COUNT_OFFSET]) != 0)
           break;
         _ma_check_print_info(sort_info->param,
-                             "Wrong head page at %s",
-                             llstr(page * share->block_size, llbuff));
+                             "Wrong head page at page %s",
+                             llstr(page, llbuff));
       }
       else if (page_type >= MAX_PAGE_TYPE)
       {
         _ma_check_print_info(sort_info->param,
-                             "Found wrong page type: %d at %s",
-                             page_type, llstr(page * share->block_size,
-                                              llbuff));
+                             "Found wrong page type: %d at page %s",
+                             page_type, llstr(page, llbuff));
       }
     }
 
@@ -6199,17 +6233,19 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 
 /* Give error message why reading of key page failed */
 
-static void report_keypage_fault(HA_CHECK *param, my_off_t position)
+static void report_keypage_fault(HA_CHECK *param, MARIA_HA *info,
+                                 my_off_t position)
 {
   char buff[11];
+  uint32 block_size= info->s->block_size;
 
   if (my_errno == HA_ERR_CRASHED)
     _ma_check_print_error(param,
-                          "Wrong base information on indexpage at filepos: %s",
-                          llstr(position, buff));
+                          "Wrong base information on indexpage at page: %s",
+                          llstr(position / block_size, buff));
   else
     _ma_check_print_error(param,
-                          "Can't read indexpage from filepos: %s, "
+                          "Can't read indexpage from page: %s, "
                           "error: %d",
-                          llstr(position,buff), my_errno);
+                          llstr(position / block_size, buff), my_errno);
 }

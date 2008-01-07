@@ -100,3 +100,5 @@ ma_pagecache_consist_64kWR_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPA
 CLEANFILES =		maria_log_control page_cache_test_file_1 \
 			maria_log.????????
 
+# Don't update the files from bitkeeper
+%::SCCS/s.%

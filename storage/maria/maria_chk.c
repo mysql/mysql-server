@@ -41,7 +41,7 @@ static const char *set_collation_name, *opt_tmpdir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
-static my_bool opt_transaction_logging;
+static my_bool opt_transaction_logging, opt_debug;
 
 static const char *type_names[]=
 {
@@ -179,7 +179,8 @@ enum options_mc {
   OPT_READ_BUFFER_SIZE, OPT_WRITE_BUFFER_SIZE, OPT_SORT_BUFFER_SIZE,
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
-  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG
+  OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
+  OPT_SKIP_SAFEMALLOC
 };
 
 static struct my_option my_long_options[] =
@@ -289,6 +290,13 @@ static struct my_option my_long_options[] =
   {"silent", 's',
    "Only print errors. One can use two -s to make maria_chk very silent.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+#ifdef SAFEMALLOC
+  {"skip-safemalloc", OPT_SKIP_SAFEMALLOC,
+   "Don't use the memory allocation checking.", 0, 0, 0, GET_NO_ARG, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+#endif
+#endif
   {"sort-index", 'S',
    "Sort index blocks. This speeds up 'read-next' in applications.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -713,6 +721,12 @@ get_one_option(int optid,
     break;
   case '#':
     DBUG_SET_INITIAL(argument ? argument : "d:t:o,/tmp/maria_chk.trace");
+    opt_debug= 1;
+    break;
+  case OPT_SKIP_SAFEMALLOC:
+#ifdef SAFEMALLOC
+    sf_malloc_quick=1;
+#endif
     break;
   case 'V':
     print_version();
@@ -813,6 +827,10 @@ static void get_options(register int *argc,register char ***argv)
     exit(1);
   }
 
+  if (!opt_debug)
+  {
+    DEBUGGER_OFF;                               /* Speed up things a bit */
+  }
   if (init_tmpdir(&maria_chk_tmpdir, opt_tmpdir))
     exit(1);
 
@@ -906,7 +924,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (param->testflag & T_SORT_RECORDS)
     {
       _ma_check_print_error(param,
-                            "Record format used by '%s' is is not yet supported with repair/check",
+                            "Record format used by '%s' is is not yet supported with sort-records",
                             filename);
       param->error_printed= 0;
       error= 1;
@@ -1443,7 +1461,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
     else
       buff[0]=0;
     if (param->testflag & T_VERBOSE)
-      printf("%11.0g %12s %10d",
+      printf("%11.0f %12s %10d",
 	     share->state.rec_per_key_part[keyseg_nr++],
 	     buff,keyinfo->block_length);
     VOID(putchar('\n'));
@@ -1464,7 +1482,7 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       printf("    %-6ld%-3d         %-21s",
 	     (long) keyseg->start+1,keyseg->length,buff);
       if (param->testflag & T_VERBOSE)
-	printf("%11.0g", share->state.rec_per_key_part[keyseg_nr++]);
+	printf("%11.0f", share->state.rec_per_key_part[keyseg_nr++]);
       VOID(putchar('\n'));
     }
     keyseg++;

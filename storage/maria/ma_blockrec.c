@@ -1269,8 +1269,23 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
     }
   }
   row->field_lengths_length= (uint) (field_length_data - row->field_lengths);
+  /*
+    - row->base_length is base information we must have on a page in first
+      extent:
+      - flag byte (1) + is_nulls_extended (0 | 1) + null_bytes + pack_bytes +
+        table_checksum (0 | 1)
+    - row->min_length is minimum amount of data we must store on
+      a page. bitmap code will ensure we get at list this much +
+      total number of extents and one extent information
+    - fixed_not_null_fields_length is length of fixed length fields that can't
+      be compacted
+    - head_length is the amount of data for the head page
+     (ie, all fields except blobs)
+  */
   row->min_length=   (row->base_length +
-                      size_to_store_key_length(row->field_lengths_length));
+                      (share->base.max_field_lengths ?
+                       size_to_store_key_length(row->field_lengths_length) :
+                       0));
   row->head_length= (row->min_length +
                      share->base.fixed_not_null_fields_length +
                      row->field_lengths_length +
@@ -1534,11 +1549,11 @@ static my_bool get_head_or_tail_page(MARIA_HA *info,
     /* Read old page */
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
     res->buff= pagecache_read(share->pagecache, &info->dfile,
-                              block->page, 0, buff, share->page_type,
+                              block->page, 0, 0, share->page_type,
                               lock, &page_link.link);
-    page_link.changed= res->buff == 0;
+    page_link.changed= res->buff != 0;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
-    if (page_link.changed)
+    if (!page_link.changed)
       goto crashed;
 
     DBUG_ASSERT((res->buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) == page_type);
@@ -1620,10 +1635,10 @@ static my_bool get_rowpos_in_head_or_tail_page(MARIA_HA *info,
   else
   {
     page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
-    res->buff= pagecache_read(share->pagecache, &info->dfile,
-                              block->page, 0, buff, share->page_type,
-                              lock, &page_link.link);
-    page_link.changed= res->buff != 0;
+    buff= pagecache_read(share->pagecache, &info->dfile,
+                         block->page, 0, 0, share->page_type,
+                         lock, &page_link.link);
+    page_link.changed= buff != 0;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
     if (!page_link.changed)                     /* Read error */
       goto err;
@@ -1797,27 +1812,32 @@ static my_bool write_tail(MARIA_HA *info,
     info->state->data_file_length= position + block_size;
   }
 
-  DBUG_ASSERT(share->pagecache->block_size == block_size);
-  if (!(res= pagecache_write(share->pagecache,
-                             &info->dfile, block->page, 0,
-                             row_pos.buff,share->page_type,
-                             block_is_read ? PAGECACHE_LOCK_WRITE_TO_READ :
-                             PAGECACHE_LOCK_READ,
-                             block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
-                             PAGECACHE_PIN,
-                             PAGECACHE_WRITE_DELAY, &page_link.link,
-                             LSN_IMPOSSIBLE)))
+  if (block_is_read)
+  {
+    /* Current page link is last element in pinned_pages */
+    MARIA_PINNED_PAGE *page_link;
+    page_link= dynamic_element(&info->pinned_pages,
+                               info->pinned_pages.elements-1,
+                               MARIA_PINNED_PAGE*);
+    pagecache_unlock_by_link(share->pagecache, page_link->link,
+                             PAGECACHE_LOCK_WRITE_TO_READ,
+                             PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE, 1);
+    DBUG_ASSERT(page_link->changed);
+    page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
+    res= 0;
+  }
+  else if (!(res= pagecache_write(share->pagecache,
+                                  &info->dfile, block->page, 0,
+                                  row_pos.buff,share->page_type,
+                                  PAGECACHE_LOCK_READ,
+                                  PAGECACHE_PIN,
+                                  PAGECACHE_WRITE_DELAY, &page_link.link,
+                                  LSN_IMPOSSIBLE)))
   {
     page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
     page_link.changed= 1;
-    if (block_is_read)
-    {
-      /* Change the lock used when we read the page */
-      set_dynamic(&info->pinned_pages, (void*) &page_link,
-                  info->pinned_pages.elements-1);
-    }
-    else
-      push_dynamic(&info->pinned_pages, (void*) &page_link);
+    push_dynamic(&info->pinned_pages, (void*) &page_link);
   }
   DBUG_RETURN(res);
 }
@@ -1909,7 +1929,6 @@ static my_bool write_full_pages(MARIA_HA *info,
       bzero(buff + block_size - PAGE_SUFFIX_SIZE - (data_size - copy_length),
             (data_size - copy_length) + PAGE_SUFFIX_SIZE);
 
-    DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
                         buff, share->page_type,
@@ -2333,6 +2352,7 @@ static my_bool write_block_record(MARIA_HA *info,
   my_bool row_extents_in_use, blob_full_pages_exists;
   LSN lsn;
   my_off_t position;
+  uint save_my_errno;
   DBUG_ENTER("write_block_record");
 
   LINT_INIT(row_extents_first_part);
@@ -2381,6 +2401,9 @@ static my_bool write_block_record(MARIA_HA *info,
   data+= share->base.null_bytes;
   memcpy(data, row->empty_bits, share->base.pack_bytes);
   data+= share->base.pack_bytes;
+
+  DBUG_ASSERT(row_extents_in_use || undo_lsn != LSN_ERROR ||
+              (uint) (data - row_pos->data) == row->min_length);
 
   /*
     Allocate a buffer of rest of data (except blobs)
@@ -2439,6 +2462,11 @@ static my_bool write_block_record(MARIA_HA *info,
   memcpy(tmp_data, field_length_data, row->field_lengths_length);
   tmp_data+= row->field_lengths_length;
 
+  DBUG_ASSERT(row_extents_in_use || undo_lsn != LSN_ERROR ||
+              (uint) (tmp_data - row_pos->data) == row->min_length +
+              share->base.fixed_not_null_fields_length +
+              row->field_lengths_length);
+
   /* Copy variable length fields and fields with null/zero */
   for (end_column= share->columndef + share->base.fields - share->base.blobs;
        column < end_column ;
@@ -2479,6 +2507,7 @@ static my_bool write_block_record(MARIA_HA *info,
         field_length_data+= 2;
         field_pos+= 2;
       }
+      DBUG_ASSERT(length <= column->length);
       break;
     default:                                    /* Wrong data */
       DBUG_ASSERT(0);
@@ -2831,26 +2860,35 @@ static my_bool write_block_record(MARIA_HA *info,
   if (info->state->data_file_length <= position)
     info->state->data_file_length= position + block_size;
 
-  DBUG_ASSERT(share->pagecache->block_size == block_size);
-  if (pagecache_write(share->pagecache,
-                      &info->dfile, head_block->page, 0,
-                      page_buff, share->page_type,
-                      head_block_is_read ? PAGECACHE_LOCK_WRITE_TO_READ :
-                      PAGECACHE_LOCK_READ,
-                      head_block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
-                      PAGECACHE_PIN,
-                      PAGECACHE_WRITE_DELAY, &page_link.link,
-                      LSN_IMPOSSIBLE))
-    goto disk_err;
-  page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
-  page_link.changed= 1;
   if (head_block_is_read)
   {
+    MARIA_PINNED_PAGE *page_link;
     /* Head page is always the first pinned page */
-    set_dynamic(&info->pinned_pages, (void*) &page_link, 0);
+    page_link= dynamic_element(&info->pinned_pages, 0,
+                               MARIA_PINNED_PAGE*);
+    pagecache_unlock_by_link(share->pagecache, page_link->link,
+                             PAGECACHE_LOCK_WRITE_TO_READ,
+                             PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
+                             LSN_IMPOSSIBLE, 1);
+    page_link->unlock= PAGECACHE_LOCK_READ_UNLOCK;
+    page_link->changed= 1;
   }
   else
+  {
+    if (pagecache_write(share->pagecache,
+                        &info->dfile, head_block->page, 0,
+                        page_buff, share->page_type,
+                        head_block_is_read ? PAGECACHE_LOCK_WRITE_TO_READ :
+                        PAGECACHE_LOCK_READ,
+                        head_block_is_read ? PAGECACHE_PIN_LEFT_PINNED :
+                        PAGECACHE_PIN,
+                        PAGECACHE_WRITE_DELAY, &page_link.link,
+                        LSN_IMPOSSIBLE))
+      goto disk_err;
+    page_link.unlock= PAGECACHE_LOCK_READ_UNLOCK;
+    page_link.changed= 1;
     push_dynamic(&info->pinned_pages, (void*) &page_link);
+  }
 
   if (share->now_transactional && (tmp_data_used || blob_full_pages_exists))
   {
@@ -2918,8 +2956,8 @@ static my_bool write_block_record(MARIA_HA *info,
 
         if (!*tmp_blob_lengths)                 /* Null or "" */
           continue;
-        length= tmp_column->length - portable_sizeof_char_ptr;
         blob_length= *tmp_blob_lengths;
+        length= tmp_column->length - portable_sizeof_char_ptr;
         /*
           If last part of blog was on tail page, change blob_length to
           reflect this
@@ -2929,7 +2967,7 @@ static my_bool write_block_record(MARIA_HA *info,
         if (blob_length)
         {
           memcpy_fixed((uchar*) &log_array_pos->str,
-                       record + column->offset + length,
+                       record + tmp_column->offset + length,
                        sizeof(uchar*));
           log_array_pos->length= blob_length;
           log_entry_length+= blob_length;
@@ -3136,8 +3174,9 @@ disk_err:
     Unpin all pinned pages to not cause problems for disk cache. This is
     safe to call even if we already called _ma_unpin_all_pages() above.
   */
+  save_my_errno= my_errno;
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
-
+  my_errno= save_my_errno;
   DBUG_RETURN(1);
 }
 
@@ -3163,6 +3202,7 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
 {
   struct st_row_pos_info row_pos;
   MARIA_BITMAP_BLOCKS *blocks= &row->insert_blocks;
+  int save_my_errno;
   DBUG_ENTER("allocate_and_write_block_record");
 
   _ma_bitmap_flushable(info, 1);
@@ -3201,10 +3241,13 @@ static my_bool allocate_and_write_block_record(MARIA_HA *info,
   /* Now let checkpoint happen but don't commit */
   DBUG_EXECUTE_IF("maria_over_alloc_bitmap", sleep(1000););
   DBUG_RETURN(0);
+
 err:
+  save_my_errno= my_errno;
   if (info->non_flushable_state)
     _ma_bitmap_flushable(info, -1);
   _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
+  my_errno= save_my_errno;
   DBUG_RETURN(1);
 }
 
@@ -3362,8 +3405,8 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
 
   _ma_bitmap_flushable(info, 1);
   buff= pagecache_read(share->pagecache,
-                       &info->dfile, (pgcache_page_no_t) page, 0,
-                       info->buff, share->page_type,
+                       &info->dfile, (pgcache_page_no_t) page, 0, 0,
+                       share->page_type,
                        PAGECACHE_LOCK_WRITE, &page_link.link);
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
   page_link.changed= buff != 0;
@@ -3512,8 +3555,8 @@ static my_bool _ma_update_at_original_place(MARIA_HA *info,
 
   _ma_bitmap_flushable(info, 1);
   buff= pagecache_read(share->pagecache,
-                       &info->dfile, (pgcache_page_no_t) page, 0,
-                       info->buff, share->page_type,
+                       &info->dfile, (pgcache_page_no_t) page, 0, 0,
+                       share->page_type,
                        PAGECACHE_LOCK_WRITE, &page_link.link);
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
   page_link.changed= buff != 0;
@@ -3746,10 +3789,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                        (ulong) ma_recordpos(page, record_number),
                        (ulong) page, record_number));
 
-  DBUG_ASSERT(share->pagecache->block_size == block_size);
   buff= pagecache_read(share->pagecache,
-                       &info->dfile, page, 0,
-                       0,
+                       &info->dfile, page, 0, 0,
                        share->page_type,
                        PAGECACHE_LOCK_WRITE, &page_link.link);
   page_link.unlock= PAGECACHE_LOCK_WRITE_UNLOCK;
@@ -3794,14 +3835,6 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                                 log_data, NULL))
         DBUG_RETURN(1);
     }
-    if (pagecache_write(share->pagecache,
-                        &info->dfile, page, 0,
-                        buff, share->page_type,
-                        lock_at_write,
-                        PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link,
-                        LSN_IMPOSSIBLE))
-      DBUG_RETURN(1);
   }
   else /* page is now empty */
   {
@@ -3818,19 +3851,13 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
                                 log_data, NULL))
         DBUG_RETURN(1);
     }
-    /* Write the empty page (needed only for REPAIR to work) */
-    if (pagecache_write(share->pagecache,
-                        &info->dfile, page, 0,
-                        buff, share->page_type,
-                        lock_at_write,
-                        PAGECACHE_PIN_LEFT_PINNED,
-                        PAGECACHE_WRITE_DELAY, &page_link.link,
-                        LSN_IMPOSSIBLE))
-      DBUG_RETURN(1);
-
     DBUG_ASSERT(empty_space >= share->bitmap.sizes[0]);
   }
-  /* The page is pinned with a read lock */
+
+  pagecache_unlock_by_link(share->pagecache, page_link.link,
+                           lock_at_write,
+                           PAGECACHE_PIN_LEFT_PINNED, LSN_IMPOSSIBLE,
+                           LSN_IMPOSSIBLE, 1);
   page_link.unlock= lock_at_unpin;
   set_dynamic(&info->pinned_pages, (void*) &page_link,
               info->pinned_pages.elements-1);
@@ -4105,7 +4132,6 @@ static uchar *read_next_extent(MARIA_HA *info, MARIA_EXTENT_CURSOR *extent,
   if (extent->tail)
     lock= extent->lock_for_tail_pages;
 
-  DBUG_ASSERT(share->pagecache->block_size == share->block_size);
   buff= pagecache_read(share->pagecache,
                        &info->dfile, extent->page, 0,
                        info->buff, share->page_type,
@@ -4439,6 +4465,10 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
         field_pos+= 2;
         field_length_data+= 2;
       }
+#ifdef SANITY_CHECKS
+      if (length > column->length)
+        goto err;
+#endif
       if (read_long_data(info, field_pos, length, &extent, &data,
                          &end_of_data))
         DBUG_RETURN(my_errno);
@@ -4673,7 +4703,6 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
 
   offset= ma_recordpos_to_dir_entry(record_pos);
 
-  DBUG_ASSERT(share->pagecache->block_size == block_size);
   if (!(buff= pagecache_read(share->pagecache,
                              &info->dfile, ma_recordpos_to_page(record_pos), 0,
                              info->buff, share->page_type,
@@ -6762,12 +6791,14 @@ err:
 
 
 /**
-  @brief Pagecache callback to get the TRANSLOG_ADDRESS to flush up to, when a
-  data (non-bitmap) or index page needs to be flushed. Returns a real LSN.
+  @brief Get the TRANSLOG_ADDRESS to flush up to
 
   @param page            Page's content
   @param page_no         Page's number (<offset>/<page length>)
   @param data_ptr        Callback data pointer (pointer to MARIA_SHARE)
+
+  @note
+  Usable for data (non-bitmap) and index pages
 
   @retval LSN to flush up to
 */

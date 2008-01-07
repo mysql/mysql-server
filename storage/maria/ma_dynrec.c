@@ -1301,7 +1301,8 @@ ulong _ma_calc_total_blob_length(MARIA_HA *info, const uchar *record)
        blob != end;
        blob++)
   {
-    blob->length= _ma_calc_blob_length(blob->pack_length,record + blob->offset);
+    blob->length= _ma_calc_blob_length(blob->pack_length,
+                                       record + blob->offset);
     length+=blob->length;
   }
   return length;

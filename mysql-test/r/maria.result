@@ -569,6 +569,7 @@ a	a	b
 1	1	1
 2	2	1
 drop table t1,t2;
+set autocommit=1;
 CREATE TABLE t1 (c1 varchar(250) NOT NULL) ROW_FORMAT=DYNAMIC;
 CREATE TABLE t2 (c1 varchar(250) NOT NULL, PRIMARY KEY (c1)) ROW_FORMAT=DYNAMIC;
 INSERT INTO t1 VALUES ('test000001'), ('test000002'), ('test000003');
@@ -2088,3 +2089,15 @@ drop table if exists t1;
 set global maria_log_file_size=4294967296;
 Warnings:
 Warning	1292	Truncated incorrect log_file_size value: '4294967296'
+create table t1 (a int not null);
+lock tables t1 write;
+insert into t1 values (1),(2);
+delete from t1;
+unlock tables;
+select * from t1;
+a
+insert into t1 values (1),(2);
+delete from t1;
+select * from t1;
+a
+drop table t1;

@@ -159,8 +159,8 @@ static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
 static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
        "The size of the buffer used for index blocks for Maria tables. "
-       "Increase this to get better index handling (for all reads and multiple "
-       "writes) to as much as you can afford.", 0, 0,
+       "Increase this to get better index handling (for all reads and "
+       "multiple writes) to as much as you can afford.", 0, 0,
        KEY_CACHE_SIZE, MALLOC_OVERHEAD, ~(ulong) 0, IO_SIZE);
 
 static MYSQL_SYSVAR_ULONG(pagecache_division_limit, pagecache_division_limit,
@@ -180,13 +180,13 @@ static MYSQL_THDVAR_ULONG(sort_buffer_size, PLUGIN_VAR_RQCMDARG,
 
 static MYSQL_THDVAR_ENUM(stats_method, PLUGIN_VAR_RQCMDARG,
        "Specifies how maria index statistics collection code should threat "
-       "NULLs. Possible values of name are \"nulls_unequal\", \"nulls_equal\", "
+       "NULLs. Possible values are \"nulls_unequal\", \"nulls_equal\", "
        "and \"nulls_ignored\".", 0, 0, 0, &maria_stats_method_typelib);
 
 static MYSQL_SYSVAR_ENUM(sync_log_dir, sync_log_dir, PLUGIN_VAR_RQCMDARG,
        "Controls syncing directory after log file growth and new file "
-       "creation. Possible values of are \"never\", \"newfile\" and "
-       "\"always\")", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
+       "creation. Possible values are \"never\", \"newfile\" and "
+       "\"always\").", NULL, NULL, TRANSLOG_SYNC_DIR_NEWFILE,
        &maria_sync_log_dir_typelib);
 
 /*****************************************************************************
@@ -1249,14 +1249,13 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
 
-  /** @todo BUG the if() below is always false for BLOCK_RECORD */
   if (!do_optimize ||
-      ((file->state->del ||
-        ((file->s->data_file_type != BLOCK_RECORD) &&
-         share->state.split != file->state->records)) &&
-       (!(param.testflag & T_QUICK) ||
-        (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
-                                 STATE_NOT_OPTIMIZED_ROWS)))))
+      ((file->s->data_file_type == BLOCK_RECORD) ?
+       (share->state.changed & STATE_NOT_OPTIMIZED_ROWS) :
+       (file->state->del || share->state.split != file->state->records)) &&
+      (!(param.testflag & T_QUICK) ||
+       (share->state.changed & (STATE_NOT_OPTIMIZED_KEYS |
+                                STATE_NOT_OPTIMIZED_ROWS))))
   {
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :
@@ -1294,13 +1293,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
-      /*
-        Disable logging of index changes as the repair redo call will
-        make it for us
-      */
-      _ma_tmp_disable_logging_for_table(file, 0);
       error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
-      _ma_reenable_logging_for_table(file);
       /**
          @todo RECOVERY BUG we do things with the index file
          (maria_sort_index() after the above which already has logged the
@@ -1362,6 +1355,9 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       _ma_check_print_warning(&param, "Number of rows changed from %s to %s",
                               llstr(rows, llbuff),
                               llstr(file->state->records, llbuff2));
+      /* Abort if warning was converted to error */
+      if (current_thd->is_error())
+        error= 1;
     }
   }
   else
@@ -1594,7 +1590,7 @@ int ha_maria::enable_indexes(uint mode)
     maria_chk_init(&param);
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
-                     T_CREATE_MISSING_KEYS);
+                     T_CREATE_MISSING_KEYS | T_SAFE_REPAIR);
     param.myf_rw &= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length= THDVAR(thd,sort_buffer_size);
     param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
@@ -2039,6 +2035,16 @@ int ha_maria::extra_opt(enum ha_extra_function operation, ulong cache_size)
 
 int ha_maria::delete_all_rows()
 {
+  if (file->s->now_transactional &&
+      ((table->in_use->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) ||
+       table->in_use->locked_tables))
+  {
+    /*
+      We are not in autocommit mode or user have done LOCK TABLES.
+      We must do the delete row by row to be able to rollback the command
+    */
+    return HA_ERR_WRONG_COMMAND;
+  }
   return maria_delete_all_rows(file);
 }
 

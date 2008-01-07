@@ -685,7 +685,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       disk_pos=_ma_columndef_read(disk_pos,&share->columndef[i]);
       share->columndef[i].pack_type=0;
       share->columndef[i].huff_tree=0;
-      if (share->columndef[i].type == (int) FIELD_BLOB)
+      if (share->columndef[i].type == FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
 	  share->columndef[i].length-portable_sizeof_char_ptr;;
@@ -693,7 +693,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	j++;
       }
     }
-    share->columndef[i].type=(int) FIELD_LAST;	/* End marker */
+    share->columndef[i].type= FIELD_LAST;	/* End marker */
     disk_pos= _ma_column_nr_read(disk_pos, share->column_nr,
                                  share->base.fields);
 

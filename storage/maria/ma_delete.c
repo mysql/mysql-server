@@ -130,7 +130,11 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   DBUG_RETURN(0);
 
 err:
-  save_errno=my_errno;
+  save_errno= my_errno;
+  DBUG_ASSERT(save_errno);
+  if (!save_errno)
+    save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
+
   mi_sizestore(lastpos, info->cur_row.lastpos);
   if (save_errno != HA_ERR_RECORD_CHANGED)
   {
@@ -140,14 +144,12 @@ err:
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   info->update|=HA_STATE_WRITTEN;	/* Buffer changed */
   allow_break();			/* Allow SIGHUP & SIGINT */
-  my_errno=save_errno;
   if (save_errno == HA_ERR_KEY_NOT_FOUND)
   {
     maria_print_error(share, HA_ERR_CRASHED);
     my_errno=HA_ERR_CRASHED;
   }
-
-  DBUG_RETURN(my_errno);
+  DBUG_RETURN(my_errno= save_errno);
 } /* maria_delete */
 
 

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2006 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2053,9 +2053,11 @@ restart:
           link_to_file_list(pagecache, block, file,
                             (my_bool)(block->hash_link ? 1 : 0));
           PCBLOCK_INFO(block);
-          block->status= error? PCBLOCK_ERROR : 0;
+          block->status= error ? PCBLOCK_ERROR : 0;
 #ifndef DBUG_OFF
           block->type= PAGECACHE_EMPTY_PAGE;
+          if (error)
+            my_debug_put_break_here();
 #endif
           block->hash_link= hash_link;
           page_status= PAGE_TO_BE_READ;
@@ -2239,8 +2241,8 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
         file.file != block->hash_link->file.file ||
         pageno != block->hash_link->pageno)
     {
-      DBUG_PRINT("info", ("the block 0x%lx changed => need retry"
-                          "status  %x files %d != %d or pages %d !=%d",
+      DBUG_PRINT("info", ("the block 0x%lx changed => need retry "
+                          "status: %x  files %d != %d or pages %d != %d",
                           (ulong)block, block->status,
                           file.file, block->hash_link->file.file,
                           pageno, block->hash_link->pageno));
@@ -2446,7 +2448,10 @@ static void read_block(PAGECACHE *pagecache,
                            pagecache->readwrite_flags);
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (error)
+    {
       block->status|= PCBLOCK_ERROR;
+      my_debug_put_break_here();
+    }
     else
     {
       block->status|= PCBLOCK_READ;
@@ -2457,6 +2462,7 @@ static void read_block(PAGECACHE *pagecache,
       {
         DBUG_PRINT("error", ("read callback problem"));
         block->status|= PCBLOCK_ERROR;
+        my_debug_put_break_here();
       }
     }
     DBUG_PRINT("read_block",
@@ -2608,6 +2614,7 @@ void pagecache_unlock(PAGECACHE *pagecache,
   /* if we lock for write we must link the block to changed blocks */
   DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
               (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+               lock == PAGECACHE_LOCK_WRITE_TO_READ ||
                lock == PAGECACHE_LOCK_LEFT_WRITELOCKED));
   /*
     if was_changed then status should be PCBLOCK_DIRECT_W or marked
@@ -2616,7 +2623,8 @@ void pagecache_unlock(PAGECACHE *pagecache,
   DBUG_ASSERT(!was_changed || (block->status & PCBLOCK_DIRECT_W) ||
               (block->status & PCBLOCK_CHANGED));
   if ((block->status & PCBLOCK_DIRECT_W) &&
-      (lock == PAGECACHE_LOCK_WRITE_UNLOCK))
+      (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+       lock == PAGECACHE_LOCK_WRITE_TO_READ))
   {
     if (!(block->status & PCBLOCK_CHANGED) && was_changed)
       link_to_changed_list(pagecache, block);
@@ -2737,7 +2745,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
                               LSN lsn, my_bool was_changed)
 {
   DBUG_ENTER("pagecache_unlock_by_link");
-  DBUG_PRINT("enter", ("block: 0x%lx fd: %u  page: %lu  changed: %d  %s  %s",
+  DBUG_PRINT("enter", ("block: 0x%lx  fd: %u  page: %lu  changed: %d  %s  %s",
                        (ulong) block,
                        (uint) block->hash_link->file.file,
                        (ulong) block->hash_link->pageno, was_changed,
@@ -2790,6 +2798,7 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   /* if we lock for write we must link the block to changed blocks */
   DBUG_ASSERT((block->status & PCBLOCK_DIRECT_W) == 0 ||
               (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+               lock == PAGECACHE_LOCK_WRITE_TO_READ ||
                lock == PAGECACHE_LOCK_LEFT_WRITELOCKED));
   /*
     If was_changed then status should be PCBLOCK_DIRECT_W or marked
@@ -2798,7 +2807,8 @@ void pagecache_unlock_by_link(PAGECACHE *pagecache,
   DBUG_ASSERT(!was_changed || (block->status & PCBLOCK_DIRECT_W) ||
               (block->status & PCBLOCK_CHANGED));
   if ((block->status & PCBLOCK_DIRECT_W) &&
-      (lock == PAGECACHE_LOCK_WRITE_UNLOCK))
+      (lock == PAGECACHE_LOCK_WRITE_UNLOCK ||
+       lock == PAGECACHE_LOCK_WRITE_TO_READ))
   {
     if (!(block->status & PCBLOCK_CHANGED) && was_changed)
       link_to_changed_list(pagecache, block);
@@ -2844,7 +2854,7 @@ void pagecache_unpin_by_link(PAGECACHE *pagecache,
                              LSN lsn)
 {
   DBUG_ENTER("pagecache_unpin_by_link");
-  DBUG_PRINT("enter", ("block: 0x%lx fd: %u page: %lu",
+  DBUG_PRINT("enter", ("block: 0x%lx  fd: %u page: %lu",
                        (ulong) block,
                        (uint) block->hash_link->file.file,
                        (ulong) block->hash_link->pageno));
@@ -3177,6 +3187,7 @@ restart:
         if (error)
         {
           block->status|= PCBLOCK_ERROR;
+          my_debug_put_break_here();
           goto err;
         }
       }
@@ -3407,6 +3418,7 @@ restart:
     {
       if (block->status & PCBLOCK_ERROR)
       {
+        my_debug_put_break_here();
         DBUG_PRINT("warning", ("Writing on page with error"));
       }
       else
@@ -3431,6 +3443,7 @@ restart:
         {
           DBUG_PRINT("error", ("read callback problem"));
           block->status|= PCBLOCK_ERROR;
+          my_debug_put_break_here();
         }
         KEYCACHE_DBUG_PRINT("key_cache_insert",
                             ("Page injection"));
@@ -3488,7 +3501,10 @@ restart:
       *page_link= block;
 
     if (block->status & PCBLOCK_ERROR)
+    {
       error= 1;
+      my_debug_put_break_here();
+    }
 
     dec_counter_for_resize_op(pagecache);
 
@@ -3692,6 +3708,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     if (error)
     {
       block->status|= PCBLOCK_ERROR;
+      my_debug_put_break_here();
       if (!*first_errno)
         *first_errno= my_errno ? my_errno : -1;
       rc|= PCFLUSH_ERROR;
@@ -3930,7 +3947,7 @@ restart:
               */
               if ((rc|= flush_cached_blocks(pagecache, file, cache,
                                             end, type, &error)) &
-                  PCFLUSH_ERROR)
+                  (PCFLUSH_ERROR | PCFLUSH_PINNED))
                 last_errno=error;
               DBUG_PRINT("info", ("restarting..."));
               /*
@@ -3965,7 +3982,8 @@ restart:
     if (pos != cache)
     {
       if ((rc|= flush_cached_blocks(pagecache, file, cache, pos, type,
-                                    &error)) & PCFLUSH_ERROR)
+                                    &error)) &
+          (PCFLUSH_ERROR | PCFLUSH_PINNED))
         last_errno= error;
     }
     /* Wait until list of blocks in switch is empty */

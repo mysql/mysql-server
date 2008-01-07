@@ -114,14 +114,38 @@ int my_printf_error(uint error, const char *format, myf MyFlags, ...)
   va_list args;
   char ebuff[ERRMSGSIZE+20];
   DBUG_ENTER("my_printf_error");
-  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  Format: %s",
+  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s",
 		    error, MyFlags, errno, format));
 
   va_start(args,MyFlags);
-  (void) my_vsnprintf (ebuff, sizeof(ebuff), format, args);
+  (void) my_vsnprintf(ebuff, sizeof(ebuff), format, args);
   va_end(args);
   DBUG_RETURN((*error_handler_hook)(error, ebuff, MyFlags));
 }
+
+
+/*
+  Error with va_list
+
+  SYNOPSIS
+    my_printv_error()
+      error	Errno
+      format	Format string
+      MyFlags	Flags
+      ...	variable list
+*/
+
+int my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
+{
+  char ebuff[ERRMSGSIZE+20];
+  DBUG_ENTER("my_printv_error");
+  DBUG_PRINT("my", ("nr: %d  MyFlags: %d  errno: %d  format: %s",
+		    error, MyFlags, errno, format));
+
+  (void) my_vsnprintf(ebuff, sizeof(ebuff), format, ap);
+  DBUG_RETURN((*error_handler_hook)(error, ebuff, MyFlags));
+}
+
 
 /*
   Give message using error_handler_hook

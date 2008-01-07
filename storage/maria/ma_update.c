@@ -196,7 +196,11 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
 
 err:
   DBUG_PRINT("error",("key: %d  errno: %d",i,my_errno));
-  save_errno=my_errno;
+  save_errno= my_errno;
+  DBUG_ASSERT(save_errno);
+  if (!save_errno)
+    save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
+
   if (my_errno == HA_ERR_FOUND_DUPP_KEY || my_errno == HA_ERR_OUT_OF_MEM ||
       my_errno == HA_ERR_RECORD_FILE_FULL)
   {

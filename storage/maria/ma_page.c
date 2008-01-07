@@ -145,7 +145,8 @@ int _ma_write_keypage(register MARIA_HA *info,
                        lock,
                        lock == PAGECACHE_LOCK_LEFT_WRITELOCKED ?
                        PAGECACHE_PIN_LEFT_PINNED :
-                       PAGECACHE_PIN,
+                       (lock == PAGECACHE_LOCK_WRITE_UNLOCK ?
+                        PAGECACHE_UNPIN : PAGECACHE_PIN),
                        PAGECACHE_WRITE_DELAY, &page_link.link,
 		       LSN_IMPOSSIBLE);
 
@@ -157,8 +158,7 @@ int _ma_write_keypage(register MARIA_HA *info,
     push_dynamic(&info->pinned_pages, (void*) &page_link);
   }
   DBUG_RETURN(res);
-
-} /* maria_write_keypage */
+}
 
 
 /*
@@ -326,7 +326,11 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
 
     (*page_link)->unlock=     PAGECACHE_LOCK_WRITE_UNLOCK;
     (*page_link)->write_lock= PAGECACHE_LOCK_WRITE;
-    (*page_link)->changed= 0;
+    /*
+      We have to mark it changed as _ma_flush_pending_blocks() uses
+      'changed' to know if we used the page cache or not
+    */
+    (*page_link)->changed= 1;
     push_dynamic(&info->pinned_pages, (void*) *page_link);
     *page_link= dynamic_element(&info->pinned_pages,
                                 info->pinned_pages.elements-1,
