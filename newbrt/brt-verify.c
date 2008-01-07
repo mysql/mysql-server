@@ -34,29 +34,7 @@ static void verify_local_fingerprint (BRTNODE node) {
     }
 }
 
-static void verify_parent_fingerprint (BRTNODE node) {
-    BRTNODE parent=node->parent_brtnode;
-    u_int32_t subtree_fingerprint=node->local_fingerprint;
-    if (node->height>0) {
-	int i;
-	for (i=0; i<node->u.n.n_children; i++) {
-	    subtree_fingerprint += BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
-	}
-    }
-    if (parent) {
-	int i;
-	assert(parent->height>0);
-	for (i=0; i<parent->u.n.n_children; i++) {
-	    if (parent->u.n.children[i]==node->thisnodename) {
-		assert(BRTNODE_CHILD_SUBTREE_FINGERPRINTS(parent, i)==subtree_fingerprint);
-		return;
-	    }
-	}
-	assert(0); // no parent matches
-    }
-}
-
-int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode) {
+int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -66,9 +44,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
-    node->parent_brtnode = parent_brtnode;
     verify_local_fingerprint(node);
-    verify_parent_fingerprint(node);
     if (node->height>0) {
 	int i;
 	for (i=0; i< node->u.n.n_children-1; i++) {
@@ -114,8 +90,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
                                             (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
                                             (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
                                             (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]),
-                                            recurse,
-                                            node);
+                                            recurse);
 	    }
 	}
     }
@@ -131,7 +106,7 @@ int toku_verify_brt (BRT brt) {
 	return r;
     }
     rootp = toku_calculate_root_offset_pointer(brt);
-    if ((r=toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1, null_brtnode))) goto died0;
+    if ((r=toku_verify_brtnode(brt, *rootp, 0, 0, 0, 0, 1))) goto died0;
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     return 0;
 }
