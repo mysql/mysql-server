@@ -649,7 +649,8 @@ int toku_pma_set_compare(PMA pma, pma_compare_fun_t compare_fun) {
 }
 
 int toku_pma_set_dup_mode(PMA pma, int dup_mode) {
-    assert(dup_mode == 0 || dup_mode == TOKU_DB_DUP || dup_mode == (TOKU_DB_DUP+TOKU_DB_DUPSORT));
+    if (!(dup_mode == 0 || dup_mode == (TOKU_DB_DUP+TOKU_DB_DUPSORT)))
+        return EINVAL;
     pma->dup_mode = dup_mode;
     return 0;
 }
@@ -830,25 +831,19 @@ int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val) {
 static void pma_cursor_key_last(PMA_CURSOR c, int *lastkeymatch) {
     *lastkeymatch = 1;
     PMA pma = c->pma;
-    if (pma->dup_mode & TOKU_DB_DUP) {
+    if (pma->dup_mode & TOKU_DB_DUPSORT) {
         int here, found;
 
         /* get the current key */
         here = c->position; assert(0 <= here && here < (int) pma->N);
         struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
         DBT currentkey; toku_fill_dbt(&currentkey, kv_pair_key(kv), kv_pair_keylen(kv));
-        DBT currentval, *v; 
-
-        if (pma->dup_mode & TOKU_DB_DUPSORT) {
-            toku_fill_dbt(&currentval, kv_pair_val(kv), kv_pair_vallen(kv));
-            v = &currentval;
-        } else
-            v = 0;
+        DBT currentval; toku_fill_dbt(&currentval, kv_pair_val(kv), kv_pair_vallen(kv));
 
         /* check if the next key == current key */
         here = c->position+1;
         for (;;) {
-            here = pma_next_key(pma, &currentkey, v, here, pma->N, &found);
+            here = pma_next_key(pma, &currentkey, &currentval, here, pma->N, &found);
             if (!found) break; 
             if (kv_pair_valid(pma->pairs[here])) {
                 *lastkeymatch = 0; /* next key == current key */
@@ -859,7 +854,7 @@ static void pma_cursor_key_last(PMA_CURSOR c, int *lastkeymatch) {
         /* check if the prev key == current key */
         here = c->position-1;
         for (;;) {
-            here = pma_prev_key(pma, &currentkey, v, here, pma->N, &found);
+            here = pma_prev_key(pma, &currentkey, &currentval, here, pma->N, &found);
             if (!found) break;
             if (kv_pair_valid(pma->pairs[here])) {
                 *lastkeymatch = 0; /* prev key == current key */
@@ -963,7 +958,7 @@ int toku_pmainternal_make_space_at (TOKUTXN txn, FILENUM filenum, DISKOFF offset
 enum pma_errors toku_pma_lookup (PMA pma, DBT *k, DBT *v) {
     unsigned int here;
     int found;
-    if (pma->dup_mode & TOKU_DB_DUP) {
+    if (pma->dup_mode & TOKU_DB_DUPSORT) {
         here = pma_left_search(pma, k, 0, 0, pma->N, &found);
     } else
         here = toku_pmainternal_find(pma, k);
@@ -1020,9 +1015,6 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = pma_right_search(pma, k, v, 0, pma->N, &found);
         if (found) return BRT_ALREADY_THERE;
-    } else if (pma->dup_mode & TOKU_DB_DUP) {
-        idx = pma_right_search(pma, k, 0, 0, pma->N, &found);
-        if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
         if (idx < toku_pma_index_limit(pma) && pma->pairs[idx]) {
@@ -1114,7 +1106,7 @@ int toku_pma_delete (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fin
     if (!deleted_size)
         deleted_size = &my_deleted_size;
     *deleted_size = 0;
-    if (pma->dup_mode & TOKU_DB_DUP) 
+    if (pma->dup_mode & TOKU_DB_DUPSORT) 
         return pma_delete_dup(pma, k, v, rand4sem, fingerprint, deleted_size);
     else
         return pma_delete_nodup(pma, k, v, rand4sem, fingerprint, deleted_size);
@@ -1212,16 +1204,9 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     int found;
     if (pma->dup_mode & TOKU_DB_DUPSORT) {
         idx = pma_right_search(pma, k, v, 0, pma->N, &found);
-#if PMA_DUP_DUP
-        if (found) idx += 1;
-#else
         if (found) {
             kv = kv_pair_ptr(pma->pairs[idx]); goto replaceit;
         }
-#endif
-    } else if (pma->dup_mode & TOKU_DB_DUP) {
-        idx = pma_right_search(pma, k, 0, 0, pma->N, &found);
-        if (found) idx += 1;
     } else {
         idx = toku_pmainternal_find(pma, k);
         if (idx < toku_pma_index_limit(pma) && (kv = pma->pairs[idx])) {
@@ -1596,7 +1581,7 @@ void toku_pma_verify(PMA pma) {
             int r = pma->compare_fun(pma->db, &kv_dbt, &nextkv_dbt);
             if (pma->dup_mode == 0)
                 assert(r < 0);
-            else if (pma->dup_mode & TOKU_DB_DUP)
+            else if (pma->dup_mode & TOKU_DB_DUPSORT)
                 assert(r <= 0);
             if (r == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
                 toku_fill_dbt(&kv_dbt, kv_pair_val(kv), kv_pair_vallen(kv));
