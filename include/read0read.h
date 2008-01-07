@@ -111,10 +111,6 @@ struct read_view_struct{
 	dulint	undo_no;	/* (0, 0) or if type is VIEW_HIGH_GRANULARITY
 				transaction undo_no when this high-granularity
 				consistent read view was created */
-	ibool	can_be_too_old;	/* TRUE if the system has had to purge old
-				versions which this read view should be able
-				to access: the read view can bump into the
-				DB_MISSING_HISTORY error */
 	dulint	low_limit_no;	/* The view does not need to see the undo
 				logs for transactions whose transaction number
 				is strictly smaller (<) than this value: they
