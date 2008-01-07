@@ -13,12 +13,11 @@
 
 #include "test.h"
 
-void expect_eq(u_int64_t a, u_int64_t b) {
-    if (a != b)
-        printf("WARNING: expect %" PRId64 " got %" PRId64 "\n", a, b);
-}
- 
 u_int64_t size_from(u_int32_t gbytes, u_int32_t bytes) {
+#if USE_BDB
+    if (sizeof (intptr_t) == 4 && gbytes == 4 && bytes == 0)
+        return 0xffffffff;
+#endif
     return ((u_int64_t)gbytes << 30) + bytes;
 }
 
@@ -26,6 +25,19 @@ void size_to(u_int64_t s, u_int32_t *gbytes, u_int32_t *bytes) {
     *gbytes = s >> 30;
     *bytes = s & ((1<<30) - 1);
 }
+
+void expect_le(u_int64_t a, u_int32_t gbytes, u_int32_t bytes) {
+    u_int64_t b = size_from(gbytes, bytes);
+    if (a != b && verbose)
+        printf("WARNING: expect %" PRId64 " got %" PRId64 "\n", a, b);
+#if USE_BDB
+    if (a > b) {
+        assert(a == 4ULL<<30 && b == a-1); return;
+    }
+#endif
+    assert(a <= b);
+}
+ 
 
 void test_cachesize() {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
@@ -53,9 +65,9 @@ void test_cachesize() {
         r = env->get_cachesize(env, &gbytes, &bytes, &ncache); assert(r == 0);
         assert(ncache == 1);
         if (s <= minsize)
-            expect_eq(minsize, size_from(gbytes, bytes));
+            expect_le(minsize, gbytes, bytes);
         else
-            expect_eq(s, size_from(gbytes, bytes));
+            expect_le(s, gbytes, bytes);
         s *= 2; size_to(s, &gbytes, &bytes);
     }
     r = env->close(env, 0); assert(r == 0);
