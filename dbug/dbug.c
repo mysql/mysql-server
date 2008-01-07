@@ -951,7 +951,6 @@ void _db_enter_(const char *_func_, const char *_file_,
     *_slevel_= 0; /* Set to avoid valgrind warnings if dbug is enabled later */
     return;
   }
-  get_code_state_or_return;
   save_errno= errno;
 
   *_sfunc_= cs->func;
