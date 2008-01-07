@@ -1,5 +1,8 @@
+#include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
+#include <db.h>
 
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0

@@ -39,7 +39,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 typedef void (*toku_env_errcall_t)(const char *, char *);
 #elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
-typedef void (*toku_env_errcall_t)(DB_ENV *, const char *, const char *);
+typedef void (*toku_env_errcall_t)(const DB_ENV *, const char *, const char *);
 #else
 #error
 #endif
@@ -50,7 +50,7 @@ struct __toku_db_env_internal {
     int open_mode;
     toku_env_errcall_t errcall;
     void *errfile;
-    char *errpfx;
+    const char *errpfx;
     char *dir;                  /* A malloc'd copy of the directory. */
     char *tmp_dir;
     char *lg_dir;
@@ -62,23 +62,54 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
 };
 
-// Probably this do_error (which is dumb and stupid) should do something consistent with do_env_err.
-static void do_error (DB_ENV *dbenv, const char *string) {
-    if (dbenv->i->errfile)
-	fprintf(dbenv->i->errfile, "%s\n", string);
+// If errcall is set, call it with the format string and optionally the stderrstring (if include_stderrstring).  The prefix is passed as a separate argument.
+// If errfile is set, print to the errfile: prefix, fmt string, maybe include the stderr string.
+// Both errcall and errfile may be called.
+// If errfile is not set and errcall is not set, the use stderr as the errfile.
+void do_error_all_cases(const DB_ENV * env, int error, int include_stderrstring, int use_stderr_if_nothing_else, const char *fmt, va_list ap) {
+    if (env->i->errcall) {
+	// errcall gets prefix sent separately
+	// the error message is the printf message, maybe followed by ": " and the dbstrerror (if include_stderrstring is set)
+	char buf [4000];
+	int count=0;
+	if (fmt) {
+	    count=vsnprintf(buf, sizeof(buf), fmt, ap);
+	}
+	if (include_stderrstring) {
+	    count+=snprintf(&buf[count], sizeof(buf)-count, ": %s", db_strerror(error));
+	}
+	env->i->errcall(env, env->i->errpfx, buf);
+    }
+    {
+	FILE *efile=env->i->errfile;
+	if (efile==0 && env->i->errcall==0 && use_stderr_if_nothing_else) {
+	    efile = stderr;
+	}
+	if (efile) {
+	    if (env->i->errpfx) fprintf(efile, "%s: ", env->i->errpfx);
+	    vfprintf(efile, fmt, ap);
+	    if (include_stderrstring) {
+		fprintf(efile, ": %s", db_strerror(error));
+	    }
+	}
+    }
 }
 
-void toku_db_env_err_vararg(const DB_ENV * env, int error, const char *fmt, va_list ap) {
-    FILE* ferr = env->i->errfile ? env->i->errfile : stderr;
-    if (env->i->errpfx && env->i->errpfx[0] != '\0') fprintf(stderr, "%s: ", env->i->errpfx);
-    fprintf(ferr, "YDB Error %d: ", error);
-    vfprintf(ferr, fmt, ap);
+
+// Handle all the error cases (but don't do the default thing.)
+static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
+    va_list ap;
+    va_start(ap, string);
+    do_error_all_cases(dbenv, error, 1, 0, string, ap);
+    va_end(ap);
+    return errno;
 }
+
 
 static void toku_db_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    toku_db_env_err_vararg(env, error, fmt, ap);
+    do_error_all_cases(env, error, 1, 1, fmt, ap);
     va_end(ap);
 }
 
@@ -253,11 +284,11 @@ static int db_env_read_config(DB_ENV *env) {
     }
     if (0) {
 readerror:
-        env->err(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
+        do_error(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
     }
     if (0) {
 parseerror:
-        env->err(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
+        do_error(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
     }
 cleanup:
     if (full_name) toku_free(full_name);
@@ -269,13 +300,18 @@ cleanup:
 static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     int r;
 
-    if (db_env_opened(env))
-        return EINVAL;
+    if (db_env_opened(env)) {
+	return do_error(env, EINVAL, "The environment is already open\n");
+    }
 
-    if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
+    if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) {
+	return do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible flags\n");
+    }
 
     if (home) {
-        if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) return EINVAL;
+        if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) {
+	    return do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
+	}
     }
     else if ((flags & DB_USE_ENVIRON) ||
              ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) home = getenv("DB_HOME");
@@ -286,31 +322,34 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 	{
 	struct stat buf;
 	r = stat(home, &buf);
-	if (r!=0) return errno;
+	if (r!=0) {
+	    return do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
+	}
     }
 
 
 
     if (!(flags & DB_PRIVATE)) {
-	// There is no good place to send this error message.
-	// fprintf(stderr, "tokudb requires DB_PRIVATE\n");
         // This means that we don't have to do anything with shared memory.  
         // And that's good enough for mysql. 
-        return EINVAL; 
+	return do_error(env, EINVAL, "TokuDB requires DB_PRIVATE when opening an env\n");
     }
 
     if (env->i->dir)
         toku_free(env->i->dir);
     env->i->dir = toku_strdup(home);
-    if (env->i->dir == 0) 
-        return ENOMEM;
+    if (env->i->dir == 0) {
+	return do_error(env, ENOMEM, "Out of memory\n");
+    }
     if (0) {
         died1:
         toku_free(env->i->dir);
         env->i->dir = NULL;
         return r;
     }
-    if ((r = db_env_read_config(env)) != 0) goto died1;
+    if ((r = db_env_read_config(env)) != 0) {
+	goto died1;
+    }
     
     env->i->open_flags = flags;
     env->i->open_mode = mode;
@@ -321,7 +360,10 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
         r = toku_logger_create_and_open_logger(
             full_dir ? full_dir : env->i->dir, &env->i->logger);
         if (full_dir) toku_free(full_dir);
-	if (r!=0) goto died1;
+	if (r!=0) {
+	    do_error(env, r, "Could not open logger\n");
+	    goto died1;
+	}
 	if (0) {
 	died2:
 	    toku_logger_log_close(&env->i->logger);
@@ -352,8 +394,6 @@ static int toku_db_env_close(DB_ENV * env, u_int32_t flags) {
         toku_free(env->i->lg_dir);
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
-    if (env->i->errpfx)
-        toku_free(env->i->errpfx);
     toku_free(env->i->dir);
     toku_free(env->i);
     toku_free(env);
@@ -402,8 +442,9 @@ static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
     char** temp;
     char* new_dir;
     
-    if (db_env_opened(env) || !dir)
-        return EINVAL;
+    if (db_env_opened(env) || !dir) {
+	return do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
+    }
     
     if (env->i->data_dirs) {
         assert(env->i->n_data_dirs > 0);
@@ -421,7 +462,10 @@ static int toku_db_env_set_data_dir(DB_ENV * env, const char *dir) {
         toku_free(new_dir);
         return r;
     }
-    if (new_dir==NULL) {assert(errno == ENOMEM); return ENOMEM;}
+    if (new_dir==NULL) {
+	assert(errno == ENOMEM);
+	return do_error(env, errno, "Out of memory\n");
+    }
     temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
     if (temp==NULL) {assert(errno == ENOMEM); r = ENOMEM; goto died1;}
     else env->i->data_dirs = temp;
@@ -439,43 +483,45 @@ static void toku_db_env_set_errfile(DB_ENV*env, FILE*errfile) {
 }
 
 static void toku_db_env_set_errpfx(DB_ENV * env, const char *errpfx) {
-    if (env->i->errpfx)
-        toku_free(env->i->errpfx);
-    env->i->errpfx = toku_strdup(errpfx ? errpfx : "");
+    env->i->errpfx = errpfx;
 }
 
 static int toku_db_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
-    env=env;
-    if (flags != 0 && onoff)
-        return EINVAL; /* no flags are currently supported */
+    if (flags != 0 && onoff) {
+	return do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags\n");
+    }
     return 0;
 }
 
 static int toku_db_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
-    env=env; bsize=bsize;
-    return 1;
+    bsize=bsize;
+    return do_error(env, EINVAL, "TokuDB does not (yet) support ENV->set_lg_bsize\n");
 }
 
 static int toku_db_env_set_lg_dir(DB_ENV * env, const char *dir) {
-    if (db_env_opened(env)) return EINVAL;
+    if (db_env_opened(env)) {
+	return do_error(env, EINVAL, "Cannot set log dir after opening the env\n");
+    }
 
     if (env->i->lg_dir) toku_free(env->i->lg_dir);
     if (dir) {
         env->i->lg_dir = toku_strdup(dir);
-        if (!env->i->lg_dir) return ENOMEM;
+        if (!env->i->lg_dir) {
+	    return do_error(env, ENOMEM, "Out of memory\n");
+	}
     }
     else env->i->lg_dir = NULL;
     return 0;
 }
 
 static int toku_db_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
-    env=env; lg_max=lg_max;
-    return 1;
+    lg_max=lg_max;
+    return do_error(env, EINVAL, "TokuDB does not (yet) support set_lg_max\n");
 }
 
 static int toku_db_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
-    env=env; detect=detect;
-    return 1;
+    detect=detect;
+    return do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
 }
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
@@ -490,8 +536,12 @@ static int toku_db_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 //}
 
 static int toku_db_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
-    if (db_env_opened(env)) return EINVAL;
-    if (!tmp_dir) return EINVAL;
+    if (db_env_opened(env)) {
+	return do_error(env, EINVAL, "Cannot set the tmp dir after opening an env\n");
+    }
+    if (!tmp_dir) {
+	return do_error(env, EINVAL, "Tmp dir bust be non-null\n");
+    }
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
     env->i->tmp_dir = toku_strdup(tmp_dir);
@@ -516,7 +566,7 @@ static int toku_db_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fl
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 void toku_default_errcall(const char *errpfx, char *msg) {
 #else
-void toku_default_errcall(DB_ENV *env, const char *errpfx, const char *msg) {
+void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg) {
     env = env;
 #endif
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
@@ -565,8 +615,8 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     }
     memset(result->i, 0, sizeof *result->i);
     result->i->ref_count = 1;
-    result->i->errcall = toku_default_errcall;
-    result->i->errpfx = toku_strdup("");
+    result->i->errcall = 0;
+    result->i->errpfx = 0;
     result->i->errfile = 0;
 
     ydb_add_ref();
@@ -1428,8 +1478,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
             if (r == 0)
                 return DB_KEYEXIST;
 #else
-	    do_error(db->dbenv, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
-            return EINVAL;
+	    return do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
 #endif
         }
     }
