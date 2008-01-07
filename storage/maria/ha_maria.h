@@ -41,6 +41,7 @@ class ha_maria :public handler
   enum data_file_type data_file_type;
   bool can_enable_indexes;
   int repair(THD * thd, HA_CHECK &param, bool optimize);
+  int zerofill(THD * thd, HA_CHECK_OPT *check_opt);
 
 public:
   ha_maria(handlerton *hton, TABLE_SHARE * table_arg);
@@ -133,8 +134,7 @@ public:
   int repair(THD * thd, HA_CHECK_OPT * check_opt);
   bool check_and_repair(THD * thd);
   bool is_crashed() const;
-  bool auto_repair() const
-  { return maria_recover_options != 0; }
+  bool auto_repair() const { return 1; }
   int optimize(THD * thd, HA_CHECK_OPT * check_opt);
   int restore(THD * thd, HA_CHECK_OPT * check_opt);
   int backup(THD * thd, HA_CHECK_OPT * check_opt);

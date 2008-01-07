@@ -548,6 +548,7 @@ struct st_maria_handler
 #define STATE_NOT_OPTIMIZED_ROWS 64
 #define STATE_NOT_ZEROFILLED     128
 #define STATE_NOT_MOVABLE        256
+#define STATE_MOVED              512 /* set if base->uuid != maria_uuid */
 
 /* options to maria_read_cache */
 

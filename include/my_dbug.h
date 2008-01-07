@@ -82,20 +82,20 @@ extern  void _db_force_flush();
 #define DBUG_ASSERT(A) assert(A)
 #define DBUG_EXPLAIN(buf,len) _db_explain_(0, (buf),(len))
 #define DBUG_EXPLAIN_INITIAL(buf,len) _db_explain_init_((buf),(len))
-#define DEBUGGER_OFF _dbug_on_= 0
-#define DEBUGGER_ON  _dbug_on_= 1
+#define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
+#define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
 #define DBUG_LEAVE
-#define DBUG_RETURN(a1)             do { return(a1); } while(0)
-#define DBUG_VOID_RETURN            do { return; } while(0)
-#define DBUG_EXECUTE(keyword,a1)    do { } while(0)
-#define DBUG_EXECUTE_IF(keyword,a1) do { } while(0)
+#define DBUG_RETURN(a1)                 do { return(a1); } while(0)
+#define DBUG_VOID_RETURN                do { return; } while(0)
+#define DBUG_EXECUTE(keyword,a1)        do { } while(0)
+#define DBUG_EXECUTE_IF(keyword,a1)     do { } while(0)
 #define DBUG_EVALUATE(keyword,a1,a2) (a2)
 #define DBUG_EVALUATE_IF(keyword,a1,a2) (a2)
-#define DBUG_PRINT(keyword,arglist) do { } while(0)
+#define DBUG_PRINT(keyword,arglist)     do { } while(0)
 #define DBUG_PUSH(a1)
 #define DBUG_SET(a1)
 #define DBUG_SET_INITIAL(a1)
@@ -105,14 +105,14 @@ extern  void _db_force_flush();
 #define DBUG_LONGJMP(a1) longjmp(a1)
 #define DBUG_DUMP(keyword,a1,a2)
 #define DBUG_END()
-#define DBUG_ASSERT(A)              do { } while(0)
+#define DBUG_ASSERT(A)                  do { } while(0)
 #define DBUG_LOCK_FILE
 #define DBUG_FILE (stderr)
-#define DEBUGGER_OFF
-#define DEBUGGER_ON
 #define DBUG_UNLOCK_FILE
 #define DBUG_EXPLAIN(buf,len)
 #define DBUG_EXPLAIN_INITIAL(buf,len)
+#define DEBUGGER_OFF                    do { } while(0)
+#define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A)
 #endif
 #ifdef	__cplusplus

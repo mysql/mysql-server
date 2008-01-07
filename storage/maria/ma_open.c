@@ -396,6 +396,17 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
 
+    if (memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE))
+    {
+      if (open_flags & HA_OPEN_FOR_REPAIR)
+        share->state.changed|= STATE_MOVED;
+      else
+      {
+        my_errno= HA_ERR_OLD_FILE;
+        goto err;
+      }
+    }
+
     /* sanity check */
     if (share->base.keystart > 65535 || share->base.rec_reflength > 8)
     {
@@ -796,6 +807,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 
   if (!(m_info= maria_clone_internal(share, mode, data_file)))
     goto err;
+
   pthread_mutex_unlock(&THR_LOCK_maria);
   DBUG_RETURN(m_info);
 
@@ -805,6 +817,8 @@ err:
       (save_errno == HA_ERR_CRASHED_ON_USAGE) ||
       (save_errno == HA_ERR_CRASHED_ON_REPAIR))
     _ma_report_error(save_errno, name);
+  if (save_errno == HA_ERR_OLD_FILE) /* uuid is different ? */
+    save_errno= HA_ERR_CRASHED_ON_USAGE; /* the code to trigger auto-repair */
   switch (errpos) {
   case 5:
     if (data_file >= 0)
