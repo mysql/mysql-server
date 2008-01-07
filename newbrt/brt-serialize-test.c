@@ -26,7 +26,7 @@ static void test_serialize(void) {
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
-    sn.layout_version = 0;
+    sn.layout_version = 1;
     sn.height = 1;
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
@@ -60,7 +60,7 @@ static void test_serialize(void) {
 
     assert(dn->thisnodename==nodesize*20);
     assert(dn->disk_lsn.lsn==123456);
-    assert(dn->layout_version ==0);
+    assert(dn->layout_version ==1);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);

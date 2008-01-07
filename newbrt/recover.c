@@ -112,7 +112,7 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     n->nodesize     = c->nodesize;
     n->thisnodename = c->diskoff;
     n->log_lsn = n->disk_lsn  = c->lsn; printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
-    n->layout_version = 0;
+    n->layout_version = 1;
     n->parent_brtnode = 0;
     n->height         = c->height;
     n->rand4fingerprint = c->rand4fingerprint;
@@ -185,6 +185,7 @@ static void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     toku_free(c->data.data);
 }
 
+// a newbrtnode should have been done before this
 static void toku_recover_resizepma (struct logtype_resizepma *c) {
     struct cf_pair *pair;
     int r = find_cachefile(c->filenum, &pair);

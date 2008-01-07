@@ -258,7 +258,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=0) {
+    if (result->layout_version!=1) {
 	r=DB_BADFORMAT;
 	goto died1;
     }
