@@ -87,7 +87,11 @@ void test_db_delete(int n, int dup_mode) {
     expect_db_del(db, htonl(n), DB_DELETE_ANY, 0);
 #endif
 #if USE_BDB && defined(DB_DELETE_ANY)
+#if DB_DELETE_ANY == 0
+    expect_db_del(db, htonl(n), DB_DELETE_ANY, DB_NOTFOUND);
+#else
     expect_db_del(db, htonl(n), DB_DELETE_ANY, EINVAL);
+#endif
 #endif
 
     r = db->close(db, 0);
