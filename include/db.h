@@ -126,7 +126,7 @@ struct __toku_db_env {
   int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int); /* 32-bit offset=716 size=4, 64=bit offset=1304 size=8 */
   int  (*set_data_dir) (DB_ENV *, const char *); /* 32-bit offset=720 size=4, 64=bit offset=1312 size=8 */
   void* __toku_dummy11[1];
-  void (*set_errcall) (DB_ENV *, void (*)(DB_ENV *, const char *, const char *)); /* 32-bit offset=728 size=4, 64=bit offset=1328 size=8 */
+  void (*set_errcall) (DB_ENV *, void (*)(const DB_ENV *, const char *, const char *)); /* 32-bit offset=728 size=4, 64=bit offset=1328 size=8 */
   void (*set_errfile) (DB_ENV *, FILE*); /* 32-bit offset=732 size=4, 64=bit offset=1336 size=8 */
   void (*set_errpfx) (DB_ENV *, const char *); /* 32-bit offset=736 size=4, 64=bit offset=1344 size=8 */
   void* __toku_dummy12[1];
