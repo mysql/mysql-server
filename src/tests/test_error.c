@@ -24,7 +24,8 @@ int main (int argc, const char *argv[]) {
 	DB_ENV *env;
 	r = db_env_create(&env, 0); assert(r==0);
 	r = env->open(env, DIR, -1, 0644);
-	assert(r==EINVAL && n_handle_error==0);
+	assert(r==EINVAL);
+	assert(n_handle_error==0);
 	r = env->close(env, 0); assert(r==0);
     }
 
