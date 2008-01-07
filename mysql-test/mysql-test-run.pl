@@ -48,6 +48,7 @@ use File::Copy;
 use File::Temp qw / tempdir /;
 use My::SafeProcess;
 use My::ConfigFactory;
+use My::Options;
 use mtr_cases;
 
 our $is_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
@@ -230,7 +231,7 @@ sub main {
 
   # Figure out which tests we are going to run
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_suites);
+  my $tests= collect_test_cases($opt_suites, \@opt_cases);
 
   initialize_servers();
 
@@ -2075,27 +2076,28 @@ sub run_testcase_check_skip_test($)
 }
 
 
-sub dynamic_binlog_format_switch {
-  my ($tinfo, $mysqld)= @_;
+sub run_query {
+  my ($tinfo, $mysqld, $query)= @_;
 
-  my $sql= "include/set_binlog_format_".$tinfo->{binlog_format_switch}.".sql";
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+
+  mtr_add_arg($args, "-e %s", $query);
+
   my $res= My::SafeProcess->run
     (
-     name          => "switch binlog format ".$mysqld->name(),
+     name          => "run_query -> ".$mysqld->name(),
      path          => $exe_mysql,
      args          => \$args,
-     input         => $sql,
+     output        => '/dev/null',
+     error         => '/dev/null'
     );
 
-  if ($res != 0)
-  {
-    mtr_error("Failed to switch binlog format");
-  }
+  return $res
 }
+
 
 sub do_before_run_mysqltest($)
 {
@@ -2570,7 +2572,7 @@ sub mysqld_stop {
 sub mysqld_arguments ($$$) {
   my $args=              shift;
   my $mysqld=            shift;
-  my $extra_opt=         shift;
+  my $extra_opts=        shift;
 
   my $prefix= "";               # If mysqltest server arg
   if ( $opt_embedded_server )
@@ -2585,7 +2587,7 @@ sub mysqld_arguments ($$$) {
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
   if (!$is_win32 and $euid == 0 and
-      (grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt)) == 0) {
+      (grep(/^--user/, @$extra_opts)) == 0) {
     mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
@@ -2606,8 +2608,7 @@ sub mysqld_arguments ($$$) {
   }
 
   # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/,
-			@$extra_opt, @opt_extra_mysqld_opt);
+  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
 
   if ( $opt_debug )
   {
@@ -2622,7 +2623,7 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
-  foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
+  foreach my $arg ( @$extra_opts )
   {
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
@@ -2651,9 +2652,12 @@ sub mysqld_arguments ($$$) {
 }
 
 
+
 sub mysqld_start ($$) {
   my $mysqld=            shift;
-  my $extra_opt=         shift;
+  my $extra_opts=        shift;
+
+  mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
   my $exe= $exe_mysqld;
   my $wait_for_pid_file= 1;
@@ -2669,7 +2673,7 @@ sub mysqld_start ($$) {
     valgrind_arguments($args, \$exe);
   }
 
-  mysqld_arguments($args,$mysqld,$extra_opt);
+  mysqld_arguments($args,$mysqld,$extra_opts);
 
   if ( $opt_gdb || $opt_manual_gdb )
   {
@@ -2738,7 +2742,7 @@ sub mysqld_start ($$) {
   }
 
   # Remember options used when starting
-  $mysqld->{'started_opts'}= $extra_opt;
+  $mysqld->{'started_opts'}= $extra_opts;
 
   return;
 }
@@ -2756,7 +2760,6 @@ sub stop_all_servers () {
   map($_->{proc}= undef, all_servers());
 
 }
-
 
 
 # Find out if server should be restarted for this test
@@ -2811,35 +2814,34 @@ sub server_need_restart {
     }
   }
 
-  my $is_mysqld=  grep ($server eq $_, mysqlds());
+  my $is_mysqld= grep ($server eq $_, mysqlds());
   if ($is_mysqld)
   {
 
     # Check that running process was started with same options
     # as the current test requires
-    my $extra_opt= get_extra_opt($server, $tinfo);
+    my $extra_opts= get_extra_opts($server, $tinfo);
     my $started_opts= $server->{'started_opts'};
-    if (defined $started_opts and $extra_opt and
-	! mtr_same_opts($started_opts, $extra_opt) )
-    {
-      # TODO Use a list  to find all options that can be set dynamically
 
-      # Check if diff is binlog format only
-      # and the next test has $binlog_format_switch set
-      my @diff_opts= mtr_diff_opts($started_opts, $extra_opt);
-      if (@diff_opts == 2 and
-	  $diff_opts[0] =~/^--binlog-format=/ and
-	  $diff_opts[1] =~/^--binlog-format=/ and
-	  defined $tinfo->{binlog_format_switch})
-      {
-	mtr_verbose("Using dynamic switch of binlog format from ",
-		    $diff_opts[0],"to", $diff_opts[1]);
-	dynamic_binlog_format_switch($tinfo, $server);
+    if (!My::Options::same($started_opts, $extra_opts) )
+    {
+      mtr_verbose(My::Options::toStr("started_opts", @$started_opts));
+      mtr_verbose(My::Options::toStr("extra_opts", @$extra_opts));
+
+      # Get diff and check if dynamic switch is possible
+      my @diff_opts= My::Options::diff($started_opts, $extra_opts);
+      mtr_verbose(My::Options::toStr("diff_opts", @diff_opts));
+
+      my $query= My::Options::toSQL(@diff_opts);
+      mtr_verbose("Attempting dynamic switch '$query'");
+      if (run_query($tinfo, $server, $query)){
+	mtr_verbose("Restart: Dynamic switch failed");
+	return 1;
       }
       else
       {
 	mtr_verbose("Restart: running with different options '" .
-		    join(" ", @{$extra_opt}) . "' != '" .
+		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$server->{'started_opts'}}) . "'" );
 	return 1;
       }
@@ -2890,7 +2892,7 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
-sub get_extra_opt {
+sub get_extra_opts {
   my ($mysqld, $tinfo)= @_;
 
   return
@@ -3026,8 +3028,8 @@ sub start_servers($) {
       return 1;
     }
 
-    my $extra_opt= get_extra_opt($mysqld, $tinfo);
-    mysqld_start($mysqld,$extra_opt);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_start($mysqld,$extra_opts);
 
     # Save this test case information, so next can examine it
     $mysqld->{'started_tinfo'}= $tinfo;
