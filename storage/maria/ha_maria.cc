@@ -1181,6 +1181,24 @@ int ha_maria::repair(THD * thd, HA_CHECK_OPT *check_opt)
   return error;
 }
 
+int ha_maria::zerofill(THD * thd, HA_CHECK_OPT *check_opt)
+{
+  int error;
+  HA_CHECK param;
+
+  if (!file)
+    return HA_ADMIN_INTERNAL_ERROR;
+
+  maria_chk_init(&param);
+  param.thd= thd;
+  param.op_name= "zerofill";
+  param.testflag= check_opt->flags | T_SILENT | T_ZEROFILL;
+  param.sort_buffer_length= check_opt->sort_buffer_size;
+  error=maria_zerofill(&param, file, file->s->open_file_name);
+
+  return error;
+}
+
 int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
 {
   int error;
@@ -1740,7 +1758,7 @@ int ha_maria::end_bulk_insert()
 
 bool ha_maria::check_and_repair(THD *thd)
 {
-  int error= 0;
+  int error;
   int marked_crashed;
   char *old_query;
   uint old_query_length;
@@ -1748,6 +1766,24 @@ bool ha_maria::check_and_repair(THD *thd)
   DBUG_ENTER("ha_maria::check_and_repair");
 
   check_opt.init();
+
+  if (file->s->state.changed & STATE_MOVED)
+  {
+    sql_print_information("Zerofilling table:   '%s'", table->s->path.str);
+    if (!(error= zerofill(thd, &check_opt)))
+      DBUG_RETURN(0);
+  }
+  else
+    error= 1;
+
+  /*
+    if we got this far - the table is crashed.
+    but don't auto-repair if maria_recover_options is not set
+  */
+  if (!maria_recover_options)
+    DBUG_RETURN(error);
+
+  error= 0;
   check_opt.flags= T_MEDIUM | T_AUTO_REPAIR;
   // Don't use quick if deleted rows
   if (!file->state->del && (maria_recover_options & HA_RECOVER_QUICK))
@@ -1782,7 +1818,7 @@ bool ha_maria::check_and_repair(THD *thd)
 
 bool ha_maria::is_crashed() const
 {
-  return (file->s->state.changed & STATE_CRASHED ||
+  return (file->s->state.changed & (STATE_CRASHED | STATE_MOVED) ||
           (my_disable_locking && file->s->state.open_count));
 }
 

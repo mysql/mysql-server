@@ -3061,7 +3061,8 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
     Mark that table is movable and that we have done zerofill of data and
     index
   */
-  info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
+  info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE |
+                             STATE_MOVED);
   /* Ensure state are flushed to disk */
   info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   DBUG_RETURN(0);
