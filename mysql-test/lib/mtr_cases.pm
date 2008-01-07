@@ -31,7 +31,7 @@ our $skip_rpl;
 our $do_test;
 our $skip_test;
 our $opt_skip_combination;
-our $binlog_format;;
+our $binlog_format;
 our $enable_disabled;
 our $default_storage_engine;
 our $opt_with_ndbcluster_only;
@@ -83,8 +83,9 @@ sub init_pattern {
 #
 ##############################################################################
 
-sub collect_test_cases ($) {
+sub collect_test_cases ($$) {
   my $suites= shift; # Semicolon separated list of test suites
+  my $opt_cases= shift;
   my $cases= []; # Array of hash(one hash for each testcase)
 
   $do_test_reg= init_pattern($do_test, "--do-test");
@@ -92,15 +93,15 @@ sub collect_test_cases ($) {
 
   foreach my $suite (split(",", $suites))
   {
-    push(@$cases, collect_one_suite($suite));
+    push(@$cases, collect_one_suite($suite, $opt_cases));
   }
 
-  if ( @::opt_cases )
+  if ( @$opt_cases )
   {
     # A list of tests was specified on the command line
     # Check that the tests specified was found
     # in at least one suite
-    foreach my $test_name_spec ( @::opt_cases )
+    foreach my $test_name_spec ( @$opt_cases )
     {
       my $found= 0;
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
@@ -236,6 +237,7 @@ sub split_testname {
 sub collect_one_suite($)
 {
   my $suite= shift;  # Test suite name
+  my $opt_cases= shift;
   my @cases; # Array of hash
 
   mtr_verbose("Collecting: $suite");
@@ -304,10 +306,10 @@ sub collect_one_suite($)
     $suite_opts= opts_from_file($suite_opt_file);
   }
 
-  if ( @::opt_cases )
+  if ( @$opt_cases )
   {
     # Collect in specified order
-    foreach my $test_name_spec ( @::opt_cases )
+    foreach my $test_name_spec ( @$opt_cases )
     {
       my ($sname, $tname, $extension)= split_testname($test_name_spec);
 
@@ -428,9 +430,15 @@ sub collect_one_suite($)
       {
 	foreach my $test (@cases)
 	{
-	  #print $test->{name}, " ", $comb, "\n";
-	  my $new_test= {};
+	  # Skip this combination if the values it provides
+	  # already are set in master_opt or slave_opt
+	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
+	      My::Options::is_set($test->{slave_opt}, $comb->{comb_opt}) ){
+	    next;
+	  }
 
+	  # Copy test options
+	  my $new_test= {};
 	  while (my ($key, $value) = each(%$test)) {
 	    if (ref $value eq "ARRAY") {
 	      push(@{$new_test->{$key}}, @$value);
@@ -450,6 +458,18 @@ sub collect_one_suite($)
 	  push(@new_cases, $new_test);
 	}
       }
+
+      # Add the plain test if it was not already added
+      # as part of a combination
+      my %added;
+      foreach my $new_test (@new_cases){
+	$added{$new_test->{name}}= 1;
+      }
+      foreach my $test (@cases){
+	push(@new_cases, $test) unless $added{$test->{name}};
+      }
+
+
       #print_testcases(@new_cases);
       @cases= @new_cases;
       #print_testcases(@cases);
@@ -481,6 +501,7 @@ sub optimize_cases {
     # --mysqld=--binlog-format=x, skip all test that does not
     # support it
     # =======================================================
+    #print "binlog_format: $binlog_format\n";
     if (defined $binlog_format )
     {
       # =======================================================
@@ -488,6 +509,8 @@ sub optimize_cases {
       # =======================================================
       if ( defined $tinfo->{'binlog_formats'} )
       {
+	#print "binlog_formats: ". join(", ", @{$tinfo->{binlog_formats}})."\n";
+
 	# The test supports different binlog formats
 	# check if the selected one is ok
 	my $supported=
@@ -513,23 +536,18 @@ sub optimize_cases {
 	  mtr_match_prefix($opt, "--binlog-format=") || $test_binlog_format;
       }
 
-      if (defined $test_binlog_format)
+      if (defined $test_binlog_format and
+	  defined $tinfo->{binlog_formats} )
       {
-	if ( defined $tinfo->{binlog_formats} )
+	my $supported=
+	  grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
+	if ( !$supported )
 	{
-	  my $supported=
-	    grep { $_ eq $test_binlog_format } @{$tinfo->{'binlog_formats'}};
-	  if ( !$supported )
-	  {
-	    $tinfo->{'skip'}= 1;
-	    $tinfo->{'comment'}=
-	      "Doesn't support --binlog-format='$test_binlog_format'";
-	    next;
-	  }
+	  $tinfo->{'skip'}= 1;
+	  $tinfo->{'comment'}=
+	    "Doesn't support --binlog-format='$test_binlog_format'";
+	  next;
 	}
-
-	# Save binlog format for dynamic switching
-	$tinfo->{binlog_format_switch}= $test_binlog_format;
       }
     }
   }
@@ -881,6 +899,12 @@ sub collect_one_test_case {
   if (defined $defaults_extra_file) {
     $tinfo->{extra_template_path}= $defaults_extra_file;
   }
+
+  # ----------------------------------------------------------------------
+  # Append mysqld extra options to both master and slave
+  # ----------------------------------------------------------------------
+  push(@{$tinfo->{'master_opt'}}, @::opt_extra_mysqld_opt);
+  push(@{$tinfo->{'slave_opt'}}, @::opt_extra_mysqld_opt);
 
   return $tinfo;
 }

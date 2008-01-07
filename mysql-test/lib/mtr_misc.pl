@@ -29,8 +29,6 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
-sub mtr_same_opts($$);
-sub mtr_cmp_opts($$);
 
 ##############################################################################
 #
@@ -189,69 +187,11 @@ sub mtr_exe_exists (@) {
 }
 
 
-
-sub mtr_same_opts ($$) {
-  my $l1= shift;
-  my $l2= shift;
-  return mtr_cmp_opts($l1,$l2) == 0;
-}
-
-sub mtr_cmp_opts ($$) {
-  my $l1= shift;
-  my $l2= shift;
-
-  my @l1= @$l1;
-  my @l2= @$l2;
-
-  return -1 if @l1 < @l2;
-  return  1 if @l1 > @l2;
-
-  while ( @l1 )                         # Same length
-  {
-    my $e1= shift @l1;
-    my $e2= shift @l2;
-    my $cmp= ($e1 cmp $e2);
-    return $cmp if $cmp != 0;
-  }
-
-  return 0;                             # They are the same
-}
-
-
 sub mtr_milli_sleep {
   die "usage: mtr_milli_sleep(milliseconds)" unless @_ == 1;
   my ($millis)= @_;
 
   select(undef, undef, undef, ($millis/1000));
-}
-
-#
-# Compare two arrays and put all unequal elements into a new one
-#
-sub mtr_diff_opts ($$) {
-  my $l1= shift;
-  my $l2= shift;
-  my $found;
-  my @result;
-  foreach my $e1 (@$l1)
-  {
-    $found= undef;
-    foreach my $e2 (@$l2)
-    {
-      $found= 1 unless ($e1 ne $e2);
-    }
-    push(@result, $e1) unless (defined $found);
-  }
-  foreach my $e2 (@$l2)
-  {
-    $found= undef;
-    foreach my $e1 (@$l1)
-    {
-      $found= 1 unless ($e1 ne $e2);
-    }
-    push(@result, $e2) unless (defined $found);
-  }
-  return @result;
 }
 
 1;
