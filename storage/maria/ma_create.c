@@ -150,7 +150,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     if (datafile_type == BLOCK_RECORD)
     {
       if (type == FIELD_SKIP_PRESPACE)
-        type= FIELD_NORMAL;                /* SKIP_PRESPACE not supported */
+        type= column->type= FIELD_NORMAL; /* SKIP_PRESPACE not supported */
       if (type == FIELD_NORMAL &&
           column->length > FULL_PAGE_SIZE(maria_block_size))
       {
@@ -297,15 +297,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   share.base.max_field_lengths= max_field_lengths;
   share.base.field_offsets= 0;                  /* for future */
 
-  if (pack_reclength != INT_MAX32)
-    pack_reclength+= max_field_lengths + long_varchar_count;
-
   if (flags & HA_CREATE_CHECKSUM || (options & HA_OPTION_CHECKSUM))
   {
     options|= HA_OPTION_CHECKSUM;
     min_pack_length++;
     pack_reclength++;
   }
+  if (pack_reclength < INT_MAX32)
+    pack_reclength+= max_field_lengths + long_varchar_count;
+  else
+    pack_reclength= INT_MAX32;
+
   if (flags & HA_CREATE_DELAY_KEY_WRITE)
     options|= HA_OPTION_DELAY_KEY_WRITE;
   if (flags & HA_CREATE_RELIES_ON_SQL_LAYER)
@@ -741,6 +743,13 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     /* Add length of packed fields + length */
     share.base.pack_reclength+= share.base.max_field_lengths+3;
 
+    /* Adjust max_pack_length, to be used if we have short rows */
+    if (share.base.max_pack_length < maria_block_size)
+    {
+      share.base.max_pack_length+= FLAG_SIZE;
+      if (ci->transactional)
+        share.base.max_pack_length+= TRANSID_SIZE * 2;
+    }
   }
 
   /* max_data_file_length and max_key_file_length are recalculated on open */
@@ -1208,7 +1217,8 @@ uint maria_get_pointer_length(ulonglong file_length, uint def)
 
    Fixed size, not null columns
    Fixed length, null fields
-   Variable length fields (CHAR, VARCHAR)
+   Numbers (zero fill fields)
+   Variable length fields (CHAR, VARCHAR) according to length
    Blobs
 
    For same kind of fields, keep fields in original order
@@ -1225,10 +1235,8 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
   MARIA_COLUMNDEF *a= *a_ptr, *b= *b_ptr;
   enum en_fieldtype a_type, b_type;
 
-  a_type= ((a->type == FIELD_NORMAL || a->type == FIELD_CHECK) ?
-           FIELD_NORMAL : a->type);
-  b_type= ((b->type == FIELD_NORMAL || b->type == FIELD_CHECK) ?
-           FIELD_NORMAL : b->type);
+  a_type= (a->type == FIELD_CHECK) ? FIELD_NORMAL : a->type;
+  b_type= (b->type == FIELD_CHECK) ? FIELD_NORMAL : b->type;
 
   if (a_type == FIELD_NORMAL && !a->null_bit)
   {
@@ -1244,6 +1252,13 @@ static int compare_columns(MARIA_COLUMNDEF **a_ptr, MARIA_COLUMNDEF **b_ptr)
     return -1;
   if (b_type == FIELD_NORMAL)
     return 1;
+  if (a_type == FIELD_SKIP_ZERO)
+    return -1;
+  if (b_type == FIELD_SKIP_ZERO)
+    return 1;
+  if (a->type != FIELD_BLOB && b->type != FIELD_BLOB)
+    if (a->length != b->length)
+      return sign((long) a->length - (long) b->length);
   if (a_type == FIELD_BLOB)
     return 1;
   if (b_type == FIELD_BLOB)

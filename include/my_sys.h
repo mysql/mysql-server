@@ -653,6 +653,8 @@ extern int my_error _VARARGS((int nr,myf MyFlags, ...));
 extern int my_printf_error _VARARGS((uint my_err, const char *format,
 				     myf MyFlags, ...))
 				    ATTRIBUTE_FORMAT(printf, 2, 4);
+extern int my_printv_error(uint error, const char *format, myf MyFlags,
+                           va_list ap);
 extern int my_error_register(const char **errmsgs, int first, int last);
 extern const char **my_error_unregister(int first, int last);
 extern int my_message(uint my_err, const char *str,myf MyFlags);
@@ -866,7 +868,12 @@ extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
+#ifndef DBUG_OFF
 extern void my_debug_put_break_here(void);
+#else
+#define my_debug_put_break_here() {}
+#endif
+
 extern void my_sleep(ulong m_seconds);
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);

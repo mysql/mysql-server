@@ -317,6 +317,8 @@ err:
 err2:
   save_errno=my_errno;
   DBUG_ASSERT(save_errno);
+  if (!save_errno)
+    save_errno= HA_ERR_INTERNAL_ERROR;          /* Should never happen */
   DBUG_PRINT("error", ("got error: %d", save_errno));
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
   allow_break();			/* Allow SIGHUP & SIGINT */

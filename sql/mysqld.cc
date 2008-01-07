@@ -2314,10 +2314,6 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2378,6 +2374,9 @@ static void init_signals(void)
   {
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
+    sigdelset(&set, SIGINT);
+    my_sigset(thr_kill_signal, end_thread_signal);
+    my_sigset(SIGINT, end_thread_signal);
   }
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);

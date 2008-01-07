@@ -394,12 +394,9 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
                                 const char *message_arg)
 {
   DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /* In production, refuse to overwrite an error with an OK packet. */
+  /* Refuse to overwrite an error with an OK packet. */
   if (is_error())
     return;
-#endif
-  /** Only allowed to report success if has not yet reported an error */
 
   m_server_status= thd->server_status;
   m_total_warn_count= thd->total_warn_count;
@@ -423,11 +420,9 @@ Diagnostics_area::set_eof_status(THD *thd)
   /** Only allowed to report eof if has not yet reported an error */
 
   DBUG_ASSERT(! is_set());
-#ifdef DBUG_OFF
-  /* In production, refuse to overwrite an error with an EOF packet. */
+  /* Refuse to overwrite an error with an EOF packet. */
   if (is_error())
     return;
-#endif
 
   m_server_status= thd->server_status;
   /*

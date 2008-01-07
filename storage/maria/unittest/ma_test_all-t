@@ -121,7 +121,9 @@ sub run_check_tests
                       ["--key_multiple -P -S","-sm"] );
   my @ma_test2_opt= ( ["-L -K -W -P","-sm"],
                       ["-L -K -W -P -A","-sm"],
-                      ["-L -K -P -R3 -m50 -b1000000","-sm"],
+                      ["-L -K -W -P -b32768", "-sm"],
+                      ["-L -K -W -P -M -T -c -b32768 -t4 -m300", "-sm"],
+                      ["-L -K -P -R3 -m50 -b1000000", "-sm"],
                       ["-L -B","-sm"],
                       ["-D -B -c","-sm"],
                       ["-m10000 -e4096 -K","-sm"],
@@ -200,8 +202,8 @@ sub run_repair_tests()
            "$maria_path/maria_chk$suffix -se test2",
            "$maria_path/maria_chk$suffix -sr test2",
            "$maria_path/maria_chk$suffix -se test2",
-           "$maria_path/ma_test2$suffix $silent -c -t4 $row_type",
-           "$maria_path/maria_chk$suffix -sz test1",
+           "$maria_path/ma_test2$suffix $silent -c -t4 -b32768 $row_type",
+           "$maria_path/maria_chk$suffix -s --zerofill test1",
            "$maria_path/maria_chk$suffix -se test1"
           );
 
@@ -294,7 +296,7 @@ sub run_tests_on_warnings_and_errors
   # ma_test2$suffix $silent -L -K -R1 -m2000 ;  Should give error 135\n
   # In the following a failure is a success and success is a failure
   $com=  "$maria_path/ma_test2$suffix $silent -L -K -R1 -m2000 ";
-  $com.= ">ma_test2_message.txt 2>&1 && false";
+  $com.= ">ma_test2_message.txt 2>&1";
   ok($com, $verbose, 0, 1);
   ok("cat ma_test2_message.txt", $verbose, 0);
   ok("grep \"Error: 135\" ma_test2_message.txt > /dev/null", $verbose, 0);
@@ -421,18 +423,19 @@ sub ok
     print "Running: '$com'\n";
   }
   $output= `$com 2>&1`;
-  $err= $? >> 8;
+  $err= $?;
   if ($verbose)
   {
     print "$output\n";
   }
-  if ($err == $expected_error)
+  if ((!$err && !$expected_error) ||
+      (($err >> 8) == $expected_error && $expected_error))
   {
     print "ok\n";
     return 1;
   }
   print "not ok\n";
-  $msg= "\nFailed test '$com' ";
+  $msg= "\nFailed test '$com' with error $err ";
   if ($iteration)
   {
     $msg.= "(loop iteration $iteration.) ";
@@ -445,6 +448,5 @@ sub ok
     $msg.= "Was expecting errcode: $expected_error\n";
   }
   warn $msg;
-
   return 0;
 }

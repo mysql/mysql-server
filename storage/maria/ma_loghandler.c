@@ -287,7 +287,6 @@ enum enum_translog_status translog_status= TRANSLOG_UNINITED;
 #define TRANSLOG_CLSN_LEN_BITS 0xC0    /* Mask to get compressed LSN length */
 
 
-
 #include <my_atomic.h>
 /* an array that maps id of a MARIA_SHARE to this MARIA_SHARE */
 static MARIA_SHARE **id_to_share= NULL;
@@ -715,10 +714,14 @@ static void translog_check_cursor(struct st_buffer_cursor *cursor
 
 void translog_stop_writing()
 {
+  DBUG_ENTER("translog_stop_writing");
+  DBUG_PRINT("error", ("errno: %d   my_errno: %d", errno, my_errno));
   translog_status= (translog_status == TRANSLOG_SHUTDOWN ?
                     TRANSLOG_UNINITED :
                     TRANSLOG_READONLY);
   log_descriptor.open_flags= O_BINARY | O_RDONLY;
+  DBUG_ASSERT(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1163,7 +1166,6 @@ end:
   pthread_mutex_unlock(&log_descriptor.unfinished_files_lock);
   DBUG_VOID_RETURN;
 }
-
 
 
 /*
@@ -2238,7 +2240,6 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
               (ulong) buffer->size));
   translog_buffer_lock_assert_owner(buffer);
 
-
   translog_wait_for_writers(buffer);
 
   if (buffer->overlay && buffer->overlay->file == buffer->file &&
@@ -2299,9 +2300,11 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
                         PAGECACHE_PIN_LEFT_UNPINNED, 0,
                         LSN_IMPOSSIBLE))
     {
-      DBUG_PRINT("error", ("Can't write page (%lu,0x%lx) to pagecache",
-                           (ulong) buffer->file,
-                           (ulong) (LSN_OFFSET(buffer->offset)+ i)));
+      DBUG_PRINT("error",
+                 ("Can't write page (%lu,0x%lx) to pagecache, error: %d",
+                  (ulong) buffer->file,
+                  (ulong) (LSN_OFFSET(buffer->offset)+ i),
+                  my_errno));
       translog_stop_writing();
       DBUG_RETURN(1);
     }
@@ -2488,7 +2491,6 @@ translog_check_sector_protection(uchar *page, TRANSLOG_FILE *file)
   @param page            The page data to check
   @param page_no         The page number (<offset>/<page length>)
   @param data_ptr        Read callback data pointer (pointer to TRANSLOG_FILE)
-
 
   @todo: add turning loghandler to read-only mode after merging with
   that patch.
@@ -4021,7 +4023,6 @@ translog_buffer_increase_writers(struct st_translog_buffer *buffer)
     buffer               target buffer
 */
 
-
 static void translog_buffer_decrease_writers(struct st_translog_buffer *buffer)
 {
   DBUG_ENTER("translog_buffer_decrease_writers");
@@ -4157,7 +4158,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
     1  Error
 */
 
-static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
+static my_bool translog_advance_pointer(int pages, uint16 last_page_data)
 {
   translog_size_t last_page_offset= (log_descriptor.page_overhead +
                                      last_page_data);
@@ -4173,6 +4174,21 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
                        pages, (uint) log_descriptor.page_overhead,
                        (uint) last_page_data));
   translog_lock_assert_owner();
+
+  if (pages == -1)
+  {
+    /*
+      It is special case when we advance the pointer on the same page.
+      It can happened when we write last part of multi-group record.
+    */
+    DBUG_ASSERT(last_page_data + log_descriptor.bc.current_page_fill <=
+                TRANSLOG_PAGE_SIZE);
+    offset= last_page_data;
+    last_page_offset= log_descriptor.bc.current_page_fill + last_page_data;
+    goto end;
+  }
+  DBUG_PRINT("info", ("last_page_offset %lu", (ulong) last_page_offset));
+  DBUG_ASSERT(last_page_offset <= TRANSLOG_PAGE_SIZE);
 
   /*
     The loop will be executed 1-3 times. Usually we advance the
@@ -4258,14 +4274,15 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
       DBUG_RETURN(1);
     offset-= min_offset;
   }
+  DBUG_PRINT("info", ("drop write_counter"));
+  log_descriptor.bc.write_counter= 0;
+  log_descriptor.bc.previous_offset= 0;
+end:
   log_descriptor.bc.ptr+= offset;
   log_descriptor.bc.buffer->size+= offset;
   translog_buffer_increase_writers(log_descriptor.bc.buffer);
   log_descriptor.horizon+= offset; /* offset increasing */
   log_descriptor.bc.current_page_fill= last_page_offset;
-  DBUG_PRINT("info", ("drop write_counter"));
-  log_descriptor.bc.write_counter= 0;
-  log_descriptor.bc.previous_offset= 0;
   DBUG_PRINT("info", ("NewP buffer #%u: 0x%lx  chaser: %d  Size: %lu (%lu)  "
                       "offset: %u  last page: %u",
                       (uint) log_descriptor.bc.buffer->buffer_no,
@@ -4283,7 +4300,6 @@ static my_bool translog_advance_pointer(uint pages, uint16 last_page_data)
   log_descriptor.bc.protected= 0;
   DBUG_RETURN(0);
 }
-
 
 
 /*
@@ -4435,7 +4451,7 @@ translog_write_variable_record_1group(LSN *lsn,
                       (log_descriptor.page_capacity_chunk_2 - 1),
                       record_rest, parts->record_length));
   /* record_rest + 3 is chunk type 3 overhead + record_rest */
-  rc|= translog_advance_pointer(full_pages + additional_chunk3_page,
+  rc|= translog_advance_pointer((int)(full_pages + additional_chunk3_page),
                                 (record_rest ? record_rest + 3 : 0));
   log_descriptor.bc.buffer->last_lsn= *lsn;
 
@@ -4459,7 +4475,6 @@ translog_write_variable_record_1group(LSN *lsn,
 
   /* fill the pages */
   translog_write_parts_on_page(&horizon, &cursor, first_page, parts);
-
 
   DBUG_PRINT("info", ("absolute horizon: (%lu,0x%lx)  local: (%lu,0x%lx)",
                       LSN_IN_PARTS(log_descriptor.horizon),
@@ -4959,7 +4974,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
                         (ulong)(parts->record_length - (first_page - 1 +
                                                         buffer_rest) -
                                 done)));
-    rc|= translog_advance_pointer(full_pages, 0);
+    rc|= translog_advance_pointer((int)full_pages, 0);
 
     rc|= translog_unlock();
 
@@ -5104,8 +5119,10 @@ translog_write_variable_record_mgroup(LSN *lsn,
                       (ulong) full_pages *
                       log_descriptor.page_capacity_chunk_2,
                       chunk3_pages, (uint) chunk3_size, (uint) record_rest));
-  rc= translog_advance_pointer(full_pages + chunk3_pages +
-                               (chunk0_pages - 1),
+  rc= translog_advance_pointer((int)(full_pages + chunk3_pages +
+                                     (chunk0_pages - 1)) +
+                               (full_pages + chunk3_pages + chunk0_pages +
+                                chunk2_page == 1? -1 : 0),
                                record_rest + header_fixed_part +
                                (groups.elements -
                                 ((page_capacity -
@@ -5572,7 +5589,6 @@ my_bool translog_write_record(LSN *lsn,
     DBUG_PRINT("error", ("Transaction log is write protected"));
     DBUG_RETURN(1);
   }
-
 
   if (tbl_info)
   {
@@ -7526,7 +7542,7 @@ my_bool translog_purge_at_flush()
 
   if (unlikely(translog_status == TRANSLOG_READONLY))
   {
-    DBUG_PRINT("info", ("The log is read onlyu => exit"));
+    DBUG_PRINT("info", ("The log is read only => exit"));
     DBUG_RETURN(0);
   }
 
@@ -7639,4 +7655,3 @@ void translog_set_file_size(uint32 size)
   }
   DBUG_VOID_RETURN;
 }
-

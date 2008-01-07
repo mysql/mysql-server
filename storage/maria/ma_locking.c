@@ -589,6 +589,7 @@ int _ma_decrement_open_count(MARIA_HA *info)
     if (share->state.open_count > 0)
     {
       share->state.open_count--;
+      share->changed= 1;                        /* We have to update state */
       if (!(share->temporary | share->base.born_transactional))
       {
         mi_int2store(buff,share->state.open_count);

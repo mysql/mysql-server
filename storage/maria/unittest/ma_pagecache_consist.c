@@ -462,7 +462,7 @@ int main(int argc __attribute__((unused)),
 	    errno);
     exit(1);
   }
-  /*my_delete(file1_name, MYF(0));*/
+  my_delete(file1_name, MYF(0));
   my_end(0);
 
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));

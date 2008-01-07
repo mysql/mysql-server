@@ -122,7 +122,7 @@ typedef struct st_handler_check_param
   my_off_t search_after_block;
   my_off_t new_file_pos, key_file_blocks;
   my_off_t keydata, totaldata, key_blocks, start_check_pos;
-  my_off_t used, empty, splits, del_length, link_used;
+  my_off_t used, empty, splits, del_length, link_used, lost;
   ha_rows total_records, total_deleted, records,del_blocks;
   ha_rows full_page_count, tail_count;
   ha_checksum record_checksum, glob_crc;

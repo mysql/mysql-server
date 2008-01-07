@@ -47,6 +47,7 @@ extern	void _db_end_(void);
 extern	void _db_lock_file_(void);
 extern	void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
+extern  void _db_force_flush();
 
 #define DBUG_ENTER(a) const char *_db_func_, *_db_file_; uint _db_level_; \
 	char **_db_framep_; \
