@@ -113,7 +113,6 @@ static void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     n->thisnodename = c->diskoff;
     n->log_lsn = n->disk_lsn  = c->lsn; printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
     n->layout_version = 1;
-    n->parent_brtnode = 0;
     n->height         = c->height;
     n->rand4fingerprint = c->rand4fingerprint;
     n->flags = c->is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
