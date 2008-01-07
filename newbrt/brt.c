@@ -1840,6 +1840,8 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     return r;
 }
 
+#if 0
+
 static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v) {
     int result;
     void *node_v;
@@ -1907,8 +1909,10 @@ static int brt_lookup_node (BRT brt, DISKOFF off, DBT *k, DBT *v) {
     return result;
 }
 
+#endif
 
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
+#if 0
     int r;
     CACHEKEY *rootp;
     //assert(0==toku_cachefile_count_pinned(brt->cf, 1));     // That assertion isn't right.  An open cursor could cause things to be pinned.
@@ -1928,7 +1932,22 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     //assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // That assertion isn't right.  An open cursor could cause things to be pinned.
     return 0;
+#else
+    int r, rr;
+    BRT_CURSOR cursor;
+
+    rr = toku_brt_cursor(brt, &cursor);
+    if (rr != 0) return rr;
+
+    int op = brt->flags & TOKU_DB_DUPSORT ? DB_GET_BOTH : DB_SET;
+    r = toku_brt_cursor_get(cursor, k, v, op, 0);
+
+    rr = toku_brt_cursor_close(cursor); assert(rr == 0);
+
+    return r;
+#endif
 }
+    
 
 int toku_brt_delete(BRT brt, DBT *key) {
     int r;
@@ -2728,7 +2747,7 @@ static int brtcurs_set_search(BRT_CURSOR cursor, DISKOFF off, int op, DBT *key, 
     if (r != 0) {
         cursor->path_len -= 1;
 	//verify_local_fingerprint_nonleaf(node);
-        toku_cachetable_unpin(brt->cf, off, node->dirty, brtnode_size(node));
+        toku_cachetable_unpin(brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
     }
     return r;
 }
