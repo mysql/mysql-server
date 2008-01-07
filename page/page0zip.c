@@ -4169,6 +4169,8 @@ page_zip_reorganize(
 	temp_block = buf_block_alloc(0);
 	temp_page = temp_block->frame;
 
+	btr_search_drop_page_hash_index(block);
+
 	/* Copy the old page to temporary space */
 	buf_frame_copy(temp_page, page);
 
@@ -4200,7 +4202,6 @@ page_zip_reorganize(
 	}
 
 	lock_move_reorganize_page(block, temp_block);
-	btr_search_drop_page_hash_index(block);
 
 	buf_block_free(temp_block);
 	return(TRUE);
