@@ -931,12 +931,15 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     toku_pma_set_dup_mode(pmaa, dup_mode);
+    toku_pma_set_dup_compare(pmaa, toku_default_compare_fun);
     error = toku_pma_create(&pmab, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     toku_pma_set_dup_mode(pmab, dup_mode);
+    toku_pma_set_dup_compare(pmab, toku_default_compare_fun);
     error = toku_pma_create(&pmac, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     toku_pma_set_dup_mode(pmac, dup_mode);
+    toku_pma_set_dup_compare(pmac, toku_default_compare_fun);
 
     /* insert some kv pairs */
     int dupkey = random();
@@ -1231,9 +1234,9 @@ static void test_pma_split(void) {
     test_pma_split_n(4); local_memory_check_all_free();
     test_pma_split_n(8); local_memory_check_all_free();
     test_pma_split_n(9);  local_memory_check_all_free();
-    test_pma_dup_split_n(0, TOKU_DB_DUP);  local_memory_check_all_free();
-    test_pma_dup_split_n(1, TOKU_DB_DUP);  local_memory_check_all_free();
-    test_pma_dup_split_n(9, TOKU_DB_DUP);  local_memory_check_all_free();
+    test_pma_dup_split_n(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();
+    test_pma_dup_split_n(1, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();
+    test_pma_dup_split_n(9, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();
     test_pma_split_varkey(); local_memory_check_all_free();
     test_pma_split_cursor(); local_memory_check_all_free();
 }
@@ -2234,93 +2237,6 @@ static void test_nodup_key_insert(int n) {
     assert(r == 0);
 }
 
-/* insert n duplicate keys */
-static void test_dup_key_insert(int n) {
-    if (verbose) printf("test_dup_key_insert:%d\n", n);
-
-    PMA pma;
-    int r;
-
-    u_int32_t rand4fingerprint = random();
-    u_int32_t sum = 0;
-    u_int32_t expect_fingerprint = 0;
-
-    r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, (n + 2) * (8 + sizeof (int) + sizeof (int)));
-    assert(r == 0);
-    toku_pma_verify(pma);
-
-    r = toku_pma_set_dup_mode(pma, TOKU_DB_DUP);
-    assert(r == 0);
-
-
-    DBT key, val;
-    int k, v;
-
-    /* insert 1->1, 3->3 */
-    k = htonl(1); v = 1;
-    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    toku_pma_verify(pma);
-    k = htonl(3); v = 3;
-    do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-    toku_pma_verify(pma);
-
-    int i;
-    /* insert 2->0, 2->1, .. 2->n-1 */
-    for (i=0; i<n; i++) {
-        k = htonl(2);
-        v = i;
-	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
-        toku_pma_verify(pma);
-    }
-
-    /* cursor walk from key k should find values 0, 1, .. n-1 */
-    PMA_CURSOR cursor;
-    r = toku_pma_cursor(pma, &cursor, &skey, &sval);
-    assert(r == 0);
-
-    k = htonl(2);
-    toku_fill_dbt(&key, &k, sizeof k);
-    r = toku_pma_cursor_set_both(cursor, &key, 0);
-    if (r != 0) {
-        assert(n == 0);
-    } else {
-        i = 0;
-        while (1) {
-            toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
-            toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-            r = toku_pma_cursor_get_current(cursor, &key, &val, 0);
-            assert(r == 0);
-            int kk;
-            assert(key.size == sizeof kk);
-            memcpy(&kk, key.data, key.size);
-            if (k != kk) {
-                toku_free(key.data);
-                toku_free(val.data);
-                break;
-            }
-            int vv;
-            assert(val.size == sizeof vv);
-            memcpy(&vv, val.data, val.size);
-            assert(vv == i);
-            toku_free(key.data);
-            toku_free(val.data);
-
-            i += 1;
-
-            r = toku_pma_cursor_set_position_next(cursor);
-            if (r != 0)
-                break;
-        }
-        assert(i == n);
-    }
-
-    r = toku_pma_cursor_free(&cursor);
-    assert(r == 0);
-
-    r = toku_pma_free(&pma);
-    assert(r == 0);
-}
-
 /* insert n duplicate keys, delete key, verify all keys are deleted */
 static void test_dup_key_delete(int n, int mode) {
     if (verbose) printf("test_dup_key_delete:%d %x\n", n, mode);
@@ -2578,20 +2494,10 @@ static void test_dup_key_lookup(int n, int mode) {
 
 static void test_dup() {
     test_nodup_key_insert(2);                            local_memory_check_all_free();
-    test_dup_key_insert(0);                              local_memory_check_all_free();
-    test_dup_key_insert(2);                              local_memory_check_all_free();
-    test_dup_key_insert(1000);                           local_memory_check_all_free();
-    test_dup_key_delete(0, TOKU_DB_DUP);                 local_memory_check_all_free();
-    test_dup_key_delete(1000, TOKU_DB_DUP);              local_memory_check_all_free();
     test_dupsort_key_insert(2, 0);                       local_memory_check_all_free();
     test_dupsort_key_insert(1000, 0);                    local_memory_check_all_free();
-#if PMA_DUP_DUP
-    test_dupsort_key_insert(2, 1);                       local_memory_check_all_free();
-    test_dupsort_key_insert(1000, 1);                    local_memory_check_all_free();
-#endif
     test_dup_key_delete(0, TOKU_DB_DUP+TOKU_DB_DUPSORT);           local_memory_check_all_free();
     test_dup_key_delete(1000, TOKU_DB_DUP+TOKU_DB_DUPSORT);        local_memory_check_all_free();
-    test_dup_key_lookup(32, TOKU_DB_DUP);                          local_memory_check_all_free();
     test_dup_key_lookup(32, TOKU_DB_DUP+TOKU_DB_DUPSORT);          local_memory_check_all_free();
 }
 
@@ -2620,7 +2526,6 @@ static void pma_tests (void) {
     test_pma_cursor_set_key();    local_memory_check_all_free();
     test_pma_cursor_set_range();  local_memory_check_all_free();    
     test_pma_cursor_delete_under();  local_memory_check_all_free();    
-    test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP);  local_memory_check_all_free();    
     test_pma_cursor_delete_under_mode(3, TOKU_DB_DUP+TOKU_DB_DUPSORT);  local_memory_check_all_free();    
     test_pma_cursor_set_both();   local_memory_check_all_free();
     test_dup();
