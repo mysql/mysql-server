@@ -381,6 +381,11 @@ sub command_line_setup {
 
   usage("") if $opt_usage;
 
+  # --------------------------------------------------------------------------
+  # Check mtr_build_thread and calculate baseport
+  # --------------------------------------------------------------------------
+  set_mtr_build_thread_ports($opt_mtr_build_thread);
+
   if ( -d "../sql" )
   {
     $source_dist=  1;
@@ -732,11 +737,6 @@ sub command_line_setup {
   $path_current_test_log= "$opt_vardir/log/current_test";
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
-  # --------------------------------------------------------------------------
-  # Check mtr_build_thread and calculate baseport
-  # --------------------------------------------------------------------------
-  set_mtr_build_thread_ports($opt_mtr_build_thread);
-
 }
 
 
@@ -765,6 +765,7 @@ sub set_mtr_build_thread_ports($) {
     print "got ".$mtr_build_thread."\n";
   }
   $opt_mtr_build_thread= $mtr_build_thread;
+  $ENV{MTR_BUILD_THREAD}= $mtr_build_thread;
 
   # Calculate baseport
   $opt_baseport= $mtr_build_thread * 10 + 10000;
