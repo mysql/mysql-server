@@ -388,6 +388,11 @@ sub command_line_setup {
 
   usage("") if $opt_usage;
 
+  # --------------------------------------------------------------------------
+  # Check mtr_build_thread and calculate baseport
+  # --------------------------------------------------------------------------
+  set_mtr_build_thread_ports($opt_mtr_build_thread);
+
   if ( -d "../sql" )
   {
     $source_dist=  1;

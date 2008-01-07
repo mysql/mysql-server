@@ -971,7 +971,7 @@ sub envsubst {
 
   if ( ! defined $ENV{$string} )
   {
-    mtr_error("opt file referense \$$string that is unknown");
+    mtr_error(".opt file references '$string' which is not set");
   }
 
   return $ENV{$string};
