@@ -1,0 +1,24 @@
+flush status;
+set query_cache_type=DEMAND;
+set global query_cache_size= 1024*1024*512;
+drop table if exists t1;
+create table t1 (a varchar(100));
+insert into t1 values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+Activate debug hook and attempt to retrieve the statement from the cache.
+set session debug='+d,wait_in_query_cache_insert';
+select SQL_CACHE * from t1;;
+On a second connection; clear the query cache.
+show status like 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+set global query_cache_size= 0;;
+Signal the debug hook to release the lock.
+select id from information_schema.processlist where state='wait_in_query_cache_insert' into @thread_id;
+kill query @thread_id;
+Show query cache status.
+show status like 'Qcache_queries_in_cache';
+Variable_name	Value
+Qcache_queries_in_cache	1
+set global query_cache_size= 0;
+use test;
+drop table t1;
