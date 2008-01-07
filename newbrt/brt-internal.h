@@ -53,7 +53,6 @@ struct brtnode {
     LSN     disk_lsn;       // The LSN as of the most recent version on disk.
     LSN     log_lsn;        // The LSN as of the most recent log write. 
     int     layout_version; // What version of the data structure?
-    BRTNODE parent_brtnode; /* Invariant: The parent of an in-memory node must be in main memory.  This is so we can find and update the down pointer when we change the diskoff of a node. */
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the hash tables, but does not include child subtree fingerprints. */
