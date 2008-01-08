@@ -4467,7 +4467,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    field= new Field_date(maybe_null, name, &my_charset_bin);
+    field= new Field_newdate(maybe_null, name, &my_charset_bin);
     break;
   case MYSQL_TYPE_TIME:
     field= new Field_time(maybe_null, name, &my_charset_bin);

@@ -1269,6 +1269,10 @@ public:
     :Field_str(ptr_arg, 10, null_ptr_arg, null_bit_arg,
 	       unireg_check_arg, field_name_arg, cs)
     {}
+  Field_newdate(bool maybe_null_arg, const char *field_name_arg,
+                struct st_table *table_arg, CHARSET_INFO *cs)
+    :Field_str((char*) 0,10, maybe_null_arg ? (uchar*) "": 0,0,
+               NONE, field_name_arg, table_arg, cs) {}
   enum_field_types type() const { return MYSQL_TYPE_DATE;}
   enum_field_types real_type() const { return MYSQL_TYPE_NEWDATE; }
   enum ha_base_keytype key_type() const { return HA_KEYTYPE_UINT24; }
