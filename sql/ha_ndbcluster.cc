@@ -5606,6 +5606,17 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 }
 #endif /* HAVE_NDB_BINLOG */
 
+static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
+{
+  if (thd->lex->sql_command == SQLCOM_LOAD)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  else if (!thd->transaction.on)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  else if (!thd->variables.ndb_use_transactions)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  thd_ndb->m_force_send= thd->variables.ndb_force_send;
+}
+
 int ha_ndbcluster::start_statement(THD *thd,
                                    Thd_ndb *thd_ndb,
                                    uint table_count)
@@ -5615,6 +5626,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   DBUG_ENTER("ha_ndbcluster::start_statement");
 
   m_thd_ndb= thd_ndb;
+  transaction_checks(thd, m_thd_ndb);
 
   if (table_count == 0)
   {
@@ -5917,16 +5929,6 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 error:
   thd_ndb->start_stmt_count--;
   DBUG_RETURN(error);
-}
-
-static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
-{
-  if (thd->lex->sql_command == SQLCOM_LOAD ||
-      !thd->transaction.on)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->variables.ndb_use_transactions)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  thd_ndb->m_force_send= thd->variables.ndb_force_send;
 }
 
 NdbTransaction *
