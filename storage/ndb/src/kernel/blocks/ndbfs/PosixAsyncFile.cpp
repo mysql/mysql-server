@@ -485,7 +485,12 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
     if (return_value == -1 && errno == EINTR) {
       DEBUG(ndbout_c("EINTR in read"));
       continue;
-    } else if (return_value < 1 && azf.z_eof!=1){
+    } else if (!use_gz) {
+      if (return_value == -1)
+        return errno;
+    }
+    else if (return_value < 1 && azf.z_eof!=1)
+    {
       if(my_errno==0 && errno==0 && error==0 && azf.z_err==Z_STREAM_END)
         break;
       DEBUG(ndbout_c("ERROR DURING %sRead: %d off: %d from %s",(use_gz)?"gz":"",size,offset,theFileName.c_str()));
@@ -494,10 +499,8 @@ int PosixAsyncFile::readBuffer(Request *req, char *buf,
       if(use_gz)
         return my_errno;
       return errno;
-    } else {
-      bytes_read = return_value;
     }
-
+    bytes_read = return_value;
     req->par.readWrite.pages[0].size += bytes_read;
     if(bytes_read == 0){
       if(req->action == Request::readPartial)
