@@ -783,7 +783,7 @@ sub set_mtr_build_thread_ports($) {
               "($opt_baseport - $opt_baseport + 9)");
   }
 
-  mtr_report("Using MR_BUILD_THREAD $opt_mtr_build_thread,",
+  mtr_report("Using MR_BUILD_THREAD $mtr_build_thread,",
 	     "with reserved ports $opt_baseport..".($opt_baseport+9));
 
 }
