@@ -89,8 +89,6 @@ prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
-prototype_redo_exec_hook(REDO_NEW_ROW_TAIL);
-prototype_redo_exec_hook(REDO_NEW_ROW_BLOBS);
 prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD);
 prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL);
 prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
