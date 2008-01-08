@@ -539,7 +539,7 @@ sub command_line_setup {
       if $opt_tmpdir;
 
     # Search through list of locations that are known
-    # to be "fast disks" to list to find a suitable location
+    # to be "fast disks" to find a suitable location
     # Use --mem=<dir> as first location to look.
     my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
 
@@ -547,8 +547,8 @@ sub command_line_setup {
     {
       if ( -d $fs )
       {
-	$opt_mem= "$fs/var";
-	$opt_mem .= $opt_mtr_build_thread if $opt_mtr_build_thread;
+	my $template= "var_${opt_mtr_build_thread}_XXXX";
+	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
 	last;
       }
     }
@@ -772,7 +772,6 @@ sub set_mtr_build_thread_ports($) {
       mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
     print "got ".$mtr_build_thread."\n";
   }
-  $opt_mtr_build_thread= $mtr_build_thread;
   $ENV{MTR_BUILD_THREAD}= $mtr_build_thread;
 
   # Calculate baseport
@@ -1272,21 +1271,13 @@ sub remove_stale_vardir () {
     {
       # var is a symlink
 
-      if ( $opt_mem and readlink($opt_vardir) eq $opt_mem )
+      if ( $opt_mem )
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
 
 	# Remove the "var" symlink
-	mtr_verbose("unlink($opt_vardir)");
-	unlink($opt_vardir);
-      }
-      elsif ( $opt_mem )
-      {
-	# Just remove the "var" symlink
-	mtr_report(" - WARNING: Removing '$opt_vardir' symlink it's wrong");
-
 	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
       }
