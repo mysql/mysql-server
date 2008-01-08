@@ -2833,16 +2833,14 @@ sub server_need_restart {
       my $query= My::Options::toSQL(@diff_opts);
       mtr_verbose("Attempting dynamic switch '$query'");
       if (run_query($tinfo, $server, $query)){
-	mtr_verbose("Restart: Dynamic switch failed");
-	return 1;
-      }
-      else
-      {
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$server->{'started_opts'}}) . "'" );
 	return 1;
       }
+
+      # Remember the dynamically set options
+      $server->{'started_opts'}= $extra_opts;
     }
   }
 
