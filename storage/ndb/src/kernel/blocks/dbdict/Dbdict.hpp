@@ -777,7 +777,7 @@ private:
   void execBUILD_INDX_IMPL_CONF(Signal* signal);
   void execBUILD_INDX_IMPL_REF(Signal* signal);
 
-  void execBACKUP_FRAGMENT_REQ(Signal*);
+  void execBACKUP_LOCK_TAB_REQ(Signal*);
 
   // Util signals used by Event code
   void execUTIL_PREPARE_CONF(Signal* signal);

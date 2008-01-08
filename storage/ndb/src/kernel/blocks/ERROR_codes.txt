@@ -8,7 +8,7 @@ Next DBDICT 6008
 Next DBDIH 7202
 Next DBTC 8057
 Next CMVMI 9000
-Next BACKUP 10038
+Next BACKUP 10039
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13034
@@ -477,6 +477,7 @@ Backup Stuff:
 
 10036: Halt backup for table >= 2
 10037: Resume backup (from 10036)
+10038: Receive abort backup in the middle of locking tables.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
 

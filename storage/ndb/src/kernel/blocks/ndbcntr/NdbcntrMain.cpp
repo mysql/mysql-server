@@ -1636,26 +1636,26 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   NodeFailRep * rep = (NodeFailRep *)&signal->theData[0];  
   rep->masterNodeId = cmasterNodeId;
 
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   if (c_stopRec.stopReq.senderRef)
   {
@@ -3173,7 +3173,7 @@ void
 UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
   
   if(cntr.getNodeInfo(cntr.cmasterNodeId).m_version >= MAKE_VERSION(3,5,0)){
-    jam();
+    jamNoBlock();
     return;
   }
 

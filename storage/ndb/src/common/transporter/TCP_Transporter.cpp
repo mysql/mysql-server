@@ -431,8 +431,19 @@ TCP_Transporter::doReceive() {
 	       (char*)ndbstrerror(InetErrno));
 #endif   
       if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
-	// The remote node has closed down
+	/**
+         * The remote node has closed down.
+         *
+         * In multi-threaded ndbd, we need to grab the send lock before
+         * doDisconnect(), to avoid races when we empty the send buffer.
+         *
+         * In single-threaded ndbd, this is a no-operation.
+         */
+        extern void mt_send_lock(void *, NodeId);
+        extern void mt_send_unlock(void *, NodeId);
+        mt_send_lock(get_callback_obj(), getRemoteNodeId());
 	doDisconnect();
+        mt_send_unlock(get_callback_obj(), getRemoteNodeId());
 	report_disconnect(InetErrno);
       } 
     }

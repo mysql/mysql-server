@@ -4162,7 +4162,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
     localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendtckeyconf()
@@ -4633,7 +4633,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    //ndbassert(Tdata5 == 0);
+    ndbassert(Tdata5 == 0 || getNodeInfo(Thostptr.i).m_connected == false);
     Thostptr.p->noOfPackedWordsLqh = Tindex + 4; // no gci_lo
   }
 }//Dbtc::sendCommitLqh()
@@ -7827,7 +7827,7 @@ Dbtc::sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord * regApiPtr){
   const Uint32 nodeId = refToNode(ref);
   if(ref != 0)
   {
-    jam()
+    jam();
     failConf->apiConnectPtr = regApiPtr->ndbapiConnect | (marker != RNIL);
     failConf->transId1 = regApiPtr->transid[0];
     failConf->transId2 = regApiPtr->transid[1];
@@ -9137,7 +9137,7 @@ void Dbtc::execSCAN_TABREQ(Signal* signal)
 
  SCAN_error_check:
   if (aiLength == 0) {
-    jam()
+    jam();
     errCode = ZSCAN_AI_LEN_ERROR;
     goto SCAN_TAB_error;
   }//if
@@ -12251,7 +12251,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
     localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendTcIndxConf()

@@ -147,7 +147,9 @@ protected:
 
   void execWAIT_GCP_REF(Signal* signal);
   void execWAIT_GCP_CONF(Signal* signal);
-  
+  void execBACKUP_LOCK_TAB_CONF(Signal *signal);
+  void execBACKUP_LOCK_TAB_REF(Signal *signal);
+
   void execLCP_PREPARE_REQ(Signal* signal);
   void execLCP_FRAGMENT_REQ(Signal*);
   void execEND_LCPREQ(Signal* signal);
@@ -312,6 +314,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -404,6 +407,7 @@ public:
     void forceState(State s);
     
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -532,6 +536,7 @@ public:
 
     Backup & backup;
     BlockNumber number() const { return backup.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return backup.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       backup.progError(line, cause, extra); 
     }
@@ -687,6 +692,10 @@ public:
   void lcp_close_file_conf(Signal* signal, BackupRecordPtr);
 
   bool ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP);
+
+  void afterGetTabinfoLockTab(Signal *signal,
+                              BackupRecordPtr ptr, TablePtr tabPtr);
+  void cleanupNextTable(Signal *signal, BackupRecordPtr ptr, TablePtr tabPtr);
 };
 
 inline

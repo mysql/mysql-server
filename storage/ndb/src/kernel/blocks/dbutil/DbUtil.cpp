@@ -313,7 +313,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
    */
   const Uint32 tCase = signal->theData[0];
   if(tCase == 200){
-    jam()
+    jam();
     ndbout << "--------------------------------------------------" << endl;
     UtilSequenceReq * req = (UtilSequenceReq*)signal->getDataPtrSend();
     Uint32 seqId = 1;
@@ -2142,7 +2142,20 @@ DbUtil::execTRANSID_AI(Signal* signal){
   const Uint32 opI      = signal->theData[0];
   const Uint32 transId1 = signal->theData[1];
   const Uint32 transId2 = signal->theData[2];
-  const Uint32 dataLen  = signal->length() - 3;
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr dataPtr;
+  bool longSignal = (handle.m_cnt == 1);
+  Uint32 dataLen;
+
+  if (longSignal)
+  {
+    ndbrequire(handle.getSection(dataPtr, 0));
+    dataLen = dataPtr.sz;
+  }
+  else
+  {
+    dataLen = signal->length() - 3;
+  }
 
   Operation * opP = c_operationPool.getPtr(opI);
   TransactionPtr transPtr;
@@ -2155,11 +2168,29 @@ DbUtil::execTRANSID_AI(Signal* signal){
   /**
    * Save result
    */
-  const Uint32 *src = &signal->theData[3];
   ResultSetBuffer::DataBufferIterator rs = opP->rsIterator;
 
-  ndbrequire(opP->rs.import(rs,src,dataLen));
-  opP->rs.next(rs, dataLen);
+  if (longSignal)
+  {
+    SectionSegment * ptrP = dataPtr.p;
+    while (dataLen > NDB_SECTION_SEGMENT_SZ)
+    {
+      ndbrequire(opP->rs.import(rs, &ptrP->theData[0], NDB_SECTION_SEGMENT_SZ));
+      opP->rs.next(rs, NDB_SECTION_SEGMENT_SZ);
+      dataLen -= NDB_SECTION_SEGMENT_SZ;
+      ptrP = g_sectionSegmentPool.getPtr(ptrP->m_nextSegment);
+    }
+    ndbrequire(opP->rs.import(rs, &ptrP->theData[0], dataLen));
+    opP->rs.next(rs, dataLen);
+
+    releaseSections(handle);
+  }
+  else
+  {
+    const Uint32 *src = &signal->theData[3];
+    ndbrequire(opP->rs.import(rs,src,dataLen));
+    opP->rs.next(rs, dataLen);
+  }
   opP->rsIterator = rs;
 
   if(!opP->complete()){
@@ -2381,7 +2412,7 @@ DbUtil::execUTIL_LOCK_REQ(Signal * signal){
     return;
   }
   
-  Uint32 res = lockQPtr.p->m_queue.lock(c_lockElementPool, &req);
+  Uint32 res = lockQPtr.p->m_queue.lock(this, c_lockElementPool, &req);
   switch(res){
   case UtilLockRef::OK:
     jam();
@@ -2427,7 +2458,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
     return;
   }
 
-  Uint32 res = lockQPtr.p->m_queue.unlock(c_lockElementPool, &req);
+  Uint32 res = lockQPtr.p->m_queue.unlock(this, c_lockElementPool, &req);
   switch(res){
   case UtilUnlockRef::OK:
     jam();
@@ -2455,7 +2486,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
    */
   UtilLockReq lockReq;
   LockQueue::Iterator iter;
-  if (lockQPtr.p->m_queue.first(c_lockElementPool, iter))
+  if (lockQPtr.p->m_queue.first(this, c_lockElementPool, iter))
   {
     int res;
     while ((res = lockQPtr.p->m_queue.checkLockGrant(iter, &lockReq)) > 0)
@@ -2595,7 +2626,7 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
     }
     
     LockQueue::Iterator iter;
-    if (lockQPtr.p->m_queue.first(c_lockElementPool, iter) == false)
+    if (lockQPtr.p->m_queue.first(this, c_lockElementPool, iter) == false)
     {
       jam();
       err = UtilDestroyLockRef::NotLockOwner;
