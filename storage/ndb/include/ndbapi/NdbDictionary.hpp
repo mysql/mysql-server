@@ -1274,7 +1274,18 @@ public:
      */
     OptimizeIndexHandle();
     ~OptimizeIndexHandle();
+    /**
+     * Optimize one more batch of records
+     * @return 1 for more records left to optimize,
+     *         0 when completed
+     *         -1 encountered some error 
+     */
     int next();
+    /**
+     * Close the handle object
+     * @return 0 when completed
+     *         -1 encountered some error      
+     */
     int close();
   private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
