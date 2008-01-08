@@ -222,6 +222,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
 
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
+                                            my_bool new_page,
                                             const uchar *header,
                                             const uchar *data,
                                             size_t data_length);

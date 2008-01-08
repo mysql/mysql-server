@@ -403,10 +403,17 @@ static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_TAIL=
  write_hook_for_redo, NULL, 0,
  "redo_insert_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
-/* Use this entry next time we need to add a new entry */
-static LOG_DESC INIT_LOGREC_REDO_NOT_USED=
-{LOGRECTYPE_VARIABLE_LENGTH, 0, 8, NULL, write_hook_for_redo, NULL, 0,
- "redo_insert_row_blob", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+static LOG_DESC INIT_LOGREC_REDO_NEW_ROW_HEAD=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
+ write_hook_for_redo, NULL, 0,
+ "redo_new_row_head", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
+
+static LOG_DESC INIT_LOGREC_REDO_NEW_ROW_TAIL=
+{LOGRECTYPE_VARIABLE_LENGTH, 0,
+ FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE, NULL,
+ write_hook_for_redo, NULL, 0,
+ "redo_new_row_tail", LOGREC_NOT_LAST_IN_GROUP, NULL, NULL};
 
 static LOG_DESC INIT_LOGREC_REDO_INSERT_ROW_BLOBS=
 {LOGRECTYPE_VARIABLE_LENGTH, 0, FILEID_STORE_SIZE, NULL,
@@ -594,8 +601,10 @@ void translog_table_init()
     INIT_LOGREC_REDO_INSERT_ROW_HEAD;
   log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_TAIL]=
     INIT_LOGREC_REDO_INSERT_ROW_TAIL;
-  log_record_type_descriptor[LOGREC_REDO_NOT_USED]=
-    INIT_LOGREC_REDO_NOT_USED;
+  log_record_type_descriptor[LOGREC_REDO_NEW_ROW_HEAD]=
+    INIT_LOGREC_REDO_NEW_ROW_HEAD;
+  log_record_type_descriptor[LOGREC_REDO_NEW_ROW_TAIL]=
+    INIT_LOGREC_REDO_NEW_ROW_TAIL;
   log_record_type_descriptor[LOGREC_REDO_INSERT_ROW_BLOBS]=
     INIT_LOGREC_REDO_INSERT_ROW_BLOBS;
   log_record_type_descriptor[LOGREC_REDO_PURGE_ROW_HEAD]=

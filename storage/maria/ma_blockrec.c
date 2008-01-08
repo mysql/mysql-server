@@ -1777,7 +1777,9 @@ static my_bool write_tail(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos.data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
-    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_TAIL,
+    if (translog_write_record(&lsn,
+                              (block_is_read ? LOGREC_REDO_INSERT_ROW_TAIL :
+                               LOGREC_REDO_NEW_ROW_TAIL),
                               info->trn, info, sizeof(log_data) + length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
                               log_data, NULL))
@@ -2830,7 +2832,11 @@ static my_bool write_block_record(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos->data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= head_length;
-    if (translog_write_record(&lsn, LOGREC_REDO_INSERT_ROW_HEAD, info->trn,
+    if (translog_write_record(&lsn,
+                              head_block_is_read ?
+                              LOGREC_REDO_INSERT_ROW_HEAD :
+                              LOGREC_REDO_NEW_ROW_HEAD,
+                              info->trn,
                               info, sizeof(log_data) + head_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
                               log_data, NULL))
@@ -5721,16 +5727,21 @@ my_bool write_hook_for_file_id(enum translog_record_type type
 ***************************************************************************/
 
 /*
-  Apply LOGREC_REDO_INSERT_ROW_HEAD & LOGREC_REDO_INSERT_ROW_TAIL
+  Apply changes to head and tail pages
 
   SYNOPSIS
     _ma_apply_redo_insert_row_head_or_tail()
     info		Maria handler
     lsn			LSN to put on page
     page_type		HEAD_PAGE or TAIL_PAGE
+    new_page		True if this is first entry on page
     header		Header (without FILEID)
     data		Data to be put on page
     data_length		Length of data
+
+  NOTE
+    Handles LOGREC_REDO_INSERT_ROW_HEAD, LOGREC_REDO_INSERT_ROW_TAIL
+    LOGREC_REDO_NEW_ROW_HEAD and LOGREC_REDO_NEW_ROW_TAIL
 
   RETURN
     0   ok
@@ -5739,6 +5750,7 @@ my_bool write_hook_for_file_id(enum translog_record_type type
 
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             uint page_type,
+                                            my_bool new_page,
                                             const uchar *header,
                                             const uchar *data,
                                             size_t data_length)
@@ -5783,8 +5795,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     unlock_method= PAGECACHE_LOCK_WRITE;
     unpin_method=  PAGECACHE_PIN;
 
-    DBUG_ASSERT(rownr == 0);
-    if (rownr != 0)
+    DBUG_ASSERT(rownr == 0 && new_page);
+    if (rownr != 0 || !new_page)
       goto crashed_file;
 
     buff= info->keyread_buff;
@@ -5808,8 +5820,8 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
     if (!buff)
     {
       /* Skip errors when reading outside of file and uninitialized pages */
-      if (my_errno != HA_ERR_FILE_TOO_SHORT &&
-          my_errno != HA_ERR_WRONG_CRC)
+      if (!new_page || (my_errno != HA_ERR_FILE_TOO_SHORT &&
+                        my_errno != HA_ERR_WRONG_CRC))
         goto err;
       /* Create new page */
       buff= pagecache_block_link_to_buffer(page_link.link);
@@ -5834,8 +5846,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
         This is a page that has been freed before and now should be
         changed to new type.
       */
-      if (((buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != BLOB_PAGE &&
-           (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK) != UNALLOCATED_PAGE))
+      if (!new_page)
         goto crashed_file;
       make_empty_page(info, buff, page_type, 0);
       empty_space= block_size - PAGE_HEADER_SIZE - PAGE_SUFFIX_SIZE;
@@ -5850,6 +5861,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
       uint max_entry= (uint) buff[DIR_COUNT_OFFSET];
       uint length;
 
+      DBUG_ASSERT(!new_page);
       dir= dir_entry_pos(buff, block_size, rownr);
       empty_space= uint2korr(buff + EMPTY_SPACE_OFFSET);
 
