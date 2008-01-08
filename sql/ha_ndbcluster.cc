@@ -7975,7 +7975,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
                ("Optimze table %s returned %d", m_tabname, error));
     ERR_RETURN(ndb->getNdbError());
   }
-  while((result = th.next()) == 1)
+  while((result= th.next()) == 1)
   {
     my_sleep(delay);
   }
@@ -8001,7 +8001,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
         ERR_RETURN(ndb->getNdbError());
         
       }
-      while((result = ih.next()) == 1)
+      while((result= ih.next()) == 1)
       {
         my_sleep(delay);        
       }
@@ -8020,7 +8020,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
                     unique_index->getName(), error));
         ERR_RETURN(ndb->getNdbError());
       } 
-      while((result = ih.next()) == 1)
+      while((result= ih.next()) == 1)
       {
         my_sleep(delay);
       }
