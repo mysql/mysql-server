@@ -66,7 +66,7 @@ struct __toku_db_env_internal {
 // If errfile is set, print to the errfile: prefix, fmt string, maybe include the stderr string.
 // Both errcall and errfile may be called.
 // If errfile is not set and errcall is not set, the use stderr as the errfile.
-static void do_error_all_cases(const DB_ENV * env, int error, int include_stderrstring, int use_stderr_if_nothing_else, const char *fmt, va_list ap) {
+void toku_do_error_all_cases(const DB_ENV * env, int error, int include_stderrstring, int use_stderr_if_nothing_else, const char *fmt, va_list ap) {
     if (env->i->errcall) {
 	// errcall gets prefix sent separately
 	// the error message is the printf message, maybe followed by ": " and the dbstrerror (if include_stderrstring is set)
@@ -100,7 +100,7 @@ static void do_error_all_cases(const DB_ENV * env, int error, int include_stderr
 static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
     va_list ap;
     va_start(ap, string);
-    do_error_all_cases(dbenv, error, 1, 0, string, ap);
+    toku_do_error_all_cases(dbenv, error, 1, 0, string, ap);
     va_end(ap);
     return error;
 }
@@ -109,7 +109,7 @@ static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
 static void toku_db_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    do_error_all_cases(env, error, 1, 1, fmt, ap);
+    toku_do_error_all_cases(env, error, 1, 1, fmt, ap);
     va_end(ap);
 }
 
