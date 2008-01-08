@@ -215,23 +215,57 @@ DbUtil::printStError(MYSQL_STMT *stmt, const char *msg)
 /* Select which database to use */
 
 int 
-DbUtil::select_DB()
+DbUtil::selectDb()
 {
-  return mysql_select_db(this->getMysql(), this->getDbName());
+  if ((this->getDbName()) != NULL)
+  {
+    if(mysql_select_db(this->getMysql(), this->getDbName()))
+    {
+      this->printError("mysql_select_db failed");
+      return DBU_FAILED;
+    }
+    return DBU_OK;   
+  }
+  this->printError("getDbName() == NULL");
+  return DBU_FAILED;
 }
+
+int
+DbUtil::selectDb(const char * m_db)
+{
+  {
+    if(mysql_select_db(this->getMysql(), m_db))
+    {
+      this->printError("mysql_select_db failed");
+      return DBU_FAILED;
+    }
+    return DBU_OK;
+  }
+}
+
 
 /* Run Simple Queries */
 
 int 
 DbUtil::doQuery(char * stm)
 {
-  return mysql_query(this->getMysql(), stm);
+  if(mysql_query(this->getMysql(), stm))
+  {
+    this->printError(stm); 
+    return DBU_FAILED;
+  }
+  return DBU_OK;
 }
 
 int 
 DbUtil::doQuery(const char * stm)
 {
-  return mysql_query(this->getMysql(), stm);
+  if(mysql_query(this->getMysql(), stm))
+  {
+    this->printError(stm);
+    return DBU_FAILED;
+  }
+  return DBU_OK;
 }
 
 /* Return MySQL Error String */
