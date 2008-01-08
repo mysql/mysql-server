@@ -6,21 +6,26 @@
 use Getopt::Long;
 
 $|= 1;
-$VER= "1.1";
+$VER= "1.2";
 
-$opt_version= 0;
-$opt_help=    0;
-$opt_verbose=   0;
-$opt_maria_path= undef();
-$opt_valgrind= "valgrind --alignment=8 --leak-check=yes";
-$opt_suffix= "";
-$opt_silent= "-s";
+$opt_version=         0;
+$opt_help=            0;
+$opt_verbose=         0;
+$opt_maria_path=      undef();
+$opt_valgrind=        "valgrind --alignment=8 --leak-check=yes";
+$opt_suffix=          "";
+$opt_silent=          "-s";
+$opt_number_of_tests= 0;
+$opt_run_tests=       undef();
+
 my $maria_path= $ENV{'maria_path'};
-
 my $my_progname= $0;
 $my_progname=~ s/.*[\/]//;
 my $runtime_error= 0; # Return 1 if error(s) occur during run
 my $NEW_TEST= 0;      # Test group separator in an array of tests
+my $test_begin= 0;
+my $test_end= 0;
+my $test_counter= 0;
 
 run_tests();
 
@@ -34,7 +39,8 @@ sub run_tests
   my $flag_exit= 0;
 
   if (!GetOptions("help", "version", "verbose", "maria-path=s",
-                  "valgrind=s", "suffix=s", "silent=s"))
+                  "valgrind=s", "suffix=s", "silent=s", "number-of-tests",
+                  "run-tests=s"))
   {
     $flag_exit= 1;
   }
@@ -55,12 +61,6 @@ sub run_tests
   usage() if ($opt_help || $flag_exit);
 
   #
-  # clean-up
-  #
-
-  unlink <*.TMD maria_log*>;        # Delete temporary files
-
-  #
   # IMPORTANT: If you modify this file, please read this:
   #
   # Count total number of tests. Make sure that the functions return
@@ -73,12 +73,58 @@ sub run_tests
   # make the unit test fail during 'make test'. $nr_tests must be right.
   #
 
-  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 4; #
+  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 4;  #
   $nr_tests+= run_repair_tests(0, 0, 0, 0, 1) * 4; # called 4 times
-  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 4; #
+  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 4;   #
   $nr_tests+= run_tests_on_warnings_and_errors(0, 0, 0, 1);
   $nr_tests+= run_ma_test_recovery(0, 1);
   $nr_tests+= run_tests_on_clrs(0, 1);
+
+  if ($opt_number_of_tests)
+  {
+    print "Total number of tests is $nr_tests\n";
+    exit(0);
+  }
+
+  if (defined($opt_run_tests))
+  {
+    if ($opt_run_tests =~ m/^(\d+)$/)
+    {
+      $test_begin= $1;
+    }
+    elsif ($opt_run_tests =~ m/^(\d+)\.+(\d+)$/)
+    {
+      $test_begin= $1;
+      $test_end= $2;
+    }
+    else
+    {
+      print "Wrong syntax for option --run-tests=$opt_run_tests\n";
+      print "Please use --run-tests=<begin>..<end>\nwhere 'begin' is the ";
+      print "first test to be run and 'end' is the last.\n";
+      exit(1);
+    }
+    if ($test_end > $nr_tests)
+    {
+      print "Test range ($test_begin..$test_end) out of range. ";
+      print "There are only $nr_tests in the test suite.\n";
+      exit(1);
+    }
+    $test_begin++ if (!$test_begin); # Handle zero, if user gave that
+    if ($test_end && $test_begin > $test_end)
+    {
+      print "Bad test range ($test_begin..$test_end)\n";
+      exit(1);
+    }
+    # Now adjust number of tests
+    $nr_tests= ($test_end ? $test_end : $nr_tests) - $test_begin + 1;
+  }
+
+  #
+  # clean-up
+  #
+
+  unlink <*.TMD maria_log*>;        # Delete temporary files
 
   #
   # Run tests
@@ -433,6 +479,16 @@ sub ok
   my ($com, $verbose, $iteration, $expected_error)= @_;
   my ($msg, $output, $err, $len);
 
+  $test_counter++;
+  if ($test_begin > $test_counter)
+  {
+    return 0;
+  }
+  if ($test_end && $test_end < $test_counter)
+  {
+    exit(0);
+  }
+
   $msg= "";
   $expected_error= 0 if (!defined($expected_error));
 
@@ -444,7 +500,7 @@ sub ok
   $len= length($com);
   if ($verbose)
   {
-    print " " x (65 - $len);
+    print " " x (62 - $len);
     print " ";
   }
   $err= $?;
@@ -453,7 +509,12 @@ sub ok
   {
     print "[ " if ($verbose);
     print "ok";
-    print " ]" if ($verbose);
+    if ($verbose)
+    {
+      print " ]";
+      print " " x (5 - length("$test_counter"));
+      print "$test_counter";
+    }
     print "\n";
     return 1;
   }
@@ -476,7 +537,7 @@ sub ok
   }
   $msg.= "at line ";
   $msg.= (caller)[2];
-  $msg.= " (errcode: $err)\n";
+  $msg.= "\n(errcode: $err, test: $test_counter)\n";
   if ($expected_error)
   {
     $msg.= "Was expecting errcode: $expected_error\n";
@@ -557,6 +618,11 @@ Options
 --suffix=...       Suffix for test files (ma_test1, ma_test2 etc.),
                    if they have one ('$opt_suffix')
 --silent=...       Silent option passed to ma_test* tests ('$opt_silent')
+--number-of-tests  Print the total number of tests and exit.
+--run-tests=...    Test number(s) that should be run. You can give just
+                   one number or a range. For example 45..89
+                   Use this with caution, because some of the tests
+                   might depend on previous ones.
 EOF
   exit(0);
 }
