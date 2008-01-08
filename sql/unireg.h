@@ -35,8 +35,8 @@
 #ifndef SHAREDIR
 #define SHAREDIR	"share/"
 #endif
-#ifndef LIBDIR
-#define LIBDIR		"lib/"
+#ifndef PLUGINDIR
+#define PLUGINDIR	"lib/plugin"
 #endif
 
 #define ER(X) errmesg[(X) - ER_ERROR_FIRST]

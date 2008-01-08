@@ -93,6 +93,8 @@ CLEANFILES =		@server_scripts@ \
 			mysql_tableinfo \
 			mysqld_multi
 
+pkgplugindir =		$(pkglibdir)/plugin
+
 # Default same as 'pkgdatadir', but we can override it
 pkgsuppdir =		$(datadir)/@PACKAGE@
 
@@ -140,6 +142,7 @@ SUFFIXES = .sh
 	  -e 's!@''pkglibdir''@!$(pkglibdir)!g' \
 	  -e 's!@''pkgincludedir''@!$(pkgincludedir)!g' \
 	  -e 's!@''pkgdatadir''@!$(pkgdatadir)!g' \
+	  -e 's!@''pkgplugindir''@!$(pkgplugindir)!g' \
 	  -e 's!@''pkgsuppdir''@!$(pkgsuppdir)!g' \
 	  -e 's!@''sysconfdir''@!$(sysconfdir)!g' \
 	  -e 's!@''mandir''@!$(mandir)!g' \
