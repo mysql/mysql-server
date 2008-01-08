@@ -168,9 +168,14 @@ sub toSQL {
   foreach my $option (@options) {
     my ($name, $value)= _split_option($option);
     #print "name: $name\n";
+    #print "value: $value\n";
     if ($name =~ /^O, (.*)/){
       push(@sql, "SET GLOBAL $1=$value");
-    } else {
+    }
+    elsif ($name =~ /^set-variable=(.*)/){
+      push(@sql, "SET GLOBAL $1=$value");
+    }
+    else {
       my $sql_name= $name;
       $sql_name=~ s/-/_/g;
       push(@sql, "SET GLOBAL $sql_name=$value");
