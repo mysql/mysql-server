@@ -4113,7 +4113,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
     localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendtckeyconf()
@@ -4584,7 +4584,7 @@ void Dbtc::sendCommitLqh(Signal* signal,
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(Thostptr.i).m_version)))
   {
     jam();
-    //ndbassert(Tdata5 == 0);
+    ndbassert(Tdata5 == 0 || getNodeInfo(Thostptr.i).m_connected == false);
     Thostptr.p->noOfPackedWordsLqh = Tindex + 4; // no gci_lo
   }
 }//Dbtc::sendCommitLqh()
@@ -12185,7 +12185,7 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
     jam();
-    ndbassert(Tpack6 == 0);
+    ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
     localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendTcIndxConf()
