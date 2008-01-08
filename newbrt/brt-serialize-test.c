@@ -34,7 +34,6 @@ static void test_serialize(void) {
     hello_string = toku_strdup("hello");
     sn.u.n.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0); 
     sn.u.n.totalchildkeylens = 6;
-    sn.u.n.pivotflags[0] = 42;
     sn.u.n.children[0] = sn.nodesize*30;
     sn.u.n.children[1] = sn.nodesize*35;
     BRTNODE_CHILD_SUBTREE_FINGERPRINTS(&sn, 0) = random();
@@ -67,7 +66,6 @@ static void test_serialize(void) {
     assert(strcmp(kv_pair_key(dn->u.n.childkeys[0]), "hello")==0);
     assert(toku_brtnode_pivot_key_len(dn, dn->u.n.childkeys[0])==6);
     assert(dn->u.n.totalchildkeylens==6);
-    assert(dn->u.n.pivotflags[0]==42);
     assert(dn->u.n.children[0]==nodesize*30);
     assert(dn->u.n.children[1]==nodesize*35);
     {
