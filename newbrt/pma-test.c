@@ -972,13 +972,11 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     if (0) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
-    if (na > 0) {
+    if (n > 0) {
         int kk;
         assert(splitk.size == sizeof kk);
         memcpy(&kk, splitk.data, splitk.size);
         assert(kk == dupkey);
-        if (nb > 0) assert(splitk.flags & BRT_PIVOT_PRESENT_L);
-        if (nc > 0) assert(splitk.flags & BRT_PIVOT_PRESENT_R);
     }
 
     if (splitk.data) toku_free(splitk.data);

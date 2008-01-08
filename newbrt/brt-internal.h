@@ -31,7 +31,6 @@ struct brtnode_nonleaf_pivotinfo {
 			       * For nonduplicate and DUPSORT keys we have
 			       *  Child 0's keys <= pivotkey[0] < Child 1's keys <= pivotkey[1] < ...  pivotkey[N-1] < child N's keys <= pivotkey[N] ...
 			       */
-    unsigned char pivotflags;
 };
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
@@ -81,7 +80,6 @@ struct brtnode {
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
-	    unsigned char   pivotflags[TREE_FANOUT];
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 #define BRTNODE_CHILD_DISKOFF(node,i) ((node)->u.n.children[i])
 	    HASHTABLE       htables[TREE_FANOUT+1];
@@ -98,8 +96,6 @@ struct brtnode {
 
 /* pivot flags  (must fit in 8 bits) */
 enum {
-    BRT_PIVOT_PRESENT_L = 1,
-    BRT_PIVOT_PRESENT_R = 2,
     BRT_PIVOT_TRUNC = 4,
     BRT_PIVOT_FRONT_COMPRESS = 8,
 };

@@ -36,7 +36,6 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    size+=4;
             if (node->flags & TOKU_DB_DUPSORT) size += 4;
-            size+=1; /* pivotflags */
 	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
@@ -75,7 +74,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     if (node->height>0) {
 	result+=4; /* n_children */
 	result+=4; /* subtree fingerpirnt */
-	result+=(4+1)*(node->u.n.n_children-1); /* key lengths + pivotflags*/
+	result+=4*(node->u.n.n_children-1); /* key lengths*/
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
@@ -133,8 +132,6 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    wbuf_int(&w, BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i));
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
-        for (i=0; i<node->u.n.n_children-1; i++) 
-            wbuf_char(&w, node->u.n.pivotflags[i]);
 	for (i=0; i<node->u.n.n_children-1; i++) {
             if (node->flags & TOKU_DB_DUPSORT) {
                 wbuf_bytes(&w, kv_pair_key(node->u.n.childkeys[i]), kv_pair_keylen(node->u.n.childkeys[i]));
@@ -298,8 +295,6 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
 	}
-        for (i=0; i<result->u.n.n_children-1; i++) 
-            result->u.n.pivotflags[i] = rbuf_char(&rc);
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
                 bytevec keyptr, dataptr;
