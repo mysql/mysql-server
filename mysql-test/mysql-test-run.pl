@@ -2747,6 +2747,13 @@ sub stop_all_servers () {
   My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
 			    started(all_servers()));
 
+  # Remove pidfiles
+  foreach my $server ( all_servers() )
+  {
+    my $pid_file= $server->if_exist('pid-file');
+    unlink($pid_file) if defined $pid_file;
+  }
+
   # Mark servers as stopped
   map($_->{proc}= undef, all_servers());
 
