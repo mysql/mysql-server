@@ -89,7 +89,8 @@ public:
   void mysqlCloseStmHandle(MYSQL_STMT *my_stmt);
 
   int connect();
-  int select_DB();
+  int selectDb();
+  int selectDb(const char * m_db);
   int doQuery(char * stm);
   int doQuery(const char * stm);
   int getErrorNumber();
