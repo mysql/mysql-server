@@ -122,6 +122,13 @@ public:
    * 
    */
   inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
+
+  /* Setup state of a block object for executing in a particular thread. */
+  void assignToThread(Uint32 threadId, EmulatedJamBuffer *jamBuffer,
+                      Uint32 *watchDogCounter);
+  /* For multithreaded ndbd, get the id of owning thread. */
+  uint32 getThreadId() const { return m_threadId; }
+  bool isMultiThreaded() const;
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*, 
 						    Uint32 callbackData,
@@ -148,6 +155,12 @@ protected:
                   Signal* signal, 
 		  Uint32 length, 
 		  JobBufferLevel jbuf ) const ;
+
+  void sendSignalFromReceiver(BlockReference ref,
+                              GlobalSignalNumber gsn,
+                              Signal* signal,
+                              Uint32 length,
+                              JobBufferLevel jobBuffer) const ;
 
   void sendSignal(NodeReceiverGroup rg,
 		  GlobalSignalNumber gsn, 
@@ -360,6 +373,10 @@ protected:
   void sendNextLinearFragment(Signal* signal, FragmentSendInfo & info);
   
   BlockNumber    number() const;
+public:
+  /* Must be public so that we can jam() outside of block scope. */
+  EmulatedJamBuffer *jamBuffer() const;
+protected:
   BlockReference reference() const;
   NodeId         getOwnNodeId() const;
 
@@ -382,7 +399,19 @@ private:
   const NodeId         theNodeId;
   const BlockNumber    theNumber;
   const BlockReference theReference;
-  
+  /*
+    Thread id currently executing this block.
+    Not used in singlethreaded ndbd.
+  */
+  Uint32 m_threadId;
+  /*
+    Jam buffer reference.
+    In multithreaded ndbd, this is different in each thread, and must be
+    updated if migrating the block to another thread.
+  */
+  EmulatedJamBuffer *m_jamBuffer;
+  /* For multithreaded ndb, the thread-specific watchdog counter. */
+  Uint32 *m_watchDogCounter;
 protected:
   Block_context m_ctx;
   NewVARIABLE* allocateBat(int batSize);
@@ -476,6 +505,7 @@ protected:
 
   void execSIGNAL_DROPPED_REP(Signal* signal);
   void execCONTINUE_FRAGMENTED(Signal* signal);
+  void execSTOP_FOR_CRASH(Signal* signal);
   void execAPI_START_REP(Signal* signal);
   void execNODE_START_REP(Signal* signal);
 private:
@@ -647,6 +677,12 @@ inline
 BlockNumber
 SimulatedBlock::number() const {
    return theNumber;
+}
+
+inline
+EmulatedJamBuffer *
+SimulatedBlock::jamBuffer() const {
+   return m_jamBuffer;
 }
 
 inline

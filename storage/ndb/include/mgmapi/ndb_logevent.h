@@ -187,11 +187,14 @@ extern "C" {
     /* 59 used */
 
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
-    NDB_LE_StartReport = 60
+    NDB_LE_StartReport = 60,
 
     /* 61 (used in upcoming patch) */
-    /* 62-68 used */
+    /* 62-68 used (above) */
     /* 69 unused */
+
+    /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
+    NDB_LE_MTSignalStatistics = 70
   };
 
   /**
@@ -715,6 +718,14 @@ extern "C" {
 	unsigned bitmask_size;
 	unsigned bitmask_data[1];
       } StartReport;
+      /** Log event data @ref NDB_LE_MTSignalStatistic */
+      struct {
+	unsigned thr_no;
+        unsigned prioa_count;
+        unsigned prioa_size;
+        unsigned priob_count;
+        unsigned priob_size;
+      } MTSignalStatistics;
 #ifndef DOXYGEN_FIX
     };
 #else

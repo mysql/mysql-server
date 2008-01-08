@@ -107,7 +107,6 @@ public:
   void clear();
   Signal* getVMSignals();
   
-  void dumpSignalMemory(FILE * output);
   Priority highestAvailablePrio() const;
   Uint32 getBOccupancy() const;
   void sendPacked();
@@ -115,6 +114,23 @@ public:
   void insertTimeQueue(Signal* aSignal, BlockNumber bnr,
 		       GlobalSignalNumber gsn, Uint32 aIndex);
   void scheduleTimeQueue(Uint32 aIndex);
+  
+  /*
+    The following implement aspects of ErrorReporter that differs between
+    singlethreaded and multithread ndbd.
+  */
+
+  /* Called before dumping, intended to stop any still running processing. */
+  void traceDumpPrepare();
+  /* Number of threads to create trace files for (thread id 0 .. N-1). */
+  Uint32 traceDumpGetNumThreads();
+  /* Get jam() buffers etc. for specific thread. */
+  bool traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
+                       const Uint32 * & thrdTheEmulatedJam,
+                       Uint32 & thrdTheEmulatedJamIndex);
+  /* Produce a signal dump. */
+  void dumpSignalMemory(Uint32 thr_no, FILE * output);
+
   void reportThreadConfigLoop(Uint32 expired_time, Uint32 extra_constant,
                               Uint32 *no_exec_loops, Uint32 *tot_exec_time,
                               Uint32 *no_extra_loops, Uint32 *tot_extra_time);

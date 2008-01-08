@@ -41,20 +41,23 @@ public:
 
   typedef class ArrayPool<LockQueueElement> Pool;
   
-  Uint32 lock(Pool&, const UtilLockReq * req, const UtilLockReq** lockOwner= 0);
-  Uint32 unlock(Pool&, const UtilUnlockReq* req);
+  Uint32 lock(SimulatedBlock*, 
+              Pool&, const UtilLockReq*, const UtilLockReq** = 0);
+  Uint32 unlock(SimulatedBlock*,
+                Pool&, const UtilUnlockReq* req);
   
   /**
    * After unlock
    */
   struct Iterator 
   {
+    SimulatedBlock* m_block;
     Pool * thePool;
     Ptr<LockQueueElement> m_prev;
     Ptr<LockQueueElement> m_curr;
   };
   
-  bool first(Pool& pool, Iterator&);
+  bool first(SimulatedBlock*, Pool& pool, Iterator&);
   bool next(Iterator&);
   
   /**

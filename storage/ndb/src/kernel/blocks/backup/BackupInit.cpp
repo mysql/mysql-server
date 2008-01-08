@@ -110,6 +110,8 @@ Backup::Backup(Block_context& ctx) :
 
   addRecSignal(GSN_WAIT_GCP_REF, &Backup::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Backup::execWAIT_GCP_CONF);
+  addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
+  addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
 
   /**
    * Testing

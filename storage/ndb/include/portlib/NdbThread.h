@@ -31,6 +31,12 @@ typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_LOWEST
 } NDB_THREAD_PRIO;
 
+typedef enum NDB_THREAD_TLS_ENUM {
+  NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
+  NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
+  NDB_THREAD_TLS_MAX
+} NDB_THREAD_TLS;
+
 typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
@@ -166,17 +172,16 @@ int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, bool rt_prio,
  */
 int NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id);
 
+/**
+ * Fetch and set thread-local storage entry.
+ */
+void *NdbThread_GetTlsKey(NDB_THREAD_TLS key);
+void NdbThread_SetTlsKey(NDB_THREAD_TLS key, void *value);
+
+void NdbThread_Init();
+
 #ifdef	__cplusplus
 }
 #endif
 
 #endif
-
-
-
-
-
-
-
-
-

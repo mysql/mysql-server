@@ -1941,6 +1941,17 @@ void Dbdih::execSTART_PERMCONF(Signal* signal)
     ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
     EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
   }
+  else if(isMultiThreaded())
+  {
+    /**
+     * Prevent this start, as there is some non-thread-safe upgrade code for
+     * this case in LQH.
+     */
+    progError(__LINE__, NDBD_EXIT_SR_RESTARTCONFLICT,
+              "Cluster requires that all old data nodes are upgraded "
+              "while running single-threaded ndbd before starting "
+              "multi-threaded ndbmtd data nodes.");
+  }
 }//Dbdih::execSTART_PERMCONF()
 
 void Dbdih::execSTART_PERMREF(Signal* signal) 
@@ -8324,6 +8335,16 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
 #endif
 
 reply:
+  /**
+   * Send the new gci to Suma.
+   *
+   * To get correct signal order and avoid races, this signal is sent on the
+   * same prio as the SUB_GCP_COMPLETE_REP signal sent to SUMA in
+   * execSUB_GCP_COMPLETE_REP().
+   */
+  sendSignal(SUMA_REF, GSN_GCP_PREPARE, signal, signal->length(), JBB);
+
+  /* Send reply. */
   conf->nodeId = cownNodeId;
   conf->gci_hi = gci_hi;
   conf->gci_lo = gci_lo;
@@ -8469,7 +8490,12 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
-  EXECUTE_DIRECT(SUMA, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length());
+  /**
+   * To get correct signal order and avoid races, this signal to SUMA is sent
+   * on the same prio as the GCP_PREPARE signal sent to SUMA in
+   * execGPC_PREPARE
+   */
+  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length(), JBB);
 }
 
 /*****************************************************************************/
@@ -8900,16 +8926,16 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     rep->gci_lo = 0;
     rep->flags = SubGcpCompleteRep::ON_DISK;
 
-    EXECUTE_DIRECT(LGMAN, GSN_SUB_GCP_COMPLETE_REP, signal, 
-		   SubGcpCompleteRep::SignalLength);
+    sendSignal(LGMAN_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+               SubGcpCompleteRep::SignalLength, JBB);
     
     jamEntry();
 
     if (m_micro_gcp.m_enabled == false)
     {
       jam();
-      EXECUTE_DIRECT(SUMA, GSN_SUB_GCP_COMPLETE_REP, signal, 
-                     SubGcpCompleteRep::SignalLength);
+      sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+                     SubGcpCompleteRep::SignalLength, JBB);
       jamEntry();
       ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
       m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
@@ -14880,8 +14906,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     g_eventLogger.info("Dbdih:: delay write of datapages for table = %d", 
                        dumpState->args[1]);
     // Send this dump to ACC and TUP
-    EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
-    EXECUTE_DIRECT(DBTUP, GSN_DUMP_STATE_ORD, signal, 2);
+    sendSignal(DBACC_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    sendSignal(DBTUP_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
     
     // Start immediate LCP
     add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
@@ -15915,8 +15941,8 @@ void Dbdih::checkWaitGCPMaster(Signal* signal, NodeId failedNodeId)
     
     c_waitGCPMasterList.next(ptr);
     if (nodeId == failedNodeId) {
-      jam()     
-	c_waitGCPMasterList.release(i);
+      jam();
+      c_waitGCPMasterList.release(i);
     }//if
   }//while
 }//Dbdih::checkWaitGCPMaster()

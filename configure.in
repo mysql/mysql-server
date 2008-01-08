@@ -2311,6 +2311,42 @@ then
 fi
 AC_MSG_RESULT("$netinet_inc")
 
+#checking for Linux futex support
+AC_MSG_CHECKING(for Linux futex support)
+AC_TRY_LINK(
+  [#ifndef _GNU_SOURCE
+   #define _GNU_SOURCE
+   #endif
+   #include <sys/types.h>
+   #include <unistd.h>
+   #include <linux/futex.h>
+   #include <errno.h>
+   #include <sys/syscall.h>],
+  [
+   int a = 0; int * addr = &a;
+   return syscall(SYS_futex, addr, FUTEX_WAKE, 1, 0, 0, 0) == 0 ? 0 : errno;
+  ],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_LINUX_FUTEX, [1], [Linux futex support]),
+  AC_MSG_RESULT(no))
+
+#checking for asm-needed for ndbmtd
+AC_MSG_CHECKING(for x86-assembler needed for ndbmtd)
+AC_TRY_LINK(
+  [],
+  [
+    unsigned int a = 0, *ap = &a;
+    asm volatile("xchg %0, %1;" : "+r" (a) , "+m" (*ap));
+    asm volatile("mfence":::"memory");
+    asm volatile("" ::: "memory");
+    asm volatile ("rep;nop");
+    return a;
+  ],
+  have_ndbmtd_x86=yes
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(NDBMTD_X86, [1], [ndbmtd x86 support]),
+  AC_MSG_RESULT(no))
+
 #--------------------------------------------------------------------
 # Check for requested features
 #--------------------------------------------------------------------
@@ -2736,6 +2772,8 @@ AC_CONFIG_COMMANDS([default], , test -z "$CONFIG_HEADERS" || echo timestamp > st
 
 # Ensure that table handlers gets all modifications to CFLAGS/CXXFLAGS
 AC_CONFIG_COMMANDS_POST(ac_configure_args="$ac_configure_args CFLAGS='$CFLAGS' CXXFLAGS='$CXXFLAGS'")
+
+AM_CONDITIONAL([BUILD_NDBMTD], [ test X"$build_ndbmtd" = Xyes ])
 
 AC_OUTPUT
 

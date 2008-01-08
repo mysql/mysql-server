@@ -18,8 +18,14 @@ SUBDIRS = vm error blocks
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 
 ndbbin_PROGRAMS = ndbd
+EXTRA_PROGRAMS = ndbmtd
+
+if BUILD_NDBMTD
+ndbbin_PROGRAMS += ndbmtd
+endif
 
 ndbd_SOURCES = main.cpp SimBlockList.cpp
+ndbmtd_SOURCES = main.cpp SimBlockList.cpp
 
 include $(top_srcdir)/storage/ndb/config/type_kernel.mk.am
 
@@ -41,7 +47,7 @@ INCLUDES += \
 	-I$(srcdir)/blocks/dbtux \
 	-I$(srcdir)/blocks
 
-LDADD +=  \
+LIBS= \
               blocks/libblocks.a \
               vm/libkernel.a	\
               error/liberror.a \
@@ -56,6 +62,9 @@ LDADD +=  \
          $(top_builddir)/dbug/libdbug.a \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+
+ndbd_LDADD = $(LIBS) vm/libsched.a
+ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
 
 windoze-dsp: ndbd.dsp
 

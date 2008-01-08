@@ -2003,6 +2003,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
+  Uint32 brancher(Uint32, Uint32);
   int interpreterNextLab(Signal* signal,
                          KeyReqStruct *req_struct,
                          Uint32* logMemory,
