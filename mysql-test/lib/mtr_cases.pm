@@ -430,6 +430,9 @@ sub collect_one_suite($)
       {
 	foreach my $test (@cases)
 	{
+
+	  next if ( $test->{'skip'} );
+
 	  # Skip this combination if the values it provides
 	  # already are set in master_opt or slave_opt
 	  if (My::Options::is_set($test->{master_opt}, $comb->{comb_opt}) &&
