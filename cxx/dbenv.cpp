@@ -116,7 +116,7 @@ int DbEnv::get_flags(u_int32_t *flagsp) {
     return maybe_throw_error(ret);
 }
 
-extern "C" void toku_db_env_errcall_c(DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
+extern "C" void toku_db_env_errcall_c(const DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
     DbEnv *dbenv = (DbEnv *) dbenv_c->api1_internal;
     dbenv->errcall(dbenv, errpfx, msg);
 }
