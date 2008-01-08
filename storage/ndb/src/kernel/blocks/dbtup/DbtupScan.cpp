@@ -635,6 +635,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
      * We need to refetch page after timeslice
      */
     pos.m_get = ScanPos::Get_page;
+    pos.m_realpid_mm = RNIL;
     break;
   default:
     break;
@@ -875,6 +876,13 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         if (key.m_page_idx + size <= Fix_page::DATA_WORDS) 
 	{
 	  pos.m_get = ScanPos::Get_next_tuple_fs;
+#ifdef VM_TRACE
+          if (! (bits & ScanOp::SCAN_DD))
+          {
+            Uint32 realpid = getRealpidCheck(fragPtr.p, key.m_page_no);
+            ndbassert(pos.m_realpid_mm == realpid);
+          }
+#endif
           th = (Tuple_header*)&page->m_data[key.m_page_idx];
 	  
 	  if (likely(! (bits & ScanOp::SCAN_NR)))
