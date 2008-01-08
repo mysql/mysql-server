@@ -1330,7 +1330,7 @@ void show_diff(DYNAMIC_STRING* ds,
   }
   else
   {
-
+    dynstr_set(&ds_tmp, "");
     /* First try with unified diff */
 
     if (run_tool("diff",
