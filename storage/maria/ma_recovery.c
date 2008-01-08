@@ -88,7 +88,9 @@ prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
-prototype_redo_exec_hook(REDO_INSERT_ROW_BLOBS);
+prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
+prototype_redo_exec_hook(REDO_NEW_ROW_TAIL);
+prototype_redo_exec_hook(REDO_NEW_ROW_BLOBS);
 prototype_redo_exec_hook(REDO_PURGE_ROW_HEAD);
 prototype_redo_exec_hook(REDO_PURGE_ROW_TAIL);
 prototype_redo_exec_hook(REDO_FREE_HEAD_OR_TAIL);
@@ -1312,6 +1314,10 @@ end:
   return error;
 }
 
+/*
+  NOTE
+  This is called for REDO_INSERT_ROW_HEAD and READ_NEW_ROW_HEAD
+*/
 
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
 {
@@ -1353,6 +1359,8 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD)
   buff= log_record_buffer.str;
   if (_ma_apply_redo_insert_row_head_or_tail(info, current_group_end_lsn,
                                              HEAD_PAGE,
+                                             (rec->type ==
+                                              LOGREC_REDO_NEW_ROW_HEAD),
                                              buff + FILEID_STORE_SIZE,
                                              buff +
                                              FILEID_STORE_SIZE +
@@ -1368,6 +1376,10 @@ end:
   return error;
 }
 
+/*
+  NOTE
+  This is called for REDO_INSERT_ROW_TAIL and READ_NEW_ROW_TAIL
+*/
 
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
 {
@@ -1388,6 +1400,8 @@ prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL)
   buff= log_record_buffer.str;
   if (_ma_apply_redo_insert_row_head_or_tail(info, current_group_end_lsn,
                                              TAIL_PAGE,
+                                             (rec->type ==
+                                              LOGREC_REDO_NEW_ROW_TAIL),
                                              buff + FILEID_STORE_SIZE,
                                              buff +
                                              FILEID_STORE_SIZE +
@@ -2189,6 +2203,9 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 #define install_redo_exec_hook(R)                                        \
   log_record_type_descriptor[LOGREC_ ## R].record_execute_in_redo_phase= \
     exec_REDO_LOGREC_ ## R;
+#define install_redo_exec_hook_shared(R,S)                               \
+  log_record_type_descriptor[LOGREC_ ## R].record_execute_in_redo_phase= \
+    exec_REDO_LOGREC_ ## S;
 #define install_undo_exec_hook(R)                                        \
   log_record_type_descriptor[LOGREC_ ## R].record_execute_in_undo_phase= \
     exec_UNDO_LOGREC_ ## R;
@@ -2226,6 +2243,10 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_undo_exec_hook(UNDO_KEY_INSERT);
   install_undo_exec_hook(UNDO_KEY_DELETE);
   install_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
+  /* REDO_NEW_ROW_HEAD shares entry with REDO_INSERT_ROW_HEAD */
+  install_redo_exec_hook_shared(REDO_NEW_ROW_HEAD, REDO_INSERT_ROW_HEAD);
+  /* REDO_NEW_ROW_TAIL shares entry with REDO_INSERT_ROW_TAIL */
+  install_redo_exec_hook_shared(REDO_NEW_ROW_TAIL, REDO_INSERT_ROW_TAIL);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 #ifndef DBUG_OFF
@@ -2612,6 +2633,8 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   case LOGREC_REDO_INSERT_ROW_TAIL:
   case LOGREC_REDO_PURGE_ROW_HEAD:
   case LOGREC_REDO_PURGE_ROW_TAIL:
+  case LOGREC_REDO_NEW_ROW_HEAD:
+  case LOGREC_REDO_NEW_ROW_TAIL:
     llstr(page, llbuf);
     tprint(tracef, "   For page %s of table of short id %u", llbuf, sid);
     break;

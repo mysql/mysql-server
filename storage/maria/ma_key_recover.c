@@ -119,21 +119,6 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
     page_store(log_pos + KEY_NR_STORE_SIZE, page);
     log_pos+= KEY_NR_STORE_SIZE + PAGE_STORE_SIZE;
   }
-  if (undo_type == LOGREC_UNDO_ROW_DELETE ||
-      undo_type == LOGREC_UNDO_ROW_UPDATE)
-  {
-    /*
-      We need to store position to the row that was inserted to be
-      able to regenerate keys
-    */
-    MARIA_RECORD_POS rowid= info->cur_row.lastpos;
-    ulonglong page= ma_recordpos_to_page(rowid);
-    uint dir_entry= ma_recordpos_to_dir_entry(rowid);
-    page_store(log_pos, page);
-    dirpos_store(log_pos+ PAGE_STORE_SIZE, dir_entry);
-    log_pos+= PAGE_STORE_SIZE + DIRPOS_STORE_SIZE;
-  }
-
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
