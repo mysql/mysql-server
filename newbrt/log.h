@@ -6,10 +6,13 @@
 #include "../include/db.h"
 #include "brttypes.h"
 #include "kv-pair.h"
-int toku_logger_create_and_open_logger (const char *directory, TOKULOGGER *resultp);
+int toku_logger_create(TOKULOGGER */*resultp*/);
+int toku_logger_open(const char */*directory*/, TOKULOGGER);
 int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes);
-int toku_logger_log_close(TOKULOGGER *logger);
+int toku_logger_close(TOKULOGGER *logger);
 int toku_logger_log_checkpoint (TOKULOGGER, LSN*);
+void toku_logger_panic(TOKULOGGER, int/*err*/);
+int toku_logger_panicked(TOKULOGGER /*logger*/);
 
 int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair);
 

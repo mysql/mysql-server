@@ -138,6 +138,7 @@ void generate_log_struct (void) {
     fprintf(hf, "  union {\n");
     DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
+    fprintf(hf, "  struct log_entry *next; /* for in-memory list of log entries */\n");
     fprintf(hf, "};\n");
 }
 
@@ -183,8 +184,18 @@ void generate_log_writer (void) {
 			if (lt->command=='C') {
 			    fprintf(cf, "  if (r!=0) return r;\n");
 			    fprintf(cf, "  // commit has some extra work to do.\n");
-			    fprintf(cf, "  if (txn->parent || nosync) return 0; // don't fsync if there is a parent.\n");
-			    fprintf(cf, "  else return toku_logger_fsync(txn->logger);\n");
+			    fprintf(cf, "  if (nosync) return 0;\n");
+			    fprintf(cf, "  if (txn->parent) { // do not fsync if there is a parent.  Instead append the log entries onto the parent.\n");
+			    fprintf(cf, "    if (txn->parent->oldest_logentry) txn->parent->newest_logentry->next = txn->oldest_logentry;\n");
+			    fprintf(cf, "    else                              txn->parent->oldest_logentry       = txn->oldest_logentry;\n");
+			    fprintf(cf, "    if (txn->newest_logentry) txn->parent->newest_logentry = txn->newest_logentry;\n");
+			    fprintf(cf, "    txn->newest_logentry = txn->oldest_logentry = 0;\n");
+			    fprintf(cf, "  } else {\n");
+			    fprintf(cf, "    while (txn->newest_logentry) { struct log_entry *next=txn->newest_logentry->next; toku_free(txn->newest_logentry); txn->newest_logentry=next; }\n");
+			    fprintf(cf, "    r = toku_logger_fsync(txn->logger);\n");
+			    fprintf(cf, "    if (r!=0) toku_logger_panic(txn->logger, r);\n");
+			    fprintf(cf, "  }\n");
+			    fprintf(cf, "  return 0;\n");
 			} else {
 			    fprintf(cf, "  return r;\n");
 			}

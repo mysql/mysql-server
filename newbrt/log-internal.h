@@ -9,6 +9,9 @@
 
 #define LOGGER_BUF_SIZE (1<<24)
 struct tokulogger {
+    int is_open;
+    int is_panicked;
+    int panic_errno;
     enum typ_tag tag;
     char *directory;
     int fd;
@@ -40,6 +43,7 @@ struct tokutxn {
     TOKULOGGER logger;
     TOKUTXN    parent;
     LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
+    struct log_entry *oldest_logentry,*newest_logentry;
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf);
