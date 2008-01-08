@@ -260,15 +260,6 @@ void toku_pma_show_stats (void) {
     printf("%d finds, %d divides, %d scans\n", pma_count_finds, pma_count_divides, pma_count_scans);
 }
 
-static int pma_compare_kv_kv(PMA pma, struct kv_pair *a, struct kv_pair *b) {
-    DBT dbta, dbtb;;
-    int cmp = pma->compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_key(a), kv_pair_keylen(a)), toku_fill_dbt(&dbtb, kv_pair_key(b), kv_pair_keylen(b)));
-    if (cmp == 0 && (pma->dup_mode & TOKU_DB_DUPSORT)) {
-        cmp = pma->dup_compare_fun(pma->db, toku_fill_dbt(&dbta, kv_pair_val(a), kv_pair_vallen(b)), toku_fill_dbt(&dbtb, kv_pair_val(b), kv_pair_vallen(b)));
-    }
-    return cmp;
-}
-
 static int pma_compare_dbt_kv(PMA pma, DBT *k, DBT *v, struct kv_pair *kv) {
     DBT k2, v2;
     int cmp = pma->compare_fun(pma->db, k, toku_fill_dbt(&k2, kv_pair_key(kv), kv_pair_keylen(kv)));
@@ -1460,10 +1451,7 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
             splitk->data = kv_pair_malloc(kv_pair_key(a), kv_pair_keylen(a), 0, 0);
             splitk->size = kv_pair_keylen(a);
         }
-        splitk->flags = BRT_PIVOT_PRESENT_L;
-        if (spliti < npairs && pma_compare_kv_kv(origpma, a, pairs[spliti].pair) == 0) {
-            splitk->flags += BRT_PIVOT_PRESENT_R;
-        }
+        splitk->flags = 0;
     }
 
     /* put the first half of pairs into the left pma */
