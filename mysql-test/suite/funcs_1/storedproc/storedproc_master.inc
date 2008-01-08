@@ -1,76 +1,14 @@
 #### suite/funcs_1/storedproc/storedproc_master.inc
-#
+###########################################################################
+# WL4084: Review and fix all disabled test
+# enabled this test.
+# 2007-Oct-04 Hhunger
+############################################################################
 --enable_query_log
-
-let $message= .
-              .                         IMPORTANT NOTICE:
-              .                         -----------------
-              .
-              .  FIXME: The .result files are still NOT CHECKED for correctness!
-              .
-              .  FIXME: Several tests are affected by known problems around DECIMAL
-              .  FIXME: and NUMERIC that will be checked again after WL#2984 once
-              .  FIXME: has been completed. Some of them are marked in the result.
-              .
-              . Currently (Dec 06, 2005) this .result file is checked OK for Linux
-              . with 5.0.17-bk (ChangeSet@1.1975.1.2, 2005-12-05 18:33:48+01:00).
-              . Using the available Windows version 5.0.16 there are differences
-              . that can be ignored (e.g. WL#2984).
-              .;
---source include/show_msg80.inc
-
-#FIXME-START-------------------------------------------------------------------
-#
-# remove this section prior releasing the test, then we may stop at the first
-# error we get ('passed' or 'not passed' - that's the question).
---disable_abort_on_error
-
-   # having ALWAYS a .reject from the changing TIME makes it easier to work with
-   # the GUI diff program until the testcase is finished for pushing.
-   #
-   # let $message= FIXME: Show some information when / where the .result has been created;
-   # --source include/show_msg.inc
-   --vertical_results
-   # SELECT version(), @@version_compile_os AS 'vers_comp_os', current_date, current_time;
-
-   let $message= FIXME: There are subtests that are switched off due to known bugs:;
-   --source include/show_msg.inc
-   #set a variable here to be able to switch all crashing sub tests with ONE change HERE.
-   #change the corresponding variable to '1' to enable the crashing parts.
-   --disable_query_log
-
-   let $check_wl2984= 0;
-   eval SELECT $check_wl2984 AS 'WL#2984: DECIMAL and NUMERIC problems with differences on some machines';
-
-   --horizontal_results
-   --enable_query_log
-
-# As long as
-# Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill
-# is not fixed, we must switch the ps-protocol for some statements off.
-# If this bug is fixed, please
-# 1. set the following variable to 0
-# 2. check, if the test passes
-# 3. remove the workarounds
-let $have_bug_11589= 1;
-if ($have_bug_11589)
-{
-   let $message= There are some statements where the ps-protocol is switched off.
-                 Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill;
-   --source include/show_msg80.inc
-}
-
-#
-#FIXME-END---------------------------------------------------------------------
-
 
 # prepare a variable to be able to suppress machine dependant diffs
 #let $SERVER_NAME= `SELECT DISTINCT host FROM mysql.user WHERE host LIKE "%\%" AND host NOT In ("localhost", "127.0.0.1", "%")`;
 # can be used in: --replace_result $SERVER_NAME <SERVER_NAME>
-
-# ------------------------------------------------------------------------------
---source suite/funcs_1/storedproc/load_sp_tb.inc
-
 
 # ==============================================================================
 let $message= Section 3.1.1 - Syntax checks for the CREATE PROCEDURE, CREATE
@@ -90,18 +28,23 @@ let $message= Testcase 4.1.1:
 USE db_storedproc;
 
 --disable_warnings
+--error ER_TOO_LONG_IDENT
 DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934;
 --enable_warnings
 
+--error ER_TOO_LONG_IDENT
 CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934 (f1 char(20) )
             SELECT * from t1 where f2 = f1;
+--error ER_TOO_LONG_IDENT
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongname234872934('aaaa');
 
 --disable_warnings
+--error ER_TOO_LONG_IDENT
 DROP PROCEDURE IF EXISTS sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde;
 --enable_warnings
 
 delimiter //;
+--error ER_TOO_LONG_IDENT
 CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( f1 tinytext ) language sql deterministic sql security definer comment 'this is simple'
   BEGIN
     set @v1 = f1;
@@ -109,6 +52,7 @@ CREATE PROCEDURE sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabc
 END//
 delimiter ;//
 
+--error ER_TOO_LONG_IDENT
 CALL sp1_thisisaveryverylongname234872934_thisisaveryverylongnameabcde( 'abc' );
 
 --replace_column 5 modified 6 created
@@ -170,9 +114,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: SP definition accepted with m>60 in DECIMAL(m,n)
-#FIXME --error 4711
+--error ER_TOO_BIG_PRECISION
 CREATE PROCEDURE sp1( f1 decimal(256, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
     set @v1 = f1;
@@ -180,8 +122,7 @@ BEGIN
 END//
 DROP PROCEDURE IF EXISTS sp1//
 
-# should fail: 66 is not allowed; maximum is 65.
-#FIXME --error 4711
+--error ER_TOO_BIG_PRECISION
 CREATE PROCEDURE sp1( f1 decimal(66, 30) ) language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
     set @v1 = f1;
@@ -198,28 +139,22 @@ delimiter ;//
 
 CALL sp1( 17976931340000 );
 
-if ($check_wl2984)
+# switched off due to big differences with (e.g....) sol10-sparc-b
+CALL sp1( 1.797693134e+13 );
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+CALL sp1( 1.7976931348623157493578e+308 );
+
+# check all ...E+100 to E-100
+let $digits= 100;
+while ($digits)
 {
-   # switched off due to big differences with (e.g....) sol10-sparc-b
-   CALL sp1( 1.797693134e+13 );
-   CALL sp1( 1.7976931348623157493578e+308 );
-
-   -- echo FIXME: Following test contains a known problem that will be checked again
-   -- echo FIXME: after WL#2984 has been completed:
-   -- echo FIXME: values accepted without warning although m>60 in DECIMAL(m,n)
-
-   # check all ...E+100 to E-100
-   let $digits= 100;
-   while ($digits)
-   {
-      eval CALL sp1( 0.1234567890987654321e+$digits );
-      eval CALL sp1( 0.1234567890987654321e-$digits );
-      dec $digits;
-   }
-   # check the 2 values which cannot be handled easy in the loop:
-   eval CALL sp1( 0.1234567890987654321e+0 );
-   eval CALL sp1( 0.1234567890987654321e-0 );
+   eval CALL sp1( 0.1234567890987654321e+$digits );
+   eval CALL sp1( 0.1234567890987654321e-$digits );
+   dec $digits;
 }
+# check the 2 values which cannot be handled easy in the loop:
+eval CALL sp1( 0.1234567890987654321e+0 );
+eval CALL sp1( 0.1234567890987654321e-0 );
 
 --replace_column 5 modified 6 created
 SHOW PROCEDURE status;
@@ -395,7 +330,7 @@ DROP FUNCTION IF EXISTS fn1;
 
 delimiter //;
 # 1425: Too big scale 63 specified for column ''. Maximum is 30.
---error 1425
+--error ER_TOO_BIG_SCALE
 CREATE FUNCTION fn1( f1 decimal(63, 31) ) returns decimal(63, 31) language sql not deterministic sql security invoker comment 'this is simple'
 BEGIN
     set f1 = 1000000 + f1;
@@ -403,7 +338,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 SELECT fn1( 1.3326e+8 );
 
 delimiter //;
@@ -430,7 +365,14 @@ CREATE FUNCTION fn1( f1 enum("value1", "value1") ) returns decimal(63, 30)  lang
 END//
 delimiter ;//
 
+# warnings for this select disabled due to diffs with/without --ps-protocol:
+# without ps-protocol the following warning is shown:
+# +Note   1291    Column '' has duplicated value 'value1' in SET
+# +Warning        1265    Data truncated for column 'f1' at row 1
+# Reported as BUG#33396
+--disable_warnings
 SELECT fn1( "value1" );
+--enable_warnings
 
 --replace_column 5 modified 6 created
 SHOW FUNCTION STATUS LIKE 'fn1';
@@ -446,7 +388,14 @@ CREATE FUNCTION fn1( f1 set("value1", "value1") ) returns decimal(63, 30) langua
 END//
 delimiter ;//
 
+# warnings for this select disabled due to diffs with/without --ps-protocol:
+# without ps-protocol the following warning is shown:
+# +Note   1291    Column '' has duplicated value 'value1' in SET
+# +Warning        1265    Data truncated for column 'f1' at row 1
+# Reported as BUG#33396
+--disable_warnings
 SELECT fn1( "value1, value1" );
+--enable_warnings
 
 --replace_column 5 modified 6 created
 SHOW FUNCTION STATUS LIKE 'fn1';
@@ -666,10 +615,12 @@ SELECT f2 into c from t1 where t1.f2=999;
 END//
 delimiter ;//
 
+--disable_warnings
 set @c=1;
 CALL sp7c('xyz', @out_param, @c);
 SELECT @out_param;
 SELECT @c;
+--enable_warnings
 
 # cleanup
 DROP PROCEDURE sp7a;
@@ -697,7 +648,7 @@ let $message= Testcase 4.1.9:
 drop procedure;
 --source include/show_msg80.inc
 
-
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
 
@@ -705,30 +656,33 @@ SELECT * from mysql.proc where specific_name='sp9';
 DROP PROCEDURE IF EXISTS sp9;
 --enable_warnings
 
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
 
 DROP PROCEDURE sp9;
 
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
 
 CREATE PROCEDURE sp9()SELECT * from t1;
 
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
 
 DROP PROCEDURE IF EXISTS sp9;
 
+--sorted_result
 --replace_column 13 created 14 modified
 SELECT * from mysql.proc where specific_name='sp9';
-
-
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.1.10:
@@ -792,6 +746,7 @@ connect (u_1, localhost, user_1, , db_storedproc);
 CALL sp11();
 
 connection default;
+USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
 
 alter procedure sp11 sql security invoker;
@@ -801,8 +756,9 @@ SELECT security_type from mysql.proc where specific_name='sp11';
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connection u_1;
 --source suite/funcs_1/include/show_connection.inc
+USE db_storedproc;
 
---error 1142
+--error ER_TABLEACCESS_DENIED_ERROR
 CALL sp11();
 
 commit work;
@@ -897,900 +853,900 @@ appropriate error message is returned when the name is rejected;
 --source include/show_msg80.inc
 
 
---error 1357
+--error ER_SP_NO_DROP_SP
 CREATE PROCEDURE sp1()
 DROP PROCEDURE sp1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE !_sp1( f1 char(20) )
 SELECT * from t1 where f2 = f1;
 
-#FIXME: this was what I found in this file ... :
-#CREATE PROCEDURE !_sp1( f1 char(20) )
-#    SELECT * from t1 where f2 = f1; ^a^kcd '/usr/mysql/mysql-test/t'
-#/t'ql/mysql-test
-#t]# t@localhost t
-
---error 0,1064
 CREATE PROCEDURE function()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE function;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE accessible()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE add()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE all()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE alter()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE analyze()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE and()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE as()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE asc()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE asensitive()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE before()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE between()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE bigint()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE binary()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE blob()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE both()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE by()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE CALL()
+--error ER_PARSE_ERROR
+CREATE PROCEDURE call()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE cascade()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE case()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE change()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE char()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE character()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE check()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE collate()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE column()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE columns()
-   SELECT * from t1 where f2=f1;
-DROP PROCEDURE columns;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE condition()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE connection()
-   SELECT * from t1 where f2=f1;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE constraint()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE continue()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE convert()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE create()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE cross()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE current_date()
   SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE current_time()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE current_timestamp()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE current_user()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE cursor()
   SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE database()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE databases()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE day_hour()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE day_microsecond()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE day_minute()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE day_second()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE dec()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE decimal()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE declare()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE default()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE delayed()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE delete()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE desc()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE describe()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE deterministic()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE distinct()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE distinctrow()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE div()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE double()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE drop()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE dual()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE each()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE else()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE elseif()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE enclosed()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE escaped()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE exists()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE exit()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE explain()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE false()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE fetch()
    SELECT * from t1 where f2=f1;
 
---error 1064
+#--error ER_PARSE_ERROR
 CREATE PROCEDURE fields()
    SELECT * from t1 where f2=f1;
 DROP PROCEDURE fields;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE float()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE for()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE force()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE foreign()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE found()
-   SELECT * from t1 where f2=f1;
-DROP PROCEDURE found;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE from()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE fulltext()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE goto()
-   SELECT * from t1 where f2=f1;
-DROP PROCEDURE goto;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE grant()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE group()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE having()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE high_priority()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE hour_microsecond()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE hour_minute()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE hour_second()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE if()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE ignore()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE in()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE index()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE infile()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE inner()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE inout()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE insensitive()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE insert()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE int()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE int1()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE int2()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE int3()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE int4()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
+CREATE PROCEDURE int8()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE integer()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE interval()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE into()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE is()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE iterate()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE join()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE key()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE keys()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE kill()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE leading()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE leave()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE left()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE like()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE limit()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE linear()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE lines()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE load()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE localtime()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE localtimestamp()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE lock()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE long()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE longblob()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE longtext()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE loop()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE low_priority()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE master_ssl_verify_server_cert()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE match()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE mediumblob()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE mediumint()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE mediumtext()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE middleint()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE minute_microsecond()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE minute_second()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE mod()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE modifies()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE natural()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE not()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE no_write_to_binlog()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE null()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE numeric()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE on()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE optimize()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE option()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE optionally()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE or()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE order()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE out()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE outer()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE outfile()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE precision()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE primary()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE privileges()
-   SELECT * from t1 where f2=f1;
-DROP PROCEDURE privileges;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE procedure()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE purge()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE range()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE read()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE reads()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE real()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE references()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE regexp()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE release()
+   SELECT * from t1 where f2=f1;
+
+--error ER_PARSE_ERROR
 CREATE PROCEDURE rename()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE repeat()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE replace()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE require()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE restrict()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE return()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE revoke()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE right()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE rlike()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE schema()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE schemas()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE second_microsecond()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE select()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sensitive()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE separator()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE set()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE show()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE smallint()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE soname()
-   SELECT * from t1 where f2=f1;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE spatial()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE specific()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sql()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sqlexception()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sqlstate()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sqlwarning()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sql_big_result()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sql_calc_found_rows()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sql_small_result()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE ssl()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE starting()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE straight_join()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE table()
    SELECT * from t1 where f2=f1;
 
---error 1064
-CREATE PROCEDURE tables()
-   SELECT * from t1 where f2=f1;
-DROP PROCEDURE tables;
-
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE terminated()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE then()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE tinyblob()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE tinyint()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE tinytext()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE to()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE trailing()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE trigger()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE true()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE undo()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE union()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE unique()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE unlock()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE unsigned()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE update()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE usage()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE use()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE using()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE utc_date()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE utc_time()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE utc_timestamp()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE values()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE varbinary()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE varchar()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE varcharacter()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE varying()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE when()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE where()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE while()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE with()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE write()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE xor()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE year_month()
    SELECT * from t1 where f2=f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE zerofill()
    SELECT * from t1 where f2=f1;
 
@@ -1803,635 +1759,619 @@ error message is returned when the name is rejected;
 --source include/show_msg80.inc
 
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION !_fn1(f1 char) returns char
     return f1;
 
---error 1064
+--disable_warnings
+--error ER_PARSE_ERROR
 CREATE FUNCTION char(f1 char) returns char
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION char binary(f1 char binary) returns char binary
     return f1;
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION char ascii(f1 char ascii) returns char ascii
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION char not null(f1 char not null) returns char not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION char binary not null(f1 char binary not null) returns char binary not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION char ascii not null(f1 char ascii not null) returns char ascii not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinytext(f1 tinytext) returns tinytext
     return f1;
 
---error 1064
+#--error ER_PARSE_ERROR
 CREATE FUNCTION text(f1 text) returns text
     return f1;
   DROP FUNCTION text;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumtext(f1 mediumtext) returns mediumtext
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION longtext(f1 longtext) returns longtext
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinytext not null(f1 tinytext not null) returns tinytext not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION text not null(f1 text not null) returns text not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumtext not null(f1 mediumtext not null) returns mediumtext not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION longtext not null(f1 longtext not null) returns longtext not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyblob(f1 tinyblob) returns tinyblob
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION blob(f1 blob) returns blob
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumblob(f1 mediumblob) returns mediumblob
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION longblob(f1 longblob) returns longblob
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyblob not null(f1 tinyblob not null) returns tinyblob not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION blob not null(f1 blob not null) returns blob not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumblob not null(f1 mediumblob not null) returns mediumblob not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION longblob not null(f1 longblob not null) returns longblob not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION binary(f1 binary) returns binary
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION binary not null(f1 binary not null) returns binary not null
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyint(f1 tinyint) returns tinyint
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyint unsigned(f1 tinyint unsigned) returns tinyint unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyint zerofill(f1 tinyint zerofill) returns tinyint zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION tinyint unsigned zerofill(f1 tinyint unsigned zerofill) returns tinyint unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION smallint(f1 smallint) returns smallint
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION smallint unsigned(f1 smallint unsigned) returns smallint unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION smallint zerofill(f1 smallint zerofill) returns smallint zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION smallint unsigned zerofill(f1 smallint unsigned zerofill) returns smallint unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumint(f1 mediumint) returns mediumint
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumint unsigned(f1 mediumint unsigned) returns mediumint unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumint zerofill(f1 mediumint zerofill) returns mediumint zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION mediumint unsigned zerofill(f1 mediumint unsigned zerofill) returns mediumint unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION int(f1 int) returns int
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
+CREATE FUNCTION int1(f1 int1) returns int1
+    return f1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION int2(f1 int2) returns int2
+    return f1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION int3(f1 int3) returns int3
+    return f1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION int4(f1 int4) returns int4
+    return f1;
+
+--error ER_PARSE_ERROR
+CREATE FUNCTION int8(f1 int8) returns int8
+    return f1;
+
+--error ER_PARSE_ERROR
 CREATE FUNCTION int unsigned(f1 int unsigned) returns int unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION int zerofill(f1 int zerofill) returns int zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION int unsigned zerofill(f1 int unsigned zerofill) returns int unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION bigint(f1 bigint) returns bigint
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION bigint unsigned(f1 bigint unsigned) returns bigint unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION bigint zerofill(f1 bigint zerofill) returns bigint zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION bigint unsigned zerofill(f1 bigint unsigned zerofill) returns bigint unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION decimal(f1 decimal) returns decimal
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION decimal unsigned(f1 decimal unsigned) returns decimal unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION decimal zerofill(f1 decimal zerofill) returns decimal zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION decimal unsigned zerofill(f1 decimal unsigned zerofill) returns decimal unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION numeric(f1 numeric) returns numeric
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION numeric unsigned(f1 numeric unsigned) returns numeric unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION numeric zerofill(f1 numeric zerofill) returns numeric zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION numeric unsigned zerofill(f1 numeric unsigned zerofill) returns numeric unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION real(f1 real) returns real
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION real unsigned(f1 real unsigned) returns real unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION real zerofill(f1 real zerofill) returns real zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION real unsigned zerofill(f1 real unsigned zerofill) returns real unsigned zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION float(f1 float) returns float
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION float unsigned(f1 float unsigned) returns float unsigned
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION float zerofill(f1 float zerofill) returns float zerofill
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION float unsigned zerofill(f1 float unsigned zerofill) returns float unsigned zerofill
     return f1;
 
-#FIXME check this is OK:--error 1064
 CREATE FUNCTION date(f1 date) returns date
     return f1;
 DROP FUNCTION date;
 
-#FIXME check this is OK:--error 1064
 CREATE FUNCTION time(f1 time) returns time
     return f1;
 DROP FUNCTION time;
 
-#FIXME check this is OK:--error 1064
 CREATE FUNCTION datetime(f1 datetime) returns datetime
     return f1;
 DROP FUNCTION datetime;
 
-#FIXME check this is OK:--error 1064
 CREATE FUNCTION timestamp(f1 timestamp) returns timestamp
     return f1;
 DROP FUNCTION timestamp;
 
-#FIXME check this is OK:--error 1064
 CREATE FUNCTION year(f1 year) returns year
     return f1;
 DROP FUNCTION year;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION year(3)(f1 year(3)) returns year(3)
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION year(4)(f1 year(4)) returns year(4)
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION enum("1enum", "2enum")(f1 enum("1enum", "2enum")) returns enum("1enum", "2enum")
     return f1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION set("1set", "2set")(f1 set("1set", "2set")) returns set("1set", "2set")
     return f1;
+--enable_warnings
 
+DROP FUNCTION IF EXISTS fn1;
+CREATE FUNCTION fn1(f1 char ) returns char
+    return f1;
+
+DROP FUNCTION IF EXISTS fn1;
+--error ER_NOT_SUPPORTED_YET
+CREATE FUNCTION fn1(f1 char binary ) returns char binary
+    return f1;
+
+DROP FUNCTION IF EXISTS fn1;
+CREATE FUNCTION fn1(f1 char ascii ) returns char ascii
+    return f1;
+
+DROP FUNCTION IF EXISTS fn1;
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 char not null ) returns char not null
+    return f1;
+
+DROP FUNCTION IF EXISTS fn1;
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 char binary not null ) returns char binary not null
+    return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char f1 ) returns char
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 char ascii not null ) returns char ascii not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char binary f1 ) returns char binary
+CREATE FUNCTION fn1(f1 tinytext ) returns tinytext
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char ascii f1 ) returns char ascii
+CREATE FUNCTION fn1(f1 text ) returns text
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char not null f1 ) returns char not null
+CREATE FUNCTION fn1(f1 mediumtext ) returns mediumtext
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char binary not null f1 ) returns char binary not null
+CREATE FUNCTION fn1(f1 longtext ) returns longtext
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(char ascii not null f1 ) returns char ascii not null
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 tinytext not null ) returns tinytext not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinytext f1 ) returns tinytext
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 text not null ) returns text not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(text f1 ) returns text
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 mediumtext not null ) returns mediumtext not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumtext f1 ) returns mediumtext
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 longtext not null ) returns longtext not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(longtext f1 ) returns longtext
+CREATE FUNCTION fn1(f1 tinyblob ) returns tinyblob
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinytext not null f1 ) returns tinytext not null
+CREATE FUNCTION fn1(f1 blob ) returns blob
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(text not null f1 ) returns text not null
+CREATE FUNCTION fn1(f1 mediumblob ) returns mediumblob
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumtext not null f1 ) returns mediumtext not null
+CREATE FUNCTION fn1(f1 longblob ) returns longblob
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(longtext not null f1 ) returns longtext not null
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 tinyblob not null ) returns tinyblob not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyblob f1 ) returns tinyblob
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 blob not null ) returns blob not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(blob f1 ) returns blob
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 mediumblob not null ) returns mediumblob not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumblob f1 ) returns mediumblob
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 longblob not null ) returns longblob not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(longblob f1 ) returns longblob
+CREATE FUNCTION fn1(f1 binary ) returns binary
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyblob not null f1 ) returns tinyblob not null
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 binary not null ) returns binary not null
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(blob not null f1 ) returns blob not null
+CREATE FUNCTION fn1(f1 tinyint ) returns tinyint
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumblob not null f1 ) returns mediumblob not null
+CREATE FUNCTION fn1(f1 tinyint unsigned ) returns tinyint unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(longblob not null f1 ) returns longblob not null
+CREATE FUNCTION fn1(f1 tinyint zerofill ) returns tinyint zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(binary f1 ) returns binary
+CREATE FUNCTION fn1(f1 tinyint unsigned zerofill ) returns tinyint unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(binary not null f1 ) returns binary not null
+CREATE FUNCTION fn1(f1 smallint ) returns smallint
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyint f1 ) returns tinyint
+CREATE FUNCTION fn1(f1 smallint unsigned ) returns smallint unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyint unsigned f1 ) returns tinyint unsigned
+CREATE FUNCTION fn1(f1 smallint zerofill ) returns smallint zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyint zerofill f1 ) returns tinyint zerofill
+CREATE FUNCTION fn1(f1 smallint unsigned zerofill ) returns smallint unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(tinyint unsigned zerofill f1 ) returns tinyint unsigned zerofill
+CREATE FUNCTION fn1(f1 mediumint ) returns mediumint
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(smallint f1 ) returns smallint
+CREATE FUNCTION fn1(f1 mediumint unsigned ) returns mediumint unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(smallint unsigned f1 ) returns smallint unsigned
+CREATE FUNCTION fn1(f1 mediumint zerofill ) returns mediumint zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(smallint zerofill f1 ) returns smallint zerofill
+CREATE FUNCTION fn1(f1 mediumint unsigned zerofill ) returns mediumint unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(smallint unsigned zerofill f1 ) returns smallint unsigned zerofill
+CREATE FUNCTION fn1(f1 int ) returns int
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumint f1 ) returns mediumint
+CREATE FUNCTION fn1(f1 int unsigned ) returns int unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumint unsigned f1 ) returns mediumint unsigned
+CREATE FUNCTION fn1(f1 int1 unsigned ) returns int1 unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumint zerofill f1 ) returns mediumint zerofill
+CREATE FUNCTION fn1(f1 int2 unsigned ) returns int2 unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(mediumint unsigned zerofill f1 ) returns mediumint unsigned zerofill
+CREATE FUNCTION fn1(f1 int3 unsigned ) returns int3 unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(int f1 ) returns int
+CREATE FUNCTION fn1(f1 int4 unsigned ) returns int4 unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(int unsigned f1 ) returns int unsigned
+CREATE FUNCTION fn1(f1 int8 unsigned ) returns int8 unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(int zerofill f1 ) returns int zerofill
+CREATE FUNCTION fn1(f1 int zerofill ) returns int zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(int unsigned zerofill f1 ) returns int unsigned zerofill
+CREATE FUNCTION fn1(f1 int unsigned zerofill ) returns int unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(bigint f1 ) returns bigint
+CREATE FUNCTION fn1(f1 bigint ) returns bigint
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(bigint unsigned f1 ) returns bigint unsigned
+CREATE FUNCTION fn1(f1 bigint unsigned ) returns bigint unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(bigint zerofill f1 ) returns bigint zerofill
+CREATE FUNCTION fn1(f1 bigint zerofill ) returns bigint zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(bigint unsigned zerofill f1 ) returns bigint unsigned zerofill
+CREATE FUNCTION fn1(f1 bigint unsigned zerofill ) returns bigint unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(decimal f1 ) returns decimal
+CREATE FUNCTION fn1(f1 decimal ) returns decimal
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(decimal unsigned f1 ) returns decimal unsigned
+CREATE FUNCTION fn1(f1 decimal unsigned ) returns decimal unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(decimal zerofill f1 ) returns decimal zerofill
+CREATE FUNCTION fn1(f1 decimal zerofill ) returns decimal zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(decimal unsigned zerofill f1 ) returns decimal unsigned zerofill
+CREATE FUNCTION fn1(f1 decimal unsigned zerofill ) returns decimal unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(numeric f1 ) returns numeric
+CREATE FUNCTION fn1(f1 numeric ) returns numeric
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(numeric unsigned f1 ) returns numeric unsigned
+CREATE FUNCTION fn1(f1 numeric unsigned ) returns numeric unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(numeric zerofill f1 ) returns numeric zerofill
+CREATE FUNCTION fn1(f1 numeric zerofill ) returns numeric zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(numeric unsigned zerofill f1 ) returns numeric unsigned zerofill
+CREATE FUNCTION fn1(f1 numeric unsigned zerofill ) returns numeric unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(real f1 ) returns real
+CREATE FUNCTION fn1(f1 real ) returns real
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(real unsigned f1 ) returns real unsigned
+CREATE FUNCTION fn1(f1 real unsigned ) returns real unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(real zerofill f1 ) returns real zerofill
+CREATE FUNCTION fn1(f1 real zerofill ) returns real zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(real unsigned zerofill f1 ) returns real unsigned zerofill
+CREATE FUNCTION fn1(f1 real unsigned zerofill ) returns real unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(float f1 ) returns float
+CREATE FUNCTION fn1(f1 float ) returns float
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(float unsigned f1 ) returns float unsigned
+CREATE FUNCTION fn1(f1 float unsigned ) returns float unsigned
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(float zerofill f1 ) returns float zerofill
+CREATE FUNCTION fn1(f1 float zerofill ) returns float zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(float unsigned zerofill f1 ) returns float unsigned zerofill
+CREATE FUNCTION fn1(f1 float unsigned zerofill ) returns float unsigned zerofill
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(date f1 ) returns date
+CREATE FUNCTION fn1(f1 date ) returns date
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(time f1 ) returns time
+CREATE FUNCTION fn1(f1 time ) returns time
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(datetime f1 ) returns datetime
+CREATE FUNCTION fn1(f1 datetime ) returns datetime
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(timestamp f1 ) returns timestamp
+CREATE FUNCTION fn1(f1 timestamp ) returns timestamp
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(year f1 ) returns year
+CREATE FUNCTION fn1(f1 year ) returns year
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(year(3) f1 ) returns year(3)
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 year(f1 3) ) returns year(3)
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(year(4) f1 ) returns year(4)
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 year(f1 4) ) returns year(4)
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(enum("1enum", "2enum") f1 ) returns enum("1enum", "2enum")
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 enum(f1 "1enum", "2enum") ) returns enum("1enum", "2enum")
     return f1;
 
 DROP FUNCTION IF EXISTS fn1;
---error 1064
-CREATE FUNCTION fn1(set("1set", "2set") f1 ) returns set("1set", "2set")
+--error ER_PARSE_ERROR
+CREATE FUNCTION fn1(f1 set(f1 "1set", "2set") ) returns set("1set", "2set")
     return f1;
 
 
@@ -2444,7 +2384,7 @@ appropriate error message;
 
 DROP PROCEDURE IF EXISTS sp16;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL sp16( 'xyz' );
 
 CREATE DATABASE db1;
@@ -2458,7 +2398,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL db_storedproc.sp16();
 
 # cleanup
@@ -2501,15 +2441,15 @@ SELECT db_storedproc.sp1( 'a' );
 DROP FUNCTION db_storedproc.sp1;
 USE db_storedproc;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 SELECT sp1('a');
 
 DROP PROCEDURE sp1;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL sp1();
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 SELECT sp1('a');
 
 # cleanup
@@ -2546,9 +2486,11 @@ DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 USE db1;
 alter procedure db_storedproc.sp1 sql security invoker;
+--sorted_result
 SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 
 alter function db_storedproc.sp1 sql security invoker;
+--sorted_result
 SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 
 CALL db_storedproc.sp1();
@@ -2562,7 +2504,7 @@ CALL db_storedproc.sp1();
 SELECT db_storedproc.sp1();
 
 alter function sp1 sql security definer;
-
+--sorted_result
 SELECT name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 CALL db_storedproc.sp1();
 
@@ -2701,20 +2643,20 @@ CREATE DATABASE db1;
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1 () set @x=1;
 
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE PROCEDURE sp1 () set @x=2;
 
 CALL sp1();
 SELECT @x;
 USE db1;
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE PROCEDURE db_storedproc.sp1 () set @x=3;
 CALL db_storedproc.sp1();
   SELECT @x;
 
 DROP PROCEDURE IF EXISTS db_storedproc.sp1;
 CREATE PROCEDURE db_storedproc.sp1 () set @x=1;
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE PROCEDURE db_storedproc.sp1 () set @x=2;
 CALL db_storedproc.sp1();
 SELECT @x;
@@ -2738,16 +2680,16 @@ DROP DATABASE IF EXISTS db1;
 CREATE DATABASE db1;
 DROP FUNCTION IF EXISTS fn1;
 CREATE FUNCTION fn1 () returns int return 1;
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE FUNCTION fn1 () returns int return 2;
 SELECT fn1();
 USE db1;
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE FUNCTION db_storedproc.fn1 () returns int return 3;
 SELECT db_storedproc.fn1();
 DROP FUNCTION IF EXISTS db_storedproc.fn1;
 CREATE FUNCTION db_storedproc.fn1 () returns int return 1;
---error 1304
+--error ER_SP_ALREADY_EXISTS
 CREATE FUNCTION db_storedproc.fn1 () returns int return 2;
 SELECT db_storedproc.fn1();
 
@@ -2818,7 +2760,7 @@ error message is returned when the name is rejected. (invalid func name);
 --source include/show_msg80.inc
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION !_fn1( f1 char(20) ) returns int
 BEGIN
    SELECT * from t1 where f2 = f1;
@@ -2827,7 +2769,7 @@ END//
 delimiter ;//
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION fn1( f1 char(20) ) return int
 BEGIN
    SELECT * from t1 where f2 = f1;
@@ -2838,20 +2780,20 @@ delimiter ;//
 CREATE FUNCTION fn1() returns int
   return 'a';
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION procedure() returns int
   return 1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION fn1(a char) returns int lang sql return 1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION fn1(a char) returns int deterministic( return 1);
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION fn1(a char) returns int non deterministic return 1;
 
---error 1064
+--error ER_PARSE_ERROR
 CREATE FUNCTION fn1(a char) returns int not deterministic comment 'abc' language sql sql security refiner return 1;
 
 # clean up
@@ -2924,7 +2866,7 @@ DROP PROCEDURE IF EXISTS sp1;
 
 # missing BEGIN
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
     SELECT count(*) into cnt from t2;
     set @count = cnt;
@@ -2932,7 +2874,7 @@ CREATE PROCEDURE sp1( cnt int(20) )
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL sp1( 10 );
 
 --disable_warnings
@@ -2941,7 +2883,7 @@ DROP PROCEDURE IF EXISTS sp1;
 
 # wrong order of BEGIN and END
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
 END
     SELECT count(*) into cnt from t2;
@@ -2950,7 +2892,7 @@ END
 BEGIN//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL sp1( 10 );
 
 --disable_warnings
@@ -2959,7 +2901,7 @@ DROP PROCEDURE IF EXISTS sp1;
 
 # invalid usage of BEGIN + END
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( cnt int(20) )
 BEGIN
    SELECT count(*) into cnt from t2;
@@ -3003,7 +2945,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  accessible:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   add:BEGIN
     SELECT @x;
@@ -3015,7 +2969,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   all:BEGIN
     SELECT @x;
@@ -3027,7 +2981,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_SP_BADSTATEMENT
 CREATE PROCEDURE sp1()
   alter:BEGIN
     SELECT @x;
@@ -3039,7 +2993,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   analyze:BEGIN
     SELECT @x;
@@ -3051,7 +3005,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   and:BEGIN
     SELECT @x;
@@ -3063,7 +3017,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   as:BEGIN
     SELECT @x;
@@ -3075,7 +3029,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   asc:BEGIN
     SELECT @x;
@@ -3087,7 +3041,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   asensitive:BEGIN
     SELECT @x;
@@ -3099,7 +3053,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   before:BEGIN
     SELECT @x;
@@ -3111,7 +3065,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   between:BEGIN
     SELECT @x;
@@ -3123,7 +3077,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   bigint:BEGIN
     SELECT @x;
@@ -3135,7 +3089,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   binary:BEGIN
     SELECT @x;
@@ -3147,7 +3101,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   blob:BEGIN
     SELECT @x;
@@ -3159,7 +3113,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   both:BEGIN
     SELECT @x;
@@ -3171,7 +3125,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   by:BEGIN
     SELECT @x;
@@ -3183,9 +3137,9 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
-  CALL:BEGIN
+  call:BEGIN
     SELECT @x;
 END//
 delimiter ;//
@@ -3195,7 +3149,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   cascade:BEGIN
     SELECT @x;
@@ -3207,7 +3161,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   case:BEGIN
     SELECT @x;
@@ -3219,7 +3173,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   change:BEGIN
     SELECT @x;
@@ -3231,7 +3185,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   char:BEGIN
     SELECT @x;
@@ -3243,7 +3197,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   character:BEGIN
     SELECT @x;
@@ -3255,7 +3209,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   check:BEGIN
     SELECT @x;
@@ -3267,7 +3221,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   collate:BEGIN
     SELECT @x;
@@ -3279,7 +3233,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   column:BEGIN
     SELECT @x;
@@ -3291,19 +3245,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  columns:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   condition:BEGIN
     SELECT @x;
@@ -3315,19 +3257,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1()
-  connection:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   constraint:BEGIN
     SELECT @x;
@@ -3339,7 +3269,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   continue:BEGIN
     SELECT @x;
@@ -3351,7 +3281,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   convert:BEGIN
     SELECT @x;
@@ -3363,7 +3293,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   create:BEGIN
     SELECT @x;
@@ -3375,7 +3305,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   cross:BEGIN
     SELECT @x;
@@ -3387,7 +3317,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   current_date:BEGIN
     SELECT @x;
@@ -3399,7 +3329,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   current_time:BEGIN
     SELECT @x;
@@ -3411,7 +3341,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   current_timestamp:BEGIN
     SELECT @x;
@@ -3423,7 +3353,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   current_user:BEGIN
     SELECT @x;
@@ -3435,7 +3365,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   cursor:BEGIN
     SELECT @x;
@@ -3447,7 +3377,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   database:BEGIN
     SELECT @x;
@@ -3459,7 +3389,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   databases:BEGIN
     SELECT @x;
@@ -3471,7 +3401,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   day_hour:BEGIN
     SELECT @x;
@@ -3483,7 +3413,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   day_microsecond:BEGIN
     SELECT @x;
@@ -3495,7 +3425,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   day_minute:BEGIN
     SELECT @x;
@@ -3507,7 +3437,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   day_second:BEGIN
     SELECT @x;
@@ -3519,7 +3449,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   dec:BEGIN
     SELECT @x;
@@ -3531,7 +3461,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   decimal:BEGIN
     SELECT @x;
@@ -3543,7 +3473,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   declare:BEGIN
     SELECT @x;
@@ -3555,7 +3485,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   default:BEGIN
     SELECT @x;
@@ -3567,7 +3497,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   delayed:BEGIN
     SELECT @x;
@@ -3579,7 +3509,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   delete:BEGIN
     SELECT @x;
@@ -3591,7 +3521,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   desc:BEGIN
     SELECT @x;
@@ -3603,7 +3533,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   describe:BEGIN
     SELECT @x;
@@ -3615,7 +3545,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   deterministic:BEGIN
     SELECT @x;
@@ -3627,7 +3557,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   distinct:BEGIN
     SELECT @x;
@@ -3639,7 +3569,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   distinctrow:BEGIN
     SELECT @x;
@@ -3651,7 +3581,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   div:BEGIN
     SELECT @x;
@@ -3663,7 +3593,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   double:BEGIN
     SELECT @x;
@@ -3675,7 +3605,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 drop:BEGIN
     SELECT @x;
@@ -3687,7 +3617,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   dual:BEGIN
     SELECT @x;
@@ -3699,7 +3629,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   each:BEGIN
     SELECT @x;
@@ -3711,7 +3641,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   else:BEGIN
     SELECT @x;
@@ -3723,7 +3653,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   elseif:BEGIN
     SELECT @x;
@@ -3735,7 +3665,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   enclosed:BEGIN
     SELECT @x;
@@ -3747,7 +3677,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   escaped:BEGIN
     SELECT @x;
@@ -3759,7 +3689,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   exists:BEGIN
     SELECT @x;
@@ -3771,7 +3701,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   exit:BEGIN
     SELECT @x;
@@ -3783,7 +3713,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   explain:BEGIN
     SELECT @x;
@@ -3795,7 +3725,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   false:BEGIN
     SELECT @x;
@@ -3807,7 +3737,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   fetch:BEGIN
     SELECT @x;
@@ -3819,19 +3749,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  fields:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   float:BEGIN
     SELECT @x;
@@ -3843,7 +3761,31 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  float4:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  float8:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   for:BEGIN
     SELECT @x;
@@ -3855,7 +3797,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   force:BEGIN
     SELECT @x;
@@ -3867,7 +3809,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   foreign:BEGIN
     SELECT @x;
@@ -3879,19 +3821,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  found:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   from:BEGIN
     SELECT @x;
@@ -3903,7 +3833,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   fulltext:BEGIN
     SELECT @x;
@@ -3915,19 +3845,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  goto:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   grant:BEGIN
     SELECT @x;
@@ -3939,7 +3857,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   group:BEGIN
     SELECT @x;
@@ -3951,7 +3869,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   having:BEGIN
     SELECT @x;
@@ -3963,7 +3881,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   high_priority:BEGIN
     SELECT @x;
@@ -3975,7 +3893,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   hour_microsecond:BEGIN
     SELECT @x;
@@ -3987,7 +3905,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   hour_minute:BEGIN
     SELECT @x;
@@ -3999,7 +3917,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   hour_second:BEGIN
     SELECT @x;
@@ -4011,7 +3929,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   if:BEGIN
     SELECT @x;
@@ -4023,7 +3941,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   ignore:BEGIN
     SELECT @x;
@@ -4035,7 +3953,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   in:BEGIN
     SELECT @x;
@@ -4047,7 +3965,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   index:BEGIN
     SELECT @x;
@@ -4059,7 +3977,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   infile:BEGIN
     SELECT @x;
@@ -4071,7 +3989,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   inner:BEGIN
     SELECT @x;
@@ -4083,7 +4001,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   inout:BEGIN
     SELECT @x;
@@ -4095,7 +4013,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   insensitive:BEGIN
     SELECT @x;
@@ -4107,7 +4025,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   insert:BEGIN
     SELECT @x;
@@ -4119,7 +4037,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   int:BEGIN
     SELECT @x;
@@ -4131,7 +4049,67 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  int1:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  int2:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  int3:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  int4:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  int8:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   integer:BEGIN
     SELECT @x;
@@ -4143,7 +4121,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   interval:BEGIN
     SELECT @x;
@@ -4155,7 +4133,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   into:BEGIN
     SELECT @x;
@@ -4167,7 +4145,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   is:BEGIN
     SELECT @x;
@@ -4179,7 +4157,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   iterate:BEGIN
     SELECT @x;
@@ -4191,7 +4169,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   join:BEGIN
     SELECT @x;
@@ -4203,7 +4181,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   key:BEGIN
     SELECT @x;
@@ -4215,7 +4193,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   keys:BEGIN
     SELECT @x;
@@ -4227,7 +4205,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   kill:BEGIN
     SELECT @x;
@@ -4239,7 +4217,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   leading:BEGIN
     SELECT @x;
@@ -4251,7 +4229,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   leave:BEGIN
     SELECT @x;
@@ -4263,7 +4241,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   left:BEGIN
     SELECT @x;
@@ -4275,7 +4253,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   like:BEGIN
     SELECT @x;
@@ -4287,7 +4265,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   limit:BEGIN
     SELECT @x;
@@ -4299,7 +4277,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  linear:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   lines:BEGIN
     SELECT @x;
@@ -4311,7 +4301,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   load:BEGIN
     SELECT @x;
@@ -4323,7 +4313,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   localtime:BEGIN
     SELECT @x;
@@ -4335,7 +4325,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   localtimestamp:BEGIN
     SELECT @x;
@@ -4347,7 +4337,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   lock:BEGIN
     SELECT @x;
@@ -4359,7 +4349,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   long:BEGIN
     SELECT @x;
@@ -4371,7 +4361,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   longblob:BEGIN
     SELECT @x;
@@ -4383,7 +4373,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   longtext:BEGIN
     SELECT @x;
@@ -4395,7 +4385,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   loop:BEGIN
     SELECT @x;
@@ -4407,7 +4397,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   low_priority:BEGIN
     SELECT @x;
@@ -4419,7 +4409,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  master_ssl_verify_server_cert:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   match:BEGIN
     SELECT @x;
@@ -4431,7 +4433,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   mediumblob:BEGIN
     SELECT @x;
@@ -4443,7 +4445,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   mediumint:BEGIN
     SELECT @x;
@@ -4455,7 +4457,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   mediumtext:BEGIN
     SELECT @x;
@@ -4467,7 +4469,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   middleint:BEGIN
     SELECT @x;
@@ -4479,7 +4481,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   minute_microsecond:BEGIN
     SELECT @x;
@@ -4491,7 +4493,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   minute_second:BEGIN
     SELECT @x;
@@ -4503,7 +4505,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   mod:BEGIN
     SELECT @x;
@@ -4515,7 +4517,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   modifies:BEGIN
     SELECT @x;
@@ -4527,7 +4529,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   natural:BEGIN
     SELECT @x;
@@ -4539,7 +4541,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   not:BEGIN
     SELECT @x;
@@ -4551,7 +4553,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   no_write_to_binlog:BEGIN
     SELECT @x;
@@ -4563,7 +4565,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   null:BEGIN
     SELECT @x;
@@ -4576,7 +4578,7 @@ DROP PROCEDURE IF EXISTS sp1;
 
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   numeric:BEGIN
     SELECT @x;
@@ -4588,7 +4590,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   on:BEGIN
     SELECT @x;
@@ -4600,7 +4602,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   optimize:BEGIN
     SELECT @x;
@@ -4612,7 +4614,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   option:BEGIN
     SELECT @x;
@@ -4624,7 +4626,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   optionally:BEGIN
     SELECT @x;
@@ -4636,7 +4638,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   or:BEGIN
     SELECT @x;
@@ -4648,7 +4650,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   order:BEGIN
     SELECT @x;
@@ -4660,7 +4662,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   out:BEGIN
     SELECT @x;
@@ -4672,7 +4674,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   outer:BEGIN
     SELECT @x;
@@ -4684,7 +4686,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   outfile:BEGIN
     SELECT @x;
@@ -4696,7 +4698,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   precision:BEGIN
     SELECT @x;
@@ -4708,7 +4710,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   primary:BEGIN
     SELECT @x;
@@ -4720,19 +4722,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  privileges:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   procedure:BEGIN
     SELECT @x;
@@ -4744,7 +4734,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   purge:BEGIN
     SELECT @x;
@@ -4756,7 +4746,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  range:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   read:BEGIN
     SELECT @x;
@@ -4768,7 +4770,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   reads:BEGIN
     SELECT @x;
@@ -4780,7 +4782,31 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  read_only:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  read_write:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   real:BEGIN
     SELECT @x;
@@ -4792,7 +4818,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   references:BEGIN
     SELECT @x;
@@ -4804,7 +4830,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   regexp:BEGIN
     SELECT @x;
@@ -4816,7 +4842,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+  release:BEGIN
+    SELECT @x;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   rename:BEGIN
     SELECT @x;
@@ -4828,7 +4866,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   repeat:BEGIN
     SELECT @x;
@@ -4840,7 +4878,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   replace:BEGIN
     SELECT @x;
@@ -4852,7 +4890,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   require:BEGIN
     SELECT @x;
@@ -4864,7 +4902,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   restrict:BEGIN
     SELECT @x;
@@ -4876,7 +4914,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   return:BEGIN
     SELECT @x;
@@ -4888,7 +4926,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   revoke:BEGIN
     SELECT @x;
@@ -4900,7 +4938,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   right:BEGIN
     SELECT @x;
@@ -4912,7 +4950,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   rlike:BEGIN
     SELECT @x;
@@ -4924,7 +4962,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   schema:BEGIN
     SELECT @x;
@@ -4936,7 +4974,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   schemas:BEGIN
     SELECT @x;
@@ -4948,7 +4986,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   second_microsecond:BEGIN
     SELECT @x;
@@ -4960,7 +4998,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   select:BEGIN
     SELECT @x;
@@ -4972,7 +5010,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sensitive:BEGIN
     SELECT @x;
@@ -4984,7 +5022,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   separator:BEGIN
     SELECT @x;
@@ -4996,7 +5034,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   set:BEGIN
     SELECT @x;
@@ -5008,7 +5046,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   show:BEGIN
     SELECT @x;
@@ -5020,7 +5058,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   smallint:BEGIN
     SELECT @x;
@@ -5032,19 +5070,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1()
-  soname:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   spatial:BEGIN
     SELECT @x;
@@ -5056,7 +5082,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   specific:BEGIN
     SELECT @x;
@@ -5068,7 +5094,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sql:BEGIN
     SELECT @x;
@@ -5080,7 +5106,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sqlexception:BEGIN
     SELECT @x;
@@ -5092,7 +5118,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sqlstate:BEGIN
     SELECT @x;
@@ -5103,9 +5129,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sqlwarning:BEGIN
     SELECT @x;
@@ -5116,9 +5141,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sql_big_result:BEGIN
     SELECT @x;
@@ -5130,7 +5154,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sql_calc_found_rows:BEGIN
     SELECT @x;
@@ -5142,7 +5166,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   sql_small_result:BEGIN
     SELECT @x;
@@ -5154,7 +5178,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   ssl:BEGIN
     SELECT @x;
@@ -5166,7 +5190,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   starting:BEGIN
     SELECT @x;
@@ -5178,7 +5202,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   straight_join:BEGIN
     SELECT @x;
@@ -5190,7 +5214,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   table:BEGIN
     SELECT @x;
@@ -5202,19 +5226,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME: is it OK that this now succeeds? --error 1064
-CREATE PROCEDURE sp1()
-  tables:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   terminated:BEGIN
     SELECT @x;
@@ -5226,7 +5238,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   then:BEGIN
     SELECT @x;
@@ -5238,7 +5250,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   tinyblob:BEGIN
     SELECT @x;
@@ -5250,7 +5262,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   tinyint:BEGIN
     SELECT @x;
@@ -5262,7 +5274,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   tinytext:BEGIN
     SELECT @x;
@@ -5274,7 +5286,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   to:BEGIN
     SELECT @x;
@@ -5285,9 +5297,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   trailing:BEGIN
     SELECT @x;
@@ -5299,7 +5310,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   trigger:BEGIN
     SELECT @x;
@@ -5311,7 +5322,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   true:BEGIN
     SELECT @x;
@@ -5323,7 +5334,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   undo:BEGIN
     SELECT @x;
@@ -5335,7 +5346,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   union:BEGIN
     SELECT @x;
@@ -5347,7 +5358,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   unique:BEGIN
     SELECT @x;
@@ -5359,7 +5370,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1314
+--error ER_SP_BADSTATEMENT
 CREATE PROCEDURE sp1()
   unlock:BEGIN
     SELECT @x;
@@ -5371,7 +5382,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   unsigned:BEGIN
     SELECT @x;
@@ -5383,7 +5394,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   update:BEGIN
     SELECT @x;
@@ -5395,7 +5406,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   usage:BEGIN
     SELECT @x;
@@ -5407,7 +5418,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   use:BEGIN
     SELECT @x;
@@ -5419,7 +5430,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   using:BEGIN
     SELECT @x;
@@ -5431,7 +5442,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   utc_date:BEGIN
     SELECT @x;
@@ -5443,7 +5454,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   utc_time:BEGIN
     SELECT @x;
@@ -5455,7 +5466,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   utc_timestamp:BEGIN
     SELECT @x;
@@ -5467,7 +5478,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   values:BEGIN
     SELECT @x;
@@ -5479,7 +5490,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   varbinary:BEGIN
     SELECT @x;
@@ -5491,7 +5502,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   varchar:BEGIN
     SELECT @x;
@@ -5503,7 +5514,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   varcharacter:BEGIN
     SELECT @x;
@@ -5515,7 +5526,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   varying:BEGIN
     SELECT @x;
@@ -5527,7 +5538,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   when:BEGIN
     SELECT @x;
@@ -5539,7 +5550,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   where:BEGIN
     SELECT @x;
@@ -5551,7 +5562,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   while:BEGIN
     SELECT @x;
@@ -5563,7 +5574,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   with:BEGIN
     SELECT @x;
@@ -5575,7 +5586,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   write:BEGIN
     SELECT @x;
@@ -5587,7 +5598,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   xor:BEGIN
     SELECT @x;
@@ -5599,7 +5610,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   year_month:BEGIN
     SELECT @x;
@@ -5611,7 +5622,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
   zerofill:BEGIN
     SELECT @x;
@@ -5663,7 +5674,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1310
+--error ER_SP_LABEL_MISMATCH
 CREATE PROCEDURE sp1( )
 begin1_label: BEGIN
     declare x char;
@@ -5716,7 +5727,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x char;
@@ -5736,7 +5747,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 begin_label BEGIN
    declare x char;
@@ -5757,7 +5768,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1309
+--error ER_SP_LABEL_REDEFINE
 CREATE PROCEDURE sp6( )
 begin_samelabel: BEGIN
     declare x char;
@@ -5788,10 +5799,8 @@ a stored procedure (with the declare statement) may only be properly defined;
 DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: DECIMAL(255,255) is not rejected
-
 delimiter //;
+--error ER_TOO_BIG_SCALE
 CREATE PROCEDURE sp6( )
 BEGIN
     declare x char default 'a';
@@ -5842,7 +5851,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare x default '0' char;
@@ -5855,7 +5864,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare x char, integer default '0';
@@ -5868,7 +5877,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare x1, x2 char, integer default '0', 1;
@@ -5881,7 +5890,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
    declare char x;
@@ -5895,7 +5904,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
    declare char x, y1 integer default 0;
@@ -5909,7 +5918,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare x default 'a' char;
@@ -5921,7 +5930,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare condition notable for sqlstate '42s22';
@@ -5933,7 +5942,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare condition for notable sqlstate '42s22';
@@ -5945,7 +5954,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare condition for sqlstate notable '42s22';
@@ -5957,7 +5966,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare condition for sqlstate '42s22' notable;
@@ -5969,7 +5978,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare cursor cur1 for SELECT f1 from db_storedproc.t2;
@@ -5981,7 +5990,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare cursor for cur1 SELECT f1 from db_storedproc.t2;
@@ -5993,7 +6002,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare cursor for SELECT cur1 f1 from db_storedproc.t2;
@@ -6005,7 +6014,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare handler continue for sqlstate '02000' set @x2 = 1;
@@ -6017,7 +6026,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare handler exit for sqlstate '02000' set @x2 = 1;
@@ -6029,7 +6038,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare handler undo for sqlstate '02000' set @x2 = 1;
@@ -6041,7 +6050,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare char x;
@@ -6054,7 +6063,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare char binary  x;
@@ -6067,7 +6076,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare char ascii  x;
@@ -6080,7 +6089,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinytext  x;
@@ -6093,7 +6102,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare  x;
@@ -6106,7 +6115,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumtext  x;
@@ -6119,7 +6128,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longtext  x;
@@ -6132,7 +6141,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyblob  x;
@@ -6145,7 +6154,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare blob x;
@@ -6158,7 +6167,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumblob  x;
@@ -6171,7 +6180,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longblob  x;
@@ -6184,7 +6193,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare binary  x;
@@ -6197,7 +6206,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint  x;
@@ -6210,7 +6219,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint unsigned  x;
@@ -6223,7 +6232,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint zerofill  x;
@@ -6236,7 +6245,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint unsigned zerofill  x;
@@ -6249,7 +6258,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint  x;
@@ -6262,7 +6271,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint unsigned   x;
@@ -6275,7 +6284,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint zerofill  x;
@@ -6288,7 +6297,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint unsigned zerofill  x;
@@ -6301,7 +6310,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint  x;
@@ -6314,7 +6323,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint unsigned  x;
@@ -6327,7 +6336,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint zerofill  x;
@@ -6340,7 +6349,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint unsigned zerofill  x;
@@ -6353,7 +6362,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int  x;
@@ -6366,7 +6375,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int unsigned  x;
@@ -6379,7 +6388,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int zerofill  x;
@@ -6392,7 +6401,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int unsigned zerofill  x;
@@ -6405,7 +6414,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint  x;
@@ -6418,7 +6427,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint unsigned  x;
@@ -6432,7 +6441,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint zerofill  x;
@@ -6445,7 +6454,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint unsigned zerofill  x;
@@ -6458,7 +6467,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal  x;
@@ -6471,7 +6480,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal unsigned  x;
@@ -6484,7 +6493,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal zerofill  x;
@@ -6497,7 +6506,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal unsigned zerofill not null  x;
@@ -6510,7 +6519,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (0) not null  x;
@@ -6523,7 +6532,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (64) not null  x;
@@ -6536,7 +6545,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (0) unsigned not null  x;
@@ -6549,7 +6558,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (64) unsigned not null  x;
@@ -6562,7 +6571,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (0) zerofill not null  x;
@@ -6575,7 +6584,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (64) zerofill not null  x;
@@ -6588,7 +6597,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (0) unsigned zerofill not null  x;
@@ -6601,7 +6610,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (64) unsigned zerofill not null  x;
@@ -6614,7 +6623,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (00) not null  x;
@@ -6627,7 +6636,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (63, 30) not null  x;
@@ -6640,7 +6649,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (00) unsigned not null  x;
@@ -6653,7 +6662,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (63, 30) unsigned not null  x;
@@ -6666,7 +6675,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (00) zerofill not null  x;
@@ -6679,7 +6688,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (63, 30) zerofill not null  x;
@@ -6692,7 +6701,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (00) unsigned zerofill not null  x;
@@ -6705,7 +6714,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal (63, 30) unsigned zerofill not null  x;
@@ -6718,7 +6727,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric not null  x;
@@ -6731,7 +6740,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric unsigned not null  x;
@@ -6744,7 +6753,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric zerofill not null  x;
@@ -6757,7 +6766,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric unsigned zerofill not null  x;
@@ -6770,7 +6779,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (0) not null  x;
@@ -6783,7 +6792,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (64) not nul x;
@@ -6796,7 +6805,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (0) unsigned  x;
@@ -6809,7 +6818,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (64) unsigned  x;
@@ -6822,7 +6831,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (0) zerofill  x;
@@ -6835,7 +6844,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (64) zerofill  x;
@@ -6848,7 +6857,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (0) unsigned zerofill  x;
@@ -6861,7 +6870,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (64) unsigned zerofill  x;
@@ -6874,7 +6883,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (00)  x;
@@ -6887,7 +6896,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (63, 30)  x;
@@ -6901,7 +6910,7 @@ DROP PROCEDURE IF EXISTS sp1;
 
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (00) unsigned  x;
@@ -6914,7 +6923,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (63, 30) unsigned  x;
@@ -6927,7 +6936,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (00) zerofill  x;
@@ -6940,7 +6949,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (63, 30) zerofill  x;
@@ -6953,7 +6962,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (00) unsigned zerofill  x;
@@ -6966,7 +6975,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric (63, 30) unsigned zerofill  x;
@@ -6979,7 +6988,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real  x;
@@ -6992,7 +7001,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real unsigned  x;
@@ -7005,7 +7014,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real zerofill  x;
@@ -7018,7 +7027,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real unsigned zerofill  x;
@@ -7031,7 +7040,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double  x;
@@ -7044,7 +7053,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double unsigned  x;
@@ -7057,7 +7066,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double zerofill  x;
@@ -7070,7 +7079,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double unsigned zerofill  x;
@@ -7083,7 +7092,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float not null  x;
@@ -7096,7 +7105,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float unsigned not null  x;
@@ -7109,7 +7118,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float zerofill not null  x;
@@ -7122,7 +7131,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float unsigned zerofill not null  x;
@@ -7135,7 +7144,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(0) not null  x;
@@ -7148,7 +7157,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(23) not null  x;
@@ -7161,7 +7170,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(0) unsigned not null  x;
@@ -7174,7 +7183,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(23) unsigned not null  x;
@@ -7187,7 +7196,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(0) zerofill not null  x;
@@ -7200,7 +7209,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(23) zerofill not null  x;
@@ -7213,7 +7222,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(0) unsigned zerofill not null  x;
@@ -7226,7 +7235,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(23) unsigned zerofill not null  x;
@@ -7239,7 +7248,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(24) not null  x;
@@ -7252,7 +7261,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(53) not null  x;
@@ -7265,7 +7274,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(24) unsigned not null  x;
@@ -7278,7 +7287,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(53) unsigned not null  x;
@@ -7291,7 +7300,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(24) zerofill not null  x;
@@ -7304,7 +7313,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(53) zerofill not null  x;
@@ -7317,7 +7326,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(24) unsigned zerofill not null  x;
@@ -7330,7 +7339,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float(53) unsigned zerofill not null  x;
@@ -7343,7 +7352,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare date not null  x;
@@ -7356,7 +7365,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare time not null  x;
@@ -7369,7 +7378,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare datetime not null  x;
@@ -7382,7 +7391,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare timestamp not null  x;
@@ -7395,7 +7404,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare year not null  x;
@@ -7408,7 +7417,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare year(3) not null  x;
@@ -7421,7 +7430,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare year(4) not null  x;
@@ -7434,7 +7443,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare enum("1enum", "2enum") not null  x;
@@ -7447,7 +7456,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare set("1set", "2set") not nul x;
@@ -7468,20 +7477,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1337
-CREATE PROCEDURE sp1()
-BEGIN
-   declare continue handler for sqlstate '23000' set @x2 = 1;
-   declare x char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1337
+--error ER_SP_VARCOND_AFTER_CURSHNDLR
 CREATE PROCEDURE sp1()
 BEGIN
    declare continue handler for sqlstate '23000' set @x2 = 1;
@@ -7494,7 +7490,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1337
+--error ER_SP_VARCOND_AFTER_CURSHNDLR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare cursor1 cursor for SELECT f1 from tb1;
@@ -7507,7 +7503,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1337
+--error ER_SP_VARCOND_AFTER_CURSHNDLR
 CREATE PROCEDURE sp6( )
 BEGIN
     declare cursor1 cursor for SELECT f1 from tb1;
@@ -7520,7 +7516,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1338
+--error ER_SP_CURSOR_AFTER_HANDLER
 CREATE PROCEDURE sp6( )
 BEGIN
     declare sqlcondition condition for sqlstate '02000';
@@ -7536,27 +7532,21 @@ Ensure that the declare statement can declare multiple variables both separately
 and all at once from a variable list. (multiple declaration);
 --source include/show_msg80.inc
 
-#FIXME 4.2.15: switched off until bug is fixed:
-#FIXME 4.2.15: Bug #14376 MySQL crash on scoped variable (re)initialization
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
 delimiter //;
-if (0)
-{
-   --disable_warnings
-   DROP PROCEDURE IF EXISTS sp_14376//
-   --enable_warnings
-   #--error 4711
-   CREATE PROCEDURE sp_14376()
+CREATE PROCEDURE sp1()
    BEGIN
       DECLARE x1 CHAR(100) DEFAULT 'outer';
       BEGIN
          DECLARE x1 CHAR(100) DEFAULT x1;
       END;
    END//
-   CALL sp_14376()//
-   DROP PROCEDURE sp_14376()//
-}
 delimiter ;//
 
+CALL sp1();
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -8022,9 +8012,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
-
 CALL sp1();
 
 --disable_warnings
@@ -8054,9 +8041,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
-
 CALL sp1();
 
 --disable_warnings
@@ -8070,9 +8054,6 @@ BEGIN
     SELECT x, y, z;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 
 CALL sp1();
 
@@ -8088,9 +8069,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
-
 CALL sp1();
 
 --disable_warnings
@@ -8105,9 +8083,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
-
 CALL sp1();
 
 --disable_warnings
@@ -8121,9 +8096,6 @@ BEGIN
     SELECT x, y, z;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed: default (10,0) for DECIMAL not checked
 
 CALL sp1();
 
@@ -8417,7 +8389,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
    declare @x char;
@@ -8430,7 +8402,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare accessible char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare add char;
@@ -8442,7 +8426,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare all char;
@@ -8454,7 +8438,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare alter char;
@@ -8466,7 +8450,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare analyze char;
@@ -8478,7 +8462,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare and char;
@@ -8490,7 +8474,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare as char;
@@ -8502,7 +8486,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare asc char;
@@ -8514,7 +8498,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare asensitive char;
@@ -8526,7 +8510,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare before char;
@@ -8538,7 +8522,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare between char;
@@ -8550,7 +8534,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare bigint char;
@@ -8562,7 +8546,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare binary char;
@@ -8574,7 +8558,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare blob char;
@@ -8586,7 +8570,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare both char;
@@ -8598,7 +8582,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare by char;
@@ -8610,10 +8594,10 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
-    declare CALL char;
+    declare call char;
 END//
 delimiter ;//
 
@@ -8622,7 +8606,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare cascade char;
@@ -8634,7 +8618,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare case char;
@@ -8646,7 +8630,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare change char;
@@ -8658,7 +8642,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare char char;
@@ -8670,7 +8654,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare character char;
@@ -8682,7 +8666,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare check char;
@@ -8694,7 +8678,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare collate char;
@@ -8706,7 +8690,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare column char;
@@ -8717,21 +8701,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-#FIXME: check why _was_ this switched off
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-   declare columns char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare condition char;
@@ -8743,19 +8714,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-    declare connection char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare constraint char;
@@ -8767,7 +8726,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue char;
@@ -8779,7 +8738,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare convert char;
@@ -8791,7 +8750,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare create char;
@@ -8803,7 +8762,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare cross char;
@@ -8815,7 +8774,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare current_date char;
@@ -8827,7 +8786,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare current_time char;
@@ -8839,7 +8798,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare current_timestamp char;
@@ -8851,7 +8810,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare current_user char;
@@ -8863,7 +8822,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare cursor char;
@@ -8875,7 +8834,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare database char;
@@ -8887,7 +8846,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare databases char;
@@ -8899,7 +8858,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare day_hour char;
@@ -8911,7 +8870,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare day_microsecond char;
@@ -8923,7 +8882,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare day_minute char;
@@ -8935,7 +8894,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare day_second char;
@@ -8947,7 +8906,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare dec char;
@@ -8959,7 +8918,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare decimal char;
@@ -8971,7 +8930,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare declare char;
@@ -8983,7 +8942,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare default char;
@@ -8995,7 +8954,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare delayed char;
@@ -9007,7 +8966,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare delete char;
@@ -9019,7 +8978,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare desc char;
@@ -9031,7 +8990,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare describe char;
@@ -9043,7 +9002,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare deterministic char;
@@ -9055,7 +9014,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare distinct char;
@@ -9067,7 +9026,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare distinctrow char;
@@ -9079,7 +9038,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare div char;
@@ -9091,7 +9050,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare double char;
@@ -9103,7 +9062,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare drop char;
@@ -9115,7 +9074,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare dual char;
@@ -9127,7 +9086,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare each char;
@@ -9139,7 +9098,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare else char;
@@ -9151,7 +9110,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare elseif char;
@@ -9163,7 +9122,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare enclosed char;
@@ -9175,7 +9134,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare escaped char;
@@ -9187,7 +9146,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare exists char;
@@ -9199,7 +9158,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare exit char;
@@ -9211,7 +9170,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare explain char;
@@ -9223,7 +9182,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare false char;
@@ -9235,7 +9194,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare fetch char;
@@ -9246,21 +9205,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-#FIXME: check why _was_ this switched off
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-    declare fields char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare float char;
@@ -9272,7 +9218,31 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare float4 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare float8 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare for char;
@@ -9284,7 +9254,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare force char;
@@ -9296,7 +9266,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare foreign char;
@@ -9307,21 +9277,8 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-#FIXME: check why _was_ this switched off
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-    declare found char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare from char;
@@ -9333,7 +9290,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare fulltext char;
@@ -9345,19 +9302,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-    declare goto char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare grant char;
@@ -9369,7 +9314,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare group char;
@@ -9381,7 +9326,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare having char;
@@ -9393,7 +9338,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare high_priority char;
@@ -9405,7 +9350,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare hour_microsecond char;
@@ -9417,7 +9362,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare hour_minute char;
@@ -9429,7 +9374,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare hour_second char;
@@ -9441,7 +9386,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare if char;
@@ -9453,7 +9398,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare ignore char;
@@ -9465,7 +9410,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare in char;
@@ -9477,7 +9422,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare index char;
@@ -9489,7 +9434,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare infile char;
@@ -9501,7 +9446,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare inner char;
@@ -9513,7 +9458,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare inout char;
@@ -9525,7 +9470,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare insensitive char;
@@ -9537,7 +9482,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare insert char;
@@ -9549,7 +9494,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare int char;
@@ -9561,7 +9506,67 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare int1 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare int2 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare int3 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare int4 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare int8 char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare integer char;
@@ -9573,7 +9578,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare interval char;
@@ -9585,7 +9590,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare into char;
@@ -9597,7 +9602,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare is char;
@@ -9609,7 +9614,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare iterate char;
@@ -9621,7 +9626,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare join char;
@@ -9633,7 +9638,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare key char;
@@ -9645,7 +9650,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare keys char;
@@ -9657,7 +9662,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare kill char;
@@ -9669,7 +9674,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare leading char;
@@ -9681,7 +9686,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare leave char;
@@ -9693,7 +9698,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare left char;
@@ -9705,7 +9710,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare like char;
@@ -9717,7 +9722,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare limit char;
@@ -9729,7 +9734,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare linear char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare lines char;
@@ -9741,7 +9758,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare load char;
@@ -9753,7 +9770,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare localtime char;
@@ -9765,7 +9782,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare localtimestamp char;
@@ -9777,7 +9794,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare lock char;
@@ -9789,7 +9806,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare long char;
@@ -9801,7 +9818,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare longblob char;
@@ -9813,7 +9830,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare longtext char;
@@ -9825,7 +9842,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare loop char;
@@ -9837,7 +9854,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare low_priority char;
@@ -9849,7 +9866,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare master_ssl_verify_server_cert char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare match char;
@@ -9861,7 +9890,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare mediumblob char;
@@ -9873,7 +9902,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare mediumint char;
@@ -9885,7 +9914,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare mediumtext char;
@@ -9897,7 +9926,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare middleint char;
@@ -9909,7 +9938,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare minute_microsecond char;
@@ -9921,7 +9950,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare minute_second char;
@@ -9933,7 +9962,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare mod char;
@@ -9945,7 +9974,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare modifies char;
@@ -9957,7 +9986,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare natural char;
@@ -9969,7 +9998,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare not char;
@@ -9981,7 +10010,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare no_write_to_binlog char;
@@ -9993,7 +10022,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare null char;
@@ -10005,7 +10034,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare numeric char;
@@ -10017,7 +10046,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare on char;
@@ -10029,7 +10058,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare optimize char;
@@ -10041,7 +10070,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare option char;
@@ -10053,7 +10082,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare optionally char;
@@ -10065,7 +10094,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare or char;
@@ -10077,7 +10106,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare order char;
@@ -10089,7 +10118,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare out char;
@@ -10101,7 +10130,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare outer char;
@@ -10113,7 +10142,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare outfile char;
@@ -10125,7 +10154,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME check this is OK:--error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare precision char;
@@ -10137,7 +10166,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare primary char;
@@ -10149,19 +10178,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-   declare privileges char;
-END//
-delimiter ;//
-
---disable_warnings
-DROP PROCEDURE IF EXISTS sp1;
---enable_warnings
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare procedure char;
@@ -10173,7 +10190,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare purge char;
@@ -10185,7 +10202,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare range char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare read char;
@@ -10197,7 +10226,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare reads char;
@@ -10209,7 +10238,32 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+# FIXME 31947
+#--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare read_only char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare read_write char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare real char;
@@ -10221,7 +10275,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare references char;
@@ -10233,7 +10287,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare regexp char;
@@ -10245,7 +10299,19 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1()
+BEGIN
+    declare release char;
+END//
+delimiter ;//
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp1;
+--enable_warnings
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare rename char;
@@ -10257,7 +10323,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare repeat char;
@@ -10269,7 +10335,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare replace char;
@@ -10278,7 +10344,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
    declare require char;
@@ -10287,7 +10353,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare restrict char;
@@ -10297,7 +10363,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare return char;
@@ -10307,7 +10373,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare revoke char;
@@ -10317,7 +10383,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare right char;
@@ -10327,7 +10393,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare rlike char;
@@ -10337,7 +10403,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare schema char;
@@ -10347,7 +10413,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare schemas char;
@@ -10357,7 +10423,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare second_microsecond char;
@@ -10367,7 +10433,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare SELECT char;
@@ -10377,7 +10443,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sensitive char;
@@ -10387,7 +10453,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare separator char;
@@ -10397,7 +10463,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare set char;
@@ -10407,7 +10473,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare show char;
@@ -10417,7 +10483,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare smallint char;
@@ -10427,17 +10493,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-    declare soname char;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare spatial char;
@@ -10447,7 +10503,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare specific char;
@@ -10457,7 +10513,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sql char;
@@ -10467,7 +10523,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sqlexception char;
@@ -10477,7 +10533,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sqlstate char;
@@ -10487,7 +10543,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sqlwarning char;
@@ -10497,7 +10553,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sql_big_result char;
@@ -10507,7 +10563,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sql_calc_found_rows char;
@@ -10517,7 +10573,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare sql_small_result char;
@@ -10527,7 +10583,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare ssl char;
@@ -10537,7 +10593,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare starting char;
@@ -10547,7 +10603,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare straight_join char;
@@ -10557,7 +10613,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare table char;
@@ -10566,19 +10622,8 @@ delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
-#FIXME: check why _was_ this switched off
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1()
-BEGIN
-   declare tables char;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare terminated char;
@@ -10588,7 +10633,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare then char;
@@ -10598,7 +10643,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare tinyblob char;
@@ -10608,7 +10653,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare tinyint char;
@@ -10618,7 +10663,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare tinytext char;
@@ -10628,7 +10673,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare to char;
@@ -10638,7 +10683,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare trailing char;
@@ -10647,7 +10692,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare trigger char;
@@ -10656,7 +10701,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare true char;
@@ -10666,7 +10711,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare undo char;
@@ -10676,7 +10721,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare union char;
@@ -10686,7 +10731,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare unique char;
@@ -10696,7 +10741,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare unlock char;
@@ -10706,7 +10751,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare unsigned char;
@@ -10716,7 +10761,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare update char;
@@ -10726,7 +10771,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare usage char;
@@ -10736,17 +10781,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
-    declare USE char;
+    declare use char;
 END//
 delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare using char;
@@ -10756,7 +10801,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare utc_date char;
@@ -10766,7 +10811,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare utc_time char;
@@ -10776,7 +10821,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare utc_timestamp char;
@@ -10786,7 +10831,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare values char;
@@ -10796,7 +10841,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare varbinary char;
@@ -10806,7 +10851,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare varchar char;
@@ -10816,7 +10861,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare varcharacter char;
@@ -10826,7 +10871,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare varying char;
@@ -10836,7 +10881,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare when char;
@@ -10846,7 +10891,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare where char;
@@ -10856,7 +10901,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare while char;
@@ -10866,7 +10911,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare with char;
@@ -10876,7 +10921,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare write char;
@@ -10886,7 +10931,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare xor char;
@@ -10896,7 +10941,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare year_month char;
@@ -10906,7 +10951,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare zerofill char;
@@ -11053,7 +11098,7 @@ DROP PROCEDURE sp1;
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare @x char;
@@ -11063,7 +11108,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare x char1;
@@ -11072,7 +11117,18 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare accessible condition for sqlstate '02000';
+    declare exit handler for add set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare add condition for sqlstate '02000';
@@ -11083,7 +11139,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare all condition for sqlstate '02000';
@@ -11094,7 +11150,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare alter condition for sqlstate '02000';
@@ -11105,7 +11161,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare analyze condition for sqlstate '02000';
@@ -11116,7 +11172,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare and condition for sqlstate '02000';
@@ -11127,7 +11183,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare as condition for sqlstate '02000';
@@ -11138,7 +11194,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare asc condition for sqlstate '02000';
@@ -11149,7 +11205,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare asensitive condition for sqlstate '02000';
@@ -11160,7 +11216,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare before condition for sqlstate '02000';
@@ -11171,7 +11227,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare between condition for sqlstate '02000';
@@ -11182,7 +11238,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint condition for sqlstate '02000';
@@ -11193,7 +11249,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare binary condition for sqlstate '02000';
@@ -11204,7 +11260,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare blob condition for sqlstate '02000';
@@ -11215,7 +11271,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare both condition for sqlstate '02000';
@@ -11226,7 +11282,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare by condition for sqlstate '02000';
@@ -11237,10 +11293,10 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare CALL condition for sqlstate '02000';
+    declare call condition for sqlstate '02000';
     declare exit handler for CALL set @var2 = 1;
 END//
 delimiter ;//
@@ -11248,7 +11304,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cascade condition for sqlstate '02000';
@@ -11259,7 +11315,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare case condition for sqlstate '02000';
@@ -11270,7 +11326,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare change condition for sqlstate '02000';
@@ -11281,7 +11337,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare char condition for sqlstate '02000';
@@ -11292,7 +11348,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare character condition for sqlstate '02000';
@@ -11303,7 +11359,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare check condition for sqlstate '02000';
@@ -11314,7 +11370,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+#--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare collate condition for sqlstate '02000';
@@ -11325,7 +11381,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare column condition for sqlstate '02000';
@@ -11334,19 +11390,8 @@ END//
 delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
-#FIXME: check why this is switched off
-#--error 1064
-#delimiter //;
-#CREATE PROCEDURE sp1( )
-# BEGIN
-#   declare columns condition for sqlstate '02000';
-#   declare exit handler for columns set @var2 = 1;
-#END//
-#delimiter ;//
-#DROP PROCEDURE IF EXISTS sp1;
-
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare condition condition for sqlstate '02000';
@@ -11356,7 +11401,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+#--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare connection condition for sqlstate '02000';
@@ -11366,7 +11411,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare constraint condition for sqlstate '02000';
@@ -11377,7 +11422,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare continue condition for sqlstate '02000';
@@ -11388,7 +11433,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare convert condition for sqlstate '02000';
@@ -11399,7 +11444,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare create condition for sqlstate '02000';
@@ -11410,7 +11455,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cross condition for sqlstate '02000';
@@ -11421,7 +11466,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_date condition for sqlstate '02000';
@@ -11432,7 +11477,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_time condition for sqlstate '02000';
@@ -11443,7 +11488,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_timestamp condition for sqlstate '02000';
@@ -11454,7 +11499,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_user condition for sqlstate '02000';
@@ -11465,7 +11510,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cursor condition for sqlstate '02000';
@@ -11476,7 +11521,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare database condition for sqlstate '02000';
@@ -11487,7 +11532,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare databases condition for sqlstate '02000';
@@ -11498,7 +11543,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_hour condition for sqlstate '02000';
@@ -11509,7 +11554,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_microsecond condition for sqlstate '02000';
@@ -11520,7 +11565,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_minute condition for sqlstate '02000';
@@ -11531,7 +11576,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_second condition for sqlstate '02000';
@@ -11542,7 +11587,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare dec condition for sqlstate '02000';
@@ -11553,7 +11598,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal condition for sqlstate '02000';
@@ -11564,7 +11609,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare declare condition for sqlstate '02000';
@@ -11575,7 +11620,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare default condition for sqlstate '02000';
@@ -11586,7 +11631,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare delayed condition for sqlstate '02000';
@@ -11597,7 +11642,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare delete condition for sqlstate '02000';
@@ -11608,7 +11653,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare desc condition for sqlstate '02000';
@@ -11619,7 +11664,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare describe condition for sqlstate '02000';
@@ -11630,7 +11675,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare deterministic condition for sqlstate '02000';
@@ -11641,7 +11686,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare distinct condition for sqlstate '02000';
@@ -11652,7 +11697,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare distinctrow condition for sqlstate '02000';
@@ -11663,7 +11708,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare div condition for sqlstate '02000';
@@ -11674,7 +11719,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double condition for sqlstate '02000';
@@ -11685,7 +11730,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare drop condition for sqlstate '02000';
@@ -11696,7 +11741,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare dual condition for sqlstate '02000';
@@ -11707,7 +11752,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare each condition for sqlstate '02000';
@@ -11718,7 +11763,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare else condition for sqlstate '02000';
@@ -11729,7 +11774,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare elseif condition for sqlstate '02000';
@@ -11740,7 +11785,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare enclosed condition for sqlstate '02000';
@@ -11751,7 +11796,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare escaped condition for sqlstate '02000';
@@ -11762,7 +11807,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare exists condition for sqlstate '02000';
@@ -11773,7 +11818,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare exit condition for sqlstate '02000';
@@ -11784,7 +11829,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare explain condition for sqlstate '02000';
@@ -11795,7 +11840,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare false condition for sqlstate '02000';
@@ -11806,7 +11851,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare fetch condition for sqlstate '02000';
@@ -11817,17 +11862,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1( )
- BEGIN
-   declare fields condition for sqlstate '02000';
-   declare exit handler for fields set @var2 = 1;
-END//
-delimiter ;//
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float condition for sqlstate '02000';
@@ -11838,7 +11873,29 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare float4 condition for sqlstate '02000';
+    declare exit handler for add set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare float8 condition for sqlstate '02000';
+    declare exit handler for add set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare for condition for sqlstate '02000';
@@ -11849,7 +11906,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare force condition for sqlstate '02000';
@@ -11860,7 +11917,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare foreign condition for sqlstate '02000';
@@ -11871,19 +11928,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME: check why _was_ this switched off
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-   declare found condition for sqlstate '02000';
-   declare exit handler for found set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare from condition for sqlstate '02000';
@@ -11894,7 +11939,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare fulltext condition for sqlstate '02000';
@@ -11905,18 +11950,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare goto condition for sqlstate '02000';
-    declare exit handler for goto set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare grant condition for sqlstate '02000';
@@ -11927,7 +11961,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare group condition for sqlstate '02000';
@@ -11938,7 +11972,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare having condition for sqlstate '02000';
@@ -11949,7 +11983,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare high_priority condition for sqlstate '02000';
@@ -11960,7 +11994,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_microsecond condition for sqlstate '02000';
@@ -11971,7 +12005,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_minute condition for sqlstate '02000';
@@ -11982,7 +12016,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_second condition for sqlstate '02000';
@@ -11993,7 +12027,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare if condition for sqlstate '02000';
@@ -12004,7 +12038,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare ignore condition for sqlstate '02000';
@@ -12015,7 +12049,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare in condition for sqlstate '02000';
@@ -12026,7 +12060,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare index condition for sqlstate '02000';
@@ -12037,7 +12071,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare infile condition for sqlstate '02000';
@@ -12048,7 +12082,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare inner condition for sqlstate '02000';
@@ -12059,7 +12093,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare inout condition for sqlstate '02000';
@@ -12070,7 +12104,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare insensitive condition for sqlstate '02000';
@@ -12081,7 +12115,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare insert condition for sqlstate '02000';
@@ -12092,7 +12126,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int condition for sqlstate '02000';
@@ -12103,7 +12137,62 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int1 condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int2 condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int3 condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int4 condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int8 condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare integer condition for sqlstate '02000';
@@ -12114,7 +12203,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare interval condition for sqlstate '02000';
@@ -12125,7 +12214,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare into condition for sqlstate '02000';
@@ -12136,7 +12225,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare is condition for sqlstate '02000';
@@ -12147,7 +12236,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare iterate condition for sqlstate '02000';
@@ -12158,7 +12247,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare join condition for sqlstate '02000';
@@ -12169,7 +12258,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare key condition for sqlstate '02000';
@@ -12180,7 +12269,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare keys condition for sqlstate '02000';
@@ -12191,7 +12280,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare kill condition for sqlstate '02000';
@@ -12202,7 +12291,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare leading condition for sqlstate '02000';
@@ -12213,7 +12302,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare leave condition for sqlstate '02000';
@@ -12224,7 +12313,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare left condition for sqlstate '02000';
@@ -12235,7 +12324,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare like condition for sqlstate '02000';
@@ -12246,7 +12335,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare limit condition for sqlstate '02000';
@@ -12257,7 +12346,18 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare linear condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare lines condition for sqlstate '02000';
@@ -12268,7 +12368,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare load condition for sqlstate '02000';
@@ -12279,7 +12379,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare localtime condition for sqlstate '02000';
@@ -12290,7 +12390,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare localtimestamp condition for sqlstate '02000';
@@ -12301,7 +12401,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare lock condition for sqlstate '02000';
@@ -12312,7 +12412,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare long condition for sqlstate '02000';
@@ -12323,7 +12423,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longblob condition for sqlstate '02000';
@@ -12334,7 +12434,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longtext condition for sqlstate '02000';
@@ -12345,7 +12445,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare loop condition for sqlstate '02000';
@@ -12356,7 +12456,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare low_priority condition for sqlstate '02000';
@@ -12367,7 +12467,18 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare master_ssl_verify_server_cert condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare match condition for sqlstate '02000';
@@ -12378,7 +12489,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumblob condition for sqlstate '02000';
@@ -12389,7 +12500,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint condition for sqlstate '02000';
@@ -12400,7 +12511,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumtext condition for sqlstate '02000';
@@ -12411,7 +12522,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare middleint condition for sqlstate '02000';
@@ -12422,7 +12533,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare minute_microsecond condition for sqlstate '02000';
@@ -12433,7 +12544,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare minute_second condition for sqlstate '02000';
@@ -12444,7 +12555,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mod condition for sqlstate '02000';
@@ -12455,7 +12566,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare modifies condition for sqlstate '02000';
@@ -12466,7 +12577,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare natural condition for sqlstate '02000';
@@ -12477,7 +12588,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare not condition for sqlstate '02000';
@@ -12488,7 +12599,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare no_write_to_binlog condition for sqlstate '02000';
@@ -12499,7 +12610,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare null condition for sqlstate '02000';
@@ -12510,7 +12621,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric condition for sqlstate '02000';
@@ -12521,7 +12632,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare on condition for sqlstate '02000';
@@ -12532,7 +12643,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare optimize condition for sqlstate '02000';
@@ -12543,7 +12654,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare option condition for sqlstate '02000';
@@ -12554,7 +12665,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare optionally condition for sqlstate '02000';
@@ -12565,7 +12676,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare or condition for sqlstate '02000';
@@ -12576,7 +12687,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare order condition for sqlstate '02000';
@@ -12587,7 +12698,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare out condition for sqlstate '02000';
@@ -12598,7 +12709,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare outer condition for sqlstate '02000';
@@ -12609,7 +12720,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare outfile condition for sqlstate '02000';
@@ -12620,7 +12731,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare precision condition for sqlstate '02000';
@@ -12631,7 +12742,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare primary condition for sqlstate '02000';
@@ -12642,19 +12753,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME: why was this switched off ?
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-   declare privileges condition for sqlstate '02000';
-   declare exit handler for privileges set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare procedure condition for sqlstate '02000';
@@ -12665,7 +12764,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare purge condition for sqlstate '02000';
@@ -12676,7 +12775,18 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare range condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare read condition for sqlstate '02000';
@@ -12687,7 +12797,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare reads condition for sqlstate '02000';
@@ -12698,7 +12808,29 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare read_only condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare read_write condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real condition for sqlstate '02000';
@@ -12709,7 +12841,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare references condition for sqlstate '02000';
@@ -12720,7 +12852,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare regexp condition for sqlstate '02000';
@@ -12731,7 +12863,18 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare release condition for sqlstate '02000';
+    declare exit handler for int set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare rename condition for sqlstate '02000';
@@ -12742,7 +12885,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare repeat condition for sqlstate '02000';
@@ -12753,7 +12896,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare replace condition for sqlstate '02000';
@@ -12764,7 +12907,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare require condition for sqlstate '02000';
@@ -12775,7 +12918,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare restrict condition for sqlstate '02000';
@@ -12786,7 +12929,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare return condition for sqlstate '02000';
@@ -12797,7 +12940,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare revoke condition for sqlstate '02000';
@@ -12808,7 +12951,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare right condition for sqlstate '02000';
@@ -12819,7 +12962,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare rlike condition for sqlstate '02000';
@@ -12830,7 +12973,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare schema condition for sqlstate '02000';
@@ -12841,7 +12984,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare schemas condition for sqlstate '02000';
@@ -12852,7 +12995,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare second_microsecond condition for sqlstate '02000';
@@ -12863,10 +13006,10 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare SELECT condition for sqlstate '02000';
+    declare select condition for sqlstate '02000';
     declare exit handler for SELECT set @var2 = 1;
 END//
 delimiter ;//
@@ -12874,7 +13017,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sensitive condition for sqlstate '02000';
@@ -12885,7 +13028,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare separator condition for sqlstate '02000';
@@ -12896,7 +13039,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare set condition for sqlstate '02000';
@@ -12907,7 +13050,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare show condition for sqlstate '02000';
@@ -12918,7 +13061,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint condition for sqlstate '02000';
@@ -12929,18 +13072,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare soname condition for sqlstate '02000';
-    declare exit handler for soname set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare spatial condition for sqlstate '02000';
@@ -12951,7 +13083,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare specific condition for sqlstate '02000';
@@ -12962,7 +13094,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql condition for sqlstate '02000';
@@ -12973,7 +13105,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlexception condition for sqlstate '02000';
@@ -12984,7 +13116,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlstate condition for sqlstate '02000';
@@ -12995,7 +13127,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlwarning condition for sqlstate '02000';
@@ -13006,7 +13138,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_big_result condition for sqlstate '02000';
@@ -13017,7 +13149,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_calc_found_rows condition for sqlstate '02000';
@@ -13028,7 +13160,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_small_result condition for sqlstate '02000';
@@ -13039,7 +13171,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare ssl condition for sqlstate '02000';
@@ -13050,7 +13182,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare starting condition for sqlstate '02000';
@@ -13061,7 +13193,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare straight_join condition for sqlstate '02000';
@@ -13072,7 +13204,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare table condition for sqlstate '02000';
@@ -13083,19 +13215,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
-#FIXME: why was this switched off ?
-#FIXME check this is OK:--error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-   declare tables condition for sqlstate '02000';
-   declare exit handler for tables set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare terminated condition for sqlstate '02000';
@@ -13106,7 +13226,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare then condition for sqlstate '02000';
@@ -13117,7 +13237,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyblob condition for sqlstate '02000';
@@ -13128,7 +13248,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint condition for sqlstate '02000';
@@ -13139,7 +13259,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinytext condition for sqlstate '02000';
@@ -13150,7 +13270,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare to condition for sqlstate '02000';
@@ -13161,7 +13281,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare trailing condition for sqlstate '02000';
@@ -13172,7 +13292,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare trigger condition for sqlstate '02000';
@@ -13183,7 +13303,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare true condition for sqlstate '02000';
@@ -13194,7 +13314,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare undo condition for sqlstate '02000';
@@ -13205,7 +13325,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare union condition for sqlstate '02000';
@@ -13216,7 +13336,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unique condition for sqlstate '02000';
@@ -13227,7 +13347,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unlock condition for sqlstate '02000';
@@ -13238,7 +13358,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unsigned condition for sqlstate '02000';
@@ -13249,7 +13369,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare update condition for sqlstate '02000';
@@ -13260,7 +13380,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare usage condition for sqlstate '02000';
@@ -13271,10 +13391,10 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare USE condition for sqlstate '02000';
+    declare use condition for sqlstate '02000';
     declare exit handler for USE set @var2 = 1;
 END//
 delimiter ;//
@@ -13282,7 +13402,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare using condition for sqlstate '02000';
@@ -13293,7 +13413,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_date condition for sqlstate '02000';
@@ -13304,7 +13424,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_time condition for sqlstate '02000';
@@ -13315,7 +13435,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_timestamp condition for sqlstate '02000';
@@ -13326,7 +13446,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare values condition for sqlstate '02000';
@@ -13337,7 +13457,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varbinary condition for sqlstate '02000';
@@ -13348,7 +13468,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varchar condition for sqlstate '02000';
@@ -13359,7 +13479,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varcharacter condition for sqlstate '02000';
@@ -13370,7 +13490,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varying condition for sqlstate '02000';
@@ -13381,7 +13501,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare when condition for sqlstate '02000';
@@ -13392,7 +13512,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare where condition for sqlstate '02000';
@@ -13403,7 +13523,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare while condition for sqlstate '02000';
@@ -13414,7 +13534,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare with condition for sqlstate '02000';
@@ -13425,7 +13545,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare write condition for sqlstate '02000';
@@ -13436,7 +13556,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare xor condition for sqlstate '02000';
@@ -13447,7 +13567,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare year_month condition for sqlstate '02000';
@@ -13458,7 +13578,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare zerofill condition for sqlstate '02000';
@@ -13507,7 +13627,7 @@ DROP PROCEDURE sp1;
 DROP PROCEDURE IF EXISTS handler1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE handler1()
 BEGIN
     declare undo handler for sqlstate '23000' set @x2 = 1;
@@ -13531,7 +13651,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS handler1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE handler1()
 BEGIN
     declare continueinv handler for sqlstate '2300' set @x2 = 1;
@@ -13555,7 +13675,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS handler1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE handler1()
 BEGIN
     declare undoinv handler for sqlstate '2300' set @x2 = 1;
@@ -13579,7 +13699,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS handler1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE handler1 ()
 BEGIN
     declare exitinv handler for sqlstate '2300' set @x2 = 1;
@@ -13599,7 +13719,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare accessible handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare add handler for sqlstate '02000' set @var2 = 1;
@@ -13609,7 +13739,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare all handler for sqlstate '02000' set @var2 = 1;
@@ -13619,7 +13749,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare alter handler for sqlstate '02000' set @var2 = 1;
@@ -13629,7 +13759,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare analyze handler for sqlstate '02000' set @var2 = 1;
@@ -13639,7 +13769,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare and handler for sqlstate '02000' set @var2 = 1;
@@ -13649,7 +13779,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare as handler for sqlstate '02000' set @var2 = 1;
@@ -13659,7 +13789,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare asc handler for sqlstate '02000' set @var2 = 1;
@@ -13669,7 +13799,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare asensitive handler for sqlstate '02000' set @var2 = 1;
@@ -13679,7 +13809,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare before handler for sqlstate '02000' set @var2 = 1;
@@ -13689,7 +13819,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare between handler for sqlstate '02000' set @var2 = 1;
@@ -13699,7 +13829,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare bigint handler for sqlstate '02000' set @var2 = 1;
@@ -13709,7 +13839,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare binary handler for sqlstate '02000' set @var2 = 1;
@@ -13719,7 +13849,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare blob handler for sqlstate '02000' set @var2 = 1;
@@ -13729,7 +13859,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare both handler for sqlstate '02000' set @var2 = 1;
@@ -13739,7 +13869,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare by handler for sqlstate '02000' set @var2 = 1;
@@ -13749,17 +13879,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare CALL handler for sqlstate '02000' set @var2 = 1;
+    declare call handler for sqlstate '02000' set @var2 = 1;
 END//
 delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cascade handler for sqlstate '02000' set @var2 = 1;
@@ -13769,7 +13899,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare case handler for sqlstate '02000' set @var2 = 1;
@@ -13779,7 +13909,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare change handler for sqlstate '02000' set @var2 = 1;
@@ -13789,7 +13919,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare char handler for sqlstate '02000' set @var2 = 1;
@@ -13799,7 +13929,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare character handler for sqlstate '02000' set @var2 = 1;
@@ -13809,7 +13939,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare check handler for sqlstate '02000' set @var2 = 1;
@@ -13819,7 +13949,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare collate handler for sqlstate '02000' set @var2 = 1;
@@ -13829,7 +13959,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare column handler for sqlstate '02000' set @var2 = 1;
@@ -13839,17 +13969,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare columns handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare condition handler for sqlstate '02000' set @var2 = 1;
@@ -13859,17 +13979,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare connection handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare constraint handler for sqlstate '02000' set @var2 = 1;
@@ -13878,18 +13988,18 @@ delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
-#FIXME: check why this is switched off
-#--error 1064
-#delimiter //;
-#CREATE PROCEDURE sp1( )
-# BEGIN
-#   declare continue handler for sqlstate '02000' set @var2 = 1;
-#END//
-#delimiter ;//
-#DROP PROCEDURE IF EXISTS sp1;
+--error ER_PARSE_ERROR
+delimiter //;
+CREATE PROCEDURE sp1( )
+ BEGIN
+   declare continue handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare convert handler for sqlstate '02000' set @var2 = 1;
@@ -13899,7 +14009,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare create handler for sqlstate '02000' set @var2 = 1;
@@ -13909,7 +14019,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cross handler for sqlstate '02000' set @var2 = 1;
@@ -13919,7 +14029,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_date handler for sqlstate '02000' set @var2 = 1;
@@ -13929,7 +14039,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_time handler for sqlstate '02000' set @var2 = 1;
@@ -13939,7 +14049,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_timestamp handler for sqlstate '02000' set @var2 = 1;
@@ -13949,7 +14059,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare current_user handler for sqlstate '02000' set @var2 = 1;
@@ -13959,7 +14069,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare cursor handler for sqlstate '02000' set @var2 = 1;
@@ -13969,7 +14079,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare database handler for sqlstate '02000' set @var2 = 1;
@@ -13979,7 +14089,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare databases handler for sqlstate '02000' set @var2 = 1;
@@ -13989,7 +14099,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_hour handler for sqlstate '02000' set @var2 = 1;
@@ -13999,7 +14109,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_microsecond handler for sqlstate '02000' set @var2 = 1;
@@ -14009,7 +14119,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_minute handler for sqlstate '02000' set @var2 = 1;
@@ -14019,7 +14129,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare day_second handler for sqlstate '02000' set @var2 = 1;
@@ -14029,7 +14139,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare dec handler for sqlstate '02000' set @var2 = 1;
@@ -14039,7 +14149,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare decimal handler for sqlstate '02000' set @var2 = 1;
@@ -14049,7 +14159,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare declare handler for sqlstate '02000' set @var2 = 1;
@@ -14059,7 +14169,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare default handler for sqlstate '02000' set @var2 = 1;
@@ -14069,7 +14179,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare delayed handler for sqlstate '02000' set @var2 = 1;
@@ -14079,7 +14189,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare delete handler for sqlstate '02000' set @var2 = 1;
@@ -14089,7 +14199,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare desc handler for sqlstate '02000' set @var2 = 1;
@@ -14099,7 +14209,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare describe handler for sqlstate '02000' set @var2 = 1;
@@ -14109,7 +14219,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare deterministic handler for sqlstate '02000' set @var2 = 1;
@@ -14119,7 +14229,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare distinct handler for sqlstate '02000' set @var2 = 1;
@@ -14129,7 +14239,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare distinctrow handler for sqlstate '02000' set @var2 = 1;
@@ -14139,7 +14249,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare div handler for sqlstate '02000' set @var2 = 1;
@@ -14149,7 +14259,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare double handler for sqlstate '02000' set @var2 = 1;
@@ -14159,7 +14269,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare drop handler for sqlstate '02000' set @var2 = 1;
@@ -14169,7 +14279,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare dual handler for sqlstate '02000' set @var2 = 1;
@@ -14179,7 +14289,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare each handler for sqlstate '02000' set @var2 = 1;
@@ -14189,7 +14299,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare else handler for sqlstate '02000' set @var2 = 1;
@@ -14199,7 +14309,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare elseif handler for sqlstate '02000' set @var2 = 1;
@@ -14209,7 +14319,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare enclosed handler for sqlstate '02000' set @var2 = 1;
@@ -14219,7 +14329,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare escaped handler for sqlstate '02000' set @var2 = 1;
@@ -14229,7 +14339,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare exists handler for sqlstate '02000' set @var2 = 1;
@@ -14238,18 +14348,18 @@ delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
-#FIXME: check why this is switched off
-#--error 1064
-#delimiter //;
-#CREATE PROCEDURE sp1( )
-# BEGIN
-#   declare exit handler for sqlstate '02000' set @var2 = 1;
-#END//
-#delimiter ;//
-#DROP PROCEDURE IF EXISTS sp1;
+--error ER_PARSE_ERROR
+delimiter //;
+CREATE PROCEDURE sp1( )
+ BEGIN
+   declare exit handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare explain handler for sqlstate '02000' set @var2 = 1;
@@ -14259,7 +14369,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare false handler for sqlstate '02000' set @var2 = 1;
@@ -14269,7 +14379,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare fetch handler for sqlstate '02000' set @var2 = 1;
@@ -14279,17 +14389,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare fields handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare float handler for sqlstate '02000' set @var2 = 1;
@@ -14299,7 +14399,27 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare float4 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare float8 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare for handler for sqlstate '02000' set @var2 = 1;
@@ -14309,7 +14429,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare force handler for sqlstate '02000' set @var2 = 1;
@@ -14319,7 +14439,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare foreign handler for sqlstate '02000' set @var2 = 1;
@@ -14329,17 +14449,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare found handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare from handler for sqlstate '02000' set @var2 = 1;
@@ -14349,7 +14459,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare fulltext handler for sqlstate '02000' set @var2 = 1;
@@ -14359,17 +14469,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare goto handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare grant handler for sqlstate '02000' set @var2 = 1;
@@ -14379,7 +14479,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare group handler for sqlstate '02000' set @var2 = 1;
@@ -14389,7 +14489,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare having handler for sqlstate '02000' set @var2 = 1;
@@ -14399,7 +14499,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare high_priority handler for sqlstate '02000' set @var2 = 1;
@@ -14409,7 +14509,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_microsecond handler for sqlstate '02000' set @var2 = 1;
@@ -14419,7 +14519,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_minute handler for sqlstate '02000' set @var2 = 1;
@@ -14429,7 +14529,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare hour_second handler for sqlstate '02000' set @var2 = 1;
@@ -14439,7 +14539,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare if handler for sqlstate '02000' set @var2 = 1;
@@ -14449,7 +14549,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare ignore handler for sqlstate '02000' set @var2 = 1;
@@ -14459,7 +14559,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare in handler for sqlstate '02000' set @var2 = 1;
@@ -14469,7 +14569,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare index handler for sqlstate '02000' set @var2 = 1;
@@ -14479,7 +14579,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare infile handler for sqlstate '02000' set @var2 = 1;
@@ -14489,7 +14589,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare inner handler for sqlstate '02000' set @var2 = 1;
@@ -14499,7 +14599,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare inout handler for sqlstate '02000' set @var2 = 1;
@@ -14509,7 +14609,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare insensitive handler for sqlstate '02000' set @var2 = 1;
@@ -14519,7 +14619,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare insert handler for sqlstate '02000' set @var2 = 1;
@@ -14529,7 +14629,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare int handler for sqlstate '02000' set @var2 = 1;
@@ -14539,7 +14639,57 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int1 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int2 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int3 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int4 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare int8 handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare integer handler for sqlstate '02000' set @var2 = 1;
@@ -14549,7 +14699,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare interval handler for sqlstate '02000' set @var2 = 1;
@@ -14559,7 +14709,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare into handler for sqlstate '02000' set @var2 = 1;
@@ -14569,7 +14719,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare is handler for sqlstate '02000' set @var2 = 1;
@@ -14579,7 +14729,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare iterate handler for sqlstate '02000' set @var2 = 1;
@@ -14589,7 +14739,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare join handler for sqlstate '02000' set @var2 = 1;
@@ -14599,7 +14749,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare key handler for sqlstate '02000' set @var2 = 1;
@@ -14609,7 +14759,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare keys handler for sqlstate '02000' set @var2 = 1;
@@ -14619,7 +14769,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare kill handler for sqlstate '02000' set @var2 = 1;
@@ -14629,7 +14779,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare leading handler for sqlstate '02000' set @var2 = 1;
@@ -14639,7 +14789,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare leave handler for sqlstate '02000' set @var2 = 1;
@@ -14649,7 +14799,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare left handler for sqlstate '02000' set @var2 = 1;
@@ -14659,7 +14809,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare like handler for sqlstate '02000' set @var2 = 1;
@@ -14669,7 +14819,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare limit handler for sqlstate '02000' set @var2 = 1;
@@ -14679,7 +14829,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare linear handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare lines handler for sqlstate '02000' set @var2 = 1;
@@ -14689,7 +14849,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare load handler for sqlstate '02000' set @var2 = 1;
@@ -14699,7 +14859,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare localtime handler for sqlstate '02000' set @var2 = 1;
@@ -14709,7 +14869,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare localtimestamp handler for sqlstate '02000' set @var2 = 1;
@@ -14719,7 +14879,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare lock handler for sqlstate '02000' set @var2 = 1;
@@ -14729,7 +14889,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare long handler for sqlstate '02000' set @var2 = 1;
@@ -14739,7 +14899,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longblob handler for sqlstate '02000' set @var2 = 1;
@@ -14749,7 +14909,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare longtext handler for sqlstate '02000' set @var2 = 1;
@@ -14759,7 +14919,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare loop handler for sqlstate '02000' set @var2 = 1;
@@ -14769,7 +14929,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare low_priority handler for sqlstate '02000' set @var2 = 1;
@@ -14779,7 +14939,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare master_ssl_verify_server_cert handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare match handler for sqlstate '02000' set @var2 = 1;
@@ -14789,7 +14959,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumblob handler for sqlstate '02000' set @var2 = 1;
@@ -14799,7 +14969,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumint handler for sqlstate '02000' set @var2 = 1;
@@ -14809,7 +14979,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mediumtext handler for sqlstate '02000' set @var2 = 1;
@@ -14819,7 +14989,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare middleint handler for sqlstate '02000' set @var2 = 1;
@@ -14829,7 +14999,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare minute_microsecond handler for sqlstate '02000' set @var2 = 1;
@@ -14839,7 +15009,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare minute_second handler for sqlstate '02000' set @var2 = 1;
@@ -14849,7 +15019,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare mod handler for sqlstate '02000' set @var2 = 1;
@@ -14859,7 +15029,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare modifies handler for sqlstate '02000' set @var2 = 1;
@@ -14869,7 +15039,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare natural handler for sqlstate '02000' set @var2 = 1;
@@ -14879,7 +15049,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare not handler for sqlstate '02000' set @var2 = 1;
@@ -14889,7 +15059,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare no_write_to_binlog handler for sqlstate '02000' set @var2 = 1;
@@ -14899,7 +15069,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare null handler for sqlstate '02000' set @var2 = 1;
@@ -14909,7 +15079,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare numeric handler for sqlstate '02000' set @var2 = 1;
@@ -14919,7 +15089,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare on handler for sqlstate '02000' set @var2 = 1;
@@ -14929,7 +15099,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare optimize handler for sqlstate '02000' set @var2 = 1;
@@ -14939,7 +15109,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare option handler for sqlstate '02000' set @var2 = 1;
@@ -14949,7 +15119,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare optionally handler for sqlstate '02000' set @var2 = 1;
@@ -14959,7 +15129,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare or handler for sqlstate '02000' set @var2 = 1;
@@ -14969,7 +15139,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare order handler for sqlstate '02000' set @var2 = 1;
@@ -14979,7 +15149,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare out handler for sqlstate '02000' set @var2 = 1;
@@ -14989,7 +15159,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare outer handler for sqlstate '02000' set @var2 = 1;
@@ -14999,7 +15169,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare outfile handler for sqlstate '02000' set @var2 = 1;
@@ -15009,7 +15179,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare precision handler for sqlstate '02000' set @var2 = 1;
@@ -15019,7 +15189,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare primary handler for sqlstate '02000' set @var2 = 1;
@@ -15029,7 +15199,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare privileges handler for sqlstate '02000' set @var2 = 1;
@@ -15039,7 +15209,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare procedure handler for sqlstate '02000' set @var2 = 1;
@@ -15049,7 +15219,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare purge handler for sqlstate '02000' set @var2 = 1;
@@ -15059,7 +15229,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare range handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare read handler for sqlstate '02000' set @var2 = 1;
@@ -15069,7 +15249,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare reads handler for sqlstate '02000' set @var2 = 1;
@@ -15079,7 +15259,27 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare read_only handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare read_write handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare real handler for sqlstate '02000' set @var2 = 1;
@@ -15089,7 +15289,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare references handler for sqlstate '02000' set @var2 = 1;
@@ -15099,7 +15299,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare regexp handler for sqlstate '02000' set @var2 = 1;
@@ -15109,7 +15309,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
+CREATE PROCEDURE sp1( )
+BEGIN
+    declare release handler for sqlstate '02000' set @var2 = 1;
+END//
+delimiter ;//
+
+DROP PROCEDURE IF EXISTS sp1;
+
+delimiter //;
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare rename handler for sqlstate '02000' set @var2 = 1;
@@ -15119,7 +15329,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare repeat handler for sqlstate '02000' set @var2 = 1;
@@ -15129,7 +15339,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare replace handler for sqlstate '02000' set @var2 = 1;
@@ -15139,7 +15349,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare require handler for sqlstate '02000' set @var2 = 1;
@@ -15149,7 +15359,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare restrict handler for sqlstate '02000' set @var2 = 1;
@@ -15159,7 +15369,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare return handler for sqlstate '02000' set @var2 = 1;
@@ -15169,7 +15379,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare revoke handler for sqlstate '02000' set @var2 = 1;
@@ -15179,7 +15389,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare right handler for sqlstate '02000' set @var2 = 1;
@@ -15189,7 +15399,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare rlike handler for sqlstate '02000' set @var2 = 1;
@@ -15199,7 +15409,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare schema handler for sqlstate '02000' set @var2 = 1;
@@ -15209,7 +15419,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare schemas handler for sqlstate '02000' set @var2 = 1;
@@ -15219,7 +15429,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare second_microsecond handler for sqlstate '02000' set @var2 = 1;
@@ -15229,17 +15439,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare SELECT handler for sqlstate '02000' set @var2 = 1;
+    declare select handler for sqlstate '02000' set @var2 = 1;
 END//
 delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sensitive handler for sqlstate '02000' set @var2 = 1;
@@ -15249,7 +15459,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare separator handler for sqlstate '02000' set @var2 = 1;
@@ -15259,7 +15469,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare set handler for sqlstate '02000' set @var2 = 1;
@@ -15269,7 +15479,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare show handler for sqlstate '02000' set @var2 = 1;
@@ -15279,7 +15489,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare smallint handler for sqlstate '02000' set @var2 = 1;
@@ -15289,17 +15499,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare soname handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare spatial handler for sqlstate '02000' set @var2 = 1;
@@ -15309,7 +15509,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare specific handler for sqlstate '02000' set @var2 = 1;
@@ -15319,7 +15519,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql handler for sqlstate '02000' set @var2 = 1;
@@ -15329,7 +15529,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlexception handler for sqlstate '02000' set @var2 = 1;
@@ -15339,7 +15539,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlstate handler for sqlstate '02000' set @var2 = 1;
@@ -15349,7 +15549,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sqlwarning handler for sqlstate '02000' set @var2 = 1;
@@ -15359,7 +15559,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_big_result handler for sqlstate '02000' set @var2 = 1;
@@ -15369,7 +15569,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_calc_found_rows handler for sqlstate '02000' set @var2 = 1;
@@ -15379,7 +15579,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare sql_small_result handler for sqlstate '02000' set @var2 = 1;
@@ -15389,7 +15589,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare ssl handler for sqlstate '02000' set @var2 = 1;
@@ -15399,7 +15599,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare starting handler for sqlstate '02000' set @var2 = 1;
@@ -15409,7 +15609,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare straight_join handler for sqlstate '02000' set @var2 = 1;
@@ -15419,7 +15619,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare table handler for sqlstate '02000' set @var2 = 1;
@@ -15429,17 +15629,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
-CREATE PROCEDURE sp1( )
-BEGIN
-    declare tables handler for sqlstate '02000' set @var2 = 1;
-END//
-delimiter ;//
-
-DROP PROCEDURE IF EXISTS sp1;
-
-delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare terminated handler for sqlstate '02000' set @var2 = 1;
@@ -15449,7 +15639,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare then handler for sqlstate '02000' set @var2 = 1;
@@ -15459,7 +15649,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyblob handler for sqlstate '02000' set @var2 = 1;
@@ -15469,7 +15659,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinyint handler for sqlstate '02000' set @var2 = 1;
@@ -15479,7 +15669,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare tinytext handler for sqlstate '02000' set @var2 = 1;
@@ -15489,7 +15679,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare to handler for sqlstate '02000' set @var2 = 1;
@@ -15499,7 +15689,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare trailing handler for sqlstate '02000' set @var2 = 1;
@@ -15509,7 +15699,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare trigger handler for sqlstate '02000' set @var2 = 1;
@@ -15519,7 +15709,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare true handler for sqlstate '02000' set @var2 = 1;
@@ -15529,7 +15719,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare undo handler for sqlstate '02000' set @var2 = 1;
@@ -15539,7 +15729,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare union handler for sqlstate '02000' set @var2 = 1;
@@ -15549,7 +15739,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unique handler for sqlstate '02000' set @var2 = 1;
@@ -15559,7 +15749,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unlock handler for sqlstate '02000' set @var2 = 1;
@@ -15569,7 +15759,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare unsigned handler for sqlstate '02000' set @var2 = 1;
@@ -15579,7 +15769,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare update handler for sqlstate '02000' set @var2 = 1;
@@ -15589,7 +15779,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare usage handler for sqlstate '02000' set @var2 = 1;
@@ -15599,17 +15789,17 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
-    declare USE handler for sqlstate '02000' set @var2 = 1;
+    declare use handler for sqlstate '02000' set @var2 = 1;
 END//
 delimiter ;//
 
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare using handler for sqlstate '02000' set @var2 = 1;
@@ -15619,7 +15809,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_date handler for sqlstate '02000' set @var2 = 1;
@@ -15629,7 +15819,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_time handler for sqlstate '02000' set @var2 = 1;
@@ -15639,7 +15829,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare utc_timestamp handler for sqlstate '02000' set @var2 = 1;
@@ -15649,7 +15839,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare values handler for sqlstate '02000' set @var2 = 1;
@@ -15659,7 +15849,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varbinary handler for sqlstate '02000' set @var2 = 1;
@@ -15669,7 +15859,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varchar handler for sqlstate '02000' set @var2 = 1;
@@ -15679,7 +15869,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varcharacter handler for sqlstate '02000' set @var2 = 1;
@@ -15689,7 +15879,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare varying handler for sqlstate '02000' set @var2 = 1;
@@ -15699,7 +15889,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare when handler for sqlstate '02000' set @var2 = 1;
@@ -15709,7 +15899,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare where handler for sqlstate '02000' set @var2 = 1;
@@ -15719,7 +15909,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare while handler for sqlstate '02000' set @var2 = 1;
@@ -15729,7 +15919,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare with handler for sqlstate '02000' set @var2 = 1;
@@ -15739,7 +15929,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare write handler for sqlstate '02000' set @var2 = 1;
@@ -15749,7 +15939,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare xor handler for sqlstate '02000' set @var2 = 1;
@@ -15759,7 +15949,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare year_month handler for sqlstate '02000' set @var2 = 1;
@@ -15769,7 +15959,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1( )
 BEGIN
     declare zerofill handler for sqlstate '02000' set @var2 = 1;
@@ -16240,6 +16430,7 @@ delimiter ;//
 
 CALL sp1();
 
+--disable_warnings
 
 DROP PROCEDURE IF EXISTS sp1;
 
@@ -16782,7 +16973,7 @@ CALL sp1();
 
 # cleanup
 DROP PROCEDURE sp1;
-
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.2.38:;
@@ -16823,7 +17014,7 @@ let $message= Testcase 4.2.39:;
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1332
+--error ER_SP_DUP_COND
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '42000';
@@ -16844,7 +17035,7 @@ let $message= Testcase 4.2.41:;
 DROP PROCEDURE IF EXISTS sp1;
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '1';
@@ -16858,7 +17049,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '12';
@@ -16872,7 +17063,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '123';
@@ -16886,7 +17077,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '1234';
@@ -16900,7 +17091,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '123456';
@@ -16915,7 +17106,7 @@ let $message= Testcase 4.2.42:;
 --source include/show_msg80.inc
 
 # testcase: ensure that the declare  condition for statement cannot declare a
-#            condition for an invalid sqlstate. (bug associated) (Bug#8760)
+#            condition for an invalid sqlstate.
 
 
 --disable_warnings
@@ -16923,7 +17114,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate 'abcdefghi';
@@ -16937,7 +17128,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '42000test';
@@ -16951,7 +17142,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '00000@#$%^&';
@@ -16965,7 +17156,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890';
@@ -16979,7 +17170,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate 'null';
@@ -16993,7 +17184,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate ' ';
@@ -17007,7 +17198,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate 1234567890;
@@ -17021,7 +17212,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare cond1 condition for sqlstate '2005-03-03';
@@ -17036,7 +17227,7 @@ let $message= Testcase 4.2.43:;
 --source include/show_msg80.inc
 
 # testcase: ensure that the declare  condition for statement cannot declare a
-#            condition for the successful completion sqlstate: 00000. (bug associated)
+#            condition for the successful completion sqlstate: 00000.
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -17070,7 +17261,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1413
+--error ER_SP_DUP_HANDLER
 CREATE PROCEDURE handler1 ()
 BEGIN
       declare continue handler for sqlstate '23000' set @varr1 = 5;
@@ -17081,7 +17272,7 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS handler1;
 
 delimiter //;
---error 1413
+--error ER_SP_DUP_HANDLER
 CREATE PROCEDURE handler1 ()
 BEGIN
       declare mycondition condition for sqlstate '23000';
@@ -17096,14 +17287,14 @@ let $message= Testcase 4.2.46:;
 --source include/show_msg80.inc
 
 # testcase: ensure that every sqlstate value declared with a declare  handler for
-#            statement is a character string that is 5 characters long (bug associated).
+#            statement is a character string that is 5 characters long.
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '1' set @var2 = 1;
@@ -17115,7 +17306,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '12' set @var2 = 1;
@@ -17127,7 +17318,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '123' set @var2 = 1;
@@ -17139,7 +17330,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '1234' set @var2 = 1;
@@ -17151,7 +17342,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '123456' set @var2 = 1;
@@ -17164,14 +17355,14 @@ let $message= Testcase 4.2.47:;
 --source include/show_msg80.inc
 
 # testcase: ensure that the declare  handler for statement cannot declare a condition
-#            for an invalid sqlstate. (bug associated)
+#            for an invalid sqlstate.
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE sp1()
 BEGIN
     declare continue handler for sqlstate '42s0200test'  set @var2 = 1;
@@ -17189,7 +17380,7 @@ let $message= Testcase 4.2.48:;
 --source include/show_msg80.inc
 
 # testcase: ensure that the declare  handler for statement cannot declare a condition
-#            for the successful completion sqlstate:  00000. (bug associated)
+#            for the successful completion sqlstate:  00000.
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
@@ -17222,7 +17413,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1333
+--error ER_SP_DUP_CURS
 CREATE PROCEDURE sp1( )
 BEGIN
     declare done int default 0;
@@ -17237,11 +17428,11 @@ BEGIN
     BEGIN
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newlf1, newf3, newsal;
         set count = count - 1;
-            END while;
-            close cur1;
+      END while;
+      close cur1;
     END;
 END//
 delimiter ;//
@@ -17258,7 +17449,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1323
+--error ER_SP_BAD_CURSOR_SELECT
 CREATE PROCEDURE sp1( )
 BEGIN
     declare done int default 0;
@@ -17272,12 +17463,12 @@ BEGIN
     BEGIN
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newlf1, newf3, newsal;
         set count = count - 1;
-            END while;
-            close cur1;
-        END;
+      END while;
+      close cur1;
+      END;
 END//
 delimiter ;//
 
@@ -17303,7 +17494,7 @@ DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
 delimiter //;
---error 1324
+--error ER_SP_CURSOR_MISMATCH
 CREATE PROCEDURE sp1( )
 BEGIN
     declare done int default 0;
@@ -17316,7 +17507,7 @@ BEGIN
     BEGIN
       open cur1;
       set count = count - 1;
-            while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17345,7 +17536,7 @@ BEGIN
       BEGIN
         open cur1;
         set count = count - 1;
-        while count <> 0 do
+        while count > 0 do
           fetch cur1 into newf1, newf2, newf3, newf4;
           set count = count - 1;
         END while;
@@ -17355,8 +17546,7 @@ BEGIN
 END//
 delimiter ;//
 
-#suppressed (Bug# 8892)
---error 1325
+--error ER_SP_CURSOR_ALREADY_OPEN
 CALL sp1();
 
 
@@ -17383,7 +17573,7 @@ BEGIN
       open cur1;
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17392,7 +17582,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1325
+--error ER_SP_CURSOR_ALREADY_OPEN
 CALL sp1();
 
 # cleanup
@@ -17423,7 +17613,7 @@ BEGIN
     BEGIN
       open cur2;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17432,7 +17622,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17466,7 +17656,7 @@ BEGIN
     declare continue handler for sqlstate '02000' set done = 1;
     BEGIN
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17476,7 +17666,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 DROP PROCEDURE IF EXISTS sp1;
@@ -17485,7 +17675,7 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare done int default 0;
-    declare count integer default 0;
+    declare count integer default 10;
     declare newf1 char(20);
     declare newf2 char(20);
     declare newf3 char(20);
@@ -17496,18 +17686,18 @@ BEGIN
     BEGIN
       declare cur1 cursor for SELECT f1, f2, f3, f4 from t2;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf3, newf4;
         set count = count - 1;
       END while;
       open cur1;
       close cur1;
-          END;
+    END;
     close cur1;
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17538,15 +17728,15 @@ BEGIN
       open cur1;
       close cur1;
       set count = count - 1;
-          while count <> 0 do
+      while count > 0 do
           fetch cur1 into newf1, newf2, newf4, newf3;
-              set count = count - 1;
+          set count = count - 1;
       END while;
-        END;
+    END;
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 DROP PROCEDURE IF EXISTS sp1;
@@ -17555,7 +17745,7 @@ delimiter //;
 CREATE PROCEDURE sp1( )
 BEGIN
     declare done int default 0;
-    declare count integer default 0;
+    declare count integer default 20;
     declare newf1 char(20);
     declare newf2 char(20);
     declare newf3 char(20);
@@ -17572,7 +17762,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17597,13 +17787,13 @@ BEGIN
     declare done int default 0;
     declare count integer default 20;
     declare newf2 char(20);
-    declare newf1 date;
+    declare newf1 int1;
     declare cur1 cursor for SELECT f1, f3 from t2 limit 20, 10;
     declare continue handler for sqlstate '02000' set done = 1;
     BEGIN
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2;
         set @x = newf1;
         set @y = newf2;
@@ -17615,8 +17805,8 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME check that here NO error occurs: suppressed for bug (Bug# 8702)
-#--error 1146
+#This test seems to make no sense, as always NULL may be set.
+#--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17647,7 +17837,7 @@ BEGIN
       close cur1;
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17656,7 +17846,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 DROP PROCEDURE IF EXISTS sp1;
@@ -17680,7 +17870,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17716,9 +17906,7 @@ CREATE PROCEDURE sp1( )
 END//
 delimiter ;//
 
-#FIXME check this error, in 5.0.11 the error occurs. Is this wanted?
-# suppressed for bug (Bug#8756)
---error 1329
+--error ER_SP_FETCH_NO_DATA
 CALL sp1();
 
 # cleanup
@@ -17755,9 +17943,7 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME check this error, in 5.0.11 the error occurs. Is this wanted?
-##suppressed for bug (Bug#8756)
---error 1329
+--error ER_SP_FETCH_NO_DATA
 CALL sp1();
 
 # cleanup
@@ -17788,7 +17974,7 @@ BEGIN
     BEGIN
       open cur1;
       set count = count - 1;
-      while count <> 0 do
+      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
         set count = count - 1;
       END while;
@@ -17798,7 +17984,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1326
+--error ER_SP_CURSOR_NOT_OPEN
 CALL sp1();
 
 # cleanup
@@ -17829,15 +18015,17 @@ BEGIN
     declare continue handler for sqlstate '02000' set done = 1;
     BEGIN
       open cur1;
-      set count = count - 1;
-      while count <> 0 do
+#      set count = count - 1;
+#      while count > 0 do
         fetch cur1 into newf1, newf2, newf4, newf3;
-        set count = count - 1;
-      END while;
+#        set count = count - 1;
+#      END while;
     END;
+    fetch cur1 into newf1, newf2, newf4, newf3;
 END//
 delimiter ;//
 
+#--error ER_SP_FETCH_NO_DATA
 CALL sp1();
 
 # cleanup
@@ -17881,7 +18069,7 @@ BEGIN
       set count = 10;
       BEGIN
         open cur2;
-        while count <> 0 do
+        while count > 0 do
           fetch cur1 into newf1, newf2, newf4, newf3;
           set count = count - 1;
         END while;
@@ -17890,7 +18078,8 @@ BEGIN
       close cur1;
     END;
     BEGIN
-      while count <> 0 do
+      set count = 10;
+      while count > 0 do
         fetch cur2 into newf21, newf22, newf24, newf23;
         set count = count - 1;
       END while;
@@ -17902,7 +18091,7 @@ delimiter ;//
 
 CALL sp1();
 
-SELECT * from temp1;
+SELECT count(*) from temp1;
 SELECT * from temp2;
 
 # cleanup
@@ -17934,8 +18123,7 @@ eval CREATE TABLE res_t3_itisalongname_1381742_itsaverylongname_1381742(
          middleinitial CHAR,
          lastname VARCHAR(50),
          age_averylongfieldname_averylongname_1234569 int,
-         COMMENT TEXT) ENGINE=innodb;
-#        COMMENT TEXT) ENGINE=$engine_type;
+         COMMENT TEXT) ENGINE=$engine_type;
 
 INSERT INTO res_t3_itisalongname_1381742_itsaverylongname_1381742
       VALUES('a', 'aaaaaaaaaabbbbbbbbc', 0, 'default');
@@ -18081,7 +18269,7 @@ DROP PROCEDURE IF EXISTS sp3;
 create table res_t3_itisalongname_1381742_itsaverylongname_1381742 (name char, address varchar(50), age_averylongfieldname_averylongname_1234569 smallint);
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp3( action char(20) )
 BEGIN
 label1: case
@@ -18099,7 +18287,7 @@ DROP PROCEDURE IF EXISTS sp3;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp3( action char(20) )
 BEGIN
 label1: BEGIN
@@ -18119,7 +18307,7 @@ DROP PROCEDURE IF EXISTS sp3;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp3( action char(20) )
 BEGIN
 case
@@ -18139,7 +18327,7 @@ DROP PROCEDURE IF EXISTS sp3;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp3( action char(20) )
 BEGIN
 declare v1 char(20);
@@ -18178,8 +18366,9 @@ BEGIN
             BEGIN
                insert into res_t3_itisalongname_1381742_itsaverylongname_1381742
                   values('xxxxxxxxxxxxxxxxxxx', '1231230981(*&(*&)(*&(', count);
-               if done=1 then
-                  set count=10;
+               set count = count + 1;
+               if count= 10 then
+                  set done=1;
                END if;
             END;
             END while label2;
@@ -18195,8 +18384,7 @@ BEGIN
 END//
 delimiter ;//
 
-# results in lost connection hence suppressed--error 2013
-#CALL sp3('insert');
+CALL sp3('insert');
 
 # cleanup
 DROP PROCEDURE sp3;
@@ -18214,7 +18402,7 @@ DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp4()
 BEGIN
 declare count int;
@@ -18236,7 +18424,7 @@ DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp4()
 BEGIN
 declare count int;
@@ -18257,7 +18445,7 @@ DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp4()
 BEGIN
 declare count int;
@@ -18278,7 +18466,7 @@ DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp4()
 BEGIN
 declare count int;
@@ -18299,7 +18487,7 @@ DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp4()
 BEGIN
   declare i int default 10;
@@ -18347,7 +18535,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1054
+--error ER_BAD_FIELD_ERROR
 CALL sp4();
 
 # cleanup
@@ -18365,7 +18553,7 @@ DROP PROCEDURE IF EXISTS sp5;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp5()
 BEGIN
   declare count integer default 1;
@@ -18384,7 +18572,7 @@ DROP PROCEDURE IF EXISTS sp5;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp5(count int)
 BEGIN
   when case count = 1 then
@@ -18400,7 +18588,7 @@ DROP PROCEDURE IF EXISTS sp5;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp5(count int)
 BEGIN
   END case;
@@ -18417,7 +18605,7 @@ DROP PROCEDURE IF EXISTS sp5;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp5(count int)
 BEGIN
   when count = 1 then
@@ -18440,7 +18628,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
@@ -18457,7 +18645,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
@@ -18474,7 +18662,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
@@ -18491,7 +18679,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
@@ -18507,7 +18695,7 @@ DROP PROCEDURE IF EXISTS sp6;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
@@ -18529,15 +18717,14 @@ CREATE PROCEDURE sp6()
 BEGIN
   declare count1 integer default 1;
   label1: repeat
-    set count1 = count1;
+    set count1 = count1-1;
   until count1 < 0
   END repeat label1;
   SELECT count1;
 END//
 delimiter ;//
 
-# results in lost connection hence suppressed--error 2013
-# CALL sp6();
+CALL sp6();
 
 # cleanup
 DROP PROCEDURE sp6;
@@ -18555,7 +18742,7 @@ DROP PROCEDURE IF EXISTS sp7;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp7()
 BEGIN
   label1: loop
@@ -18572,7 +18759,7 @@ DROP PROCEDURE IF EXISTS sp7;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp7()
 BEGIN
   label1: END loop;
@@ -18589,7 +18776,7 @@ DROP PROCEDURE IF EXISTS sp7;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp7()
 BEGIN
   label1: iterate label1;
@@ -18615,7 +18802,7 @@ DROP PROCEDURE IF EXISTS sp8;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp8()
 BEGIN
   declare v1 int default 5;
@@ -18630,7 +18817,7 @@ DROP PROCEDURE IF EXISTS sp8;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp8()
 BEGIN
   declare v1 int default 5;
@@ -18645,7 +18832,7 @@ DROP PROCEDURE IF EXISTS sp8;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp8()
 BEGIN
   declare v1 int default 5;
@@ -18654,11 +18841,6 @@ BEGIN
   while v1 > 0 do;
 END//
 delimiter ;//
-
-
-
-
-
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.3.12:;
@@ -18674,7 +18856,7 @@ DROP PROCEDURE IF EXISTS sp12;
 create table res_t3_itisalongname_1381742_itsaverylongname_1381742( f1 char(20), f2 varchar(20), f3 smallint);
 
 delimiter //;
---error 1310
+--error ER_SP_LABEL_MISMATCH
 CREATE PROCEDURE sp12( )
 BEGIN
   declare count1 integer default 1;
@@ -18750,7 +18932,7 @@ DROP PROCEDURE IF EXISTS sp14;
 create table res_t3_itisalongname_1381742_itsaverylongname_1381742( f1 char(20), f2 varchar(20), f3 smallint);
 
 delimiter //;
---error 1308
+--error ER_SP_LILABEL_MISMATCH
 CREATE PROCEDURE sp14( )
 BEGIN
     declare count1 integer default 1;
@@ -18782,7 +18964,7 @@ DROP PROCEDURE IF EXISTS sp15;
 create table res_t3_itisalongname_1381742_itsaverylongname_1381742( f1 char(20), f2 varchar(20), f3 smallint);
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp15( )
 BEGIN
     declare count1 integer default 1;
@@ -18810,7 +18992,7 @@ DROP PROCEDURE IF EXISTS sp16;
 delete from res_t3_itisalongname_1381742_itsaverylongname_1381742;
 
 delimiter //;
---error 1309
+--error ER_SP_LABEL_REDEFINE
 CREATE PROCEDURE sp16( )
 BEGIN
     declare count1 integer default 1;
@@ -18833,7 +19015,7 @@ DROP PROCEDURE IF EXISTS sp16;
 --enable_warnings
 
 delimiter //;
---error 1309
+--error ER_SP_LABEL_REDEFINE
 CREATE PROCEDURE sp16( )
 BEGIN
   declare count1 integer default 1;
@@ -18880,7 +19062,7 @@ DROP PROCEDURE IF EXISTS sp18;
 delete from res_t3_itisalongname_1381742_itsaverylongname_1381742;
 
 delimiter //;
---error 1310
+--error ER_SP_LABEL_MISMATCH
 CREATE PROCEDURE sp18( )
 BEGIN
     declare count1 integer default 1;
@@ -18941,7 +19123,7 @@ DROP PROCEDURE IF EXISTS sp20;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp20( )
 BEGIN
     declare count1 integer default 1;
@@ -18976,7 +19158,7 @@ DROP PROCEDURE IF EXISTS sp22;
 --enable_warnings
 
 delimiter //;
---error 1310
+--error ER_SP_LABEL_MISMATCH
 CREATE PROCEDURE sp22( )
 BEGIN
     declare count1 integer default 1;
@@ -19008,7 +19190,7 @@ DROP PROCEDURE IF EXISTS sp23;
 --enable_warnings
 
 delimiter //;
---error 1064
+--error ER_PARSE_ERROR
 CREATE PROCEDURE sp23( )
 BEGIN
     declare count1 integer default 1;
@@ -19111,7 +19293,7 @@ let $message= Testcase 4.4.2:;
 DROP FUNCTION IF EXISTS fn1;
 DROP FUNCTION IF EXISTS fn11;
 DROP DATABASE IF EXISTS d40402;
---enable warnings
+--enable_warnings
 
 delimiter //;
 CREATE FUNCTION fn1(n int) returns int
@@ -19218,7 +19400,7 @@ DROP DATABASE IF EXISTS d1;
   USE d1;
 
 delimiter //;
---error 1314
+--error ER_SP_BADSTATEMENT
 CREATE PROCEDURE sp3()
 BEGIN
     USE d1;
@@ -19261,7 +19443,6 @@ DROP DATABASE d1;
   USE d1;
   create table t44(a char(5), b char(10));
 
-#FIXME: check why here no rows are shown
 --replace_column 13 modified 14 created
   SELECT * from mysql.proc where specific_name = 'sp4';
 
@@ -19455,45 +19636,26 @@ let $procvar01_30=  1.00e+30;
 let $procvar01_36=  1.00e+36;
 let $procvar01_40=  1.00e+40;
 
-let $bug_dec_num= 1;
+#################123456789-123456789-123456789-123456789-
+let $plus_20=   100000000000000000000;
+let $plus_24=   1000000000000000000000000;
+let $plus_30=   1000000000000000000000000000000;
+let $plus_36=   1000000000000000000000000000000000000;
+let $plus_40=   10000000000000000000000000000000000000000;
+let $minus_30= -1000000000000000000000000000000;
+let $minus_36= -1000000000000000000000000000000000000;
+let $minus_40= -10000000000000000000000000000000000000000;
 
-eval SELECT $bug_dec_num as 'bug_dec_num';
-
-if ($bug_dec_num)
-{
-   let $message=
-   .
-   FIXME:  There are differences with datatypes DECIMAL and NUMERIC if large
-   FIXME:  exponent values are used. The diffs are shown only on some machines like
-   FIXME:  AIX52 and HPUX11. Until this has been solved we use numbers that
-   FIXME:  *should* be equal to the exponent representation but have no exponents
-   FIXME:  and use the specified count of *0*s instead.
-   FIXME:  In the source file these tests are marked with the comment  hpux11
-   .;
-   --source include/show_msg80.inc
-   # FIXME values above changed to values below to fix DECIMAL/NUMERIC issues on hpux11
-
-   #################123456789-123456789-123456789-123456789-
-   let $plus_20=   100000000000000000000;
-   let $plus_24=   1000000000000000000000000;
-   let $plus_30=   1000000000000000000000000000000;
-   let $plus_36=   1000000000000000000000000000000000000;
-   let $plus_40=   10000000000000000000000000000000000000000;
-   let $minus_30= -1000000000000000000000000000000;
-   let $minus_36= -1000000000000000000000000000000000000;
-   let $minus_40= -10000000000000000000000000000000000000000;
-
-   let $procvar_m00=   -1.00e+22;
-   let $procvar_00=     1.00e+22;
-   let $procvar01_m30= $procvar_m00;
-   let $procvar01_m36= $procvar_m00;
-   let $procvar01_m40= $procvar_m00;
-   let $procvar01_20=  $procvar_00;
-   let $procvar01_24=  $procvar_00;
-   let $procvar01_30=  $procvar_00;
-   let $procvar01_36=  $procvar_00;
-   let $procvar01_40=  $procvar_00;
-}
+let $procvar_m00=   -1.00e+22;
+let $procvar_00=     1.00e+22;
+let $procvar01_m30= $procvar_m00;
+let $procvar01_m36= $procvar_m00;
+let $procvar01_m40= $procvar_m00;
+let $procvar01_20=  $procvar_00;
+let $procvar01_24=  $procvar_00;
+let $procvar01_30=  $procvar_00;
+let $procvar01_36=  $procvar_00;
+let $procvar01_40=  $procvar_00;
 let $procvar03= -9.22e+18;
 let $procvar05= -9.22e+18;
 let $procvar07= -9.22e+18;
@@ -19548,10 +19710,7 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
 --disable_ps_protocol
-}
 SELECT fn3(1.84e+17);
 --enable_ps_protocol
 
@@ -19567,13 +19726,9 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
 --disable_ps_protocol
-}
 SELECT fn4(-9.22e+15);
 --enable_ps_protocol
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn5;
@@ -19693,7 +19848,6 @@ delimiter ;//
 
 SELECT fn12(999999999);
 
-
 --disable_warnings
 DROP FUNCTION IF EXISTS fn13;
 --enable_warnings
@@ -19797,9 +19951,7 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME hpux11
 eval SELECT fn19_du( $plus_20 );
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn20_duz;
@@ -19813,9 +19965,7 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME hpux11
 eval SELECT fn20_duz( $plus_24 );
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn21_d_z;
@@ -19916,7 +20066,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn27(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -19931,12 +20083,15 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn28(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn29;
 --enable_warnings
+
 
 delimiter //;
 CREATE FUNCTION fn29( f1 float) returns float
@@ -19976,7 +20131,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn31(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -19991,7 +20148,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn32(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20036,7 +20195,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn35(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20051,7 +20212,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn36(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20096,7 +20259,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn39(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20111,7 +20276,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn40(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20155,7 +20322,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn43(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20170,7 +20339,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn44(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20214,7 +20385,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn47(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20229,7 +20402,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn48(1.00e+00);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20289,10 +20464,7 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
 --disable_ps_protocol
-}
 SELECT fn52(2.15e+08);
 --enable_ps_protocol
 
@@ -20352,13 +20524,7 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
---disable_ps_protocol
-}
 SELECT fn56(-8388601);
---enable_ps_protocol
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn57;
@@ -20709,7 +20875,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn79(1.1);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20724,7 +20892,9 @@ BEGIN
 END//
 delimiter ;//
 
+--disable_ps_protocol
 SELECT fn80(1.1);
+--enable_ps_protocol
 
 
 --disable_warnings
@@ -20784,13 +20954,7 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
---disable_ps_protocol
-}
 SELECT fn84(-32601);
---enable_ps_protocol
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn85;
@@ -20849,61 +21013,43 @@ BEGIN
 END//
 delimiter ;//
 
-if ($have_bug_11589)
-{
---disable_ps_protocol
-}
 SELECT fn88(-101);
---enable_ps_protocol
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn89;
 --enable_warnings
 
-
-#FIXME why was fn89 switched off ?
 delimiter //;
-#FIXME: check whether this error 1064 is OK!
---error 1064
 CREATE FUNCTION fn89( f1 enum('1enum', '2enum')) returns enum('1enum', '2enum')
 BEGIN
- if f1 eq "1enum" then
-   set f1 = '2enum';
-  else
-   set f1 = '1enum';
- END if;
- return f1;
+ IF f1 = '1enum' THEN
+   SET f1 = '2enum';
+  ELSE
+   SET f1 = '1enum';
+ END IF;
+ RETURN f1;
 END//
 delimiter ;//
 
-#FIXME: this is OK as long as the error 1064 above is OK!
---error 1305
 SELECT fn89( '1enum');
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn90;
 --enable_warnings
 
-
-#FIXME: wah was fn90 switched off ?
 delimiter //;
-#FIXME: check whether this error 1064 is OK!
---error 1064
-CREATE FUNCTION fn90( f1 set("1set", "2set")) returns set("1set", "2set")
+CREATE FUNCTION fn90( f1 set('1set', '2set')) returns set('1set', '2set')
 BEGIN
-   if(f1 == "1set") then
-      set f1 = "2set";
-   else
-      set f1 = "1set";
-   END if;
-   return f1;
+   IF f1 = '1set' THEN
+      SET f1 = '2set';
+   ELSE
+      SET f1 = '1set';
+   END IF;
+   RETURN f1;
 END//
 delimiter ;//
 
-#FIXME: this is OK as long as the error 1064 above is OK!
---error 1305
 SELECT fn90( '1set');
-
 
 --disable_warnings
 DROP FUNCTION IF EXISTS fn91;
@@ -20986,17 +21132,13 @@ DROP FUNCTION IF EXISTS fn96;
 --enable_warnings
 
 delimiter //;
-#FIXME: check whether this error 1064 is OK!
-#--error 1064
-CREATE FUNCTION fn96( f1 char binary) returns char binary
+CREATE FUNCTION fn96( f1 binary) returns binary(2)
 BEGIN
   set f1 = concat('a', f1);
   return f1;
 END//
 delimiter ;//
 
-#FIXME: this is OK as long as the error 1064 above is OK!
-#--error 1305
 SELECT fn96( 'h');
 
 
@@ -21090,9 +21232,7 @@ SELECT fn102(1982);
 DROP FUNCTION IF EXISTS fn103;
 --enable_warnings
 
-#FIXME Bug: (Bug#10499)
 delimiter //;
-#--error 1178
 CREATE FUNCTION fn103( f1 geometrycollection) returns geometrycollection
 BEGIN
   set f1 = f1;
@@ -21100,7 +21240,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME Bug: (Bug#10499)
 SELECT fn103('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\0\0\0\0@\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0@');
 
 
@@ -21108,9 +21247,7 @@ SELECT fn103('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0
 DROP FUNCTION IF EXISTS fn104;
 --enable_warnings
 
-#FIXME Bug: (Bug#10499)
 delimiter //;
-#--error 1178
 CREATE FUNCTION fn104( f1 linestring) returns linestring
 BEGIN
   set f1 = f1;
@@ -21118,7 +21255,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME Bug: (Bug#10499)
 SELECT fn104('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\0\0@\0\0\0\0\0\0\0@\0\0\0\0\0\0@\0\0\0\0\0\0@');
 
 
@@ -21126,9 +21262,7 @@ SELECT fn104('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\0\0@\0
 DROP FUNCTION IF EXISTS fn105;
 --enable_warnings
 
-#FIXME Bug: (Bug#10499)
 delimiter //;
-#--error 1178
 CREATE FUNCTION fn105( f1 point) returns point
 BEGIN
   set f1 = f1;
@@ -21136,7 +21270,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME Bug: (Bug#10499)
 SELECT fn105('\0\0\0\0\0\0\0\0\0\0\0\0\04@\0\0\0\0\0\04@');
 
 
@@ -21144,9 +21277,7 @@ SELECT fn105('\0\0\0\0\0\0\0\0\0\0\0\0\04@\0\0\0\0\0\04@');
 DROP FUNCTION IF EXISTS fn106;
 --enable_warnings
 
-#FIXME Bug: (Bug#10499)
 delimiter //;
-#--error 1178
 CREATE FUNCTION fn106( f1 polygon) returns polygon
 BEGIN
   set f1 = f1;
@@ -21154,7 +21285,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME Bug: (Bug#10499)
 SELECT fn106('\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\04@\0\0\0\0\0\0?\0\0\0\0\0\0?\0\0\0\0\0\0\0\0\0@\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0 @\0\0\0\0\0\0@\0\0\0\0\0\0@');
 
 
@@ -21260,10 +21390,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: default (10) for DECIMAL not checked, decimal digits shown although not defined
-
 CALL sp5(-1.00e+09);
 
 
@@ -21278,10 +21404,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
 
 CALL sp6(-1.00e+09);
 
@@ -21326,10 +21448,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
 CALL sp9(-1.00e+09);
 
 --disable_warnings
@@ -21343,10 +21461,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
 
 CALL sp10(-1.00e+09);
 
@@ -21362,10 +21476,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
 CALL sp11(99999999999);
 
 --disable_warnings
@@ -21379,10 +21489,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
 
 CALL sp12(999999999);
 
@@ -21398,10 +21504,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
 CALL sp13(-1.00e+09);
 
 --disable_warnings
@@ -21415,10 +21517,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: wrong number of decimal digits shown
 
 CALL sp14(-1.00e+21);
 
@@ -21435,10 +21533,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: wrong number of decimal digits shown
-
 CALL sp15(1.00e+16);
 
 
@@ -21453,10 +21547,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: wrong number of decimal digits shown
 
 CALL sp16(1.00e+16);
 
@@ -21473,10 +21563,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: wrong number of decimal digits shown
-
 CALL sp17(-1.00e+21);
 
 --disable_warnings
@@ -21491,8 +21577,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp18_d(-1.00e+30);
+CALL sp18_d(-1.00e+30);
 eval CALL sp18_d( $minus_30 );
 
 --disable_warnings
@@ -21507,10 +21592,9 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp19_du(1.00e+20);
+CALL sp19_du(1.00e+20);
 eval CALL sp19_du( $plus_20 );
-#CALL sp19_du(1.00e+24);
+CALL sp19_du(1.00e+24);
 eval CALL sp19_du( $plus_24 );
 
 --disable_warnings
@@ -21525,14 +21609,9 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
-# hpux11
-#CALL sp20_duz(1.00e+20);
+CALL sp20_duz(1.00e+20);
 eval CALL sp20_duz( $plus_20 );
-#CALL sp20_duz(1.00e+24);
+CALL sp20_duz(1.00e+24);
 eval CALL sp20_duz( $plus_24 );
 
 --disable_warnings
@@ -21546,10 +21625,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
 
 CALL sp21(1.00e+00);
 
@@ -21565,10 +21640,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
 CALL sp22(1.00e+00);
 
 --disable_warnings
@@ -21583,10 +21654,6 @@ BEGIN
 END//
 delimiter ;//
 
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
-
 CALL sp23(1.00e+00);
 
 --disable_warnings
@@ -21600,10 +21667,6 @@ BEGIN
   SELECT f1;
 END//
 delimiter ;//
-
--- echo FIXME: Following test contains a known problem that will be checked again
--- echo FIXME: after WL#2984 has been completed:
--- echo FIXME: decimal digits shown although not defined
 
 CALL sp24(-1.00e+09);
 
@@ -22196,8 +22259,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp66_n(-1e+36);
+CALL sp66_n(-1e+36);
 eval CALL sp66_n( $minus_36 );
 
 --disable_warnings
@@ -22212,8 +22274,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp67_nu(1e+36);
+CALL sp67_nu(1e+36);
 eval CALL sp67_nu( $plus_36 );
 
 
@@ -22229,8 +22290,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp68_nuz(1e+36);
+CALL sp68_nuz(1e+36);
 eval CALL sp68_nuz( $plus_36 );
 
 
@@ -22246,8 +22306,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp69_n_z(-1e+36);
+CALL sp69_n_z(-1e+36);
 eval CALL sp69_n_z( $minus_36 );
 
 
@@ -22263,8 +22322,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp70_n(-1e+40);
+CALL sp70_n(-1e+40);
 eval CALL sp70_n( $minus_40 );
 
 
@@ -22280,8 +22338,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp71_nu(1.00e+40);
+CALL sp71_nu(1.00e+40);
 eval CALL sp71_nu( $plus_40 );
 
 
@@ -22297,8 +22354,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp72_nuz(1.00e+40);
+CALL sp72_nuz(1.00e+40);
 eval CALL sp72_nuz( $plus_40 );
 
 
@@ -22314,8 +22370,7 @@ BEGIN
 END//
 delimiter ;//
 
-# hpux11
-#CALL sp73_n_z(1.00e+40);
+CALL sp73_n_z(1.00e+40);
 eval CALL sp73_n_z( $plus_40 );
 
 
@@ -22533,31 +22588,27 @@ CALL sp88(-101);
 DROP PROCEDURE IF EXISTS sp89;
 --enable_warnings
 
-#FIXME: check why this is switched off
-#delimiter //;
-#CREATE PROCEDURE sp89( f1 enum("1enum", "2enum"))
-#BEGIN
-# if(f1 == "1enum") { set f1 = "2enum"; } else { set f1 = "1enum"; }
-# SELECT f1;
-#END//
-#delimiter ;//
+delimiter //;
+CREATE PROCEDURE sp89( f1 enum('1enum', '2enum'))
+BEGIN
+ IF f1 = '1enum' THEN set f1 = '2enum'; ELSE  set f1 = '1enum'; END IF;
+END//
+delimiter ;//
 
-#CALL sp89( '1enum');
+CALL sp89( '1enum');
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp90;
 --enable_warnings
 
-#FIXME: check why this is switched off
-#delimiter //;
-#CREATE PROCEDURE sp90( f1 set("1set", "2set"))
-#BEGIN
-# if(f1 == "1set") { set f1 = "2set"; } else { set f1 = "1set"; }
-# SELECT f1;
-#END//
-#delimiter ;//
+delimiter //;
+CREATE PROCEDURE sp90( f1 set('1set', '2set'))
+BEGIN
+ IF f1 = '1set' THEN  set f1 = '2set';  ELSE set f1 = '1set'; END IF;
+END//
+delimiter ;//
 
-#CALL sp90( '1set');
+CALL sp90( '1set');
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp91;
@@ -23094,10 +23145,6 @@ BEGIN
 END//
 delimiter ;//
 
-#let $message= FIXME: CALL of spexecute07 temporarily switched off due to differences
-#              FIXME: between Linux and Solaris;
-#--source include/show_msg80.inc
-#FIXME CALL spexecute07();
 CALL spexecute07();
 DROP PROCEDURE spexecute07;
 DROP PROCEDURE sp07;
@@ -24864,7 +24911,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: check later again with E+40
 CALL spexecute52();
 DROP PROCEDURE spexecute52;
 DROP PROCEDURE sp52;
@@ -24903,7 +24949,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: check later again with E+40
 CALL spexecute53();
 DROP PROCEDURE spexecute53;
 DROP PROCEDURE sp53;
@@ -24942,7 +24987,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: check later again with E+40
 CALL spexecute54();
 DROP PROCEDURE spexecute54;
 DROP PROCEDURE sp54;
@@ -24981,7 +25025,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: check later again with E+40
 CALL spexecute55();
 DROP PROCEDURE spexecute55;
 DROP PROCEDURE sp55;
@@ -25516,7 +25559,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: hpux11 - check later again with E+40
 CALL spexecute69();
 DROP PROCEDURE spexecute69;
 DROP PROCEDURE sp69;
@@ -25593,7 +25635,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: hpux11 - check later again with E+40
 CALL spexecute71();
 DROP PROCEDURE spexecute71;
 DROP PROCEDURE sp71;
@@ -26394,7 +26435,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: hpux11 - check later again with E+40
 CALL spexecute92();
 DROP PROCEDURE spexecute92;
 DROP PROCEDURE sp92;
@@ -26433,7 +26473,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME: hpux11 - check later again with E+40
 CALL spexecute93();
 DROP PROCEDURE spexecute93;
 DROP PROCEDURE sp93;
@@ -26839,8 +26878,6 @@ check for combination of server sql modes
 DROP PROCEDURE IF EXISTS sp4;
 --enable_warnings
 
-#FIXME 4.7.4: check it is correct that having a blank after the comma lets this fail:
---error 1231
 set @@sql_mode = 'ansi, error_for_division_by_zero';
 
 # now set the corrent value:
@@ -26986,7 +27023,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 SHOW CREATE FUNCTION sp6;
 
 # cleanup
@@ -27031,7 +27068,7 @@ let $message= Testcase 4.8.5:;
 DROP PROCEDURE IF EXISTS sp7;
 --enable_warnings
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE PROCEDURE sp7;
 
 
@@ -27068,7 +27105,7 @@ CREATE FUNCTION fn1 (i1 real) returns real
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE PROCEDURE fn1;
 
 # cleanup
@@ -27153,7 +27190,7 @@ CREATE FUNCTION fn1 (x int) returns int
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE PROCEDURE fn1;
 
 # cleanup
@@ -27181,7 +27218,7 @@ delimiter ;//
 
 DROP FUNCTION fn1;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE FUNCTION fn1;
 
 
@@ -27196,7 +27233,7 @@ let $message= Testcase 4.8.13:;
 
 --disable_warnings
 DROP FUNCTION IF EXISTS f1000;
---enable warnings
+--enable_warnings
 
 SHOW FUNCTION STATUS LIKE 'f1000';
 
@@ -27210,7 +27247,7 @@ let $message= Testcase 4.8.14:;
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;
---enable_warnibgs
+--enable_warnings
 
 delimiter //;
 CREATE PROCEDURE sp1()
@@ -27219,7 +27256,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE FUNCTION sp1;
 
 # cleanup
@@ -27341,7 +27378,6 @@ delimiter ;//
   alter function fn1 sql security invoker;
   alter function fn1 comment 'this is a function 3242#@%$#@';
 
-#FIXME: check why here no rows are shown
 --replace_column 5 modified 6 created
   show  function status like 'fn1';
 
@@ -27397,7 +27433,7 @@ delimiter ;//
 
 DROP PROCEDURE sp6;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE PROCEDURE sp6;
 
 # ------------------------------------------------------------------------------
@@ -27446,7 +27482,7 @@ delimiter ;//
 
 DROP FUNCTION fn1;
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   show CREATE FUNCTION fn1;
 
 
@@ -27471,7 +27507,6 @@ delimiter ;//
 
 DROP FUNCTION fn1;
 
-#FIXME: check why here no rows are shown
 --replace_column 5 modified 6 created
 SHOW FUNCTION STATUS LIKE 'fn1';
 
@@ -27504,6 +27539,7 @@ BEGIN
 END//
 delimiter ;//
 
+--sorted_result
 CALL sp6 (10, 20, 30, 40, 50);
 
 # cleanup
@@ -27640,9 +27676,6 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME Bug:  (Bug#9079)
-# suppressed: currenlty the table creation from within sproc fails!
-#FIXME check why this NOW works--error 1146
 CALL sp6 (10, 20, 30, 40, 50);
 
 # cleanup
@@ -27661,8 +27694,7 @@ let $message= Testcase 4.9.6:;
 DROP FUNCTION IF EXISTS fn1;
 
 delimiter //;
-#FIXME: check this is OK: failed: 1415: Not allowed to return a result set from a function
---error 1415
+--error ER_SP_NO_RETSET
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN
    SELECT * from t9 limit 0, 100;
@@ -27677,8 +27709,7 @@ create table res_t9 (f1 int, f2 char(25), f3 int);
 insert into res_t9 values (10, 'abc', 20);
 
 delimiter //;
-#FIXME: check this is OK: failed: 1422: Explicit or implicit commit is not allowed in stored function or trigger.
---error 1422
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN
    delete from res_t9;
@@ -27691,8 +27722,7 @@ DROP FUNCTION IF EXISTS fn1;
 drop table IF EXISTS res_t9;
 
 delimiter //;
-#FIXME: check this is OK: failed: 1422: Explicit or implicit commit is not allowed in stored function or trigger.
---error 1422
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN
     create table res_t9 (f1 longtext, f2 longblob, f3 real);
@@ -27707,8 +27737,7 @@ drop  table IF EXISTS res_t9;
 create table res_t9 (f1 int, f2 char(25), f3 int);
 
 delimiter //;
-#FIXME: check this is OK: failed: 1422: Explicit or implicit commit is not allowed in stored function or trigger.
---error 1422
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN
    insert into res_t9 values (100, 'abc', 300);
@@ -27724,8 +27753,7 @@ create table res_t9 (f1 int, f2 char(25), f3 int);
 insert into res_t9 values (10, 'abc', 20);
 
 delimiter //;
-#FIXME: check this is OK: failed: 1422: Explicit or implicit commit is not allowed in stored function or trigger.
---error 1422
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 CREATE FUNCTION fn1(i1 longtext) returns longtext
 BEGIN
    update res_t9 set f1 = 20;
@@ -28130,7 +28158,6 @@ let $message= Testcase 4.11.11:;
 --source include/show_msg80.inc
 
 # testcase: verify undo handler for sql state 42000 (er_sp_wrong_no_of_args)
-# ?????????????
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS h1;
@@ -28236,10 +28263,14 @@ BEGIN
 END//
 delimiter ;//
 
+CALL h1();
+
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 
@@ -28279,10 +28310,14 @@ BEGIN
 END//
 delimiter ;//
 
+CALL h1();
+
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 
@@ -28324,10 +28359,14 @@ BEGIN
 END//
 delimiter ;//
 
+CALL h1();
+
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28368,12 +28407,14 @@ BEGIN
 END//
 delimiter ;//
 
-CALL h1()
+CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28413,9 +28454,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28455,9 +28498,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.19:;
@@ -28498,9 +28543,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.20:;
@@ -28541,9 +28588,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28583,9 +28632,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.22:;
@@ -28625,9 +28676,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.23:;
@@ -28668,9 +28721,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.24:;
@@ -28711,9 +28766,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.25:;
@@ -28751,9 +28808,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 
@@ -28793,9 +28852,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28834,9 +28895,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28875,9 +28938,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+drop table IF EXISTS res_t1;
+drop table IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28919,9 +28984,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+drop table IF EXISTS res_t1;
+drop table IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -28963,9 +29030,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+drop table IF EXISTS res_t1;
+drop table IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -29007,9 +29076,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+drop table IF EXISTS res_t1;
+drop table IF EXISTS res_t2;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -29051,9 +29122,11 @@ delimiter ;//
 CALL h1();
 
 # cleanup
-DROP PROCEDURE h1;
-drop table res_t1;
-drop table res_t2;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+DROP TABLE IF EXISTS res_t2;
+--enable_warnings
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 4.11.33:;
@@ -29073,7 +29146,7 @@ drop table IF EXISTS res_t1;
   insert into res_t1 values('c', 'd');
 
 delimiter //;
---error 1332
+--error ER_SP_DUP_COND
 CREATE PROCEDURE h1()
 BEGIN
       declare condname condition for sqlstate '20000';
@@ -29092,7 +29165,9 @@ END//
 delimiter ;//
 
 # cleanup
-drop table res_t1;
+--disable_warnings
+DROP TABLE IF EXISTS res_t1;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -29115,7 +29190,7 @@ insert into res_t1 values (1, 'a');
 
 delimiter //;
 
---error 1407
+--error ER_SP_BAD_SQLSTATE
 CREATE PROCEDURE h1 ()
 begin1_label:BEGIN
    declare condname1 condition for sqlstate '020';
@@ -29133,25 +29208,26 @@ begin1_label:BEGIN
    END begin2_label;
 END begin1_label//
 
-# FIXME: same statement except the 3 lines containing 'exit'
-#-# --error 1407
-#-# CREATE PROCEDURE h1 ()
-#-# begin1_label:BEGIN
-#-#    declare condname1 condition for sqlstate '020';
-#-#    declare condname2 condition for sqlstate 'wewe';
-#-#    declare condname3 condition for 9999;
-#-#    set @var2 = 1;
-#-#    insert into res_t1 values (2, 'b');
-#-#    begin2_label: BEGIN
-#-#       declare continue handler for sqlstate '90000023 set @var3= 1;
-#-#       set @var4 = 1;
-#-#       insert into res_t1 values (3, 'c');
-#-#    END begin2_label;
-#-# END begin1_label//
+--error ER_SP_BAD_SQLSTATE
+CREATE PROCEDURE h1 ()
+begin1_label:BEGIN
+   declare condname1 condition for sqlstate '020';
+   declare condname2 condition for sqlstate 'wewe';
+   declare condname3 condition for 9999;
+   set @var2 = 1;
+   insert into res_t1 values (2, 'b');
+   begin2_label: BEGIN
+      declare continue handler for sqlstate '90000023' set @var3= 1;
+      set @var4 = 1;
+      insert into res_t1 values (3, 'c');
+   END begin2_label;
+END begin1_label//
 delimiter ;//
 
 # cleanup
-drop table res_t1;
+--disable_warnings
+DROP TABLE IF EXISTS res_t1;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -29181,7 +29257,9 @@ END//
 delimiter ;//
 
 # cleanup
-DROP PROCEDURE h1;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+--enable_warnings
 
 
 
@@ -29193,8 +29271,6 @@ let $message= Testcase 4.11.40:;
 --source include/show_msg80.inc
 
 # testcase: ensure that within the same scope, no two handlers may be declared for the same condition
-# Bug (
-
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS h1;
@@ -29207,8 +29283,7 @@ drop table IF EXISTS res_t1;
 # suppressed--error for having two similar handlers in the same scope
 
 delimiter //;
-#FIXME 3.1.11.40: check whether error 1413 is OK
---error 1413
+--error ER_SP_DUP_HANDLER
 CREATE PROCEDURE h1 ()
 BEGIN
     declare x1, x2, x3, x4, x5 int default 0;
@@ -29222,13 +29297,13 @@ BEGIN
 END//
 delimiter ;//
 
-#FIXME 3.1.11.40: CALL h1();
+#CALL h1();
 
 # cleanup
 --disable_warnings
 DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
 --enable_warnings
-drop table res_t1;
 
 
 # ------------------------------------------------------------------------------
@@ -29237,13 +29312,11 @@ let $message= Testcase 4.11.41:;
 
 # testcase: ensure that the declare  handler for statement cannot declare a condition for the successful
 #            completion sqlstate:  00000.
-#FIXME Bug: (Bug#8759)
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS h1;
 --enable_warnings
 
-# supressed should actually fail --error
 delimiter //;
 CREATE PROCEDURE h1 ()
 BEGIN
@@ -29258,8 +29331,12 @@ BEGIN
 END//
 delimiter ;//
 
+CALL h1();
+
 # cleanup
+--disable_warnings
 DROP PROCEDURE IF EXISTS h1;
+--enable_warnings
 
 
 # ------------------------------------------------------------------------------
@@ -29287,7 +29364,7 @@ END//
 delimiter ;//
 
 # table doesn't exist
---error 1146
+--error ER_NO_SUCH_TABLE
 CALL h1();
 SELECT @done, @x;
 
@@ -29316,7 +29393,7 @@ END//
 delimiter ;//
 
 # table doesn't exist
---error 1146
+--error ER_NO_SUCH_TABLE
 CALL h1();
 SELECT @done, @x;
 
@@ -29329,8 +29406,10 @@ CALL h1();
 SELECT @done, @x;
 
 # cleanup
-DROP PROCEDURE h1;
-DROP TABLE res_t1;
+--disable_warnings
+DROP PROCEDURE IF EXISTS h1;
+DROP TABLE IF EXISTS res_t1;
+--enable_warnings
 
 
 # ==============================================================================

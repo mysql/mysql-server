@@ -3,6 +3,7 @@
 # Trigger Tests 
 # (test case numbering refer to requirement document TP v1.1) 
 #======================================================================
+# WL#4084: enable disabled parts, 2007-11-15 hhunger
 
 # General setup for Trigger tests
 let $message= Testcase: 3.5:;
@@ -33,8 +34,6 @@ let $message= Testcase: 3.5:;
 #           correctly and the results in all expected changes made to the database
 let $message= Testcase 3.5.8.1: (implied in previous tests);
 --source include/show_msg.inc
-
-# OBN - FIXME - Missing 3.5.8.1 need to add
 
 #Section 3.5.8.2
 # Testcase: Ensure that the triggered actions of every trigger never results 
@@ -111,10 +110,12 @@ let $message= 3.5.8.4 - multiple SQL;
 	Insert into tb3 (f120, f122, f136, f144, f163) 
 		values ('1', 'Test 3.5.8.4', 222, 23456, 1.05);
 	Select f120, f122, f136, f144, f163 from tb3 where f122= 'Test 3.5.8.4';
-# error in ndb
-	select * from db_test.t1_i order by i120;
-	select * from db_test.t1_u order by u120;
-	select * from db_test.t1_d order by d120;
+	--sorted_result
+	select * from db_test.t1_i;
+	--sorted_result
+	select * from db_test.t1_u;
+	--sorted_result
+	select * from db_test.t1_d;
 	select @test_var;
 
 
@@ -320,28 +321,28 @@ let $message= Testcase 3.5.8.5-case:;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('a', 'Test 3.5.8.5-case', 5, 7);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('b', 'Test 3.5.8.5-case', 71,16);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('c', 'Test 3.5.8.5-case', 80,1);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 	Insert into tb3 (f120, f122, f136) 
 		values ('d', 'Test 3.5.8.5-case', 152);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('e', 'Test 3.5.8.5-case', 200, 8);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 	--error 0, 1339
 	Insert into tb3 (f120, f122, f136, f144) 
 		values ('f', 'Test 3.5.8.5-case', 100, 8);
 	select f120, f122, f136, f144, @test_var 
-		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120;
+		from tb3 where f122 = 'Test 3.5.8.5-case' order by f120,f136;
 
 	delimiter //;
 	--error 1064
@@ -495,12 +496,25 @@ let $message= Testcase 3.5.8.5-while:;
 #Section 3.5.8.6
 # Test case: Ensure that a trigger definition that includes a CALL to a stored 
 #            procedure fails, at CREATE TRIGGER time, with an appropriate error 
-#            message
-# OBN - requirement void since allowed 
-#       Fails due to Bug 9909 the bug allows the trigger to be created
-#       and fails in execution time
+#            message. Not more valid requirement.
 let $message= Testcase 3.5.8.6: (requirement void);
 --source include/show_msg.inc
+	delimiter //;
+	CREATE PROCEDURE sp_01 () BEGIN set @v1=1; END//
+
+	CREATE TRIGGER trg8_1 BEFORE UPDATE ON tb3 FOR EACH ROW
+	BEGIN
+		CALL sp_01 ();
+	END//
+	delimiter ;//
+	Insert into tb3 (f120, f122, f136) values ('6', 'Test 3.5.8.6-insert', 101);
+	update tb3 set f120='S', f136=111,
+	       f122='Test 3.5.8.6-tr8_1'
+	       where f122='Test 3.5.8.6-insert';
+	select f120, f122
+	       from tb3 where f122  like 'Test 3.5.8.6%' order by f120;
+	DROP TRIGGER trg8_1;
+	DROP PROCEDURE sp_01;
 
 
 #Section 3.5.8.7
@@ -508,25 +522,26 @@ let $message= Testcase 3.5.8.6: (requirement void);
 #            transaction-delimiting statement (e.g. COMMIT, 
 #            ROLLBACK, START TRANSACTION) fails, at CREATE TRIGGER 
 #            time, with an appropriate error message.
-# OBN - Fails due to Bug ____
-let $message= Testcase 3.5.8.7: (Disabled as a result of bug _____);
+let $message= Testcase 3.5.8.7;
 --source include/show_msg.inc
+	
+	delimiter //;
+	--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG 
+	Create trigger trg9_1 before update on tb3 for each row
+	BEGIN
+		Start transaction;
+			Set new.f120='U';
+		Commit;
+	END//
 
-#	--error 1314
-#	Create trigger trg9_1 before update on tb3 for each row
-#	BEGIN
-#		Start transaction;
-#			Set new.f120='U';
-#		Commit;
-#	END;
-
-#	--error 1314
-#	Create trigger trg9_2 before delete on tb3 for each row
-#	BEGIN
-#		Start transaction;
-#			Set @var2=old.f120;
-#		Rollback;
-#	END;
+	--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG 
+	Create trigger trg9_2 before delete on tb3 for each row
+	BEGIN
+		Start transaction;
+			Set @var2=old.f120;
+		Rollback;
+	END//
+	delimiter ;//
 
 
 # Cleanup section 3.5

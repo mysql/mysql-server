@@ -21,7 +21,6 @@ eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
 let $run= `SELECT @NO_REFRESH = 0`;
 if ($run)
 {
-
     # Create some objects needed in many testcases
     USE test;
     --source suite/funcs_1/include/ndb_tb2.inc
@@ -32,7 +31,6 @@ if ($run)
     USE test1;
     --source suite/funcs_1/include/ndb_tb2.inc
     USE test;
-
 }
     
 --source suite/funcs_1/views/views_master.inc
