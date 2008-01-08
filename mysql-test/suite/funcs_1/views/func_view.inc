@@ -5,10 +5,7 @@
 ###################################################
 # 2006-12-08 ML   Maintenance + refinements
 # 2005-09-14 ML   Create this test
-
-let $message= ! Attention: The file with the expected results suffers from
-Bug#10713: mysqldump includes database in create view and referenced tables;
---source include/show_msg80.inc
+# 2007-11-09 HHunger enabled all disabled parts belonging to fixed bugs.
 #
 # 0.  Some notes about this test:
 # #################################################################
@@ -43,14 +40,7 @@ Bug#10713: mysqldump includes database in create view and referenced tables;
 #       which was valid during VIEW creation time. This means some variations
 #       of the SQL mode are needed.
 # 0.1.3 There are much more functions to be tested.
-# 0.1.4 There are problems with the option "--ps-protocol".
-#       Double values with 15 digit mantissa are printed with 14 digit
-#       mantissa (Bug#11589).
-#       I altered the Minimum/Maximum double values to 14 digit mantissa
-#       to avoid these problems. But there are some other unsolved problems
-#       with "--ps-protocol".
---disable_ps_protocol
-# 0.1.5 The result sets of some CAST sub testcases with ugly function parameter
+# 0.1.4 The result sets of some CAST sub testcases with ugly function parameter
 #       column data type combinations must be discussed.
 #
 #
@@ -256,11 +246,9 @@ INSERT INTO t1_values SET
        my_year = '1901',
        my_bigint = -9223372036854775808,
        my_decimal = -9999999999999999999999999999999999.999999999999999999999999999999 ,
-       my_double = -1.7976931348623E+308;
-# Note(ML): Values like
-#           - my_timestamp = '19700101030000' do not work
-#           - my_double = -1.7976931348623157E+308 cause problems with 
-#             --ps-protocol (Bug#11589)
+       my_double = -1.7976931348623E+308; 
+# shortened due to bug#32285
+#       my_double = -1.7976931348623157E+308; 
 #
 # 2.3 record -- everything to "maximum"
 #     numbers, date/time types -> maximum of range
@@ -281,10 +269,8 @@ INSERT INTO t1_values SET
        my_bigint = 9223372036854775807,
        my_decimal = +9999999999999999999999999999999999.999999999999999999999999999999 ,
        my_double = 1.7976931348623E+308;
-# Note(ML): Values like
-#           -  my_timestamp = '20380101030000' do not work
-#           - my_double = 1.7976931348623157E+308 cause problems with
-#             --ps-protocol (Bug#11589)
+# shortened due to bug#32285
+#       my_double = -1.7976931348623157E+308; 
 #
 # 2.4 record -- everything to "magic" value if available or
 #               other interesting value
@@ -430,6 +416,7 @@ eval INSERT INTO t1_values SET select_id = @select_id,
 #
 #
 # 1.1.1. CAST --> BINARY
+--echo ##### 1.1.1. CAST --> BINARY
 let $target_type= BINARY;
 #
 let $col_type= my_char_30;
@@ -459,6 +446,7 @@ let $col_type= my_year;
 
 
 # 1.1.2. CAST --> CHAR
+--echo ##### 1.1.2. CAST --> CHAR
 let $target_type= CHAR;
 #
 let $col_type= my_char_30;
@@ -488,6 +476,7 @@ let $col_type= my_year;
 
 
 # 1.1.3. CAST --> DATE
+--echo ##### 1.1.3. CAST --> DATE
 let $target_type= DATE;
 #
 let $col_type= my_char_30;
@@ -527,6 +516,7 @@ let $col_type= my_year;
 
 
 # 1.1.4. CAST --> DATETIME
+--echo ##### 1.1.4. CAST --> DATETIME
 let $target_type= DATETIME;
 #
 let $col_type= my_char_30;
@@ -566,6 +556,7 @@ let $col_type= my_year;
 
 
 # 1.1.5. CAST --> TIME
+--echo ##### 1.1.5. CAST --> TIME
 let $target_type= TIME;
 #
 let $col_type= my_char_30;
@@ -604,8 +595,8 @@ let $col_type= my_time;
 let $col_type= my_year;
 --source suite/funcs_1/views/fv_cast.inc
 
-
 # 1.1.6. CAST --> DECIMAL
+--echo ##### 1.1.6. CAST --> DECIMAL
 # Set the following to (37,2) since the default was changed to (10,0) - OBN
 let $target_type= DECIMAL(37,2);
 #
@@ -647,6 +638,7 @@ let $col_type= my_year;
 
 
 # 1.1.7. CAST --> SIGNED INTEGER
+--echo ##### 1.1.7. CAST --> SIGNED INTEGER
 let $target_type= SIGNED INTEGER;
 #
 let $message= 
@@ -682,6 +674,7 @@ let $col_type= my_year;
 
 
 # 1.1.8. CAST --> UNSIGNED INTEGER
+--echo ##### 1.1.8. CAST --> UNSIGNED INTEGER
 let $target_type= UNSIGNED INTEGER;
 #
 let $message= 
@@ -703,12 +696,9 @@ let $col_type= my_decimal;
 let $message= some statements disabled because of
 Bug#5913 Traditional mode: BIGINT range not correctly delimited;
 --source include/show_msg80.inc
-if (0)
-{
-# Bugs#8663: cant use bgint unsigned as input to cast
+# Bug#8663 cant use bgint unsigned as input to cast
 let $col_type= my_double;
 --source suite/funcs_1/views/fv_cast.inc
-}
 let $col_type= my_datetime;
 --source suite/funcs_1/views/fv_cast.inc
 let $col_type= my_date;
@@ -1008,38 +998,21 @@ let $col_type= my_varbinary_1000;
 eval SET @my_select = 
 'SELECT LEFT($col_type, 2), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
-#
-let $message= 
-"Attention: LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', <numeric column>)
-            The file with expected results suffers from Bug 10963"
-            and the testcases with length = BIGINT or DOUBLE column are deactivated,
-            because there are 32/64 Bit differences;
---source include/show_msg80.inc
 # Bug#11728 string function LEFT, strange undocumented behaviour, strict mode
 # Bug#10963 LEFT string function returns wrong result with large length
 let $col_type= my_bigint;
-if (0)
-{
-# Bug#10963 LEFT string function returns wrong result with large length
 eval SET @my_select = 
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', $col_type), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
-}
-#
 let $col_type= my_decimal;
 eval SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', $col_type), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
-#
-if (0)
-{
 # Bug#10963 LEFT string function returns wrong result with large length
 let $col_type= my_double;
 eval SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', $col_type), $col_type, id FROM t1_values';
 --source suite/funcs_1/views/fv1.inc
-}
-
 
 # 3.20.   LENGTH(str)
 let $col_type= my_char_30;
@@ -1260,6 +1233,7 @@ SET sql_mode = '';                                                             #
 let $message= "# The basic preparations end and the main test starts here";
 --source include/show_msg80.inc
 
+--disable_ps_protocol
 
 ##### The tests start here #####################################################
 
@@ -1369,6 +1343,8 @@ while ($select_id)
 
     dec $select_id ;
 }
+
+--enable_ps_protocol
 
 DROP TABLE t1_selects, t1_modes, t1_values;
 --exec rm $MYSQLTEST_VARDIR/tmp/func_view.dat

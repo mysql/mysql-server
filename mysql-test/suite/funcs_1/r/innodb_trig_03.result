@@ -184,15 +184,14 @@ insert 3.5.3.2-no
 insert 3.5.3.6-no
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
-
-Trigger create disabled - should fail - Bug 8884
-------------------------------------------------
+create trigger trg4a_1 before INSERT on t1 for each row
+set new.f1 = 'trig 3.5.3.7-1a';
 insert into t1 (f1) values ('insert 3.5.3.7-1a');
+ERROR 42000: UPDATE command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 drop trigger trg4a_1;
@@ -210,7 +209,6 @@ select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
@@ -239,29 +237,27 @@ Grants for test_noprivs@localhost
 GRANT USAGE ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8884
-------------------------------------------------
+create trigger trg4b_1 before UPDATE on t1 for each row
+set new.f1 = 'trig 3.5.3.7-1b';
 insert into t1 (f1) values ('insert 3.5.3.7-1b');
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
 insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 update t1 set  f1 = 'update 3.5.3.7-1b' where f1 = 'insert 3.5.3.7-1b';
+ERROR 42000: UPDATE command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
-update 3.5.3.7-1b
 drop trigger trg4b_1;
 show grants;
 Grants for test_yesprivs@localhost
@@ -275,23 +271,21 @@ select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
+insert 3.5.3.7-1b
 insert 3.5.3.7-2b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
-update 3.5.3.7-1b
 update t1 set  f1 = 'update 3.5.3.7-2b' where f1 = 'insert 3.5.3.7-2b';
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
-update 3.5.3.7-1b
 drop trigger trg4b_2;
 
 Testcase 3.5.3.7c
@@ -317,21 +311,19 @@ Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT, INSERT, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8884
-------------------------------------------------
+create trigger trg4c_1 before INSERT on t1 for each row
+set new.f1 = 'trig 3.5.3.7-1c';
 insert into t1 (f1) values ('insert 3.5.3.7-1c');
+ERROR 42000: UPDATE command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
-insert 3.5.3.7-1c
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
-update 3.5.3.7-1b
 drop trigger trg4c_1;
 show grants;
 Grants for test_yesprivs@localhost
@@ -345,14 +337,12 @@ select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
-insert 3.5.3.7-1c
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 trig 3.5.3.7-2c
-update 3.5.3.7-1b
 drop trigger trg4c_2;
 
 Testcase 3.5.3.7d:
@@ -376,23 +366,20 @@ Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT SELECT (f1), INSERT (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8884
-------------------------------------------------
+create trigger trg4d_1 before INSERT on t1 for each row
+set new.f1 = 'trig 3.5.3.7-1d';
 insert into t1 (f1) values ('insert 3.5.3.7-1d');
+ERROR 42000: UPDATE command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
-insert 3.5.3.7-1c
-insert 3.5.3.7-1d
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 trig 3.5.3.7-2c
-update 3.5.3.7-1b
 drop trigger trg4d_1;
 show grants;
 Grants for test_yesprivs@localhost
@@ -406,16 +393,13 @@ select f1 from t1 order by f1;
 f1
 insert 3.5.3.2-no
 insert 3.5.3.6-no
-insert 3.5.3.7-1a
-insert 3.5.3.7-1c
-insert 3.5.3.7-1d
+insert 3.5.3.7-1b
 trig 3.5.3.2_2-yes
 trig 3.5.3.2_2-yes
 trig 3.5.3.7-2a
 trig 3.5.3.7-2b
 trig 3.5.3.7-2c
 trig 3.5.3.7-2d
-update 3.5.3.7-1b
 drop trigger trg4d_2;
 
 Testcase 3.5.3.8a:
@@ -440,14 +424,14 @@ use priv_db;
 show grants;
 Grants for test_noprivs@localhost
 GRANT INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
-
-Trigger create disabled - should fail - Bug 8887
-------------------------------------------------
+create trigger trg5a_1 before INSERT on t1 for each row
+set @test_var = new.f1;
 set @test_var = 'before trig 3.5.3.8-1a';
 select @test_var;
 @test_var
 before trig 3.5.3.8-1a
 insert into t1 (f1) values ('insert 3.5.3.8-1a');
+ERROR 42000: SELECT command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select @test_var;
 @test_var
 before trig 3.5.3.8-1a
@@ -495,15 +479,15 @@ Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EVENT, TRIGGER ON `priv_db`.* TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8887
-------------------------------------------------
+create trigger trg5b_1 before UPDATE on t1 for each row
+set @test_var= new.f1;
 set @test_var= 'before trig 3.5.3.8-1b';
 insert into t1 (f1) values ('insert 3.5.3.8-1b');
 select @test_var;
 @test_var
 before trig 3.5.3.8-1b
 update t1 set  f1= 'update 3.5.3.8-1b' where f1 = 'insert 3.5.3.8-1b';
+ERROR 42000: SELECT command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select @test_var;
 @test_var
 before trig 3.5.3.8-1b
@@ -550,11 +534,11 @@ Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT, UPDATE, DELETE, CREATE, DROP, REFERENCES, INDEX, ALTER, CREATE VIEW, SHOW VIEW, TRIGGER ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8887
-------------------------------------------------
+create trigger trg5c_1 before INSERT on t1 for each row
+set @test_var= new.f1;
 set @test_var= 'before trig 3.5.3.8-1c';
 insert into t1 (f1) values ('insert 3.5.3.8-1c');
+ERROR 42000: SELECT command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select @test_var;
 @test_var
 before trig 3.5.3.8-1c
@@ -596,11 +580,11 @@ Grants for test_noprivs@localhost
 GRANT TRIGGER ON *.* TO 'test_noprivs'@'localhost' IDENTIFIED BY PASSWORD '*C49735D016A099C0CF104EF9183F374A54CA2576'
 GRANT INSERT (f1), UPDATE (f1) ON `priv_db`.`t1` TO 'test_noprivs'@'localhost'
 use priv_db;
-
-Trigger create disabled - should fail - Bug 8887
-------------------------------------------------
+create trigger trg5d_1 before INSERT on t1 for each row
+set @test_var= new.f1;
 set @test_var='before trig 3.5.3.8-1d';
 insert into t1 (f1) values ('insert 3.5.3.8-1d');
+ERROR 42000: SELECT command denied to user 'test_noprivs'@'localhost' for column 'f1' in table 't1'
 select @test_var;
 @test_var
 before trig 3.5.3.8-1d
