@@ -1230,6 +1230,62 @@ public:
   };
 
   /**
+   * @brief Represents a Table Optimization Handle
+   * Passed as argument to optimizeTable
+   */
+  class OptimizeTableHandle {
+  public:
+    /**
+     * Supported operations for OptimizeTableHandle
+     */
+    OptimizeTableHandle();
+    ~OptimizeTableHandle();
+    /**
+     * Optimize one more batch of records
+     * @return 1 for more records left to optimize,
+     *         0 when completed
+     *         -1 encountered some error 
+     */
+    int next();
+    /**
+     * Close the handle object
+     * @return 0 when completed
+     *         -1 encountered some error      
+     */
+    int close();
+  private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbOptimizeTableHandleImpl;
+    friend class NdbOptimizeIndexHandleImpl;
+    friend class NdbDicitionaryImpl;
+#endif
+    class NdbOptimizeTableHandleImpl & m_impl;
+    OptimizeTableHandle(NdbOptimizeTableHandleImpl &);
+  };
+
+  /**
+   * @brief Represents a Index Optimization Handle
+   * passed as argument to optimizeIndex
+   */
+  class OptimizeIndexHandle {
+  public:
+    /**
+     * Supported operations for OptimizeIndexHandle
+     */
+    OptimizeIndexHandle();
+    ~OptimizeIndexHandle();
+    int next();
+    int close();
+  private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbOptimizeIndexHandleImpl;
+    friend class NdbDicitionaryImpl;
+#endif
+    class NdbOptimizeIndexHandleImpl & m_impl;
+    OptimizeIndexHandle(NdbOptimizeIndexHandleImpl &);
+  };
+
+  /**
    * @brief Represents an Event in NDB Cluster
    *
    */
@@ -1881,74 +1937,22 @@ public:
     int createTable(const Table &table);
 
     /**
-     * Optimize table given defined table object
+     * Start table optimization given defined table object
      * @param t Object of table to optimize
-     * @param delay in milliseconds for each batch of rows 
+     * @param Pre-allocated OptimizeTableHandle
      * @return 0 if successful otherwise -1.
      */
-    int optimizeTable(const Table &t, Uint32 delay = 0);
+    int
+    optimizeTable(const Table &t, OptimizeTableHandle &h);
 
     /**
-     * Optimize table given table name
-     * @param name Name of table to optimize
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeTable(const char * name, Uint32 delay = 0);
-
-    /**
-     * Optimize table given defined table object
-     * @param t Object of global table to optimize
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeTableGlobal(const Table &t, Uint32 delay = 0);
-
-    /**
-     * Optimize table given table name
-     * @param name Name of global table to optimize
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeTableGlobal(const char * name, Uint32 delay = 0);
-
-    /**
-     * Optimize index given defined index object
+     * Start index optimization given defined index object
      * @param ind Object of index to optimize
-     * @param delay in milliseconds for each batch of rows 
+     * @param Pre-allocated OptimizeIndexHandle
      * @return 0 if successful otherwise -1.
      */
-    int optimizeIndex(const Index &ind, Uint32 delay = 0);
-
-    /**
-     * Optimize index given table name and index name
-     * @param idx_name Internal name of index
-     * @param tab_name Name of table
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeIndex(const char * idx_name, 
-                      const char * tab_name,
-                      Uint32 delay = 0);
-
-    /**
-     * Optimize index given defined global index object
-     * @param ind Object of index to optimize
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeIndexGlobal(const Index &ind, Uint32 delay = 0);
-
-    /**
-     * Optimize index given table name and index name
-     * @param idx_name Internal name of global index
-     * @param tab_name Name of table
-     * @param delay in milliseconds for each batch of rows 
-     * @return 0 if successful otherwise -1.
-     */
-    int optimizeIndexGlobal(const char * idx_name,
-                            const char * tab_name, 
-                            Uint32 delay = 0);
+    int
+    optimizeIndex(const Index &ind, OptimizeIndexHandle &h);
 
     /**
      * Drop table given retrieved Table instance

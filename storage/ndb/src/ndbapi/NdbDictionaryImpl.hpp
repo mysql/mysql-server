@@ -297,6 +297,66 @@ public:
   NdbDictionary::Index * m_facade;
 };
 
+class NdbOptimizeTableHandleImpl : public NdbDictionary::OptimizeTableHandle
+{
+  enum State { CREATED, INITIALIZED, FINISHED, ABORTED, CLOSED };
+private:
+  int start();
+
+  State m_state;
+  Ndb *m_ndb;
+  typedef struct fifo_element_st {
+    fifo_element_st(const NdbTableImpl *tab, fifo_element_st *prev)
+      { 
+        table = tab; 
+        previous = prev; 
+        next = NULL;
+        if (prev) 
+          prev->next = this; 
+      } 
+    const NdbTableImpl * table;
+    fifo_element_st * previous;
+    fifo_element_st * next;
+  };
+  const NdbTableImpl * m_table;
+  fifo_element_st * m_table_queue;
+  fifo_element_st * m_table_queue_first;
+  fifo_element_st * m_table_queue_end;
+  NdbTransaction * m_trans;
+  NdbScanOperation * m_scan_op;
+
+  NdbDictionary::OptimizeTableHandle * m_facade;
+public:
+  NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &);
+  ~NdbOptimizeTableHandleImpl();
+  static NdbOptimizeTableHandleImpl & getImpl(NdbDictionary::OptimizeTableHandle &h)
+    { return h.m_impl; }
+
+  int init(Ndb *ndb, const NdbTableImpl &table);
+  int next();
+  int close();
+};
+
+class NdbOptimizeIndexHandleImpl : public NdbDictionary::OptimizeIndexHandle
+{
+  enum State { CREATED, INITIALIZED, FINISHED, ABORTED, CLOSED };
+private:
+  State m_state;
+  Ndb *m_ndb;
+  const NdbIndexImpl *m_index;
+  class NdbDictionary::OptimizeTableHandle m_optimize_table_handle;
+  NdbDictionary::OptimizeIndexHandle * m_facade;
+public:
+  NdbOptimizeIndexHandleImpl(NdbDictionary::OptimizeIndexHandle &);
+  ~NdbOptimizeIndexHandleImpl();
+  static NdbOptimizeIndexHandleImpl & getImpl(NdbDictionary::OptimizeIndexHandle &h)
+    { return h.m_impl; }
+
+  int init(Ndb *ndb, const NdbIndexImpl &index);
+  int next();
+  int close();
+};
+
 class NdbEventImpl : public NdbDictionary::Event, public NdbDictObjectImpl {
   friend class NdbDictInterface;
   friend class NdbDictionaryImpl;
@@ -610,19 +670,10 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int __optimizeTable(const NdbTableImpl &t, Uint32 delay);
-  int optimizeTable(const NdbTableImpl &t, Uint32 delay);
-  int optimizeTable(const char * name, Uint32 delay);
-  int optimizeTableGlobal(const NdbTableImpl &t, Uint32 delay);
-  int optimizeTableGlobal(const char * name, Uint32 delay);
-  int optimizeIndex(const NdbIndexImpl &index, Uint32 delay);
-  int optimizeIndex(const char * idx_name,
-                    const char * tab_name,
-                    Uint32 delay);
-  int optimizeIndexGlobal(const NdbIndexImpl &index, Uint32 delay);
-  int optimizeIndexGlobal(const char * idx_name,
-                          const char * tab_name,
-                          Uint32 delay);
+  int optimizeTable(const NdbTableImpl &t,
+                    NdbOptimizeTableHandleImpl &h);
+  int optimizeIndex(const NdbIndexImpl &index,
+                    NdbOptimizeIndexHandleImpl &h);
   int createBlobTables(const NdbTableImpl& t);
   bool supportedAlterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
