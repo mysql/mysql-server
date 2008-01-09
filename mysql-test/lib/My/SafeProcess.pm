@@ -95,7 +95,7 @@ if (IS_WIN32PERL or IS_CYGWIN){
   push(@safe_process_cmd, $exe);
 
   # Use my_safe_kill.exe
-  my $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
+  $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
   die "Could not find my_safe_kill.exe" unless $safe_kill;
 }
 else {
