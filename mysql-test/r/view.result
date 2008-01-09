@@ -2698,12 +2698,12 @@ View	Create View
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select (year(now()) - year(`t1`.`DOB`)) AS `Age` from `t1` having (`Age` < 75)
 SELECT (year(now())-year(DOB)) AS Age FROM t1 HAVING Age < 75;
 Age
-43
-39
+44
+40
 SELECT * FROM v1;
 Age
-43
-39
+44
+40
 DROP VIEW v1;
 DROP TABLE t1;
 CREATE TABLE t1 (id int NOT NULL PRIMARY KEY, a char(6) DEFAULT 'xxx');
