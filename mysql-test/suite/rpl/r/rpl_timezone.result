@@ -40,44 +40,6 @@ SELECT * FROM t1 ORDER BY n;
 t	n
 2004-01-01 00:00:00	5
 2004-06-11 09:39:02	6
-select * from t1;
-t
-2004-01-01 00:00:00
-2004-06-11 09:39:02
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
-/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
-DELIMITER /*!*/;
-ROLLBACK/*!*/;
-use test/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (t timestamp)
-/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-create table t2 (t char(32))
-/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-SET @@session.time_zone='Europe/Moscow'/*!*/;
-insert into t1 values ('20050101000000'), ('20050611093902')
-/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-SET @@session.time_zone='UTC'/*!*/;
-insert into t1 values ('20040101000000'), ('20040611093902')
-/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-delete from t1
-/*!*/;
-SET TIMESTAMP=100000000/*!*/;
-SET @@session.time_zone='Europe/Moscow'/*!*/;
-insert into t1 values ('20040101000000'), ('20040611093902')
-/*!*/;
-DELIMITER ;
-# End of log file
-ROLLBACK /* added by mysqlbinlog */;
-/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
 delete from t1;
 set time_zone='UTC';
 load data infile '../std_data_ln/rpl_timezone2.dat' into table t1;
