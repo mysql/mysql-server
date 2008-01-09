@@ -99,6 +99,7 @@ DbUtil::databaseLogin(const char* system, const char* usr,
            mysql_get_server_info(mysql),
            (unsigned long) mysql_get_server_version(mysql));
   #endif
+  this->selectDb();
 }
 
 /* Database Connect */
@@ -132,7 +133,7 @@ DbUtil::connect()
     mysql_close(mysql);
     return DBU_FAILED;
   }
-
+  this->selectDb();
   m_connected = true;
   return DBU_OK;
 }
@@ -243,15 +244,32 @@ DbUtil::selectDb(const char * m_db)
   }
 }
 
+int
+DbUtil::createDb(BaseString& m_db)
+{
+  BaseString stm;
+  {
+    if(mysql_select_db(this->getMysql(), m_db.c_str()) == DBU_OK)
+    {
+      stm.assfmt("DROP DATABASE %s", m_db.c_str());
+      if(this->doQuery(m_db.c_str()) == DBU_FAILED)
+        return DBU_FAILED;
+    }
+    stm.assfmt("CREATE DATABASE %s", m_db.c_str());
+    if(this->doQuery(m_db.c_str()) == DBU_FAILED)
+      return DBU_FAILED;
+    return DBU_OK;
+  }
+}
 
 /* Run Simple Queries */
 
 int 
-DbUtil::doQuery(char * stm)
+DbUtil::doQuery(BaseString& str)
 {
-  if(mysql_query(this->getMysql(), stm))
+  if(mysql_query(this->getMysql(), str.c_str()))
   {
-    this->printError(stm); 
+    this->printError(str.c_str()); 
     return DBU_FAILED;
   }
   return DBU_OK;
