@@ -2373,6 +2373,10 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     info_add_lock(block, 0);
     break;
   case PAGECACHE_LOCK_LEFT_UNLOCKED:       /* free  -> free  */
+    if (pin == PAGECACHE_UNPIN)
+    {
+      remove_pin(block);
+    }
   case PAGECACHE_LOCK_LEFT_WRITELOCKED:    /* write -> write */
     break; /* do nothing */
   default:

@@ -29,35 +29,50 @@ static PAGECACHE pagecache;
 static struct file_desc simple_read_write_test_file[]=
 {
   {PAGE_SIZE, '\1'},
-  { 0, 0}
+  {0, 0}
 };
 static struct file_desc simple_read_change_write_read_test_file[]=
 {
   {PAGE_SIZE/2, '\65'},
   {PAGE_SIZE/2, '\1'},
-  { 0, 0}
+  {0, 0}
 };
 static struct file_desc simple_pin_test_file1[]=
 {
   {PAGE_SIZE*2, '\1'},
-  { 0, 0}
+  {0, 0}
 };
 static struct file_desc simple_pin_test_file2[]=
 {
   {PAGE_SIZE/2, '\1'},
   {PAGE_SIZE/2, (unsigned char)129},
   {PAGE_SIZE, '\1'},
-  { 0, 0}
+  {0, 0}
 };
-static struct file_desc  simple_delete_forget_test_file[]=
+static struct file_desc simple_pin_no_lock_test_file1[]=
+{
+  {PAGE_SIZE, '\4'},
+  {0, 0}
+};
+static struct file_desc simple_pin_no_lock_test_file2[]=
+{
+  {PAGE_SIZE, '\5'},
+  {0, 0}
+};
+static struct file_desc simple_pin_no_lock_test_file3[]=
+{
+  {PAGE_SIZE, '\6'},
+  {0, 0}
+};
+static struct file_desc simple_delete_forget_test_file[]=
 {
   {PAGE_SIZE, '\1'},
-  { 0, 0}
+  {0, 0}
 };
-static struct file_desc  simple_delete_flush_test_file[]=
+static struct file_desc simple_delete_flush_test_file[]=
 {
   {PAGE_SIZE, '\2'},
-  { 0, 0}
+  {0, 0}
 };
 
 
@@ -220,7 +235,6 @@ int simple_read_change_write_read_test()
 int simple_pin_test()
 {
   unsigned char *buffw= malloc(PAGE_SIZE);
-  unsigned char *buffr= malloc(PAGE_SIZE);
   int res;
   DBUG_ENTER("simple_pin_test");
   /* prepare the file */
@@ -286,10 +300,103 @@ int simple_pin_test()
     reset_file(&file1, file1_name);
 err:
   free(buffw);
-  free(buffr);
   DBUG_RETURN(res);
 }
 
+/*
+  Checks pins without lock.
+*/
+int simple_pin_no_lock_test()
+{
+  unsigned char *buffw= malloc(PAGE_SIZE);
+  PAGECACHE_BLOCK_LINK *link;
+  int res;
+  DBUG_ENTER("simple_pin_no_lock_test");
+  /* prepare the file */
+  bfill(buffw, PAGE_SIZE, '\4');
+  pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_LEFT_UNLOCKED,
+                  PAGECACHE_PIN_LEFT_UNPINNED,
+                  PAGECACHE_WRITE_DELAY,
+                  0, LSN_IMPOSSIBLE);
+  /* test */
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error during flushing pagecache 2\n");
+    exit(1);
+  }
+  bfill(buffw, PAGE_SIZE, '\5');
+  pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_LEFT_UNLOCKED,
+                  PAGECACHE_PIN,
+                  PAGECACHE_WRITE_DELAY,
+                  0, LSN_IMPOSSIBLE);
+  /*
+    We have to get error because one page of the file is pinned,
+    other page should be flushed
+  */
+  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Did not get error in flush_pagecache_blocks 2\n");
+    res= 0;
+    goto err;
+  }
+  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+                           simple_pin_no_lock_test_file1))),
+     "Simple pin (no lock) page file with pin 2");
+  pagecache_unlock(&pagecache,
+                   &file1,
+                   0,
+                   PAGECACHE_LOCK_LEFT_UNLOCKED,
+                   PAGECACHE_UNPIN,
+                   0, 0, 0);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error in flush_pagecache_blocks 2\n");
+    res= 0;
+    goto err;
+  }
+  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+                           simple_pin_no_lock_test_file2))),
+     "Simple pin (no lock) page result file 2");
+
+  bfill(buffw, PAGE_SIZE, '\6');
+  pagecache_write(&pagecache, &file1, 0, 3, (char*)buffw,
+                  PAGECACHE_PLAIN_PAGE,
+                  PAGECACHE_LOCK_WRITE,
+                  PAGECACHE_PIN,
+                  PAGECACHE_WRITE_DELAY,
+                  &link, LSN_IMPOSSIBLE);
+  pagecache_unlock_by_link(&pagecache, link,
+                           PAGECACHE_LOCK_WRITE_UNLOCK,
+                           PAGECACHE_PIN_LEFT_PINNED, 0, 0, 1);
+  if (!flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Did not get error in flush_pagecache_blocks 3\n");
+    res= 0;
+    goto err;
+  }
+  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+                           simple_pin_no_lock_test_file2))),
+     "Simple pin (no lock) page file with pin 3");
+  pagecache_unpin_by_link(&pagecache, link, 0);
+  if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
+  {
+    diag("Got error in flush_pagecache_blocks 3\n");
+    res= 0;
+    goto err;
+  }
+  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+                           simple_pin_no_lock_test_file3))),
+     "Simple pin (no lock) page result file 3");
+  if (res)
+    reset_file(&file1, file1_name);
+err:
+  free(buffw);
+  DBUG_RETURN(res);
+}
 /*
   Prepare page, write new value, then delete page from cache without flush,
   on the disk should be page with old content written during preparation
@@ -476,6 +583,7 @@ static void *test_thread(void *arg)
   if (!simple_read_write_test() ||
       !simple_read_change_write_read_test() ||
       !simple_pin_test() ||
+      !simple_pin_no_lock_test() ||
       !simple_delete_forget_test() ||
       !simple_delete_flush_test())
     exit(1);
@@ -572,7 +680,7 @@ int main(int argc __attribute__((unused)),
   VOID(thr_setconcurrency(2));
 #endif
 
-  plan(12);
+  plan(16);
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
                              PAGE_SIZE, MYF(MY_WME))) == 0)
