@@ -939,6 +939,17 @@ ha_innobase::prepare_drop_index(
 
 	row_mysql_lock_data_dictionary(trx);
 
+	/* Check that none of the indexes have previously been flagged
+	for deletion. */
+	{
+		const dict_index_t*	index
+			= dict_table_get_first_index(prebuilt->table);
+		do {
+			ut_a(!index->to_be_dropped);
+			index = dict_table_get_next_index(index);
+		} while (index);
+	}
+
 	for (n_key = 0; n_key < num_of_keys; n_key++) {
 		const KEY*	key;
 		dict_index_t*	index;
@@ -986,17 +997,16 @@ ha_innobase::prepare_drop_index(
 
 	if (trx->check_foreigns
 	    && thd_sql_command(user_thd) != SQLCOM_CREATE_INDEX) {
-		for (n_key = 0; n_key < num_of_keys; n_key++) {
-			KEY*		key;
-			dict_index_t*	index;
-			dict_foreign_t* foreign;
+		dict_index_t*	index
+			= dict_table_get_first_index(prebuilt->table);
 
-			key = table->key_info + key_num[n_key];
-			index = dict_table_get_index_on_name_and_min_id(
-				prebuilt->table, key->name);
+		do {
+			dict_foreign_t*	foreign;
 
-			ut_a(index);
-			ut_a(index->to_be_dropped);
+			if (!index->to_be_dropped) {
+
+				goto next_index;
+			}
 
 			/* Check if the index is referenced. */
 			foreign = dict_table_get_referenced_constraint(
@@ -1033,24 +1043,22 @@ index_needed:
 					}
 				}
 			}
-		}
+
+next_index:
+			index = dict_table_get_next_index(index);
+		} while (index);
 	}
 
 func_exit:
 	if (err) {
-		/* Undo our changes since there was some sort of error */
-		for (n_key = 0; n_key < num_of_keys; n_key++) {
-			const KEY*	key;
-			dict_index_t*	index;
+		/* Undo our changes since there was some sort of error. */
+		dict_index_t*	index
+			= dict_table_get_first_index(prebuilt->table);
 
-			key = table->key_info + key_num[n_key];
-			index = dict_table_get_index_on_name_and_min_id(
-				prebuilt->table, key->name);
-
-			if (index) {
-				index->to_be_dropped = FALSE;
-			}
-		}
+		do {
+			index->to_be_dropped = FALSE;
+			index = dict_table_get_next_index(index);
+		} while (index);
 	}
 
 	row_mysql_unlock_data_dictionary(trx);
@@ -1107,6 +1115,16 @@ ha_innobase::final_drop_index(
 
 	if (UNIV_UNLIKELY(err)) {
 
+		/* Unmark the indexes to be dropped. */
+		row_mysql_lock_data_dictionary(trx);
+
+		for (index = dict_table_get_first_index(prebuilt->table);
+		     index; index = dict_table_get_next_index(index)) {
+
+			index->to_be_dropped = FALSE;
+		}
+
+		row_mysql_unlock_data_dictionary(trx);
 		goto func_exit;
 	}
 
@@ -1129,6 +1147,12 @@ ha_innobase::final_drop_index(
 		}
 
 		index = next_index;
+	}
+
+	/* Check that all flagged indexes were dropped. */
+	for (index = dict_table_get_first_index(prebuilt->table);
+	     index; index = dict_table_get_next_index(index)) {
+		ut_a(!index->to_be_dropped);
 	}
 
 #ifdef UNIV_DEBUG
