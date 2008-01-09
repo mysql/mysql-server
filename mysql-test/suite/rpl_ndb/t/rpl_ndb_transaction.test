@@ -7,7 +7,6 @@
 source include/ndb_master-slave.inc;
 source include/have_ndb.inc;
 
-
 CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
 CREATE TABLE tinnodb (a int) ENGINE = INNODB;
 CREATE TABLE tndb (a int) ENGINE = NDB;
@@ -111,7 +110,9 @@ SELECT * FROM tinnodb ORDER BY a;
 --connection slave
 --sleep 3
 STOP SLAVE;
---source include/show_slave_status.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 16 # 22 # 23 # 33 # 35 # 36 #
+query_vertical SHOW SLAVE STATUS;
 # the following statement should show that nothing has been replicated
 SELECT * FROM tinnodb ORDER BY a;
 
