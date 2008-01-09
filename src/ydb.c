@@ -700,7 +700,7 @@ static int toku_txn_abort(DB_TXN * txn) {
 
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
-    if (!env->i->logger) return EINVAL;
+    if (!toku_logger_is_open(env->i->logger)) return do_error(env, EINVAL, "Environment does not have logging enabled\n");
     flags=flags;
     DB_TXN *MALLOC(result);
     if (result == 0)

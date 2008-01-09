@@ -27,7 +27,7 @@ void test_env_exceptions (void) {
 	DbEnv env(0);
 	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE, 0777),                  0);
 	DbTxn *txn;
-	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transations
+	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transactions
     }
     {
 	DbEnv env(0);
