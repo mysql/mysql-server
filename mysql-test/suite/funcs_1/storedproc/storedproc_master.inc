@@ -2566,6 +2566,7 @@ SELECT db_storedproc.sp1();
 alter procedure db_storedproc_3122.sp1 sql security invoker;
 alter function sp1 sql security invoker;
 
+--sorted_result
 SELECT db, name, type, security_type from mysql.proc where db LIKE 'db_storedproc%' and specific_name='sp1';
 
 CALL db_storedproc.sp1();
