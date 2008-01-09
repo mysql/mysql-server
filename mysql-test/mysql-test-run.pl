@@ -2822,6 +2822,9 @@ sub server_need_restart {
 
     if (!My::Options::same($started_opts, $extra_opts) )
     {
+      my $use_dynamic_option_switch= 0;
+      return 1 if (!$use_dynamic_option_switch);
+
       mtr_verbose(My::Options::toStr("started_opts", @$started_opts));
       mtr_verbose(My::Options::toStr("extra_opts", @$extra_opts));
 
@@ -2907,7 +2910,7 @@ sub stop_servers($$) {
     # All servers are going down, use some kind of order to
     # avoid too many warnings in the log files
 
-   mtr_verbose("All servers are going down");
+   mtr_report("Restarting all servers");
 
     #  mysqld processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout, started(mysqlds()) );
@@ -2918,6 +2921,8 @@ sub stop_servers($$) {
   }
   else
   {
+    mtr_report("Restarting ", started(@servers));
+
      # Stop only some servers
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
 			       started(@servers) );
