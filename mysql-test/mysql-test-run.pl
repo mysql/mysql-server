@@ -124,7 +124,6 @@ sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
 our $opt_force;
-our $opt_reorder= 0;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
@@ -368,7 +367,7 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
-             'reorder'                  => \$opt_reorder,
+             'reorder'                  => \&collect_option,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
              'sleep=i'                  => \$opt_sleep,
