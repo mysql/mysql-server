@@ -90,9 +90,10 @@ public:
 
   int connect();
   int selectDb();
-  int selectDb(const char * m_db);
-  int doQuery(char * stm);
-  int doQuery(const char * stm);
+  int selectDb(const char *);
+  int createDb(BaseString&);
+  int doQuery(BaseString&);
+  int doQuery(const char *);
   int getErrorNumber();
 
   unsigned long selectCountTable(const char * table);

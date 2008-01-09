@@ -17,16 +17,15 @@
 #include <NDBT_ReturnCodes.h>
 #include <HugoTransactions.hpp>
 #include <UtilTransactions.hpp>
-#include <TestNdbEventOperation.hpp>
 #include <DbUtil.hpp>
-#include <NdbAutoPtr.hpp>
+#include <mysql.h>
+
+/*
+Will include restart testing in future phases
 #include <NdbRestarter.hpp>
 #include <NdbRestarts.hpp>
-#include <mysql.h>
-#include <signaldata/DumpStateOrd.hpp>
+*/
 
-static  BaseString sqlStm;
-static  BaseString db;
 static  int t1_records = 50000;
 
 /**** TOOL SECTION ****/
@@ -42,7 +41,7 @@ static uint
 urandom(uint m)
 {
   if (m == 0)
-    return 0;
+    return NDBT_OK;
   uint r = urandom();
   r = r % m;
   return r;
@@ -78,12 +77,6 @@ syncSlaveWithMaster()
     return NDBT_FAILED;
   } 
 
-  //Set the database we are wanting 
-  if (master.selectDb())
-  {
-    return NDBT_FAILED;
-  }
-
   //Get max epoch from master
   if(master.doQuery("SELECT MAX(epoch) FROM mysql.ndb_binlog_index"))
   {
@@ -93,7 +86,6 @@ syncSlaveWithMaster()
   row    = mysql_fetch_row(result);
   masterEpoch = atoi(row[0]);
   mysql_free_result(result);
-  master.databaseLogout();
 
   /*
      Now we will pull current epoch from slave. If not the
@@ -107,12 +99,6 @@ syncSlaveWithMaster()
 
   //Login to slave
   if (!slave.connect())
-  {
-    return NDBT_FAILED;
-  }
-
-  //Set the database we are wanting
-  if (slave.selectDb())
   {
     return NDBT_FAILED;
   }
@@ -153,6 +139,16 @@ syncSlaveWithMaster()
 int
 verifySlaveLoad(BaseString *table)
 {
+  BaseString  sqlStm;
+  BaseString  db;
+  MYSQL_RES * result;
+  MYSQL_ROW   row;
+  unsigned int masterCount = 0;
+  unsigned int slaveCount  = 0;
+ 
+  db.assign("TEST_DB");
+  sqlStm.assfmt("SELECT COUNT(*) FROM %s", table);
+
   //First thing to do is sync slave
   if(syncSlaveWithMaster())
   {
@@ -161,13 +157,6 @@ verifySlaveLoad(BaseString *table)
   }
 
   //Now that slave is sync we can verify load
-  sqlStm.assfmt("SELECT COUNT(*) FROM %s", table);
-  MYSQL_RES * result;
-  MYSQL_ROW   row;
-  unsigned int masterCount = 0;
-  unsigned int slaveCount = 0;
-
-  //Create a DB Object for the master
   DbUtil master(db.c_str()," ");
 
   //Login to Master
@@ -176,11 +165,6 @@ verifySlaveLoad(BaseString *table)
     return NDBT_FAILED;
   }
 
-  if (master.selectDb())
-  {
-    return NDBT_FAILED;
-  }
- 
   if(master.doQuery(sqlStm.c_str()))
   {
     return NDBT_FAILED;
@@ -189,18 +173,12 @@ verifySlaveLoad(BaseString *table)
   row    = mysql_fetch_row(result);
   masterCount = atoi(row[0]);
   mysql_free_result(result);
-  master.databaseLogout();
 
   //Create a DB Object for slave
   DbUtil slave(db.c_str(),".slave");
 
   //Login to slave
   if (!slave.connect())
-  {
-    return NDBT_FAILED;
-  }
-
-  if (slave.selectDb())
   {
     return NDBT_FAILED;
   }
@@ -223,15 +201,29 @@ verifySlaveLoad(BaseString *table)
   return NDBT_OK;
 }
 
-/**** Test Section ****/
-
-int 
-createDB(NDBT_Context* ctx, NDBT_Step* step)
+int
+createTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
 {
-  //Setup the BaseString db to use throughout
-  db.assign("TEST_DB");
+  BaseString cdb;
+  cdb.assign("TEST_DB");
 
   //Create a dbutil object
+  DbUtil master("mysql","");
+
+  if (master.connect())
+  {
+    if (master.createDb(cdb) == NDBT_OK)
+    {
+      return NDBT_OK;
+    }
+  }
+  return NDBT_FAILED;
+}
+
+int
+dropTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
+{
+  //Create an SQL Object
   DbUtil master("mysql","");
 
   //Login to Master
@@ -240,28 +232,110 @@ createDB(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  //Check to see if db already there
-  if (master.selectDb(db.c_str()))
+  if(master.doQuery("DROP DATABASE TEST_DB") != NDBT_OK)
   {
     return NDBT_FAILED;
   }
 
-  //Create TEST_DB
-  if (master.doQuery("CREATE DATABASE TEST_DB") != 0)
+  if(syncSlaveWithMaster() != NDBT_OK)
   {
+    g_err << "Drop DB -> Syncing with slave failed"
+          << endl;
     return NDBT_FAILED;
   }
   return NDBT_OK;
 }
 
 int
+verifySlave(BaseString& sqlStm, BaseString& db)
+{
+  MYSQL_RES*  resource;
+  MYSQL_ROW   row;
+  float       masterSum;
+  float       slaveSum;
+
+  //Create SQL Objects
+  DbUtil     master(db.c_str(),"");
+  DbUtil     slave(db.c_str(),".slave");
+
+  if(syncSlaveWithMaster() != NDBT_OK)
+  {
+    g_err << "Verify Slave rep1 -> Syncing with slave failed"
+          << endl;
+    return NDBT_FAILED;
+  }
+
+  //Login to Master
+  if (!master.connect())
+  {
+    return NDBT_FAILED;
+  }
+
+  if(master.doQuery(sqlStm.c_str()) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+  resource = mysql_use_result(master.getMysql());
+  row = mysql_fetch_row(resource);
+  masterSum = atoi(row[0]);
+  mysql_free_result(resource);
+
+  //Login to slave
+  if (!slave.connect())
+  {
+    return NDBT_FAILED;
+  }
+
+  if(slave.doQuery(sqlStm.c_str()) != NDBT_OK)
+  {
+     return NDBT_FAILED;
+  }
+  resource = mysql_use_result(slave.getMysql());
+  row = mysql_fetch_row(resource);
+  slaveSum = atoi(row[0]);
+  mysql_free_result(resource);
+
+  if(masterSum != slaveSum)
+  {
+    g_err << "VerifySlave -> masterSum != slaveSum..." << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+
+/**** Test Section ****/
+
+int 
+createDB(NDBT_Context* ctx, NDBT_Step* step)
+{
+  BaseString cdb;
+  cdb.assign("TEST_DB");
+
+  //Create a dbutil object
+  DbUtil master("mysql","");
+
+  if (master.connect())
+  {
+    if (master.createDb(cdb) == NDBT_OK)
+    {
+      return NDBT_OK;
+    }
+  }
+  return NDBT_FAILED;
+}
+
+int
 createTable_rep1(NDBT_Context* ctx, NDBT_Step* step)
 {
   BaseString table;
+  BaseString db;
+
   table.assign("rep1");
+  db.assign("TEST_DB");
 
   //Ensure slave is up and ready
-  if(syncSlaveWithMaster() != 0)
+  if(syncSlaveWithMaster() != NDBT_OK)
   {
     g_err << "Create Table -> Syncing with slave failed"
           << endl;
@@ -277,30 +351,22 @@ createTable_rep1(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  // Set the database we want
-  if(master.selectDb())
-  {
-    return NDBT_FAILED;
-  }
-
-  sqlStm.assign("CREATE TABLE rep1 (c1 MEDIUMINT NOT NULL AUTO_INCREMENT,"
-                " c2 FLOAT, c3 CHAR(5), c4 bit(8), c5 FLOAT, c6 INT,"
-                " c7 INT, PRIMARY KEY (c1))ENGINE=NDB");
- 
-  if (master.doQuery(sqlStm.c_str()))
+  if (master.doQuery("CREATE TABLE rep1 (c1 MEDIUMINT NOT NULL AUTO_INCREMENT,"
+                     " c2 FLOAT, c3 CHAR(5), c4 bit(8), c5 FLOAT, c6 INT,"
+                     " c7 INT, PRIMARY KEY (c1))ENGINE=NDB"))
   {
     return NDBT_FAILED;
   }
   ctx->setProperty("TABLES",table.c_str());
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  if (hugoTrans.loadTable(GETNDB(step), t1_records, 1, true, 0) != 0)
+  if (hugoTrans.loadTable(GETNDB(step), t1_records, 1, true, 0) != NDBT_OK)
   {
     g_err << "Create Table -> Load failed!" << endl;
     return NDBT_FAILED;
   }
 
-  if(verifySlaveLoad(&table)!= 0)
+  if(verifySlaveLoad(&table)!= NDBT_OK)
   {
     g_err << "Create Table -> Failed on verify slave load!" 
           << endl;
@@ -334,18 +400,14 @@ stressNDB_rep1(NDBT_Context* ctx, NDBT_Step* step)
 int
 stressSQL_rep1(NDBT_Context* ctx, NDBT_Step* step)
 {
-  //Create an SQL Object
-  DbUtil master(db.c_str(),"");
+  BaseString sqlStm;
+
+  DbUtil master("TEST_DB","");
   int loops = ctx->getNumLoops();
   uint record = 0;
 
   //Login to Master
   if (!master.connect())
-  {
-    return NDBT_FAILED;
-  }
-
-  if(master.selectDb())
   {
     ctx->stopTest();
     return NDBT_FAILED;
@@ -367,101 +429,36 @@ stressSQL_rep1(NDBT_Context* ctx, NDBT_Step* step)
 int
 verifySlave_rep1(NDBT_Context* ctx, NDBT_Step* step)
 {
-  if(syncSlaveWithMaster() != 0)
-  {
-    g_err << "Verify Slave rep1 -> Syncing with slave failed" 
-          << endl;
-    return NDBT_FAILED;
-  }
-  //Create SQL Objects
-  DbUtil     master(db.c_str(),"");
-  DbUtil     slave(db.c_str(),".slave");
-  MYSQL_RES  *resource;
-  MYSQL_ROW   row;
-  float       masterSum;
-  float       slaveSum;
+  BaseString sql;
+  BaseString db;
 
-  sqlStm.assign("SELECT SUM(c3) FROM rep1");
+  sql.assign("SELECT SUM(c3) FROM rep1");
+  db.assign("TEST_DB");
 
-  //Login to Master
-  if (!master.connect())
-  {
+  if (verifySlave(sql,db) != NDBT_OK)
     return NDBT_FAILED;
-  }
-    
-  if(master.selectDb())
-  {
-    return NDBT_FAILED;
-  } 
-
-  if(master.doQuery(sqlStm.c_str()))
-  { 
-    return NDBT_FAILED;
-  }
-  resource = mysql_use_result(master.getMysql());
-  row = mysql_fetch_row(resource);
-  masterSum = atoi(row[0]);  
-  mysql_free_result(resource);
-  master.databaseLogout();
-
-  //Login to slave
-  if (!slave.connect())
-  {
-    return NDBT_FAILED;
-  }
- 
-  if(slave.selectDb() != 0)
-  {
-    return NDBT_FAILED;
-  }
-
-  if((slave.doQuery(sqlStm.c_str())) != 0)
-  {
-     return NDBT_FAILED;
-  }
-  resource = mysql_use_result(slave.getMysql());
-  row = mysql_fetch_row(resource);
-  slaveSum = atoi(row[0]);
-  mysql_free_result(resource);
-  
-  if(masterSum != slaveSum)
-  {
-    g_err << "VerifySlave -> masterSum != slaveSum..." << endl;
-    return NDBT_FAILED;
-  }
   return NDBT_OK;
 }
 
-int
-dropTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
-{
-  //Create an SQL Object
-  DbUtil master(db.c_str(),"");
+/* TOOLS LIST
 
-  //Login to Master
-  if (!master.connect())
-  {
-    return NDBT_FAILED;
-  }
+ syncSlaveWithMaster() 
+ {ensures slave is at same epoch as master}
 
-  if(master.selectDb() != 0)
-  {
-    return NDBT_FAILED;
-  }
+ verifySlaveLoad(BaseString *table) 
+ {ensures slave table has same record count as master}
 
-  if(master.doQuery("DROP DATABASE TEST_DB") != 0)
-  {
-    return NDBT_FAILED;
-  }
+ createTEST_DB() 
+ {Creates TEST_DB database on master}
 
-  if(syncSlaveWithMaster() != 0)
-  {
-    g_err << "Drop DB -> Syncing with slave failed"
-          << endl;
-    return NDBT_FAILED;
-  }
-  return NDBT_OK;
-}
+ dropTEST_DB() 
+ {Drops TEST_DB database on master} 
+
+ verifySlave(BaseString& sql, BaseSting& db) 
+ {The SQL statement must sum a column and will verify
+  that the sum of the column is equal on master & slave}
+*/
+                     
 
 NDBT_TESTSUITE(NdbRepStress);
 TESTCASE("PHASE_I_Stress","Basic Replication Stressing") 
@@ -481,7 +478,3 @@ int main(int argc, const char** argv){
   return NdbRepStress.execute(argc, argv);
 }
 
-template class Vector<HugoOperations *>;
-template class Vector<NdbEventOperation *>;
-template class Vector<NdbRecAttr*>;
-template class Vector<Vector<NdbRecAttr*> >;
