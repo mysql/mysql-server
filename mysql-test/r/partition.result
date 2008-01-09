@@ -536,11 +536,9 @@ t1	CREATE TABLE `t1` (
 alter table t1
 partition by key(a)
 (partition p0, partition p1 engine=heap);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 alter table t1
 partition by key(a)
 (partition p0 engine=heap, partition p1);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 alter table t1
 engine=heap
 partition by key (a)

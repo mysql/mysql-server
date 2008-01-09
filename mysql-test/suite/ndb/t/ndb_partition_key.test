@@ -75,6 +75,14 @@ drop table t1;
 
 CREATE TABLE t1 (a int not null primary key);
 ALTER TABLE t1
+ENGINE = NDB
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+
+drop table t1;
+
+CREATE TABLE t1 (a int not null primary key) ENGINE = NDB;
+ALTER TABLE t1
 PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
 
@@ -112,7 +120,10 @@ show create table t1;
 alter table t1 remove partitioning;
 show create table t1;
 
---error ER_MIX_HANDLER_ERROR
+# after bug#31931 was fixed
+# this is OK, since the storage engine is specified
+# on table level before.
+#--error ER_MIX_HANDLER_ERROR
 alter table t1
 partition by key(a)
 (partition p0 engine=ndb, partition p1);

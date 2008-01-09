@@ -3863,6 +3863,8 @@ bool mysql_unpack_partition(THD *thd,
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
+  DBUG_ASSERT(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
+  DBUG_ASSERT(part_info->default_engine_type != partition_hton);
 
   {
   /*
@@ -3997,56 +3999,6 @@ static int fast_end_partition(THD *thd, ulonglong copied,
 
 
 /*
-  Check engine mix that it is correct
-  SYNOPSIS
-    check_engine_condition()
-    p_elem                   Partition element
-    default_engine           Have user specified engine on table level
-    inout::engine_type       Current engine used
-    inout::first             Is it first partition
-  RETURN VALUE
-    TRUE                     Failed check
-    FALSE                    Ok
-  DESCRIPTION
-    (specified partition handler ) specified table handler
-    (NDB, NDB) NDB           OK
-    (MYISAM, MYISAM) -       OK
-    (MYISAM, -)      -       NOT OK
-    (MYISAM, -)    MYISAM    OK
-    (- , MYISAM)   -         NOT OK
-    (- , -)        MYISAM    OK
-    (-,-)          -         OK
-    (NDB, MYISAM) *          NOT OK
-*/
-
-static bool check_engine_condition(partition_element *p_elem,
-                                   bool default_engine,
-                                   handlerton **engine_type,
-                                   bool *first)
-{
-  DBUG_ENTER("check_engine_condition");
-
-  DBUG_PRINT("enter", ("def_eng = %u, first = %u", default_engine, *first));
-  if (*first && default_engine)
-  {
-    *engine_type= p_elem->engine_type;
-  }
-  *first= FALSE;
-  if ((!default_engine &&
-      (p_elem->engine_type != (*engine_type) &&
-       p_elem->engine_type)) ||
-      (default_engine &&
-       p_elem->engine_type != (*engine_type)))
-  {
-    DBUG_RETURN(TRUE);
-  }
-  else
-  {
-    DBUG_RETURN(FALSE);
-  }
-}
-
-/*
   We need to check if engine used by all partitions can handle
   partitioning natively.
 
@@ -4070,52 +4022,30 @@ static bool check_engine_condition(partition_element *p_elem,
 static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
                                      partition_info *part_info, THD *thd)
 {
-  List_iterator<partition_element> part_it(part_info->partitions);
-  bool first= TRUE;
-  bool default_engine;
-  handlerton *engine_type= create_info->db_type;
+  bool table_engine_set;
+  handlerton *engine_type= part_info->default_engine_type;
   handlerton *old_engine_type= engine_type;
-  uint i= 0;
-  uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
-  default_engine= (create_info->used_fields & HA_CREATE_USED_ENGINE) ?
-                   FALSE : TRUE;
-  DBUG_PRINT("info", ("engine_type = %u, default = %u",
-                       ha_legacy_type(engine_type),
-                       default_engine));
-  if (no_parts)
+  if (create_info->used_fields & HA_CREATE_USED_ENGINE)
   {
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (part_info->is_sub_partitioned() &&
-          part_elem->subpartitions.elements)
-      {
-        uint no_subparts= part_elem->subpartitions.elements;
-        uint j= 0;
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        do
-        {
-          partition_element *sub_elem= sub_it++;
-          if (check_engine_condition(sub_elem, default_engine,
-                                     &engine_type, &first))
-            goto error;
-        } while (++j < no_subparts);
-        /*
-          In case of subpartitioning and defaults we allow that only
-          subparts have specified engines, as long as the parts haven't
-          specified the wrong engine it's ok.
-        */
-        if (check_engine_condition(part_elem, FALSE,
-                                   &engine_type, &first))
-          goto error;
-      }
-      else if (check_engine_condition(part_elem, default_engine,
-                                      &engine_type, &first))
-        goto error;
-    } while (++i < no_parts);
+    table_engine_set= TRUE;
+    engine_type= create_info->db_type;
   }
+  else
+  {
+    table_engine_set= FALSE;
+    if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
+    {
+      table_engine_set= TRUE;
+      DBUG_ASSERT(engine_type && engine_type != partition_hton);
+    }
+  }
+  DBUG_PRINT("info", ("engine_type = %u, table_engine_set = %u",
+                       ha_legacy_type(engine_type),
+                       table_engine_set));
+  if (part_info->check_engine_mix(engine_type, table_engine_set))
+    goto error;
 
   /*
     All engines are of the same type. Check if this engine supports
@@ -4212,7 +4142,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    if (alter_info->flags == ALTER_TABLE_REORG)
+    if (alter_info->flags & ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
       if (tab_part_info->part_type != HASH_PARTITION ||
@@ -4538,7 +4468,7 @@ that are reorganised.
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags == ALTER_DROP_PARTITION)
+    else if (alter_info->flags & ALTER_DROP_PARTITION)
     {
       /*
         Drop a partition from a range partition and list partitioning is
@@ -4742,7 +4672,7 @@ state of p1.
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags == ALTER_REORGANIZE_PARTITION)
+    else if (alter_info->flags & ALTER_REORGANIZE_PARTITION)
     {
       /*
         Reorganise partitions takes a number of partitions that are next
@@ -4923,8 +4853,8 @@ the generated partition syntax in a correct manner.
     }
     *partition_changed= TRUE;
     thd->work_part_info= tab_part_info;
-    if (alter_info->flags == ALTER_ADD_PARTITION ||
-        alter_info->flags == ALTER_REORGANIZE_PARTITION)
+    if (alter_info->flags & ALTER_ADD_PARTITION ||
+        alter_info->flags & ALTER_REORGANIZE_PARTITION)
     {
       if (tab_part_info->use_default_subpartitions &&
           !alt_part_info->use_default_subpartitions)
@@ -5051,13 +4981,21 @@ the generated partition syntax in a correct manner.
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
       }
-      if (create_info->db_type == partition_hton)
-      {
-        if (!part_info->default_engine_type)
-          part_info->default_engine_type= table->part_info->default_engine_type;
-      }
-      else
+      /*
+        Set up partition default_engine_type either from the create_info
+        or from the previus table
+      */
+      if (create_info->used_fields & HA_CREATE_USED_ENGINE)
         part_info->default_engine_type= create_info->db_type;
+      else
+      {
+        if (table->part_info)
+          part_info->default_engine_type= table->part_info->default_engine_type;
+        else
+          part_info->default_engine_type= create_info->db_type;
+      }
+      DBUG_ASSERT(part_info->default_engine_type &&
+                  part_info->default_engine_type != partition_hton);
       if (check_native_partitioned(create_info, &is_native_partitioned,
                                    part_info, thd))
       {
@@ -6164,7 +6102,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       goto err;
     }
   }
-  else if (alter_info->flags == ALTER_DROP_PARTITION)
+  else if (alter_info->flags & ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can
