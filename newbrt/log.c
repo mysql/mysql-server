@@ -91,6 +91,8 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
 
     logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file. 
 
+    logger->is_open = 1;
+
     return toku_logger_log_bytes(logger, 0, "");
 }
 
@@ -101,6 +103,10 @@ void toku_logger_panic (TOKULOGGER logger, int err) {
 int toku_logger_panicked(TOKULOGGER logger) {
     if (logger==0) return 0;
     return logger->is_panicked;
+}
+int toku_logger_is_open(TOKULOGGER logger) {
+    if (logger==0) return 0;
+    return logger->is_open;
 }
 
 static int log_format_version=0;
@@ -291,6 +297,7 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid
     result->txnid64 = txnid64;
     result->logger = logger;
     result->parent = parent_tokutxn;
+    result->oldest_logentry = result->newest_logentry = 0;
     *tokutxn = result;
     return 0;
 }

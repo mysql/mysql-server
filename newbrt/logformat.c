@@ -197,6 +197,22 @@ void generate_log_writer (void) {
 			    fprintf(cf, "  }\n");
 			    fprintf(cf, "  return 0;\n");
 			} else {
+			    int i=0;
+			    fprintf(cf, "  struct log_entry *MALLOC(lentry);\n");
+			    fprintf(cf, "  if (lentry==0) return errno;\n");
+			    fprintf(cf, "  if (0) { died0: toku_free(lentry); return r; }\n");
+			    fprintf(cf, "  lentry->cmd = %d;\n", lt->command);
+			    DO_FIELDS(ft, lt,
+				      ({
+					  fprintf(cf, "  r=toku_copy_%s(&lentry->u.%s.%s, %s);\n", ft->type, lt->name, ft->name, ft->name);
+					  fprintf(cf, "  if (r!=0) { if(0) { died%d: toku_free_%s(lentry->u.%s.%s); } goto died%d; }\n", i+1, ft->type, lt->name, ft->name, i);
+					  i++;
+				      }));
+			    fprintf(cf, "  if (0) { goto died%d; }\n", i); // Need to use that label.
+			    fprintf(cf, "  lentry->next = 0;\n");
+			    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry = lentry;\n");
+			    fprintf(cf, "  else txn->newest_logentry->next = lentry;\n");
+			    fprintf(cf, "  txn->newest_logentry = lentry;\n");
 			    fprintf(cf, "  return r;\n");
 			}
 			fprintf(cf, "}\n\n");

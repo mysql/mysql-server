@@ -44,7 +44,7 @@ typedef struct loggedbrtheader {
     u_int32_t nodesize;
     DISKOFF   freelist;
     DISKOFF   unused_memory;
-    u_int32_t n_named_roots;
+    u_int32_t n_named_roots; // -1 for the union below to be "one".
     union {
 	struct {
 	    char **names;
