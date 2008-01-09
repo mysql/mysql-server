@@ -10,6 +10,7 @@
 #include <arpa/inet.h>
 #include "list.h"
 #include "pma-internal.h"
+#include "kv-pair.h"
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;
@@ -973,10 +974,13 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     nc = toku_pma_n_entries(pmac);
 
     if (n > 0) {
-        int kk;
-        assert(splitk.size == sizeof kk);
-        memcpy(&kk, splitk.data, splitk.size);
+        int kk, vv;
+        struct kv_pair *kv = splitk.data;
+        assert(kv_pair_keylen(kv) == sizeof kk);
+        memcpy(&kk, kv_pair_key(kv), kv_pair_keylen(kv));
         assert(kk == dupkey);
+        if (dup_mode & TOKU_DB_DUPSORT)
+            assert(kv_pair_vallen(kv) == sizeof vv);
     }
 
     if (splitk.data) toku_free(splitk.data);
