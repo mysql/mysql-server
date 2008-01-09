@@ -6248,27 +6248,6 @@ Dbdict::createTable_abortWriteSchemaConf(Signal* signal,
 // CreateTable: MISC
 
 void
-Dbdict::execBACKUP_FRAGMENT_REQ(Signal* signal)
-{
-  jamEntry();
-  Uint32 tableId = signal->theData[0];
-  Uint32 lock = signal->theData[1];
-
-  TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, tableId, true);
-
-  if(lock)
-  {
-    ndbrequire(tablePtr.p->tabState == TableRecord::DEFINED);
-    tablePtr.p->tabState = TableRecord::BACKUP_ONGOING;
-  }
-  else if(tablePtr.p->tabState == TableRecord::BACKUP_ONGOING)
-  {
-    tablePtr.p->tabState = TableRecord::DEFINED;
-  }
-}
-
-void
 Dbdict::execCREATE_FRAGMENTATION_REF(Signal * signal)
 {
   // currently not received
