@@ -26,8 +26,6 @@ Will include restart testing in future phases
 #include <NdbRestarts.hpp>
 */
 
-static  int t1_records = 50000;
-
 /**** TOOL SECTION ****/
 
 static uint
@@ -360,7 +358,7 @@ createTable_rep1(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("TABLES",table.c_str());
   HugoTransactions hugoTrans(*ctx->getTab());
 
-  if (hugoTrans.loadTable(GETNDB(step), t1_records, 1, true, 0) != NDBT_OK)
+  if (hugoTrans.loadTable(GETNDB(step), ctx->getNumRecords(), 1, true, 0) != NDBT_OK)
   {
     g_err << "Create Table -> Load failed!" << endl;
     return NDBT_FAILED;
@@ -383,12 +381,12 @@ stressNDB_rep1(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(* table);
   while(!ctx->isTestStopped())
   {
-    if (hugoTrans.pkUpdateRecords(GETNDB(step), t1_records, 1, 30) != 0)
+    if (hugoTrans.pkUpdateRecords(GETNDB(step), ctx->getNumRecords(), 1, 30) != 0)
     {
       g_err << "pkUpdate Failed!" << endl;
       return NDBT_FAILED;
     }
-    if (hugoTrans.scanUpdateRecords(GETNDB(step), t1_records, 1, 30) != 0)
+    if (hugoTrans.scanUpdateRecords(GETNDB(step), ctx->getNumRecords(), 1, 30) != 0)
     {
       g_err << "scanUpdate Failed!" << endl;
       return NDBT_FAILED;
@@ -415,7 +413,7 @@ stressSQL_rep1(NDBT_Context* ctx, NDBT_Step* step)
 
   for (int j= 0; loops == 0 || j < loops; j++)
   {
-    record = urandom(t1_records);
+    record = urandom(ctx->getNumRecords());
     sqlStm.assfmt("UPDATE TEST_DB.rep1 SET c2 = 33.3221 where c1 =  %u", record);
     if(master.doQuery(sqlStm.c_str()))
     {
