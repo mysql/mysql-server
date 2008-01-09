@@ -86,15 +86,17 @@ Warnings:
 Warning	1262	Row 1 was truncated; it contained more data than there were input columns
 Warning	1262	Row 2 was truncated; it contained more data than there were input columns
 rollback;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
 select count(*) from t1;
 count(*)
-0
+4
 select count(*) from t2;
 count(*)
 0
 select count(*) from t1;
 count(*)
-0
+4
 select count(*) from t2;
 count(*)
 0
