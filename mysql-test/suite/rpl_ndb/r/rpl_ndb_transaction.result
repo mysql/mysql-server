@@ -101,7 +101,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	1740
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -116,7 +116,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	1579
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	

@@ -1529,10 +1529,10 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
             Error reporting borrowed from Query_log_event with many excessive
             simplifications (we don't honour --slave-skip-errors)
           */
-          uint actual_error= thd->net.last_errno;
+          uint actual_error= thd->net.client_last_errno;
           rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' in %s event: when locking tables",
-                      (actual_error ? thd->net.last_error :
+                      (actual_error ? thd->net.client_last_error :
                        "unexpected success or fatal error"),
                       get_type_str());
           thd->is_fatal_error= 1;
@@ -1573,10 +1573,10 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
             Error reporting borrowed from Query_log_event with many excessive
             simplifications (we don't honour --slave-skip-errors)
           */
-          uint actual_error= thd->net.last_errno;
+          uint actual_error= thd->net.client_last_errno;
           rli->report(ERROR_LEVEL, actual_error,
                       "Error '%s' on reopening tables",
-                      (actual_error ? thd->net.last_error :
+                      (actual_error ? thd->net.client_last_error :
                        "unexpected success or fatal error"));
           thd->is_slave_error= 1;
         }
@@ -1729,10 +1729,10 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
         break;
 
       default:
-	rli->report(ERROR_LEVEL, thd->net.last_errno,
+	rli->report(ERROR_LEVEL, thd->net.client_last_errno,
                     "Error in %s event: row application failed. %s",
                     get_type_str(),
-                    thd->net.last_error ? thd->net.last_error : "");
+                    thd->net.client_last_error ? thd->net.client_last_error : "");
        thd->is_slave_error= 1;
 	break;
       }
@@ -1779,12 +1779,12 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, thd->net.last_errno,
+    rli->report(ERROR_LEVEL, thd->net.client_last_errno,
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                thd->net.last_error ? thd->net.last_error : "");
+                thd->net.client_last_error ? thd->net.client_last_error : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -1909,12 +1909,13 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
       rli->stmt_done(log_pos, when);
 
       /*
-        Clear any errors pushed in thd->net.last_err* if for example "no key
-        found" (as this is allowed). This is a safety measure; apparently
-        those errors (e.g. when executing a Delete_rows_log_event_old of a
-        non-existing row, like in rpl_row_mystery22.test,
-        thd->net.last_error = "Can't find record in 't1'" and last_errno=1032)
-        do not become visible. We still prefer to wipe them out.
+        Clear any errors pushed in thd->net.client_last_err* if for
+        example "no key found" (as this is allowed). This is a safety
+        measure; apparently those errors (e.g. when executing a
+        Delete_rows_log_event_old of a non-existing row, like in
+        rpl_row_mystery22.test, thd->net.client_last_error = "Can't
+        find record in 't1'" and last_errno=1032) do not become
+        visible. We still prefer to wipe them out.
       */
       thd->clear_error();
     }
@@ -2646,8 +2647,8 @@ Write_rows_log_event_old::do_exec_row(const Relay_log_info *const rli)
   DBUG_ASSERT(m_table != NULL);
   int error= write_row(rli, TRUE /* overwrite */);
   
-  if (error && !thd->net.last_errno)
-    thd->net.last_errno= error;
+  if (error && !thd->net.client_last_errno)
+    thd->net.client_last_errno= error;
       
   return error; 
 }

@@ -112,14 +112,14 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            const char *log_name, ulong pos)
 {
   const char *handler_error=  HA_ERR(ha_error);
-  rli->report(level, thd->net.last_errno,
+  rli->report(level, thd->net.client_last_errno,
               "Could not execute %s event on table %s.%s;"
               "%s%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
               type, table->s->db.str,
               table->s->table_name.str,
-              thd->net.last_error[0] != 0 ? thd->net.last_error : "",
-              thd->net.last_error[0] != 0 ? ";" : "",
+              thd->net.client_last_error[0] != 0 ? thd->net.client_last_error : "",
+              thd->net.client_last_error[0] != 0 ? ";" : "",
               handler_error == NULL? "<unknown>" : handler_error,
               log_name, pos);
 }
