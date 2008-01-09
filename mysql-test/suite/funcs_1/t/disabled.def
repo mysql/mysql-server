@@ -10,4 +10,8 @@
 #
 ##############################################################################
 
+innodb_storedproc_06 : bug#33464 DROP FUNCTION let server hang
+myisam_storedproc_06 : bug#33464 DROP FUNCTION let server hang
+memory_storedproc_06 : bug#33464 DROP FUNCTION let server hang
+ndb_storedproc_06 :    bug#33464 DROP FUNCTION let server hang
 ndb__datadict: 2007-10-08 mleich Bug#31421 funcs_1: ndb__datadict fails, discrepancy between scripts and expected results

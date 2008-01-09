@@ -3013,3 +3013,5 @@ ylwrap
 zlib/*.ds?
 zlib/*.vcproj
 mysql-test/funcs_1.log
+mysql-test/funcs_1.tar
+mysql-test/suite/funcs_1.tar.gz
