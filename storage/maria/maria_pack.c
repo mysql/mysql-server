@@ -406,7 +406,7 @@ static MARIA_HA *open_isam_file(char *name,int mode)
   MARIA_SHARE *share;
   DBUG_ENTER("open_isam_file");
 
-  if (!(isam_file=maria_open(name,mode,
+  if (!(isam_file=maria_open(name, mode, HA_OPEN_IGNORE_MOVED_STATE |
 			  (opt_wait ? HA_OPEN_WAIT_IF_LOCKED :
 			   HA_OPEN_ABORT_IF_LOCKED))))
   {

@@ -41,6 +41,9 @@
 #define MAX_NONMAPPED_INSERTS 1000
 #define MARIA_MAX_TREE_LEVELS 32
 
+/* maria_open() flag, specific for maria_pack */
+#define HA_OPEN_IGNORE_MOVED_STATE (1U << 30)
+
 struct st_transaction;
 
 /* undef map from my_nosys; We need test-if-disk full */
