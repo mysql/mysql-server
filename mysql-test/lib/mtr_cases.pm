@@ -37,6 +37,7 @@ our $default_storage_engine;
 our $opt_with_ndbcluster_only;
 our $defaults_file;
 our $defaults_extra_file;
+our $reorder;
 
 sub collect_option {
   my ($opt, $value)= @_;
@@ -120,7 +121,7 @@ sub collect_test_cases ($$) {
     }
   }
 
-  if ( $::opt_reorder )
+  if ( $reorder )
   {
     # Reorder the test cases in an order that will make them faster to run
     my %sort_criteria;
@@ -173,7 +174,8 @@ sub collect_test_cases ($$) {
 	push(@criteria, "ndb=" . ($tinfo->{'ndb_test'} ? "1" : "0"));
 	# Group test with equal options together.
 	# Ending with "~" makes empty sort later than filled
-	push(@criteria, join("!", sort @{$tinfo->{'master_opt'}}) . "~");
+	my $opts= $tinfo->{'master_opt'} ? $tinfo->{'master_opt'} : [];
+	push(@criteria, join("!", sort @{$opts}) . "~");
 
 	$sort_criteria{$test_name} = join(" ", @criteria);
       }
