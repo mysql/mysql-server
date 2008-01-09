@@ -7406,7 +7406,9 @@ void do_get_replace(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_result in '%s'",
           command->query);
-    IF_WIN(fix_win_paths(to, from - to), 0);
+#ifdef __WIN__
+    fix_win_paths(to, from - to);
+#endif
     insert_pointer_name(&from_array,to);
     to= get_string(&buff, &from, command);
     insert_pointer_name(&to_array,to);
@@ -8597,7 +8599,9 @@ void free_pointer_array(POINTER_ARRAY *pa)
 void replace_dynstr_append_mem(DYNAMIC_STRING *ds,
                                const char *val, int len)
 {
-  IF_WIN(fix_win_paths(val, len), 0);
+#ifdef __WIN__
+  fix_win_paths(val, len);
+#endif
 
   if (glob_replace_regex)
   {
