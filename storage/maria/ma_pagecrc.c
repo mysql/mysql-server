@@ -338,7 +338,9 @@ my_bool maria_flush_log_for_page(uchar *page,
                                  uchar *data_ptr)
 {
   LSN lsn;
+#ifndef DBUG_OFF
   const MARIA_SHARE *share= (MARIA_SHARE*) data_ptr;
+#endif
   DBUG_ENTER("maria_flush_log_for_page");
   /* share is 0 here only in unittest */
   DBUG_ASSERT(!share || (share->page_type == PAGECACHE_LSN_PAGE &&

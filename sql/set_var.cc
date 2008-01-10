@@ -873,7 +873,7 @@ static void fix_max_join_size(THD *thd, enum_var_type type)
 {
   if (type != OPT_GLOBAL)
   {
-    if (thd->variables.max_join_size == HA_POS_ERROR)
+    if (thd->variables.max_join_size == ULONG_MAX)
       thd->options|= OPTION_BIG_SELECTS;
     else
       thd->options&= ~OPTION_BIG_SELECTS;

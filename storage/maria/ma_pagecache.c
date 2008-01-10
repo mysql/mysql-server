@@ -594,7 +594,8 @@ static uint pagecache_fwrite(PAGECACHE *pagecache,
                              PAGECACHE_FILE *filedesc,
                              uchar *buffer,
                              pgcache_page_no_t pageno,
-                             enum pagecache_page_type type,
+                             enum pagecache_page_type type
+                             __attribute__((unused)),
                              myf flags)
 {
   DBUG_ENTER("pagecache_fwrite");

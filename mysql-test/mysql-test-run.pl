@@ -3106,8 +3106,8 @@ sub install_db ($$) {
 
   mtr_report("Installing \u$type Database");
 
-
   my $args;
+  my $cmd_args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--no-defaults");
   mtr_add_arg($args, "--bootstrap");
@@ -3119,6 +3119,12 @@ sub install_db ($$) {
   mtr_add_arg($args, "--loose-debug-on=0");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
+
+  #
+  # Setup args for bootstrap.test
+  #
+  mtr_init_args(\$cmd_args);
+  mtr_add_arg($cmd_args, "--loose-skip-maria");
 
   if ( $opt_debug )
   {
@@ -3142,7 +3148,8 @@ sub install_db ($$) {
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args);
+  $ENV{'MYSQLD_BOOTSTRAP_CMD'}= "$exe_mysqld_bootstrap " . join(" ", @$args) .
+    " " . join(" ", @$cmd_args);
 
   # ----------------------------------------------------------------------
   # Create the bootstrap.sql file

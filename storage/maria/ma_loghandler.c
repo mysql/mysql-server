@@ -3881,6 +3881,7 @@ static my_bool translog_page_next(TRANSLOG_ADDRESS *horizon,
   struct st_translog_buffer *buffer= cursor->buffer;
   DBUG_ENTER("translog_page_next");
 
+  *prev_buffer= NULL;
   if ((cursor->ptr + TRANSLOG_PAGE_SIZE >
        cursor->buffer->buffer + TRANSLOG_WRITE_BUFFER) ||
       (LSN_OFFSET(*horizon) >
@@ -3916,7 +3917,6 @@ static my_bool translog_page_next(TRANSLOG_ADDRESS *horizon,
                         (ulong) (cursor->ptr - cursor->buffer->buffer)));
     translog_finish_page(horizon, cursor);
     translog_new_page_header(horizon, cursor);
-    *prev_buffer= NULL;
   }
   DBUG_RETURN(0);
 }

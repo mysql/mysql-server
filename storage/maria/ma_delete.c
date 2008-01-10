@@ -215,6 +215,7 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
 
     if (translog_write_record(&lsn, log_type,
                               info->trn, info,
+                              (translog_size_t)
                               log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
                               key_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
@@ -1420,6 +1421,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
+                            (translog_size_t)
                             log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
                             changed_length,
                             TRANSLOG_INTERNAL_PARTS + translog_parts,

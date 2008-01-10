@@ -2589,7 +2589,7 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 static my_bool
 flush_log_for_bitmap(uchar *page __attribute__((unused)),
                      pgcache_page_no_t page_no __attribute__((unused)),
-                     uchar* data_ptr)
+                     uchar *data_ptr __attribute__((unused)))
 {
 #ifndef DBUG_OFF
   const MARIA_SHARE *share= (MARIA_SHARE*)data_ptr;

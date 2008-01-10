@@ -6217,7 +6217,7 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     share->now_transactional= 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_REPAIR_TABLE,
                                        &dummy_transaction_object, info,
-                                       sizeof(log_data),
+                                       (translog_size_t) sizeof(log_data),
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL) ||
                  translog_flush(lsn)))

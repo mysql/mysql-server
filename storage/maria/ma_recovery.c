@@ -2841,7 +2841,7 @@ static LSN parse_checkpoint_record(LSN lsn)
   /* dirty pages */
   nb_dirty_pages= uint8korr(ptr);
   ptr+= 8;
-  tprint(tracef, "%lu dirty pages\n", nb_dirty_pages);
+  tprint(tracef, "%lu dirty pages\n", (ulong) nb_dirty_pages);
   if (hash_init(&all_dirty_pages, &my_charset_bin, nb_dirty_pages,
                 offsetof(struct st_dirty_page, file_and_page_id),
                 sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
@@ -3026,7 +3026,8 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     translog_write_record(&lsn, LOGREC_INCOMPLETE_LOG,
-                          &dummy_transaction_object, info, sizeof(log_data),
+                          &dummy_transaction_object, info,
+                          (translog_size_t) sizeof(log_data),
                           TRANSLOG_INTERNAL_PARTS + 1, log_array,
                           log_data, NULL);
   }

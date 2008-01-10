@@ -123,8 +123,9 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
   res= translog_write_record(res_lsn, LOGREC_CLR_END,
-                             info->trn, info, log_array[TRANSLOG_INTERNAL_PARTS
-                                                        + 0].length,
+                             info->trn, info,
+                             (translog_size_t)
+                             log_array[TRANSLOG_INTERNAL_PARTS + 0].length,
                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
                              log_data + LSN_STORE_SIZE, &msg);
   DBUG_RETURN(res);
@@ -311,6 +312,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
 
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
                                               0].length + changed_length,
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
@@ -381,6 +383,7 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
 
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
                                               0].length + extra_length,
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
@@ -499,8 +502,9 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
-                            log_array[TRANSLOG_INTERNAL_PARTS +
-                                      0].length + changed_length,
+                            (translog_size_t)
+                            log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
+                            changed_length,
                             TRANSLOG_INTERNAL_PARTS + translog_parts,
                             log_array, log_data, NULL))
     DBUG_RETURN(-1);

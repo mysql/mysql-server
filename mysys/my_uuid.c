@@ -106,7 +106,7 @@ void my_uuid_init(ulong seed1, ulong seed2)
       randominit() here.
     */
     /* purecov: begin inspected */
-    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), now+rand());
+    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), (ulong) (now+rand()));
     for (i=0; i < sizeof(mac); i++)
       mac[i]= (uchar)(my_rnd(&uuid_rand)*255);
     /* purecov: end */

@@ -437,6 +437,7 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
     if (translog_write_record(&lsn, LOGREC_UNDO_KEY_INSERT,
                               info->trn, info,
+                              (translog_size_t)
                               log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
                               key_length,
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
@@ -1680,7 +1681,8 @@ static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= page_length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX_NEW_PAGE,
-                            info->trn, info, sizeof(log_data) + page_length,
+                            info->trn, info,
+                            (translog_size_t) (sizeof(log_data) + page_length),
                             TRANSLOG_INTERNAL_PARTS + 2, log_array,
                             log_data, NULL))
     DBUG_RETURN(1);
@@ -1720,7 +1722,8 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
-                            info->trn, info, sizeof(log_data) + length,
+                            info->trn, info,
+                            (translog_size_t) (sizeof(log_data) + length),
                             TRANSLOG_INTERNAL_PARTS + 2, log_array,
                             log_data, NULL))
     DBUG_RETURN(1);
@@ -1850,9 +1853,9 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
-                                              0].length +
-                                    extra_length,
+                                              0].length + extra_length,
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
                                     log_array, log_data, NULL));
 }
@@ -1953,9 +1956,9 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
-                                              0].length +
-                                    extra_length,
+                                              0].length + extra_length,
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
                                     log_array, log_data, NULL));
 }
@@ -2060,6 +2063,7 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
 
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
                                               0].length + extra_length,
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
@@ -2110,6 +2114,7 @@ static my_bool _ma_log_middle(MARIA_HA *info, my_off_t page,
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_changed_first;
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
+                                    (translog_size_t)
                                     log_array[TRANSLOG_INTERNAL_PARTS +
                                               0].length + data_changed_first,
                                     TRANSLOG_INTERNAL_PARTS + 2,

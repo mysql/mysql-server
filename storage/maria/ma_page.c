@@ -224,7 +224,8 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     if (translog_write_record(&lsn, LOGREC_REDO_INDEX_FREE_PAGE,
-                              info->trn, info, sizeof(log_data),
+                              info->trn, info,
+                              (translog_size_t) sizeof(log_data),
                               TRANSLOG_INTERNAL_PARTS + 1, log_array,
                               log_data, NULL))
       result= 1;

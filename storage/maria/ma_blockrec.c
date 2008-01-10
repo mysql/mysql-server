@@ -1780,7 +1780,8 @@ static my_bool write_tail(MARIA_HA *info,
     if (translog_write_record(&lsn,
                               (block_is_read ? LOGREC_REDO_INSERT_ROW_TAIL :
                                LOGREC_REDO_NEW_ROW_TAIL),
-                              info->trn, info, sizeof(log_data) + length,
+                              info->trn, info,
+                              (translog_size_t) (sizeof(log_data) + length),
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
                               log_data, NULL))
       DBUG_RETURN(1);
@@ -2238,7 +2239,9 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
     log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    compact_extent_info;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
     res= translog_write_record(&lsn, LOGREC_REDO_FREE_BLOCKS, info->trn,
-                               info, sizeof(log_data) + extents_length,
+                               info,
+                               (translog_size_t) (sizeof(log_data) +
+                                                  extents_length),
                                TRANSLOG_INTERNAL_PARTS + 2, log_array,
                                log_data, NULL);
     my_afree(compact_extent_info);
@@ -2290,7 +2293,8 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     if (translog_write_record(&lsn, LOGREC_REDO_FREE_BLOCKS,
-                              info->trn, info, sizeof(log_data),
+                              info->trn, info,
+                              (translog_size_t) sizeof(log_data),
                               TRANSLOG_INTERNAL_PARTS + 1, log_array,
                               log_data, NULL))
       res= 1;
@@ -2838,7 +2842,9 @@ static my_bool write_block_record(MARIA_HA *info,
                               LOGREC_REDO_INSERT_ROW_HEAD :
                               LOGREC_REDO_NEW_ROW_HEAD,
                               info->trn,
-                              info, sizeof(log_data) + head_length,
+                              info,
+                              (translog_size_t) (sizeof(log_data) +
+                                                 head_length),
                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
                               log_data, NULL))
       goto disk_err;
@@ -2912,7 +2918,7 @@ static my_bool write_block_record(MARIA_HA *info,
                              ROW_EXTENTS_ON_STACK];
     LEX_STRING *log_array_pos, *log_array;
     int error;
-    ulong log_entry_length= 0;
+    translog_size_t log_entry_length= 0;
     uint ext_length, extents= 0, sub_extents= 0;
 
     /* If few extents, then allocate things on stack to avoid a malloc call */
@@ -3062,6 +3068,7 @@ static my_bool write_block_record(MARIA_HA *info,
         /* Write UNDO log record for the INSERT */
         if (translog_write_record(&lsn, LOGREC_UNDO_ROW_INSERT,
                                   info->trn, info,
+                                  (translog_size_t)
                                   log_array[TRANSLOG_INTERNAL_PARTS +
                                             0].length,
                                   TRANSLOG_INTERNAL_PARTS + 1, log_array,
@@ -3096,6 +3103,7 @@ static my_bool write_block_record(MARIA_HA *info,
                                            &row_parts_count);
         if (translog_write_record(&lsn, LOGREC_UNDO_ROW_UPDATE, info->trn,
                                   info,
+                                  (translog_size_t)
                                   log_array[TRANSLOG_INTERNAL_PARTS +
                                             0].length + extents_length +
                                   row_length,
@@ -3837,7 +3845,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
       if (translog_write_record(&lsn, (head ? LOGREC_REDO_PURGE_ROW_HEAD :
                                        LOGREC_REDO_PURGE_ROW_TAIL),
-                                info->trn, info, sizeof(log_data),
+                                info->trn, info,
+                                (translog_size_t) sizeof(log_data),
                                 TRANSLOG_INTERNAL_PARTS + 1, log_array,
                                 log_data, NULL))
         DBUG_RETURN(1);
@@ -3853,7 +3862,8 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
       log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
       if (translog_write_record(&lsn, LOGREC_REDO_FREE_HEAD_OR_TAIL,
-                                info->trn, info, sizeof(log_data),
+                                info->trn, info,
+                                (translog_size_t) sizeof(log_data),
                                 TRANSLOG_INTERNAL_PARTS + 1, log_array,
                                 log_data, NULL))
         DBUG_RETURN(1);
@@ -3974,6 +3984,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 
     if (translog_write_record(&lsn, LOGREC_UNDO_ROW_DELETE, info->trn,
                               info,
+                              (translog_size_t)
                               (info->log_row_parts[TRANSLOG_INTERNAL_PARTS +
                                                    0].length + row_length +
                                extents_length),

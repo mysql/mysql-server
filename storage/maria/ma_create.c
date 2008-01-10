@@ -1003,7 +1003,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     */
     char empty_string[]= "";
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
-    uint total_rec_length= 0;
+    translog_size_t total_rec_length= 0;
     uint k;
     LSN lsn;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +

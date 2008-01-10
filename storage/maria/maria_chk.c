@@ -461,8 +461,9 @@ static void usage(void)
 		      file would be very big.\n\
   -p, --parallel-recover\n\
                       Uses the same technique as '-r' and '-n', but creates\n\
-                      all the keys in parallel, in different threads.\n\
-  -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n\
+                      all the keys in parallel, in different threads.");
+  puts("\
+  -o, --safe-recover  Uses old recovery method; Slower than '-r' but can\n \
 		      handle a couple of cases where '-r' reports that it\n\
 		      can't fix the data file.\n\
   --transaction-log   Log repair command to transaction log. This is needed\n\
@@ -501,7 +502,7 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
                       Find a record, a block at given offset belongs to.\n\
-  --zerofill          Fill empty space in data and index files with zeroes.");
+  -z,  --zerofill     Fill empty space in data and index files with zeroes.");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);

@@ -214,7 +214,7 @@ static int really_execute_checkpoint(void)
   /* LAST STEP: now write the checkpoint log record */
   {
     LSN lsn;
-    uint total_rec_length;
+    translog_size_t total_rec_length;
     /*
       the log handler is allowed to modify "str" and "length" (but not "*str")
       of its argument, so we must not pass it record_pieces directly,
