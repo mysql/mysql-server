@@ -23,21 +23,20 @@
 
 uchar *_ma_fetch_keypage(register MARIA_HA *info,
                          MARIA_KEYDEF *keyinfo __attribute__ ((unused)),
-                         my_off_t page, enum pagecache_page_lock lock,
+                         my_off_t pos, enum pagecache_page_lock lock,
                          int level, uchar *buff,
                          int return_buffer __attribute__ ((unused)),
                          MARIA_PINNED_PAGE **page_link_res)
 {
   uchar *tmp;
-  uint page_size __attribute__((unused));
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
   uint block_size= share->block_size;
   DBUG_ENTER("_ma_fetch_keypage");
-  DBUG_PRINT("enter",("page: %ld", (long) page));
+  DBUG_PRINT("enter",("pos: %ld", (long) pos));
 
   tmp= pagecache_read(share->pagecache, &share->kfile,
-                      page / block_size, level, buff,
+                      (pgcache_page_no_t) (pos / block_size), level, buff,
                       share->page_type, lock, &page_link.link);
 
   if (lock != PAGECACHE_LOCK_LEFT_UNLOCKED)
@@ -61,20 +60,22 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
     my_errno=HA_ERR_CRASHED;
     DBUG_RETURN(0);
   }
-  info->last_keypage=page;
+  info->last_keypage= pos;
 #ifdef EXTRA_DEBUG
-  page_size= _ma_get_page_used(share, tmp);
-  if (page_size < 4 || page_size > block_size ||
-      _ma_get_keynr(share, tmp) != keyinfo->key_nr)
   {
-    DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
-			(ulong) page, page_size,
-                        _ma_get_keynr(share, tmp)));
-    DBUG_DUMP("page", (char*) tmp, page_size);
-    info->last_keypage = HA_OFFSET_ERROR;
-    maria_print_error(share, HA_ERR_CRASHED);
-    my_errno= HA_ERR_CRASHED;
-    tmp= 0;
+    uint page_size= _ma_get_page_used(share, tmp);
+    if (page_size < 4 || page_size > block_size ||
+        _ma_get_keynr(share, tmp) != keyinfo->key_nr)
+    {
+      DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
+                          (ulong) (pos / block_size), page_size,
+                          _ma_get_keynr(share, tmp)));
+      DBUG_DUMP("page", (char*) tmp, page_size);
+      info->last_keypage = HA_OFFSET_ERROR;
+      maria_print_error(share, HA_ERR_CRASHED);
+      my_errno= HA_ERR_CRASHED;
+      tmp= 0;
+    }
   }
 #endif
   DBUG_RETURN(tmp);
@@ -85,7 +86,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
 
 int _ma_write_keypage(register MARIA_HA *info,
                       register MARIA_KEYDEF *keyinfo __attribute__((unused)),
-		      my_off_t page, enum pagecache_page_lock lock,
+		      my_off_t pos, enum pagecache_page_lock lock,
                       int level, uchar *buff)
 {
   MARIA_SHARE *share= info->s;
@@ -98,20 +99,20 @@ int _ma_write_keypage(register MARIA_HA *info,
   {
     uint page_length, nod;
     _ma_get_used_and_nod(share, buff, page_length, nod);
-    if (page < share->base.keystart ||
-        page+block_size > info->state->key_file_length ||
-      (page & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
+    if (pos < share->base.keystart ||
+        pos+block_size > info->state->key_file_length ||
+      (pos & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
     {
       DBUG_PRINT("error",("Trying to write inside key status region: "
                           "key_start: %lu  length: %lu  page: %lu",
                           (long) share->base.keystart,
                           (long) info->state->key_file_length,
-                          (long) page));
+                          (long) pos));
       my_errno=EINVAL;
       DBUG_ASSERT(0);
       DBUG_RETURN((-1));
     }
-    DBUG_PRINT("page",("write page at: %lu",(long) page));
+    DBUG_PRINT("page",("write page at: %lu",(long) pos));
     DBUG_DUMP("buff", buff, page_length);
     DBUG_ASSERT(page_length >= share->keypage_header + nod +
                 keyinfo->minlength || maria_in_recovery);
@@ -140,7 +141,7 @@ int _ma_write_keypage(register MARIA_HA *info,
   DBUG_ASSERT(share->pagecache->block_size == block_size);
 
   res= pagecache_write(share->pagecache,
-                       &share->kfile, page / block_size,
+                       &share->kfile, (pgcache_page_no_t) (pos / block_size),
                        level, buff, share->page_type,
                        lock,
                        lock == PAGECACHE_LOCK_LEFT_WRITELOCKED ?
@@ -313,7 +314,8 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
     pos= share->current_key_del;                /* Protected */
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(buff= pagecache_read(share->pagecache,
-                               &share->kfile, pos / block_size, level,
+                               &share->kfile,
+                               (pgcache_page_no_t) (pos / block_size), level,
                                0, share->page_type,
                                PAGECACHE_LOCK_WRITE, &(*page_link)->link)))
       pos= HA_OFFSET_ERROR;

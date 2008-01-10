@@ -132,7 +132,7 @@
 
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
-                                    ulonglong page);
+                                    pgcache_page_no_t page);
 
 /* Write bitmap page to key cache */
 
@@ -237,7 +237,7 @@ my_bool _ma_bitmap_init(MARIA_SHARE *share, File file)
 
   _ma_bitmap_reset_cache(share);
 
-  if (share->state.first_bitmap_with_space == ~(ulonglong) 0)
+  if (share->state.first_bitmap_with_space == ~(pgcache_page_no_t) 0)
   {
     /* Start scanning for free space from start of file */
     share->state.first_bitmap_with_space = 0;
@@ -678,7 +678,7 @@ static void _ma_print_bitmap_changes(MARIA_FILE_BITMAP *bitmap)
 /* Print content of bitmap for debugging */
 
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
-                      ulonglong page)
+                      pgcache_page_no_t page)
 {
   uchar *pos, *end;
   char llbuff[22];
@@ -744,7 +744,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
 
 static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
                                     MARIA_FILE_BITMAP *bitmap,
-                                    ulonglong page)
+                                    pgcache_page_no_t page)
 {
   my_off_t end_of_page= (page + 1) * bitmap->block_size;
   my_bool res;
@@ -832,7 +832,7 @@ static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
 
 static my_bool _ma_change_bitmap_page(MARIA_HA *info,
                                       MARIA_FILE_BITMAP *bitmap,
-                                      ulonglong page)
+                                      pgcache_page_no_t page)
 {
   DBUG_ENTER("_ma_change_bitmap_page");
 
@@ -867,7 +867,7 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
 
 static my_bool move_to_next_bitmap(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap)
 {
-  ulonglong page= bitmap->page;
+  pgcache_page_no_t page= bitmap->page;
   MARIA_STATE_INFO *state= &info->s->state;
   DBUG_ENTER("move_to_next_bitmap");
 
@@ -988,7 +988,7 @@ static my_bool allocate_head(MARIA_FILE_BITMAP *bitmap, uint size,
       continue;
     for (i= 0; i < 16 ; i++, bits >>= 3)
     {
-      uint pattern= bits & 7;
+      uint pattern= (uint) (bits & 7);
       if (pattern <= min_bits)
       {
         /* There is enough space here */
@@ -1074,7 +1074,7 @@ static my_bool allocate_tail(MARIA_FILE_BITMAP *bitmap, uint size,
       continue;
     for (i= 0; i < 16; i++, bits >>= 3)
     {
-      uint pattern= bits & 7;
+      uint pattern= (uint) (bits & 7);
       if (pattern <= min_bits && (!pattern || pattern >= 5))
       {
         if ((int) pattern > (int) best_bits)
@@ -1538,7 +1538,7 @@ static my_bool allocate_blobs(MARIA_HA *info, MARIA_ROW *row)
     This is used on update where we are updating an existing head page
 */
 
-static void use_head(MARIA_HA *info, ulonglong page, uint size,
+static void use_head(MARIA_HA *info, pgcache_page_no_t page, uint size,
                      uint block_position)
 {
   MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
@@ -1817,7 +1817,7 @@ abort:
 */
 
 my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
-                                  ulonglong page, uint free_size,
+                                  pgcache_page_no_t page, uint free_size,
                                   MARIA_BITMAP_BLOCKS *blocks)
 {
   MARIA_SHARE *share= info->s;
@@ -1833,18 +1833,20 @@ my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *row,
   info->bitmap_blocks.elements= ELEMENTS_RESERVED_FOR_MAIN_PART;
 
   pthread_mutex_lock(&share->bitmap.bitmap_lock);
-  bitmap_page= page / share->bitmap.pages_covered;
-  bitmap_page*= share->bitmap.pages_covered;
-
-  if (share->bitmap.page != bitmap_page &&
-      _ma_change_bitmap_page(info, &share->bitmap, bitmap_page))
-    goto abort;
 
   /*
     First allocate all blobs (so that we can find out the needed size for
     the main block.
   */
   if (row->blob_length && allocate_blobs(info, row))
+    goto abort;
+
+  /* Switch bitmap to current head page */
+  bitmap_page= page / share->bitmap.pages_covered;
+  bitmap_page*= share->bitmap.pages_covered;
+
+  if (share->bitmap.page != bitmap_page &&
+      _ma_change_bitmap_page(info, &share->bitmap, bitmap_page))
     goto abort;
 
   extents_length= row->extents_count * ROW_EXTENT_SIZE;
@@ -1909,9 +1911,9 @@ abort:
 */
 
 static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                             ulonglong page, uint fill_pattern)
+                             pgcache_page_no_t page, uint fill_pattern)
 {
-  ulonglong bitmap_page;
+  pgcache_page_no_t bitmap_page;
   uint offset_page, offset, tmp, org_tmp;
   uchar *data;
   DBUG_ENTER("set_page_bits");
@@ -1922,7 +1924,7 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     DBUG_RETURN(1);
 
   /* Find page number from start of bitmap */
-  offset_page= page - bitmap->page - 1;
+  offset_page= (uint) (page - bitmap->page - 1);
   /*
     Mark place used by reading/writing 2 bytes at a time to handle
     bitmaps in overlapping bytes
@@ -1967,9 +1969,9 @@ static my_bool set_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 */
 
 uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                              ulonglong page)
+                              pgcache_page_no_t page)
 {
-  ulonglong bitmap_page;
+  pgcache_page_no_t bitmap_page;
   uint offset_page, offset, tmp;
   uchar *data;
   DBUG_ENTER("_ma_bitmap_get_page_bits");
@@ -1980,7 +1982,7 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
     DBUG_RETURN(~ (uint) 0);
 
   /* Find page number from start of bitmap */
-  offset_page= page - bitmap->page - 1;
+  offset_page= (uint) (page - bitmap->page - 1);
   /*
     Mark place used by reading/writing 2 bytes at a time to handle
     bitmaps in overlapping bytes
@@ -2014,7 +2016,8 @@ uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
 
 my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
                                         MARIA_FILE_BITMAP *bitmap,
-                                        ulonglong page, uint page_count)
+                                        pgcache_page_no_t page,
+                                        uint page_count)
 {
   ulonglong bitmap_page;
   uint offset, bit_start, bit_count, tmp;
@@ -2031,10 +2034,10 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
     DBUG_RETURN(1);
 
   /* Find page number from start of bitmap */
-  page= page - bitmap->page - 1;
+  offset= (uint) (page - bitmap->page - 1);
 
   /* Clear bits from 'page * 3' -> '(page + page_count) * 3' */
-  bit_start= page * 3;
+  bit_start= offset * 3;
   bit_count= page_count * 3;
 
   data= bitmap->map + bit_start / 8;
@@ -2092,7 +2095,7 @@ my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
 
 my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
                                       MARIA_FILE_BITMAP *bitmap,
-                                      ulonglong page, uint page_count)
+                                      pgcache_page_no_t page, uint page_count)
 {
   ulonglong bitmap_page;
   uint offset, bit_start, bit_count, tmp;
@@ -2107,10 +2110,10 @@ my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
     DBUG_RETURN(1);
 
   /* Find page number from start of bitmap */
-  page= page - bitmap->page - 1;
+  offset= (uint) (page - bitmap->page - 1);
 
   /* Set bits from 'page * 3' -> '(page + page_count) * 3' */
-  bit_start= page * 3;
+  bit_start= offset * 3;
   bit_count= page_count * 3;
 
   data= bitmap->map + bit_start / 8;
@@ -2394,7 +2397,7 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
   pthread_mutex_lock(&bitmap->bitmap_lock);
   for (; count--; extents+= ROW_EXTENT_SIZE)
   {
-    ulonglong page=  uint5korr(extents);
+    pgcache_page_no_t page=  uint5korr(extents);
     uint page_count= (uint2korr(extents + ROW_EXTENT_PAGE_SIZE) &
                       ~START_EXTENT_BIT);
     if (!(page_count & TAIL_BIT))
@@ -2430,7 +2433,7 @@ my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
     1  error
 */
 
-my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong page, my_bool head,
+my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t page, my_bool head,
                        uint empty_space)
 {
   MARIA_FILE_BITMAP *bitmap= &info->s->bitmap;
@@ -2469,7 +2472,7 @@ my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong page, my_bool head,
 */
 
 my_bool _ma_check_bitmap_data(MARIA_HA *info,
-                              enum en_page_type page_type, ulonglong page,
+                              enum en_page_type page_type, pgcache_page_no_t page,
                               uint empty_space, uint *bitmap_pattern)
 {
   uint bits;
@@ -2517,7 +2520,7 @@ my_bool _ma_check_bitmap_data(MARIA_HA *info,
 
 my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        enum en_page_type page_type,
-                                       ulonglong page,
+                                       pgcache_page_no_t page,
                                        uint *bitmap_pattern)
 {
   if ((*bitmap_pattern= _ma_bitmap_get_page_bits(info, &info->s->bitmap,

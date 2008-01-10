@@ -112,7 +112,7 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
   {
     /* Key root changed. Store new key root */
     struct st_msg_to_write_hook_for_undo_key *undo_msg= extra_msg;
-    ulonglong page;
+    pgcache_page_no_t page;
     key_nr_store(log_pos, undo_msg->keynr);
     page= (undo_msg->value == HA_OFFSET_ERROR ? IMPOSSIBLE_PAGE_NO :
            undo_msg->value / info->s->block_size);
@@ -526,8 +526,8 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
 uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
                                    const uchar *header, uint length)
 {
-  ulonglong root_page= page_korr(header);
-  ulonglong free_page= page_korr(header + PAGE_STORE_SIZE);
+  pgcache_page_no_t root_page= page_korr(header);
+  pgcache_page_no_t free_page= page_korr(header + PAGE_STORE_SIZE);
   uint      key_nr=    key_nr_korr(header + PAGE_STORE_SIZE * 2);
   my_bool   page_type_flag= header[PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE];
   enum pagecache_page_lock unlock_method;
@@ -647,8 +647,8 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
                                     LSN lsn,
                                     const uchar *header)
 {
-  ulonglong page= page_korr(header);
-  ulonglong free_page= page_korr(header + PAGE_STORE_SIZE);
+  pgcache_page_no_t page= page_korr(header);
+  pgcache_page_no_t free_page= page_korr(header + PAGE_STORE_SIZE);
   my_off_t old_link;
   MARIA_PINNED_PAGE page_link;
   MARIA_SHARE *share= info->s;
@@ -745,7 +745,7 @@ uint _ma_apply_redo_index(MARIA_HA *info,
                           LSN lsn, const uchar *header, uint head_length)
 {
   MARIA_SHARE *share= info->s;
-  ulonglong page= page_korr(header);
+  pgcache_page_no_t page= page_korr(header);
   MARIA_PINNED_PAGE page_link;
   uchar *buff;
   const uchar *header_end= header + head_length;

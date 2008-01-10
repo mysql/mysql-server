@@ -376,7 +376,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   now= my_getsystime();
   if (recovery_message_printed == REC_MSG_REDO)
   {
-    float phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/10000000.0;
     /*
       Detailed progress info goes to stderr, because ma_message_no_user()
       cannot put several messages on one line.
@@ -428,7 +428,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   now= my_getsystime();
   if (recovery_message_printed == REC_MSG_UNDO)
   {
-    float phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/10000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
@@ -447,7 +447,7 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
   now= my_getsystime();
   if (recovery_message_printed == REC_MSG_FLUSH)
   {
-    float phase_took= (now - old_now)/10000000.0;
+    double phase_took= (now - old_now)/10000000.0;
     procent_printed= 1;
     fprintf(stderr, " (%.1f seconds); ", phase_took);
   }
@@ -1008,7 +1008,7 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   MARIA_HA *info;
   HA_CHECK param;
   char *name;
-  uint quick_repair;
+  my_bool quick_repair;
   DBUG_ENTER("exec_REDO_LOGREC_REDO_REPAIR_TABLE");
 
   if (skip_DDLs)
@@ -1036,8 +1036,7 @@ prototype_redo_exec_hook(REDO_REPAIR_TABLE)
   DBUG_ASSERT(maria_tmpdir);
 
   info->s->state.key_map= uint8korr(rec->header + FILEID_STORE_SIZE + 8);
-  quick_repair= param.testflag & T_QUICK;
-
+  quick_repair= test(param.testflag & T_QUICK);
 
   if (param.testflag & T_REP_PARALLEL)
   {
@@ -2748,7 +2747,8 @@ static MARIA_HA *get_MARIA_HA_from_UNDO_record(const
 
 static LSN parse_checkpoint_record(LSN lsn)
 {
-  ulong i, nb_dirty_pages;
+  ulong i;
+  ulonglong nb_dirty_pages;
   TRANSLOG_HEADER_BUFFER rec;
   TRANSLOG_ADDRESS start_address;
   int len;
@@ -3079,11 +3079,14 @@ void _ma_reenable_logging_for_table(MARIA_HA *info)
 
 static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {
-  static int end_logno= FILENO_IMPOSSIBLE, end_offset, percentage_printed= 0;
+  static uint end_logno= FILENO_IMPOSSIBLE, percentage_printed= 0;
+  static ulong end_offset;
   static ulonglong initial_remainder= -1;
-  int cur_logno, cur_offset;
+
+  uint cur_logno;
+  ulong cur_offset;
   ulonglong local_remainder;
-  int percentage_done;
+  uint percentage_done;
 
   if (tracef == stdout)
     return;
@@ -3108,12 +3111,12 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
      end_offset);
   if (initial_remainder == (ulonglong)(-1))
     initial_remainder= local_remainder;
-  percentage_done= ((initial_remainder - local_remainder) * ULL(100) /
-                    initial_remainder);
+  percentage_done= (uint) ((initial_remainder - local_remainder) * ULL(100) /
+                           initial_remainder);
   if ((percentage_done - percentage_printed) >= 10)
   {
     percentage_printed= percentage_done;
-    fprintf(stderr, " %d%%", percentage_done);
+    fprintf(stderr, " %u%%", percentage_done);
     procent_printed= 1;
   }
 }

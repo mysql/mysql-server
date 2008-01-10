@@ -221,7 +221,8 @@ static TrID new_trid()
 
 static void set_short_trid(TRN *trn)
 {
-  int i= (global_trid_generator + (intptr)trn) * 312089 % SHORT_TRID_MAX + 1;
+  int i= (int) ((global_trid_generator + (intptr)trn) * 312089 %
+                SHORT_TRID_MAX + 1);
   for ( ; !trn->short_id ; i= 1)
   {
     my_atomic_rwlock_wrlock(&LOCK_short_trid_to_trn);

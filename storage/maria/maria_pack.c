@@ -122,8 +122,8 @@ typedef struct st_isam_mrg {
 
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
-static MARIA_HA *open_isam_file(char *name,int mode);
-static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count);
+static MARIA_HA *open_maria_file(char *name,int mode);
+static bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count);
 static int compress(PACK_MRG_INFO *file,char *join_name);
 static HUFF_COUNTS *init_huff_count(MARIA_HA *info,my_off_t records);
 static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
@@ -158,7 +158,7 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree,
 				       HUFF_ELEMENT *element,
 				       uint *offset);
 static uint max_bit(uint value);
-static int compress_isam_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
+static int compress_maria_file(PACK_MRG_INFO *file,HUFF_COUNTS *huff_counts);
 static char *make_new_name(char *new_name,char *old_name);
 static char *make_old_name(char *new_name,char *old_name);
 static void init_file_buffer(File file,pbool read_buffer);
@@ -216,14 +216,14 @@ int main(int argc, char **argv)
   error=ok=isamchk_neaded=0;
   if (join_table)
   {						/* Join files into one */
-    if (open_isam_files(&merge,argv,(uint) argc) ||
+    if (open_maria_files(&merge,argv,(uint) argc) ||
 	compress(&merge,join_table))
       error=1;
   }
   else while (argc--)
   {
     MARIA_HA *isam_file;
-    if (!(isam_file=open_isam_file(*argv++,O_RDWR)))
+    if (!(isam_file=open_maria_file(*argv++,O_RDWR)))
       error=1;
     else
     {
@@ -400,11 +400,11 @@ static void get_options(int *argc,char ***argv)
 }
 
 
-static MARIA_HA *open_isam_file(char *name,int mode)
+static MARIA_HA *open_maria_file(char *name,int mode)
 {
   MARIA_HA *isam_file;
   MARIA_SHARE *share;
-  DBUG_ENTER("open_isam_file");
+  DBUG_ENTER("open_maria_file");
 
   if (!(isam_file=maria_open(name, mode, HA_OPEN_IGNORE_MOVED_STATE |
 			  (opt_wait ? HA_OPEN_WAIT_IF_LOCKED :
@@ -439,7 +439,7 @@ static MARIA_HA *open_isam_file(char *name,int mode)
 }
 
 
-static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
+static bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count)
 {
   uint i,j;
   mrg->count=0;
@@ -449,7 +449,7 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
   mrg->src_file_has_indexes_disabled= 0;
   for (i=0; i < count ; i++)
   {
-    if (!(mrg->file[i]=open_isam_file(names[i],O_RDONLY)))
+    if (!(mrg->file[i]=open_maria_file(names[i],O_RDONLY)))
       goto error;
 
     mrg->src_file_has_indexes_disabled|=
@@ -489,7 +489,7 @@ static bool open_isam_files(PACK_MRG_INFO *mrg,char **names,uint count)
 static int compress(PACK_MRG_INFO *mrg,char *result_table)
 {
   int error;
-  File new_file,join_isam_file;
+  File new_file,join_maria_file;
   MARIA_HA *isam_file;
   MARIA_SHARE *share;
   char org_name[FN_REFLEN],new_name[FN_REFLEN],temp_name[FN_REFLEN];
@@ -501,7 +501,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
 
   isam_file=mrg->file[0];			/* Take this as an example */
   share=isam_file->s;
-  new_file=join_isam_file= -1;
+  new_file=join_maria_file= -1;
   trees=fields=0;
   huff_trees=0;
   huff_counts=0;
@@ -529,14 +529,14 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     uchar *buff;
     strmov(org_name,result_table);		/* Fix error messages */
     VOID(fn_format(new_name,result_table,"",MARIA_NAME_IEXT,2));
-    if ((join_isam_file=my_create(new_name,0,tmpfile_createflag,MYF(MY_WME)))
+    if ((join_maria_file=my_create(new_name,0,tmpfile_createflag,MYF(MY_WME)))
 	< 0)
       goto err;
     length=(uint) share->base.keystart;
     if (!(buff= (uchar*) my_malloc(length,MYF(MY_WME))))
       goto err;
     if (my_pread(share->kfile.file, buff, length, 0L, MYF(MY_WME | MY_NABP)) ||
-	my_write(join_isam_file,buff,length,
+	my_write(join_maria_file,buff,length,
 		 MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
     {
       my_free(buff,MYF(0));
@@ -653,7 +653,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   DBUG_PRINT("info", ("- Compressing file"));
   if (write_loop || verbose)
     VOID(printf("- Compressing file\n"));
-  error=compress_isam_file(mrg,huff_counts);
+  error=compress_maria_file(mrg,huff_counts);
   new_length=file_buffer.pos_in_file;
   if (!error && !test_only)
   {
@@ -701,7 +701,7 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   {
     if (result_table)
     {
-      error=save_state_mrg(join_isam_file,mrg,new_length,glob_crc);
+      error=save_state_mrg(join_maria_file,mrg,new_length,glob_crc);
     }
     else
     {
@@ -742,8 +742,8 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
     }
   }
   error|=mrg_close(mrg);
-  if (join_isam_file >= 0)
-    error|=my_close(join_isam_file,MYF(MY_WME));
+  if (join_maria_file >= 0)
+    error|=my_close(join_maria_file,MYF(MY_WME));
   if (error)
   {
     VOID(fprintf(stderr, "Aborting: %s is not compressed\n", org_name));
@@ -766,8 +766,8 @@ static int compress(PACK_MRG_INFO *mrg,char *result_table)
   free_counts_and_tree_and_queue(huff_trees,trees,huff_counts,fields);
   if (new_file >= 0)
     VOID(my_close(new_file,MYF(0)));
-  if (join_isam_file >= 0)
-    VOID(my_close(join_isam_file,MYF(0)));
+  if (join_maria_file >= 0)
+    VOID(my_close(join_maria_file,MYF(0)));
   mrg_close(mrg);
   VOID(fprintf(stderr, "Aborted: %s is not compressed\n", org_name));
   DBUG_RETURN(-1);
@@ -2413,7 +2413,7 @@ static uint max_bit(register uint value)
 }
 
 
-static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
+static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
 {
   int error;
   uint i,max_calc_length,pack_ref_length,min_record_length,max_record_length;
@@ -2426,7 +2426,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
   HUFF_TREE *tree;
   MARIA_HA *isam_file=mrg->file[0];
   uint pack_version= (uint) isam_file->s->pack.version;
-  DBUG_ENTER("compress_isam_file");
+  DBUG_ENTER("compress_maria_file");
 
   /* Allocate a buffer for the records (excluding blobs). */
   if (!(record=(uchar*) my_alloca(isam_file->s->base.reclength)))

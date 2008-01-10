@@ -151,7 +151,8 @@ int maria_chk_status(HA_CHECK *param, register MARIA_HA *info)
   Check delete links in row data
 */
 
-int maria_chk_del(HA_CHECK *param, register MARIA_HA *info, uint test_flag)
+int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
+                  ulonglong test_flag)
 {
   MARIA_SHARE *share= info->s;
   reg2 ha_rows i;
@@ -313,7 +314,8 @@ static int check_k_link(HA_CHECK *param, register MARIA_HA *info,
 
     DBUG_ASSERT(share->pagecache->block_size == block_size);
     if (!(buff= pagecache_read(share->pagecache,
-                               &share->kfile, next_link/block_size,
+                               &share->kfile,
+                               (pgcache_page_no_t) (next_link / block_size),
                                DFLT_INIT_HITS,
                                (uchar*) info->buff,
                                PAGECACHE_READ_UNKNOWN_PAGE,
@@ -1632,7 +1634,8 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
       /* Check that bitmap has the right marker for the found extents */
       for (i= 0 ; i < info->cur_row.extents_count ; i++)
       {
-        uint extent_page, page_count, page_type;
+        pgcache_page_no_t extent_page;
+        uint page_count, page_type;
         extent_page= uint5korr(extents);
         page_count=  uint2korr(extents+5) & ~START_EXTENT_BIT;
         extents+=    ROW_EXTENT_SIZE;
@@ -1683,7 +1686,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
 {
   MARIA_SHARE *share= info->s;
   my_off_t pos;
-  ulonglong page;
+  pgcache_page_no_t page;
   uchar *page_buff, *bitmap_buff, *data;
   char llbuff[22], llbuff2[22];
   uint block_size= share->block_size;
@@ -1739,7 +1742,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       continue;
     }
     /* Skip pages marked as empty in bitmap */
-    offset_page= ((page % share->bitmap.pages_covered) -1) * 3;
+    offset_page= (uint) ((page % share->bitmap.pages_covered) -1) * 3;
     offset= offset_page & 7;
     data= bitmap_buff + offset_page / 8;
     bitmap_pattern= uint2korr(data);
@@ -1844,7 +1847,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
   {
     /* Not at end of bitmap */
     uint bitmap_pattern;
-    offset_page= ((page % share->bitmap.pages_covered) -1) * 3;
+    offset_page= (uint) ((page % share->bitmap.pages_covered) -1) * 3;
     offset= offset_page & 7;
     data= bitmap_buff + offset_page / 8;
     bitmap_pattern= uint2korr(data);
@@ -1887,7 +1890,7 @@ err:
 
 /* Check that record-link is ok */
 
-int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info,int extend)
+int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
 {
   MARIA_SHARE *share= info->s;
   int	error;
@@ -2077,7 +2080,7 @@ static int initialize_variables_for_repair(HA_CHECK *param,
                                            MARIA_SORT_INFO *sort_info,
                                            MARIA_SORT_PARAM *sort_param,
                                            MARIA_HA *info,
-                                           uint rep_quick)
+                                           my_bool rep_quick)
 {
   MARIA_SHARE *share= info->s;
 
@@ -2095,7 +2098,7 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   param->org_key_map= share->state.key_map;
 
   sort_param->sort_info= sort_info;
-  sort_param->fix_datafile= (my_bool) (! rep_quick);
+  sort_param->fix_datafile= ! rep_quick;
   sort_param->calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
   sort_info->info= sort_info->new_info= info;
   sort_info->param= param;
@@ -2158,7 +2161,7 @@ static int initialize_variables_for_repair(HA_CHECK *param,
 */
 
 int maria_repair(HA_CHECK *param, register MARIA_HA *info,
-                 char *name, uint rep_quick)
+                 char *name, my_bool rep_quick)
 {
   int error, got_error;
   uint i;
@@ -2343,7 +2346,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       sort_param.current_filepos= sort_param.filepos;
     }
   }
-  if (error > 0 || maria_write_data_suffix(&sort_info, (my_bool)!rep_quick) ||
+  if (error > 0 || maria_write_data_suffix(&sort_info, !rep_quick) ||
       flush_io_cache(&sort_info.new_info->rec_cache) ||
       param->read_cache.error < 0)
     goto err;
@@ -2780,7 +2783,8 @@ err2:
 
 static void put_crc(char *buff, my_off_t pos, MARIA_SHARE *share)
 {
-  maria_page_crc_set_index(buff, pos / share->block_size, (uchar*) share);
+  maria_page_crc_set_index(buff, (pgcache_page_no_t) (pos / share->block_size),
+                           (uchar*) share);
 }
 
 
@@ -2891,7 +2895,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   char llbuff[21];
   uchar *buff;
-  ulonglong page;
+  pgcache_page_no_t page;
   my_off_t pos;
   my_off_t key_file_length= share->state.state.key_file_length;
   uint block_size= share->block_size;
@@ -2961,7 +2965,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
   MARIA_PINNED_PAGE page_link;
   char llbuff[21];
   my_off_t pos;
-  ulonglong page;
+  pgcache_page_no_t page;
   uint block_size= share->block_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
   DBUG_ENTER("maria_zerofill_data");
@@ -3169,7 +3173,7 @@ err:
 */
 
 int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
-                         const char * name, uint rep_quick)
+                         const char * name, my_bool rep_quick)
 {
   int got_error;
   uint i;
@@ -3515,7 +3519,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     goto err;
   }
 
-  if (rep_quick & T_FORCE_UNIQUENESS)
+  if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
     my_off_t skr= (info->state->data_file_length +
                    (sort_info.org_data_file_type == COMPRESSED_RECORD) ?
@@ -3657,7 +3661,7 @@ err:
 */
 
 int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
-			const char * name, uint rep_quick)
+			const char * name, my_bool rep_quick)
 {
 #ifndef THREAD
   return maria_repair_by_sort(param, info, name, rep_quick);
@@ -3725,7 +3729,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
       position 'new_header_length'.
     }
   */
-  DBUG_PRINT("info", ("is quick repair: %d", rep_quick));
+  DBUG_PRINT("info", ("is quick repair: %d", (int) rep_quick));
 
   /* Initialize pthread structures before goto err. */
   pthread_mutex_init(&sort_info.mutex, MY_MUTEX_INIT_FAST);
@@ -3901,7 +3905,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   }
   sort_info.total_keys=i;
   sort_param[0].master= 1;
-  sort_param[0].fix_datafile= (my_bool)(! rep_quick);
+  sort_param[0].fix_datafile= ! rep_quick;
   sort_param[0].calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
 
   sort_info.got_error=0;
@@ -4024,7 +4028,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     goto err;
   }
 
-  if (rep_quick & T_FORCE_UNIQUENESS)
+  if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
     my_off_t skr= (info->state->data_file_length +
                    (sort_info.org_data_file_type == COMPRESSED_RECORD) ?
@@ -6040,8 +6044,8 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
                                       MARIA_HA *info, uchar *record)
 {
   MARIA_SHARE *share= info->s;
-  uint record_pos= info->cur_row.nextpos;
-  ulonglong page= sort_info->page;
+  MARIA_RECORD_POS record_pos= info->cur_row.nextpos;
+  pgcache_page_no_t page= sort_info->page;
   DBUG_ENTER("_ma_safe_scan_block_record");
 
   for (;;)
@@ -6078,7 +6082,7 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
       {
         _ma_check_print_info(sort_info->param,
                              "Wrong directory entry %3u at page %s",
-                             record_pos, llstr(page, llbuff));
+                             (uint) record_pos, llstr(page, llbuff));
         record_pos++;
         continue;
       }
@@ -6100,7 +6104,7 @@ read_next_page:
       page++;
       if (!(page % share->bitmap.pages_covered))
         page++;                                 /* Skip bitmap */
-      if ((page + 1) * share->block_size > sort_info->filelength)
+      if ((my_off_t) (page + 1) * share->block_size > sort_info->filelength)
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       if (!(pagecache_read(share->pagecache,
                            &info->dfile,

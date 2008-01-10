@@ -1490,7 +1490,7 @@ my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
                                const uchar *record, MARIA_RECORD_POS pos)
 {
   uchar *old_rec_buff,*old_record;
-  my_off_t old_rec_buff_size;
+  size_t old_rec_buff_size;
   my_bool error;
   DBUG_ENTER("_ma_cmp_dynamic_unique");
 

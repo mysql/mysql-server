@@ -139,11 +139,12 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     else if (keyseg->flag & HA_BLOB_PART)
     {
       uint tmp_length= _ma_calc_blob_length(keyseg->bit_start,pos);
-      memcpy_fixed(&pos,pos+keyseg->bit_start,sizeof(char*));
+      uchar *blob_pos;
+      memcpy_fixed(&blob_pos, pos+keyseg->bit_start,sizeof(char*));
       set_if_smaller(length,tmp_length);
-      FIX_LENGTH(cs, pos, length, char_length);
+      FIX_LENGTH(cs, blob_pos, length, char_length);
       store_key_length_inc(key,char_length);
-      memcpy(key,pos,(size_t) char_length);
+      memcpy(key, blob_pos, (size_t) char_length);
       key+= char_length;
       continue;
     }

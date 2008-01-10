@@ -18,12 +18,6 @@
 #ifndef USE_MY_FUNC		/* We want to be able to dbug this !! */
 #define USE_MY_FUNC
 #endif
-#ifdef DBUG_OFF
-#undef DBUG_OFF
-#endif
-#ifndef SAFEMALLOC
-#define SAFEMALLOC
-#endif
 #include "maria_def.h"
 #include "trnman.h"
 #include <m_ctype.h>
