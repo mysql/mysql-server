@@ -87,6 +87,7 @@ struct fieldinfo db_txn_stat_fields64[] = {
 struct fieldinfo dbc_fields64[] = {
   {"DB *dbp", 0, 8},
   {"int (*c_close) (DBC *)", 272, 8},
+  {"int (*c_count) (DBC *, db_recno_t *, u_int32_t)", 280, 8},
   {"int (*c_del) (DBC *, u_int32_t)", 288, 8},
   {"int (*c_get) (DBC *, DBT *, DBT *, u_int32_t)", 304, 8},
   {"int (*c_pget) (DBC *, DBT *, DBT *, DBT *, u_int32_t)", 312, 8},

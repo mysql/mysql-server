@@ -255,6 +255,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("typedef struct __toku_db_txn_stat DB_TXN_STAT;\n");
     printf("typedef struct __toku_dbc DBC;\n");
     printf("typedef struct __toku_dbt DBT;\n");
+    printf("typedef u_int32_t db_recno_t;\n");
     print_dbtype();
 //    print_db_notices();
     print_defines();
