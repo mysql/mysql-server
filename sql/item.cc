@@ -4384,7 +4384,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 			    name, table, 0, unsigned_flag);
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, &my_charset_bin);
+    return new Field_newdate(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIME:
     return new Field_time(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIMESTAMP:
