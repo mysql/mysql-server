@@ -145,11 +145,63 @@ void test_next_nodup(Db *db, int n) {
     Dbt key; key.set_flags(DB_DBT_REALLOC);
     Dbt val; val.set_flags(DB_DBT_REALLOC);
     r = cursor->get(&key, &val, DB_FIRST); assert(r == 0);
-    printf("%d %d\n", htonl(*(int*)key.get_data()), *(int*)val.get_data());
-    for (;;) {
-        r = my_next_nodup(cursor, &key, &val);
-        if (r != 0) break;
+    while (r == 0) {
         printf("%d %d\n", htonl(*(int*)key.get_data()), *(int*)val.get_data());
+        r = my_next_nodup(cursor, &key, &val);
+    }
+    if (key.get_data()) free(key.get_data());
+    if (val.get_data()) free(val.get_data());
+    r = cursor->close(); assert(r == 0);
+}
+
+int my_next_dup(Dbc *cursor, Dbt *key, Dbt *val) {
+    int r;
+    Dbt currentkey; currentkey.set_flags(DB_DBT_REALLOC);
+    Dbt currentval; currentval.set_flags(DB_DBT_REALLOC);
+    r = cursor->get(&currentkey, &currentval, DB_CURRENT); assert(r == 0);
+    Dbt nkey; nkey.set_flags(DB_DBT_REALLOC);
+    Dbt nval; nval.set_flags(DB_DBT_REALLOC);
+    r = cursor->get(&nkey, &nval, DB_NEXT);
+    if (r == 0 && !keyeq(&currentkey, &nkey)) r = DB_NOTFOUND;
+    if (nkey.get_data()) free(nkey.get_data());
+    if (nval.get_data()) free(nval.get_data());
+    if (currentkey.get_data()) free(currentkey.get_data());
+    if (currentval.get_data()) free(currentval.get_data());
+    if (r == 0) r = cursor->get(key, val, DB_CURRENT);
+    return r;
+}
+
+int my_prev_dup(Dbc *cursor, Dbt *key, Dbt *val) {
+    int r;
+    Dbt currentkey; currentkey.set_flags(DB_DBT_REALLOC);
+    Dbt currentval; currentval.set_flags(DB_DBT_REALLOC);
+    r = cursor->get(&currentkey, &currentval, DB_CURRENT); assert(r == 0);
+    Dbt nkey; nkey.set_flags(DB_DBT_REALLOC);
+    Dbt nval; nval.set_flags(DB_DBT_REALLOC);
+    r = cursor->get(&nkey, &nval, DB_PREV);
+    if (r == 0 && !keyeq(&currentkey, &nkey)) r = DB_NOTFOUND;
+    if (nkey.get_data()) free(nkey.get_data());
+    if (nval.get_data()) free(nval.get_data());
+    if (currentkey.get_data()) free(currentkey.get_data());
+    if (currentval.get_data()) free(currentval.get_data());
+    if (r == 0) r = cursor->get(key, val, DB_CURRENT);
+    return r;
+}
+
+void test_next_dup(Db *db, int n) {
+    printf("test_next_dup\n");
+    int r;
+    Dbc *cursor;
+    r = db->cursor(0, &cursor, 0); assert(r == 0);
+    int k = htonl(n/2);
+    Dbt setkey(&k, sizeof k);
+    Dbt key; key.set_flags(DB_DBT_REALLOC);
+    Dbt val; val.set_flags(DB_DBT_REALLOC);
+    r = cursor->get(&setkey, &val, DB_SET); assert(r == 0);
+    r = cursor->get(&key, &val, DB_CURRENT); assert(r == 0);
+    while (r == 0) {
+        printf("%d %d\n", htonl(*(int*)key.get_data()), *(int*)val.get_data());
+        r = my_next_dup(cursor, &key, &val);
     }
     if (key.get_data()) free(key.get_data());
     if (val.get_data()) free(val.get_data());
@@ -166,6 +218,7 @@ int main() {
     load(&db, 10);
     walk(&db, 10);
     test_next_nodup(&db, 10);
+    test_next_dup(&db, 10);
 
     return 0;
 }
