@@ -222,11 +222,11 @@ buf_read_ahead_random(
 
 	LRU_recent_limit = buf_LRU_get_recent_limit();
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		return(0);
 	}
@@ -245,13 +245,13 @@ buf_read_ahead_random(
 
 			if (recent_blocks >= BUF_READ_AHEAD_RANDOM_THRESHOLD) {
 
-				mutex_exit(&buf_pool->mutex);
+				buf_pool_mutex_exit();
 				goto read_ahead;
 			}
 		}
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 	/* Do nothing */
 	return(0);
 
@@ -436,10 +436,10 @@ buf_read_ahead_linear(
 
 	tablespace_version = fil_space_get_version(space);
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	if (high > fil_space_get_size(space)) {
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 		/* The area is not whole, return */
 
 		return(0);
@@ -447,7 +447,7 @@ buf_read_ahead_linear(
 
 	if (buf_pool->n_pend_reads
 	    > buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		return(0);
 	}
@@ -487,7 +487,7 @@ buf_read_ahead_linear(
 	    - BUF_READ_AHEAD_LINEAR_THRESHOLD) {
 		/* Too many failures: return */
 
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		return(0);
 	}
@@ -498,7 +498,7 @@ buf_read_ahead_linear(
 	bpage = buf_page_hash_get(space, offset);
 
 	if (bpage == NULL) {
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		return(0);
 	}
@@ -524,7 +524,7 @@ buf_read_ahead_linear(
 	pred_offset = fil_page_get_prev(frame);
 	succ_offset = fil_page_get_next(frame);
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	if ((offset == low) && (succ_offset == offset + 1)) {
 

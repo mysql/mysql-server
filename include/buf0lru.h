@@ -83,13 +83,13 @@ buf_LRU_free_block(
 				the descriptor object will be freed
 				as well.  If this function returns FALSE,
 				it will not temporarily release
-				buf_pool->mutex. */
+				buf_pool_mutex. */
 	buf_page_t*	block,	/* in: block to be freed */
 	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 	ibool*		buf_pool_mutex_released);
 				/* in: pointer to a variable that will
-				be assigned TRUE if buf_pool->mutex
+				be assigned TRUE if buf_pool_mutex
 				was temporarily released, or NULL */
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to

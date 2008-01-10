@@ -3619,7 +3619,7 @@ btr_blob_free(
 
 	mtr_commit(mtr);
 
-	mutex_enter(&buf_pool->mutex);
+	buf_pool_mutex_enter();
 	mutex_enter(&block->mutex);
 
 	/* Only free the block if it is still allocated to
@@ -3639,7 +3639,7 @@ btr_blob_free(
 		}
 	}
 
-	mutex_exit(&buf_pool->mutex);
+	buf_pool_mutex_exit();
 	mutex_exit(&block->mutex);
 }
 
