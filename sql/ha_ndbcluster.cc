@@ -439,7 +439,8 @@ void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
 
 void ha_ndbcluster::invalidate_dictionary_cache(bool global)
 {
-  NDBDICT *dict= get_ndb()->getDictionary();
+  Ndb * ndb= get_ndb();
+  NDBDICT *dict= ndb->getDictionary();
   DBUG_ENTER("invalidate_dictionary_cache");
   DBUG_PRINT("info", ("invalidating %s", m_tabname));
 
@@ -459,6 +460,7 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
   }
   else
     dict->removeCachedTable(m_tabname);
+  build_index_list(ndb, table, ILBP_OPEN);
   table->s->version=0L;			/* Free when thread is ready */
   /* Invalidate indexes */
   for (uint i= 0; i < table->s->keys; i++)
@@ -470,17 +472,23 @@ void ha_ndbcluster::invalidate_dictionary_cache(bool global)
     switch (idx_type) {
     case PRIMARY_KEY_ORDERED_INDEX:
     case ORDERED_INDEX:
+      if (!index)
+        break;
       if (global)
         dict->invalidateIndex(index->getName(), m_tabname);
       else
         dict->removeCachedIndex(index->getName(), m_tabname);
       break;
     case UNIQUE_ORDERED_INDEX:
+      if (!index)
+        break;
       if (global)
         dict->invalidateIndex(index->getName(), m_tabname);
       else
         dict->removeCachedIndex(index->getName(), m_tabname);
     case UNIQUE_INDEX:
+      if (!unique_index)
+        break;
       if (global)
         dict->invalidateIndex(unique_index->getName(), m_tabname);
       else
