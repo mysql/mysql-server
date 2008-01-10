@@ -92,7 +92,10 @@ sub mtr_report_test_passed ($$) {
     $tot_real_time += ($timer/1000);
     $timer= sprintf "%12s", $timer;
   }
-  $tinfo->{'result'}= 'MTR_RES_PASSED';
+  # Set as passed unless already set
+  if ( not defined $tinfo->{'result'} ){
+    $tinfo->{'result'}= 'MTR_RES_PASSED';
+  }
   mtr_report("[ pass ]   $timer");
 }
 
@@ -102,6 +105,8 @@ sub mtr_report_test_failed ($$) {
   mtr_report_test_name($tinfo);
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
+  my $test_failures= $tinfo->{'failures'} || 0;
+  $tinfo->{'failures'}=  $test_failures + 1;
   if ( defined $tinfo->{'timeout'} )
   {
     mtr_report("[ fail ]  timeout");
