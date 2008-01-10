@@ -37,8 +37,8 @@ if (my_b_write((file),(uchar*) (from),param->ref_length)) \
 
 static char **make_char_array(char **old_pos, register uint fields,
                               uint length, myf my_flag);
-static byte *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
-                                    byte *buf);
+static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
+                                     uchar *buf);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
 			     uchar * *sort_keys, IO_CACHE *buffer_file,
 			     IO_CACHE *tempfile,IO_CACHE *indexfile);
@@ -376,16 +376,16 @@ static char **make_char_array(char **old_pos, register uint fields,
 
 /* Read 'count' number of buffer pointers into memory */
 
-static byte *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
-                                    byte *buf)
+static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
+                                     uchar *buf)
 {
   ulong length= sizeof(BUFFPEK)*count;
-  byte *tmp= buf;
+  uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
     return 0; /* sizeof(BUFFPEK)*count will overflow */
   if (!tmp)
-    tmp= (byte *)my_malloc(length, MYF(MY_WME));
+    tmp= (uchar *)my_malloc(length, MYF(MY_WME));
   if (tmp)
   {
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
