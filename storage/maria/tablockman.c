@@ -273,7 +273,6 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
 {
   TABLE_LOCK *old, *new, *blocker, *blocker2;
   TABLE_LOCK_OWNER *wait_for;
-  ulonglong deadline;
   struct timespec timeout;
   enum lockman_lock_type new_lock;
   enum lockman_getlock_result res;
@@ -434,9 +433,8 @@ tablockman_getlock(TABLOCKMAN *lm, TABLE_LOCK_OWNER *lo,
       }
       lo->waiting_lock= new;
 
-      deadline= my_getsystime() + lm->lock_timeout * 10000;
-      timeout.tv_sec= deadline/10000000;
-      timeout.tv_nsec= (deadline % 10000000) * 100;
+      set_timespec_nsec(timeout,lm->lock_timeout * 1000000);
+
     }
 
     /*

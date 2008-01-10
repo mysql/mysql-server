@@ -2,6 +2,7 @@
   Some useful bit functions
 */
 
+C_MODE_START
 #ifdef HAVE_INLINE
 
 extern const char _my_bits_nbits[256];
@@ -105,3 +106,4 @@ uint32 my_reverse_bits(uint32 key);
 extern uint my_count_bits(ulonglong v);
 extern uint my_count_bits_ushort(ushort v);
 #endif
+C_MODE_END

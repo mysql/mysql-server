@@ -46,6 +46,14 @@ static TRN *trn= &dummy_transaction_object;
 */
 
 /*
+  Generate random value in the range (0,LONG_BUFFER_SIZE)
+*/
+static uint32 rand_buffer_size()
+{
+  return (uint32)((ulonglong)rand()*(LONG_BUFFER_SIZE + 1)/RAND_MAX);
+}
+
+/*
   Check that the buffer filled correctly
 
   SYNOPSIS
@@ -57,6 +65,7 @@ static TRN *trn= &dummy_transaction_object;
     0 - OK
     1 - Error
 */
+
 
 static my_bool check_content(uchar *ptr, ulong length)
 {
@@ -88,7 +97,7 @@ static my_bool check_content(uchar *ptr, ulong length)
 void read_ok(TRANSLOG_HEADER_BUFFER *rec)
 {
   char buff[80];
-  snprintf(buff, sizeof(buff), "read record type: %u  LSN: (%lu,0x%lx)",
+  my_snprintf(buff, sizeof(buff), "read record type: %u  LSN: (%lu,0x%lx)",
            rec->type, LSN_IN_PARTS(rec->lsn));
   ok(1, buff);
 }
@@ -188,7 +197,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1 + 1);
 
-  srandom(122334817L);
+  srand(122334817L);
 
   long_tr_id[5]= 0xff;
 
@@ -232,7 +241,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       }
       ok(1, "write LOGREC_FIXED_RECORD_1LSN_EXAMPLE");
       lsn_store(lsn_buff, lsn_base);
-      if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
+      if ((rec_len= rand_buffer_size()) < 12)
         rec_len= 12;
       parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= LSN_STORE_SIZE;
@@ -272,7 +281,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       ok(1, "write LOGREC_FIXED_RECORD_2LSN_EXAMPLE");
       lsn_store(lsn_buff, lsn_base);
       lsn_store(lsn_buff + LSN_STORE_SIZE, first_lsn);
-      if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
+      if ((rec_len= rand_buffer_size()) < 19)
         rec_len= 19;
       parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)lsn_buff;
       parts[TRANSLOG_INTERNAL_PARTS + 0].length= 14;
@@ -310,7 +319,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
     lsn_base= lsn;
 
-    if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 9)
+    if ((rec_len= rand_buffer_size()) < 9)
       rec_len= 9;
     parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_buffer;
     parts[TRANSLOG_INTERNAL_PARTS + 0].length= rec_len;
@@ -345,7 +354,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   }
   ok(1, "flush");
 
-  srandom(122334817L);
+  srand(122334817L);
 
   rc= 1;
 
@@ -475,7 +484,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       {
         LSN ref;
         ref= lsn_korr(rec.header);
-        if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 12)
+        if ((rec_len= rand_buffer_size()) < 12)
           rec_len= 12;
         if (rec.type != LOGREC_VARIABLE_RECORD_1LSN_EXAMPLE ||
             rec.short_trid != (i % 0xFFFF) ||
@@ -516,7 +525,7 @@ int main(int argc __attribute__((unused)), char *argv[])
         LSN ref1, ref2;
         ref1= lsn_korr(rec.header);
         ref2= lsn_korr(rec.header + LSN_STORE_SIZE);
-        if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 19)
+        if ((rec_len= rand_buffer_size()) < 19)
           rec_len= 19;
         if (rec.type != LOGREC_VARIABLE_RECORD_2LSN_EXAMPLE ||
             rec.short_trid != (i % 0xFFFF) ||
@@ -584,7 +593,7 @@ int main(int argc __attribute__((unused)), char *argv[])
       translog_free_record_header(&rec);
 
       len= translog_read_next_record_header(&scanner, &rec);
-      if ((rec_len= random() / (RAND_MAX / (LONG_BUFFER_SIZE + 1))) < 9)
+      if ((rec_len= rand_buffer_size()) < 9)
         rec_len= 9;
       if (rec.type != LOGREC_VARIABLE_RECORD_0LSN_EXAMPLE ||
           rec.short_trid != (i % 0xFFFF) ||

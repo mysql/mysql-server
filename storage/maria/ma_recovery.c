@@ -2859,9 +2859,10 @@ static LSN parse_checkpoint_record(LSN lsn)
   {
     pgcache_page_no_t page_id;
     LSN rec_lsn;
+    uint32 is_index;
     uint16 table_id= uint2korr(ptr);
     ptr+= 2;
-    uint32 is_index= ptr[0];
+    is_index= ptr[0];
     ptr++;
     page_id= uint4korr(ptr);
     ptr+= 4;

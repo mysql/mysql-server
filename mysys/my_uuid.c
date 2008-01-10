@@ -41,6 +41,7 @@
 
 #include "mysys_priv.h"
 #include <m_string.h>
+#include <myisampack.h> /* mi_int2store, mi_int4store */
 
 static my_bool my_uuid_inited= 0;
 static struct my_rnd_struct uuid_rand;
@@ -67,7 +68,7 @@ pthread_mutex_t LOCK_uuid_generator;
 static void set_clock_seq()
 {
   uint16 clock_seq= ((uint)(my_rnd(&uuid_rand)*16383)) | UUID_VARIANT;
-  int2store(uuid_suffix, clock_seq);
+  mi_int2store(uuid_suffix, clock_seq);
 }
 
 
@@ -105,7 +106,7 @@ void my_uuid_init(ulong seed1, ulong seed2)
       randominit() here.
     */
     /* purecov: begin inspected */
-    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), now+random());
+    my_rnd_init(&uuid_rand, (ulong) (seed2+ now/2), now+rand());
     for (i=0; i < sizeof(mac); i++)
       mac[i]= (uchar)(my_rnd(&uuid_rand)*255);
     /* purecov: end */
@@ -160,13 +161,34 @@ void my_uuid(uchar *to)
     Note, that the standard does NOT specify byte ordering in
     multi-byte fields. it's implementation defined (but must be
     the same for all fields).
+    We use big-endian, so we can use memcmp() to compare UUIDs
+    and for straightforward UUID to string conversion.
   */
-  int4store(to, time_low);
-  int2store(to+4, time_mid);
-  int2store(to+6, time_hi_and_version);
+  mi_int4store(to, time_low);
+  mi_int2store(to+4, time_mid);
+  mi_int2store(to+6, time_hi_and_version);
   bmove(to+8, uuid_suffix, sizeof(uuid_suffix));
 }
 
+
+/**
+   Convert uuid to string representation
+
+   @func  my_uuid2str()
+   @param guid uuid
+   @param s    Output buffer.Must be at least MY_UUID_STRING_LENGTH+1 large.
+*/
+void my_uuid2str(const uchar *guid, char *s)
+{
+  int i;
+  for (i=0; i < MY_UUID_SIZE; i++)
+  {
+    *s++= _dig_vec_lower[guid[i] >>4];
+    *s++= _dig_vec_lower[guid[i] & 15];
+    if(i == 4 || i == 6 || i == 8 || i == 10)
+      *s++= '-';
+  }
+}
 
 void my_uuid_end()
 {

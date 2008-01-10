@@ -37,7 +37,7 @@
 */
 
 #include <my_global.h>
-#include <strings.h>
+#include <m_string.h>
 #include <my_sys.h>
 #include <lf.h>
 
@@ -123,7 +123,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   }
   if (!(ptr= *ptr_ptr))
   {
-    void *alloc, *data;
+    uchar *alloc, *data;
     alloc= my_malloc(LF_DYNARRAY_LEVEL_LENGTH * array->size_of_element +
                     max(array->size_of_element, sizeof(void *)),
                     MYF(MY_WME|MY_ZEROFILL));
@@ -142,7 +142,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
     else
       my_free(alloc, MYF(0));
   }
-  return ptr + array->size_of_element * idx;
+  return ((uchar*)ptr) + array->size_of_element * idx;
 }
 
 /*
@@ -167,7 +167,7 @@ void *_lf_dynarray_value(LF_DYNARRAY *array, uint idx)
   }
   if (!(ptr= *ptr_ptr))
     return(NULL);
-  return ptr + array->size_of_element * idx;
+  return ((uchar*)ptr) + array->size_of_element * idx;
 }
 
 static int recursive_iterate(LF_DYNARRAY *array, void *ptr, int level,

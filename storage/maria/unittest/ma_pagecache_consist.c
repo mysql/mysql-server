@@ -95,13 +95,7 @@ dummy_fail_callback(uchar* data_ptr __attribute__((unused)))
 
 static uint get_len(uint limit)
 {
-  uint32 rec_len;
-  do
-  {
-    rec_len= random() /
-      (RAND_MAX / limit);
-  } while (rec_len >= limit || rec_len == 0);
-  return rec_len;
+  return (uint)((ulonglong)rand()*(limit-1)/RAND_MAX);
 }
 
 
@@ -275,9 +269,10 @@ void writer(int num)
 static void *test_thread_reader(void *arg)
 {
   int param=*((int*) arg);
+  DBUG_ENTER("test_reader");
 
   my_thread_init();
-  DBUG_ENTER("test_reader");
+
   DBUG_PRINT("enter", ("param: %d", param));
 
   reader(param);
@@ -295,9 +290,9 @@ static void *test_thread_reader(void *arg)
 static void *test_thread_writer(void *arg)
 {
   int param=*((int*) arg);
+  DBUG_ENTER("test_writer");
 
   my_thread_init();
-  DBUG_ENTER("test_writer");
   DBUG_PRINT("enter", ("param: %d", param));
 
   writer(param);
@@ -334,7 +329,7 @@ int main(int argc __attribute__((unused)),
   }
 #endif
 
-
+  {
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
   if ((file1.file= my_open(file1_name,
@@ -470,4 +465,5 @@ int main(int argc __attribute__((unused)),
   DBUG_PRINT("info", ("Program end"));
 
   DBUG_RETURN(exit_status());
+  }
 }

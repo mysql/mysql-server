@@ -690,8 +690,7 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
 
     /* yuck. waiting */
     deadline= my_getsystime() + lm->lock_timeout * 10000;
-    timeout.tv_sec= deadline/10000000;
-    timeout.tv_nsec= (deadline % 10000000) * 100;
+    set_timespec_nsec(timeout,lm->lock_timeout * 1000000);
     do
     {
       pthread_cond_timedwait(wait_for_lo->cond, wait_for_lo->mutex, &timeout);

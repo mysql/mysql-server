@@ -77,12 +77,15 @@ pthread_handler_t pthread_start(void *param)
 {
   pthread_handler func=((struct pthread_map *) param)->func;
   void *func_param=((struct pthread_map *) param)->param;
+  void *result;
   my_thread_init();			/* Will always succeed in windows */
   pthread_mutex_lock(&THR_LOCK_thread);	  /* Wait for beginthread to return */
   win_pthread_self=((struct pthread_map *) param)->pthreadself;
   pthread_mutex_unlock(&THR_LOCK_thread);
   free((char*) param);			  /* Free param from create */
-  pthread_exit((void*) (*func)(func_param));
+  result= (void*) (*func)(func_param);
+  my_thread_end();
+  pthread_exit(result);
   return 0;				  /* Safety */
 }
 
@@ -92,21 +95,28 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 {
   HANDLE hThread;
   struct pthread_map *map;
+  DWORD StackSize= 0;
+  int priority= 0;
   DBUG_ENTER("pthread_create");
 
   if (!(map=malloc(sizeof(*map))))
     DBUG_RETURN(-1);
   map->func=func;
   map->param=param;
+  if (attr != NULL)
+  {
+    StackSize= attr->dwStackSize;
+    priority=  attr->priority;
+  }
+  if (StackSize == 0)
+    StackSize= PTHREAD_STACK_MIN;
   pthread_mutex_lock(&THR_LOCK_thread);
 #ifdef __BORLANDC__
   hThread=(HANDLE)_beginthread((void(_USERENTRY *)(void *)) pthread_start,
-			       attr->dwStackSize ? attr->dwStackSize :
-			       65535, (void*) map);
+			       StackSize, (void*) map);
 #else
   hThread=(HANDLE)_beginthread((void( __cdecl *)(void *)) pthread_start,
-			       attr->dwStackSize ? attr->dwStackSize :
-			       65535, (void*) map);
+			       StackSize, (void*) map);
 #endif
   DBUG_PRINT("info", ("hThread=%lu",(long) hThread));
   *thread_id=map->pthreadself=hThread;
@@ -119,7 +129,7 @@ int pthread_create(pthread_t *thread_id, pthread_attr_t *attr,
 	       ("Can't create thread to handle request (error %d)",error));
     DBUG_RETURN(error ? error : -1);
   }
-  VOID(SetThreadPriority(hThread, attr->priority)) ;
+  VOID(SetThreadPriority(hThread, priority)) ;
   DBUG_RETURN(0);
 }
 

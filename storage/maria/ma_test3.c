@@ -15,7 +15,7 @@
 
 /* Test av locking */
 
-#ifndef __NETWARE__
+#if !(defined (__NETWARE_) || defined (_WIN32)) /*no fork() in Windows*/
 
 #include "maria.h"
 #include <sys/types.h>
@@ -488,14 +488,14 @@ int test_update(MARIA_HA *file,int id,int lock_type)
   return 0;
 }
 
-#else /* __NETWARE__ */
+#else /* __NETWARE__ || __WIN__ */
 
 #include <stdio.h>
 
-main()
+int main()
 {
-	fprintf(stderr,"this test has not been ported to NetWare\n");
+	fprintf(stderr,"this test has not been ported to Netware or Windows\n");
 	return 0;
 }
 
-#endif /* __NETWARE__ */
+#endif /* __NETWARE__|| __WIN__ */

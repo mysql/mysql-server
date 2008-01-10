@@ -45,6 +45,7 @@ try
             case "WITH_FEDERATED_STORAGE_ENGINE":
             case "WITH_INNOBASE_STORAGE_ENGINE":
             case "WITH_PARTITION_STORAGE_ENGINE":
+            case "WITH_MARIA_STORAGE_ENGINE":
             case "__NT__":
             case "CYBOZU":
             case "EMBED_MANIFESTS":

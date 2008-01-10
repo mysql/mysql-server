@@ -45,6 +45,8 @@
 
   On architectures where these operations are really atomic, rwlocks will
   be optimized away.
+  8- and 16-bit atomics aren't implemented for windows (see generic-msvc.h),
+  but can be added, if necessary. 
 */
 
 #ifndef my_atomic_rwlock_init
@@ -56,14 +58,31 @@
 #endif
 
 #ifndef make_atomic_cas_body
+/* nolock.h was not able to generate even a CAS function, fall back */
 #include "atomic/rwlock.h"
-#endif
-
+#else
+/* define missing functions by using the already generated ones */
 #ifndef make_atomic_add_body
 #define make_atomic_add_body(S)                                 \
   int ## S tmp=*a;                                              \
   while (!my_atomic_cas ## S(a, &tmp, tmp+v));                  \
   v=tmp;
+#endif
+#ifndef make_atomic_fas_body
+#define make_atomic_fas_body(S)                                 \
+  int ## S tmp=*a;                                              \
+  while (!my_atomic_cas ## S(a, &tmp, v));                      \
+  v=tmp;
+#endif
+#ifndef make_atomic_load_body
+#define make_atomic_load_body(S)                                \
+  ret= 0; /* avoid compiler warning */                          \
+  (void)(my_atomic_cas ## S(a, &ret, ret));
+#endif
+#ifndef make_atomic_store_body
+#define make_atomic_store_body(S)                               \
+  (void)(my_atomic_fas ## S (a, v));
+#endif
 #endif
 
 /*
@@ -122,6 +141,15 @@ make_transparent_unions(ptr)
 
 #ifdef HAVE_INLINE
 
+#define make_atomic_cas(S)                                      \
+STATIC_INLINE int my_atomic_cas ## S(Uv_ ## S U_a,              \
+                            Uv_ ## S U_cmp, U_ ## S U_set)      \
+{                                                               \
+  int8 ret;                                                     \
+  make_atomic_cas_body(S);                                      \
+  return ret;                                                   \
+}
+
 #define make_atomic_add(S)                                      \
 STATIC_INLINE int ## S my_atomic_add ## S(                      \
                         Uv_ ## S U_a, U_ ## S U_v)              \
@@ -136,15 +164,6 @@ STATIC_INLINE int ## S my_atomic_fas ## S(                      \
 {                                                               \
   make_atomic_fas_body(S);                                      \
   return v;                                                     \
-}
-
-#define make_atomic_cas(S)                                      \
-STATIC_INLINE int my_atomic_cas ## S(Uv_ ## S U_a,              \
-                            Uv_ ## S U_cmp, U_ ## S U_set)      \
-{                                                               \
-  int8 ret;                                                     \
-  make_atomic_cas_body(S);                                      \
-  return ret;                                                   \
 }
 
 #define make_atomic_load(S)                                     \
@@ -181,29 +200,19 @@ extern void my_atomic_store ## S(Uv_ ## S, U_ ## S);
 
 #endif
 
-make_atomic_cas( 8)
-make_atomic_cas(16)
 make_atomic_cas(32)
 make_atomic_cas(ptr)
 
-make_atomic_add( 8)
-make_atomic_add(16)
 make_atomic_add(32)
 
-make_atomic_load( 8)
-make_atomic_load(16)
 make_atomic_load(32)
 make_atomic_load(ptr)
 
-make_atomic_store( 8)
-make_atomic_store(16)
-make_atomic_store(32)
-make_atomic_store(ptr)
-
-make_atomic_fas( 8)
-make_atomic_fas(16)
 make_atomic_fas(32)
 make_atomic_fas(ptr)
+
+make_atomic_store(32)
+make_atomic_store(ptr)
 
 #ifdef _atomic_h_cleanup_
 #include _atomic_h_cleanup_

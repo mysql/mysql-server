@@ -23,13 +23,38 @@
 int test_file(PAGECACHE_FILE file, char *file_name,
               off_t size, size_t buff_size, struct file_desc *desc)
 {
-  MY_STAT stat_buff, *stat;
   unsigned char *buffr= my_malloc(buff_size, MYF(0));
   off_t pos= 0;
   size_t byte;
   int step= 0;
   int res= 1;                                   /* ok */
 
+#ifdef __WIN__
+  /*
+    On Windows, the info returned by stat(), specifically file length
+    is not necessarily current, because this is the behavior of
+    underlying FindFirstFile() function.
+  */
+  WIN32_FILE_ATTRIBUTE_DATA file_attr;
+  LARGE_INTEGER li;
+  if(GetFileAttributesEx(file_name, GetFileExInfoStandard, &file_attr) == 0)
+  {
+    diag("Can't GetFileAttributesEx %s (errno: %d)\n", file_name,
+      GetLastError());
+    res= 0;
+    goto err;
+  }
+  li.HighPart= file_attr.nFileSizeHigh;
+  li.LowPart=  file_attr.nFileSizeLow;
+  if(li.QuadPart !=  size)
+  {
+    diag("file %s size is %llu (should be %llu)\n",
+      file_name, (ulonglong)size, (ulonglong)li.QuadPart);
+    res= 0;                                       /* failed */
+    /* continue to get more information */
+  }
+#else
+  MY_STAT stat_buff, *stat;
   if ((stat= my_stat(file_name, &stat_buff, MYF(0))) == NULL)
   {
     diag("Can't stat() %s (errno: %d)\n", file_name, errno);
@@ -43,6 +68,7 @@ int test_file(PAGECACHE_FILE file, char *file_name,
     res= 0;                                       /* failed */
     /* continue to get more information */
   }
+#endif
 
   /* check content */
   my_seek(file.file, 0, SEEK_SET, MYF(MY_WME));

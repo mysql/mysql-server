@@ -577,6 +577,7 @@ static void *test_thread(void *arg)
 #endif
 
   my_thread_init();
+  {
   DBUG_ENTER("test_thread");
   DBUG_PRINT("enter", ("param: %d", param));
 
@@ -602,6 +603,7 @@ static void *test_thread(void *arg)
   free((uchar*) arg);
   my_thread_end();
   DBUG_RETURN(0);
+  }
 }
 
 
@@ -626,6 +628,7 @@ int main(int argc __attribute__((unused)),
     DBUG_SET_INITIAL(default_dbug_option);
   }
 #endif
+  {
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
   if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,
@@ -728,4 +731,5 @@ int main(int argc __attribute__((unused)),
   DBUG_PRINT("info", ("Program end"));
 
   DBUG_RETURN(exit_status());
+  }
 }

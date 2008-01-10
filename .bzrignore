@@ -3067,3 +3067,8 @@ ylwrap
 zlib/*.ds?
 zlib/*.vcproj
 libmysqld/sql_profile.cc
+*.dll
+*.ilk
+*.exp
+comments
+maria-win.patch

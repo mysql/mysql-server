@@ -32,6 +32,7 @@ functions */
 #endif
 
 #include <sys/locking.h>
+#include <sys/stat.h>			/* chmod() constants*/
 #include <winsock2.h>
 #include <math.h>			/* Because of rint() */
 #include <fcntl.h>
@@ -92,6 +93,15 @@ functions */
 #define W_OK		2
 
 #define S_IROTH		S_IREAD		/* for my_lib */
+
+/* 
+   Constants used by chmod. Note, that group/others is ignored
+   - because unsupported by Windows due to different access control model.
+*/
+#define S_IRWXU S_IREAD|S_IWRITE 
+#define S_IRWXG 0
+#define S_IRWXO 0
+typedef int mode_t; 
 
 #ifdef __BORLANDC__
 #define FILE_BINARY	O_BINARY	/* my_fopen in binary mode */

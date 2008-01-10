@@ -31,8 +31,10 @@ volatile int32  c32, N;
 my_atomic_rwlock_t rwl;
 LF_ALLOCATOR lf_allocator;
 LF_HASH lf_hash;
-
-pthread_attr_t attr;
+pthread_attr_t thr_attr;
+pthread_mutex_t mutex;
+pthread_cond_t cond;
+uint running_threads;
 size_t stacksize= 0;
 #define STACK_SIZE (((int)stacksize-2048)*STACK_DIRECTION)
 
@@ -52,6 +54,9 @@ pthread_handler_t test_atomic_add_handler(void *arg)
     my_atomic_add32(&a32, -x);
     my_atomic_rwlock_wrunlock(&rwl);
   }
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -66,9 +71,15 @@ pthread_handler_t test_atomic_add_handler(void *arg)
 pthread_handler_t test_atomic_fas_handler(void *arg)
 {
   int    m= *(int *)arg;
-  uint32  x= my_atomic_add32(&b32, 1);
+  int32  x;
 
+  my_atomic_rwlock_wrlock(&rwl);
+  x= my_atomic_add32(&b32, 1);
+  my_atomic_rwlock_wrunlock(&rwl);
+
+  my_atomic_rwlock_wrlock(&rwl);
   my_atomic_add32(&a32, x);
+  my_atomic_rwlock_wrunlock(&rwl);
 
   for (; m ; m--)
   {
@@ -88,6 +99,9 @@ pthread_handler_t test_atomic_fas_handler(void *arg)
   my_atomic_add32(&a32, -x);
   my_atomic_rwlock_wrunlock(&rwl);
 
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -117,8 +131,12 @@ pthread_handler_t test_atomic_cas_handler(void *arg)
       my_atomic_rwlock_wrunlock(&rwl);
     } while (!ok) ;
   }
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
+
 
 /*
   pin allocator - alloc and release an element in a loop
@@ -137,6 +155,9 @@ pthread_handler_t test_lf_pinbox(void *arg)
     pins= lf_pinbox_get_pins(&lf_allocator.pinbox, &m + STACK_SIZE);
   }
   lf_pinbox_put_pins(pins);
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -181,6 +202,9 @@ pthread_handler_t test_lf_alloc(void *arg)
 #endif
   }
   my_atomic_rwlock_wrunlock(&rwl);
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
@@ -228,43 +252,39 @@ pthread_handler_t test_lf_hash(void *arg)
     a32|= lf_hash.count;
   }
   my_atomic_rwlock_wrunlock(&rwl);
+  pthread_mutex_lock(&mutex);
+  if (!--running_threads) pthread_cond_signal(&cond);
+  pthread_mutex_unlock(&mutex);
   return 0;
 }
 
+
 void test_atomic(const char *test, pthread_handler handler, int n, int m)
 {
-  pthread_t *threads;
+  pthread_t t;
   ulonglong now= my_getsystime();
-  int i;
 
   a32= 0;
   b32= 0;
   c32= 0;
 
-  threads= (pthread_t *)my_malloc(sizeof(void *)*n, MYF(0));
-  if (!threads)
-  {
-    diag("Out of memory");
-    abort();
-  }
-
   diag("Testing %s with %d threads, %d iterations... ", test, n, m);
-  N= n;
-  for (i= 0 ; i < n ; i++)
+  for (running_threads= n ; n ; n--)
   {
-    if (pthread_create(threads+i, 0, handler, &m) != 0)
+    if (pthread_create(&t, &thr_attr, handler, &m) != 0)
     {
       diag("Could not create thread");
       abort();
     }
   }
-  for (i= 0 ; i < n ; i++)
-    pthread_join(threads[i], 0);
+  pthread_mutex_lock(&mutex);
+  while (running_threads)
+    pthread_cond_wait(&cond, &mutex);
+  pthread_mutex_unlock(&mutex);
+
   now= my_getsystime()-now;
   ok(a32 == 0, "tested %s in %g secs (%d)", test, ((double)now)/1e7, a32);
-  my_free((void *)threads, MYF(0));
 }
-
 
 int main()
 {
@@ -277,22 +297,33 @@ int main()
   plan(7);
   ok(err == 0, "my_atomic_initialize() returned %d", err);
 
+  pthread_mutex_init(&mutex, 0);
+  pthread_cond_init(&cond, 0);
   my_atomic_rwlock_init(&rwl);
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
                &my_charset_bin);
-
-  pthread_attr_init(&attr);
+  pthread_attr_init(&thr_attr);
+  pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
-  pthread_attr_getstacksize(&attr, &stacksize);
+  pthread_attr_getstacksize(&thr_attr, &stacksize);
   if (stacksize == 0)
 #endif
-    stacksize= PTHREAD_STACK_MIN;
+  stacksize = PTHREAD_STACK_MIN;
+
 
 #ifdef MY_ATOMIC_MODE_RWLOCKS
+#ifdef HPUX11 /* showed to be very slow (scheduler-related) */
+#define CYCLES 300
+#else
 #define CYCLES 3000
+#endif
+#else
+#ifdef HPUX11
+#define CYCLES 30000
 #else
 #define CYCLES 300000
+#endif
 #endif
 #define THREADS 100
 
@@ -305,6 +336,15 @@ int main()
 
   lf_hash_destroy(&lf_hash);
   lf_alloc_destroy(&lf_allocator);
+
+  /*
+    workaround until we know why it crashes randomly on some machine
+    (BUG#22320).
+  */
+  sleep(2);
+  pthread_mutex_destroy(&mutex);
+  pthread_cond_destroy(&cond);
+  pthread_attr_destroy(&thr_attr);
   my_atomic_rwlock_destroy(&rwl);
   my_end(0);
   return exit_status();

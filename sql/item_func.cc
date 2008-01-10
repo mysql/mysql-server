@@ -5652,12 +5652,13 @@ void uuid_short_init()
                (((ulonglong) server_start_time) << 24));
 }
 
+pthread_mutex_t LOCK_uuid_short;
 
 longlong Item_func_uuid_short::val_int()
 {
   ulonglong val;
-  pthread_mutex_lock(&LOCK_uuid_generator);
+  pthread_mutex_lock(&LOCK_uuid_short);
   val= uuid_value++;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
+  pthread_mutex_unlock(&LOCK_uuid_short);
   return (longlong) val;
 }

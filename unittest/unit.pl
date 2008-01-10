@@ -66,7 +66,7 @@ sub _find_test_files (@) {
     my @files;
     find sub { 
         $File::Find::prune = 1 if /^SCCS$/;
-        push(@files, $File::Find::name) if -x _ && /-t\z/;
+        push(@files, $File::Find::name) if -x _ && (/-t\z/ || /-t\.exe\z/);
     }, @dirs;
     return @files;
 }
@@ -102,7 +102,7 @@ sub run_cmd (@) {
     if (@files > 0) {
         # Removing the first './' from the file names
         foreach (@files) { s!^\./!! }
-        $ENV{'HARNESS_PERL_SWITCHES'} .= q" -e 'exec @ARGV'";
+        $ENV{'HARNESS_PERL_SWITCHES'} .= ' -e "exec @ARGV"';
         runtests @files;
     }
 }

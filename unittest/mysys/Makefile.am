@@ -23,5 +23,7 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/dbug/libdbug.a \
 		  $(top_builddir)/strings/libmystrings.a
 
+EXTRA_DIST       = CMakeLists.txt 
+
 # Don't update the files from bitkeeper
 %::SCCS/s.%

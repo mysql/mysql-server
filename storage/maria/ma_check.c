@@ -4362,8 +4362,8 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
   case DYNAMIC_RECORD:
   {
     uchar *to;
-    LINT_INIT(to);
     ha_checksum checksum= 0;
+    LINT_INIT(to);
 
     pos=sort_param->pos;
     searching=(sort_param->fix_datafile && (param->testflag & T_EXTEND));

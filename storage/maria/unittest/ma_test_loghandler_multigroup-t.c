@@ -114,13 +114,8 @@ static my_bool read_and_check_content(TRANSLOG_HEADER_BUFFER *rec,
 
 static uint32 get_len()
 {
-  uint32 rec_len;
-  do
-  {
-    rec_len= random() /
-      (RAND_MAX / (LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1)) + MIN_REC_LENGTH;
-  } while (rec_len >= LONG_BUFFER_SIZE);
-  return rec_len;
+  return (uint32)
+   ((ulonglong)rand()*(LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1)/RAND_MAX)+ MIN_REC_LENGTH;
 }
 
 int main(int argc __attribute__((unused)), char *argv[])
@@ -196,7 +191,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   plan(((ITERATIONS - 1) * 4 + 1) * 2);
 
-  srandom(122334817L);
+  srand(122334817L);
 
   long_tr_id[5]= 0xff;
 
@@ -356,7 +351,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
 
-  srandom(122334817L);
+  srand(122334817L);
 
   rc= 1;
 

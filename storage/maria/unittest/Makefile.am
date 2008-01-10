@@ -18,7 +18,7 @@ AM_CPPFLAGS      = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
                   -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
 INCLUDES         = @ZLIB_INCLUDES@ -I$(top_builddir)/include \
                   -I$(top_srcdir)/include -I$(top_srcdir)/unittest/mytap
-
+EXTRA_DIST       = CMakeLists.txt
 # Only reason to link with libmyisam.a here is that it's where some fulltext
 # pieces are (but soon we'll remove fulltext dependencies from Maria).
 LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \

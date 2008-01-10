@@ -2586,7 +2586,7 @@ bool maria_show_status(handlerton *hton,
         {
           status= error;
           status_len= sizeof(error);
-          length= snprintf(object, SHOW_MSG_LEN, "Size unknown ; %s", file);
+          length= my_snprintf(object, SHOW_MSG_LEN, "Size unknown ; %s", file);
         }
         else
         {
@@ -2605,7 +2605,7 @@ bool maria_show_status(handlerton *hton,
             status= needed;
             status_len= sizeof(needed);
           }
-          length= snprintf(object, SHOW_MSG_LEN, "Size %12lu ; %s",
+          length= my_snprintf(object, SHOW_MSG_LEN, "Size %12lu ; %s",
                            (ulong) stat->st_size, file);
         }
 

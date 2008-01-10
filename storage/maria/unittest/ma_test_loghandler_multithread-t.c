@@ -46,13 +46,9 @@ static uchar *long_buffer;
 
 static uint32 get_len()
 {
-  uint32 rec_len;
-  do
-  {
-    rec_len= random() /
-      (RAND_MAX / (LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1)) + MIN_REC_LENGTH;
-  } while (rec_len >= LONG_BUFFER_SIZE);
-  return rec_len;
+  return MIN_REC_LENGTH +
+    (uint32)(((ulonglong)rand())*
+       (LONG_BUFFER_SIZE - MIN_REC_LENGTH - 1)/RAND_MAX);
 }
 
 
@@ -129,8 +125,8 @@ void writer(int num)
   for (i= 0; i < ITERATIONS; i++)
   {
     uint len= get_len();
-    lens[num][i]= len;
     LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+    lens[num][i]= len;
 
     int2store(long_tr_id, num);
     int4store(long_tr_id + 2, i);
@@ -293,7 +289,7 @@ int main(int argc __attribute__((unused)),
   /* Suppressing of automatic record writing */
   dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
-  srandom(122334817L);
+  srand(122334817L);
   {
     LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
     uchar long_tr_id[6]=

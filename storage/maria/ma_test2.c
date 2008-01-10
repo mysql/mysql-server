@@ -45,7 +45,7 @@ static void put_blob_in_record(uchar *blob_pos,char **blob_buffer,
 static void copy_key(MARIA_HA *info, uint inx, uchar *record, uchar *key);
 
 static int verbose= 0, testflag= 0, first_key= 0, async_io= 0, pagecacheing= 0;
-static int write_cacheing= 0, locking= 0, rec_pointer_size= 0, pack_fields= 1;
+static int write_cacheing= 0, do_locking= 0, rec_pointer_size= 0, pack_fields= 1;
 static int silent= 0, opt_quick_mode= 0, transactional= 0, skip_update= 0;
 static int die_in_middle_of_transaction= 0;
 static int pack_seg= HA_SPACE_PACK, pack_type= HA_PACK_KEY, remove_count= -1;
@@ -242,7 +242,7 @@ int main(int argc, char *argv[])
     goto err;
   if (!silent)
     printf("- Writing key:s\n");
-  if (locking)
+  if (do_locking)
     maria_lock_database(file,F_WRLCK);
   if (write_cacheing)
     maria_extra(file,HA_EXTRA_WRITE_CACHE,0);
@@ -316,7 +316,10 @@ int main(int argc, char *argv[])
     printf("- Delete\n");
   if (srand_arg)
     srand(srand_arg);
-  for (i=0 ; i<recant/10 ; i++)
+  if (!update_count)
+    update_count= recant/10;
+
+  for (i=0 ; i < update_count ; i++)
   {
     for (j=rnd(1000)+1 ; j>0 && key1[j] == 0 ; j--) ;
     if (j != 0)
@@ -453,8 +456,9 @@ int main(int argc, char *argv[])
       goto err;
     }
     {
+      int skr;
       info.recpos= maria_position(file);
-      int skr=maria_rnext(file,read_record2,0);
+      skr= maria_rnext(file,read_record2,0);
       if ((skr && my_errno != HA_ERR_END_OF_FILE) ||
 	  maria_rprev(file,read_record2,0) ||
 	  memcmp(read_record,read_record2,reclength) != 0 ||
@@ -784,7 +788,7 @@ int main(int argc, char *argv[])
     printf("- maria_extra(CACHE) + maria_rrnd.... + maria_extra(NO_CACHE)\n");
   if (maria_reset(file) || maria_extra(file,HA_EXTRA_CACHE,0))
   {
-    if (locking || (!use_blob && !pack_fields))
+    if (do_locking || (!use_blob && !pack_fields))
     {
       puts("got error from maria_extra(HA_EXTRA_CACHE)");
       goto err;
@@ -963,9 +967,9 @@ end:
       puts("Write cacheing used");
     if (write_cacheing)
       puts("quick mode");
-    if (async_io && locking)
+    if (async_io && do_locking)
       puts("Asyncron io with locking used");
-    else if (locking)
+    else if (do_locking)
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
@@ -1036,7 +1040,7 @@ static void get_options(int argc, char **argv)
 	srand(srand_arg= atoi(pos));
       break;
     case 'L':
-      locking=1;
+      do_locking=1;
       break;
     case 'a':				/* use asyncron io */
       async_io=1;

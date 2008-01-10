@@ -3347,115 +3347,17 @@ err:
 }
 #endif
 
-/*
-  UUID, as in
-    DCE 1.1: Remote Procedure Call,
-    Open Group Technical Standard Document Number C706, October 1997,
-    (supersedes C309 DCE: Remote Procedure Call 8/1994,
-    which was basis for ISO/IEC 11578:1996 specification)
-*/
-
-static struct my_rnd_struct uuid_rand;
-static uint nanoseq;
-static ulonglong uuid_time=0;
-static char clock_seq_and_node_str[]="-0000-000000000000";
-
-/**
-  number of 100-nanosecond intervals between
-  1582-10-15 00:00:00.00 and 1970-01-01 00:00:00.00.
-*/
-#define UUID_TIME_OFFSET ((ulonglong) 141427 * 24 * 60 * 60 * 1000 * 10 )
-
-#define UUID_VERSION      0x1000
-#define UUID_VARIANT      0x8000
-
-static void tohex(char *to, uint from, uint len)
-{
-  to+= len;
-  while (len--)
-  {
-    *--to= _dig_vec_lower[from & 15];
-    from >>= 4;
-  }
-}
-
-static void set_clock_seq_str()
-{
-  uint16 clock_seq= ((uint)(my_rnd(&uuid_rand)*16383)) | UUID_VARIANT;
-  tohex(clock_seq_and_node_str+1, clock_seq, 4);
-  nanoseq= 0;
-}
 
 String *Item_func_uuid::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  char *s;
-  THD *thd= current_thd;
+  uchar guid[MY_UUID_SIZE];
 
-  pthread_mutex_lock(&LOCK_uuid_generator);
-  if (! uuid_time) /* first UUID() call. initializing data */
-  {
-    ulong tmp=sql_rnd_with_mutex();
-    uchar mac[6];
-    int i;
-    if (my_gethwaddr(mac))
-    {
-      /* purecov: begin inspected */
-      /*
-        generating random "hardware addr"
-        and because specs explicitly specify that it should NOT correlate
-        with a clock_seq value (initialized random below), we use a separate
-        my_rnd_init() here
-      */
-      my_rnd_init(&uuid_rand, tmp + (ulong) thd, tmp + (ulong)global_query_id);
-      for (i=0; i < (int)sizeof(mac); i++)
-        mac[i]=(uchar)(my_rnd(&uuid_rand)*255);
-      /* purecov: end */    
-    }
-    s=clock_seq_and_node_str+sizeof(clock_seq_and_node_str)-1;
-    for (i=sizeof(mac)-1 ; i>=0 ; i--)
-    {
-      *--s=_dig_vec_lower[mac[i] & 15];
-      *--s=_dig_vec_lower[mac[i] >> 4];
-    }
-    my_rnd_init(&uuid_rand, tmp + (ulong) server_start_time,
-	       tmp + (ulong) thd->status_var.bytes_sent);
-    set_clock_seq_str();
-  }
-
-  ulonglong tv=my_getsystime() + UUID_TIME_OFFSET + nanoseq;
-  if (unlikely(tv < uuid_time))
-    set_clock_seq_str();
-  else if (unlikely(tv == uuid_time))
-  {
-    /* special protection from low-res system clocks */
-    nanoseq++;
-    tv++;
-  }
-  else
-  {
-    if (nanoseq)
-    {
-      tv-=nanoseq;
-      nanoseq=0;
-    }
-    DBUG_ASSERT(tv > uuid_time);
-  }
-  uuid_time=tv;
-  pthread_mutex_unlock(&LOCK_uuid_generator);
-
-  uint32 time_low=            (uint32) (tv & 0xFFFFFFFF);
-  uint16 time_mid=            (uint16) ((tv >> 32) & 0xFFFF);
-  uint16 time_hi_and_version= (uint16) ((tv >> 48) | UUID_VERSION);
-
-  str->realloc(UUID_LENGTH+1);
-  str->length(UUID_LENGTH);
+  str->realloc(MY_UUID_STRING_LENGTH+1);
+  str->length(MY_UUID_STRING_LENGTH);
   str->set_charset(system_charset_info);
-  s=(char *) str->ptr();
-  s[8]=s[13]='-';
-  tohex(s, time_low, 8);
-  tohex(s+9, time_mid, 4);
-  tohex(s+14, time_hi_and_version, 4);
-  strmov(s+18, clock_seq_and_node_str);
+  my_uuid(guid);
+  my_uuid2str(guid, (char *)str->ptr());
+
   return str;
 }

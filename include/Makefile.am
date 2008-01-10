@@ -35,7 +35,7 @@ noinst_HEADERS =	config-win.h config-netware.h lf.h my_bit.h \
 			thr_lock.h t_ctype.h violite.h my_md5.h base64.h \
 			mysql_version.h.in my_handler.h my_time.h \
 			my_vle.h my_user.h my_atomic.h atomic/nolock.h \
-			atomic/rwlock.h atomic/x86-gcc.h atomic/x86-msvc.h \
+			atomic/rwlock.h atomic/x86-gcc.h atomic/generic-msvc.h \
 			my_libwrap.h wqueue.h
 
 # Remove built files and the symlinked directories

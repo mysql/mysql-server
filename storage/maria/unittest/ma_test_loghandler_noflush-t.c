@@ -27,6 +27,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   LSN first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
   LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+  translog_size_t len;
 
   MY_INIT(argv[0]);
 
@@ -90,7 +91,7 @@ int main(int argc __attribute__((unused)), char *argv[])
     exit(1);
   }
 
-  translog_size_t len= translog_read_record_header(first_lsn, &rec);
+  len= translog_read_record_header(first_lsn, &rec);
   if (len == 0)
   {
     fprintf(stderr, "translog_read_record_header failed (%d)\n", errno);

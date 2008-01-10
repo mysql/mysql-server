@@ -43,7 +43,7 @@ static void copy_key(struct st_myisam_info *info,uint inx,
 		     uchar *record,uchar *key);
 
 static	int verbose=0,testflag=0,
-	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,locking=0,
+	    first_key=0,async_io=0,key_cacheing=0,write_cacheing=0,do_locking=0,
             rec_pointer_size=0,pack_fields=1,use_log=0,silent=0,
             opt_quick_mode=0;
 static int pack_seg=HA_SPACE_PACK,pack_type=HA_PACK_KEY,remove_count=-1,
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
     printf("- Writing key:s\n");
   if (key_cacheing)
     init_key_cache(dflt_key_cache,key_cache_block_size,key_cache_size,0,0);
-  if (locking)
+  if (do_locking)
     mi_lock_database(file,F_WRLCK);
   if (write_cacheing)
     mi_extra(file,HA_EXTRA_WRITE_CACHE,0);
@@ -713,7 +713,7 @@ int main(int argc, char *argv[])
     printf("- mi_extra(CACHE) + mi_rrnd.... + mi_extra(NO_CACHE)\n");
   if (mi_reset(file) || mi_extra(file,HA_EXTRA_CACHE,0))
   {
-    if (locking || (!use_blob && !pack_fields))
+    if (do_locking || (!use_blob && !pack_fields))
     {
       puts("got error from mi_extra(HA_EXTRA_CACHE)");
       goto end;
@@ -833,9 +833,9 @@ end:
       puts("Write cacheing used");
     if (write_cacheing)
       puts("quick mode");
-    if (async_io && locking)
+    if (async_io && do_locking)
       puts("Asyncron io with locking used");
-    else if (locking)
+    else if (do_locking)
       puts("Locking used");
     if (use_blob)
       puts("blobs used");
@@ -904,7 +904,7 @@ static void get_options(int argc, char **argv)
       use_log=1;
       break;
     case 'L':
-      locking=1;
+      do_locking=1;
       break;
     case 'A':				/* use asyncron io */
       async_io=1;

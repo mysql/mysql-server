@@ -18,6 +18,17 @@
 #include "ma_blockrec.h" /* for some constants and in-write hooks */
 #include "ma_key_recover.h" /* For some in-write hooks */
 
+/*
+  On Windows, neither my_open() nor my_sync() work for directories.
+  Also there is no need to flush filesystem changes ,i.e to sync()
+  directories.
+*/
+#ifdef __WIN__
+#define sync_dir(A,B) 0
+#else
+#define sync_dir(A,B) my_sync(A,B)
+#endif
+
 /**
    @file
    @brief Module which writes and reads to a transaction log
@@ -788,7 +799,7 @@ static File create_logfile_by_number_no_cache(uint32 file_no)
     DBUG_RETURN(-1);
   }
   if (sync_log_dir >= TRANSLOG_SYNC_DIR_NEWFILE &&
-      my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD)))
+      sync_dir(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD)))
   {
     DBUG_PRINT("error", ("Error %d during syncing directory '%s'",
                          errno, log_descriptor.directory));
@@ -1116,11 +1127,11 @@ static void translog_mark_file_unfinished(uint32 file)
 {
   int place, i;
   struct st_file_counter fc, *fc_ptr;
-  fc.file= file; fc.counter= 1;
 
   DBUG_ENTER("translog_mark_file_unfinished");
   DBUG_PRINT("enter", ("file: %lu", (ulong) file));
 
+  fc.file= file; fc.counter= 1;
   pthread_mutex_lock(&log_descriptor.unfinished_files_lock);
 
   if (log_descriptor.unfinished_files.elements == 0)
@@ -2447,7 +2458,7 @@ translog_check_sector_protection(uchar *page, TRANSLOG_FILE *file)
 {
   uint i, offset;
   uchar *table= page + page_overhead[page[TRANSLOG_PAGE_FLAGS]] -
-    TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE; ;
+    TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
   uint8 current= table[0];
   DBUG_ENTER("translog_check_sector_protection");
 
@@ -2989,7 +3000,7 @@ static my_bool translog_truncate_log(TRANSLOG_ADDRESS addr)
       my_sync(fd, MYF(MY_WME)) ||
       my_close(fd, MYF(MY_WME)) ||
       (sync_log_dir >= TRANSLOG_SYNC_DIR_ALWAYS &&
-       my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD))))
+       sync_dir(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD))))
     DBUG_RETURN(1);
 
   /* fix the horizon */
@@ -3121,7 +3132,7 @@ my_bool translog_init_with_table(const char *directory,
 
   /* Directory to store files */
   unpack_dirname(log_descriptor.directory, directory);
-
+#ifndef __WIN__
   if ((log_descriptor.directory_fd= my_open(log_descriptor.directory,
                                             O_RDONLY, MYF(MY_WME))) < 0)
   {
@@ -3130,7 +3141,7 @@ my_bool translog_init_with_table(const char *directory,
                          errno, log_descriptor.directory));
     DBUG_RETURN(1);
   }
-
+#endif
   log_descriptor.in_buffers_only= LSN_IMPOSSIBLE;
   DBUG_ASSERT(log_file_max_size % TRANSLOG_PAGE_SIZE == 0 &&
               log_file_max_size >= TRANSLOG_MIN_FILE_SIZE);
@@ -3596,7 +3607,7 @@ my_bool translog_init_with_table(const char *directory,
       if (unlikely(LSN_OFFSET(page_addr) == TRANSLOG_PAGE_SIZE))
       {
         uint32 file_no= LSN_FILE_NO(page_addr);
-        bool last_page_ok;
+        my_bool last_page_ok;
         /* it is beginning of the current file */
         if (unlikely(file_no == 1))
         {
@@ -5155,9 +5166,9 @@ translog_write_variable_record_mgroup(LSN *lsn,
   }
   else if (chunk3_pages)
   {
+    uchar chunk3_header[3];
     DBUG_PRINT("info", ("chunk 3"));
     DBUG_ASSERT(full_pages == 0);
-    uchar chunk3_header[3];
     chunk3_pages= 0;
     chunk3_header[0]= TRANSLOG_CHUNK_LNGTH;
     int2store(chunk3_header + 1, chunk3_size);
@@ -6491,9 +6502,9 @@ int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
 {
   uint8 chunk_type;
   translog_size_t res;
-  buff->groups_no= 0;        /* to be sure that we will free it right */
 
   DBUG_ENTER("translog_read_next_record_header");
+  buff->groups_no= 0;        /* to be sure that we will free it right */
   DBUG_PRINT("enter", ("scanner: 0x%lx", (ulong) scanner));
   DBUG_PRINT("info", ("Scanner: Cur: (%lu,0x%lx)  Hrz: (%lu,0x%lx)  "
                       "Lst: (%lu,0x%lx)  Offset: %u(%x)  fixed: %d",
@@ -7088,7 +7099,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
        ((LSN_OFFSET(log_descriptor.previous_flush_horizon) - 1) /
         TRANSLOG_PAGE_SIZE) !=
        ((LSN_OFFSET(flush_horizon) - 1) / TRANSLOG_PAGE_SIZE)))
-    rc|= my_sync(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
+    rc|= sync_dir(log_descriptor.directory_fd, MYF(MY_WME | MY_IGNORE_BADFD));
   log_descriptor.previous_flush_horizon= flush_horizon;
 out:
   pthread_mutex_unlock(&log_descriptor.log_flush_lock);
@@ -7125,6 +7136,9 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
   pthread_mutex_lock(&share->intern_lock);
   if (likely(share->id == 0))
   {
+    LSN lsn;
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    uchar log_data[FILEID_STORE_SIZE];
     /* Inspired by set_short_trid() of trnman.c */
     uint i= share->kfile.file % SHARE_ID_MAX + 1;
     do
@@ -7144,9 +7158,6 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       i= 1; /* scan the whole array */
     } while (share->id == 0);
     DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, share->id));
-    LSN lsn;
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-    uchar log_data[FILEID_STORE_SIZE];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
