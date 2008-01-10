@@ -422,7 +422,7 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
   DBUG_ASSERT(control_file_fd >= 0); /* must be open */
 #ifndef DBUG_OFF
   if (maria_multi_threaded)
-    translog_lock_assert_owner();
+    translog_lock_handler_assert_owner();
 #endif
 
   if (objs_to_write == CONTROL_FILE_UPDATE_ONLY_LSN)

@@ -302,9 +302,9 @@ extern int translog_read_next_record_header(TRANSLOG_SCANNER_DATA *scanner,
 extern LSN translog_get_file_max_lsn_stored(uint32 file);
 extern my_bool translog_purge(TRANSLOG_ADDRESS low);
 extern my_bool translog_is_file(uint file_no);
-extern my_bool translog_lock();
-extern my_bool translog_unlock();
-extern void translog_lock_assert_owner();
+extern void translog_lock();
+extern void translog_unlock();
+extern void translog_lock_handler_assert_owner();
 extern TRANSLOG_ADDRESS translog_get_horizon();
 extern TRANSLOG_ADDRESS translog_get_horizon_no_lock();
 extern int translog_assign_id_to_share(struct st_maria_handler *tbl_info,
