@@ -955,7 +955,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     llstr((ulonglong) (mi->heartbeat_period*1000000000UL), llbuf);
     my_sprintf(query, (query, query_format, llbuf));
 
-    if (mysql_real_query(mysql, query, strlen(query)))
+    if (mysql_real_query(mysql, query, strlen(query))
+        && !check_io_slave_killed(mi->io_thd, mi, NULL))
     {
       err_msg.append("The slave I/O thread stops because querying master with '");
       err_msg.append(query);
