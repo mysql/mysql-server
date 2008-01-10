@@ -51,16 +51,16 @@ buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_page_t*	bpage)	/* in: block which is modified */
 {
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad((UT_LIST_GET_FIRST(buf_pool->flush_list) == NULL)
 	      || (UT_LIST_GET_FIRST(buf_pool->flush_list)->oldest_modification
 		  <= bpage->oldest_modification));
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
-		mutex_enter(&buf_pool->zip_mutex);
+		mutex_enter(&buf_pool_zip_mutex);
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
-		mutex_exit(&buf_pool->zip_mutex);
+		mutex_exit(&buf_pool_zip_mutex);
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 		/* fall through */
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -99,13 +99,13 @@ buf_flush_insert_sorted_into_flush_list(
 	buf_page_t*	prev_b;
 	buf_page_t*	b;
 
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
-		mutex_enter(&buf_pool->zip_mutex);
+		mutex_enter(&buf_pool_zip_mutex);
 		buf_page_set_state(bpage, BUF_BLOCK_ZIP_DIRTY);
-		mutex_exit(&buf_pool->zip_mutex);
+		mutex_exit(&buf_pool_zip_mutex);
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 		/* fall through */
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -157,7 +157,7 @@ buf_flush_ready_for_replace(
 	buf_page_t*	bpage)	/* in: buffer control block, must be
 				buf_page_in_file(bpage) and in the LRU list */
 {
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_LRU_list);
 
@@ -190,7 +190,7 @@ buf_flush_ready_for_flush(
 	enum buf_flush	flush_type)/* in: BUF_FLUSH_LRU or BUF_FLUSH_LIST */
 {
 	ut_a(buf_page_in_file(bpage));
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	if (bpage->oldest_modification != 0
@@ -222,7 +222,7 @@ buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage)	/* in: pointer to the block in question */
 {
-	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(bpage->in_flush_list);
 	ut_d(bpage->in_flush_list = FALSE);
@@ -758,12 +758,12 @@ buf_flush_try_page(
 	ut_ad(flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_LIST
 	      || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	bpage = buf_page_hash_get(space, offset);
 
 	if (!bpage) {
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 		return(0);
 	}
 
@@ -774,7 +774,7 @@ buf_flush_try_page(
 
 	if (!buf_flush_ready_for_flush(bpage, flush_type)) {
 		mutex_exit(block_mutex);
-		mutex_exit(&buf_pool->mutex);
+		buf_pool_mutex_exit();
 		return(0);
 	}
 
@@ -803,7 +803,7 @@ buf_flush_try_page(
 		}
 
 		mutex_exit(block_mutex);
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		if (!locked) {
 			buf_flush_buffered_writes();
@@ -846,7 +846,7 @@ buf_flush_try_page(
 		immediately. */
 
 		mutex_exit(block_mutex);
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 		break;
 
 	case BUF_FLUSH_SINGLE_PAGE:
@@ -862,7 +862,7 @@ buf_flush_try_page(
 		buf_pool->n_flush[flush_type]++;
 
 		mutex_exit(block_mutex);
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 			rw_lock_s_lock_gen(&((buf_block_t*) bpage)->lock,
@@ -922,7 +922,7 @@ buf_flush_try_neighbors(
 		high = fil_space_get_size(space);
 	}
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	for (i = low; i < high; i++) {
 
@@ -956,7 +956,7 @@ buf_flush_try_neighbors(
 				flush the doublewrite buffer before we start
 				waiting. */
 
-				mutex_exit(&(buf_pool->mutex));
+				buf_pool_mutex_exit();
 
 				mutex_exit(block_mutex);
 
@@ -969,14 +969,14 @@ buf_flush_try_neighbors(
 				count += buf_flush_try_page(space, i,
 							    flush_type);
 
-				mutex_enter(&(buf_pool->mutex));
+				buf_pool_mutex_enter();
 			} else {
 				mutex_exit(block_mutex);
 			}
 		}
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	return(count);
 }
@@ -1020,14 +1020,14 @@ buf_flush_batch(
 	ut_ad((flush_type != BUF_FLUSH_LIST)
 	      || sync_thread_levels_empty_gen(TRUE));
 #endif /* UNIV_SYNC_DEBUG */
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	if ((buf_pool->n_flush[flush_type] > 0)
 	    || (buf_pool->init_flush[flush_type] == TRUE)) {
 
 		/* There is already a flush batch of the same type running */
 
-		mutex_exit(&(buf_pool->mutex));
+		buf_pool_mutex_exit();
 
 		return(ULINT_UNDEFINED);
 	}
@@ -1078,7 +1078,7 @@ flush_next:
 				space = buf_page_get_space(bpage);
 				offset = buf_page_get_page_no(bpage);
 
-				mutex_exit(&(buf_pool->mutex));
+				buf_pool_mutex_exit();
 				mutex_exit(block_mutex);
 
 				old_page_count = page_count;
@@ -1091,7 +1091,7 @@ flush_next:
 				flush_type, offset,
 				page_count - old_page_count); */
 
-				mutex_enter(&(buf_pool->mutex));
+				buf_pool_mutex_enter();
 				goto flush_next;
 
 			} else if (flush_type == BUF_FLUSH_LRU) {
@@ -1124,7 +1124,7 @@ flush_next:
 		os_event_set(buf_pool->no_flush[flush_type]);
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	buf_flush_buffered_writes();
 
@@ -1172,7 +1172,7 @@ buf_flush_LRU_recommendation(void)
 	ulint		n_replaceable;
 	ulint		distance	= 0;
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	n_replaceable = UT_LIST_GET_LEN(buf_pool->free);
 
@@ -1198,7 +1198,7 @@ buf_flush_LRU_recommendation(void)
 		bpage = UT_LIST_GET_PREV(LRU, bpage);
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	if (n_replaceable >= BUF_FLUSH_FREE_BLOCK_MARGIN) {
 
@@ -1275,11 +1275,11 @@ buf_flush_validate(void)
 {
 	ibool	ret;
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	ret = buf_flush_validate_low();
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	return(ret);
 }

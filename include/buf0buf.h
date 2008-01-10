@@ -947,16 +947,16 @@ for compressed and uncompressed frames */
 
 struct buf_page_struct{
 	/* None of the following bit-fields must be modified without
-	holding buf_page_get_mutex() [block->mutex or buf_pool->zip_mutex],
+	holding buf_page_get_mutex() [block->mutex or buf_pool_zip_mutex],
 	since they can be stored in the same machine word.  Some of them are
-	additionally protected by buf_pool->mutex. */
+	additionally protected by buf_pool_mutex. */
 
 	unsigned	space:32;	/* tablespace id */
 	unsigned	offset:32;	/* page number */
 
 	unsigned	state:3;	/* state of the control block
 					(@see enum buf_page_state); also
-					protected by buf_pool->mutex.
+					protected by buf_pool_mutex.
 					State transitions from
 					BUF_BLOCK_READY_FOR_USE to
 					BUF_BLOCK_MEMORY need not be
@@ -972,13 +972,13 @@ struct buf_page_struct{
 					without holding any mutex or latch */
 	unsigned	io_fix:2;	/* type of pending I/O operation
 					(@see enum buf_io_fix); also
-					protected by buf_pool->mutex */
+					protected by buf_pool_mutex */
 	unsigned	buf_fix_count:24;/* count of how manyfold this block
 					is currently bufferfixed */
 
 	page_zip_des_t	zip;		/* compressed page; zip.data
 					(but not the data it points to) is
-					also protected by buf_pool->mutex */
+					also protected by buf_pool_mutex */
 	buf_page_t*	hash;		/* node used in chaining to
 					buf_pool->page_hash or
 					buf_pool->zip_hash */
@@ -987,7 +987,7 @@ struct buf_page_struct{
 	ibool		in_zip_hash;	/* TRUE if in buf_pool->zip_hash */
 #endif /* UNIV_DEBUG */
 
-	/* 2. Page flushing fields; protected by buf_pool->mutex */
+	/* 2. Page flushing fields; protected by buf_pool_mutex */
 
 	UT_LIST_NODE_T(buf_page_t) list;
 					/* based on state, this is a list
@@ -1001,12 +1001,12 @@ struct buf_page_struct{
 					BUF_BLOCK_ZIP_FREE:	zip_free[] */
 #ifdef UNIV_DEBUG
 	ibool		in_flush_list;	/* TRUE if in buf_pool->flush_list;
-					when buf_pool->mutex is free, the
+					when buf_pool_mutex is free, the
 					following should hold: in_flush_list
 					== (state == BUF_BLOCK_FILE_PAGE
 					    || state == BUF_BLOCK_ZIP_DIRTY) */
 	ibool		in_free_list;	/* TRUE if in buf_pool->free; when
-					buf_pool->mutex is free, the following
+					buf_pool_mutex is free, the following
 					should hold: in_free_list
 					== (state == BUF_BLOCK_NOT_USED) */
 #endif /* UNIV_DEBUG */
@@ -1021,7 +1021,7 @@ struct buf_page_struct{
 					not yet been flushed on disk; zero if
 					all modifications are on disk */
 
-	/* 3. LRU replacement algorithm fields; protected by buf_pool->mutex */
+	/* 3. LRU replacement algorithm fields; protected by buf_pool_mutex */
 
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
@@ -1166,12 +1166,6 @@ struct buf_pool_struct{
 
 	/* 1. General fields */
 
-	mutex_t		mutex;		/* mutex protecting the buffer pool
-					struct and control blocks, except the
-					read-write lock in them */
-	mutex_t		zip_mutex;	/* mutex protecting the control blocks
-					of compressed-only pages (of type
-					buf_page_t, not buf_block_t) */
 	ulint		n_chunks;	/* number of buffer pool chunks */
 	buf_chunk_t*	chunks;		/* buffer pool chunks */
 	ulint		curr_size;	/* current pool size in pages */
@@ -1265,6 +1259,26 @@ struct buf_pool_struct{
 # error "BUF_BUDDY_LOW > PAGE_ZIP_MIN_SIZE"
 #endif
 };
+
+/* mutex protecting the buffer pool struct and control blocks, except the
+read-write lock in them */
+extern mutex_t	buf_pool_mutex;
+/* mutex protecting the control blocks of compressed-only pages
+(of type buf_page_t, not buf_block_t) */
+extern mutex_t	buf_pool_zip_mutex;
+
+/* Accessors for buf_pool_mutex.  Use these instead of accessing
+buf_pool_mutex directly. */
+
+/* Test if buf_pool_mutex is owned. */
+#define buf_pool_mutex_own() mutex_own(&buf_pool_mutex)
+/* Acquire the buffer pool mutex. */
+#define buf_pool_mutex_enter() do {		\
+	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
+	mutex_enter(&buf_pool_mutex);		\
+} while (0)
+/* Release the buffer pool mutex. */
+#define buf_pool_mutex_exit() mutex_exit(&buf_pool_mutex)
 
 /************************************************************************
 Let us list the consistency conditions for different control block states.

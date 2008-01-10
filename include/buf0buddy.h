@@ -19,13 +19,13 @@ Created December 2006 by Marko Makela
 
 /**************************************************************************
 Allocate a block.  The thread calling this function must hold
-buf_pool->mutex and must not hold buf_pool->zip_mutex or any
-block->mutex.  The buf_pool->mutex may only be released and reacquired
+buf_pool_mutex and must not hold buf_pool_zip_mutex or any
+block->mutex.  The buf_pool_mutex may only be released and reacquired
 if lru == BUF_BUDDY_USE_LRU.  This function should only be used for
 allocating compressed page frames or control blocks (buf_page_t).
 Allocated control blocks must be properly initialized immediately
 after buf_buddy_alloc() has returned the memory, before releasing
-buf_pool->mutex. */
+buf_pool_mutex. */
 UNIV_INLINE
 void*
 buf_buddy_alloc(
@@ -35,7 +35,7 @@ buf_buddy_alloc(
 	ulint	size,	/* in: block size, up to UNIV_PAGE_SIZE */
 	ibool*	lru)	/* in: pointer to a variable that will be assigned
 			TRUE if storage was allocated from the LRU list
-			and buf_pool->mutex was temporarily released,
+			and buf_pool_mutex was temporarily released,
 			or NULL if the LRU list should not be used */
 	__attribute__((malloc));
 
@@ -51,23 +51,23 @@ buf_buddy_free(
 	__attribute__((nonnull));
 
 /** Number of frames allocated from the buffer pool to the buddy system.
-Protected by buf_pool->mutex. */
+Protected by buf_pool_mutex. */
 extern ulint buf_buddy_n_frames;
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded or the buffer
 pool is scarce, the LRU algorithm will not free compressed-only pages
-in order to satisfy an allocation request.  Protected by buf_pool->mutex. */
+in order to satisfy an allocation request.  Protected by buf_pool_mutex. */
 extern ulint buf_buddy_min_n_frames;
 /** Preferred maximum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded, the buddy allocator
 will not try to free clean compressed-only pages before falling back
-to the LRU algorithm.  Protected by buf_pool->mutex. */
+to the LRU algorithm.  Protected by buf_pool_mutex. */
 extern ulint buf_buddy_max_n_frames;
 /** Counts of blocks allocated from the buddy system.
-Protected by buf_pool->mutex. */
+Protected by buf_pool_mutex. */
 extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
-Protected by buf_pool->mutex. */
+Protected by buf_pool_mutex. */
 extern ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL

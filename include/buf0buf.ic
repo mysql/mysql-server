@@ -76,7 +76,7 @@ buf_pool_get_oldest_modification(void)
 	buf_page_t*	bpage;
 	ib_uint64_t	lsn;
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 
@@ -87,7 +87,7 @@ buf_pool_get_oldest_modification(void)
 		lsn = bpage->oldest_modification;
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	return(lsn);
 }
@@ -101,7 +101,7 @@ buf_pool_clock_tic(void)
 /*====================*/
 			/* out: new clock value */
 {
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 
 	buf_pool->ulint_clock++;
 
@@ -265,7 +265,7 @@ buf_page_get_mutex(
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
-		return(&buf_pool->zip_mutex);
+		return(&buf_pool_zip_mutex);
 	default:
 		return(&((buf_block_t*) bpage)->mutex);
 	}
@@ -366,7 +366,7 @@ buf_page_set_io_fix(
 	buf_page_t*	bpage,	/* in/out: control block */
 	enum buf_io_fix	io_fix)	/* in: io_fix state */
 {
-	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	bpage->io_fix = io_fix;
@@ -394,7 +394,7 @@ buf_page_can_relocate(
 /*==================*/
 	const buf_page_t*	bpage)	/* control block being relocated */
 {
-	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(buf_pool_mutex_own());
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
@@ -427,7 +427,7 @@ buf_page_set_old(
 	ibool		old)	/* in: old */
 {
 	ut_a(buf_page_in_file(bpage));
-	ut_ad(mutex_own(&buf_pool->mutex));
+	ut_ad(buf_pool_mutex_own());
 
 	bpage->old = old;
 }
@@ -634,9 +634,9 @@ buf_frame_get_page_zip(
 	const byte*	ptr)	/* in: pointer to the page */
 {
 	const page_zip_des_t*	page_zip;
-	mutex_enter(&buf_pool->mutex);
+	buf_pool_mutex_enter();
 	page_zip = buf_block_get_page_zip(buf_block_align(ptr));
-	mutex_exit(&buf_pool->mutex);
+	buf_pool_mutex_exit();
 	return(page_zip);
 }
 #endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
@@ -701,7 +701,7 @@ buf_block_free(
 /*===========*/
 	buf_block_t*	block)	/* in, own: block to be freed */
 {
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	mutex_enter(&block->mutex);
 
@@ -711,7 +711,7 @@ buf_block_free(
 
 	mutex_exit(&block->mutex);
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 }
 
 /*************************************************************************
@@ -757,13 +757,13 @@ buf_page_io_query(
 {
 	ibool	io_fixed;
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	ut_ad(buf_page_in_file(bpage));
 	ut_ad(bpage->buf_fix_count > 0);
 
 	io_fixed = buf_page_get_io_fix(bpage) != BUF_IO_NONE;
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	return(io_fixed);
 }
@@ -781,7 +781,7 @@ buf_page_get_newest_modification(
 {
 	ib_uint64_t	lsn;
 
-	mutex_enter(&(buf_pool->mutex));
+	buf_pool_mutex_enter();
 
 	if (buf_page_in_file(bpage)) {
 		lsn = bpage->newest_modification;
@@ -789,7 +789,7 @@ buf_page_get_newest_modification(
 		lsn = 0;
 	}
 
-	mutex_exit(&(buf_pool->mutex));
+	buf_pool_mutex_exit();
 
 	return(lsn);
 }
@@ -805,7 +805,7 @@ buf_block_modify_clock_inc(
 	buf_block_t*	block)	/* in: block */
 {
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad((mutex_own(&(buf_pool->mutex))
+	ut_ad((buf_pool_mutex_own()
 	       && (block->page.buf_fix_count == 0))
 	      || rw_lock_own(&(block->lock), RW_LOCK_EXCLUSIVE));
 #endif /* UNIV_SYNC_DEBUG */
@@ -889,7 +889,7 @@ buf_page_hash_get(
 	ulint		fold;
 
 	ut_ad(buf_pool);
-	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(buf_pool_mutex_own());
 
 	/* Look for the page in the hash table */
 
@@ -936,11 +936,11 @@ buf_page_peek(
 {
 	const buf_page_t*	bpage;
 
-	mutex_enter(&buf_pool->mutex);
+	buf_pool_mutex_enter();
 
 	bpage = buf_page_hash_get(space, offset);
 
-	mutex_exit(&buf_pool->mutex);
+	buf_pool_mutex_exit();
 
 	return(bpage != NULL);
 }
@@ -961,9 +961,9 @@ buf_page_release_zip(
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
-		mutex_enter(&buf_pool->zip_mutex);
+		mutex_enter(&buf_pool_zip_mutex);
 		bpage->buf_fix_count--;
-		mutex_exit(&buf_pool->zip_mutex);
+		mutex_exit(&buf_pool_zip_mutex);
 		return;
 	case BUF_BLOCK_FILE_PAGE:
 		block = (buf_block_t*) bpage;
@@ -1003,9 +1003,9 @@ buf_page_release(
 	ut_a(block->page.buf_fix_count > 0);
 
 	if (rw_latch == RW_X_LATCH && mtr->modifications) {
-		mutex_enter(&buf_pool->mutex);
+		buf_pool_mutex_enter();
 		buf_flush_note_modification(block, mtr);
-		mutex_exit(&buf_pool->mutex);
+		buf_pool_mutex_exit();
 	}
 
 	mutex_enter(&block->mutex);
