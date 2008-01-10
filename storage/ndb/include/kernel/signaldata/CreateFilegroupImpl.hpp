@@ -163,7 +163,8 @@ struct CreateFileImplRef {
     InvalidFileMetadata = 1510,
     OutOfMemory = 1511,
     FileReadError = 1512,
-    FilegroupNotOnline = 1513
+    FilegroupNotOnline = 1513,
+    FileSizeTooLarge = 1515
   };
   
   Uint32 senderData;
