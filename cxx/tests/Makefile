@@ -34,3 +34,5 @@ check: $(TARGETS)
 	$(VGRIND) ./test_no_env
 	$(VGRIND) ./test_db_assoc3
 	$(VGRIND) ./test_db_assoc3 --more
+	$(VGRIND) ./test_cursor_count
+

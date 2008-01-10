@@ -690,7 +690,7 @@ static TXNID next_txn = 0;
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    return toku_logger_abort(txn->mgrp->i->logger);
+    return -1; // wont compile yet return toku_logger_abort(txn->mgrp->i->logger);
 }
 
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
@@ -972,6 +972,48 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag
 #endif
     else
         r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    return r;
+}
+
+static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
+    int r;
+    DBC *count_cursor = 0;
+    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
+    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
+    DBT key; memset(&key, 0, sizeof key); key.flags = DB_DBT_REALLOC;
+    DBT val; memset(&val, 0, sizeof val); val.flags = DB_DBT_REALLOC;
+
+    if (flags != 0) {
+        r = EINVAL; goto finish;
+    }
+
+    r = cursor->c_get(cursor, &currentkey, &currentval, DB_CURRENT+256);
+    if (r != 0) goto finish;
+    
+    r = cursor->dbp->cursor(cursor->dbp, 0, &count_cursor, 0);
+    if (r != 0) goto finish;
+
+    *count = 0;
+    r = count_cursor->c_get(count_cursor, &currentkey, &currentval, DB_SET); 
+    if (r != 0) {
+        r = 0; goto finish; /* success, the current key must be deleted and there are no more */
+    }
+
+    for (;;) {
+        *count += 1;
+        r = count_cursor->c_get(count_cursor, &key, &val, DB_NEXT);
+        if (r != 0) break;
+        if (!keyeq(count_cursor, &currentkey, &key)) break;
+    }
+    r = 0; /* success, we found at least one before the end */
+finish:
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+    if (currentkey.data) toku_free(currentkey.data);
+    if (currentval.data) toku_free(currentval.data);
+    if (count_cursor) {
+        int rr = count_cursor->c_close(count_cursor); assert(rr == 0);
+    }
     return r;
 }
 
@@ -1334,6 +1376,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     result->c_put = toku_c_put;
     result->c_close = toku_c_close;
     result->c_del = toku_c_del;
+    result->c_count = toku_c_count;
     MALLOC(result->i);
     assert(result->i);
     result->dbp = db;
