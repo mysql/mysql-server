@@ -161,6 +161,9 @@ my $opt_start_timeout   =    30; # 30 seconds
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_repeat= 1;
+my $opt_retry= 1;
+my $opt_retry_failure= 2;
 
 my $opt_strace_client;
 
@@ -374,8 +377,9 @@ sub command_line_setup {
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
 	     'print-testcases'          => \&collect_option,
-# TODO 'repeat'
-# TODO 'retry'
+	     'repeat=i'                 => \$opt_repeat,
+	     'retry=i'                  => \$opt_retry,
+	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \$opt_timer,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
@@ -1742,7 +1746,39 @@ sub run_tests {
       next;
     }
 
-    run_testcase($tinfo);
+    for my $repeat (1..$opt_repeat){
+
+      if (run_testcase($tinfo))
+      {
+	# Testcase failed, enter retry mode
+	my $retries= 1;
+	while ($retries <= $opt_retry){
+	  mtr_report("\nRetrying, attempt($retries/$opt_retry)...\n");
+
+	  if (run_testcase($tinfo) <= 0)
+	  {
+	    # Testcase suceeded
+
+	    my $test_has_failed= $tinfo->{failures} || 0;
+	    if (!$test_has_failed){
+	      last;
+	    }
+	  }
+	  else
+	  {
+	    # Testcase failed
+
+	    # Limit number of test failures
+	    my $failures= $tinfo->{failures};
+	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
+	      mtr_report("Test has failed $failures times, no more retries!\n");
+	      last;
+	    }
+	  }
+	  $retries++;
+	}
+      }
+    }
   }
   # Kill the test suite timer
   $suite_timeout_proc->kill();
@@ -2184,6 +2220,11 @@ my %old_env;
 #
 # Run a single test case
 #
+# RETURN VALUE
+#  0 OK
+#  > 0 failure
+#
+
 sub run_testcase ($) {
   my $tinfo=  shift;
 
@@ -2362,7 +2403,7 @@ sub run_testcase ($) {
       # Remove the file that mysql-test-run writes info to
       unlink($path_current_test_log);
 
-      return;
+      return ($res == 62) ? 0 : $res;
 
     }
 
@@ -2389,7 +2430,7 @@ sub run_testcase ($) {
 	"Server failed during test run";
 
       report_failure_and_restart($tinfo);
-      return;
+      return 1;
     }
 
     # ----------------------------------------------------
@@ -2400,7 +2441,7 @@ sub run_testcase ($) {
       mtr_report("Test case timeout!");
       $tinfo->{'timeout'}= 1;           # Mark as timeout
       report_failure_and_restart($tinfo);
-      return;
+      return 1;
     }
 
     # ----------------------------------------------------
@@ -2414,6 +2455,7 @@ sub run_testcase ($) {
 
     mtr_error("Unhandled process $proc exited");
   }
+  mtr_error("Should never come here");
 }
 
 
@@ -3631,6 +3673,10 @@ Misc options
                         the first specified test case
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
+  repeat=N              Run each test N number of times
+  retry=N               Retry tests that fail N times, limit number of failures
+                        to $max_failures
+  retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
 
