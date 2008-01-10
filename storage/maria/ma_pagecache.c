@@ -2212,10 +2212,10 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
   pgcache_page_no_t pageno= block->hash_link->pageno;
   DBUG_ENTER("get_wrlock");
   DBUG_PRINT("info", ("the block 0x%lx "
-                          "files %d(%d)  pages %d(%d)",
-                          (ulong)block,
-                          file.file, block->hash_link->file.file,
-                          pageno, block->hash_link->pageno));
+                      "files %d(%d)  pages %lu(%lu)",
+                      (ulong) block,
+                      file.file, block->hash_link->file.file,
+                      (ulong) pageno, (ulong) block->hash_link->pageno));
   PCBLOCK_INFO(block);
   while (block->wlocks && block->write_locker != user_file)
   {
@@ -2242,10 +2242,10 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
         pageno != block->hash_link->pageno)
     {
       DBUG_PRINT("info", ("the block 0x%lx changed => need retry "
-                          "status: %x  files %d != %d or pages %d != %d",
+                          "status: %x  files %d != %d or pages %lu != %lu",
                           (ulong)block, block->status,
                           file.file, block->hash_link->file.file,
-                          pageno, block->hash_link->pageno));
+                          (ulong) pageno, (ulong) block->hash_link->pageno));
       DBUG_RETURN(1);
     }
   }
@@ -4267,13 +4267,14 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       MARIA_SHARE *share;
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it in the checkpoint record */
-      compile_time_assert(sizeof(block->hash_link->pageno) <= 4);
       share= (MARIA_SHARE *)(block->hash_link->file.callback_data);
       table_id= share->id;
       int2store(ptr, table_id);
       ptr+= 2;
       ptr[0]= (share->kfile.file == block->hash_link->file.file);
       ptr++;
+      /* TODO: We should fix the code here to handle 5 byte page numbers */
+      DBUG_ASSERT(block->hash_link->pageno <= UINT_MAX32);
       int4store(ptr, block->hash_link->pageno);
       ptr+= 4;
       lsn_store(ptr, block->rec_lsn);

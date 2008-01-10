@@ -3762,6 +3762,13 @@ server.");
       global_system_variables.table_plugin= plugin;
     }
   }
+#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
+  if (!ha_storage_engine_is_enabled(maria_hton))
+  {
+    sql_print_error("Maria engine is not enabled or did not start. The Maria engine must be enabled to continue as mysqld was configured with --with-maria-tmp-tables");
+    unireg_abort(1);
+  }
+#endif
 
   tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
                                (TC_LOG *) &mysql_bin_log :

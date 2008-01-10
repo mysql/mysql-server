@@ -119,15 +119,16 @@ enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_
 
 /* Functions to convert MARIA_RECORD_POS to/from page:offset */
 
-static inline MARIA_RECORD_POS ma_recordpos(ulonglong page, uint dir_entry)
+static inline MARIA_RECORD_POS ma_recordpos(pgcache_page_no_t page,
+                                            uint dir_entry)
 {
   DBUG_ASSERT(dir_entry <= 255);
-  return (MARIA_RECORD_POS) ((page << 8) | dir_entry);
+  return (MARIA_RECORD_POS) (((ulonglong) page << 8) | dir_entry);
 }
 
-static inline my_off_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
+static inline pgcache_page_no_t ma_recordpos_to_page(MARIA_RECORD_POS record_pos)
 {
-  return record_pos >> 8;
+  return (pgcache_page_no_t) (record_pos >> 8);
 }
 
 static inline uint ma_recordpos_to_dir_entry(MARIA_RECORD_POS record_pos)
@@ -189,27 +190,29 @@ my_bool _ma_bitmap_find_place(MARIA_HA *info, MARIA_ROW *row,
 my_bool _ma_bitmap_release_unused(MARIA_HA *info, MARIA_BITMAP_BLOCKS *blocks);
 my_bool _ma_bitmap_free_full_pages(MARIA_HA *info, const uchar *extents,
                                    uint count);
-my_bool _ma_bitmap_set(MARIA_HA *info, ulonglong pos, my_bool head,
+my_bool _ma_bitmap_set(MARIA_HA *info, pgcache_page_no_t pos, my_bool head,
                        uint empty_space);
 my_bool _ma_bitmap_reset_full_page_bits(MARIA_HA *info,
                                         MARIA_FILE_BITMAP *bitmap,
-                                        ulonglong page, uint page_count);
+                                        pgcache_page_no_t page,
+                                        uint page_count);
 my_bool _ma_bitmap_set_full_page_bits(MARIA_HA *info,
                                       MARIA_FILE_BITMAP *bitmap,
-                                      ulonglong page, uint page_count);
+                                      pgcache_page_no_t page, uint page_count);
 uint _ma_free_size_to_head_pattern(MARIA_FILE_BITMAP *bitmap, uint size);
 my_bool _ma_bitmap_find_new_place(MARIA_HA *info, MARIA_ROW *new_row,
-                                  ulonglong page, uint free_size,
+                                  pgcache_page_no_t page, uint free_size,
                                   MARIA_BITMAP_BLOCKS *result_blocks);
 my_bool _ma_check_bitmap_data(MARIA_HA *info,
-                              enum en_page_type page_type, ulonglong page,
+                              enum en_page_type page_type,
+                              pgcache_page_no_t page,
                               uint empty_space, uint *bitmap_pattern);
 my_bool _ma_check_if_right_bitmap_type(MARIA_HA *info,
                                        enum en_page_type page_type,
-                                       ulonglong page,
+                                       pgcache_page_no_t page,
                                        uint *bitmap_pattern);
 uint _ma_bitmap_get_page_bits(MARIA_HA *info, MARIA_FILE_BITMAP *bitmap,
-                              ulonglong page);
+                              pgcache_page_no_t page);
 void _ma_bitmap_delete_all(MARIA_SHARE *share);
 int  _ma_bitmap_create_first(MARIA_SHARE *share);
 void _ma_bitmap_flushable(MARIA_HA *info, int non_flushable_inc);
@@ -217,7 +220,7 @@ void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
                                         MARIA_SHARE *share);
 #ifndef DBUG_OFF
 void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
-                      ulonglong page);
+                      pgcache_page_no_t page);
 #endif
 
 uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,

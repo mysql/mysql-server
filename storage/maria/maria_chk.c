@@ -850,7 +850,7 @@ static void get_options(register int *argc,register char ***argv)
 static int maria_chk(HA_CHECK *param, char *filename)
 {
   int error,lock_type,recreate;
-  int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
+  my_bool rep_quick= test(param->testflag & (T_QUICK | T_FORCE_UNIQUENESS));
   MARIA_HA *info;
   File datafile;
   char llbuff[22],llbuff2[22];
@@ -1013,7 +1013,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
       param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
-      rep_quick|=T_QUICK;
+      rep_quick= 1;
     }
     share= info->s;
     share->tot_locks-= share->r_locks;
@@ -1215,7 +1215,8 @@ static int maria_chk(HA_CHECK *param, char *filename)
       maria_lock_memory(param);
       if ((info->s->data_file_type != STATIC_RECORD) ||
           (param->testflag & (T_EXTEND | T_MEDIUM)))
-        error|=maria_chk_data_link(param, info, param->testflag & T_EXTEND);
+        error|=maria_chk_data_link(param, info,
+                                   test(param->testflag & T_EXTEND));
       error|= _ma_flush_table_files_after_repair(param, info);
       VOID(end_io_cache(&param->read_cache));
     }

@@ -290,7 +290,7 @@ typedef struct st_maria_extent_cursor
   /* Position to all tails in the row. Updated when reading a row */
   MARIA_RECORD_POS *tail_positions;
   /* Current page */
-  ulonglong page;
+  pgcache_page_no_t page;
   /* How many pages in the page region */
   uint page_count;
   /* What kind of lock to use for tail pages */
@@ -332,7 +332,7 @@ typedef struct st_maria_extent_cursor
 
 static my_bool delete_tails(MARIA_HA *info, MARIA_RECORD_POS *tails);
 static my_bool delete_head_or_tail(MARIA_HA *info,
-                                  ulonglong page, uint record_number,
+                                   pgcache_page_no_t page, uint record_number,
                                    my_bool head, my_bool from_update);
 #ifndef DBUG_OFF
 static void _ma_print_directory(uchar *buff, uint block_size);
@@ -1870,7 +1870,7 @@ static my_bool write_full_pages(MARIA_HA *info,
                                 MARIA_BITMAP_BLOCK *block,
                                 uchar *data, ulong length)
 {
-  my_off_t page;
+  pgcache_page_no_t page;
   MARIA_SHARE *share= info->s;
   uint block_size= share->block_size;
   uint data_size= FULL_PAGE_SIZE(block_size);
@@ -1993,7 +1993,7 @@ static uchar *store_page_range(uchar *to, MARIA_BITMAP_BLOCK *block,
   ranges= 0;
   do
   {
-    ulonglong page;
+    pgcache_page_no_t page;
     page=       block->page;
     page_count= block->page_count;
     block++;
@@ -2097,7 +2097,7 @@ static void store_extent_info(uchar *to,
 
 static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
                                        MARIA_BITMAP_BLOCKS *blocks,
-                                       ulonglong head_page,
+                                       pgcache_page_no_t head_page,
                                        uint extent_count,
                                        const uchar *extent_info)
 {
@@ -2262,7 +2262,8 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
     1   error
 */
 
-static my_bool free_full_page_range(MARIA_HA *info, ulonglong page, uint count)
+static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
+                                    uint count)
 {
   my_bool res= 0;
   MARIA_SHARE *share= info->s;
@@ -3355,7 +3356,7 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info)
     if (_ma_write_clr(info, info->cur_row.orig_undo_lsn,
                       LOGREC_UNDO_ROW_INSERT,
                       share->calc_checksum != 0,
-                      -info->cur_row.checksum,
+                      (ha_checksum) 0 - info->cur_row.checksum,
                       &lsn, (void*) 0))
       res= 1;
   }
@@ -3387,7 +3388,7 @@ static my_bool _ma_update_block_record2(MARIA_HA *info,
   uint rownr, org_empty_size, head_length;
   uint block_size= info->s->block_size;
   uchar *dir;
-  ulonglong page;
+  pgcache_page_no_t page;
   struct st_row_pos_info row_pos;
   my_bool res;
   ha_checksum old_checksum;
@@ -3523,7 +3524,7 @@ err:
 */
 
 static my_bool _ma_update_at_original_place(MARIA_HA *info,
-                                            ulonglong page,
+                                            pgcache_page_no_t page,
                                             uint rownr,
                                             uint length_on_head_page,
                                             uint extent_count,
@@ -3779,7 +3780,7 @@ static int delete_dir_entry(uchar *buff, uint block_size, uint record_number,
 */
 
 static my_bool delete_head_or_tail(MARIA_HA *info,
-                                   ulonglong page, uint record_number,
+                                   pgcache_page_no_t page, uint record_number,
                                    my_bool head, my_bool from_update)
 {
   MARIA_SHARE *share= info->s;
@@ -3915,7 +3916,7 @@ static my_bool delete_tails(MARIA_HA *info, MARIA_RECORD_POS *tails)
 
 my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
 {
-  ulonglong page;
+  pgcache_page_no_t page;
   uint record_number;
   MARIA_SHARE *share= info->s;
   LSN lsn= LSN_IMPOSSIBLE;
@@ -3959,7 +3960,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS].length=
       sizeof(log_data) - HA_CHECKSUM_STORE_SIZE;
     store_checksum_in_rec(share, checksum_delta,
-                          - info->cur_row.checksum, log_pos,
+                          (ha_checksum) 0 - info->cur_row.checksum, log_pos,
                           info->log_row_parts[TRANSLOG_INTERNAL_PARTS +
                                               0].length);
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].str=
@@ -4673,7 +4674,7 @@ static my_bool read_row_extent_info(MARIA_HA *info, uchar *buff,
        extents < end;
        extents+= ROW_EXTENT_SIZE)
   {
-    ulonglong page=  uint5korr(extents);
+    pgcache_page_no_t page=  uint5korr(extents);
     uint page_count= uint2korr(extents + ROW_EXTENT_PAGE_SIZE);
     if (page_count & TAIL_BIT)
       *(tail_pos++)= ma_recordpos(page, (page_count & ~ (TAIL_BIT |
@@ -4799,7 +4800,7 @@ my_bool _ma_scan_init_block_record(MARIA_HA *info)
   /* Set scan variables to get _ma_scan_block() to start with reading bitmap */
   info->scan.number_of_rows= 0;
   info->scan.bitmap_pos= info->scan.bitmap_end;
-  info->scan.bitmap_page= (ulong) - (long) share->bitmap.pages_covered;
+  info->scan.bitmap_page= (pgcache_page_no_t) 0 - share->bitmap.pages_covered;
   /*
     We have to flush bitmap as we will read the bitmap from the page cache
     while scanning rows
@@ -4980,7 +4981,7 @@ restart_bitmap_scan:
     {
       while (likely(bits))
       {
-        uint pattern= bits & 7;
+        uint pattern= (uint) (bits & 7);
         bits >>= 3;
         bit_pos++;
         if (pattern > 0 && pattern <= 4)
@@ -5756,7 +5757,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                             size_t data_length)
 {
   MARIA_SHARE *share= info->s;
-  ulonglong page;
+  pgcache_page_no_t page;
   uint      rownr, empty_space;
   uint      block_size= share->block_size;
   uint      rec_offset;
@@ -5954,7 +5955,7 @@ uint _ma_apply_redo_purge_row_head_or_tail(MARIA_HA *info, LSN lsn,
                                            const uchar *header)
 {
   MARIA_SHARE *share= info->s;
-  ulonglong page;
+  pgcache_page_no_t page;
   uint      rownr, empty_space;
   uint      block_size= share->block_size;
   uchar     *buff= info->keyread_buff;
@@ -6062,7 +6063,7 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info,
   {
     my_bool res;
     uint page_range;
-    ulonglong page, start_page;
+    pgcache_page_no_t page, start_page;
 
     start_page= page= page_korr(header);
     header+= PAGE_STORE_SIZE;
@@ -6108,7 +6109,7 @@ uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
 {
   MARIA_SHARE *share= info->s;
   uchar *buff;
-  ulonglong page;
+  pgcache_page_no_t page;
   MARIA_PINNED_PAGE page_link;
   my_bool res;
   DBUG_ENTER("_ma_apply_redo_free_head_or_tail");
@@ -6211,14 +6212,15 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
     header+= SUB_RANGE_SIZE;
     empty_space= uint2korr(header);
     header+= BLOCK_FILLER_SIZE;
-    DBUG_ASSERT(sub_ranges <= blob_count + 1 && empty_space < data_size);
+    DBUG_ASSERT(sub_ranges <= ranges && empty_space < data_size);
+    ranges-= sub_ranges;
 
     while (sub_ranges--)
     {
       uint i;
       uint      res;
       uint      page_range;
-      ulonglong page, start_page;
+      pgcache_page_no_t page, start_page;
       uchar     *buff;
 
       start_page= page= page_korr(header);
@@ -6346,7 +6348,7 @@ err:
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header)
 {
-  ulonglong page;
+  pgcache_page_no_t page;
   uint rownr;
   uchar *buff;
   my_bool res= 1;
@@ -6388,7 +6390,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
 
   checksum= 0;
   if (share->calc_checksum)
-    checksum= -ha_checksum_korr(header);
+    checksum= (ha_checksum) 0 - ha_checksum_korr(header);
   if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_ROW_INSERT,
                     share->calc_checksum != 0, checksum, &lsn, (void*) 0))
     goto err;
@@ -6416,7 +6418,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
   struct st_row_pos_info row_pos;
   uchar *record;
   const uchar *null_bits, *field_length_data, *extent_info;
-  ulonglong page;
+  pgcache_page_no_t page;
   ulong *blob_lengths;
   uint *null_field_lengths, extent_count, rownr, length_on_head_page;
   DBUG_ENTER("_ma_apply_undo_row_delete");
@@ -6445,7 +6447,7 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
       We extract the checksum delta here, saving a recomputation in
       allocate_and_write_block_record(). It's only an optimization.
     */
-    row.checksum= - ha_checksum_korr(header);
+    row.checksum= (ha_checksum) 0 - ha_checksum_korr(header);
     header+= HA_CHECKSUM_STORE_SIZE;
   }
   extent_info= header;
@@ -6657,7 +6659,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   MARIA_RECORD_POS record_pos;
   const uchar *field_length_data, *field_length_data_end, *extent_info;
   uchar *current_record, *orig_record;
-  ulonglong page;
+  pgcache_page_no_t page;
   ha_checksum checksum_delta;
   uint rownr, field_length_header, extent_count, length_on_head_page;
   int error= 1;

@@ -83,7 +83,7 @@ typedef struct st_maria_state_info
   MARIA_STATUS_INFO state;
   ha_rows split;			/* number of split blocks */
   my_off_t dellink;			/* Link to next removed block */
-  ulonglong first_bitmap_with_space;
+  pgcache_page_no_t first_bitmap_with_space;
   ulonglong auto_increment;
   ulong process;			/* process that updated table last */
   ulong unique;				/* Unique number for this process */
@@ -220,7 +220,7 @@ typedef struct st_maria_pack
 typedef struct st_maria_file_bitmap
 {
   uchar *map;
-  ulonglong page;                      /* Page number for current bitmap */
+  pgcache_page_no_t page;              /* Page number for current bitmap */
   uint used_size;                      /* Size of bitmap head that is not 0 */
   my_bool changed;                     /* 1 if page needs to be flushed */
   my_bool flush_all_requested;         /**< If _ma_bitmap_flush_all waiting */
@@ -373,7 +373,7 @@ typedef uchar MARIA_BITMAP_BUFFER;
 
 typedef struct st_maria_bitmap_block
 {
-  ulonglong page;                       /* Page number */
+  pgcache_page_no_t page;                       /* Page number */
   /* Number of continuous pages. TAIL_BIT is set if this is a tail page */
   uint page_count;
   uint empty_space;                     /* Set for head and tail pages */
@@ -422,7 +422,7 @@ typedef struct st_maria_block_scan
 {
   uchar *bitmap_buff, *bitmap_pos, *bitmap_end, *page_buff;
   uchar *dir, *dir_end;
-  ulong bitmap_page;
+  pgcache_page_no_t bitmap_page;
   ulonglong bits;
   uint number_of_rows, bit_pos;
   MARIA_RECORD_POS row_base_page;

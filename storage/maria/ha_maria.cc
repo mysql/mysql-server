@@ -302,7 +302,8 @@ static int table2maria(TABLE *table_arg, data_file_type row_type,
   pos= table_arg->key_info;
   for (i= 0; i < share->keys; i++, pos++)
   {
-    keydef[i].flag= (pos->flags & (HA_NOSAME | HA_FULLTEXT | HA_SPATIAL));
+    keydef[i].flag= (uint16) (pos->flags & (HA_NOSAME | HA_FULLTEXT |
+                                            HA_SPATIAL));
     keydef[i].key_alg= pos->algorithm == HA_KEY_ALG_UNDEF ?
       (pos->flags & HA_SPATIAL ? HA_KEY_ALG_RTREE : HA_KEY_ALG_BTREE) :
       pos->algorithm;
@@ -927,7 +928,7 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
   error= maria_chk_status(&param, file);                // Not fatal
   error= maria_chk_size(&param, file);
   if (!error)
-    error |= maria_chk_del(&param, file, param.testflag);
+    error|= maria_chk_del(&param, file, param.testflag);
   if (!error)
     error= maria_chk_key(&param, file);
   if (!error)
@@ -937,13 +938,14 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
            (HA_OPTION_PACK_RECORD | HA_OPTION_COMPRESS_RECORD)) ||
           (param.testflag & (T_EXTEND | T_MEDIUM)))) || maria_is_crashed(file))
     {
-      uint old_testflag= param.testflag;
+      ulonglong old_testflag= param.testflag;
       param.testflag |= T_MEDIUM;
       if (!(error= init_io_cache(&param.read_cache, file->dfile.file,
                                  my_default_record_cache_size, READ_CACHE,
                                  share->pack.header_length, 1, MYF(MY_WME))))
       {
-        error= maria_chk_data_link(&param, file, param.testflag & T_EXTEND);
+        error= maria_chk_data_link(&param, file,
+                                   test(param.testflag & T_EXTEND));
         end_io_cache(&(param.read_cache));
       }
       param.testflag= old_testflag;
@@ -961,8 +963,9 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
       share->state.changed &= ~(STATE_CHANGED | STATE_CRASHED |
                                 STATE_CRASHED_ON_REPAIR);
       if (!(table->db_stat & HA_READ_ONLY))
-        error= maria_update_state_info(&param, file, UPDATE_TIME | UPDATE_OPEN_COUNT |
-                                 UPDATE_STAT);
+        error= maria_update_state_info(&param, file,
+                                       UPDATE_TIME | UPDATE_OPEN_COUNT |
+                                       UPDATE_STAT);
       pthread_mutex_unlock(&share->intern_lock);
       info(HA_STATUS_NO_LOCK | HA_STATUS_TIME | HA_STATUS_VARIABLE |
            HA_STATUS_CONST);
@@ -1226,7 +1229,7 @@ int ha_maria::optimize(THD * thd, HA_CHECK_OPT *check_opt)
 int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 {
   int error= 0;
-  uint local_testflag= param.testflag;
+  ulonglong local_testflag= param.testflag;
   bool optimize_done= !do_optimize, statistics_done= 0;
   const char *old_proc_info= thd->proc_info;
   char fixed_name[FN_REFLEN];
@@ -1278,7 +1281,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
                         maria_get_mask_all_keys_active(share->base.keys) :
                         share->state.key_map);
-    uint save_testflag= param.testflag;
+    ulonglong save_testflag= param.testflag;
     if (maria_test_if_sort_rep(file, file->state->records, key_map, 0) &&
         (local_testflag & T_REP_BY_SORT))
     {
@@ -1295,7 +1298,7 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         thd_proc_info(thd, buf);
         param.testflag|= T_REP_PARALLEL;
         error= maria_repair_parallel(&param, file, fixed_name,
-                                     param.testflag & T_QUICK);
+                                     test(param.testflag & T_QUICK));
         /* to reset proc_info, as it was pointing to local buffer */
         thd_proc_info(thd, "Repair done");
       }
@@ -1304,14 +1307,15 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         thd_proc_info(thd, "Repair by sorting");
         param.testflag|= T_REP_BY_SORT;
         error= maria_repair_by_sort(&param, file, fixed_name,
-                                    param.testflag & T_QUICK);
+                                    test(param.testflag & T_QUICK));
       }
     }
     else
     {
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
-      error= maria_repair(&param, file, fixed_name, param.testflag & T_QUICK);
+      error= maria_repair(&param, file, fixed_name,
+                          test(param.testflag & T_QUICK));
       /**
          @todo RECOVERY BUG we do things with the index file
          (maria_sort_index() after the above which already has logged the
@@ -2551,69 +2555,68 @@ bool maria_show_status(handlerton *hton,
                        enum ha_stat_type stat)
 {
   char engine_name[]= "maria";
-  switch (stat)
-  {
+  switch (stat) {
   case HA_ENGINE_LOGS:
+  {
+    TRANSLOG_ADDRESS horizon= translog_get_horizon();
+    uint32 last_file= LSN_FILE_NO(horizon);
+    uint32 first_needed= translog_get_first_needed_file();
+    uint32 first_file= translog_get_first_file(horizon);
+    uint32 i;
+    const char unknown[]= "unknown";
+    const char needed[]= "in use";
+    const char unneeded[]= "free";
+    char path[FN_REFLEN];
+
+    if (first_file == 0)
     {
-      TRANSLOG_ADDRESS horizon= translog_get_horizon();
-      uint32 last_file= LSN_FILE_NO(horizon);
-      uint32 first_needed= translog_get_first_needed_file();
-      uint32 first_file= translog_get_first_file(horizon);
-      uint32 i;
-      const char unknown[]= "unknown";
-      const char needed[]= "in use";
-      const char unneeded[]= "free";
-      char path[FN_REFLEN];
+      const char error[]= "error";
+      print(thd, engine_name, sizeof(engine_name),
+            STRING_WITH_LEN(""), error, sizeof(error));
+      break;
+    }
 
-      if (first_file == 0)
+    for (i= first_file; i <= last_file; i++)
+    {
+      char *file;
+      const char *status;
+      uint length, status_len;
+      MY_STAT stat_buff, *stat;
+      const char error[]= "can't stat";
+      char object[SHOW_MSG_LEN];
+      file= translog_filename_by_fileno(i, path);
+      if (!(stat= my_stat(file, &stat_buff, MYF(MY_WME))))
       {
-        const char error[]= "error";
-        print(thd, engine_name, sizeof(engine_name),
-              STRING_WITH_LEN(""), error, sizeof(error));
-        break;
+        status= error;
+        status_len= sizeof(error);
+        length= snprintf(object, SHOW_MSG_LEN, "Size unknown ; %s", file);
       }
-
-      for (i= first_file; i <= last_file; i++)
+      else
       {
-        char *file;
-        const char *status;
-        uint length, status_len;
-        MY_STAT stat_buff, *stat;
-        const char error[]= "can't stat";
-        char object[SHOW_MSG_LEN];
-        file= translog_filename_by_fileno(i, path);
-        if (!(stat= my_stat(file, &stat_buff, MYF(MY_WME))))
+        if (first_needed == 0)
         {
-          status= error;
-          status_len= sizeof(error);
-          length= snprintf(object, SHOW_MSG_LEN, "Size unknown ; %s", file);
+          status= unknown;
+          status_len= sizeof(unknown);
+        }
+        else if (i < first_needed)
+        {
+          status= unneeded;
+          status_len= sizeof(unneeded);
         }
         else
         {
-          if (first_needed == 0)
-          {
-            status= unknown;
-            status_len= sizeof(unknown);
-          }
-          else if (i < first_needed)
-          {
-            status= unneeded;
-            status_len= sizeof(unneeded);
-          }
-          else
-          {
-            status= needed;
-            status_len= sizeof(needed);
-          }
-          length= snprintf(object, SHOW_MSG_LEN, "Size %12lu ; %s",
-                           (ulong) stat->st_size, file);
+          status= needed;
+          status_len= sizeof(needed);
         }
-
-        print(thd, engine_name, sizeof(engine_name),
-                object, length, status, status_len);
+        length= snprintf(object, SHOW_MSG_LEN, "Size %12lu ; %s",
+                         (ulong) stat->st_size, file);
       }
-      break;
+
+      print(thd, engine_name, sizeof(engine_name),
+            object, length, status, status_len);
     }
+    break;
+  }
   case HA_ENGINE_STATUS:
   case HA_ENGINE_MUTEX:
   default:
@@ -2641,7 +2644,7 @@ static int ha_maria_init(void *p)
   maria_tmpdir= &mysql_tmpdir_list;             /* For REDO */
   res= maria_init() || ma_control_file_create_or_open() ||
     !init_pagecache(maria_pagecache,
-                    pagecache_buffer_size, pagecache_division_limit,
+                    (size_t) pagecache_buffer_size, pagecache_division_limit,
                     pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH, 0) ||
     !init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,

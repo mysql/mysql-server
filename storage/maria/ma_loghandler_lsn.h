@@ -41,7 +41,7 @@ typedef int64 TRANSLOG_ADDRESS;
 typedef TRANSLOG_ADDRESS LSN;
 
 /* Gets file number part of a LSN/log address */
-#define LSN_FILE_NO(L) ((L) >> 32)
+#define LSN_FILE_NO(L) (uint32) ((L) >> 32)
 
 /* Gets raw file number part of a LSN/log address */
 #define LSN_FILE_NO_PART(L) ((L) & ((int64)0xFFFFFF00000000LL))
@@ -50,7 +50,7 @@ typedef TRANSLOG_ADDRESS LSN;
 #define LSN_IN_PARTS(L) (ulong)LSN_FILE_NO(L),(ulong)LSN_OFFSET(L)
 
 /* Gets record offset of a LSN/log address */
-#define LSN_OFFSET(L) ((L) & 0xFFFFFFFFL)
+#define LSN_OFFSET(L) (ulong) ((L) & 0xFFFFFFFFL)
 
 /* Makes lsn/log address from file number and record offset */
 #define MAKE_LSN(F,S) ((LSN) ((((uint64)(F)) << 32) | (S)))

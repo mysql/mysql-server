@@ -35,7 +35,7 @@
 #include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 #include "../storage/maria/ha_maria.h"
 #define TMP_ENGINE_HTON maria_hton
 #else

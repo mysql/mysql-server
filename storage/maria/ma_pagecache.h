@@ -75,7 +75,7 @@ enum pagecache_write_mode
 };
 
 /* page number for maria */
-typedef uint32 pgcache_page_no_t;
+typedef ulonglong pgcache_page_no_t;
 
 /* file descriptor for Maria */
 typedef struct st_pagecache_file
@@ -186,7 +186,8 @@ enum pagecache_flush_filter_result
 };
 /** @brief a filter function type for flush_pagecache_blocks_with_filter() */
 typedef enum pagecache_flush_filter_result
-(*PAGECACHE_FLUSH_FILTER)(enum pagecache_page_type type, pgcache_page_no_t page,
+(*PAGECACHE_FLUSH_FILTER)(enum pagecache_page_type type,
+                          pgcache_page_no_t page,
                           LSN rec_lsn, void *arg);
 
 /* The default key cache */

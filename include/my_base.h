@@ -235,7 +235,10 @@ enum ha_base_keytype {
 
 #define HA_MAX_KEYTYPE	31		/* Must be log2-1 */
 
-	/* These flags kan be OR:ed to key-flag */
+/*
+  These flags kan be OR:ed to key-flag
+  Note that these can only be up to 16 bits!
+*/
 
 #define HA_NOSAME		 1	/* Set if not dupplicated records */
 #define HA_PACK_KEY		 2	/* Pack string key to previous key */

@@ -61,3 +61,165 @@ count(*)
 affected rows: 1
 drop table t1, t2;
 affected rows: 0
+set @@max_allowed_packet=400000000;
+affected rows: 0
+create table t1 (a int, b longtext);
+affected rows: 0
+insert into t1 values (1,"123456789012345678901234567890"),(2,"09876543210987654321");
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=CONCAT(b,b);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+select a,length(b) from t1;
+a	length(b)
+1	251658240
+2	167772160
+affected rows: 2
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+affected rows: 1
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+update t1 set b=mid(b,1,length(b)/2);
+affected rows: 2
+info: Rows matched: 2  Changed: 2  Warnings: 0
+select a,length(b) from t1;
+a	length(b)
+1	60
+2	40
+affected rows: 2
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+affected rows: 1
+drop table t1;
+affected rows: 0

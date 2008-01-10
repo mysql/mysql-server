@@ -632,7 +632,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       my_errno=HA_WRONG_CREATE_OPTION;
       goto err_no_lock;
     }
-    keydef->block_length= maria_block_size;
+    keydef->block_length= (uint16) maria_block_size;
     keydef->keylength= (uint16) key_length;
     keydef->minlength= (uint16) min_key_length;
     keydef->maxlength= (uint16) length;
@@ -1007,12 +1007,12 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     uint k;
     LSN lsn;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= 1 + 2 + 2 +
-      kfile_size_before_extension;
+      (uint) kfile_size_before_extension;
     /* we are needing maybe 64 kB, so don't use the stack */
     log_data= my_malloc(log_array[TRANSLOG_INTERNAL_PARTS + 1].length, MYF(0));
     if ((log_data == NULL) ||
-        my_pread(file, 1 + 2 + 2 + log_data, kfile_size_before_extension,
-                 0, MYF(MY_NABP)))
+        my_pread(file, 1 + 2 + 2 + log_data,
+                 (size_t) kfile_size_before_extension, 0, MYF(MY_NABP)))
       goto err;
     /*
       remember if the data file was created or not, to know if Recovery can

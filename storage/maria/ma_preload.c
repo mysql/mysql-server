@@ -80,7 +80,8 @@ int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
       {
         DBUG_ASSERT(share->pagecache->block_size == block_length);
         if (pagecache_write(share->pagecache,
-                            &share->kfile, pos / block_length,
+                            &share->kfile,
+                            (pgcache_page_no_t) (pos / block_length),
                             DFLT_INIT_HITS,
                             (uchar*) buff,
                             PAGECACHE_PLAIN_PAGE,

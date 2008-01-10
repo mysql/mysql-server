@@ -78,6 +78,24 @@ static my_bool maria_page_crc_check(uchar *page,
   res= test(new_crc != crc);
   if (res)
   {
+    /*
+      Bitmap pages may be totally zero filled in some cases.
+      This happens when we get a crash after the pagecache has written
+      out a page that is on a newly created bitmap page and we get
+      a crash before the bitmap page is written out.
+
+      We handle this case with the following logic:
+      When reading, approve of bitmap pages where all bytes are zero
+      (This is after all a bitmap pages where no data is reserved and
+      the CRC will be corrected at next write)
+    */
+    if (no_crc_val == MARIA_NO_CRC_BITMAP_PAGE &&
+        crc == 0 && _ma_check_if_zero(page, data_length))
+    {
+      DBUG_PRINT("warning", ("Found bitmap page that was not initialized"));
+      DBUG_RETURN(0);
+    }
+
     DBUG_PRINT("error", ("Page: %lu  crc: %lu  calculated crc: %lu",
                          (ulong) page_no, (ulong) crc, (ulong) new_crc));
     my_errno= HA_ERR_WRONG_CRC;
@@ -104,7 +122,7 @@ my_bool maria_page_crc_set_normal(uchar *page,
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
   int data_length= share->block_size - CRC_SIZE;
   uint32 crc= maria_page_crc(page_no & UINT_MAX32, page, data_length);
-  DBUG_ENTER("maria_page_crc_set");
+  DBUG_ENTER("maria_page_crc_set_normal");
   DBUG_PRINT("info", ("Page %lu  crc: %lu", (ulong) page_no, (ulong)crc));
 
   /* crc is on the stack so it is aligned, pagecache buffer is aligned, too */
