@@ -3675,7 +3675,7 @@ Misc options
                         to shutdown etc.
   repeat=N              Run each test N number of times
   retry=N               Retry tests that fail N times, limit number of failures
-                        to $max_failures
+                        to $opt_retry_failure
   retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
