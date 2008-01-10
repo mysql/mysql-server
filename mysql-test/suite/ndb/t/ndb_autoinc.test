@@ -27,9 +27,11 @@ CREATE TABLE t3 (
   KEY(id)
 ) ENGINE=MYISAM;
 
+--disable_result_log
 --error 1005
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
+--enable_result_log
 
 SHOW CREATE TABLE t3;
 

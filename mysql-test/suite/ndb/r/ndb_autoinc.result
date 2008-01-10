@@ -18,7 +18,6 @@ KEY(id)
 ) ENGINE=MYISAM;
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
-ERROR HY000: Can't create table 'test.#sql-7b9e_3' (errno: 4335)
 SHOW CREATE TABLE t3;
 Table	Create Table
 t3	CREATE TABLE `t3` (
