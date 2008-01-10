@@ -227,6 +227,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   strmake((char*) forminfo+47, create_info->comment.str ?
           create_info->comment.str : "", create_info->comment.length);
   forminfo[46]=(uchar) create_info->comment.length;
+#ifdef EXTRA_DEBUG
+  /*
+    EXTRA_DEBUG causes strmake() to initialize its buffer behind the
+    payload with a magic value to detect wrong buffer-sizes. We
+    explicitly zero that segment again.
+  */
+  memset((char*) forminfo+47 + forminfo[46], 0, 61 - forminfo[46]);
+#endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (part_info)
   {
