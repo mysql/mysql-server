@@ -1173,11 +1173,22 @@ class Item_func_group_concat : public Item_sum
   String *separator;
   TREE tree_base;
   TREE *tree;
+
+  /**
+     If DISTINCT is used with this GROUP_CONCAT, this member is used to filter
+     out duplicates. 
+     @see Item_func_group_concat::setup
+     @see Item_func_group_concat::add
+     @see Item_func_group_concat::clear
+   */
+  Unique *unique_filter;
   TABLE *table;
   ORDER **order;
   Name_resolution_context *context;
-  uint arg_count_order;               // total count of ORDER BY items
-  uint arg_count_field;               // count of arguments
+  /** The number of ORDER BY items. */
+  uint arg_count_order;
+  /** The number of selected items, aka the expr list. */
+  uint arg_count_field;
   uint count_cut_values;
   bool distinct;
   bool warning_for_row;
@@ -1190,13 +1201,10 @@ class Item_func_group_concat : public Item_sum
   */
   Item_func_group_concat *original;
 
-  friend int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
-					      uchar* key2);
-  friend int group_concat_key_cmp_with_order(void* arg, uchar* key1,
-					     uchar* key2);
-  friend int group_concat_key_cmp_with_distinct_and_order(void* arg,
-							uchar* key1,
-							uchar* key2);
+  friend int group_concat_key_cmp_with_distinct(void* arg, const void* key1,
+                                                const void* key2);
+  friend int group_concat_key_cmp_with_order(void* arg, const void* key1,
+					     const void* key2);
   friend int dump_leaf_key(uchar* key,
                            element_count count __attribute__((unused)),
 			   Item_func_group_concat *group_concat_item);
@@ -1207,7 +1215,7 @@ public:
                          SQL_LIST *is_order, String *is_separator);
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
-  ~Item_func_group_concat() {}
+  ~Item_func_group_concat();
   void cleanup();
 
   enum Sumfunctype sum_func () const {return GROUP_CONCAT_FUNC;}

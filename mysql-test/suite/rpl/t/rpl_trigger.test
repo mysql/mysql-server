@@ -101,10 +101,12 @@ let $time=`select a from t1`;
 #   - dump definers on the slave;
 
 SELECT routine_name, definer
-FROM information_schema.routines;
+FROM information_schema.routines
+WHERE routine_name = 'bug12480';
 
 SELECT trigger_name, definer
-FROM information_schema.triggers;
+FROM information_schema.triggers
+WHERE trigger_name = 't1_first';
 
 save_master_pos;
 connection slave;
@@ -119,10 +121,12 @@ select "--- On slave --" as "";
 # item.
 
 SELECT routine_name, definer
-FROM information_schema.routines;
+FROM information_schema.routines
+WHERE routine_name = 'bug12480';
 
 SELECT trigger_name, definer
-FROM information_schema.triggers;
+FROM information_schema.triggers
+WHERE trigger_name = 't1_first';
 
 select a=b && a=c from t1;
 --disable_query_log
