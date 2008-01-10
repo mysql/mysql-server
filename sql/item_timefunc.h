@@ -340,7 +340,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_newdate(maybe_null, name, t_arg, &my_charset_bin));
   }  
   bool result_as_longlong() { return TRUE; }
   my_decimal *val_decimal(my_decimal *decimal_value)
@@ -784,7 +784,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_DATE; }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_newdate(maybe_null, name, t_arg, &my_charset_bin));
   }  
   void fix_length_and_dec()
   {
@@ -884,7 +884,7 @@ public:
   }
   Field *tmp_table_field(TABLE *t_arg)
   {
-    return (new Field_date(maybe_null, name, t_arg, &my_charset_bin));
+    return (new Field_newdate(maybe_null, name, t_arg, &my_charset_bin));
   }
   longlong val_int();
   my_decimal *val_decimal(my_decimal *decimal_value)
