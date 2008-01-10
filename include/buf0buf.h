@@ -1277,8 +1277,35 @@ buf_pool_mutex directly. */
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));	\
 	mutex_enter(&buf_pool_mutex);		\
 } while (0)
+
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+/** Flag to forbid the release of the buffer pool mutex.
+Protected by buf_pool_mutex. */
+extern ulint	buf_pool_mutex_exit_forbidden;
+/* Forbid the release of the buffer pool mutex. */
+# define buf_pool_mutex_exit_forbid() do {	\
+	ut_ad(buf_pool_mutex_own());		\
+	buf_pool_mutex_exit_forbidden++;	\
+} while (0)
+/* Allow the release of the buffer pool mutex. */
+# define buf_pool_mutex_exit_allow() do {	\
+	ut_ad(buf_pool_mutex_own());		\
+	ut_a(buf_pool_mutex_exit_forbidden);	\
+	buf_pool_mutex_exit_forbidden--;	\
+} while (0)
 /* Release the buffer pool mutex. */
-#define buf_pool_mutex_exit() mutex_exit(&buf_pool_mutex)
+# define buf_pool_mutex_exit() do {		\
+	ut_a(!buf_pool_mutex_exit_forbidden);	\
+	mutex_exit(&buf_pool_mutex);		\
+} while (0)
+#else
+/* Forbid the release of the buffer pool mutex. */
+# define buf_pool_mutex_exit_forbid() ((void) 0)
+/* Allow the release of the buffer pool mutex. */
+# define buf_pool_mutex_exit_allow() ((void) 0)
+/* Release the buffer pool mutex. */
+# define buf_pool_mutex_exit() mutex_exit(&buf_pool_mutex)
+#endif
 
 /************************************************************************
 Let us list the consistency conditions for different control block states.
