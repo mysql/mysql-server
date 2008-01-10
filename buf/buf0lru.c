@@ -267,6 +267,7 @@ buf_LRU_search_and_free_block(
 	ibool		freed;
 
 	buf_pool_mutex_enter();
+	buf_pool_mutex_exit_forbid();
 
 	freed = FALSE;
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
@@ -355,6 +356,7 @@ func_exit:
 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
 	}
+	buf_pool_mutex_exit_allow();
 	buf_pool_mutex_exit();
 
 	return(freed);
@@ -983,7 +985,9 @@ buf_LRU_free_block(
 		If it cannot be allocated (without freeing a block
 		from the LRU list), refuse to free bpage. */
 alloc:
+		buf_pool_mutex_exit_forbid();
 		b = buf_buddy_alloc(sizeof *b, NULL);
+		buf_pool_mutex_exit_allow();
 
 		if (UNIV_UNLIKELY(!b)) {
 			return(FALSE);
@@ -1155,7 +1159,9 @@ buf_LRU_block_free_non_file_page(
 	if (data) {
 		block->page.zip.data = NULL;
 		mutex_exit(&block->mutex);
+		buf_pool_mutex_exit_forbid();
 		buf_buddy_free(data, page_zip_get_size(&block->page.zip));
+		buf_pool_mutex_exit_allow();
 		mutex_enter(&block->mutex);
 		page_zip_set_size(&block->page.zip, 0);
 	}
@@ -1305,9 +1311,11 @@ buf_LRU_block_remove_hashed_page(
 		UT_LIST_REMOVE(list, buf_pool->zip_clean, bpage);
 
 		mutex_exit(&buf_pool_zip_mutex);
+		buf_pool_mutex_exit_forbid();
 		buf_buddy_free(bpage->zip.data,
 			       page_zip_get_size(&bpage->zip));
 		buf_buddy_free(bpage, sizeof(*bpage));
+		buf_pool_mutex_exit_allow();
 		UNIV_MEM_UNDESC(bpage);
 		return(BUF_BLOCK_ZIP_FREE);
 
