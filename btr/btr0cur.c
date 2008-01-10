@@ -4415,9 +4415,9 @@ inflate_error:
 			fprintf(stderr,
 				"  InnoDB: inflate() of"
 				" compressed BLOB"
-				" page %lu space %lu returned %d\n",
+				" page %lu space %lu returned %d (%s)\n",
 				(ulong) page_no, (ulong) space_id,
-				err);
+				err, d_stream->msg);
 		case Z_BUF_ERROR:
 			goto end_of_blob;
 		}
