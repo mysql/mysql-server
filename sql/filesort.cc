@@ -245,10 +245,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
+    if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
+    {
+      x_free(table_sort.buffpek);
+      table_sort.buffpek= 0;
+    }
     if (!(table_sort.buffpek=
           (uchar *) read_buffpek_from_file(&buffpek_pointers, maxbuffer,
-                                 (table_sort.buffpek_len < maxbuffer ?
-                                  NULL : table_sort.buffpek))))
+                                 table_sort.buffpek)))
       goto err;
     buffpek= (BUFFPEK *) table_sort.buffpek;
     table_sort.buffpek_len= maxbuffer;
