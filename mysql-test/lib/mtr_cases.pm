@@ -892,8 +892,19 @@ sub collect_one_test_case {
     my $config= "$suitedir/my.cnf";
     if (! -f $config )
     {
-      # Suite has no config, use default.cnf
+      # assume default.cnf will be used
       $config= "include/default_my.cnf";
+
+      # Suite has no config, autodetect which one to use
+      if ( $tinfo->{rpl_test} ){
+	$config= "suite/rpl/my.cnf";
+	if ( $tinfo->{ndb_test} ){
+	  $config= "suite/rpl_ndb/my.cnf";
+	}
+      }
+      elsif ( $tinfo->{ndb_test} ){
+	$config= "suite/ndb/my.cnf";
+      }
     }
     $tinfo->{template_path}= $config;
   }
