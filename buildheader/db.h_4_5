@@ -83,7 +83,9 @@ typedef enum {
 #define DB_CURRENT 6
 #define DB_NEXT 16
 #define DB_NEXT_DUP 17
+#define DB_NEXT_NODUP 18
 #define DB_PREV 23
+#define DB_PREV_NODUP 24
 #define DB_SET 25
 #define DB_SET_RANGE 27
 #define DB_RMW 1073741824

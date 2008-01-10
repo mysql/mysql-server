@@ -92,7 +92,12 @@ void print_defines (void) {
     dodefine(DB_CURRENT);
     dodefine(DB_NEXT);
     dodefine(DB_NEXT_DUP);
+    dodefine(DB_NEXT_NODUP);
     dodefine(DB_PREV);
+#ifdef DB_PREV_DUP
+    dodefine(DB_PREV_DUP);
+#endif
+    dodefine(DB_PREV_NODUP);
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
     dodefine(DB_RMW);
