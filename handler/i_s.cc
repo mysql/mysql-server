@@ -1064,13 +1064,13 @@ i_s_zip_fill_low(
 	/* Determine log2(PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW). */
 	for (uint r = PAGE_ZIP_MIN_SIZE / 2 / BUF_BUDDY_LOW; r >>= 1; y++);
 
-	mutex_enter(&buf_pool->mutex);
+	buf_pool_mutex_enter();
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		table->field[0]->store(BUF_BUDDY_LOW << x);
 		table->field[1]->store(buf_buddy_relocated[x]);
 		if (reset) {
-			/* This is protected by buf_pool->mutex. */
+			/* This is protected by buf_pool_mutex. */
 			buf_buddy_relocated[x] = 0;
 		}
 
@@ -1103,7 +1103,7 @@ i_s_zip_fill_low(
 		}
 	}
 
-	mutex_exit(&buf_pool->mutex);
+	buf_pool_mutex_exit();
 	DBUG_RETURN(status);
 }
 

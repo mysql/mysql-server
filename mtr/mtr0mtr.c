@@ -314,9 +314,9 @@ mtr_memo_contains_page(
 {
 	ibool	ret;
 
-	mutex_enter(&buf_pool->mutex);
+	buf_pool_mutex_enter();
 	ret = mtr_memo_contains(mtr, buf_block_align(ptr), type);
-	mutex_exit(&buf_pool->mutex);
+	buf_pool_mutex_exit();
 	return(ret);
 }
 
