@@ -139,13 +139,19 @@ void generate_log_struct (void) {
     DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
     fprintf(hf, "  struct log_entry *next; /* for in-memory list of log entries */\n");
+    fprintf(hf, "  struct log_entry *tmp;  /* This will be a back pointer, but it is only created if needed (e.g., when abort is called. */\n");
     fprintf(hf, "};\n");
 }
 
 void generate_dispatch (void) {
-    fprintf(hf, "#define logtype_dispatch(s, funprefix) ({ switch(s.cmd) {\\\n");
-    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: funprefix ## %s (&s.u.%s); break;\\\n", lt->name, lt->name, lt->name));
+    fprintf(hf, "#define logtype_dispatch(s, funprefix) ({ switch((s)->cmd) {\\\n");
+    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: funprefix ## %s (&(s)->u.%s); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
+
+    fprintf(hf, "#define logtype_dispatch_assign(s, funprefix, var, args...) ({ switch((s)->cmd) {\\\n");
+    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, ## args); break;\\\n", lt->name, lt->name, lt->name));
+    fprintf(hf, " }})\n");
+
 }
 		
 

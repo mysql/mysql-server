@@ -254,7 +254,7 @@ int main (int argc, char *argv[]) {
 	while ((r = toku_log_fread(f, &le))==0) {
 	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
 	    static int prevcount=-1;
-	    logtype_dispatch(le, toku_recover_);
+	    logtype_dispatch(&le, toku_recover_);
 	    if (0) {
 		int thiscount = 0;
 		int cfi;

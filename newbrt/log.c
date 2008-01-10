@@ -8,6 +8,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -658,4 +659,37 @@ TXNID toku_txn_get_txnid (TOKUTXN txn) {
 
 LSN toku_txn_get_last_lsn (TOKUTXN txn) {
     return txn->last_lsn;
+}
+
+int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn) {
+    toku_logger_panic(txn->logger, EINVAL);
+    return EINVAL;
+}
+
+#define ABORTIT { le=le; txn=txn; abort(); }
+int toku_abort_logentry_delete (struct logtype_delete *le, TOKUTXN txn)               ABORTIT
+int toku_abort_logentry_fcreate (struct logtype_fcreate *le, TOKUTXN txn)             ABORTIT
+int toku_abort_logentry_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
+int toku_abort_logentry_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn)       ABORTIT
+int toku_abort_logentry_fopen (struct logtype_fopen *le, TOKUTXN txn)                 ABORTIT
+int toku_abort_logentry_insertinleaf (struct logtype_insertinleaf *le, TOKUTXN txn)   ABORTIT
+int toku_abort_logentry_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
+int toku_abort_logentry_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) ABORTIT
+
+int toku_logger_abort(TOKUTXN txn) {
+    // Must undo everything.  Must undo it all in reverse order.
+    // Build the reverse list
+    struct log_entry *prev=0;
+    struct log_entry *item=txn->oldest_logentry;
+    while (item) {
+	item->tmp=prev;
+	prev=item;
+	item=item->next;
+    }
+    for (item=txn->newest_logentry; item; item=item->tmp) {
+	int r;
+	logtype_dispatch_assign(item, toku_abort_logentry_, r, txn);
+	if (r!=0) return r;
+    }
+    return 0;
 }

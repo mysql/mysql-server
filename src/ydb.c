@@ -369,10 +369,6 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
         char* full_dir = NULL;
         if (env->i->lg_dir) full_dir = construct_full_name(env->i->dir, env->i->lg_dir);
 	assert(env->i->logger);
-	if (r!=0) {
-	    do_error(env, r, "Could not create logger\n");
-	    goto died1;
-	}
         r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
         if (full_dir) toku_free(full_dir);
 	if (r!=0) {
@@ -694,8 +690,7 @@ static TXNID next_txn = 0;
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    fprintf(stderr, "toku_txn_abort(%p)\n", txn);
-    abort();
+    return toku_logger_abort(txn->mgrp->i->logger);
 }
 
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
