@@ -11,6 +11,8 @@ Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
+Next LGMAN 15001
+Next TSMAN 16001
 Next SUMA 13034
 
 TESTING NODE FAILURE, ARBITRATION
@@ -547,3 +549,11 @@ NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
+
+LGMAN:
+-----
+15000: Fail to create log file
+
+TSMAN:
+-----
+16000: Fail to create data file
