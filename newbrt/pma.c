@@ -770,6 +770,7 @@ static int pma_next_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     return here;
 }
 
+#if 0 /* not used yet */
 /* find the previous matching key in the pma starting from index here */
 static int pma_prev_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     assert(here < n);
@@ -783,6 +784,7 @@ static int pma_prev_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
     }
     return here;
 }
+#endif
 
 int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val) {
     PMA pma = c->pma;
@@ -821,47 +823,7 @@ int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val) {
     return r;
 }
 
-
-/* set lastkeymatch if the kv pair under the cursor is the last one in the pma
-   compare with the next and previous valid pma entries */
-
-static void pma_cursor_key_last(PMA_CURSOR c, int *lastkeymatch) {
-    *lastkeymatch = 1;
-    PMA pma = c->pma;
-    if (pma->dup_mode & TOKU_DB_DUPSORT) {
-        int here, found;
-
-        /* get the current key */
-        here = c->position; assert(0 <= here && here < (int) pma->N);
-        struct kv_pair *kv = kv_pair_ptr(pma->pairs[here]);
-        DBT currentkey; toku_fill_dbt(&currentkey, kv_pair_key(kv), kv_pair_keylen(kv));
-        DBT currentval; toku_fill_dbt(&currentval, kv_pair_val(kv), kv_pair_vallen(kv));
-
-        /* check if the next key == current key */
-        here = c->position+1;
-        for (;;) {
-            here = pma_next_key(pma, &currentkey, &currentval, here, pma->N, &found);
-            if (!found) break; 
-            if (kv_pair_valid(pma->pairs[here])) {
-                *lastkeymatch = 0; /* next key == current key */
-                return;
-            }
-        }
-
-        /* check if the prev key == current key */
-        here = c->position-1;
-        for (;;) {
-            here = pma_prev_key(pma, &currentkey, &currentval, here, pma->N, &found);
-            if (!found) break;
-            if (kv_pair_valid(pma->pairs[here])) {
-                *lastkeymatch = 0; /* prev key == current key */
-                return;
-            }
-        }
-    }
-}
-
-int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint, int *lastkeymatch) {
+int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint) {
     int r = DB_NOTFOUND;
     if (c->position >= 0) {
         PMA pma = c->pma;
@@ -873,8 +835,6 @@ int toku_pma_cursor_delete_under(PMA_CURSOR c, int *kvsize, u_int32_t rand4sem, 
 	    *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
             pma->pairs[c->position] = kv_pair_set_deleted(kv);
             r = 0;
-            if (lastkeymatch) 
-                pma_cursor_key_last(c, lastkeymatch);
         }
     }
     return r;

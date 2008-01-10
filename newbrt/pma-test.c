@@ -2000,10 +2000,10 @@ static void test_pma_cursor_delete_under() {
     PMA_CURSOR cursor;
     error = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(error == 0);
 
-    int kvsize, lastkey;
+    int kvsize;
 
     /* delete under an uninitialized cursor should fail */
-    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, 0);
+    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
     assert(error == DB_NOTFOUND);
 
     int k, v;
@@ -2035,11 +2035,11 @@ static void test_pma_cursor_delete_under() {
         toku_free(val.data);
 
         /* delete under should succeed */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
-        assert(error == 0 && lastkey);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
+        assert(error == 0);
 
         /* 2nd delete under should fail */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, 0);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
         assert(error == DB_NOTFOUND);
     }
     assert(i == n);
@@ -2068,10 +2068,10 @@ static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
     PMA_CURSOR cursor;
     error = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(error == 0);
 
-    int kvsize, lastkey;
+    int kvsize;
 
     /* delete under an uninitialized cursor should fail */
-    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+    error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
     assert(error == DB_NOTFOUND);
 
     int k, v;
@@ -2109,12 +2109,11 @@ static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
         toku_free(val.data);
 
         /* delete under should succeed */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
         assert(error == 0);
-        if (i == 0 || i >= n-2) assert(lastkey);
 
         /* 2nd delete under should fail */
-        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint, &lastkey);
+        error = toku_pma_cursor_delete_under(cursor, &kvsize, rand4fingerprint, &expect_fingerprint);
         assert(error == DB_NOTFOUND);
     }
     assert(i == n);

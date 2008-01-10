@@ -2647,7 +2647,7 @@ int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags __attribute__((__unused_
         BRTNODE node = cursor->path[cursor->path_len-1];
         assert(node->height == 0);
         int kvsize;
-        r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize, node->rand4fingerprint, &node->local_fingerprint, 0);
+        r = toku_pma_cursor_delete_under(cursor->pmacurs, &kvsize, node->rand4fingerprint, &node->local_fingerprint);
         if (r == 0) {
             node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kvsize;
             node->dirty = 1;
