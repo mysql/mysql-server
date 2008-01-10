@@ -267,7 +267,6 @@ buf_LRU_search_and_free_block(
 	ibool		freed;
 
 	buf_pool_mutex_enter();
-	buf_pool_mutex_exit_forbid();
 
 	freed = FALSE;
 	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
@@ -356,7 +355,6 @@ func_exit:
 	if (!freed) {
 		buf_pool->LRU_flush_ended = 0;
 	}
-	buf_pool_mutex_exit_allow();
 	buf_pool_mutex_exit();
 
 	return(freed);
