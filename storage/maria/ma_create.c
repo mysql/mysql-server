@@ -1331,6 +1331,13 @@ int _ma_update_create_rename_lsn(MARIA_SHARE *share,
      @retval 1      error (disk problem)
 */
 
+#if (_MSC_VER == 1310)
+/*
+ Visual Studio 2003 compiler produces internal compiler error
+ in this function. Disable optimizations to workaround.
+*/
+#pragma optimize("",off)
+#endif
 int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
                                      LSN lsn, my_bool do_sync)
 {
@@ -1358,3 +1365,8 @@ int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
                    MARIA_FILE_CREATE_RENAME_LSN_OFFSET, MYF(MY_NABP)) ||
     (do_sync && my_sync(file, MYF(0)));
 }
+#if (_MSC_VER == 1310)
+#pragma optimize("",on)
+#endif /*VS2003 compiler bug workaround*/
+
+
