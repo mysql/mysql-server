@@ -1,7 +1,8 @@
-#### suite/funcs_1/t/myisam_storedproc.test
+#### suite/funcs_1/t/ndb_storedproc.test
 #
 
-let $engine_type= myisam;
+--source include/have_ndb.inc
+let $engine_type= ndb;
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 
