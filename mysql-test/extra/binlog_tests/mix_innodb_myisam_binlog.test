@@ -315,11 +315,21 @@ disconnect con3;
 
 connection con4;
 select get_lock("a",10); # wait for rollback to finish
+flush logs;
 
 # we check that the error code of the "ROLLBACK" event is 0 and not
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
---exec $MYSQL_BINLOG --start-position=547 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+if (`select @@binlog_format = 'ROW'`)
+{
+  --exec $MYSQL_BINLOG --start-position=524 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+}
+
+if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
+{
+  --exec $MYSQL_BINLOG --start-position=555 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+}
+
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
@@ -360,7 +370,7 @@ rollback;
 select count(*) from tt /* 2 */;
 show master status;
 --replace_column 2 # 5 #
-show binlog events from 98;
+show binlog events from 106;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from ti /* that is what slave would miss - a bug */;
@@ -385,12 +395,12 @@ rollback;
 
 show master status;
 --replace_column 2 # 5 #
-show binlog events from 98;
+show binlog events from 106;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from tt /* that is what otherwise slave missed - the bug */;
 
-drop table ti;
+drop table ti, tt;
 
 
 #
