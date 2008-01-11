@@ -3,12 +3,14 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include <errno.h>
+
 #include "../include/db.h"
 #include "brttypes.h"
 #include "kv-pair.h"
-#include <errno.h>
 
 int toku_logger_create(TOKULOGGER */*resultp*/);
+void toku_logger_set_cachetable (TOKULOGGER, CACHETABLE);
 int toku_logger_open(const char */*directory*/, TOKULOGGER);
 int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes);
 int toku_logger_close(TOKULOGGER *logger);

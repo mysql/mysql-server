@@ -74,6 +74,11 @@ int toku_logger_create (TOKULOGGER *resultp) {
     return 0;
 }
 
+void toku_logger_set_cachetable (TOKULOGGER tl, CACHETABLE ct) {
+    tl->ct = ct;
+}
+
+
 int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->is_open) return EINVAL;
     if (logger->is_panicked) return EINVAL;

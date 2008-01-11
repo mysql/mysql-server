@@ -381,6 +381,9 @@ static int toku_db_env_open(DB_ENV * env, const char *home, u_int32_t flags, int
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
+
+    toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
+
     return 0;
 }
 

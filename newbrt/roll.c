@@ -215,7 +215,23 @@ void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     toku_free(c->data.data);
 }
 
-int toku_rollback_insertinleaf (struct logtype_insertinleaf *le, TOKUTXN txn)   ABORTIT
+int toku_rollback_insertinleaf (struct logtype_insertinleaf *c, TOKUTXN txn)  {
+    CACHEFILE cf;
+    BRT brt;
+    void *node_v;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, c->filenum, &cf, &brt);
+    assert(r==0);
+    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    if (r!=0) return r;
+    BRTNODE node = node_v;
+    r = toku_pma_clear_at_index(node->u.l.buffer, c->pmaidx);
+    if (r!=0) return r;
+    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
+    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
+    VERIFY_COUNTS(node);
+    r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    return r;
+}
 
 
 // a newbrtnode should have been done before this

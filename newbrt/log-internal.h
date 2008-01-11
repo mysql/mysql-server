@@ -20,6 +20,7 @@ struct tokulogger {
     LSN lsn;
     char buf[LOGGER_BUF_SIZE];
     int  n_in_buf;
+    CACHETABLE ct;
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
