@@ -131,6 +131,11 @@ int Db::set_dup_compare(dup_compare_fcn_type dup_compare_fcn) {
     return the_Env->maybe_throw_error(ret);
 }
 
+int Db::fd(int *fdp) {
+    int ret = the_db->fd(the_db, fdp);
+    return the_Env->maybe_throw_error(ret);
+}
+
 extern "C" int toku_dup_compare_callback_c(DB *db_c, const DBT *a, const DBT *b) {
     Db *db_cxx=Db::get_Db(db_c);
     return db_cxx->dup_compare_callback_cxx(db_cxx, Dbt::get_const_Dbt(a), Dbt::get_const_Dbt(b));

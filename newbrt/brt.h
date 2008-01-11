@@ -60,4 +60,6 @@ extern int toku_brt_do_push_cmd; // control whether push occurs eagerly.
 int toku_brt_dbt_set_key (BRT, DBT*, bytevec val, ITEMLEN vallen);
 int toku_brt_dbt_set_value (BRT, DBT*, bytevec val, ITEMLEN vallen);
 
+int toku_brt_get_fd(BRT, int *);
+
 #endif
