@@ -132,6 +132,8 @@ void generate_log_struct (void) {
 		    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
 		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
 		    fprintf(hf, "};\n");
+		    fprintf(hf, "void toku_recover_%s (struct logtype_%s *);\n", lt->name, lt->name);
+		    fprintf(hf, "int toku_rollback_%s (struct logtype_%s *, TOKUTXN);\n", lt->name, lt->name);
 		}));
     fprintf(hf, "struct log_entry {\n");
     fprintf(hf, "  enum lt_cmd cmd;\n");

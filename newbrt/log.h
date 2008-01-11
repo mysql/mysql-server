@@ -131,4 +131,7 @@ static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER val) {
     toku_free(val.u.many.roots);
 }
 
+int toku_recover_init(void);
+void toku_recover_cleanup(void);
+
 #endif

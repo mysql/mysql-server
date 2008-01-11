@@ -66,11 +66,13 @@ BINS =  $(REGRESSION_TESTS) \
 
 tdb_logprint: LDFLAGS+=-lz
 tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h
-tdb_logprint: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o
+tdb_logprint: log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o roll.o brt.o cachetable.o brt-verify.o key.o
 
 recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
-recover: recover.o log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o cachetable.o brt.o brt-verify.o key.o
+recover: recover.o log_code.o memory.o log.o brt-serialize.o hashtable.o pma.o ybt.o fingerprint.o mempool.o primes.o cachetable.o brt.o brt-verify.o key.o roll.o
+
+roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 
 log_code.o: log_header.h wbuf.h log-internal.h
 log_code.c log_header.h: logformat
@@ -107,13 +109,13 @@ pma-test benchmark-test brt-test brt-serialize-test: LDFLAGS+=-lz
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h hashtable.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
 key.o: brttypes.h key.h
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
-pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o hashtable.o primes.o log_code.o
+pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o hashtable.o primes.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
+brt-test: ybt.o brt.o hashtable.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 brt-test.o brt.o: brt.h ../include/db.h hashtable.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
@@ -129,7 +131,7 @@ log-test: log.o memory.o
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o hashtable.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 test_toku_malloc_plain_free: memory.o
 
 
@@ -139,7 +141,7 @@ cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
 cachetable-test2.o: cachetable.h memory.h
 cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
 
-benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o hashtable.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 benchmark-test.o: brt.h ../include/db.h
 
 checko2:

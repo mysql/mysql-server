@@ -666,16 +666,6 @@ int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unuse
     return EINVAL;
 }
 
-#define ABORTIT { le=le; txn=txn; abort(); }
-int toku_abort_logentry_delete (struct logtype_delete *le, TOKUTXN txn)               ABORTIT
-int toku_abort_logentry_fcreate (struct logtype_fcreate *le, TOKUTXN txn)             ABORTIT
-int toku_abort_logentry_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
-int toku_abort_logentry_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn)       ABORTIT
-int toku_abort_logentry_fopen (struct logtype_fopen *le, TOKUTXN txn)                 ABORTIT
-int toku_abort_logentry_insertinleaf (struct logtype_insertinleaf *le, TOKUTXN txn)   ABORTIT
-int toku_abort_logentry_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
-int toku_abort_logentry_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) ABORTIT
-
 int toku_logger_abort(TOKUTXN txn) {
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -688,7 +678,7 @@ int toku_logger_abort(TOKUTXN txn) {
     }
     for (item=txn->newest_logentry; item; item=item->tmp) {
 	int r;
-	logtype_dispatch_assign(item, toku_abort_logentry_, r, txn);
+	logtype_dispatch_assign(item, toku_rollback_, r, txn);
 	if (r!=0) return r;
     }
     return 0;
