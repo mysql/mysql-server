@@ -63,4 +63,7 @@ typedef struct intpairarray {
     } *array;
 } INTPAIRARRAY;
 
+typedef struct cachetable *CACHETABLE;
+typedef struct cachefile *CACHEFILE;
+
 #endif

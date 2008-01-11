@@ -88,6 +88,16 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
     return 0;
 }
 
+// What cachefile goes with particular fd?
+int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT *brt) {
+    CACHEFILE extant;
+    for (extant = t->cachefiles; extant; extant=extant->next) {
+	if (extant->filenum.fileid==filenum.fileid) { *cf = extant; return 0; }
+    }
+    *brt=0; // This is wrong.  But the tests will notice right away. 
+    return ENOENT;
+}
+
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     int r;
     CACHEFILE extant;

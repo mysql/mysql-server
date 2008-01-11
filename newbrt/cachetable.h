@@ -9,8 +9,6 @@
 /* Implement the cache table. */
 
 typedef long long CACHEKEY;
-typedef struct cachetable *CACHETABLE;
-typedef struct cachefile *CACHEFILE;
 
 /* Maintain a cache mapping from cachekeys to values (void*)
  * Some of the keys can be pinned.  Don't pin too many or for too long.
@@ -83,5 +81,9 @@ void toku_cachetable_verify (CACHETABLE t); // Slow...
 
 TOKULOGGER toku_cachefile_logger (CACHEFILE);
 FILENUM toku_cachefile_filenum (CACHEFILE);
+
+// What is the cachefile that goes with a particular filenum?
+// During a transaction, we cannot reuse a filenum.
+int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT *brt);
 
 #endif

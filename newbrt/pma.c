@@ -1577,6 +1577,15 @@ int toku_pma_set_at_index (PMA pma, unsigned int idx, DBT *key, DBT *value) {
     return 0;
 }
 
+int toku_pma_clear_at_index (PMA pma, unsigned int idx) {
+    if (idx>=pma->N) return -1;
+    if (!kv_pair_inuse(pma->pairs[idx])) return -1;
+    pma_mfree_kv_pair(pma, pma->pairs[idx]);
+    pma->pairs[idx]=0;
+    pma->n_pairs_present++;
+    return 0;
+}
+
 // assume no cursors
 int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
     u_int32_t i;
