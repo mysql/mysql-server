@@ -7,8 +7,9 @@ MYSQL_PLUGIN_STATIC(maria,     [libmaria.a])
 # so we don't declare it mandatory.
 MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(maria, [ha_maria.cc])
 
+MYSQL_PLUGIN_ACTIONS(maria,  [
 AC_ARG_WITH(maria-tmp-tables,
-    [  --with-maria-tmp-tables      Use Maria for internal temporary tables.],
+    AC_HELP_STRING([--with-maria-tmp-tables],[Use Maria for internal temporary tables]),
     [with_maria_tmp_tables=$withval],
     [with_maria_tmp_tables=yes]
 )
@@ -17,3 +18,5 @@ if test "$with_maria_tmp_tables" = "yes"
 then
   AC_DEFINE([USE_MARIA_FOR_TMP_TABLES], [1], [Maria is used for internal temporary tables])
 fi
+
+])
