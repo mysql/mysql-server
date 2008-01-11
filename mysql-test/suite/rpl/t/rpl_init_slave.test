@@ -4,6 +4,13 @@ source include/master-slave.inc;
 # Test of init_slave variable
 #
 
+connection slave;
+stop slave;
+source include/wait_for_slave_to_stop.inc;
+start slave;
+source include/wait_for_slave_to_start.inc;
+
+connection master;
 save_master_pos;
 connection slave;
 show variables like 'init_slave';
