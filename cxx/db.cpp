@@ -166,3 +166,7 @@ int Db::associate(DbTxn *txnid, Db *secondary, int (*callback)(Db *secondary, co
     int ret = the_db->associate(the_db, txnid->get_DB_TXN(), secondary->get_DB(), toku_associate_callback_c, flags);
     return the_Env->maybe_throw_error(ret);
 }
+
+void Db::set_error_stream(std::ostream *new_error_stream) {
+    the_Env->set_error_stream(new_error_stream);
+}

@@ -127,6 +127,8 @@ class Db {
 
     int fd(int *);
 
+    void set_error_stream(std::ostream *);
+
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
     int (*associate_callback_cxx)(Db *, const Dbt *, const Dbt *, Dbt*);
     int (*bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
