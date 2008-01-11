@@ -149,6 +149,7 @@ delete from t1 where a=0;
 update t1 set a=0 where b=5;
 select * from t1 order by b;
 delete from t1 where a=0;
+--error 1048
 update t1 set a=NULL where b=6;
 update t1 set a=300 where b=7;
 SET SQL_MODE='';
@@ -164,6 +165,7 @@ delete from t1 where a=0;
 update t1 set a=0 where b=12;
 select * from t1 order by b;
 delete from t1 where a=0;
+--error 1048
 update t1 set a=NULL where b=13;
 update t1 set a=500 where b=14;
 select * from t1 order by b;
