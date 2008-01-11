@@ -1,6 +1,6 @@
 #### suite/funcs_1/t/ndb_triggers.test
 
-# InnoDB tables should be used
+# NDB tables should be used
 #
 # 1. Check if NDB is available
 --source include/have_ndb.inc
@@ -18,14 +18,11 @@ let $engine_type= ndb;
 
 eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
 
-# FIXME Replace the following, when "if" for mysqltest is available
 let $run= `SELECT @NO_REFRESH = 0`;
-while ($run)
+if ($run)
 {
-
     # Create some objects needed in many testcases
     USE test;
-    let $run= 0;
 }
     
 --source suite/funcs_1/triggers/triggers_03e_db_level.inc

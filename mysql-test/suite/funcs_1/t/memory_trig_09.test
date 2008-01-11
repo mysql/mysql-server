@@ -16,16 +16,12 @@ let $engine_type= memory;
 
 eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
 
-# FIXME Replace the following, when "if" for mysqltest is available
 let $run= `SELECT @NO_REFRESH = 0`;
-while ($run)
+if ($run)
 {
-
     # Create some objects needed in many testcases
     USE test;
     --source suite/funcs_1/include/memory_tb3.inc
-
-    let $run= 0;
 }
 
 --source suite/funcs_1/triggers/triggers_09.inc
