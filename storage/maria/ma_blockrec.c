@@ -1987,7 +1987,7 @@ static uchar *store_page_range(uchar *to, MARIA_BITMAP_BLOCK *block,
   to+= SUB_RANGE_SIZE;
 
   /* Store number of unused bytes at last page */
-  empty_space= pages_left * data_size - length;
+  empty_space= (uint) (pages_left * data_size - length);
   int2store(to, empty_space);
   to+= BLOCK_FILLER_SIZE;
 
@@ -2946,9 +2946,10 @@ static my_bool write_block_record(MARIA_HA *info,
     if (tmp_data_used)
     {
       /* Full head page */
-      size_t block_length= (ulong) (tmp_data - info->rec_buff);
+      translog_size_t block_length= (translog_size_t) (tmp_data -
+                                                       info->rec_buff);
       log_pos= store_page_range(log_pos, head_block+1, block_size,
-                                block_length, &extents);
+                                (ulong) block_length, &extents);
       log_array_pos->str=    (char*) info->rec_buff;
       log_array_pos->length= block_length;
       log_entry_length+= block_length;
@@ -3104,9 +3105,9 @@ static my_bool write_block_record(MARIA_HA *info,
         if (translog_write_record(&lsn, LOGREC_UNDO_ROW_UPDATE, info->trn,
                                   info,
                                   (translog_size_t)
-                                  log_array[TRANSLOG_INTERNAL_PARTS +
-                                            0].length + extents_length +
-                                  row_length,
+                                  (log_array[TRANSLOG_INTERNAL_PARTS +
+                                             0].length + extents_length +
+                                   row_length),
                                   TRANSLOG_INTERNAL_PARTS + 2 +
                                   row_parts_count,
                                   log_array, log_data + LSN_STORE_SIZE,

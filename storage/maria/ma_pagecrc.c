@@ -73,7 +73,7 @@ static my_bool maria_page_crc_check(uchar *page,
     }
     DBUG_RETURN(0);
   }
-  new_crc= maria_page_crc(page_no & UINT_MAX32, page, data_length);
+  new_crc= maria_page_crc((uint32) page_no, page, data_length);
   DBUG_ASSERT(new_crc != no_crc_val);
   res= test(new_crc != crc);
   if (res)
@@ -121,7 +121,7 @@ my_bool maria_page_crc_set_normal(uchar *page,
 {
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
   int data_length= share->block_size - CRC_SIZE;
-  uint32 crc= maria_page_crc(page_no & UINT_MAX32, page, data_length);
+  uint32 crc= maria_page_crc((uint32) page_no, page, data_length);
   DBUG_ENTER("maria_page_crc_set_normal");
   DBUG_PRINT("info", ("Page %lu  crc: %lu", (ulong) page_no, (ulong)crc));
 
@@ -147,7 +147,7 @@ my_bool maria_page_crc_set_index(uchar *page,
 {
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
   int data_length= _ma_get_page_used(share, page);
-  uint32 crc= maria_page_crc(page_no & UINT_MAX32, page, data_length);
+  uint32 crc= maria_page_crc((uint32) page_no, page, data_length);
   DBUG_ENTER("maria_page_crc_set");
   DBUG_PRINT("info", ("Page %lu  crc: %lu",
                       (ulong) page_no, (ulong) crc));
@@ -177,7 +177,7 @@ my_bool maria_page_crc_check_data(uchar *page,
                                   uchar *data_ptr)
 {
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
-  return (maria_page_crc_check(page, page_no & UINT_MAX32, share,
+  return (maria_page_crc_check(page, (uint32) page_no, share,
                                MARIA_NO_CRC_NORMAL_PAGE,
                                share->block_size - CRC_SIZE));
 }
@@ -199,7 +199,7 @@ my_bool maria_page_crc_check_bitmap(uchar *page,
                                     uchar *data_ptr)
 {
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
-  return (maria_page_crc_check(page, page_no & UINT_MAX32, share,
+  return (maria_page_crc_check(page, (uint32) page_no, share,
                                MARIA_NO_CRC_BITMAP_PAGE,
                                share->block_size - CRC_SIZE));
 }
@@ -227,7 +227,7 @@ my_bool maria_page_crc_check_index(uchar *page,
     DBUG_PRINT("error", ("Wrong page length: %u", length));
     return (my_errno= HA_ERR_WRONG_CRC);
   }
-  return maria_page_crc_check(page, page_no & UINT_MAX32, share,
+  return maria_page_crc_check(page, (uint32) page_no, share,
                                MARIA_NO_CRC_NORMAL_PAGE,
                               length);
 }
@@ -335,7 +335,7 @@ void maria_page_write_failure(uchar* data_ptr)
 my_bool maria_flush_log_for_page(uchar *page,
                                  pgcache_page_no_t page_no
                                  __attribute__((unused)),
-                                 uchar *data_ptr)
+                                 uchar *data_ptr __attribute__((unused)))
 {
   LSN lsn;
 #ifndef DBUG_OFF

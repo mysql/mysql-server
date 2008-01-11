@@ -228,7 +228,7 @@ static int really_execute_checkpoint(void)
     for (i= 0; i < (sizeof(record_pieces)/sizeof(record_pieces[0])); i++)
     {
       log_array[TRANSLOG_INTERNAL_PARTS + 1 + i]= record_pieces[i];
-      total_rec_length+= record_pieces[i].length;
+      total_rec_length+= (translog_size_t) record_pieces[i].length;
     }
     if (unlikely(translog_write_record(&lsn, LOGREC_CHECKPOINT,
                                        &dummy_transaction_object, NULL,

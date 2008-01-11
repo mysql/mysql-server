@@ -82,7 +82,7 @@ net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
 
 # allow a little moving space for the warning below
 mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
-ma_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
+ma_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 550-650
 
 #
 # Wrong compiler warnings

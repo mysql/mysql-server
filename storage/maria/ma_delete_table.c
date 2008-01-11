@@ -89,6 +89,7 @@ int maria_delete_table(const char *name)
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= strlen(name) + 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DROP_TABLE,
                                        &dummy_transaction_object, NULL,
+                                       (translog_size_t)
                                        log_array[TRANSLOG_INTERNAL_PARTS +
                                                  0].length,
                                        sizeof(log_array)/sizeof(log_array[0]),

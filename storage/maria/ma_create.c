@@ -1037,7 +1037,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
     for (k= TRANSLOG_INTERNAL_PARTS;
          k < (sizeof(log_array)/sizeof(log_array[0])); k++)
-      total_rec_length+= log_array[k].length;
+      total_rec_length+= (translog_size_t) log_array[k].length;
     /**
        For this record to be of any use for Recovery, we need the upper
        MySQL layer to be crash-safe, which it is not now (that would require

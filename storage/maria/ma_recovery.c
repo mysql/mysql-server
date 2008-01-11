@@ -2842,8 +2842,8 @@ static LSN parse_checkpoint_record(LSN lsn)
   nb_dirty_pages= uint8korr(ptr);
 
   /* Ensure casts later will not loose significant bits. */
-  DBUG_ASSERT((nb_dirty_pages <= SIZE_T_MAX/sizeof(struct st_dirty_page))
-    && (nb_dirty_pages <= ULONG_MAX));
+  DBUG_ASSERT((nb_dirty_pages <= SIZE_T_MAX/sizeof(struct st_dirty_page)) &&
+              (nb_dirty_pages <= ULONG_MAX));
 
   ptr+= 8;
   tprint(tracef, "%lu dirty pages\n", (ulong) nb_dirty_pages);

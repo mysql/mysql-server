@@ -10418,7 +10418,7 @@ static bool open_tmp_table(TABLE *table)
 }
 
 
-#ifdef WITH_MARIA_STORAGE_ENGINE
+#if defined(WITH_MARIA_STORAGE_ENGINE) && defined(USE_MARIA_FOR_TMP_TABLES)
 
 /* Create internal Maria temporary table */
 

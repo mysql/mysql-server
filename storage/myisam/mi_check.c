@@ -136,7 +136,7 @@ int chk_status(HA_CHECK *param, register MI_INFO *info)
 
 	/* Check delete links */
 
-int chk_del(HA_CHECK *param, register MI_INFO *info, uint test_flag)
+int chk_del(HA_CHECK *param, register MI_INFO *info, ulonglong test_flag)
 {
   reg2 ha_rows i;
   uint delete_link_length;
@@ -934,7 +934,7 @@ static uint isam_key_length(MI_INFO *info, register MI_KEYDEF *keyinfo)
 
 	/* Check that record-link is ok */
 
-int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend)
+int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
 {
   int	error,got_error,flag;
   uint	key,left_length,b_type,field;
@@ -2494,7 +2494,7 @@ int mi_repair_by_sort(HA_CHECK *param, register MI_INFO *info,
     goto err;
   }
 
-  if (rep_quick & T_FORCE_UNIQUENESS)
+  if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
     my_off_t skr=info->state->data_file_length+
       (share->options & HA_OPTION_COMPRESS_RECORD ?
@@ -3014,7 +3014,7 @@ int mi_repair_parallel(HA_CHECK *param, register MI_INFO *info,
     goto err;
   }
 
-  if (rep_quick & T_FORCE_UNIQUENESS)
+  if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
     my_off_t skr=info->state->data_file_length+
       (share->options & HA_OPTION_COMPRESS_RECORD ?

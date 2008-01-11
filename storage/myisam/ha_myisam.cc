@@ -767,13 +767,13 @@ int ha_myisam::check(THD* thd, HA_CHECK_OPT* check_opt)
 	  (param.testflag & (T_EXTEND | T_MEDIUM)))) ||
 	mi_is_crashed(file))
     {
-      uint old_testflag=param.testflag;
+      ulonglong old_testflag= param.testflag;
       param.testflag|=T_MEDIUM;
       if (!(error= init_io_cache(&param.read_cache, file->dfile,
                                  my_default_record_cache_size, READ_CACHE,
                                  share->pack.header_length, 1, MYF(MY_WME))))
       {
-        error= chk_data_link(&param, file, param.testflag & T_EXTEND);
+        error= chk_data_link(&param, file, test(param.testflag & T_EXTEND));
         end_io_cache(&(param.read_cache));
       }
       param.testflag= old_testflag;
@@ -1030,7 +1030,7 @@ int ha_myisam::optimize(THD* thd, HA_CHECK_OPT *check_opt)
 int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
 {
   int error=0;
-  uint local_testflag=param.testflag;
+  ulonglong local_testflag= param.testflag;
   bool optimize_done= !do_optimize, statistics_done=0;
   const char *old_proc_info=thd->proc_info;
   char fixed_name[FN_REFLEN];
@@ -1079,7 +1079,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
     ulonglong key_map= ((local_testflag & T_CREATE_MISSING_KEYS) ?
 			mi_get_mask_all_keys_active(share->base.keys) :
 			share->state.key_map);
-    uint testflag=param.testflag;
+    ulonglong testflag= param.testflag;
     if (mi_test_if_sort_rep(file,file->state->records,key_map,0) &&
 	(local_testflag & T_REP_BY_SORT))
     {
@@ -1093,7 +1093,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         my_snprintf(buf, 40, "Repair with %d threads", my_count_bits(key_map));
         thd_proc_info(thd, buf);
         error = mi_repair_parallel(&param, file, fixed_name,
-            param.testflag & T_QUICK);
+                                   test(param.testflag & T_QUICK));
         thd_proc_info(thd, "Repair done"); // to reset proc_info, as
                                       // it was pointing to local buffer
       }
@@ -1101,7 +1101,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       {
         thd_proc_info(thd, "Repair by sorting");
         error = mi_repair_by_sort(&param, file, fixed_name,
-            param.testflag & T_QUICK);
+                                  test(param.testflag & T_QUICK));
       }
     }
     else
@@ -1109,7 +1109,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       thd_proc_info(thd, "Repair with keycache");
       param.testflag &= ~T_REP_BY_SORT;
       error=  mi_repair(&param, file, fixed_name,
-			param.testflag & T_QUICK);
+			test(param.testflag & T_QUICK));
     }
     param.testflag=testflag;
     optimize_done=1;

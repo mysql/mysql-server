@@ -1538,6 +1538,8 @@ static void translog_buffer_unlock(struct st_translog_buffer *buffer)
     - space for page header should be checked before
 */
 
+static uchar translog_sector_random;
+
 static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
                                      struct st_buffer_cursor *cursor)
 {
@@ -1572,11 +1574,11 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
   if (log_descriptor.flags & TRANSLOG_SECTOR_PROTECTION)
   {
     /*
-      The time() works like "random" values producer because it is enough to
-      have such "random" for this purpose and it will not interfere with
-      higher level pseudo random value generator
+      translog_sector_randmo works like "random" values producer because
+      it is enough to have such "random" for this purpose and it will
+      not interfere with higher level pseudo random value generator
     */
-    ptr[0]= (uchar)time(NULL);
+    ptr[0]= translog_sector_random++;
     ptr+= TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
   }
   {
@@ -4025,7 +4027,7 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
     }
     else
     {
-      len= part->length;
+      len= (translog_size_t) part->length;
       cur++;
       DBUG_PRINT("info", ("moved to next part (len: %lu)", (ulong) len));
     }
@@ -4088,7 +4090,7 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
   LEX_STRING *part;
   DBUG_ASSERT(parts->current != 0);     /* first part is left for header */
   part= parts->parts + (--parts->current);
-  parts->total_record_length+= (part->length= header_length);
+  parts->total_record_length+= (translog_size_t) (part->length= header_length);
   part->str= (char*)chunk0_header;
   /* puts chunk type */
   *chunk0_header= (uchar) (type | TRANSLOG_CHUNK_LSN);
@@ -4239,7 +4241,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
 
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
   part= parts->parts + (--parts->current);
-  parts->total_record_length+= (part->length= 1 + 2);
+  parts->total_record_length+= (translog_size_t) (part->length= 1 + 2);
   part->str= (char*)chunk3_header;
   /* Puts chunk type */
   *chunk3_header= (uchar) (TRANSLOG_CHUNK_LNGTH);
@@ -5643,7 +5645,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   */
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
   part= parts->parts + (--parts->current);
-  parts->total_record_length+= (part->length= 1 + 2);
+  parts->total_record_length+= (translog_size_t) (part->length= 1 + 2);
   part->str= (char*)chunk1_header;
   *chunk1_header= (uchar) (type | TRANSLOG_CHUNK_FIXED);
   int2store(chunk1_header + 1, short_trid);
@@ -5783,7 +5785,7 @@ my_bool translog_write_record(LSN *lsn,
         part < parts_data + part_no;
         part++)
     {
-      rec_len+= part->length;
+      rec_len+= (translog_size_t) part->length;
     }
   }
   parts.record_length= rec_len;
@@ -5890,9 +5892,8 @@ static int translog_fixed_length_header(uchar *page,
   uchar *src= page + page_offset + 3;
   uchar *dst= buff->header;
   uchar *start= src;
-  uint lsns= desc->compressed_LSN;
+  int lsns= desc->compressed_LSN;
   uint length= desc->fixed_length;
-
   DBUG_ENTER("translog_fixed_length_header");
 
   buff->record_length= length;
@@ -5904,14 +5905,15 @@ static int translog_fixed_length_header(uchar *page,
     lsns*= LSN_STORE_SIZE;
     dst+= lsns;
     length-= lsns;
-    buff->compressed_LSN_economy= (lsns - (src - start));
+    buff->compressed_LSN_economy= (lsns - (int) (src - start));
   }
   else
     buff->compressed_LSN_economy= 0;
 
   memcpy(dst, src, length);
-  buff->non_header_data_start_offset= page_offset +
-    ((src + length) - (page + page_offset));
+  buff->non_header_data_start_offset= (uint16) (page_offset +
+                                                ((src + length) -
+                                                 (page + page_offset)));
   buff->non_header_data_len= 0;
   DBUG_RETURN(buff->record_length);
 }
@@ -6305,7 +6307,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
     uint16 page_rest;
     DBUG_PRINT("info", ("1 group"));
     src+= 2;
-    page_rest= TRANSLOG_PAGE_SIZE - (src - page);
+    page_rest= (uint16) (TRANSLOG_PAGE_SIZE - (src - page));
 
     base_lsn= buff->lsn;
     body_len= min(page_rest, buff->record_length);
@@ -6324,7 +6326,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
       DBUG_RETURN(RECHEADER_READ_ERROR);
     DBUG_PRINT("info", ("Groups: %u", (uint) grp_no));
     src+= (2 + 2);
-    page_rest= TRANSLOG_PAGE_SIZE - (src - page);
+    page_rest= (uint16) (TRANSLOG_PAGE_SIZE - (src - page));
     curr= 0;
     header_to_skip= src - (page + page_offset);
     buff->chunk0_pages= 0;
@@ -6395,7 +6397,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
       src= page + page_offset + header_to_skip;
       chunk_len= uint2korr(src - 2 - 2);
       DBUG_PRINT("info", ("Chunk len: %u", (uint) chunk_len));
-      page_rest= TRANSLOG_PAGE_SIZE - (src - page);
+      page_rest= (uint16) (TRANSLOG_PAGE_SIZE - (src - page));
     }
 
     if (scanner == NULL)
@@ -6413,7 +6415,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
     page= scanner->page;
     page_offset= scanner->page_offset;
     src= page + page_offset + 1;
-    page_rest= TRANSLOG_PAGE_SIZE - (src - page);
+    page_rest= (uint16) (TRANSLOG_PAGE_SIZE - (src - page));
     body_len= page_rest;
     if (scanner == &internal_scanner)
       translog_destroy_scanner(scanner);
@@ -6426,12 +6428,12 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
     dst+= lsns;
     length-= lsns;
     buff->record_length+= (buff->compressed_LSN_economy=
-                           (lsns - (src - start)));
+                           (int) (lsns - (src - start)));
     DBUG_PRINT("info", ("lsns: %u  length: %u  economy: %d  new length: %lu",
                         lsns / LSN_STORE_SIZE, (uint) length,
                         (int) buff->compressed_LSN_economy,
                         (ulong) buff->record_length));
-    body_len-= (src - start);
+    body_len-= (uint16) (src - start);
   }
   else
     buff->compressed_LSN_economy= 0;
@@ -6439,7 +6441,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
   DBUG_ASSERT(body_len >= length);
   body_len-= length;
   memcpy(dst, src, length);
-  buff->non_header_data_start_offset= src + length - page;
+  buff->non_header_data_start_offset= (uint16) (src + length - page);
   buff->non_header_data_len= body_len;
   DBUG_PRINT("info", ("non_header_data_start_offset: %u  len: %u  buffer: %u",
                       buff->non_header_data_start_offset,
@@ -7333,9 +7335,10 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length=
       strlen(share->open_file_name) + 1;
     if (unlikely(translog_write_record(&lsn, LOGREC_FILE_ID, trn, tbl_info,
-                                       sizeof(log_data) +
-                                       log_array[TRANSLOG_INTERNAL_PARTS +
-                                                 1].length,
+                                       (translog_size_t)
+                                       (sizeof(log_data) +
+                                        log_array[TRANSLOG_INTERNAL_PARTS +
+                                                  1].length),
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL)))
       return 1;

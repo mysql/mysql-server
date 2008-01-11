@@ -103,7 +103,7 @@ int main(int argc, char **argv)
 	(!(check_param.testflag & (T_REP | T_REP_BY_SORT | T_SORT_RECORDS |
 				   T_SORT_INDEX))))
     {
-      uint old_testflag=check_param.testflag;
+      ulonglong old_testflag=check_param.testflag;
       if (!(check_param.testflag & T_REP))
 	check_param.testflag|= T_REP_BY_SORT;
       check_param.testflag&= ~T_EXTEND;			/* Don't needed  */
@@ -795,7 +795,7 @@ static void get_options(register int *argc,register char ***argv)
 static int myisamchk(HA_CHECK *param, char * filename)
 {
   int error,lock_type,recreate;
-  int rep_quick= param->testflag & (T_QUICK | T_FORCE_UNIQUENESS);
+  int rep_quick= test(param->testflag & (T_QUICK | T_FORCE_UNIQUENESS));
   uint raid_chunks;
   MI_INFO *info;
   File datafile;
@@ -935,7 +935,7 @@ static int myisamchk(HA_CHECK *param, char * filename)
       param->testflag|=T_REP_BY_SORT;		/* if only STATISTICS */
       if (!(param->testflag & T_SILENT))
 	printf("- '%s' has old table-format. Recreating index\n",filename);
-      rep_quick|=T_QUICK;
+      rep_quick= 1;
     }
     share=info->s;
     share->tot_locks-= share->r_locks;
@@ -1111,7 +1111,7 @@ static int myisamchk(HA_CHECK *param, char * filename)
 	if ((info->s->options & (HA_OPTION_PACK_RECORD |
 				 HA_OPTION_COMPRESS_RECORD)) ||
 	    (param->testflag & (T_EXTEND | T_MEDIUM)))
-	  error|=chk_data_link(param, info, param->testflag & T_EXTEND);
+	  error|=chk_data_link(param, info, test(param->testflag & T_EXTEND));
 	error|=flush_blocks(param, share->key_cache, share->kfile);
 	VOID(end_io_cache(&param->read_cache));
       }

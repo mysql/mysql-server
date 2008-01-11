@@ -372,10 +372,10 @@ typedef struct st_mi_sort_param
 /* functions in mi_check */
 void myisamchk_init(HA_CHECK *param);
 int chk_status(HA_CHECK *param, MI_INFO *info);
-int chk_del(HA_CHECK *param, register MI_INFO *info, uint test_flag);
+int chk_del(HA_CHECK *param, register MI_INFO *info, ulonglong test_flag);
 int chk_size(HA_CHECK *param, MI_INFO *info);
 int chk_key(HA_CHECK *param, MI_INFO *info);
-int chk_data_link(HA_CHECK *param, MI_INFO *info,int extend);
+int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend);
 int mi_repair(HA_CHECK *param, register MI_INFO *info,
 	      char * name, int rep_quick);
 int mi_sort_index(HA_CHECK *param, register MI_INFO *info, char * name);
