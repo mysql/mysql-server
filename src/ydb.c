@@ -862,11 +862,11 @@ static int toku_c_get_next_dup(DBC *c, DBT *key, DBT *data) {
     if (r != 0) goto finish;
     r = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT);
     if (r != 0) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_LAST); assert(rr == 0); /* sticky */
+        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_LAST); if (0) assert(rr == 0); /* sticky */
         goto finish;
     }
     if (!keyeq(c, &currentkey, &nkey)) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV); assert(rr == 0); /* sticky */
+        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV); if (0) assert(rr == 0); /* sticky */
         r = DB_NOTFOUND;
         goto finish;
     }
@@ -891,11 +891,11 @@ static int toku_c_get_prev_dup(DBC *c, DBT *key, DBT *data) {
     if (r != 0) goto finish;
     r = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV);
     if (r != 0) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_FIRST); assert(rr == 0); /* sticky */
+        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_FIRST); if (0) assert(rr == 0); /* sticky */
         goto finish;
     }
     if (!keyeq(c, &currentkey, &nkey)) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT); assert(rr == 0); /* sticky */
+        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT); if (0) assert(rr == 0); /* sticky */
         r = DB_NOTFOUND;
         goto finish;
     }
