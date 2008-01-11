@@ -20,21 +20,17 @@ INSERT INTO t2 VALUES(2);
 ALTER DATABASE mysqltest_sisyfos CHARACTER SET latin1;
 USE mysqltest_sisyfos;
 ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
-SHOW DATABASES;
-Database
-information_schema
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
 mysql
 mysqltest_bob
 mysqltest_prometheus
 mysqltest_sisyfos
-test
-SHOW DATABASES;
-Database
-information_schema
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos
-test
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
 USE mysqltest_prometheus;
 CREATE TABLE t1 (a INT);
@@ -42,21 +38,17 @@ INSERT INTO t1 VALUES (1);
 CREATE DATABASE mysqltest_sisyfos;
 USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
-SHOW DATABASES;
-Database
-information_schema
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
 mysql
 mysqltest_bob
 mysqltest_prometheus
 mysqltest_sisyfos
-test
-SHOW DATABASES;
-Database
-information_schema
+SHOW DATABASES LIKE 'mysql%';
+Database (mysql%)
 mysql
 mysqltest_prometheus
 mysqltest_sisyfos
-test
 USE mysqltest_prometheus;
 SHOW TABLES;
 Tables_in_mysqltest_prometheus
