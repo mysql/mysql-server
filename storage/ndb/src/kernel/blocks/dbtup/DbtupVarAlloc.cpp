@@ -277,9 +277,11 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
 
   PagePtr new_pagePtr;
   new_pagePtr.i = RNIL;
-  for (int i = new_index; i < MAX_FREE_LIST; i++) {
+  for (int i = new_index; i < MAX_FREE_LIST; i++) 
+  {
     jam();
-    if (!fragPtr->free_var_page_array[i].isEmpty()) {
+    if (!fragPtr->free_var_page_array[i].isEmpty()) 
+    {
       jam();
       /**
        * get first page from free page list,
@@ -292,7 +294,8 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
   /**
    * do not move varpart if new var part page is same as old
    */
-  if (new_pagePtr.i != RNIL && new_pagePtr.i != pagePtr.i) {
+  if (new_pagePtr.i != RNIL && new_pagePtr.i != pagePtr.i) 
+  {
     jam();
     c_page_pool.getPtr(new_pagePtr);
 
@@ -325,14 +328,17 @@ Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
     /**
      * if the old page is empty, then reclaim it to global page pool
      */
-    if (unlikely(pageP->free_space == Var_page::DATA_WORDS - 1)) {
+    if (unlikely(pageP->free_space == Var_page::DATA_WORDS - 1)) 
+    {
       jam();
       Uint32 idx = pageP->list_index;
       LocalDLList<Page> list(c_page_pool, fragPtr->free_var_page_array[idx]);
       list.remove(pagePtr);
       returnCommonArea(pagePtr.i, 1);
       fragPtr->noOfVarPages --;
-    } else {
+    } 
+    else 
+    {
       jam();
       /**
        * update the old page into new free list after free_record
@@ -358,16 +364,21 @@ Dbtup::get_alloc_page(Fragrecord* fragPtr, Uint32 alloc_size)
   PagePtr pagePtr;
   
   start_index= calculate_free_list_impl(alloc_size);
-  if (start_index == (MAX_FREE_LIST - 1)) {
+  if (start_index == (MAX_FREE_LIST - 1)) 
+  {
     jam();
-  } else {
+  } 
+  else 
+  {
     jam();
     ndbrequire(start_index < (MAX_FREE_LIST - 1));
     start_index++;
   }
-  for (i= start_index; i < MAX_FREE_LIST; i++) {
+  for (i= start_index; i < MAX_FREE_LIST; i++) 
+  {
     jam();
-    if (!fragPtr->free_var_page_array[i].isEmpty()) {
+    if (!fragPtr->free_var_page_array[i].isEmpty()) 
+    {
       jam();
       return fragPtr->free_var_page_array[i].firstItem;
     }
@@ -422,29 +433,35 @@ void Dbtup::update_free_page_list(Fragrecord* fragPtr,
   if ((free_space < c_min_list_size[list_index]) ||
       (free_space > c_max_list_size[list_index])) {
     Uint32 new_list_index= calculate_free_list_impl(free_space);
-    if (list_index != MAX_FREE_LIST) {
-      jam();
-      /*
-       * Only remove it from its list if it is in a list
+
+    {
+      /**
+       * Remove from free list
        */
       LocalDLList<Page> 
-	list(c_page_pool, fragPtr->free_var_page_array[list_index]);
+        list(c_page_pool, fragPtr->free_var_page_array[list_index]);
       list.remove(pagePtr);
     }
-    if (free_space < c_min_list_size[new_list_index]) {
+    if (free_space < c_min_list_size[new_list_index])
+    {
       /*
 	We have not sufficient amount of free space to put it into any
 	free list. Thus the page will not be available for new inserts.
 	This can only happen for the free list with least guaranteed 
 	free space.
+
+        Put in on MAX_FREE_LIST-list (i.e full pages)
       */
       jam();
       ndbrequire(new_list_index == 0);
-      pagePtr.p->list_index= MAX_FREE_LIST;
-    } else {
-      jam();
+      new_list_index = MAX_FREE_LIST;
+      ndbout_c("free_space: %u new_list_index: %u c_min_list_size: %u",
+               free_space, new_list_index, c_min_list_size[new_list_index]);
+    }
+
+    {
       LocalDLList<Page> list(c_page_pool, 
-			     fragPtr->free_var_page_array[new_list_index]);
+                             fragPtr->free_var_page_array[new_list_index]);
       list.add(pagePtr);
       pagePtr.p->list_index = new_list_index;
     }
