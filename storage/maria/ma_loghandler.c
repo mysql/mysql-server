@@ -1974,8 +1974,8 @@ static my_bool translog_buffer_next(TRANSLOG_ADDRESS *horizon,
       translog_wait_for_buffer_free(new_buffer);
 #ifndef DBUG_OFF
       /* We keep the handler locked so nobody can start this new buffer */
-      DBUG_ASSERT(offset == new_buffer->offset && file == new_buffer->file &&
-                  ver == new_buffer->ver);
+      DBUG_ASSERT(offset == new_buffer->offset && new_buffer->file == NULL &&
+                  (file == NULL ? ver : (uint8)(ver + 1)) == new_buffer->ver);
     }
 #endif
   }
@@ -4348,8 +4348,8 @@ static my_bool translog_advance_pointer(int pages, uint16 last_page_data)
       translog_wait_for_buffer_free(new_buffer);
 #ifndef DBUG_OFF
       /* We keep the handler locked so nobody can start this new buffer */
-      DBUG_ASSERT(offset == new_buffer->offset && file == new_buffer->file &&
-                  ver == new_buffer->ver);
+      DBUG_ASSERT(offset == new_buffer->offset && new_buffer->file == NULL &&
+                  (file == NULL ? ver : (uint8)(ver + 1)) == new_buffer->ver);
     }
 #endif
 
@@ -7007,8 +7007,8 @@ static void translog_force_current_buffer_to_finish()
     translog_wait_for_buffer_free(new_buffer);
 #ifndef DBUG_OFF
     /* We keep the handler locked so nobody can start this new buffer */
-    DBUG_ASSERT(offset == new_buffer->offset && file == new_buffer->file &&
-                ver == new_buffer->ver);
+    DBUG_ASSERT(offset == new_buffer->offset && new_buffer->file == NULL &&
+                (file == NULL ? ver : (uint8)(ver + 1)) == new_buffer->ver);
   }
 #endif
 
