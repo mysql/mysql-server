@@ -3602,4 +3602,20 @@ DROP VIEW v1;
 DROP VIEW v2;
 DROP VIEW v3;
 DROP TABLE t1;
+#
+# Bug#29477: Not all fields of the target table were checked to have
+#            a default value when inserting into a view.
+#
+create table t1(f1 int, f2 int not null);
+create view v1 as select f1 from t1;
+insert into v1 values(1);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+set @old_mode=@@sql_mode;
+set @@sql_mode=traditional;
+insert into v1 values(1);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+set @@sql_mode=@old_mode;
+drop view v1;
+drop table t1;
 End of 5.0 tests.
