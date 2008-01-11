@@ -849,4 +849,48 @@ SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1 DESC;
 
 DROP TABLE t1;
 
+# Bug #31797: error while parsing subqueries -- WHERE is parsed as HAVING
+#
+CREATE TABLE t1 ( a INT, b INT );
+
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1;
+
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1 
+HAVING b = 10;
+
+--error ER_ILLEGAL_REFERENCE
+SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
+FROM t1 
+HAVING b = 10;
+
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode='ONLY_FULL_GROUP_BY';
+
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1;
+
+--error ER_NON_GROUPING_FIELD_USED
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1 
+HAVING b = 10;
+
+--error ER_ILLEGAL_REFERENCE
+SELECT MAX(b) c, (SELECT a FROM t1 WHERE b = c)
+FROM t1 
+HAVING b = 10;
+
+INSERT INTO t1 VALUES (1, 1);
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1;
+
+INSERT INTO t1 VALUES (2, 1);
+--error ER_SUBQUERY_NO_1_ROW
+SELECT b c, (SELECT a FROM t1 WHERE b = c)
+FROM t1;
+
+DROP TABLE t1;
+SET @@sql_mode = @old_sql_mode;
+
 --echo End of 5.0 tests
