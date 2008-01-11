@@ -24,7 +24,7 @@ static void verify_local_fingerprint (BRTNODE node) {
     int i;
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++)
-	    HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen, type,
+	    FIFO_ITERATE(node->u.n.buffers[i], key, keylen, data, datalen, type,
 			      ({
 				  fp += node->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, data, datalen);
 			      }));
@@ -76,7 +76,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 			result=1;
 		    }
 		}
-		toku_hashtable_iterate(node->u.n.htables[i], verify_pair, 0);
+		toku_fifo_iterate(node->u.n.buffers[i], verify_pair, 0);
 	    }
 	}
 	for (i=0; i<node->u.n.n_children; i++) {

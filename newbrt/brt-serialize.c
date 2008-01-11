@@ -42,17 +42,17 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	    size+=8; // diskoff
 	    size+=4; // subsum
 	}
-	int n_hashtables = node->u.n.n_children;
+	int n_buffers = node->u.n.n_children;
 	size+=4; /* n_entries */
-        assert(0 <= n_hashtables && n_hashtables < TREE_FANOUT+1);
-	for (i=0; i< n_hashtables; i++) {
-	    HASHTABLE_ITERATE(node->u.n.htables[i],
+        assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
+	for (i=0; i< n_buffers; i++) {
+	    FIFO_ITERATE(node->u.n.buffers[i],
 			      key __attribute__((__unused__)), keylen,
 			      data __attribute__((__unused__)), datalen,
                               type __attribute__((__unused__)),
 			      (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
 	}
-	assert(hsize==node->u.n.n_bytes_in_hashtables);
+	assert(hsize==node->u.n.n_bytes_in_buffers);
 	assert(csize==node->u.n.totalchildkeylens);
 	return size+hsize+csize;
     } else {
@@ -78,7 +78,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
-	result+=node->u.n.n_bytes_in_hashtables;
+	result+=node->u.n.n_bytes_in_buffers;
     } else {
 	result+=(4 /* n_entries in buffer table. */
 		 +4); /* the pma size */
@@ -147,12 +147,12 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	}
 
 	{
-	    int n_hash_tables = node->u.n.n_children;
+	    int n_buffers = node->u.n.n_children;
 	    u_int32_t check_local_fingerprint = 0;
-	    for (i=0; i< n_hash_tables; i++) {
+	    for (i=0; i< n_buffers; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
-		wbuf_int(&w, toku_hashtable_n_entries(node->u.n.htables[i]));
-		HASHTABLE_ITERATE(node->u.n.htables[i], key, keylen, data, datalen, type,
+		wbuf_int(&w, toku_fifo_n_entries(node->u.n.buffers[i]));
+		FIFO_ITERATE(node->u.n.buffers[i], key, keylen, data, datalen, type,
 				  ({
 				      wbuf_char(&w, type);
 				      wbuf_bytes(&w, key, keylen);
@@ -281,8 +281,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         }
 	for (i=0; i<TREE_FANOUT+1; i++) { 
             result->u.n.children[i]=0; 
-            result->u.n.htables[i]=0; 
-            result->u.n.n_bytes_in_hashtable[i]=0;
+            result->u.n.buffers[i]=0; 
+            result->u.n.n_bytes_in_buffer[i]=0;
             result->u.n.n_cursors[i]=0;
         }
 	u_int32_t subtree_fingerprint = rbuf_int(&rc);
@@ -316,15 +316,15 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    //printf("Child %d at %lld\n", i, result->children[i]);
 	}
 	for (i=0; i<TREE_FANOUT+1; i++) {
-	    result->u.n.n_bytes_in_hashtable[i] = 0;
+	    result->u.n.n_bytes_in_buffer[i] = 0;
 	}
-	result->u.n.n_bytes_in_hashtables = 0; 
+	result->u.n.n_bytes_in_buffers = 0; 
 	for (i=0; i<result->u.n.n_children; i++) {
-	    r=toku_hashtable_create(&result->u.n.htables[i]);
+	    r=toku_fifo_create(&result->u.n.buffers[i]);
 	    if (r!=0) {
 		int j;
-		if (0) { died_12: j=result->u.n.n_bytes_in_hashtables; }
-		for (j=0; j<i; j++) toku_hashtable_free(&result->u.n.htables[j]);
+		if (0) { died_12: j=result->u.n.n_bytes_in_buffers; }
+		for (j=0; j<i; j++) toku_fifo_free(&result->u.n.buffers[j]);
 		goto died1;
 	    }
 	}
@@ -346,12 +346,12 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			r=toku_hash_insert(result->u.n.htables[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
+			r=toku_fifo_enq(result->u.n.buffers[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
 		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-		    result->u.n.n_bytes_in_hashtables += diff;
-		    result->u.n.n_bytes_in_hashtable[cnum] += diff;
+		    result->u.n.n_bytes_in_buffers += diff;
+		    result->u.n.n_bytes_in_buffer[cnum] += diff;
 		    //printf("Inserted\n");
 		}
 	    }
@@ -455,13 +455,13 @@ void toku_verify_counts (BRTNODE node) {
 	unsigned int sum = 0;
 	int i;
 	for (i=0; i<node->u.n.n_children; i++)
-	    sum += node->u.n.n_bytes_in_hashtable[i];
-	// We don't rally care of the later hashtables have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
+	    sum += node->u.n.n_bytes_in_buffer[i];
+	// We don't rally care of the later buffers have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
 	// But for now the code always initializes the later tables so they are 0.
 	for (; i<TREE_FANOUT+1; i++) {
-	    assert(node->u.n.n_bytes_in_hashtable[i]==0);
+	    assert(node->u.n.n_bytes_in_buffer[i]==0);
         }
-	assert(sum==node->u.n.n_bytes_in_hashtables);
+	assert(sum==node->u.n.n_bytes_in_buffers);
     }
 }
     
