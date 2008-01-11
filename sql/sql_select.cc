@@ -13122,7 +13122,8 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
+    else if (tab->type != JT_NEXT && 
+             tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
 	SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
