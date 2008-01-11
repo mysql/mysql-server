@@ -1333,6 +1333,11 @@ int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const
     return 0;
 }
 
+int toku_brt_get_fd(BRT brt, int *fdp) {
+    *fdp = toku_cachefile_fd(brt->cf);
+    return 0;
+}
+
 int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE cachetable, TOKUTXN txn) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */

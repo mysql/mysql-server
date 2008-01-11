@@ -1852,6 +1852,12 @@ static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
     abort();
 }
 
+static int toku_db_fd(DB *db, int *fdp) {
+    HANDLE_PANICKED_DB(db);
+    if (!db_opened(db)) return EINVAL;
+    return toku_brt_get_fd(db->i->brt, fdp);
+}
+
 int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     int r;
 
@@ -1900,6 +1906,7 @@ int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     result->set_flags = toku_db_set_flags;
     result->get_flags = toku_db_get_flags;
     result->stat = toku_db_stat;
+    result->fd = toku_db_fd;
     MALLOC(result->i);
     if (result->i == 0) {
         toku_free(result);

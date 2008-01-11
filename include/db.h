@@ -178,7 +178,8 @@ struct __toku_db {
   void* __toku_dummy4[1];
   int (*cursor) (DB *, DB_TXN *, DBC **, u_int32_t); /* 32-bit offset=288 size=4, 64=bit offset=480 size=8 */
   int (*del) (DB *, DB_TXN *, DBT *, u_int32_t); /* 32-bit offset=292 size=4, 64=bit offset=488 size=8 */
-  void* __toku_dummy5[3];
+  void* __toku_dummy5[2];
+  int (*fd) (DB *, int *); /* 32-bit offset=304 size=4, 64=bit offset=512 size=8 */
   int (*get) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t); /* 32-bit offset=308 size=4, 64=bit offset=520 size=8 */
   void* __toku_dummy6[8];
   int (*get_flags) (DB *, u_int32_t *); /* 32-bit offset=344 size=4, 64=bit offset=592 size=8 */

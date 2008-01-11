@@ -128,6 +128,7 @@ void sample_db_offsets (void) {
     STRUCT_SETUP(DB, cursor,         "int (*%s) (DB *, DB_TXN *, DBC **, u_int32_t)");
     STRUCT_SETUP(DB, dbenv,          "DB_ENV *%s");
     STRUCT_SETUP(DB, del,            "int (*%s) (DB *, DB_TXN *, DBT *, u_int32_t)");
+    STRUCT_SETUP(DB, fd,             "int (*%s) (DB *, int *)");
     STRUCT_SETUP(DB, get,            "int (*%s) (DB *, DB_TXN *, DBT *, DBT *, u_int32_t)");
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     STRUCT_SETUP(DB, get_flags,      "int (*%s) (DB *, u_int32_t *)");

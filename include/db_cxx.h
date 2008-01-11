@@ -124,6 +124,8 @@ class Db {
 
     int associate(DbTxn *, Db *, int (*)(Db *, const Dbt *, const Dbt *, Dbt *), u_int32_t);
 
+    int fd(int *);
+
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
     int (*associate_callback_cxx)(Db *, const Dbt *, const Dbt *, Dbt*);
     int (*bt_compare_callback_cxx)(Db *, const Dbt *, const Dbt *);
