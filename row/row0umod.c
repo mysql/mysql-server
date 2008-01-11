@@ -637,6 +637,8 @@ row_undo_mod_upd_exist_sec(
 			but alphabetically they stayed the same, e.g.,
 			'abc' -> 'aBc'. */
 
+			/* TODO: lock the clustered index record
+			before fetching BLOBs */
 			row_upd_index_replace_new_col_vals(entry, index,
 							   node->update,
 							   NULL, heap);
