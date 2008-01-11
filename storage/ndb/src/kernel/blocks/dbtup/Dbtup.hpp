@@ -726,7 +726,8 @@ struct Fragrecord {
   Uint32 fragTableId;
   Uint32 fragmentId;
   Uint32 nextfreefrag;
-  DLList<Page>::Head free_var_page_array[MAX_FREE_LIST];
+  // +1 is as "full" pages are stored last
+  DLList<Page>::Head free_var_page_array[MAX_FREE_LIST+1]; 
   
   DLList<ScanOp>::Head m_scanList;
 

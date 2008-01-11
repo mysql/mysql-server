@@ -138,7 +138,7 @@ void Dbtup::execTUPFRAGREQ(Signal* signal)
   regFragPtr.p->m_free_page_id_list = FREE_PAGE_RNIL;
   ndbrequire(regFragPtr.p->m_page_map.isEmpty());
   regFragPtr.p->m_restore_lcp_id = RNIL;
-  for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
     ndbrequire(regFragPtr.p->free_var_page_array[i].isEmpty());
 
   if (ERROR_INSERTED(4007) && regTabPtr.p->fragid[0] == fragId ||
@@ -1876,7 +1876,7 @@ Dbtup::drop_fragment_free_var_pages(Signal* signal)
   ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
   
   PagePtr pagePtr;
-  for (Uint32 i = 0; i<MAX_FREE_LIST; i++)
+  for (Uint32 i = 0; i<MAX_FREE_LIST+1; i++)
   {
     if (! fragPtr.p->free_var_page_array[i].isEmpty())
     {
@@ -1945,10 +1945,9 @@ Dbtup::drop_fragment_free_pages(Signal* signal)
   return;
 
 done:
-  for (i = 0; i<MAX_FREE_LIST; i++)
+  for (i = 0; i<MAX_FREE_LIST+1; i++)
   {
-    LocalDLList<Page> tmp(c_page_pool, fragPtr.p->free_var_page_array[i]);
-    tmp.remove();
+    ndbassert(fragPtr.p->free_var_page_array[i].isEmpty());
   }
   
   {
