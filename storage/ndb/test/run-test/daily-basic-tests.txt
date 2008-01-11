@@ -1086,3 +1086,7 @@ max-time: 300
 cmd: testNodeRestart
 args: -n Bug32922 T1
 
+max-time: 300
+cmd: test_event
+args: -n Bug33793 T1
+
