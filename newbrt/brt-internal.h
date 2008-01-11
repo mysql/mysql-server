@@ -4,7 +4,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include "cachetable.h"
-#include "hashtable.h"
+#include "fifo.h"
 #include "pma.h"
 #include "brt.h"
 #include "crc.h"
@@ -36,8 +36,8 @@ struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
 #if 0
     DISKOFF      diskoff;
-    HASHTABLE    htable;
-    unsigned int n_bytes_in_hashtable; /* How many bytes are in each hashtable (including overheads for the disk-representation) */
+    FIFO         htable;
+    unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
     unsigned int n_cursors;
 #endif
 };
@@ -54,14 +54,14 @@ struct brtnode {
     int     layout_version; // What version of the data structure?
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
-    u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the hash tables, but does not include child subtree fingerprints. */
+    u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
     int    dirty;
     union node {
 	struct nonleaf {
 	    // Don't actually store the subree fingerprint in the in-memory data structure.
 	    int             n_children;  /* if n_children==TREE_FANOUT+1 then the tree needs to be rebalanced. */
 	    unsigned int    totalchildkeylens;
-	    unsigned int    n_bytes_in_hashtables;
+	    unsigned int    n_bytes_in_buffers;
 
 	    struct brtnode_nonleaf_childinfo childinfos[TREE_FANOUT+1]; /* One extra so we can grow */
 
@@ -82,8 +82,8 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
 	    DISKOFF         children[TREE_FANOUT+1];  /* unused if height==0 */   /* Note: The last element of these arrays is used only temporarily while splitting a node. */
 #define BRTNODE_CHILD_DISKOFF(node,i) ((node)->u.n.children[i])
-	    HASHTABLE       htables[TREE_FANOUT+1];
-	    unsigned int    n_bytes_in_hashtable[TREE_FANOUT+1]; /* how many bytes are in each hashtable (including overheads) */
+	    FIFO            buffers[TREE_FANOUT+1];
+	    unsigned int    n_bytes_in_buffer[TREE_FANOUT+1]; /* how many bytes are in each buffer (including overheads) */
 	    unsigned int    n_cursors[TREE_FANOUT+1];
 #endif
         } n;
@@ -148,10 +148,6 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
 int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
 
 void toku_brtnode_free (BRTNODE *node);
-
-//static inline int brtnode_n_hashtables(BRTNODE node) { if (node->height==0) return 1; else return node->u.n.n_children; }
-
-//int write_brt_header (int fd, struct brt_header *header);
 
 #if 1
 #define DEADBEEF ((void*)0xDEADBEEF)
