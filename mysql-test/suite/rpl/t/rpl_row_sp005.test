@@ -86,11 +86,13 @@ connection master;
 CALL test.p1();
 let $wait_condition= SELECT COUNT(*) = 4 FROM t3;
 --source include/wait_condition.inc
+save_master_pos;
 SELECT * FROM test.t3 ORDER BY id3;
 
 let $message=< ---- Slave selects-- >;
 --source include/show_msg.inc
 connection slave;
+sync_with_master;
 SELECT * FROM test.t3 ORDER BY id3;
 
 connection master;
