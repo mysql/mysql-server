@@ -11,6 +11,10 @@ static void fifo_init(struct fifo *fifo) {
     fifo->n = 0;
 }
 
+static int fifo_entry_size(struct fifo_entry *entry) {
+    return sizeof (struct fifo_entry) + entry->keylen + entry->vallen;
+}
+
 static struct fifo_entry *fifo_peek(struct fifo *fifo) {
     return fifo->head;
 }
@@ -40,7 +44,7 @@ static struct fifo_entry *fifo_deq(struct fifo *fifo) {
 static void fifo_destroy(struct fifo *fifo) {
     struct fifo_entry *entry;
     while ((entry = fifo_deq(fifo)) != 0)
-        toku_free(entry);
+        toku_free_n(entry, fifo_entry_size(entry));
 }
 
 int toku_fifo_create(FIFO *ptr) {
@@ -54,7 +58,7 @@ int toku_fifo_create(FIFO *ptr) {
 void toku_fifo_free(FIFO *ptr) {
     struct fifo *fifo = *ptr; *ptr = 0;
     fifo_destroy(fifo);
-    toku_free(fifo);
+    toku_free_n(fifo, sizeof *fifo);
 }
 
 int toku_fifo_n_entries(FIFO fifo) {
@@ -88,7 +92,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
 int toku_fifo_deq(FIFO fifo) {
     struct fifo_entry *entry = fifo_deq(fifo);
     if (entry == 0) return ENOMEM;
-    toku_free(entry);
+    toku_free_n(entry, fifo_entry_size(entry));
     return 0;
 }
 
