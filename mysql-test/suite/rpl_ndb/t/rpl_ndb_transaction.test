@@ -116,8 +116,9 @@ query_vertical SHOW SLAVE STATUS;
 # the following statement should show that nothing has been replicated
 SELECT * FROM tinnodb ORDER BY a;
 
-
 # clean up
-DROP TABLE tmyisam;
-DROP TABLE tinnodb;
-DROP TABLE tndb;
+connection master;
+DROP TABLE tmyisam, tinnodb, tndb;
+
+connection slave;
+DROP TABLE tmyisam, tinnodb, tndb;
