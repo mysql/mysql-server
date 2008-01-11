@@ -97,7 +97,7 @@ int toku_rollback_commit (struct logtype_commit *le __attribute__((__unused__)),
     return 0;
 }
 
-#define ABORTIT { le=le; txn=txn; abort(); }
+#define ABORTIT { le=le; txn=txn; fprintf(stderr, "%s:%d (%s) not ready to go\n", __FILE__, __LINE__, __func__); abort(); }
 int toku_rollback_delete (struct logtype_delete *le, TOKUTXN txn)               ABORTIT
 void toku_recover_delete (struct logtype_delete *c) {c=c;fprintf(stderr, "%s:%d\n", __FILE__, __LINE__); abort(); }
 
@@ -215,6 +215,9 @@ void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
     toku_free(c->data.data);
 }
 
+int toku_rollback_insertinleaf (struct logtype_insertinleaf *le, TOKUTXN txn)   ABORTIT
+
+
 // a newbrtnode should have been done before this
 void toku_recover_resizepma (struct logtype_resizepma *c) {
     struct cf_pair *pair;
@@ -267,6 +270,5 @@ int toku_rollback_fcreate (struct logtype_fcreate *le, TOKUTXN txn)             
 int toku_rollback_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
 int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn)       ABORTIT
 int toku_rollback_fopen (struct logtype_fopen *le, TOKUTXN txn)                 ABORTIT
-int toku_rollback_insertinleaf (struct logtype_insertinleaf *le, TOKUTXN txn)   ABORTIT
 int toku_rollback_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
 int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) ABORTIT

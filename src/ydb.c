@@ -690,7 +690,7 @@ static TXNID next_txn = 0;
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    return -1; // wont compile yet return toku_logger_abort(txn->mgrp->i->logger);
+    return toku_logger_abort(txn->i->tokutxn);
 }
 
 static int toku_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {

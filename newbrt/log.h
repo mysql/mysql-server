@@ -133,5 +133,6 @@ static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER val) {
 
 int toku_recover_init(void);
 void toku_recover_cleanup(void);
+int toku_logger_abort(TOKUTXN);
 
 #endif
