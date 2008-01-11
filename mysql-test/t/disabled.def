@@ -18,7 +18,6 @@ federated_transactions   : Bug#29523 Transactions do not work
 events                   : Bug#32664 events.test fails randomly
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
 kill                 : Bug#29149: Test "kill" fails on Windows
-innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
 wait_timeout         : Bug#32801 wait_timeout.test fails randomly
 kill                 : Bug#29149 Test "kill" fails on Windows
 ctype_create         : Bug#32965 main.ctype_create fails
