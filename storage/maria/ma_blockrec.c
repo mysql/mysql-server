@@ -4998,7 +4998,7 @@ restart_bitmap_scan:
         if (pattern > 0 && pattern <= 4)
         {
           /* Found head page; Read it */
-          ulong page;
+          pgcache_page_no_t page;
           info->scan.bitmap_pos= data;
           info->scan.bits= bits;
           info->scan.bit_pos= bit_pos;
