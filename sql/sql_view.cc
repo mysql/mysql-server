@@ -223,9 +223,6 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 {
   LEX *lex= thd->lex;
   bool link_to_local;
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-  bool definer_check_is_needed= mode != VIEW_ALTER || lex->definer;
-#endif
   /* first table in list is target VIEW name => cut off it */
   TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
   TABLE_LIST *tables= lex->query_tables;
@@ -280,7 +277,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       - same as current user
       - current user has SUPER_ACL
   */
-  if (definer_check_is_needed &&
+  if (lex->definer &&
       (strcmp(lex->definer->user.str, thd->security_ctx->priv_user) != 0 ||
        my_strcasecmp(system_charset_info,
                      lex->definer->host.str,
