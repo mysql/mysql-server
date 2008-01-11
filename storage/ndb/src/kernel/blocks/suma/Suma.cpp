@@ -4899,6 +4899,21 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
     if(gci >= head.m_max_gci)
     {
       jam();
+      if (ERROR_INSERTED(13034))
+      {
+        jam();
+        SET_ERROR_INSERT_VALUE(13035);
+        return;
+      }
+      if (ERROR_INSERTED(13035))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        NodeReceiverGroup rg(CMVMI, c_nodes_in_nodegroup_mask);
+        rg.m_nodes.clear(getOwnNodeId());
+        signal->theData[0] = 9999;
+        sendSignal(rg, GSN_NDB_TAMPER, signal, 1, JBA);
+        return;
+      }
       head.m_page_pos = 0;
       head.m_max_gci = gci;
       head.m_last_gci = 0;
@@ -4975,7 +4990,6 @@ Suma::start_resend(Signal* signal, Uint32 buck)
 
   if(min > max)
   {
-    ndbrequire(pos.m_page_pos <= 2);
     ndbrequire(pos.m_page_id == bucket->m_buffer_tail);
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;

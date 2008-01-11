@@ -1847,6 +1847,61 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runBug33793(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+
+  NdbRestarter restarter;
+  
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  // This should really wait for applier to start...10s is likely enough
+  NdbSleep_SecSleep(10);
+
+  while (loops-- && ctx->isTestStopped() == false)
+  {
+    int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+    int nodecount = 0;
+    int nodes[255];
+    printf("nodeid: %u : victims: ", nodeId);
+    for (int i = 0; i<restarter.getNumDbNodes(); i++)
+    {
+      int id = restarter.getDbNodeId(i);
+      if (id == nodeId)
+        continue;
+      
+      if (restarter.getNodeGroup(id) == restarter.getNodeGroup(nodeId))
+      {
+        nodes[nodecount++] = id;
+        printf("%u ", id);
+        int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+        if (restarter.dumpStateOneNode(id, val2, 2))
+          return NDBT_FAILED;
+      }
+    }
+    printf("\n"); fflush(stdout);
+
+    restarter.insertErrorInNode(nodeId, 13034);
+    if (restarter.waitNodesNoStart(nodes, nodecount))
+      return NDBT_FAILED;
+    
+    if (restarter.startNodes(nodes, nodecount))
+      return NDBT_FAILED;
+    
+    if (restarter.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+
+  ctx->stopTest();  
+  return NDBT_OK;
+}
+
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -1983,6 +2038,12 @@ TESTCASE("Bug31701", ""){
   STEP(runBug31701);
   FINALIZER(runDropEvent);
   FINALIZER(runDropShadowTable);
+}
+TESTCASE("Bug33793", ""){
+  INITIALIZER(runCreateEvent);
+  STEP(runEventListenerUntilStopped);
+  STEP(runBug33793);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 
