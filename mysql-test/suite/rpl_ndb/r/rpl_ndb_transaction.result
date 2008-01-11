@@ -135,6 +135,5 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 SELECT * FROM tinnodb ORDER BY a;
 a
-DROP TABLE tmyisam;
-DROP TABLE tinnodb;
-DROP TABLE tndb;
+DROP TABLE tmyisam, tinnodb, tndb;
+DROP TABLE tmyisam, tinnodb, tndb;
