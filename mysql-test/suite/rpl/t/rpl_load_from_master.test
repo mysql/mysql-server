@@ -54,7 +54,7 @@ connection master;
 set sql_log_bin = 0;
 create database mysqltest2;
 create database mysqltest;
-show databases;
+show databases like 'mysql%';
 create table mysqltest2.t1(n int, s char(20))ENGINE=MyISAM;
 create table mysqltest2.t2(n int, s text)ENGINE=MyISAM;
 insert into mysqltest2.t1 values (1, 'one'), (2, 'two'), (3, 'three'); 
@@ -71,7 +71,7 @@ connection slave;
 sync_with_master;
 
 # This should show that the slave is empty at this point
-show databases;
+show databases like 'mysql%';
 # Create mysqltest2 and mysqltest3 on slave; we expect that LOAD DATA FROM
 # MASTER will neither touch database mysqltest nor mysqltest3
 create database mysqltest2;
@@ -95,7 +95,7 @@ insert into mysqltest.t3 values (1, 'original bar.t3');
 load data from master;
 
 # Now let's check if we have the right tables and the right data in them
-show databases;
+show databases like 'mysql%';
 use mysqltest2;
 
 # LOAD DATA FROM MASTER uses only replicate_*_db rules to decide which
