@@ -1,3 +1,4 @@
+--source include/not_embedded.inc
 --source include/have_query_cache.inc
 --source include/have_debug.inc
 
@@ -27,7 +28,7 @@ let $wait_condition= select count(*)= 1 from information_schema.processlist wher
 connection bug30887con2;
 --echo On a second connection; clear the query cache.
 show status like 'Qcache_queries_in_cache';
---send set global query_cache_size= 0;
+set global query_cache_size= 0;
 
 connection default;
 --echo Signal the debug hook to release the lock.
