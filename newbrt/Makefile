@@ -51,7 +51,7 @@ REGRESSION_TESTS = \
         brt-serialize-test \
         cachetable-test \
         cachetable-test2 \
-        hashtest \
+        fifo-test \
         brt-test \
 	test_oexcl \
 # This line intentially kept commented so I can have a \ on the end of the previous line
@@ -87,7 +87,7 @@ CHECKS = \
  cachetable-test \
  cachetable-test2 \
  brt-serialize-test \
- brt-test hashtest \
+ brt-test fifo-test \
  test_toku_malloc_plain_free
 check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
 check_benchmarktest_256: benchmark-test
@@ -123,7 +123,7 @@ brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
 memory.o: memory.h
 primes.o: primes.h
-hashtest: fifo.o memory.o primes.o
+fifo-test: fifo.o memory.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
