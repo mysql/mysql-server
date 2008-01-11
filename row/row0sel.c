@@ -344,8 +344,8 @@ void
 row_sel_fetch_columns(
 /*==================*/
 	dict_index_t*	index,	/* in: record index */
-	rec_t*		rec,	/* in: record in a clustered or non-clustered
-				index */
+	const rec_t*	rec,	/* in: record in a clustered or non-clustered
+				index; must be protected by a page latch */
 	const ulint*	offsets,/* in: rec_get_offsets(rec, index) */
 	sym_node_t*	column)	/* in: first column in a column list, or
 				NULL */
@@ -353,7 +353,7 @@ row_sel_fetch_columns(
 	dfield_t*	val;
 	ulint		index_type;
 	ulint		field_no;
-	byte*		data;
+	const byte*	data;
 	ulint		len;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -879,7 +879,10 @@ row_sel_get_clust_rec(
 		}
 	}
 
-	/* Fetch the columns needed in test conditions */
+	/* Fetch the columns needed in test conditions.  The clustered
+	index record is protected by a page latch that was acquired
+	when plan->clust_pcur was positioned.  The latch will not be
+	released until mtr_commit(mtr). */
 
 	row_sel_fetch_columns(index, clust_rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
@@ -1186,16 +1189,21 @@ row_sel_try_search_shortcut(
 		goto func_exit;
 	}
 
-	/* Test deleted flag. Fetch the columns needed in test conditions. */
-
-	row_sel_fetch_columns(index, rec, offsets,
-			      UT_LIST_GET_FIRST(plan->columns));
+	/* Test the deleted flag. */
 
 	if (rec_get_deleted_flag(rec, dict_table_is_comp(plan->table))) {
 
 		ret = SEL_EXHAUSTED;
 		goto func_exit;
 	}
+
+	/* Fetch the columns needed in test conditions.  The index
+	record is protected by a page latch that was acquired when
+	plan->pcur was positioned.  The latch will not be released
+	until mtr_commit(mtr). */
+
+	row_sel_fetch_columns(index, rec, offsets,
+			      UT_LIST_GET_FIRST(plan->columns));
 
 	/* Test the rest of search conditions */
 
@@ -1584,6 +1592,16 @@ skip_lock:
 					offsets = rec_get_offsets(
 						rec, index, offsets,
 						ULINT_UNDEFINED, &heap);
+
+					/* Fetch the columns needed in
+					test conditions. The clustered
+					index record is protected by a
+					page latch that was acquired
+					by row_sel_open_pcur() or
+					row_sel_restore_pcur_pos().
+					The latch will not be released
+					until mtr_commit(mtr). */
+
 					row_sel_fetch_columns(
 						index, rec, offsets,
 						UT_LIST_GET_FIRST(
@@ -1607,7 +1625,10 @@ skip_lock:
 
 	/* PHASE 4: Test search end conditions and deleted flag */
 
-	/* Fetch the columns needed in test conditions */
+	/* Fetch the columns needed in test conditions.  The record is
+	protected by a page latch that was acquired by
+	row_sel_open_pcur() or row_sel_restore_pcur_pos().  The latch
+	will not be released until mtr_commit(mtr). */
 
 	row_sel_fetch_columns(index, rec, offsets,
 			      UT_LIST_GET_FIRST(plan->columns));
@@ -2502,15 +2523,19 @@ static
 void
 row_sel_field_store_in_mysql_format(
 /*================================*/
-	byte*	dest,	/* in/out: buffer where to store; NOTE that BLOBs
-			are not in themselves stored here: the caller must
-			allocate and copy the BLOB into buffer before, and pass
-			the pointer to the BLOB in 'data' */
-	const mysql_row_templ_t* templ,	/* in: MySQL column template.
-			Its following fields are referenced:
-			type, is_unsigned, mysql_col_len, mbminlen, mbmaxlen */
-	byte*	data,	/* in: data to store */
-	ulint	len)	/* in: length of the data */
+	byte*		dest,	/* in/out: buffer where to store; NOTE
+				that BLOBs are not in themselves
+				stored here: the caller must allocate
+				and copy the BLOB into buffer before,
+				and pass the pointer to the BLOB in
+				'data' */
+	const mysql_row_templ_t* templ,
+				/* in: MySQL column template.
+				Its following fields are referenced:
+				type, is_unsigned, mysql_col_len,
+				mbminlen, mbmaxlen */
+	const byte*	data,	/* in: data to store */
+	ulint		len)	/* in: length of the data */
 {
 	byte*	ptr;
 	byte*	field_end;
@@ -2661,16 +2686,17 @@ row_sel_store_mysql_rec(
 					case) */
 	byte*		mysql_rec,	/* out: row in the MySQL format */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
-	rec_t*		rec,		/* in: Innobase record in the index
+	const rec_t*	rec,		/* in: Innobase record in the index
 					which was described in prebuilt's
-					template */
+					template; must be protected by
+					a page latch */
 	const ulint*	offsets)	/* in: array returned by
 					rec_get_offsets() */
 {
 	mysql_row_templ_t*	templ;
 	mem_heap_t*		extern_field_heap	= NULL;
 	mem_heap_t*		heap;
-	byte*			data;
+	const byte*		data;
 	ulint			len;
 	ulint			i;
 
@@ -2771,7 +2797,7 @@ row_sel_store_mysql_rec(
 				BLOB, TEXT and true VARCHAR) with space. */
 				if (UNIV_UNLIKELY(templ->mbminlen == 2)) {
 					/* Treat UCS2 as a special case. */
-					data = mysql_rec
+					byte* d	= mysql_rec
 						+ templ->mysql_col_offset;
 					len = templ->mysql_col_len;
 					/* There are two UCS2 bytes per char,
@@ -2779,8 +2805,8 @@ row_sel_store_mysql_rec(
 					ut_a(!(len & 1));
 					/* Pad with 0x0020. */
 					while (len) {
-						*data++ = 0x00;
-						*data++ = 0x20;
+						*d++ = 0x00;
+						*d++ = 0x20;
 						len -= 2;
 					}
 					continue;
@@ -3146,7 +3172,8 @@ void
 row_sel_push_cache_row_for_mysql(
 /*=============================*/
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
-	rec_t*		rec,		/* in: record to push */
+	const rec_t*	rec,		/* in: record to push; must
+					be protected by a page latch */
 	const ulint*	offsets)	/* in: rec_get_offsets() */
 {
 	byte*	buf;
@@ -3573,6 +3600,12 @@ row_search_for_mysql(
 				ut_a(0 == cmp_dtuple_rec(search_tuple,
 							 rec, offsets));
 #endif
+				/* At this point, rec is protected by
+				a page latch that was acquired by
+				row_sel_try_search_shortcut_for_mysql().
+				The latch will not be released until
+				mtr_commit(&mtr). */
+
 				if (!row_sel_store_mysql_rec(buf, prebuilt,
 							     rec, offsets)) {
 					err = DB_TOO_BIG_RECORD;
@@ -4293,6 +4326,10 @@ requires_clust_rec:
 	ut_ad(rec_offs_validate(result_rec,
 				result_rec != rec ? clust_index : index,
 				offsets));
+
+	/* At this point, the clustered index record is protected
+	by a page latch that was acquired when pcur was positioned.
+	The latch will not be released until mtr_commit(&mtr). */
 
 	if ((match_mode == ROW_SEL_EXACT
 	     || prebuilt->n_rows_fetched >= MYSQL_FETCH_CACHE_THRESHOLD)
