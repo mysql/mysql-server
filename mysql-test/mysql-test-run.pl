@@ -3588,8 +3588,10 @@ Options to control what test suites or cases to run
   skip-test=PREFIX or REGEX
                         Skip test cases which name are prefixed with PREFIX
                         or fulfills REGEX
-  start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
-  suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
+  start-from=PREFIX     Run test cases starting test prefixed with PREFIX where
+                        prefix may be suite.testname or just testname
+  suite[s]=NAME1,..,NAMEN
+                        Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
