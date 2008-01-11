@@ -200,7 +200,7 @@ void
 eval_node_copy_and_alloc_val(
 /*=========================*/
 	que_node_t*	node,	/* in: query graph node */
-	byte*		str,	/* in: binary string */
+	const byte*	str,	/* in: binary string */
 	ulint		len)	/* in: string length or UNIV_SQL_NULL */
 {
 	byte*		data;
