@@ -108,6 +108,7 @@ execute stmt1 using @arg00, @arg01;
 select a,b from t1 where a=@arg00;
 set @arg00=NULL;
 set @arg01=2;
+--error 1048
 execute stmt1 using @arg00, @arg01;
 select a,b from t1 order by a;
 set @arg00=0;

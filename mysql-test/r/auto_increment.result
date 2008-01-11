@@ -231,8 +231,7 @@ a	b
 204	7
 delete from t1 where a=0;
 update t1 set a=NULL where b=6;
-Warnings:
-Warning	1048	Column 'a' cannot be null
+ERROR 23000: Column 'a' cannot be null
 update t1 set a=300 where b=7;
 SET SQL_MODE='';
 insert into t1(a,b)values(NULL,8);
@@ -247,7 +246,7 @@ a	b
 1	1
 200	2
 201	4
-0	6
+203	6
 300	7
 301	8
 400	9
@@ -263,6 +262,7 @@ a	b
 1	1
 200	2
 201	4
+203	6
 300	7
 301	8
 400	9
@@ -273,20 +273,20 @@ a	b
 405	14
 delete from t1 where a=0;
 update t1 set a=NULL where b=13;
-Warnings:
-Warning	1048	Column 'a' cannot be null
+ERROR 23000: Column 'a' cannot be null
 update t1 set a=500 where b=14;
 select * from t1 order by b;
 a	b
 1	1
 200	2
 201	4
+203	6
 300	7
 301	8
 400	9
 401	10
 402	11
-0	13
+404	13
 500	14
 drop table t1;
 create table t1 (a bigint);
