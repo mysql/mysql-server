@@ -454,9 +454,7 @@ f1	f2	f3	f4
 update t31 set f5=555555555555555 where f3=6;
 update t31 set f2=2 where f3=2;
 update t31 set f1=NULL where f3=1;
-update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
-Warnings:
-Warning	1048	Column 'f3' cannot be null
+update t31 set f3=0, f27=NULL, f35='f35 new value' where f3=3;
 
 ** Delete from Master **
 
@@ -1595,9 +1593,7 @@ f1	f2	f3	f4
 update t31 set f5=555555555555555 where f3=6;
 update t31 set f2=2 where f3=2;
 update t31 set f1=NULL where f3=1;
-update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
-Warnings:
-Warning	1048	Column 'f3' cannot be null
+update t31 set f3=0, f27=NULL, f35='f35 new value' where f3=3;
 
 ** Delete from Master **
 
@@ -2736,9 +2732,7 @@ f1	f2	f3	f4
 update t31 set f5=555555555555555 where f3=6;
 update t31 set f2=2 where f3=2;
 update t31 set f1=NULL where f3=1;
-update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
-Warnings:
-Warning	1048	Column 'f3' cannot be null
+update t31 set f3=0, f27=NULL, f35='f35 new value' where f3=3;
 
 ** Delete from Master **
 

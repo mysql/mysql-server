@@ -419,7 +419,7 @@ connection master;
    update t31 set f5=555555555555555 where f3=6;
    update t31 set f2=2 where f3=2;
    update t31 set f1=NULL where f3=1;
-   update t31 set f3=NULL, f27=NULL, f35='f35 new value' where f3=3;
+   update t31 set f3=0, f27=NULL, f35='f35 new value' where f3=3;
 
 --echo
 --echo ** Delete from Master **
