@@ -455,8 +455,6 @@ void Dbtup::update_free_page_list(Fragrecord* fragPtr,
       jam();
       ndbrequire(new_list_index == 0);
       new_list_index = MAX_FREE_LIST;
-      ndbout_c("free_space: %u new_list_index: %u c_min_list_size: %u",
-               free_space, new_list_index, c_min_list_size[new_list_index]);
     }
 
     {
