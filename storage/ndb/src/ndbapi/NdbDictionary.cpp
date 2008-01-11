@@ -962,6 +962,69 @@ NdbDictionary::Index::getObjectId() const {
   return m_impl.m_table->m_id;
 }
 
+/*****************************************************************
+ * OptimizeTableHandle facade
+ */
+NdbDictionary::OptimizeTableHandle::OptimizeTableHandle()
+  : m_impl(* new NdbOptimizeTableHandleImpl(* this))
+{}
+
+NdbDictionary::OptimizeTableHandle::OptimizeTableHandle(NdbOptimizeTableHandleImpl & impl)
+  : m_impl(impl)
+{}
+
+NdbDictionary::OptimizeTableHandle::~OptimizeTableHandle()
+{
+  NdbOptimizeTableHandleImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+int
+NdbDictionary::OptimizeTableHandle::next()
+{
+  return m_impl.next();
+}
+
+int
+NdbDictionary::OptimizeTableHandle::close()
+{
+  int result = m_impl.close();
+  return result;
+}
+
+/*****************************************************************
+ * OptimizeIndexHandle facade
+ */
+NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle()
+  : m_impl(* new NdbOptimizeIndexHandleImpl(* this))
+{}
+
+NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle(NdbOptimizeIndexHandleImpl & impl)
+  : m_impl(impl)
+{}
+
+NdbDictionary::OptimizeIndexHandle::~OptimizeIndexHandle()
+{
+  NdbOptimizeIndexHandleImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+int
+NdbDictionary::OptimizeIndexHandle::next()
+{
+  return m_impl.next();
+}
+
+int
+NdbDictionary::OptimizeIndexHandle::close()
+{
+  int result = m_impl.close();
+  return result;
+}
 
 /*****************************************************************
  * Event facade
@@ -1532,59 +1595,20 @@ NdbDictionary::Dictionary::createTable(const Table & t)
 }
 
 int
-NdbDictionary::Dictionary::optimizeTable(const Table &t, Uint32 delay){
+NdbDictionary::Dictionary::optimizeTable(const Table &t,
+                                         OptimizeTableHandle &h){
   DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
-  DBUG_RETURN(m_impl.optimizeTable(NdbTableImpl::getImpl(t), delay));
+  DBUG_RETURN(m_impl.optimizeTable(NdbTableImpl::getImpl(t), 
+                                   NdbOptimizeTableHandleImpl::getImpl(h)));
 }
 
 int
-NdbDictionary::Dictionary::optimizeTable(const char * name, Uint32 delay){
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
-  DBUG_RETURN(m_impl.optimizeTable(name, delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeTableGlobal(const Table &t, Uint32 delay){
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
-  DBUG_RETURN(m_impl.optimizeTableGlobal(NdbTableImpl::getImpl(t), delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeTableGlobal(const char * name, Uint32 delay){
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
-  DBUG_RETURN(m_impl.optimizeTableGlobal(name, delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeIndex(const Index &ind, Uint32 delay)
+NdbDictionary::Dictionary::optimizeIndex(const Index &ind,
+                                         NdbDictionary::OptimizeIndexHandle &h)
 {
   DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
-  DBUG_RETURN(m_impl.optimizeIndex(NdbIndexImpl::getImpl(ind), delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeIndex(const char * idx_name,
-                                         const char * tab_name,
-                                         Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
-  DBUG_RETURN(m_impl.optimizeIndex(idx_name, tab_name, delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeIndexGlobal(const Index &ind, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
-  DBUG_RETURN(m_impl.optimizeIndexGlobal(NdbIndexImpl::getImpl(ind), delay));
-}
-
-int
-NdbDictionary::Dictionary::optimizeIndexGlobal(const char * idx_name,
-                                               const char * tab_name,
-                                               Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
-  DBUG_RETURN(m_impl.optimizeIndexGlobal(idx_name, tab_name, delay));
+  DBUG_RETURN(m_impl.optimizeIndex(NdbIndexImpl::getImpl(ind),
+                                   NdbOptimizeIndexHandleImpl::getImpl(h)));
 }
 
 int

@@ -1181,6 +1181,326 @@ NdbIndexImpl::getIndexTable() const
 }
 
 /**
+ * NdbOptimizeTableHandleImpl
+ */
+
+NdbOptimizeTableHandleImpl::NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &f)
+  : NdbDictionary::OptimizeTableHandle(* this),
+    m_ndb(NULL), m_table(NULL), m_trans(NULL), m_scan_op(NULL),
+    m_table_queue(NULL), m_table_queue_end(NULL),
+    m_facade(this), m_state(NdbOptimizeTableHandleImpl::CREATED)
+{
+}
+
+NdbOptimizeTableHandleImpl::~NdbOptimizeTableHandleImpl()
+{
+  DBUG_ENTER("NdbOptimizeTableHandleImpl::~NdbOptimizeTableHandleImpl");
+  close();
+  DBUG_VOID_RETURN;
+}
+
+int NdbOptimizeTableHandleImpl::start()
+{
+  int noRetries = 100;
+  DBUG_ENTER("NdbOptimizeTableImpl::start");
+
+  if (m_table_queue)
+  {
+    const NdbTableImpl * table = m_table_queue->table;
+
+    /*
+     * Start/Restart transaction
+     */
+    while (noRetries-- > 0)
+    {
+      if (m_trans && (m_trans->restart() != 0))
+      {
+        m_ndb->closeTransaction(m_trans);
+        m_trans = NULL;
+      }
+      else
+        m_trans = m_ndb->startTransaction();
+      if (!m_trans)
+      {
+        if (noRetries == 0)
+          goto do_error;
+        continue;
+      }
+      
+      /*
+       * Get first scan operation
+       */ 
+      if ((m_scan_op = m_trans->getNdbScanOperation(table->m_facade)) 
+          == NULL)
+      {
+        m_ndb->getNdbError(m_trans->getNdbError().code);
+        goto do_error;
+      }
+      
+      /**
+       * Define a result set for the scan.
+       */ 
+      if (m_scan_op->readTuples(NdbOperation::LM_Exclusive)) {
+        m_ndb->getNdbError(m_trans->getNdbError().code);
+        goto do_error;
+      }
+      
+      /**
+       * Start scan    (NoCommit since we are only reading at this stage);
+       */
+      if (m_trans->execute(NdbTransaction::NoCommit) != 0) {
+        if (m_trans->getNdbError().status == NdbError::TemporaryError)
+          continue;  /* goto next_retry */
+        m_ndb->getNdbError(m_trans->getNdbError().code);
+        goto do_error;
+      }
+      break;
+    } // while (noRetries-- > 0)
+    m_state = NdbOptimizeTableHandleImpl::INITIALIZED;
+  } // if (m_table_queue)
+  else
+    m_state = NdbOptimizeTableHandleImpl::FINISHED;
+
+  DBUG_RETURN(0);
+do_error:
+  DBUG_PRINT("info", ("NdbOptimizeTableImpl::start aborted"));
+  m_state = NdbOptimizeTableHandleImpl::ABORTED;
+  DBUG_RETURN(-1);
+}
+
+int NdbOptimizeTableHandleImpl::init(Ndb* ndb, const NdbTableImpl &table)
+{
+  DBUG_ENTER("NdbOptimizeTableHandleImpl::init");
+  NdbDictionary::Dictionary* dict = ndb->getDictionary();
+  Uint32 sz = table.m_columns.size();
+  bool found_varpart = false;
+  int blob_num = table.m_noOfBlobs;
+
+  m_ndb = ndb;
+  m_table = &table;
+
+  /**
+   * search whether there are var size columns in the table,
+   * in first step, we only optimize var part, then if the
+   * table has no var size columns, we do not do optimizing
+   */
+  for (Uint32 i = 0; i < sz; i++) {
+    const NdbColumnImpl *col = m_table->m_columns[i];
+    if (col != 0 && col->m_storageType == NDB_STORAGETYPE_MEMORY &&
+        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED)) {
+      found_varpart= true;
+      break;
+    }
+  }
+  if (!found_varpart)
+    DBUG_RETURN(0);
+  
+  /*
+   * Add main table to the table queue
+   * to optimize
+   */
+  m_table_queue_end = new fifo_element_st(m_table, m_table_queue_end);
+  m_table_queue = m_table_queue_first = m_table_queue_end;
+  /*
+   * Add any BLOB tables the table queue
+   * to optimize.
+   */
+  for (int i = m_table->m_columns.size(); i > 0 && blob_num > 0;) {
+    i--;
+    NdbColumnImpl & c = *m_table->m_columns[i];
+    if (! c.getBlobType() || c.getPartSize() == 0)
+      continue;
+    
+    blob_num--;
+    const NdbTableImpl * blob_table = 
+      (const NdbTableImpl *)dict->getBlobTable(m_table, c.m_attrId);
+    if (blob_table)
+    {
+      m_table_queue_end = new fifo_element_st(blob_table, m_table_queue_end);
+    }
+  }
+  /*
+   * Initialize transaction
+   */
+  DBUG_RETURN(start());
+}
+ 
+int NdbOptimizeTableHandleImpl::next()
+{
+  int noRetries = 100;
+  int done, check;
+  DBUG_ENTER("NdbOptimizeTableHandleImpl::next");
+
+  if (m_state == NdbOptimizeTableHandleImpl::FINISHED)
+    DBUG_RETURN(0);
+  else if (m_state != NdbOptimizeTableHandleImpl::INITIALIZED)
+    DBUG_RETURN(-1);
+
+  while (noRetries-- > 0)
+  {
+    if ((done = check = m_scan_op->nextResult(true)) == 0)
+    {
+      do 
+      {
+        /** 
+         * Get update operation
+         */
+        NdbOperation * myUpdateOp = m_scan_op->updateCurrentTuple();
+        if (myUpdateOp == 0)
+        {
+          m_ndb->getNdbError(m_trans->getNdbError().code);
+          goto do_error;
+        }
+        /**
+         * optimize a tuple through doing the update
+         * first step, move varpart
+         */
+        Uint32 options = 0 | AttributeHeader::OPTIMIZE_MOVE_VARPART;
+        myUpdateOp->setOptimize(options);
+        /**
+         * nextResult(false) means that the records
+         * cached in the NDBAPI are modified before
+         * fetching more rows from NDB.
+         */
+      } while ((check = m_scan_op->nextResult(false)) == 0);
+    }
+    
+    /**
+     * Commit when all cached tuple have been updated
+     */
+    if (check != -1)
+      check = m_trans->execute(NdbTransaction::Commit);
+    
+    if (done == 1)
+    {
+      DBUG_PRINT("info", ("Done with table %s",
+                          m_table_queue->table->getName()));
+      /*
+       * We are done with optimizing current table
+       * move to next
+       */
+      fifo_element_st *current = m_table_queue;
+      m_table_queue = current->next;
+      /*
+       * Start scan of next table
+       */
+      if (start() != 0) {
+        m_ndb->getNdbError(m_trans->getNdbError().code);
+        goto do_error;
+      }
+      DBUG_RETURN(1);
+    }
+    if (check == -1)
+    {
+      if (m_trans->getNdbError().status == NdbError::TemporaryError)
+      {
+        /*
+         * If we encountered temporary error, retry
+         */
+        m_ndb->closeTransaction(m_trans);
+        m_trans = NULL;
+        if (start() != 0) {
+          m_ndb->getNdbError(m_trans->getNdbError().code);
+          goto do_error;
+        }
+        continue; //retry
+      }
+      m_ndb->getNdbError(m_trans->getNdbError().code);
+      goto do_error;
+    }
+    if (m_trans->restart() != 0)
+    {
+      DBUG_PRINT("info", ("Failed to restart transaction"));
+      m_ndb->closeTransaction(m_trans);
+      m_trans = NULL;
+      if (start() != 0) {
+        m_ndb->getNdbError(m_trans->getNdbError().code);
+        goto do_error;
+      }
+    }
+ 
+    DBUG_RETURN(1);
+  }
+do_error:
+  DBUG_PRINT("info", ("NdbOptimizeTableHandleImpl::next aborted"));
+  m_state = NdbOptimizeTableHandleImpl::ABORTED;
+  DBUG_RETURN(-1);
+}
+ 
+int NdbOptimizeTableHandleImpl::close()
+{
+  DBUG_ENTER("NdbOptimizeTableHandleImpl::close");
+  /*
+   * Drop queued tables
+   */
+  while(m_table_queue_first != NULL)
+  {
+    fifo_element_st *next = m_table_queue_first->next;
+    delete m_table_queue_first;
+    m_table_queue_first = next;
+  }
+  m_table_queue = m_table_queue_first = m_table_queue_end = NULL;
+  if (m_trans)
+  {
+    m_ndb->closeTransaction(m_trans);
+    m_trans = NULL;
+  }
+  m_state = NdbOptimizeTableHandleImpl::CLOSED;
+  DBUG_RETURN(0);
+}
+ 
+/**
+ * NdbOptimizeIndexHandleImpl
+ */
+
+NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl(NdbDictionary::OptimizeIndexHandle &f)
+  : NdbDictionary::OptimizeIndexHandle(* this),
+    m_ndb(NULL), m_index(NULL),
+    m_facade(this), m_state(NdbOptimizeIndexHandleImpl::CREATED)
+{
+  DBUG_ENTER("NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl");
+  DBUG_VOID_RETURN;
+}
+
+NdbOptimizeIndexHandleImpl::~NdbOptimizeIndexHandleImpl()
+{
+  DBUG_ENTER("NdbOptimizeIndexHandleImpl::~NdbOptimizeIndexHandleImpl");
+  DBUG_VOID_RETURN;
+}
+
+int NdbOptimizeIndexHandleImpl::init(Ndb *ndb, const NdbIndexImpl &index)
+{
+  DBUG_ENTER("NdbOptimizeIndexHandleImpl::init");
+  m_index = &index;
+  m_state = NdbOptimizeIndexHandleImpl::INITIALIZED;
+  /**
+   * NOTE: we only optimize unique index
+   */
+  if (m_index->m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
+    DBUG_RETURN(0);
+  DBUG_RETURN(m_optimize_table_handle.m_impl.init(ndb, *index.getIndexTable()));
+}
+ 
+int NdbOptimizeIndexHandleImpl::next()
+{
+  DBUG_ENTER("NdbOptimizeIndexHandleImpl::next");
+  if (m_state != NdbOptimizeIndexHandleImpl::INITIALIZED)
+    DBUG_RETURN(0);
+  if (m_index->m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
+    DBUG_RETURN(0);
+  DBUG_RETURN(m_optimize_table_handle.m_impl.next());
+}
+ 
+int NdbOptimizeIndexHandleImpl::close()
+{
+  DBUG_ENTER("NdbOptimizeIndexHandleImpl::close");
+  m_state = NdbOptimizeIndexHandleImpl::CLOSED;
+  if (m_index->m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
+    DBUG_RETURN(0);
+  DBUG_RETURN(m_optimize_table_handle.m_impl.close());
+}
+ 
+/**
  * NdbEventImpl
  */
 
@@ -2412,217 +2732,9 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
   DBUG_RETURN(0);
 }
 
-/**
- * this function depends on whether t is global object 
- */
 int
-NdbDictionaryImpl::__optimizeTable(const NdbTableImpl &t, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::__optimizeTable(const NdbTableImpl)");
-  int check;
-  int retryAttempt = 0;
-  const int retryMax = 100;
-  const int sleep_retry = 50;
-  Uint32 sleep_load = delay;
-  NdbTransaction * myTrans;
-  NdbScanOperation * myScanOp;
-
-  /**
-   * search whether there are var size columns in the table,
-   * in first step, we only optimize var part, then if the
-   * table has no var size columns, we donot do optimizing
-   */
-  Uint32 sz = t.m_columns.size();
-  bool found_varpart = false;
-  for (Uint32 i = 0; i < sz; i++) {
-    const NdbColumnImpl *col = t.m_columns[i];
-    if (col != 0 && col->m_storageType == NDB_STORAGETYPE_MEMORY &&
-        (col->m_dynamic || col->m_arrayType != NDB_ARRAYTYPE_FIXED)) {
-      found_varpart= true;
-      break;
-    }
-  }
-  if (!found_varpart)
-    DBUG_RETURN(0);
-
-  do {
-next_retry:
-    if (retryAttempt) {
-      if (retryAttempt >= retryMax) {
-        ndbout << "ERROR: optimizeTableGlobal() has retried this operation "
-               << retryAttempt << " times, failing!" << endl;
-        goto do_error;
-      }
-      if (myTrans)
-        m_ndb.closeTransaction(myTrans);
-      NdbSleep_MilliSleep(sleep_retry);
-    }
-    retryAttempt++;
-    myTrans = m_ndb.startTransaction();
-
-    if (myTrans == NULL) {
-      if (m_ndb.getNdbError().status == NdbError::TemporaryError)
-        continue;  /* goto next_retry */
-      goto do_error;
-    }
-
-    /**
-     * Get a scan operation.
-     */
-    myScanOp = myTrans->getNdbScanOperation(t.m_facade);
-    if (myScanOp == NULL) {
-      m_ndb.getNdbError(myTrans->getNdbError().code);
-      goto do_error;
-    }
-
-    /**
-     * Define a result set for the scan.
-     */ 
-    if (myScanOp->readTuples(NdbOperation::LM_Exclusive)) {
-      m_ndb.getNdbError(myTrans->getNdbError().code);
-      goto do_error;
-    }
-
-    /**
-     * Start scan    (NoCommit since we are only reading at this stage);
-     */
-    if (myTrans->execute(NdbTransaction::NoCommit) != 0) {
-      if (myTrans->getNdbError().status == NdbError::TemporaryError)
-        continue;  /* goto next_retry */
-      m_ndb.getNdbError(myTrans->getNdbError().code);
-      goto do_error;
-    }
-
-    /**
-     * start of loop: nextResult(true) means that "parallelism" number of
-     * rows are fetched from NDB and cached in NDBAPI
-     */
-    while ((check = myScanOp->nextResult(true)) == 0) {
-      do {
-        /** 
-         * Get update operation
-         */
-        NdbOperation * myUpdateOp = myScanOp->updateCurrentTuple();
-        if (myUpdateOp == 0) {
-          m_ndb.getNdbError(myTrans->getNdbError().code);
-          goto do_error;
-        }
-
-        /**
-         * optimize a tuple through doing the update
-         * first step, move varpart
-         */
-        Uint32 options = 0 | AttributeHeader::OPTIMIZE_MOVE_VARPART;
-        myUpdateOp->setOptimize(options);
-        /**
-         * nextResult(false) means that the records
-         * cached in the NDBAPI are modified before
-         * fetching more rows from NDB.
-         */
-      } while ((check = myScanOp->nextResult(false)) == 0);
-
-      /**
-       * NoCommit when all cached tuple have been updated
-       */
-      if (check != -1)
-        check = myTrans->execute(NdbTransaction::Commit);
-
-      if (check == -1) {
-        if (myTrans->getNdbError().status == NdbError::TemporaryError)
-          goto next_retry;
-        m_ndb.getNdbError(myTrans->getNdbError().code);
-        goto do_error;
-      }
-
-      if (myTrans->restart() != 0) {
-        m_ndb.getNdbError(myTrans->getNdbError().code);
-        goto do_error;
-      }
-
-      /**
-       * sleep here to decrease the load of optimization 
-       */
-      if (sleep_load > 0)
-        NdbSleep_MilliSleep(sleep_load);
-    } /* end while(nextResult(true) == 0) */
-
-    /**
-     * Commit all prepared operations
-     */
-    if (myTrans->execute(NdbTransaction::Commit) == -1) {
-      if (myTrans->getNdbError().status == NdbError::TemporaryError)
-        continue;  /* goto next_retry */
-      m_ndb.getNdbError(myTrans->getNdbError().code);
-      goto do_error;
-    }
-
-    m_ndb.closeTransaction(myTrans);
-    DBUG_RETURN(0);
-  } while(true);
-
-do_error:
-  if(myTrans != NULL)
-    m_ndb.closeTransaction(myTrans);
-
-  DBUG_RETURN(-1);
-}
-
-/**
- * optimize main table and blob tables possibly
- */
-int
-NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeTable(const NdbTableImpl)");
-  /**
-   * to optimize main table first
-   */
-  int res = __optimizeTable(t, delay);
-  if (res)
-    DBUG_RETURN(-1);
-  
-  /**
-   * to optimize all blob tables if possible
-   */
-  int num = t.m_noOfBlobs;
-  for (int i = t.m_columns.size(); i > 0 && num > 0;) {
-    i--;
-    NdbColumnImpl & c = *t.m_columns[i];
-    if (! c.getBlobType() || c.getPartSize() == 0)
-      continue;
-    
-    num--;
-    const NdbTableImpl * blob_table = 
-      (const NdbTableImpl *)getBlobTable(t, c.m_attrId);
-    if (blob_table == NULL)
-      DBUG_RETURN(-1);
-    res = __optimizeTable(*blob_table, delay);
-    if (res)
-      DBUG_RETURN(-1);
-  }
-
-  DBUG_RETURN(0);
-}
-
-int
-NdbDictionaryImpl::optimizeTable(const char *name, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeTable(const char*)");
-  /**
-   * first we get table object from local cache,
-   * if cache hit, then we get local object, else 
-   * we get global object through m_receiver.
-   */
-  NdbTableImpl *t = getTable(name);
-  if (t == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(optimizeTable(*t, delay));
-}
-
-int
-NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl &t, Uint32 delay)
+NdbDictionaryImpl::optimizeTable(const NdbTableImpl &t,
+                                 NdbOptimizeTableHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl)");
   /**
@@ -2633,60 +2745,12 @@ NdbDictionaryImpl::optimizeTableGlobal(const NdbTableImpl &t, Uint32 delay)
     m_ndb.getNdbError(getNdbError().code);
     DBUG_RETURN(-1);
   }
-  DBUG_RETURN(optimizeTable(*g_table, delay));
+  DBUG_RETURN(h.init(&m_ndb, *g_table));
 }
 
 int
-NdbDictionaryImpl::optimizeTableGlobal(const char *name, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeTableGlobal(const char*)");
-  /**
-   * make sure we get global table object here
-   */
-  NdbTableImpl *t = getTableGlobal(name);
-  if (t == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(optimizeTable(*t, delay));
-}
-
-int
-NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index, Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl)");
-  /**
-   * NOTE: we only optimize unique index
-   */
-  if (index.m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
-    DBUG_RETURN(0);
-  /**
-   * this function depends on whether index table is global
-   */
-  const NdbTableImpl * index_table = index.getIndexTable();
-  DBUG_RETURN(optimizeTable(*index_table, delay));
-}
-
-int
-NdbDictionaryImpl::optimizeIndex(const char * idx_name,
-                                 const char * tab_name,
-                                 Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeIndex(const char*, const char*)");
-  /**
-   * get index table from local cache
-   */
-  const NdbIndexImpl * index = getIndex(idx_name,
-                                        tab_name);
-  if (index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(optimizeIndex(*index, delay));
-}
-
-int
-NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl &index, Uint32 delay)
+NdbDictionaryImpl::optimizeIndex(const NdbIndexImpl &index,
+                                 NdbOptimizeIndexHandleImpl &h)
 {
   DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl)");
   /**
@@ -2698,25 +2762,7 @@ NdbDictionaryImpl::optimizeIndexGlobal(const NdbIndexImpl &index, Uint32 delay)
     m_ndb.getNdbError(getNdbError().code);
     DBUG_RETURN(-1);
   }
-  DBUG_RETURN(optimizeIndex(*g_index, delay));
-}
-
-int
-NdbDictionaryImpl::optimizeIndexGlobal(const char * idx_name,
-                                       const char * tab_name,
-                                       Uint32 delay)
-{
-  DBUG_ENTER("NdbDictionaryImpl::optimizeIndexGlobal(const char*, const char*)");
-  /**
-   * make sure we get global index object here
-   */
-  const NdbIndexImpl * index = getIndexGlobal(idx_name,
-                                              tab_name);
-  if (index == NULL) {
-    m_ndb.getNdbError(getNdbError().code);
-    DBUG_RETURN(-1);
-  }
-  DBUG_RETURN(optimizeIndex(*index, delay));
+  DBUG_RETURN(h.init(&m_ndb, *g_index));
 }
 
 int

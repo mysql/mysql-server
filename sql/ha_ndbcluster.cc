@@ -5606,6 +5606,17 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 }
 #endif /* HAVE_NDB_BINLOG */
 
+static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
+{
+  if (thd->lex->sql_command == SQLCOM_LOAD)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  else if (!thd->transaction.on)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  else if (!thd->variables.ndb_use_transactions)
+    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+  thd_ndb->m_force_send= thd->variables.ndb_force_send;
+}
+
 int ha_ndbcluster::start_statement(THD *thd,
                                    Thd_ndb *thd_ndb,
                                    uint table_count)
@@ -5615,6 +5626,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   DBUG_ENTER("ha_ndbcluster::start_statement");
 
   m_thd_ndb= thd_ndb;
+  transaction_checks(thd, m_thd_ndb);
 
   if (table_count == 0)
   {
@@ -5917,16 +5929,6 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type lock_type)
 error:
   thd_ndb->start_stmt_count--;
   DBUG_RETURN(error);
-}
-
-static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
-{
-  if (thd->lex->sql_command == SQLCOM_LOAD ||
-      !thd->transaction.on)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->variables.ndb_use_transactions)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  thd_ndb->m_force_send= thd->variables.ndb_force_send;
 }
 
 NdbTransaction *
@@ -7963,16 +7965,28 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
-  int error= 0;
+  int result=0, error= 0;
   uint i;
-  DBUG_ENTER("ndb_optimize_table");
+  NdbDictionary::OptimizeTableHandle th;
+  NdbDictionary::OptimizeIndexHandle ih;
 
-  if ((error= dict->optimizeTableGlobal(*m_table, delay)))
+  DBUG_ENTER("ndb_optimize_table");
+  if ((error= dict->optimizeTable(*m_table, th)))
   {
     DBUG_PRINT("info",
-               ("Optimze table %s returned %u", m_tabname, error));
+               ("Optimze table %s returned %d", m_tabname, error));
     ERR_RETURN(ndb->getNdbError());
   }
+  while((result= th.next()) == 1)
+  {
+    my_sleep(delay);
+  }
+  if (result == -1 || th.close() == -1)
+  {
+    DBUG_PRINT("info",
+               ("Optimize table %s did not complete", m_tabname));
+    ERR_RETURN(ndb->getNdbError());
+  };
   for (i= 0; i < MAX_KEY; i++)
   {
     if (m_index[i].status == ACTIVE)
@@ -7981,22 +7995,44 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;
       
       if (index &&
-          (error= dict->optimizeIndexGlobal(*index, delay)))
+          (error= dict->optimizeIndex(*index, ih)))
       {
         DBUG_PRINT("info",
-                   ("Optimze index %s returned %u", 
+                   ("Optimze index %s returned %d", 
                     index->getName(), error));
         ERR_RETURN(ndb->getNdbError());
         
       }
-      if (unique_index &&
-          (error= dict->optimizeIndexGlobal(*unique_index, delay)))
+      while((result= ih.next()) == 1)
+      {
+        my_sleep(delay);        
+      }
+      if (result == -1 || ih.close() == -1)
       {
         DBUG_PRINT("info",
-                   ("Optimze index %s returned %u", 
+                   ("Optimize index %s did not complete", index->getName()));
+        ERR_RETURN(ndb->getNdbError());
+        
+      }
+      if (unique_index &&
+          (error= dict->optimizeIndex(*unique_index, ih)))
+      {
+        DBUG_PRINT("info",
+                   ("Optimze unique index %s returned %d", 
                     unique_index->getName(), error));
         ERR_RETURN(ndb->getNdbError());
       } 
+      while((result= ih.next()) == 1)
+      {
+        my_sleep(delay);
+      }
+      if (result == -1 || ih.close() == -1)
+      {
+        DBUG_PRINT("info",
+                   ("Optimize index %s did not complete", index->getName()));
+        ERR_RETURN(ndb->getNdbError());
+        
+      }
     }
   }
   DBUG_RETURN(0);
