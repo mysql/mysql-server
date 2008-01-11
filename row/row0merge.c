@@ -1511,6 +1511,11 @@ row_merge_copy_blobs(
 
 		ut_ad(!dfield_is_null(field));
 
+		/* The table is locked during index creation.
+		Therefore, externally stored columns cannot possibly
+		be freed between the time the BLOB pointers are read
+		(row_merge_read_clustered_index()) and dereferenced
+		(below). */
 		data = btr_rec_copy_externally_stored_field(
 			mrec, offsets, zip_size, i, &len, heap);
 
