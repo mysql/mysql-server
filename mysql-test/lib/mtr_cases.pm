@@ -653,18 +653,26 @@ sub collect_one_test_case {
   #print " filename: $filename\n";
 
   # ----------------------------------------------------------------------
-  # Skip some tests silently
+  # Check --start-from
   # ----------------------------------------------------------------------
-  if ( $start_from and $tname lt $start_from )
+  if ( $start_from )
   {
-    return;
+    # start_from can be specified as [suite.].testname_prefix
+    my ($suite, $test, $ext)= split_testname($start_from);
+
+    if ( $suite and $suitename lt $suite){
+      return; # Skip silently
+    }
+    if ( $tname lt $test ){
+      return; # Skip silently
+    }
   }
 
   # ----------------------------------------------------------------------
   # Set defaults
   # ----------------------------------------------------------------------
   my $tinfo= {};
-  $tinfo->{'name'}= basename($suitename) . ".$tname";
+  $tinfo->{'name'}= $suitename . ".$tname";
   $tinfo->{'path'}= "$testdir/$filename";
 
   # TODO allow nonexistsing result file
