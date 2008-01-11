@@ -1,4 +1,5 @@
 #include <db.h>
+#include <iostream>
 #include <exception>
 #include <string.h>
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
@@ -161,6 +162,7 @@ class DbEnv {
     void err(int error, const char *fmt, ...);
     void set_errfile(FILE *errfile);
     void set_errcall(void (*)(const DbEnv *, const char *, const char *));
+    void set_error_stream(std::ostream *);
     int get_flags(u_int32_t *flagsp);
 
     // locking
@@ -178,6 +180,7 @@ class DbEnv {
 // somewhat_private:
     int do_no_exceptions; // This should be private!!!
     void (*errcall)(const DbEnv *, const char *, const char *);
+    std::ostream *_error_stream;
 
  private:
     DB_ENV *the_env;

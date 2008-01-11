@@ -12,7 +12,7 @@ DbEnv::DbEnv (u_int32_t flags)
 }
 
 DbEnv::DbEnv(DB_ENV *env, u_int32_t flags)
-    : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0)
+    : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0), _error_stream(0)
 {
     the_env = env;
     if (env == 0) {
@@ -124,6 +124,17 @@ extern "C" void toku_db_env_errcall_c(const DB_ENV *dbenv_c, const char *errpfx,
 void DbEnv::set_errcall(void (*db_errcall_fcn)(const DbEnv *, const char *, const char *)) {
     errcall = db_errcall_fcn;
     the_env->set_errcall(the_env, toku_db_env_errcall_c);
+}
+
+extern "C" void toku_db_env_error_stream_c(const DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
+    DbEnv *dbenv = (DbEnv *) dbenv_c->api1_internal;
+    if (dbenv->_error_stream)
+        *dbenv->_error_stream << errpfx << ":" << msg << "\n";
+}
+
+void DbEnv::set_error_stream(std::ostream *new_error_stream) {
+    _error_stream = new_error_stream;
+    the_env->set_errcall(the_env, toku_db_env_error_stream_c);
 }
 
 // locking not yet implemented
