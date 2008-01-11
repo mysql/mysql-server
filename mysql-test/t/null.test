@@ -61,7 +61,9 @@ drop table t1;
 #
 CREATE TABLE t1 (a varchar(16) NOT NULL default '', b smallint(6) NOT NULL default 0, c datetime NOT NULL default '0000-00-00 00:00:00', d smallint(6) NOT NULL default 0);
 INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
+--error 1048
 UPDATE t1 SET d=1/NULL;
+--error 1048
 UPDATE t1 SET d=NULL;
 --error 1048
 INSERT INTO t1 (a) values (null);
