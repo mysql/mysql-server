@@ -3229,7 +3229,7 @@ my_bool pagecache_delete_pages(PAGECACHE *pagecache,
                                enum pagecache_page_lock lock,
                                my_bool flush)
 {
-  ulong page_end;
+  pgcache_page_no_t page_end;
   DBUG_ENTER("pagecache_delete_pages");
   DBUG_ASSERT(page_count > 0);
 

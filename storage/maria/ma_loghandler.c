@@ -1576,8 +1576,7 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
       have such "random" for this purpose and it will not interfere with
       higher level pseudo random value generator
     */
-    uint16 tmp_time= time(NULL);
-    ptr[0]= tmp_time & 0xFF;
+    ptr[0]= (uchar)time(NULL);
     ptr+= TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
   }
   {
@@ -2611,7 +2610,7 @@ static my_bool translog_page_validator(uchar *page,
   uchar *page_pos;
   TRANSLOG_FILE *data= (TRANSLOG_FILE *) data_ptr;
 #ifndef DBUG_OFF
-  uint32 offset= page_no * TRANSLOG_PAGE_SIZE;
+  pgcache_page_no_t offset= page_no * TRANSLOG_PAGE_SIZE;
 #endif
   DBUG_ENTER("translog_page_validator");
 
@@ -4759,26 +4758,26 @@ static uchar *translog_put_LSN_diff(LSN base_lsn, LSN lsn, uchar *dst)
       Note we store this high uchar first to ensure that first uchar has
       0 in the 3 upper bits.
     */
-    dst[0]= diff >> 8;
-    dst[1]= (diff & 0xFF);
+    dst[0]= (uchar)(diff >> 8);
+    dst[1]= (uchar)(diff & 0xFF);
   }
   else if (diff <= 0x3FFFFFL)
   {
     dst-= 3;
-    dst[0]= 0x40 | (diff >> 16);
+    dst[0]= (uchar)(0x40 | (diff >> 16));
     int2store(dst + 1, diff & 0xFFFF);
   }
   else if (diff <= 0x3FFFFFFFL)
   {
     dst-= 4;
-    dst[0]= 0x80 | (diff >> 24);
+    dst[0]= (uchar)(0x80 | (diff >> 24));
     int3store(dst + 1, diff & 0xFFFFFFL);
   }
   else if (diff <= LL(0x3FFFFFFFFF))
 
   {
     dst-= 5;
-    dst[0]= 0xC0 | (diff >> 32);
+    dst[0]= (uchar)(0xC0 | (diff >> 32));
     int4store(dst + 1, diff & 0xFFFFFFFFL);
   }
   else
@@ -4874,7 +4873,8 @@ static uchar *translog_get_LSN_from_diff(LSN base_lsn, uchar *src, uchar *dst)
       base_offset+= LL(0x100000000);
     }
     file_no= LSN_FILE_NO(base_lsn) - first_byte;
-    rec_offset= base_offset - diff;
+    DBUG_ASSERT(base_offset - diff <= UINT_MAX);
+    rec_offset= (uint32)(base_offset - diff);
     break;
   }
   default:

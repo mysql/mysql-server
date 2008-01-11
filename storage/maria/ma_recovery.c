@@ -2840,15 +2840,20 @@ static LSN parse_checkpoint_record(LSN lsn)
 
   /* dirty pages */
   nb_dirty_pages= uint8korr(ptr);
+
+  /* Ensure casts later will not loose significant bits. */
+  DBUG_ASSERT((nb_dirty_pages <= SIZE_T_MAX/sizeof(struct st_dirty_page))
+    && (nb_dirty_pages <= ULONG_MAX));
+
   ptr+= 8;
   tprint(tracef, "%lu dirty pages\n", (ulong) nb_dirty_pages);
-  if (hash_init(&all_dirty_pages, &my_charset_bin, nb_dirty_pages,
+  if (hash_init(&all_dirty_pages, &my_charset_bin, (ulong)nb_dirty_pages,
                 offsetof(struct st_dirty_page, file_and_page_id),
                 sizeof(((struct st_dirty_page *)NULL)->file_and_page_id),
                 NULL, NULL, 0))
     return LSN_ERROR;
   dirty_pages_pool=
-    (struct st_dirty_page *)my_malloc(nb_dirty_pages *
+    (struct st_dirty_page *)my_malloc((size_t)nb_dirty_pages *
                                       sizeof(struct st_dirty_page),
                                       MYF(MY_WME));
   if (unlikely(dirty_pages_pool == NULL))

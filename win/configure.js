@@ -32,6 +32,7 @@ try
     var default_comment = "Source distribution";
     var default_port = GetValue(configureIn, "MYSQL_TCP_PORT_DEFAULT");
     var actual_port = 0;
+    var with_maria_tmp_tables = -1;
 
     var configfile = fso.CreateTextFile("win\\configure.data", true);
     for (i=0; i < args.Count(); i++)
@@ -45,12 +46,22 @@ try
             case "WITH_FEDERATED_STORAGE_ENGINE":
             case "WITH_INNOBASE_STORAGE_ENGINE":
             case "WITH_PARTITION_STORAGE_ENGINE":
-            case "WITH_MARIA_STORAGE_ENGINE":
             case "__NT__":
             case "CYBOZU":
             case "EMBED_MANIFESTS":
             case "WITH_EMBEDDED_SERVER":
                     configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
+                    break;
+            case "WITH_MARIA_STORAGE_ENGINE":
+                    configfile.WriteLine("SET (" + args.Item(i) + " TRUE)");
+                    if(with_maria_tmp_tables == -1)
+                    {
+                      with_maria_tmp_tables = 1;
+                    }
+                    break;
+            case "WITH_MARIA_TMP_TABLES":
+                    with_maria_tmp_tables = ( parts.length == 1 ||
+                           parts[1] == "YES" || parts[1] == "TRUE");
                     break;
             case "MYSQL_SERVER_SUFFIX":
             case "MYSQLD_EXE_SUFFIX":
@@ -64,6 +75,10 @@ try
                     actual_port = parts[1];
                     break;
         }
+    }
+    if (with_maria_tmp_tables == 1)
+    {
+      configfile.WriteLine("SET (WITH_MARIA_TMP_TABLES TRUE)");
     }
     if (actual_port == 0)
 	{
