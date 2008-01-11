@@ -11,14 +11,14 @@ On a second connection; clear the query cache.
 show status like 'Qcache_queries_in_cache';
 Variable_name	Value
 Qcache_queries_in_cache	1
-set global query_cache_size= 0;;
+set global query_cache_size= 0;
 Signal the debug hook to release the lock.
 select id from information_schema.processlist where state='wait_in_query_cache_insert' into @thread_id;
 kill query @thread_id;
 Show query cache status.
 show status like 'Qcache_queries_in_cache';
 Variable_name	Value
-Qcache_queries_in_cache	1
+Qcache_queries_in_cache	0
 set global query_cache_size= 0;
 use test;
 drop table t1;
