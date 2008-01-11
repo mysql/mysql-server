@@ -234,6 +234,29 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 drop table t1;
 
+--echo Test of REPAIR's implicit commit
+
+let $mms_tables=1;
+create table t1 (a varchar(100), key(a)) engine=maria;
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+insert into t1 values(3);
+-- source include/maria_make_snapshot_for_comparison.inc
+lock tables t1 write;
+insert into t1 values (1);
+repair table t1;
+insert into t1 values(2);
+select * from t1;
+
+# checksum comparison failure is expected, SELECT output matters
+-- source include/maria_verify_recovery.inc
+# 2 should be missing (rolled back) but 1 should be committed
+select * from t1;
+drop table t1;
+
 #
 # Test with big blobs
 #

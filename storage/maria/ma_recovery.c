@@ -3023,6 +3023,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete)
 {
   MARIA_SHARE *share= info->s;
+  DBUG_ENTER("_ma_tmp_disable_logging_for_table");
   if (log_incomplete)
   {
     uchar log_data[FILEID_STORE_SIZE];
@@ -3051,6 +3052,7 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   _ma_set_data_pagecache_callbacks(&info->dfile, share);
   _ma_set_index_pagecache_callbacks(&share->kfile, share);
   _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -3063,9 +3065,10 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
 void _ma_reenable_logging_for_table(MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
+  DBUG_ENTER("_ma_reenable_logging_for_table");
 
   if (share->now_transactional == share->base.born_transactional)
-    return;
+    DBUG_VOID_RETURN;
 
   if ((share->now_transactional= share->base.born_transactional))
   {
@@ -3080,6 +3083,7 @@ void _ma_reenable_logging_for_table(MARIA_HA *info)
   _ma_set_data_pagecache_callbacks(&info->dfile, share);
   _ma_set_index_pagecache_callbacks(&share->kfile, share);
   _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
+  DBUG_VOID_RETURN;
 }
 
 

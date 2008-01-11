@@ -62,9 +62,9 @@ uint trnman_increment_locked_tables(TRN *trn)
   return trn->locked_tables++;
 }
 
-my_bool trnman_has_locked_tables(TRN *trn)
+uint trnman_has_locked_tables(TRN *trn)
 {
-  return trn->locked_tables != 0;
+  return trn->locked_tables;
 }
 
 uint trnman_decrement_locked_tables(TRN *trn)
@@ -72,9 +72,9 @@ uint trnman_decrement_locked_tables(TRN *trn)
   return --trn->locked_tables;
 }
 
-void trnman_reset_locked_tables(TRN *trn)
+void trnman_reset_locked_tables(TRN *trn, uint locked_tables)
 {
-  trn->locked_tables= 0;
+  trn->locked_tables= locked_tables;
 }
 
 
