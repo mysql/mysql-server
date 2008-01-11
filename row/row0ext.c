@@ -60,8 +60,11 @@ row_ext_create(
 				dict_col_get_no(); NOT relative to the records
 				in the clustered index */
 	const dtuple_t*	tuple,	/* in: data tuple containing the field
-				references of the externally stored columns;
-				must be indexed by col_no */
+				references of the externally stored
+				columns; must be indexed by col_no;
+				the clustered index record must be
+				covered by a lock or a page latch
+				to prevent deletion (rollback or purge). */
 	ulint		zip_size,/* compressed page size in bytes, or 0 */
 	mem_heap_t*	heap)	/* in: heap where created */
 {

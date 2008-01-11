@@ -67,10 +67,13 @@ row_sel_sec_rec_is_for_blob(
 	ulint		mbminlen,	/* in: minimum length of a
 					multi-byte character */
 	ulint		mbmaxlen,	/* in: maximum length of a
-				multi-byte character */
+					multi-byte character */
 	const byte*	clust_field,	/* in: the locally stored part of
-				the clustered index column, including
-				the BLOB pointer */
+					the clustered index column, including
+					the BLOB pointer; the clustered
+					index record must be covered by
+					a lock or a page latch to protect it
+					against deletion (rollback or purge) */
 	ulint		clust_len,	/* in: length of clust_field */
 	const byte*	sec_field,	/* in: column in secondary index */
 	ulint		sec_len,	/* in: length of sec_field */
@@ -104,7 +107,10 @@ row_sel_sec_rec_is_for_clust_rec(
 					when compared with collation */
 	const rec_t*	sec_rec,	/* in: secondary index record */
 	dict_index_t*	sec_index,	/* in: secondary index */
-	const rec_t*	clust_rec,	/* in: clustered index record */
+	const rec_t*	clust_rec,	/* in: clustered index record;
+					must be protected by a lock or
+					a page latch against deletion
+					in rollback or purge */
 	dict_index_t*	clust_index)	/* in: clustered index */
 {
 	const byte*	sec_field;
@@ -2990,8 +2996,8 @@ row_sel_get_clust_rec_for_mysql(
 		    && !row_sel_sec_rec_is_for_clust_rec(
 			    rec, sec_index, clust_rec, clust_index)) {
 			clust_rec = NULL;
-		} else {
 #ifdef UNIV_SEARCH_DEBUG
+		} else {
 			ut_a(clust_rec == NULL
 			     || row_sel_sec_rec_is_for_clust_rec(
 				     rec, sec_index, clust_rec, clust_index));
