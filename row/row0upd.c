@@ -868,7 +868,10 @@ given. */
 void
 row_upd_index_replace_new_col_vals_index_pos(
 /*=========================================*/
-	dtuple_t*	entry,	/* in/out: index entry where replaced */
+	dtuple_t*	entry,	/* in/out: index entry where replaced;
+				the clustered index record must be
+				covered by a lock or a page latch to
+				prevent deletion (rollback or purge) */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
 	const upd_t*	update,	/* in: an update vector built for the index so
@@ -986,7 +989,10 @@ given. */
 void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
-	dtuple_t*	entry,	/* in/out: index entry where replaced */
+	dtuple_t*	entry,	/* in/out: index entry where replaced;
+				the clustered index record must be
+				covered by a lock or a page latch to
+				prevent deletion (rollback or purge) */
 	dict_index_t*	index,	/* in: index; NOTE that this may also be a
 				non-clustered index */
 	const upd_t*	update,	/* in: an update vector built for the
@@ -1440,6 +1446,7 @@ row_upd_sec_index_entry(
 	}
 
 	/* Build a new index entry */
+	/* TODO: lock the clustered index record before fetching BLOBs */
 	row_upd_index_replace_new_col_vals(entry, index, node->update,
 					   NULL, heap);
 
@@ -1562,6 +1569,7 @@ row_upd_clust_rec_by_insert(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
+	/* TODO: lock the clustered index record before fetching BLOBs */
 	row_upd_index_replace_new_col_vals(entry, index, node->update,
 					   NULL, heap);
 
