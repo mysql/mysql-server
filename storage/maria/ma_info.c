@@ -120,14 +120,14 @@ int maria_status(MARIA_HA *info, register MARIA_INFO *x, uint flag)
 
 void _ma_report_error(int errcode, const char *file_name)
 {
-  uint  length;
+  size_t  length;
   DBUG_ENTER("_ma_report_error");
   DBUG_PRINT("enter",("errcode %d, table '%s'", errcode, file_name));
 
   if ((length= strlen(file_name)) > 64)
   {
     /* we first remove the directory */
-    uint dir_length= dirname_length(file_name);
+    size_t dir_length= dirname_length(file_name);
     file_name+= dir_length;
     if ((length-= dir_length) > 64)
     {

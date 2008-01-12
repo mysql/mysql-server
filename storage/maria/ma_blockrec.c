@@ -1205,7 +1205,7 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
       }
       else
       {
-        uint length= (end - pos);
+        uint length= (uint) (end - pos);
         if (column->length <= 255)
           *field_length_data++= (uchar) length;
         else
@@ -2232,7 +2232,7 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
       my_afree(compact_extent_info);
       DBUG_RETURN(0);
     }
-    extents_count= extents_length / ROW_EXTENT_SIZE;
+    extents_count= (uint) (extents_length / ROW_EXTENT_SIZE);
     pagerange_store(log_data + FILEID_STORE_SIZE, extents_count);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
@@ -2651,7 +2651,7 @@ static my_bool write_block_record(MARIA_HA *info,
       MARIA_BITMAP_BLOCK *cur_block, *end_block, *last_head_block;
       MARIA_BITMAP_BLOCK *head_tail_block= 0;
       ulong length;
-      ulong data_length= (tmp_data - info->rec_buff);
+      ulong data_length= (ulong) (tmp_data - info->rec_buff);
 
 #ifdef SANITY_CHECKS
       DBUG_ASSERT(head_block->sub_blocks != 1);
@@ -2779,7 +2779,7 @@ static my_bool write_block_record(MARIA_HA *info,
                         head_block+1, bitmap_blocks->count - 1);
       if (head_tail_block)
       {
-        ulong block_length= (tmp_data - info->rec_buff);
+        ulong block_length= (ulong) (tmp_data - info->rec_buff);
         uchar *extent_data;
 
         length= (uint) (block_length % FULL_PAGE_SIZE(block_size));
@@ -5349,7 +5349,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
       log_parts++;
     }
   }
-  *log_parts_count= (log_parts - start_log_parts);
+  *log_parts_count= (uint) (log_parts - start_log_parts);
   DBUG_RETURN(row_length);
 }
 
@@ -5544,8 +5544,8 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
         memcmp(old_column_pos, new_column_pos, new_column_length))
     {
       field_data= ma_store_length(field_data,
-                                  (uint) (column - share->columndef));
-      field_data= ma_store_length(field_data, old_column_length);
+                                  (ulong) (column - share->columndef));
+      field_data= ma_store_length(field_data, (ulong) old_column_length);
 
       log_parts->str=     (char*) old_column_pos;
       log_parts->length=  old_column_length;
@@ -5554,10 +5554,10 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
     }
   }
 
-  *log_parts_count= (log_parts - start_log_parts);
+  *log_parts_count= (uint) (log_parts - start_log_parts);
 
   /* Store length of field length data before the field/field_lengths */
-  field_lengths= (field_data - start_field_data);
+  field_lengths= (uint) (field_data - start_field_data);
   start_log_parts->str=  ((char*)
                           (start_field_data -
                            ma_calc_length_for_store_length(field_lengths)));
@@ -5886,7 +5886,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
           goto crashed_file;
       }
       if (extend_area_on_page(buff, dir, rownr, block_size,
-                              data_length, &empty_space,
+                              (uint) data_length, &empty_space,
                               &rec_offset, &length))
         goto crashed_file;
     }
@@ -5894,7 +5894,7 @@ uint _ma_apply_redo_insert_row_head_or_tail(MARIA_HA *info, LSN lsn,
   /* Copy data */
   int2store(dir+2, data_length);
   memcpy(buff + rec_offset, data, data_length);
-  empty_space-= data_length;
+  empty_space-= (uint) data_length;
   int2store(buff + EMPTY_SPACE_OFFSET, empty_space);
 
   /*

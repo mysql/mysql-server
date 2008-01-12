@@ -231,4 +231,3 @@ time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
   return (time_t) (microtime / 1000000);
 #endif  /* defined(__WIN__) */
 }
-
