@@ -156,6 +156,15 @@ void generate_dispatch (void) {
 
 }
 		
+void generate_log_free(void) {
+    DO_LOGTYPES(lt, ({
+			fprintf2(cf, hf, "void toku_free_logtype_%s(struct logtype_%s *e)", lt->name, lt->name);
+			fprintf(hf, ";\n");
+			fprintf(cf, " {\n");
+			DO_FIELDS(ft, lt, fprintf(cf, "  toku_free_%s(e->%s);\n", ft->type, ft->name));
+			fprintf(cf, "}\n");
+		    }));
+}
 
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
@@ -330,6 +339,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     generate_log_struct();
     generate_dispatch();
     generate_log_writer();
+    generate_log_free();
     generate_log_reader();
     generate_logprint();
     {

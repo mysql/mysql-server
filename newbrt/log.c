@@ -686,5 +686,11 @@ int toku_logger_abort(TOKUTXN txn) {
 	logtype_dispatch_assign(item, toku_rollback_, r, txn);
 	if (r!=0) return r;
     }
+    while ((item=txn->newest_logentry)) {
+	txn->newest_logentry=item->tmp;
+	logtype_dispatch(item, toku_free_logtype_);
+	free(item);
+    }
+    toku_free(txn);
     return 0;
 }
