@@ -2335,6 +2335,8 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
                 {
                   tprint(tracef, "Cannot read record's body: read %u of"
                          " %u bytes\n", read_len, rec2.record_length);
+                  translog_destroy_scanner(&scanner2);
+                  translog_free_record_header(&rec2);
                   goto err;
                 }
               }
@@ -2342,23 +2344,27 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
                   display_and_apply_record(log_desc2, &rec2))
               {
                 translog_destroy_scanner(&scanner2);
+                translog_free_record_header(&rec2);
                 goto err;
               }
             }
+            translog_free_record_header(&rec2);
             len= translog_read_next_record_header(&scanner2, &rec2);
             if (len < 0) /* EOF or error */
             {
               tprint(tracef, "Cannot find record where it should be\n");
+              translog_destroy_scanner(&scanner2);
+              translog_free_record_header(&rec2);
               goto err;
             }
           }
           while (rec2.lsn < rec.lsn);
-          translog_free_record_header(&rec2);
           /* group finished */
           all_active_trans[sid].group_start_lsn= LSN_IMPOSSIBLE;
           current_group_end_lsn= LSN_IMPOSSIBLE; /* for debugging */
           display_record_position(log_desc, &rec, 0);
           translog_destroy_scanner(&scanner2);
+          translog_free_record_header(&rec2);
         }
       }
       if (apply == MARIA_LOG_APPLY &&
@@ -2377,6 +2383,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
         all_active_trans[sid].group_start_lsn= rec.lsn;
       }
     }
+    translog_free_record_header(&rec);
     len= translog_read_next_record_header(&scanner, &rec);
     if (len < 0)
     {
@@ -2403,6 +2410,7 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
 
 err:
   translog_destroy_scanner(&scanner);
+  translog_free_record_header(&rec);
   return 1;
 }
 
@@ -2559,8 +2567,10 @@ static int run_undo_phase(uint uncommitted)
         {
           eprint(tracef, "Got error %d when executing undo %s", my_errno,
                  log_desc->name);
+          translog_free_record_header(&rec);
           DBUG_RETURN(1);
         }
+        translog_free_record_header(&rec);
       }
 
       if (trnman_rollback_trn(trn))

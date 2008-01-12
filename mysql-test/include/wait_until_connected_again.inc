@@ -4,7 +4,7 @@
 # You should have done --enable_reconnect first
 --disable_result_log
 --disable_query_log
-let $counter= 500;
+let $counter= 5000;
 let $mysql_errno= 1;
 while ($mysql_errno)
 {
