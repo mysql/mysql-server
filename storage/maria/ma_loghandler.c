@@ -944,8 +944,8 @@ static my_bool translog_write_file_header()
   /* server ID */
   int4store(page, log_descriptor.server_id);
   page+= 4;
-  /* loghandler page_size/DISK_DRIVE_SECTOR_SIZE */
-  int2store(page, TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE);
+  /* loghandler page_size */
+  int2store(page, TRANSLOG_PAGE_SIZE - 1);
   page+= 2;
   /* file number */
   int3store(page, LSN_FILE_NO(log_descriptor.horizon));
@@ -1011,9 +1011,38 @@ typedef struct st_loghandler_file_info
   ulong maria_version;   /* Version of maria loghandler */
   ulong mysql_version;   /* Version of mysql server */
   ulong server_id;       /* Server ID */
-  uint page_size;        /* Loghandler page size */
-  uint file_number;      /* Number of the file (from the file header) */
+  ulong page_size;       /* Loghandler page size */
+  ulong file_number;     /* Number of the file (from the file header) */
 } LOGHANDLER_FILE_INFO;
+
+/*
+  @brief Extract hander file information from loghandler file page
+
+  @param desc header information descriptor to be filled with information
+  @param page_buff buffer with the page content
+*/
+
+static void translog_interpret_file_header(LOGHANDLER_FILE_INFO *desc,
+                                           uchar *page_buff)
+{
+  uchar *ptr;
+
+  ptr= page_buff + sizeof(maria_trans_file_magic);
+  desc->timestamp= uint8korr(ptr);
+  ptr+= 8;
+  desc->maria_version= uint4korr(ptr);
+  ptr+= 4;
+  desc->mysql_version= uint4korr(ptr);
+  ptr+= 4;
+  desc->server_id= uint4korr(ptr + 4);
+  ptr+= 4;
+  desc->page_size= uint2korr(ptr) + 1;
+  ptr+= 2;
+  desc->file_number= uint3korr(ptr);
+  ptr+=3;
+  desc->max_lsn= lsn_korr(ptr);
+}
+
 
 /*
   @brief Read hander file information from loghandler file
@@ -1027,7 +1056,7 @@ typedef struct st_loghandler_file_info
 
 my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc, File file)
 {
-  uchar page_buff[LOG_HEADER_DATA_SIZE], *ptr;
+  uchar page_buff[LOG_HEADER_DATA_SIZE];
   DBUG_ENTER("translog_read_file_header");
 
   if (my_pread(file, page_buff,
@@ -1036,22 +1065,9 @@ my_bool translog_read_file_header(LOGHANDLER_FILE_INFO *desc, File file)
     DBUG_PRINT("info", ("log read fail error: %d", my_errno));
     DBUG_RETURN(1);
   }
-  ptr= page_buff + sizeof(maria_trans_file_magic);
-  desc->timestamp= uint8korr(ptr);
-  ptr+= 8;
-  desc->maria_version= uint4korr(ptr);
-  ptr+= 4;
-  desc->mysql_version= uint4korr(ptr);
-  ptr+= 4;
-  desc->server_id= uint4korr(ptr);
-  ptr+= 4;
-  desc->page_size= uint2korr(ptr);
-  ptr+= 2;
-  desc->file_number= uint3korr(ptr);
-  ptr+=3;
-  desc->max_lsn= lsn_korr(ptr);
+  translog_interpret_file_header(desc, page_buff);
   DBUG_PRINT("info", ("timestamp: %llu  maria ver: %lu mysql ver: %lu  "
-                      "server id %lu page size %u file number %lu  "
+                      "server id %lu page size %lu file number %lu  "
                       "max lsn: (%lu,0x%lx)",
                       (ulonglong) desc->timestamp,
                       (ulong) desc->maria_version,
@@ -3154,6 +3170,25 @@ my_bool translog_is_log_files()
 
 
 /**
+  @brief Fills table of dependence length of page header from page flags
+*/
+
+static void translog_fill_overhead_table()
+{
+  uint i;
+  for (i= 0; i < TRANSLOG_FLAGS_NUM; i++)
+  {
+     page_overhead[i]= 7;
+     if (i & TRANSLOG_PAGE_CRC)
+       page_overhead[i]+= CRC_SIZE;
+     if (i & TRANSLOG_SECTOR_PROTECTION)
+       page_overhead[i]+= TRANSLOG_PAGE_SIZE /
+                           DISK_DRIVE_SECTOR_SIZE;
+  }
+}
+
+
+/**
   @brief Initialize transaction log
 
   @param directory       Directory where log files are put
@@ -3249,15 +3284,7 @@ my_bool translog_init_with_table(const char *directory,
                ~(TRANSLOG_PAGE_CRC | TRANSLOG_SECTOR_PROTECTION |
                  TRANSLOG_RECORD_CRC)) == 0);
   log_descriptor.flags= flags;
-  for (i= 0; i < TRANSLOG_FLAGS_NUM; i++)
-  {
-     page_overhead[i]= 7;
-     if (i & TRANSLOG_PAGE_CRC)
-       page_overhead[i]+= CRC_SIZE;
-     if (i & TRANSLOG_SECTOR_PROTECTION)
-       page_overhead[i]+= TRANSLOG_PAGE_SIZE /
-                           DISK_DRIVE_SECTOR_SIZE;
-  }
+  translog_fill_overhead_table();
   log_descriptor.page_overhead= page_overhead[flags];
   log_descriptor.page_capacity_chunk_2=
     TRANSLOG_PAGE_SIZE - log_descriptor.page_overhead - 1;
@@ -7899,3 +7926,436 @@ void translog_set_file_size(uint32 size)
   }
   DBUG_VOID_RETURN;
 }
+
+#ifdef MARIA_DUMP_LOG
+#include <my_getopt.h>
+static const char *load_default_groups[]= { "maria_dump_log",0 };
+static void get_options(int *argc,char * * *argv);
+#ifndef DBUG_OFF
+#if defined(__WIN__)
+const char *default_dbug_option= "d:t:i:O,\\maria_dump_log.trace";
+#else
+const char *default_dbug_option= "d:t:i:o,/tmp/maria_dump_log.trace";
+#endif
+#endif
+static ulonglong opt_offset;
+static ulong opt_pages;
+static const char *opt_file= NULL;
+static File handler= -1;
+static my_bool opt_body;
+static struct my_option my_long_options[] =
+{
+#ifdef IMPLTMENTED
+  {"body", 'b',
+   "Print chunk body dump",
+   (uchar **) &opt_body, (uchar **) &opt_body, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+#ifndef DBUG_OFF
+  {"debug", '#', "Output debug log. Often the argument is 'd:t:o,filename'.",
+   0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"file", 'f', "Path to file which will be read",
+    (uchar**) &opt_file, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "offset", 'o', "Start reading log from this offset",
+    (uchar**) &opt_offset, (uchar**) &opt_offset,
+    0, GET_ULL, REQUIRED_ARG, 0, 0, ~(longlong) 0, 0, 0, 0 },
+  { "pages", 'n', "Number of pages to read",
+    (uchar**) &opt_pages, (uchar**) &opt_pages, 0,
+    GET_ULONG, REQUIRED_ARG, (long) ~(ulong) 0,
+    (long) 1, (long) ~(ulong) 0, (long) 0,
+    (long) 1, 0},
+  {"version", 'V', "Print version and exit.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+
+static void print_version(void)
+{
+  VOID(printf("%s Ver 1.0 for %s on %s\n",
+              my_progname_short, SYSTEM_TYPE, MACHINE_TYPE));
+  NETWARE_SET_SCREEN_MODE(1);
+}
+
+
+static void usage(void)
+{
+  print_version();
+  puts("Copyright (C) 2008 MySQL AB");
+  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,");
+  puts("and you are welcome to modify and redistribute it under the GPL license\n");
+
+  puts("Dump content of maria log pages.");
+  VOID(printf("\nUsage: %s -f file OPTIONS\n", my_progname_short));
+  my_print_help(my_long_options);
+  print_defaults("my", load_default_groups);
+  my_print_variables(my_long_options);
+}
+
+
+static my_bool
+get_one_option(int optid __attribute__((unused)),
+               const struct my_option *opt __attribute__((unused)),
+               char *argument __attribute__((unused)))
+{
+  switch (optid) {
+  case '?':
+    usage();
+    exit(0);
+  case 'V':
+    print_version();
+    exit(0);
+#ifndef DBUG_OFF
+  case '#':
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
+    break;
+#endif
+  }
+  return 0;
+}
+
+
+static void get_options(int *argc,char ***argv)
+{
+  int ho_error;
+
+  if ((ho_error=handle_options(argc, argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
+  if (opt_file == NULL)
+  {
+    usage();
+    exit(1);
+  }
+}
+
+
+/**
+  @brief Dump information about file header page.
+*/
+
+static void dump_header_page(uchar *buff)
+{
+  LOGHANDLER_FILE_INFO desc;
+  translog_interpret_file_header(&desc, buff);
+  printf("  This can be header page:\n"
+         "    Timestamp: %llu\n"
+         "    Maria log version: %lu\n"
+         "    Server version: %lu\n"
+         "    Server id %lu\n"
+         "    Page size %lu\n",
+         desc.timestamp,
+         desc.maria_version,
+         desc.mysql_version,
+         desc.server_id,
+         desc.page_size);
+  if (desc.page_size != TRANSLOG_PAGE_SIZE)
+    printf("      WARNING: page size is not equal compiled in one %lu!!!\n",
+           (ulong) TRANSLOG_PAGE_SIZE);
+  printf("    File number %lu\n"
+         "    Max lsn: (%lu,0x%lx)\n",
+         desc.file_number,
+         LSN_IN_PARTS(desc.max_lsn));
+}
+
+static const char *record_class_string[]=
+{
+  "LOGRECTYPE_NOT_ALLOWED",
+  "LOGRECTYPE_VARIABLE_LENGTH",
+  "LOGRECTYPE_PSEUDOFIXEDLENGTH",
+  "LOGRECTYPE_FIXEDLENGTH"
+};
+
+
+/**
+  @brief dump information about transaction log chunk
+
+  @param buffer          reference to the whole page
+  @param ptr             pointer to the chunk
+
+  @reval # reference to the next chunk
+  @retval NULL can't interpret data
+*/
+
+static uchar *dump_chunk(uchar *buffer, uchar *ptr)
+{
+  uint length;
+  if (*ptr == TRANSLOG_FILLER)
+  {
+    printf("  Filler till the page end\n");
+    for (; ptr < buffer + TRANSLOG_PAGE_SIZE; ptr++)
+    {
+      if (*ptr != TRANSLOG_FILLER)
+      {
+        printf("    WARNING: non filler character met before page end "
+               "(page + 0x%04x: 0x%02x) (stop interpretation)!!!",
+               (uint) (ptr - buffer), (uint) ptr[0]);
+        return NULL;
+      }
+    }
+    return ptr;
+  }
+  if (*ptr == 0 || *ptr == 0xFF)
+  {
+    printf("    WARNING: chunk can't start from 0x0 "
+           "(stop interpretation)!!!\n");
+    return NULL;
+  }
+  switch (ptr[0] & TRANSLOG_CHUNK_TYPE) {
+  case TRANSLOG_CHUNK_LSN:
+    printf("    LSN chunk type 0 (variable length)\n");
+    printf("      Record type %u: %s  record class %s compressed LSNs: %u\n",
+           ptr[0] & TRANSLOG_REC_TYPE,
+           (log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].name ?
+            log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].name :
+            "NULL"),
+           record_class_string[log_record_type_descriptor[ptr[0] &
+                                                          TRANSLOG_REC_TYPE].
+                                                          rclass],
+           log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].
+           compressed_LSN);
+    if (log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].rclass !=
+        LOGRECTYPE_VARIABLE_LENGTH)
+    {
+      printf("        WARNING: this record class here can't be used "
+             "(stop interpretation)!!!\n");
+    }
+    printf("      Short transaction id: %u\n", (uint) uint2korr(ptr + 1));
+    {
+      uchar *hdr_ptr= ptr + 1 + 2; /* chunk type and short trid */
+      uint16 chunk_len;
+      printf ("      Record length: %lu\n",
+              (ulong) translog_variable_record_1group_decode_len(&hdr_ptr));
+      chunk_len= uint2korr(hdr_ptr);
+      if (chunk_len == 0)
+        printf ("      It is 1 group record (chunk length == 0)\n");
+      else
+      {
+        uint16 groups, i;
+
+        printf ("      Chunk length %u\n", (uint) chunk_len);
+        groups= uint2korr(hdr_ptr + 2);
+        hdr_ptr+= 4;
+        printf ("      Number of groups left to the end %u:\n", (uint) groups);
+        for(i= 0;
+            i < groups && hdr_ptr < buffer + TRANSLOG_PAGE_SIZE;
+            i++, hdr_ptr+= LSN_STORE_SIZE + 1)
+        {
+          TRANSLOG_ADDRESS gpr_addr= lsn_korr(hdr_ptr);
+          uint pages= hdr_ptr[LSN_STORE_SIZE];
+          printf ("        Group +#%u: (%lu,0x%lx)  pages: %u\n",
+                  (uint) i, LSN_IN_PARTS(gpr_addr), pages);
+        }
+      }
+    }
+    break;
+  case TRANSLOG_CHUNK_FIXED:
+    printf("    LSN chunk type 1 (fixed size)\n");
+    printf("      Record type %u: %s  record class %s compressed LSNs: %u\n",
+           ptr[0] & TRANSLOG_REC_TYPE,
+           (log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].name ?
+            log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].name :
+            "NULL"),
+           record_class_string[log_record_type_descriptor[ptr[0] &
+                                                          TRANSLOG_REC_TYPE].
+                                                          rclass],
+           log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].
+           compressed_LSN);
+    if (log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].rclass !=
+        LOGRECTYPE_PSEUDOFIXEDLENGTH &&
+        log_record_type_descriptor[ptr[0] & TRANSLOG_REC_TYPE].rclass !=
+        LOGRECTYPE_FIXEDLENGTH)
+    {
+      printf("        WARNING: this record class here can't be used "
+             "(stop interpretation)!!!\n");
+    }
+    printf("      Short transaction id: %u\n", (uint) uint2korr(ptr + 1));
+    break;
+  case TRANSLOG_CHUNK_NOHDR:
+    printf("    No header chunk type 2(till the end of the page)\n");
+    if (ptr[0] & TRANSLOG_REC_TYPE)
+    {
+      printf("      WARNING: chunk header content record type: 0x%02x "
+             "(dtop interpretation)!!!",
+             (uint) ptr[0]);
+      return NULL;
+    }
+    break;
+  case TRANSLOG_CHUNK_LNGTH:
+    printf("    Chunk with length type 3\n");
+    if (ptr[0] & TRANSLOG_REC_TYPE)
+    {
+      printf("      WARNING: chunk header content record type: 0x%02x "
+             "(dtop interpretation)!!!",
+             (uint) ptr[0]);
+      return NULL;
+    }
+    break;
+  }
+  length= translog_get_total_chunk_length(buffer, ptr - buffer);
+  printf("      Length %u\n", length);
+  ptr+= length;
+  return ptr;
+}
+
+
+/**
+  @brief Dump information about page with data.
+*/
+
+static void dump_datapage(uchar *buffer)
+{
+  uchar *ptr;
+  ulong offset;
+  uint32 page, file;
+  uint header_len;
+  printf("  Page: %ld  File number: %ld\n",
+         (ulong) (page= uint3korr(buffer)),
+         (ulong) (file= uint3korr(buffer + 3)));
+  if (page == 0)
+    printf("    WARNING: page == 0!!!\n");
+  if (file == 0)
+    printf("    WARNING: file == 0!!!\n");
+  offset= page * TRANSLOG_PAGE_SIZE;
+  printf("  Flags (0x%x):\n", (uint) buffer[TRANSLOG_PAGE_FLAGS]);
+  if (buffer[TRANSLOG_PAGE_FLAGS])
+  {
+    if (buffer[TRANSLOG_PAGE_FLAGS] & TRANSLOG_PAGE_CRC)
+      printf("    Page CRC\n");
+    if (buffer[TRANSLOG_PAGE_FLAGS] & TRANSLOG_SECTOR_PROTECTION)
+      printf("    Sector protection\n");
+    if (buffer[TRANSLOG_PAGE_FLAGS] & TRANSLOG_RECORD_CRC)
+      printf("    Record CRC (WARNING: not yet implemented!!!)\n");
+    if (buffer[TRANSLOG_PAGE_FLAGS] & ~(TRANSLOG_PAGE_CRC |
+                                        TRANSLOG_SECTOR_PROTECTION |
+                                        TRANSLOG_RECORD_CRC))
+    {
+      printf("    WARNING: unknown flags (stop interpretation)!!!\n");
+      return;
+    }
+  }
+  else
+    printf("    No flags\n");
+  printf("  Page header length: %u\n",
+         (header_len= page_overhead[buffer[TRANSLOG_PAGE_FLAGS]]));
+  if (buffer[TRANSLOG_PAGE_FLAGS] & TRANSLOG_RECORD_CRC)
+  {
+    uint32 crc= uint4korr(buffer + TRANSLOG_PAGE_FLAGS + 1);
+    uint32 ccrc;
+    printf ("  Page CRC 0x%04lx\n", (ulong) crc);
+    ccrc= translog_crc(buffer + header_len, TRANSLOG_PAGE_SIZE - header_len);
+    if (crc != ccrc)
+      printf("    WARNING: calculated CRC: 0x%04lx!!!\n", (ulong) ccrc);
+  }
+  if (buffer[TRANSLOG_PAGE_FLAGS] & TRANSLOG_SECTOR_PROTECTION)
+  {
+    TRANSLOG_FILE tfile;
+    {
+      uchar *table= buffer + header_len -
+        TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE;
+      uint i;
+      printf("    Sector protection current value: 0x%02x\n", (uint) table[0]);
+      for (i= 1; i < TRANSLOG_PAGE_SIZE / DISK_DRIVE_SECTOR_SIZE; i++)
+      {
+         printf("    Sector protection in sector: 0x%02x  saved value 0x%02x\n",
+                (uint)buffer[i * DISK_DRIVE_SECTOR_SIZE],
+                (uint)table[i]);
+      }
+    }
+    tfile.number= file;
+    tfile.handler.file= handler;
+    pagecache_file_init(tfile.handler, NULL, NULL, NULL, NULL, NULL);
+    tfile.was_recovered= 0;
+    tfile.is_sync= 1;
+    if (translog_check_sector_protection(buffer, &tfile))
+      printf("    WARNING: sector protection found problems!!!\n");
+  }
+  ptr= buffer + header_len;
+  while (ptr && ptr < buffer + TRANSLOG_PAGE_SIZE)
+  {
+    printf("  Chunk (%lu,0x%lx):\n",
+           (ulong)file, (ulong) offset + (ptr - buffer));
+    ptr= dump_chunk(buffer, ptr);
+  }
+}
+
+
+/**
+  @brief Dump information about page.
+*/
+
+static void dump_page(uchar *buffer)
+{
+  printf("Page by offset %lld\n", opt_offset);
+  if (strncmp(maria_trans_file_magic, buffer,
+              sizeof(maria_trans_file_magic)) == 0)
+  {
+    dump_header_page(buffer);
+  }
+  dump_datapage(buffer);
+}
+
+
+/**
+  @brief maria_dump_log main function.
+*/
+
+int main(int argc, char **argv)
+{
+  char **default_argv;
+  uchar buffer[TRANSLOG_PAGE_SIZE];
+  MY_INIT(argv[0]);
+  translog_table_init();
+  translog_fill_overhead_table();
+
+  load_defaults("my", load_default_groups, &argc, &argv);
+  default_argv= argv;
+  get_options(&argc, &argv);
+
+  maria_data_root= ".";
+
+  if ((handler= my_open(opt_file, O_RDONLY, MYF(MY_WME))) < 0)
+  {
+    fprintf(stderr, "Can't open file: '%s'  errno: %d\n",
+            opt_file, my_errno);
+    goto err;
+  }
+  if (my_seek(handler, opt_offset, SEEK_SET, MYF(MY_WME)) !=
+      opt_offset)
+  {
+     fprintf(stderr, "Can't set position %lld  file: '%s'  errno: %d\n",
+             opt_offset, opt_file, my_errno);
+     goto err;
+  }
+  for (;
+       opt_pages;
+       opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
+  {
+    if (my_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
+                 MYF(MY_FNABP | MY_WME)))
+    {
+      if (my_errno == HA_ERR_FILE_TOO_SHORT)
+        goto end;
+      fprintf(stderr, "Can't read page at position %lld  file: '%s'  "
+              "errno: %d\n", opt_offset, opt_file, my_errno);
+      goto err;
+    }
+    dump_page(buffer);
+  }
+
+end:
+  my_close(handler, MYF(0));
+  free_defaults(default_argv);
+  exit(0);
+  return 0;				/* No compiler warning */
+
+err:
+  my_close(handler, MYF(0));
+  fprintf(stderr, "%s: FAILED\n", my_progname_short);
+  free_defaults(default_argv);
+  exit(1);
+}
+#endif
