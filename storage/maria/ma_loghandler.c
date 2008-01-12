@@ -7942,7 +7942,6 @@ static ulonglong opt_offset;
 static ulong opt_pages;
 static const char *opt_file= NULL;
 static File handler= -1;
-static my_bool opt_body;
 static struct my_option my_long_options[] =
 {
 #ifdef IMPLTMENTED
