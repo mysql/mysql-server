@@ -1589,10 +1589,12 @@ static void translog_new_page_header(TRANSLOG_ADDRESS *horizon,
       cursor->buffer->size+= len;
   }
   cursor->ptr= ptr;
-  DBUG_PRINT("info", ("NewP buffer #%u: 0x%lx  chaser: %d  Size: %lu (%lu)",
+  DBUG_PRINT("info", ("NewP buffer #%u: 0x%lx  chaser: %d  Size: %lu (%lu)  "
+                      "Horizon: (%lu,0x%lu)",
                       (uint) cursor->buffer->buffer_no, (ulong) cursor->buffer,
                       cursor->chaser, (ulong) cursor->buffer->size,
-                      (ulong) (cursor->ptr - cursor->buffer->buffer)));
+                      (ulong) (cursor->ptr - cursor->buffer->buffer),
+                      LSN_IN_PARTS(*horizon)));
   translog_check_cursor(cursor);
   DBUG_VOID_RETURN;
 }
@@ -2025,10 +2027,12 @@ static void translog_set_sent_to_disk(LSN lsn, TRANSLOG_ADDRESS in_buffers)
   DBUG_ENTER("translog_set_sent_to_disk");
   pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("lsn: (%lu,0x%lx) in_buffers: (%lu,0x%lx)  "
-                       "in_buffers_only: (%lu,0x%lx)",
+                       "in_buffers_only: (%lu,0x%lx)  "
+                       "sent_to_disk: (%lu,0x%lx)",
                        LSN_IN_PARTS(lsn),
                        LSN_IN_PARTS(in_buffers),
-                       LSN_IN_PARTS(log_descriptor.in_buffers_only)));
+                       LSN_IN_PARTS(log_descriptor.in_buffers_only),
+                       LSN_IN_PARTS(log_descriptor.sent_to_disk)));
   DBUG_ASSERT(cmp_translog_addr(lsn, log_descriptor.sent_to_disk) >= 0);
   log_descriptor.sent_to_disk= lsn;
   /* LSN_IMPOSSIBLE == 0 => it will work for very first time */
@@ -2405,7 +2409,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     {
       DBUG_PRINT("error",
                  ("Can't write page (%lu,0x%lx) to pagecache, error: %d",
-                  (ulong) buffer->file,
+                  (ulong) buffer->file->number,
                   (ulong) (LSN_OFFSET(buffer->offset)+ i),
                   my_errno));
       translog_stop_writing();
@@ -3740,7 +3744,10 @@ my_bool translog_init_with_table(const char *directory,
         if (readonly)
           log_descriptor.horizon= last_lsn;
         else if (translog_truncate_log(last_lsn))
+        {
+          translog_free_record_header(&rec);
           DBUG_RETURN(1);
+        }
       }
       else
       {
@@ -3762,10 +3769,14 @@ my_bool translog_init_with_table(const char *directory,
             if (readonly)
               log_descriptor.horizon= last_lsn;
             else if (translog_truncate_log(last_lsn))
+            {
+              translog_free_record_header(&rec);
               DBUG_RETURN(1);
+            }
           }
         }
       }
+      translog_free_record_header(&rec);
     }
   }
 
@@ -4148,6 +4159,36 @@ static void translog_buffer_decrease_writers(struct st_translog_buffer *buffer)
 }
 
 
+/**
+  @brief Skip to the next page for chaser (thread which advanced horizon
+  pointer and now feeling the buffer)
+
+  @param horizon         \ Pointers on file position and buffer
+  @param cursor          /
+
+  @retval 1 OK
+  @retval 0 Error
+*/
+
+static my_bool translog_chaser_page_next(TRANSLOG_ADDRESS *horizon,
+                                         struct st_buffer_cursor *cursor)
+{
+  struct st_translog_buffer *buffer_to_flush;
+  my_bool rc;
+  DBUG_ENTER("translog_chaser_page_next");
+  DBUG_ASSERT(cursor->chaser);
+  rc= translog_page_next(horizon, cursor, &buffer_to_flush);
+  if (buffer_to_flush != NULL)
+  {
+    translog_buffer_lock(buffer_to_flush);
+    translog_buffer_decrease_writers(buffer_to_flush);
+    if (!rc)
+      rc= translog_buffer_flush(buffer_to_flush);
+    translog_buffer_unlock(buffer_to_flush);
+  }
+  DBUG_RETURN(rc);
+}
+
 /*
   Put chunk 2 from new page beginning
 
@@ -4167,22 +4208,11 @@ translog_write_variable_record_chunk2_page(struct st_translog_parts *parts,
                                            TRANSLOG_ADDRESS *horizon,
                                            struct st_buffer_cursor *cursor)
 {
-  struct st_translog_buffer *buffer_to_flush;
-  int rc;
   uchar chunk2_header[1];
   DBUG_ENTER("translog_write_variable_record_chunk2_page");
   chunk2_header[0]= TRANSLOG_CHUNK_NOHDR;
 
-  rc= translog_page_next(horizon, cursor, &buffer_to_flush);
-  if (buffer_to_flush != NULL)
-  {
-    translog_buffer_lock(buffer_to_flush);
-    translog_buffer_decrease_writers(buffer_to_flush);
-    if (!rc)
-      rc= translog_buffer_flush(buffer_to_flush);
-    translog_buffer_unlock(buffer_to_flush);
-  }
-  if (rc)
+  if (translog_chaser_page_next(horizon, cursor))
     DBUG_RETURN(1);
 
   /* Puts chunk type */
@@ -4215,23 +4245,13 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
                                            TRANSLOG_ADDRESS *horizon,
                                            struct st_buffer_cursor *cursor)
 {
-  struct st_translog_buffer *buffer_to_flush;
   LEX_STRING *part;
-  int rc;
   uchar chunk3_header[1 + 2];
   DBUG_ENTER("translog_write_variable_record_chunk3_page");
 
-  rc= translog_page_next(horizon, cursor, &buffer_to_flush);
-  if (buffer_to_flush != NULL)
-  {
-    translog_buffer_lock(buffer_to_flush);
-    translog_buffer_decrease_writers(buffer_to_flush);
-    if (!rc)
-      rc= translog_buffer_flush(buffer_to_flush);
-    translog_buffer_unlock(buffer_to_flush);
-  }
-  if (rc)
+  if (translog_chaser_page_next(horizon, cursor))
     DBUG_RETURN(1);
+
   if (length == 0)
   {
     /* It was call to write page header only (no data for chunk 3) */
@@ -4541,7 +4561,7 @@ translog_write_variable_record_1group(LSN *lsn,
 
   *lsn= horizon= log_descriptor.horizon;
   if (translog_set_lsn_for_files(LSN_FILE_NO(*lsn), LSN_FILE_NO(*lsn),
-                             *lsn, TRUE) ||
+                                 *lsn, TRUE) ||
       (log_record_type_descriptor[type].inwrite_hook &&
        (*log_record_type_descriptor[type].inwrite_hook)(type, trn, tbl_info,
                                                         lsn, hook_arg)))
@@ -5045,6 +5065,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
   uint header_fixed_part= header_length + 2;
   uint groups_per_page= (page_capacity - header_fixed_part) / (7 + 1);
   uint file_of_the_first_group;
+  int pages_to_skip;
   DBUG_ENTER("translog_write_variable_record_mgroup");
   translog_lock_assert_owner();
 
@@ -5119,7 +5140,6 @@ translog_write_variable_record_mgroup(LSN *lsn,
 
     if (buffer_to_flush != NULL)
     {
-      translog_buffer_lock(buffer_to_flush);
       translog_buffer_decrease_writers(buffer_to_flush);
       if (!rc)
         rc= translog_buffer_flush(buffer_to_flush);
@@ -5158,18 +5178,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
 
     done+= (first_page - 1 + buffer_rest);
 
-    /* TODO: make separate function for following */
-    rc= translog_page_next(&horizon, &cursor, &buffer_to_flush);
-    if (buffer_to_flush != NULL)
-    {
-      translog_buffer_lock(buffer_to_flush);
-      translog_buffer_decrease_writers(buffer_to_flush);
-      if (!rc)
-        rc= translog_buffer_flush(buffer_to_flush);
-      translog_buffer_unlock(buffer_to_flush);
-      buffer_to_flush= NULL;
-    }
-    if (rc)
+    if (translog_chaser_page_next(&horizon, &cursor))
     {
       DBUG_PRINT("error", ("flush of unlock buffer failed"));
       goto err;
@@ -5180,9 +5189,18 @@ translog_write_variable_record_mgroup(LSN *lsn,
 
     translog_lock();
 
+    /* Check that we have place for chunk type 2 */
     first_page= translog_get_current_page_rest();
+    if (first_page <= 1)
+    {
+      if (translog_page_next(&log_descriptor.horizon, &log_descriptor.bc,
+                             &buffer_to_flush))
+        goto err_unlock;
+      first_page= translog_get_current_page_rest();
+    }
     buffer_rest= translog_get_current_group_size();
-  } while (first_page + buffer_rest < (uint) (parts->record_length - done));
+  } while ((translog_size_t)(first_page + buffer_rest) <
+           (translog_size_t)(parts->record_length - done));
 
   group.addr= horizon= log_descriptor.horizon;
   cursor= log_descriptor.bc;
@@ -5195,18 +5213,38 @@ translog_write_variable_record_mgroup(LSN *lsn,
   }
   record_rest= parts->record_length - done;
   DBUG_PRINT("info", ("Record rest: %lu", (ulong) record_rest));
-  if (first_page <= record_rest + 1)
+  if (first_page > record_rest + 1)
   {
-    chunk2_page= 1;
-    record_rest-= (first_page - 1);
-    full_pages= record_rest / log_descriptor.page_capacity_chunk_2;
-    record_rest= (record_rest % log_descriptor.page_capacity_chunk_2);
-    last_page_capacity= page_capacity;
+    /*
+      We have not so much data to fill all first page
+      (no speaking about full pages)
+      so it will be:
+      <chunk0 <data>>
+      or
+      <chunk0>...<chunk0><chunk0 <data>>
+      or
+      <chunk3 <data>><chunk0>...<chunk0><chunk0 <possible data of 1 byte>>
+    */
+    chunk2_page= full_pages= 0;
+    last_page_capacity= first_page;
+    pages_to_skip= -1;
   }
   else
   {
-    chunk2_page= full_pages= 0;
-    last_page_capacity= first_page;
+    /*
+      We will have:
+      <chunk2 <data>>...<chunk2 <data>><chunk0 <data>>
+      or
+      <chunk2 <data>>...<chunk2 <data>><chunk0>...<chunk0><chunk0 <data>>
+      or
+      <chunk3 <data>><chunk0>...<chunk0><chunk0 <possible data of 1 byte>>
+    */
+    chunk2_page= 1;
+    record_rest-= (first_page - 1);
+    pages_to_skip= full_pages=
+      record_rest / log_descriptor.page_capacity_chunk_2;
+    record_rest= (record_rest % log_descriptor.page_capacity_chunk_2);
+    last_page_capacity= page_capacity;
   }
   chunk3_size= 0;
   chunk3_pages= 0;
@@ -5220,6 +5258,7 @@ translog_write_variable_record_mgroup(LSN *lsn,
     }
     else
     {
+      pages_to_skip++;
       chunk3_pages= 1;
       if (record_rest + 2 == last_page_capacity)
       {
@@ -5255,16 +5294,28 @@ translog_write_variable_record_mgroup(LSN *lsn,
                       (ulong) full_pages *
                       log_descriptor.page_capacity_chunk_2,
                       chunk3_pages, (uint) chunk3_size, (uint) record_rest));
-  rc= translog_advance_pointer((int)(full_pages + chunk3_pages +
-                                     (chunk0_pages - 1)) +
-                               (full_pages + chunk3_pages + chunk0_pages +
-                                chunk2_page == 1? -1 : 0),
+  rc= translog_advance_pointer(pages_to_skip + (int)(chunk0_pages - 1),
                                record_rest + header_fixed_part +
                                (groups.elements -
                                 ((page_capacity -
                                   header_fixed_part) / (7 + 1)) *
                                 (chunk0_pages - 1)) * (7 + 1));
   translog_unlock();
+
+  if (buffer_to_flush != NULL)
+  {
+    translog_buffer_decrease_writers(buffer_to_flush);
+    if (!rc)
+      rc= translog_buffer_flush(buffer_to_flush);
+    translog_buffer_unlock(buffer_to_flush);
+    buffer_to_flush= NULL;
+  }
+  if (rc)
+  {
+    DBUG_PRINT("error", ("flush of unlock buffer failed"));
+    goto err;
+  }
+
   if (rc)
     goto err;
 
@@ -5334,23 +5385,11 @@ translog_write_variable_record_mgroup(LSN *lsn,
   do
   {
     int limit;
-    if (new_page_before_chunk0)
+    if (new_page_before_chunk0 &&
+        translog_chaser_page_next(&horizon, &cursor))
     {
-      rc= translog_page_next(&horizon, &cursor, &buffer_to_flush);
-      if (buffer_to_flush != NULL)
-      {
-        translog_buffer_lock(buffer_to_flush);
-        translog_buffer_decrease_writers(buffer_to_flush);
-        if (!rc)
-          rc= translog_buffer_flush(buffer_to_flush);
-        translog_buffer_unlock(buffer_to_flush);
-        buffer_to_flush= NULL;
-      }
-      if (rc)
-      {
-        DBUG_PRINT("error", ("flush of unlock buffer failed"));
-        goto err;
-      }
+      DBUG_PRINT("error", ("flush of unlock buffer failed"));
+      goto err;
     }
     new_page_before_chunk0= 1;
 
@@ -5431,6 +5470,16 @@ err_unlock:
   translog_unlock();
 
 err:
+  if (buffer_to_flush != NULL)
+  {
+    /* This is to prevent locking buffer forever in case of error */
+    translog_buffer_decrease_writers(buffer_to_flush);
+    if (!rc)
+      rc= translog_buffer_flush(buffer_to_flush);
+    translog_buffer_unlock(buffer_to_flush);
+    buffer_to_flush= NULL;
+  }
+
 
   translog_mark_file_finished(file_of_the_first_group);
 
@@ -6294,6 +6343,7 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
   uint16 length= desc->read_header_len;
   uint16 buffer_length= length;
   uint16 body_len;
+  int rc;
   TRANSLOG_SCANNER_DATA internal_scanner;
   DBUG_ENTER("translog_variable_length_header");
 
@@ -6378,19 +6428,24 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
         DBUG_PRINT("info", ("use internal scanner for header reading"));
         scanner= &internal_scanner;
         if (translog_scanner_init(buff->lsn, 1, scanner, 0))
-          DBUG_RETURN(RECHEADER_READ_ERROR);
+        {
+          rc= RECHEADER_READ_ERROR;
+          goto exit_and_free;
+        }
       }
       if (translog_get_next_chunk(scanner))
       {
         if (scanner == &internal_scanner)
           translog_destroy_scanner(scanner);
-        DBUG_RETURN(RECHEADER_READ_ERROR);
+        rc= RECHEADER_READ_ERROR;
+        goto exit_and_free;
       }
       if (scanner->page == END_OF_LOG)
       {
         if (scanner == &internal_scanner)
           translog_destroy_scanner(scanner);
-        DBUG_RETURN(RECHEADER_READ_EOF);
+        rc= RECHEADER_READ_EOF;
+        goto exit_and_free;
       }
       page= scanner->page;
       page_offset= scanner->page_offset;
@@ -6447,6 +6502,11 @@ translog_variable_length_header(uchar *page, translog_size_t page_offset,
                       buff->non_header_data_start_offset,
                       buff->non_header_data_len, buffer_length));
   DBUG_RETURN(buffer_length);
+
+exit_and_free:
+  my_free(buff->groups, MYF(0));
+  buff->groups_no= 0; /* prevent try to use of buff->groups */
+  DBUG_RETURN(rc);
 }
 
 
@@ -6810,6 +6870,7 @@ static my_bool translog_init_reader_data(LSN lsn,
 static void translog_destroy_reader_data(TRANSLOG_READER_DATA *data)
 {
   translog_destroy_scanner(&data->scanner);
+  translog_free_record_header(&data->header);
 }
 
 
