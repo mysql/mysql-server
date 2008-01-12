@@ -34,7 +34,8 @@ EXTRA_DIST =		ma_test_all.sh ma_test_all.res ma_test_big.sh \
 			ma_ft_stem.c CMakeLists.txt plug.in ma_test_recovery
 pkgdata_DATA =		ma_test_all ma_test_all.res ma_test_recovery
 pkglib_LIBRARIES =	libmaria.a
-bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log
+bin_PROGRAMS =		maria_chk maria_pack maria_ftdump maria_read_log \
+			maria_dump_log
 maria_chk_DEPENDENCIES=	$(LIBRARIES)
 # Only reason to link with libmyisam.a here is that it's where some fulltext
 # pieces are (but soon we'll remove fulltext dependencies from Maria).
@@ -56,6 +57,14 @@ maria_read_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
 			$(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+maria_dump_log_DEPENDENCIES=$(LIBRARIES) ma_loghandler.c
+maria_dump_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
+                        $(top_builddir)/storage/myisam/libmyisam.a \
+                        $(top_builddir)/mysys/libmysys.a \
+			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+maria_dump_log_SOURCES= ma_loghandler.c
+maria_dump_log_CPPFLAGS= -DMARIA_DUMP_LOG
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
 			ma_sp_defs.h ma_fulltext.h ma_ftdefs.h ma_ft_test1.h \
