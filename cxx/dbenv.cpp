@@ -1,6 +1,7 @@
-#include <assert.h>
-#include <db_cxx.h>
 #include <stdarg.h>
+#include <assert.h>
+#include <errno.h>
+#include <db_cxx.h>
 
 DbEnv::DbEnv (u_int32_t flags)
     : do_no_exceptions((flags&DB_CXX_NO_EXCEPTIONS)!=0),
@@ -34,7 +35,9 @@ DbEnv::~DbEnv(void)
 }
 
 int DbEnv::close(u_int32_t flags) {
-    int ret = the_env->close(the_env, flags);
+    int ret = EINVAL;
+    if (the_env)
+        ret = the_env->close(the_env, flags);
     the_env = 0; /* get rid of the env ref, so we don't touch it (even if we failed, or when the destructor is called) */
     return maybe_throw_error(ret);
 }
@@ -128,8 +131,10 @@ void DbEnv::set_errcall(void (*db_errcall_fcn)(const DbEnv *, const char *, cons
 
 extern "C" void toku_db_env_error_stream_c(const DB_ENV *dbenv_c, const char *errpfx, const char *msg) {
     DbEnv *dbenv = (DbEnv *) dbenv_c->api1_internal;
-    if (dbenv->_error_stream)
-        *dbenv->_error_stream << errpfx << ":" << msg << "\n";
+    if (dbenv->_error_stream) {
+        if (errpfx) *(dbenv->_error_stream) << errpfx;
+        if (msg) *(dbenv->_error_stream) << ":" << msg << "\n";
+    }
 }
 
 void DbEnv::set_error_stream(std::ostream *new_error_stream) {
