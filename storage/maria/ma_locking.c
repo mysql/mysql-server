@@ -593,10 +593,10 @@ int _ma_decrement_open_count(MARIA_HA *info)
       if (!(share->temporary | share->base.born_transactional))
       {
         mi_int2store(buff,share->state.open_count);
-        write_error= my_pwrite(share->kfile.file, buff, sizeof(buff),
-                               sizeof(share->state.header) +
-                               MARIA_FILE_OPEN_COUNT_OFFSET,
-                               MYF(MY_NABP));
+        write_error= (int) my_pwrite(share->kfile.file, buff, sizeof(buff),
+                                     sizeof(share->state.header) +
+                                     MARIA_FILE_OPEN_COUNT_OFFSET,
+                                     MYF(MY_NABP));
       }
     }
     if (!lock_error)

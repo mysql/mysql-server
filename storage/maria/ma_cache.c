@@ -35,10 +35,10 @@
 
 #include "maria_def.h"
 
-int _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos, uint length,
-		   int flag)
+my_bool _ma_read_cache(IO_CACHE *info, uchar *buff, my_off_t pos,
+                       size_t length, uint flag)
 {
-  uint read_length,in_buff_length;
+  size_t read_length,in_buff_length;
   my_off_t offset;
   uchar *in_buff_pos;
   DBUG_ENTER("_ma_read_cache");

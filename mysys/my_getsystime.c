@@ -108,8 +108,8 @@ ulonglong my_micro_time()
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime= ((new_time / query_performance_frequency * 10000000) +
-              (new_time % query_performance_frequency * 10000000 /
+    newtime= ((newtime / query_performance_frequency * 10000000) +
+              (newtime % query_performance_frequency * 10000000 /
                query_performance_frequency));
   }
   else
@@ -161,8 +161,8 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime= ((new_time / query_performance_frequency * 10000000) +
-              (new_time % query_performance_frequency * 10000000 /
+    newtime= ((newtime / query_performance_frequency * 10000000) +
+              (newtime % query_performance_frequency * 10000000 /
                query_performance_frequency));
   }
   else
@@ -231,4 +231,3 @@ time_t my_time_possible_from_micro(ulonglong microtime __attribute__((unused)))
   return (time_t) (microtime / 1000000);
 #endif  /* defined(__WIN__) */
 }
-

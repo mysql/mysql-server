@@ -2058,14 +2058,15 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
     log_array[TRANSLOG_INTERNAL_PARTS + 3].str=    (char*) key_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + 3].length= key_length;
     translog_parts+=2;
-    extra_length+= log_array[TRANSLOG_INTERNAL_PARTS + 2].length + key_length;
+    extra_length+= (uint) (log_array[TRANSLOG_INTERNAL_PARTS + 2].length +
+                           key_length);
   }
 
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
                                     info->trn, info,
                                     (translog_size_t)
-                                    log_array[TRANSLOG_INTERNAL_PARTS +
-                                              0].length + extra_length,
+                                    (log_array[TRANSLOG_INTERNAL_PARTS +
+                                               0].length + extra_length),
                                     TRANSLOG_INTERNAL_PARTS + translog_parts,
                                     log_array, log_data, NULL));
 }

@@ -404,14 +404,16 @@ void TERMINATE(FILE *file, uint flag)
       if (file)
       {
 	fprintf(file,
-		"\t%6u bytes at 0x%09lx, allocated at line %4u in '%s'",
-		irem->datasize, (long) data, irem->linenum, irem->filename);
+		"\t%6lu bytes at 0x%09lx, allocated at line %4u in '%s'",
+		(ulong) irem->datasize, (long) data,
+                irem->linenum, irem->filename);
 	fprintf(file, "\n");
 	(void) fflush(file);
       }
       DBUG_PRINT("safe",
-		 ("%6u bytes at 0x%09lx, allocated at line %4d in '%s'",
-		  irem->datasize, (long) data, irem->linenum, irem->filename));
+		 ("%6lu bytes at 0x%09lx, allocated at line %4d in '%s'",
+		  (ulong) irem->datasize, (long) data,
+                  irem->linenum, irem->filename));
       irem= irem->next;
     }
   }
@@ -445,8 +447,9 @@ void sf_malloc_report_allocated(void *memory)
                  sf_malloc_prehunc);
     if (data <= (char*) memory && (char*) memory <= data + irem->datasize)
     {
-      printf("%u bytes at 0x%lx, allocated at line %u in '%s'\n",
-             irem->datasize, (long) data, irem->linenum, irem->filename);
+      printf("%lu bytes at 0x%lx, allocated at line %u in '%s'\n",
+             (ulong) irem->datasize, (long) data,
+             irem->linenum, irem->filename);
       break;
     }
   }

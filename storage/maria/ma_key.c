@@ -27,7 +27,7 @@
 #define FIX_LENGTH(cs, pos, length, char_length)                            \
             do {                                                            \
               if (length > char_length)                                     \
-                char_length= my_charpos(cs, pos, pos+length, char_length);  \
+                char_length= (uint) my_charpos(cs, pos, pos+length, char_length); \
               set_if_smaller(char_length,length);                           \
             } while(0)
 
@@ -108,7 +108,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     {
       if (type != HA_KEYTYPE_NUM)
       {
-        length= cs->cset->lengthsp(cs, (char*) pos, length);
+        length= (uint) cs->cset->lengthsp(cs, (char*) pos, length);
       }
       else
       {

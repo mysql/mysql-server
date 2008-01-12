@@ -283,7 +283,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     share_buff.state.nulls_per_key_part= nulls_per_key_part;
     share_buff.state.key_root=key_root;
     share_buff.pagecache= multi_pagecache_search((uchar*) name_buff,
-						 strlen(name_buff),
+						 (uint) strlen(name_buff),
                                                  maria_pagecache);
 
     DBUG_EXECUTE_IF("maria_pretend_crashed_table_on_open",
@@ -497,7 +497,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     memcpy((char*) share->state.key_root,
 	   (char*) key_root, sizeof(my_off_t)*keys);
     strmov(share->unique_file_name, name_buff);
-    share->unique_name_length= strlen(name_buff);
+    share->unique_name_length= (uint) strlen(name_buff);
     strmov(share->index_file_name,  index_name);
     strmov(share->data_file_name,   data_name);
     strmov(share->open_file_name,   name);

@@ -914,7 +914,7 @@ static void fill_block(MARIA_FILE_BITMAP *bitmap,
   uchar *data;
 
   /* For each 6 bytes we have 6*8/3= 16 patterns */
-  page= (best_data - bitmap->map) / 6 * 16 + best_pos;
+  page= ((uint) (best_data - bitmap->map)) / 6 * 16 + best_pos;
   DBUG_ASSERT(page + 1 < bitmap->pages_covered);
   block->page= bitmap->page + 1 + page;
   block->page_count= TAIL_PAGE_COUNT_MARKER;
@@ -1171,7 +1171,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
       if ((bits= uint6korr(data)))
         break;
     }
-    area_size= (data - data_start) / 6 * 16;
+    area_size= (uint) (data - data_start) / 6 * 16;
     if (area_size >= best_area_size)
       continue;
     prefix_area_size= suffix_area_size= 0;
@@ -1182,7 +1182,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
         This is needed because bitmap->used_size only covers the set bits
         in the bitmap.
       */
-      area_size+= (page_end - data) / 6 * 16;
+      area_size+= (uint) (page_end - data) / 6 * 16;
       if (area_size >= best_area_size)
         break;
       data= page_end;
@@ -1239,7 +1239,7 @@ static ulong allocate_full_pages(MARIA_FILE_BITMAP *bitmap,
     best_area_size= pages_needed;
 
   /* For each 6 bytes we have 6*8/3= 16 patterns */
-  page= ((best_data - bitmap->map) * 8) / 3 + best_prefix_area_size;
+  page= ((uint) (best_data - bitmap->map) * 8) / 3 + best_prefix_area_size;
   block->page= bitmap->page + 1 + page;
   block->page_count= best_area_size;
   block->empty_space= 0;

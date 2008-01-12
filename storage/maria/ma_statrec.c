@@ -182,8 +182,8 @@ int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
       return(my_errno);
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
 
-    error=info->s->file_read(info, record,info->s->base.reclength,
-                             pos, MYF(MY_NABP));
+    error= (int) info->s->file_read(info, record,info->s->base.reclength,
+                                    pos, MYF(MY_NABP));
     if (! error)
     {
       fast_ma_writeinfo(info);

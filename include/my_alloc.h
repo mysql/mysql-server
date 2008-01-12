@@ -26,8 +26,8 @@
 typedef struct st_used_mem
 {				   /* struct for once_alloc (block) */
   struct st_used_mem *next;	   /* Next block in use */
-  unsigned int	left;		   /* memory left in block  */
-  unsigned int	size;		   /* size of block */
+  size_t left;                     /* memory left in block  */
+  size_t size;                     /* size of block */
 } USED_MEM;
 
 
@@ -39,12 +39,12 @@ typedef struct st_mem_root
   /* if block have less memory it will be put in 'used' list */
   size_t min_malloc;
   size_t block_size;               /* initial block size */
-  unsigned int block_num;          /* allocated blocks counter */
+  unsigned long block_num;         /* allocated blocks counter */
   /* 
      first free block in queue test counter (if it exceed 
      MAX_BLOCK_USAGE_BEFORE_DROP block will be dropped in 'used' list)
   */
-  unsigned int first_block_usage;
+  unsigned long first_block_usage;
 
   void (*error_handler)(void);
 } MEM_ROOT;
