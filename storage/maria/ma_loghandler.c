@@ -2239,7 +2239,7 @@ static uint16 translog_get_total_chunk_length(uchar *page, uint16 offset)
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_LSN"));
     rec_len= translog_variable_record_1group_decode_len(&ptr);
     chunk_len= uint2korr(ptr);
-    header_len= (ptr -start) + 2;
+    header_len= (uint16) (ptr -start) + 2;
     DBUG_PRINT("info", ("rec len: %lu  chunk len: %u  header len: %u",
                         (ulong) rec_len, (uint) chunk_len, (uint) header_len));
     if (chunk_len)
@@ -3002,7 +3002,7 @@ static uint16 translog_get_chunk_header_length(uchar *chunk)
     DBUG_PRINT("info", ("TRANSLOG_CHUNK_LSN"));
     rec_len= translog_variable_record_1group_decode_len(&ptr);
     chunk_len= uint2korr(ptr);
-    header_len= (ptr - start) +2;
+    header_len= (uint16) (ptr - start) +2;
     DBUG_PRINT("info", ("rec len: %lu  chunk len: %u  header len: %u",
                         (ulong) rec_len, (uint) chunk_len, (uint) header_len));
     if (chunk_len)

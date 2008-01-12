@@ -35,9 +35,9 @@ ulonglong my_getsystime()
   if (query_performance_frequency)
   {
     QueryPerformanceCounter(&t_cnt);
-    return (t_cnt.QuadPart / query_performance_frequency * 10000000+
-            t_cnt.QuadPart % query_performance_frequency * 10000000/
-            query_performance_frequency+query_performance_offset);
+    return ((t_cnt.QuadPart / query_performance_frequency * 10000000) +
+            (t_cnt.QuadPart % query_performance_frequency * 10000000 /
+             query_performance_frequency) + query_performance_offset);
   }
   return 0;
 #elif defined(__NETWARE__)
@@ -108,16 +108,20 @@ ulonglong my_micro_time()
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime/= (query_performance_frequency * 1000000);
+    newtime= ((new_time / query_performance_frequency * 10000000) +
+              (new_time % query_performance_frequency * 10000000 /
+               query_performance_frequency));
   }
   else
-    newtime= (GetTickCount() * 1000); /* GetTickCount only returns milliseconds */
+    newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec. */
   return newtime;
 #elif defined(HAVE_GETHRTIME)
   return gethrtime()/1000;
 #else
   struct timeval t;
-  /* The following loop is here because gettimeofday may fail on some systems */
+  /*
+    The following loop is here because gettimeofday may fail on some systems
+  */
   while (gettimeofday(&t, NULL) != 0)
   {}
   newtime= (ulonglong)t.tv_sec * 1000000 + t.tv_usec;
@@ -131,18 +135,18 @@ ulonglong my_micro_time()
 
   SYNOPSIS
     my_micro_time_and_time()
-    time_arg		Will be set to seconds since epoch (00:00:00 UTC, January 1,
-    			1970)
+    time_arg		Will be set to seconds since epoch (00:00:00 UTC,
+                        January 1, 1970)
 
   NOTES
     This function is to be useful when we need both the time and microtime.
-    For example in MySQL this is used to get the query time start of a query and
-    to measure the time of a query (for the slow query log)
+    For example in MySQL this is used to get the query time start of a query
+    and to measure the time of a query (for the slow query log)
 
   IMPLEMENTATION
     Value of time is as in time() call.
-    Value of microtime is same as my_micro_time(), which may be totally unrealated
-    to time()
+    Value of microtime is same as my_micro_time(), which may be totally
+    unrealated to time()
 
   RETURN
     Value in microseconds from some undefined point in time
@@ -157,16 +161,18 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   if (query_performance_frequency)
   {
     QueryPerformanceCounter((LARGE_INTEGER*) &newtime);
-    newtime/= (query_performance_frequency * 1000000);
+    newtime= ((new_time / query_performance_frequency * 10000000) +
+              (new_time % query_performance_frequency * 10000000 /
+               query_performance_frequency));
   }
   else
-    newtime= (GetTickCount() * 1000); /* GetTickCount only returns milliseconds */
+    newtime= (GetTickCount() * 1000); /* GetTickCount only returns millisec. */
   (void) time(time_arg);
   return newtime;
 #elif defined(HAVE_GETHRTIME)
   /*
-    Solaris has a very slow time() call. We optimize this by using the very fast
-    gethrtime() call and only calling time() every 1/2 second
+    Solaris has a very slow time() call. We optimize this by using the very
+    fast gethrtime() call and only calling time() every 1/2 second
   */
   static hrtime_t prev_gethrtime= 0;
   static time_t cur_time= 0;
@@ -184,7 +190,9 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
   return cur_gethrtime/1000;
 #else
   struct timeval t;
-  /* The following loop is here because gettimeofday may fail on some systems */
+  /*
+    The following loop is here because gettimeofday may fail on some systems
+  */
   while (gettimeofday(&t, NULL) != 0)
   {}
   *time_arg= t.tv_sec;
@@ -203,8 +211,8 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
 
   NOTES
     This function returns the current time. The microtime argument is only used
-    if my_micro_time() uses a function that can safely be converted to the current
-    time.
+    if my_micro_time() uses a function that can safely be converted to the
+    current time.
 
   RETURN
     current time

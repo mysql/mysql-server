@@ -989,7 +989,9 @@ connect (session2,localhost,root,,);
 
 connection session1;
 disable_query_log;
+disable_warnings;
 eval create temporary table t1 (a int) data directory="$MYSQLTEST_VARDIR/tmp" select 9 a;
+enable_warnings;
 enable_query_log;
 disable_result_log;
 show create table t1;
@@ -997,7 +999,10 @@ enable_result_log;
 
 connection session2;
 disable_query_log;
+
+disable_warnings;
 eval create temporary table t1 (a int) data directory="$MYSQLTEST_VARDIR/tmp" select 99 a;
+enable_warnings;
 enable_query_log;
 disable_result_log;
 show create table t1;

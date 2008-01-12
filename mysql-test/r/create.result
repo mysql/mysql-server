@@ -1717,7 +1717,7 @@ t1	CREATE TABLE `t1` (
   `TIME` bigint(7) NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=MARIA DEFAULT CHARSET=utf8
+)  DEFAULT CHARSET=utf8
 drop table t1;
 create temporary table t1 like information_schema.processlist;
 show create table t1;
