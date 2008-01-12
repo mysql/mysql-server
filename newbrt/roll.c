@@ -109,6 +109,20 @@ void toku_recover_fcreate (struct logtype_fcreate *c) {
     toku_free(c->fname.data);
 }
 
+int toku_rollback_fcreate (struct logtype_fcreate *le, TOKUTXN txn __attribute__((__unused__))) {
+    char *fname = fixup_fname(&le->fname);
+    char *directory = txn->logger->directory;
+    int  full_len=strlen(fname)+strlen(directory)+2;
+    char full_fname[full_len];
+    int l = snprintf(full_fname,full_len, "%s/%s", directory, fname);
+    assert(l<=full_len);
+    int r = unlink(full_fname);
+    assert(r==0);
+    toku_free(fname);
+    return 0;
+}
+
+
 void toku_recover_fheader (struct logtype_fheader *c) {
     struct cf_pair *pair;
     int r = find_cachefile(c->filenum, &pair);
@@ -178,6 +192,16 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     assert(r==0);
 }
 
+int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
+    // All that must be done is to put the node on the freelist.
+    // Since we don't have a freelist right now, we don't have anything to do.
+    // We'll fix this later (See #264)
+    le=le;
+    txn=txn;
+    return 0;
+}
+
+
 void toku_recover_fopen (struct logtype_fopen *c) {
     char *fname = fixup_fname(&c->fname);
     CACHEFILE cf;
@@ -188,6 +212,11 @@ void toku_recover_fopen (struct logtype_fopen *c) {
     toku_recover_note_cachefile(c->filenum, cf);
     toku_free(fname);
     toku_free(c->fname.data);
+}
+
+int toku_rollback_fopen (struct logtype_fopen *le  __attribute__((__unused__)), TOKUTXN txn  __attribute__((__unused__))) {
+    // Nothing needs to be done to undo an fopen.
+    return 0;
 }
 
 void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
@@ -282,9 +311,6 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     toku_free(c->fromto.array);
 }
 
-int toku_rollback_fcreate (struct logtype_fcreate *le, TOKUTXN txn)             ABORTIT
 int toku_rollback_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
-int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn)       ABORTIT
-int toku_rollback_fopen (struct logtype_fopen *le, TOKUTXN txn)                 ABORTIT
 int toku_rollback_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
 int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) ABORTIT
