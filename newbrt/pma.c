@@ -1582,7 +1582,7 @@ int toku_pma_clear_at_index (PMA pma, unsigned int idx) {
     if (!kv_pair_inuse(pma->pairs[idx])) return -1;
     pma_mfree_kv_pair(pma, pma->pairs[idx]);
     pma->pairs[idx]=0;
-    pma->n_pairs_present++;
+    pma->n_pairs_present--;
     return 0;
 }
 
