@@ -396,7 +396,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
 
-    if (share->state.changed & STATE_NOT_MOVABLE &&
+    if ((share->state.changed & STATE_NOT_MOVABLE) &&
+        share->now_transactional &&
         !(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
         memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE))
     {

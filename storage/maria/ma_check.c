@@ -5907,7 +5907,6 @@ static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
                                         HA_OPEN_COPY | HA_OPEN_FOR_REPAIR)))
     DBUG_RETURN(1);
 
-  info->s->now_transactional= 0;
   new_info= sort_info->new_info;
   _ma_bitmap_set_pagecache_callbacks(&new_info->s->bitmap.file,
                                      new_info->s);
