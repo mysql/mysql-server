@@ -208,7 +208,6 @@ void generate_log_writer (void) {
 			    fprintf(cf, "    if (txn->newest_logentry) txn->parent->newest_logentry = txn->newest_logentry;\n");
 			    fprintf(cf, "    txn->newest_logentry = txn->oldest_logentry = 0;\n");
 			    fprintf(cf, "  } else {\n");
-			    fprintf(cf, "    while (txn->newest_logentry) { struct log_entry *next=txn->newest_logentry->next; toku_free(txn->newest_logentry); txn->newest_logentry=next; }\n");
 			    fprintf(cf, "    r = toku_logger_fsync(txn->logger);\n");
 			    fprintf(cf, "    if (r!=0) toku_logger_panic(txn->logger, r);\n");
 			    fprintf(cf, "  }\n");

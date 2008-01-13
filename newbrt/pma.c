@@ -1627,3 +1627,20 @@ int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
     }
     return 0;
 }
+
+static void reverse_fromto (INTPAIRARRAY fromto) {
+    u_int32_t i;
+    for (i=0; i<fromto.size; i++) {
+	int tmp = fromto.array[i].a;
+	fromto.array[i].a = fromto.array[i].b;
+	fromto.array[i].b = tmp;
+    }
+}
+
+int toku_pma_move_indices_back (PMA pma, INTPAIRARRAY fromto) {
+    int r;
+    reverse_fromto(fromto);
+    r = toku_pma_move_indices(pma, fromto);
+    reverse_fromto(fromto);
+    return r;
+}

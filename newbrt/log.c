@@ -278,6 +278,12 @@ int toku_logger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF dis
 int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
     int r = toku_log_commit(txn, txn->txnid64, nosync);
+    struct log_entry *item;
+    while ((item=txn->oldest_logentry)) {
+	txn->oldest_logentry = item->next;
+	logtype_dispatch(item, toku_free_logtype_);
+	free(item);
+    }
     toku_free(txn);
     return r;
 }
