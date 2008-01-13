@@ -122,11 +122,7 @@ SELECT * FROM tinnodb ORDER BY a;
 # Clean up. We cannot do it on master and replicate over, because
 # master binlog is in a bad state after last test. So we do it both on
 # master and on slave.
-DROP TABLE tmyisam;
-DROP TABLE tinnodb;
-DROP TABLE tndb;
 --echo --- on master ---
-connection master;
 connection master;
 DROP TABLE tmyisam, tinnodb, tndb;
 
