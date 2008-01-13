@@ -125,7 +125,6 @@ void test_db_put_aborts (void) {
 	r=tid->commit(tid,0);        assert(r==0);
     }
 
-
     r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);
 }

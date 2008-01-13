@@ -311,6 +311,21 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     toku_free(c->fromto.array);
 }
 
+int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, le->filenum, &cf, &brt);
+    if (r!=0) return r;
+    void *node_v;
+    r = toku_cachetable_get_and_pin(cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    if (r!=0) return r;
+    BRTNODE node = node_v;
+    r = toku_pma_move_indices_back(node->u.l.buffer, le->fromto);
+    if (r!=0) return r;
+    r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    return r;
+}
+
 int toku_rollback_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
 int toku_rollback_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
-int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) ABORTIT
+
