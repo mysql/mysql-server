@@ -734,7 +734,6 @@ row_undo_mod(
 	undo_node_t*	node,	/* in: row undo node */
 	que_thr_t*	thr)	/* in: query thread */
 {
-	ibool	found;
 	ulint	err;
 
 	ut_ad(node && thr);
@@ -742,13 +741,7 @@ row_undo_mod(
 
 	row_undo_mod_parse_undo_rec(node, thr);
 
-	if (node->table == NULL) {
-		found = FALSE;
-	} else {
-		found = row_undo_search_clust_to_pcur(node);
-	}
-
-	if (!found) {
+	if (!node->table || !row_undo_search_clust_to_pcur(node)) {
 		/* It is already undone, or will be undone by another query
 		thread, or table was dropped */
 
