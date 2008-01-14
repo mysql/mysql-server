@@ -1,3 +1,6 @@
+#ifndef _DB_CXX_H_
+#define _DB_CXX_H_
+
 #include <db.h>
 #include <iostream>
 #include <exception>
@@ -127,6 +130,7 @@ class Db {
 
     int fd(int *);
 
+    void set_errpfx(const char *errpfx);
     void set_error_stream(std::ostream *);
 
     /* the cxx callbacks must be public so they can be called by the c callback.  But it's really private. */
@@ -223,3 +227,5 @@ class Dbc : protected DBC {
     Dbc();  // User may not call it.
     ~Dbc(); // User may not delete it.
 };
+
+#endif
