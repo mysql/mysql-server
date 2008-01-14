@@ -2106,12 +2106,16 @@ public:
   /* The list of post-headers' lengthes */
   uint8 *post_header_len;
   uchar server_version_split[3];
+  const uint8 *event_type_permutation;
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
                                *description_event);
-  ~Format_description_log_event() { my_free((uchar*)post_header_len, MYF(0)); }
+  ~Format_description_log_event()
+  {
+    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+  }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
