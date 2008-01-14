@@ -520,8 +520,6 @@ int apply_commandline_options()
    DB* db = g.db;
    DB_ENV* dbenv = g.dbenv;
 
-   assert(g.header);
-
    for (index = 0; g.config_options[index]; index++) {
       if (value) {
          /* Restore the field=value format. */
@@ -828,6 +826,10 @@ int read_keys()
          g.linenumber++;
          if (get_dbt(&key) != 0) goto error;
          if (g.eof) {
+            if (key.size == 0) {
+                //Last entry had no newline.  Done.
+                break;
+            }
             ERRORX("Line %"PRIu64": Key exists but value missing.", g.linenumber);
             goto error;
          }
