@@ -18,13 +18,9 @@ save_master_pos;
 connection slave;
 --real_sleep 3 # wait for I/O thread to have read updates
 stop slave;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
+source include/show_slave_status2.inc;
 change master to master_user='root';
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 7 # 8 # 9 # 16 # 23 # 33 # 35 # 36 #
-query_vertical SHOW SLAVE STATUS;
+source include/show_slave_status2.inc;
 start slave;
 sync_with_master;
 select * from t1;
