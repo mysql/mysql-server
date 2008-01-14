@@ -163,6 +163,9 @@ row_vers_impl_x_locked_off_kernel(
 			clust_offsets = rec_get_offsets(
 				prev_version, clust_index, NULL,
 				ULINT_UNDEFINED, &heap);
+			/* The stack of versions is locked by mtr.
+			Thus, it is safe to fetch the prefixes for
+			externally stored columns. */
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets,
 					NULL, &ext, heap);
@@ -339,6 +342,9 @@ row_vers_old_has_index_entry(
 	if (also_curr && !rec_get_deleted_flag(rec, comp)) {
 		row_ext_t*	ext;
 
+		/* The stack of versions is locked by mtr.
+		Thus, it is safe to fetch the prefixes for
+		externally stored columns. */
 		row = row_build(ROW_COPY_POINTERS, clust_index,
 				rec, clust_offsets, NULL, &ext, heap);
 		entry = row_build_index_entry(row, ext, index, heap);
@@ -396,6 +402,9 @@ row_vers_old_has_index_entry(
 		if (!rec_get_deleted_flag(prev_version, comp)) {
 			row_ext_t*	ext;
 
+			/* The stack of versions is locked by mtr.
+			Thus, it is safe to fetch the prefixes for
+			externally stored columns. */
 			row = row_build(ROW_COPY_POINTERS, clust_index,
 					prev_version, clust_offsets,
 					NULL, &ext, heap);
