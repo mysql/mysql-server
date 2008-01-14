@@ -660,7 +660,7 @@ CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT COLUMN_FORMAT DYNAMIC)ROW_FORMAT=FIXED
 ENGINE=NDB;
 
---replace_regex /Version: [0-9]+/Version: #/
+--replace_regex /Version: [0-9]+/Version: #/ /Temporary table: no/Temporary table: #/ /Temporary table: yes/Temporary table: #/
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1
 
 DROP TABLE t1;
@@ -669,7 +669,7 @@ CREATE TABLE t1
 (pk1 INT NOT NULL COLUMN_FORMAT FIXED PRIMARY KEY, 
 b INT COLUMN_FORMAT FIXED)ROW_FORMAT=DYNAMIC ENGINE=NDB;
 
---replace_regex /Version: [0-9]+/Version: #/
+--replace_regex /Version: [0-9]+/Version: #/ /Temporary table: no/Temporary table: #/ /Temporary table: yes/Temporary table: #/
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1
 
 --echo ********************
