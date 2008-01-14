@@ -42,9 +42,9 @@ USE mysqltest_sisyfos;
 # The following should *not* be replicated
 ALTER DATABASE mysqltest_bob CHARACTER SET latin1;
 
-SHOW DATABASES;
+SHOW DATABASES LIKE 'mysql%';
 sync_slave_with_master;
-SHOW DATABASES;
+SHOW DATABASES LIKE 'mysql%';
 
 connection master;
 DROP DATABASE IF EXISTS mysqltest_sisyfos;
@@ -55,9 +55,9 @@ CREATE DATABASE mysqltest_sisyfos;
 USE mysqltest_sisyfos;
 CREATE TABLE t2 (a INT);
 let $VERSION=`select version()`;
-SHOW DATABASES;
+SHOW DATABASES LIKE 'mysql%';
 sync_slave_with_master;
-SHOW DATABASES;
+SHOW DATABASES LIKE 'mysql%';
 USE mysqltest_prometheus;
 SHOW TABLES;
 USE mysqltest_sisyfos;
