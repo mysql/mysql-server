@@ -147,12 +147,14 @@ INSERT INTO t1 VALUES ("This is a test of col a.",
                        "This is a test of the large col c.",
                        "Col d");
 SELECT * FROM t1;
+--replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
 sync_slave_with_master slave;
 
 --echo Insert some values and select them on slave
 SELECT * FROM t1;
+--replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
 
@@ -200,12 +202,14 @@ INSERT INTO t1 VALUES (
   );
 
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+--replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
 sync_slave_with_master slave;
 
 --echo Insert some values and select them on master
 SELECT BIN(a), BIN(b), BIN(c), BIN(d), BIN(e) FROM t1;
+--replace_result default DEFAULT
 SHOW CREATE TABLE t1;
 
 --echo *** Cleanup  ***
