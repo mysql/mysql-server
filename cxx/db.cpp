@@ -167,6 +167,10 @@ int Db::associate(DbTxn *txnid, Db *secondary, int (*callback)(Db *secondary, co
     return the_Env->maybe_throw_error(ret);
 }
 
+void Db::set_errpfx(const char *errpfx) {
+    the_Env->set_errpfx(errpfx);
+}
+
 void Db::set_error_stream(std::ostream *new_error_stream) {
     the_Env->set_error_stream(new_error_stream);
 }
