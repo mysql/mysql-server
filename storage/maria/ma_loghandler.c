@@ -716,9 +716,6 @@ typedef struct st_translog_validator_data
 } TRANSLOG_VALIDATOR_DATA;
 
 
-const char *maria_data_root;
-
-
 /*
   Check cursor/buffer consistence
 

@@ -21,9 +21,6 @@
 #include "trnman_public.h"
 #include "ma_checkpoint.h"
 
-my_bool maria_inited= FALSE;
-pthread_mutex_t THR_LOCK_maria;
-
 /*
   Initialize maria
 

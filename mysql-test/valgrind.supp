@@ -268,18 +268,6 @@
 }
 
 #
-# Warning from my_thread_init becasue mysqld dies before kill thread exists
-#
-
-{
-   my_thread_init kill thread memory loss second
-   Memcheck:Leak
-   fun:calloc
-   fun:my_thread_init
-   fun:kill_server_thread
-}
-
-#
 # Leaks reported in _dl_* internal functions on Linux amd64 / glibc2.3.2.
 #
 
@@ -371,6 +359,16 @@
    fun:__sigjmp_save
    fun:__libc_start_main
 }
+
+{
+   dlclose memory loss from udf_free
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z8udf_freev
+}
+
 
 #
 # These seem to be libc threading stuff, not related to MySQL code (allocations
@@ -469,6 +467,8 @@
    fun:_ZN19TransporterRegistry11performSendEv
    fun:_ZN19TransporterRegistry14forceSendCheckEi
 }
+
+#
 # Warning when printing stack trace (to suppress some not needed warnings)
 #
 
