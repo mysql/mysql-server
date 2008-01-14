@@ -1559,8 +1559,6 @@ row_upd_clust_rec_by_insert(
 		}
 	}
 
-	mtr_commit(mtr);
-
 	if (!heap) {
 		heap = mem_heap_create(500);
 	}
@@ -1569,9 +1567,11 @@ row_upd_clust_rec_by_insert(
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	/* TODO: lock the clustered index record before fetching BLOBs */
+	/* The page containing the clustered index record is latched until
+	mtr_commit(mtr) below.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals(entry, index, node->update,
 					   NULL, heap);
+	mtr_commit(mtr);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
