@@ -4,6 +4,8 @@ source include/master-slave.inc;
 # Test of init_slave variable
 #
 
+set global max_connections=151;
+
 save_master_pos;
 connection slave;
 show variables like 'init_slave';

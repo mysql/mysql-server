@@ -21,7 +21,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	60
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	556
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -36,7 +36,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	556
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -63,9 +63,9 @@ insert into t2 values (34),(67),(123);
 flush logs;
 show binary logs;
 Log_name	File_size
-master-bin.000001	600
-master-bin.000002	371
-master-bin.000003	106
+master-bin.000001	#
+master-bin.000002	#
+master-bin.000003	#
 create table t3 select * from temp_table;
 select * from t3;
 a
@@ -78,21 +78,22 @@ set global sql_slave_skip_counter=1;
 start slave;
 purge master logs to 'master-bin.000002';
 show master logs;
-Log_name	File_size
-master-bin.000002	371
-master-bin.000003	415
+Log_name	master-bin.000002
+File_size	#
+Log_name	master-bin.000003
+File_size	#
 purge binary logs to 'master-bin.000002';
 show binary logs;
 Log_name	File_size
-master-bin.000002	371
-master-bin.000003	415
+master-bin.000002	#
+master-bin.000003	#
 select @time_for_purge:=DATE_ADD(UPDATE_TIME, INTERVAL 1 SECOND)
 from information_schema.tables
 where TABLE_SCHEMA="test" and TABLE_NAME="t2";
 purge master logs before (@time_for_purge);
 show binary logs;
 Log_name	File_size
-master-bin.000003	415
+master-bin.000003	#
 insert into t2 values (65);
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -101,7 +102,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	60
 Master_Log_File	master-bin.000003
-Read_Master_Log_Pos	504
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000003
@@ -116,7 +117,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	504
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -149,12 +150,12 @@ count(*)
 create table t4 select * from temp_table;
 show binary logs;
 Log_name	File_size
-master-bin.000003	4193
-master-bin.000004	4198
-master-bin.000005	2040
+master-bin.000003	#
+master-bin.000004	#
+master-bin.000005	#
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000005	2040		
+master-bin.000005	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 select * from t4;
 a
 testing temporary tables part 2
@@ -165,7 +166,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	60
 Master_Log_File	master-bin.000005
-Read_Master_Log_Pos	2040
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000005
@@ -180,7 +181,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	2040
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
