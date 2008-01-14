@@ -65,14 +65,14 @@ insert into temp_table values ("testing temporary tables");
 create table t1 (s text);
 insert into t1 values('Could not break slave'),('Tried hard');
 sync_slave_with_master;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 select * from t1;
 connection master;
 flush logs;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
 flush logs;
-show binary logs;
+source include/show_binary_logs.inc;
 create table t3 select * from temp_table;
 
 sync_slave_with_master;
@@ -106,10 +106,10 @@ connection master;
 sync_slave_with_master;
 connection master;
 purge master logs to 'master-bin.000002';
-show master logs;
+source include/show_master_logs.inc;
 # we just tests if synonyms are accepted
 purge binary logs to 'master-bin.000002';
-show binary logs;
+source include/show_binary_logs.inc;
 
 # Calculate time to use in "purge master logs before" by taking
 # last modification time of t2 and adding 1 second
@@ -122,10 +122,10 @@ select @time_for_purge:=DATE_ADD(UPDATE_TIME, INTERVAL 1 SECOND)
 --enable_result_log
 
 purge master logs before (@time_for_purge);
-show binary logs;
+source include/show_binary_logs.inc;
 insert into t2 values (65);
 sync_slave_with_master;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 select * from t2;
 
 #
@@ -148,14 +148,14 @@ while ($1)
 enable_query_log;
 select count(*) from t3 where n >= 4;
 create table t4 select * from temp_table;
-show binary logs;
-show master status;
+source include/show_binary_logs.inc;
+source include/show_master_status.inc;
 save_master_pos;
 connection slave;
 sync_with_master;
 select * from t4;
 
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock
 lock tables t3 read;
