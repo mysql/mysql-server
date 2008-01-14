@@ -13,13 +13,15 @@ int test_error_stream(const char *dbfile) {
     r = creat(dbfile, 0777); assert(r >= 0); close(r);
 
     DbEnv env(DB_CXX_NO_EXCEPTIONS);
-    env.set_errpfx("my_test_error_stream");
+    env.set_errpfx("my_env_error_stream");
     env.set_error_stream(&std::cerr);
     
     r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     r = env.open(".", DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == EINVAL);
 
     Db db(&env, 0);
+    db.set_errpfx("my_db_error_stream");
+    db.set_error_stream(&std::cerr);
     r = db.open(0, dbfile, 0, DB_BTREE, DB_CREATE, 0777); assert(r != 0);
     r = db.close(0); assert(r == 0);
     r = db.close(0); assert(r == EINVAL);
