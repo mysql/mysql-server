@@ -251,11 +251,11 @@ trx_undo_prev_version_build(
 				the previous version is not >= purge_view,
 				which means that it may have been removed,
 				DB_ERROR if corrupted record */
-	rec_t*		index_rec,/* in: clustered index record in the
+	const rec_t*	index_rec,/* in: clustered index record in the
 				index tree */
 	mtr_t*		index_mtr,/* in: mtr which contains the latch to
 				index_rec page and purge_view */
-	rec_t*		rec,	/* in: version of a clustered index record */
+	const rec_t*	rec,	/* in: version of a clustered index record */
 	dict_index_t*	index,	/* in: clustered index */
 	ulint*		offsets,/* in: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/* in: memory heap from which the memory

@@ -1863,6 +1863,9 @@ any_extern:
 	/* We checked above that there are no externally stored fields. */
 	ut_a(!n_ext);
 
+	/* The page containing the clustered index record
+	corresponding to new_entry is latched in mtr.
+	Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, NULL, heap);
 	old_rec_size = rec_offs_size(offsets);
@@ -2134,6 +2137,9 @@ btr_cur_pessimistic_update(
 	ut_ad(rec_offs_validate(NULL, index, offsets));
 	rec_offs_make_valid(rec, index, offsets);
 
+	/* The page containing the clustered index record
+	corresponding to new_entry is latched in mtr.
+	Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
