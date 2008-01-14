@@ -73,7 +73,7 @@ static int _print_log = 0;
 static int _restore_data = 0;
 static int _restore_meta = 0;
 static int _no_restore_disk = 0;
-static bool _reserve_tail_spaces = false;
+static bool _reserve_trailing_spaces = false;
 BaseString g_options("ndb_restore");
 
 const char *load_default_groups[]= { "mysql_cluster","ndb_restore",0 };
@@ -129,9 +129,9 @@ static struct my_option my_long_options[] =
     "Allow attributes to be promoted when restoring data from backup",
     (uchar**) &ga_promote_attributes, (uchar**) &ga_promote_attributes, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
-  { "reserve_tail_spaces", 'R',
+  { "reserve-trailing-spaces", 'R',
     "Allow to reserve the tailing spaces (including paddings) When char->varchar or binary->varbinary is promoted",
-    (uchar**) &_reserve_tail_spaces, (uchar**)_reserve_tail_spaces , 0,
+    (uchar**) &_reserve_trailing_spaces, (uchar**)_reserve_trailing_spaces , 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "no-restore-disk-objects", 'd',
     "Dont restore disk objects (tablespace/logfilegroups etc)",
@@ -492,9 +492,9 @@ o verify nodegroup mapping
      restore->m_promote_attributes = true;
   }
 
-  if (_reserve_tail_spaces)
+  if (_reserve_trailing_spaces)
   {
-     restore->m_reserve_tail_spaces = true;
+     restore->m_reserve_trailing_spaces = true;
   }
 
   if (ga_restore_epoch)
@@ -716,7 +716,7 @@ main(int argc, char** argv)
     g_options.appfmt(" -u");
   if (ga_promote_attributes)
     g_options.appfmt(" -A");
-  if (_reserve_tail_spaces)
+  if (_reserve_trailing_spaces)
     g_options.appfmt(" -R");
   if (ga_skip_table_check)
     g_options.appfmt(" -s");
