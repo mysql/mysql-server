@@ -912,10 +912,9 @@ buf_pool_init(void)
 	/* 1. Initialize general fields
 	------------------------------- */
 	mutex_create(&buf_pool_mutex, SYNC_BUF_POOL);
+	mutex_create(&buf_pool_zip_mutex, SYNC_BUF_BLOCK);
 
 	buf_pool_mutex_enter();
-
-	mutex_create(&buf_pool_zip_mutex, SYNC_BUF_BLOCK);
 
 	buf_pool->n_chunks = 1;
 	buf_pool->chunks = chunk = mem_alloc(sizeof *chunk);
