@@ -1071,6 +1071,29 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
   }
   else
   {
+    /*
+      In some previuos versions (see comment in
+      Format_description_log_event::Format_description_log_event(char*,...)),
+      event types were assigned different id numbers than in the
+      present version. In order to replicate from such versions to the
+      present version, we must map those event type id's to our event
+      type id's.  The mapping is done with the event_type_permutation
+      array, which was set up when the Format_description_log_event
+      was read.
+    */
+    if (description_event->event_type_permutation)
+    {
+      IF_DBUG({
+          int new_event_type=
+            description_event->event_type_permutation[event_type];
+          DBUG_PRINT("info",
+                     ("converting event type %d to %d (%s)",
+                      event_type, new_event_type,
+                      get_type_str((Log_event_type)new_event_type)));
+        });
+      event_type= description_event->event_type_permutation[event_type];
+    }
+
     switch(event_type) {
     case QUERY_EVENT:
       ev  = new Query_log_event(buf, event_len, description_event, QUERY_EVENT);
@@ -2771,7 +2794,7 @@ int Start_log_event_v3::do_apply_event(Relay_log_info const *rli)
 
 Format_description_log_event::
 Format_description_log_event(uint8 binlog_ver, const char* server_ver)
-  :Start_log_event_v3()
+  :Start_log_event_v3(), event_type_permutation(0)
 {
   binlog_version= binlog_ver;
   switch (binlog_ver) {
@@ -2896,7 +2919,7 @@ Format_description_log_event(const char* buf,
                              const
                              Format_description_log_event*
                              description_event)
-  :Start_log_event_v3(buf, description_event)
+  :Start_log_event_v3(buf, description_event), event_type_permutation(0)
 {
   DBUG_ENTER("Format_description_log_event::Format_description_log_event(char*,...)");
   buf+= LOG_EVENT_MINIMAL_HEADER_LEN;
@@ -2911,6 +2934,65 @@ Format_description_log_event(const char* buf,
                                       number_of_event_types*
                                       sizeof(*post_header_len), MYF(0));
   calc_server_version_split();
+
+  /*
+    In some previous versions, the events were given other event type
+    id numbers than in the present version. When replicating from such
+    a version, we therefore set up an array that maps those id numbers
+    to the id numbers of the present server.
+
+    If post_header_len is null, it means malloc failed, and is_valid
+    will fail, so there is no need to do anything.
+
+    The trees which have wrong event id's are:
+    mysql-5.1-wl2325-5.0-drop6p13-alpha, mysql-5.1-wl2325-5.0-drop6,
+    mysql-5.1-wl2325-5.0, mysql-5.1-wl2325-no-dd (`grep -C2
+    BEGIN_LOAD_QUERY_EVENT /home/bk/ * /sql/log_event.h`). The
+    corresponding version (`grep mysql, configure.in` in those trees)
+    strings are 5.2.2-a_drop6p13-alpha, 5.2.2-a_drop6p13c,
+    5.1.5-a_drop5p20, 5.1.2-a_drop5p5.
+  */
+  if (post_header_len &&
+      (strncmp(server_version, "5.1.2-a_drop5", 13) == 0 ||
+       strncmp(server_version, "5.1.5-a_drop5", 13) == 0 ||
+       strncmp(server_version, "5.2.2-a_drop6", 13) == 0))
+  {
+    if (number_of_event_types != 22)
+    {
+      DBUG_PRINT("info", (" number_of_event_types=%d",
+                          number_of_event_types));
+      /* this makes is_valid() return false. */
+      my_free(post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+      post_header_len= NULL;
+      DBUG_VOID_RETURN;
+    }
+    static const uint8 perm[23]=
+      {
+        UNKNOWN_EVENT, START_EVENT_V3, QUERY_EVENT, STOP_EVENT, ROTATE_EVENT,
+        INTVAR_EVENT, LOAD_EVENT, SLAVE_EVENT, CREATE_FILE_EVENT,
+        APPEND_BLOCK_EVENT, EXEC_LOAD_EVENT, DELETE_FILE_EVENT,
+        NEW_LOAD_EVENT,
+        RAND_EVENT, USER_VAR_EVENT,
+        FORMAT_DESCRIPTION_EVENT,
+        TABLE_MAP_EVENT,
+        PRE_GA_WRITE_ROWS_EVENT,
+        PRE_GA_UPDATE_ROWS_EVENT,
+        PRE_GA_DELETE_ROWS_EVENT,
+        XID_EVENT,
+        BEGIN_LOAD_QUERY_EVENT,
+        EXECUTE_LOAD_QUERY_EVENT,
+      };
+    event_type_permutation= perm;
+    /*
+      Since we use (permuted) event id's to index the post_header_len
+      array, we need to permute the post_header_len array too.
+    */
+    uint8 post_header_len_temp[23];
+    for (int i= 1; i < 23; i++)
+      post_header_len_temp[perm[i] - 1]= post_header_len[i - 1];
+    for (int i= 0; i < 22; i++)
+      post_header_len[i] = post_header_len_temp[i];
+  }
   DBUG_VOID_RETURN;
 }
 
