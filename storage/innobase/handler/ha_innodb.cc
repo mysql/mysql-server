@@ -600,7 +600,9 @@ convert_error_code_to_mysql(
 		tell it also to MySQL so that MySQL knows to empty the
 		cached binlog for this transaction */
 
-                thd_mark_transaction_to_rollback(thd, TRUE);
+		if (thd) {
+			thd_mark_transaction_to_rollback(thd, TRUE);
+		}
 
 		return(HA_ERR_LOCK_DEADLOCK);
 	} else if (error == (int) DB_LOCK_WAIT_TIMEOUT) {
@@ -609,8 +611,10 @@ convert_error_code_to_mysql(
 		latest SQL statement in a lock wait timeout. Previously, we
 		rolled back the whole transaction. */
 
-                thd_mark_transaction_to_rollback(thd,
-                                             (bool)row_rollback_on_timeout);
+		if (thd) {
+			thd_mark_transaction_to_rollback(
+				thd, (bool)row_rollback_on_timeout);
+		}
 
 		return(HA_ERR_LOCK_WAIT_TIMEOUT);
 
@@ -662,7 +666,9 @@ convert_error_code_to_mysql(
  		tell it also to MySQL so that MySQL knows to empty the
  		cached binlog for this transaction */
 
-                thd_mark_transaction_to_rollback(thd, TRUE);
+		if (thd) {
+			thd_mark_transaction_to_rollback(thd, TRUE);
+		}
 
     		return(HA_ERR_LOCK_TABLE_FULL);
 	} else if (error == DB_TOO_MANY_CONCURRENT_TRXS) {
@@ -3769,6 +3775,16 @@ ha_innobase::update_row(
 
 	error = convert_error_code_to_mysql(error, user_thd);
 
+	if (error == 0 /* success */
+	    && uvect->n_fields == 0 /* no columns were updated */) {
+
+		/* This is the same as success, but instructs
+		MySQL that the row is not really updated and it
+		should not increase the count of updated rows.
+		This is fix for http://bugs.mysql.com/29157 */
+		error = HA_ERR_RECORD_IS_THE_SAME;
+	}
+
 	/* Tell InnoDB server that there might be work for
 	utility threads: */
 
@@ -5720,7 +5736,9 @@ ha_innobase::info(
 		stats.index_file_length = ((ulonglong)
 				ib_table->stat_sum_of_other_index_sizes)
 					* UNIV_PAGE_SIZE;
-		stats.delete_length = 0;
+		stats.delete_length =
+			fsp_get_available_space_in_free_extents(
+				ib_table->space);
 		stats.check_time = 0;
 
 		if (stats.records == 0) {
@@ -7246,6 +7264,7 @@ On return if there is no error then the tables AUTOINC lock is locked.*/
 
 ulong
 ha_innobase::innobase_get_auto_increment(
+/*=====================================*/
 	ulonglong*	value)		/* out: autoinc value */
 {
 	ulong		error;
