@@ -1,3 +1,4 @@
+//NOTE: fmemopen does not exist in OSX
 // I want fmemopen
 #define _GNU_SOURCE
 
