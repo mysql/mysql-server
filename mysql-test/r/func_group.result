@@ -1398,4 +1398,16 @@ SELECT COUNT(*), a FROM t1;
 COUNT(*)	a
 4	1
 DROP TABLE t1;
+set SQL_MODE=ONLY_FULL_GROUP_BY;
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
+EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.`t1`.`a` + 1)
+DROP VIEW v1;
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
 End of 5.0 tests
