@@ -2275,6 +2275,8 @@ ha_innobase::open(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
+	ulint		retries = 0;
+	char*		is_part = NULL;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -2308,11 +2310,29 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
+	/* We look for pattern #P# to see if the table is partitioned
+	MySQL table. The retry logic for partitioned tables is a
+	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
+	at support issue https://support.mysql.com/view.php?id=21080
+	for more details. */
+	is_part = strstr(norm_name, "#P#");
+retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-
 	ib_table = dict_table_get(norm_name, TRUE);
-
+	
 	if (NULL == ib_table) {
+		if (is_part && retries < 10) {
+			++retries;
+			os_thread_sleep(100000);
+			goto retry;
+		}
+
+		if (is_part) {
+			sql_print_error("Failed to open table %s after "
+					"%lu attemtps.\n", norm_name,
+					retries);
+		}
+
 		sql_print_error("Cannot find or open table %s from\n"
 				"the internal data dictionary of InnoDB "
 				"though the .frm file for the\n"
