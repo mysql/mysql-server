@@ -1595,6 +1595,9 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     HANDLE_PANICKED_DB(db);
     int r;
 
+    if ((db->i->open_flags & DB_THREAD) && (data->flags & (DB_DBT_MALLOC+DB_DBT_REALLOC+DB_DBT_USERMEM)) == 0)
+        return EINVAL;
+
     if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
     else {
         // It's a get on a secondary.
@@ -1716,7 +1719,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
     int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
     int is_db_unknown = flags & DB_UNKNOWN; flags&=~DB_UNKNOWN;
-    if (flags) return EINVAL; // unknown flags
+    if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
     if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
