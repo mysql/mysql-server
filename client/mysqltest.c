@@ -3654,7 +3654,7 @@ void do_get_file_name(struct st_command *command,
   if (*p)
     *p++= 0;
   command->last_argument= p;
-  strmake(dest, name, dest_max_len);
+  strmake(dest, name, dest_max_len - 1);
 }
 
 
@@ -6975,7 +6975,7 @@ int main(int argc, char **argv)
 
 	if (save_file[0])
 	{
-	  strmake(command->require_file, save_file, sizeof(save_file));
+	  strmake(command->require_file, save_file, sizeof(save_file) - 1);
 	  save_file[0]= 0;
 	}
 	run_query(cur_con, command, flags);

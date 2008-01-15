@@ -908,5 +908,20 @@ SELECT COUNT(*), a FROM t1;
 
 DROP TABLE t1;
 
+#
+# Bug #33133: Views are not transparent
+#
+
+set SQL_MODE=ONLY_FULL_GROUP_BY;
+
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3),(4);
+CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
+EXPLAIN EXTENDED SELECT y FROM v1 GROUP BY v1.y;
+
+DROP VIEW v1;
+DROP TABLE t1;
+SET SQL_MODE=DEFAULT;
+
 ###
 --echo End of 5.0 tests
