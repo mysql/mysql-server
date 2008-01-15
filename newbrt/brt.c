@@ -300,7 +300,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     }
 }
 
-static void create_new_brtnode (BRT t, BRTNODE *result, int height) {
+static void create_new_brtnode (BRT t, BRTNODE *result, int height, TOKUTXN txn) {
     TAGMALLOC(BRTNODE, n);
     int r;
     DISKOFF name = malloc_diskblock(t, t->h->nodesize);
@@ -314,6 +314,7 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height) {
     //printf("%s:%d putting %p (%lld) parent=%p\n", __FILE__, __LINE__, n, n->thisnodename, parent_brtnode);
     r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
 			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
+    r=toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), n->thisnodename, height, n->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, n->rand4fingerprint);
     assert(r==0);
 }
 
@@ -358,8 +359,8 @@ static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRT
     BRTNODE A,B;
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-    create_new_brtnode(t, &A, 0);
-    create_new_brtnode(t, &B, 0);
+    create_new_brtnode(t, &A, 0, txn);
+    create_new_brtnode(t, &B, 0, txn);
     //printf("leaf_split %lld - %lld %lld\n", node->thisnodename, A->thisnodename, B->thisnodename);
     //printf("%s:%d A PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
     //printf("%s:%d B PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
@@ -396,14 +397,14 @@ static void brt_update_fingerprint_when_moving_hashtable (BRTNODE oldnode, BRTNO
 }
 
 /* Side effect: sets splitk->data pointer to a malloc'd value */
-static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
+static void brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKUTXN txn) {
     int n_children_in_a = node->u.n.n_children/2;
     BRTNODE A,B;
     assert(node->height>0);
     assert(node->u.n.n_children>=2); // Otherwise, how do we split?  We need at least two children to split. */
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-    create_new_brtnode(t, &A, node->height);
-    create_new_brtnode(t, &B, node->height);
+    create_new_brtnode(t, &A, node->height, txn);
+    create_new_brtnode(t, &B, node->height, txn);
     A->u.n.n_children=n_children_in_a;
     B->u.n.n_children=node->u.n.n_children-n_children_in_a;
     //printf("%s:%d %p (%lld) becomes %p and %p\n", __FILE__, __LINE__, node, node->thisnodename, A, B);
@@ -709,7 +710,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 		
     if (node->u.n.n_children>TREE_FANOUT) {
 	//printf("%s:%d about to split having pushed %d out of %d keys\n", __FILE__, __LINE__, i, n_pairs);
-	brt_nonleaf_split(t, node, nodea, nodeb, splitk);
+	brt_nonleaf_split(t, node, nodea, nodeb, splitk, txn);
 	//printf("%s:%d did split\n", __FILE__, __LINE__);
 	split_count++;
 	*did_split=1;

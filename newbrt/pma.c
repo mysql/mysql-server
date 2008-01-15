@@ -566,6 +566,14 @@ int toku_pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi) {
     return n;
 }
 
+/* find the smallest power of 2 >= n */
+static unsigned int pma_array_size(PMA pma __attribute__((unused)), int asksize) {
+    int n = PMA_MIN_ARRAY_SIZE;
+    while (n < asksize)
+        n *= 2;
+    return n;
+}
+
 int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM filenum, int maxsize) {
     int error;
     TAGMALLOC(PMA, result);
@@ -581,10 +589,14 @@ int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM fil
     result->sval = 0;
     result->N = PMA_MIN_ARRAY_SIZE;
     result->pairs = 0;
-    error = old_pma_resize_array(result, result->N, 0);
-    if (error) {
-        toku_free(result);
-        return -1;
+    {
+	unsigned int n = pma_array_size(result, result->N);
+	error = toku_resize_pma_exactly(result, 0, n);
+	if (error) {
+	    toku_free(result);
+	    return -1;
+	}
+	toku_pmainternal_calculate_parameters(result);
     }
     if (maxsize == 0)
         maxsize = 4*1024;
@@ -597,15 +609,6 @@ int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM fil
     assert((unsigned long)result->pairs[result->N]==0xdeadbeefL);
     return 0;
 }
-
-/* find the smallest power of 2 >= n */
-static unsigned int pma_array_size(PMA pma __attribute__((unused)), int asksize) {
-    int n = PMA_MIN_ARRAY_SIZE;
-    while (n < asksize)
-        n *= 2;
-    return n;
-}
-
 int toku_resize_pma_exactly (PMA pma, int oldsize, int newsize) {
     pma->N = newsize;
 

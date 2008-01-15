@@ -77,13 +77,16 @@ $(ALL_TESTS):
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
 MAYBEATSIGN= 
+VERBQUIET=
 else
  ifeq ($(VERBOSE),1)
   VERBVERBOSE=
   MAYBEATSIGN=
+  VERBQUIET=
  else
   VERBVERBOSE=
   MAYBEATSIGN=@
+  VERBQUIET=--quiet
  endif
 endif
 
@@ -140,7 +143,7 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
 %.recover: %.tdb
-	$(MAYBEATSIGN) cd ../../newbrt;make --quiet recover
+	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover
 	$(MAYBEATSIGN) $(VGRIND) ./$<
 	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
