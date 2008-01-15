@@ -1330,19 +1330,19 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
         return EINVAL; // We aren't ready for this
     }
 #endif
-	toku_brt_get_flags(secondary->i->brt, &brtflags);
-    if ((brtflags & TOKU_DB_DUPSORT) || (brtflags & TOKU_DB_DUP)) {
+    toku_brt_get_flags(secondary->i->brt, &brtflags);
+    if (brtflags & TOKU_DB_DUPSORT) {
         //If the secondary has duplicates we need to use cursor deletes.
-	    DBC *dbc;
-	    r = toku_db_cursor(secondary, txn, &dbc, 0);
-	    if (r!=0) goto cleanup;
-	    r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
-	    if (r!=0) goto cleanup;
-	    r = toku_c_del_noassociate(dbc, 0);
-cleanup:
+        DBC *dbc;
+        r = toku_db_cursor(secondary, txn, &dbc, 0);
+        if (r!=0) goto cleanup;
+        r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
+        if (r!=0) goto cleanup;
+        r = toku_c_del_noassociate(dbc, 0);
+    cleanup:
         r2 = toku_c_close(dbc);
-    }
-    else r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
+    } else 
+        r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
     if (idx.flags & DB_DBT_APPMALLOC) {
     	free(idx.data);
     }
@@ -1536,26 +1536,32 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
 
             assert(db->i->primary!=0);    //Primary cannot have duplicates.
             r = toku_db_cursor(db, txn, &dbc, 0);
-            if (r!=0) goto cleanup;
+            if (r!=0) return r;
             r = toku_c_get_noassociate(dbc, key, &data, DB_SET);
-            if (r!=0) goto cleanup;
-            
             while (r==0) {
                 r = toku_c_del(dbc, 0);
                 if (r==0) found = TRUE;
-                if (r!=0 && r!=DB_KEYEMPTY) goto cleanup;
+                if (r!=0 && r!=DB_KEYEMPTY) break;
                 r = toku_c_get_noassociate(dbc, key, &data, DB_NEXT_DUP);
                 if (r == DB_NOTFOUND) {
                     //If we deleted at least one we're happy.  Quit out.
                     if (found) r = 0;
-                    goto cleanup;
+                    break;
                 }
             }
-cleanup:
+
             r2 = toku_c_close(dbc);
             if (r != 0) return r;
             return r2;
         }
+
+        inline void cleanup() {
+            if (data.data) toku_free(data.data);
+            if (pkey.data) toku_free(pkey.data);
+        }
+
+        memset(&data, 0, sizeof data); data.flags = DB_DBT_REALLOC;
+        memset(&pkey, 0, sizeof pkey); pkey.flags = DB_DBT_REALLOC;
 
         if (db->i->primary == 0) {
             pdb = db;
@@ -1563,25 +1569,33 @@ cleanup:
             pdb_key = key;
         }
         else {
-            memset(&pkey, 0, sizeof(pkey));
             pdb = db->i->primary;
             r = toku_db_pget(db, txn, key, &pkey, &data, 0);
             pdb_key = &pkey;
         }
-        if (r != 0) return r;
+        if (r != 0) { 
+            cleanup(); return r; 
+        }
         
     	for (h = list_head(&pdb->i->associated); h != &pdb->i->associated; h = h->next) {
     	    struct __toku_db_internal *dbi = list_struct(h, struct __toku_db_internal, associated);
     	    if (dbi->db == db) continue;                  //Skip current db (if its primary or secondary)
     	    r = do_associated_deletes(txn, pdb_key, &data, dbi->db);
-    	    if (r!=0) return r;
+    	    if (r!=0) { 
+                cleanup(); return r;
+            }
     	}
     	if (db->i->primary != 0) {
     	    //If this is a secondary, we did not delete from the primary.
     	    //Primaries cannot have duplicates, (noncursor) del is safe.
     	    r = toku_db_del_noassociate(pdb, txn, pdb_key, DB_DELETE_ANY);
-    	    if (r!=0) return r;
+    	    if (r!=0) { 
+                cleanup(); return r;
+            }
     	}
+
+        cleanup();
+
     	//We know for certain it was already found, so no need to return DB_NOTFOUND.
     	flags |= DB_DELETE_ANY;
     }
