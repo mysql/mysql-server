@@ -1,5 +1,3 @@
-int rfp = 0;
-
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
@@ -1528,7 +1526,7 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
         memset(&data, 0, sizeof(data));
 
         toku_brt_get_flags(db->i->brt, &brtflags);
-        if ((brtflags & TOKU_DB_DUPSORT) || (brtflags & TOKU_DB_DUP)) {
+        if (brtflags & TOKU_DB_DUPSORT) {
             int r2;
     	    DBC *dbc;
     	    BOOL found = FALSE;
@@ -1537,7 +1535,7 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
              * We have to make certain we cascade all the deletes. */
 
             assert(db->i->primary!=0);    //Primary cannot have duplicates.
-            r = db->cursor(db, txn, &dbc, 0);
+            r = toku_db_cursor(db, txn, &dbc, 0);
             if (r!=0) goto cleanup;
             r = toku_c_get_noassociate(dbc, key, &data, DB_SET);
             if (r!=0) goto cleanup;
@@ -1591,11 +1589,15 @@ cleanup:
     return r;
 }
 
+static inline int db_thread_need_flags(DBT *dbt) {
+    return (dbt->flags & (DB_DBT_MALLOC+DB_DBT_REALLOC+DB_DBT_USERMEM)) == 0;
+}
+
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     int r;
 
-    if ((db->i->open_flags & DB_THREAD) && (data->flags & (DB_DBT_MALLOC+DB_DBT_REALLOC+DB_DBT_USERMEM)) == 0)
+    if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
     if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
@@ -1603,9 +1605,9 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
         // It's a get on a secondary.
         if (flags == DB_GET_BOTH) return EINVAL;
         assert(flags == 0); // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-        DBT primary_key;
-        memset(&primary_key, 0, sizeof(primary_key));
-        r = db->pget(db, txn, key, &primary_key, data, 0);
+        DBT primary_key; memset(&primary_key, 0, sizeof(primary_key)); primary_key.flags = DB_DBT_MALLOC;
+        r = toku_db_pget(db, txn, key, &primary_key, data, 0);
+        if (primary_key.data) toku_free(primary_key.data);
     }
     return r;
 }
@@ -1617,8 +1619,11 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
     DBC *dbc;
     if (!db->i->primary) return EINVAL; // pget doesn't work on a primary.
     assert(flags==0); // not ready to handle all those other options
-	assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
+    assert(db->i->brt != db->i->primary->i->brt); // Make sure they realy are different trees.
     assert(db!=db->i->primary);
+
+    if ((db->i->open_flags & DB_THREAD) && (db_thread_need_flags(pkey) || db_thread_need_flags(data)))
+        return EINVAL;
 
     r = toku_db_cursor(db, txn, &dbc, 0);
     if (r!=0) return r;
