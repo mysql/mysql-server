@@ -26,7 +26,7 @@ else
  ifdef BDBDIR
   BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib -lpthread
  endif
- TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,..
+ TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 ifeq ($(VGRIND),)
