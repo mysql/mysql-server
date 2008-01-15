@@ -940,7 +940,7 @@ static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) 
 #endif
 	if (skey->size != idx.size || memcmp(skey->data, idx.data, idx.size) != 0) r = DB_SECONDARY_BAD;
     if (idx.flags & DB_DBT_APPMALLOC) {
-    	free(idx.data);
+    	toku_free(idx.data);
     }
     return r;
 }
@@ -1344,7 +1344,7 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
     } else 
         r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
     if (idx.flags & DB_DBT_APPMALLOC) {
-    	free(idx.data);
+    	toku_free(idx.data);
     }
     if (r!=0) return r;
     return r2;
