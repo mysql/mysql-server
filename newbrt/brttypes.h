@@ -4,7 +4,9 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <sys/types.h>
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 500
+#endif
 #define _FILE_OFFSET_BITS 64
 
 typedef struct brt *BRT;

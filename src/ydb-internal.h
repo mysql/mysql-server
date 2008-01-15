@@ -32,6 +32,44 @@ struct __toku_db_internal {
     int associate_is_immutable; // If this DB is a secondary then this field indicates that the index never changes due to updates.
 };
 
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
+typedef void (*toku_env_errcall_t)(const char *, char *);
+#elif DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
+typedef void (*toku_env_errcall_t)(const DB_ENV *, const char *, const char *);
+#else
+#error
+#endif
+
+struct __toku_db_env_internal {
+    int is_panicked;
+    int ref_count;
+    u_int32_t open_flags;
+    int open_mode;
+    toku_env_errcall_t errcall;
+    void *errfile;
+    const char *errpfx;
+    char *dir;                  /* A malloc'd copy of the directory. */
+    char *tmp_dir;
+    char *lg_dir;
+    char **data_dirs;
+    u_int32_t n_data_dirs;
+    //void (*noticecall)(DB_ENV *, db_notices);
+    unsigned long cachetable_size;
+    CACHETABLE cachetable;
+    TOKULOGGER logger;
+};
+
+struct __toku_db_txn_internal {
+    //TXNID txnid64; /* A sixty-four bit txn id. */
+    TOKUTXN tokutxn;
+    DB_TXN *parent;
+};
+
+struct __toku_dbc_internal {
+    BRT_CURSOR c;
+    DB_TXN *txn;
+};
+
 typedef struct __toku_lock_tree {
     DB* db;
     //Some Red Black tree
@@ -867,5 +905,7 @@ DUPSORT db
                 A   ([B])   C
                     +++++
 */
+
+
 
 #endif
