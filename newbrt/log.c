@@ -282,7 +282,7 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
     while ((item=txn->oldest_logentry)) {
 	txn->oldest_logentry = item->next;
 	logtype_dispatch(item, toku_free_logtype_);
-	free(item);
+	toku_free(item);
     }
     toku_free(txn);
     return r;
@@ -695,7 +695,7 @@ int toku_logger_abort(TOKUTXN txn) {
     while ((item=txn->newest_logentry)) {
 	txn->newest_logentry=item->tmp;
 	logtype_dispatch(item, toku_free_logtype_);
-	free(item);
+	toku_free(item);
     }
     toku_free(txn);
     return 0;

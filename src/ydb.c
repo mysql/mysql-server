@@ -1148,9 +1148,9 @@ static int toku_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) 
     if (0) {
 delete_silently_and_retry:
         //Free any old data.
-        free(key->data);
-        free(pkey->data);
-        free(data->data);
+        toku_free(key->data);
+        toku_free(pkey->data);
+        toku_free(data->data);
         //Silently delete and re-run.
         r = toku_c_del_noassociate(c, 0);
         if (r != 0) return r;
@@ -1163,19 +1163,19 @@ delete_silently_and_retry:
     r = toku_c_pget_save_original_data(&copied_key, o_key);   if (r!=0) goto died0;
     if (0) {
         died1:
-        free(key->data);
+        toku_free(key->data);
         goto died0;
     }
     r = toku_c_pget_save_original_data(&copied_pkey, o_pkey); if (r!=0) goto died1;
     if (0) {
         died2:
-        free(pkey->data);
+        toku_free(pkey->data);
         goto died1;
     }
     r = toku_c_pget_save_original_data(&copied_data, o_data); if (r!=0) goto died2;
     if (0) {
         died3:
-        free(data->data);
+        toku_free(data->data);
         goto died2;
     }
 
@@ -1195,9 +1195,9 @@ delete_silently_and_retry:
     r3 = toku_brt_dbt_set_value(pdb->i->brt, o_data, data->data, data->size);
 
     //Cleanup.
-    free(key->data);
-    free(pkey->data);
-    free(data->data);
+    toku_free(key->data);
+    toku_free(pkey->data);
+    toku_free(data->data);
     if (r!=0) return r;
     if (r2!=0) return r2;
     return r3;
@@ -1311,7 +1311,7 @@ static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t f
         r = toku_db_get_noassociate(db, txn, key, &search_val, 0);
         if (r != 0)
             return r;
-        free(search_val.data);
+        toku_free(search_val.data);
     } 
     //Do the actual deleting.
     r = toku_brt_delete(db->i->brt, key);
@@ -1420,8 +1420,8 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
         if (0) {
             cleanup:
             if (flags==DB_CURRENT) {
-                free(key_local.data);
-                free(data_local.data);
+                toku_free(key_local.data);
+                toku_free(data_local.data);
             }
             return r;
         }
@@ -1864,7 +1864,7 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
 #endif
     r = toku_db_put_noassociate(secondary, txn, &idx, key, DB_YESOVERWRITE);
     if (idx.flags & DB_DBT_APPMALLOC) {
-        free(idx.data);
+        toku_free(idx.data);
     }
     return r;
 }
