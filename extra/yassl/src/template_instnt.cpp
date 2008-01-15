@@ -101,6 +101,7 @@ template void ysArrayDelete<unsigned char>(unsigned char*);
 template void ysArrayDelete<char>(char*);
 
 template int min<int>(int, int);
+template uint16 min<uint16>(uint16, uint16);
 template unsigned int min<unsigned int>(unsigned int, unsigned int);
 template unsigned long min<unsigned long>(unsigned long, unsigned long);
 }
