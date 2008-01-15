@@ -3,11 +3,12 @@
 #include <unistd.h>
 #include <assert.h>
 #include <errno.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
 #include "test.h"
 
-const char *dbfile = "test.db";
+const char *dbfile = DIR "/" "test.db";
 const char *dbname = 0;
 
 int db_put(DB *db, int k, int v) {
@@ -66,6 +67,8 @@ void test_db_thread() {
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
+    system("rm -rf " DIR);
+    mkdir(DIR, 0777);
     test_db_create();
     test_db_thread();
     return 0;
