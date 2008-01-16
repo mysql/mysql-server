@@ -72,7 +72,7 @@ recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
 recover: recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o cachetable.o brt.o brt-verify.o key.o roll.o
 
-roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h
+roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h pma.h
 
 log_code.o: log_header.h wbuf.h log-internal.h
 log_code.c log_header.h: logformat
