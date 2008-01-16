@@ -25,13 +25,13 @@ int db_put(DB *db, my_t k, my_t v) {
 
 void *do_inserts(void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
-    printf("%lu:do_inserts:start:%d-%d\n", pthread_self(), mywork->startno, mywork->endno);
+    printf("%lu:do_inserts:start:%d-%d\n", (unsigned long)pthread_self(), mywork->startno, mywork->endno);
     my_t i;
     for (i=mywork->startno; i < mywork->endno; i++) {
         int r = db_put(mywork->db, htonl(i), i); assert(r == 0);
     }
     
-    printf("%lu:do_inserts:end\n", pthread_self());
+    printf("%lu:do_inserts:end\n", (unsigned long)pthread_self());
     pthread_exit(0);
     return 0;
 }
