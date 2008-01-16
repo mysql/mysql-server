@@ -1367,7 +1367,10 @@ btr_page_get_sure_split_rec(
 
 		if (UNIV_LIKELY(free_space > (ulint) free_space_zip)) {
 			free_space = (ulint) free_space_zip;
-			ut_a(insert_size <= free_space);
+			if (UNIV_UNLIKELY(insert_size > free_space)) {
+
+				return(NULL);
+			}
 		}
 	}
 
