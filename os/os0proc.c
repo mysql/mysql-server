@@ -109,6 +109,7 @@ os_mem_alloc_large(
 
 	if (ptr) {
 		*n = size;
+		ut_total_allocated_memory += size;
 # ifdef UNIV_SET_MEM_TO_ZERO
 		memset(ptr, '\0', size);
 # endif
@@ -133,8 +134,9 @@ skip:
 		fprintf(stderr, "InnoDB: VirtualAlloc(%lu bytes) failed;"
 			" Windows error %lu\n",
 			(ulong) size, (ulong) GetLastError());
+	} else {
+		ut_total_allocated_memory += size;
 	}
-
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	size = *n;
 	ptr = ut_malloc_low(size, TRUE, FALSE);
@@ -153,6 +155,8 @@ skip:
 			" errno %lu\n",
 			(ulong) size, (ulong) errno);
 		ptr = NULL;
+	} else {
+		ut_total_allocated_memory += size;
 	}
 #endif
 	return(ptr);
@@ -169,8 +173,11 @@ os_mem_free_large(
 	ulint	size)			/* in: size returned by
 					os_mem_alloc_large() */
 {
+	ut_a(ut_total_allocated_memory >= size);
+
 #if defined HAVE_LARGE_PAGES && defined UNIV_LINUX
 	if (os_use_large_pages && os_large_page_size && !shmdt(ptr)) {
+		ut_total_allocated_memory -= size;
 		return;
 	}
 #endif /* HAVE_LARGE_PAGES && UNIV_LINUX */
@@ -179,6 +186,8 @@ os_mem_free_large(
 		fprintf(stderr, "InnoDB: VirtualFree(%p, %lu) failed;"
 			" Windows error %lu\n",
 			ptr, (ulong) size, (ulong) GetLastError());
+	} else {
+		ut_total_allocated_memory -= size;
 	}
 #elif defined __NETWARE__ || !defined OS_MAP_ANON
 	ut_free(ptr);
@@ -187,8 +196,9 @@ os_mem_free_large(
 		fprintf(stderr, "InnoDB: munmap(%p, %lu) failed;"
 			" errno %lu\n",
 			ptr, (ulong) size, (ulong) errno);
+	} else {
+		ut_total_allocated_memory -= size;
 	}
-
 #endif
 }
 
