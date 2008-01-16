@@ -636,12 +636,12 @@ row_undo_mod_upd_exist_sec(
 			the secondary index record if we updated its fields
 			but alphabetically they stayed the same, e.g.,
 			'abc' -> 'aBc'. */
+			mem_heap_empty(heap);
+			entry = row_build_index_entry(node->undo_row,
+						      node->undo_ext,
+						      index, heap);
+			ut_a(entry);
 
-			/* TODO: lock the clustered index record
-			before fetching BLOBs */
-			row_upd_index_replace_new_col_vals(entry, index,
-							   node->update,
-							   NULL, heap);
 			err = row_undo_mod_del_unmark_sec_and_undo_update(
 				BTR_MODIFY_LEAF, thr, index, entry);
 			if (err == DB_FAIL) {

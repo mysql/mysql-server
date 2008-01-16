@@ -24,9 +24,9 @@ Created 1/8/1997 Heikki Tuuri
 #include "row0row.h"
 #include "row0uins.h"
 #include "row0umod.h"
+#include "row0upd.h"
 #include "row0mysql.h"
 #include "srv0srv.h"
-#include "row0merge.h"
 
 /* How to undo row operations?
 (1) For an insert, we have stored a prefix of the clustered index record
@@ -185,6 +185,15 @@ row_undo_search_clust_to_pcur(
 	} else {
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
 				      offsets, NULL, &node->ext, node->heap);
+		if (node->update) {
+			node->undo_row = dtuple_copy(node->row, node->heap);
+			row_upd_replace(node->undo_row, &node->undo_ext,
+					clust_index, node->update, node->heap);
+		} else {
+			node->undo_row = NULL;
+			node->undo_ext = NULL;
+		}
+
 		btr_pcur_store_position(&(node->pcur), &mtr);
 
 		ret = TRUE;
