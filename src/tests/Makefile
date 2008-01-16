@@ -64,6 +64,7 @@ foo:
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok
+tests.bdb: $(BDB_TESTS)
 check.bdb: $(RUN_BDB_TESTS)
 tests.tdb: $(TDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)

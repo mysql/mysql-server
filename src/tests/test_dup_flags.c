@@ -25,8 +25,7 @@ void test_dup_flags(int dup_flags) {
     unlink(fname);
 
     /* create the dup database file */
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
     r = db->set_flags(db, dup_flags);
 #if USE_TDB
     if (r != 0 && dup_flags == DB_DUP) {
@@ -36,44 +35,32 @@ void test_dup_flags(int dup_flags) {
     }
 #endif
     assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
-    assert(r == 0);
-    r = db->close(db, 0);
-    assert(r == 0);
+    u_int32_t flags; r = db->get_flags(db, &flags); assert(r == 0); assert(flags == dup_flags);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
 
     /* verify dup flags match */
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
 #if USE_BDB
     if (r == 0 && verbose) 
         printf("%s:%d: WARNING:open ok:dup_mode:%d\n", __FILE__, __LINE__, dup_flags);
 #else
-    assert(r != 0);
+    assert(flags ? r != 0 : r == 0);
 #endif
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
 
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
-    r = db->set_flags(db, dup_flags);
-    assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
-    assert(r == 0);
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
+    r = db->set_flags(db, dup_flags); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
 
     /* verify nodesize match */
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
-    r = db->set_flags(db, dup_flags);
-    assert(r == 0);
-    r = db->set_pagesize(db, 4096);
-    assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
-    assert(r == 0);
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
+    r = db->set_flags(db, dup_flags); assert(r == 0);
+    r = db->set_pagesize(db, 4096); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
 }
 
 int main(int argc, const char *argv[]) {
@@ -84,6 +71,7 @@ int main(int argc, const char *argv[]) {
     mkdir(DIR, 0777);
 
     /* test flags */
+    test_dup_flags(0);
     test_dup_flags(DB_DUP);
     test_dup_flags(DB_DUP + DB_DUPSORT);
 
