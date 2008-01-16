@@ -24,8 +24,9 @@ else
  UNSETTOKUENV=
  LIBEXT=so
  ifdef BDBDIR
-  BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib -lpthread
+  BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib
  endif
+ BDB_LDFLAGS += -lpthread
  TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
