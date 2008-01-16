@@ -63,6 +63,9 @@ static inline void ydb_unref() {
 
 /* env methods */
 static int toku_env_close(DB_ENV *env, u_int32_t flags);
+static int toku_env_set_data_dir(DB_ENV * env, const char *dir);
+static int toku_env_set_lg_dir(DB_ENV * env, const char *dir);
+static int toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir);
 
 static inline void env_add_ref(DB_ENV *env) {
     env->i->ref_count += 1;
@@ -183,13 +186,13 @@ static int env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
     int r;
     
     if (!strcmp(command, "set_data_dir")) {
-        r = dbenv->set_data_dir(dbenv, value);
+        r = toku_env_set_data_dir(dbenv, value);
     }
     else if (!strcmp(command, "set_tmp_dir")) {
-        r = dbenv->set_tmp_dir(dbenv, value);
+        r = toku_env_set_tmp_dir(dbenv, value);
     }
     else if (!strcmp(command, "set_lg_dir")) {
-        r = dbenv->set_lg_dir(dbenv, value);
+        r = toku_env_set_lg_dir(dbenv, value);
     }
     else r = -1;
         
