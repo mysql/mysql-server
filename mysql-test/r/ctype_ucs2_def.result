@@ -21,4 +21,14 @@ INSERT INTO t1 VALUES('A', 'A'), ('B', 'B'), ('C', 'C');
 INSERT INTO t1 VALUES('A ', 'A ');
 ERROR 23000: Duplicate entry '' for key 'key1'
 DROP TABLE t1;
+CREATE TABLE t1 (
+c1 CHAR(255) CHARACTER SET UCS2 COLLATE UCS2_BIN NOT NULL,
+KEY(c1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('marshall\'s');
+INSERT INTO t1 VALUES ('marsh');
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
 End of 5.0 tests
