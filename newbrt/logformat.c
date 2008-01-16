@@ -79,7 +79,8 @@ const struct logtype logtypes[] = {
 			  NULLFIELD}},
     {"pmadistribute", 'M', FA{{"TXNID", "txnid", 0},
 			      {"FILENUM",    "filenum", 0},
-			      {"DISKOFF",    "diskoff", 0},
+			      {"DISKOFF",    "old_diskoff", 0},
+			      {"DISKOFF",    "new_diskoff", 0},
 			      {"INTPAIRARRAY",   "fromto",    0},
 			      NULLFIELD}},
     {0,0,FA{NULLFIELD}}

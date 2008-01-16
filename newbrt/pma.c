@@ -460,6 +460,30 @@ static int distribute_data (struct kv_pair *destpairs[],      int dcount,
     }
 }
 
+static int pma_log_distribute (TOKUTXN txn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, int n_pairs, struct kv_pair_tag *pairs) {
+    INTPAIRARRAY ipa;
+    MALLOC_N(n_pairs, ipa.array);
+    if (ipa.array==0) return errno;
+    int j=0;
+    int i;
+    for (i=0; i<n_pairs; i++) {
+	if (pairs[i].pair!=0) {
+	    ipa.array[j].a = pairs[i].oldtag;
+	    ipa.array[j].b = pairs[i].newtag;
+	    j++;
+	}
+    }
+    ipa.size=j;
+    int r=toku_log_pmadistribute(txn, toku_txn_get_txnid(txn), filenum, old_diskoff, new_diskoff, ipa);
+//    if (0 && pma) {
+//	printf("Pma state:\n");
+//	PMA_ITERATE_IDX (pma, pidx, key, keylen, data, datalen,
+//			 printf(" %d:(%d:%s) (%d:%s)\n", pidx, keylen, (char*)key, datalen, (char*)data));
+//    }
+    toku_free(ipa.array);
+    return r;
+}
+
 /* spread the non-empty pairs around.  There are n of them.  Create an empty slot just before the IDXth
    element, and return that slot's index in the smoothed array. */
 int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskoff, struct kv_pair *pairs[], int n, int idx, int base, PMA pma, int *new_idx) {
@@ -497,35 +521,18 @@ int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskof
 	/* Now the tricky part.  Distribute the data. */
 	newidx=distribute_data (pairs, n,
 				tmppairs, n_saved, pma);
-	{
-	    INTPAIRARRAY ipa;
-	    ipa.size=n_saved-1; /* Don't move the blank spot. */
-	    MALLOC_N(n_saved, ipa.array);
-	    if (ipa.array==0) return errno;
-	    int j=0;
-	    for (i=0; i<n_saved; i++) {
-		if (tmppairs[i].pair!=0) {
-		    ipa.array[j].a = tmppairs[i].oldtag;
-		    ipa.array[j].b = tmppairs[i].newtag;
-		    j++;
-		}
-	    }
-	    int r=toku_log_pmadistribute(txn, toku_txn_get_txnid(txn), filenum, diskoff, ipa);
-	    if (0 && pma) {
-		printf("Pma state:\n");
-		PMA_ITERATE_IDX (pma, pidx, key, keylen, data, datalen,
-				 printf(" %d:(%d:%s) (%d:%s)\n", pidx, keylen, (char*)key, datalen, (char*)data));
-	    }
-	    toku_free(ipa.array);
-	    if (r!=0) return r;
-	}
+	int r = pma_log_distribute(txn, filenum, diskoff, diskoff,
+				   n_saved,
+				   tmppairs);
+	if (r!=0) goto cleanup;
         if (pma && !list_empty(&pma->cursors))
             __pma_update_my_cursors(pma, tmppairs, n_present);
+
+	*new_idx = newidx;
+    cleanup:
 #ifdef USE_MALLOC_IN_SMOOTH
 	toku_free(tmppairs);
 #endif
-	
-	*new_idx = newidx;
 	return 0;
     }
 }
@@ -1590,7 +1597,8 @@ int toku_pma_clear_at_index (PMA pma, unsigned int idx) {
 }
 
 // assume no cursors
-int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
+// Move stuff from pmaa to pmab
+int toku_pma_move_indices (PMA pma_from, PMA pma_to, INTPAIRARRAY fromto) {
     u_int32_t i;
     for (i=0; i<fromto.size; i++) {
 	// First handle the case for sliding something left.  We can simply move it.
@@ -1599,9 +1607,9 @@ int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
 	    int b=fromto.array[i].b;
 	    if (b==a) continue;
 	    if (b<a) {
-		assert(pma->pairs[b]==0);
-		pma->pairs[b] = pma->pairs[a];
-		pma->pairs[a] = 0;
+		assert(pma_to->pairs[b]==0);
+		pma_to->pairs[b] = pma_from->pairs[a];
+		pma_from->pairs[a] = 0;
 		continue;
 	    }
 	}
@@ -1619,9 +1627,9 @@ int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto) {
 		int a=fromto.array[jdown].a;
 		int b=fromto.array[jdown].b;
 		if (a!=b) {
-		    assert(pma->pairs[b]==0);
-		    pma->pairs[b] = pma->pairs[a];
-		    pma->pairs[a] = 0;
+		    assert(pma_to->pairs[b]==0);
+		    pma_to->pairs[b] = pma_from->pairs[a];
+		    pma_from->pairs[a] = 0;
 		}
 		if (i==jdown) break; // Do it this way so everything can be unsigned and we won't try to go negative.
 	    }
@@ -1640,10 +1648,10 @@ static void reverse_fromto (INTPAIRARRAY fromto) {
     }
 }
 
-int toku_pma_move_indices_back (PMA pma, INTPAIRARRAY fromto) {
+int toku_pma_move_indices_back (PMA pma_backto, PMA pma_backfrom, INTPAIRARRAY fromto) {
     int r;
     reverse_fromto(fromto);
-    r = toku_pma_move_indices(pma, fromto);
+    r = toku_pma_move_indices(pma_backfrom, pma_backto, fromto);
     reverse_fromto(fromto);
     return r;
 }

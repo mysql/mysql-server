@@ -287,26 +287,32 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     struct cf_pair *pair;
     int r = find_cachefile(c->filenum, &pair);
     assert(r==0);
-    void *node_v;
+    void *node_va, *node_vb;
     assert(pair->brt);
-    r = toku_cachetable_get_and_pin(pair->cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, c->old_diskoff, &node_va, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
     assert(r==0);
-    BRTNODE node = node_v;
-    assert(node->height==0);
-    {
+    r = toku_cachetable_get_and_pin(pair->cf, c->new_diskoff, &node_vb, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE nodea = node_va;      assert(nodea->height==0);
+    BRTNODE nodeb = node_vb;      assert(nodeb->height==0);
+    {    
 	unsigned int i;
 	for (i=0; i<c->fromto.size; i++) {
-	    assert(c->fromto.array[i].a < toku_pma_index_limit(node->u.l.buffer));
-	    assert(c->fromto.array[i].b < toku_pma_index_limit(node->u.l.buffer));
+	    assert(c->fromto.array[i].a < toku_pma_index_limit(nodea->u.l.buffer));
+	    assert(c->fromto.array[i].b < toku_pma_index_limit(nodeb->u.l.buffer));
 	}
     }
-    r = toku_pma_move_indices (node->u.l.buffer, c->fromto);
+    r = toku_pma_move_indices (nodea->u.l.buffer, nodeb->u.l.buffer, c->fromto);
     // The bytes in bufer and fingerprint shouldn't change
 
-    VERIFY_COUNTS(node);
+    VERIFY_COUNTS(nodea);
+    VERIFY_COUNTS(nodeb);
 
-    r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    r = toku_cachetable_unpin(pair->cf, c->new_diskoff, 1, toku_serialize_brtnode_size(nodea));
     assert(r==0);
+    r = toku_cachetable_unpin(pair->cf, c->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
+    assert(r==0);
+
 
     toku_free(c->fromto.array);
 }
@@ -316,13 +322,27 @@ int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) 
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, le->filenum, &cf, &brt);
     if (r!=0) return r;
-    void *node_v;
-    r = toku_cachetable_get_and_pin(cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    void *node_va, *node_vb;
+    r = toku_cachetable_get_and_pin(cf, le->old_diskoff, &node_va, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
-    BRTNODE node = node_v;
-    r = toku_pma_move_indices_back(node->u.l.buffer, le->fromto);
-    if (r!=0) return r;
-    r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    if (0) {
+    died0: toku_cachetable_unpin(cf, le->old_diskoff, 1, 0);
+	return r;
+    }
+    r = toku_cachetable_get_and_pin(cf, le->new_diskoff, &node_vb, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    if (r!=0) goto died0;
+    if (0) {
+    died1:
+	toku_cachetable_unpin(cf, le->new_diskoff, 1, 0);
+	goto died0;
+    }
+    BRTNODE nodea = node_va;
+    BRTNODE nodeb = node_vb;
+    r = toku_pma_move_indices_back(nodea->u.l.buffer, nodeb->u.l.buffer, le->fromto);
+    if (r!=0) goto died1;
+    r = toku_cachetable_unpin(cf, le->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
+    r = toku_cachetable_unpin(cf, le->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
+
     return r;
 }
 

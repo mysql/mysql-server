@@ -97,6 +97,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     struct wbuf w;
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size(node);
+    assert(calculated_size<=size);
     //char buf[size];
     char *MALLOC_N(size,buf);
     toku_verify_counts(node);
