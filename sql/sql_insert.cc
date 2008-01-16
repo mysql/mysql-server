@@ -1862,7 +1862,6 @@ bool delayed_get_table(THD *thd, TABLE_LIST *table_list)
     {
       if (!(di= new Delayed_insert()))
       {
-	my_error(ER_OUTOFMEMORY,MYF(0),sizeof(Delayed_insert));
         thd->fatal_error();
         goto end_create;
       }
