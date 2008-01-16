@@ -8100,10 +8100,11 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
 
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "The AUTOINC lock modes supported by InnoDB:\n"
-  "  0 => Old style AUTOINC locking (for backward compatibility)\n"
-  "  1 => New style AUTOINC locking\n"
-  "  2 => No AUTOINC locking (unsafe for SBR)",
+  "The AUTOINC lock modes supported by InnoDB:               "
+  "0 => Old style AUTOINC locking (for backward"
+  " compatibility)                                           "
+  "1 => New style AUTOINC locking                            "
+  "2 => No AUTOINC locking (unsafe for SBR)",
   NULL, NULL,
   AUTOINC_NEW_STYLE_LOCKING,	/* Default setting */
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
