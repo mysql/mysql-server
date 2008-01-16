@@ -3,8 +3,9 @@
 
 LIBNAME=libdb
 
-# OPTFLAGS = -O2
-CFLAGS = -W -Wall -Werror -g -fPIC $(OPTFLAGS)
+OPTFLAGS = -O2
+# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+CFLAGS = -W -Wall -Werror -g -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CPPFLAGS = -I../include -I../newbrt
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -33,7 +34,7 @@ strip: $(LIBNAME).$(LIBEXT)
 	strip $(LIBNAME).$(LIBEXT)
 
 clean:
-	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o
+	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
 	cd tests;make clean
 
 ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c

@@ -38,9 +38,10 @@ endif
 # VERBOSE=true
 
 LIBNAME=libdb.$(LIBEXT)
-CFLAGS = -Wall -Werror -O0 -g
-
+# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+CFLAGS = -Wall -Werror $(OPTFLAGS) -g $(GCOV_FLAGS)
 TDB_CPPFLAGS = -I../../include
+
 
 SRCS = $(wildcard *.c)
 
@@ -64,6 +65,7 @@ foo:
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok
 check.bdb: $(RUN_BDB_TESTS)
+tests.tdb: $(TDB_TESTS)
 check.tdb: $(RUN_TDB_TESTS)
 
 # Need these rule so that Make knows about all the file names
@@ -140,7 +142,7 @@ libs:
 
 %.bdb: %.c
 	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
-%.tdb: %.c libs
+%.tdb: %.c
 	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
@@ -157,7 +159,7 @@ make_libs:
 	cd ..;make
 
 clean:
-	rm -f $(ALL_TESTS) *.o
+	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
 	rm -rf dir.*.tdb dir.*.bdb
 
 test_db_curs4.tdb: trace.h

@@ -1,8 +1,10 @@
 SRCS = $(wildcard *.cpp)
 TARGETS = $(patsubst %.cpp,%,$(SRCS))
 
+# OPTFLAGS = -O0
+# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../ -I../../include
-CXXFLAGS = -Wall -g
+CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
 LDLIBS = ../../lib/libtdb_cxx.a ../../lib/libdb.a -lz
 
 ifeq ($(OSX),OSX)
@@ -18,7 +20,7 @@ $(DBCXX):
 	cd ..;make
 
 clean:
-	rm -rf $(TARGETS)
+	rm -rf $(TARGETS) *.gcno *.gcda *.gcov
 
 check: $(TARGETS)
 	$(VGRIND) ./test1
@@ -36,4 +38,5 @@ check: $(TARGETS)
 	$(VGRIND) ./test_db_assoc3 --more
 	$(VGRIND) ./test_cursor_count
 	$(VGRIND) ./test_fd
+	$(VGRIND) ./test_error_stream
 
