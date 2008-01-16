@@ -371,9 +371,10 @@ static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRT
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
     int r;
-    r = toku_pma_split(txn, filenum, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk,
-		       A->thisnodename, A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
-		       B->thisnodename, B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
+    r = toku_pma_split(txn, filenum,
+		       node->thisnodename, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk,
+		       A->thisnodename,    A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
+		       B->thisnodename,    B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
     assert(r == 0);
     assert(node->height>0 || node->u.l.buffer!=0);
     /* Remove it from the cache table, and free its storage. */

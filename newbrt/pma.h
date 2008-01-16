@@ -79,7 +79,7 @@ enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*);
  * rightpma - the pma assigned keys > pivot key
  */
 int toku_pma_split(TOKUTXN, FILENUM,
-		   PMA /*origpma*/,  unsigned int */*origpma_size*/, DBT */*splitk*/,
+		   DISKOFF /*origdiskoff*/, PMA /*origpma*/,  unsigned int */*origpma_size*/, DBT */*splitk*/,
 		   DISKOFF /*leftdiskoff*/, PMA /*leftpma*/,  unsigned int */*leftpma_size*/,  u_int32_t /*leftrand4sum*/,  u_int32_t */*leftfingerprint*/,
 		   DISKOFF /*rightdiskoff*/, PMA /*rightpma*/, unsigned int */*rightpma_size*/, u_int32_t /*rightrand4sum*/, u_int32_t */*rightfingerprint*/);
 

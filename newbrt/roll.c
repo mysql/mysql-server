@@ -308,7 +308,7 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     VERIFY_COUNTS(nodea);
     VERIFY_COUNTS(nodeb);
 
-    r = toku_cachetable_unpin(pair->cf, c->new_diskoff, 1, toku_serialize_brtnode_size(nodea));
+    r = toku_cachetable_unpin(pair->cf, c->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
     assert(r==0);
     r = toku_cachetable_unpin(pair->cf, c->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
     assert(r==0);

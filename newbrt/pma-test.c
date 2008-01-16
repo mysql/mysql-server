@@ -884,7 +884,7 @@ static void test_pma_split_n(int n) {
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
-			   pmaa, 0, 0,
+			   null_diskoff, pmaa, 0, 0,
 			   null_diskoff, pmab, 0, brand, &bsum,
 			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
@@ -956,9 +956,9 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     DBT splitk;
 
     error = toku_pma_split(null_txn, null_filenum,
-			   pmaa, 0, &splitk,
-			   (DISKOFF)0, pmab, 0, brand, &bsum,
-			   (DISKOFF)0, pmac, 0, crand, &csum);
+			   null_diskoff, pmaa, 0, &splitk,
+			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
     toku_pma_verify(pmaa);
     toku_pma_verify(pmab);
@@ -1032,9 +1032,9 @@ static void test_pma_split_varkey(void) {
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
-			   pmaa, 0, 0,
-			   (DISKOFF)0, pmab, 0, brand, &bsum,
-			   (DISKOFF)0, pmac, 0, crand, &csum);
+			   null_diskoff, pmaa, 0, 0,
+			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
     toku_pma_verify(pmaa);
     toku_pma_verify(pmab);
@@ -1180,9 +1180,10 @@ static void test_pma_split_cursor(void) {
     // print_cursor("cursorc", cursorc);
     assert_cursor_val(cursorc, 16);
 
-    error = toku_pma_split(null_txn, null_filenum, pmaa, 0, 0,
-			   (DISKOFF)0, pmab, 0, brand, &bsum,
-			   (DISKOFF)0, pmac, 0, crand, &csum);
+    error = toku_pma_split(null_txn, null_filenum,
+			   null_diskoff, pmaa, 0, 0,
+			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
 
     toku_pma_verify_fingerprint(pmab, brand, bsum);
