@@ -197,16 +197,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define IDX_TRX_WEIGHT		1
-	{STRUCT_FLD(field_name,		"trx_weight"),
-	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
-	 STRUCT_FLD(old_name,		""),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-#define IDX_TRX_STATE		2
+#define IDX_TRX_STATE		1
 	{STRUCT_FLD(field_name,		"trx_state"),
 	 STRUCT_FLD(field_length,	TRX_QUE_STATE_STR_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -215,7 +206,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define IDX_TRX_STARTED		3
+#define IDX_TRX_STARTED		2
 	{STRUCT_FLD(field_name,		"trx_started"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
@@ -224,7 +215,7 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define IDX_TRX_REQUESTED_LOCK_ID	4
+#define IDX_TRX_REQUESTED_LOCK_ID	3
 	{STRUCT_FLD(field_name,		"trx_requested_lock_id"),
 	 STRUCT_FLD(field_length,	TRX_I_S_LOCK_ID_MAX_LEN + 1),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
@@ -233,12 +224,21 @@ static ST_FIELD_INFO	innodb_trx_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-#define IDX_TRX_WAIT_STARTED	5
+#define IDX_TRX_WAIT_STARTED	4
 	{STRUCT_FLD(field_name,		"trx_wait_started"),
 	 STRUCT_FLD(field_length,	0),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_DATETIME),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TRX_WEIGHT		5
+	{STRUCT_FLD(field_name,		"trx_weight"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
@@ -301,9 +301,6 @@ fill_innodb_trx_from_cache(
 		ut_snprintf(trx_id, sizeof(trx_id), TRX_ID_FMT, row->trx_id);
 		OK(field_store_string(fields[IDX_TRX_ID], trx_id));
 
-		/* trx_weight */
-		OK(fields[IDX_TRX_WEIGHT]->store(row->trx_weight));
-
 		/* trx_state */
 		OK(field_store_string(fields[IDX_TRX_STATE],
 				      row->trx_state));
@@ -332,6 +329,9 @@ fill_innodb_trx_from_cache(
 			fields[IDX_TRX_REQUESTED_LOCK_ID]->set_null();
 			fields[IDX_TRX_WAIT_STARTED]->set_null();
 		}
+
+		/* trx_weight */
+		OK(fields[IDX_TRX_WEIGHT]->store(row->trx_weight));
 
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(

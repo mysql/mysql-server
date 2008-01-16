@@ -59,11 +59,11 @@ struct i_s_locks_row_struct {
 /* This structure represents INFORMATION_SCHEMA.innodb_trx row */
 typedef struct i_s_trx_row_struct {
 	ullint			trx_id;
-	ullint			trx_weight;
 	const char*		trx_state;
 	ib_time_t		trx_started;
 	const i_s_locks_row_t*	requested_lock_row;
 	ib_time_t		trx_wait_started;
+	ullint			trx_weight;
 	ulint			trx_mysql_thread_id;
 	const char*		trx_query;
 } i_s_trx_row_t;
