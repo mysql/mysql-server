@@ -372,7 +372,6 @@ fill_trx_row(
 						strings */
 {
 	row->trx_id = trx_get_id(trx);
-	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 
@@ -389,6 +388,8 @@ fill_trx_row(
 		row->requested_lock_row = NULL;
 		row->trx_wait_started = 0;
 	}
+
+	row->trx_weight = (ullint) ut_conv_dulint_to_longlong(TRX_WEIGHT(trx));
 
 	row->trx_mysql_thread_id = ib_thd_get_thread_id(trx->mysql_thd);
 
