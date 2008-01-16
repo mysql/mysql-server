@@ -1341,8 +1341,8 @@ static void __pma_relocate_kvpairs(PMA pma) {
 
 
 int toku_pma_split(TOKUTXN txn, FILENUM filenum,
-		   PMA origpma, unsigned int *origpma_size, DBT *splitk,
-		   DISKOFF leftdiskoff, PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4fp,  u_int32_t *leftfingerprint,
+		   DISKOFF origdiskoff,  PMA origpma, unsigned int *origpma_size, DBT *splitk,
+		   DISKOFF leftdiskoff,  PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4fp,  u_int32_t *leftfingerprint,
 		   DISKOFF rightdiskoff, PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4fp, u_int32_t *rightfingerprint) {
     int error;
     int npairs;
@@ -1429,6 +1429,8 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
     error = pma_resize_array(txn, filenum, leftdiskoff, leftpma, n + n/4, 0);
     assert(error == 0);
     distribute_data(leftpma->pairs, toku_pma_index_limit(leftpma), &pairs[0], n, leftpma);
+    int r = pma_log_distribute(txn, filenum, origdiskoff, leftdiskoff, spliti, &pairs[0]);
+    if (r!=0) { toku_free(pairs); return r; }
 #if PMA_USE_MEMPOOL
     __pma_relocate_kvpairs(leftpma);
 #endif
@@ -1440,6 +1442,8 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
     error = pma_resize_array(txn, filenum, rightdiskoff, rightpma, n + n/4, 0);
     assert(error == 0);
     distribute_data(rightpma->pairs, toku_pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
+    r = pma_log_distribute(txn, filenum, origdiskoff, rightdiskoff, n, &pairs[spliti]);
+    if (r!=0) { toku_free(pairs); return r; }
 #if PMA_USE_MEMPOOL
     __pma_relocate_kvpairs(rightpma);
 #endif
