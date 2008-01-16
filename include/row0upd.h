@@ -231,6 +231,23 @@ row_upd_index_replace_new_col_vals(
 				record does not contain externally
 				stored columns or column prefixes */
 /***************************************************************
+Replaces the new column values stored in the update vector. */
+
+void
+row_upd_replace(
+/*============*/
+	dtuple_t*		row,	/* in/out: row where replaced,
+					indexed by col_no;
+					the clustered index record must be
+					covered by a lock or a page latch to
+					prevent deletion (rollback or purge) */
+	row_ext_t**		ext,	/* out, own: NULL, or externally
+					stored column prefixes */
+	const dict_index_t*	index,	/* in: clustered index */
+	const upd_t*		update,	/* in: an update vector built for the
+					clustered index */
+	mem_heap_t*		heap);	/* in: memory heap */
+/***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
@@ -405,8 +422,10 @@ struct upd_node_struct{
 				heap) of the row to update; this must be reset
 				to NULL after a successful update */
 	row_ext_t*	ext;	/* NULL, or prefixes of the externally
-				stored columns of the row */
-	ulint		n_ext;	/* number of fields in ext_vec */
+				stored columns in the old row */
+	dtuple_t*	upd_row;/* NULL, or a copy of the updated row */
+	row_ext_t*	upd_ext;/* NULL, or prefixes of the externally
+				stored columns in upd_row */
 	mem_heap_t*	heap;	/* memory heap used as auxiliary storage;
 				this must be emptied after a successful
 				update */

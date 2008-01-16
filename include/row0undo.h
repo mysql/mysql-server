@@ -93,6 +93,9 @@ struct undo_node_struct{
 				row to handle */
 	row_ext_t*	ext;	/* NULL, or prefixes of the externally
 				stored columns of the row */
+	dtuple_t*	undo_row;/* NULL, or the row after undo */
+	row_ext_t*	undo_ext;/* NULL, or prefixes of the externally
+				stored columns of undo_row */
 	dict_index_t*	index;	/* the next index whose record should be
 				handled */
 	mem_heap_t*	heap;	/* memory heap used as auxiliary storage for
