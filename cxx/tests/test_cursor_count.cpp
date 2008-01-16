@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <arpa/inet.h>
 #include <assert.h>
 #include <db_cxx.h>
@@ -38,6 +39,23 @@ void load(Db *db, int n) {
         int r = db->put(0, &key, &val, DB_YESOVERWRITE); assert(r == 0);
     }
 }
+
+void test_cursor_flags(Db *db) {
+    int r;
+    Dbc *cursor;
+    
+    r = db->cursor(0, &cursor, 0); assert(r == 0);
+    Dbt key; key.set_flags(DB_DBT_MALLOC);
+    Dbt val; val.set_flags(DB_DBT_MALLOC);
+    r = cursor->get(&key, &val, DB_FIRST); assert(r == 0);
+    if (key.get_data()) free(key.get_data());
+    if (val.get_data()) free(val.get_data());
+    db_recno_t n;
+    r = cursor->count(&n, 1); assert(r == EINVAL);
+    r = cursor->count(&n, 0); assert(r == 0);
+    printf("n=%d\n", n);
+    r = cursor->close(); assert(r == 0);
+}    
 
 int my_cursor_count(Dbc *cursor, db_recno_t *count, Db *db) {
     int r;
@@ -275,6 +293,7 @@ int main(int argc, char *argv[]) {
     r = db.open(0, "test.db", 0, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     
     load(&db, 10);
+    test_cursor_flags(&db);
     walk(&db, 10);
     test_next_nodup(&db, 10);
     test_next_dup(&db, 10);
