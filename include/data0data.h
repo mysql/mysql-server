@@ -242,6 +242,17 @@ dtuple_set_n_fields(
 /*================*/
 	dtuple_t*	tuple,		/* in: tuple */
 	ulint		n_fields);	/* in: number of fields */
+/*************************************************************************
+Copies a data tuple to another.  This is a shallow copy; if a deep copy
+is desired, dfield_dup() will have to be invoked on each field. */
+UNIV_INLINE
+dtuple_t*
+dtuple_copy(
+/*========*/
+				/* out, own: copy of tuple */
+	const dtuple_t*	tuple,	/* in: tuple to copy from */
+	mem_heap_t*	heap);	/* in: memory heap
+				where the tuple is created */
 /**************************************************************
 The following function returns the sum of data lengths of a tuple. The space
 occupied by the field structs or the tuple struct is not counted. */

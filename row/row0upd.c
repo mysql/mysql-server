@@ -280,7 +280,8 @@ upd_node_create(
 
 	node->row = NULL;
 	node->ext = NULL;
-	node->n_ext = 0;
+	node->upd_row = NULL;
+	node->upd_ext = NULL;
 	node->index = NULL;
 	node->update = NULL;
 
@@ -1098,6 +1099,89 @@ row_upd_index_replace_new_col_vals(
 }
 
 /***************************************************************
+Replaces the new column values stored in the update vector. */
+
+void
+row_upd_replace(
+/*============*/
+	dtuple_t*		row,	/* in/out: row where replaced,
+					indexed by col_no;
+					the clustered index record must be
+					covered by a lock or a page latch to
+					prevent deletion (rollback or purge) */
+	row_ext_t**		ext,	/* out, own: NULL, or externally
+					stored column prefixes */
+	const dict_index_t*	index,	/* in: clustered index */
+	const upd_t*		update,	/* in: an update vector built for the
+					clustered index */
+	mem_heap_t*		heap)	/* in: memory heap */
+{
+	ulint			col_no;
+	ulint			i;
+	ulint			n_cols;
+	ulint			n_ext_cols;
+	ulint*			ext_cols;
+	const dict_table_t*	table;
+
+	ut_ad(row);
+	ut_ad(ext);
+	ut_ad(index);
+	ut_ad(dict_index_is_clust(index));
+	ut_ad(update);
+	ut_ad(heap);
+
+	n_cols = dtuple_get_n_fields(row);
+	table = index->table;
+	ut_ad(n_cols == dict_table_get_n_cols(table));
+
+	ext_cols = mem_heap_alloc(heap, n_cols * sizeof *ext_cols);
+	n_ext_cols = 0;
+
+	dtuple_set_info_bits(row, update->info_bits);
+
+	for (col_no = 0; col_no < n_cols; col_no++) {
+
+		const dict_col_t*	col
+			= dict_table_get_nth_col(table, col_no);
+		const ulint		clust_pos
+			= dict_col_get_clust_pos(col, index);
+		dfield_t*		dfield;
+
+		if (UNIV_UNLIKELY(clust_pos == ULINT_UNDEFINED)) {
+
+			continue;
+		}
+
+		dfield = dtuple_get_nth_field(row, col_no);
+
+		for (i = 0; i < upd_get_n_fields(update); i++) {
+
+			const upd_field_t*	upd_field
+				= upd_get_nth_field(update, i);
+
+			if (upd_field->field_no != clust_pos) {
+
+				continue;
+			}
+
+			dfield_copy_data(dfield, &upd_field->new_val);
+			break;
+		}
+
+		if (dfield_is_ext(dfield) && col->ord_part) {
+			ext_cols[n_ext_cols++] = col_no;
+		}
+	}
+
+	if (n_ext_cols) {
+		*ext = row_ext_create(n_ext_cols, ext_cols, row,
+				      dict_table_zip_size(table), heap);
+	} else {
+		*ext = NULL;
+	}
+}
+
+/***************************************************************
 Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
@@ -1339,15 +1423,13 @@ row_upd_store_row(
 				  ULINT_UNDEFINED, &heap);
 	node->row = row_build(ROW_COPY_DATA, clust_index, rec, offsets,
 			      NULL, &node->ext, node->heap);
-	if (UNIV_LIKELY_NULL(node->ext)) {
-		node->n_ext = node->ext->n_ext;
+	if (node->is_delete) {
+		node->upd_row = NULL;
+		node->upd_ext = NULL;
 	} else {
-		node->n_ext = 0;
-	}
-
-	if (!node->is_delete) {
-		node->n_ext += btr_push_update_extern_fields(node->row,
-							     node->update);
+		node->upd_row = dtuple_copy(node->row, node->heap);
+		row_upd_replace(node->upd_row, &node->upd_ext,
+				clust_index, node->update, node->heap);
 	}
 
 	if (UNIV_LIKELY_NULL(heap)) {
@@ -1446,9 +1528,9 @@ row_upd_sec_index_entry(
 	}
 
 	/* Build a new index entry */
-	/* TODO: lock the clustered index record before fetching BLOBs */
-	row_upd_index_replace_new_col_vals(entry, index, node->update,
-					   NULL, heap);
+	entry = row_build_index_entry(node->upd_row, node->upd_ext,
+				      index, heap);
+	ut_a(entry);
 
 	/* Insert new index entry */
 	err = row_ins_index_entry(index, entry, 0, TRUE, thr);
@@ -1559,23 +1641,20 @@ row_upd_clust_rec_by_insert(
 		}
 	}
 
+	mtr_commit(mtr);
+
 	if (!heap) {
 		heap = mem_heap_create(500);
 	}
 	node->state = UPD_NODE_INSERT_CLUSTERED;
 
-	entry = row_build_index_entry(node->row, node->ext, index, heap);
+	entry = row_build_index_entry(node->upd_row, node->upd_ext,
+				      index, heap);
 	ut_a(entry);
-
-	/* The page containing the clustered index record is latched until
-	mtr_commit(mtr) below.  Thus the following call is safe. */
-	row_upd_index_replace_new_col_vals(entry, index, node->update,
-					   NULL, heap);
-	mtr_commit(mtr);
 
 	row_upd_index_entry_sys_field(entry, index, DATA_TRX_ID, trx->id);
 
-	if (node->n_ext) {
+	if (node->upd_ext) {
 		/* If we return from a lock wait, for example, we may have
 		extern fields marked as not-owned in entry (marked in the
 		if-branch above). We must unmark them. */
@@ -1588,7 +1667,9 @@ row_upd_clust_rec_by_insert(
 		btr_cur_mark_dtuple_inherited_extern(entry, node->update);
 	}
 
-	err = row_ins_index_entry(index, entry, node->n_ext, TRUE, thr);
+	err = row_ins_index_entry(index, entry,
+				  node->upd_ext ? node->upd_ext->n_ext : 0,
+				  TRUE, thr);
 	mem_heap_free(heap);
 
 	return(err);
@@ -1984,7 +2065,8 @@ function_exit:
 		if (node->row != NULL) {
 			node->row = NULL;
 			node->ext = NULL;
-			node->n_ext = 0;
+			node->upd_row = NULL;
+			node->upd_ext = NULL;
 			mem_heap_empty(node->heap);
 		}
 
