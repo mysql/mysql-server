@@ -235,6 +235,7 @@ row_undo_ins_parse_undo_rec(
 	ut_ad(type == TRX_UNDO_INSERT_REC);
 	node->rec_type = type;
 
+	node->update = NULL;
 	node->table = dict_table_get_on_id(table_id, node->trx);
 
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
