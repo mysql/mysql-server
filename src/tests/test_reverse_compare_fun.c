@@ -52,8 +52,8 @@ void expect(DBC *cursor, int k, int v) {
     free(val.data);
 }
 
-void test_reverse_compare(int n) {
-    if (verbose) printf("test_reverse_compare:%d\n", n);
+void test_reverse_compare(int n, int dup_flags) {
+    if (verbose) printf("test_reverse_compare:%d %d\n", n, dup_flags);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -69,11 +69,13 @@ void test_reverse_compare(int n) {
     /* create the dup database file */
     r = db_create(&db, null_env, 0);
     CKERR(r);
-    r = db->set_flags(db, 0);
+    r = db->set_flags(db, dup_flags);
     CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
+    CKERR(r);
+    r = db->set_dup_compare(db, reverse_compare);
     CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
@@ -82,11 +84,11 @@ void test_reverse_compare(int n) {
     for (i=0; i<n; i++) {
         DBT key, val;
         int k, v;
-        k = htonl(i);
+        k = htonl(dup_flags ? n : i);
         dbt_init(&key, &k, sizeof k);
-        v = i;
+        v = htonl(i);
         dbt_init(&val, &v, sizeof v);
-        r = db->put(db, null_txn, &key, &val, 0);
+        r = db->put(db, null_txn, &key, &val, DB_YESOVERWRITE);
         CKERR(r);
     }
 
@@ -95,11 +97,13 @@ void test_reverse_compare(int n) {
     CKERR(r);
     r = db_create(&db, null_env, 0);
     CKERR(r);
-    r = db->set_flags(db, 0);
+    r = db->set_flags(db, dup_flags);
     CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
+    CKERR(r);
+    r = db->set_dup_compare(db, reverse_compare);
     CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
     CKERR(r);
@@ -108,11 +112,11 @@ void test_reverse_compare(int n) {
     for (i=n; i<2*n; i++) {
         DBT key, val;
         int k, v;
-        k = htonl(i);
+        k = htonl(dup_flags ? n : i);
         dbt_init(&key, &k, sizeof k);
-        v = i;
+        v = htonl(i);
         dbt_init(&val, &v, sizeof v);
-        r = db->put(db, null_txn, &key, &val, 0);
+        r = db->put(db, null_txn, &key, &val, DB_YESOVERWRITE);
         CKERR(r);
     }
 
@@ -123,7 +127,7 @@ void test_reverse_compare(int n) {
 
     //for (i=0; i<2*n; i++) 
     for (i=2*n-1; i>=0; i--)
-        expect(cursor, htonl(i), i);
+        expect(cursor, htonl(dup_flags ? n : i), htonl(i));
 
     r = cursor->c_close(cursor);
     CKERR(r);
@@ -138,7 +142,8 @@ int main(int argc, const char *argv[]) {
     int i;
 
     for (i = 1; i <= (1<<16); i *= 2) {
-        test_reverse_compare(i);
+        test_reverse_compare(i, 0);
+        test_reverse_compare(i, DB_DUP + DB_DUPSORT);
     }
     return 0;
 }
