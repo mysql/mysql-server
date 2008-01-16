@@ -32,7 +32,11 @@ const char *toku_copyright_string = "Copyright (c) 2007 Tokutek Inc.  All rights
    every call (including methods) into the tokudb library gets the lock 
    no internal function should invoke a method through an object */
 
+#if defined(__APPLE__)
+static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
+#else
 static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#endif
 
 static inline void ydb_lock() {
     int r = pthread_mutex_lock(&ydb_big_lock); assert(r == 0);
