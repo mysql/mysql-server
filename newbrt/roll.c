@@ -302,8 +302,12 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
 	    assert(c->fromto.array[i].b < toku_pma_index_limit(nodeb->u.l.buffer));
 	}
     }
-    r = toku_pma_move_indices (nodea->u.l.buffer, nodeb->u.l.buffer, c->fromto);
-    // The bytes in bufer and fingerprint shouldn't change
+    r = toku_pma_move_indices (nodea->u.l.buffer, nodeb->u.l.buffer, c->fromto,
+			       nodea->rand4fingerprint, &nodea->local_fingerprint,
+			       nodeb->rand4fingerprint, &nodeb->local_fingerprint,
+			       &nodea->u.l.n_bytes_in_buffer, &nodeb->u.l.n_bytes_in_buffer
+			       );
+    // The bytes in buffer and fingerprint shouldn't change
 
     VERIFY_COUNTS(nodea);
     VERIFY_COUNTS(nodeb);
@@ -338,7 +342,11 @@ int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) 
     }
     BRTNODE nodea = node_va;
     BRTNODE nodeb = node_vb;
-    r = toku_pma_move_indices_back(nodea->u.l.buffer, nodeb->u.l.buffer, le->fromto);
+    r = toku_pma_move_indices_back(nodea->u.l.buffer, nodeb->u.l.buffer, le->fromto,
+				   nodeb->rand4fingerprint, &nodeb->local_fingerprint,
+				   nodea->rand4fingerprint, &nodea->local_fingerprint,
+				   &nodeb->u.l.n_bytes_in_buffer, &nodea->u.l.n_bytes_in_buffer
+				   );
     if (r!=0) goto died1;
     r = toku_cachetable_unpin(cf, le->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
     r = toku_cachetable_unpin(cf, le->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
