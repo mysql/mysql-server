@@ -135,9 +135,12 @@ NO_VGRIND = \
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 
+libs:
+	cd ..;make
+
 %.bdb: %.c
 	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
-%.tdb: %.c
+%.tdb: %.c libs
 	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover

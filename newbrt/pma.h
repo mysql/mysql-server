@@ -155,9 +155,9 @@ int toku_pma_clear_at_index (PMA, unsigned int /*index*/); // If the index is wr
 
 
 // Requires:  No open cursors on the pma.
-int toku_pma_move_indices (PMA pma, INTPAIRARRAY fromto); // Return nonzero if the indices are somehow wrong.
+int toku_pma_move_indices (PMA pma_from, PMA pma_to, INTPAIRARRAY fromto); // Return nonzero if the indices are somehow wrong.
 // Move things backwards according to fromto.
-int toku_pma_move_indices_back (PMA pma, INTPAIRARRAY fromto);
+int toku_pma_move_indices_back (PMA pma_backto, PMA pma_backfrom, INTPAIRARRAY fromto);
 
 void toku_pma_show_stats (void);
 
