@@ -1479,7 +1479,12 @@ buf_page_reset_file_page_was_freed(
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 /************************************************************************
-Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB). */
+Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB).
+The page must be released with buf_page_release_zip().
+NOTE: the page is not protected by any latch.  Mutual exclusion has to
+be implemented at a higher level.  In other words, all possible
+accesses to a given page through this function must be protected by
+the same set of mutexes or latches. */
 
 buf_page_t*
 buf_page_get_zip(
