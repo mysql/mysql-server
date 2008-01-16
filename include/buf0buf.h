@@ -87,6 +87,14 @@ buf_pool_init(void);
 				/* out, own: buf_pool object, NULL if not
 				enough memory or error */
 /************************************************************************
+Frees the buffer pool at shutdown.  This must not be invoked before
+freeing all mutexes. */
+
+void
+buf_pool_free(void);
+/*===============*/
+
+/************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list. */
 

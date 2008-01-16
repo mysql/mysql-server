@@ -962,6 +962,29 @@ buf_pool_init(void)
 }
 
 /************************************************************************
+Frees the buffer pool at shutdown.  This must not be invoked before
+freeing all mutexes. */
+
+void
+buf_pool_free(void)
+/*===============*/
+{
+	buf_chunk_t*	chunk;
+	buf_chunk_t*	chunks;
+
+	chunks = buf_pool->chunks;
+	chunk = chunks + buf_pool->n_chunks;
+
+	while (--chunk >= chunks) {
+		/* Bypass the checks of buf_chunk_free(), since they
+		would fail at shutdown. */
+		os_mem_free_large(chunk->mem, chunk->mem_size);
+	}
+
+	buf_pool->n_chunks = 0;
+}
+
+/************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
 and in buf_pool->page_hash.  Does not relocate bpage->list. */
 
