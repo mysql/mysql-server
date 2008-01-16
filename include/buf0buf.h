@@ -221,7 +221,11 @@ buf_page_try_get_func(
 
 /************************************************************************
 Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB).
-The page must be released with buf_page_release_zip(). */
+The page must be released with buf_page_release_zip().
+NOTE: the page is not protected by any latch.  Mutual exclusion has to
+be implemented at a higher level.  In other words, all possible
+accesses to a given page through this function must be protected by
+the same set of mutexes or latches. */
 
 buf_page_t*
 buf_page_get_zip(

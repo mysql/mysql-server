@@ -528,10 +528,8 @@ btr_free_externally_stored_field(
 					data an an X-latch to the index
 					tree */
 /***********************************************************************
-Copies the prefix of an externally stored field of a record. Parameter
-data contains a pointer to 'internally' stored part of the field:
-possibly some data, and the reference to the externally stored part in
-the last BTR_EXTERN_FIELD_REF_SIZE bytes of data. */
+Copies the prefix of an externally stored field of a record.  The
+clustered index record must be protected by a lock or a page latch. */
 
 ulint
 btr_copy_externally_stored_field_prefix(
@@ -543,7 +541,8 @@ btr_copy_externally_stored_field_prefix(
 				zero for uncompressed BLOBs */
 	const byte*	data,	/* in: 'internally' stored part of the
 				field containing also the reference to
-				the external part */
+				the external part; must be protected by
+				a lock or a page latch */
 	ulint		local_len);/* in: length of data, in bytes */
 /***********************************************************************
 Copies an externally stored field of a record to mem heap. */
@@ -552,7 +551,8 @@ byte*
 btr_rec_copy_externally_stored_field(
 /*=================================*/
 				/* out: the field copied to heap */
-	const rec_t*	rec,	/* in: record */
+	const rec_t*	rec,	/* in: record in a clustered index;
+				must be protected by a lock or a page latch */
 	const ulint*	offsets,/* in: array returned by rec_get_offsets() */
 	ulint		zip_size,/* in: nonzero=compressed BLOB page size,
 				zero for uncompressed BLOBs */
