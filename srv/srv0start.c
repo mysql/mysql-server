@@ -1895,6 +1895,7 @@ innobase_shutdown_for_mysql(void)
 	/* 5. Free all allocated memory and the os_fast_mutex created in
 	ut0mem.c */
 
+	buf_pool_free();
 	ut_free_all_mem();
 
 	if (os_thread_count != 0
