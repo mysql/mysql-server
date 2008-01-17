@@ -29,6 +29,8 @@ EXTRA_DIST =		README \
 test_SCRIPTS =		mtr mysql-test-run
 CLEANFILES =		$(test_SCRIPTS)
 
+SUBDIRS =               lib/My/SafeProcess
+
 
 # Install all files and files in directories listed in EXTRA_DIST
 install-data-local:
