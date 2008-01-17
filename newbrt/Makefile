@@ -152,7 +152,7 @@ else
 endif
 
 clean:
-	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da
+	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt
 
 randdb4: LOADLIBES=-ldb
