@@ -150,7 +150,7 @@ libs:
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
 %.recover: %.tdb
-	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover
+	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover;make $(VERBQUIET)
 	$(MAYBEATSIGN) $(VGRIND) ./$<
 	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
