@@ -478,4 +478,47 @@ select round(a,b) as c from t1 order by c;
 
 DROP TABLE t1, t2, t3, t4;
 
+#
+# Bug #33143: Incorrect ORDER BY for ROUND()/TRUNCATE() result
+#
+
+CREATE TABLE t1( a DECIMAL(4, 3), b INT );
+INSERT INTO t1 VALUES ( 1, 5 ), ( 2, 4 ), ( 3, 3 ), ( 4, 2 ), ( 5, 1 );
+SELECT a, b, ROUND( a, b ) AS c FROM t1 ORDER BY c;
+SELECT a, b, ROUND( a, b ) AS c FROM t1 ORDER BY c DESC;
+
+CREATE TABLE t2 ( a INT, b INT, c DECIMAL(5, 4) );
+
+INSERT INTO t2 VALUES ( 0, 1, 1.2345 ), ( 1, 2, 1.2345 ),
+                      ( 3, 3, 1.2345 ), ( 2, 4, 1.2345 );
+
+SELECT a, b, MAX(ROUND(c, a)) 
+FROM t2 
+GROUP BY a, b 
+ORDER BY b;
+
+SELECT a, b, ROUND(c, a) 
+FROM t2;
+
+CREATE TABLE t3( a INT, b DECIMAL(6, 3) );
+INSERT INTO t3 VALUES( 0, 1.5 );
+SELECT ROUND( b, a ) FROM t3;
+
+CREATE TABLE t4( a INT, b DECIMAL( 12, 0) );
+INSERT INTO t4 VALUES( -9, 1.5e9 );
+SELECT ROUND( b, a ) FROM t4;
+
+CREATE TABLE t5( a INT, b DECIMAL( 13, 12 ) );
+INSERT INTO t5 VALUES( 0, 1.5 );
+INSERT INTO t5 VALUES( 9, 1.5e-9 );
+SELECT ROUND( b, a ) FROM t5;
+
+CREATE TABLE t6( a INT );
+INSERT INTO t6 VALUES( 6 / 8 );
+SELECT * FROM t6;
+
+SELECT ROUND(20061108085411.000002);
+
+DROP TABLE t1, t2, t3, t4, t5, t6;
+
 --echo End of 5.0 tests
