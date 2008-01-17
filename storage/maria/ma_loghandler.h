@@ -74,7 +74,7 @@ struct st_maria_handler;
 
 /* Store methods to match the above sizes */
 #define fileid_store(T,A) int2store(T,A)
-#define page_store(T,A)   int5store(T,A)
+#define page_store(T,A)   int5store(T,((ulonglong)(A)))
 #define dirpos_store(T,A) ((*(uchar*) (T)) = A)
 #define pagerange_store(T,A) int2store(T,A)
 #define clr_type_store(T,A) ((*(uchar*) (T)) = A)
@@ -112,8 +112,8 @@ enum translog_record_type
   LOGREC_REDO_PURGE_ROW_TAIL,
   LOGREC_REDO_FREE_BLOCKS,
   LOGREC_REDO_FREE_HEAD_OR_TAIL,
-  LOGREC_REDO_DELETE_ROW,
-  LOGREC_REDO_UPDATE_ROW_HEAD,
+  LOGREC_REDO_DELETE_ROW, /* unused */
+  LOGREC_REDO_UPDATE_ROW_HEAD, /* unused */
   LOGREC_REDO_INDEX,
   LOGREC_REDO_INDEX_NEW_PAGE,
   LOGREC_REDO_INDEX_FREE_PAGE,
@@ -141,6 +141,9 @@ enum translog_record_type
   LOGREC_LONG_TRANSACTION_ID,
   LOGREC_INCOMPLETE_LOG,
   LOGREC_INCOMPLETE_GROUP,
+  LOGREC_UNDO_BULK_INSERT_WITH_REPAIR,
+  LOGREC_REDO_BITMAP_NEW_PAGE,
+  LOGREC_FIRST_FREE,
   LOGREC_RESERVED_FUTURE_EXTENSION= 63
 };
 #define LOGREC_NUMBER_OF_TYPES 64              /* Maximum, can't be extended */

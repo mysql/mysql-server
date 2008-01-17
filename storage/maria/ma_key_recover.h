@@ -78,7 +78,8 @@ uint _ma_apply_redo_index(MARIA_HA *info,
 my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header, uint length);
 my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header, uint length);
+                                  const uchar *header, uint length,
+                                  my_bool with_root);
 
 static inline void _ma_finalize_row(MARIA_HA *info)
 {

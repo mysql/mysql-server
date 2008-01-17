@@ -109,9 +109,28 @@ typedef struct st_maria_state_info
   uint sortkey;				/* sorted by this key (not used) */
   uint open_count;
   uint changed;                         /* Changed since maria_chk */
-  LSN create_rename_lsn;    /**< LSN when table was last created/renamed */
+  /**
+     Birthday of the table: no record in the log before this LSN should ever
+     be applied to the table. Updated when created, renamed, explicitely
+     repaired (REPAIR|OPTIMIZE TABLE, ALTER TABLE ENABLE KEYS, maria_chk).
+  */
+  LSN create_rename_lsn;
   /** @brief Log horizon when state was last updated on disk */
   TRANSLOG_ADDRESS is_of_horizon;
+  /**
+     REDO phase should ignore any record before this LSN. UNDO phase
+     shouldn't, this is the difference with create_rename_lsn.
+     skip_redo_lsn >= create_rename_lsn.
+     The distinction is for these cases:
+     - after a repair at end of bulk insert (enabling indices), REDO phase
+     should skip the table but UNDO phase should not, so only skip_redo_lsn is
+     increased, not create_rename_lsn
+     - if one table is corrupted and so recovery fails, user may repair the
+     table with maria_chk and let recovery restart: that recovery should then
+     skip the repaired table even in the UNDO phase, so create_rename_lsn is
+     increased.
+  */
+  LSN skip_redo_lsn;
 
   /* the following isn't saved on disk */
   uint state_diff_length;		/* Should be 0 */
@@ -121,7 +140,7 @@ typedef struct st_maria_state_info
 
 
 #define MARIA_STATE_INFO_SIZE	\
-  (24 + 2 + LSN_STORE_SIZE*2 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
+  (24 + 2 + LSN_STORE_SIZE*3 + 4 + 11*8 + 4*4 + 8 + 3*4 + 5*8)
 #define MARIA_FILE_OPEN_COUNT_OFFSET 0
 #define MARIA_FILE_CHANGED_OFFSET 2
 #define MARIA_FILE_CREATE_RENAME_LSN_OFFSET 4
@@ -1054,6 +1073,7 @@ void _ma_check_print_warning _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
 void _ma_check_print_info _VARARGS((HA_CHECK *param, const char *fmt, ...))
   ATTRIBUTE_FORMAT(printf, 2, 3);
+my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
 C_MODE_END
 
 int _ma_flush_pending_blocks(MARIA_SORT_PARAM *param);
@@ -1062,17 +1082,18 @@ int _ma_thr_write_keys(MARIA_SORT_PARAM *sort_param);
 #ifdef THREAD
 pthread_handler_t _ma_thr_find_all_keys(void *arg);
 #endif
-int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info);
 
 int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param);
 int _ma_create_index_by_sort(MARIA_SORT_PARAM *info, my_bool no_messages,
                              size_t);
 int _ma_sync_table_files(const MARIA_HA *info);
 int _ma_initialize_data_file(MARIA_SHARE *share, File dfile);
-int _ma_update_create_rename_lsn(MARIA_SHARE *share,
-                                 LSN lsn, my_bool do_sync);
-int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
-                                     LSN lsn, my_bool do_sync);
+int _ma_update_state_lsns(MARIA_SHARE *share,
+                          LSN lsn, my_bool do_sync, my_bool
+                          update_create_rename_lsn);
+int _ma_update_state_lsns_sub(MARIA_SHARE *share,
+                              LSN lsn, my_bool do_sync, my_bool
+                              update_create_rename_lsn);
 void _ma_set_data_pagecache_callbacks(PAGECACHE_FILE *file,
                                       MARIA_SHARE *share);
 void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
@@ -1080,6 +1101,8 @@ void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
 void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
 void _ma_reenable_logging_for_table(MARIA_HA *info);
+my_bool write_log_record_for_bulk_insert_with_repair(MARIA_HA *info);
+
 
 #define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff
 #define MARIA_NO_CRC_BITMAP_PAGE 0xfffffffe

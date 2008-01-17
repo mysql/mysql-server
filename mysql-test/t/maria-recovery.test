@@ -235,7 +235,6 @@ let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 drop table t1;
 
 --echo Test of REPAIR's implicit commit
-
 let $mms_tables=1;
 create table t1 (a varchar(100), key(a)) engine=maria;
 let $mvr_restore_old_snapshot=0;
@@ -284,7 +283,6 @@ while ($loop)
   dec $loop;
 }
 select a,length(b) from t1;
-check table t1;
 # we want recovery to run on the first snapshot made above
 let $mvr_restore_old_snapshot=1;
 let $mms_compare_physically=0;
@@ -292,6 +290,46 @@ let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
 let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 drop table t1;
+
+--echo * TEST of recovery when crash before bulk-insert-with-repair is committed
+create table t1 (a varchar(100), key(a)) engine=maria;
+create table t2 (a varchar(100)) engine=myisam;
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash";
+set rand_seed1=12, rand_seed2=254; # repeatable
+insert into t2 values (rand());
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t2 select (rand()) from t2;
+insert into t1 values(30);
+-- source include/maria_make_snapshot_for_comparison.inc
+lock tables t1 write, t2 read;
+delete from t1 limit 1;
+# 127 rows in t2, >100, so this will use repair-at-end
+insert into t1 select * from t2;
+-- source include/maria_verify_recovery.inc
+show keys from t1; # should be enabled
+drop table t1;
+
+--echo * TEST of recovery when OPTIMIZE has replaced the index file and crash
+create table t1 (a varchar(100), key(a)) engine=maria;
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_crash_statement= optimize table t1;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_flush_whole_page_cache,maria_crash_sort_index";
+insert into t1 select (rand()) from t2;
+-- source include/maria_make_snapshot_for_comparison.inc
+# Recovery will not fix the table, but we expect to see it marked
+# "crashed on repair".
+# Because crash is mild, the table is actually not corrupted, so the
+# "check table extended" done below fixes the table.
+-- source include/maria_verify_recovery.inc
+drop table t1, t2;
 
 # clean up everything
 let $mms_purpose=feeding_recovery;

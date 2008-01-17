@@ -236,14 +236,18 @@ uint _ma_apply_redo_free_blocks(MARIA_HA *info, LSN lsn,
                                 const uchar *header);
 uint _ma_apply_redo_free_head_or_tail(MARIA_HA *info, LSN lsn,
                                       const uchar *header);
-uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
-                                     LSN lsn, const uchar *header);
+uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info, LSN lsn,
+                                     const uchar *header, LSN redo_lsn);
+my_bool _ma_apply_redo_bitmap_new_page(MARIA_HA *info, LSN lsn,
+                                       const uchar *header);
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header);
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header, size_t length);
 my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header, size_t length);
+my_bool _ma_apply_undo_bulk_insert_with_repair(MARIA_HA *info,
+                                               LSN undo_lsn);
 
 my_bool write_hook_for_redo(enum translog_record_type type,
                             TRN *trn, MARIA_HA *tbl_info, LSN *lsn,

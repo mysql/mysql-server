@@ -40,6 +40,8 @@ class ha_maria :public handler
   char *data_file_name, *index_file_name;
   enum data_file_type data_file_type;
   bool can_enable_indexes;
+  /** If a transactional table is doing bulk insert with repair */
+  bool bulk_insert_with_repair_trans;
   int repair(THD * thd, HA_CHECK &param, bool optimize);
   int zerofill(THD * thd, HA_CHECK_OPT *check_opt);
 

@@ -650,7 +650,7 @@ int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | MARIA_CANNOT_ROLLBACK |
                 HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
-can_enable_indexes(1)
+can_enable_indexes(1), bulk_insert_with_repair_trans(FALSE)
 {}
 
 
@@ -1316,11 +1316,6 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
       param.testflag &= ~(T_REP_BY_SORT | T_REP_PARALLEL);
       error= maria_repair(&param, file, fixed_name,
                           test(param.testflag & T_QUICK));
-      /**
-         @todo RECOVERY BUG we do things with the index file
-         (maria_sort_index() after the above which already has logged the
-         record and bumped create_rename_lsn. Is it ok?
-      */
     }
     param.testflag= save_testflag;
     optimize_done= 1;
@@ -1392,8 +1387,11 @@ int ha_maria::repair(THD *thd, HA_CHECK &param, bool do_optimize)
   thd_proc_info(thd, old_proc_info);
   if (!thd->locked_tables)
     maria_lock_database(file, F_UNLCK);
-  DBUG_RETURN(error ? HA_ADMIN_FAILED :
-              !optimize_done ? HA_ADMIN_ALREADY_DONE : HA_ADMIN_OK);
+  error= error ? HA_ADMIN_FAILED :
+    (optimize_done ?
+     (write_log_record_for_repair(&param, file) ? HA_ADMIN_FAILED :
+      HA_ADMIN_OK) : HA_ADMIN_ALREADY_DONE);
+  DBUG_RETURN(error);
 }
 
 
@@ -1613,6 +1611,14 @@ int ha_maria::enable_indexes(uint mode)
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS | T_SAFE_REPAIR);
+    if (bulk_insert_with_repair_trans)
+    {
+      /*
+        Don't bump create_rename_lsn, because UNDO_BULK_INSERT_WITH_REPAIR
+        should not be skipped in case of crash during repair.
+      */
+      param.testflag|= T_NO_CREATE_RENAME_LSN;
+    }
     param.myf_rw &= ~MY_WAIT_IF_FULL;
     param.sort_buffer_length= THDVAR(thd,sort_buffer_size);
     param.stats_method= (enum_handler_stats_method)THDVAR(thd,stats_method);
@@ -1705,6 +1711,7 @@ void ha_maria::start_bulk_insert(ha_rows rows)
 
   can_enable_indexes= (maria_is_all_keys_active(file->s->state.key_map,
                                                 file->s->base.keys));
+  bulk_insert_with_repair_trans= FALSE;
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
@@ -1716,7 +1723,23 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     */
     if (file->state->records == 0 && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
+    {
       maria_disable_non_unique_index(file, rows);
+      if (file->s->now_transactional)
+      {
+        bulk_insert_with_repair_trans= TRUE;
+        write_log_record_for_bulk_insert_with_repair(file);
+        /*
+          Pages currently in the page cache have type PAGECACHE_LSN_PAGE, we
+          are not allowed to overwrite them with PAGECACHE_PLAIN_PAGE, so
+          throw them away. It is not losing data, because we just wrote and
+          forced an UNDO which will for sure empty the table if we crash.
+        */
+        _ma_flush_table_files(file, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
+                              FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED);
+        _ma_tmp_disable_logging_for_table(file, TRUE);
+      }
+    }
     else if (!file->bulk_insert &&
              (!rows || rows >= MARIA_MIN_ROWS_TO_USE_BULK_INSERT))
     {
@@ -1750,9 +1773,18 @@ int ha_maria::end_bulk_insert()
   int err;
   DBUG_ENTER("ha_maria::end_bulk_insert");
   maria_end_bulk_insert(file);
-  err= maria_extra(file, HA_EXTRA_NO_CACHE, 0);
-  DBUG_RETURN(err ? err : can_enable_indexes ?
-              enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE) : 0);
+  if ((err= maria_extra(file, HA_EXTRA_NO_CACHE, 0)))
+    goto end;
+  if (can_enable_indexes)
+    err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+end:
+  if (bulk_insert_with_repair_trans)
+  {
+    DBUG_ASSERT(can_enable_indexes);
+    /* table was transactional just before start_bulk_insert() */
+    _ma_reenable_logging_for_table(file);
+  }
+  DBUG_RETURN(err);
 }
 
 
@@ -2131,7 +2163,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
       if (thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
         trans_register_ha(thd, TRUE, maria_hton);
     }
-    this->file->trn= trn;
+    file->trn= trn;
     if (!trnman_increment_locked_tables(trn))
     {
       trans_register_ha(thd, FALSE, maria_hton);
@@ -2156,6 +2188,7 @@ int ha_maria::external_lock(THD *thd, int lock_type)
   {
     _ma_reenable_logging_for_table(file);
     /** @todo zero file->trn also in commit and rollback */
+    file->trn= NULL;
     if (trn && trnman_has_locked_tables(trn))
     {
       if (!trnman_decrement_locked_tables(trn))

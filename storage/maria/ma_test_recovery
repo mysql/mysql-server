@@ -137,7 +137,7 @@ do
   for test_undo in 1 2 3 4
   do
   # first iteration tests rollback of insert, second tests rollback of delete
-  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -A" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t4 -A"
+  set -- "ma_test1 $silent -M -T -c -N $blobs -H1" "--testflag=1" "--testflag=2 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2" "--testflag=3" "--testflag=4 --test-undo=" "ma_test1 $silent -M -T -c -N $blobs -H2 " "--testflag=2" "--testflag=3 --test-undo=" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t2 -A" "ma_test2 $silent -L -K -W -P -M -T -c $blobs -H1" "-t1" "-t6 -A"
   # -N (create NULL fields) is needed because --test-undo adds it anyway
   while [ $# != 0 ]
     do

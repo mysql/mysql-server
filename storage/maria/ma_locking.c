@@ -624,6 +624,7 @@ void _ma_mark_file_crashed(MARIA_SHARE *share)
                    sizeof(share->state.header) +
                    MARIA_FILE_CHANGED_OFFSET,
                    MYF(MY_NABP));
+  DBUG_VOID_RETURN;
 }
 
 

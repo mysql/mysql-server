@@ -43,7 +43,7 @@ SET(MARIA_SOURCES ma_init.c ma_open.c ma_extra.c ma_info.c ma_rkey.c
             ma_sp_key.c ma_control_file.c ma_loghandler.c 
             ma_pagecache.c ma_pagecaches.c 
             ma_checkpoint.c ma_recovery.c ma_commit.c ma_pagecrc.c
-            ha_maria.h maria_def.h
+            ha_maria.h maria_def.h ma_recovery_util.c
 )
 
 IF(NOT SOURCE_SUBLIBS)

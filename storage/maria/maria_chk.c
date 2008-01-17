@@ -71,6 +71,8 @@ static const char *record_formats[]=
 };
 
 static const char *maria_stats_method_str="nulls_unequal";
+static char default_open_errmsg[]=  "%d when opening MARIA-table '%s'";
+static char default_close_errmsg[]= "%d when closing MARIA-table '%s'";
 
 static void get_options(int *argc,char * * *argv);
 static void print_version(void);
@@ -84,6 +86,7 @@ static int sort_record_index(MARIA_SORT_PARAM *sort_param, MARIA_HA *info,
                              MARIA_KEYDEF *keyinfo,
 			     my_off_t page, uchar *buff,uint sortkey,
 			     File new_file, my_bool update_index);
+static my_bool write_log_record(HA_CHECK *param);
 
 HA_CHECK check_param;
 
@@ -1105,7 +1108,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
       */
       if (share->base.born_transactional)
         share->state.create_rename_lsn= share->state.is_of_horizon=
-          LSN_REPAIRED_BY_MARIA_CHK;
+          share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
     }
     if (!error && (param->testflag & T_REP_ANY))
     {
@@ -1218,7 +1221,6 @@ static int maria_chk(HA_CHECK *param, char *filename)
           (param->testflag & (T_EXTEND | T_MEDIUM)))
         error|=maria_chk_data_link(param, info,
                                    test(param->testflag & T_EXTEND));
-      error|= _ma_flush_table_files_after_repair(param, info);
       VOID(end_io_cache(&param->read_cache));
     }
     if (!error)
@@ -1258,8 +1260,7 @@ end2:
   end_pagecache(maria_pagecache, 1);
   if (maria_close(info))
   {
-    _ma_check_print_error(param,"%d when closing MARIA-table '%s'",
-                          my_errno,filename);
+    _ma_check_print_error(param, default_close_errmsg, my_errno, filename);
     DBUG_RETURN(1);
   }
   if (error == 0)
@@ -1272,6 +1273,12 @@ end2:
       error|=maria_change_to_newfile(filename,MARIA_NAME_IEXT,INDEX_TMP_EXT,
                                      MYF(0));
   }
+  if (opt_transaction_logging &&
+      share->base.born_transactional && !error &&
+      (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
+                          T_ZEROFILL)))
+    error= write_log_record(param);
+
   VOID(fflush(stdout)); VOID(fflush(stderr));
   if (param->error_printed)
   {
@@ -1745,7 +1752,7 @@ err:
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   sort_info.buff=0;
   share->state.sortkey=sort_key;
-  DBUG_RETURN(_ma_flush_table_files_after_repair(param, info) | got_error);
+  DBUG_RETURN(got_error);
 } /* sort_records */
 
 
@@ -1842,5 +1849,30 @@ err:
   DBUG_RETURN(1);
 } /* sort_record_index */
 
+
+static my_bool write_log_record(HA_CHECK *param)
+{
+  /*
+    Now that all operations including O_NEW_DATA|INDEX are successfully
+    done, we can write a log record.
+  */
+  MARIA_HA *info= maria_open(param->isam_file_name, O_RDWR, 0);
+  if (info == NULL)
+    _ma_check_print_error(param, default_open_errmsg, my_errno,
+                          param->isam_file_name);
+  else
+  {
+    if (write_log_record_for_repair(param, info))
+      _ma_check_print_error(param, "%d when writing log record for"
+                            " MARIA-table '%s'", my_errno,
+                            param->isam_file_name);
+    else if (maria_close(info))
+      _ma_check_print_error(param, default_close_errmsg, my_errno,
+                            param->isam_file_name);
+    else
+      return FALSE;
+  }
+  return TRUE;
+}
 
 #include "ma_check_standalone.h"

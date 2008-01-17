@@ -366,7 +366,9 @@ sub mtr_report_stats ($) {
 		/Slave: Key column 'c6'.* 1072/ or
 
                 # maria-recovery.test has warning about missing log file
-                /Can't get stat of '.*maria_log.00*/
+                /Can't get stat of '.*maria_log.00/ or
+                # and about marked-corrupted table
+                /Table '.\/mysqltest\/t1' is crashed, skipping it. Please repair it with maria_chk -r/
 	       )
             {
               next;                       # Skip these lines

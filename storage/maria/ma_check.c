@@ -93,10 +93,11 @@ static int _ma_safe_scan_block_record(MARIA_SORT_INFO *sort_info,
                                       MARIA_HA *info, uchar *record);
 static void copy_data_file_state(MARIA_STATE_INFO *to,
                                  MARIA_STATE_INFO *from);
-static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info);
 static void report_keypage_fault(HA_CHECK *param, MARIA_HA *info,
                                  my_off_t position);
 static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file);
+static my_bool _ma_flush_table_files_before_swap(HA_CHECK *param,
+                                                 MARIA_HA *info);
 
 
 void maria_chk_init(HA_CHECK *param)
@@ -2073,6 +2074,68 @@ err:
 
 
 /**
+  Prepares a table for a repair or index sort: flushes pages, records durably
+  in the table that it is undergoing the operation (if that op crashes, that
+  info will serve for Recovery and the user).
+
+  If we start overwriting the index file, and crash then, old REDOs will
+  be tried and fail. To prevent that, we bump skip_redo_lsn, and thus we have
+  to flush and sync pages so that old REDOs can be skipped.
+  If this is not a bulk insert, which Recovery can handle gracefully (by
+  truncating files, see UNDO_BULK_INSERT_WITH_REPAIR) we also mark the table
+  crashed-on-repair, so that user knows it has to re-repair. If bulk insert we
+  shouldn't mark it crashed-on-repair, because if we did this, the UNDO phase
+  would skip the table (UNDO_BULK_INSERT_WITH_REPAIR would not be applied),
+  and maria_chk would not improve that.
+  If this is an OPTIMIZE which merely sorts index, we need to do the same
+  too: old REDOs should not apply to the new index file.
+  Only the flush is needed when in maria_chk which is not crash-safe.
+
+  @param  info             table
+  @param  param            repair parameters
+  @param  discard_index    if index pages can be thrown away
+*/
+
+static my_bool protect_against_repair_crash(MARIA_HA *info,
+                                            const HA_CHECK *param,
+                                            my_bool discard_index)
+{
+  MARIA_SHARE *share= info->s;
+
+  /*
+    There are other than recovery-related reasons to do the writes below:
+    - the physical size of the data file is sometimes used during repair: we
+    need to flush to have it exact
+    - we flush the state because maria_open(HA_OPEN_COPY) will want to read
+    it from disk.
+  */
+  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_FORCE_WRITE,
+                            discard_index ? FLUSH_IGNORE_CHANGED :
+                            FLUSH_FORCE_WRITE) ||
+      (share->changed && _ma_state_info_write(share, 1|2|4)))
+    return TRUE;
+  /* In maria_chk this is not needed: */
+  if (maria_multi_threaded && share->base.born_transactional)
+  {
+    if ((param->testflag & T_NO_CREATE_RENAME_LSN) == 0)
+    {
+      /* this can be true only for a transactional table */
+      maria_mark_crashed_on_repair(info);
+      if (_ma_state_info_write(share, 1|4))
+        return TRUE;
+    }
+    if (translog_status == TRANSLOG_OK &&
+        _ma_update_state_lsns(share, translog_get_horizon(), FALSE, FALSE))
+      return TRUE;
+    if (_ma_sync_table_files(info))
+      return TRUE;
+  }
+  return FALSE;
+}
+
+
+/**
    @brief Initialize variables for repair
 */
 
@@ -2109,20 +2172,11 @@ static int initialize_variables_for_repair(HA_CHECK *param,
   info->rec_cache.file= info->dfile.file;
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
-  /* calculate max_records */
-  /*
-    The physical size of the data file is sometimes used during repair (see
-    sort_info.filelength further below); We need to flush to have it exact.
-    We flush the state because our maria_open(HA_OPEN_COPY) will want to read
-    it from disk. Index file will be recreated.
-  */
-  if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                            FLUSH_FORCE_WRITE,
-                            (param->testflag & T_CREATE_MISSING_KEYS) ?
-                            FLUSH_FORCE_WRITE : FLUSH_IGNORE_CHANGED) ||
-      (share->changed && _ma_state_info_write(share, 1|2|4)))
-    return(1);
+  if (protect_against_repair_crash(info, param, !test(param->testflag &
+                                                      T_CREATE_MISSING_KEYS)))
+    return 1;
 
+  /* calculate max_records */
   sort_info->filelength= my_seek(info->dfile.file, 0L, MY_SEEK_END, MYF(0));
   if ((param->testflag & T_CREATE_MISSING_KEYS) ||
       sort_info->org_data_file_type == COMPRESSED_RECORD)
@@ -2172,7 +2226,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
-  my_bool block_record, scan_inited= 0;
+  my_bool block_record, scan_inited= 0, reenable_logging;
   enum data_file_type org_data_file_type= share->data_file_type;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
@@ -2190,7 +2244,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   if (initialize_variables_for_repair(param, &sort_info, &sort_param, info,
                                       rep_quick))
     goto err;
-  if (share->now_transactional)
+
+  if ((reenable_logging= share->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
 
   new_header_length= ((param->testflag & T_UNPACK) ? 0L :
@@ -2384,12 +2439,14 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   VOID(end_io_cache(&sort_info.new_info->rec_cache));
   info->opt_flag&= ~WRITE_CACHE_USED;
-  /**
-     @todo RECOVERY BUG seems misplaced in some cases. We modify state after
-     writing it below. But if we move the call below too much down, flushing
-     of pages may happen too late, after files have been closed.
+
+  /*
+    As we have read the data file (sort_get_next_record()) we may have
+    cached, non-changed blocks of it in the page cache. We must throw them
+    away as we are going to close their descriptor ('new_file'). We also want
+    to flush any index block, so that it is ready for the upcoming sync.
   */
-  if (_ma_flush_table_files_after_repair(param, info))
+  if (_ma_flush_table_files_before_swap(param, info))
     goto err;
 
   if (!rep_quick)
@@ -2460,7 +2517,7 @@ err:
     if (! param->error_printed)
       _ma_check_print_error(param,"%d for record at pos %s",my_errno,
 		  llstr(sort_param.start_recpos,llbuff));
-    (void) _ma_flush_table_files_after_repair(param, info);
+    (void)_ma_flush_table_files_before_swap(param, info);
     if (sort_info.new_info && sort_info.new_info != sort_info.info)
     {
       unuse_data_file_descriptor(sort_info.new_info);
@@ -2473,15 +2530,9 @@ err:
     }
     maria_mark_crashed_on_repair(info);
   }
-  else if (sync_dir)
-  {
-    /*
-      Now that we have flushed and forced everything, we can bump
-      create_rename_lsn:
-    */
-    write_log_record_for_repair(param, info);
-  }
-  _ma_reenable_logging_for_table(info);
+  /* If caller had disabled logging it's not up to us to re-enable it */
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info);
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -2632,30 +2683,28 @@ void maria_lock_memory(HA_CHECK *param __attribute__((unused)))
 
 
 /**
-   Flush all changed blocks to disk so that we can say "at the end of repair,
-   the table is fully ok on disk".
+   Flush all changed blocks to disk.
 
-   It is a requirement for transactional tables.
    We release blocks as it's unlikely that they would all be needed soon.
+   This function needs to be called before swapping data or index files or
+   syncing them.
 
    @param  param           description of the repair operation
    @param  info            table
 */
 
-int _ma_flush_table_files_after_repair(HA_CHECK *param, MARIA_HA *info)
+static my_bool _ma_flush_table_files_before_swap(HA_CHECK *param,
+                                                 MARIA_HA *info)
 {
-  MARIA_SHARE *share= info->s;
-  DBUG_ENTER("_ma_flush_table_files_after_repair");
+  DBUG_ENTER("_ma_flush_table_files_before_swap");
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                            FLUSH_RELEASE, FLUSH_RELEASE) ||
-      _ma_state_info_write(share, 1|4) ||
-      (share->base.born_transactional && _ma_sync_table_files(info)))
+                            FLUSH_RELEASE, FLUSH_RELEASE))
   {
-    _ma_check_print_error(param,"%d when trying to write bufferts",my_errno);
-    DBUG_RETURN(1);
+    _ma_check_print_error(param, "%d when trying to write buffers", my_errno);
+    DBUG_RETURN(TRUE);
   }
-  DBUG_RETURN(0);
-} /* _ma_flush_table_files_after_repair */
+  DBUG_RETURN(FALSE);
+}
 
 
 	/* Sort index for more efficent reads */
@@ -2682,6 +2731,9 @@ int maria_sort_index(HA_CHECK *param, register MARIA_HA *info, char *name)
 
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MARIA-table '%s'\n",name);
+
+  if (protect_against_repair_crash(info, param, FALSE))
+    DBUG_RETURN(1);
 
   /* Get real path for index file */
   fn_format(param->temp_filename,name,"", MARIA_NAME_IEXT,2+4+32);
@@ -3423,6 +3475,9 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                              (ulonglong) info->state->records);
     maria_set_key_active(share->state.key_map, sort_param.key);
 
+    if (_ma_flush_table_files_before_swap(param, info))
+      goto err;
+
     if (sort_param.fix_datafile)
     {
       param->read_cache.end_of_file=sort_param.filepos;
@@ -3445,13 +3500,6 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
           info->state->records=start_records;
 	  goto err;
 	}
-      }
-
-      /** @todo RECOVERY BUG seems misplaced in some cases */
-      if (_ma_flush_table_files_after_repair(param, info))
-      {
-        _ma_check_print_error(param, "Got error when flushing caches");
-        goto err;
       }
 
       sort_info.new_info->state->data_file_length= sort_param.filepos;
@@ -3570,7 +3618,7 @@ err:
   {
     if (! param->error_printed)
       _ma_check_print_error(param,"%d when fixing table",my_errno);
-    (void) _ma_flush_table_files_after_repair(param, info);
+    (void)_ma_flush_table_files_before_swap(param, info);
     if (sort_info.new_info && sort_info.new_info != sort_info.info)
     {
       unuse_data_file_descriptor(sort_info.new_info);
@@ -3602,7 +3650,6 @@ err:
                       fflush(DBUG_FILE);
                       abort();
                     });
-    write_log_record_for_repair(param, info);
   }
   share->state.changed|= STATE_NOT_SORTED_PAGES;
   if (!rep_quick)
@@ -3782,12 +3829,6 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   if (!(param->testflag & T_CREATE_MISSING_KEYS))
   {
-    /*
-      Flush key cache for this file if we are calling this outside
-      maria_chk
-    */
-    flush_pagecache_blocks(share->pagecache, &share->kfile,
-                           FLUSH_IGNORE_CHANGED);
     /* Clear the pointers to the given rows */
     for (i=0 ; i < share->base.keys ; i++)
       share->state.key_root[i]= HA_OFFSET_ERROR;
@@ -3795,12 +3836,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     info->state->key_file_length=share->base.keystart;
   }
   else
-  {
-    if (flush_pagecache_blocks(share->pagecache, &share->kfile,
-                               FLUSH_FORCE_WRITE))
-      goto err;
     key_map= ~key_map;				/* Create the missing keys */
-  }
 
   param->read_cache.end_of_file= sort_info.filelength;
 
@@ -3985,6 +4021,9 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   }
   got_error=1;				/* Assume the following may go wrong */
 
+  if (_ma_flush_table_files_before_swap(param, info))
+    goto err;
+
   if (sort_param[0].fix_datafile)
   {
     /*
@@ -4084,8 +4123,6 @@ err:
   */
   if (!rep_quick)
     VOID(end_io_cache(&new_data_cache));
-  /** @todo RECOVERY BUG seems misplaced in some cases */
-  got_error|= _ma_flush_table_files_after_repair(param, info);
   if (!got_error)
   {
     /* Replace the actual file with the temporary file */
@@ -4106,6 +4143,7 @@ err:
   {
     if (! param->error_printed)
       _ma_check_print_error(param,"%d when fixing table",my_errno);
+    (void)_ma_flush_table_files_before_swap(param, info);
     if (new_file >= 0)
     {
       VOID(my_close(new_file,MYF(0)));
@@ -6153,16 +6191,7 @@ read_next_page:
 
 /**
    @brief Writes a LOGREC_REPAIR_TABLE record and updates create_rename_lsn
-   and is_of_horizon
-
-   REPAIR/OPTIMIZE have replaced the data/index file with a new file
-   and so, in this scenario:
-   @verbatim
-     CHECKPOINT - REDO_INSERT - COMMIT - ... - REPAIR - ... - crash
-   @endverbatim
-   we do not want Recovery to apply the REDO_INSERT to the table, as it would
-   then possibly wrongly extend the table. By updating create_rename_lsn at
-   the end of REPAIR, we know that REDO_INSERT will be skipped.
+   if needed (so that maria_read_log does not redo the repair).
 
    @param  param            description of the REPAIR operation
    @param  info             table
@@ -6172,7 +6201,7 @@ read_next_page:
      @retval 1      error (disk problem)
 */
 
-static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
+my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
   /* in case this is maria_chk or recovery... */
@@ -6220,18 +6249,46 @@ static int write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL) ||
                  translog_flush(lsn)))
-      return 1;
+      return TRUE;
     /*
       The table's existence was made durable earlier (MY_SYNC_DIR passed to
-      maria_change_to_newfile()). _ma_flush_table_files_after_repair() was
-      called earlier, flushed and forced data+index+state. Old REDOs should
-      not be applied to the table:
+      maria_change_to_newfile()). All pages have been flushed, state too, we
+      need to force it to disk. Old REDOs should not be applied to the table,
+      which is already enforced as skip_redos_lsn was increased in
+      protect_against_repair_crash(). But if this is an explicit repair,
+      even UNDO phase should ignore this table: create_rename_lsn should be
+      increased, and this also serves for the REDO_REPAIR to be ignored by
+      maria_read_log.
+      The fully correct order would be: sync data and index file, remove crash
+      mark and update LSNs then write state and sync index file. But at this
+      point state (without crash mark) is already written.
     */
-    if (_ma_update_create_rename_lsn(share, lsn, TRUE))
-      return 1;
+    if ((!(param->testflag & T_NO_CREATE_RENAME_LSN) &&
+         _ma_update_state_lsns(share, lsn, FALSE, FALSE)) ||
+        _ma_sync_table_files(info))
+      return TRUE;
     share->now_transactional= save_now_transactional;
   }
-  return 0;
+  return FALSE;
+}
+
+
+my_bool write_log_record_for_bulk_insert_with_repair(MARIA_HA *info)
+{
+  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
+  LSN lsn;
+  lsn_store(log_data, info->trn->undo_lsn);
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+  return translog_write_record(&lsn, LOGREC_UNDO_BULK_INSERT_WITH_REPAIR,
+                               info->trn, info,
+                               (translog_size_t)
+                               log_array[TRANSLOG_INTERNAL_PARTS +
+                                         0].length,
+                               TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                               log_data + LSN_STORE_SIZE, NULL) ||
+    translog_flush(lsn); /* WAL */
 }
 
 

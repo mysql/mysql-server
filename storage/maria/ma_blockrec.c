@@ -263,12 +263,16 @@
 
   09 00 F4 1F                   Start position 9, length 8180
   xx xx xx xx			Checksum
+
+  A data page is allowed to have a wrong CRC and header as long as it is
+  marked empty in the bitmap and its directory's count is 0.
 */
 
 #include "maria_def.h"
 #include "ma_blockrec.h"
 #include "trnman.h"
 #include "ma_key_recover.h"
+#include "ma_recovery_util.h"
 #include <lf.h>
 
 /*
@@ -5643,8 +5647,8 @@ my_bool write_hook_for_undo(enum translog_record_type type
 
 
 /**
-   @brief Sets the table's records count and checksum to 0, then calls the
-   generic REDO hook.
+   @brief Sets the table's records count and checksum and others to 0, then
+   calls the generic REDO hook.
 
    @return Operation status, always 0 (success)
 */
@@ -5655,9 +5659,8 @@ my_bool write_hook_for_redo_delete_all(enum translog_record_type type
                                        __attribute__ ((unused)),
                                        LSN *lsn, void *hook_arg)
 {
-  MARIA_SHARE *share= tbl_info->s;
   DBUG_ASSERT(tbl_info->state == &tbl_info->s->state.state);
-  share->state.state.records= share->state.state.checksum= 0;
+  _ma_reset_status(tbl_info);
   return write_hook_for_redo(type, trn, tbl_info, lsn, hook_arg);
 }
 
@@ -6186,7 +6189,9 @@ err:
    @brief Apply LOGREC_REDO_INSERT_ROW_BLOBS
 
    @param  info            Maria handler
-   @param  header          Header (without FILEID)
+   @parma  lsn             LSN to put on pages
+   @param  header          Header (with FILEID)
+   @param  redo_lsn        REDO record's LSN
 
    @note Write full pages (full head & blob pages)
 
@@ -6196,17 +6201,21 @@ err:
 */
 
 uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
-                                     LSN lsn, const uchar *header)
+                                     LSN lsn, const uchar *header,
+                                     LSN redo_lsn)
 {
   MARIA_SHARE *share= info->s;
   const uchar *data;
   uint      data_size= FULL_PAGE_SIZE(share->block_size);
   uint      blob_count, ranges;
+  uint16    sid;
   DBUG_ENTER("_ma_apply_redo_insert_row_blobs");
 
   share->state.changed|= (STATE_CHANGED | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
 
+  sid= fileid_korr(header);
+  header+= FILEID_STORE_SIZE;
   ranges= pagerange_korr(header);
   header+= PAGERANGE_STORE_SIZE;
   blob_count= pagerange_korr(header);
@@ -6246,6 +6255,9 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         enum pagecache_page_lock unlock_method;
         enum pagecache_page_pin unpin_method;
         uint length;
+
+        if (_ma_redo_not_needed_for_page(sid, redo_lsn, page, FALSE))
+          continue;
 
         if (((page + 1) * share->block_size) >
             info->state->data_file_length)
@@ -6355,7 +6367,7 @@ err:
  Applying of UNDO entries
 ****************************************************************************/
 
-/* Execute undo of a row insert (delete the inserted row) */
+/** Execute undo of a row insert (delete the inserted row) */
 
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header)
@@ -6416,7 +6428,7 @@ err:
 }
 
 
-/* Execute undo of a row delete (insert the row back where it was) */
+/** Execute undo of a row delete (insert the row back where it was) */
 
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header,
@@ -6652,7 +6664,7 @@ err:
 }
 
 
-/*
+/**
   Execute undo of a row update
 
   @fn _ma_apply_undo_row_update()
@@ -6812,6 +6824,34 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
   error= 0;
 err:
   my_free(current_record, MYF(0));
+  DBUG_RETURN(error);
+}
+
+
+/**
+  Execute undo of a bulk insert which used repair
+
+  @return Operation status
+    @retval 0      OK
+    @retval 1      Error
+*/
+
+my_bool _ma_apply_undo_bulk_insert_with_repair(MARIA_HA *info,
+                                               LSN undo_lsn)
+{
+  my_bool error;
+  LSN lsn;
+  DBUG_ENTER("_ma_apply_undo_bulk_insert_with_repair");
+  /*
+    We delete all rows, re-enable indices as bulk insert had disabled
+    non-unique ones.
+  */
+  error= (maria_delete_all_rows(info) ||
+          maria_enable_indexes(info) ||
+          /* we enabled indices so need '2' below */
+          _ma_state_info_write(info->s, 1|2|4) ||
+          _ma_write_clr(info, undo_lsn, LOGREC_UNDO_BULK_INSERT_WITH_REPAIR,
+                        FALSE, 0, &lsn, NULL));
   DBUG_RETURN(error);
 }
 

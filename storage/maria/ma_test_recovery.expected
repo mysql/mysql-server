@@ -75,7 +75,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t4 -A1 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -162,7 +162,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t4 -A2 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -249,7 +249,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t4 -A3 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -336,7 +336,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t4 -A4 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -423,7 +423,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A1 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -510,7 +510,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A2 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -597,7 +597,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A3 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -684,7 +684,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t4 -A4 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -771,7 +771,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t4 -A1 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -858,7 +858,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t4 -A2 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -945,7 +945,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t4 -A3 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -1032,7 +1032,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t4 -A4 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c  -H1 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -1119,7 +1119,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t4 -A1 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A1 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -1206,7 +1206,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t4 -A2 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A2 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -1293,7 +1293,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t4 -A3 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A3 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !
@@ -1380,7 +1380,7 @@ Differences in maria_chk -dvv, recovery not yet perfect !
 > Status:              changed
 ========DIFF END=======
 TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t1 (commit at end)
-TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t4 -A4 (additional aborted work)
+TEST WITH ma_test2 -s -L -K -W -P -M -T -c -b32768 -H1 -t6 -A4 (additional aborted work)
 Dying on request without maria_commit()/maria_close()
 applying log
 Differences in maria_chk -dvv, recovery not yet perfect !

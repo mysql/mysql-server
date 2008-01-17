@@ -33,6 +33,7 @@ int maria_delete_all_rows(MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
   my_bool log_record;
+  LSN lsn;
   DBUG_ENTER("maria_delete_all_rows");
 
   if (share->options & HA_OPTION_READ_ONLY_DATA)
@@ -54,9 +55,8 @@ int maria_delete_all_rows(MARIA_HA *info)
   {
     /*
       This record will be used by Recovery to finish the deletion if it
-      crashed. We force it because it's a non-undoable operation.
+      crashed. We force it to have a complete history in the log.
     */
-    LSN lsn;
     LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[FILEID_STORE_SIZE];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
@@ -72,19 +72,17 @@ int maria_delete_all_rows(MARIA_HA *info)
       inconsistent.
     */
   }
-
-  /*
-    For recovery it matters that this is called after writing the log record,
-    so that resetting state.records and state.checksum actually happens under
-    log's mutex.
-  */
-  _ma_reset_status(info);
+  else
+  {
+    /* Other branch called function below when writing log record, in hook */
+    _ma_reset_status(info);
+  }
 
   /*
     If we are using delayed keys or if the user has done changes to the tables
     since it was locked then there may be key blocks in the page cache. Or
     there may be data blocks there. We need to throw them away or they may
-    re-enter the emptied table later.
+    re-enter the emptied table or another table later.
   */
   if (_ma_flush_table_files(info, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
                             FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED) ||
@@ -95,12 +93,25 @@ int maria_delete_all_rows(MARIA_HA *info)
   if (_ma_initialize_data_file(share, info->dfile.file))
     goto err;
 
-  /*
-    The operations above on the index/data file will be forced to disk at
-    Checkpoint or maria_close() time. So we can reset:
-  */
+
   if (log_record)
+  {
+    /*
+      Because LOGREC_REDO_DELETE_ALL does not operate on pages, it has the
+      following problem:
+      delete_all; inserts (redo_insert); all pages get flushed; checkpoint:
+      the dirty pages list will be empty. In recovery, delete_all is executed,
+      but redo_insert are skipped (dirty pages list is empty).
+      To avoid this, we need to set skip_redo_lsn now, and thus need to sync
+      files.
+    */
+    my_bool error= _ma_state_info_write(share, 1|4) ||
+      _ma_update_state_lsns(share, lsn, FALSE, FALSE) ||
+      _ma_sync_table_files(info);
     info->trn->rec_lsn= LSN_IMPOSSIBLE;
+    if (error)
+      goto err;
+  }
 
   VOID(_ma_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP

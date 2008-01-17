@@ -60,6 +60,8 @@
 #define T_WAIT_FOREVER          (1L << 30)
 #define T_WRITE_LOOP            ((ulong) 1L << 31)
 #define T_ZEROFILL              ((ulonglong) 1L << 32)
+/** If repair should not bump create_rename_lsn */
+#define T_NO_CREATE_RENAME_LSN  ((ulonglong) 1L << 33)
 
 #define T_REP_ANY               (T_REP | T_REP_BY_SORT | T_REP_PARALLEL)
 

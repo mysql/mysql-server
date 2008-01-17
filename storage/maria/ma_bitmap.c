@@ -130,9 +130,12 @@
 /*#define WRONG_BITMAP_FLUSH 1*/ /*define only for provoking bugs*/
 #undef WRONG_BITMAP_FLUSH
 
-static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
+static my_bool _ma_read_bitmap_page(MARIA_HA *info,
                                     MARIA_FILE_BITMAP *bitmap,
                                     pgcache_page_no_t page);
+static my_bool _ma_bitmap_create_missing(MARIA_HA *info,
+                                         MARIA_FILE_BITMAP *bitmap,
+                                         pgcache_page_no_t page);
 
 /* Write bitmap page to key cache */
 
@@ -454,6 +457,7 @@ static void _ma_bitmap_unpin_all(MARIA_SHARE *share)
 void _ma_bitmap_delete_all(MARIA_SHARE *share)
 {
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  DBUG_ENTER("_ma_bitmap_delete_all");
   if (bitmap->map)                              /* Not in create */
   {
     bzero(bitmap->map, bitmap->block_size);
@@ -461,6 +465,7 @@ void _ma_bitmap_delete_all(MARIA_SHARE *share)
     bitmap->page= 0;
     bitmap->used_size= bitmap->total_size;
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -725,7 +730,7 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
   Read a given bitmap page
 
   SYNOPSIS
-    read_bitmap_page()
+    _ma_read_bitmap_page()
     info                Maria handler
     bitmap              Bitmap handler
     page                Page to read
@@ -742,50 +747,22 @@ void _ma_print_bitmap(MARIA_FILE_BITMAP *bitmap, uchar *data,
     1  error  (Error writing old bitmap or reading bitmap page)
 */
 
-static my_bool _ma_read_bitmap_page(MARIA_SHARE *share,
+static my_bool _ma_read_bitmap_page(MARIA_HA *info,
                                     MARIA_FILE_BITMAP *bitmap,
                                     pgcache_page_no_t page)
 {
-  my_off_t end_of_page= (page + 1) * bitmap->block_size;
+  MARIA_SHARE *share= info->s;
   my_bool res;
   DBUG_ENTER("_ma_read_bitmap_page");
   DBUG_ASSERT(page % bitmap->pages_covered == 0);
   DBUG_ASSERT(!bitmap->changed);
 
   bitmap->page= page;
-  if (end_of_page > share->state.state.data_file_length)
+  if (((page + 1) * bitmap->block_size) > share->state.state.data_file_length)
   {
-    /*
-      Inexistent or half-created page (could be crash in the middle of
-      _ma_bitmap_create_first(), before appending maria_bitmap_marker).
-    */
-    /**
-       @todo RECOVERY BUG
-       We are updating data_file_length before writing any log record for the
-       row operation. What if now state is flushed by a checkpoint with the
-       new value, and crash before the checkpoint record is written, recovery
-       may not even open the table (no log records) so not fix
-       data_file_length ("WAL violation")?
-       Scenario: assume share->id==0, then:
-       thread 1 (here)                thread 2 (checkpoint)
-       update data_file_length
-                                      copy state to memory, flush log
-       set share->id and write FILE_ID (not flushed)
-                                      see share->id!=0 so flush state
-                                      crash
-       FILE_ID will be missing, Recovery will not open table and not fix
-       data_file_length. This bug should be fixed with other "checkpoint vs
-       bitmap" bugs.
-       One possibility will be logging a standalone LOGREC_CREATE_BITMAP in a
-       separate transaction (using dummy_transaction_object).
-    */
-    share->state.state.data_file_length= end_of_page;
-    bzero(bitmap->map, bitmap->block_size);
-    bitmap->used_size= 0;
-#ifndef DBUG_OFF
-    memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
-#endif
-    DBUG_RETURN(0);
+    /* Inexistent or half-created page */
+    res= _ma_bitmap_create_missing(info, bitmap, page);
+    DBUG_RETURN(res);
   }
   bitmap->used_size= bitmap->total_size;
   DBUG_ASSERT(share->pagecache->block_size == bitmap->block_size);
@@ -842,7 +819,7 @@ static my_bool _ma_change_bitmap_page(MARIA_HA *info,
       DBUG_RETURN(1);
     bitmap->changed= 0;
   }
-  DBUG_RETURN(_ma_read_bitmap_page(info->s, bitmap, page));
+  DBUG_RETURN(_ma_read_bitmap_page(info, bitmap, page));
 }
 
 
@@ -2634,4 +2611,212 @@ void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
     if (share->now_transactional)
       file->flush_log_callback= flush_log_for_bitmap;
   }
+}
+
+
+/**
+  Extends data file with zeroes and creates new bitmap pages into page cache.
+
+  Non-bitmap pages of zeroes are correct as they are marked empty in
+  bitmaps. Bitmap pages will not be zeroes: they will get their CRC fixed when
+  flushed. And if there is a crash before flush (so they are zeroes at
+  restart), a REDO will re-create them in page cache.
+*/
+
+static my_bool
+_ma_bitmap_create_missing_into_pagecache(MARIA_SHARE *share,
+                                         MARIA_FILE_BITMAP *bitmap,
+                                         pgcache_page_no_t from,
+                                         pgcache_page_no_t to,
+                                         uchar *zeroes)
+{
+  pgcache_page_no_t i;
+  /*
+    We use my_chsize() to not rely on OS filling gaps with zeroes and to have
+    sequential order in the file (allocate all new data and bitmap pages from
+    the filesystem).
+  */
+  if (my_chsize(bitmap->file.file, (to + 1) * bitmap->block_size, 0,
+                MYF(MY_WME)))
+    goto err;
+  /* Write all bitmap pages in [from, to] */
+  for (i= from; i <= to; i+= bitmap->pages_covered)
+  {
+    /* no need to keep them pinned, they are new so flushable */
+    if (pagecache_write(share->pagecache,
+                        &bitmap->file, i, 0,
+                        zeroes, PAGECACHE_PLAIN_PAGE,
+                        PAGECACHE_LOCK_LEFT_UNLOCKED,
+                        PAGECACHE_PIN_LEFT_UNPINNED,
+                        PAGECACHE_WRITE_DELAY, 0, LSN_IMPOSSIBLE))
+      goto err;
+  }
+  /*
+    Data pages after data_file_length are full of zeroes but that is allowed
+    as they are marked empty in the bitmap.
+  */
+  return FALSE;
+err:
+  return TRUE;
+}
+
+
+/**
+ Creates missing bitmaps when we extend the data file.
+
+ At run-time, when we need a new bitmap page we come here; and only one bitmap
+ page at a time is created.
+
+ In some recovery cases we insert at a large offset in the data file, way
+ beyond state.data_file_length, so can need to create more than one bitmap
+ page in one go. Known case is:
+ Start a transaction in Maria;
+ delete last row of very large table (with delete_row)
+ do a bulk insert
+ crash
+ Then UNDO_BULK_INSERT_WITH_REPAIR will truncate table files, and
+ UNDO_ROW_DELETE will want to put the row back to its original position,
+ extending the data file a lot: bitmap page*s* in the hole must be created,
+ or he table would look corrupted.
+
+ We need to log REDOs for bitmap creation, consider: we apply a REDO for a
+ data page, which creates the first data page covered by a new bitmap
+ not yet created. If the data page is flushed but the bitmap page is not and
+ there is a crash, re-execution of the REDO will complain about the zeroed
+ bitmap page (see it as corruption). Thus a REDO is needed to re-create the
+ bitmap.
+
+ @param  info              Maria handler
+ @param  bitmap            Bitmap handler
+ @param  page              Last bitmap page to create
+
+ @note When this function is called this must be true:
+ ((page + 1) * bitmap->block_size > info->s->state.state.data_file_length)
+
+*/
+
+static my_bool _ma_bitmap_create_missing(MARIA_HA *info,
+                                         MARIA_FILE_BITMAP *bitmap,
+                                         pgcache_page_no_t page)
+{
+  MARIA_SHARE *share= info->s;
+  uint block_size= bitmap->block_size;
+  pgcache_page_no_t from, to;
+  my_off_t data_file_length= share->state.state.data_file_length;
+  DBUG_ENTER("_ma_bitmap_create_missing");
+
+  /* First (in offset order) bitmap page to create */
+  if (data_file_length < block_size)
+    goto err; /* corrupted, should have first bitmap page */
+
+  from= (data_file_length / block_size - 1) / bitmap->pages_covered + 1;
+  from*= bitmap->pages_covered;
+  /*
+    page>=from because:
+    (page + 1) * bs > dfl, and page == k * pc so:
+    (k * pc + 1) * bs > dfl; k * pc + 1 > dfl / bs; k * pc > dfl / bs - 1
+    k > (dfl / bs - 1) / pc; k >= (dfl / bs - 1) / pc + 1
+    k * pc >= ((dfl / bs - 1) / pc + 1) * pc == from.
+  */
+  DBUG_ASSERT(page >= from);
+
+  if (share->now_transactional)
+  {
+    LSN lsn;
+    uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2];
+    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    page_store(log_data + FILEID_STORE_SIZE, from);
+    page_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE, page);
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+    /*
+      We don't use info->trn so that this REDO is always executed even though
+      the UNDO does not reach disk due to crash. This is also consistent with
+      the fact that the new bitmap pages are not pinned.
+    */
+    if (translog_write_record(&lsn, LOGREC_REDO_BITMAP_NEW_PAGE,
+                              &dummy_transaction_object, info,
+                              (translog_size_t)sizeof(log_data),
+                              TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                              log_data, NULL))
+      goto err;
+    /*
+      No need to flush the log: the bitmap pages we are going to create will
+      flush it when they go to disk.
+    */
+  }
+
+  /*
+    Last bitmap page. It has special creation: will go to the page cache
+    only later as we are going to modify it very soon.
+  */
+  bzero(bitmap->map, bitmap->block_size);
+  bitmap->used_size= 0;
+#ifndef DBUG_OFF
+  memcpy(bitmap->map + bitmap->block_size, bitmap->map, bitmap->block_size);
+#endif
+
+  /* Last bitmap page to create before 'page' */
+  DBUG_ASSERT(page >= bitmap->pages_covered);
+  to= page - bitmap->pages_covered;
+  /*
+    In run-time situations, from>=to is always false, i.e. we always create
+    one bitmap at a time ('page').
+  */
+  if ((from <= to) &&
+      _ma_bitmap_create_missing_into_pagecache(share, bitmap, from, to,
+                                               bitmap->map))
+    goto err;
+
+  share->state.state.data_file_length= (page + 1) * bitmap->block_size;
+
+ DBUG_RETURN(FALSE);
+err:
+ DBUG_RETURN(TRUE);
+}
+
+
+my_bool _ma_apply_redo_bitmap_new_page(MARIA_HA *info,
+                                       LSN lsn __attribute__ ((unused)),
+                                       const uchar *header)
+{
+  MARIA_SHARE *share= info->s;
+  MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  my_bool error;
+  pgcache_page_no_t from, to, min_from;
+  DBUG_ENTER("_ma_apply_redo_bitmap_new_page");
+
+  from= page_korr(header);
+  to=   page_korr(header + PAGE_STORE_SIZE);
+  DBUG_PRINT("info", ("from: %lu to: %lu", (ulong)from, (ulong)to));
+  if ((from > to) ||
+      (from % bitmap->pages_covered) != 0 ||
+      (to % bitmap->pages_covered) != 0)
+  {
+    error= TRUE; /* corrupted log record */
+    goto err;
+  }
+
+  min_from= (share->state.state.data_file_length / bitmap->block_size - 1) /
+    bitmap->pages_covered + 1;
+  min_from*= bitmap->pages_covered;
+  if (from < min_from)
+  {
+    DBUG_PRINT("info", ("overwrite bitmap pages from %lu", (ulong)min_from));
+    /*
+      We have to overwrite. It could be that there was a bitmap page in
+      memory, covering a data page which went to disk, then crash: the
+      bitmap page is now full of zeros and is ==min_from, we have to overwrite
+      it with correct checksum.
+    */
+  }
+  share->state.changed|= STATE_CHANGED;
+  bzero(info->buff, bitmap->block_size);
+  if (!(error=
+        _ma_bitmap_create_missing_into_pagecache(share, bitmap, from, to,
+                                                 info->buff)))
+    share->state.state.data_file_length= (to + 1) * bitmap->block_size;
+
+err:
+  DBUG_RETURN(error);
 }

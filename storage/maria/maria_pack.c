@@ -2977,7 +2977,7 @@ static int save_state(MARIA_HA *isam_file,PACK_MRG_INFO *mrg,
   share->state.version=(ulong) time((time_t*) 0);
   if (share->base.born_transactional)
     share->state.create_rename_lsn= share->state.is_of_horizon=
-      LSN_REPAIRED_BY_MARIA_CHK;
+      share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
   if (! maria_is_all_keys_active(share->state.key_map, share->base.keys))
   {
     /*

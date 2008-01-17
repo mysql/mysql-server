@@ -1077,7 +1077,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       DROP+CREATE happened (applying REDOs to the wrong table).
     */
     share.kfile.file= file;
-    if (_ma_update_create_rename_lsn_sub(&share, lsn, FALSE))
+    if (_ma_update_state_lsns_sub(&share, lsn, FALSE, TRUE))
       goto err;
     my_free(log_data, MYF(0));
   }
@@ -1288,43 +1288,47 @@ int _ma_initialize_data_file(MARIA_SHARE *share, File dfile)
 
 
 /**
-   @brief Writes create_rename_lsn and is_of_horizon to disk, can force.
+   @brief Writes create_rename_lsn, skip_redo_lsn and is_of_horizon to disk,
+   can force.
 
    This is for special cases where:
    - we don't want to write the full state to disk (so, not call
    _ma_state_info_write()) because some parts of the state may be
    currently inconsistent, or because it would be overkill
    - we must sync these LSNs immediately for correctness.
-   It acquires intern_lock to protect the two LSNs and state write.
+   It acquires intern_lock to protect the LSNs and state write.
 
    @param  share           table's share
    @param  do_sync         if the write should be forced to disk
+   @param  update_create_rename_lsn if this LSN should be updated or not
 
    @return Operation status
      @retval 0      ok
      @retval 1      error (disk problem)
 */
 
-int _ma_update_create_rename_lsn(MARIA_SHARE *share,
-                                 LSN lsn, my_bool do_sync)
+int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
+                          my_bool update_create_rename_lsn)
 {
   int res;
   pthread_mutex_lock(&share->intern_lock);
-  res= _ma_update_create_rename_lsn_sub(share, lsn, do_sync);
+  res= _ma_update_state_lsns_sub(share, lsn, do_sync,
+                                 update_create_rename_lsn);
   pthread_mutex_unlock(&share->intern_lock);
   return res;
 }
 
 
 /**
-   @brief Writes create_rename_lsn and is_of_horizon to disk, can force.
+   @brief Writes create_rename_lsn, skip_redo_lsn and is_of_horizon to disk,
+   can force.
 
-   Shortcut of _ma_update_create_rename_lsn() when we know that
-   intern_lock is not needed (when creating a table or opening it for the
-   first time).
+   Shortcut of _ma_update_state_lsns() when we know that intern_lock is not
+   needed (when creating a table or opening it for the first time).
 
    @param  share           table's share
    @param  do_sync         if the write should be forced to disk
+   @param  update_create_rename_lsn if this LSN should be updated or not
 
    @return Operation status
      @retval 0      ok
@@ -1338,28 +1342,34 @@ int _ma_update_create_rename_lsn(MARIA_SHARE *share,
 */
 #pragma optimize("",off)
 #endif
-int _ma_update_create_rename_lsn_sub(MARIA_SHARE *share,
-                                     LSN lsn, my_bool do_sync)
+int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
+                              my_bool update_create_rename_lsn)
 {
-  char buf[LSN_STORE_SIZE*2], *ptr;
+  char buf[LSN_STORE_SIZE * 3], *ptr;
   File file= share->kfile.file;
   DBUG_ASSERT(file >= 0);
   for (ptr= buf; ptr < (buf + sizeof(buf)); ptr+= LSN_STORE_SIZE)
     lsn_store(ptr, lsn);
-  share->state.is_of_horizon= share->state.create_rename_lsn= lsn;
-  if (share->id != 0)
+  share->state.skip_redo_lsn= share->state.is_of_horizon= lsn;
+  if (update_create_rename_lsn)
   {
-    /*
-      If OP is the operation which is calling us, if table is later written,
-      we could see in the log:
-      FILE_ID ... REDO_OP ... REDO_INSERT.
-      (that can happen in real life at least with OP=REPAIR).
-      As FILE_ID will be ignored by Recovery because it is <
-      create_rename_lsn, REDO_INSERT would be ignored too, wrongly.
-      To avoid that, we force a LOGREC_FILE_ID to be logged at next write:
-    */
-    translog_deassign_id_from_share(share);
+    share->state.create_rename_lsn= lsn;
+    if (share->id != 0)
+    {
+      /*
+        If OP is the operation which is calling us, if table is later written,
+        we could see in the log:
+        FILE_ID ... REDO_OP ... REDO_INSERT.
+        (that can happen in real life at least with OP=REPAIR).
+        As FILE_ID will be ignored by Recovery because it is <
+        create_rename_lsn, REDO_INSERT would be ignored too, wrongly.
+        To avoid that, we force a LOGREC_FILE_ID to be logged at next write:
+      */
+      translog_deassign_id_from_share(share);
+    }
   }
+  else
+    lsn_store(buf, share->state.create_rename_lsn);
   return my_pwrite(file, buf, sizeof(buf),
                    sizeof(share->state.header) +
                    MARIA_FILE_CREATE_RENAME_LSN_OFFSET, MYF(MY_NABP)) ||

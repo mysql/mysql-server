@@ -550,14 +550,9 @@ int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
   /* flush data file first because it's more critical */
   if (flush_data_or_index & MARIA_FLUSH_DATA)
   {
-    if (info->opt_flag & WRITE_CACHE_USED)
-    {
-      /* normally any code which creates a WRITE_CACHE destroys it later */
-      DBUG_ASSERT(0);
-      if (end_io_cache(&info->rec_cache))
-        goto err;
-      info->opt_flag&= ~WRITE_CACHE_USED;
-    }
+    if ((info->opt_flag & WRITE_CACHE_USED) &&
+        flush_io_cache(&info->rec_cache))
+      goto err;
     if (share->data_file_type == BLOCK_RECORD)
     {
       if(_ma_bitmap_flush(share) ||

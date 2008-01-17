@@ -148,6 +148,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   MARIA_SHARE *share= tbl_info->s;
   struct st_msg_to_write_hook_for_clr_end *msg=
     (struct st_msg_to_write_hook_for_clr_end *)hook_arg;
+  my_bool error= FALSE;
   DBUG_ASSERT(trn->trid != 0);
   trn->undo_lsn= msg->previous_undo_lsn;
 
@@ -175,12 +176,18 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_KEY_INSERT:
   case LOGREC_UNDO_KEY_DELETE:
     break;
+  case LOGREC_UNDO_BULK_INSERT_WITH_REPAIR:
+    error= (maria_enable_indexes(tbl_info) ||
+            /* we enabled indices, need '2' below */
+            _ma_state_info_write(share, 1|2|4));
+    /* no need for _ma_reset_status(): REDO_DELETE_ALL is just before us */
+    break;
   default:
     DBUG_ASSERT(0);
   }
   if (trn->undo_lsn == LSN_IMPOSSIBLE) /* has fully rolled back */
     trn->first_undo_lsn= LSN_WITH_FLAGS_TO_FLAGS(trn->first_undo_lsn);
-  return 0;
+  return error;
 }
 
 
@@ -966,14 +973,17 @@ my_bool _ma_apply_undo_key_insert(MARIA_HA *info, LSN undo_lsn,
 
 /**
    @brief Undo of delete of key (ie, insert the deleted key)
+
+   @param  with_root       If the UNDO is UNDO_KEY_DELETE_WITH_ROOT
 */
 
 my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header, uint length)
+                                  const uchar *header, uint length,
+                                  my_bool with_root)
 {
   LSN lsn;
   my_bool res;
-  uint keynr;
+  uint keynr, skip_bytes;
   uchar key[HA_MAX_KEY_BUFF];
   MARIA_SHARE *share= info->s;
   my_off_t new_root;
@@ -984,10 +994,12 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
                           STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
   keynr= key_nr_korr(header);
-  length-= KEY_NR_STORE_SIZE;
+  skip_bytes= KEY_NR_STORE_SIZE + (with_root ? PAGE_STORE_SIZE : 0);
+  header+= skip_bytes;
+  length-= skip_bytes;
 
   /* We have to copy key as _ma_ck_real_write_btree() may change it */
-  memcpy(key, header + KEY_NR_STORE_SIZE, length);
+  memcpy(key, header, length);
   DBUG_DUMP("key", key, length);
 
   new_root= share->state.key_root[keynr];

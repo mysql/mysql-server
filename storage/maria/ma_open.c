@@ -332,7 +332,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     if ((share->options & HA_OPTION_RELIES_ON_SQL_LAYER) &&
         ! (open_flags & HA_OPEN_FROM_SQL_LAYER))
     {
-      DBUG_PRINT("error", ("table cannot be openned from non-sql layer"));
+      DBUG_PRINT("error", ("table cannot be opened from non-sql layer"));
       my_errno= HA_ERR_UNSUPPORTED;
       goto err;
     }
@@ -628,6 +628,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
                              LSN_STORE_SIZE + TRANSID_SIZE :
                              0) + KEYPAGE_KEYID_SIZE + KEYPAGE_FLAG_SIZE +
                             KEYPAGE_USED_SIZE);
+    share->kfile.file= kfile;
 
     if (open_flags & HA_OPEN_COPY)
     {
@@ -652,13 +653,16 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           view of the server, including server's recovery) now.
         */
         if ((open_flags & HA_OPEN_FROM_SQL_LAYER) || maria_in_recovery)
-          _ma_update_create_rename_lsn_sub(share, translog_get_horizon(),
-                                           TRUE);
+          _ma_update_state_lsns_sub(share, translog_get_horizon(),
+                                    TRUE, TRUE);
       }
       else if ((!LSN_VALID(share->state.create_rename_lsn) ||
                 !LSN_VALID(share->state.is_of_horizon) ||
                 (cmp_translog_addr(share->state.create_rename_lsn,
-                                   share->state.is_of_horizon) > 0)) &&
+                                   share->state.is_of_horizon) > 0) ||
+                !LSN_VALID(share->state.skip_redo_lsn) ||
+                (cmp_translog_addr(share->state.create_rename_lsn,
+                                   share->state.skip_redo_lsn) > 0)) &&
                !(open_flags & HA_OPEN_FOR_REPAIR))
       {
         /*
@@ -735,7 +739,6 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->tot_locks++;
     }
 
-    share->kfile.file= kfile;
     _ma_set_index_pagecache_callbacks(&share->kfile, share);
     share->this_process=(ulong) getpid();
     share->last_process= share->state.process;
@@ -1140,12 +1143,12 @@ uint _ma_state_info_write_sub(File file, MARIA_STATE_INFO *state, uint pWrite)
   mi_int2store(ptr,state->changed);			ptr+= 2;
 
   /*
-    if you change the offset of create_rename_lsn/is_of_horizon inside the
-    index file's header, fix ma_create + ma_rename + ma_delete_all +
-    backward-compatibility.
+    If you change the offset of these LSNs, note that some functions do a
+    direct write of them without going through this function.
   */
   lsn_store(ptr, state->create_rename_lsn);		ptr+= LSN_STORE_SIZE;
   lsn_store(ptr, state->is_of_horizon);			ptr+= LSN_STORE_SIZE;
+  lsn_store(ptr, state->skip_redo_lsn);			ptr+= LSN_STORE_SIZE;
   mi_rowstore(ptr,state->state.records);		ptr+= 8;
   mi_rowstore(ptr,state->state.del);			ptr+= 8;
   mi_rowstore(ptr,state->split);			ptr+= 8;
@@ -1211,6 +1214,7 @@ static uchar *_ma_state_info_read(uchar *ptr, MARIA_STATE_INFO *state)
   state->changed= mi_uint2korr(ptr);			ptr+= 2;
   state->create_rename_lsn= lsn_korr(ptr);		ptr+= LSN_STORE_SIZE;
   state->is_of_horizon= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
+  state->skip_redo_lsn= lsn_korr(ptr);			ptr+= LSN_STORE_SIZE;
   state->state.records= mi_rowkorr(ptr);		ptr+= 8;
   state->state.del = mi_rowkorr(ptr);			ptr+= 8;
   state->split	= mi_rowkorr(ptr);			ptr+= 8;
@@ -1695,7 +1699,8 @@ int maria_enable_indexes(MARIA_HA *info)
   int error= 0;
   MARIA_SHARE *share= info->s;
 
-  if (share->state.state.data_file_length ||
+  if ((share->state.state.data_file_length !=
+       (share->data_file_type == BLOCK_RECORD ? share->block_size : 0)) ||
       (share->state.state.key_file_length != share->base.keystart))
   {
     maria_print_error(info->s, HA_ERR_CRASHED);

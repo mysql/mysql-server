@@ -893,6 +893,11 @@ int main(int argc, char *argv[])
     maria_scan_end(file);
     goto err;
   }
+  if (testflag == 6)
+    goto end;
+  if (checkpoint == 6 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
+
 end:
   maria_scan_end(file);
   if (die_in_middle_of_transaction)
