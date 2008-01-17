@@ -85,6 +85,24 @@ BEGIN {
   }
 }
 
+END {
+  # Kill any children still running
+  for my $proc (values %running){
+    if ( $proc->is_child($$) ){
+      print "Killing: $proc\n";
+      $proc->kill();
+    }
+  }
+}
+
+
+sub is_child {
+  my ($self, $parent_pid)= @_;
+  die "usage: \$safe_proc->is_child()" unless (@_ == 2 and ref $self);
+  return ($self->{PARENT} == $parent_pid);
+}
+
+
 # Find the safe process binary or script
 my @safe_process_cmd;
 my $safe_kill;
@@ -96,7 +114,7 @@ if (IS_WIN32PERL or IS_CYGWIN){
   push(@safe_process_cmd, $exe);
 
   # Use my_safe_kill.exe
-  my $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
+  $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
   die "Could not find my_safe_kill" unless $safe_kill;
 }
 else
@@ -185,6 +203,7 @@ sub new {
       SAFE_WINPID  => $winpid,
       SAFE_NAME => $name,
       SAFE_SHUTDOWN => $shutdown,
+      PARENT => $$,
      }, $class);
 
   # Put the new process in list of running
@@ -216,6 +235,7 @@ sub timer {
       ({
 	SAFE_PID  => $pid,
 	SAFE_NAME => "timer",
+	PARENT => $$,
        }, $class);
 
     # Put the new process in list of running

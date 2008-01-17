@@ -1313,42 +1313,64 @@ void show_diff(DYNAMIC_STRING* ds,
                const char* filename1, const char* filename2)
 {
 
+  const char* diff_failed= 0;
   DYNAMIC_STRING ds_tmp;
 
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
 
-  /* First try with unified diff */
+  /* First try with diff --help to see if the command exists at all */
   if (run_tool("diff",
                &ds_tmp, /* Get output from diff in ds_tmp */
-               "-u",
-               filename1,
-               filename2,
+               "--help",
                "2>&1",
-               NULL) > 1) /* Most "diff" tools return >1 if error */
+               NULL) != 0) /* Most "diff --help" tools return 0 */
+  {
+    diff_failed= "You don't appear to have diff installed";
+  }
+  else
   {
     dynstr_set(&ds_tmp, "");
+    /* First try with unified diff */
 
-    /* Fallback to context diff with "diff -c" */
     if (run_tool("diff",
                  &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-c",
+                 "-u",
                  filename1,
                  filename2,
                  "2>&1",
                  NULL) > 1) /* Most "diff" tools return >1 if error */
     {
-      /*
-        Fallback to dump both files to result file and inform
-        about installing "diff"
-      */
       dynstr_set(&ds_tmp, "");
 
-      dynstr_append(&ds_tmp,
+      /* Fallback to context diff with "diff -c" */
+      if (run_tool("diff",
+                   &ds_tmp, /* Get output from diff in ds_tmp */
+                   "-c",
+                   filename1,
+                   filename2,
+                   "2>&1",
+                   NULL) > 1) /* Most "diff" tools return >1 if error */
+      {
+        dynstr_set(&ds_tmp, "");
+        diff_failed= "Could not execute 'diff -u' or 'diff -c'";
+      }
+    }
+  }
+
+  if (diff_failed)
+  {
+    /*
+      Fallback to dump both files to result file and inform
+      about installing "diff"
+    */
+	dynstr_append(&ds_tmp, "\n");
+    dynstr_append(&ds_tmp, diff_failed);
+    dynstr_append(&ds_tmp,
 "\n"
 "The two files differ but it was not possible to execute 'diff' in\n"
-"order to show only the difference, tried both 'diff -u' or 'diff -c'.\n"
-"Instead the whole content of the two files was shown for you to diff manually. ;)\n\n"
+"order to show only the difference. Instead the whole content of the\n"
+"two files was shown for you to diff manually.\n\n"
 "To get a better report you should install 'diff' on your system, which you\n"
 "for example can get from http://www.gnu.org/software/diffutils/diffutils.html\n"
 #ifdef __WIN__
@@ -1356,16 +1378,15 @@ void show_diff(DYNAMIC_STRING* ds,
 #endif
 "\n");
 
-      dynstr_append(&ds_tmp, " --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, "<<<\n --- ");
-      dynstr_append(&ds_tmp, filename1);
-      dynstr_append(&ds_tmp, " >>>\n");
-      cat_file(&ds_tmp, filename2);
-      dynstr_append(&ds_tmp, "<<<<\n");
-    }
+    dynstr_append(&ds_tmp, " --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, "<<<\n --- ");
+    dynstr_append(&ds_tmp, filename1);
+    dynstr_append(&ds_tmp, " >>>\n");
+    cat_file(&ds_tmp, filename2);
+    dynstr_append(&ds_tmp, "<<<<\n");
   }
 
   if (ds)
@@ -7385,6 +7406,9 @@ void do_get_replace(struct st_command *command)
     if (!*from)
       die("Wrong number of arguments to replace_result in '%s'",
           command->query);
+#ifdef __WIN__
+    fix_win_paths(to, from - to);
+#endif
     insert_pointer_name(&from_array,to);
     to= get_string(&buff, &from, command);
     insert_pointer_name(&to_array,to);

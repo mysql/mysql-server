@@ -48,6 +48,7 @@ use File::Copy;
 use File::Temp qw / tempdir /;
 use My::SafeProcess;
 use My::ConfigFactory;
+use My::Options;
 use mtr_cases;
 
 our $is_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
@@ -123,7 +124,6 @@ sub using_extern { return (keys %opts_extern > 0);};
 
 our $opt_fast= 0;
 our $opt_force;
-our $opt_reorder= 0;
 our $opt_mem= $ENV{'MTR_MEM'};
 
 our $opt_gcov;
@@ -161,6 +161,9 @@ my $opt_start_timeout   =    30; # 30 seconds
 
 my $opt_start;
 my $opt_start_dirty;
+my $opt_repeat= 1;
+my $opt_retry= 1;
+my $opt_retry_failure= 2;
 
 my $opt_strace_client;
 
@@ -230,7 +233,7 @@ sub main {
 
   # Figure out which tests we are going to run
   mtr_report("Collecting tests...");
-  my $tests= collect_test_cases($opt_suites);
+  my $tests= collect_test_cases($opt_suites, \@opt_cases);
 
   initialize_servers();
 
@@ -367,15 +370,16 @@ sub command_line_setup {
              'report-features'          => \$opt_report_features,
              'comment=s'                => \$opt_comment,
              'fast'                     => \$opt_fast,
-             'reorder'                  => \$opt_reorder,
+             'reorder'                  => \&collect_option,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
 	     'print-testcases'          => \&collect_option,
-# TODO 'repeat'
-# TODO 'retry'
+	     'repeat=i'                 => \$opt_repeat,
+	     'retry=i'                  => \$opt_retry,
+	     'retry-failure=i'          => \$opt_retry_failure,
              'timer!'                   => \$opt_timer,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
@@ -543,7 +547,7 @@ sub command_line_setup {
       if $opt_tmpdir;
 
     # Search through list of locations that are known
-    # to be "fast disks" to list to find a suitable location
+    # to be "fast disks" to find a suitable location
     # Use --mem=<dir> as first location to look.
     my @tmpfs_locations= ($opt_mem, "/dev/shm", "/tmp");
 
@@ -551,8 +555,8 @@ sub command_line_setup {
     {
       if ( -d $fs )
       {
-	$opt_mem= "$fs/var";
-	$opt_mem .= $opt_mtr_build_thread if $opt_mtr_build_thread;
+	my $template= "var_${opt_mtr_build_thread}_XXXX";
+	$opt_mem= tempdir( $template, DIR => $fs, CLEANUP => 0);
 	last;
       }
     }
@@ -776,7 +780,6 @@ sub set_mtr_build_thread_ports($) {
       mtr_require_unique_id_and_wait("/tmp/mysql-test-ports", 200, 299);
     print "got ".$mtr_build_thread."\n";
   }
-  $opt_mtr_build_thread= $mtr_build_thread;
   $ENV{MTR_BUILD_THREAD}= $mtr_build_thread;
 
   # Calculate baseport
@@ -788,7 +791,7 @@ sub set_mtr_build_thread_ports($) {
               "($opt_baseport - $opt_baseport + 9)");
   }
 
-  mtr_report("Using MR_BUILD_THREAD $opt_mtr_build_thread,",
+  mtr_report("Using MR_BUILD_THREAD $mtr_build_thread,",
 	     "with reserved ports $opt_baseport..".($opt_baseport+9));
 
 }
@@ -1276,21 +1279,13 @@ sub remove_stale_vardir () {
     {
       # var is a symlink
 
-      if ( $opt_mem and readlink($opt_vardir) eq $opt_mem )
+      if ( $opt_mem )
       {
 	# Remove the directory which the link points at
 	mtr_verbose("Removing " . readlink($opt_vardir));
 	rmtree(readlink($opt_vardir));
 
 	# Remove the "var" symlink
-	mtr_verbose("unlink($opt_vardir)");
-	unlink($opt_vardir);
-      }
-      elsif ( $opt_mem )
-      {
-	# Just remove the "var" symlink
-	mtr_report(" - WARNING: Removing '$opt_vardir' symlink it's wrong");
-
 	mtr_verbose("unlink($opt_vardir)");
 	unlink($opt_vardir);
       }
@@ -1756,7 +1751,39 @@ sub run_tests {
       next;
     }
 
-    run_testcase($tinfo);
+    for my $repeat (1..$opt_repeat){
+
+      if (run_testcase($tinfo))
+      {
+	# Testcase failed, enter retry mode
+	my $retries= 1;
+	while ($retries <= $opt_retry){
+	  mtr_report("\nRetrying, attempt($retries/$opt_retry)...\n");
+
+	  if (run_testcase($tinfo) <= 0)
+	  {
+	    # Testcase suceeded
+
+	    my $test_has_failed= $tinfo->{failures} || 0;
+	    if (!$test_has_failed){
+	      last;
+	    }
+	  }
+	  else
+	  {
+	    # Testcase failed
+
+	    # Limit number of test failures
+	    my $failures= $tinfo->{failures};
+	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
+	      mtr_report("Test has failed $failures times, no more retries!\n");
+	      last;
+	    }
+	  }
+	  $retries++;
+	}
+      }
+    }
   }
   # Kill the test suite timer
   $suite_timeout_proc->kill();
@@ -2080,27 +2107,28 @@ sub run_testcase_check_skip_test($)
 }
 
 
-sub dynamic_binlog_format_switch {
-  my ($tinfo, $mysqld)= @_;
+sub run_query {
+  my ($tinfo, $mysqld, $query)= @_;
 
-  my $sql= "include/set_binlog_format_".$tinfo->{binlog_format_switch}.".sql";
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+
+  mtr_add_arg($args, "-e %s", $query);
+
   my $res= My::SafeProcess->run
     (
-     name          => "switch binlog format ".$mysqld->name(),
+     name          => "run_query -> ".$mysqld->name(),
      path          => $exe_mysql,
      args          => \$args,
-     input         => $sql,
+     output        => '/dev/null',
+     error         => '/dev/null'
     );
 
-  if ($res != 0)
-  {
-    mtr_error("Failed to switch binlog format");
-  }
+  return $res
 }
+
 
 sub do_before_run_mysqltest($)
 {
@@ -2197,6 +2225,11 @@ my %old_env;
 #
 # Run a single test case
 #
+# RETURN VALUE
+#  0 OK
+#  > 0 failure
+#
+
 sub run_testcase ($) {
   my $tinfo=  shift;
 
@@ -2375,7 +2408,7 @@ sub run_testcase ($) {
       # Remove the file that mysql-test-run writes info to
       unlink($path_current_test_log);
 
-      return;
+      return ($res == 62) ? 0 : $res;
 
     }
 
@@ -2402,7 +2435,7 @@ sub run_testcase ($) {
 	"Server failed during test run";
 
       report_failure_and_restart($tinfo);
-      return;
+      return 1;
     }
 
     # ----------------------------------------------------
@@ -2413,7 +2446,7 @@ sub run_testcase ($) {
       mtr_report("Test case timeout!");
       $tinfo->{'timeout'}= 1;           # Mark as timeout
       report_failure_and_restart($tinfo);
-      return;
+      return 1;
     }
 
     # ----------------------------------------------------
@@ -2427,6 +2460,7 @@ sub run_testcase ($) {
 
     mtr_error("Unhandled process $proc exited");
   }
+  mtr_error("Should never come here");
 }
 
 
@@ -2575,7 +2609,7 @@ sub mysqld_stop {
 sub mysqld_arguments ($$$) {
   my $args=              shift;
   my $mysqld=            shift;
-  my $extra_opt=         shift;
+  my $extra_opts=        shift;
 
   my $prefix= "";               # If mysqltest server arg
   if ( $opt_embedded_server )
@@ -2590,7 +2624,7 @@ sub mysqld_arguments ($$$) {
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
   if (!$is_win32 and $euid == 0 and
-      (grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt)) == 0) {
+      (grep(/^--user/, @$extra_opts)) == 0) {
     mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
@@ -2611,8 +2645,7 @@ sub mysqld_arguments ($$$) {
   }
 
   # Check if "extra_opt" contains skip-log-bin
-  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/,
-			@$extra_opt, @opt_extra_mysqld_opt);
+  my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
 
   if ( $opt_debug )
   {
@@ -2627,7 +2660,7 @@ sub mysqld_arguments ($$$) {
   }
 
   my $found_skip_core= 0;
-  foreach my $arg ( @opt_extra_mysqld_opt, @$extra_opt )
+  foreach my $arg ( @$extra_opts )
   {
     # Allow --skip-core-file to be set in <testname>-[master|slave].opt file
     if ($arg eq "--skip-core-file")
@@ -2656,9 +2689,12 @@ sub mysqld_arguments ($$$) {
 }
 
 
+
 sub mysqld_start ($$) {
   my $mysqld=            shift;
-  my $extra_opt=         shift;
+  my $extra_opts=        shift;
+
+  mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
   my $exe= $exe_mysqld;
   my $wait_for_pid_file= 1;
@@ -2674,7 +2710,7 @@ sub mysqld_start ($$) {
     valgrind_arguments($args, \$exe);
   }
 
-  mysqld_arguments($args,$mysqld,$extra_opt);
+  mysqld_arguments($args,$mysqld,$extra_opts);
 
   if ( $opt_gdb || $opt_manual_gdb )
   {
@@ -2743,7 +2779,7 @@ sub mysqld_start ($$) {
   }
 
   # Remember options used when starting
-  $mysqld->{'started_opts'}= $extra_opt;
+  $mysqld->{'started_opts'}= $extra_opts;
 
   return;
 }
@@ -2757,11 +2793,17 @@ sub stop_all_servers () {
   My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill
 			    started(all_servers()));
 
+  # Remove pidfiles
+  foreach my $server ( all_servers() )
+  {
+    my $pid_file= $server->if_exist('pid-file');
+    unlink($pid_file) if defined $pid_file;
+  }
+
   # Mark servers as stopped
   map($_->{proc}= undef, all_servers());
 
 }
-
 
 
 # Find out if server should be restarted for this test
@@ -2816,38 +2858,38 @@ sub server_need_restart {
     }
   }
 
-  my $is_mysqld=  grep ($server eq $_, mysqlds());
+  my $is_mysqld= grep ($server eq $_, mysqlds());
   if ($is_mysqld)
   {
 
     # Check that running process was started with same options
     # as the current test requires
-    my $extra_opt= get_extra_opt($server, $tinfo);
+    my $extra_opts= get_extra_opts($server, $tinfo);
     my $started_opts= $server->{'started_opts'};
-    if (defined $started_opts and $extra_opt and
-	! mtr_same_opts($started_opts, $extra_opt) )
-    {
-      # TODO Use a list  to find all options that can be set dynamically
 
-      # Check if diff is binlog format only
-      # and the next test has $binlog_format_switch set
-      my @diff_opts= mtr_diff_opts($started_opts, $extra_opt);
-      if (@diff_opts == 2 and
-	  $diff_opts[0] =~/^--binlog-format=/ and
-	  $diff_opts[1] =~/^--binlog-format=/ and
-	  defined $tinfo->{binlog_format_switch})
-      {
-	mtr_verbose("Using dynamic switch of binlog format from ",
-		    $diff_opts[0],"to", $diff_opts[1]);
-	dynamic_binlog_format_switch($tinfo, $server);
-      }
-      else
-      {
+    if (!My::Options::same($started_opts, $extra_opts) )
+    {
+      my $use_dynamic_option_switch= 0;
+      return 1 if (!$use_dynamic_option_switch);
+
+      mtr_verbose(My::Options::toStr("started_opts", @$started_opts));
+      mtr_verbose(My::Options::toStr("extra_opts", @$extra_opts));
+
+      # Get diff and check if dynamic switch is possible
+      my @diff_opts= My::Options::diff($started_opts, $extra_opts);
+      mtr_verbose(My::Options::toStr("diff_opts", @diff_opts));
+
+      my $query= My::Options::toSQL(@diff_opts);
+      mtr_verbose("Attempting dynamic switch '$query'");
+      if (run_query($tinfo, $server, $query)){
 	mtr_verbose("Restart: running with different options '" .
-		    join(" ", @{$extra_opt}) . "' != '" .
+		    join(" ", @{$extra_opts}) . "' != '" .
 		    join(" ", @{$server->{'started_opts'}}) . "'" );
 	return 1;
       }
+
+      # Remember the dynamically set options
+      $server->{'started_opts'}= $extra_opts;
     }
   }
 
@@ -2895,7 +2937,7 @@ sub started { return grep(defined $_, map($_->{proc}, @_));  }
 sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 
-sub get_extra_opt {
+sub get_extra_opts {
   my ($mysqld, $tinfo)= @_;
 
   return
@@ -2915,7 +2957,7 @@ sub stop_servers($$) {
     # All servers are going down, use some kind of order to
     # avoid too many warnings in the log files
 
-   mtr_verbose("All servers are going down");
+   mtr_report("Restarting all servers");
 
     #  mysqld processes
     My::SafeProcess::shutdown( $opt_shutdown_timeout, started(mysqlds()) );
@@ -2926,6 +2968,8 @@ sub stop_servers($$) {
   }
   else
   {
+    mtr_report("Restarting ", started(@servers));
+
      # Stop only some servers
     My::SafeProcess::shutdown( $opt_shutdown_timeout,
 			       started(@servers) );
@@ -3031,8 +3075,8 @@ sub start_servers($) {
       return 1;
     }
 
-    my $extra_opt= get_extra_opt($mysqld, $tinfo);
-    mysqld_start($mysqld,$extra_opt);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_start($mysqld,$extra_opts);
 
     # Save this test case information, so next can examine it
     $mysqld->{'started_tinfo'}= $tinfo;
@@ -3549,8 +3593,10 @@ Options to control what test suites or cases to run
   skip-test=PREFIX or REGEX
                         Skip test cases which name are prefixed with PREFIX
                         or fulfills REGEX
-  start-from=PREFIX     Run test cases starting from test prefixed with PREFIX
-  suite[s]=NAME1,..,NAMEN Collect tests in suites from the comma separated
+  start-from=PREFIX     Run test cases starting test prefixed with PREFIX where
+                        prefix may be suite.testname or just testname
+  suite[s]=NAME1,..,NAMEN
+                        Collect tests in suites from the comma separated
                         list of suite names.
                         The default is: "$opt_suites"
   skip-rpl              Skip the replication test cases.
@@ -3634,6 +3680,10 @@ Misc options
                         the first specified test case
   fast                  Run as fast as possible, dont't wait for servers
                         to shutdown etc.
+  repeat=N              Run each test N number of times
+  retry=N               Retry tests that fail N times, limit number of failures
+                        to $opt_retry_failure
+  retry-failure=N       Limit number of retries for a failed test
   reorder               Reorder tests to get fewer server restarts
   help                  Get this help text
 

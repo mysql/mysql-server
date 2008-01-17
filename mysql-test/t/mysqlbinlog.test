@@ -4,6 +4,9 @@
 
 -- source include/have_log_bin.inc
 
+# Deletes all the binary logs
+reset master;
+
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
 
