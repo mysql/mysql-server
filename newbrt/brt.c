@@ -1613,16 +1613,17 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
     r=toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
+    r=toku_log_addchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0);
     if (r!=0) return r;
-    r=toku_log_insertchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, nodea->thisnodename);
+    r=toku_log_setchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, nodea->thisnodename);
     if (r!=0) return r;
-    r=toku_log_insertchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 1, nodeb->thisnodename);
+    r=toku_log_setchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 1, nodeb->thisnodename);
     if (r!=0) return r;
     {
 	BYTESTRING bs;
 	bs.len = splitk.size;
 	bs.data = splitk.data;
-	r=toku_log_insertpivot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, bs);
+	r=toku_log_setpivot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, bs);
 	if (r!=0) return r;
     }
     r=toku_cachetable_unpin(brt->cf, nodea->thisnodename, nodea->dirty, brtnode_size(nodea)); 

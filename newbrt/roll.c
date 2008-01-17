@@ -203,10 +203,27 @@ int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
 }
 
 
-int toku_rollback_insertchild (struct logtype_insertchild *le, TOKUTXN txn) ABORTIT
-void toku_recover_insertchild (struct logtype_insertchild *le) { le=le; abort(); }
-int toku_rollback_insertpivot (struct logtype_insertpivot *le, TOKUTXN txn) ABORTIT
-void toku_recover_insertpivot (struct logtype_insertpivot *le) { le=le; abort(); }
+int toku_rollback_addchild (struct logtype_addchild *le, TOKUTXN txn) ABORTIT
+void toku_recover_addchild (struct logtype_addchild *le) { le=le; abort(); }
+
+int toku_rollback_setchild (struct logtype_setchild *le, TOKUTXN txn) ABORTIT
+void toku_recover_setchild (struct logtype_setchild *le) {
+    struct cf_pair *pair;
+    int r = find_cachefile(le->filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height>0);
+    assert(le->childnum < (unsigned)node->u.n.n_children);
+    node->u.n.children[le->childnum] = le->child;
+    r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+}
+int toku_rollback_setpivot (struct logtype_setpivot *le, TOKUTXN txn) ABORTIT
+void toku_recover_setpivot (struct logtype_setpivot *le) { le=le; abort(); }
 
 void toku_recover_fopen (struct logtype_fopen *c) {
     char *fname = fixup_fname(&c->fname);
