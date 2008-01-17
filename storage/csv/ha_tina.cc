@@ -56,6 +56,7 @@ TODO:
 #define META_BUFFER_SIZE sizeof(uchar) + sizeof(uchar) + sizeof(ulonglong) \
   + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(ulonglong) + sizeof(uchar)
 #define TINA_CHECK_HEADER 254 // The number we use to determine corruption
+#define BLOB_MEMROOT_ALLOC_SIZE 8192
 
 /* The file extension */
 #define CSV_EXT ".CSV"               // The data file
@@ -597,6 +598,8 @@ int ha_tina::find_current_row(uchar *buf)
   bool read_all;
   DBUG_ENTER("ha_tina::find_current_row");
 
+  free_root(&blobroot, MYF(MY_MARK_BLOCKS_FREE));
+
   /*
     We do not read further then local_saved_data_file_length in order
     not to conflict with undergoing concurrent insert.
@@ -684,6 +687,22 @@ int ha_tina::find_current_row(uchar *buf)
       if ((*field)->store(buffer.ptr(), buffer.length(), buffer.charset(),
                           CHECK_FIELD_WARN))
         goto err;
+      if ((*field)->flags & BLOB_FLAG)
+      {
+        Field_blob *blob= *(Field_blob**) field;
+        uchar *src, *tgt;
+        uint length, packlength;
+        
+        packlength= blob->pack_length_no_ptr();
+        length= blob->get_length(blob->ptr);
+        memcpy_fixed(&src, blob->ptr + packlength, sizeof(char*));
+        if (src)
+        {
+          tgt= (uchar*) alloc_root(&blobroot, length);
+          bmove(tgt, src, length);
+          memcpy_fixed(blob->ptr + packlength, &tgt, sizeof(char*));
+        }
+      }
     }
   }
   next_position= end_offset + eoln_len;
@@ -914,9 +933,10 @@ int ha_tina::open_update_temp_file_if_needed()
 int ha_tina::update_row(const uchar * old_data, uchar * new_data)
 {
   int size;
+  int rc= -1;
   DBUG_ENTER("ha_tina::update_row");
 
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&SSV::ha_update_count);
 
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE)
     table->timestamp_field->set_time();
@@ -931,20 +951,23 @@ int ha_tina::update_row(const uchar * old_data, uchar * new_data)
     The temp_file_length is used to calculate new data file length.
   */
   if (chain_append())
-    DBUG_RETURN(-1);
+    goto err;
 
   if (open_update_temp_file_if_needed())
-    DBUG_RETURN(-1);
+    goto err;
 
   if (my_write(update_temp_file, (uchar*)buffer.ptr(), size,
                MYF(MY_WME | MY_NABP)))
-    DBUG_RETURN(-1);
+    goto err;
   temp_file_length+= size;
+  rc= 0;
 
   /* UPDATE should never happen on the log tables */
   DBUG_ASSERT(!share->is_log_table);
 
-  DBUG_RETURN(0);
+err:
+  DBUG_PRINT("info",("rc = %d", rc));
+  DBUG_RETURN(rc);
 }
 
 
@@ -1050,6 +1073,8 @@ int ha_tina::rnd_init(bool scan)
   records_is_known= 0;
   chain_ptr= chain;
 
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
+
   DBUG_RETURN(0);
 }
 
@@ -1115,7 +1140,7 @@ void ha_tina::position(const uchar *record)
 int ha_tina::rnd_pos(uchar * buf, uchar *pos)
 {
   DBUG_ENTER("ha_tina::rnd_pos");
-  ha_statistic_increment(&SSV::ha_read_rnd_next_count);
+  ha_statistic_increment(&SSV::ha_read_rnd_count);
   current_position= (off_t)my_get_ptr(pos,ref_length);
   DBUG_RETURN(find_current_row(buf));
 }
@@ -1179,6 +1204,7 @@ int ha_tina::rnd_end()
   off_t file_buffer_start= 0;
   DBUG_ENTER("ha_tina::rnd_end");
 
+  free_root(&blobroot, MYF(0));
   records_is_known= 1;
 
   if ((chain_ptr - chain)  > 0)
@@ -1350,6 +1376,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
 
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
+
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1357,6 +1385,8 @@ int ha_tina::repair(THD* thd, HA_CHECK_OPT* check_opt)
     rows_repaired++;
     current_position= next_position;
   }
+
+  free_root(&blobroot, MYF(0));
 
   my_free((char*)buf, MYF(0));
 
@@ -1535,6 +1565,9 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
   local_saved_data_file_length= share->saved_data_file_length;
   /* set current position to the beginning of the file */
   current_position= next_position= 0;
+
+  init_alloc_root(&blobroot, BLOB_MEMROOT_ALLOC_SIZE, 0);
+
   /* Read the file row-by-row. If everything is ok, repair is not needed. */
   while (!(rc= find_current_row(buf)))
   {
@@ -1542,6 +1575,8 @@ int ha_tina::check(THD* thd, HA_CHECK_OPT* check_opt)
     count--;
     current_position= next_position;
   }
+  
+  free_root(&blobroot, MYF(0));
 
   my_free((char*)buf, MYF(0));
   thd_proc_info(thd, old_proc_info);
