@@ -1367,10 +1367,6 @@ btr_page_get_sure_split_rec(
 
 		if (UNIV_LIKELY(free_space > (ulint) free_space_zip)) {
 			free_space = (ulint) free_space_zip;
-			if (UNIV_UNLIKELY(insert_size > free_space)) {
-
-				return(NULL);
-			}
 		}
 	}
 
@@ -1815,7 +1811,23 @@ func_start:
 
 	if (split_rec) {
 		first_rec = move_limit = split_rec;
+
+		offsets = rec_get_offsets(split_rec, cursor->index, offsets,
+					  n_uniq, &heap);
+
+		insert_left = cmp_dtuple_rec(tuple, split_rec, offsets) < 0;
+
+		if (UNIV_UNLIKELY(!insert_left && new_page_zip
+				  && n_iterations > 0)) {
+			/* If a compressed page has already been split,
+			avoid further splits by inserting the record
+			to an empty page. */
+			split_rec = NULL;
+			goto insert_right;
+		}
 	} else {
+insert_right:
+		insert_left = FALSE;
 		buf = mem_alloc(rec_get_converted_size(cursor->index,
 						       tuple, n_ext));
 
@@ -1835,22 +1847,17 @@ func_start:
 	thus reducing the tree latch contention. */
 
 	if (split_rec) {
-		offsets = rec_get_offsets(split_rec, cursor->index, offsets,
-					  n_uniq, &heap);
-
-		insert_left = cmp_dtuple_rec(tuple, split_rec, offsets) < 0;
-		insert_will_fit = btr_page_insert_fits(cursor, split_rec,
-						       offsets, tuple,
-						       n_ext, heap);
+		insert_will_fit = !new_page_zip
+			&& btr_page_insert_fits(cursor, split_rec,
+						offsets, tuple, n_ext, heap);
 	} else {
 		mem_free(buf);
-		insert_left = FALSE;
-		insert_will_fit = btr_page_insert_fits(cursor, NULL,
-						       NULL, tuple,
-						       n_ext, heap);
+		insert_will_fit = !new_page_zip
+			&& btr_page_insert_fits(cursor, NULL,
+						NULL, tuple, n_ext, heap);
 	}
 
-	if (insert_will_fit && page_is_leaf(page) && !page_zip) {
+	if (insert_will_fit && page_is_leaf(page)) {
 
 		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
 				 MTR_MEMO_X_LOCK);
@@ -1985,8 +1992,7 @@ insert_failed:
 		n_iterations++;
 		ut_ad(n_iterations < 2
 		      || buf_block_get_page_zip(insert_block));
-		ut_ad(!insert_will_fit
-		      || buf_block_get_page_zip(insert_block));
+		ut_ad(!insert_will_fit);
 
 		goto func_start;
 	}
