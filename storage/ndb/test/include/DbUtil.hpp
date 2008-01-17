@@ -49,8 +49,6 @@ if (r) \
 DIE_UNLESS(r == 0);\
 }
 
-#define DBU_TRUE 1
-#define DBU_FALSE 0
 #define DBU_FAILED 1
 #define DBU_OK 0
 
