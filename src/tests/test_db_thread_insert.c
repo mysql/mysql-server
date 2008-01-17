@@ -6,8 +6,17 @@
 #include <sys/stat.h>
 #include <arpa/inet.h>
 #include <db.h>
+#include <syscall.h>
 #include <pthread.h>
 #include "test.h"
+
+static inline unsigned int getmyid() {
+#if __linux__
+    return syscall(__NR_gettid);
+#else
+    return getpid();
+#endif
+}
 
 typedef unsigned int my_t;
 
@@ -15,6 +24,7 @@ struct db_inserter {
     pthread_t tid;
     DB *db;
     my_t startno, endno;
+    int do_exit;
 };
 
 int db_put(DB *db, my_t k, my_t v) {
@@ -25,14 +35,14 @@ int db_put(DB *db, my_t k, my_t v) {
 
 void *do_inserts(void *arg) {
     struct db_inserter *mywork = (struct db_inserter *) arg;
-    printf("%lu:do_inserts:start:%d-%d\n", (unsigned long)pthread_self(), mywork->startno, mywork->endno);
+    if (verbose) printf("%lu:%u:do_inserts:start:%u-%u\n", (unsigned long)pthread_self(), getmyid(), mywork->startno, mywork->endno);
     my_t i;
     for (i=mywork->startno; i < mywork->endno; i++) {
         int r = db_put(mywork->db, htonl(i), i); assert(r == 0);
     }
     
-    printf("%lu:do_inserts:end\n", (unsigned long)pthread_self());
-    pthread_exit(0);
+    if (verbose) printf("%lu:%u:do_inserts:end\n", (unsigned long)pthread_self(), getmyid());
+    if (mywork->do_exit) pthread_exit(arg);
     return 0;
 }
 
@@ -90,17 +100,23 @@ int main(int argc, char *argv[]) {
 
     for (i=0; i<nthreads; i++) {
         work[i].db = db;
-        work[i].startno = i*n/nthreads;
-        work[i].endno = work[i].startno + n/nthreads;
-        if (i+1 == nthreads) 
+        work[i].startno = i*(n/nthreads);
+        work[i].endno = work[i].startno + (n/nthreads);
+        work[i].do_exit =1 ;
+        if (i+1 == nthreads)  
             work[i].endno = n;
     }
 
-    for (i=0; i<nthreads; i++) {
+    if (verbose) printf("pid:%u\n", getpid());
+
+    for (i=1; i<nthreads; i++) {
         r = pthread_create(&work[i].tid, 0, do_inserts, &work[i]); assert(r == 0);
     }
 
-    for (i=0; i<nthreads; i++) {
+    work[0].do_exit = 0;
+    do_inserts(&work[0]);
+
+    for (i=1; i<nthreads; i++) {
         void *ret;
         r = pthread_join(work[i].tid, &ret); assert(r == 0);
     }
