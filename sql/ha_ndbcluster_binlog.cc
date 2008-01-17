@@ -879,12 +879,9 @@ int ndbcluster_setup_binlog_table_shares(THD *thd)
   {
     pthread_mutex_lock(&LOCK_open);
     ndb_binlog_tables_inited= TRUE;
-    if (ndb_binlog_running)
-    {
-      if (ndb_extra_logging)
-        sql_print_information("NDB Binlog: ndb tables writable");
-      close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
-    }
+    if (ndb_extra_logging)
+      sql_print_information("NDB Binlog: ndb tables writable");
+    close_cached_tables((THD*) 0, 0, (TABLE_LIST*) 0, TRUE);
     pthread_mutex_unlock(&LOCK_open);
     /* Signal injector thread that all is setup */
     pthread_cond_signal(&injector_cond);
@@ -2029,6 +2026,7 @@ ndb_binlog_thread_handle_schema_event(THD *thd, Ndb *ndb,
                                ndb_schema_share->use_count));
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
+      ndb_binlog_tables_inited= 0;
       pthread_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
@@ -3226,6 +3224,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                share->key, share->use_count));
       free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
+      ndb_binlog_tables_inited= 0;
     }
     DBUG_PRINT("error", ("CLUSTER FAILURE EVENT: "
                         "%s  received share: 0x%lx  op: 0x%lx  share op: 0x%lx  "
@@ -3245,6 +3244,7 @@ ndb_binlog_thread_handle_non_data_event(THD *thd, Ndb *ndb,
                                share->key, share->use_count));
       free_share(&ndb_apply_status_share);
       ndb_apply_status_share= 0;
+      ndb_binlog_tables_inited= 0;
     }
     /* ToDo: remove printout */
     if (ndb_extra_logging)
@@ -4220,6 +4220,7 @@ err:
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
+    ndb_binlog_tables_inited= 0;
     pthread_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }
