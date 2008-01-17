@@ -54,6 +54,7 @@ REGRESSION_TESTS = \
         fifo-test \
         brt-test \
 	test_oexcl \
+	test-primes \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 BINS =  $(REGRESSION_TESTS) \
@@ -88,7 +89,8 @@ CHECKS = \
  cachetable-test2 \
  brt-serialize-test \
  brt-test fifo-test \
- test_toku_malloc_plain_free
+ test_toku_malloc_plain_free \
+ test-primes
 check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
 check_benchmarktest_256: benchmark-test
 	$(DTOOL) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
@@ -143,6 +145,8 @@ cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
 
 benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 benchmark-test.o: brt.h ../include/db.h
+
+test-primes: test-primes.o primes.o
 
 checko2:
 ifeq ($(OPTFLAGS),-O2)
