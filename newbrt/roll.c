@@ -180,8 +180,9 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
 	assert(r==0);
 	n->u.l.n_bytes_in_buffer=0;
     } else {
-	fprintf(stderr, "%s:%d\n", __FILE__, __LINE__);
-	abort();
+	n->u.n.n_children = 0;
+	n->u.n.totalchildkeylens = 0;
+	n->u.n.n_bytes_in_buffers = 0;
     }
     // Now put it in the cachetable
     toku_cachetable_put(pair->cf, c->diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
@@ -201,6 +202,11 @@ int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
     return 0;
 }
 
+
+int toku_rollback_insertchild (struct logtype_insertchild *le, TOKUTXN txn) ABORTIT
+void toku_recover_insertchild (struct logtype_insertchild *le) { le=le; abort(); }
+int toku_rollback_insertpivot (struct logtype_insertpivot *le, TOKUTXN txn) ABORTIT
+void toku_recover_insertpivot (struct logtype_insertpivot *le) { le=le; abort(); }
 
 void toku_recover_fopen (struct logtype_fopen *c) {
     char *fname = fixup_fname(&c->fname);
