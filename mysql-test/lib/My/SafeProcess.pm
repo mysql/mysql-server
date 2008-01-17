@@ -90,22 +90,35 @@ my @safe_process_cmd;
 my $safe_kill;
 if (IS_WIN32PERL or IS_CYGWIN){
   # Use my_safe_process.exe
-  my $exe= my_find_bin(".", "lib/My/SafeProcess", "my_safe_process.exe");
-  die "Could not find my_safe_process.exe" unless $exe;
+  my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
+		       "my_safe_process");
+  die "Could not find my_safe_process" unless $exe;
   push(@safe_process_cmd, $exe);
 
   # Use my_safe_kill.exe
   my $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
-  die "Could not find my_safe_kill.exe" unless $safe_kill;
+  die "Could not find my_safe_kill" unless $safe_kill;
 }
-else {
-  # Use safe_process.pl
-  my $script=  "lib/My/SafeProcess/safe_process.pl";
-  $script= "../$script" unless -f $script;
-  die "Could not find safe_process.pl" unless -f $script;
+else
+{
+  my $use_safe_process_binary= 1;
+  if ($use_safe_process_binary) {
+    # Use my_safe_process
+    my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
+			 "my_safe_process");
+    die "Could not find my_safe_process" unless $exe;
+    push(@safe_process_cmd, $exe);
+  }
+  else
+  {
+    # Use safe_process.pl
+    my $script=  "lib/My/SafeProcess/safe_process.pl";
+    $script= "../$script" unless -f $script;
+    die "Could not find safe_process.pl" unless -f $script;
 
-  # Call $script with Perl interpreter
-  push(@safe_process_cmd, $^X, $script);
+    # Call $script with Perl interpreter
+    push(@safe_process_cmd, $^X, $script);
+  }
 }
 
 

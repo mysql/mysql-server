@@ -11,7 +11,7 @@ use My::SafeProcess;
 
 my $perl_path= $^X;
 my $verbose= 0;
-my $loops= 1000;
+my $loops= 100;
 
 print "kill one and wait for one\n";
 for (1...$loops){
@@ -33,7 +33,7 @@ for (1...$loops){
 
   foreach my $proc (@procs) {
     $proc->kill();
-    # dummyd will always be kiled and thus
+    # dummyd will always be killed and thus
     # exit_status should have been set to 1
     die "oops, exit_status: ", $proc->exit_status()
       unless $proc->exit_status() == 1;
