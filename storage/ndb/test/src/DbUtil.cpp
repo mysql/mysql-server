@@ -86,13 +86,13 @@ DbUtil::databaseLogin(const char* system, const char* usr,
     exit(DBU_FAILED);
   }
 
-  mysql->reconnect = DBU_TRUE;
+  mysql->reconnect = TRUE;
 
   /* set AUTOCOMMIT */
   if(!transactional)
-    mysql_autocommit(mysql, DBU_TRUE);
+    mysql_autocommit(mysql, TRUE);
   else
-    mysql_autocommit(mysql, DBU_FALSE);
+    mysql_autocommit(mysql, FALSE);
 
   #ifdef DEBUG
     printf("\n\tConnected to MySQL server version: %s (%lu)\n\n", 
