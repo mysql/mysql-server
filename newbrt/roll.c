@@ -204,7 +204,38 @@ int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
 
 
 int toku_rollback_addchild (struct logtype_addchild *le, TOKUTXN txn) ABORTIT
-void toku_recover_addchild (struct logtype_addchild *le) { le=le; abort(); }
+void toku_recover_addchild (struct logtype_addchild *le) {
+    struct cf_pair *pair;
+    int r = find_cachefile(le->filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height>0);
+    assert(le->childnum <= (unsigned)node->u.n.n_children);
+    unsigned int i;
+    for (i=node->u.n.n_children; i+1>le->childnum; i--) {
+	node->u.n.childinfos[i]=node->u.n.childinfos[i-1];
+	BRTNODE_CHILD_DISKOFF(node,i) = BRTNODE_CHILD_DISKOFF(node, i-1);
+	node->u.n.buffers[i]      = node->u.n.buffers[i-1];
+	node->u.n.n_bytes_in_buffer[i]      = node->u.n.n_bytes_in_buffer[i-1];
+	node->u.n.n_cursors[i]              = node->u.n.n_cursors[i-1];
+	if (i!=(unsigned int)node->u.n.n_children) {
+	    node->u.n.childkeys [i]= 	    node->u.n.childkeys [i-1];
+	}
+    }
+    node->u.n.childinfos[le->childnum].subtree_fingerprint = 0;
+    node->u.n.childkeys [le->childnum] = 0;
+    node->u.n.children  [le->childnum] = -1;
+    node->u.n.buffers   [le->childnum] = 0;
+    node->u.n.n_bytes_in_buffer[le->childnum] = 0;
+    node->u.n.n_cursors[le->childnum] = 0;
+    node->u.n.n_children++;
+    r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+}
 
 int toku_rollback_setchild (struct logtype_setchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_setchild (struct logtype_setchild *le) {
@@ -223,7 +254,23 @@ void toku_recover_setchild (struct logtype_setchild *le) {
     assert(r==0);
 }
 int toku_rollback_setpivot (struct logtype_setpivot *le, TOKUTXN txn) ABORTIT
-void toku_recover_setpivot (struct logtype_setpivot *le) { le=le; abort(); }
+void toku_recover_setpivot (struct logtype_setpivot *le) {
+    struct cf_pair *pair;
+    int r = find_cachefile(le->filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height>0);
+    node->u.n.childkeys[le->childnum] = kv_pair_malloc(le->pivotkey.data, le->pivotkey.len, 0, 0);
+
+    r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+
+    toku_free(le->pivotkey.data);
+}
 
 void toku_recover_fopen (struct logtype_fopen *c) {
     char *fname = fixup_fname(&c->fname);
