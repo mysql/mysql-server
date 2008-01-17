@@ -51,8 +51,8 @@ my_bool trnman_collect_transactions(LEX_STRING *str_act, LEX_STRING *str_com,
 
 uint trnman_increment_locked_tables(TRN *trn);
 uint trnman_decrement_locked_tables(TRN *trn);
-my_bool trnman_has_locked_tables(TRN *trn);
-void trnman_reset_locked_tables(TRN *trn);
+uint trnman_has_locked_tables(TRN *trn);
+void trnman_reset_locked_tables(TRN *trn, uint locked_tables);
 TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
 TRN *trnman_get_any_trn();
 #define TRANSID_SIZE		6

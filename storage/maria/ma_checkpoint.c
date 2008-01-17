@@ -363,7 +363,7 @@ static void flush_all_tables(int what_to_flush)
       {
       case 0:
         res= _ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
-                              FLUSH_KEEP, FLUSH_KEEP);
+                                   FLUSH_KEEP, FLUSH_KEEP);
         break;
       case 1:
         res= _ma_state_info_write(info->s, 1|4);

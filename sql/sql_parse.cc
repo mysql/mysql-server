@@ -28,6 +28,10 @@
 #include "events.h"
 #include "sql_trigger.h"
 
+#ifdef WITH_MARIA_STORAGE_ENGINE
+#include "../storage/maria/ha_maria.h"
+#endif
+
 /**
   @defgroup Runtime_Environment Runtime Environment
   @{
@@ -122,6 +126,9 @@ bool end_active_trans(THD *thd)
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
     if (ha_commit(thd))
       error=1;
+#ifdef WITH_MARIA_STORAGE_ENGINE
+    ha_maria::implicit_commit(thd);
+#endif
   }
   thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
   thd->transaction.all.modified_non_trans_table= FALSE;
@@ -627,6 +634,7 @@ int end_trans(THD *thd, enum enum_mysql_completiontype completion)
              xa_state_names[thd->transaction.xid_state.xa_state]);
     DBUG_RETURN(1);
   }
+  thd->lex->start_transaction_opt= 0; /* for begin_trans() */
   switch (completion) {
   case COMMIT:
     /*

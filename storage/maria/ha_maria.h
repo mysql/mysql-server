@@ -152,4 +152,6 @@ public:
                                      *engine_callback,
                                      ulonglong *engine_data);
 #endif
+
+  static int implicit_commit(THD *thd);
 };

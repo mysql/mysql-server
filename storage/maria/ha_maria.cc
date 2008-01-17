@@ -2184,12 +2184,20 @@ skip_transaction:
 
 int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
 {
-  TRN *trn= THD_TRN;
+  TRN *trn;
   if (file->s->base.born_transactional)
   {
+    trn= THD_TRN;
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
     DBUG_ASSERT(lock_type != F_UNLCK);
+    /*
+      If there was an implicit commit under this LOCK TABLES by a previous
+      statement (like a DDL), at least if that previous statement was about a
+      different ha_maria than 'this' then this->file->trn is a stale
+      pointer. We fix it:
+    */
+    file->trn= trn;
     /*
       As external_lock() was already called, don't increment locked_tables.
       Note that we call the function below possibly several times when
@@ -2201,6 +2209,49 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
   }
   return 0;
 }
+
+
+/**
+  Performs an implicit commit of the Maria transaction and creates a new
+  one.
+
+  This can be considered a hack. When Maria loses HA_NO_TRANSACTIONS it will
+  be participant in the connection's transaction and so the implicit commits
+  (ha_commit()) (like in end_active_trans()) will do the implicit commit
+  without need to call this function which can then be removed.
+*/
+
+int ha_maria::implicit_commit(THD *thd)
+{
+#ifndef MARIA_CANNOT_ROLLBACK
+#error this method should be removed
+#endif
+  TRN *trn;
+  int error= 0;
+  DBUG_ENTER("ha_maria::implicit_commit");
+  if ((trn= THD_TRN) != NULL)
+  {
+    uint locked_tables= trnman_has_locked_tables(trn);
+    if (unlikely(ma_commit(trn)))
+      error= 1;
+    /*
+      We need to create a new transaction and put it in THD_TRN. Indeed,
+      tables may be under LOCK TABLES, and so they will start the next
+      statement assuming they have a trn (see ha_maria::start_stmt()).
+    */
+    trn= trnman_new_trn(& thd->mysys_var->mutex,
+                        & thd->mysys_var->suspend,
+                        thd->thread_stack + STACK_DIRECTION *
+                        (my_thread_stack_size - STACK_MIN_SIZE));
+    /* This is just a commit, tables stay locked if they were: */
+    trnman_reset_locked_tables(trn, locked_tables);
+    THD_TRN= trn;
+    if (unlikely(trn == NULL))
+      error= HA_ERR_OUT_OF_MEM;
+  }
+  DBUG_RETURN(error);
+}
+
 
 THR_LOCK_DATA **ha_maria::store_lock(THD *thd,
                                      THR_LOCK_DATA **to,
@@ -2494,7 +2545,7 @@ static int maria_commit(handlerton *hton __attribute__ ((unused)),
 {
   TRN *trn= THD_TRN;
   DBUG_ENTER("maria_commit");
-  trnman_reset_locked_tables(trn);
+  trnman_reset_locked_tables(trn, 0);
   /* statement or transaction ? */
   if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
     DBUG_RETURN(0); // end of statement
@@ -2509,7 +2560,7 @@ static int maria_rollback(handlerton *hton __attribute__ ((unused)),
 {
   TRN *trn= THD_TRN;
   DBUG_ENTER("maria_rollback");
-  trnman_reset_locked_tables(trn);
+  trnman_reset_locked_tables(trn, 0);
   /* statement or transaction ? */
   if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) && !all)
   {
