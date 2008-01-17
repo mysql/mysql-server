@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include "test.h"
 
 int main (int argc, char *argv[]) {
     DB_ENV *env;
@@ -17,10 +18,16 @@ int main (int argc, char *argv[]) {
     mkdir(DIR, 0777);
     r = db_env_create (&env, 0); assert(r==0);
     r = env->open(env, DIR, DB_CREATE | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); assert(r==0);
-        r = db_create(&db, env, 0);
+    r = db_create(&db, env, 0);
     assert(r==0);
-    r = db->open(db, 0, "numbers.db", 0, DB_BTREE, DB_CREATE | DB_AUTO_COMMIT, 0);
-    assert(r==0);
+    db->set_errfile(db, stderr);
+    {
+	DB_TXN *x;
+	r = env->txn_begin(env, 0, &x, 0); assert(r==0);
+	r = db->open(db, x, "numbers.db", 0, DB_BTREE, DB_CREATE, 0);
+	assert(r==0);
+	r = x->commit(x, 0); assert(r==0);
+    }
 
     DB_TXN *x1, *x2;
     r = env->txn_begin(env, 0, &x1, 0); assert(r==0);
@@ -34,7 +41,7 @@ int main (int argc, char *argv[]) {
     k2.size = k1.size = 6;
     v1.data = "there";
     v1.size = 6;
-    r = db->put(db, x1, &k1, &v1, 0); assert(r==0);
+    r = db->put(db, x1, &k1, &v1, 0); CKERR(r);
     r = db->get(db, x2, &k2, &v2, 0); assert(r==DB_LOCK_DEADLOCK || r==DB_LOCK_NOTGRANTED);
     r = x1->commit(x1, 0);         assert(r==0);
     r = x2->commit(x2, 0);         assert(r==0);
