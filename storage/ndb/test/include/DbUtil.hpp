@@ -19,14 +19,11 @@
 #ifndef DBUTIL_HPP
 #define DBUTIL_HPP
 
-#include <time.h>
-#include <stdio.h>
-#include <string.h>
+#include <NDBT.hpp>
+#include <BaseString.hpp>
+#include <Properties.hpp>
+#include <Vector.hpp>
 #include <mysql.h>
-//include "rand.h"
-#include <stdlib.h>
-#include "BaseString.hpp"
-#include "NDBT.hpp"
 
 //#define DEBUG
 #define  DIE_UNLESS(expr) \
@@ -49,6 +46,41 @@ if (r) \
 DIE_UNLESS(r == 0);\
 }
 
+
+class SqlResultSet : public Properties {
+public:
+
+  // Get row with number
+  bool get_row(int row_num);
+  // Load next row
+  bool next(void);
+  // Reset iterator
+  void reset(void);
+  // Remove current row from resultset
+  void remove();
+
+  SqlResultSet();
+  ~SqlResultSet();
+
+  const char* column(const char* col_name);
+  uint columnAsInt(const char* col_name);
+
+  uint insertId();
+  uint affectedRows();
+  uint numRows(void);
+  uint mysqlErrno();
+  const char* mysqlError();
+  const char* mysqlSqlstate();
+
+private:
+  uint get_int(const char* name);
+  const char* get_string(const char* name);
+
+  const Properties* m_curr_row;
+  uint m_curr_row_num;
+};
+
+
 #define DBU_FAILED 1
 #define DBU_OK 0
 
@@ -56,10 +88,22 @@ class DbUtil
 {
 public:
 
-  /* Deprecated, see DbUtil(dbname, suffix) */
-  DbUtil(const char * databaseName);
-  DbUtil(const char* dbname, const char* suffix = NULL);
+  DbUtil(MYSQL* mysql);
+  DbUtil(const char* dbname = "mysql",
+         const char* user = "root",
+         const char* pass = "",
+         const char* suffix = NULL);
   ~DbUtil();
+
+  bool doQuery(const char* query);
+  bool doQuery(const char* query, SqlResultSet& result);
+  bool doQuery(const char* query, const Properties& args, SqlResultSet& result);
+
+  bool doQuery(BaseString& str);
+  bool doQuery(BaseString& str, SqlResultSet& result);
+  bool doQuery(BaseString& str, const Properties& args, SqlResultSet& result);
+
+  bool waitConnected(int timeout);
 
   /* Deprecated, see connect() */
   void  databaseLogin(const char * system,
@@ -74,24 +118,34 @@ public:
   const char * getPassword(){return m_pass.c_str();};
   const char * getHost()    {return m_host.c_str();};
   const char * getSocket()  {return m_socket.c_str();};
-  const char * getServerType(){return mysql_get_server_info(mysql);};
+  const char * getServerType(){return mysql_get_server_info(m_mysql);};
   const char * getError();
 
-  MYSQL * getMysql(){return mysql;};
+  MYSQL * getMysql(){return m_mysql;};
   MYSQL_STMT * STDCALL mysqlSimplePrepare(const char *query);
 
   void databaseLogout();
   void mysqlCloseStmHandle(MYSQL_STMT *my_stmt);
 
   int connect();
+  void disconnect();
   int selectDb();
   int selectDb(const char *);
   int createDb(BaseString&);
-  int doQuery(BaseString&);
-  int doQuery(const char *);
   int getErrorNumber();
 
   unsigned long selectCountTable(const char * table);
+
+protected:
+
+  bool runQuery(const char* query,
+               const Properties& args,
+               SqlResultSet& rows);
+
+  bool isConnected();
+
+  MYSQL * m_mysql;
+  bool m_free_mysql; /* Don't free mysql* if allocated elsewhere */
 
 private:
 
@@ -102,14 +156,10 @@ private:
   BaseString m_pass;       // MySQL User Password
   BaseString m_dbname;     // Database to use
   BaseString m_socket;     // MySQL Server Unix Socket
-  BaseString default_file;
-  BaseString default_group;
+  BaseString m_default_file;
+  BaseString m_default_group;
 
   unsigned int m_port;     // MySQL Server port
-
-  MYSQL * mysql;
-  MYSQL_RES * m_result;
-  MYSQL_ROW m_row;
 
   void setDbName(const char * name){m_dbname.assign(name);};
   void setUser(const char * user_name){m_user.assign(user_name);};
@@ -120,7 +170,7 @@ private:
   void printError(const char *msg);
   void printStError(MYSQL_STMT *stmt, const char *msg);
   void die(const char *file, int line, const char *expr); // stop program
-  
+
 };
 #endif
 
