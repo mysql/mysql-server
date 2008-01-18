@@ -1,7 +1,7 @@
 # On OSX do:
 #   make OSX=OSX
 
-LIBNAME=libdb
+LIBNAME=librangetree
 
 OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
@@ -20,12 +20,9 @@ SHARED=-shared
 endif
 
 .PHONY: install logformat
-install: logformat $(LIBNAME).$(LIBEXT) $(LIBNAME).a
-	cp $(LIBNAME).$(LIBEXT) ../lib/
-	cp $(LIBNAME).a ../lib
-
-logformat:
-	(cd ../newbrt;make)
+install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
+	cp $(LIBNAME).$(LIBEXT) ../../lib/
+	cp $(LIBNAME).a ../../lib
 
 check: $(LIBNAME).$(LIBEXT)
 	python tokuglobals.py $(LIBNAME).$(LIBEXT)
@@ -37,8 +34,9 @@ clean:
 	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
 	cd tests;make clean
 
-ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
-DBBINS = ydb.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o
+
+linear.o:
+DBBINS = linear.o
 
 $(LIBNAME).$(LIBEXT): $(DBBINS)
 	cc  $(CPPFLAGS) $(DBBINS) $(SHARED) -o $@ $(CFLAGS) -lz
