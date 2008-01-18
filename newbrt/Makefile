@@ -55,6 +55,7 @@ REGRESSION_TESTS = \
         brt-test \
 	test_oexcl \
 	test-primes \
+	list-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 BINS =  $(REGRESSION_TESTS) \
@@ -90,7 +91,8 @@ CHECKS = \
  brt-serialize-test \
  brt-test fifo-test \
  test_toku_malloc_plain_free \
- test-primes
+ test-primes \
+ list-test
 check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
 check_benchmarktest_256: benchmark-test
 	$(DTOOL) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
