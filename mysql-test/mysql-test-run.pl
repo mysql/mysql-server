@@ -2312,9 +2312,16 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   if ( $opt_start or $opt_start_dirty )
   {
-    mtr_report("\nServers started, sleeping");
-    sleep(1) while (1);
-    exit(0);
+    $suite_timeout_proc->kill();
+    mtr_report("\nServers started, waiting for any of them to die...");
+    my $proc= My::SafeProcess->wait_any();
+    if ( grep($proc eq $_, started(all_servers())) )
+    {
+      mtr_report("Server $proc died");
+      exit(1);
+    }
+    mtr_report("Unknown process $proc died");
+    exit(1);
   }
 
   my $test_timeout_proc= My::SafeProcess->timer($opt_testcase_timeout * 60);
