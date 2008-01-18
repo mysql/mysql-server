@@ -2,8 +2,9 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <db.h>
-
+#include <assert.h>
+#include <rangetree.h>
+#include <errno.h>
 int verbose=0;
 
 #define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, strerror(r)); assert(r==0); })
@@ -38,3 +39,36 @@ static inline uint32_t myrandom (void) {
     return rstate;
 }
 
+
+int dummy_cmp(void *a __attribute__((__unused__)),  
+              void *b __attribute__((__unused__))) {
+    return 0;
+}
+
+int ptr_cmp(void *a, void *b) {
+    return a < b ? -1 : (a != b); /* \marginpar{!?} */
+}
+
+int int_cmp(void *a, void *b) {
+    int x = *(int*)a;
+    int y = *(int*)b;
+    return x -y;
+}
+
+int char_cmp(void *a, void *b) {
+    int x = *(char*)a;
+    int y = *(char*)b;
+    return x -y;
+}
+
+void* toku_malloc(size_t size) {
+    return malloc(size);
+}
+
+void toku_free(void* p) {
+    free(p);
+}
+
+void* toku_realloc(void *ptr, size_t size) {
+    return realloc(ptr, size);
+}

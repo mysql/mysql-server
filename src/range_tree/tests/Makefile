@@ -10,21 +10,21 @@ ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  LIBEXT=dylib
  VGRIND=
- TDB_LOADLIBES = -L../ -ldb
+ TDB_LOADLIBES = -L../ -lrangetree
  SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
  UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
 else
  SETTOKUENV=
  UNSETTOKUENV=
  LIBEXT=so
- TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,.. -lpthread
+ TDB_LOADLIBES = -L../ -lrangetree -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
 LIBNAME=librt.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -Wall -Werror $(OPTFLAGS) -g $(GCOV_FLAGS)
-TDB_CPPFLAGS = -I../ -I../../newbrt
+TDB_CPPFLAGS = -I../ -I../../../newbrt
 
 
 SRCS = $(wildcard *.c)
@@ -33,7 +33,7 @@ TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
 BDB_TESTS = $(patsubst %.c,%.bdb,$(SRCS))
 LINEAR_TESTS = $(patsubst %.c,%.bdb,$(SRCS))
 
-ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
+ALL_TESTS = $(TDB_TESTS) #$(BDB_TESTS)
 
 RUN_TDB_TESTS = $(patsubst %.tdb,%.tdbrun,$(TDB_TESTS))
 RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
@@ -126,15 +126,14 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 libs:
 	cd ..;make
 
-%.bdb: %.c
-	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -ldb -o $@
-%.tdb: %.c
+%.bdb: %.c ../rangetree.h test.h
+	$(UNSETTOKUENV) cc  -DDIR=\"dir.$<.bdb\" $(BDB_CPPFLAGS) -DUSE_BDB -DIS_TDB=0 $(CFLAGS) $< $(BDB_LDFLAGS) -lrangetree -o $@
+%.tdb: %.c ../rangetree.h test.h
 	$(SETTOKUENV) cc  -DDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
 %.recover: %.tdb
-	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover;make $(VERBQUIET)
 	$(MAYBEATSIGN) cd ..;make $(VERBQUIET)
 	$(MAYBEATSIGN) $(VGRIND) ./$<
 	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
