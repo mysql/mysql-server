@@ -38,7 +38,7 @@
 
 extern long long n_items_malloced;
 
-static DISKOFF malloc_diskblock (BRT brt, int size);
+static int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKUTXN);
 //static void verify_local_fingerprint_nonleaf (BRTNODE node);
 
 /* Frees a node, including all the stuff in the hash table. */
@@ -237,14 +237,16 @@ int kvpair_compare (const void *av, const void *bv) {
 #endif
 
 /* Forgot to handle the case where there is something in the freelist. */
-static DISKOFF malloc_diskblock_header_is_in_memory (BRT brt, int size) {
+static int malloc_diskblock_header_is_in_memory (DISKOFF *res, BRT brt, int size, TOKUTXN txn) {
     DISKOFF result = brt->h->unused_memory;
     brt->h->unused_memory+=size;
     brt->h->dirty = 1;
-    return result;
+    int r = toku_log_changeunusedmemory(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), result, brt->h->unused_memory);
+    *res = result;
+    return r;
 }
 
-DISKOFF malloc_diskblock (BRT brt, int size) {
+int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKUTXN txn) {
 #if 0
     int r = read_and_pin_brt_header(brt->fd, &brt->h);
     assert(r==0);
@@ -255,7 +257,7 @@ DISKOFF malloc_diskblock (BRT brt, int size) {
 	return result;
     }
 #else
-    return malloc_diskblock_header_is_in_memory(brt,size);
+    return malloc_diskblock_header_is_in_memory(res, brt,size, txn);
 #endif
 }
 
@@ -303,7 +305,9 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 static void create_new_brtnode (BRT t, BRTNODE *result, int height, TOKUTXN txn) {
     TAGMALLOC(BRTNODE, n);
     int r;
-    DISKOFF name = malloc_diskblock(t, t->h->nodesize);
+    DISKOFF name;
+    r = malloc_diskblock(&name, t, t->h->nodesize, txn);
+    assert(r==0);
     assert(n);
     assert(t->h->nodesize>0);
     //printf("%s:%d malloced %lld (and malloc again=%lld)\n", __FILE__, __LINE__, name, malloc_diskblock(t, t->nodesize));
@@ -1448,7 +1452,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	    t->h->n_named_roots++;
 	    if ((t->h->names[t->h->n_named_roots-1] = toku_strdup(dbname)) == 0)                                { assert(errno==ENOMEM); r=ENOMEM; goto died_after_read_and_pin; }
 	    //printf("%s:%d t=%p\n", __FILE__, __LINE__, t);
-	    t->h->roots[t->h->n_named_roots-1] = malloc_diskblock_header_is_in_memory(t, t->h->nodesize);
+	    r = malloc_diskblock_header_is_in_memory(&t->h->roots[t->h->n_named_roots-1], t, t->h->nodesize, txn);
+	    if (r!=0) goto died_after_read_and_pin;
 	    t->h->dirty = 1;
 	    if ((r=setup_brt_root_node(t, t->h->roots[t->h->n_named_roots-1], txn))!=0) goto died_after_read_and_pin;
 	}
@@ -1593,8 +1598,18 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     int r;
     int new_height = nodea->height+1;
     int new_nodesize = brt->h->nodesize;
-    DISKOFF newroot_diskoff=malloc_diskblock(brt, new_nodesize);
+    DISKOFF newroot_diskoff;
+    r=malloc_diskblock(&newroot_diskoff, brt, new_nodesize, txn);
+    assert(r==0);
     assert(newroot);
+    if (brt->database_name==0) {
+	toku_log_changeunnamedroot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
+    } else {
+	BYTESTRING bs;
+	bs.len = 1+strlen(brt->database_name);
+	bs.data = brt->database_name;
+	toku_log_changenamedroot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), bs, *rootp, newroot_diskoff);
+    }
     *rootp=newroot_diskoff;
     brt->h->dirty=1;
     initialize_brtnode (brt, newroot, newroot_diskoff, new_height);
@@ -1614,7 +1629,6 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     //verify_local_fingerprint_nonleaf(nodeb);
     r=toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
     if (r!=0) return r;
-    printf("doing addchild\n");
     r=toku_log_addchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0);
     if (r!=0) return r;
     r=toku_log_addchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 1);
