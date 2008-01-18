@@ -7,9 +7,8 @@
 BENCHDBS = bench.bdb/ bench.tokudb
 
 OPTFLAGS = -O2
-CXXFLAGS = -Wall -Werror -g
+CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
 # CFLAGS += -pg
-CXXFLAGS += $(OPTFLAGS)
 
 ifdef BDBDIR
 BDB_CPPFLAGS = -I$(BDBDIR)/include
@@ -24,7 +23,7 @@ TARGETS = db-benchmark-test-bdb db-benchmark-test-tokudb
 default: $(TARGETS)
 
 clean:
-	rm -rf $(TARGETS) $(BENCHDBS)
+	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
 
 db-benchmark-test-tokudb: ../lib/libtdb_cxx.a
 db-benchmark-test-tokudb: db-benchmark-test.cpp

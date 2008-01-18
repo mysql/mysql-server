@@ -6,7 +6,7 @@ BDB_LOAD=$(BDBDIR)/bin/db_load
 
 DIFF=diff -I 'db_pagesize='
 
-CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g
+CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g $(OPTFLAGS) $(GCOV_FLAGS)
 
 # vars to compile bins that handle tokudb using libdb.so
 # when one uses relative address in an rpath, the library better be located relative
