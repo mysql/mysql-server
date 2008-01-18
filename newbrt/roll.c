@@ -183,6 +183,9 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
 	n->u.n.n_children = 0;
 	n->u.n.totalchildkeylens = 0;
 	n->u.n.n_bytes_in_buffers = 0;
+	int i;
+	for (i=0; i<TREE_FANOUT+1; i++)
+	    n->u.n.n_bytes_in_buffer[i]=0;
     }
     // Now put it in the cachetable
     toku_cachetable_put(pair->cf, c->diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
@@ -205,6 +208,7 @@ int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
 
 int toku_rollback_addchild (struct logtype_addchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_addchild (struct logtype_addchild *le) {
+    printf("%s:%d %s\n", __FILE__, __LINE__, __FUNCTION__);
     struct cf_pair *pair;
     int r = find_cachefile(le->filenum, &pair);
     assert(r==0);
@@ -229,7 +233,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     node->u.n.childinfos[le->childnum].subtree_fingerprint = 0;
     node->u.n.childkeys [le->childnum] = 0;
     node->u.n.children  [le->childnum] = -1;
-    node->u.n.buffers   [le->childnum] = 0;
+    r= toku_fifo_create(&node->u.n.buffers[le->childnum]); assert(r==0);
     node->u.n.n_bytes_in_buffer[le->childnum] = 0;
     node->u.n.n_cursors[le->childnum] = 0;
     node->u.n.n_children++;
@@ -265,6 +269,7 @@ void toku_recover_setpivot (struct logtype_setpivot *le) {
     BRTNODE node = node_v;
     assert(node->height>0);
     node->u.n.childkeys[le->childnum] = kv_pair_malloc(le->pivotkey.data, le->pivotkey.len, 0, 0);
+    node->u.n.totalchildkeylens += toku_brt_pivot_key_len(pair->brt, node->u.n.childkeys[le->childnum]);
 
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);

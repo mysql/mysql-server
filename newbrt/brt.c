@@ -641,8 +641,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     node->u.n.n_cursors[childnum+1] = 0;
     fixup_child_fingerprint(node, childnum,   childa);
     fixup_child_fingerprint(node, childnum+1, childb);
-    toku_fifo_create(&node->u.n.buffers[childnum]);
-    toku_fifo_create(&node->u.n.buffers[childnum+1]);
+    r=toku_fifo_create(&node->u.n.buffers[childnum]);   assert(r==0); // ??? SHould handle this error case
+    r=toku_fifo_create(&node->u.n.buffers[childnum+1]); assert(r==0);
     node->u.n.n_bytes_in_buffer[childnum] = 0;
     node->u.n.n_bytes_in_buffer[childnum+1] = 0;
 
