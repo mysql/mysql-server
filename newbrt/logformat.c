@@ -13,6 +13,7 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
@@ -60,6 +61,22 @@ const struct logtype logtypes[] = {
 			   {"u_int8_t", "is_dup_sort", 0},
 			   {"u_int32_t", "rand4fingerprint", 0},
 			   NULLFIELD}},
+    {"changeunnamedroot", 'u', FA{{"TXNID",   "txnid", 0},
+				 {"FILENUM", "filenum", 0},
+				 {"DISKOFF", "oldroot", 0},
+				 {"DISKOFF", "newroot", 0},
+				 NULLFIELD}},
+    {"changenamedroot", 'n', FA{{"TXNID",   "txnid", 0},
+				{"FILENUM", "filenum", 0},
+				{"BYTESTRING", "name", 0},
+				{"DISKOFF", "oldroot", 0},
+				{"DISKOFF", "newroot", 0},
+				NULLFIELD}},
+    {"changeunusedmemory", 'm',  FA{{"TXNID",   "txnid", 0},
+				    {"FILENUM", "filenum", 0},
+				    {"DISKOFF", "oldunused", 0},
+				    {"DISKOFF", "newunused", 0},
+				    NULLFIELD}},
     {"addchild", 'c', FA{{"TXNID",   "txnid", 0},
 			 {"FILENUM", "filenum", 0},
 			 {"DISKOFF", "diskoff", 0},
@@ -129,7 +146,9 @@ void fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
 FILE *hf=0, *cf=0;
 
 void generate_lt_enum (void) {
+    char used_cmds[256];
     int count=0;
+    memset(used_cmds, 0, 256);
     fprintf(hf, "enum lt_cmd {");
     DO_LOGTYPES(lt,
 		({
@@ -137,6 +156,8 @@ void generate_lt_enum (void) {
 		    count++;
 		    fprintf(hf, "\n");
 		    fprintf(hf,"    LT_%-16s = '%c'", lt->name, lt->command);
+		    if (used_cmds[(unsigned char)lt->command]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice\n", __FILE__, __LINE__, lt->command, lt->command); abort(); }
+		    used_cmds[(unsigned char)lt->command]=1;
 		}));
     fprintf(hf, "\n};\n\n");
 }
