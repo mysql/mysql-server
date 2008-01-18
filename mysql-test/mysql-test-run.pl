@@ -426,11 +426,6 @@ sub command_line_setup {
     $basedir= dirname($basedir);
   }
 
-  # --------------------------------------------------------------------------
-  # Check mtr_build_thread and calculate baseport
-  # --------------------------------------------------------------------------
-  set_mtr_build_thread_ports($opt_mtr_build_thread);
-
   #
   # Find the mysqld executable to be able to find the mysqld version
   # number as early as possible
