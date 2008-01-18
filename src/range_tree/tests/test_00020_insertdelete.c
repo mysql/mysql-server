@@ -23,6 +23,13 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
     CKERR(r);
 
+    /* Verify we can insert a trivial range and lose it. */
+    range.left = &nums[1];
+    range.right = &nums[1];
+    range.data = &letters[0];
+    r = toku_rt_insert(tree, &range);   CKERR(r);
+    r = toku_rt_delete(tree, &range);   CKERR(r);
+
     range.left = &nums[1];
     range.right = &nums[5];
     range.data = &letters[0];
@@ -86,14 +93,20 @@ int main(int argc, const char *argv[]) {
     tree = NULL;
 
     /* Test no overlap case. */
-    /* Test overlap case */
     /*
         1   2   3   4   5   6   7
         |---A---|
                     |---B---|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE);
     CKERR(r);
+
+    /* Verify we can insert a trivial range and lose it. */
+    range.left = &nums[1];
+    range.right = &nums[1];
+    range.data = &letters[0];
+    r = toku_rt_insert(tree, &range);   CKERR(r);
+    r = toku_rt_delete(tree, &range);   CKERR(r);
 
     range.left = &nums[1];
     range.right = &nums[3];
