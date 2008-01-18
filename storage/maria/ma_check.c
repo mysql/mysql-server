@@ -2226,7 +2226,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   char llbuff[22],llbuff2[22];
   MARIA_SORT_INFO sort_info;
   MARIA_SORT_PARAM sort_param;
-  my_bool block_record, scan_inited= 0, reenable_logging;
+  my_bool block_record, scan_inited= 0,
+    reenable_logging= share->now_transactional;
   enum data_file_type org_data_file_type= share->data_file_type;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
@@ -2245,7 +2246,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                                       rep_quick))
     goto err;
 
-  if ((reenable_logging= share->now_transactional))
+  if (reenable_logging)
     _ma_tmp_disable_logging_for_table(info, 0);
 
   new_header_length= ((param->testflag & T_UNPACK) ? 0L :

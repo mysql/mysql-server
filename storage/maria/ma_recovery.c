@@ -2729,6 +2729,7 @@ static MARIA_HA *get_MARIA_HA_from_REDO_record(const
   MARIA_SHARE *share;
   char llbuf[22];
   my_bool index_page_redo_entry= FALSE, page_redo_entry= FALSE;
+  LINT_INIT(page);
 
   print_redo_phase_progress(rec->lsn);
   sid= fileid_korr(rec->header);
