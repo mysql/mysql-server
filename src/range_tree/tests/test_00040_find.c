@@ -2,6 +2,16 @@
 
 #include "test.h"
 
+void verify_all_overlap(toku_range* query, toku_range* list, unsigned listlen) {
+    unsigned i;
+    
+    for (i = 0; i < listlen; i++) {
+        /* Range A and B overlap iff A.left <= B.right && B.left <= A.right */
+        assert(int_cmp(query->left, list[i].right) <= 0 &&
+               int_cmp(list[i].left, query->right) <= 0);
+    }
+}
+
 int main(int argc, const char *argv[]) {
     int r;
     toku_range_tree *tree;
@@ -43,6 +53,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 1);
     assert(bufsize == 2);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -52,6 +63,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 2);
     assert(bufsize == 2);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[3];
     range.right = &nums[7];
@@ -62,6 +74,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 3);
     assert(bufsize >= 3);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -71,6 +84,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 4);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
+    
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -80,6 +95,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 3);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     /* Verify the right one is still there, and the wrong one is not there. */
     for (i = 0; i < found; i++) {
@@ -96,6 +112,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 4);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -105,6 +122,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 3);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
+
     /* Verify the right one is still there, and the wrong one is not there. */
     for (i = 0; i < found; i++) {
         assert(*(int*)buf[i].left != 2 || 
@@ -121,6 +140,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 2);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -130,6 +150,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 1);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
+
     /* Verify the right one is still there, and the wrong one is not there. */
     assert(*(int*)buf[0].left == 1 &&
            *(int*)buf[0].right == 5 &&
@@ -143,6 +165,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 0);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     /* Done */
 
@@ -163,6 +186,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 0);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[1];
     range.right = &nums[3];
@@ -172,6 +196,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 1);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[4];
     range.right = &nums[6];
@@ -181,6 +206,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 2);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[4];
     range.right = &nums[6];
@@ -190,6 +216,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 1);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
+
     /* Verify the right one is still there, and the wrong one is not there. */
     assert(*(int*)buf[0].left == 1 && 
            *(int*)buf[0].right == 3 &&
@@ -203,6 +231,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 2);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     range.left = &nums[1];
     range.right = &nums[3];
@@ -212,6 +241,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 1);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
+
     /* Verify the right one is still there, and the wrong one is not there. */
     assert(*(int*)buf[0].left == 4 && 
            *(int*)buf[0].right == 6 &&
@@ -226,6 +257,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
     assert(found == 0);
     assert(bufsize >= 4);
+    verify_all_overlap(&find_range, buf, found);
 
     /* Done */
 
