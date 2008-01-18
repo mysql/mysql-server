@@ -107,7 +107,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-pma-test benchmark-test brt-test brt-serialize-test: LDFLAGS+=-lz
+pma-test benchmark-test brt-test brt-serialize-test brtdump: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -149,6 +149,8 @@ benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o f
 benchmark-test.o: brt.h ../include/db.h
 
 test-primes: test-primes.o primes.o
+
+brtdump: brtdump.o brt-serialize.o memory.o pma.o key.o fingerprint.o log.o log_code.o roll.o cachetable.o primes.o brt.o ybt.o fifo.o mempool.o brt-verify.o
 
 checko2:
 ifeq ($(OPTFLAGS),-O2)
