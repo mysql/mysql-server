@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include <unistd.h>
 
 #include "log_header.h"
 #include "log-internal.h"
