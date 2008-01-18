@@ -53,6 +53,11 @@ int main(int argc, const char *argv[]) {
     toku_range* buf = (toku_range*)toku_malloc(2*sizeof(toku_range));
     unsigned bufsize = 2;
     unsigned found;
+
+    int stuff[3] = {0,1,2};
+    range.left = &stuff[0];
+    range.right = &stuff[1];
+    range.data = NULL;
     
     r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
     assert(tree != NULL);
@@ -63,11 +68,22 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_find(tree, NULL, 2, &buf, &bufsize, &found);
     CKERR2(r, EINVAL);
     
+    range.data = &stuff[2];
+    r = toku_rt_find(tree, &range, 2, &buf, &bufsize, &found);
+    CKERR2(r, EINVAL);
+    range.data = NULL;
+    
     r = toku_rt_find(tree, &range, 2, NULL, &bufsize, &found);
     CKERR2(r, EINVAL);
     
     r = toku_rt_find(tree, &range, 2, &buf, NULL, &found);
     CKERR2(r, EINVAL);
+    
+    unsigned oldbufsize = bufsize;
+    bufsize = 0;
+    r = toku_rt_find(tree, &range, 2, &buf, &bufsize, &found);
+    CKERR2(r, EINVAL);
+    bufsize = oldbufsize;
     
     r = toku_rt_find(tree, &range, 2, &buf, &bufsize, NULL);
     CKERR2(r, EINVAL);

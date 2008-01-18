@@ -28,6 +28,9 @@ int main(int argc, const char *argv[]) {
     range.data = &letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
+    /* Try and fail to insert exact same thing. */
+    r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
+
     range.left = &nums[2];
     range.right = &nums[6];
     range.data = &letters[0];
@@ -47,6 +50,9 @@ int main(int argc, const char *argv[]) {
     range.right = &nums[6];
     range.data = &letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
+
+    /* Try to delete again, make sure it fails. (Not there anymore) */
+    r = toku_rt_delete(tree, &range);   CKERR2(r,EDOM);
 
     range.left = &nums[2];
     range.right = &nums[6];
@@ -94,6 +100,22 @@ int main(int argc, const char *argv[]) {
     range.data = &letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
+    /* Try and fail to insert exact same thing. */
+    r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
+
+    /* Try (and fail) to insert an overlapping range in a nooverlap tree. */
+    range.left = &nums[0];
+    range.right = &nums[4];
+    range.data = &letters[0];
+    r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
+    
+    /* Try (and fail) to insert an overlapping range (different data) in a
+       nooverlap tree. */
+    range.left = &nums[0];
+    range.right = &nums[4];
+    range.data = &letters[1];
+    r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
+    
     range.left = &nums[4];
     range.right = &nums[6];
     range.data = &letters[1];
@@ -103,6 +125,9 @@ int main(int argc, const char *argv[]) {
     range.right = &nums[6];
     range.data = &letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
+
+    /* Try to delete again, make sure it fails. (Not there anymore) */
+    r = toku_rt_delete(tree, &range);   CKERR2(r,EDOM);
 
     range.left = &nums[4];
     range.right = &nums[6];
