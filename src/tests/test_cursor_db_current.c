@@ -31,10 +31,8 @@ void test_cursor_current() {
 
     unlink(fname);
 
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     int k = 42, v = 42000;
     db_put(db, k, v);
@@ -42,10 +40,12 @@ void test_cursor_current() {
  
     DBC *cursor;
 
-    r = db->cursor(db, null_txn, &cursor, 0);
-    assert(r == 0);
+    r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
 
     DBT key, data; int kk, vv;
+
+    r = cursor->c_del(cursor, 0);
+    assert(r == EINVAL);
 
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
     assert(r == EINVAL);
@@ -76,11 +76,15 @@ void test_cursor_current() {
     r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
     assert(r == DB_KEYEMPTY);
 
-    r = cursor->c_close(cursor);
-    assert(r == 0);
+    r = cursor->c_del(cursor, 0); 
+    assert(r == DB_KEYEMPTY);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&data), DB_CURRENT);
+    assert(r == DB_KEYEMPTY);
+
+    r = cursor->c_close(cursor); assert(r == 0);
+
+    r = db->close(db, 0); assert(r == 0);
 }
 
 void db_get(DB *db, int k, int v, int expectr) {
@@ -98,15 +102,12 @@ void test_reopen() {
     const char * const fname = DIR "/" "test.cursor.current.brt";
     int r;
 
-    r = db_create(&db, null_env, 0);
-    assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
-    assert(r == 0);
+    r = db_create(&db, null_env, 0); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
 
     db_get(db, 1, 1, DB_NOTFOUND);
 
-    r = db->close(db, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
 }
 
 int main(int argc, const char *argv[]) {
