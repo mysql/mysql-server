@@ -630,7 +630,7 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
         }
         else
         {
-          if ((error= file->delete_table(ddl_log_entry->name)))
+          if ((error= file->ha_delete_table(ddl_log_entry->name)))
           {
             if (error != ENOENT && error != HA_ERR_NO_SUCH_TABLE)
               break;
@@ -667,8 +667,8 @@ static int execute_ddl_log_action(THD *thd, DDL_LOG_ENTRY *ddl_log_entry)
       }
       else
       {
-        if (file->rename_table(ddl_log_entry->from_name,
-                               ddl_log_entry->name))
+        if (file->ha_rename_table(ddl_log_entry->from_name,
+                                  ddl_log_entry->name))
           break;
       }
       if ((deactivate_ddl_log_entry(ddl_log_entry->entry_pos)))
@@ -1299,9 +1299,9 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                           lpt->table_name, lpt->create_info,
                           lpt->alter_info->create_list, lpt->key_count,
                           lpt->key_info_buffer, lpt->table->file)) ||
-         lpt->table->file->create_handler_files(shadow_path, NULL,
-                                                CHF_CREATE_FLAG,
-                                                lpt->create_info))
+        lpt->table->file->ha_create_handler_files(shadow_path, NULL,
+                                                  CHF_CREATE_FLAG,
+                                                  lpt->create_info))
     {
       my_delete(shadow_frm_name, MYF(0));
       error= 1;
@@ -1353,15 +1353,15 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
     VOID(pthread_mutex_lock(&LOCK_open));
     if (my_delete(frm_name, MYF(MY_WME)) ||
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-        lpt->table->file->create_handler_files(path, shadow_path,
-                                               CHF_DELETE_FLAG, NULL) ||
+        lpt->table->file->ha_create_handler_files(path, shadow_path,
+                                                  CHF_DELETE_FLAG, NULL) ||
         deactivate_ddl_log_entry(part_info->frm_log_entry->entry_pos) ||
         (sync_ddl_log(), FALSE) ||
 #endif
 #ifdef WITH_PARTITION_STORAGE_ENGINE
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)) ||
-        lpt->table->file->create_handler_files(path, shadow_path,
-                                               CHF_RENAME_FLAG, NULL))
+        lpt->table->file->ha_create_handler_files(path, shadow_path,
+                                                  CHF_RENAME_FLAG, NULL))
 #else
         my_rename(shadow_frm_name, frm_name, MYF(MY_WME)))
 #endif
@@ -3718,14 +3718,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
     to_base= lc_to;
   }
 
-  if (!file || !(error=file->rename_table(from_base, to_base)))
+  if (!file || !(error=file->ha_rename_table(from_base, to_base)))
   {
     if (!(flags & NO_FRM_RENAME) && rename_file_ext(from,to,reg_ext))
     {
       error=my_errno;
       /* Restore old file name */
       if (file)
-        file->rename_table(to_base, from_base);
+        file->ha_rename_table(to_base, from_base);
     }
   }
   delete file;
@@ -4376,7 +4376,7 @@ send_result_message:
       if (!result_code) // recreation went ok
       {
         if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
-            ((result_code= table->table->file->analyze(thd, check_opt)) > 0))
+            ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
       }
       if (result_code) // either mysql_recreate_table or analyze failed
@@ -4486,7 +4486,7 @@ bool mysql_backup_table(THD* thd, TABLE_LIST* table_list)
                   "MySQL Administrator (mysqldump, mysql)");
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"backup", TL_READ, 0, 0, 0, 0,
-				&handler::backup, 0));
+				&handler::ha_backup, 0));
 }
 
 
@@ -4498,7 +4498,7 @@ bool mysql_restore_table(THD* thd, TABLE_LIST* table_list)
   DBUG_RETURN(mysql_admin_table(thd, table_list, 0,
 				"restore", TL_WRITE, 1, 1, 0,
 				&prepare_for_restore,
-				&handler::restore, 0));
+				&handler::ha_restore, 0));
 }
 
 
@@ -4519,7 +4519,7 @@ bool mysql_optimize_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_optimize_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"optimize", TL_WRITE, 1,0,0,0,
-				&handler::optimize, 0));
+				&handler::ha_optimize, 0));
 }
 
 
@@ -4933,7 +4933,7 @@ bool mysql_analyze_table(THD* thd, TABLE_LIST* tables, HA_CHECK_OPT* check_opt)
   DBUG_ENTER("mysql_analyze_table");
   DBUG_RETURN(mysql_admin_table(thd, tables, check_opt,
 				"analyze", lock_type, 1, 0, 0, 0,
-				&handler::analyze, 0));
+				&handler::ha_analyze, 0));
 }
 
 
@@ -4980,7 +4980,7 @@ mysql_discard_or_import_tablespace(THD *thd,
     DBUG_RETURN(-1);
   }
 
-  error=table->file->discard_or_import_tablespace(discard);
+  error= table->file->ha_discard_or_import_tablespace(discard);
 
   thd->proc_info="end";
 
@@ -5353,14 +5353,14 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
 
   switch (keys_onoff) {
   case ENABLE:
-    error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+    error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
     break;
   case LEAVE_AS_IS:
     if (!indexes_were_disabled)
       break;
     /* fall-through: disabled indexes */
   case DISABLE:
-    error= table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+    error= table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
 
   if (error == HA_ERR_WRONG_COMMAND)
@@ -6130,14 +6130,14 @@ view_err:
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
       VOID(pthread_mutex_unlock(&LOCK_open));
       DBUG_EXECUTE_IF("sleep_alter_enable_indexes", my_sleep(6000000););
-      error= table->file->enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
       break;
     case DISABLE:
       VOID(pthread_mutex_lock(&LOCK_open));
       wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
       VOID(pthread_mutex_unlock(&LOCK_open));
-      error=table->file->disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       /* COND_refresh will be signaled in close_thread_tables() */
       break;
     default:
@@ -6545,7 +6545,7 @@ view_err:
     KEY_PART_INFO *part_end;
     DBUG_PRINT("info", ("No new_table, checking add/drop index"));
 
-    table->file->prepare_for_alter();
+    table->file->ha_prepare_for_alter();
     if (index_add_count)
     {
       /* The add_index() method takes an array of KEY structs. */
@@ -6763,8 +6763,8 @@ view_err:
       t_table= table;
     }
     /* Tell the handler that a new frm file is in place. */
-    if (t_table->file->create_handler_files(path, NULL, CHF_INDEX_FLAG,
-                                            create_info))
+    if (t_table->file->ha_create_handler_files(path, NULL, CHF_INDEX_FLAG,
+                                               create_info))
       goto err_with_placeholders;
     if (thd->locked_tables && new_name == table_name && new_db == db)
     {
@@ -7064,7 +7064,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    error=to->file->write_row(to->record[0]);
+    error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
     if (error)
     {
