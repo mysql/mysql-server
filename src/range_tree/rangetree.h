@@ -23,7 +23,13 @@ typedef struct {
      Will be defined during implementation,
      and will actually be defined in a separate headers (one for linear version
      and one for binary search tree based version). */
-typedef struct {int dummy;} toku_range_tree;
+struct __toku_range_tree_internal {
+    int dummy;
+};
+
+/* These lines will remain. */
+struct __toku_range_tree_internal;
+typedef struct __toku_range_tree_internal toku_range_tree;
 
 /**
  *  Creates a range tree.
