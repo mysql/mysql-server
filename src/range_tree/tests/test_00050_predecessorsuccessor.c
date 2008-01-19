@@ -101,6 +101,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_close(tree);            CKERR(r);
 
     tree = NULL;
+    toku_free(buf);
+    buf = NULL;
 
     return 0;
 }
