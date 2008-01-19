@@ -6812,7 +6812,24 @@ DROP PROCEDURE db28318_b.t2;
 DROP DATABASE db28318_a;
 DROP DATABASE db28318_b;
 use test;
-End of 5.0 tests
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS bug29770;
+CREATE TABLE t1(a int);
+CREATE PROCEDURE bug29770()
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLSTATE '42S22' SET @state:= 'run';
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @exception:= 'run';
+SELECT x FROM t1;
+END|
+CALL bug29770();
+SELECT @state, @exception;
+@state	@exception
+run	NULL
+DROP TABLE t1;
+DROP PROCEDURE bug29770;
+# ------------------------------------------------------------------
+# -- End of 5.0 tests
+# ------------------------------------------------------------------
 
 #
 # Bug#20550.
@@ -6911,4 +6928,6 @@ END	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 DROP FUNCTION f1;
 
-End of 5.1 tests
+# ------------------------------------------------------------------
+# -- End of 5.1 tests
+# ------------------------------------------------------------------
