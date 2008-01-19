@@ -7902,7 +7902,34 @@ use test;
 
 ###########################################################################
 
---echo End of 5.0 tests
+#
+# Bug#29770 Two handlers are allowed to catch an error in an stored procedure.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP PROCEDURE IF EXISTS bug29770;
+--enable_warnings
+
+CREATE TABLE t1(a int);
+delimiter |;
+CREATE PROCEDURE bug29770()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLSTATE '42S22' SET @state:= 'run';
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET @exception:= 'run';
+  SELECT x FROM t1;
+END|
+delimiter ;|
+CALL bug29770();
+SELECT @state, @exception;
+DROP TABLE t1;
+DROP PROCEDURE bug29770;
+
+###########################################################################
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.0 tests
+--echo # ------------------------------------------------------------------
 
 ###########################################################################
 
@@ -8056,4 +8083,6 @@ DROP FUNCTION f1;
 
 ###########################################################################
 
---echo End of 5.1 tests
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.1 tests
+--echo # ------------------------------------------------------------------
