@@ -1534,14 +1534,14 @@ JOIN::reinit()
   if (exec_tmp_table1)
   {
     exec_tmp_table1->file->extra(HA_EXTRA_RESET_STATE);
-    exec_tmp_table1->file->delete_all_rows();
+    exec_tmp_table1->file->ha_delete_all_rows();
     free_io_cache(exec_tmp_table1);
     filesort_free_buffers(exec_tmp_table1,0);
   }
   if (exec_tmp_table2)
   {
     exec_tmp_table2->file->extra(HA_EXTRA_RESET_STATE);
-    exec_tmp_table2->file->delete_all_rows();
+    exec_tmp_table2->file->ha_delete_all_rows();
     free_io_cache(exec_tmp_table2);
     filesort_free_buffers(exec_tmp_table2,0);
   }
@@ -10469,9 +10469,9 @@ free_tmp_table(THD *thd, TABLE *entry)
   if (entry->file)
   {
     if (entry->db_stat)
-      entry->file->drop_table(entry->s->table_name.str);
+      entry->file->ha_drop_table(entry->s->table_name.str);
     else
-      entry->file->delete_table(entry->s->table_name.str);
+      entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
   }
 
@@ -10527,7 +10527,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   if (open_tmp_table(&new_table))
     goto err1;
   if (table->file->indexes_are_disabled())
-    new_table.file->disable_indexes(HA_KEY_SWITCH_ALL);
+    new_table.file->ha_disable_indexes(HA_KEY_SWITCH_ALL);
   table->file->ha_index_or_rnd_end();
   table->file->ha_rnd_init(1);
   if (table->no_rows)
@@ -10556,13 +10556,13 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   */
   while (!table->file->rnd_next(new_table.record[1]))
   {
-    write_err= new_table.file->write_row(new_table.record[1]);
+    write_err= new_table.file->ha_write_row(new_table.record[1]);
     DBUG_EXECUTE_IF("raise_error", write_err= HA_ERR_FOUND_DUPP_KEY ;);
     if (write_err)
       goto err;
   }
   /* copy row that filled HEAP table */
-  if ((write_err=new_table.file->write_row(table->record[0])))
+  if ((write_err=new_table.file->ha_write_row(table->record[0])))
   {
     if (new_table.file->is_fatal_error(write_err, HA_CHECK_DUP) ||
 	!ignore_last_dupp_key_error)
@@ -10593,7 +10593,7 @@ bool create_myisam_from_heap(THD *thd, TABLE *table, TMP_TABLE_PARAM *param,
   (void) table->file->ha_rnd_end();
   (void) new_table.file->close();
  err1:
-  new_table.file->delete_table(new_table.s->table_name.str);
+  new_table.file->ha_delete_table(new_table.s->table_name.str);
  err2:
   delete new_table.file;
   thd->proc_info=save_proc_info;
@@ -12025,7 +12025,7 @@ end_write(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     {
       int error;
       join->found_records++;
-      if ((error=table->file->write_row(table->record[0])))
+      if ((error=table->file->ha_write_row(table->record[0])))
       {
         if (!table->file->is_fatal_error(error, HA_CHECK_DUP))
 	  goto end;
@@ -12087,8 +12087,8 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   {						/* Update old record */
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
-    if ((error=table->file->update_row(table->record[1],
-                                       table->record[0])))
+    if ((error=table->file->ha_update_row(table->record[1],
+                                          table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
@@ -12111,7 +12111,7 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   }
   init_tmptable_sum_functions(join->sum_funcs);
   copy_funcs(join->tmp_table_param.items_to_copy);
-  if ((error=table->file->write_row(table->record[0])))
+  if ((error=table->file->ha_write_row(table->record[0])))
   {
     if (create_myisam_from_heap(join->thd, table, &join->tmp_table_param,
 				error, 0))
@@ -12147,7 +12147,7 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
   copy_fields(&join->tmp_table_param);		// Groups are copied twice.
   copy_funcs(join->tmp_table_param.items_to_copy);
 
-  if (!(error=table->file->write_row(table->record[0])))
+  if (!(error=table->file->ha_write_row(table->record[0])))
     join->send_records++;			// New group
   else
   {
@@ -12163,8 +12163,8 @@ end_unique_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     }
     restore_record(table,record[1]);
     update_tmptable_sum_func(join->sum_funcs,table);
-    if ((error=table->file->update_row(table->record[1],
-                                       table->record[0])))
+    if ((error=table->file->ha_update_row(table->record[1],
+                                          table->record[0])))
     {
       table->file->print_error(error,MYF(0));	/* purecov: inspected */
       DBUG_RETURN(NESTED_LOOP_ERROR);            /* purecov: inspected */
@@ -12207,7 +12207,7 @@ end_write_group(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
                        join->sum_funcs_end[send_group_parts]);
 	if (!join->having || join->having->val_int())
 	{
-          int error= table->file->write_row(table->record[0]);
+          int error= table->file->ha_write_row(table->record[0]);
           if (error && create_myisam_from_heap(join->thd, table,
                                                &join->tmp_table_param,
                                                error, 0))
@@ -13435,7 +13435,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (having && !having->val_int())
     {
-      if ((error=file->delete_row(record)))
+      if ((error=file->ha_delete_row(record)))
 	goto err;
       error=file->rnd_next(record);
       continue;
@@ -13462,7 +13462,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
       }
       if (compare_record(table, first_field) == 0)
       {
-	if ((error=file->delete_row(record)))
+	if ((error=file->ha_delete_row(record)))
 	  goto err;
       }
       else if (!found)
@@ -13559,7 +13559,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     }
     if (having && !having->val_int())
     {
-      if ((error=file->delete_row(record)))
+      if ((error=file->ha_delete_row(record)))
 	goto err;
       continue;
     }
@@ -13576,7 +13576,7 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     if (hash_search(&hash, org_key_pos, key_length))
     {
       /* Duplicated found ; Remove the row */
-      if ((error=file->delete_row(record)))
+      if ((error=file->ha_delete_row(record)))
 	goto err;
     }
     else
@@ -15584,7 +15584,7 @@ int JOIN::rollup_write_data(uint idx, TABLE *table_arg)
           item->save_in_result_field(1);
       }
       copy_sum_funcs(sum_funcs_end[i+1], sum_funcs_end[i]);
-      if ((write_error= table_arg->file->write_row(table_arg->record[0])))
+      if ((write_error= table_arg->file->ha_write_row(table_arg->record[0])))
       {
 	if (create_myisam_from_heap(thd, table_arg, &tmp_table_param,
                                     write_error, 0))

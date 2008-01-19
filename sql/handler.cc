@@ -1468,7 +1468,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     DBUG_RETURN(ENOENT);
 
   path= check_lowercase_names(file, path, tmp_path);
-  if ((error= file->delete_table(path)) && generate_warning)
+  if ((error= file->ha_delete_table(path)) && generate_warning)
   {
     /*
       Because file->print_error() use my_error() to generate the error message
@@ -1487,8 +1487,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
     dummy_share.table_name.length= strlen(alias);
     dummy_table.alias= alias;
 
-    file->table_share= &dummy_share;
-    file->table= &dummy_table;
+    file->change_table_ptr(&dummy_table, &dummy_share);
 
     thd->push_internal_handler(&ha_delete_table_error_handler);
     file->print_error(error, 0);
@@ -2502,12 +2501,340 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
 }
 
 
+/**
+  Repair table: public interface.
+
+  @sa handler::repair()
+*/
+
 int handler::ha_repair(THD* thd, HA_CHECK_OPT* check_opt)
 {
   int result;
   if ((result= repair(thd, check_opt)))
     return result;
   return update_frm_version(table);
+}
+
+
+/**
+  Bulk update row: public interface.
+
+  @sa handler::bulk_update_row()
+*/
+
+int
+handler::ha_bulk_update_row(const uchar *old_data, uchar *new_data,
+                            uint *dup_key_found)
+{
+  return bulk_update_row(old_data, new_data, dup_key_found);
+}
+
+
+/**
+  Delete all rows: public interface.
+
+  @sa handler::delete_all_rows()
+*/
+
+int
+handler::ha_delete_all_rows()
+{
+  return delete_all_rows();
+}
+
+
+/**
+  Reset auto increment: public interface.
+
+  @sa handler::reset_auto_increment()
+*/
+
+int
+handler::ha_reset_auto_increment(ulonglong value)
+{
+  return reset_auto_increment(value);
+}
+
+
+/**
+  Backup table: public interface.
+
+  @sa handler::backup()
+*/
+
+int
+handler::ha_backup(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return backup(thd, check_opt);
+}
+
+
+/**
+  Restore table: public interface.
+
+  @sa handler::restore()
+*/
+
+int
+handler::ha_restore(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return restore(thd, check_opt);
+}
+
+
+/**
+  Optimize table: public interface.
+
+  @sa handler::optimize()
+*/
+
+int
+handler::ha_optimize(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return optimize(thd, check_opt);
+}
+
+
+/**
+  Analyze table: public interface.
+
+  @sa handler::analyze()
+*/
+
+int
+handler::ha_analyze(THD* thd, HA_CHECK_OPT* check_opt)
+{
+  return analyze(thd, check_opt);
+}
+
+
+/**
+  Check and repair table: public interface.
+
+  @sa handler::check_and_repair()
+*/
+
+bool
+handler::ha_check_and_repair(THD *thd)
+{
+  return check_and_repair(thd);
+}
+
+
+/**
+  Disable indexes: public interface.
+
+  @sa handler::disable_indexes()
+*/
+
+int
+handler::ha_disable_indexes(uint mode)
+{
+  return disable_indexes(mode);
+}
+
+
+/**
+  Enable indexes: public interface.
+
+  @sa handler::enable_indexes()
+*/
+
+int
+handler::ha_enable_indexes(uint mode)
+{
+  return enable_indexes(mode);
+}
+
+
+/**
+  Discard or import tablespace: public interface.
+
+  @sa handler::discard_or_import_tablespace()
+*/
+
+int
+handler::ha_discard_or_import_tablespace(my_bool discard)
+{
+  return discard_or_import_tablespace(discard);
+}
+
+
+/**
+  Prepare for alter: public interface.
+
+  Called to prepare an *online* ALTER.
+
+  @sa handler::prepare_for_alter()
+*/
+
+void
+handler::ha_prepare_for_alter()
+{
+  prepare_for_alter();
+}
+
+
+/**
+  Rename table: public interface.
+
+  @sa handler::rename_table()
+*/
+
+int
+handler::ha_rename_table(const char *from, const char *to)
+{
+  return rename_table(from, to);
+}
+
+
+/**
+  Delete table: public interface.
+
+  @sa handler::delete_table()
+*/
+
+int
+handler::ha_delete_table(const char *name)
+{
+  return delete_table(name);
+}
+
+
+/**
+  Drop table in the engine: public interface.
+
+  @sa handler::drop_table()
+*/
+
+void
+handler::ha_drop_table(const char *name)
+{
+  return drop_table(name);
+}
+
+
+/**
+  Create a table in the engine: public interface.
+
+  @sa handler::create()
+*/
+
+int
+handler::ha_create(const char *name, TABLE *form, HA_CREATE_INFO *info)
+{
+  return create(name, form, info);
+}
+
+
+/**
+  Create handler files for CREATE TABLE: public interface.
+
+  @sa handler::create_handler_files()
+*/
+
+int
+handler::ha_create_handler_files(const char *name, const char *old_name,
+                        int action_flag, HA_CREATE_INFO *info)
+{
+  return create_handler_files(name, old_name, action_flag, info);
+}
+
+
+/**
+  Change partitions: public interface.
+
+  @sa handler::change_partitions()
+*/
+
+int
+handler::ha_change_partitions(HA_CREATE_INFO *create_info,
+                     const char *path,
+                     ulonglong *copied,
+                     ulonglong *deleted,
+                     const uchar *pack_frm_data,
+                     size_t pack_frm_len)
+{
+  return change_partitions(create_info, path, copied, deleted,
+                           pack_frm_data, pack_frm_len);
+}
+
+
+/**
+  Drop partitions: public interface.
+
+  @sa handler::drop_partitions()
+*/
+
+int
+handler::ha_drop_partitions(const char *path)
+{
+  return drop_partitions(path);
+}
+
+
+/**
+  Rename partitions: public interface.
+
+  @sa handler::rename_partitions()
+*/
+
+int
+handler::ha_rename_partitions(const char *path)
+{
+  return rename_partitions(path);
+}
+
+
+/**
+  Optimize partitions: public interface.
+
+  @sa handler::optimize_partitions()
+*/
+
+int
+handler::ha_optimize_partitions(THD *thd)
+{
+  return optimize_partitions(thd);
+}
+
+
+/**
+  Analyze partitions: public interface.
+
+  @sa handler::analyze_partitions()
+*/
+
+int
+handler::ha_analyze_partitions(THD *thd)
+{
+  return analyze_partitions(thd);
+}
+
+
+/**
+  Check partitions: public interface.
+
+  @sa handler::check_partitions()
+*/
+
+int
+handler::ha_check_partitions(THD *thd)
+{
+  return check_partitions(thd);
+}
+
+
+/**
+  Repair partitions: public interface.
+
+  @sa handler::repair_partitions()
+*/
+
+int
+handler::ha_repair_partitions(THD *thd)
+{
+  return repair_partitions(thd);
 }
 
 
@@ -2654,7 +2981,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= check_lowercase_names(table.file, share.path.str, name_buff);
 
-  error= table.file->create(name, &table, create_info);
+  error= table.file->ha_create(name, &table, create_info);
   VOID(closefrm(&table, 0));
   if (error)
   {
@@ -2724,7 +3051,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   create_info.table_options|= HA_OPTION_CREATE_FROM_ENGINE;
 
   check_lowercase_names(table.file, path, path);
-  error=table.file->create(path,&table,&create_info);
+  error=table.file->ha_create(path, &table, &create_info);
   VOID(closefrm(&table, 1));
 
   DBUG_RETURN(error != 0);
