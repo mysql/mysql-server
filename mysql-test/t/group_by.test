@@ -790,8 +790,6 @@ drop table t1;
 SET SQL_MODE = '';
 
 #
-
-#
 # Bug #32202: ORDER BY not working with GROUP BY
 #
 
@@ -823,6 +821,7 @@ SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1;
 SELECT * FROM t1 GROUP BY c2  ORDER BY c2 DESC, c1 DESC;
 
 DROP TABLE t1;
+
 
 --echo End of 5.0 tests
 # Bug #21174: Index degrades sort performance and 

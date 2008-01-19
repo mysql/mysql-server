@@ -619,7 +619,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   if (mysql_prepare_insert(thd, table_list, table, fields, values,
 			   update_fields, update_values, duplic, &unused_conds,
                            FALSE,
-                           (fields.elements || !value_count),
+                           (fields.elements || !value_count ||
+                            table_list->view != 0),
                            !ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
                                         MODE_STRICT_ALL_TABLES))))

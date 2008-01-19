@@ -477,6 +477,7 @@ show create table t1;
 select round(a,b) as c from t1 order by c;
 
 DROP TABLE t1, t2, t3, t4;
+
 #
 # Bug #33143: Incorrect ORDER BY for ROUND()/TRUNCATE() result
 #
