@@ -162,3 +162,24 @@ Variable_name	Value
 Com_show_status	8
 rnd_diff	tmp_table_diff
 20	8
+show global status like 'Com%function%';
+Variable_name	Value
+Com_alter_function	0
+Com_create_function	0
+Com_drop_function	0
+Com_show_function_code	0
+Com_show_function_status	0
+create function f1 (x INTEGER) returns integer
+begin
+declare ret integer;
+set ret = x * 10;
+return ret;
+end //
+drop function f1;
+show global status like 'Com%function%';
+Variable_name	Value
+Com_alter_function	0
+Com_create_function	1
+Com_drop_function	1
+Com_show_function_code	0
+Com_show_function_status	0

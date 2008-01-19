@@ -1,0 +1,46 @@
+--source include/not_embedded.inc
+--source include/have_query_cache.inc
+--source include/have_debug.inc
+
+#
+# Bug #30887 Server crashes on SET GLOBAL query_cache_size=0
+#
+flush status;
+set query_cache_type=DEMAND;
+set global query_cache_size= 1024*1024*512;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a varchar(100));
+insert into t1 values ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
+connect (bug30887con1, localhost, root, ,test);
+connect (bug30887con2, localhost, root, ,test);
+
+connection bug30887con1;
+--echo Activate debug hook and attempt to retrieve the statement from the cache.
+set session debug='+d,wait_in_query_cache_insert';
+--send select SQL_CACHE * from t1;
+
+connection default;
+let $wait_condition= select count(*)= 1 from information_schema.processlist where state= 'wait_in_query_cache_insert';
+--source include/wait_condition.inc
+
+connection bug30887con2;
+--echo On a second connection; clear the query cache.
+show status like 'Qcache_queries_in_cache';
+set global query_cache_size= 0;
+
+connection default;
+--echo Signal the debug hook to release the lock.
+select id from information_schema.processlist where state='wait_in_query_cache_insert' into @thread_id;
+kill query @thread_id;
+
+--echo Show query cache status.
+show status like 'Qcache_queries_in_cache';
+
+disconnect bug30887con1;
+disconnect bug30887con2;
+set global query_cache_size= 0;
+use test;
+drop table t1;
+
