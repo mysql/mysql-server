@@ -2249,8 +2249,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   if (reenable_logging)
     _ma_tmp_disable_logging_for_table(info, 0);
 
-  new_header_length= ((param->testflag & T_UNPACK) ? 0L :
-                      share->pack.header_length);
+  sort_param.filepos= new_header_length=
+    ((param->testflag & T_UNPACK) ? 0L : share->pack.header_length);
 
   if (!rep_quick)
   {
@@ -2321,7 +2321,6 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
 
   sort_param.read_cache=param->read_cache;
   sort_param.pos=sort_param.max_pos=share->pack.header_length;
-  sort_param.filepos=new_header_length;
   param->read_cache.end_of_file= sort_info.filelength;
   sort_param.master=1;
   sort_info.max_records= ~(ha_rows) 0;
@@ -3414,7 +3413,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
         /*
           for external plugin parser we cannot tell anything at all :(
           so, we'll use all the sort memory and start from ~10 buffpeks.
-          (see _create_index_by_sort)
+          (see _ma_create_index_by_sort)
         */
         sort_info.max_records=
           10*param->sort_buffer_length/sort_param.key_length;
@@ -5967,6 +5966,7 @@ static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file)
   if (_ma_initialize_data_file(new_info->s, new_file))
     DBUG_RETURN(1);
 
+  /* Take into account any bitmap page created above: */
   param->filepos= new_info->state->data_file_length;
 
   /* Use new virtual functions for key generation */

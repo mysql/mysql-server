@@ -2617,6 +2617,8 @@ void _ma_bitmap_set_pagecache_callbacks(PAGECACHE_FILE *file,
 /**
   Extends data file with zeroes and creates new bitmap pages into page cache.
 
+  Writes all bitmap pages in [from, to].
+
   Non-bitmap pages of zeroes are correct as they are marked empty in
   bitmaps. Bitmap pages will not be zeroes: they will get their CRC fixed when
   flushed. And if there is a crash before flush (so they are zeroes at
@@ -2632,17 +2634,24 @@ _ma_bitmap_create_missing_into_pagecache(MARIA_SHARE *share,
 {
   pgcache_page_no_t i;
   /*
-    We use my_chsize() to not rely on OS filling gaps with zeroes and to have
-    sequential order in the file (allocate all new data and bitmap pages from
-    the filesystem).
+    We do not use my_chsize() because there can be a race between when it
+    reads the physical size and when it writes (assume data_file_length is 10,
+    physical length is 8 and two data pages are in cache, and here we do a
+    my_chsize: my_chsize sees physical length is 8, then the two data pages go
+    to disk then my_chsize writes from page 8 and so overwrites the two data
+    pages, wrongly).
+    We instead rely on the filesystem filling gaps with zeroes.
   */
-  if (my_chsize(bitmap->file.file, (to + 1) * bitmap->block_size, 0,
-                MYF(MY_WME)))
-    goto err;
-  /* Write all bitmap pages in [from, to] */
   for (i= from; i <= to; i+= bitmap->pages_covered)
   {
-    /* no need to keep them pinned, they are new so flushable */
+    /**
+      No need to keep them pinned, they are new so flushable.
+      @todo but we may want to keep them pinned, as an optimization: if they
+      are not pinned they may go to disk before the data pages go (so, the
+      physical pages would be in non-ascending "sparse" order on disk), or the
+      filesystem may fill gaps with zeroes physically which is a waste of
+      time.
+    */
     if (pagecache_write(share->pagecache,
                         &bitmap->file, i, 0,
                         zeroes, PAGECACHE_PLAIN_PAGE,

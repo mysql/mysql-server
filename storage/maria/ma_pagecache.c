@@ -3396,6 +3396,7 @@ restart:
     DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
                 block->type == PAGECACHE_READ_UNKNOWN_PAGE ||
                 block->type == type ||
+                /* this is for when going to non-trans to trans */
                 (block->type == PAGECACHE_PLAIN_PAGE &&
                  type == PAGECACHE_LSN_PAGE));
     block->type= type;
@@ -4239,7 +4240,11 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       */
       DBUG_ASSERT(block->hash_link != NULL);
       DBUG_ASSERT(block->status & PCBLOCK_CHANGED);
-      /* Note that we don't store bitmap pages */
+      /*
+        Note that we don't store bitmap pages, or pages from non-transactional
+        (like temporary) tables. Don't checkpoint during Recovery which uses
+        PAGECACHE_PLAIN_PAGE.
+      */
       if (block->type != PAGECACHE_LSN_PAGE)
         continue; /* no need to store it */
       stored_list_size++;
