@@ -35,7 +35,7 @@ clean:
 	cd tests;make clean
 
 
-linear.o:
+linear.o: rangetree.h
 DBBINS = linear.o
 
 $(LIBNAME).$(LIBEXT): $(DBBINS)
