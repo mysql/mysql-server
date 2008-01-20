@@ -3211,7 +3211,7 @@ FROM
   t2, t3, t1 JOIN t2 a1 ON t1.f9 = a1.f4
 GROUP BY a4;
 
-DROP TABLE t1, t2;
+DROP TABLE t1, t2, t3, t4;
 
 --echo End of 5.0 tests.
 

@@ -4338,7 +4338,7 @@ GROUP BY a4;
 a4	f3	a6
 1	NULL	NULL
 2	NULL	NULL
-DROP TABLE t1, t2;
+DROP TABLE t1, t2, t3, t4;
 End of 5.0 tests.
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (2,22),(1,11),(2,22);
