@@ -176,7 +176,7 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_KEY_INSERT:
   case LOGREC_UNDO_KEY_DELETE:
     break;
-  case LOGREC_UNDO_BULK_INSERT_WITH_REPAIR:
+  case LOGREC_UNDO_BULK_INSERT:
     error= (maria_enable_indexes(tbl_info) ||
             /* we enabled indices, need '2' below */
             _ma_state_info_write(share, 1|2|4));

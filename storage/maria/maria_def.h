@@ -1100,8 +1100,8 @@ void _ma_set_index_pagecache_callbacks(PAGECACHE_FILE *file,
                                        MARIA_SHARE *share);
 void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
                                        my_bool log_incomplete);
-void _ma_reenable_logging_for_table(MARIA_HA *info);
-my_bool write_log_record_for_bulk_insert_with_repair(MARIA_HA *info);
+my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages);
+my_bool write_log_record_for_bulk_insert(MARIA_HA *info);
 
 
 #define MARIA_NO_CRC_NORMAL_PAGE 0xffffffff

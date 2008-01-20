@@ -641,6 +641,21 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 
 }
 
+/**
+  Transactional table doing bulk insert with one single UNDO
+  (UNDO_BULK_INSERT) and with repair.
+*/
+#define BULK_INSERT_SINGLE_UNDO_AND_REPAIR    1
+/**
+  Transactional table doing bulk insert with one single UNDO
+  (UNDO_BULK_INSERT) and with repair.
+*/
+#define BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR 2
+/**
+  None of BULK_INSERT_SINGLE_UNDO_AND_REPAIR and
+  BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR.
+*/
+#define BULK_INSERT_NONE      0
 
 ha_maria::ha_maria(handlerton *hton, TABLE_SHARE *table_arg):
 handler(hton, table_arg), file(0),
@@ -650,7 +665,7 @@ int_table_flags(HA_NULL_IN_KEY | HA_CAN_FULLTEXT | HA_CAN_SQL_HANDLER |
                 HA_FILE_BASED | HA_CAN_GEOMETRY | MARIA_CANNOT_ROLLBACK |
                 HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                 HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT),
-can_enable_indexes(1), bulk_insert_with_repair_trans(FALSE)
+can_enable_indexes(1), bulk_insert_single_undo(BULK_INSERT_NONE)
 {}
 
 
@@ -1586,7 +1601,7 @@ int ha_maria::disable_indexes(uint mode)
 int ha_maria::enable_indexes(uint mode)
 {
   int error;
-
+  DBUG_PRINT("info", ("ha_maria::enable_indexes mode: %d", mode));
   if (maria_is_all_keys_active(file->s->state.key_map, file->s->base.keys))
   {
     /* All indexes are enabled already. */
@@ -1611,10 +1626,11 @@ int ha_maria::enable_indexes(uint mode)
     param.op_name= "recreating_index";
     param.testflag= (T_SILENT | T_REP_BY_SORT | T_QUICK |
                      T_CREATE_MISSING_KEYS | T_SAFE_REPAIR);
-    if (bulk_insert_with_repair_trans)
+    if (bulk_insert_single_undo == BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR)
     {
+      bulk_insert_single_undo= BULK_INSERT_SINGLE_UNDO_AND_REPAIR;
       /*
-        Don't bump create_rename_lsn, because UNDO_BULK_INSERT_WITH_REPAIR
+        Don't bump create_rename_lsn, because UNDO_BULK_INSERT
         should not be skipped in case of crash during repair.
       */
       param.testflag|= T_NO_CREATE_RENAME_LSN;
@@ -1711,7 +1727,7 @@ void ha_maria::start_bulk_insert(ha_rows rows)
 
   can_enable_indexes= (maria_is_all_keys_active(file->s->state.key_map,
                                                 file->s->base.keys));
-  bulk_insert_with_repair_trans= FALSE;
+  bulk_insert_single_undo= BULK_INSERT_NONE;
 
   if (!(specialflag & SPECIAL_SAFE_MODE))
   {
@@ -1724,11 +1740,15 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     if (file->state->records == 0 && can_enable_indexes &&
         (!rows || rows >= MARIA_MIN_ROWS_TO_DISABLE_INDEXES))
     {
+      /**
+         @todo for a single-row INSERT SELECT, we will go into repair, which
+         is more costly (flushes, syncs) than a row write.
+      */
       maria_disable_non_unique_index(file, rows);
       if (file->s->now_transactional)
       {
-        bulk_insert_with_repair_trans= TRUE;
-        write_log_record_for_bulk_insert_with_repair(file);
+        bulk_insert_single_undo= BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR;
+        write_log_record_for_bulk_insert(file);
         /*
           Pages currently in the page cache have type PAGECACHE_LSN_PAGE, we
           are not allowed to overwrite them with PAGECACHE_PLAIN_PAGE, so
@@ -1778,11 +1798,17 @@ int ha_maria::end_bulk_insert()
   if (can_enable_indexes)
     err= enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
 end:
-  if (bulk_insert_with_repair_trans)
+  if (bulk_insert_single_undo != BULK_INSERT_NONE)
   {
     DBUG_ASSERT(can_enable_indexes);
-    /* table was transactional just before start_bulk_insert() */
-    _ma_reenable_logging_for_table(file);
+    /*
+      Table was transactional just before start_bulk_insert().
+      No need to flush pages if we did a repair (which already flushed).
+    */
+    err|=
+      _ma_reenable_logging_for_table(file,
+                                     bulk_insert_single_undo ==
+                                     BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR);
   }
   DBUG_RETURN(err);
 }
@@ -2186,7 +2212,8 @@ int ha_maria::external_lock(THD *thd, int lock_type)
   }
   else
   {
-    _ma_reenable_logging_for_table(file);
+    if (_ma_reenable_logging_for_table(file, TRUE))
+      DBUG_RETURN(1);
     /** @todo zero file->trn also in commit and rollback */
     file->trn= NULL;
     if (trn && trnman_has_locked_tables(trn))

@@ -4309,6 +4309,27 @@ err:
 
 
 #ifndef DBUG_OFF
+
+/**
+  Verifies that a file has no dirty pages.
+*/
+
+void pagecache_file_no_dirty_page(PAGECACHE *pagecache, PAGECACHE_FILE *file)
+{
+  File fd= file->file;
+  PAGECACHE_BLOCK_LINK *block;
+  for (block= pagecache->changed_blocks[FILE_HASH(*file)];
+       block != NULL;
+       block= block->next_changed)
+    if (block->hash_link->file.file == fd)
+    {
+      DBUG_PRINT("info", ("pagecache_file_not_in error"));
+      PCBLOCK_INFO(block);
+      DBUG_ASSERT(0);
+    }
+}
+
+
 /*
   Test if disk-cache is ok
 */

@@ -1357,6 +1357,28 @@ delete from t1;
 select * from t1;
 drop table t1;
 
+# Test for bug "ha_enable_transaction(on) not called by CREATE TABLE"
+# (originally from type_ranges.test)
+
+create table t1 (c int);
+insert into t1 values(1),(2);
+create table t2 select * from t1;
+--error 1060
+create table t3 select * from t1, t2; # Should give an error
+create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
+drop table t1, t2, t3;
+
+# Test for bug "maria_repair() (OPTIMIZE) leaves wrong
+# data_file_length" (originally from type_datetime.test)
+
+create table t1 (t datetime) engine=maria;
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+select * from t1;
+delete from t1 where t > 0;
+optimize table t1;
+check table t1;
+drop table t1;
+
 # End of 5.2 tests
 
 --disable_result_log

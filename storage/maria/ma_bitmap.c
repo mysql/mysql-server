@@ -2683,7 +2683,7 @@ err:
  delete last row of very large table (with delete_row)
  do a bulk insert
  crash
- Then UNDO_BULK_INSERT_WITH_REPAIR will truncate table files, and
+ Then UNDO_BULK_INSERT will truncate table files, and
  UNDO_ROW_DELETE will want to put the row back to its original position,
  extending the data file a lot: bitmap page*s* in the hole must be created,
  or he table would look corrupted.

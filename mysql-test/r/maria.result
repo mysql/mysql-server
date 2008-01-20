@@ -2101,3 +2101,36 @@ delete from t1;
 select * from t1;
 a
 drop table t1;
+create table t1 (c int);
+insert into t1 values(1),(2);
+create table t2 select * from t1;
+create table t3 select * from t1, t2;
+ERROR 42S21: Duplicate column name 'c'
+create table t3 select t1.c AS c1, t2.c AS c2,1 as "const" from t1, t2;
+drop table t1, t2, t3;
+create table t1 (t datetime) engine=maria;
+insert into t1 values (101),(691231),(700101),(991231),(10000101),(99991231),(101000000),(691231000000),(700101000000),(991231235959),(10000101000000),(99991231235959),(20030100000000),(20030000000000);
+select * from t1;
+t
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 00:00:00
+1000-01-01 00:00:00
+9999-12-31 00:00:00
+2000-01-01 00:00:00
+2069-12-31 00:00:00
+1970-01-01 00:00:00
+1999-12-31 23:59:59
+1000-01-01 00:00:00
+9999-12-31 23:59:59
+2003-01-00 00:00:00
+2003-00-00 00:00:00
+delete from t1 where t > 0;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

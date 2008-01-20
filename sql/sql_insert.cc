@@ -3705,7 +3705,7 @@ void select_create::abort()
   select_insert::abort();
   reenable_binlog(thd);
 
-  if (table && !table->s->tmp_table)
+  if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
     ha_enable_transaction(thd, TRUE);
 
   /*

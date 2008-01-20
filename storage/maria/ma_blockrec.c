@@ -6836,12 +6836,11 @@ err:
     @retval 1      Error
 */
 
-my_bool _ma_apply_undo_bulk_insert_with_repair(MARIA_HA *info,
-                                               LSN undo_lsn)
+my_bool _ma_apply_undo_bulk_insert(MARIA_HA *info, LSN undo_lsn)
 {
   my_bool error;
   LSN lsn;
-  DBUG_ENTER("_ma_apply_undo_bulk_insert_with_repair");
+  DBUG_ENTER("_ma_apply_undo_bulk_insert");
   /*
     We delete all rows, re-enable indices as bulk insert had disabled
     non-unique ones.
@@ -6850,7 +6849,7 @@ my_bool _ma_apply_undo_bulk_insert_with_repair(MARIA_HA *info,
           maria_enable_indexes(info) ||
           /* we enabled indices so need '2' below */
           _ma_state_info_write(info->s, 1|2|4) ||
-          _ma_write_clr(info, undo_lsn, LOGREC_UNDO_BULK_INSERT_WITH_REPAIR,
+          _ma_write_clr(info, undo_lsn, LOGREC_UNDO_BULK_INSERT,
                         FALSE, 0, &lsn, NULL));
   DBUG_RETURN(error);
 }

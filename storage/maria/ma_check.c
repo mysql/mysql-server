@@ -2082,10 +2082,10 @@ err:
   be tried and fail. To prevent that, we bump skip_redo_lsn, and thus we have
   to flush and sync pages so that old REDOs can be skipped.
   If this is not a bulk insert, which Recovery can handle gracefully (by
-  truncating files, see UNDO_BULK_INSERT_WITH_REPAIR) we also mark the table
+  truncating files, see UNDO_BULK_INSERT) we also mark the table
   crashed-on-repair, so that user knows it has to re-repair. If bulk insert we
   shouldn't mark it crashed-on-repair, because if we did this, the UNDO phase
-  would skip the table (UNDO_BULK_INSERT_WITH_REPAIR would not be applied),
+  would skip the table (UNDO_BULK_INSERT would not be applied),
   and maria_chk would not improve that.
   If this is an OPTIMIZE which merely sorts index, we need to do the same
   too: old REDOs should not apply to the new index file.
@@ -2532,7 +2532,7 @@ err:
   }
   /* If caller had disabled logging it's not up to us to re-enable it */
   if (reenable_logging)
-    _ma_reenable_logging_for_table(info);
+    _ma_reenable_logging_for_table(info, FALSE);
 
   my_free(sort_param.rec_buff, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
@@ -3122,24 +3122,26 @@ err:
 
 int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
 {
+  my_bool error, reenable_logging;
   DBUG_ENTER("maria_zerofill");
-
-  if (maria_zerofill_index(param, info, name))
-    DBUG_RETURN(1);
-  if (maria_zerofill_data(param, info, name))
-    DBUG_RETURN(1);
-  if (_ma_set_uuid(info, 0))
-    DBUG_RETURN(1);
-
-  /*
-    Mark that table is movable and that we have done zerofill of data and
-    index
-  */
-  info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE |
-                             STATE_MOVED);
-  /* Ensure state are flushed to disk */
-  info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  DBUG_RETURN(0);
+  if ((reenable_logging= info->s->now_transactional))
+    _ma_tmp_disable_logging_for_table(info, 0);
+  if (!(error= (maria_zerofill_index(param, info, name) ||
+                maria_zerofill_data(param, info, name) ||
+                _ma_set_uuid(info, 0))))
+  {
+    /*
+      Mark that table is movable and that we have done zerofill of data and
+      index
+    */
+    info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE |
+                               STATE_MOVED);
+    /* Ensure state are flushed to disk */
+    info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
+  }
+  if (reenable_logging)
+    _ma_reenable_logging_for_table(info, FALSE);
+  DBUG_RETURN(error);
 }
 
 
@@ -6274,7 +6276,12 @@ my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 }
 
 
-my_bool write_log_record_for_bulk_insert_with_repair(MARIA_HA *info)
+/**
+  Writes an UNDO record which if executed in UNDO phase, will empty the
+  table. Such record is thus logged only in certain cases of bulk insert
+  (table needs to be empty etc).
+*/
+my_bool write_log_record_for_bulk_insert(MARIA_HA *info)
 {
   LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
   uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
@@ -6282,7 +6289,7 @@ my_bool write_log_record_for_bulk_insert_with_repair(MARIA_HA *info)
   lsn_store(log_data, info->trn->undo_lsn);
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char*) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-  return translog_write_record(&lsn, LOGREC_UNDO_BULK_INSERT_WITH_REPAIR,
+  return translog_write_record(&lsn, LOGREC_UNDO_BULK_INSERT,
                                info->trn, info,
                                (translog_size_t)
                                log_array[TRANSLOG_INTERNAL_PARTS +

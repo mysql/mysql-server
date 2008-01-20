@@ -308,6 +308,11 @@ extern void multi_pagecache_change(PAGECACHE *old_data,
 				   PAGECACHE *new_data);
 extern int reset_pagecache_counters(const char *name,
                                     PAGECACHE *pagecache);
+#ifndef DBUG_OFF
+void pagecache_file_no_dirty_page(PAGECACHE *pagecache, PAGECACHE_FILE *file);
+#else
+#define pagecache_file_no_dirty_page(A,B) {}
+#endif
 
 C_MODE_END
 #endif /* _keycache_h */

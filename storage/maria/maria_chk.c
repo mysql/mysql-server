@@ -1070,7 +1070,10 @@ static int maria_chk(HA_CHECK *param, char *filename)
   if (param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
                          T_ZEROFILL))
   {
-    /* Mark table as not transactional to avoid logging */
+    /*
+      Mark table as not transactional to avoid logging. Should not be needed,
+      maria_repair and maria_zerofill do it already.
+    */
     _ma_tmp_disable_logging_for_table(info, FALSE);
 
     if (param->testflag & T_REP_ANY)
@@ -1253,7 +1256,7 @@ static int maria_chk(HA_CHECK *param, char *filename)
                                     ((param->testflag & T_SORT_RECORDS) ?
                                      UPDATE_SORT : 0)));
   info->update&= ~HA_STATE_CHANGED;
-  _ma_reenable_logging_for_table(info);
+  _ma_reenable_logging_for_table(info, FALSE);
   maria_lock_database(info, F_UNLCK);
 
 end2:

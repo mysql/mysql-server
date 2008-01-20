@@ -76,7 +76,7 @@ prototype_redo_exec_hook(REDO_DROP_TABLE);
 prototype_redo_exec_hook(FILE_ID);
 prototype_redo_exec_hook(INCOMPLETE_LOG);
 prototype_redo_exec_hook_dummy(INCOMPLETE_GROUP);
-prototype_redo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR);
+prototype_redo_exec_hook(UNDO_BULK_INSERT);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
 prototype_redo_exec_hook(REDO_INSERT_ROW_TAIL);
 prototype_redo_exec_hook(REDO_INSERT_ROW_HEAD);
@@ -103,7 +103,7 @@ prototype_undo_exec_hook(UNDO_ROW_UPDATE);
 prototype_undo_exec_hook(UNDO_KEY_INSERT);
 prototype_undo_exec_hook(UNDO_KEY_DELETE);
 prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT);
-prototype_undo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR);
+prototype_undo_exec_hook(UNDO_BULK_INSERT);
 
 static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply);
 static uint end_of_redo_phase(my_bool prepare_for_undo_phase);
@@ -351,6 +351,11 @@ int maria_apply_log(LSN from_lsn, enum maria_apply_log_way apply,
       We take a checkpoint as it can save future recovery work if we crash
       during the UNDO phase. But we don't flush pages, as UNDOs will change
       them again probably.
+      If we wanted to take checkpoints in the middle of the REDO phase, at a
+      moment when we haven't reached the end of log so don't have exact data
+      about transactions, we could write a special checkpoint: containing only
+      the list of dirty pages, otherwise to be treated as if it was at the
+      same LSN as the last checkpoint.
     */
     if (ma_checkpoint_execute(CHECKPOINT_INDIRECT, FALSE))
       goto err;
@@ -1222,8 +1227,6 @@ static int new_table(uint16 sid, const char *name, LSN lsn_of_file_id)
   }
   /* don't log any records for this work */
   _ma_tmp_disable_logging_for_table(info, FALSE);
-  /* _ma_unpin_all_pages() reads info->trn: */
-  info->trn= &dummy_transaction_object;
   /* execution of some REDO records relies on data_file_length */
   dfile_len= my_seek(info->dfile.file, 0, SEEK_END, MYF(MY_WME));
   kfile_len= my_seek(info->s->kfile.file, 0, SEEK_END, MYF(MY_WME));
@@ -1833,7 +1836,7 @@ prototype_redo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
 }
 
 
-prototype_redo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR)
+prototype_redo_exec_hook(UNDO_BULK_INSERT)
 {
   /*
     If the repair finished it wrote and sync the state. If it didn't finish,
@@ -1937,7 +1940,7 @@ prototype_redo_exec_hook(CLR_END)
                                       page * share->block_size);
       break;
     }
-    case LOGREC_UNDO_BULK_INSERT_WITH_REPAIR:
+    case LOGREC_UNDO_BULK_INSERT:
       break;
     default:
       DBUG_ASSERT(0);
@@ -2226,7 +2229,7 @@ prototype_undo_exec_hook(UNDO_KEY_DELETE_WITH_ROOT)
 }
 
 
-prototype_undo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR)
+prototype_undo_exec_hook(UNDO_BULK_INSERT)
 {
   my_bool error;
   MARIA_HA *info= get_MARIA_HA_from_UNDO_record(rec);
@@ -2244,7 +2247,7 @@ prototype_undo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR)
                           STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE);
 
   info->trn= trn;
-  error= _ma_apply_undo_bulk_insert_with_repair(info, previous_undo_lsn);
+  error= _ma_apply_undo_bulk_insert(info, previous_undo_lsn);
   info->trn= 0;
   /* trn->undo_lsn is updated in an inwrite_hook when writing the CLR_END */
   tprint(tracef, "   undo_lsn now LSN (%lu,0x%lx)\n",
@@ -2309,8 +2312,8 @@ static int run_redo_phase(LSN lsn, enum maria_apply_log_way apply)
   install_redo_exec_hook_shared(REDO_NEW_ROW_HEAD, REDO_INSERT_ROW_HEAD);
   /* REDO_NEW_ROW_TAIL shares entry with REDO_INSERT_ROW_TAIL */
   install_redo_exec_hook_shared(REDO_NEW_ROW_TAIL, REDO_INSERT_ROW_TAIL);
-  install_redo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR);
-  install_undo_exec_hook(UNDO_BULK_INSERT_WITH_REPAIR);
+  install_redo_exec_hook(UNDO_BULK_INSERT);
+  install_undo_exec_hook(UNDO_BULK_INSERT);
 
   current_group_end_lsn= LSN_IMPOSSIBLE;
 #ifndef DBUG_OFF
@@ -2715,7 +2718,13 @@ static void prepare_table_for_close(MARIA_HA *info, TRANSLOG_ADDRESS horizon)
     share->state.is_of_horizon= horizon;
     _ma_state_info_write_sub(share->kfile.file, &share->state, 1);
   }
-  _ma_reenable_logging_for_table(info);
+  /*
+    This leaves PAGECACHE_PLAIN_PAGE pages into the cache, while the table is
+    going to switch back to transactional. So the table will be a mix of
+    pages, which is ok as long as we don't take any checkpoints until all
+    tables get closed at the end of the UNDO phase.
+  */
+  _ma_reenable_logging_for_table(info, FALSE);
   info->trn= NULL; /* safety */
 }
 
@@ -3175,12 +3184,13 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   /* if we disabled before writing the record, record wouldn't reach log */
   share->now_transactional= FALSE;
   /*
-    Some code in ma_blockrec.c assumes a trn.
-    info->trn in some cases can be not NULL and not dummy_transaction_object
-    when arriving here, but overwriting it does not leak as it is still
-    remembered in THD_TRN.
+    Some code in ma_blockrec.c assumes a trn even if !now_transactional but in
+    this case it only reads trn->rec_lsn, which has to be LSN_IMPOSSIBLE and
+    should be now. info->trn may be NULL in maria_chk.
   */
-  info->trn= &dummy_transaction_object;
+  if (info->trn == NULL)
+    info->trn= &dummy_transaction_object;
+  DBUG_ASSERT(info->trn->rec_lsn == LSN_IMPOSSIBLE);
   share->page_type= PAGECACHE_PLAIN_PAGE;
   /* Functions below will pick up now_transactional and change callbacks */
   _ma_set_data_pagecache_callbacks(&info->dfile, share);
@@ -3194,30 +3204,60 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
    Re-enables logging for a table which had it temporarily disabled.
 
    @param  info            table
+   @param  flush_pages     if function needs to flush pages first
 */
 
-void _ma_reenable_logging_for_table(MARIA_HA *info)
+my_bool _ma_reenable_logging_for_table(MARIA_HA *info, my_bool flush_pages)
 {
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_reenable_logging_for_table");
 
   if (share->now_transactional == share->base.born_transactional)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(0);
 
   if ((share->now_transactional= share->base.born_transactional))
   {
-    /*
-      The change below does NOT affect pages already in the page cache, so you
-      should have flushed them out already, or write a pagecache function to
-      change their type.
-    */
     share->page_type= PAGECACHE_LSN_PAGE;
-    info->trn= NULL; /* safety */
+    if (flush_pages)
+    {
+      /*
+        We are going to change callbacks; if a page is flushed at this moment
+        this can cause race conditions, that's one reason to flush pages
+        now. Other reasons: a checkpoint could be running and miss pages. As
+        there are no REDOs for pages, them, bitmaps and the state also have to
+        be flushed and synced. Leaving non-dirty pages in cache is ok, when
+        they become dirty again they will have their type corrected.
+      */
+      if (_ma_flush_table_files(info, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                                FLUSH_KEEP, FLUSH_KEEP) ||
+          _ma_state_info_write(share, 1|4) ||
+          _ma_sync_table_files(info))
+        DBUG_RETURN(1);
+    }
+    else if (!maria_in_recovery)
+    {
+      /*
+        Except in Recovery, we mustn't leave dirty pages (see comments above).
+        Note that this does not verify that the state was flushed, but hey.
+      */
+      pagecache_file_no_dirty_page(share->pagecache, &info->dfile);
+      pagecache_file_no_dirty_page(share->pagecache, &share->kfile);
+    }
+    _ma_set_data_pagecache_callbacks(&info->dfile, share);
+    _ma_set_index_pagecache_callbacks(&share->kfile, share);
+    _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
+    /*
+      info->trn was not changed in the disable/enable combo, so that it's
+      still usable in this kind of combination:
+      external_lock;
+      start_bulk_insert; # table is empty, disables logging
+      end_bulk_insert;   # enables logging
+      start_bulk_insert; # table is not empty, logging stays
+                         # so rows insertion needs the real trn.
+      as happens during row-based replication on the slave.
+    */
   }
-  _ma_set_data_pagecache_callbacks(&info->dfile, share);
-  _ma_set_index_pagecache_callbacks(&share->kfile, share);
-  _ma_bitmap_set_pagecache_callbacks(&share->bitmap.file, share);
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(0);
 }
 
 
