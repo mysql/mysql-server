@@ -126,6 +126,7 @@ select * from t2;
 select * from t3;
 
 let $VERSION=`select version()`;
+--replace_regex /file_id=[0-9]+/file_id=#/
 source include/show_binlog_events.inc;
 drop table t1,t2,t3;
 
