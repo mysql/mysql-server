@@ -50,9 +50,9 @@ void runsearch(int rexpect, toku_range* query, toku_range* expect) {
     
     if (rexpect != 0) return;
     assert(found == 1);
-    assert(int_cmp(&buf[0].left, expect->left) == 0 &&
-           int_cmp(&buf[0].right, expect->right) == 0 &&
-           char_cmp(&buf[0].data, expect->data) == 0);
+    assert(int_cmp(buf[0].left, expect->left) == 0 &&
+           int_cmp(buf[0].right, expect->right) == 0 &&
+           char_cmp(buf[0].data, expect->data) == 0);
 }
 
 void runinsert(int rexpect, toku_range* toinsert) {

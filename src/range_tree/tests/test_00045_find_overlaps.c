@@ -47,9 +47,9 @@ void runsearch(int rexpect, toku_range* query, toku_range* expect) {
     
     if (rexpect != 0) return;
     assert(found == 1);
-    assert(int_cmp(&buf[0].left, expect->left) == 0 &&
-           int_cmp(&buf[0].right, expect->right) == 0 &&
-           char_cmp(&buf[0].data, expect->data) == 0);
+    assert(int_cmp(buf[0].left, expect->left) == 0 &&
+           int_cmp(buf[0].right, expect->right) == 0 &&
+           char_cmp(buf[0].data, expect->data) == 0);
 }
 
 void runinsert(int rexpect, toku_range* toinsert) {
@@ -132,9 +132,9 @@ void tests(BOOL allow_overlaps) {
     runsearch(0, init_range(&query, 0, 3, -1), init_range(&expect, 0, 3, 0));
     close_tree();
 
-    /* Tree: {|0-3|}, insert of of |0-3| success == allow_overlaps */
+    /* Tree: {(|0-3|,0)}, insert of of (|0-3|,1) success == allow_overlaps */
     setup_tree(allow_overlaps, 0, 3, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 3, -1));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&expect, 0, 3, 1));
     close_tree();
 }
 
