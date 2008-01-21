@@ -282,7 +282,7 @@ void symdirget(char *dir)
 
   SYNOPSIS
     unpack_dirname()
-    to			Store result here.  May be = from
+    to			result-buffer, FN_REFLEN characters. may be == from
     from		'Packed' directory name (may contain ~)
 
  IMPLEMENTATION
@@ -408,7 +408,7 @@ size_t unpack_filename(char * to, const char *from)
 
 	/* Convert filename (unix standard) to system standard */
 	/* Used before system command's like open(), create() .. */
-	/* Returns length of to */
+	/* Returns used length of to; total length should be FN_REFLEN */
 
 size_t system_filename(char * to, const char *from)
 {
