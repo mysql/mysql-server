@@ -24,7 +24,7 @@
 #----------------------------------------------------------------------
 # Settings for Subtest 3 variants
 # Scenario: CREATE TABLE/CREATE TABLE(F)/DROP TABLE/DROP TABLE(F)
-let $create_table=  CREATE TABLE t1 (f1 BIGINT) ENGINE=$engine_type;
+let $create_table=  CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=$engine_type;
 let $drop_table=    DROP TABLE t1;
 #----------------------------------------------------------------------
 
