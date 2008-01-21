@@ -3072,3 +3072,4 @@ libmysqld/sql_profile.cc
 *.exp
 comments
 maria-win.patch
+storage/maria/maria_dump_log

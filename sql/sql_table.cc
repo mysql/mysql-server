@@ -2899,10 +2899,10 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	else if (!(file->ha_table_flags() & HA_NO_PREFIX_CHAR_KEYS))
 	  length=column->length;
       }
-      else if (length == 0)
+      else if (length == 0 && (sql_field->flags & NOT_NULL_FLAG))
       {
 	my_error(ER_WRONG_KEY_COLUMN, MYF(0), column->field_name);
-	  DBUG_RETURN(TRUE);
+        DBUG_RETURN(TRUE);
       }
       if (length > file->max_key_part_length() && key->type != Key::FULLTEXT)
       {

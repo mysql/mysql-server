@@ -1316,6 +1316,23 @@ show variables like 'maria%';
 show status like 'maria%';
 
 #
+# Test creating table with no field data and index on zero length columns
+#
+
+create table t1 (b char(0));
+insert into t1 values(NULL),("");
+select length(b) from t1;
+alter table t1 add column c char(0), add key (c);
+insert into t1 values("",""),("",NULL);
+select length(b),length(c) from t1;
+select length(b),length(c) from t1 where c is null;
+select length(b),length(c) from t1 where c is not null;
+select length(b),length(c) from t1 order by c;
+--error 1167
+alter table t1 add column d char(0) not null, add key (d);
+drop table t1;
+
+#
 # Show that page_checksum is remembered
 #
 set global maria_page_checksum=1;
