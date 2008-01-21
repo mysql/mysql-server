@@ -1869,6 +1869,39 @@ static void test_pma_already_there() {
     assert(error == 0);
 }
 
+static void test_pma_cursor_first(int n) {
+    if (verbose) printf("test_pma_cursor_first:%d\n", n);
+
+    u_int32_t rand4fingerprint = random();
+    u_int32_t sum = 0;
+
+    int r;
+
+    PMA pma;
+    r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r == 0);
+
+    PMA_CURSOR cursor;
+    r = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(r == 0);
+
+    DBT key, val;
+    int k, v;
+    int i;
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_pma_insert(pma, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), NULL_ARGS, rand4fingerprint, &sum);
+        assert(r == 0);
+    }
+    for (i=0; ; i++) {
+        r = toku_pma_cursor_set_position_first(cursor); 
+        if (r != 0) break;
+        k = htonl(i);
+        r = toku_pma_delete(pma, toku_fill_dbt(&key, &k, sizeof k), 0, rand4fingerprint, &sum, 0); assert(r == 0);
+    }
+    assert(i == n);
+    r = toku_pma_cursor_free(&cursor); assert(r == 0);
+    r = toku_pma_free(&pma); assert(r == 0);
+}
+
 static void test_pma_cursor_set_key() {
     if (verbose) printf("test_pma_cursor_set_key\n");
 
@@ -2525,6 +2558,7 @@ static void pma_tests (void) {
     test_pma_insert_or_replace(); local_memory_check_all_free();
     test_pma_delete();
     test_pma_already_there();     local_memory_check_all_free();
+    test_pma_cursor_first(8);     local_memory_check_all_free();
     test_pma_cursor_set_key();    local_memory_check_all_free();
     test_pma_cursor_set_range();  local_memory_check_all_free();    
     test_pma_cursor_delete_under();  local_memory_check_all_free();    
