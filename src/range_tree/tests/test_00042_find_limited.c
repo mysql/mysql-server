@@ -94,11 +94,6 @@ void tests(BOOL allow_overlaps) {
     runlimitsearch(init_range(&query, 2, 7, 0), 4, 3);
     close_tree();
     
-    /*
-    * Queries
-        
-        
-    */
     /* Tree is empty (return none) */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
     runlimitsearch(init_range(&query, 0, 0, 0), 0, 0);
