@@ -16,8 +16,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define AA __attribute__((__unused__))
-
 const unsigned minlen = 64;
 
 /*
@@ -33,10 +31,21 @@ static int __toku_rt_p_cmp(toku_range_tree* tree,
     return 0;
 }
     
-static int __toku_rt_decrease_capacity(toku_range_tree* tree, unsigned num AA) {
+static int __toku_rt_decrease_capacity(toku_range_tree* tree, unsigned _num) {
     assert(tree);
-    //TODO: reclaim capacity.
-    return 1;
+    unsigned num = _num < minlen ? minlen : _num;
+    
+    if (tree->ranges_len >= num * 2) {
+        unsigned temp_len = tree->ranges_len;
+        while (temp_len >= num * 2) temp_len /= 2;
+        assert(temp_len >= _num);   //Sanity check.
+        toku_range* temp_ranges =
+                           realloc(tree->ranges, temp_len * sizeof(toku_range));
+        if (!temp_ranges) return errno;
+        tree->ranges     = temp_ranges;
+        tree->ranges_len = temp_len;
+    }
+    return 0;
 }
 
 static int __toku_rt_increase_capacity(toku_range_tree* tree, unsigned num) {
