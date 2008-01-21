@@ -85,7 +85,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     ci=&tmp_create_info;
   }
 
-  if (keys + uniques > MARIA_MAX_KEY || columns == 0)
+  if (keys + uniques > MARIA_MAX_KEY)
   {
     DBUG_RETURN(my_errno=HA_WRONG_CREATE_OPTION);
   }
