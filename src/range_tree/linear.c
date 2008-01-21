@@ -78,15 +78,11 @@ static BOOL __toku_rt_overlap(toku_range_tree* tree,
             tree->end_cmp(b->left, a->right) <= 0);
 }
 
-BOOL __toku_rt_exact(toku_range_tree* tree,
+static BOOL __toku_rt_exact(toku_range_tree* tree,
                             toku_range* a, toku_range* b) {
     assert(tree);
     assert(a);
-//    assert(a->left);
-//    assert(a->right);
     assert(b);
-//    assert(b->left);
-//    assert(b->right);
     return (tree->end_cmp (a->left,  b->left)  == 0 &&
             tree->end_cmp (a->right, b->right) == 0 &&
             tree->data_cmp(a->data,  b->data)  == 0);
@@ -174,7 +170,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     }
     r = __toku_rt_increase_capacity(tree, tree->numelements + 1);
     if (r != 0) return r;
-    tree->ranges[++tree->numelements] = *range;
+    tree->ranges[tree->numelements++] = *range;
     return 0;
 }
 
@@ -189,7 +185,7 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     //EDOM case: Not Found
     if (i == tree->numelements) return EDOM;
     if (i < tree->numelements - 1) {
-    //juggle    
+        tree->ranges[i] = tree->ranges[tree->numelements - 1];
     }
     __toku_rt_decrease_capacity(tree, --tree->numelements);
     return 0;
@@ -209,12 +205,12 @@ int toku_rt_predecessor (toku_range_tree* tree, void* point, toku_range* pred,
         }
     }
     *wasfound = best != NULL;
-    pred = best;
+    if (best) *pred = *best;
     return 0;
 }
 
 int toku_rt_successor (toku_range_tree* tree, void* point, toku_range* succ,
-                         BOOL* wasfound) {
+                       BOOL* wasfound) {
     if (!tree || !point || !succ || !wasfound)           return EINVAL;
     if (tree->allow_overlaps)                            return EINVAL;
     toku_range* best = NULL;
@@ -227,7 +223,7 @@ int toku_rt_successor (toku_range_tree* tree, void* point, toku_range* succ,
         }
     }
     *wasfound = best != NULL;
-    succ = best;
+    if (best) *succ = *best;
     return 0;
 }
 
