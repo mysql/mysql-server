@@ -3230,4 +3230,26 @@ SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION
 DROP TABLE t1,t2;
 
 
+#
+# Bug#33675: Usage of an uninitialized memory by filesort in a subquery
+#            caused server crash.
+#
+create table t1(f11 int, f12 int);
+create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
+insert into t1 values(1,1),(2,2), (3, 3);
+let $i=10000;
+--disable_query_log
+--disable_warnings
+while ($i)
+{
+  eval insert into t2 values (-1 , $i/5000 + 1, '$i');
+  dec $i;
+}
+--enable_warnings
+--enable_query_log
+set session sort_buffer_size= 33*1024;
+select count(*) from t1 where f12 = 
+(select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
+
+drop table t1,t2;
 --echo End of 5.0 tests.

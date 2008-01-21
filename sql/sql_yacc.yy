@@ -4211,6 +4211,14 @@ select_paren:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
+            if (sel->linkage == UNION_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                sel->master_unit()->fake_select_lex)
+            {
+ 	       my_error(ER_WRONG_USAGE, MYF(0),
+                        "CUBE/ROLLUP", "ORDER BY");
+               MYSQL_YYABORT;
+            }
             /* select in braces, can't contain global parameters */
 	    if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
@@ -6165,7 +6173,8 @@ order_clause:
           SELECT_LEX *sel= lex->current_select;
           SELECT_LEX_UNIT *unit= sel-> master_unit();
 	  if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
-	      sel->olap != UNSPECIFIED_OLAP_TYPE)
+              sel->olap != UNSPECIFIED_OLAP_TYPE &&
+              (sel->linkage != UNION_TYPE || sel->braces))
 	  {
 	    my_error(ER_WRONG_USAGE, MYF(0),
                      "CUBE/ROLLUP", "ORDER BY");
@@ -6341,7 +6350,8 @@ procedure_item:
 select_var_list_init:
 	   {
              LEX *lex=Lex;
-	     if (!lex->describe && (!(lex->result= new select_dumpvar())))
+	     if (!lex->describe && 
+                 (!(lex->result= new select_dumpvar(lex->nest_level))))
 	        MYSQL_YYABORT;
 	   }
 	   select_var_list
@@ -6415,7 +6425,7 @@ into_destination:
           LEX *lex= Lex;
           lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
           if (!(lex->exchange= new sql_exchange($2.str, 0)) ||
-              !(lex->result= new select_export(lex->exchange)))
+              !(lex->result= new select_export(lex->exchange, lex->nest_level)))
             MYSQL_YYABORT;
 	}
 	opt_field_term opt_line_term
@@ -6427,7 +6437,7 @@ into_destination:
 	    lex->uncacheable(UNCACHEABLE_SIDEEFFECT);
 	    if (!(lex->exchange= new sql_exchange($2.str,1)))
 	      MYSQL_YYABORT;
-	    if (!(lex->result= new select_dump(lex->exchange)))
+	    if (!(lex->result= new select_dump(lex->exchange, lex->nest_level)))
 	      MYSQL_YYABORT;
 	  }
 	}
@@ -9418,12 +9428,18 @@ union_list:
 	UNION_SYM union_option
 	{
 	  LEX *lex=Lex;
-	  if (lex->result)
-	  {
-	    /* Only the last SELECT can have  INTO...... */
-	    my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
-	    MYSQL_YYABORT;
-	  }
+	  if (lex->result && 
+              (lex->result->get_nest_level() == -1 ||
+               lex->result->get_nest_level() == lex->nest_level))
+          {
+            /* 
+               Only the last SELECT can have INTO unless the INTO and UNION
+               are at different nest levels. In version 5.1 and above, INTO
+               will onle be allowed at top level.
+            */
+            my_error(ER_WRONG_USAGE, MYF(0), "UNION", "INTO");
+            MYSQL_YYABORT;
+          }
 	  if (lex->current_select->linkage == GLOBAL_OPTIONS_TYPE)
 	  {
             my_parse_error(ER(ER_SYNTAX_ERROR));
