@@ -4384,7 +4384,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table)
 			    name, table, 0, unsigned_flag);
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    return new Field_date(maybe_null, name, table, &my_charset_bin);
+    return new Field_newdate(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIME:
     return new Field_time(maybe_null, name, table, &my_charset_bin);
   case MYSQL_TYPE_TIMESTAMP:
@@ -6608,6 +6608,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
     */
     Field *field= ((Item_field *) item)->field;
     enum_field_types type= field->real_type();
+    if (field->is_created_from_null_item)
+      return MYSQL_TYPE_NULL;
     /* work around about varchar type field detection */
     if (type == MYSQL_TYPE_STRING && field->type() == MYSQL_TYPE_VAR_STRING)
       return MYSQL_TYPE_VAR_STRING;
@@ -6859,6 +6861,8 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
                          Field::NONE, name,
                          table, get_set_pack_length(enum_set_typelib->count),
                          enum_set_typelib, collation.collation);
+  case MYSQL_TYPE_NULL:
+    return make_string_field(table);
   default:
     break;
   }
