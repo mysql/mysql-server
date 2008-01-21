@@ -14,7 +14,7 @@ build-coverage:
 	(cd utils; make clean; make coverage OPTFLAGS="-O0" GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
 
 test-coverage:
-	(cd newbrt; make -k check DTOOL="")
-	(cd src/tests; make -k check.tdb VGRIND="")
-	(cd utils; make -k test-coverage)
-	(cd cxx/tests; make -k check VGRIND="") 
+	(cd newbrt; $(MAKE) -k check DTOOL="")
+	(cd src/tests; $(MAKE) -k check.tdb VGRIND="")
+	(cd utils; $(MAKE) -k test-coverage)
+	(cd cxx/tests; $(MAKE) -k check VGRIND="") 
