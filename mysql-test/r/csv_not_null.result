@@ -1,0 +1,59 @@
+# ===== csv_not_null.1 =====
+DROP TABLE IF EXISTS t1, t2;
+# === Will fail -- no NOT NULL ===
+CREATE TABLE t1 (a int) ENGINE = CSV;
+ERROR 42000: The storage engine for the table doesn't support nullable columns
+# === Good CREATE ===
+CREATE TABLE t1 (a int NOT NULL) ENGINE = CSV;
+# === Will fail -- ALL columns need NOT NULL ==
+CREATE TABLE t2 (a int NOT NULL, b char(20)) ENGINE = CSV;
+ERROR 42000: The storage engine for the table doesn't support nullable columns
+DROP TABLE t1;
+# ===== csv_not_null.2 =====
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (a int NOT NULL, b blob NOT NULL, c CHAR(20) NOT NULL, 
+d VARCHAR(20) NOT NULL, e enum('foo','bar') NOT NULL,f DATE NOT NULL) 
+ENGINE = CSV;
+# === should result in default for each datatype ===
+INSERT INTO t1 VALUES();
+SELECT * FROM t1;
+a	b	c	d	e	f
+0				foo	0000-00-00
+SELECT * FROM t1;
+a	b	c	d	e	f
+0				foo	0000-00-00
+INSERT INTO t1 VALUES(0,'abc','def','ghi','bar','1999-12-31');
+SELECT * FROM t1;
+a	b	c	d	e	f
+0				foo	0000-00-00
+0	abc	def	ghi	bar	1999-12-31
+# === insert failures ===
+INSERT INTO t1 VALUES(NULL,'ab','a','b','foo','2007-01-01');
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1 VALUES(default(a),default(b), default(c), default(d),
+default(e), default(f));
+ERROR HY000: Field 'a' doesn't have a default value
+DROP TABLE t1;
+# ===== csv_not_null.3 =====
+DROP TABLE IF EXISTS t1;
+CREATE DATABASE csv_not_null_test;
+USE csv_not_null_test;
+CREATE TABLE t1 (a int NOT NULL, b char(10) NOT NULL) ENGINE = CSV;
+INSERT INTO t1 VALUES();
+Warnings:
+Warning	1364	Field 'a' doesn't have a default value
+Warning	1364	Field 'b' doesn't have a default value
+SELECT * FROM t1;
+a	b
+0	
+UPDATE t1 set b = 'new_value' where a = 0;
+SELECT * FROM t1;
+a	b
+0	new_value
+UPDATE t1 set b = NULL where b = 'new_value';
+Warnings:
+Warning	1048	Column 'b' cannot be null
+SELECT * FROM t1;
+a	b
+0	
+DROP TABLE t1;
