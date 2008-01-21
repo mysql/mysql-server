@@ -619,9 +619,6 @@ set @@session.binlog_format=statement;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -632,9 +629,6 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 select count(*) from tt /* 2 */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	515		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
@@ -653,9 +647,6 @@ a
 delete from ti;
 delete from tt where a=1;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
@@ -664,9 +655,6 @@ ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	589		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
