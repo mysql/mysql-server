@@ -153,8 +153,8 @@ int main(int argc, const char *argv[]) {
     verify_all_overlap(&find_range, buf, found);
 
     /* Verify the right one is still there, and the wrong one is not there. */
-    assert(*(int*)buf[0].left == 1 &&
-           *(int*)buf[0].right == 5 &&
+    assert(*(int*)buf[0].left == 3 &&
+           *(int*)buf[0].right == 7 &&
            *(char*)buf[0].data == letters[0]);
 
     range.left = &nums[3];
@@ -180,6 +180,10 @@ int main(int argc, const char *argv[]) {
         |---A---|
                     |---B---|
     */
+    find_range.left  = &nums[3];
+    find_range.right = &nums[4];
+    find_range.data  = NULL;
+        
     r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
     CKERR(r);
 
