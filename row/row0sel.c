@@ -2994,7 +2994,7 @@ row_sel_get_clust_rec_for_mysql(
 				clust_rec, offsets, offset_heap, &old_vers,
 				mtr);
 
-			if (err != DB_SUCCESS) {
+			if (err != DB_SUCCESS || old_vers == NULL) {
 
 				goto err_exit;
 			}
