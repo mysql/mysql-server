@@ -138,12 +138,10 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range);
  *      0:              Success.
  *      EINVAL:         If any pointer argument is NULL.
  *                      If tree allows overlaps.
- *      EDOM:           If the exact range (left, right, and data) did
- *                      not exist in the tree.
  *  Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
-                         BOOL* wasfound);
+                        BOOL* wasfound);
 
 /**
  *  Finds the strict successor range of a point i.e. the leftmost range
@@ -161,8 +159,6 @@ int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
  *      0:              Success.
  *      EINVAL:         If any pointer argument is NULL.
  *                      If tree allows overlaps.
- *      EDOM:           If the exact range (left, right, and data) did
- *                      not exist in the tree.
  *  Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_successor(toku_range_tree* tree, void* point, toku_range* succ,
