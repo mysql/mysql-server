@@ -76,6 +76,7 @@ void print_defines (void) {
     dodefine(DB_KEYEMPTY);
     dodefine(DB_KEYEXIST);
     dodefine(DB_LOCK_DEADLOCK);
+    dodefine(DB_LOCK_NOTGRANTED);
     dodefine(DB_NOTFOUND);
     dodefine(DB_SECONDARY_BAD);
     dodefine(DB_DONOTINDEX);
