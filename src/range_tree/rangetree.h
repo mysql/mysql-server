@@ -10,21 +10,35 @@
 
 #include <brttypes.h>
 
-
-/** Represents a range of data with an extra value. */
+/** Represents a range of data with an extra value.
+  * Parameters are never modified on failure with the exception of
+  * buf and buflen.
+ */
 typedef struct {
 	void*   left;
   	void*   right;
 	void*   data; 
 } toku_range;
 
-/**  Structure is not yet defined, this is so we can write and compile tests
-     before implementation.
-     Will be defined during implementation,
-     and will actually be defined in a separate headers (one for linear version
-     and one for binary search tree based version). */
 struct __toku_range_tree_internal {
-    int dummy;
+    //Shared fields:
+    int         (*end_cmp)(void*,void*);
+    int         (*data_cmp)(void*,void*);
+    BOOL        allow_overlaps;
+    unsigned    numelements;
+#if defined(TOKU_LINEAR_RANGE_TREE)
+    #if defined(TOKU_LOG_RANGE_TREE)
+        #error Choose just one range tree type.
+    #endif
+    //Linear version only fields:
+    toku_range* ranges;
+    unsigned    ranges_len;
+#elif defined(TOKU_LOG_RANGE_TREE)
+    #error Not defined yet.
+    //Log version only fields:
+#else
+    #error Using an undefined RANGE TREE TYPE.
+#endif
 };
 
 /* These lines will remain. */
@@ -68,7 +82,7 @@ int toku_rt_close(toku_range_tree* tree);
  *      k:              The maximum number of ranges to return.
  *                      The special value '0' is used to request ALL overlapping
  *                      ranges.
- *      range:          The range to query.
+ *      query:          The range to query.
  *                      range.data must be NULL.
  *      buf:            A pointer to the buffer used to return ranges.
  *                      The buffer will be increased using realloc(3) if
@@ -88,8 +102,11 @@ int toku_rt_close(toku_range_tree* tree);
  *                      If range.data != NULL.
  *                      If buflen == 0.
  *  Other exit codes may be forwarded from underlying system calls.
+ *  It may be useful in the future to add an extra out parameter to specify
+ *  whether more elements exist in the tree that overlap (in excess of the
+ *  requested limit of k).
  */
-int toku_rt_find(toku_range_tree* tree, toku_range* range, unsigned k,
+int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
                  toku_range** buf, unsigned* buflen, unsigned* numfound);
 
 /**
