@@ -6928,7 +6928,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 {
   int error= 1, errpos= 0;
   Copy_field *copy= NULL, *copy_end;
-  ulong found_count,delete_count;
+  ulong found_count= 0, delete_count= 0;
   THD *thd= current_thd;
   uint length= 0;
   SORT_FIELD *sortorder;
@@ -6995,8 +6995,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
 
   }
-
-  found_count=delete_count=0;
 
   if (order)
   {
