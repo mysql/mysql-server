@@ -47,6 +47,8 @@ STATIC_UTILS=$(patsubst %,%_static,$(UTILS))
 
 all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
 
+coverage: $(UTILS)
+
 %: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ $< $(LDFLAGS)
 
@@ -60,6 +62,8 @@ strip: $(STATIC_UTILS)
 	strip $(STATIC_UTILS)
 
 test: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_bdb_tokudb
+
+test-coverage: $(UTILS) test_gen test_load test_dump test_bdb_tokudb
 
 test_gen: test_gen_hex
 
