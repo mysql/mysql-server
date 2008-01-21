@@ -6926,8 +6926,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
                          enum enum_enable_or_disable keys_onoff,
                          bool error_if_not_empty)
 {
-  int error;
-  Copy_field *copy,*copy_end;
+  int error= 1, errpos= 0;
+  Copy_field *copy= NULL, *copy_end;
   ulong found_count,delete_count;
   THD *thd= current_thd;
   uint length= 0;
@@ -6938,8 +6938,10 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   List<Item>   all_fields;
   ha_rows examined_rows;
   bool auto_increment_field_copied= 0;
-  ulong save_sql_mode;
+  ulong save_sql_mode= thd->variables.sql_mode;
   ulonglong prev_insert_id;
+  List_iterator<Create_field> it(create);
+  Create_field *def;
   DBUG_ENTER("copy_data_between_tables");
 
   /*
@@ -6948,15 +6950,16 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     
     This needs to be done before external_lock
   */
-  error= ha_enable_transaction(thd, FALSE);
-  if (error)
-    DBUG_RETURN(-1);
-  
+  if (ha_enable_transaction(thd, FALSE))
+    goto err;
+  errpos=1;
+
   if (!(copy= new Copy_field[to->s->fields]))
-    DBUG_RETURN(-1);				/* purecov: inspected */
+    goto err;		/* purecov: inspected */
 
   if (to->file->ha_external_lock(thd, F_WRLCK))
-    DBUG_RETURN(-1);
+    goto err;
+  errpos= 2;
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
@@ -6968,11 +6971,8 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
+  errpos= 3;
 
-  save_sql_mode= thd->variables.sql_mode;
-
-  List_iterator<Create_field> it(create);
-  Create_field *def;
   copy_end=copy;
   for (Field **ptr=to->field ; *ptr ; ptr++)
   {
@@ -7017,7 +7017,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       tables.table= from;
       tables.alias= tables.table_name= from->s->table_name.str;
       tables.db= from->s->db.str;
-      error= 1;
 
       if (thd->lex->select_lex.setup_ref_array(thd, order_num) ||
           setup_order(thd, thd->lex->select_lex.ref_pointer_array,
@@ -7034,6 +7033,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   init_read_record(&info, thd, from, (SQL_SELECT *) 0, 1,1);
+  errpos= 4;
   if (ignore)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->row_count= 0;
@@ -7097,22 +7097,22 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     else
       found_count++;
   }
-  end_read_record(&info);
-  free_io_cache(from);
-  delete [] copy;				// This is never 0
 
-  if (to->file->ha_end_bulk_insert() && error <= 0)
+err:
+  if (errpos >= 4)
+    end_read_record(&info);
+  free_io_cache(from);
+  delete [] copy;
+
+  if (errpos >= 3 && to->file->ha_end_bulk_insert() && error <= 0)
   {
     to->file->print_error(my_errno,MYF(0));
     error=1;
   }
   to->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
-  if (ha_enable_transaction(thd, TRUE))
-  {
+  if (errpos >= 1 && ha_enable_transaction(thd, TRUE))
     error= 1;
-    goto err;
-  }
   
   /*
     Ensure that the new table is saved properly to disk so that we
@@ -7123,14 +7123,12 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (ha_commit(thd))
     error=1;
 
- err:
   thd->variables.sql_mode= save_sql_mode;
   thd->abort_on_warning= 0;
-  free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;
   to->file->ha_release_auto_increment();
-  if (to->file->ha_external_lock(thd,F_UNLCK))
+  if (errpos >= 2 && to->file->ha_external_lock(thd,F_UNLCK))
     error=1;
   DBUG_RETURN(error > 0 ? -1 : 0);
 }

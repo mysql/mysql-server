@@ -2212,6 +2212,11 @@ int ha_maria::external_lock(THD *thd, int lock_type)
   }
   else
   {
+    /*
+      We always re-enable, don't rely on thd->transaction.on as it is
+      sometimes reset to true after unlocking (see mysql_truncate() for a
+      partitioned table based on Maria).
+    */
     if (_ma_reenable_logging_for_table(file, TRUE))
       DBUG_RETURN(1);
     /** @todo zero file->trn also in commit and rollback */

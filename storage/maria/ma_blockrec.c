@@ -1936,6 +1936,10 @@ static my_bool write_full_pages(MARIA_HA *info,
       bzero(buff + block_size - PAGE_SUFFIX_SIZE - (data_size - copy_length),
             (data_size - copy_length) + PAGE_SUFFIX_SIZE);
 
+#ifdef HAVE_purify /* avoid warning about writing uninitialized CRC to disk */
+    int4store_aligned(buff + block_size - CRC_SIZE,
+                      MARIA_NO_CRC_NORMAL_PAGE);
+#endif
     if (pagecache_write(share->pagecache,
                         &info->dfile, page, 0,
                         buff, share->page_type,

@@ -3670,16 +3670,16 @@ bool select_create::send_eof()
     abort();
   else
   {
+    if ((thd->lex->create_info.options & HA_LEX_CREATE_TMP_TABLE) == 0)
+      ha_enable_transaction(thd, TRUE);
     /*
       Do an implicit commit at end of statement for non-temporary
       tables.  This can fail, but we should unlock the table
       nevertheless.
     */
     if (!table->s->tmp_table)
-    {
-      ha_enable_transaction(thd, TRUE);
       ha_commit(thd);               // Can fail, but we proceed anyway
-    }
+
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
     if (m_plock)

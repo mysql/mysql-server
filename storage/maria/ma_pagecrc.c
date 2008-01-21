@@ -148,7 +148,7 @@ my_bool maria_page_crc_set_index(uchar *page,
   MARIA_SHARE *share= (MARIA_SHARE *)data_ptr;
   int data_length= _ma_get_page_used(share, page);
   uint32 crc= maria_page_crc((uint32) page_no, page, data_length);
-  DBUG_ENTER("maria_page_crc_set");
+  DBUG_ENTER("maria_page_crc_set_index");
   DBUG_PRINT("info", ("Page %lu  crc: %lu",
                       (ulong) page_no, (ulong) crc));
   DBUG_ASSERT((uint)data_length <= share->block_size - CRC_SIZE);
