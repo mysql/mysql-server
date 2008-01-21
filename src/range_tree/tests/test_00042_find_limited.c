@@ -87,30 +87,30 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 6, 7, 0)); 
     runinsert(0, init_range(&insert, 8, 9, 0));
     
-    runlimitsearch(init_range(&query, 2, 7, 0), 0, 3);
-    runlimitsearch(init_range(&query, 2, 7, 0), 1, 1);
-    runlimitsearch(init_range(&query, 2, 7, 0), 2, 2);
-    runlimitsearch(init_range(&query, 2, 7, 0), 3, 3);
-    runlimitsearch(init_range(&query, 2, 7, 0), 4, 3);
+    runlimitsearch(init_range(&query, 2, 7, -1), 0, 3);
+    runlimitsearch(init_range(&query, 2, 7, -1), 1, 1);
+    runlimitsearch(init_range(&query, 2, 7, -1), 2, 2);
+    runlimitsearch(init_range(&query, 2, 7, -1), 3, 3);
+    runlimitsearch(init_range(&query, 2, 7, -1), 4, 3);
     close_tree();
     
     /* Tree is empty (return none) */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
-    runlimitsearch(init_range(&query, 0, 0, 0), 0, 0);
+    runlimitsearch(init_range(&query, 0, 0, -1), 0, 0);
     close_tree();
     
     /* Tree contains only elements to the left. */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
     runinsert(0, init_range(&insert, 1, 2, 0));
     runinsert(0, init_range(&insert, 3, 4, 0));
-    runlimitsearch(init_range(&query, 8, 30, 0), 0, 0);
+    runlimitsearch(init_range(&query, 8, 30, -1), 0, 0);
     close_tree();
     
     /* Tree contains only elements to the right. */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
     runinsert(0, init_range(&insert, 10, 20, 0));
     runinsert(0, init_range(&insert, 30, 40, 0));
-    runlimitsearch(init_range(&query, 5, 7, 0), 0, 0);
+    runlimitsearch(init_range(&query, 5, 7, -1), 0, 0);
     close_tree();
 
     /* Tree contains only elements to the left and to the right. */
@@ -119,7 +119,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 30, 40, 0));
     runinsert(0, init_range(&insert, 70, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 60, 65, 0), 0, 0);
+    runlimitsearch(init_range(&query, 60, 65, -1), 0, 0);
     close_tree();
     
     /* Tree contains overlaps and elements to the left. */
@@ -128,7 +128,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 30, 40, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, 0), 0, 2);
+    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
     close_tree();
 
     /* Tree contains overlaps and elements to the right. */
@@ -137,7 +137,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 130, 140, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, 0), 0, 2);
+    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
     close_tree();
 
     /* Tree contains overlaps and elements to the left and to the right. */
@@ -148,7 +148,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 130, 140, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, 0), 0, 2);
+    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
     close_tree();
 }
 

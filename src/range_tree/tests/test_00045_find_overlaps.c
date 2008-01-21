@@ -73,22 +73,22 @@ void tests(BOOL allow_overlaps) {
 
     /* Tree: {|0-1|}, query of |1-2| returns |0-1| */
     setup_tree(allow_overlaps, 0, 1, 0);
-    runsearch(0, init_range(&query, 1, 2, 0), init_range(&expect, 0, 1, 0));
+    runsearch(0, init_range(&query, 1, 2, -1), init_range(&expect, 0, 1, 0));
     close_tree();
 
     /* Tree: {|1-2|}, query of |0-1| returns |1-2| */
     setup_tree(allow_overlaps, 1, 2, 0);
-    runsearch(0, init_range(&query, 0, 1, 0), init_range(&expect, 1, 2, 0));
+    runsearch(0, init_range(&query, 0, 1, -1), init_range(&expect, 1, 2, 0));
     close_tree();
 
     /* Tree: {|1-2|}, insert of of |0-1| success == allow_overlaps */
     setup_tree(allow_overlaps, 1, 2, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 1, 0));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 1, -1));
     close_tree();
 
     /* Tree: {|0-1|}, insert of of |1-2| success == allow_overlaps */
     setup_tree(allow_overlaps, 0, 1, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 1, 2, 0));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 1, 2, -1));
     close_tree();
 
     /*
@@ -102,22 +102,22 @@ void tests(BOOL allow_overlaps) {
 
     /* Tree: {|0-3|}, query of |1-2| returns |0-3| */
     setup_tree(allow_overlaps, 0, 3, 0);
-    runsearch(0, init_range(&query, 1, 2, 0), init_range(&expect, 0, 3, 0));
+    runsearch(0, init_range(&query, 1, 2, -1), init_range(&expect, 0, 3, 0));
     close_tree();
 
     /* Tree: {|1-2|}, query of |0-3| returns |1-2| */
     setup_tree(allow_overlaps, 1, 2, 0);
-    runsearch(0, init_range(&query, 0, 3, 0), init_range(&expect, 1, 2, 0));
+    runsearch(0, init_range(&query, 0, 3, -1), init_range(&expect, 1, 2, 0));
     close_tree();
 
     /* Tree: {|1-2|}, insert of of |0-3| success == allow_overlaps */
     setup_tree(allow_overlaps, 1, 2, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 3, 0));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 3, -1));
     close_tree();
 
     /* Tree: {|0-3|}, insert of of |1-2| success == allow_overlaps */
     setup_tree(allow_overlaps, 0, 3, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 1, 2, 0));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 1, 2, -1));
     close_tree();
 
     /*
@@ -129,12 +129,12 @@ void tests(BOOL allow_overlaps) {
 
     /* Tree: {|0-3|}, query of |0-3| returns |0-3| */
     setup_tree(allow_overlaps, 0, 3, 0);
-    runsearch(0, init_range(&query, 0, 3, 0), init_range(&expect, 0, 3, 0));
+    runsearch(0, init_range(&query, 0, 3, -1), init_range(&expect, 0, 3, 0));
     close_tree();
 
     /* Tree: {|0-3|}, insert of of |0-3| success == allow_overlaps */
     setup_tree(allow_overlaps, 0, 3, 0);
-    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 3, 0));
+    runinsert((allow_overlaps ? 0 : EDOM), init_range(&query, 0, 3, -1));
     close_tree();
 }
 
