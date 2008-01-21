@@ -18,7 +18,6 @@
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
-show master status;
 
 # action
 
@@ -31,7 +30,6 @@ rollback;
 # check
 
 select count(*) from tt /* 2 */;
-show master status;
 source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
@@ -42,7 +40,6 @@ select * from ti /* that is what slave would miss - bug#28960 */;
 delete from ti;
 delete from tt where a=1;
 reset master;
-show master status;
 
 # action
 
@@ -55,7 +52,6 @@ rollback;
 
 # check
 
-show master status;
 source include/show_binlog_events.inc; # nothing in binlog with row bilog format
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
