@@ -1540,12 +1540,12 @@ public:
   int readAutoIncrementValue(const NdbDictionary::Table * aTable,
                              TupleIdRange & range, Uint64 & tupleId);
   int setAutoIncrementValue(const char* aTableName,
-                            Uint64 tupleId, bool increase);
+                            Uint64 tupleId, bool modify);
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            Uint64 tupleId, bool increase);
+                            Uint64 tupleId, bool modify);
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             TupleIdRange & range, Uint64 tupleId,
-                            bool increase);
+                            bool modify);
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
                         TupleIdRange & range, Uint64 & tupleId,
@@ -1553,7 +1553,7 @@ private:
   int readTupleIdFromNdb(const NdbTableImpl* table,
                          TupleIdRange & range, Uint64 & tupleId);
   int setTupleIdInNdb(const NdbTableImpl* table,
-                      TupleIdRange & range, Uint64 tupleId, bool increase);
+                      TupleIdRange & range, Uint64 tupleId, bool modify);
   int opTupleIdOnNdb(const NdbTableImpl* table,
                      TupleIdRange & range, Uint64 & opValue, Uint32 op);
 public:
