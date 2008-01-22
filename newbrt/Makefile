@@ -165,5 +165,10 @@ clean:
 
 randdb4: LOADLIBES=-ldb
 randbrt: brt.o fifo.o cachetable.o memory.o brt-serialize.o
+
+# After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.
+testdump: brtdump
+	./brtdump  ../src/tests/dir.test_log5.c.tdb.recover/foo.db > dump.r && ./brtdump  ../src/tests/dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
+
 TAGS: ../*/*.c ../*/*.h
 	etags ../*/*.c ../*/*.h
