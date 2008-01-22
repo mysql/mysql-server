@@ -2480,7 +2480,8 @@ static int compress_maria_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts)
     ulong tot_blob_length=0;
     if (! error)
     {
-      if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length))
+      if (flush_buffer((ulong) max_calc_length + (ulong) max_pack_length +
+                       null_bytes))
 	break;
       record_pos= (uchar*) file_buffer.pos;
       file_buffer.pos+= max_pack_length;

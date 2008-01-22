@@ -140,8 +140,7 @@ my_bool _ma_write_clr(MARIA_HA *info, LSN undo_lsn,
 
 my_bool write_hook_for_clr_end(enum translog_record_type type
                                __attribute__ ((unused)),
-                               TRN *trn, MARIA_HA *tbl_info
-                               __attribute__ ((unused)),
+                               TRN *trn, MARIA_HA *tbl_info,
                                LSN *lsn __attribute__ ((unused)),
                                void *hook_arg)
 {
@@ -160,6 +159,10 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_ROW_INSERT:
     share->state.state.records--;
     share->state.state.checksum+= msg->checksum_delta;
+    /* Restore auto increment if no one has changed it in between */
+    if (share->last_auto_increment == tbl_info->last_auto_increment)
+      share->state.auto_increment= tbl_info->last_auto_increment;
+    break;
     break;
   case LOGREC_UNDO_ROW_UPDATE:
     share->state.state.checksum+= msg->checksum_delta;
@@ -226,11 +229,36 @@ my_bool write_hook_for_undo_key_insert(enum translog_record_type type,
     /*
       Only reason to set it here is to have a mutex protect from checkpoint
       reading at the same time (would see a corrupted value).
+
+      The purpose of the following code is to set auto_increment if the row
+      has a with auto_increment value higher than the current one. We also
+      want to be able to restore the old value, in case of rollback,
+      if no one else has tried to set the value.
+
+      The logic used is that we only restore the auto_increment value if
+      tbl_info->last_auto_increment == share->last_auto_increment
+      when it's time to do the rollback.
     */
     DBUG_PRINT("info",("auto_inc: %lu new auto_inc: %lu",
                        (ulong)share->state.auto_increment,
                        (ulong)msg->auto_increment));
-    set_if_bigger(share->state.auto_increment, msg->auto_increment);
+    if (share->state.auto_increment < msg->auto_increment)
+    {
+      /* Remember the original value, in case of rollback */
+      tbl_info->last_auto_increment= share->last_auto_increment=
+        share->state.auto_increment;
+      share->state.auto_increment= msg->auto_increment;
+    }
+    else
+    {
+      /*
+        If the current value would have affected the original auto_increment
+        value, set it to an impossible value so that it's not restored on
+        rollback
+      */
+      if (msg->auto_increment > share->last_auto_increment)
+        share->last_auto_increment= ~(ulonglong) 0;
+    }
   }
   return write_hook_for_undo_key(type, trn, tbl_info, lsn, hook_arg);
 }

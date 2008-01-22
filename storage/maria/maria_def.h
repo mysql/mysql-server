@@ -285,6 +285,7 @@ typedef struct st_maria_share
   uchar *file_map;			/* mem-map of file if possible */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
+  ulonglong last_auto_increment;
   uint16 *decode_tables;
   uint16 id; /**< 2-byte id by which log records refer to the table */
   /* Called the first time the table instance is opened */
@@ -484,6 +485,7 @@ struct st_maria_handler
   uint32 int_keytree_version;		/* -""- */
   int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
+  ulonglong last_auto_increment;
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */

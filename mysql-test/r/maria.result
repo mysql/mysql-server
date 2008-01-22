@@ -2102,6 +2102,30 @@ NULL	NULL
 alter table t1 add column d char(0) not null, add key (d);
 ERROR 42000: The used storage engine can't index column 'd'
 drop table t1;
+CREATE TABLE t1 (a bit(3));
+insert into t1 values (NULL),(0),(1),(2),(3),(4),(5),(6),(7);
+select hex(a) from t1;
+hex(a)
+NULL
+0
+1
+2
+3
+4
+5
+6
+7
+drop table t1;
+create table t1(a bit not null);
+insert into t1 values(0),(1);
+select a+0 from t1;
+a+0
+0
+1
+drop table t1;
+CREATE TABLE t1 (col1 int, s1 char(16) DEFAULT NULL, s2 char(16) DEFAULT NULL, KEY (s1,s2));
+insert into t1 (col1) values(0);
+drop table t1;
 set global maria_page_checksum=1;
 create table t1 (a int);
 show create table t1;
@@ -2165,3 +2189,14 @@ check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,f1 varchar(10) NOT NULL UNIQUE);
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test2");
+SELECT * FROM t1;
+id	f1
+1	test1
+2	test2
+drop table t1;
+SET SQL_MODE = 'TRADITIONAL';

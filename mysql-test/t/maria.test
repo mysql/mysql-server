@@ -1332,6 +1332,23 @@ select length(b),length(c) from t1 order by c;
 alter table t1 add column d char(0) not null, add key (d);
 drop table t1;
 
+CREATE TABLE t1 (a bit(3));
+insert into t1 values (NULL),(0),(1),(2),(3),(4),(5),(6),(7);
+select hex(a) from t1;
+drop table t1;
+create table t1(a bit not null);
+insert into t1 values(0),(1);
+select a+0 from t1;
+drop table t1;
+
+#
+# Test of min_key_length
+#
+
+CREATE TABLE t1 (col1 int, s1 char(16) DEFAULT NULL, s2 char(16) DEFAULT NULL, KEY (s1,s2));
+insert into t1 (col1) values(0);
+drop table t1;
+
 #
 # Show that page_checksum is remembered
 #
@@ -1395,6 +1412,19 @@ delete from t1 where t > 0;
 optimize table t1;
 check table t1;
 drop table t1;
+
+#
+# Test auto-increment
+#
+
+SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';
+CREATE TABLE t1 (id int(11) PRIMARY KEY auto_increment,f1 varchar(10) NOT NULL UNIQUE);
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test1");
+INSERT IGNORE INTO t1 (f1) VALUES ("test2");
+SELECT * FROM t1;
+drop table t1;
+SET SQL_MODE = 'TRADITIONAL';
 
 # End of 5.2 tests
 

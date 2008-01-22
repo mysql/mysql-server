@@ -2802,6 +2802,9 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 					     *engine_callback,
 					     ulonglong *engine_data)
 {
+  ulonglong actual_data_file_length;
+  ulonglong current_data_file_length;
+
   /*
     No call back function is needed to determine if a cached statement
     is valid or not.
@@ -2822,8 +2825,6 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
 
     If the table size is unknown the SELECT statement can't be cached.
   */
-  ulonglong actual_data_file_length;
-  ulonglong current_data_file_length;
 
   /*
     POSIX visibility rules specify that "2. Whatever memory values a
@@ -2839,7 +2840,8 @@ my_bool ha_maria::register_query_cache_table(THD *thd, char *table_name,
   actual_data_file_length= file->s->state.state.data_file_length;
   current_data_file_length= file->save_state.data_file_length;
 
-  if (current_data_file_length != actual_data_file_length)
+  if (!file->s->now_transactional &&
+      current_data_file_length != actual_data_file_length)
   {
     /* Don't cache current statement. */
     return FALSE;

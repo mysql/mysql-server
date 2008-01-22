@@ -567,7 +567,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 	  keydef->flag |= HA_SPACE_PACK_USED | HA_VAR_LENGTH_KEY;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
 	  length++;				/* At least one length uchar */
-	  min_key_length++;
+          if (!keyseg->null_bit)
+            min_key_length++;
           key_length+= keyseg->length;
 	  if (keyseg->length >= 255)
 	  {
@@ -581,7 +582,8 @@ int maria_create(const char *name, enum data_file_type datafile_type,
                                     (HA_VAR_LENGTH_PART | HA_BLOB_PART)));
 	  keydef->flag|=HA_VAR_LENGTH_KEY;
 	  length++;				/* At least one length uchar */
-          min_key_length++;
+          if (!keyseg->null_bit)
+            min_key_length++;
 	  options|=HA_OPTION_PACK_KEYS;		/* Using packed keys */
           key_length+= keyseg->length;
 	  if (keyseg->length >= 255)

@@ -6,11 +6,12 @@
 use Getopt::Long;
 
 $|= 1;
-$VER= "1.2";
+$VER= "1.3";
 
 $opt_version=         0;
 $opt_help=            0;
 $opt_verbose=         0;
+$opt_abort_on_error=  0;
 $opt_maria_path=      undef();
 $opt_valgrind=        "valgrind --alignment=8 --leak-check=yes";
 $opt_suffix=          "";
@@ -38,7 +39,7 @@ sub run_tests
   my $nr_tests= 0;
   my $flag_exit= 0;
 
-  if (!GetOptions("help", "version", "verbose", "maria-path=s",
+  if (!GetOptions("help", "version", "verbose", "abort-on-error", "maria-path=s",
                   "valgrind=s", "suffix=s", "silent=s", "number-of-tests",
                   "run-tests=s"))
   {
@@ -544,7 +545,10 @@ sub ok
   }
   warn $msg;
   $runtime_error= 1;
-
+  if ($opt_abort_on_error)
+  {
+    exit 1;
+  }
   return 0;
 }
 
@@ -606,23 +610,24 @@ ma_test_recovery etc. files are.
 
 Options
 --help             Show this help and exit.
---version          Show version number and exit.
---verbose          Be more verbose. Will print each unittest on a line
-                   and result after. This mode cannot be used with unit.pl
-                   when running in normal unit test mode.
+--abort-on-error   Abort at once in case of error.
+--number-of-tests  Print the total number of tests and exit.
 --maria-path=...   Path to maria test files. You can set this as an
                    environment variable 'maria_path' also.
                    (maria_path: '$maria_path')
---valgrind=...     Options for valgrind.
-                   ('$opt_valgrind')
---suffix=...       Suffix for test files (ma_test1, ma_test2 etc.),
-                   if they have one ('$opt_suffix')
---silent=...       Silent option passed to ma_test* tests ('$opt_silent')
---number-of-tests  Print the total number of tests and exit.
 --run-tests=...    Test number(s) that should be run. You can give just
                    one number or a range. For example 45..89
                    Use this with caution, because some of the tests
                    might depend on previous ones.
+--silent=...       Silent option passed to ma_test* tests ('$opt_silent')
+--suffix=...       Suffix for test files (ma_test1, ma_test2 etc.),
+                   if they have one ('$opt_suffix')
+--valgrind=...     Options for valgrind.
+                   ('$opt_valgrind')
+--verbose          Be more verbose. Will print each unittest on a line
+                   and result after. This mode cannot be used with unit.pl
+                   when running in normal unit test mode.
+--version          Show version number and exit.
 EOF
   exit(0);
 }
