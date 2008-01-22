@@ -106,7 +106,7 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 }
 
 static void usage() {
-    printf("benchmark-test [-v] [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [TOTALITEMS]\n");
+    printf("benchmark-test [-v] [--nodesize NODESIZE] [--keysize KEYSIZE] [--valsize VALSIZE] [--verify] [ITERATIONS]\n");
 }
 
 int main (int argc, char *argv[]) {
@@ -134,7 +134,7 @@ int main (int argc, char *argv[]) {
         } else if (strcmp(arg, "--verify")==0) {
 	    do_verify = 1;
 	} else if (strcmp(arg, "-v")==0) {
-	    verbose = 1;
+	    verbose++;
 	} else if (strcmp(arg, "-q")==0) {
 	    verbose = 0;
 	} else {
@@ -172,7 +172,7 @@ int main (int argc, char *argv[]) {
 	printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
 	printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
     }
-    if (verbose) {
+    if (verbose>1) {
 	toku_malloc_report();
     }
     toku_malloc_cleanup();
