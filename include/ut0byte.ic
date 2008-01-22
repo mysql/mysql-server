@@ -274,7 +274,7 @@ ut_uint64_align_down(
 	ut_ad(align_no > 0);
 	ut_ad(ut_is_2pow(align_no));
 
-	return(n & (ib_uint64_t) ~(align_no - 1));
+	return(n & ~((ib_uint64_t) align_no - 1));
 }
 
 /************************************************************
