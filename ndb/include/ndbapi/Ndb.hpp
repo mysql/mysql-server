@@ -1399,9 +1399,9 @@ public:
   int readAutoIncrementValue(const NdbDictionary::Table * aTable,
                              Uint64 & tupleId);
   int setAutoIncrementValue(const char* aTableName,
-                            Uint64 tupleId, bool increase);
+                            Uint64 tupleId, bool modify);
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
-                            Uint64 tupleId, bool increase);
+                            Uint64 tupleId, bool modify);
 private:
   int getTupleIdFromNdb(Ndb_local_table_info* info,
                         Uint64 & tupleId, Uint32 cacheSize,
@@ -1409,7 +1409,9 @@ private:
   int readTupleIdFromNdb(Ndb_local_table_info* info,
                          Uint64 & tupleId);
   int setTupleIdInNdb(Ndb_local_table_info* info,
-                      Uint64 tupleId, bool increase);
+                      Uint64 tupleId, bool modify);
+  int checkTupleIdInNdb(Ndb_local_table_info* info,
+                         Uint64 tupleId);
   int opTupleIdOnNdb(Ndb_local_table_info* info, Uint64 & opValue, Uint32 op);
 public:
 
