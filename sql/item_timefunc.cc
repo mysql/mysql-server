@@ -3360,6 +3360,8 @@ bool Item_func_last_day::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   ltime->day= days_in_month[month_idx];
   if ( month_idx == 1 && calc_days_in_year(ltime->year) == 366)
     ltime->day= 29;
+  ltime->hour= ltime->minute= ltime->second= 0;
+  ltime->second_part= 0;
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
   return 0;
 }
