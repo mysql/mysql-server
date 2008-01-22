@@ -188,7 +188,7 @@ static inline int toku_brt_cursor_active(BRT_CURSOR cursor) {
 void toku_brt_cursor_new_root(BRT_CURSOR cursor, BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
 
 /* a brt leaf has split.  modify this cursor if it includes the old node in its path. */
-void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE newright);
 
 /* a brt internal node has expanded.  modify this cursor if it includes the  old node in its path. */
 void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk);

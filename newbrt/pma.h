@@ -69,19 +69,27 @@ int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*);
 
 /*
- * The kv pairs in the original pma are split into 2 equal sized sets
- * and moved to the leftpma and rightpma.  The size is determined by
- * the sum of the keys and values. the left and right pma's must be
- * empty.
+ * The kv pairs in PMA are split into two (nearly) equal sized sets.
+ * THe ones in the left half are left in PMA, the ones in the right half are put into NEWPMA.
+ * The size is determined by the sum of the sizes of the keys and values. 
+ * The NEWPMA must be empty.
  *
- * origpma - the pma to be split
- * leftpma - the pma assigned keys <= pivot key
- * rightpma - the pma assigned keys > pivot key
+ * DISKOFF  - the disk offset of the node containing the PMA to be split.  (Needed for logging)
+ * PMA      - the pma to be split.
+ * PMA_SIZE - a variable containing the size of the disk image of the PMA.
+ * RAND4SUM - the random number for fingerprinting
+ * FINGERPRINT - the current fingerprint of the PMA.
+ *
+ * NEWDISKOFF, NEWPMA, NEWPMASIZE, NEWRAND4SUM, NEWFINGERPRINT -  The same information fo the pma to hold the stuff to be moved out of PMA.
+ *
+ * SPLITK  filled in with the resulting pivot key.
+ *   The original PMA gets keys <= pivot key
+ *   The NEWPMA gets keys > pivot key
  */
 int toku_pma_split(TOKUTXN, FILENUM,
-		   DISKOFF /*origdiskoff*/, PMA /*origpma*/,  unsigned int */*origpma_size*/, DBT */*splitk*/,
-		   DISKOFF /*leftdiskoff*/, PMA /*leftpma*/,  unsigned int */*leftpma_size*/,  u_int32_t /*leftrand4sum*/,  u_int32_t */*leftfingerprint*/,
-		   DISKOFF /*rightdiskoff*/, PMA /*rightpma*/, unsigned int */*rightpma_size*/, u_int32_t /*rightrand4sum*/, u_int32_t */*rightfingerprint*/);
+		   DISKOFF /*diskoff*/,    PMA /*pma*/,     unsigned int */*pma_size*/,     u_int32_t /*rand4sum*/,  u_int32_t */*fingerprint*/,
+		   DBT */*splitk*/,
+		   DISKOFF /*newdiskoff*/, PMA /*newpma*/,  unsigned int */*newpma_size*/,  u_int32_t /*newrand4sum*/,  u_int32_t */*newfingerprint*/);
 
 /*
  * Insert several key value pairs into an empty pma.  

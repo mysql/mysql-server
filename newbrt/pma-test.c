@@ -847,25 +847,21 @@ static void test_pma_compare_fun (int wrong_endian_p) {
 }
 
 static void test_pma_split_n(int n) {
-    PMA pmaa, pmab, pmac;
+    PMA pmaa, pmac;
     int error;
     int i;
-    int na, nb, nc;
+    int na, nc;
 
-    u_int32_t rand4fingerprint = random();
-    u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    u_int32_t brand = random();
-    u_int32_t bsum = 0;
+    u_int32_t arand = random();
+    u_int32_t asum = 0;
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
     if (verbose) printf("test_pma_split_n:%d\n", n);
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
-    assert(error == 0);
-    error = toku_pma_create(&pmab, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     error = toku_pma_create(&pmac, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -876,7 +872,7 @@ static void test_pma_split_n(int n) {
 
         sprintf(k, "%4.4d", i);
         v = i;
-	do_insert(pmaa, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	do_insert(pmaa, k, strlen(k)+1, &v, sizeof v, arand, &asum, &expect_fingerprint);
 
         toku_pma_verify(pmaa);
     }
@@ -884,46 +880,38 @@ static void test_pma_split_n(int n) {
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, 0,
-			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmaa, 0, arand, &asum,
+			   0,
 			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
     toku_pma_verify(pmaa);
-    toku_pma_verify(pmab);
     toku_pma_verify(pmac);
-    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmaa, arand, asum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    if (verbose) { printf("b:"); toku_print_pma(pmab); }
-    nb = toku_pma_n_entries(pmab);
     if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
-    assert(na == 0);
-    assert(nb + nc == n);
+    assert(na + nc == n);
 
     error = toku_pma_free(&pmaa);
-    assert(error == 0);
-    error = toku_pma_free(&pmab);
     assert(error == 0);
     error = toku_pma_free(&pmac);
     assert(error == 0);
 }
 
 static void test_pma_dup_split_n(int n, int dup_mode) {
-    PMA pmaa, pmab, pmac;
+    PMA pmaa, pmac;
     int error;
     int i;
-    int na, nb, nc;
+    int na, nc;
 
-    u_int32_t rand4sum = random();
-    u_int32_t sum = 0;
-    u_int32_t expect_sum = 0;
+    u_int32_t expect_asum = 0;
 
-    u_int32_t brand = random();
-    u_int32_t bsum = 0;
+    u_int32_t arand = random();
+    u_int32_t asum = 0;
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
@@ -933,10 +921,6 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     assert(error == 0);
     toku_pma_set_dup_mode(pmaa, dup_mode);
     toku_pma_set_dup_compare(pmaa, toku_default_compare_fun);
-    error = toku_pma_create(&pmab, toku_default_compare_fun, null_db, null_filenum, 0);
-    assert(error == 0);
-    toku_pma_set_dup_mode(pmab, dup_mode);
-    toku_pma_set_dup_compare(pmab, toku_default_compare_fun);
     error = toku_pma_create(&pmac, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     toku_pma_set_dup_mode(pmac, dup_mode);
@@ -946,7 +930,7 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     int dupkey = random();
     for (i=0; i<n; i++) {
         int v = i;
-    	do_insert(pmaa, &dupkey, sizeof dupkey, &v, sizeof v, rand4sum, &sum, &expect_sum);
+    	do_insert(pmaa, &dupkey, sizeof dupkey, &v, sizeof v, arand, &asum, &expect_asum);
 
         toku_pma_verify(pmaa);
     }
@@ -956,20 +940,17 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     DBT splitk;
 
     error = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, &splitk,
-			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmaa, 0, arand, &asum,
+			   &splitk,
 			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
     toku_pma_verify(pmaa);
-    toku_pma_verify(pmab);
     toku_pma_verify(pmac);
-    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmaa, arand, asum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
     if (0) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    if (0) { printf("b:"); toku_print_pma(pmab); }
-    nb = toku_pma_n_entries(pmab);
     if (0) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
@@ -985,12 +966,9 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
 
     if (splitk.data) toku_free(splitk.data);
 
-    assert(na == 0);
-    assert(nb + nc == n);
+    assert(na + nc == n);
 
     error = toku_pma_free(&pmaa);
-    assert(error == 0);
-    error = toku_pma_free(&pmab);
     assert(error == 0);
     error = toku_pma_free(&pmac);
     assert(error == 0);
@@ -999,17 +977,15 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
 static void test_pma_split_varkey(void) {
     char *keys[] = {
         "this", "is", "a", "key", "this is a really really big key", "zz", 0 };
-    PMA pmaa, pmab, pmac;
+    PMA pmaa, pmac;
     int error;
     int i;
-    int n, na, nb, nc;
+    int n, na, nc;
 
-    u_int32_t rand4fingerprint = random();
-    u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    u_int32_t brand = random();
-    u_int32_t bsum = 0;
+    u_int32_t arand = random();
+    u_int32_t asum = 0;
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
@@ -1017,44 +993,36 @@ static void test_pma_split_varkey(void) {
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
-    error = toku_pma_create(&pmab, toku_default_compare_fun, null_db, null_filenum, 0);
-    assert(error == 0);
     error = toku_pma_create(&pmac, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
 
     /* insert some kv pairs */
     for (i=0; keys[i]; i++) {
         char v = i;
-	do_insert(pmaa, keys[i], strlen(keys[i])+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	do_insert(pmaa, keys[i], strlen(keys[i])+1, &v, sizeof v, arand, &asum, &expect_fingerprint);
     }
     n = i;
 
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
     error = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, 0,
-			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmaa, 0, arand, &asum,
+			   0,
 			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
     toku_pma_verify(pmaa);
-    toku_pma_verify(pmab);
     toku_pma_verify(pmac);
-    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmaa, arand, asum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    if (verbose) { printf("b:"); toku_print_pma(pmab); }
-    nb = toku_pma_n_entries(pmab);
     if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
 
-    assert(na == 0);
-    assert(nb + nc == n);
+    assert(na + nc == n);
 
     error = toku_pma_free(&pmaa);
-    assert(error == 0);
-    error = toku_pma_free(&pmab);
     assert(error == 0);
     error = toku_pma_free(&pmac);
     assert(error == 0);
@@ -1120,18 +1088,16 @@ static void walk_cursor_reverse(const char *str, PMA_CURSOR cursor) {
 }
 
 static void test_pma_split_cursor(void) {
-    PMA pmaa, pmab, pmac;
+    PMA pmaa, pmac;
     PMA_CURSOR cursora, cursorb, cursorc;
     int error;
     int i;
-    int na, nb, nc;
+    int na, nc;
 
-    u_int32_t rand4fingerprint = random();
-    u_int32_t sum = 0;
     u_int32_t expect_fingerprint = 0;
 
-    u_int32_t brand = random();
-    u_int32_t bsum = 0;
+    u_int32_t arand = random();
+    u_int32_t asum = 0;
     u_int32_t crand = random();
     u_int32_t csum = 0;
 
@@ -1139,8 +1105,6 @@ static void test_pma_split_cursor(void) {
     if (verbose) printf("test_pma_split_cursor\n");
 
     error = toku_pma_create(&pmaa, toku_default_compare_fun, null_db, null_filenum, 0);
-    assert(error == 0);
-    error = toku_pma_create(&pmab, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
     error = toku_pma_create(&pmac, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(error == 0);
@@ -1152,7 +1116,7 @@ static void test_pma_split_cursor(void) {
         snprintf(k, sizeof k, "%.10d", i);
         v = i;
 
-	do_insert(pmaa, k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
+	do_insert(pmaa, k, sizeof k, &v, sizeof v, arand, &asum, &expect_fingerprint);
     }
     assert(toku_pma_n_entries(pmaa) == 16);
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
@@ -1181,25 +1145,22 @@ static void test_pma_split_cursor(void) {
     assert_cursor_val(cursorc, 16);
 
     error = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, 0,
-			   null_diskoff, pmab, 0, brand, &bsum,
+			   null_diskoff, pmaa, 0, arand, &asum,
+			   0,
 			   null_diskoff, pmac, 0, crand, &csum);
     assert(error == 0);
 
-    toku_pma_verify_fingerprint(pmab, brand, bsum);
+    toku_pma_verify_fingerprint(pmaa, arand, asum);
     toku_pma_verify_fingerprint(pmac, crand, csum);
 
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
     na = toku_pma_n_entries(pmaa);
-    assert(na == 0);
-    if (verbose) { printf("b:"); toku_print_pma(pmab); }
-    nb = toku_pma_n_entries(pmab);
     if (verbose) { printf("c:"); toku_print_pma(pmac); }
     nc = toku_pma_n_entries(pmac);
-    assert(nb + nc == 16);
+    assert(na + nc == 16);
 
     /* cursors open, should fail */
-    error = toku_pma_free(&pmab);
+    error = toku_pma_free(&pmaa);
     assert(error != 0);
 
     /* walk cursora */
@@ -1223,8 +1184,6 @@ static void test_pma_split_cursor(void) {
     assert(error == 0);
 
     error = toku_pma_free(&pmaa);
-    assert(error == 0);
-    error = toku_pma_free(&pmab);
     assert(error == 0);
     error = toku_pma_free(&pmac);
     assert(error == 0);
