@@ -1291,24 +1291,16 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
         splitk->flags = 0;
     }
 
-    /* put the first half of pairs into the left pma */
-    n = spliti;
-    error = pma_resize_array(txn, filenum, diskoff, pma, n + n/4, 0); // zeros the elements
-    assert(error == 0);
-    distribute_data(pma->pairs, toku_pma_index_limit(pma), &pairs[0], n, pma);
-    int r = pma_log_distribute(txn, filenum, diskoff, diskoff, spliti, &pairs[0]);
-    if (r!=0) { toku_free(pairs); return r; }
-    // Don't have to relocate kvpairs, because these ones are still there.
-    __pma_update_cursors(pma, &cursors, &pairs[0], n);
-    pma->n_pairs_present = spliti;
-
     /* put the second half of pairs into the right pma */
+    /* Do this first, so that the logging will move the stuff out of the left pma first, and then later when we redistribute in the left PMA, we won't overwrite something. */ 
     n = npairs - spliti;
     error = pma_resize_array(txn, filenum, newdiskoff, newpma, n + n/4, 0);
     assert(error == 0);
     distribute_data(newpma->pairs, toku_pma_index_limit(newpma), &pairs[spliti], n, newpma);
-    r = pma_log_distribute(txn, filenum, diskoff, newdiskoff, n, &pairs[spliti]);
-    if (r!=0) { toku_free(pairs); return r; }
+    {
+	int r = pma_log_distribute(txn, filenum, diskoff, newdiskoff, n, &pairs[spliti]);
+	if (r!=0) { toku_free(pairs); return r; }
+    }
 #if PMA_USE_MEMPOOL
     __pma_relocate_kvpairs(newpma);
     // If it's in an mpool, we must free those pairs.
@@ -1318,6 +1310,19 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
 #endif
     __pma_update_cursors(newpma, &cursors, &pairs[spliti], n);
     newpma->n_pairs_present = n;
+
+    /* put the first half of pairs into the left pma */
+    n = spliti;
+    error = pma_resize_array(txn, filenum, diskoff, pma, n + n/4, 0); // zeros the elements
+    assert(error == 0);
+    distribute_data(pma->pairs, toku_pma_index_limit(pma), &pairs[0], n, pma);
+    {
+	int r = pma_log_distribute(txn, filenum, diskoff, diskoff, spliti, &pairs[0]);
+	if (r!=0) { toku_free(pairs); return r; }
+    }
+    // Don't have to relocate kvpairs, because these ones are still there.
+    __pma_update_cursors(pma, &cursors, &pairs[0], n);
+    pma->n_pairs_present = spliti;
 
     toku_free(pairs);
 
