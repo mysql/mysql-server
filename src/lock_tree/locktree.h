@@ -13,11 +13,16 @@ typedef struct {
     BOOL                duplicates;
     toku_range_tree*    mainread;
     toku_range_tree*    borderwrite;
+    toku_range*         buf;
+    unsigned            buflen;
+    BOOL                panicked;
 } toku_lock_tree;
+#warning TODO: Handle 'panicked' variable in every api call.
 
 extern DBT* toku_lt_infinity;
 extern DBT* toku_lt_neg_infinity;
 
+const unsigned __toku_default_buflen = 2;
 /*
  * key_data = (void*)toku_lt_infinity is how we refer to the infinities.
  */
