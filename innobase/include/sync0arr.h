@@ -75,17 +75,12 @@ sync_array_free_cell(
 	sync_array_t*	arr,	/* in: wait array */
         ulint    	index);  /* in: index of the cell in array */
 /**************************************************************************
-Looks for the cells in the wait array which refer
-to the wait object specified,
-and sets their corresponding events to the signaled state. In this
-way releases the threads waiting for the object to contend for the object.
-It is possible that no such cell is found, in which case does nothing. */
+Note that one of the wait objects was signalled. */
 
 void
-sync_array_signal_object(
-/*=====================*/
-	sync_array_t*	arr,	/* in: wait array */
-	void*		object);/* in: wait object */
+sync_array_object_signalled(
+/*========================*/
+	sync_array_t*	arr);	/* in: wait array */
 /**************************************************************************
 If the wakeup algorithm does not work perfectly at semaphore relases,
 this function will do the waking (see the comment in mutex_exit). This
