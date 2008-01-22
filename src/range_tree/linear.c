@@ -3,10 +3,11 @@
 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/*
- * Range trees
- *
- * This is the header file for range trees. */
+/**
+   \file linear.c
+   \brief Range tree implementation
+  
+   See rangetree.h for documentation on the following. */
 
 //Currently this is a stub implementation just so we can write and compile tests
 //before actually implementing the range tree.
