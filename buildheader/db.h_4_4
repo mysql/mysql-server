@@ -94,6 +94,8 @@ typedef enum {
 #define DB_DBT_APPMALLOC 1
 #define DB_LOG_AUTOREMOVE 262144
 #define DB_TXN_WRITE_NOSYNC 1024
+#define DB_TXN_NOWAIT 8192
+#define DB_TXN_SYNC 16384
 #endif
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H

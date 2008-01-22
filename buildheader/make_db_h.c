@@ -113,6 +113,8 @@ void print_defines (void) {
     dodefine(DB_LOG_AUTOREMOVE);
 #endif
     dodefine(DB_TXN_WRITE_NOSYNC);
+    dodefine(DB_TXN_NOWAIT);
+    dodefine(DB_TXN_SYNC);
 
     printf("#endif\n");
 }
