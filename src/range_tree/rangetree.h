@@ -89,6 +89,7 @@ int toku_rt_close(toku_range_tree* tree);
  *                      necessary.
  *                      NOTE: buf must have been dynamically allocated i.e.
  *                      via malloc(3), calloc(3), etc.
+ *                      The buffer will not be modified unless it is too small.
  *      buflen:         A pointer to the lenfth of the buffer.  If the buffer
  *                      is increased, then buflen will be updated.
  *      numfound:       The number of ranges found.
