@@ -89,8 +89,6 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-CREATE DATABASE csv_not_null_test;
-USE csv_not_null_test;
 
 CREATE TABLE t1 (a int NOT NULL, b char(10) NOT NULL) ENGINE = CSV;
 INSERT INTO t1 VALUES();
