@@ -210,6 +210,7 @@ mutex_create_func(
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
 	mutex->lock_word = 0;
 #endif
+	mutex->event = os_event_create(NULL);
 	mutex_set_waiters(mutex, 0);
 	mutex->magic_n = MUTEX_MAGIC_N;
 #ifdef UNIV_SYNC_DEBUG
@@ -274,6 +275,8 @@ mutex_free(
 
 		mutex_exit(&mutex_list_mutex);
 	}
+
+	os_event_free(mutex->event);
 
 #if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER) 
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
@@ -498,8 +501,8 @@ mutex_signal_object(
 
 	/* The memory order of resetting the waiters field and
 	signaling the object is important. See LEMMA 1 above. */
-
-	sync_array_signal_object(sync_primary_wait_array, mutex);
+	os_event_set(mutex->event);
+	sync_array_object_signalled(sync_primary_wait_array);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1047,6 +1050,7 @@ sync_thread_add_level(
 		ut_a(sync_thread_levels_g(array, SYNC_PURGE_SYS));
 	} else if (level == SYNC_TREE_NODE) {
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
+		     || sync_thread_levels_contain(array, SYNC_DICT_OPERATION)
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 	} else if (level == SYNC_TREE_NODE_FROM_HASH) {
 		ut_a(1);

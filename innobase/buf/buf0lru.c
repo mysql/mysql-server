@@ -86,6 +86,9 @@ scan_again:
 	block = UT_LIST_GET_LAST(buf_pool->LRU);
 
 	while (block != NULL) {
+
+		mutex_enter(&block->mutex);
+
 	        ut_a(block->state == BUF_BLOCK_FILE_PAGE);
 
 		if (block->space == id
@@ -112,6 +115,8 @@ scan_again:
 			if (block->is_hashed) {
 				page_no = block->offset;
 			
+				mutex_exit(&block->mutex);
+
 				mutex_exit(&(buf_pool->mutex));
 
 				/* Note that the following call will acquire
@@ -138,6 +143,7 @@ scan_again:
 			buf_LRU_block_free_hashed_page(block);
 		}
 next_page:
+		mutex_exit(&block->mutex);
 		block = UT_LIST_GET_PREV(LRU, block);
 	}
 
@@ -211,6 +217,9 @@ buf_LRU_search_and_free_block(
 
 	while (block != NULL) {
 	        ut_a(block->in_LRU_list);
+
+		mutex_enter(&block->mutex);
+
 		if (buf_flush_ready_for_replace(block)) {
 
 			if (buf_debug_prints) {
@@ -223,6 +232,7 @@ buf_LRU_search_and_free_block(
 			buf_LRU_block_remove_hashed_page(block);
 
 			mutex_exit(&(buf_pool->mutex));
+			mutex_exit(&block->mutex);
 
 			/* Remove possible adaptive hash index built on the
 			page; in the case of AWE the block may not have a
@@ -231,15 +241,21 @@ buf_LRU_search_and_free_block(
 			if (block->frame) {
 				btr_search_drop_page_hash_index(block->frame);
 			}
-			mutex_enter(&(buf_pool->mutex));
 
 			ut_a(block->buf_fix_count == 0);
 
+			mutex_enter(&(buf_pool->mutex));
+			mutex_enter(&block->mutex);
+
 			buf_LRU_block_free_hashed_page(block);
 			freed = TRUE;
+			mutex_exit(&block->mutex);
 
 			break;
 		}
+
+		mutex_exit(&block->mutex);
+
 		block = UT_LIST_GET_PREV(LRU, block);
 		distance++;
 
@@ -413,7 +429,11 @@ loop:
 			}
 		}
 		
+		mutex_enter(&block->mutex);
+
 		block->state = BUF_BLOCK_READY_FOR_USE;
+
+		mutex_exit(&block->mutex);
 
 		mutex_exit(&(buf_pool->mutex));
 
@@ -815,6 +835,7 @@ buf_LRU_block_free_non_file_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
@@ -854,6 +875,7 @@ buf_LRU_block_remove_hashed_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(block);
 	
@@ -911,6 +933,7 @@ buf_LRU_block_free_hashed_page(
 {
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(mutex_own(&(buf_pool->mutex)));
+	ut_ad(mutex_own(&block->mutex));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(block->state == BUF_BLOCK_REMOVE_HASH);
 
