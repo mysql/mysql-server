@@ -768,7 +768,7 @@ Ndb::getNodeId()
 
 /****************************************************************************
 int    getAutoIncrementValue( const char* aTableName,
-                              Uint64 & tupleId, 
+                              Uint64 & autoValue, 
                               Uint32 cacheSize, 
                               Uint64 step,
                               Uint64 start);
@@ -895,12 +895,10 @@ Ndb::getTupleIdFromNdb(Ndb_local_table_info* info,
 
 /****************************************************************************
 int readAutoIncrementValue( const char* aTableName,
-                            Uint64 & autoValue,
-                            bool modify);
+                            Uint64 & autoValue);
 
 Parameters:     aTableName (IN) : The table name.
                 autoValue  (OUT) : The current autoincrement value
-                modify     (IN) : Modify existing value (not initialization)
 Returns:        0 if succesful, -1 if error encountered
 Remark:		Returns the current autoincrement value to the application.
 ****************************************************************************/
