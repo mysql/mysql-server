@@ -91,21 +91,25 @@ select a=b && a=c from t1;
 a=b && a=c
 1
 SELECT routine_name, definer
-FROM information_schema.routines;
+FROM information_schema.routines
+WHERE routine_name = 'bug12480';
 routine_name	definer
 bug12480	root@localhost
 SELECT trigger_name, definer
-FROM information_schema.triggers;
+FROM information_schema.triggers
+WHERE trigger_name = 't1_first';
 trigger_name	definer
 t1_first	root@localhost
 
 --- On slave --
 SELECT routine_name, definer
-FROM information_schema.routines;
+FROM information_schema.routines
+WHERE routine_name = 'bug12480';
 routine_name	definer
 bug12480	root@localhost
 SELECT trigger_name, definer
-FROM information_schema.triggers;
+FROM information_schema.triggers
+WHERE trigger_name = 't1_first';
 trigger_name	definer
 t1_first	root@localhost
 select a=b && a=c from t1;
