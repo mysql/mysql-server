@@ -75,7 +75,7 @@ static long brtnode_size(BRTNODE node) {
 }
 
 static void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
-static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
+static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE newnode);
 static void brt_update_cursors_nonleaf_expand(BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk);
 static void brt_update_cursors_nonleaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
 
@@ -318,6 +318,7 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height, TOKUTXN txn)
     //printf("%s:%d putting %p (%lld) parent=%p\n", __FILE__, __LINE__, n, n->thisnodename, parent_brtnode);
     r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
 			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
+    assert(r==0);
     r=toku_log_newbrtnode(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), n->thisnodename, height, n->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, n->rand4fingerprint);
     assert(r==0);
 }
@@ -360,15 +361,13 @@ static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT 
 
 
 static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
-    BRTNODE A,B;
+    BRTNODE B;
     assert(node->height==0);
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-    create_new_brtnode(t, &A, 0, txn);
     create_new_brtnode(t, &B, 0, txn);
     //printf("leaf_split %lld - %lld %lld\n", node->thisnodename, A->thisnodename, B->thisnodename);
     //printf("%s:%d A PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
     //printf("%s:%d B PMA= %p\n", __FILE__, __LINE__, A->u.l.buffer); 
-    assert(A->nodesize>0);
     assert(B->nodesize>0);
     assert(node->nodesize>0);
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
@@ -376,20 +375,19 @@ static int brtleaf_split (TOKUTXN txn, FILENUM filenum, BRT t, BRTNODE node, BRT
     assert(node->height>0 || node->u.l.buffer!=0);
     int r;
     r = toku_pma_split(txn, filenum,
-		       node->thisnodename, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, splitk,
-		       A->thisnodename,    A->u.l.buffer, &A->u.l.n_bytes_in_buffer, A->rand4fingerprint, &A->local_fingerprint,
-		       B->thisnodename,    B->u.l.buffer, &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
+		       node->thisnodename, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, node->rand4fingerprint, &node->local_fingerprint,
+		       splitk,
+		       B->thisnodename,    B->u.l.buffer,   &B->u.l.n_bytes_in_buffer, B->rand4fingerprint, &B->local_fingerprint);
     assert(r == 0);
     assert(node->height>0 || node->u.l.buffer!=0);
     /* Remove it from the cache table, and free its storage. */
     //printf("%s:%d old pma = %p\n", __FILE__, __LINE__, node->u.l.buffer);
-    brt_update_cursors_leaf_split(t, node, A, B);
-    delete_node(t, node);
+    brt_update_cursors_leaf_split(t, node, B);
 
-    *nodea = A;
+    *nodea = node;
     *nodeb = B;
-    assert(toku_serialize_brtnode_size(A)<A->nodesize);
-    assert(toku_serialize_brtnode_size(B)<B->nodesize);
+    assert(toku_serialize_brtnode_size(node)<node->nodesize);
+    assert(toku_serialize_brtnode_size(B)   <B->nodesize);
     return 0;
 }
 
@@ -1965,14 +1963,13 @@ void brt_update_cursors_new_root(BRT t, BRTNODE newroot, BRTNODE left, BRTNODE r
     }
 }
 
-static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
+static void brt_update_cursors_leaf_split(BRT t, BRTNODE oldnode, BRTNODE newnode) {
     BRT_CURSOR cursor;
 
-    if (brt_update_debug) printf("brt_update_cursors_leaf_split %lld %lld %lld\n", oldnode->thisnodename,
-        left->thisnodename, right->thisnodename);
+    if (brt_update_debug) printf("brt_update_cursors_leaf_split %lld %lld\n", oldnode->thisnodename, newnode->thisnodename);
     for (cursor = t->cursors_head; cursor; cursor = cursor->next) {
         if (toku_brt_cursor_active(cursor)) {
-            toku_brt_cursor_leaf_split(cursor, t, oldnode, left, right);
+            toku_brt_cursor_leaf_split(cursor, t, oldnode, newnode);
         }
     }
 }
@@ -2029,35 +2026,29 @@ void toku_brt_cursor_new_root(BRT_CURSOR cursor, BRT t, BRTNODE newroot, BRTNODE
     brt_node_add_cursor(newroot, childnum, cursor);
 }
 
-void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right) {
+void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE newright) {
     int r;
-    BRTNODE newnode;
     PMA pma;
     void *v;
 
     assert(oldnode->height == 0);
     if (cursor->path[cursor->path_len-1] == oldnode) {
-        assert(left->height == 0 && right->height == 0);
+        assert(newright->height == 0);
 
         r = toku_pma_cursor_get_pma(cursor->pmacurs, &pma);
         assert(r == 0);
-        if (pma == left->u.l.buffer)
-            newnode = left;
-        else if (pma == right->u.l.buffer)
-            newnode = right;
-        else
-            newnode = 0;
-        assert(newnode);
+	if (pma == newright->u.l.buffer) {
+	    r = toku_cachetable_unpin(t->cf, oldnode->thisnodename, oldnode->dirty, brtnode_size(oldnode));
+	    assert(r == 0);
+	    r = toku_cachetable_maybe_get_and_pin(t->cf, newright->thisnodename, &v);
+	    assert(r == 0 && v == newright);
+	    cursor->path[cursor->path_len-1] = newright;
+	}
 
         if (0) printf("toku_brt_cursor_leaf_split %p oldnode %lld newnode %lld\n", cursor, 
-                      oldnode->thisnodename, newnode->thisnodename);
+                      oldnode->thisnodename, newright->thisnodename);
 
 	//verify_local_fingerprint_nonleaf(oldnode);
-        r = toku_cachetable_unpin(t->cf, oldnode->thisnodename, oldnode->dirty, brtnode_size(oldnode));
-        assert(r == 0);
-        r = toku_cachetable_maybe_get_and_pin(t->cf, newnode->thisnodename, &v);
-        assert(r == 0 && v == newnode);
-        cursor->path[cursor->path_len-1] = newnode;
     }
 }
 

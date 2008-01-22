@@ -1218,43 +1218,38 @@ static void __pma_relocate_kvpairs(PMA pma) {
 
 
 int toku_pma_split(TOKUTXN txn, FILENUM filenum,
-		   DISKOFF origdiskoff,  PMA origpma, unsigned int *origpma_size, DBT *splitk,
-		   DISKOFF leftdiskoff,  PMA leftpma,  unsigned int *leftpma_size,  u_int32_t leftrand4fp,  u_int32_t *leftfingerprint,
-		   DISKOFF rightdiskoff, PMA rightpma, unsigned int *rightpma_size, u_int32_t rightrand4fp, u_int32_t *rightfingerprint) {
+		   DISKOFF diskoff,    PMA pma,     unsigned int *pma_size_p,     u_int32_t rand4fp,    u_int32_t *fingerprint_p,
+		   DBT *splitk,
+		   DISKOFF newdiskoff, PMA newpma,  unsigned int *newpma_size_p,  u_int32_t newrand4fp, u_int32_t *newfingerprint_p) {
     int error;
     int npairs;
     struct kv_pair_tag *pairs;
-    int sumlen;
-    int runlen;
     int i;
     int n;
     int spliti;
-    struct list cursors;
 
     /* extract the pairs */
-    npairs = toku_pma_n_entries(origpma);
+    npairs = toku_pma_n_entries(pma);
     if (npairs == 0) {
         if (splitk)
             memset(splitk, 0, sizeof *splitk);
         return 0;
     }
-    assert(toku_pma_n_entries(leftpma) == 0);
-    assert(toku_pma_n_entries(rightpma) == 0);
-
     /* TODO move pairs to the stack */
-    pairs = pma_extract_pairs(origpma, npairs, 0, origpma->N);
+    pairs = pma_extract_pairs(pma, npairs, 0, pma->N);
     assert(pairs);
-    origpma->n_pairs_present = 0;
+
+    assert(toku_pma_n_entries(newpma) == 0);
 
     /* debug check the kv length sum */
-    sumlen = 0;
+    unsigned int sumlen = 0;
     for (i=0; i<npairs; i++)
         sumlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD;
 
-    if (origpma_size)
-        assert(*(int *)origpma_size == sumlen);
+    if (pma_size_p)
+        assert(*pma_size_p == sumlen);
 
-    runlen = 0;
+    unsigned int runlen = 0;
     for (i=0; i<npairs;) {
         runlen += kv_pair_keylen(pairs[i].pair) + kv_pair_vallen(pairs[i].pair) + PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD;
         i++;
@@ -1262,36 +1257,31 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
             break;
     }
     spliti = i;
-    if (leftpma_size) 
-        *leftpma_size = runlen;
-    if (rightpma_size)
-        *rightpma_size = sumlen - runlen;
 
-    /* set the cursor set to be all of the cursors from the original pma */
+    unsigned int revised_leftpmasize  = runlen;
+    unsigned int revised_rightpmasize = sumlen-runlen;
+
+    /* Get all of the cursors from the original pma */
+    struct list cursors;
     list_init(&cursors);
-    if (!list_empty(&origpma->cursors))
-        list_move(&cursors, &origpma->cursors);
+    if (!list_empty(&pma->cursors))
+        list_move(&cursors, &pma->cursors);
 
-    {
-	u_int32_t sum = 0;
-	for (i=0; i<spliti; i++) {
-	    sum+=toku_calccrc32_kvpair(kv_pair_key_const(pairs[i].pair), kv_pair_keylen(pairs[i].pair),
-				       kv_pair_val_const(pairs[i].pair), kv_pair_vallen(pairs[i].pair));
-	}
-	*leftfingerprint += leftrand4fp * sum;
-    }
+    u_int32_t revised_left_fingerprint;
+    u_int32_t revised_right_fingerprint;
     {
 	u_int32_t sum = 0;
 	for (i=spliti; i<npairs; i++) {
 	    sum+=toku_calccrc32_kvpair(kv_pair_key_const(pairs[i].pair), kv_pair_keylen(pairs[i].pair),
 				       kv_pair_val_const(pairs[i].pair), kv_pair_vallen(pairs[i].pair));
 	}
-	*rightfingerprint += rightrand4fp * sum;
+	revised_left_fingerprint  = -rand4fp * sum;
+	revised_right_fingerprint =  newrand4fp * sum;
     }
 
     if (splitk) {
         struct kv_pair *a = pairs[spliti-1].pair;
-        if (origpma->dup_mode & TOKU_DB_DUPSORT) {
+        if (pma->dup_mode & TOKU_DB_DUPSORT) {
             splitk->data = kv_pair_malloc(kv_pair_key(a), kv_pair_keylen(a), kv_pair_val(a), kv_pair_vallen(a));
             splitk->size = kv_pair_keylen(a) + kv_pair_vallen(a);
         } else {
@@ -1303,38 +1293,40 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
 
     /* put the first half of pairs into the left pma */
     n = spliti;
-    error = pma_resize_array(txn, filenum, leftdiskoff, leftpma, n + n/4, 0);
+    error = pma_resize_array(txn, filenum, diskoff, pma, n + n/4, 0); // zeros the elements
     assert(error == 0);
-    distribute_data(leftpma->pairs, toku_pma_index_limit(leftpma), &pairs[0], n, leftpma);
-    int r = pma_log_distribute(txn, filenum, origdiskoff, leftdiskoff, spliti, &pairs[0]);
+    distribute_data(pma->pairs, toku_pma_index_limit(pma), &pairs[0], n, pma);
+    int r = pma_log_distribute(txn, filenum, diskoff, diskoff, spliti, &pairs[0]);
     if (r!=0) { toku_free(pairs); return r; }
-#if PMA_USE_MEMPOOL
-    __pma_relocate_kvpairs(leftpma);
-#endif
-    __pma_update_cursors(leftpma, &cursors, &pairs[0], spliti);
-    leftpma->n_pairs_present = spliti;
+    // Don't have to relocate kvpairs, because these ones are still there.
+    __pma_update_cursors(pma, &cursors, &pairs[0], n);
+    pma->n_pairs_present = spliti;
 
     /* put the second half of pairs into the right pma */
     n = npairs - spliti;
-    error = pma_resize_array(txn, filenum, rightdiskoff, rightpma, n + n/4, 0);
+    error = pma_resize_array(txn, filenum, newdiskoff, newpma, n + n/4, 0);
     assert(error == 0);
-    distribute_data(rightpma->pairs, toku_pma_index_limit(rightpma), &pairs[spliti], n, rightpma);
-    r = pma_log_distribute(txn, filenum, origdiskoff, rightdiskoff, n, &pairs[spliti]);
+    distribute_data(newpma->pairs, toku_pma_index_limit(newpma), &pairs[spliti], n, newpma);
+    r = pma_log_distribute(txn, filenum, diskoff, newdiskoff, n, &pairs[spliti]);
     if (r!=0) { toku_free(pairs); return r; }
 #if PMA_USE_MEMPOOL
-    __pma_relocate_kvpairs(rightpma);
+    __pma_relocate_kvpairs(newpma);
+    // If it's in an mpool, we must free those pairs.
+    for (i=spliti; i<npairs; i++) {
+	pma_mfree_kv_pair(pma, pairs[i].pair);
+    }
 #endif
-    __pma_update_cursors(rightpma, &cursors, &pairs[spliti], n);
-    rightpma->n_pairs_present = n;
+    __pma_update_cursors(newpma, &cursors, &pairs[spliti], n);
+    newpma->n_pairs_present = n;
 
     toku_free(pairs);
 
-    /* bind the remaining cursors to the left pma*/
-    while (!list_empty(&cursors)) {
-        struct list *list = list_head(&cursors);
-        list_remove(list);
-        list_push(&leftpma->cursors, list);
-    }
+    /* The remaining cursors are in the left pma */
+
+    if (fingerprint_p)    *fingerprint_p    += revised_left_fingerprint;
+    if (newfingerprint_p) *newfingerprint_p += revised_right_fingerprint;
+    if (pma_size_p)       *pma_size_p       = revised_leftpmasize;
+    if (newpma_size_p)    *newpma_size_p    = revised_rightpmasize;
 
     return 0;
 }
