@@ -70,6 +70,17 @@ struct __toku_range_tree_internal {
 typedef struct __toku_range_tree_internal toku_range_tree;
 
 /**
+    Gets whether the range tree allows overlapping ranges.
+    
+    \param tree     The range tree.
+    \param allowed  Returns whether overlaps are allowed.
+
+    \return
+    - 0:            Success.
+    - EINVAL:       If any pointer argument is NULL. */
+int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
+
+/**
     Creates a range tree.
 
     \param ptree          Points to the new range tree if create is successful 
@@ -86,7 +97,7 @@ typedef struct __toku_range_tree_internal toku_range_tree;
     \return
     - 0:              Success.
     - EINVAL:         If any pointer argument is NULL.
-    - Other exit codes may be forwarded from underlying system calls.  */
+    - Other exit codes may be forwarded from underlying system calls. */
 int toku_rt_create(toku_range_tree** ptree, int (*end_cmp)(void*,void*), 
                    int (*data_cmp)(void*,void*), BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
