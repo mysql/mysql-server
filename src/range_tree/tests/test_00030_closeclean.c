@@ -17,7 +17,7 @@ int main(int argc, const char *argv[]) {
         1   2   3   4   5   6   7
         |---A-----------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
     range.left = &nums[1];
@@ -34,7 +34,7 @@ int main(int argc, const char *argv[]) {
         1   2   3   4   5   6   7
         |---A-----------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
     CKERR(r);
 
     range.left = &nums[1];

@@ -41,7 +41,7 @@ static int __toku_rt_decrease_capacity(toku_range_tree* tree, unsigned _num) {
         while (temp_len >= num * 2) temp_len /= 2;
         assert(temp_len >= _num);   //Sanity check.
         toku_range* temp_ranges =
-                           realloc(tree->ranges, temp_len * sizeof(toku_range));
+                     tree->realloc(tree->ranges, temp_len * sizeof(toku_range));
         if (!temp_ranges) return errno;
         tree->ranges     = temp_ranges;
         tree->ranges_len = temp_len;
@@ -55,7 +55,7 @@ static int __toku_rt_increase_capacity(toku_range_tree* tree, unsigned num) {
         unsigned temp_len = tree->ranges_len;
         while (temp_len < num) temp_len *= 2;
         toku_range* temp_ranges =
-                           realloc(tree->ranges, temp_len * sizeof(toku_range));
+                     tree->realloc(tree->ranges, temp_len * sizeof(toku_range));
         if (!temp_ranges) return errno;
         tree->ranges     = temp_ranges;
         tree->ranges_len = temp_len;
@@ -63,14 +63,15 @@ static int __toku_rt_increase_capacity(toku_range_tree* tree, unsigned num) {
     return 0;
 }
 
-static int __toku_increase_buffer(toku_range** buf, unsigned* buflen,
-                                  unsigned num) {
+static int __toku_rt_increase_buffer(toku_range_tree* tree, toku_range** buf,
+                                     unsigned* buflen, unsigned num) {
     assert(buf);
     assert(buflen);
     if (*buflen < num) {
         unsigned temp_len = *buflen;
         while (temp_len < num) temp_len *= 2;
-        toku_range* temp_buf = realloc(*buf, temp_len * sizeof(toku_range));
+        toku_range* temp_buf =
+                             tree->realloc(*buf, temp_len * sizeof(toku_range));
         if (!temp_buf) return errno;
         *buf = temp_buf;
         *buflen = temp_len;
@@ -100,15 +101,19 @@ static BOOL __toku_rt_exact(toku_range_tree* tree,
 
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(void*,void*), int (*data_cmp)(void*,void*),
-		           BOOL allow_overlaps) {
+		           BOOL allow_overlaps,
+                   void* (*user_malloc) (size_t),
+                   void  (*user_free)   (void*),
+                   void* (*user_realloc)(void*, size_t)) {
     int r;
     toku_range_tree* temptree;
-    if (!ptree || !end_cmp || !data_cmp)                 return EINVAL;
+    if (!ptree || !end_cmp || !data_cmp ||
+        !user_malloc || !user_free || !user_realloc)              return EINVAL;
     
-    temptree = (toku_range_tree*)malloc(sizeof(toku_range_tree));
+    temptree = (toku_range_tree*)user_malloc(sizeof(toku_range_tree));
     if (0) {
         died1:
-        free(temptree);
+        user_free(temptree);
         return r;
     }
     if (!temptree) return errno;
@@ -120,11 +125,14 @@ int toku_rt_create(toku_range_tree** ptree,
     temptree->allow_overlaps = allow_overlaps;
     temptree->ranges_len     = minlen;
     temptree->ranges         = (toku_range*)
-                             malloc(temptree->ranges_len * sizeof(toku_range));
+                         user_malloc(temptree->ranges_len * sizeof(toku_range));
     if (!temptree->ranges) {
         r = errno;
         goto died1;
     }
+    temptree->malloc  = user_malloc;
+    temptree->free    = user_free;
+    temptree->realloc = user_realloc;
     *ptree = temptree;
 
     return 0;
@@ -132,8 +140,8 @@ int toku_rt_create(toku_range_tree** ptree,
 
 int toku_rt_close(toku_range_tree* tree) {
     if (!tree)                                           return EINVAL;
-    free(tree->ranges);
-    free(tree);
+    tree->free(tree->ranges);
+    tree->free(tree);
     return 0;
 }
 
@@ -149,7 +157,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
     
     for (i = 0; i < tree->numelements; i++) {
         if (__toku_rt_overlap(tree, query, &tree->ranges[i])) {
-            r = __toku_increase_buffer(buf, buflen, temp_numfound + 1);
+            r = __toku_rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
             if (r != 0) return r;
             (*buf)[temp_numfound++] = tree->ranges[i];
             //k == 0 means limit of infinity, this is not a bug.

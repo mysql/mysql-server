@@ -34,7 +34,8 @@ void* init_point(int left) {
 void setup_tree(BOOL allow_overlaps, BOOL insert, int left, int right, int data) {
     int r;
     toku_range range;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps);   CKERR(r);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, malloc, free, realloc);
+    CKERR(r);
 
     if (insert) {
         r = toku_rt_insert(tree, init_range(&range, left, right, data));
