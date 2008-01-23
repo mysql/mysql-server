@@ -3,7 +3,7 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-//#include <stdlib.h>
+#include <stdlib.h>
 
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
@@ -11,17 +11,17 @@
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
-void *toku_calloc(long nmemb, long size);
-void *toku_malloc(unsigned long size);
+void *toku_calloc(size_t nmemb, size_t size);
+void *toku_malloc(size_t size);
 /* toku_tagmalloc() performs a malloc(size), but fills in the first 4 bytes with typ.
  * This "tag" is useful if you are debugging and run across a void* that is
  * really a (struct foo *), and you want to figure out what it is.
  */
-void *toku_tagmalloc(unsigned long size, int typ);
+void *toku_tagmalloc(size_t size, int typ);
 void toku_free(void*);
 /* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
-void toku_free_n(void*, unsigned long size);
-void *toku_realloc(void *, long size);
+void toku_free_n(void*, size_t size);
+void *toku_realloc(void *, size_t size);
 
 /* MALLOC is a macro that helps avoid a common error:
  * Suppose I write
@@ -54,7 +54,7 @@ void *toku_realloc(void *, long size);
 #define TAGMALLOC(t,v) t v = toku_tagmalloc(sizeof(*v), TYP_ ## t);
 
 /* Copy memory.  Analogous to strdup() */
-void *toku_memdup (const void *v, unsigned int len);
+void *toku_memdup (const void *v, size_t len);
 /* Toku-version of strdup.  Use this so that it calls toku_malloc() */
 char *toku_strdup (const char *s);
 
