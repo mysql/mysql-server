@@ -169,7 +169,8 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
     TAGMALLOC(BRTNODE, n);
     n->nodesize     = c->nodesize;
     n->thisnodename = c->diskoff;
-    n->log_lsn = n->disk_lsn  = c->lsn; printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
+    n->log_lsn = n->disk_lsn  = c->lsn;
+    //printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
     n->layout_version = 1;
     n->height         = c->height;
     n->rand4fingerprint = c->rand4fingerprint;
@@ -284,6 +285,23 @@ void toku_recover_setpivot (struct logtype_setpivot *le) {
 
     toku_free(le->pivotkey.data);
 }
+
+void toku_recover_changechildfingerprint (struct logtype_changechildfingerprint *le) {
+    struct cf_pair *pair;
+    int r = find_cachefile(le->filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, le->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height>0);
+    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, le->childnum) = le->newfingerprint;
+    r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+    
+}
+int toku_rollback_changechildfingerprint (struct logtype_changechildfingerprint *le, TOKUTXN txn) ABORTIT
 
 void toku_recover_fopen (struct logtype_fopen *c) {
     char *fname = fixup_fname(&c->fname);
@@ -465,3 +483,4 @@ void toku_recover_changeunusedmemory (struct logtype_changeunusedmemory *le)  {
     r = toku_unpin_brt_header(pair->brt);
 }
 int toku_rollback_changeunusedmemory (struct logtype_changeunusedmemory *le, TOKUTXN txn) ABORTIT
+

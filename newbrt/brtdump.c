@@ -52,7 +52,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%lld\n", n->thisnodename);
     printf(" disk_lsn    =%lld\n", n->disk_lsn.lsn);
-    printf(" log_lsn     =%lld\n", n->log_lsn.lsn);
+    //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
     printf(" rand4fp     =%08x\n", n->rand4fingerprint);
     printf(" localfp     =%08x\n", n->local_fingerprint);
