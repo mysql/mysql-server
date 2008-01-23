@@ -2249,7 +2249,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   if (reenable_logging)
     _ma_tmp_disable_logging_for_table(info, 0);
 
-  sort_param.filepos= new_header_length=
+  sort_param.current_filepos= sort_param.filepos= new_header_length=
     ((param->testflag & T_UNPACK) ? 0L : share->pack.header_length);
 
   if (!rep_quick)
@@ -2389,9 +2389,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
           _ma_check_print_error(param,"Couldn't delete duplicate row");
           goto err;
         }
-        continue;
       }
       /* purecov: end */
+      continue;
     }
     if (!block_record)
     {
@@ -2501,7 +2501,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   got_error= 0;
   /* If invoked by external program that uses thr_lock */
   if (&share->state.state != info->state)
-    memcpy( &share->state.state, info->state, sizeof(*info->state));
+    memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
   if (scan_inited)
@@ -3606,7 +3606,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   got_error=0;
 
   if (&share->state.state != info->state)
-    memcpy( &share->state.state, info->state, sizeof(*info->state));
+    memcpy(&share->state.state, info->state, sizeof(*info->state));
 
 err:
   if (scan_inited)

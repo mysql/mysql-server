@@ -3021,10 +3021,17 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
   options= (mi_uint2korr(state.header.options) | HA_OPTION_COMPRESS_RECORD |
 	    HA_OPTION_READ_ONLY_DATA);
   mi_int2store(state.header.options,options);
+  /* Save the original file type of we have to undo the packing later */
+  state.header.org_data_file_type= state.header.data_file_type;
+  state.header.data_file_type= COMPRESSED_RECORD;
+
   state.state.data_file_length=new_length;
   state.state.del=0;
   state.state.empty=0;
   state.state.records=state.split=(ha_rows) mrg->records;
+  state.create_rename_lsn= state.is_of_horizon= state.skip_redo_lsn=
+    LSN_REPAIRED_BY_MARIA_CHK;
+
   /* See comment above in save_state about key_file_length handling. */
   if (mrg->src_file_has_indexes_disabled)
   {

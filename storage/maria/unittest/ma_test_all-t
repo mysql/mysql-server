@@ -359,7 +359,15 @@ sub run_pack_tests()
           "$maria_path/maria_chk$suffix -se test2",
           "$maria_path/maria_pack$suffix --force -s test1",
           "$maria_path/maria_chk$suffix -s --unpack --parallel-recover test2",
-          "$maria_path/maria_chk$suffix -se test2"
+          "$maria_path/maria_chk$suffix -se test2",
+          $NEW_TEST,
+          "$maria_path/ma_test1$suffix $silent -c $row_type",
+	  "cp test1.MAD test2.MAD",
+	  "cp test1.MAI test2.MAI",
+          "$maria_path/maria_pack$suffix --force -s --join=test3 test1 test2",
+          "$maria_path/maria_chk -s test3",
+          "$maria_path/maria_chk -s --safe-recover test3",
+          "$maria_path/maria_chk -s test3"
          );
 
   return &count_tests(\@t) if ($count);
