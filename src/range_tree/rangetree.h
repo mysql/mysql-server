@@ -42,8 +42,14 @@ struct __toku_range_tree_internal {
     int         (*data_cmp)(void*,void*);
     /** Whether this tree allows ranges to overlap */
     BOOL        allow_overlaps;
-   /** The number of ranges in the range tree */
+    /** The number of ranges in the range tree */
     unsigned    numelements;
+    /** The user malloc function */
+    void*       (*malloc) (size_t);
+    /** The user free function */
+    void        (*free)   (void*);
+    /** The user realloc function */
+    void*       (*realloc)(void*, size_t);
 #if defined(TOKU_LINEAR_RANGE_TREE)
     #if defined(TOKU_LOG_RANGE_TREE)
         #error Choose just one range tree type.
@@ -73,13 +79,19 @@ typedef struct __toku_range_tree_internal toku_range_tree;
                           Return value conforms to cmp in qsort(3). 
     \param allow_overlaps Whether ranges in this range tree are permitted 
                           to overlap. 
+    \param user_malloc    A user provided malloc(3) function.
+    \param user_free      A user provided free(3) function.
+    \param user_realloc   A user provided realloc(3) function.                          
 
     \return
     - 0:              Success.
     - EINVAL:         If any pointer argument is NULL.
     - Other exit codes may be forwarded from underlying system calls.  */
 int toku_rt_create(toku_range_tree** ptree, int (*end_cmp)(void*,void*), 
-                   int (*data_cmp)(void*,void*), BOOL allow_overlaps); 
+                   int (*data_cmp)(void*,void*), BOOL allow_overlaps,
+                   void* (*user_malloc) (size_t),
+                   void  (*user_free)   (void*),
+                   void* (*user_realloc)(void*, size_t)); 
 
 /**
     Destroys and frees a range tree.

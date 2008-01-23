@@ -38,7 +38,7 @@ int main(int argc, const char *argv[]) {
                 |-------A-------|
             |-------B-------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -184,7 +184,7 @@ int main(int argc, const char *argv[]) {
     find_range.right = &nums[4];
     find_range.data  = NULL;
         
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);

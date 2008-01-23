@@ -20,7 +20,7 @@ int main(int argc, const char *argv[]) {
                 |-------A-------|
             |-------B-------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */
@@ -98,7 +98,7 @@ int main(int argc, const char *argv[]) {
         |---A---|
                     |---B---|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */

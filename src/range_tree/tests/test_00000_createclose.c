@@ -9,7 +9,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     /* Test no overlap */
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
     CKERR(r);
     
     assert(tree!=NULL);
@@ -20,7 +20,7 @@ int main(int argc, const char *argv[]) {
     tree = NULL;
 
     /* Test overlap */
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
     assert(tree!=NULL);

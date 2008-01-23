@@ -10,15 +10,15 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     /* Create tests */
-    r = toku_rt_create(NULL, dummy_cmp, dummy_cmp, FALSE);
+    r = toku_rt_create(NULL, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
     CKERR2(r, EINVAL);
 
-    r = toku_rt_create(&tree, NULL, dummy_cmp, FALSE);
+    r = toku_rt_create(&tree, NULL, dummy_cmp, FALSE, malloc, free, realloc);
     CKERR2(r, EINVAL);
     
     assert(tree == NULL);
 
-    r = toku_rt_create(&tree, dummy_cmp, NULL, FALSE);
+    r = toku_rt_create(&tree, dummy_cmp, NULL, FALSE, malloc, free, realloc);
     CKERR2(r, EINVAL);
 
     assert(tree == NULL);
@@ -31,7 +31,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_insert(NULL, &range);
     CKERR2(r, EINVAL);
     
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_insert(tree, NULL);                         CKERR2(r, EINVAL);
@@ -43,7 +44,8 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_delete(NULL, &range);
     CKERR2(r, EINVAL);
     
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_delete(tree, NULL);                         CKERR2(r, EINVAL);
@@ -59,7 +61,8 @@ int main(int argc, const char *argv[]) {
     range.right = &stuff[1];
     range.data = NULL;
     
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_find(NULL, &range, 2, &buf, &bufsize, &found);
@@ -93,7 +96,8 @@ int main(int argc, const char *argv[]) {
     /* Predecessor tests */
     int foo;
     BOOL wasfound;
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_predecessor(NULL, &foo, &range, &wasfound);
@@ -110,7 +114,8 @@ int main(int argc, const char *argv[]) {
 
     r = toku_rt_close(tree);                                CKERR(r);
 
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_predecessor(tree, &foo, &range, &wasfound);
@@ -120,7 +125,8 @@ int main(int argc, const char *argv[]) {
 
 
     /* Successor tests */
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_successor(NULL, &foo, &range, &wasfound);
@@ -137,7 +143,8 @@ int main(int argc, const char *argv[]) {
 
     r = toku_rt_close(tree);                                CKERR(r);
 
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE); CKERR(r);
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE, malloc, free, realloc);
+    CKERR(r);
     assert(tree != NULL);
 
     r = toku_rt_successor(tree, &foo, &range, &wasfound);
