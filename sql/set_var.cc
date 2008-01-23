@@ -508,6 +508,10 @@ static sys_var_thd_bool
 sys_ndb_use_transactions(&vars, "ndb_use_transactions", &SV::ndb_use_transactions);
 static sys_var_thd_ulong
 sys_ndb_optimize_level(&vars, "ndb_optimization_delay", &SV::ndb_optimization_delay);
+static sys_var_thd_bool
+sys_ndb_table_no_logging(&vars, "ndb_table_no_logging", &SV::ndb_table_no_logging);
+static sys_var_thd_bool
+sys_ndb_table_temporary(&vars, "ndb_table_temporary", &SV::ndb_table_temporary);
 static sys_var_long_ptr
 sys_ndb_cache_check_time(&vars, "ndb_cache_check_time", &ndb_cache_check_time);
 static sys_var_const_str

@@ -34,6 +34,8 @@ ndb_optimization_delay	#
 ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
+ndb_table_no_logging	#
+ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#
