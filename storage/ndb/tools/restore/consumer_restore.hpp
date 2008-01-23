@@ -72,7 +72,7 @@ public:
     m_temp_error = false;
     m_no_upgrade = false;
     m_promote_attributes = false;
-    m_reserve_tail_spaces = false;
+    m_reserve_trailing_spaces = false;
     m_transactions = 0;
     m_cache.m_old_table = 0;
   }
@@ -165,7 +165,7 @@ public:
   bool m_restore_epoch;
   bool m_no_upgrade; // for upgrade ArrayType from 5.0 backup file.
   bool m_promote_attributes; 
-  static bool m_reserve_tail_spaces;
+  static bool m_reserve_trailing_spaces;
 
   Uint32 m_n_tablespace;
   Uint32 m_n_logfilegroup;

@@ -626,7 +626,7 @@ Fragment type: 5
 K Value: 6
 Min load factor: 78
 Max load factor: 80
-Temporary table: no
+Temporary table: #
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: 256
@@ -656,7 +656,7 @@ Fragment type: 5
 K Value: 6
 Min load factor: 78
 Max load factor: 80
-Temporary table: no
+Temporary table: #
 Number of attributes: 2
 Number of primary keys: 1
 Length of frm data: 256
