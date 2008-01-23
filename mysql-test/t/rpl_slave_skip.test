@@ -1,0 +1,203 @@
+source include/have_innodb.inc;
+source include/master-slave.inc;
+
+# This test is for checking that the use of SQL_SLAVE_SKIP_COUNTER
+# behaves as expected, i.e., that it is guaranteed to skip an entire
+# group and not start executing in the middle of a transaction.
+
+# We are checking the correct behaviour when using both a
+# transactional and non-transactional table. The non-transactional
+# table comes into play when rolling back a transaction containing a
+# write to this table. In that case, the transaction should still be
+# written to the binary log, and the slave will apply it and then roll
+# it back to get the non-transactional change into the table.
+
+--echo **** On Master ****
+CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=INNODB;
+CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MYISAM;
+
+--echo ==== Skipping normal transactions ==== 
+
+--echo **** On Slave ****
+sync_slave_with_master;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+
+BEGIN;
+INSERT INTO t1 VALUES (4, 'master,slave');
+INSERT INTO t1 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, 'master,slave');
+COMMIT;
+
+save_master_pos;
+
+SELECT * FROM t1 ORDER BY a;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t1;
+sync_slave_with_master;
+
+--echo ==== Skipping two normal transactions ==== 
+
+--echo **** On Slave ****
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+
+BEGIN;
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+
+BEGIN;
+INSERT INTO t1 VALUES (4, 'master');
+INSERT INTO t1 VALUES (5, 'master');
+INSERT INTO t1 VALUES (6, 'master');
+COMMIT;
+
+BEGIN;
+INSERT INTO t1 VALUES (7, 'master,slave');
+INSERT INTO t1 VALUES (8, 'master,slave');
+INSERT INTO t1 VALUES (9, 'master,slave');
+COMMIT;
+
+save_master_pos;
+
+SELECT * FROM t1 ORDER BY a;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t1;
+sync_slave_with_master;
+
+--echo ==== Skipping without autocommit ==== 
+
+# Testing without using autocommit instead. It should still write a
+# BEGIN event, so the behaviour should be the same
+
+--echo **** On Slave ****
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+SET AUTOCOMMIT=0;
+
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+
+INSERT INTO t1 VALUES (4, 'master,slave');
+INSERT INTO t1 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, 'master,slave');
+COMMIT;
+
+save_master_pos;
+
+SELECT * FROM t1 ORDER BY a;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+# Testing with a non-transactional table in the transaction. This will
+# log a ROLLBACK as a transaction terminator, which is a normal Query
+# log event.
+
+--echo ==== Rollback of transaction with non-transactional change ==== 
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t1;
+SET AUTOCOMMIT=1;
+
+--echo **** On Slave ****
+sync_slave_with_master;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+disable_warnings;
+BEGIN;
+INSERT INTO t1 VALUES (1, '');
+INSERT INTO t2 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, '');
+ROLLBACK;
+
+BEGIN;
+INSERT INTO t1 VALUES (4, '');
+INSERT INTO t2 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, '');
+ROLLBACK;
+enable_warnings;
+
+save_master_pos;
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+
+--echo ==== Cleanup ==== 
+
+--echo **** On Master ****
+connection master;
+DROP TABLE t1, t2;
+sync_slave_with_master;

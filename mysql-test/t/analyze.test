@@ -72,4 +72,16 @@ analyze table t1;
 show index from t1;
 drop table t1;
 
-# End of 4.1 tests
+--echo End of 4.1 tests
+
+#
+# Bug #30495: optimize table t1,t2,t3 extended errors
+#
+create table t1(a int);
+--error 1064
+analyze table t1 extended;
+--error 1064
+optimize table t1 extended;
+drop table t1;
+
+--echo End of 5.0 tests

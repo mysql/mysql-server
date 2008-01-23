@@ -2771,7 +2771,7 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
     operations on the target table.
   */
   if (lock_and_wait_for_table_name(thd, src_table))
-    goto err;
+    DBUG_RETURN(res);
 
   pthread_mutex_lock(&LOCK_open);
 
@@ -2780,8 +2780,11 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST *src_table,
     strxmov(src_path, (*tmp_table)->s->path, reg_ext, NullS);
   else
   {
-    strxmov(src_path, mysql_data_home, "/", src_table->db, "/",
-            src_table->table_name, reg_ext, NullS);
+    char *tablename_pos= strxmov(src_path, mysql_data_home, "/", NullS);
+    strxmov(tablename_pos, src_table->db, "/", src_table->table_name,
+            reg_ext, NullS);
+    if (lower_case_table_names)
+      my_casedn_str(files_charset_info, tablename_pos);
     /* Resolve symlinks (for windows) */
     fn_format(src_path, src_path, "", "", MYF(MY_UNPACK_FILENAME));
     if (access(src_path, F_OK))

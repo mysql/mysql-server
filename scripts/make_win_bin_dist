@@ -152,7 +152,6 @@ if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
 fi
 cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
-cp libmysql/$TARGET/*.exe                                $DESTDIR/bin/
 cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
 
 # FIXME really needed?!

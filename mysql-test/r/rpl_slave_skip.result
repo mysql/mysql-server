@@ -1,0 +1,144 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+**** On Master ****
+CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=INNODB;
+CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MYISAM;
+==== Skipping normal transactions ==== 
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+BEGIN;
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES (4, 'master,slave');
+INSERT INTO t1 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, 'master,slave');
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	master
+2	master
+3	master
+4	master,slave
+5	master,slave
+6	master,slave
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+4	master,slave
+5	master,slave
+6	master,slave
+**** On Master ****
+DELETE FROM t1;
+==== Skipping two normal transactions ==== 
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+BEGIN;
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES (4, 'master');
+INSERT INTO t1 VALUES (5, 'master');
+INSERT INTO t1 VALUES (6, 'master');
+COMMIT;
+BEGIN;
+INSERT INTO t1 VALUES (7, 'master,slave');
+INSERT INTO t1 VALUES (8, 'master,slave');
+INSERT INTO t1 VALUES (9, 'master,slave');
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	master
+2	master
+3	master
+4	master
+5	master
+6	master
+7	master,slave
+8	master,slave
+9	master,slave
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=8;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+7	master,slave
+8	master,slave
+9	master,slave
+**** On Master ****
+DELETE FROM t1;
+==== Skipping without autocommit ==== 
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES (1, 'master');
+INSERT INTO t1 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, 'master');
+COMMIT;
+INSERT INTO t1 VALUES (4, 'master,slave');
+INSERT INTO t1 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, 'master,slave');
+COMMIT;
+SELECT * FROM t1 ORDER BY a;
+a	b
+1	master
+2	master
+3	master
+4	master,slave
+5	master,slave
+6	master,slave
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+4	master,slave
+5	master,slave
+6	master,slave
+==== Rollback of transaction with non-transactional change ==== 
+**** On Master ****
+DELETE FROM t1;
+SET AUTOCOMMIT=1;
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+BEGIN;
+INSERT INTO t1 VALUES (1, '');
+INSERT INTO t2 VALUES (2, 'master');
+INSERT INTO t1 VALUES (3, '');
+ROLLBACK;
+BEGIN;
+INSERT INTO t1 VALUES (4, '');
+INSERT INTO t2 VALUES (5, 'master,slave');
+INSERT INTO t1 VALUES (6, '');
+ROLLBACK;
+SELECT * FROM t1 ORDER BY a;
+a	b
+SELECT * FROM t2 ORDER BY a;
+a	b
+2	master
+5	master,slave
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
+START SLAVE;
+SELECT * FROM t1 ORDER BY a;
+a	b
+SELECT * FROM t2 ORDER BY a;
+a	b
+5	master,slave
+==== Cleanup ==== 
+**** On Master ****
+DROP TABLE t1, t2;

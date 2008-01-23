@@ -24,7 +24,8 @@
 #include <m_ctype.h>
 #include "sql_select.h"
 
-static bool convert_constant_item(THD *thd, Field *field, Item **item);
+static bool convert_constant_item(THD *thd, Item_field *field_item,
+                                  Item **item);
 
 static Item_result item_store_type(Item_result a, Item *item,
                                    my_bool unsigned_flag)
@@ -317,7 +318,7 @@ longlong Item_func_nop_all::val_int()
   SYNOPSIS
     convert_constant_item()
     thd             thread handle
-    field           item will be converted using the type of this field
+    field_item      item will be converted using the type of this field
     item  [in/out]  reference to the item to convert
 
   DESCRIPTION
@@ -340,29 +341,47 @@ longlong Item_func_nop_all::val_int()
   1	Item was replaced with an integer version of the item
 */
 
-static bool convert_constant_item(THD *thd, Field *field, Item **item)
+static bool convert_constant_item(THD *thd, Item_field *field_item,
+                                  Item **item)
 {
+  Field *field= field_item->field;
+  int result= 0;
+
   if (!(*item)->with_subselect && (*item)->const_item())
   {
     /* For comparison purposes allow invalid dates like 2000-01-32 */
     ulong orig_sql_mode= thd->variables.sql_mode;
     enum_check_fields orig_count_cuted_fields= thd->count_cuted_fields;
+    ulonglong orig_field_val; /* original field value if valid */
+    LINT_INIT(orig_field_val);
     thd->variables.sql_mode= (orig_sql_mode & ~MODE_NO_ZERO_DATE) | 
                              MODE_INVALID_DATES;
     thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-    if (!(*item)->save_in_field(field, 1) && !((*item)->null_value))
+    /*
+      Store the value of the field if it references an outer field because
+      the call to save_in_field below overrides that value.
+    */
+    if (field_item->depended_from)
+      orig_field_val= field->val_int();
+    if (!(*item)->is_null() && !(*item)->save_in_field(field, 1))
     {
       Item *tmp=new Item_int_with_ref(field->val_int(), *item,
                                       test(field->flags & UNSIGNED_FLAG));
-      thd->variables.sql_mode= orig_sql_mode;
       if (tmp)
         thd->change_item_tree(item, tmp);
-      return 1;					// Item was replaced
+      result= 1;					// Item was replaced
+    }
+    /* Restore the original field value. */
+    if (field_item->depended_from)
+    {
+      result= field->store(orig_field_val, TRUE);
+      /* orig_field_val must be a valid value that can be restored back. */
+      DBUG_ASSERT(!result);
     }
     thd->variables.sql_mode= orig_sql_mode;
     thd->count_cuted_fields= orig_count_cuted_fields;
   }
-  return 0;
+  return result;
 }
 
 
@@ -410,15 +429,14 @@ void Item_bool_func2::fix_length_and_dec()
   thd= current_thd;
   if (!thd->is_context_analysis_only())
   {
-    Item *arg_real_item= args[0]->real_item();
-    if (arg_real_item->type() == FIELD_ITEM)
+    if (args[0]->real_item()->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong() &&
-          !(arg_real_item->is_datetime() &&
+      Item_field *field_item= (Item_field*) (args[0]->real_item());
+      if (field_item->field->can_be_compared_as_longlong() &&
+          !(field_item->is_datetime() &&
             args[1]->result_type() == STRING_RESULT))
       {
-        if (convert_constant_item(thd, field,&args[1]))
+        if (convert_constant_item(thd, field_item, &args[1]))
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT);		// Works for all types.
@@ -427,15 +445,14 @@ void Item_bool_func2::fix_length_and_dec()
         }
       }
     }
-    arg_real_item= args[1]->real_item();
-    if (arg_real_item->type() == FIELD_ITEM)
+    if (args[1]->real_item()->type() == FIELD_ITEM)
     {
-      Field *field=((Item_field*) arg_real_item)->field;
-      if (field->can_be_compared_as_longlong() &&
-          !(arg_real_item->is_datetime() &&
+      Item_field *field_item= (Item_field*) (args[1]->real_item());
+      if (field_item->field->can_be_compared_as_longlong() &&
+          !(field_item->is_datetime() &&
             args[0]->result_type() == STRING_RESULT))
       {
-        if (convert_constant_item(thd, field,&args[0]))
+        if (convert_constant_item(thd, field_item, &args[0]))
         {
           cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
                            INT_RESULT); // Works for all types.
@@ -1638,24 +1655,27 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const
 
 void Item_func_interval::fix_length_and_dec()
 {
+  uint rows= row->cols();
+  
   use_decimal_comparison= (row->element_index(0)->result_type() == DECIMAL_RESULT) ||
     (row->element_index(0)->result_type() == INT_RESULT);
-  if (row->cols() > 8)
+  if (rows > 8)
   {
-    bool consts=1;
+    bool not_null_consts= TRUE;
 
-    for (uint i=1 ; consts && i < row->cols() ; i++)
+    for (uint i= 1; not_null_consts && i < rows; i++)
     {
-      consts&= row->element_index(i)->const_item();
+      Item *el= row->element_index(i);
+      not_null_consts&= el->const_item() & !el->is_null();
     }
 
-    if (consts &&
+    if (not_null_consts &&
         (intervals=
-          (interval_range*) sql_alloc(sizeof(interval_range)*(row->cols()-1))))
+          (interval_range*) sql_alloc(sizeof(interval_range) * (rows - 1))))
     {
       if (use_decimal_comparison)
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           Item *el= row->element_index(i);
           interval_range *range= intervals + (i-1);
@@ -1680,7 +1700,7 @@ void Item_func_interval::fix_length_and_dec()
       }
       else
       {
-        for (uint i=1 ; i < row->cols(); i++)
+        for (uint i= 1; i < rows; i++)
         {
           intervals[i-1].dbl= row->element_index(i)->val_real();
         }
@@ -1771,12 +1791,22 @@ longlong Item_func_interval::val_int()
         ((el->result_type() == DECIMAL_RESULT) ||
          (el->result_type() == INT_RESULT)))
     {
-      my_decimal e_dec_buf, *e_dec= row->element_index(i)->val_decimal(&e_dec_buf);
+      my_decimal e_dec_buf, *e_dec= el->val_decimal(&e_dec_buf);
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
       if (my_decimal_cmp(e_dec, dec) > 0)
-        return i-1;
+        return i - 1;
     }
-    else if (row->element_index(i)->val_real() > value)
-      return i-1;
+    else 
+    {
+      double val= el->val_real();
+      /* Skip NULL ranges. */
+      if (el->null_value)
+        continue;
+      if (val > value)
+        return i - 1;
+    }
   }
   return i-1;
 }
@@ -1888,16 +1918,16 @@ void Item_func_between::fix_length_and_dec()
            thd->lex->sql_command != SQLCOM_CREATE_VIEW &&
            thd->lex->sql_command != SQLCOM_SHOW_CREATE)
   {
-    Field *field=((Item_field*) (args[0]->real_item()))->field;
-    if (field->can_be_compared_as_longlong())
+    Item_field *field_item= (Item_field*) (args[0]->real_item());
+    if (field_item->field->can_be_compared_as_longlong())
     {
       /*
         The following can't be recoded with || as convert_constant_item
         changes the argument
       */
-      if (convert_constant_item(thd, field,&args[1]))
+      if (convert_constant_item(thd, field_item, &args[1]))
         cmp_type=INT_RESULT;			// Works for all types.
-      if (convert_constant_item(thd, field,&args[2]))
+      if (convert_constant_item(thd, field_item, &args[2]))
         cmp_type=INT_RESULT;			// Works for all types.
     }
   }
@@ -3514,13 +3544,13 @@ void Item_func_in::fix_length_and_dec()
           thd->lex->sql_command != SQLCOM_SHOW_CREATE &&
           cmp_type != INT_RESULT)
       {
-        Field *field= ((Item_field*) (args[0]->real_item()))->field;
-        if (field->can_be_compared_as_longlong())
+        Item_field *field_item= (Item_field*) (args[0]->real_item());
+        if (field_item->field->can_be_compared_as_longlong())
         {
           bool all_converted= TRUE;
           for (arg=args+1, arg_end=args+arg_count; arg != arg_end ; arg++)
           {
-            if (!convert_constant_item (thd, field, &arg[0]))
+            if (!convert_constant_item (thd, field_item, &arg[0]))
               all_converted= FALSE;
           }
           if (all_converted)
@@ -4305,6 +4335,51 @@ void Item_func_like::cleanup()
 #ifdef USE_REGEX
 
 bool
+Item_func_regex::regcomp(bool send_error)
+{
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[1]->val_str(&tmp);
+  int error;
+
+  if (args[1]->null_value)
+    return TRUE;
+
+  if (regex_compiled)
+  {
+    if (!stringcmp(res, &prev_regexp))
+      return FALSE;
+    prev_regexp.copy(*res);
+    my_regfree(&preg);
+    regex_compiled= 0;
+  }
+
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
+      return TRUE;
+    res= &conv;
+  }
+
+  if ((error= my_regcomp(&preg, res->c_ptr_safe(),
+                         regex_lib_flags, regex_lib_charset)))
+  {
+    if (send_error)
+    {
+      (void) my_regerror(error, &preg, buff, sizeof(buff));
+      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    }
+    return TRUE;
+  }
+  regex_compiled= 1;
+  return FALSE;
+}
+
+
+bool
 Item_func_regex::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
@@ -4320,35 +4395,34 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
   if (agg_arg_charsets(cmp_collation, args, 2, MY_COLL_CMP_CONV, 1))
     return TRUE;
 
+  regex_lib_flags= (cmp_collation.collation->state &
+                    (MY_CS_BINSORT | MY_CS_CSSORT)) ?
+                   REG_EXTENDED | REG_NOSUB :
+                   REG_EXTENDED | REG_NOSUB | REG_ICASE;
+  /*
+    If the case of UCS2 and other non-ASCII character sets,
+    we will convert patterns and strings to UTF8.
+  */
+  regex_lib_charset= (cmp_collation.collation->mbminlen > 1) ?
+                     &my_charset_utf8_general_ci :
+                     cmp_collation.collation;
+
   used_tables_cache=args[0]->used_tables() | args[1]->used_tables();
   not_null_tables_cache= (args[0]->not_null_tables() |
 			  args[1]->not_null_tables());
   const_item_cache=args[0]->const_item() && args[1]->const_item();
   if (!regex_compiled && args[1]->const_item())
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff),&my_charset_bin);
-    String *res=args[1]->val_str(&tmp);
     if (args[1]->null_value)
     {						// Will always return NULL
       maybe_null=1;
       fixed= 1;
       return FALSE;
     }
-    int error;
-    if ((error= my_regcomp(&preg,res->c_ptr(),
-                           ((cmp_collation.collation->state &
-                             (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                            REG_EXTENDED | REG_NOSUB :
-                            REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                           cmp_collation.collation)))
-    {
-      (void) my_regerror(error,&preg,buff,sizeof(buff));
-      my_error(ER_REGEXP_ERROR, MYF(0), buff);
+    if (regcomp(TRUE))
       return TRUE;
-    }
-    regex_compiled=regex_is_const=1;
-    maybe_null=args[0]->maybe_null;
+    regex_is_const= 1;
+    maybe_null= args[0]->maybe_null;
   }
   else
     maybe_null=1;
@@ -4361,47 +4435,25 @@ longlong Item_func_regex::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH];
-  String *res, tmp(buff,sizeof(buff),&my_charset_bin);
+  String tmp(buff,sizeof(buff),&my_charset_bin);
+  String *res= args[0]->val_str(&tmp);
 
-  res=args[0]->val_str(&tmp);
-  if (args[0]->null_value)
-  {
-    null_value=1;
+  if ((null_value= (args[0]->null_value ||
+                    (!regex_is_const && regcomp(FALSE)))))
     return 0;
-  }
-  if (!regex_is_const)
-  {
-    char buff2[MAX_FIELD_WIDTH];
-    String *res2, tmp2(buff2,sizeof(buff2),&my_charset_bin);
 
-    res2= args[1]->val_str(&tmp2);
-    if (args[1]->null_value)
+  if (cmp_collation.collation != regex_lib_charset)
+  {
+    /* Convert UCS2 strings to UTF8 */
+    uint dummy_errors;
+    if (conv.copy(res->ptr(), res->length(), res->charset(),
+                  regex_lib_charset, &dummy_errors))
     {
-      null_value=1;
+      null_value= 1;
       return 0;
     }
-    if (!regex_compiled || stringcmp(res2,&prev_regexp))
-    {
-      prev_regexp.copy(*res2);
-      if (regex_compiled)
-      {
-	my_regfree(&preg);
-	regex_compiled=0;
-      }
-      if (my_regcomp(&preg,res2->c_ptr_safe(),
-                     ((cmp_collation.collation->state &
-                       (MY_CS_BINSORT | MY_CS_CSSORT)) ?
-                      REG_EXTENDED | REG_NOSUB :
-                      REG_EXTENDED | REG_NOSUB | REG_ICASE),
-                     cmp_collation.collation))
-      {
-	null_value=1;
-	return 0;
-      }
-      regex_compiled=1;
-    }
+    res= &conv;
   }
-  null_value=0;
   return my_regexec(&preg,res->c_ptr_safe(),0,(my_regmatch_t*) 0,0) ? 0 : 1;
 }
 

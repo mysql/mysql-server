@@ -340,7 +340,7 @@ do
     ./libtool --mode=execute cp sql/mysqld sql/mysqld-debug
     ./libtool --mode=execute nm --numeric-sort sql/mysqld-debug > sql/mysqld-debug.sym
     echo "# debug"
-    make test-bt
+    make test-bt-debug
     make clean
   fi
 done
@@ -715,6 +715,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Fri Nov 16 2007 Joerg Bruehe <joerg@mysql.com>
+
+- When testing the debug server, use "make test-bt-debug".
+
 * Sat Apr 07 2007 Kent Boortz <kent@mysql.com>
 
 - Removed man page for "mysql_create_system_tables"

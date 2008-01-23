@@ -20,7 +20,9 @@
    Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#include <config.h>
+#endif
 
 #include <stdio.h>
 
@@ -39,7 +41,8 @@
 /* **************************************************************** */
 
 static void
-memory_error_and_abort(const char *fname)
+memory_error_and_abort (fname)
+     char *fname;
 {
   fprintf (stderr, "%s: out of virtual memory\n", fname);
   exit (2);
@@ -56,7 +59,7 @@ xmalloc (bytes)
 
   temp = malloc (bytes);
   if (temp == 0)
-    memory_error_and_abort("xmalloc");
+    memory_error_and_abort ("xmalloc");
   return (temp);
 }
 
@@ -70,7 +73,7 @@ xrealloc (pointer, bytes)
   temp = pointer ? realloc (pointer, bytes) : malloc (bytes);
 
   if (temp == 0)
-    memory_error_and_abort("xrealloc");
+    memory_error_and_abort ("xrealloc");
   return (temp);
 }
 

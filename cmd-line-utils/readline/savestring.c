@@ -21,8 +21,7 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
-
+#include <config.h>
 #ifdef HAVE_STRING_H
 #  include <string.h>
 #endif

@@ -454,7 +454,7 @@ int chk_key(MI_CHECK *param, register MI_INFO *info)
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
-    if (keyinfo->flag & HA_FULLTEXT)
+    if (keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL))
       full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR &&
 	(info->state->records == 0 || keyinfo->flag & HA_FULLTEXT))
@@ -940,7 +940,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
   ha_rows records,del_blocks;
   my_off_t used,empty,pos,splits,start_recpos,
 	   del_length,link_used,start_block;
-  byte	*record,*to;
+  byte	*record= 0, *to;
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[MI_MAX_POSSIBLE_KEY];
@@ -957,7 +957,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
       puts("- check record links");
   }
 
-  if (!(record= (byte*) my_malloc(info->s->base.pack_reclength,MYF(0))))
+  if (!mi_alloc_rec_buff(info, -1, &record))
   {
     mi_check_print_error(param,"Not enough memory for record");
     DBUG_RETURN(-1);
@@ -1364,12 +1364,12 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
     printf("Lost space:   %12s    Linkdata:     %10s\n",
 	   llstr(empty,llbuff),llstr(link_used,llbuff2));
   }
-  my_free((gptr) record,MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
   DBUG_RETURN (error);
  err:
   mi_check_print_error(param,"got error: %d when reading datafile at record: %s",my_errno, llstr(records,llbuff));
  err2:
-  my_free((gptr) record,MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
   param->testflag|=T_RETRY_WITHOUT_QUICK;
   DBUG_RETURN(1);
 } /* chk_data_link */
@@ -1487,7 +1487,7 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
   /* Remove all key blocks of this index file from key cache. */
   if ((error= flush_key_blocks(share->key_cache, share->kfile,
                                FLUSH_IGNORE_CHANGED)))
-    goto end;
+    goto end; /* purecov: inspected */
 
   /* Clear index root block pointers. */
   for (i= 0; i < share->base.keys; i++)
@@ -1560,8 +1560,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
 		      MYF(MY_WME | MY_WAIT_IF_FULL)))
       goto err;
   info->opt_flag|=WRITE_CACHE_USED;
-  if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))) ||
+  if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
     mi_check_print_error(param, "Not enough memory for extra record");
@@ -1753,7 +1752,8 @@ err:
   }
   my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
                             MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
+          MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
   VOID(end_io_cache(&param->read_cache));
   info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
@@ -2260,8 +2260,7 @@ int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
   info->opt_flag|=WRITE_CACHE_USED;
   info->rec_cache.file=info->dfile;		/* for sort_delete_record */
 
-  if (!(sort_param.record=(byte*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))) ||
+  if (!mi_alloc_rec_buff(info, -1, &sort_param.record) ||
       !mi_alloc_rec_buff(info, -1, &sort_param.rec_buff))
   {
     mi_check_print_error(param, "Not enough memory for extra record");
@@ -2544,7 +2543,8 @@ err:
 
   my_free(mi_get_rec_buff_ptr(info, sort_param.rec_buff),
                             MYF(MY_ALLOW_ZERO_PTR));
-  my_free(sort_param.record,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mi_get_rec_buff_ptr(info, sort_param.record),
+          MYF(MY_ALLOW_ZERO_PTR));
   my_free((gptr) sort_info.key_block,MYF(MY_ALLOW_ZERO_PTR));
   my_free((gptr) sort_info.ft_buf, MYF(MY_ALLOW_ZERO_PTR));
   my_free(sort_info.buff,MYF(MY_ALLOW_ZERO_PTR));
@@ -2622,6 +2622,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
   SORT_INFO sort_info;
   ulonglong key_map;
   pthread_attr_t thr_attr;
+  ulong max_pack_reclength;
   DBUG_ENTER("mi_repair_parallel");
   LINT_INIT(key_map);
 
@@ -2768,10 +2769,13 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
 
   del=info->state->del;
   param->glob_crc=0;
-
+  /* for compressed tables */
+  max_pack_reclength= share->base.pack_reclength;
+  if (share->options & HA_OPTION_COMPRESS_RECORD)
+    set_if_bigger(max_pack_reclength, share->max_pack_length);
   if (!(sort_param=(MI_SORT_PARAM *)
         my_malloc((uint) share->base.keys *
-		  (sizeof(MI_SORT_PARAM) + share->base.pack_reclength),
+		  (sizeof(MI_SORT_PARAM) + max_pack_reclength),
 		  MYF(MY_ZEROFILL))))
   {
     mi_check_print_error(param,"Not enough memory for key!");
@@ -2827,7 +2831,7 @@ int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
     sort_param[i].max_pos=sort_param[i].pos=share->pack.header_length;
 
     sort_param[i].record= (((char *)(sort_param+share->base.keys))+
-			   (share->base.pack_reclength * i));
+			   (max_pack_reclength * i));
     if (!mi_alloc_rec_buff(info, -1, &sort_param[i].rec_buff))
     {
       mi_check_print_error(param,"Not enough memory!");
@@ -4443,7 +4447,7 @@ err:
 void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
 			       my_bool repair_only)
 {
-  byte *record;
+  byte *record= 0;
   DBUG_ENTER("update_auto_increment_key");
 
   if (!info->s->base.auto_key ||
@@ -4462,8 +4466,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     We have to use an allocated buffer instead of info->rec_buff as 
     _mi_put_key_in_record() may use info->rec_buff
   */
-  if (!(record= (byte*) my_malloc((uint) info->s->base.pack_reclength,
-				  MYF(0))))
+  if (!mi_alloc_rec_buff(info, -1, &record))
   {
     mi_check_print_error(param,"Not enough memory for extra record");
     DBUG_VOID_RETURN;
@@ -4475,7 +4478,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
     if (my_errno != HA_ERR_END_OF_FILE)
     {
       mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-      my_free((char*) record, MYF(0));
+      my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
       mi_check_print_error(param,"%d when reading last record",my_errno);
       DBUG_VOID_RETURN;
     }
@@ -4490,7 +4493,7 @@ void update_auto_increment_key(MI_CHECK *param, MI_INFO *info,
       set_if_bigger(info->s->state.auto_increment, param->auto_increment_value);
   }
   mi_extra(info,HA_EXTRA_NO_KEYREAD,0);
-  my_free((char*) record, MYF(0));
+  my_free(mi_get_rec_buff_ptr(info, record), MYF(0));
   update_state_info(param, info, UPDATE_AUTO_INC);
   DBUG_VOID_RETURN;
 }

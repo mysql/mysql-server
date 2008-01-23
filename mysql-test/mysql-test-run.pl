@@ -461,6 +461,19 @@ sub main () {
 #
 ##############################################################################
 
+#
+# When an option is no longer used by this program, it must be explicitly
+# ignored or else it will be passed through to mysqld.  GetOptions will call
+# this subroutine once for each such option on the command line.  See
+# Getopt::Long documentation.
+#
+
+sub warn_about_removed_option {
+  my ($option, $value, $hash_value) = @_;
+
+  warn "WARNING: This option is no longer used, and is ignored: --$option\n";
+}
+
 sub command_line_setup () {
 
   # These are defaults for things that are set on the command line
@@ -468,14 +481,9 @@ sub command_line_setup () {
   $opt_suite=        "main";    # Special default suite
   my $opt_comment;
 
-  $opt_master_myport=          9306;
-  $opt_slave_myport=           9308;
-  $opt_ndbcluster_port=        9310;
-  $opt_ndbcluster_port_slave=  9311;
-  $im_port=                    9312;
-  $im_mysqld1_port=            9313;
-  $im_mysqld2_port=            9314;
-  
+  # Magic number -69.4 results in traditional test ports starting from 9306.
+  set_mtr_build_thread_ports(-69.4);
+
   # If so requested, we try to avail ourselves of a unique build thread number.
   if ( $ENV{'MTR_BUILD_THREAD'} ) {
     if ( lc($ENV{'MTR_BUILD_THREAD'}) eq 'auto' ) {
@@ -497,6 +505,15 @@ sub command_line_setup () {
 
   # Read the command line
   # Note: Keep list, and the order, in sync with usage at end of this file
+
+  # Options that are no longer used must still be processed, because all
+  # unprocessed options are passed directly to mysqld.  The user will be
+  # warned that the option is being ignored.
+  #
+  # Put the complete option string here.  For example, to remove the --suite
+  # option, remove it from GetOptions() below and put 'suite|suites=s' here.
+  my @removed_options = (
+  );
 
   Getopt::Long::Configure("pass_through");
   GetOptions(
@@ -625,6 +642,9 @@ sub command_line_setup () {
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
              'warnings|log-warnings'    => \$opt_warnings,
+
+             # Options which are no longer used
+             (map { $_ => \&warn_about_removed_option } @removed_options),
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -1297,6 +1317,7 @@ sub set_mtr_build_thread_ports($) {
   }
 
   # Up to two masters, up to three slaves
+  # A magic value in command_line_setup depends on these equations.
   $opt_master_myport=         $mtr_build_thread * 10 + 10000; # and 1
   $opt_slave_myport=          $opt_master_myport + 2;  # and 3 4
   $opt_ndbcluster_port=       $opt_master_myport + 5;
@@ -2077,6 +2098,21 @@ sub environment_setup () {
     ($lib_udf_example ?  dirname($lib_udf_example) : "") .
       ($ENV{'LD_LIBRARY_PATH'} ? ":$ENV{'LD_LIBRARY_PATH'}" : "");
 
+  # ----------------------------------------------------
+  # Setup env so childs can execute myisampack and myisamchk
+  # ----------------------------------------------------
+  $ENV{'MYISAMCHK'}= mtr_native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/myisam', 'myisamchk'),
+                       vs_config_dirs('myisam', 'myisamchk'),
+                       "$path_client_bindir/myisamchk",
+                       "$glob_basedir/storage/myisam/myisamchk",
+                       "$glob_basedir/myisam/myisamchk"));
+  $ENV{'MYISAMPACK'}= mtr_native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/myisam', 'myisampack'),
+                        vs_config_dirs('myisam', 'myisampack'),
+                        "$path_client_bindir/myisampack",
+                        "$glob_basedir/storage/myisam/myisampack",
+                        "$glob_basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
   # We are nice and report a bit about our settings

@@ -28,8 +28,8 @@ eval $dd_part1 tables                                $dd_part2;
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval $dd_part1 columns                               $dd_part2;
 eval $dd_part1 character_sets                        $dd_part2;
-eval $dd_part1 collations                            $dd_part2;
-eval $dd_part1 collation_character_set_applicability $dd_part2;
+eval $dd_part1 collations                            where collation_name <> 'utf8_general_cs' $dd_part2;
+eval $dd_part1 collation_character_set_applicability where collation_name <> 'utf8_general_cs' $dd_part2;
 --replace_column 16 <Created> 17 <Last_Altered>
 eval $dd_part1 routines                              $dd_part2;
 eval $dd_part1 statistics                            $dd_part2;

@@ -515,6 +515,10 @@ int ha_panic(enum ha_panic_function flag)
   if (have_berkeley_db == SHOW_OPTION_YES)
     error|=berkeley_end();
 #endif
+#ifdef HAVE_BLACKHOLE_DB
+  if (have_blackhole_db == SHOW_OPTION_YES)
+    error|= blackhole_db_end();
+#endif
 #ifdef HAVE_INNOBASE_DB
   if (have_innodb == SHOW_OPTION_YES)
     error|=innobase_end();

@@ -792,7 +792,12 @@ public:
      * Get the name of the table being indexed
      */
     const char * getTable() const;
-    
+
+    /**
+     * Get the table representing the index
+     */
+    const Table * getIndexTable() const;
+
     /**
      * Get the number of columns in the index
      */

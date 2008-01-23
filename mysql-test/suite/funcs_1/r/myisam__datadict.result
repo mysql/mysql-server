@@ -2508,7 +2508,7 @@ binary	binary	Binary pseudo charset	1
 geostd8	geostd8_general_ci	GEOSTD8 Georgian	1
 cp932	cp932_japanese_ci	SJIS for Windows Japanese	2
 eucjpms	eucjpms_japanese_ci	UJIS for Windows Japanese	3
-select sum(id) from collations;
+select sum(id) from collations where collation_name <> 'utf8_general_cs';
 sum(id)
 10741
 select collation_name, character_set_name into @x,@y
@@ -2913,10 +2913,10 @@ NULL	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	64	192	N
 SELECT * FROM character_sets                        LIMIT 1;
 CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
 big5	big5_chinese_ci	Big5 Traditional Chinese	2
-SELECT * FROM collations                            LIMIT 1;
+SELECT * FROM collations                            where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
-SELECT * FROM collation_character_set_applicability LIMIT 1;
+SELECT * FROM collation_character_set_applicability where collation_name <> 'utf8_general_cs' LIMIT 1;
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 SELECT * FROM routines                              LIMIT 1;
@@ -4432,10 +4432,10 @@ COUNT(*)
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
-SELECT COUNT(*) FROM information_schema. collations                            ;
+SELECT COUNT(*) FROM information_schema. collations                            where collation_name <> 'utf8_general_cs' ;
 COUNT(*)
 126
-SELECT COUNT(*) FROM information_schema. collation_character_set_applicability ;
+SELECT COUNT(*) FROM information_schema. collation_character_set_applicability where collation_name <> 'utf8_general_cs' ;
 COUNT(*)
 126
 SELECT COUNT(*) FROM information_schema. routines                              ;
@@ -6166,7 +6166,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -6311,7 +6311,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401013	db_datadict	i_6_401013	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -6442,7 +6442,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -6585,7 +6585,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -6724,7 +6724,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -6876,7 +6876,7 @@ where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 res_t_401015	db_datadict	i_6_401015	BTREE
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7006,7 +7006,7 @@ from information_schema.statistics
 where table_schema like 'db_datadict%';
 table_name	index_schema	index_name	index_type
 select *
-from information_schema.user_privileges order by grantee, privilege_type;
+from information_schema.user_privileges;
 GRANTEE	TABLE_CATALOG	PRIVILEGE_TYPE	IS_GRANTABLE
 'root'@'127.0.0.1'	NULL	ALTER	YES
 'root'@'127.0.0.1'	NULL	ALTER ROUTINE	YES
@@ -7217,7 +7217,8 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_
 FLUSH PRIVILEGES;
 connect(localhost,u_6_401017,,test,MYSQL_PORT,MYSQL_SOCK);
 use information_schema;
-select * from collation_character_set_applicability;
+select * from collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
@@ -7865,7 +7866,7 @@ binary
 geostd8
 cp932
 eucjpms
-select collation_name from collations;
+select collation_name from collations where collation_name <> 'utf8_general_cs';
 collation_name
 big5_chinese_ci
 big5_bin
@@ -8229,7 +8230,7 @@ NULL	information_schema	COLLATIONS	SORTLEN	6	0	NO	bigint	NULL	NULL	19	0	NULL	NUL
 
 Testcase 3.2.3.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collations;
+SELECT * FROM collations where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
 big5_chinese_ci	big5	1	Yes	Yes	1
 big5_bin	big5	84		Yes	1
@@ -8390,7 +8391,8 @@ NULL	information_schema	COLLATION_CHARACTER_SET_APPLICABILITY	CHARACTER_SET_NAME
 
 Testcase 3.2.4.2:
 --------------------------------------------------------------------------------
-SELECT * FROM collation_character_set_applicability;
+SELECT * FROM collation_character_set_applicability
+where collation_name <> 'utf8_general_cs';
 COLLATION_NAME	CHARACTER_SET_NAME
 big5_chinese_ci	big5
 big5_bin	big5
