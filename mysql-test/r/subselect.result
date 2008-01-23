@@ -4383,4 +4383,13 @@ SELECT 2 FROM t1 WHERE EXISTS ((SELECT 1 FROM t2 WHERE t1.a=t2.a) UNION
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION 
 (SELECT 1 FROM t2 WHERE t1.a = t2.a))' at line 2
 DROP TABLE t1,t2;
+create table t1(f11 int, f12 int);
+create table t2(f21 int unsigned not null, f22 int, f23 varchar(10));
+insert into t1 values(1,1),(2,2), (3, 3);
+set session sort_buffer_size= 33*1024;
+select count(*) from t1 where f12 = 
+(select f22 from t2 where f22 = f12 order by f21 desc, f22, f23 limit 1);
+count(*)
+3
+drop table t1,t2;
 End of 5.0 tests.
