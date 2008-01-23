@@ -322,6 +322,7 @@ class Thd_ndb
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+  uint m_batch_size;
 
   uint m_execute_count;
   uint m_max_violation_count;
