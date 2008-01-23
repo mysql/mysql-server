@@ -16,7 +16,7 @@ use Carp;
 use FindBin;
 
 
-my $mysql_version = "5.0";
+my $mysql_version = "5.1";
 
 # These addresses must be kept current in all MySQL versions.
 # See the wiki page InnoDBandOracle.
@@ -27,27 +27,23 @@ my $mysql_version = "5.0";
 my @innodb_to_email = ('tim@mysql.com');
 my @innodb_cc_email = ();
 
-# This is for MySQL <= 5.0.  Regex which defines the InnoDB files
+# This is for MySQL >= 5.1.  Regex which defines the InnoDB files
 # which should generally not be touched by MySQL developers.
 my $innodb_files_description = <<EOF;
-  innobase/*
+  storage/innobase/*
   mysql-test/t/innodb*    (except mysql-test/t/innodb_mysql*)
   mysql-test/r/innodb*    (except mysql-test/r/innodb_mysql*)
-  sql/ha_innodb*
 EOF
 my $innodb_files_regex = qr{
   ^
   (
   # Case 1: innobase/*
-  innobase/
+  storage/innobase/
   |
   # Case 2: mysql-test/[tr]/innodb* (except innodb_mysql*)
   mysql-test/(t|r)/SCCS/s.innodb
     # The mysql-test/[tr]/innodb_mysql* are OK to edit
     (?!_mysql)
-  |
-  # Case 3: sql/ha_innodb*
-  sql/SCCS/s.ha_innodb
   )
 }x;
 
