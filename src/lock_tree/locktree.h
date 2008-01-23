@@ -13,6 +13,10 @@ typedef struct {
     BOOL                duplicates;
     toku_range_tree*    mainread;
     toku_range_tree*    borderwrite;
+    //TODO: Remove this tree and have one per transaction.
+    toku_range_tree*    selfread;
+    //TODO: Remove this tree and have one per transaction.
+    toku_range_tree*    selfwrite;
     toku_range*         buf;
     unsigned            buflen;
     BOOL                panicked;
