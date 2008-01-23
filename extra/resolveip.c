@@ -116,11 +116,13 @@ int main(int argc, char **argv)
 
   while (argc--)
   {
+    struct in_addr addr;
     ip = *argv++;    
 
-    if (my_isdigit(&my_charset_latin1,ip[0]))
+    /* Not compatible with IPv6!  Probably should use getnameinfo(). */
+    if (inet_aton(ip, &addr) != 0)
     {
-      taddr = inet_addr(ip);
+      taddr= addr.s_addr;
       if (taddr == htonl(INADDR_BROADCAST))
       {	
 	puts("Broadcast");
