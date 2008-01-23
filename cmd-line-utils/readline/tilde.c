@@ -20,7 +20,7 @@
    Software Foundation, 59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 
 #if defined (HAVE_CONFIG_H)
-#  include <config.h>
+#  include "config_readline.h"
 #endif
 
 #if defined (HAVE_UNISTD_H)
