@@ -3,6 +3,9 @@
 
 --disable_warnings
 drop table if exists t1;
+--disable_query_log
+set ndb_table_temporary=0;
+--enable_query_log
 --enable_warnings
 
 #
