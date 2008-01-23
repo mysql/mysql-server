@@ -130,7 +130,7 @@ void do_memory_check (void) {
 #endif
 
 
-void *toku_calloc(long nmemb, long size) {
+void *toku_calloc(size_t nmemb, size_t size) {
     void *r;
     errno=0;
     r = actual_calloc(nmemb, size);
@@ -176,7 +176,7 @@ void *toku_tagmalloc(unsigned long size, int typtag) {
     return r;
 }
 
-void *toku_realloc(void *p, long size) {
+void *toku_realloc(void *p, size_t size) {
     void *newp;
     note_did_free(p);
     errno=0;
@@ -204,7 +204,7 @@ void toku_free_n(void* p, unsigned long size) {
     }
 }
 
-void *toku_memdup (const void *v, unsigned int len) {
+void *toku_memdup (const void *v, size_t len) {
     void *r=toku_malloc(len);
     memcpy(r,v,len);
     return r;
