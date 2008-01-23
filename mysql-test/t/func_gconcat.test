@@ -598,5 +598,46 @@ insert into t1 values (''),('');
 select group_concat(distinct f1) from t1;
 select group_concat(f1) from t1;
 drop table t1;
+# Bug#32798: DISTINCT in GROUP_CONCAT clause fails when ordering by a column
+# with null values
+#'
+CREATE TABLE t1 (a INT, b INT);
+
+INSERT INTO t1 VALUES (1, 1), (2, 2), (2, 3);
+
+SELECT GROUP_CONCAT(DISTINCT a ORDER BY b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a ORDER BY b DESC) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a) FROM t1;
+
+SELECT GROUP_CONCAT(DISTINCT a + 1 ORDER BY 3 - b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a + 1 ORDER BY b) FROM t1;
+SELECT GROUP_CONCAT(a ORDER BY 3 - b) FROM t1;
+
+CREATE TABLE t2 (a INT, b INT, c INT, d INT);
+
+# There is one duplicate in the expression list: 1,10
+# There is one duplicate in ORDER BY list, but that shouldnt matter: 1,10
+INSERT INTO t2 VALUES (1,1, 1,1), (1,1, 2,2), (1,2, 2,1), (2,1, 1,2);
+
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY c, d) FROM t2;
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY d, c) FROM t2;
+
+CREATE TABLE t3 (a INT, b INT, c INT);
+
+INSERT INTO t3 VALUES (1, 1, 1), (2, 1, 2), (3, 2, 1);
+
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY b, c) FROM t3;
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY c, b) FROM t3;
+
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY a, b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT b, a ORDER BY a, b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY b, a) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT b, a ORDER BY a, b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a ORDER BY a, b) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT b ORDER BY b, a) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT a, b ORDER BY a) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT b, a ORDER BY b) FROM t1;
+
+DROP TABLE t1, t2, t3;
 
 --echo End of 5.0 tests

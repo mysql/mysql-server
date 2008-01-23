@@ -410,7 +410,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NDB_NODES) },
+    STR_VALUE(MAX_DATA_NODE_ID) },
 
   {
     CFG_NODE_ID,
@@ -422,7 +422,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NDB_NODES) },
+    STR_VALUE(MAX_DATA_NODE_ID) },
 
   {
     KEY_INTERNAL,
@@ -1466,7 +1466,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NODES_ID) },
 
   {
     CFG_NODE_ID,
@@ -1478,7 +1478,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NODES_ID) },
 
   {
     KEY_INTERNAL,
@@ -1636,7 +1636,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NODES_ID) },
   
   {
     CFG_NODE_ID,
@@ -1648,7 +1648,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     MANDATORY,
     "1",
-    STR_VALUE(MAX_NODES) },
+    STR_VALUE(MAX_NODES_ID) },
   
   {
     CFG_LOG_DESTINATION,

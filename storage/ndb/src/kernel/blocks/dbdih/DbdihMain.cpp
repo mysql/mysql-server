@@ -8894,6 +8894,12 @@ void Dbdih::execDIHNDBTAMPER(Signal* signal)
     } else if (tuserpointer < 15000) {
       jam();
       tuserblockref = DBDICT_REF;
+    } else if (tuserpointer < 16000) {
+      jam();
+      tuserblockref = LGMAN_REF;
+    } else if (tuserpointer < 17000) {
+      jam();
+      tuserblockref = TSMAN_REF;
     } else if (tuserpointer < 30000) {
       /*--------------------------------------------------------------------*/
       // Ignore errors in the 20000-range.
