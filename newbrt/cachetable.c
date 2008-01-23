@@ -415,8 +415,9 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
 	int r;
 	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
-	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) 
+	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) {
             return r;
+	}
 	cachetable_insert_at(cachefile, hashit(t,key), key, toku_value, size, flush_callback, fetch_callback, extraargs, 0, written_lsn);
 	*value = toku_value;
         if (sizep)

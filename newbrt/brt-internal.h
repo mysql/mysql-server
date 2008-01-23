@@ -49,8 +49,15 @@ struct brtnode {
     unsigned int nodesize;
     unsigned int flags;
     DISKOFF thisnodename;   // The size of the node allocated on disk.  Not all is necessarily in use.
-    LSN     disk_lsn;       // The LSN as of the most recent version on disk.
-    LSN     log_lsn;        // The LSN as of the most recent log write. 
+    //  These two LSNs are used to decide when to make a copy of a node instead of overwriting it.
+    //  In the TOKULOGGER is a field called checkpoint_lsn which is the lsn of the most recent checkpoint
+    LSN     disk_lsn;       // The LSN as of the most recent version on disk.  (Updated by brt-serialize)  This lsn is saved in the node.
+    LSN     log_lsn;        // The LSN of the youngest log entry that affects the current in-memory state.   The log write may not have actually made it to disk.  This lsn is not saved in disk (since the two lsns are the same for any node not in main memory.)
+    //  The checkpointing works as follows:
+    //      When we unpin a node: if it is dirty and disk_lsn<checkpoint_lsn then we need to make a new copy.
+    //      When we checkpoint:  Create a checkpoint record, and cause every dirty node to be written to disk.  The new checkpoint record is *not* incorporated into the disk_lsn of the written nodes.
+    //      While we are checkpointing, someone may modify a dirty node that has not yet been written.   In that case, when we unpin the node, we make the new copy (because the disk_lsn<checkpoint_lsn), just as we would usually.
+    //
     int     layout_version; // What version of the data structure?
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
