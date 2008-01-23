@@ -649,15 +649,18 @@ row_upd_index_parse(
 	update->info_bits = info_bits;
 
 	for (i = 0; i < n_fields; i++) {
+		ulint	field_no;
 		upd_field = upd_get_nth_field(update, i);
 		new_val = &(upd_field->new_val);
 
-		ptr = mach_parse_compressed(ptr, end_ptr,
-					    &(upd_field->field_no));
+		ptr = mach_parse_compressed(ptr, end_ptr, &field_no);
+
 		if (ptr == NULL) {
 
 			return(NULL);
 		}
+
+		upd_field->field_no = field_no;
 
 		ptr = mach_parse_compressed(ptr, end_ptr, &len);
 

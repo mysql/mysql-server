@@ -1,0 +1,31 @@
+-- source include/have_innodb.inc
+
+create table t1(a int not null, b text, index(b(10))) engine=innodb
+key_block_size=1;
+
+let $b=`select '1abcdefghijklmnopqrstuvwxyz'+repeat('A',5000)`;
+
+eval insert into t1 values (1,$b);
+commit;
+
+connect (a,localhost,root,,);
+connect (b,localhost,root,,);
+
+connection a;
+begin;
+update t1 set b=repeat('B',100);
+
+connection b;
+eval select a,left(b,40),b=$b is_equal from t1;
+
+connection a;
+rollback;
+
+connection b;
+eval select a,left(b,40),b=$b is_equal from t1;
+
+connection default;
+disconnect a;
+disconnect b;
+
+drop table t1;
