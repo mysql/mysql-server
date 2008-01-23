@@ -34,7 +34,7 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
 extern const char * g_connect_string;
 extern BaseString g_options;
 
-bool BackupRestore::m_reserve_tail_spaces = false;
+bool BackupRestore::m_reserve_trailing_spaces = false;
 
 const PromotionRules 
 BackupRestore::m_allowed_promotion_attrs[] = {
@@ -2190,7 +2190,7 @@ BackupRestore::convert_char_varchar(const void *old_data,
  
   Uint32 len = padding_struct->n_old;
 
-  if (!m_reserve_tail_spaces)
+  if (!m_reserve_trailing_spaces)
   {
     while (len > 0 && ((char*)old_data)[len-1] == ' ')
      len--;
@@ -2213,7 +2213,7 @@ BackupRestore::convert_char_longvarchar(const void *old_data,
  
   Uint32 len = padding_struct->n_old;
 
-  if (!m_reserve_tail_spaces)
+  if (!m_reserve_trailing_spaces)
   {
     while (len > 0 && ((char*)old_data)[len-1] == ' ')
      len--;
@@ -2238,7 +2238,7 @@ BackupRestore::convert_binary_varbinary(const void *old_data,
  
   Uint32 len = padding_struct->n_old;
 
-  if (!m_reserve_tail_spaces)
+  if (!m_reserve_trailing_spaces)
   {
     while (len > 0 && ((char*)old_data)[len-1] == 0x00)
      len--;
@@ -2262,7 +2262,7 @@ BackupRestore::convert_binary_longvarbinary(const void *old_data,
  
   Uint32 len = padding_struct->n_old;
  
-  if (!m_reserve_tail_spaces)
+  if (!m_reserve_trailing_spaces)
   {
     while (len > 0 && ((char*)old_data)[len-1] == 0x00)
      len--;

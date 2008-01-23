@@ -3,6 +3,11 @@ disable_query_log;
 --require r/true.require
 select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
 --source include/ndb_not_readonly.inc
+
+# for performance in test suite set temporary
+set global ndb_table_temporary=1;
+set ndb_table_temporary=1;
+
 enable_query_log;
 
 #cleanup

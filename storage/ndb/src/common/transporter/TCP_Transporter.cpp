@@ -349,23 +349,33 @@ TCP_Transporter::doSend() {
 
   // Empty the SendBuffers
   
-  const char * const sendPtr = m_sendBuffer.sendPtr;
-  const Uint32 sizeToSend    = m_sendBuffer.sendDataSize;
-  if (sizeToSend > 0){
+  bool sent_any = true;
+  while (m_sendBuffer.dataSize > 0)
+  {
+    const char * const sendPtr = m_sendBuffer.sendPtr;
+    const Uint32 sizeToSend    = m_sendBuffer.sendDataSize;
     const int nBytesSent = send(theSocket, sendPtr, sizeToSend, 0);
     
-    if (nBytesSent > 0) {
+    if (nBytesSent > 0) 
+    {
+      sent_any = true;
       m_sendBuffer.bytesSent(nBytesSent);
       update_status_overloaded();
       
       sendCount ++;
       sendSize  += nBytesSent;
-      if(sendCount == reportFreq){
+      if(sendCount == reportFreq)
+      {
 	reportSendLen(get_callback_obj(), remoteNodeId, sendCount, sendSize);
 	sendCount = 0;
 	sendSize  = 0;
       }
-    } else {
+    } 
+    else 
+    {
+      if (nBytesSent < 0 && InetErrno == EAGAIN && sent_any)
+        break;
+
       // Send failed
 #if defined DEBUG_TRANSPORTER
       g_eventLogger.error("Send Failure(disconnect==%d) to node = %d nBytesSent = %d "
