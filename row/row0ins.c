@@ -1005,12 +1005,14 @@ row_ins_foreign_check_on_constraint(
 		update->n_fields = foreign->n_fields;
 
 		for (i = 0; i < foreign->n_fields; i++) {
-			(update->fields + i)->field_no
-				= dict_table_get_nth_col_pos(
-					table,
-					dict_index_get_nth_col_no(index, i));
-			(update->fields + i)->exp = NULL;
-			dfield_set_null(&update->fields[i].new_val);
+			upd_field_t*	ufield = &update->fields[i];
+
+			ufield->field_no = dict_table_get_nth_col_pos(
+				table,
+				dict_index_get_nth_col_no(index, i));
+			ufield->orig_len = 0;
+			ufield->exp = NULL;
+			dfield_set_null(&ufield->new_val);
 		}
 	}
 

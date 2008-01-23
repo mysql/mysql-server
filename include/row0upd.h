@@ -342,11 +342,14 @@ row_upd_index_parse(
 
 /* Update vector field */
 struct upd_field_struct{
-	ulint		field_no;	/* field number in an index, usually
+	unsigned	field_no:16;	/* field number in an index, usually
 					the clustered index, but in updating
 					a secondary index record in btr0cur.c
 					this is the position in the secondary
 					index */
+	unsigned	orig_len:16;	/* original length of the locally
+					stored part of an externally stored
+					column, or 0 */
 	que_node_t*	exp;		/* expression for calculating a new
 					value: it refers to column values and
 					constants in the symbol table of the

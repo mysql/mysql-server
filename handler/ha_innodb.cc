@@ -3817,6 +3817,7 @@ calc_row_difference(
 			}
 
 			ufield->exp = NULL;
+			ufield->orig_len = 0;
 			ufield->field_no = dict_col_get_clust_pos(
 				&prebuilt->table->cols[i], clust_index);
 			n_changed++;
