@@ -569,7 +569,8 @@ btr_push_update_extern_fields(
 /*==========================*/
 				/* out: number of flagged external columns */
 	dtuple_t*	tuple,	/* in/out: data tuple */
-	const upd_t*	update)	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
+	mem_heap_t*	heap)	/* in: memory heap */
 	__attribute__((nonnull));
 
 /*######################################################################*/

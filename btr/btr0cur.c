@@ -2168,7 +2168,7 @@ btr_cur_pessimistic_update(
 
 	ut_ad(!page_is_comp(page) || !rec_get_node_ptr_flag(rec));
 	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, heap);
-	n_ext += btr_push_update_extern_fields(new_entry, update);
+	n_ext += btr_push_update_extern_fields(new_entry, update, *heap);
 
 	if (page_zip_rec_needs_ext(rec_get_converted_size(index, new_entry,
 							  n_ext),
@@ -3555,7 +3555,8 @@ btr_push_update_extern_fields(
 /*==========================*/
 				/* out: number of flagged external columns */
 	dtuple_t*	tuple,	/* in/out: data tuple */
-	const upd_t*	update)	/* in: update vector */
+	const upd_t*	update,	/* in: update vector */
+	mem_heap_t*	heap)	/* in: memory heap */
 {
 	ulint			n_pushed	= 0;
 	ulint			n;
@@ -3575,6 +3576,48 @@ btr_push_update_extern_fields(
 			if (!dfield_is_ext(field)) {
 				dfield_set_ext(field);
 				n_pushed++;
+			}
+
+			switch (uf->orig_len) {
+				byte*	data;
+				ulint	len;
+				byte*	buf;
+			case 0:
+				break;
+			case BTR_EXTERN_FIELD_REF_SIZE:
+				/* Restore the original locally stored
+				part of the column.  In the undo log,
+				InnoDB writes a longer prefix of externally
+				stored columns, so that column prefixes
+				in secondary indexes can be reconstructed. */
+				dfield_set_data(field, dfield_get_data(field)
+						+ dfield_get_len(field)
+						- BTR_EXTERN_FIELD_REF_SIZE,
+						BTR_EXTERN_FIELD_REF_SIZE);
+				dfield_set_ext(field);
+				break;
+			default:
+				/* Reconstruct the original locally
+				stored part of the column.  The data
+				will have to be copied. */
+				ut_a(uf->orig_len > BTR_EXTERN_FIELD_REF_SIZE);
+
+				data = dfield_get_data(field);
+				len = dfield_get_len(field);
+
+				buf = mem_heap_alloc(heap, uf->orig_len);
+				/* Copy the locally stored prefix. */
+				memcpy(buf, data,
+				       uf->orig_len
+				       - BTR_EXTERN_FIELD_REF_SIZE);
+				/* Copy the BLOB pointer. */
+				memcpy(buf + uf->orig_len
+				       - BTR_EXTERN_FIELD_REF_SIZE,
+				       data + len - BTR_EXTERN_FIELD_REF_SIZE,
+				       BTR_EXTERN_FIELD_REF_SIZE);
+
+				dfield_set_data(field, buf, uf->orig_len);
+				dfield_set_ext(field);
 			}
 		}
 	}

@@ -311,16 +311,38 @@ trx_undo_rec_get_col_val(
 			reading these values */
 	byte*	ptr,	/* in: pointer to remaining part of undo log record */
 	byte**	field,	/* out: pointer to stored field */
-	ulint*	len)	/* out: length of the field, or UNIV_SQL_NULL */
+	ulint*	len,	/* out: length of the field, or UNIV_SQL_NULL */
+	ulint*	orig_len)/* out: original length of the locally
+			stored part of an externally stored column, or 0 */
 {
 	*len = mach_read_compressed(ptr);
 	ptr += mach_get_compressed_size(*len);
 
-	*field = ptr;
+	*orig_len = 0;
 
-	if (*len != UNIV_SQL_NULL) {
+	switch (*len) {
+	case UNIV_SQL_NULL:
+		*field = NULL;
+		break;
+	case UNIV_EXTERN_STORAGE_FIELD:
+		*orig_len = mach_read_compressed(ptr);
+		ptr += mach_get_compressed_size(*orig_len);
+		*len = mach_read_compressed(ptr);
+		ptr += mach_get_compressed_size(*len);
+		*field = ptr;
+		ptr += *len;
+
+		ut_ad(*orig_len >= BTR_EXTERN_FIELD_REF_SIZE);
+		ut_ad(*len > *orig_len);
+		ut_ad(*len >= REC_MAX_INDEX_COL_LEN
+		      + BTR_EXTERN_FIELD_REF_SIZE);
+
+		*len += UNIV_EXTERN_STORAGE_FIELD;
+		break;
+	default:
+		*field = ptr;
 		if (*len >= UNIV_EXTERN_STORAGE_FIELD) {
-			ptr += (*len - UNIV_EXTERN_STORAGE_FIELD);
+			ptr += *len - UNIV_EXTERN_STORAGE_FIELD;
 		} else {
 			ptr += *len;
 		}
@@ -348,9 +370,6 @@ trx_undo_rec_get_row_ref(
 	mem_heap_t*	heap)	/* in: memory heap from which the memory
 				needed is allocated */
 {
-	dfield_t*	dfield;
-	byte*		field;
-	ulint		len;
 	ulint		ref_len;
 	ulint		i;
 
@@ -364,9 +383,14 @@ trx_undo_rec_get_row_ref(
 	dict_index_copy_types(*ref, index, ref_len);
 
 	for (i = 0; i < ref_len; i++) {
+		dfield_t*	dfield;
+		byte*		field;
+		ulint		len;
+		ulint		orig_len;
+
 		dfield = dtuple_get_nth_field(*ref, i);
 
-		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
+		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
 		dfield_set_data(dfield, field, len);
 	}
@@ -386,8 +410,6 @@ trx_undo_rec_skip_row_ref(
 				record, at the start of the row reference */
 	dict_index_t*	index)	/* in: clustered index */
 {
-	byte*	field;
-	ulint	len;
 	ulint	ref_len;
 	ulint	i;
 
@@ -397,7 +419,11 @@ trx_undo_rec_skip_row_ref(
 	ref_len = dict_index_get_n_unique(index);
 
 	for (i = 0; i < ref_len; i++) {
-		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
+		byte*	field;
+		ulint	len;
+		ulint	orig_len;
+
+		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 	}
 
 	return(ptr);
@@ -431,6 +457,47 @@ trx_undo_page_fetch_ext(
 	       BTR_EXTERN_FIELD_REF_SIZE);
 	*len = ext_len + BTR_EXTERN_FIELD_REF_SIZE;
 	return(ext_buf);
+}
+
+/**************************************************************************
+Writes to the undo log a prefix of an externally stored column. */
+static
+byte*
+trx_undo_page_report_modify_ext(
+/*============================*/
+					/* out: undo log position */
+	byte*		ptr,		/* in: undo log position,
+					at least 15 bytes must be available */
+	byte*		ext_buf,	/* in: a buffer of
+					REC_MAX_INDEX_COL_LEN
+					+ BTR_EXTERN_FIELD_REF_SIZE,
+					or NULL when should not fetch
+					a longer prefix */
+	ulint		zip_size,	/* compressed page size in bytes,
+					or 0 for uncompressed BLOB  */
+	const byte**	field,		/* in/out: the locally stored part of
+					the externally stored column */
+	ulint*		len)		/* in/out: length of field, in bytes */
+{
+	if (ext_buf) {
+		/* If an ordering column is externally stored, we will
+		have to store a longer prefix of the field.  In this
+		case, write to the log a marker followed by the
+		original length and the real length of the field. */
+		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD);
+
+		ptr += mach_write_compressed(ptr, *len);
+
+		*field = trx_undo_page_fetch_ext(ext_buf, zip_size,
+						 *field, len);
+
+		ptr += mach_write_compressed(ptr, *len);
+	} else {
+		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD
+					     + *len);
+	}
+
+	return(ptr);
 }
 
 /**************************************************************************
@@ -586,30 +653,20 @@ trx_undo_page_report_modify(
 			/* Save the old value of field */
 			field = rec_get_nth_field(rec, offsets, pos, &flen);
 
-			if (trx_undo_left(undo_page, ptr) < 5) {
+			if (trx_undo_left(undo_page, ptr) < 15) {
 
 				return(0);
 			}
 
 			if (rec_offs_nth_extern(offsets, pos)) {
-				/* If an ordering field has external
-				storage, we will store a longer
-				prefix of the field. */
-
-				if (dict_index_get_nth_col(index,
-							   pos)->ord_part) {
-					field = trx_undo_page_fetch_ext(
-						ext_buf,
-						dict_table_zip_size(table),
-						field, &flen);
-				}
-
-				/* If a field has external storage, we add
-				to flen the flag */
-
-				ptr += mach_write_compressed(
+				ptr = trx_undo_page_report_modify_ext(
 					ptr,
-					UNIV_EXTERN_STORAGE_FIELD + flen);
+					dict_index_get_nth_col(index, pos)
+					->ord_part
+					&& flen < REC_MAX_INDEX_COL_LEN
+					? ext_buf : NULL,
+					dict_table_zip_size(table),
+					&field, &flen);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -672,7 +729,7 @@ trx_undo_page_report_modify(
 				ulint	pos;
 
 				/* Write field number to undo log */
-				if (trx_undo_left(undo_page, ptr) < 5 + 5) {
+				if (trx_undo_left(undo_page, ptr) < 5 + 15) {
 
 					return(0);
 				}
@@ -686,21 +743,12 @@ trx_undo_page_report_modify(
 							  &flen);
 
 				if (rec_offs_nth_extern(offsets, pos)) {
-					/* If an ordering field has external
-					storage, we will store a longer
-					prefix of the field. */
-
-					field = trx_undo_page_fetch_ext(
-						ext_buf,
+					ptr = trx_undo_page_report_modify_ext(
+						ptr,
+						flen < REC_MAX_INDEX_COL_LEN
+						? ext_buf : NULL,
 						dict_table_zip_size(table),
-						field, &flen);
-
-					/* If a field has external
-					storage, we add to flen the flag */
-
-					ptr += mach_write_compressed(
-						ptr, flen
-						+ UNIV_EXTERN_STORAGE_FIELD);
+						&field, &flen);
 				} else {
 					ptr += mach_write_compressed(
 						ptr, flen);
@@ -841,9 +889,6 @@ trx_undo_update_rec_get_update(
 	upd_t*		update;
 	ulint		n_fields;
 	byte*		buf;
-	byte*		field;
-	ulint		len;
-	ulint		field_no;
 	ulint		i;
 
 	ut_a(dict_index_is_clust(index));
@@ -882,6 +927,11 @@ trx_undo_update_rec_get_update(
 
 	for (i = 0; i < n_fields; i++) {
 
+		byte*	field;
+		ulint	len;
+		ulint	field_no;
+		ulint	orig_len;
+
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
 		if (field_no >= dict_index_get_n_fields(index)) {
@@ -903,19 +953,23 @@ trx_undo_update_rec_get_update(
 			return(NULL);
 		}
 
-		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
-
 		upd_field = upd_get_nth_field(update, i);
 
 		upd_field_set_field_no(upd_field, field_no, index, trx);
 
-		if (len != UNIV_SQL_NULL && len >= UNIV_EXTERN_STORAGE_FIELD) {
+		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
+		upd_field->orig_len = orig_len;
+
+		if (len == UNIV_SQL_NULL) {
+			dfield_set_null(&upd_field->new_val);
+		} else if (len < UNIV_EXTERN_STORAGE_FIELD) {
+			dfield_set_data(&upd_field->new_val, field, len);
+		} else {
 			len -= UNIV_EXTERN_STORAGE_FIELD;
+
 			dfield_set_data(&upd_field->new_val, field, len);
 			dfield_set_ext(&upd_field->new_val);
-		} else {
-			dfield_set_data(&upd_field->new_val, field, len);
 		}
 	}
 
@@ -970,13 +1024,14 @@ trx_undo_rec_get_partial_row(
 		const dict_col_t*	col;
 		ulint			col_no;
 		ulint			len;
+		ulint			orig_len;
 
 		ptr = trx_undo_update_rec_get_field_no(ptr, &field_no);
 
 		col = dict_index_get_nth_col(index, field_no);
 		col_no = dict_col_get_no(col);
 
-		ptr = trx_undo_rec_get_col_val(ptr, &field, &len);
+		ptr = trx_undo_rec_get_col_val(ptr, &field, &len, &orig_len);
 
 		dfield = dtuple_get_nth_field(*row, col_no);
 
@@ -1466,7 +1521,7 @@ trx_undo_prev_version_build(
 
 		entry = row_rec_to_index_entry(ROW_COPY_DATA, rec, index,
 					       offsets, &n_ext, heap);
-		n_ext += btr_push_update_extern_fields(entry, update);
+		n_ext += btr_push_update_extern_fields(entry, update, heap);
 		/* The page containing the clustered index record
 		corresponding to entry is latched in mtr.  Thus the
 		following call is safe. */
