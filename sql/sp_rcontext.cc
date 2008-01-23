@@ -314,17 +314,91 @@ sp_rcontext::handle_error(uint sql_errno,
 void
 sp_rcontext::push_cursor(sp_lex_keeper *lex_keeper, sp_instr_cpush *i)
 {
+  DBUG_ENTER("sp_rcontext::push_cursor");
+  DBUG_ASSERT(m_ccount < m_root_parsing_ctx->max_cursor_index());
   m_cstack[m_ccount++]= new sp_cursor(lex_keeper, i);
+  DBUG_PRINT("info", ("m_ccount: %d", m_ccount));
+  DBUG_VOID_RETURN;
 }
-
 
 void
 sp_rcontext::pop_cursors(uint count)
 {
+  DBUG_ENTER("sp_rcontext::pop_cursors");
+  DBUG_ASSERT(m_ccount >= count);
   while (count--)
   {
     delete m_cstack[--m_ccount];
   }
+  DBUG_PRINT("info", ("m_ccount: %d", m_ccount));
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_rcontext::push_handler(struct sp_cond_type *cond, uint h, int type, uint f)
+{
+  DBUG_ENTER("sp_rcontext::push_handler");
+  DBUG_ASSERT(m_hcount < m_root_parsing_ctx->max_handler_index());
+
+  m_handler[m_hcount].cond= cond;
+  m_handler[m_hcount].handler= h;
+  m_handler[m_hcount].type= type;
+  m_handler[m_hcount].foffset= f;
+  m_hcount+= 1;
+
+  DBUG_PRINT("info", ("m_hcount: %d", m_hcount));
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_rcontext::pop_handlers(uint count)
+{
+  DBUG_ENTER("sp_rcontext::pop_handlers");
+  DBUG_ASSERT(m_hcount >= count);
+  m_hcount-= count;
+  DBUG_PRINT("info", ("m_hcount: %d", m_hcount));
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_rcontext::push_hstack(uint h)
+{
+  DBUG_ENTER("sp_rcontext::push_hstack");
+  DBUG_ASSERT(m_hsp < m_root_parsing_ctx->max_handler_index());
+  m_hstack[m_hsp++]= h;
+  DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
+  DBUG_VOID_RETURN;
+}
+
+uint
+sp_rcontext::pop_hstack()
+{
+  uint handler;
+  DBUG_ENTER("sp_rcontext::pop_hstack");
+  DBUG_ASSERT(m_hsp);
+  handler= m_hstack[--m_hsp];
+  DBUG_PRINT("info", ("m_hsp: %d", m_hsp));
+  DBUG_RETURN(handler);
+}
+
+void
+sp_rcontext::enter_handler(int hid)
+{
+  DBUG_ENTER("sp_rcontext::enter_handler");
+  DBUG_ASSERT(m_ihsp < m_root_parsing_ctx->max_handler_index());
+  m_in_handler[m_ihsp++]= hid;
+  DBUG_PRINT("info", ("m_ihsp: %d", m_ihsp));
+  DBUG_VOID_RETURN;
+}
+
+void
+sp_rcontext::exit_handler()
+{
+  DBUG_ENTER("sp_rcontext::exit_handler");
+  DBUG_ASSERT(m_ihsp);
+  m_ihsp-= 1;
+  DBUG_PRINT("info", ("m_ihsp: %d", m_ihsp));
+  DBUG_VOID_RETURN;
 }
 
 
