@@ -245,6 +245,8 @@ int toku_rt_successor (toku_range_tree* tree, void* point, toku_range* succ,
     return 0;
 }
 
-/*
-\marginpar{add more \\marginpar\'s}
-*/
+int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
+    if (!tree || !allowed)                               return EINVAL;
+    *allowed = tree->allow_overlaps;
+    return 0;
+}
