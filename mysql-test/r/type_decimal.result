@@ -786,10 +786,6 @@ from (select 1 as s,'t' as t union select null, null ) as sub1;
 select group_concat(t) from t1 group by week(date)/10;
 group_concat(t)
 t
-Warnings:
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
-Warning	1292	Incorrect datetime value: '0000-00-00'
 drop table t1;
 CREATE TABLE t1 (
 qty decimal(16,6) default NULL, 
