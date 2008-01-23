@@ -301,6 +301,7 @@ struct system_variables
   ulong ndb_index_stat_update_freq;
   ulong ndb_optimized_node_selection;
   ulong ndb_optimization_delay;
+  ulong ndb_batch_size;
   ulong binlog_format; // binlog format for this thd (see enum_binlog_format)
   /*
     In slave thread we need to know in behalf of which

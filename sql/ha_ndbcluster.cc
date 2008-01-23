@@ -974,7 +974,7 @@ ha_ndbcluster::batch_copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record,
     return NULL;
   uint unsent= thd_ndb->m_unsent_bytes;
   unsent+= m_bytes_per_write;
-  batch_full= unsent >= BATCH_FLUSH_SIZE;
+  batch_full= unsent >= thd_ndb->m_batch_size;
   thd_ndb->m_unsent_bytes= unsent;
   return row;
 }
@@ -991,7 +991,7 @@ ha_ndbcluster::batch_copy_key_to_buffer(Thd_ndb *thd_ndb, const uchar *key,
   uint unsent= thd_ndb->m_unsent_bytes;
   unsent+= op_batch_size;
   DBUG_ASSERT(op_batch_size > 0);
-  batch_full= unsent >= BATCH_FLUSH_SIZE;
+  batch_full= unsent >= thd_ndb->m_batch_size;
   thd_ndb->m_unsent_bytes= unsent;
   return row;
 }
@@ -5615,6 +5615,10 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
   else if (!thd->variables.ndb_use_transactions)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   thd_ndb->m_force_send= thd->variables.ndb_force_send;
+  if (!thd->slave_thread)
+    thd_ndb->m_batch_size= thd->variables.ndb_batch_size;
+  else
+    thd_ndb->m_batch_size= global_system_variables.ndb_batch_size;
 }
 
 int ha_ndbcluster::start_statement(THD *thd,

@@ -512,6 +512,8 @@ static sys_var_thd_bool
 sys_ndb_table_no_logging(&vars, "ndb_table_no_logging", &SV::ndb_table_no_logging);
 static sys_var_thd_bool
 sys_ndb_table_temporary(&vars, "ndb_table_temporary", &SV::ndb_table_temporary);
+static sys_var_thd_ulong
+sys_ndb_batch_size(&vars, "ndb_batch_size", &SV::ndb_batch_size);
 static sys_var_long_ptr
 sys_ndb_cache_check_time(&vars, "ndb_cache_check_time", &ndb_cache_check_time);
 static sys_var_const_str
@@ -576,7 +578,7 @@ static sys_var_thd_bit	sys_log_binlog(&vars, "sql_log_bin",
 				       set_option_bit,
 				       OPTION_BIN_LOG);
 static sys_var_thd_bit
-sys_transaction_allow_batchine(&vars, "transaction_allow_batching", 0,
+sys_transaction_allow_batching(&vars, "transaction_allow_batching", 0,
                                set_option_bit,
                                OPTION_ALLOW_BATCH);
 static sys_var_thd_bit	sys_sql_warnings(&vars, "sql_warnings", 0,
