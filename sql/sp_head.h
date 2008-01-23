@@ -779,8 +779,9 @@ public:
 
   virtual void backpatch(uint dest, sp_pcontext *dst_ctx)
   {
-    if (m_dest == 0)		// Don't reset
-      m_dest= dest;
+    /* Calling backpatch twice is a logic flaw in jump resolution. */
+    DBUG_ASSERT(m_dest == 0);
+    m_dest= dest;
   }
 
   /*
