@@ -187,3 +187,6 @@ test_db_assoc3.tdbrun: test_db_assoc3.tdb
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
 	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
 	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+
+dumpit:
+	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
