@@ -25,7 +25,7 @@
 #define _RLTCAP_H_
 
 #if defined (HAVE_CONFIG_H)
-#  include "config.h"
+#  include "config_readline.h"
 #endif
 
 #if defined (HAVE_TERMCAP_H)
