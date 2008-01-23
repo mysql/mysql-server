@@ -38,6 +38,11 @@ db_vrfy.c : .*comparison is always false due to limited range of data type.*
 dbm.c : .*'item.dsize' is used uninitialized in this function.*
 
 #
+# readline is not maintained by us
+#
+.*/cmd-line-utils/readline/.* : .*
+
+#
 # Ignore all conversion warnings on windows 64
 # (Is safe as we are not yet supporting strings >= 2G)
 #
@@ -74,6 +79,7 @@ mi_packrec.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 567
 # Wrong compiler warnings
 #
 .* : .*no matching operator delete found; memory will not be freed if initialization throws an exception.*
+ctype-simple.c : .*unary minus operator applied to unsigned type, result still unsigned.*
 
 #
 # Viossl warnings - fixed in 5.1, disabled in 5.0. Too large to be changed

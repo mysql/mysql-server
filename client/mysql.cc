@@ -595,6 +595,10 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", (gptr*) &default_charset,
    (gptr*) &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"comments", 'c', "Preserve comments. Send comments to the server."
+   " The default is --skip-comments (discard comments), enable with --comments",
+   (gptr*) &preserve_comments, (gptr*) &preserve_comments,
+   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"compress", 'C', "Use compression in server/client protocol.",
    (gptr*) &opt_compress, (gptr*) &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
@@ -738,9 +742,9 @@ static struct my_option my_long_options[] =
    0, 1},
   {"max_allowed_packet", OPT_MAX_ALLOWED_PACKET,
    "Max packet length to send to, or receive from server",
-   (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0, GET_ULONG,
-   REQUIRED_ARG, 16 *1024L*1024L, 4096, (longlong) 2*1024L*1024L*1024L,
-   MALLOC_OVERHEAD, 1024, 0},
+   (gptr*) &opt_max_allowed_packet, (gptr*) &opt_max_allowed_packet, 0,
+   GET_ULONG, REQUIRED_ARG, 16 *1024L*1024L, 4096,
+   (longlong) 2*1024L*1024L*1024L, MALLOC_OVERHEAD, 1024, 0},
   {"net_buffer_length", OPT_NET_BUFFER_LENGTH,
    "Buffer for TCP/IP and socket communication",
    (gptr*) &opt_net_buffer_length, (gptr*) &opt_net_buffer_length, 0, GET_ULONG,
@@ -748,22 +752,19 @@ static struct my_option my_long_options[] =
   {"select_limit", OPT_SELECT_LIMIT,
    "Automatic limit for SELECT when using --safe-updates",
    (gptr*) &select_limit,
-   (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ~0L, 0, 1, 0},
+   (gptr*) &select_limit, 0, GET_ULONG, REQUIRED_ARG, 1000L, 1, ULONG_MAX,
+   0, 1, 0},
   {"max_join_size", OPT_MAX_JOIN_SIZE,
    "Automatic limit for rows in a join when using --safe-updates",
    (gptr*) &max_join_size,
-   (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ~0L, 0, 1,
-   0},
+   (gptr*) &max_join_size, 0, GET_ULONG, REQUIRED_ARG, 1000000L, 1, ULONG_MAX,
+   0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol", (gptr*) &opt_secure_auth,
     (gptr*) &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
     (gptr*) &show_warnings, (gptr*) &show_warnings, 0, GET_BOOL, NO_ARG, 
     0, 0, 0, 0, 0, 0},
-  {"comments", 'c', "Preserve comments. Send comments to the server."
-   " Comments are discarded by default, enable with --enable-comments",
-   (gptr*) &preserve_comments, (gptr*) &preserve_comments,
-   0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1052,6 +1053,17 @@ static int read_and_execute(bool interactive)
     if (!interactive)
     {
       line=batch_readline(status.line_buff);
+      /*
+        Skip UTF8 Byte Order Marker (BOM) 0xEFBBBF.
+        Editors like "notepad" put this marker in
+        the very beginning of a text file when
+        you save the file using "Unicode UTF-8" format.
+      */
+      if (!line_number &&
+           (uchar) line[0] == 0xEF &&
+           (uchar) line[1] == 0xBB &&
+           (uchar) line[2] == 0xBF)
+        line+= 3;
       line_number++;
       if (!glob_buffer.length())
 	status.query_start_line=line_number;
@@ -1260,9 +1272,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-#ifdef USE_MB
   char *end_of_line=line+(uint) strlen(line);
-#endif
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
   {
@@ -1352,7 +1362,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
     }
     else if (!*ml_comment && !*in_string &&
-             strlen(pos) >= 10 &&
+             (end_of_line - pos) >= 10 &&
              !my_strnncoll(charset_info, (uchar*) pos, 10,
                            (const uchar*) "delimiter ", 10))
     {

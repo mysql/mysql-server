@@ -585,7 +585,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool log_on= (thd->options & OPTION_BIN_LOG) ||
     (!(thd->security_ctx->master_access & SUPER_ACL));
 #endif
-  thr_lock_type lock_type = table_list->lock_type;
+  thr_lock_type lock_type;
   Item *unused_conds= 0;
   DBUG_ENTER("mysql_insert");
 
@@ -620,6 +620,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (open_and_lock_tables(thd, table_list))
       DBUG_RETURN(TRUE);
   }
+  lock_type= table_list->lock_type;
 
   thd->proc_info="init";
   thd->used_tables=0;
@@ -637,7 +638,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
-  lock_type= table_list->lock_type;
 
   context= &thd->lex->select_lex.context;
   /*
@@ -864,8 +864,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
     transactional_table= table->file->has_transactions();
 
-    if ((changed= (info.copied || info.deleted || info.updated)) ||
-        was_insert_delayed)
+    if ((changed= (info.copied || info.deleted || info.updated)))
     {
       /*
         Invalidate the table in the query cache if something changed.
@@ -874,46 +873,47 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       */
       if (changed)
         query_cache_invalidate3(thd, table_list, 1);
-      if (error <= 0 || !transactional_table)
+    }
+    if (changed && error <= 0 || thd->transaction.stmt.modified_non_trans_table
+        || was_insert_delayed)
+    {
+      if (mysql_bin_log.is_open())
       {
-        if (mysql_bin_log.is_open())
+        if (error <= 0)
         {
-          if (error <= 0)
-          {
-            /*
-              [Guilhem wrote] Temporary errors may have filled
-              thd->net.last_error/errno.  For example if there has
-              been a disk full error when writing the row, and it was
-              MyISAM, then thd->net.last_error/errno will be set to
-              "disk full"... and the my_pwrite() will wait until free
-              space appears, and so when it finishes then the
-              write_row() was entirely successful
-            */
-            /* todo: consider removing */
-            thd->clear_error();
-          }
-          /* bug#22725: 
-               
-          A query which per-row-loop can not be interrupted with
-          KILLED, like INSERT, and that does not invoke stored
-          routines can be binlogged with neglecting the KILLED error.
-          
-          If there was no error (error == zero) until after the end of
-          inserting loop the KILLED flag that appeared later can be
-          disregarded since previously possible invocation of stored
-          routines did not result in any error due to the KILLED.  In
-          such case the flag is ignored for constructing binlog event.
+          /*
+            [Guilhem wrote] Temporary errors may have filled
+            thd->net.last_error/errno.  For example if there has
+            been a disk full error when writing the row, and it was
+            MyISAM, then thd->net.last_error/errno will be set to
+            "disk full"... and the my_pwrite() will wait until free
+            space appears, and so when it finishes then the
+            write_row() was entirely successful
           */
-          Query_log_event qinfo(thd, thd->query, thd->query_length,
-                                transactional_table, FALSE,
-                                (error>0) ? thd->killed : THD::NOT_KILLED);
-          DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-          if (mysql_bin_log.write(&qinfo) && transactional_table)
-            error=1;
+          /* todo: consider removing */
+          thd->clear_error();
         }
-        if (thd->transaction.stmt.modified_non_trans_table)
-          thd->transaction.all.modified_non_trans_table= TRUE;
+        /* bug#22725: 
+           
+           A query which per-row-loop can not be interrupted with
+           KILLED, like INSERT, and that does not invoke stored
+           routines can be binlogged with neglecting the KILLED error.
+           
+           If there was no error (error == zero) until after the end of
+           inserting loop the KILLED flag that appeared later can be
+           disregarded since previously possible invocation of stored
+           routines did not result in any error due to the KILLED.  In
+           such case the flag is ignored for constructing binlog event.
+        */
+        Query_log_event qinfo(thd, thd->query, thd->query_length,
+                              transactional_table, FALSE,
+                              (error>0) ? thd->killed : THD::NOT_KILLED);
+        DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+        if (mysql_bin_log.write(&qinfo) && transactional_table)
+          error=1;
       }
+      if (thd->transaction.stmt.modified_non_trans_table)
+        thd->transaction.all.modified_non_trans_table= TRUE;
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
@@ -2644,9 +2644,9 @@ select_insert::select_insert(TABLE_LIST *table_list_par, TABLE *table_par,
                              enum_duplicates duplic,
                              bool ignore_check_option_errors)
   :table_list(table_list_par), table(table_par), fields(fields_par),
-   last_insert_id(0),
-   insert_into_view(table_list_par && table_list_par->view != 0),
-   is_bulk_insert_mode(FALSE)
+   autoinc_value_of_last_inserted_row(0),
+   autoinc_value_of_first_inserted_row(0),
+   insert_into_view(table_list_par && table_list_par->view != 0)
 {
   bzero((char*) &info,sizeof(info));
   info.handle_duplicates= duplic;
@@ -2755,14 +2755,14 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     Is table which we are changing used somewhere in other parts of
     query
   */
-  if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
-      unique_table(thd, table_list, table_list->next_global, 0))
+  if (unique_table(thd, table_list, table_list->next_global, 0))
   {
     /* Using same table for INSERT and SELECT */
     lex->current_select->options|= OPTION_BUFFER_RESULT;
     lex->current_select->join->select_options|= OPTION_BUFFER_RESULT;
   }
-  else if (!thd->prelocked_mode)
+  else if (!(lex->current_select->options & OPTION_BUFFER_RESULT) &&
+           !thd->prelocked_mode)
   {
     /*
       We must not yet prepare the result table if it is the same as one of the 
@@ -2831,11 +2831,8 @@ int select_insert::prepare2(void)
 {
   DBUG_ENTER("select_insert::prepare2");
   if (thd->lex->current_select->options & OPTION_BUFFER_RESULT &&
-      !thd->prelocked_mode && !is_bulk_insert_mode)
-  {
+      !thd->prelocked_mode)
     table->file->start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   DBUG_RETURN(0);
 }
 
@@ -2902,14 +2899,24 @@ bool select_insert::send_data(List<Item> &values)
     if (table->next_number_field)
     {
       /*
+        If no value has been autogenerated so far, we need to remember the
+        value we just saw, we may need to send it to client in the end.
+      */
+      if (!thd->insert_id_used)
+        autoinc_value_of_last_inserted_row= table->next_number_field->val_int();
+      /*
         Clear auto-increment field for the next record, if triggers are used
         we will clear it twice, but this should be cheap.
       */
       table->next_number_field->reset();
-      if (!last_insert_id && thd->insert_id_used)
-        last_insert_id= thd->last_insert_id;
+      if (!autoinc_value_of_last_inserted_row && thd->insert_id_used)
+        autoinc_value_of_last_inserted_row= thd->last_insert_id;
     }
   }
+
+  if (thd->insert_id_used && !autoinc_value_of_first_inserted_row)
+    autoinc_value_of_first_inserted_row= thd->last_insert_id;
+  
   DBUG_RETURN(error);
 }
 
@@ -2938,10 +2945,11 @@ bool select_insert::send_eof()
 {
   int error, error2;
   bool changed, transactional_table= table->file->has_transactions();
+  ulonglong id;
+  THD::killed_state killed_status= thd->killed;
   DBUG_ENTER("select_insert::send_eof");
 
   error= (!thd->prelocked_mode) ? table->file->end_bulk_insert():0;
-  is_bulk_insert_mode= FALSE;
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
@@ -2959,15 +2967,24 @@ bool select_insert::send_eof()
   DBUG_ASSERT(transactional_table || !changed || 
               thd->transaction.stmt.modified_non_trans_table);
 
-  if (last_insert_id)
-    thd->insert_id(info.copied ? last_insert_id : 0);		// For binary log
+  // For binary log
+  if (autoinc_value_of_last_inserted_row)
+  {
+    if (info.copied)
+      thd->insert_id(autoinc_value_of_last_inserted_row);
+    else
+    {
+      autoinc_value_of_first_inserted_row= 0;
+      thd->insert_id(0);
+    }
+  }
   /* Write to binlog before commiting transaction */
   if (mysql_bin_log.is_open())
   {
     if (!error)
       thd->clear_error();
     Query_log_event qinfo(thd, thd->query, thd->query_length,
-			  transactional_table, FALSE);
+			  transactional_table, FALSE, killed_status);
     mysql_bin_log.write(&qinfo);
   }
   if ((error2=ha_autocommit_or_rollback(thd,error)) && ! error)
@@ -2987,7 +3004,9 @@ bool select_insert::send_eof()
   thd->row_count_func= info.copied + info.deleted +
                        ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                         info.touched : info.updated);
-  ::send_ok(thd, (ulong) thd->row_count_func, last_insert_id, buff);
+  id= autoinc_value_of_first_inserted_row > 0 ?
+    autoinc_value_of_first_inserted_row : thd->last_insert_id;
+  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(0);
 }
 
@@ -3004,6 +3023,7 @@ void select_insert::abort()
     */
     DBUG_VOID_RETURN;
   }
+  changed= (info.copied || info.deleted || info.updated);
   transactional_table= table->file->has_transactions();
   if (!thd->prelocked_mode)
     table->file->end_bulk_insert();
@@ -3013,11 +3033,19 @@ void select_insert::abort()
     error while inserting into a MyISAM table) we must write to the binlog (and
     the error code will make the slave stop).
   */
-  if ((changed= info.copied || info.deleted || info.updated) &&
-      !transactional_table)
+  if (thd->transaction.stmt.modified_non_trans_table)
   {
-    if (last_insert_id)
-      thd->insert_id(last_insert_id);		// For binary log
+    // For binary log
+    if (autoinc_value_of_last_inserted_row)
+    {
+      if (info.copied)
+        thd->insert_id(autoinc_value_of_last_inserted_row);
+      else
+      {
+        autoinc_value_of_first_inserted_row= 0;
+        thd->insert_id(0);
+      }
+    }
     if (mysql_bin_log.is_open())
     {
       Query_log_event qinfo(thd, thd->query, thd->query_length,
@@ -3277,10 +3305,7 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   if (info.handle_duplicates == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
   if (!thd->prelocked_mode)
-  {
     table->file->start_bulk_insert((ha_rows) 0);
-    is_bulk_insert_mode= TRUE;
-  }
   thd->abort_on_warning= (!info.ignore &&
                           (thd->variables.sql_mode &
                            (MODE_STRICT_TRANS_TABLES |

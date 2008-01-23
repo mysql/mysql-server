@@ -726,3 +726,11 @@ count(a)
 3
 drop table t1;
 ##############################################################
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(0);
+SELECT 1 FROM t1 GROUP BY (DATE(NULL)) WITH ROLLUP;
+1
+1
+1
+DROP TABLE t1;
+End of 5.0 tests

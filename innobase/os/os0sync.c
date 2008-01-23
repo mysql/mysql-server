@@ -151,7 +151,14 @@ os_event_create(
 	ut_a(0 == pthread_cond_init(&(event->cond_var), NULL));
 #endif
 	event->is_set = FALSE;
-	event->signal_count = 0;
+
+	/* We return this value in os_event_reset(), which can then be
+	be used to pass to the os_event_wait_low(). The value of zero
+	is reserved in os_event_wait_low() for the case when the
+	caller does not want to pass any signal_count value. To
+	distinguish between the two cases we initialize signal_count
+	to 1 here. */
+	event->signal_count = 1;
 #endif /* __WIN__ */
 
 	/* The os_sync_mutex can be NULL because during startup an event
@@ -244,13 +251,20 @@ os_event_set(
 
 /**************************************************************
 Resets an event semaphore to the nonsignaled state. Waiting threads will
-stop to wait for the event. */
+stop to wait for the event.
+The return value should be passed to os_even_wait_low() if it is desired
+that this thread should not wait in case of an intervening call to
+os_event_set() between this os_event_reset() and the
+os_event_wait_low() call. See comments for os_event_wait_low(). */
 
-void
+ib_longlong
 os_event_reset(
 /*===========*/
+				/* out: current signal_count. */
 	os_event_t	event)	/* in: event to reset */
 {
+	ib_longlong	ret = 0;
+
 #ifdef __WIN__
 	ut_a(event);
 
@@ -265,9 +279,11 @@ os_event_reset(
 	} else {
 		event->is_set = FALSE;
 	}
+	ret = event->signal_count;
 
 	os_fast_mutex_unlock(&(event->os_mutex));
 #endif
+	return(ret);
 }
 
 /**************************************************************
@@ -335,17 +351,37 @@ os_event_free(
 Waits for an event object until it is in the signaled state. If
 srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
 waiting thread when the event becomes signaled (or immediately if the
-event is already in the signaled state). */
+event is already in the signaled state).
+
+Typically, if the event has been signalled after the os_event_reset()
+we'll return immediately because event->is_set == TRUE.
+There are, however, situations (e.g.: sync_array code) where we may
+lose this information. For example:
+
+thread A calls os_event_reset()
+thread B calls os_event_set()   [event->is_set == TRUE]
+thread C calls os_event_reset() [event->is_set == FALSE]
+thread A calls os_event_wait()  [infinite wait!]
+thread C calls os_event_wait()  [infinite wait!]
+
+Where such a scenario is possible, to avoid infinite wait, the
+value returned by os_event_reset() should be passed in as
+reset_sig_count. */
 
 void
-os_event_wait(
-/*==========*/
-	os_event_t	event)	/* in: event to wait */
+os_event_wait_low(
+/*==============*/
+	os_event_t	event,		/* in: event to wait */
+	ib_longlong	reset_sig_count)/* in: zero or the value
+					returned by previous call of
+					os_event_reset(). */
 {
 #ifdef __WIN__
 	DWORD	err;
 
 	ut_a(event);
+
+	UT_NOT_USED(reset_sig_count);
 
 	/* Specify an infinite time limit for waiting */
 	err = WaitForSingleObject(event->handle, INFINITE);
@@ -360,7 +396,11 @@ os_event_wait(
 
 	os_fast_mutex_lock(&(event->os_mutex));
 
-	old_signal_count = event->signal_count;
+	if (reset_sig_count) {
+		old_signal_count = reset_sig_count;
+	} else {
+		old_signal_count = event->signal_count;
+	}
 
 	for (;;) {
 		if (event->is_set == TRUE

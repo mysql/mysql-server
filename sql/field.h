@@ -25,6 +25,7 @@
 
 #define NOT_FIXED_DEC			31
 #define DATETIME_DEC                     6
+const uint32 max_field_size= (uint32) 4294967295U;
 
 class Send_field;
 class Protocol;

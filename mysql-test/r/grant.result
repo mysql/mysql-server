@@ -1105,6 +1105,7 @@ ERROR 42000: SELECT command denied to user 'mysqltest_2'@'localhost' for table '
 DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
 use test;
 CREATE TABLE t1 (f1 int, f2 int);
 INSERT INTO t1 VALUES(1,1), (2,2);
@@ -1124,6 +1125,7 @@ f1	f2
 REVOKE UPDATE (f1) ON `test`.`t1` FROM 'mysqltest_1'@'localhost';
 REVOKE SELECT ON `test`.* FROM 'mysqltest_1'@'localhost';
 REVOKE ALL ON db27878.* FROM 'mysqltest_1'@'localhost';
+DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;

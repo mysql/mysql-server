@@ -211,6 +211,8 @@ select * from t1;
 connection master; 
 drop table t1;
 
+--remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
+
 # Delete the anonymous users
 source include/delete_anonymous_users.inc;
 

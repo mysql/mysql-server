@@ -27,6 +27,8 @@
 #include <ndbapi_limits.h>
 
 #define NDB_HIDDEN_PRIMARY_KEY_LENGTH 8
+#define NDB_DEFAULT_AUTO_PREFETCH 32
+
 /* Forward declarations */
 class Ndb;             
 class NdbOperation;    
@@ -271,6 +273,7 @@ private:
   int full_table_scan(byte * buf);
   int fetch_next(NdbScanOperation* op);
   int next_result(byte *buf); 
+  int set_auto_inc(Field *field);
   int define_read_attrs(byte* buf, NdbOperation* op);
   int filtered_scan(const byte *key, uint key_len, 
                     byte *buf,

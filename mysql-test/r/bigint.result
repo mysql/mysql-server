@@ -170,6 +170,12 @@ t2.value64=t1.value64;
 value64	value32	value64	value32
 9223372036854775807	2	9223372036854775807	4
 drop table t1, t2;
+create table t1 (sint64 bigint not null);
+insert into t1 values (-9223372036854775808);
+select * from t1;
+sint64
+-9223372036854775808
+drop table t1;
 create table t1 select 1 as 'a';
 show create table t1;
 Table	Create Table

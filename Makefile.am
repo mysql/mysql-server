@@ -102,7 +102,7 @@ dist-hook:
 	rm -rf `find $(distdir) -type d -name SCCS -print`
 	rm -f  `find $(distdir) -type l -print`
 	mkdir -p $(distdir)/win
-	scripts/mysql_install_db --no-defaults --windows \
+	scripts/mysql_install_db --no-defaults --cross-bootstrap \
 		--basedir=$(top_builddir) \
 		--datadir=$(distdir)/win/data \
 		--srcdir=$(top_srcdir)
@@ -127,11 +127,11 @@ tags:
 
 test-ps:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem) --ps-protocol
 
 test-ns:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(force) $(mem)
+	    @PERL@ ./mysql-test-run.pl $(force) $(mem)
 
 test:	test-ns test-ps
 
@@ -150,25 +150,25 @@ test-force-mem:
 
 test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=normal --report-features
+	    @PERL@ ./mysql-test-run.pl --force --comment=normal --report-features
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol
+	    @PERL@ ./mysql-test-run.pl --force --comment=ps --ps-protocol
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs1_ps --ps-protocol --suite=funcs_1
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
+	    @PERL@ ./mysql-test-run.pl --force --comment=funcs2 --suite=funcs_2
 	-if [ -d mysql-test/suite/nist ] ; then \
-	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	  @PERL@ ./mysql-test-run.pl --comment=NIST+normal --force --suite=nist ; \
+	      cd mysql-test ; MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=NIST+normal --force --suite=nist ; \
 	fi
 	-if [ -d mysql-test/suite/nist ] ; then \
-	  cd mysql-test ; MTR_BUILD_THREAD=auto \
-	  @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
+	      cd mysql-test ; MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=NIST+ps --force --suite=nist --ps-protocol ; \
 	fi
 
 test-bt-debug:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	@PERL@ ./mysql-test-run.pl --force --comment=debug --report-features
+	    @PERL@ ./mysql-test-run.pl --force --comment=debug --report-features
 
 # Keep these for a while
 test-pl:	test
@@ -179,15 +179,15 @@ test-force-full-pl: test-force-full
 
 test-ext-funcs:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=funcs_1 ; \
-	@PERL@ ./mysql-test-run.pl --force --suite=funcs_2
+	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_1 ; \
+	    @PERL@ ./mysql-test-run.pl --force --suite=funcs_2
 
 test-ext:	test-ext-funcs
 
 test-fast:
 	cd mysql-test ; \
-	@PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
-	@PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
+	    @PERL@ ./mysql-test-run.pl $(subset) --force --skip-ndb --skip-innodb --skip-im --skip-rpl ; \
+	    @PERL@ ./mysql-test-run.pl $(subset) --force --suite=funcs_1 --do-test=myisam
 
 test-fast-view:
 	$(MAKE) subset=--view-protocol test-fast
@@ -200,8 +200,8 @@ test-fast-prepare:
 
 test-full-qa:
 	$(MAKE) force=--force test-pl \
-	test-ext test-fast-view \
-	test-fast-cursor
+	    test-ext test-fast-view \
+	    test-fast-cursor
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%

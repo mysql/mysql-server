@@ -130,7 +130,7 @@ KEYMAP_ENTRY_ARRAY vi_movement_keymap = {
   { ISFUNC, rl_revert_line },			/* U */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* V */
   { ISFUNC, rl_vi_next_word },			/* W */
-  { ISFUNC, rl_rubout },			/* X */
+  { ISFUNC, rl_vi_rubout },			/* X */
   { ISFUNC, rl_vi_yank_to },			/* Y */
   { ISFUNC, (rl_command_func_t *)0x0 },		/* Z */
 

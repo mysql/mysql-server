@@ -826,20 +826,20 @@ a	b
 2	two
 3	three
 4	four
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
 deallocate prepare stmt1 ;
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
 deallocate prepare stmt1 ;
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
@@ -1853,7 +1853,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -1900,7 +1900,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -1950,7 +1950,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -1990,7 +1990,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -2038,7 +2038,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -2082,7 +2082,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -2128,7 +2128,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -2166,7 +2166,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -3848,20 +3848,20 @@ a	b
 2	two
 3	three
 4	four
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
 deallocate prepare stmt1 ;
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
 deallocate prepare stmt1 ;
-prepare stmt1 from ' SELECT a as ccc from t1 where a+1=
-                           (SELECT 1+ccc from t1 where ccc+1=a+1 and a=1) ';
+prepare stmt1 from ' SELECT a as ccc from t1 outr where a+1=
+                           (SELECT 1+outr.a from t1 where outr.a+1=a+1 and a=1) ';
 execute stmt1 ;
 ccc
 1
@@ -4875,7 +4875,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -4922,7 +4922,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -4972,7 +4972,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -5012,7 +5012,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -5060,7 +5060,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -5104,7 +5104,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8
@@ -5150,7 +5150,7 @@ def					@arg13	253	8192	10	Y	128	31	63
 def					@arg14	253	8192	19	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	8	Y	128	31	63
-def					@arg17	253	20	4	Y	128	0	63
+def					@arg17	253	20	4	Y	160	0	63
 def					@arg18	253	20	1	Y	128	0	63
 def					@arg19	253	20	1	Y	128	0	63
 def					@arg20	253	8192	1	Y	0	31	8
@@ -5188,7 +5188,7 @@ def					@arg13	253	8192	0	Y	128	31	63
 def					@arg14	253	8192	0	Y	128	31	63
 def					@arg15	253	8192	19	Y	128	31	63
 def					@arg16	253	8192	0	Y	128	31	63
-def					@arg17	253	20	0	Y	128	0	63
+def					@arg17	253	20	0	Y	160	0	63
 def					@arg18	253	20	0	Y	128	0	63
 def					@arg19	253	20	0	Y	128	0	63
 def					@arg20	253	8192	0	Y	0	31	8

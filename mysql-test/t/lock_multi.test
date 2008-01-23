@@ -249,4 +249,36 @@ reap;
 connection locker;
 drop table t1;
 
+#
+# Bug#31479 Bad lock interaction if CREATE TABLE LIKE is killed
+#
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a int);
+--echo connection: locker
+connection locker;
+lock tables t1 read;
+--echo connection: writer
+connection writer;
+let $ID= `select connection_id()`;
+--send create table t2 like t1;
+--echo connection: default
+connection default;
+let $show_type= open tables where in_use=2 and name_locked=1;
+let $show_pattern= '%t1%2%1';
+--source include/wait_show_pattern.inc
+--echo kill query
+disable_query_log;
+eval kill query $ID;
+enable_query_log;
+connection writer;
+--error ER_QUERY_INTERRUPTED
+--reap
+connection locker;
+unlock tables;
+connection default;
+drop table t1;
+
 # End of 5.0 tests

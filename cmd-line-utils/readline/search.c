@@ -1,6 +1,6 @@
 /* search.c - code for non-incremental searching in emacs and vi modes. */
 
-/* Copyright (C) 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1992-2005 Free Software Foundation, Inc.
 
    This file is part of the Readline Library (the Library), a set of
    routines for providing Emacs style line input to programs that ask
@@ -22,7 +22,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 #include <stdio.h>
@@ -51,6 +53,8 @@
 #endif
 #define abs(x)		(((x) >= 0) ? (x) : -(x))
 
+_rl_search_cxt *_rl_nscxt = 0;
+
 extern HIST_ENTRY *_rl_saved_line_for_history;
 
 /* Functions imported from the rest of the library. */
@@ -68,10 +72,15 @@ static int history_string_size;
 
 static void make_history_line_current PARAMS((HIST_ENTRY *));
 static int noninc_search_from_pos PARAMS((char *, int, int));
-static void noninc_dosearch PARAMS((char *, int));
-static void noninc_search PARAMS((int, int));
+static int noninc_dosearch PARAMS((char *, int));
+static int noninc_search PARAMS((int, int));
 static int rl_history_search_internal PARAMS((int, int));
 static void rl_history_search_reinit PARAMS((void));
+
+static _rl_search_cxt *_rl_nsearch_init PARAMS((int, int));
+static int _rl_nsearch_cleanup PARAMS((_rl_search_cxt *, int));
+static void _rl_nsearch_abort PARAMS((_rl_search_cxt *));
+static int _rl_nsearch_dispatch PARAMS((_rl_search_cxt *, int));
 
 /* Make the data from the history entry ENTRY be the contents of the
    current line.  This doesn't do anything with rl_point; the caller
@@ -80,12 +89,15 @@ static void
 make_history_line_current (entry)
      HIST_ENTRY *entry;
 {
-#if 0
-  rl_replace_line (entry->line, 1);
-  rl_undo_list = (UNDO_LIST *)entry->data;
-#else
   _rl_replace_text (entry->line, 0, rl_end);
   _rl_fix_point (1);
+#if defined (VI_MODE)
+  if (rl_editing_mode == vi_mode)
+    /* POSIX.2 says that the `U' command doesn't affect the copy of any
+       command lines to the edit line.  We're going to implement that by
+       making the undo list start after the matching line is copied to the
+       current editing buffer. */
+    rl_free_undo_list ();
 #endif
 
   if (_rl_saved_line_for_history)
@@ -128,8 +140,8 @@ noninc_search_from_pos (string, pos, dir)
 
 /* Search for a line in the history containing STRING.  If DIR is < 0, the
    search is backwards through previous entries, else through subsequent
-   entries. */
-static void
+   entries.  Returns 1 if the search was successful, 0 otherwise. */
+static int
 noninc_dosearch (string, dir)
      char *string;
      int dir;
@@ -140,7 +152,7 @@ noninc_dosearch (string, dir)
   if (string == 0 || *string == '\0' || noninc_history_pos < 0)
     {
       rl_ding ();
-      return;
+      return 0;
     }
 
   pos = noninc_search_from_pos (string, noninc_history_pos + dir, dir);
@@ -151,7 +163,7 @@ noninc_dosearch (string, dir)
       rl_clear_message ();
       rl_point = 0;
       rl_ding ();
-      return;
+      return 0;
     }
 
   noninc_history_pos = pos;
@@ -162,7 +174,7 @@ noninc_dosearch (string, dir)
 #if defined (VI_MODE)
   if (rl_editing_mode != vi_mode)
 #endif
-  history_set_pos (oldpos);
+    history_set_pos (oldpos);
 
   make_history_line_current (entry);
 
@@ -170,27 +182,24 @@ noninc_dosearch (string, dir)
   rl_mark = rl_end;
 
   rl_clear_message ();
+  return 1;
 }
 
-/* Search non-interactively through the history list.  DIR < 0 means to
-   search backwards through the history of previous commands; otherwise
-   the search is for commands subsequent to the current position in the
-   history list.  PCHAR is the character to use for prompting when reading
-   the search string; if not specified (0), it defaults to `:'. */
-static void
-noninc_search (dir, pchar)
-     int dir;
-     int pchar;
+static _rl_search_cxt *
+_rl_nsearch_init (dir, pchar)
+     int dir, pchar;
 {
-  int saved_point, saved_mark, c;
+  _rl_search_cxt *cxt;
   char *p;
-#if defined (HANDLE_MULTIBYTE)
-  char mb[MB_LEN_MAX];
-#endif
+
+  cxt = _rl_scxt_alloc (RL_SEARCH_NSEARCH, 0);
+  if (dir < 0)
+    cxt->sflags |= SF_REVERSE;		/* not strictly needed */
+
+  cxt->direction = dir;
+  cxt->history_pos = cxt->save_line;
 
   rl_maybe_save_line ();
-  saved_point = rl_point;
-  saved_mark = rl_mark;
 
   /* Clear the undo list, since reading the search string should create its
      own undo list, and the whole list will end up being freed when we
@@ -202,152 +211,243 @@ noninc_search (dir, pchar)
   rl_end = rl_point = 0;
 
   p = _rl_make_prompt_for_search (pchar ? pchar : ':');
-  rl_message (p, 0, 0);
+  rl_message ("%s", p, 0);
   free (p);
 
-#define SEARCH_RETURN rl_restore_prompt (); RL_UNSETSTATE(RL_STATE_NSEARCH); return
-
   RL_SETSTATE(RL_STATE_NSEARCH);
-  /* Read the search string. */
-  while (1)
-    {
-      RL_SETSTATE(RL_STATE_MOREINPUT);
-      c = rl_read_key ();
-      RL_UNSETSTATE(RL_STATE_MOREINPUT);
 
+  _rl_nscxt = cxt;
+
+  return cxt;
+}
+
+static int
+_rl_nsearch_cleanup (cxt, r)
+     _rl_search_cxt *cxt;
+     int r;
+{
+  _rl_scxt_dispose (cxt, 0);
+  _rl_nscxt = 0;
+
+  RL_UNSETSTATE(RL_STATE_NSEARCH);
+
+  return (r != 1);
+}
+
+static void
+_rl_nsearch_abort (cxt)
+     _rl_search_cxt *cxt;
+{
+  rl_maybe_unsave_line ();
+  rl_clear_message ();
+  rl_point = cxt->save_point;
+  rl_mark = cxt->save_mark;
+  rl_restore_prompt ();
+
+  RL_UNSETSTATE (RL_STATE_NSEARCH);
+}
+
+/* Process just-read character C according to search context CXT.  Return -1
+   if the caller should abort the search, 0 if we should break out of the
+   loop, and 1 if we should continue to read characters. */
+static int
+_rl_nsearch_dispatch (cxt, c)
+     _rl_search_cxt *cxt;
+     int c;
+{
+  switch (c)
+    {
+    case CTRL('W'):
+      rl_unix_word_rubout (1, c);
+      break;
+
+    case CTRL('U'):
+      rl_unix_line_discard (1, c);
+      break;
+
+    case RETURN:
+    case NEWLINE:
+      return 0;
+
+    case CTRL('H'):
+    case RUBOUT:
+      if (rl_point == 0)
+	{
+	  _rl_nsearch_abort (cxt);
+	  return -1;
+	}
+      _rl_rubout_char (1, c);
+      break;
+
+    case CTRL('C'):
+    case CTRL('G'):
+      rl_ding ();
+      _rl_nsearch_abort (cxt);
+      return -1;
+
+    default:
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-	c = _rl_read_mbstring (c, mb, MB_LEN_MAX);
+	rl_insert_text (cxt->mb);
+      else
 #endif
-
-      if (c == 0)
-	break;
-
-      switch (c)
-	{
-	case CTRL('H'):
-	case RUBOUT:
-	  if (rl_point == 0)
-	    {
-	      rl_maybe_unsave_line ();
-	      rl_clear_message ();
-	      rl_point = saved_point;
-	      rl_mark = saved_mark;
-	      SEARCH_RETURN;
-	    }
-	  _rl_rubout_char (1, c);
-	  break;
-
-	case CTRL('W'):
-	  rl_unix_word_rubout (1, c);
-	  break;
-
-	case CTRL('U'):
-	  rl_unix_line_discard (1, c);
-	  break;
-
-	case RETURN:
-	case NEWLINE:
-	  goto dosearch;
-	  /* NOTREACHED */
-	  break;
-
-	case CTRL('C'):
-	case CTRL('G'):
-	  rl_maybe_unsave_line ();
-	  rl_clear_message ();
-	  rl_point = saved_point;
-	  rl_mark = saved_mark;
-	  rl_ding ();
-	  SEARCH_RETURN;
-
-	default:
-#if defined (HANDLE_MULTIBYTE)
-	  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-	    rl_insert_text (mb);
-	  else
-#endif
-	    _rl_insert_char (1, c);
-	  break;
-	}
-      (*rl_redisplay_function) ();
+	_rl_insert_char (1, c);
+      break;
     }
 
- dosearch:
-  rl_mark = saved_mark;
+  (*rl_redisplay_function) ();
+  return 1;
+}
+
+/* Perform one search according to CXT, using NONINC_SEARCH_STRING.  Return
+   -1 if the search should be aborted, any other value means to clean up
+   using _rl_nsearch_cleanup ().  Returns 1 if the search was successful,
+   0 otherwise. */
+static int
+_rl_nsearch_dosearch (cxt)
+     _rl_search_cxt *cxt;
+{
+  rl_mark = cxt->save_mark;
 
   /* If rl_point == 0, we want to re-use the previous search string and
      start from the saved history position.  If there's no previous search
      string, punt. */
   if (rl_point == 0)
     {
-      if (!noninc_search_string)
+      if (noninc_search_string == 0)
 	{
 	  rl_ding ();
-	  SEARCH_RETURN;
+	  rl_restore_prompt ();
+	  RL_UNSETSTATE (RL_STATE_NSEARCH);
+	  return -1;
 	}
     }
   else
     {
       /* We want to start the search from the current history position. */
-      noninc_history_pos = where_history ();
+      noninc_history_pos = cxt->save_line;
       FREE (noninc_search_string);
       noninc_search_string = savestring (rl_line_buffer);
+
+      /* If we don't want the subsequent undo list generated by the search
+	 matching a history line to include the contents of the search string,
+	 we need to clear rl_line_buffer here.  For now, we just clear the
+	 undo list generated by reading the search string.  (If the search
+	 fails, the old undo list will be restored by rl_maybe_unsave_line.) */
+      rl_free_undo_list ();
     }
 
   rl_restore_prompt ();
-  noninc_dosearch (noninc_search_string, dir);
-  RL_UNSETSTATE(RL_STATE_NSEARCH);
+  return (noninc_dosearch (noninc_search_string, cxt->direction));
+}
+
+/* Search non-interactively through the history list.  DIR < 0 means to
+   search backwards through the history of previous commands; otherwise
+   the search is for commands subsequent to the current position in the
+   history list.  PCHAR is the character to use for prompting when reading
+   the search string; if not specified (0), it defaults to `:'. */
+static int
+noninc_search (dir, pchar)
+     int dir;
+     int pchar;
+{
+  _rl_search_cxt *cxt;
+  int c, r;
+
+  cxt = _rl_nsearch_init (dir, pchar);
+
+  if (RL_ISSTATE (RL_STATE_CALLBACK))
+    return (0);
+
+  /* Read the search string. */
+  r = 0;
+  while (1)
+    {
+      c = _rl_search_getchar (cxt);
+
+      if (c == 0)
+	break;
+
+      r = _rl_nsearch_dispatch (cxt, c);
+      if (r < 0)
+        return 1;
+      else if (r == 0)
+	break;        
+    }
+
+  r = _rl_nsearch_dosearch (cxt);
+  return ((r >= 0) ? _rl_nsearch_cleanup (cxt, r) : (r != 1));
 }
 
 /* Search forward through the history list for a string.  If the vi-mode
    code calls this, KEY will be `?'. */
 int
-rl_noninc_forward_search (int count __attribute__((unused)), int key)
+rl_noninc_forward_search (count, key)
+     int count, key;
 {
-  noninc_search (1, (key == '?') ? '?' : 0);
-  return 0;
+  return noninc_search (1, (key == '?') ? '?' : 0);
 }
 
 /* Reverse search the history list for a string.  If the vi-mode code
    calls this, KEY will be `/'. */
 int
-rl_noninc_reverse_search (int count __attribute__((unused)), int key)
+rl_noninc_reverse_search (count, key)
+     int count, key;
 {
-  noninc_search (-1, (key == '/') ? '/' : 0);
-  return 0;
+  return noninc_search (-1, (key == '/') ? '/' : 0);
 }
 
 /* Search forward through the history list for the last string searched
    for.  If there is no saved search string, abort. */
 int
-rl_noninc_forward_search_again (int count __attribute__((unused)),
-                                int key  __attribute__((unused)))
+rl_noninc_forward_search_again (count, key)
+     int count, key;
 {
+  int r;
+
   if (!noninc_search_string)
     {
       rl_ding ();
       return (-1);
     }
-  noninc_dosearch (noninc_search_string, 1);
-  return 0;
+  r = noninc_dosearch (noninc_search_string, 1);
+  return (r != 1);
 }
 
 /* Reverse search in the history list for the last string searched
    for.  If there is no saved search string, abort. */
 int
-rl_noninc_reverse_search_again (int count __attribute__((unused)),
-                                int key  __attribute__((unused)))
+rl_noninc_reverse_search_again (count, key)
+     int count, key;
 {
+  int r;
+
   if (!noninc_search_string)
     {
       rl_ding ();
       return (-1);
     }
-  noninc_dosearch (noninc_search_string, -1);
-  return 0;
+  r = noninc_dosearch (noninc_search_string, -1);
+  return (r != 1);
 }
 
+#if defined (READLINE_CALLBACKS)
+int
+_rl_nsearch_callback (cxt)
+     _rl_search_cxt *cxt;
+{
+  int c, r;
+
+  c = _rl_search_getchar (cxt);
+  r = _rl_nsearch_dispatch (cxt, c);
+  if (r != 0)
+    return 1;
+
+  r = _rl_nsearch_dosearch (cxt);
+  return ((r >= 0) ? _rl_nsearch_cleanup (cxt, r) : (r != 1));
+}
+#endif
+  
 static int
 rl_history_search_internal (count, dir)
      int count, dir;

@@ -5,7 +5,7 @@ Next DBACC 3002
 Next DBTUP 4014
 Next DBLQH 5043
 Next DBDICT 6007
-Next DBDIH 7183
+Next DBDIH 7195
 Next DBTC 8052
 Next CMVMI 9000
 Next BACKUP 10022
@@ -72,6 +72,11 @@ Delay GCP_SAVEREQ by 10 secs
 7177: Delay copying of sysfileData in execCOPY_GCIREQ
 
 7180: Crash master during master-take-over in execMASTER_LCPCONF
+
+7193: Dont send LCP_FRAG_ORD to self, and crash when sending first
+      LCP_FRAG_ORD(last)
+
+7194: Force removeNodeFromStored to complete in the middle of MASTER_LCPCONF
 
 ERROR CODES FOR TESTING NODE FAILURE, LOCAL CHECKPOINT HANDLING:
 -----------------------------------------------------------------

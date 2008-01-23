@@ -116,15 +116,10 @@ drop table if exists t1;
 # Check conversion of floats to character field (Bug #7774)
 create table t1 (c char(20));
 insert into t1 values (5e-28);
-# Expected result is "5e-28", but windows returns "5e-028"
---replace_result 5e-028 5e-28
 select * from t1;
 drop table t1;
 create table t1 (c char(6));
 insert into t1 values (2e5),(2e6),(2e-4),(2e-5);
-# Expected result is "2e+06", but windows returns "2e+006"
-# Expected result is "2e-05", but windows returns "2e-005"
---replace_result 2e+006 2e+06 2e-005 2e-05
 select * from t1;
 drop table t1;
 

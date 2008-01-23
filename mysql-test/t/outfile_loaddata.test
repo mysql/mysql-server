@@ -86,4 +86,28 @@ DROP TABLE t2;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#32533: SELECT INTO OUTFILE never escapes multibyte character
+--echo #
+
+CREATE TABLE t1 (c1 VARCHAR(256));
+INSERT INTO t1 VALUES (0xC3);
+SELECT HEX(c1) FROM t1;
+
+--let $file=$MYSQLTEST_VARDIR/tmp/bug32533.txt
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT * INTO OUTFILE '$file' FIELDS ENCLOSED BY 0xC3 FROM t1
+TRUNCATE t1;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval SELECT HEX(LOAD_FILE('$file'))
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval LOAD DATA INFILE '$file' INTO TABLE t1 FIELDS ENCLOSED BY 0xC3
+SELECT HEX(c1) FROM t1;
+
+--remove_file $file
+DROP TABLE t1;
+
 --echo # End of 5.0 tests.

@@ -71,6 +71,9 @@ extern char *tilde_expand PARAMS((const char *));
    tilde.  If there is no expansion, call tilde_expansion_failure_hook. */
 extern char *tilde_expand_word PARAMS((const char *));
 
+/* Find the portion of the string beginning with ~ that should be expanded. */
+extern char *tilde_find_word PARAMS((const char *, int, int *));
+
 #ifdef __cplusplus
 }
 #endif
