@@ -2113,6 +2113,69 @@ SELECT ..inexistent();
 USE test;
 
 #
+# Bug#33983 (Stored Procedures: wrong end <label> syntax is accepted)
+#
+
+--disable_warnings
+drop procedure if exists proc_33983_a;
+drop procedure if exists proc_33983_b;
+drop procedure if exists proc_33983_c;
+drop procedure if exists proc_33983_d;
+--enable_warnings
+
+delimiter |;
+
+--error ER_SP_LABEL_MISMATCH
+create procedure proc_33983_a()
+begin
+  label1:
+    begin
+      label2:
+      begin
+        select 1;
+      end label1;
+    end;
+end|
+
+--error ER_SP_LABEL_MISMATCH
+create procedure proc_33983_b()
+begin
+  label1:
+    repeat
+      label2:
+      repeat
+        select 1;
+      until FALSE end repeat label1;
+    until FALSE end repeat;
+end|
+
+--error ER_SP_LABEL_MISMATCH
+create procedure proc_33983_c()
+begin
+  label1:
+    while TRUE do
+      label2:
+      while TRUE do
+        select 1;
+      end while label1;
+    end while;
+end|
+
+--error ER_SP_LABEL_MISMATCH
+create procedure proc_33983_d()
+begin
+  label1:
+    loop
+      label2:
+      loop
+        select 1;
+      end loop label1;
+    end loop;
+end|
+
+delimiter ;|
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings
