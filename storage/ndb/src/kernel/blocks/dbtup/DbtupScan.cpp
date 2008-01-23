@@ -620,6 +620,24 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 
   if (lcp && lcp_list != RNIL)
     goto found_lcp_keep;
+
+  switch(pos.m_get){
+  case ScanPos::Get_next_tuple:
+  case ScanPos::Get_next_tuple_fs:
+    jam();
+    key.m_page_idx += size;
+    // fall through
+  case ScanPos::Get_tuple:
+  case ScanPos::Get_tuple_fs:
+    jam();
+    /**
+     * We need to refetch page after timeslice
+     */
+    pos.m_get = ScanPos::Get_page;
+    break;
+  default:
+    break;
+  }
   
   while (true) {
     switch (pos.m_get) {
