@@ -47,7 +47,7 @@ int  toku_pma_n_entries (PMA);
 //enum pma_errors toku_pma_insert (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 
 // The DB pointer is there so that the comparison function can be called.
-enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, TOKUTXN, FILENUM, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/);
+enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, TOKUTXN, FILENUM, DISKOFF, u_int32_t /*random for fingerprint */, u_int32_t */*fingerprint*/, LSN *node_lsn);
 
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
@@ -61,7 +61,8 @@ int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/, u_int32_t /*random for fin
 int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 				int */*replaced_v_size*/, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
 				TOKUTXN /*txn*/, FILENUM, DISKOFF,
-				u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/);
+				u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/,
+				LSN */*node_lsn*/);
 
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
@@ -87,9 +88,9 @@ enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*);
  *   The NEWPMA gets keys > pivot key
  */
 int toku_pma_split(TOKUTXN, FILENUM,
-		   DISKOFF /*diskoff*/,    PMA /*pma*/,     unsigned int */*pma_size*/,     u_int32_t /*rand4sum*/,  u_int32_t */*fingerprint*/,
+		   DISKOFF /*diskoff*/,    PMA /*pma*/,     unsigned int */*pma_size*/,     u_int32_t /*rand4sum*/,  u_int32_t */*fingerprint*/,       LSN* /*lsn*/,
 		   DBT */*splitk*/,
-		   DISKOFF /*newdiskoff*/, PMA /*newpma*/,  unsigned int */*newpma_size*/,  u_int32_t /*newrand4sum*/,  u_int32_t */*newfingerprint*/);
+		   DISKOFF /*newdiskoff*/, PMA /*newpma*/,  unsigned int */*newpma_size*/,  u_int32_t /*newrand4sum*/,  u_int32_t */*newfingerprint*/, LSN* /*newlsn*/);
 
 /*
  * Insert several key value pairs into an empty pma.  
@@ -102,7 +103,7 @@ int toku_pma_split(TOKUTXN, FILENUM,
  * vals - an array of values
  * n_newpairs - the number of key value pairs
  */
-int toku_pma_bulk_insert(TOKUTXN, FILENUM, DISKOFF, PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint);
+int toku_pma_bulk_insert(TOKUTXN, FILENUM, DISKOFF, PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint, LSN */*node_lsn*/);
 
 /* Move the cursor to the beginning or the end or to a key */
 int toku_pma_cursor (PMA, PMA_CURSOR *, void** /*sskey*/, void ** /*ssval*/); // the sskey and ssval point to variables that hold blocks that can be used to return values for zero'd DBTS.
