@@ -6582,6 +6582,7 @@ int ha_ndbcluster::create(const char *name,
   const char *tablespace= create_info->tablespace;
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
+  bool ndb_sys_table= FALSE;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -6638,6 +6639,15 @@ int ha_ndbcluster::create(const char *name,
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
+    ndb_sys_table= TRUE;
+  }
+  if (!ndb_apply_status_share)
+  {
+    if ((strcmp(m_dbname, NDB_REP_DB) == 0 &&
+         strcmp(m_tabname, NDB_APPLY_TABLE) == 0))
+    {
+      ndb_sys_table= TRUE;
+    }
   }
 
   DBUG_PRINT("table", ("name: %s", m_tabname));  
@@ -6645,7 +6655,18 @@ int ha_ndbcluster::create(const char *name,
   {
     DBUG_RETURN(my_errno= errno);
   }
-  tab.setLogging(!(create_info->options & HA_LEX_CREATE_TMP_TABLE));    
+  if (!ndb_sys_table)
+  {
+    if (thd->variables.ndb_table_temporary)
+    {
+      tab.setTemporary(TRUE);
+      tab.setLogging(FALSE);
+    }
+    else if (thd->variables.ndb_table_no_logging)
+    {
+      tab.setLogging(FALSE);
+    }
+  }
   tab.setSingleUserMode(single_user_mode);
 
   // Save frm data for this table
@@ -6714,6 +6735,8 @@ int ha_ndbcluster::create(const char *name,
 
   if (use_disk)
   { 
+    tab.setLogging(TRUE);
+    tab.setTemporary(FALSE);
     if (tablespace)
       tab.setTablespaceName(tablespace);
     else
@@ -7062,6 +7085,10 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
     // TODO Only temporary ordered indexes supported
     ndb_index.setLogging(FALSE); 
   }
+  if (!m_table->getLogging())
+    ndb_index.setLogging(FALSE); 
+  if (((NDBTAB*)m_table)->getTemporary())
+    ndb_index.setTemporary(TRUE); 
   if (ndb_index.setTable(m_tabname))
   {
     DBUG_RETURN(my_errno= errno);
@@ -7979,6 +8006,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   }
   while((result= th.next()) == 1)
   {
+    if (thd->killed)
+      DBUG_RETURN(-1);
     my_sleep(delay);
   }
   if (result == -1 || th.close() == -1)
@@ -7989,6 +8018,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   };
   for (i= 0; i < MAX_KEY; i++)
   {
+    if (thd->killed)
+      DBUG_RETURN(-1);
     if (m_index[i].status == ACTIVE)
     {
       const NdbDictionary::Index *index= m_index[i].index;
@@ -8005,6 +8036,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       }
       while((result= ih.next()) == 1)
       {
+        if (thd->killed)
+          DBUG_RETURN(-1);
         my_sleep(delay);        
       }
       if (result == -1 || ih.close() == -1)
@@ -8024,6 +8057,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       } 
       while((result= ih.next()) == 1)
       {
+        if (thd->killed)
+          DBUG_RETURN(-1);
         my_sleep(delay);
       }
       if (result == -1 || ih.close() == -1)
