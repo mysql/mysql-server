@@ -8006,6 +8006,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   }
   while((result= th.next()) == 1)
   {
+    if (thd->killed)
+      DBUG_RETURN(-1);
     my_sleep(delay);
   }
   if (result == -1 || th.close() == -1)
@@ -8016,6 +8018,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
   };
   for (i= 0; i < MAX_KEY; i++)
   {
+    if (thd->killed)
+      DBUG_RETURN(-1);
     if (m_index[i].status == ACTIVE)
     {
       const NdbDictionary::Index *index= m_index[i].index;
@@ -8032,6 +8036,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       }
       while((result= ih.next()) == 1)
       {
+        if (thd->killed)
+          DBUG_RETURN(-1);
         my_sleep(delay);        
       }
       if (result == -1 || ih.close() == -1)
@@ -8051,6 +8057,8 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       } 
       while((result= ih.next()) == 1)
       {
+        if (thd->killed)
+          DBUG_RETURN(-1);
         my_sleep(delay);
       }
       if (result == -1 || ih.close() == -1)
