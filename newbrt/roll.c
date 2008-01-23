@@ -194,6 +194,7 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
 
     VERIFY_COUNTS(n);
 
+    n->log_lsn = c->lsn;
     r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(n));
     assert(r==0);
 }
@@ -246,6 +247,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     node->u.n.n_bytes_in_buffer[le->childnum] = 0;
     node->u.n.n_cursors[le->childnum] = 0;
     node->u.n.n_children++;
+    node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
@@ -263,6 +265,7 @@ void toku_recover_setchild (struct logtype_setchild *le) {
     assert(node->height>0);
     assert(le->childnum < (unsigned)node->u.n.n_children);
     node->u.n.children[le->childnum] = le->child;
+    node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
@@ -280,6 +283,7 @@ void toku_recover_setpivot (struct logtype_setpivot *le) {
     node->u.n.childkeys[le->childnum] = kv_pair_malloc(le->pivotkey.data, le->pivotkey.len, 0, 0);
     node->u.n.totalchildkeylens += toku_brt_pivot_key_len(pair->brt, node->u.n.childkeys[le->childnum]);
 
+    node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 
@@ -297,6 +301,7 @@ void toku_recover_changechildfingerprint (struct logtype_changechildfingerprint 
     BRTNODE node = node_v;
     assert(node->height>0);
     BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, le->childnum) = le->newfingerprint;
+    node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     
@@ -339,6 +344,7 @@ void toku_recover_insertinleaf (struct logtype_insertinleaf *c) {
 
     VERIFY_COUNTS(node);
 
+    node->log_lsn = c->lsn;
     r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
     toku_free(c->key.data);
@@ -359,6 +365,7 @@ int toku_rollback_insertinleaf (struct logtype_insertinleaf *c, TOKUTXN txn)  {
     node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
     node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
     VERIFY_COUNTS(node);
+    node->log_lsn = c->lsn;
     r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     return r;
 }
@@ -380,6 +387,7 @@ void toku_recover_resizepma (struct logtype_resizepma *c) {
     
     VERIFY_COUNTS(node);
 
+    node->log_lsn = c->lsn;
     r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
@@ -413,6 +421,8 @@ void toku_recover_pmadistribute (struct logtype_pmadistribute *c) {
     VERIFY_COUNTS(nodea);
     VERIFY_COUNTS(nodeb);
 
+    nodea->log_lsn = c->lsn;
+    nodeb->log_lsn = c->lsn;
     r = toku_cachetable_unpin(pair->cf, c->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
     assert(r==0);
     r = toku_cachetable_unpin(pair->cf, c->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
@@ -449,6 +459,8 @@ int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) 
 				   &nodeb->u.l.n_bytes_in_buffer, &nodea->u.l.n_bytes_in_buffer
 				   );
     if (r!=0) goto died1;
+    nodea->log_lsn = le->lsn;
+    nodeb->log_lsn = le->lsn;
     r = toku_cachetable_unpin(cf, le->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
     r = toku_cachetable_unpin(cf, le->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
 
