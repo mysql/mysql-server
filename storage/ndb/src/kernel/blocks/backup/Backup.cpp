@@ -994,6 +994,7 @@ Backup::checkNodeFail(Signal* signal,
       ref->backupPtr = ptr.i;
       ref->backupId = ptr.p->backupId;
       ref->errorCode = AbortBackupOrd::BackupFailureDueToNodeFail;
+      ref->nodeId = getOwnNodeId();
       gsn= GSN_STOP_BACKUP_REF;
       len= StopBackupRef::SignalLength;
       pos= &ref->nodeId - signal->getDataPtr();
@@ -2108,6 +2109,15 @@ Backup::sendDropTrig(Signal* signal, BackupRecordPtr ptr)
     /**
      * Insert footers
      */
+    //if backup error, we needn't insert footers
+    if(ptr.p->checkError())
+    {
+      jam();
+      closeFiles(signal, ptr);
+      ptr.p->errorCode = 0;
+      return;
+    }
+
     {
       BackupFilePtr filePtr LINT_SET_PTR;
       ptr.p->files.getPtr(filePtr, ptr.p->logFilePtr);
@@ -4302,6 +4312,37 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
 #if 0
   ndbout << "Ptr to data = " << hex << tmp << endl;
 #endif
+  BackupRecordPtr ptr LINT_SET_PTR;
+  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
+
+  if (ERROR_INSERTED(10036))
+  {
+    jam();
+    filePtr.p->m_flags &= ~(Uint32)BackupFile::BF_FILE_THREAD;
+    filePtr.p->errorCode = 2810;
+    ptr.p->setErrorCode(2810);
+
+    if(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ)
+    {
+      jam();
+      closeFile(signal, ptr, filePtr);
+    }
+    return;
+  }
+
+  if(filePtr.p->errorCode != 0)
+  {
+    jam();
+    ptr.p->setErrorCode(filePtr.p->errorCode);
+
+    if(ptr.p->m_gsn == GSN_STOP_BACKUP_REQ)
+    {
+      jam();
+      closeFile(signal, ptr, filePtr);
+    }
+    return;
+  }
+
   if (!ready_to_write(ready, sz, eof, filePtr.p))
   {
     jam();
@@ -4333,8 +4374,6 @@ Backup::checkFile(Signal* signal, BackupFilePtr filePtr)
   ndbrequire(flags & BackupFile::BF_OPEN);
   ndbrequire(flags & BackupFile::BF_FILE_THREAD);
   
-  BackupRecordPtr ptr LINT_SET_PTR;
-  c_backupPool.getPtr(ptr, filePtr.p->backupPtr);
   closeFile(signal, ptr, filePtr);
 }
 
@@ -4701,6 +4740,22 @@ Backup::closeFilesDone(Signal* signal, BackupRecordPtr ptr)
   }
   
   jam();
+
+  //error when do insert footer or close file
+  if(ptr.p->checkError())
+  {
+    StopBackupRef * ref = (StopBackupRef*)signal->getDataPtr();
+    ref->backupPtr = ptr.i;
+    ref->backupId = ptr.p->backupId;
+    ref->errorCode = ptr.p->errorCode;
+    ref->nodeId = getOwnNodeId();
+    sendSignal(ptr.p->masterRef, GSN_STOP_BACKUP_REF, signal,
+             StopBackupConf::SignalLength, JBB);
+
+    ptr.p->m_gsn = GSN_STOP_BACKUP_REF;
+    ptr.p->slaveState.setState(CLEANING);
+    return;
+  }
 
   StopBackupConf* conf = (StopBackupConf*)signal->getDataPtrSend();
   conf->backupId = ptr.p->backupId;
