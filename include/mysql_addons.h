@@ -19,6 +19,8 @@ Created November 07, 2007 Vasil Dimov
 extern "C" {
 #endif /* __cplusplus */
 
+#include "univ.i"
+
 /***********************************************************************
 Retrieve THD::thread_id
 http://bugs.mysql.com/30930 */
