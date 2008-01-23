@@ -1614,9 +1614,8 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     fixup_child_fingerprint(newroot, 0, nodea, brt, txn);
     fixup_child_fingerprint(newroot, 1, nodeb, brt, txn);
     {
-	BYTESTRING bs;
-	bs.len = splitk.size;
-	bs.data = splitk.data;
+	BYTESTRING bs = { .len = kv_pair_keylen(newroot->u.n.childkeys[0]),
+			  .data = kv_pair_key(newroot->u.n.childkeys[0]) };
 	r=toku_log_setpivot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, bs);
 	if (r!=0) return r;
     }
