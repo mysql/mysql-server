@@ -106,9 +106,3 @@ connection slave;
 sync_with_master;
 
 # End of 4.1 tests
-
-# Cleanup
-# The A->B->A replication causes the master to start writing relay logs
-# in var/run, remove them
-remove_file $MYSQLTEST_VARDIR/run/master-relay-bin.000001;
-remove_file $MYSQLTEST_VARDIR/run/master-relay-bin.index;

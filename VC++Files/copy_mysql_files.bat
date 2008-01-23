@@ -78,11 +78,6 @@ copy include\conf*.h c:\mysql\include
 copy include\my_global.h c:\mysql\include\my_global.h
 copy libmysql\libmysql.def c:\mysql\include
 
-REM Copy test files
-
-copy libmysqltest\*.* c:\mysql\examples\libmysqltest
-copy libmysqltest\release\myTest.exe c:\mysql\examples\libmysqltest
-
 REM Copy share, docs etc
 
 xcopy share\*.* c:\mysql\share /E /Y

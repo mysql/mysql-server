@@ -1122,6 +1122,7 @@ DROP DATABASE mysqltest1;
 DROP DATABASE mysqltest2;
 
 DROP USER mysqltest_1@localhost;
+DROP USER mysqltest_2@localhost;
 
 #
 # Bug#27878: Unchecked privileges on a view referring to a table from another 
@@ -1147,6 +1148,7 @@ connection default;
 REVOKE UPDATE (f1) ON `test`.`t1` FROM 'mysqltest_1'@'localhost';
 REVOKE SELECT ON `test`.* FROM 'mysqltest_1'@'localhost';
 REVOKE ALL ON db27878.* FROM 'mysqltest_1'@'localhost';
+DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;

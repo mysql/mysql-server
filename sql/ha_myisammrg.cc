@@ -294,9 +294,13 @@ int ha_myisammrg::index_next_same(byte * buf,
                                   const byte *key __attribute__((unused)),
                                   uint length __attribute__((unused)))
 {
+  int error;
   statistic_increment(table->in_use->status_var.ha_read_next_count,
-		      &LOCK_status);
-  int error=myrg_rnext_same(file,buf);
+                      &LOCK_status);
+  do
+  {
+    error= myrg_rnext_same(file,buf);
+  } while (error == HA_ERR_RECORD_DELETED);
   table->status=error ? STATUS_NOT_FOUND: 0;
   return error;
 }

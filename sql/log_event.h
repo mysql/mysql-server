@@ -1619,10 +1619,12 @@ public:
 
 #ifndef MYSQL_CLIENT
   Execute_load_query_log_event(THD* thd, const char* query_arg,
-                       ulong query_length, uint fn_pos_start_arg,
-                       uint fn_pos_end_arg,
-                       enum_load_dup_handling dup_handling_arg,
-                       bool using_trans, bool suppress_use);
+                               ulong query_length, uint fn_pos_start_arg,
+                               uint fn_pos_end_arg,
+                               enum_load_dup_handling dup_handling_arg,
+                               bool using_trans, bool suppress_use,
+                               THD::killed_state
+                               killed_err_arg= THD::KILLED_NO_VALUE);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
   int exec_event(struct st_relay_log_info* rli);

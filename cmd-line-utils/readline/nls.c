@@ -21,7 +21,9 @@
    59 Temple Place, Suite 330, Boston, MA 02111 USA. */
 #define READLINE_LIBRARY
 
-#include "config_readline.h"
+#if defined (HAVE_CONFIG_H)
+#  include <config.h>
+#endif
 
 #include <sys/types.h>
 
@@ -111,7 +113,7 @@ _rl_init_eightbit ()
   if (lspec == 0 || *lspec == 0)
     lspec = setlocale (LC_CTYPE, (char *)NULL);
   if (lspec == 0)
-    lspec = (char*) "";
+    lspec = "";
   t = setlocale (LC_CTYPE, lspec);
 
   if (t && *t && (t[0] != 'C' || t[1]) && (STREQ (t, "POSIX") == 0))

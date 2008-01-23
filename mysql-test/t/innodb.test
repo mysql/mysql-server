@@ -793,6 +793,38 @@ show master status /* there must be no UPDATE query event */;
 drop table t1, t2;
 
 #
+# Bug #29136  	erred multi-delete on trans table does not rollback 
+#
+
+# prepare
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+       insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
+
+
+# exec cases A, B - see multi_update.test
+
+# A. send_error() w/o send_eof() branch
+
+--error ER_DUP_ENTRY
+delete t2 from t2;
+
+# check
+
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
+
+# cleanup bug#29136
+
+drop table t1, t2;
+
+
+#
 # Testing of IFNULL
 #
 create table t1 (a int, b int) engine=innodb;
