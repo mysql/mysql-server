@@ -4163,7 +4163,6 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   {
     jam();
     ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
-    localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendtckeyconf()
 
@@ -12252,7 +12251,6 @@ void Dbtc::sendTcIndxConf(Signal* signal, UintR TcommitFlag)
   {
     jam();
     ndbassert(Tpack6 == 0 || getNodeInfo(localHostptr.i).m_connected == false);
-    localHostptr.p->noOfWordsTCINDXCONF = TcurrLen + TpacketLen; // no gci_lo
   }
 }//Dbtc::sendTcIndxConf()
 
