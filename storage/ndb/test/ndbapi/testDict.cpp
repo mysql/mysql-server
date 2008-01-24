@@ -3599,6 +3599,7 @@ TESTCASE("DictRestart",
 TESTCASE("Bug24631",
          ""){
   INITIALIZER(runBug24631);
+}
 TESTCASE("Bug29186",
          ""){
   INITIALIZER(runBug29186);
