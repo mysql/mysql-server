@@ -86,6 +86,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 // DbtupDebug.cpp         30000
 // DbtupVarAlloc.cpp      32000
 // DbtupScan.cpp          33000
+// DbtupDiskAlloc.cpp     35000
 //------------------------------------------------------------------
 
 /*
