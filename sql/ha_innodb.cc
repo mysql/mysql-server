@@ -6339,7 +6339,9 @@ void
 innodb_export_status(void)
 /*======================*/
 {
-  srv_export_innodb_status();
+	if (innodb_inited) {
+		srv_export_innodb_status();
+	}
 }
 
 /****************************************************************************
