@@ -175,7 +175,6 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range);
     - EINVAL:         If any pointer argument is NULL.
     - EDOM:           If the exact range (left, right, and data) did
                       not exist in the tree.
-    - Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_delete(toku_range_tree* tree, toku_range* range);
 
