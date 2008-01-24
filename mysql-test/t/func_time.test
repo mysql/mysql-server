@@ -776,6 +776,13 @@ select DATE_ADD(20071108181000,   INTERVAL 1 DAY);
 select DATE_ADD('20071108',       INTERVAL 1 DAY);
 select DATE_ADD(20071108,         INTERVAL 1 DAY);
 
+#
+# Bug#32770: LAST_DAY() returns a DATE, but somehow internally keeps
+#            track of the TIME.
+#
+
+select LAST_DAY('2007-12-06 08:59:19.05') - INTERVAL 1 SECOND;
+
 --echo End of 5.0 tests
 
 #

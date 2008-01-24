@@ -37,7 +37,8 @@ if (my_b_write((file),(uchar*) (from),param->ref_length)) \
 
 static char **make_char_array(char **old_pos, register uint fields,
                               uint length, myf my_flag);
-static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffer_file, uint count);
+static uchar *read_buffpek_from_file(IO_CACHE *buffer_file, uint count,
+                                     uchar *buf);
 static ha_rows find_all_keys(SORTPARAM *param,SQL_SELECT *select,
 			     uchar * *sort_keys, IO_CACHE *buffer_file,
 			     IO_CACHE *tempfile,IO_CACHE *indexfile);
@@ -244,9 +245,14 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   }
   else
   {
-    if (!table_sort.buffpek && table_sort.buffpek_len < maxbuffer &&
-        !(table_sort.buffpek=
-          (uchar *) read_buffpek_from_file(&buffpek_pointers, maxbuffer)))
+    if (table_sort.buffpek && table_sort.buffpek_len < maxbuffer)
+    {
+      x_free(table_sort.buffpek);
+      table_sort.buffpek= 0;
+    }
+    if (!(table_sort.buffpek=
+          (uchar *) read_buffpek_from_file(&buffpek_pointers, maxbuffer,
+                                 table_sort.buffpek)))
       goto err;
     buffpek= (BUFFPEK *) table_sort.buffpek;
     table_sort.buffpek_len= maxbuffer;
@@ -374,14 +380,16 @@ static char **make_char_array(char **old_pos, register uint fields,
 
 /* Read 'count' number of buffer pointers into memory */
 
-static BUFFPEK *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count)
+static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
+                                     uchar *buf)
 {
-  ulong length;
-  BUFFPEK *tmp;
+  ulong length= sizeof(BUFFPEK)*count;
+  uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
     return 0; /* sizeof(BUFFPEK)*count will overflow */
-  tmp=(BUFFPEK*) my_malloc(length=sizeof(BUFFPEK)*count, MYF(MY_WME));
+  if (!tmp)
+    tmp= (uchar *)my_malloc(length, MYF(MY_WME));
   if (tmp)
   {
     if (reinit_io_cache(buffpek_pointers,READ_CACHE,0L,0,0) ||
