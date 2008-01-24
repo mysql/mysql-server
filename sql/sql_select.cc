@@ -5552,7 +5552,8 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
            (keyuse->val->type() == Item::REF_ITEM &&
             ((Item_ref*)keyuse->val)->ref_type() == Item_ref::OUTER_REF &&
             (*(Item_ref**)((Item_ref*)keyuse->val)->ref)->ref_type() ==
-             Item_ref::DIRECT_REF) )
+             Item_ref::DIRECT_REF && 
+            keyuse->val->real_item()->type() == Item::FIELD_ITEM))
     return new store_key_field(thd,
 			       key_part->field,
 			       key_buff + maybe_null,
@@ -13122,7 +13123,8 @@ check_reverse_order:
 	select->quick=tmp;
       }
     }
-    else if (tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
+    else if (tab->type != JT_NEXT && 
+             tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
     {
       /*
 	SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC

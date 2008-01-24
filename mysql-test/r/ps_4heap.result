@@ -1287,12 +1287,11 @@ a	b
 set @arg00=NULL;
 set @arg01=2;
 execute stmt1 using @arg00, @arg01;
-Warnings:
-Warning	1048	Column 'a' cannot be null
+ERROR 23000: Column 'a' cannot be null
 select a,b from t1 order by a;
 a	b
-0	two
 1	one
+2	two
 3	three
 4	four
 set @arg00=0;

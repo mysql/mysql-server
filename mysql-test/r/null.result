@@ -93,11 +93,9 @@ INSERT INTO t1 SET a = "", d= "2003-01-14 03:54:55";
 Warnings:
 Warning	1265	Data truncated for column 'd' at row 1
 UPDATE t1 SET d=1/NULL;
-Warnings:
-Warning	1265	Data truncated for column 'd' at row 1
+ERROR 23000: Column 'd' cannot be null
 UPDATE t1 SET d=NULL;
-Warnings:
-Warning	1048	Column 'd' cannot be null
+ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (a) values (null);
 ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (1/null);
@@ -132,7 +130,7 @@ Warning	1048	Column 'd' cannot be null
 Warning	1048	Column 'd' cannot be null
 select * from t1;
 a	b	c	d
-	0	0000-00-00 00:00:00	0
+	0	0000-00-00 00:00:00	2003
 	0	0000-00-00 00:00:00	0
 	0	0000-00-00 00:00:00	0
 	0	0000-00-00 00:00:00	0
