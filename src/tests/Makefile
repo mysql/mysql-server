@@ -112,6 +112,7 @@ FOO_NO_VGRIND = \
   db_open_notexist_reopen \
   db_remove_subdb \
   db_subdb \
+  db_thread_insert \
   dup_delete \
   dup_flags \
   dup_insert \

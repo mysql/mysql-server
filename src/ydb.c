@@ -1792,7 +1792,8 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		      is_db_create, is_db_excl, is_db_unknown,
 		      db->dbenv->i->cachetable,
-		      txn ? txn->i->tokutxn : NULL_TXN);
+		      txn ? txn->i->tokutxn : NULL_TXN,
+		      db);
     if (r != 0)
         goto error_cleanup;
 
