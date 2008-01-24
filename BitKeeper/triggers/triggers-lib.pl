@@ -341,10 +341,10 @@ changes are in a clone of a $mysql_version tree.
 EOF
   }
   print SENDMAIL "\n";
-  print SENDMAIL qx(bk changes -r+);
+  print SENDMAIL qx(bk changes -r'$cset');
   print SENDMAIL "$description";
   print SENDMAIL "The complete ChangeSet diffs follow.\n\n";
-  print SENDMAIL qx(bk rset -r+ -ah | bk gnupatch -h -dup -T);
+  print SENDMAIL qx(bk rset -r'$cset' -ah | bk gnupatch -h -dup -T);
 
   close_or_warn(SENDMAIL, "$sendmail -t")
     or return undef;
