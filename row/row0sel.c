@@ -128,6 +128,16 @@ row_sel_sec_rec_is_for_clust_rec(
 	rec_offs_init(clust_offsets_);
 	rec_offs_init(sec_offsets_);
 
+	if (rec_get_deleted_flag(clust_rec,
+				 dict_table_is_comp(clust_index->table))) {
+
+		/* The clustered index record is delete-marked;
+		it is not visible in the read view.  Besides,
+		if there are any externally stored columns,
+		some of them may have already been purged. */
+		return(FALSE);
+	}
+
 	clust_offs = rec_get_offsets(clust_rec, clust_index, clust_offs,
 				     ULINT_UNDEFINED, &heap);
 	sec_offs = rec_get_offsets(sec_rec, sec_index, sec_offs,
