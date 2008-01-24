@@ -18,9 +18,19 @@ BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb_cxx -lpthread
 endif
 
-TARGETS = db-benchmark-test-bdb db-benchmark-test-tokudb
+TARGET_BDB = db-benchmark-test-bdb
+TARGET_TDB = db-benchmark-test-tokudb
+TARGETS = $(TARGET_BDB) $(TARGET_TDB)
 
 default: $(TARGETS)
+
+check: check-default check-x
+
+check-default: $(TARGET_TDB)
+	$(VALGRIND) ./$(TARGET_TDB)
+
+check-x: $(TARGET_TDB)
+	$(VALGRIND) ./$(TARGET_TDB) -x
 
 clean:
 	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
