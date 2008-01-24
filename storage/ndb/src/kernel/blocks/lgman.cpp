@@ -557,8 +557,7 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
        (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
     {
       jam();
-      if(signal->getNoOfSections())
-        releaseSections(signal);
+      releaseSections(handle);
 
       CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
       ref->senderData = senderData;
