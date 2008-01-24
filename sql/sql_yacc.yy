@@ -2214,6 +2214,10 @@ sp_proc_stmt:
 
 	    lex->sphead->backpatch(lex->spcont->pop_label());
 	  }
+        | sp_labeled_block
+          {}
+        | sp_unlabeled_block
+          {}
 	| LEAVE_SYM label_ident
 	  {
 	    LEX *lex= Lex;
@@ -2231,9 +2235,17 @@ sp_proc_stmt:
 	      sp_instr_jump *i;
 	      uint ip= sp->instructions();
 	      uint n;
+              /*
+                When jumping to a BEGIN-END block end, the target jump
+                points to the block hpop/cpop cleanup instructions,
+                so we should exclude the block context here.
+                When jumping to something else (i.e., SP_LAB_ITER),
+                there are no hpop/cpop at the jump destination,
+                so we should include the block context here for cleanup.
+              */
+              bool exclusive= (lab->type == SP_LAB_BEGIN);
 
-	      n= ctx->diff_handlers(lab->ctx, TRUE);  /* Exclusive the dest. */
-
+	      n= ctx->diff_handlers(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
@@ -2241,10 +2253,12 @@ sp_proc_stmt:
                   MYSQL_YYABORT;
 	        sp->add_instr(hpop);
               }
-	      n= ctx->diff_cursors(lab->ctx, TRUE);  /* Exclusive the dest. */
+	      n= ctx->diff_cursors(lab->ctx, exclusive);
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+                if (cpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx);
@@ -2276,12 +2290,16 @@ sp_proc_stmt:
 	      if (n)
               {
                 sp_instr_hpop *hpop= new sp_instr_hpop(ip++, ctx, n);
+                if (hpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(hpop);
               }
 	      n= ctx->diff_cursors(lab->ctx, FALSE);  /* Inclusive the dest. */
 	      if (n)
               {
                 sp_instr_cpop *cpop= new sp_instr_cpop(ip++, ctx, n);
+                if (cpop == NULL)
+                  MYSQL_YYABORT;
 	        sp->add_instr(cpop);
               }
 	      i= new sp_instr_jump(ip, ctx, lab->ip); /* Jump back */
@@ -2577,19 +2595,17 @@ sp_labeled_control:
 	  sp_unlabeled_control sp_opt_label
 	  {
 	    LEX *lex= Lex;
+            sp_label_t *lab= lex->spcont->pop_label();
 
 	    if ($5.str)
 	    {
-	      sp_label_t *lab= lex->spcont->find_label($5.str);
-
-	      if (!lab ||
-	          my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+	      if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
 	      {
 	        my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
 	        MYSQL_YYABORT;
 	      }
 	    }
-	    lex->sphead->backpatch(lex->spcont->pop_label());
+	    lex->sphead->backpatch(lab);
 	  }
 	;
 
@@ -2598,15 +2614,59 @@ sp_opt_label:
         | label_ident   { $$= $1; }
 	;
 
-sp_unlabeled_control:
+sp_labeled_block:
+          label_ident ':'
+          {
+            LEX *lex= Lex;
+            sp_pcontext *ctx= lex->spcont;
+            sp_label_t *lab= ctx->find_label($1.str);
+
+            if (lab)
+            {
+              my_error(ER_SP_LABEL_REDEFINE, MYF(0), $1.str);
+              MYSQL_YYABORT;
+            }
+
+            lab= lex->spcont->push_label($1.str,
+                                         lex->sphead->instructions());
+            lab->type= SP_LAB_BEGIN;
+          }
+          sp_block_content sp_opt_label
+          {
+            LEX *lex= Lex;
+            sp_label_t *lab= lex->spcont->pop_label();
+
+            if ($5.str)
+            {
+              if (my_strcasecmp(system_charset_info, $5.str, lab->name) != 0)
+              {
+                my_error(ER_SP_LABEL_MISMATCH, MYF(0), $5.str);
+                MYSQL_YYABORT;
+              }
+            }
+          }
+        ;
+
+sp_unlabeled_block:
+          { /* Unlabeled blocks get a secret label. */
+            LEX *lex= Lex;
+            uint ip= lex->sphead->instructions();
+            sp_label_t *lab= lex->spcont->push_label((char *)"", ip);
+            lab->type= SP_LAB_BEGIN;
+          }
+          sp_block_content
+          {
+            LEX *lex= Lex;
+            lex->spcont->pop_label();
+          }
+        ;
+
+sp_block_content:
 	  BEGIN_SYM
 	  { /* QQ This is just a dummy for grouping declarations and statements
 	       together. No [[NOT] ATOMIC] yet, and we need to figure out how
 	       make it coexist with the existing BEGIN COMMIT/ROLLBACK. */
 	    LEX *lex= Lex;
-	    sp_label_t *lab= lex->spcont->last_label();
-
-	    lab->type= SP_LAB_BEGIN;
 	    lex->spcont= lex->spcont->push_context(LABEL_DEFAULT_SCOPE);
 	  }
 	  sp_decls
@@ -2636,7 +2696,10 @@ sp_unlabeled_control:
             }
 	    lex->spcont= ctx->pop_context();
 	  }
-	| LOOP_SYM
+        ;
+
+sp_unlabeled_control:
+	  LOOP_SYM
 	  sp_proc_stmts1 END LOOP_SYM
 	  {
 	    LEX *lex= Lex;
