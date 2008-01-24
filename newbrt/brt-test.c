@@ -2219,7 +2219,7 @@ void test_brt_delete_both(int n) {
     r = toku_brt_create(&t); assert(r == 0);
     r = toku_brt_set_flags(t, TOKU_DB_DUP + TOKU_DB_DUPSORT); assert(r == 0);
     r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
-    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, (DB*)0);
     assert(r==0);
 
     DBT key, val;

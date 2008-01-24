@@ -874,6 +874,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 			     int debug,
 			     TOKUTXN txn) {
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
+    assert(node->height==0);
     FILENUM filenum = toku_cachefile_filenum(t->cf);
     if  (cmd->type == BRT_INSERT) {
         DBT *k = cmd->u.id.key;
@@ -1326,13 +1327,13 @@ int toku_brt_get_fd(BRT brt, int *fdp) {
     return 0;
 }
 
-int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE cachetable, TOKUTXN txn) {
+int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, int load_flags, CACHETABLE cachetable, TOKUTXN txn, DB *db) {
 
     /* If dbname is NULL then we setup to hold a single tree.  Otherwise we setup an array. */
     int r;
     char *malloced_name=0;
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, get_n_items_malloced()); toku_print_malloced_items();
-    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_open_brt(%s, \"%s\", %d, %p, %d, %p)\n",
+    WHEN_BRTTRACE(fprintf(stderr, "BRTTRACE: %s:%d toku_brt_open(%s, \"%s\", %d, %p, %d, %p)\n",
 			  __FILE__, __LINE__, fname, dbname, is_create, newbrt, nodesize, cachetable));
     if (0) { died0:  assert(r); return r; }
 
@@ -1347,6 +1348,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	}
     }
     t->database_name = malloced_name;
+    t->db = db;
     {
 	int fd = open(fname, O_RDWR, 0777);
 	r = errno;
@@ -1529,9 +1531,8 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
         return r;
     toku_brt_set_nodesize(brt, nodesize);
     toku_brt_set_bt_compare(brt, compare_fun);
-    brt->db = db;
 
-    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, load_flags, cachetable, txn);
+    r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, load_flags, cachetable, txn, db);
     if (r != 0) {
         return r;
     }
