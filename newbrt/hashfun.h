@@ -1,4 +1,4 @@
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 // FNV Hash: From an idea sent by Glenn Fowler and Phong Vo to the IEEE POSIX 1003.2 committee.  Landon Curt Noll improved it.
 // See: http://isthe.com/chongo/tech/comp/fnv/

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <exception>
 #include <string.h>
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 class Dbt;
 class DbEnv;

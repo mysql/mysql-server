@@ -1,5 +1,5 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 /* LICENSE:  This file is licensed under the GPL or from Tokutek. */
 
 /* Make a db.h that will be link-time compatible with Sleepycat's Berkeley DB. */
