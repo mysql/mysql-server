@@ -6151,6 +6151,14 @@ select_paren:
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
+            if (sel->linkage == UNION_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                sel->master_unit()->fake_select_lex)
+            {
+ 	       my_error(ER_WRONG_USAGE, MYF(0),
+                        "CUBE/ROLLUP", "ORDER BY");
+               MYSQL_YYABORT;
+            }
             /* select in braces, can't contain global parameters */
             if (sel->master_unit()->fake_select_lex)
               sel->master_unit()->global_parameters=
@@ -8039,7 +8047,8 @@ order_clause:
             SELECT_LEX *sel= lex->current_select;
             SELECT_LEX_UNIT *unit= sel-> master_unit();
             if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
-                sel->olap != UNSPECIFIED_OLAP_TYPE)
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                (sel->linkage != UNION_TYPE || sel->braces))
             {
               my_error(ER_WRONG_USAGE, MYF(0),
                        "CUBE/ROLLUP", "ORDER BY");
