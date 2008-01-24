@@ -264,6 +264,7 @@ void generate_log_writer (void) {
 			    fprintf(cf, "  if (lentry==0) return errno;\n");
 			    fprintf(cf, "  if (0) { died0: toku_free(lentry); return r; }\n");
 			    fprintf(cf, "  lentry->cmd = %d;\n", lt->command);
+			    fprintf(cf, "  lentry->u.%s.lsn = toku_txn_get_last_lsn(txn);\n", lt->name);
 			    DO_FIELDS(ft, lt,
 				      ({
 					  fprintf(cf, "  r=toku_copy_%s(&lentry->u.%s.%s, %s);\n", ft->type, lt->name, ft->name, ft->name);
