@@ -440,10 +440,10 @@ bool st_select_lex_unit::exec()
       {
         item->assigned(0); // We will reinit & rexecute unit
         item->reset();
-        table->file->delete_all_rows();
+        table->file->ha_delete_all_rows();
       }
       /* re-enabling indexes for next subselect iteration */
-      if (union_distinct && table->file->enable_indexes(HA_KEY_SWITCH_ALL))
+      if (union_distinct && table->file->ha_enable_indexes(HA_KEY_SWITCH_ALL))
       {
         DBUG_ASSERT(0);
       }
@@ -485,7 +485,7 @@ bool st_select_lex_unit::exec()
 	sl->join->exec();
         if (sl == union_distinct)
 	{
-	  if (table->file->disable_indexes(HA_KEY_SWITCH_ALL))
+	  if (table->file->ha_disable_indexes(HA_KEY_SWITCH_ALL))
 	    DBUG_RETURN(TRUE);
 	  table->no_keyread=1;
 	}

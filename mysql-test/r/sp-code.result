@@ -733,6 +733,115 @@ optimizer: keep hreturn
 drop table t1;
 drop procedure proc_26977_broken;
 drop procedure proc_26977_works;
+drop procedure if exists proc_33618_h;
+drop procedure if exists proc_33618_c;
+create procedure proc_33618_h(num int)
+begin
+declare count1 int default '0';
+declare vb varchar(30);
+declare last_row int;
+while(num>=1) do
+set num=num-1;
+begin
+declare cur1 cursor for select `a` from t_33618;
+declare continue handler for not found set last_row = 1;
+set last_row:=0;
+open cur1;
+rep1:
+repeat
+begin
+declare exit handler for 1062 begin end;
+fetch cur1 into vb;
+if (last_row = 1) then
+## should generate a hpop instruction here
+leave rep1;
+end if;
+end;
+until last_row=1
+end repeat;
+close cur1;
+end;
+end while;
+end//
+create procedure proc_33618_c(num int)
+begin
+declare count1 int default '0';
+declare vb varchar(30);
+declare last_row int;
+while(num>=1) do
+set num=num-1;
+begin
+declare cur1 cursor for select `a` from t_33618;
+declare continue handler for not found set last_row = 1;
+set last_row:=0;
+open cur1;
+rep1:
+repeat
+begin
+declare cur2 cursor for select `b` from t_33618;
+fetch cur1 into vb;
+if (last_row = 1) then
+## should generate a cpop instruction here
+leave rep1;
+end if;
+end;
+until last_row=1
+end repeat;
+close cur1;
+end;
+end while;
+end//
+show procedure code proc_33618_h;
+Pos	Instruction
+0	set count1@1 _latin1'0'
+1	set vb@2 NULL
+2	set last_row@3 NULL
+3	jump_if_not 24(24) (num@0 >= 1)
+4	set num@0 (num@0 - 1)
+5	cpush cur1@0
+6	hpush_jump 9 4 CONTINUE
+7	set last_row@3 1
+8	hreturn 4
+9	set last_row@3 0
+10	copen cur1@0
+11	hpush_jump 13 4 EXIT
+12	hreturn 0 17
+13	cfetch cur1@0 vb@2
+14	jump_if_not 17(17) (last_row@3 = 1)
+15	hpop 1
+16	jump 19
+17	hpop 1
+18	jump_if_not 11(19) (last_row@3 = 1)
+19	cclose cur1@0
+20	hpop 1
+21	cpop 1
+22	jump 3
+show procedure code proc_33618_c;
+Pos	Instruction
+0	set count1@1 _latin1'0'
+1	set vb@2 NULL
+2	set last_row@3 NULL
+3	jump_if_not 23(23) (num@0 >= 1)
+4	set num@0 (num@0 - 1)
+5	cpush cur1@0
+6	hpush_jump 9 4 CONTINUE
+7	set last_row@3 1
+8	hreturn 4
+9	set last_row@3 0
+10	copen cur1@0
+11	cpush cur2@1
+12	cfetch cur1@0 vb@2
+13	jump_if_not 16(16) (last_row@3 = 1)
+14	cpop 1
+15	jump 18
+16	cpop 1
+17	jump_if_not 11(18) (last_row@3 = 1)
+18	cclose cur1@0
+19	hpop 1
+20	cpop 1
+21	jump 3
+drop procedure proc_33618_h;
+drop procedure proc_33618_c;
 End of 5.0 tests.
 CREATE PROCEDURE p1() 
 BEGIN 

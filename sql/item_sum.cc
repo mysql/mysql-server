@@ -2603,7 +2603,7 @@ void Item_sum_count_distinct::clear()
   else if (table)
   {
     table->file->extra(HA_EXTRA_NO_CACHE);
-    table->file->delete_all_rows();
+    table->file->ha_delete_all_rows();
     table->file->extra(HA_EXTRA_WRITE_CACHE);
   }
 }

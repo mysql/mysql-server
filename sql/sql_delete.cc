@@ -123,7 +123,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
     ha_rows const maybe_deleted= table->file->stats.records;
     DBUG_PRINT("debug", ("Trying to use delete_all_rows()"));
-    if (!(error=table->file->delete_all_rows()))
+    if (!(error=table->file->ha_delete_all_rows()))
     {
       error= -1;				// ok
       deleted= maybe_deleted;
@@ -328,7 +328,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       We're really doing a truncate and need to reset the table's
       auto-increment counter.
     */
-    int error2= table->file->reset_auto_increment(0);
+    int error2= table->file->ha_reset_auto_increment(0);
 
     if (error2 && (error2 != HA_ERR_WRONG_COMMAND))
     {
