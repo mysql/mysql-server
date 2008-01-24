@@ -28,6 +28,17 @@
 #define MAX_NODES     256
 #define UNDEF_NODEGROUP 0xFFFF
 
+/**************************************************************************
+ * IT SHOULD BE (MAX_NDB_NODES - 1).
+ * WHEN MAX_NDB_NODE IS CHANGED, IT SHOULD BE CHANGED ALSO
+ **************************************************************************/
+#define MAX_DATA_NODE_ID 48
+/**************************************************************************
+ * IT SHOULD BE (MAX_NODES - 1).
+ * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
+ **************************************************************************/
+#define MAX_NODES_ID 255
+
 /**
  * MAX_API_NODES = MAX_NODES - No of NDB Nodes in use
  */

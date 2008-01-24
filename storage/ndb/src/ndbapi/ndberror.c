@@ -427,6 +427,7 @@ ErrorBundle ErrorCodes[] = {
   { 1512, DMEC, SE, "File read error" },
   { 1513, DMEC, IE, "Filegroup not online" },
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
+  { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
@@ -644,6 +645,8 @@ ErrorBundle ErrorCodes[] = {
   { 4292, DMEC, AE, "NdbRecord for tuple access is not an index key NdbRecord" },
   { 4293, DMEC, AE, "Error returned from application scanIndex() callback" },
   { 4294, DMEC, AE, "Scan filter is too large, discarded" },
+  { 2810, DMEC, TR, "No space left on the device" },
+  { 2815, DMEC, TR, "Error in reading files, please check file system" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

@@ -1294,9 +1294,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
   if (status.add_to_history && line[0] && not_in_history(line))
     add_history(line);
 #endif
-#ifdef USE_MB
   char *end_of_line=line+(uint) strlen(line);
-#endif
 
   for (pos=out=line ; (inchar= (uchar) *pos) ; pos++)
   {
@@ -1386,7 +1384,7 @@ static bool add_line(String &buffer,char *line,char *in_string,
       }
     }
     else if (!*ml_comment && !*in_string &&
-             strlen(pos) >= 10 &&
+             (end_of_line - pos) >= 10 &&
              !my_strnncoll(charset_info, (uchar*) pos, 10,
                            (const uchar*) "delimiter ", 10))
     {
@@ -3119,7 +3117,10 @@ com_connect(String *buffer, char *line)
       Two null bytes are needed in the end of buff to allow
       get_arg to find end of string the second time it's called.
     */
-    strmake(buff, line, sizeof(buff)-2);
+    tmp= strmake(buff, line, sizeof(buff)-2);
+#ifdef EXTRA_DEBUG
+    tmp[1]= 0;
+#endif
     tmp= get_arg(buff, 0);
     if (tmp && *tmp)
     {
