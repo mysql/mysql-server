@@ -16,6 +16,7 @@
    MIT Press and McGraw-Hill, 2001. ISBN 0-262-03293-7
 */
 
+//Defines BOOL data type.
 #include <brttypes.h>
 
 /** \brief Range with value
@@ -92,7 +93,7 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
                           to overlap. 
     \param user_malloc    A user provided malloc(3) function.
     \param user_free      A user provided free(3) function.
-    \param user_realloc   A user provided realloc(3) function.                          
+    \param user_realloc   A user provided realloc(3) function.
 
     \return
     - 0:              Success.
@@ -109,7 +110,6 @@ int toku_rt_create(toku_range_tree** ptree, int (*end_cmp)(void*,void*),
     \return
     - 0:              Success.
     - EINVAL:         If tree is NULL.
-    - Other exit codes may be forwarded from underlying system calls.
  */
 int toku_rt_close(toku_range_tree* tree  /**< The range tree to free */);
 
@@ -137,7 +137,8 @@ int toku_rt_close(toku_range_tree* tree  /**< The range tree to free */);
    - 0:              Success.
    - EINVAL:         If any pointer argument is NULL. If range.data != NULL.
                      If buflen == 0.
-   - Other exit codes may be forwarded from underlying system calls.
+   - Other exit codes may be forwarded from underlying system calls but only
+     if buf is not large enough.
 
     Growth direction: It may be useful in the future to add an extra out 
     parameter to specify whether more elements exist in the tree that overlap 
