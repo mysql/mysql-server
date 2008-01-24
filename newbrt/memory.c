@@ -146,7 +146,7 @@ static void *freelist[FREELIST_LIMIT];
 static int malloc_counts[MALLOC_SIZE_COUNTING_LIMIT]; // We rely on static variables being initialized to 0.
 static int fresh_malloc_counts[MALLOC_SIZE_COUNTING_LIMIT];  // We rely on static variables being initialized to 0.
 static int other_malloc_count=0, fresh_other_malloc_count=0;
-void *toku_malloc(unsigned long size) {
+void *toku_malloc(size_t size) {
     void * r;
     errno=0;
     if (size<MALLOC_SIZE_COUNTING_LIMIT) malloc_counts[size]++;
@@ -168,7 +168,7 @@ void *toku_malloc(unsigned long size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p size=%ld\n", __FILE__, __LINE__, r, size);   }
     return r;
 }
-void *toku_tagmalloc(unsigned long size, int typtag) {
+void *toku_tagmalloc(size_t size, int typtag) {
     //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
     void *r = toku_malloc(size);
     assert(size>sizeof(int));
@@ -192,7 +192,7 @@ void toku_free(void* p) {
     actual_free(p);
 }
 
-void toku_free_n(void* p, unsigned long size) {
+void toku_free_n(void* p, size_t size) {
     //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
     note_did_free(p);
     if (size>=sizeof(void*) && size<FREELIST_LIMIT) {
