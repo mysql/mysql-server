@@ -257,7 +257,7 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( ReceiveBytesStatistic, "mean_received_bytes", 2, mean_received_bytes),
 
   ROW( MemoryUsage, "gth",          1, gth),
-  ROW( MemoryUsage, "page_size_kb", 2, page_size_kb),
+  ROW( MemoryUsage, "page_size_bytes", 2, page_size_bytes),
   ROW( MemoryUsage, "pages_used",   3, pages_used),
   ROW( MemoryUsage, "pages_total",  4, pages_total),
   ROW( MemoryUsage, "block",        5, block),
