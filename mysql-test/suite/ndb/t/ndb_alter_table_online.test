@@ -87,7 +87,7 @@ truncate ndb_show_tables_results;
 ALTER TABLE t1 ADD c INT;
 
 --source include/ndb_show_tables_result.inc
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%';
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 truncate ndb_show_tables_results;
 
 INSERT INTO t1 values (2,1,1);
@@ -102,7 +102,7 @@ SELECT * FROM t1 ORDER BY a;
 CREATE ONLINE INDEX ci on t1(c);
 
 --source include/ndb_show_tables_result.inc
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 truncate ndb_show_tables_results;
 
 --echo *******************************
@@ -112,7 +112,7 @@ truncate ndb_show_tables_results;
 CREATE OFFLINE INDEX ci2 on t1(c);
 
 --source include/ndb_show_tables_result.inc
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables_results;
 
@@ -123,7 +123,7 @@ truncate ndb_show_tables_results;
 DROP ONLINE INDEX ci on t1;
 
 --source include/ndb_show_tables_result.inc
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 truncate ndb_show_tables_results;
 
 --echo *******************************
@@ -133,7 +133,7 @@ truncate ndb_show_tables_results;
 DROP OFFLINE INDEX ci2 on t1;
 
 --source include/ndb_show_tables_result.inc
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 truncate ndb_show_tables_results;
 
 DROP TABLE t1;
@@ -288,6 +288,10 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 truncate ndb_show_tables_results;
 
 ALTER TABLE t1 ADD d INT AFTER b;
+--source include/ndb_show_tables_result.inc
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+truncate ndb_show_tables_results;
+
 INSERT INTO t1 VALUES(3,1,1,'b');
 SELECT * FROM t1 ORDER BY a;
 UPDATE t1 SET d = 2 where a = 3;
@@ -296,6 +300,10 @@ SELECT * FROM t1 ORDER BY a;
 --echo *******************************
 --echo * Not supported Test#4
 --echo *******************************
+
+--source include/ndb_show_tables_result.inc
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 
 --error ER_NOT_SUPPORTED_YET
 ALTER ONLINE TABLE t1 ENGINE MYISAM;
