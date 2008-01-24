@@ -625,9 +625,9 @@ int mysql_update(THD *thd,
             call then it should be included in the count of dup_key_found
             and error should be set to 0 (only if these errors are ignored).
           */
-          error= table->file->bulk_update_row(table->record[1],
-                                              table->record[0],
-                                              &dup_key_found);
+          error= table->file->ha_bulk_update_row(table->record[1],
+                                                 table->record[0],
+                                                 &dup_key_found);
           limit+= dup_key_found;
           updated-= dup_key_found;
         }
