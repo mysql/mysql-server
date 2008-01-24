@@ -2185,4 +2185,23 @@ CHECK TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+CREATE TABLE t1 (
+c1 VARCHAR(10) NOT NULL,
+c2 CHAR(10) DEFAULT NULL,
+c3 VARCHAR(10) NOT NULL,
+KEY (c1),
+KEY (c2)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+
+MyISAM file:         MYSQLTEST_VARDIR/master-data/test/t1
+Record format:       Packed
+Character set:       utf8_general_ci (33)
+Data records:                    0  Deleted blocks:                 0
+Recordlength:                   94
+
+table description:
+Key Start Len Index   Type
+1   2     30  multip. varchar              
+2   33    30  multip. char NULL            
+DROP TABLE t1;
 End of 5.1 tests
