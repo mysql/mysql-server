@@ -37,7 +37,7 @@
  * IT SHOULD BE (MAX_NODES - 1).
  * WHEN MAX_NODES IS CHANGED, IT SHOULD BE CHANGED ALSO
  **************************************************************************/
-#define MAX_NODES_ID 63
+#define MAX_NODES_ID 255
 
 /**
  * MAX_API_NODES = MAX_NODES - No of NDB Nodes in use
