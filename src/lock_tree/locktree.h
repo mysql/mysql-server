@@ -23,8 +23,8 @@ typedef struct {
 } toku_lock_tree;
 #warning TODO: Handle 'panicked' variable in every api call.
 
-extern const DBT* toku_lt_infinity;
-extern const DBT* toku_lt_neg_infinity;
+extern const DBT* const toku_lt_infinity;
+extern const DBT* const toku_lt_neg_infinity;
 
 const unsigned __toku_default_buflen = 2;
 /*
