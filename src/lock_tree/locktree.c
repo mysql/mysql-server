@@ -16,15 +16,20 @@ static int __toku_lt_panic(toku_lock_tree *tree, int r) {
 DBT __toku_lt_infinity;
 DBT __toku_lt_neg_infinity;
 
-DBT* toku_lt_infinity     = &__toku_lt_infinity;
-DBT* toku_lt_neg_infinity = &__toku_lt_neg_infinity;
+const DBT* toku_lt_infinity     = &__toku_lt_infinity;
+const DBT* toku_lt_neg_infinity = &__toku_lt_neg_infinity;
 
 static int __toku_infinity_compare(void* a, void* b) {
-    if      (a == toku_lt_infinity     && b != toku_lt_infinity)     return  1;
+    if      (a == b)                                                 return  0;
+    else if (a == toku_lt_infinity     && b != toku_lt_infinity)     return  1;
     else if (b == toku_lt_infinity     && a != toku_lt_infinity)     return -1;
     else if (a == toku_lt_neg_infinity && b != toku_lt_neg_infinity) return -1;
     else if (b == toku_lt_neg_infinity && a != toku_lt_neg_infinity) return  1;
     else                                                             return  0;
+}
+
+static BOOL __toku_lt_is_infinity(void* p) {
+    return (p == toku_lt_infinity) || (p == toku_lt_neg_infinity);
 }
 
 static DBT* __toku_recreate_DBT(DBT* dbt, void* payload, u_int32_t length) {
@@ -70,47 +75,57 @@ static int __toku_p_free(toku_point* point) {
     return 0;
 }
 
-static int __toku_p_copy(void** pdata, unsigned* plen) {
-    assert(pdata && plen);
-    unsigned len = *plen;
-    void* data = *pdata;
-
-    /* No reason to copy.  We're done already! */
-    if (!data || !len ||
-        data == toku_lt_infinity || data == toku_lt_neg_infinity) return 0;
-    //void* tempdata = toku_malloc
-    //TODO: Finish this function
-    assert(FALSE);
-}
-
-static int __toku_p_makecopy(toku_point* point) {
-    assert(point);
-    toku_lock_tree* tree = point->lt;
-
-    BOOL copy_key   = TRUE;
-    BOOL copy_data  = TRUE;
-
-    if (point->key_payload == toku_lt_infinity ||
-        point->key_payload == toku_lt_neg_infinity) {
-        copy_key = copy_data = FALSE;
+/*
+   Allocate and copy the payload.
+*/
+static void __toku_payload_copy(void** payload_out, u_int32_t* len_out,
+                               void*  payload_in,  u_int32_t  len_in,
+                               void*  free_memory) {
+    assert(payload_out && len_out);
+    if (__toku_lt_is_infinity(payload_in)) {
+        assert(!len_in);
+        *payload_out = payload_in;
+        *len_out     = 0;
+    }
+    else if (!len_in) {
+        *payload_out = NULL;
+        *len_out     = 0;
     }
     else {
-        if (point->key_payload == NULL || point->key_len == 0) copy_key = FALSE;
-        
+        *payload_out = free_memory;
+        *len_out     = len_in;
+        memcpy(payload_out, payload_in, len_in);
     }
-    if (!tree->duplicates) copy_data = FALSE;
-    
-    assert(FALSE);
-    //TODO: FINISH THIS FUNCTION
+}
 
-/*
-    toku_lock_tree* lt;
-    void*           key_payload;
-    u_int32_t       key_len;
-    void*           data_payload;
-    u_int32_t       data_len;
-*/
+//TODO: Do the void*'s need to be aligned at all?
+//      If alignment is necessary, this code needs updating a bit.
+static int __toku_p_makecopy(void** ppoint) {
+    assert(ppoint);
+    toku_point*     point      = *(toku_point**)ppoint;
+    toku_point*     temp_point = NULL;
+    size_t          to_alloc   = 0;
     
+    to_alloc += sizeof(toku_point);
+    to_alloc += point->key_len;
+    to_alloc += point->data_len;
+ 
+    temp_point = (toku_point*)toku_malloc(to_alloc);
+    if (!temp_point) return errno;
+    memcpy(temp_point, point, sizeof(toku_point));
+    
+    /* Using char* for pointer arithmetic. */
+    char* next = (char*)temp_point;
+    next += sizeof(toku_point);
+    __toku_payload_copy(&temp_point->key_payload, &temp_point->key_len,
+                              point->key_payload,       point->key_len,
+                              next);
+    next += point->key_len;
+    __toku_payload_copy(&temp_point->data_payload, &temp_point->data_len,
+                              point->data_payload,       point->data_len,
+                              next);
+    *ppoint = temp_point;
+    return 0;
 }
 
 /* Provides access to a selfwrite tree for a particular transaction.
@@ -243,10 +258,10 @@ static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
     This function supports only non-overlapping trees.
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
-    Determines whether 'query' meets 'rt'.
+    Determines whether 'query' meets 'rt' and if so says AT what data..
 */
 static int __toku_lt_meets(toku_lock_tree* tree, DB_TXN* self,
-                           toku_range* query, toku_range_tree* rt,  BOOL* met) {
+                           toku_range* query, toku_range_tree* rt, BOOL* met) {
     assert(tree && self && query && rt && met);
     toku_range  buffer[1];
     toku_range* buf = &buffer[0];
@@ -290,24 +305,35 @@ static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
 
         BOOL met;
         r = __toku_lt_meets(tree, txn, query, peer_selfwrite, &met);
-        if (r!=0)         return r;
-        if (met) conflict = TOKU_YES_CONFLICT;
-        else     conflict = TOKU_NO_CONFLICT;
+        if (r!=0)   return r;
+        if (met)    conflict = TOKU_YES_CONFLICT;
+        else        conflict = TOKU_NO_CONFLICT;
     }
     if (conflict == TOKU_YES_CONFLICT) return DB_LOCK_NOTGRANTED;
     assert(conflict == TOKU_NO_CONFLICT);
     return 0;
 }
 
+static void __toku_payload_from_dbt(void** payload, u_int32_t* len, DBT* dbt) {
+    assert(payload && len && dbt);
+    if (__toku_lt_is_infinity(dbt)) {
+        *payload = dbt;
+        *len     = 0;
+    }
+    else {
+        *len     = dbt->size;
+        *payload = (*len == 0) ? NULL : dbt->data;
+    }
+}
+
 static void __toku_init_point(toku_point* point, toku_lock_tree* tree,
                               DBT* key, DBT* data) {
     point->lt          = tree;
-    point->key_payload = key->data;
-    point->key_len     = key->size;
+    
+    __toku_payload_from_dbt(&point->key_payload, &point->key_len, key);
     if (tree->duplicates) {
         assert(data);
-        point->data_payload = data->data;
-        point->data_len     = data->size;
+        __toku_payload_from_dbt(&point->data_payload, &point->data_len, data);
     }
     else {
         assert(data == NULL);
@@ -414,11 +440,9 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     if (!tree->duplicates && ( data_left ||  data_right))   return EINVAL;
     if (tree->duplicates  && (!data_left || !data_right))   return EINVAL;
     if (tree->duplicates  && key_left != data_left &&
-        (key_left == toku_lt_infinity ||
-         key_left == toku_lt_neg_infinity))                 return EINVAL;
+        __toku_lt_is_infinity(key_left))                    return EINVAL;
     if (tree->duplicates  && key_right != data_right &&
-        (key_right == toku_lt_infinity ||
-         key_right == toku_lt_neg_infinity))                return EINVAL;
+        __toku_lt_is_infinity(key_right))                   return EINVAL;
     assert(FALSE);  //Not implemented yet.
 
     int r;
@@ -504,6 +528,10 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
              we made copies from the DB at consolidation time 
         */   
         unsigned i;
+        //TODO: If we panic, is it alright to have a memory leak here?
+        //      What we should have, is some flags in 'lock_tree'
+        //      to tell it that the buffer is the only way to access
+        //      some things, and so it can delete it later?
         for (i = 0; i < numfound; i++) {
             /* Delete overlapping ranges from selfread ... */
             r = toku_rt_delete(selfread, &(tree->buf[i]));
@@ -521,23 +549,21 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                 <= 0) {
                 assert(tree->buf[i].left != to_insert.left);
                 assert(tree->buf[i].left != to_insert.right);
-                if (alloc_left)     alloc_left  = FALSE;
-                to_insert.left     = tree->buf[i].left;
+                alloc_left      = FALSE;
+                to_insert.left  = tree->buf[i].left;
             }
             /* Find the extreme right end-point */
             if (__toku_lt_point_cmp(tree->buf[i].right,to_insert.right)
                 >= 0) {
                 assert(tree->buf[i].right != to_insert.left ||
-                       (tree->buf[i].left  == to_insert.left &&
-                        tree->buf[i].left  == tree->buf[i].right));
+                       (tree->buf[i].left == to_insert.left &&
+                        tree->buf[i].left == tree->buf[i].right));
                 assert(tree->buf[i].right != to_insert.right);
-                if (alloc_right)    alloc_right = FALSE;
-                to_insert.right    = tree->buf[i].right;
+                alloc_right     = FALSE;
+                to_insert.right = tree->buf[i].right;
             }
         }
 
-        BOOL free_left;
-        BOOL free_right;
         for (i = 0; i < numfound; i++) {
             /*
                We will maintain the invariant: (separately for read and write
@@ -545,15 +571,15 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                (__toku_lt_point_cmp(a, b) == 0 && a.txn == b.txn) => a == b
             */
             /* Do not double-free. */
-            if (tree->buf[i].left == tree->buf[i].right) free_right = FALSE;
-            else {
-                free_right = (tree->buf[i].right != to_insert.left &&
-                              tree->buf[i].right != to_insert.right);
+            if (tree->buf[i].right != tree->buf[i].left &&
+                tree->buf[i].right != to_insert.left &&
+                tree->buf[i].right != to_insert.right) {
+                __toku_p_free(tree->buf[i].right);
             }
-            free_left = (tree->buf[i].left != to_insert.left &&
-                         tree->buf[i].left != to_insert.right);
-            if (free_left)  __toku_p_free(tree->buf[i].left);
-            if (free_right) __toku_p_free(tree->buf[i].right);
+            if (tree->buf[i].left != to_insert.left &&
+                tree->buf[i].left != to_insert.right) {
+                __toku_p_free(tree->buf[i].left);
+            }
         }
     }
     
@@ -562,29 +588,37 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         copy_left   = TRUE;
     }
     if (alloc_left) {
-        r = __toku_p_makecopy(&left);
-        assert(r==0); //TODO: Error Handling instead of assert
+        r = __toku_p_makecopy(&to_insert.left);
+        if (0) {
+            died1:
+            if (alloc_left) __toku_p_free(to_insert.left);
+            return __toku_lt_panic(tree, r);
+        }
+        if (r!=0) return __toku_lt_panic(tree,r);
     }
     if (alloc_right) {
         assert(!copy_left);
-        r = __toku_p_makecopy(&right);
-        assert(r==0); //TODO: Error Handling instead of assert
+        r = __toku_p_makecopy(&to_insert.right);
+        if (0) {
+            died2:
+            if (alloc_right) __toku_p_free(to_insert.right);
+            return __toku_lt_panic(tree, r);
+        }
+        if (r!=0) goto died1;
     }
-    else if (copy_left) {
-        //TODO: Copy the pointer.
-    }
+    else if (copy_left) to_insert.right = to_insert.left;
     if (!selfread) {
         r = __toku_lt_selfread(tree, txn, &selfread);
-        assert(r==0); //TODO: Error Handling instead of assert
+        if (r!=0) return __toku_lt_panic(tree, r);
         assert(selfread);
     }
     
     r = toku_rt_insert(selfread, &to_insert);
-    assert(r==0); //TODO: Error Handling instead of assert
+    if (r!=0) goto died2;
     assert(tree->mainread);
     r = toku_rt_insert(tree->mainread, &to_insert);
-    assert(r==0); //TODO: Error Handling instead of assert
-    assert(FALSE);  //Not implemented yet.
+    if (r!=0) goto died2;
+    return 0;
 }
 
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
@@ -593,16 +627,17 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     if (!tree->duplicates && data)                          return EINVAL;
     if (tree->duplicates && !data)                          return EINVAL;
     if (tree->duplicates && key != data &&
-                           (key == toku_lt_infinity ||
-                            key == toku_lt_neg_infinity))   return EINVAL;
+        __toku_lt_is_infinity(key))                         return EINVAL;
     int r;
     toku_point left;
+    toku_point right;
     toku_range query;
     BOOL dominated;
     toku_range_tree* mainread;
     
     __toku_init_point(&left,   tree,  key, data);
-    __toku_init_query(&query, &left, &left);
+    __toku_init_point(&right,  tree,  key, data);
+    __toku_init_query(&query, &left, &right);
 
     /* if 'K' is dominated by selfwrite('txn') then return success. */
     r = __toku_lt_dominated(tree, &query, 
@@ -619,6 +654,121 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     /* Now need to copy the memory and insert. */
     assert(FALSE);  //Not implemented yet.
+
+    /*
+        No merging required in selfwrite.
+        This is a point, and if merging was possible it would have been
+        dominated by selfwrite.
+        
+        Must update borderwrite however.
+        Algorithm:
+        Find everything (0 or 1 ranges) it overlaps in borderwrite.
+        If 0:
+            Retrieve predecessor and successor.
+            if both found
+                assert(predecessor.data != successor.data)
+            if predecessor found, and pred.data == my.data
+                'merge' (extend to) predecessor.left
+                    To do this, delete predecessor,
+                    insert combined me and predecessor.
+                    then done/return
+            do same check for successor.
+            if not same, then just insert the actual item into borderwrite.
+         if found == 1:
+            If data == my data, done/return
+            (overlap someone else, retrieve the peer)
+            Get the selfwrite for the peer.
+            Get successor of my point in peer_selfwrite
+            get pred of my point in peer_selfwrite.
+            Old range = O.left, O.right
+            delete old range,
+            insert      O.left, pred.right
+            insert      succ.left, O.right
+            NO MEMORY GETS FREED!!!!!!!!!!, it all is tied to selfwrites.
+            insert point,point into borderwrite
+         done with borderwrite.
+         insert point,point into selfwrite.
+    */
+    toku_range  to_insert;
+    __toku_init_insert(&to_insert, &left, &right, txn);
+    /*
+        No merging required in selfwrite.
+        This is a point, and if merging was possible it would have been
+        dominated by selfwrite.
+    */
+    r = __toku_p_makecopy(&to_insert.left);
+    if (0) {
+        died1:
+        __toku_p_free(to_insert.left);
+        return __toku_lt_panic(tree, r);
+    }
+    to_insert.right = to_insert.left;
+    toku_range_tree* selfwrite;
+    r = __toku_lt_selfwrite(tree, txn, &selfwrite);
+    if (r!=0) return __toku_lt_panic(tree, r);
+    assert(selfwrite);
+           
+    r = toku_rt_insert(selfwrite, &to_insert);
+    if (r!=0) goto died1;
+
+    /* Need to update borderwrite. */
+    toku_range_tree* borderwrite = tree->borderwrite;
+    assert(borderwrite);
+    unsigned numfound;
+    r = toku_rt_find(borderwrite, &query, 1, &tree->buf, &tree->buflen,
+                     &numfound);
+    if (r!=0) __toku_lt_panic(tree, r);
+    assert(numfound == 0 || numfound == 1);
+    
+    toku_range pred;
+    toku_range succ;
+    if (numfound == 0) {
+        BOOL found_p;
+        BOOL found_s;
+
+        r = toku_rt_predecessor(borderwrite, to_insert.left,  &pred, &found_p);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        r = toku_rt_successor  (borderwrite, to_insert.right, &succ, &found_s);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        
+        assert(!found_p || !found_s || pred.data != succ.data);
+        if      (found_p && pred.data == txn) {
+            r = toku_rt_delete(borderwrite, &pred);
+            if (r!=0) return __toku_lt_panic(tree, r);
+            to_insert.left = pred.left;
+        }
+        else if (found_s && succ.data == txn) {
+            r = toku_rt_delete(borderwrite, &succ);
+            if (r!=0) return __toku_lt_panic(tree, r);
+            to_insert.right = succ.right;
+        }
+    }
+    else if (tree->buf[0].data != txn) {
+        toku_range_tree* peer_selfwrite =
+            __toku_lt_ifexist_selfwrite(tree, tree->buf[0].data);
+        assert(peer_selfwrite);
+        BOOL found;
+
+        r = toku_rt_predecessor(peer_selfwrite, to_insert.left,  &pred, &found);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        assert(found);
+        r = toku_rt_successor  (peer_selfwrite, to_insert.right, &succ, &found);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        assert(found);
+        r = toku_rt_delete(borderwrite, &tree->buf[0]);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        pred.right = tree->buf[0].right;
+        succ.left  = tree->buf[0].left;
+        r = toku_rt_insert(borderwrite, &pred);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        r = toku_rt_insert(borderwrite, &succ);
+        if (r!=0) return __toku_lt_panic(tree, r);
+    }
+    if (numfound == 0 || tree->buf[0].data != txn) {
+        r = toku_rt_insert(borderwrite, &to_insert);
+        if (r!=0) return __toku_lt_panic(tree, r);
+    }
+    return 0;
 }
 
 int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
@@ -628,11 +778,9 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     if (!tree->duplicates && ( data_left ||  data_right))   return EINVAL;
     if (tree->duplicates  && (!data_left || !data_right))   return EINVAL;
     if (tree->duplicates  && key_left != data_left &&
-        (key_left == toku_lt_infinity ||
-         key_left == toku_lt_neg_infinity))                 return EINVAL;
+        __toku_lt_is_infinity(key_left))                    return EINVAL;
     if (tree->duplicates  && key_right != data_right &&
-        (key_right == toku_lt_infinity ||
-         key_right == toku_lt_neg_infinity))                return EINVAL;
+        __toku_lt_is_infinity(key_right))                   return EINVAL;
     assert(FALSE);
     //We are not ready for this.
     //Not needed for Feb 1 release.
