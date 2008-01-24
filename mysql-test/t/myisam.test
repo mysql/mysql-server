@@ -1448,5 +1448,19 @@ CHECK TABLE t1;
 CHECK TABLE t1 EXTENDED;
 DROP TABLE t1;
 
+#
+# Bug#29182 - MyISAMCHK reports wrong character set
+#
+CREATE TABLE t1 (
+  c1 VARCHAR(10) NOT NULL,
+  c2 CHAR(10) DEFAULT NULL,
+  c3 VARCHAR(10) NOT NULL,
+  KEY (c1),
+  KEY (c2)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYISAMCHK -d $MYSQLTEST_VARDIR/master-data/test/t1
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 
