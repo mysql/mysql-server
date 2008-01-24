@@ -617,6 +617,7 @@ buf_flush_init_for_writing(
 			memcpy(page_zip->data, page, zip_size);
 			/* fall through */
 		case FIL_PAGE_TYPE_ZBLOB:
+		case FIL_PAGE_TYPE_ZBLOB2:
 		case FIL_PAGE_INDEX:
 			mach_write_ull(page_zip->data
 				       + FIL_PAGE_LSN, newest_lsn);

@@ -441,6 +441,7 @@ buf_page_print(
 
 		switch (fil_page_get_type(read_buf)) {
 		case FIL_PAGE_TYPE_ZBLOB:
+		case FIL_PAGE_TYPE_ZBLOB2:
 			checksum = srv_use_checksums
 				? page_zip_calc_checksum(read_buf, zip_size)
 				: BUF_NO_CHECKSUM_MAGIC;
@@ -608,6 +609,7 @@ buf_page_print(
 		      stderr);
 		break;
 	case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB2:
 		fputs("InnoDB: Page may be a compressed BLOB page\n",
 		      stderr);
 		break;
@@ -1502,7 +1504,8 @@ buf_page_reset_file_page_was_freed(
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 
 /************************************************************************
-Get read access to a compressed page (usually FIL_PAGE_TYPE_ZBLOB).
+Get read access to a compressed page (usually of type
+FIL_PAGE_TYPE_ZBLOB or FIL_PAGE_TYPE_ZBLOB2).
 The page must be released with buf_page_release_zip().
 NOTE: the page is not protected by any latch.  Mutual exclusion has to
 be implemented at a higher level.  In other words, all possible
@@ -1695,6 +1698,7 @@ buf_zip_decompress(
 	case FIL_PAGE_TYPE_FSP_HDR:
 	case FIL_PAGE_TYPE_XDES:
 	case FIL_PAGE_TYPE_ZBLOB:
+	case FIL_PAGE_TYPE_ZBLOB2:
 		/* Copy to uncompressed storage. */
 		memcpy(block->frame, frame,
 		       buf_block_get_zip_size(block));

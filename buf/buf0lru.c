@@ -1235,6 +1235,7 @@ buf_LRU_block_remove_hashed_page(
 				}
 				break;
 			case FIL_PAGE_TYPE_ZBLOB:
+			case FIL_PAGE_TYPE_ZBLOB2:
 				break;
 			case FIL_PAGE_INDEX:
 #ifdef UNIV_ZIP_DEBUG
