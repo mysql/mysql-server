@@ -20,13 +20,20 @@ typedef struct {
     toku_range*         buf;
     unsigned            buflen;
     BOOL                panicked;
+    int                 (*compare_fun)(DB*,const DBT*,const DBT*);
+    int                 (*dup_compare)(DB*,const DBT*,const DBT*);
+    /** The user malloc function */
+    void*               (*malloc) (size_t);
+    /** The user free function */
+    void                (*free)   (void*);
+    /** The user realloc function */
+    void*               (*realloc)(void*, size_t);
 } toku_lock_tree;
-#warning TODO: Handle 'panicked' variable in every api call.
+
 
 extern const DBT* const toku_lt_infinity;
 extern const DBT* const toku_lt_neg_infinity;
 
-const unsigned __toku_default_buflen = 2;
 /*
  * key_data = (void*)toku_lt_infinity is how we refer to the infinities.
  */
@@ -50,13 +57,14 @@ int __toku_lt_point_cmp(void* a, void* b);
 /*
  * Create a lock tree.  Should be called only inside DB->open.
  * Params:
- *      ptree:  We set *ptree to the newly allocated tree.
- *      db:     This is the db that the lock tree will be performing locking for.
- *              We will get flags to determine if it is a nodup or dupsort db.
- *              db should NOT be opened yet, but should have the DB_DUPSORT flag
- *              set appropriately.
- *              We will use the key compare (and if appropriate the data compare)
- *              functions in order to understand ranges.
+ *      ptree:          We set *ptree to the newly allocated tree.
+ *      db:             This is the db that the lock tree will be performing locking for.
+ *      duplicates      whether the db supports duplicates.
+ *      compare_fun     the key compare function.
+ *      dup_compare     the data compare function.
+    \param user_malloc    A user provided malloc(3) function.
+    \param user_free      A user provided free(3) function.
+    \param user_realloc   A user provided realloc(3) function.
  * Returns:
  *      0:      Success
  *      EINVAL: If (ptree == NULL || db == NULL).
@@ -67,7 +75,13 @@ int __toku_lt_point_cmp(void* a, void* b);
  *      The EINVAL cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
  */
-int toku_lt_create(toku_lock_tree** ptree, DB* db);
+int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
+                   int (*compare_fun)(DB*,const DBT*,const DBT*),
+                   int (*dup_compare)(DB*,const DBT*,const DBT*),
+                   void* (*user_malloc) (size_t),
+                   void  (*user_free)   (void*),
+                   void* (*user_realloc)(void*, size_t));
+
 
 /*
  * Closes/Frees a lock tree.
@@ -76,7 +90,6 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db);
  * Returns:
  *      0:      Success.
  *      EINVAL: If (tree == NULL)
- *      May return other errors due to system calls.
  * Asserts:
  *      The EINVAL cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
@@ -118,7 +131,8 @@ int toku_lt_close(toku_lock_tree* tree);
  *      to its local memory.
  * *** Note that txn == NULL is not supported at this time.
  */
-int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn, DBT* key, DBT* data);
+int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
+                              const DBT* key, const DBT* data);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
@@ -163,8 +177,8 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn, DBT* key, DBT* 
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
-                                    DBT* key_left, DBT* data_left,
-                                    DBT* key_right, DBT* data_right);
+                                   const DBT* key_left,  const DBT* data_left,
+                                   const DBT* key_right, const DBT* data_right);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
@@ -196,7 +210,8 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
  *      to its local memory.
  * *** Note that txn == NULL is not supported at this time.
  */
-int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn, DBT* key, DBT* data);
+int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+                               const DBT* key, const DBT* data);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
@@ -246,8 +261,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn, DBT* key, DBT*
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
-                                    DBT* key_left,  DBT* data_left,
-                                    DBT* key_right, DBT* data_right);
+                                   const DBT* key_left,  const DBT* data_left,
+                                   const DBT* key_right, const DBT* data_right);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use

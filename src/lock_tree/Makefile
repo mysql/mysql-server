@@ -6,7 +6,7 @@ LIBNAME=liblocktree
 OPTFLAGS = #-O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
-CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt
+CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt -L../range_tree
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
 ifeq ($(OSX),OSX)
@@ -33,7 +33,7 @@ locktree.o: locktree.c locktree.h
 	gcc $(CFLAGS) $(CPPFLAGS) -c -DTOKU_LINEAR_RANGE_TREE $< -o $@
 
 $(LIBNAME).$(LIBEXT): locktree.o
-	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS) -lz
+	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS) -lrangetreelinear
 
-$(LIBNAME).a: log.o
+$(LIBNAME).a: locktree.o
 	$(AR) rv $@ $<
