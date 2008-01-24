@@ -723,20 +723,6 @@ set @@sort_buffer_size=default;
 
 DROP TABLE t1,t2;
 
-#
-# Bug #32815: query with ORDER BY and a possible ref_or_null access
-#
-
-CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
-INSERT INTO t1 VALUES 
-  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
-
-EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
-SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
-
-DROP TABLE t1;
-
-
 # Test of behaviour with CREATE ... SELECT
 #
 
@@ -1091,6 +1077,19 @@ desc t1;
 show create table t1;
 drop table t1;
 
+#
+# Bug #32815: query with ORDER BY and a possible ref_or_null access
+#
+
+CREATE TABLE t1 (id int, type char(6), d int, INDEX idx(id,d)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES 
+  (191, 'member', 1), (NULL, 'member', 3), (NULL, 'member', 4), (201, 'member', 2); 
+
+EXPLAIN SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
+
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1382,5 +1381,33 @@ if ($test_foreign_keys)
 create table t1 (a int auto_increment primary key) engine=innodb;
 alter table t1 order by a;
 drop table t1;
+
+#
+# Bug #33697: ORDER BY primary key DESC vs. ref access + filesort
+# (reproduced only with InnoDB tables)
+#
+
+CREATE TABLE t1
+  (vid integer NOT NULL,
+   tid integer NOT NULL,
+   idx integer NOT NULL,
+   name varchar(128) NOT NULL,
+   type varchar(128) NULL,
+   PRIMARY KEY(idx, vid, tid),
+   UNIQUE(vid, tid, name)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+  (1,1,1,'pk',NULL),(2,1,1,'pk',NULL),(3,1,1,'pk',NULL),(4,1,1,'c1',NULL),
+  (5,1,1,'pk',NULL),(1,1,2,'c1',NULL),(2,1,2,'c1',NULL),(3,1,2,'c1',NULL),
+  (4,1,2,'c2',NULL),(5,1,2,'c1',NULL),(2,1,3,'c2',NULL),(3,1,3,'c2',NULL),
+  (4,1,3,'pk',NULL),(5,1,3,'c2',NULL),
+  (2,1,4,'c_extra',NULL),(3,1,4,'c_extra',NULL);
+
+EXPLAIN SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+
+SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
+
+DROP TABLE t1;
 
 --echo End of 5.1 tests
