@@ -3856,7 +3856,9 @@ btr_store_big_rec_extern_fields(
 				page_zip_des_t*	blob_page_zip;
 
 				mach_write_to_2(page + FIL_PAGE_TYPE,
-						FIL_PAGE_TYPE_ZBLOB);
+						prev_page_no == FIL_NULL
+						? FIL_PAGE_TYPE_ZBLOB
+						: FIL_PAGE_TYPE_ZBLOB2);
 
 				c_stream.next_out = page
 					+ FIL_PAGE_DATA;
@@ -4174,7 +4176,13 @@ btr_free_externally_stored_field(
 		if (ext_zip_size) {
 			/* Note that page_zip will be NULL
 			in row_purge_upd_exist_or_extern(). */
-			ut_a(fil_page_get_type(page) == FIL_PAGE_TYPE_ZBLOB);
+			switch (fil_page_get_type(page)) {
+			case FIL_PAGE_TYPE_ZBLOB:
+			case FIL_PAGE_TYPE_ZBLOB2:
+				break;
+			default:
+				ut_error;
+			}
 			next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
 
 			btr_page_free_low(index, ext_block, 0, &mtr);
@@ -4405,6 +4413,8 @@ btr_copy_zblob_prefix(
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(space_id);
 
+	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+
 	for (;;) {
 		buf_page_t*	bpage;
 		int		err;
@@ -4426,11 +4436,11 @@ btr_copy_zblob_prefix(
 			return;
 		}
 
-		if (UNIV_UNLIKELY(fil_page_get_type(bpage->zip.data)
-				  != FIL_PAGE_TYPE_ZBLOB)) {
+		if (UNIV_UNLIKELY
+		    (fil_page_get_type(bpage->zip.data) != page_type)) {
 			ut_print_timestamp(stderr);
 			fprintf(stderr,
-				"  InnoDB: Unknown type %lu of"
+				"  InnoDB: Unexpected type %lu of"
 				" compressed BLOB"
 				" page %lu space %lu\n",
 				(ulong) fil_page_get_type(bpage->zip.data),
@@ -4509,6 +4519,7 @@ end_of_blob:
 
 		page_no = next_page_no;
 		offset = FIL_PAGE_NEXT;
+		page_type = FIL_PAGE_TYPE_ZBLOB2;
 	}
 }
 

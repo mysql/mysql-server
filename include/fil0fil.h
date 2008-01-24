@@ -117,7 +117,8 @@ extern fil_addr_t	fil_addr_null;
 #define FIL_PAGE_TYPE_FSP_HDR	8	/* File space header */
 #define FIL_PAGE_TYPE_XDES	9	/* Extent descriptor page */
 #define FIL_PAGE_TYPE_BLOB	10	/* Uncompressed BLOB page */
-#define FIL_PAGE_TYPE_ZBLOB	11	/* Compressed BLOB page */
+#define FIL_PAGE_TYPE_ZBLOB	11	/* First compressed BLOB page */
+#define FIL_PAGE_TYPE_ZBLOB2	12	/* Subsequent compressed BLOB page */
 
 /* Space types */
 #define FIL_TABLESPACE		501
