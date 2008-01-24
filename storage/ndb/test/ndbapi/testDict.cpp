@@ -2659,6 +2659,168 @@ runBug24631(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug29186(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int lgError = 15000;
+  int tsError = 16000;
+  int res;
+  char lgname[256];
+  char ufname[256];
+  char tsname[256];
+  char dfname[256];
+
+  NdbRestarter restarter;
+
+  if (restarter.getNumDbNodes() < 2){
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  NdbDictionary::Dictionary::List list;
+
+  if (pDict->listObjects(list) == -1)
+    return NDBT_FAILED;
+
+  // 1.create logfile group
+  const char * lgfound = 0;
+
+  for (Uint32 i = 0; i<list.count; i++)
+  {
+    switch(list.elements[i].type){
+    case NdbDictionary::Object::LogfileGroup:
+      lgfound = list.elements[i].name;
+      break;
+    default:
+      break;
+    }
+    if (lgfound)
+      break;
+  }
+
+  if (lgfound == 0)
+  {
+    BaseString::snprintf(lgname, sizeof(lgname), "LG-%u", rand());
+    NdbDictionary::LogfileGroup lg;
+
+    lg.setName(lgname);
+    lg.setUndoBufferSize(8*1024*1024);
+    if(pDict->createLogfileGroup(lg) != 0)
+    {
+      g_err << "Failed to create logfilegroup:"
+            << endl << pDict->getNdbError() << endl;
+      return NDBT_FAILED;
+    }
+  }
+  else
+  {
+    BaseString::snprintf(lgname, sizeof(lgname), "%s", lgfound);
+  }
+
+  if(restarter.waitClusterStarted(60)){
+    g_err << "waitClusterStarted failed"<< endl;
+    return NDBT_FAILED;
+  }
+ 
+  if(restarter.insertErrorInAllNodes(lgError) != 0){
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+
+  g_info << "error inserted"  << endl;
+  g_info << "waiting some before add log file"  << endl;
+  g_info << "starting create log file group"  << endl;
+
+  NdbDictionary::Undofile uf;
+  BaseString::snprintf(ufname, sizeof(ufname), "%s-%u", lgname, rand());
+  uf.setPath(ufname);
+  uf.setSize(2*1024*1024);
+  uf.setLogfileGroup(lgname);
+
+  if(pDict->createUndofile(uf) == 0)
+  {
+    g_err << "Create log file group should fail on error_insertion " << lgError << endl;
+    return NDBT_FAILED;
+  }
+
+  //clear lg error
+  if(restarter.insertErrorInAllNodes(15099) != 0){
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+  NdbSleep_SecSleep(5);
+
+  //lg error has been cleared, so we can add undo file
+  if(pDict->createUndofile(uf) != 0)
+  {
+    g_err << "Failed to create undofile:"
+          << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if(restarter.waitClusterStarted(60)){
+    g_err << "waitClusterStarted failed"<< endl;
+    return NDBT_FAILED;
+  }
+
+  if(restarter.insertErrorInAllNodes(tsError) != 0){
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+  g_info << "error inserted"  << endl;
+  g_info << "waiting some before create table space"  << endl;
+  g_info << "starting create table space"  << endl;
+
+  //r = runCreateTablespace(ctx, step);
+  BaseString::snprintf(tsname,  sizeof(tsname), "TS-%u", rand());
+  BaseString::snprintf(dfname, sizeof(dfname), "%s-%u-1.dat", tsname, rand());
+
+  NdbDictionary::Tablespace ts;
+  ts.setName(tsname);
+  ts.setExtentSize(1024*1024);
+  ts.setDefaultLogfileGroup(lgname);
+
+  if(pDict->createTablespace(ts) != 0)
+  {
+    g_err << "Failed to create tablespace:"
+          << endl << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  NdbDictionary::Datafile df;
+  df.setPath(dfname);
+  df.setSize(1*1024*1024);
+  df.setTablespace(tsname);
+
+  if(pDict->createDatafile(df) == 0)
+  {
+    g_err << "Create table space should fail on error_insertion " << tsError << endl;
+    return NDBT_FAILED;
+  }
+  //Clear the inserted error
+  if(restarter.insertErrorInAllNodes(16099) != 0){
+    g_err << "failed to set error insert"<< endl;
+    return NDBT_FAILED;
+  }
+  NdbSleep_SecSleep(5);
+
+  if (pDict->dropTablespace(pDict->getTablespace(tsname)) != 0)
+  {
+    g_err << "Failed to drop tablespace: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+
+  if (lgfound == 0)
+  {
+    if (pDict->dropLogfileGroup(pDict->getLogfileGroup(lgname)) != 0)
+      return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
 struct RandSchemaOp
 {
   struct Obj 
@@ -3437,6 +3599,9 @@ TESTCASE("DictRestart",
 TESTCASE("Bug24631",
          ""){
   INITIALIZER(runBug24631);
+TESTCASE("Bug29186",
+         ""){
+  INITIALIZER(runBug29186);
 }
 NDBT_TESTSUITE_END(testDict);
 
