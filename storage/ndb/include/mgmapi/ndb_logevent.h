@@ -565,7 +565,13 @@ extern "C" {
       /** Log event specific data for for corresponding NDB_LE_ log event */
       struct {
 	int      gth;
-	unsigned page_size_kb;
+        /* union is for compatibility backward.
+         * page_size_kb member variable should be removed in the future
+        */
+        union {
+	  unsigned page_size_kb;
+          unsigned page_size_bytes;
+        };
 	unsigned pages_used;
 	unsigned pages_total;
 	unsigned block;

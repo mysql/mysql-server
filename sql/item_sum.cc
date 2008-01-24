@@ -633,7 +633,7 @@ Field *Item_sum_hybrid::create_tmp_field(bool group, TABLE *table,
   */
   switch (args[0]->field_type()) {
   case MYSQL_TYPE_DATE:
-    field= new Field_date(maybe_null, name, collation.collation);
+    field= new Field_newdate(maybe_null, name, collation.collation);
     break;
   case MYSQL_TYPE_TIME:
     field= new Field_time(maybe_null, name, collation.collation);
@@ -2849,45 +2849,51 @@ String *Item_sum_udf_str::val_str(String *str)
  concat of values from "group by" operation
 
  BUGS
-   DISTINCT and ORDER BY only works if ORDER BY uses all fields and only fields
-   in expression list
    Blobs doesn't work with DISTINCT or ORDER BY
 *****************************************************************************/
 
-/*
-  function of sort for syntax:
-  GROUP_CONCAT(DISTINCT expr,...)
+
+
+/** 
+  Compares the values for fields in expr list of GROUP_CONCAT.
+  @note
+       
+     GROUP_CONCAT([DISTINCT] expr [,expr ...]
+              [ORDER BY {unsigned_integer | col_name | expr}
+                  [ASC | DESC] [,col_name ...]]
+              [SEPARATOR str_val])
+ 
+  @return
+  @retval -1 : key1 < key2 
+  @retval  0 : key1 = key2
+  @retval  1 : key1 > key2 
 */
 
-int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
-				       uchar* key2)
+int group_concat_key_cmp_with_distinct(void* arg, const void* key1, 
+                                       const void* key2)
 {
-  Item_func_group_concat* grp_item= (Item_func_group_concat*)arg;
-  TABLE *table= grp_item->table;
-  Item **field_item, **end;
+  Item_func_group_concat *item_func= (Item_func_group_concat*)arg;
+  TABLE *table= item_func->table;
 
-  for (field_item= grp_item->args, end= field_item + grp_item->arg_count_field;
-       field_item < end;
-       field_item++)
+  for (uint i= 0; i < item_func->arg_count_field; i++)
   {
+    Item *item= item_func->args[i];
+    /* 
+      If field_item is a const item then either get_tp_table_field returns 0
+      or it is an item over a const table. 
+    */
+    if (item->const_item())
+      continue;
     /*
       We have to use get_tmp_table_field() instead of
       real_item()->get_tmp_table_field() because we want the field in
       the temporary table, not the original field
     */
-    Field *field= (*field_item)->get_tmp_table_field();
-    /* 
-      If field_item is a const item then either get_tmp_table_field returns 0
-      or it is an item over a const table. 
-    */
-    if (field && !(*field_item)->const_item())
-    {
-      int res;
-      uint offset= (field->offset(field->table->record[0]) - 
-                    table->s->null_bytes);
-      if ((res= field->cmp(key1 + offset, key2 + offset)))
-	return res;
-    }
+    Field *field= item->get_tmp_table_field();
+    int res;
+    uint offset= field->offset(field->table->record[0])-table->s->null_bytes;
+    if((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
+      return res;
   }
   return 0;
 }
@@ -2898,7 +2904,8 @@ int group_concat_key_cmp_with_distinct(void* arg, uchar* key1,
   GROUP_CONCAT(expr,... ORDER BY col,... )
 */
 
-int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
+int group_concat_key_cmp_with_order(void* arg, const void* key1, 
+                                    const void* key2)
 {
   Item_func_group_concat* grp_item= (Item_func_group_concat*) arg;
   ORDER **order_item, **end;
@@ -2924,7 +2931,7 @@ int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
       int res;
       uint offset= (field->offset(field->table->record[0]) -
                     table->s->null_bytes);
-      if ((res= field->cmp(key1 + offset, key2 + offset)))
+      if ((res= field->cmp((uchar*)key1 + offset, (uchar*)key2 + offset)))
         return (*order_item)->asc ? res : -res;
     }
   }
@@ -2934,25 +2941,6 @@ int group_concat_key_cmp_with_order(void* arg, uchar* key1, uchar* key2)
     if the returned values are not the same we do the sort on.
   */
   return 1;
-}
-
-
-/*
-  function of sort for syntax:
-  GROUP_CONCAT(DISTINCT expr,... ORDER BY col,... )
-
-  BUG:
-    This doesn't work in the case when the order by contains data that
-    is not part of the field list because tree-insert will not notice
-    the duplicated values when inserting things sorted by ORDER BY
-*/
-
-int group_concat_key_cmp_with_distinct_and_order(void* arg,uchar* key1,
-						 uchar* key2)
-{
-  if (!group_concat_key_cmp_with_distinct(arg,key1,key2))
-    return 0;
-  return(group_concat_key_cmp_with_order(arg,key1,key2));
 }
 
 
@@ -3041,7 +3029,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
                        bool distinct_arg, List<Item> *select_list,
                        SQL_LIST *order_list, String *separator_arg)
   :tmp_table_param(0), warning(0),
-   separator(separator_arg), tree(0), table(0),
+   separator(separator_arg), tree(0), unique_filter(NULL), table(0),
    order(0), context(context_arg),
    arg_count_order(order_list ? order_list->elements : 0),
    arg_count_field(select_list->elements),
@@ -3096,6 +3084,7 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   warning(item->warning),
   separator(item->separator),
   tree(item->tree),
+  unique_filter(item->unique_filter),
   table(item->table),
   order(item->order),
   context(item->context),
@@ -3146,6 +3135,11 @@ void Item_func_group_concat::cleanup()
         delete_tree(tree);
         tree= 0;
       }
+      if (unique_filter)
+      {
+        delete unique_filter;
+        unique_filter= NULL;
+      }
       if (warning)
       {
         char warn_buff[MYSQL_ERRMSG_SIZE];
@@ -3175,6 +3169,8 @@ void Item_func_group_concat::clear()
   no_appended= TRUE;
   if (tree)
     reset_tree(tree);
+  if (distinct)
+    unique_filter->reset();
   /* No need to reset the table as we never call write_row */
 }
 
@@ -3198,9 +3194,19 @@ bool Item_func_group_concat::add()
   }
 
   null_value= FALSE;
+  bool row_eligible= TRUE;
+
+  if (distinct) 
+  {
+    /* Filter out duplicate rows. */
+    uint count= unique_filter->elements_in_tree();
+    unique_filter->unique_add(table->record[0] + table->s->null_bytes);
+    if (count == unique_filter->elements_in_tree())
+      row_eligible= FALSE;
+  }
 
   TREE_ELEMENT *el= 0;                          // Only for safety
-  if (tree)
+  if (row_eligible && tree)
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
   /*
@@ -3208,7 +3214,7 @@ bool Item_func_group_concat::add()
     we can dump the row here in case of GROUP_CONCAT(DISTINCT...)
     instead of doing tree traverse later.
   */
-  if (!warning_for_row &&
+  if (row_eligible && !warning_for_row &&
       (!tree || (el->count == 1 && distinct && !arg_count_order)))
     dump_leaf_key(table->record[0] + table->s->null_bytes, 1, this);
 
@@ -3284,7 +3290,6 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select;
-  qsort_cmp2 compare_key;
   DBUG_ENTER("Item_func_group_concat::setup");
 
   /*
@@ -3374,38 +3379,33 @@ bool Item_func_group_concat::setup(THD *thd)
   table->file->extra(HA_EXTRA_NO_ROWS);
   table->no_rows= 1;
 
+  /*
+     Need sorting or uniqueness: init tree and choose a function to sort.
+     Don't reserve space for NULLs: if any of gconcat arguments is NULL,
+     the row is not added to the result.
+  */
+  uint tree_key_length= table->s->reclength - table->s->null_bytes;
 
-  if (distinct || arg_count_order)
+  if (arg_count_order)
   {
-    /*
-      Need sorting: init tree and choose a function to sort.
-      Don't reserve space for NULLs: if any of gconcat arguments is NULL,
-      the row is not added to the result.
-    */
-    uint tree_key_length= table->s->reclength - table->s->null_bytes;
-
     tree= &tree_base;
-    if (arg_count_order)
-    {
-      if (distinct)
-        compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct_and_order;
-      else
-        compare_key= (qsort_cmp2) group_concat_key_cmp_with_order;
-    }
-    else
-    {
-      compare_key= (qsort_cmp2) group_concat_key_cmp_with_distinct;
-    }
     /*
-      Create a tree for sorting. The tree is used to sort and to remove
-      duplicate values (according to the syntax of this function). If there
-      is no DISTINCT or ORDER BY clauses, we don't create this tree.
+      Create a tree for sorting. The tree is used to sort (according to the
+      syntax of this function). If there is no ORDER BY clause, we don't
+      create this tree.
     */
     init_tree(tree, (uint) min(thd->variables.max_heap_table_size,
                                thd->variables.sortbuff_size/16), 0,
-              tree_key_length, compare_key, 0, NULL, (void*) this);
+              tree_key_length, 
+              group_concat_key_cmp_with_order , 0, NULL, (void*) this);
   }
 
+  if (distinct)
+    unique_filter= new Unique(group_concat_key_cmp_with_distinct,
+                              (void*)this,
+                              tree_key_length,
+                              thd->variables.max_heap_table_size);
+  
   DBUG_RETURN(FALSE);
 }
 
@@ -3474,4 +3474,11 @@ void Item_func_group_concat::print(String *str)
   str->append(STRING_WITH_LEN(" separator \'"));
   str->append(*separator);
   str->append(STRING_WITH_LEN("\')"));
+}
+
+
+Item_func_group_concat::~Item_func_group_concat()
+{
+  if (unique_filter) 
+    delete unique_filter;    
 }
