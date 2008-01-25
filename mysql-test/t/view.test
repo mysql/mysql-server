@@ -3456,5 +3456,19 @@ DROP VIEW v2;
 DROP VIEW v3;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#29477: Not all fields of the target table were checked to have
+--echo #            a default value when inserting into a view.
+--echo #
+create table t1(f1 int, f2 int not null);
+create view v1 as select f1 from t1;
+insert into v1 values(1);
+set @old_mode=@@sql_mode;
+set @@sql_mode=traditional;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+insert into v1 values(1);
+set @@sql_mode=@old_mode;
+drop view v1;
+drop table t1;
 --echo End of 5.0 tests.
 
