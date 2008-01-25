@@ -23,15 +23,6 @@ or in the worst case add it here for others to know!
 Known bugs that are planned to be fixed before next minor release
 =================================================================
 
-- If mysqld crashed or is killed during REPAIR or OPTIMIZE, Maria will not
-  be able to automaticly repair the table again;  You must manually run
-  REPAIR on the table again after mysqld is started.
-
-- If mysqld crashes during batch insert into an empty table,
-  (This includes LOAD DATA INFILE, SELECT ... INSERT and INSERT (many rows))
-  Maria repair may not be able to recreate the empty table. In this case
-  You must manually run either REPAIR TABLE or TRUNCATE to fix the table.
-
 - If the log files are damaged or inconsistent, Maria may fail to start.
   We should fix that if this happens and mysqld is restarted (thanks to
   mysqld_safe, instance manager or other script) it should disregard the
