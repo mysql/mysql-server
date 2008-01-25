@@ -356,7 +356,8 @@ static void __toku_payload_from_dbt(void** payload, u_int32_t* len,
 
 static void __toku_init_point(toku_point* point, toku_lock_tree* tree,
                               const DBT* key, const DBT* data) {
-    assert(point && tree && key && data);
+    assert(point && tree && key);
+    assert((tree->duplicates != 0) == (data != NULL));
     memset(point, 0, sizeof(toku_point));
     point->lt = tree;
     
