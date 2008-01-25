@@ -46,7 +46,7 @@ static int __toku_lt_txn_cmp(void* a, void* b) {
     return a < b ? -1 : (a != b);
 }
 
-int __toku_lt_point_cmp(void* a, void* b) {
+int toku_lt_point_cmp(void* a, void* b) {
     int partial_result;
     DBT point_1;
     DBT point_2;
@@ -153,8 +153,8 @@ static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-static toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
-                                                    DB_TXN* txn) {
+toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
+                                             DB_TXN* txn) {
     assert(tree && txn);
     //TODO: Implement real version.
     return tree->selfwrite;
@@ -162,8 +162,7 @@ static toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
 
 /* Provides access to a selfread tree for a particular transaction.
    Returns NULL if it does not exist yet. */
-static toku_range_tree* __toku_lt_ifexist_selfread(toku_lock_tree* tree,
-                                                   DB_TXN* txn) {
+toku_range_tree* __toku_lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn) {
     assert(tree && txn);
     //TODO: Implement.
     return tree->selfread;
@@ -173,9 +172,20 @@ static toku_range_tree* __toku_lt_ifexist_selfread(toku_lock_tree* tree,
    Creates it if it does not exist. */
 static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
                                toku_range_tree** pselfwrite) {
+    int r;
     assert(tree && txn && pselfwrite);
-    *pselfwrite = tree->selfwrite;
-    //TODO: Implement.
+
+//TODO: Remove this, and use multiples per transaction
+if (!tree->selfwrite)
+{
+r = toku_rt_create(&tree->selfwrite,
+                   toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
+                   tree->malloc, tree->free, tree->realloc);
+if(r!=0) return r;
+}
+assert(tree->selfwrite);
+*pselfwrite = tree->selfwrite;
+
     return 0;
 }
 
@@ -183,9 +193,20 @@ static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
    Creates it if it does not exist. */
 static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
                               toku_range_tree** pselfread) {
+    int r;
     assert(tree && txn && pselfread);
-    *pselfread = tree->selfread;
-    //TODO: Implement.
+
+//TODO: Remove this, and use multiples per transaction
+if (!tree->selfread)
+{
+r = toku_rt_create(&tree->selfread,
+                   toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
+                   tree->malloc, tree->free, tree->realloc);
+if(r!=0) return r;
+}
+assert(tree->selfread);
+*pselfread = tree->selfread;
+
     return 0;
 }
 
@@ -216,8 +237,8 @@ static int __toku_lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
         return 0;
     }
     assert(numfound == 1);
-    *dominated = (__toku_lt_point_cmp(query->left,  buf[0].left) >= 0 &&
-                  __toku_lt_point_cmp(query->right, buf[0].right) <= 0);
+    *dominated = (toku_lt_point_cmp(query->left,  buf[0].left) >= 0 &&
+                  toku_lt_point_cmp(query->right, buf[0].right) <= 0);
     return 0;
 }
 
@@ -396,7 +417,7 @@ static void __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
     for (i = 0; i < numfound; i++) {
         int c;
         /* Find the extreme left end-point among overlapping ranges */
-        if ((c = __toku_lt_point_cmp(tree->buf[i].left, to_insert->left))
+        if ((c = toku_lt_point_cmp(tree->buf[i].left, to_insert->left))
             <= 0) {
             assert(*alloc_left || c < 0);
             assert(tree->buf[i].left != to_insert->left);
@@ -405,7 +426,7 @@ static void __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
             to_insert->left  = tree->buf[i].left;
         }
         /* Find the extreme right end-point */
-        if ((c = __toku_lt_point_cmp(tree->buf[i].right, to_insert->right))
+        if ((c = toku_lt_point_cmp(tree->buf[i].right, to_insert->right))
             >= 0) {
             assert(*alloc_right || c > 0);
             assert(tree->buf[i].right != to_insert->left ||
@@ -425,7 +446,7 @@ static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
     int r;
     
     if (alloc_left && alloc_right &&
-        __toku_lt_point_cmp(to_insert->left, to_insert->right) == 0) {
+        toku_lt_point_cmp(to_insert->left, to_insert->right) == 0) {
         *alloc_right = FALSE;
         copy_left    = TRUE;
     }
@@ -468,7 +489,7 @@ static void __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
         /*
            We will maintain the invariant: (separately for read and write
            environments)
-           (__toku_lt_point_cmp(a, b) == 0 && a.txn == b.txn) => a == b
+           (toku_lt_point_cmp(a, b) == 0 && a.txn == b.txn) => a == b
         */
         /* Do not double-free. */
         if (tree->buf[i].right != tree->buf[i].left &&
@@ -646,7 +667,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     temp_tree->free        = user_free;
     temp_tree->realloc     = user_realloc;
     r = toku_rt_create(&temp_tree->mainread,
-                       __toku_lt_point_cmp, __toku_lt_txn_cmp, TRUE,
+                       toku_lt_point_cmp, __toku_lt_txn_cmp, TRUE,
                        user_malloc, user_free, user_realloc);
     if (0) {
         died2:
@@ -655,7 +676,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     }
     if (r!=0) goto died1;
     r = toku_rt_create(&temp_tree->borderwrite,
-                       __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
+                       toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
                        user_malloc, user_free, user_realloc);
     if (0) {
         died3:
@@ -663,16 +684,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
         goto died2;
     }
     if (r!=0) goto died2;
-//TODO: Remove this, and use multiples per transaction
-r = toku_rt_create(&temp_tree->selfwrite,
-                   __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
-                   user_malloc, user_free, user_realloc);
-assert(temp_tree->selfwrite);
-//TODO: Remove this, and use multiples per transaction
-r = toku_rt_create(&temp_tree->selfread,
-                   __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
-                   user_malloc, user_free, user_realloc);
-assert(temp_tree->selfread);
+
     temp_tree->buflen = __toku_default_buflen;
     temp_tree->buf    = (toku_range*)
                         user_malloc(temp_tree->buflen * sizeof(toku_range));
@@ -732,7 +744,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     /* Verify left <= right. */
     if ((key_left != key_right || data_left != data_right) &&
-        __toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
+        toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
 
     __toku_init_query(&query, &left, &right);
     
@@ -942,7 +954,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     /* Verify left <= right. */
     if ((key_left != key_right || data_left != data_right) &&
-        __toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
+        toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
 
 
     return ENOSYS;
