@@ -148,7 +148,7 @@ void toku_recover_fheader (struct logtype_fheader *c) {
 	MALLOC(pair->brt);
 	pair->brt->cf = pair->cf;
 	pair->brt->database_name = 0; // Special case, we don't know or care what the database name is for recovery.
-	pair->brt->cursors_head = pair->brt->cursors_tail = 0;
+	list_init(&pair->brt->cursors);
 	pair->brt->compare_fun = 0;
 	pair->brt->dup_compare = 0;
 	pair->brt->db = 0;
