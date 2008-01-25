@@ -480,6 +480,7 @@ int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM fil
     result->n_pairs_present = 0;
     result->pairs = 0;
     result->compare_fun = compare_fun;
+    result->dup_compare_fun = 0;
     result->db = db;
     result->filenum = filenum;
     result->skey = 0;
