@@ -199,8 +199,8 @@ static int __toku_lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
     assert(tree && query && rt && dominated);
     BOOL allow_overlaps;
     toku_range  buffer[1];
+    unsigned    buflen = sizeof(buffer) / sizeof(buffer[0]);
     toku_range* buf = &buffer[0];
-    unsigned    buflen = sizeof(buf) / sizeof(buf[0]);
     unsigned    numfound;
     int         r;
 
@@ -255,8 +255,8 @@ static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
     assert(rt);
     
     toku_range  buffer[2];
+    unsigned    buflen = sizeof(buffer) / sizeof(buffer[0]);
     toku_range* buf = &buffer[0];
-    unsigned    buflen = sizeof(buf) / sizeof(buf[0]);
     unsigned    numfound;
     int         r;
 
@@ -287,8 +287,8 @@ static int __toku_lt_meets(toku_lock_tree* tree, DB_TXN* self,
                            toku_range* query, toku_range_tree* rt, BOOL* met) {
     assert(tree && self && query && rt && met);
     toku_range  buffer[1];
+    unsigned    buflen = sizeof(buffer) / sizeof(buffer[0]);
     toku_range* buf = &buffer[0];
-    unsigned    buflen = sizeof(buf) / sizeof(buf[0]);
     unsigned    numfound;
     int         r;
     BOOL        allow_overlaps;
@@ -670,7 +670,7 @@ r = toku_rt_create(&temp_tree->selfwrite,
 assert(temp_tree->selfwrite);
 //TODO: Remove this, and use multiples per transaction
 r = toku_rt_create(&temp_tree->selfread,
-                   __toku_lt_point_cmp, __toku_lt_txn_cmp, TRUE,
+                   __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
                    user_malloc, user_free, user_realloc);
 assert(temp_tree->selfread);
     temp_tree->buflen = __toku_default_buflen;
