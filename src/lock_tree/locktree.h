@@ -52,7 +52,7 @@ typedef struct {
  *
  * Return values conform to cmp from quicksort(3).
  */
-int __toku_lt_point_cmp(void* a, void* b);
+int toku_lt_point_cmp(void* a, void* b);
 
 /*
  * Create a lock tree.  Should be called only inside DB->open.
