@@ -1698,7 +1698,7 @@ dict_index_build_internal_clust(
 
 	new_index->trx_id_offset = 0;
 
-	if (!(index->type & DICT_IBUF)) {
+	if (!dict_index_is_ibuf(index)) {
 		/* Add system columns, trx id first */
 
 		trx_id_pos = new_index->n_def;
@@ -1784,7 +1784,7 @@ dict_index_build_internal_clust(
 
 	mem_free(indexed);
 
-	ut_ad((index->type & DICT_IBUF)
+	ut_ad(dict_index_is_ibuf(index)
 	      || (UT_LIST_GET_LEN(table->indexes) == 0));
 
 	new_index->cached = TRUE;

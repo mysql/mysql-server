@@ -322,7 +322,7 @@ btr_page_alloc(
 	buf_block_t*	new_block;
 	ulint		new_page_no;
 
-	if (index->type & DICT_IBUF) {
+	if (dict_index_is_ibuf(index)) {
 
 		return(btr_page_alloc_for_ibuf(index, mtr));
 	}
@@ -446,7 +446,7 @@ btr_page_free_low(
 
 	buf_block_modify_clock_inc(block);
 
-	if (index->type & DICT_IBUF) {
+	if (dict_index_is_ibuf(index)) {
 
 		btr_page_free_for_ibuf(index, block, mtr);
 
@@ -2757,7 +2757,7 @@ btr_print_size(
 	fseg_header_t*	seg;
 	mtr_t		mtr;
 
-	if (index->type & DICT_IBUF) {
+	if (dict_index_is_ibuf(index)) {
 		fputs("Sorry, cannot print info of an ibuf tree:"
 		      " use ibuf functions\n", stderr);
 

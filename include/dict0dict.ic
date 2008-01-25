@@ -204,6 +204,22 @@ dict_index_is_unique(
 }
 
 /************************************************************************
+Check whether the index is the insert buffer tree. */
+UNIV_INLINE
+ulint
+dict_index_is_ibuf(
+/*===============*/
+					/* out: nonzero for insert buffer,
+					zero for other indexes */
+	const dict_index_t*	index)	/* in: index */
+{
+	ut_ad(index);
+	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
+
+	return(UNIV_UNLIKELY(index->type & DICT_IBUF));
+}
+
+/************************************************************************
 Gets the number of user-defined columns in a table in the dictionary
 cache. */
 UNIV_INLINE

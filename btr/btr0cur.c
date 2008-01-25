@@ -341,7 +341,7 @@ btr_cur_search_to_nth_level(
 
 	ut_ad(level == 0 || mode == PAGE_CUR_LE);
 	ut_ad(dict_index_check_search_tuple(index, tuple));
-	ut_ad(!(index->type & DICT_IBUF) || ibuf_inside());
+	ut_ad(!dict_index_is_ibuf(index) || ibuf_inside());
 	ut_ad(dtuple_check_typed(tuple));
 
 #ifdef UNIV_DEBUG
@@ -939,7 +939,7 @@ btr_cur_ins_lock_and_undo(
 		return(err);
 	}
 
-	if (dict_index_is_clust(index) && !(index->type & DICT_IBUF)) {
+	if (dict_index_is_clust(index) && !dict_index_is_ibuf(index)) {
 
 		err = trx_undo_report_row_operation(flags, TRX_UNDO_INSERT_OP,
 						    thr, index, entry,
