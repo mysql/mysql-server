@@ -369,12 +369,7 @@ enum trx_dict_op {
 	/** The transaction is creating or dropping an index in an
 	existing table.  In crash recovery, the the data dictionary
 	must be locked, but the table must not be dropped. */
-	TRX_DICT_OP_INDEX = 2,
-	/** The transaction is creating or dropping an index in an
-	existing table.  In crash recovery, the the data dictionary
-	must be locked, but the table must not be dropped.  A lock
-	wait timeout is allowed to occur. */
-	TRX_DICT_OP_INDEX_MAY_WAIT = 3
+	TRX_DICT_OP_INDEX = 2
 };
 
 /**************************************************************************

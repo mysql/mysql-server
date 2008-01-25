@@ -657,6 +657,7 @@ ha_innobase::add_index(
 	trx_start_if_not_started(trx);
 
 	trans_register_ha(user_thd, FALSE, ht);
+	prebuilt->trx->active_trans = 1;
 
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
@@ -694,22 +695,17 @@ err_exit:
 		heap, num_of_idx * sizeof *index);
 
 	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery.  Prevent
-	warnings if row_merge_lock_table() results in a lock wait,
-	i.e., when another transaction is holding a conflicting lock
-	on the table, e.g., because of SELECT ... FOR UPDATE. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Acquire a lock on the table before creating any indexes. */
-	error = row_merge_lock_table(trx, innodb_table,
+	error = row_merge_lock_table(prebuilt->trx, innodb_table,
 				     new_primary ? LOCK_X : LOCK_S);
 
 	if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
 		goto error_handling;
 	}
-
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Latch the InnoDB data dictionary exclusively so that no deadlocks
 	or lock waits can happen in it during an index create operation. */
@@ -772,6 +768,13 @@ err_exit:
 
 	ut_ad(error == DB_SUCCESS);
 
+	/* Commit the data dictionary transaction in order to release
+	the table locks on the system tables.  Unfortunately, this
+	means that if MySQL crashes while creating a new primary key
+	inside row_merge_build_indexes(), indexed_table will not be
+	dropped on crash recovery.  Thus, it will become orphaned. */
+	trx_commit_for_mysql(trx);
+
 	row_mysql_unlock_data_dictionary(trx);
 	dict_locked = FALSE;
 
@@ -783,7 +786,8 @@ err_exit:
 		table lock also on the table that is being created. */
 		ut_ad(indexed_table != innodb_table);
 
-		error = row_merge_lock_table(trx, indexed_table, LOCK_X);
+		error = row_merge_lock_table(prebuilt->trx, indexed_table,
+					     LOCK_X);
 
 		if (UNIV_UNLIKELY(error != DB_SUCCESS)) {
 
@@ -793,7 +797,8 @@ err_exit:
 
 	/* Read the clustered index of the table and build indexes
 	based on this information using temporary files and merge sort. */
-	error = row_merge_build_indexes(trx, innodb_table, indexed_table,
+	error = row_merge_build_indexes(prebuilt->trx,
+					innodb_table, indexed_table,
 					index, num_of_idx, table);
 
 error_handling:
@@ -861,6 +866,7 @@ error_handling:
 			break;
 		}
 
+		trx_commit_for_mysql(prebuilt->trx);
 		row_prebuilt_free(prebuilt, TRUE);
 		prebuilt = row_create_prebuilt(indexed_table);
 
@@ -878,7 +884,6 @@ error_handling:
 	case DB_DUPLICATE_KEY:
 error:
 		prebuilt->trx->error_info = NULL;
-		prebuilt->trx->error_key_num = trx->error_key_num;
 		/* fall through */
 	default:
 		if (new_primary) {
@@ -894,6 +899,9 @@ convert_error:
 
 	mem_heap_free(heap);
 	trx_commit_for_mysql(trx);
+	if (prebuilt->trx) {
+		trx_commit_for_mysql(prebuilt->trx);
+	}
 
 	if (dict_locked) {
 		row_mysql_unlock_data_dictionary(trx);
@@ -1096,21 +1104,19 @@ ha_innobase::final_drop_index(
 	trx_start_if_not_started(trx);
 
 	trans_register_ha(user_thd, FALSE, ht);
+	prebuilt->trx->active_trans = 1;
 
 	trx->mysql_thd = user_thd;
 	trx->mysql_query_str = thd_query(user_thd);
 
 	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery.  Prevent
-	warnings if row_merge_lock_table() results in a lock wait,
-	i.e., when another transaction is holding a conflicting lock
-	on the table, e.g., because of SELECT ... FOR UPDATE. */
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX_MAY_WAIT);
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Lock the table exclusively, to ensure that no active
 	transaction depends on an index that is being dropped. */
 	err = convert_error_code_to_mysql(
-		row_merge_lock_table(trx, prebuilt->table, LOCK_X),
+		row_merge_lock_table(prebuilt->trx, prebuilt->table, LOCK_X),
 		user_thd);
 
 	if (UNIV_UNLIKELY(err)) {
@@ -1127,8 +1133,6 @@ ha_innobase::final_drop_index(
 		row_mysql_unlock_data_dictionary(trx);
 		goto func_exit;
 	}
-
-	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Drop indexes marked to be dropped */
 
@@ -1162,6 +1166,7 @@ ha_innobase::final_drop_index(
 
 func_exit:
 	trx_commit_for_mysql(trx);
+	trx_commit_for_mysql(prebuilt->trx);
 
 	/* Flush the log to reduce probability that the .frm files and
 	the InnoDB data dictionary get out-of-sync if the user runs
