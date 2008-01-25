@@ -525,12 +525,21 @@ int toku_resize_pma_exactly (PMA pma, int oldsize, int newsize) {
     return 0;
 }
 
-static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz, LSN *node_lsn) {
+static int pma_resize_array_nolog(PMA pma, int asksize, int startz, unsigned int *oldn, unsigned int *newn) {
     unsigned int oldN = pma->N;
     unsigned int n = pma_array_size(pma, asksize);
     int r = toku_resize_pma_exactly(pma, startz, n);
     if (r!=0) return r;
     toku_pmainternal_calculate_parameters(pma);
+    *oldn = oldN;
+    *newn = n;
+    return 0;
+}
+
+static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz, LSN *node_lsn) {
+    unsigned int oldN, n;
+    int r = pma_resize_array_nolog(pma, asksize, startz, &oldN, &n);
+    if (r!=0) return r;
     toku_log_resizepma (txn, toku_txn_get_txnid(txn), filenum, offset, oldN, n);
     if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
     return 0;
@@ -839,8 +848,12 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         struct kv_pair *kv = pma->pairs[idx];
         *replaced_v_size = kv->vallen;
         *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
-        r=toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, kv);
-        if (r!=0) return r;
+	{
+	    const BYTESTRING deletedkey  = { kv->keylen, kv_pair_key(kv) };
+	    const BYTESTRING deleteddata = { kv->vallen, kv_pair_val(kv) };
+	    r=toku_log_deleteinleaf(txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, deletedkey, deleteddata);
+	    if (r!=0) return r;
+	}
         if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
         if (v->size == (unsigned int) kv_pair_vallen(kv)) {
             memcpy(kv_pair_val(kv), v->data, v->size);
@@ -849,10 +862,8 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
             pma->pairs[idx] = pma_malloc_kv_pair(pma, k->data, k->size, v->data, v->size);
             assert(pma->pairs[idx]);
         }
-        r = toku_logger_log_phys_add_or_delete_in_leaf(pma->db, txn, diskoff, 0, pma->pairs[idx]);
-	if (txn && node_lsn && r==0) *node_lsn = toku_txn_get_last_lsn(txn);
-        *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
-        return r;
+	/* idx is live here */
+	goto logit_and_update_fingerprint;
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
 	unsigned int newidx;
@@ -867,6 +878,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     pma->n_pairs_present++;
     *replaced_v_size = -1;
     //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
+ logit_and_update_fingerprint:
     {
 	const struct kv_pair *pair = pma->pairs[idx];
 	const BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
@@ -1018,12 +1030,20 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
 
     /* put the first half of pairs into the left pma */
     n = spliti;
-    error = pma_resize_array(txn, filenum, diskoff, pma, n + n/4, 0, lsn); // zeros the elements
+    // Since the new array is smaller than the old one, during recovery we need to do the resize after moving the elements.
+    // But we must actually do the resize first here so we can determine the size.
+    unsigned int oldn_for_logging, newn_for_logging;
+    error = pma_resize_array_nolog(pma, n + n/4, 0, // zeros the elements
+				   &oldn_for_logging, &newn_for_logging);
     assert(error == 0);
     distribute_data(pma->pairs, toku_pma_index_limit(pma), &pairs[0], n, pma);
     {
 	int r = pma_log_distribute(txn, filenum, diskoff, diskoff, spliti, &pairs[0], lsn, lsn);
 	if (r!=0) { toku_free(pairs); return r; }
+	r = toku_log_resizepma(txn, toku_txn_get_txnid(txn), filenum, diskoff, oldn_for_logging, newn_for_logging);
+	if (r!=0) { toku_free(pairs); return r; }
+	if (txn && lsn) *lsn = toku_txn_get_last_lsn(txn);
+
     }
     // Don't have to relocate kvpairs, because these ones are still there.
     pma->n_pairs_present = spliti;
