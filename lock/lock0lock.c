@@ -1758,7 +1758,6 @@ lock_rec_enqueue_waiting(
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
-	case TRX_DICT_OP_INDEX_MAY_WAIT:
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
@@ -3621,7 +3620,6 @@ lock_table_enqueue_waiting(
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
-	case TRX_DICT_OP_INDEX_MAY_WAIT:
 		break;
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:

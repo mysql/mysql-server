@@ -1679,7 +1679,6 @@ trx_undo_mark_as_dict_operation(
 
 	switch (trx_get_dict_operation(trx)) {
 	case TRX_DICT_OP_NONE:
-	case TRX_DICT_OP_INDEX_MAY_WAIT:
 		ut_error;
 	case TRX_DICT_OP_INDEX:
 		/* Do not discard the table on recovery. */

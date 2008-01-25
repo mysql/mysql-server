@@ -162,7 +162,6 @@ trx_get_dict_operation(
 	case TRX_DICT_OP_NONE:
 	case TRX_DICT_OP_TABLE:
 	case TRX_DICT_OP_INDEX:
-	case TRX_DICT_OP_INDEX_MAY_WAIT:
 		return(op);
 	}
 	ut_error;
@@ -192,18 +191,11 @@ trx_set_dict_operation(
 		case TRX_DICT_OP_INDEX:
 		case TRX_DICT_OP_TABLE:
 			goto ok;
-		case TRX_DICT_OP_INDEX_MAY_WAIT:
-			break;
 		}
 		ut_error;
 		break;
 	case TRX_DICT_OP_INDEX:
-		ut_ad(old_op == TRX_DICT_OP_NONE
-		      || old_op == TRX_DICT_OP_INDEX_MAY_WAIT);
-		break;
-	case TRX_DICT_OP_INDEX_MAY_WAIT:
-		ut_ad(old_op == TRX_DICT_OP_NONE
-		      || old_op == TRX_DICT_OP_INDEX);
+		ut_ad(old_op == TRX_DICT_OP_NONE);
 		break;
 	}
 ok:
