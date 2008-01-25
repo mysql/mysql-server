@@ -23,7 +23,8 @@ void close_tree(void) {
     lt = NULL;
 }
 
-void runtest(BOOL dups) {
+void insert_1(BOOL dups, int key_l, int key_r, int data_l, int data_r,
+              const void* kl, const void* dl, const void* kr, const void* dr) {
     DBT _key_left;
     DBT _key_right;
     DBT _data_left;
@@ -33,12 +34,16 @@ void runtest(BOOL dups) {
     DBT* data_left  = dups ? &_data_left : NULL;
     DBT* data_right = dups ? &_data_right: NULL;
 
-    dbt_init    (key_left,  &nums[3], sizeof(nums[3]));
-    dbt_init    (key_right, &nums[6], sizeof(nums[6]));
+    dbt_init    (key_left,  &nums[key_l], sizeof(nums[key_l]));
+    dbt_init    (key_right, &nums[key_r], sizeof(nums[key_r]));
     if (dups) {
-        dbt_init(data_left,  &nums[3], sizeof(nums[3]));
-        dbt_init(data_right, &nums[6], sizeof(nums[6]));
+        dbt_init(data_left,  &nums[data_l], sizeof(nums[data_l]));
+        dbt_init(data_right, &nums[data_r], sizeof(nums[data_r]));
+        if (dl) data_left  = (DBT*)dl;
+        if (dr) data_right = (DBT*)dr;
     }
+    if (kl) key_left   = (DBT*)kl;
+    if (kr) key_right  = (DBT*)kr;
     
 
     setup_tree(dups);
@@ -51,6 +56,22 @@ void runtest(BOOL dups) {
     r = toku_lt_acquire_read_lock(lt, txn, key_left, data_left);
     CKERR(r);
     close_tree();
+}
+
+void runtest(BOOL dups) {
+    int i;
+    const DBT* choices[3];
+    choices[0] = toku_lt_neg_infinity;
+    choices[1] = NULL;
+    choices[2] = toku_lt_infinity;
+    for (i = 0; i < 9; i++) {
+        int a = i / 3;
+        int b = i % 3;
+        if (a > b) continue;
+
+        insert_1(dups, 3, 3, 7, 7, choices[a], choices[a],
+                                   choices[b], choices[b]);
+    }
 }
 
 int main(int argc, const char *argv[]) {
