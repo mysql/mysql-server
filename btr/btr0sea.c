@@ -233,7 +233,7 @@ btr_search_info_update_hash(
 
 	index = cursor->index;
 
-	if (index->type & DICT_IBUF) {
+	if (dict_index_is_ibuf(index)) {
 		/* So many deletes are performed on an insert buffer tree
 		that we do not consider a hash index useful on it: */
 
