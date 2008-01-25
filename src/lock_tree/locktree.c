@@ -933,7 +933,19 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         __toku_lt_is_infinite(key_left))                    return EINVAL;
     if (tree->duplicates  && key_right != data_right &&
         __toku_lt_is_infinite(key_right))                   return EINVAL;
-    assert(FALSE);
+
+    toku_point left;
+    toku_point right;
+    
+    __toku_init_point(&left,   tree,  key_left,  data_left);
+    __toku_init_point(&right,  tree,  key_right, data_right);
+
+    /* Verify left <= right. */
+    if ((key_left != key_right || data_left != data_right) &&
+        __toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
+
+
+    return ENOSYS;
     //We are not ready for this.
     //Not needed for Feb 1 release.
 }

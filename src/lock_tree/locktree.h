@@ -251,6 +251,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                            If (key_left, data_left) >  (key_right, data_right) or
  *                          In a nodup db:      if (key_left) >  (key_right)
  *                          (According to the db's comparison functions.
+ *      ENOSYS:             THis is not yet implemented.  Till it is, it will return ENOSYS,
+ *                            if other errors do not occur first.
  * Asserts:
  *      The EINVAL and ERANGE cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
