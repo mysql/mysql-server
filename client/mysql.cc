@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (C) 2000-2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -729,7 +729,7 @@ static void usage(int version)
   if (version)
     return;
   printf("\
-Copyright (C) 2002 MySQL AB\n\
+Copyright (C) 2000-2008 MySQL AB\n\
 This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
 and you are welcome to modify and redistribute it under the GPL license\n");
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
@@ -1910,7 +1910,8 @@ com_charset(String *buffer __attribute__((unused)), char *line)
 static int
 com_go(String *buffer,char *line __attribute__((unused)))
 {
-  char		buff[200], time_buff[32], *pos;
+  char		buff[200]; /* about 110 chars used so far */
+  char		time_buff[52+3+1]; /* time max + space&parens + NUL */
   MYSQL_RES	*result;
   ulong		timer, warnings;
   uint		error= 0;
@@ -1973,6 +1974,8 @@ com_go(String *buffer,char *line __attribute__((unused)))
 
   do
   {
+    char *pos;
+
     if (quick)
     {
       if (!(result=mysql_use_result(&mysql)) && mysql_field_count(&mysql))
@@ -1988,7 +1991,9 @@ com_go(String *buffer,char *line __attribute__((unused)))
     if (verbose >= 3 || !opt_silent)
       mysql_end_timer(timer,time_buff);
     else
-      time_buff[0]=0;
+      time_buff[0]= '\0';
+
+    /* Every branch must truncate  buff . */
     if (result)
     {
       if (!mysql_num_rows(result) && ! quick)
@@ -2045,6 +2050,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
       fflush(stdout);
     mysql_free_result(result);
   } while (!(err= mysql_next_result(&mysql)));
+
   if (err >= 1)
     error= put_error(&mysql);
 
@@ -3275,6 +3281,11 @@ static ulong start_timer(void)
 }
 
 
+/** 
+  Write as many as 52+1 bytes to buff, in the form of a legible duration of time.
+
+  len("4294967296 days, 23 hours, 59 minutes, 60.00 seconds")  ->  52
+*/
 static void nice_time(double sec,char *buff,bool part_second)
 {
   ulong tmp;
