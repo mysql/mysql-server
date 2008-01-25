@@ -3,13 +3,6 @@
 #include "pma.h"
 #include "mempool.h"
 
-struct pma_cursor {
-    PMA pma;
-    int position; /* -1 if the position is undefined. */
-    struct list next;
-    void **sskey, *ssval; /* Used in dbts.   When a cursor is created, you must provide a void** to return results in. */
-};
-
 struct pma {
     enum typ_tag tag;
     int dup_mode;
@@ -25,7 +18,6 @@ struct pma {
 			  *  Regions of size 128 are 60% full.  Regions of size 256 are 50% full.
 			  *  The density step is 0.10. */
     double ldt_step;     /* lower density threshold step */
-    struct list cursors;
     pma_compare_fun_t compare_fun;
     pma_compare_fun_t dup_compare_fun;
     DB *db;            /* Passed to the compare functions. */
