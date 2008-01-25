@@ -32,10 +32,10 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
    every call (including methods) into the tokudb library gets the lock 
    no internal function should invoke a method through an object */
 
-#if defined(__APPLE__)
-static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
-#else
+#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
 static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
+#else
+static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 static inline void ydb_lock() {
@@ -68,7 +68,7 @@ static int toku_env_set_lg_dir(DB_ENV * env, const char *dir);
 static int toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir);
 
 static inline void env_add_ref(DB_ENV *env) {
-    env->i->ref_count += 1;
+    ++env->i->ref_count;
 }
 
 static inline void env_unref(DB_ENV *env) {
