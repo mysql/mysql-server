@@ -3,7 +3,7 @@
 int main() {
     int r;
     toku_lock_tree* lt = NULL;
-    DB* db;
+    DB* db = (DB*)1;
     BOOL duplicates;
 
     for (duplicates = 0; duplicates < 2; duplicates++) {
