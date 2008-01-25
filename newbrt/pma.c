@@ -297,6 +297,42 @@ static unsigned int pma_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *fou
     }
 }
 
+static unsigned int pma_search_func(PMA pma, brt_search_t *search, int lo, int hi, int *found) {
+    assert(0 <= lo && lo <= hi);
+    if (lo >= hi) {
+        *found = 0;
+        return lo;
+    } else {
+        int mi = (lo + hi)/2;
+        assert(lo <= mi && mi < hi);
+        int omi = mi;
+        while (mi < hi && !kv_pair_inuse(pma->pairs[mi]))
+            mi++;
+        if (mi >= hi)
+            return pma_search_func(pma, search, lo, omi, found);
+        struct kv_pair *kv = kv_pair_ptr(pma->pairs[mi]);
+        DBT x, y;
+        int cmp = search->compare(search, search->k ? toku_fill_dbt(&x, kv_pair_key(kv), kv_pair_keylen(kv)) : 0, search->v ? toku_fill_dbt(&y, kv_pair_val(kv), kv_pair_vallen(kv)) : 0);
+        if (cmp == 0) {
+            if (search->direction == BRT_SEARCH_LEFT)
+                return pma_search_func(pma, search, mi+1, hi, found);
+            else
+                return pma_search_func(pma, search, lo, mi, found);
+        }
+
+        /* we have a match, try to find a better match on the left or right subtrees */
+        int here;
+        if (search->direction == BRT_SEARCH_LEFT)
+            here = pma_search_func(pma, search, lo, mi, found);
+        else
+            here = pma_search_func(pma, search, mi+1, hi, found);
+        if (*found == 0)
+            here = mi;
+        *found = 1;
+        return here;
+    }
+}
+
 // Return the smallest index such that no lower index contains a larger key.
 // This will be in the range 0 (inclusive) to  toku_pma_index_limit(pma) (inclusive).
 // Thus the returned index may not be a valid index into the array if it is == toku_pma_index_limit(pma)
@@ -837,6 +873,21 @@ enum pma_errors toku_pma_lookup (PMA pma, DBT *k, DBT *v) {
     if (found && kv_pair_valid(kv))
         return toku_dbt_set_value(v, kv->key + kv->keylen, kv->vallen, &pma->sval);
     else
+        return DB_NOTFOUND;
+}
+
+int toku_pma_search(PMA pma, brt_search_t *search, DBT *foundk, DBT *foundv) {
+    int found;
+    unsigned int here = pma_search_func(pma, search, 0, pma->N, &found);
+    struct kv_pair *kv = pma->pairs[here];
+    if (found && kv_pair_valid(kv)) {
+        int r = 0;
+        if (foundk)
+            r = toku_dbt_set_value(foundk, kv_pair_key(kv), kv_pair_keylen(kv), &pma->skey);
+        if (r == 0 && foundv)
+            r = toku_dbt_set_value(foundv, kv_pair_val(kv), kv_pair_vallen(kv), &pma->sval);
+        return r;
+    } else
         return DB_NOTFOUND;
 }
 
