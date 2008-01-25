@@ -16,7 +16,7 @@
 /* All functions return 0 on success. */
 
 typedef struct pma *PMA;
-typedef struct pma_cursor *PMA_CURSOR;
+// typedef struct pma_cursor *PMA_CURSOR;
 
 /* compare 2 DBT's. return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
 typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
@@ -107,31 +107,6 @@ int toku_pma_split(TOKUTXN, FILENUM,
  * n_newpairs - the number of key value pairs
  */
 int toku_pma_bulk_insert(TOKUTXN, FILENUM, DISKOFF, PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4sem, u_int32_t *fingerprint, LSN */*node_lsn*/);
-
-/* Move the cursor to the beginning or the end or to a key */
-int toku_pma_cursor (PMA, PMA_CURSOR *, void** /*sskey*/, void ** /*ssval*/); // the sskey and ssval point to variables that hold blocks that can be used to return values for zero'd DBTS.
-int toku_pma_cursor_free (PMA_CURSOR*);
-
-/* get the pma that a pma cursor is bound to */
-int toku_pma_cursor_get_pma(PMA_CURSOR c, PMA *pma);
-int toku_pma_cursor_set_position_last (PMA_CURSOR c);
-int toku_pma_cursor_set_position_first (PMA_CURSOR c);
-int toku_pma_cursor_set_position_next (PMA_CURSOR c); /* Requires the cursor is init'd.  Returns DB_NOTFOUND if we fall off the end. */
-int toku_pma_cursor_set_position_prev (PMA_CURSOR c);
-
-/* get the key and data under the cursor 
-   if even_deleted is 1 then the key and val under the cursor are returned even if 
-   it has been deleted previously */
-int toku_pma_cursor_get_current(PMA_CURSOR c, DBT *key, DBT *val, int even_deleted);
-
-/* move the cursor to the kv pair matching the key and the val if nonzero*/
-int toku_pma_cursor_set_both(PMA_CURSOR c, DBT *key, DBT *val);
-
-/* set the cursor to the smallest key in the pma >= key and the val if nonzero*/
-int toku_pma_cursor_set_range_both(PMA_CURSOR c, DBT *key, DBT *val);
-
-/* delete the key value pair under the cursor, return the size of the pair */
-int toku_pma_cursor_delete_under(PMA_CURSOR /*c*/, int */*kvsize*/, u_int32_t /*rand4sem*/, u_int32_t */*fingerprint*/);
 
 int toku_pma_random_pick(PMA, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen);
 
