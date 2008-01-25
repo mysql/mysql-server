@@ -626,7 +626,8 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
-    if (!ptree || !db || !compare_fun || !dup_compare) return EINVAL;
+    if (!ptree || !db || !compare_fun || !dup_compare ||
+        !user_malloc || !user_free || !user_realloc)    return EINVAL;
     int r;
 
     toku_lock_tree* temp_tree =(toku_lock_tree*)user_malloc(sizeof(*temp_tree));
@@ -719,6 +720,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     if (tree->duplicates  && key_right != data_right &&
         __toku_lt_is_infinite(key_right))                   return EINVAL;
 
+
     int r;
     toku_point left;
     toku_point right;
@@ -727,6 +729,11 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     
     __toku_init_point(&left,   tree,  key_left,  data_left);
     __toku_init_point(&right,  tree,  key_right, data_right);
+
+    /* Verify left <= right. */
+    if ((key_left != key_right || data_left != data_right) &&
+        __toku_lt_point_cmp(&left, &right) > 0)             return EDOM;
+
     __toku_init_query(&query, &left, &right);
     
     /*
