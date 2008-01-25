@@ -8,6 +8,7 @@
 #include "yerror.h"
 #include "../include/db.h"
 #include "log.h"
+#include "brt-search.h"
 
 /* An in-memory Packed Memory Array dictionary. */
 /* There is a built-in-cursor. */
@@ -68,6 +69,8 @@ int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 /* Exposes internals of the PMA by returning a pointer to the guts.
  * Don't modify the returned data.  Don't free it. */
 enum pma_errors toku_pma_lookup (PMA, DBT*, DBT*);
+
+int toku_pma_search(PMA, brt_search_t *, DBT *, DBT *);
 
 /*
  * The kv pairs in PMA are split into two (nearly) equal sized sets.

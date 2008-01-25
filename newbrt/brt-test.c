@@ -2290,13 +2290,470 @@ static void test_brt_delete() {
     test_insert_delete_lookup(512); toku_memory_check_all_free();
 }
 
+static void test_new_brt_cursor_create_close() {
+    int r;
+    BRT brt;
+    int n = 8;
+    BRT_CURSOR cursors[n];
+
+    r = toku_brt_create(&brt); assert(r == 0);
+
+    int i;
+    for (i=0; i<n; i++) {
+        r = toku_brt_cursor(brt, &cursors[i]); assert(r == 0);
+    }
+
+    for (i=0; i<n; i++) {
+        r = toku_brt_cursor_close(cursors[i]); assert(r == 0);
+    }
+
+    r = toku_close_brt(brt); assert(r == 0);
+}
+
+static void test_new_brt_cursor_first(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_first:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
+
+    for (i=0; ; i++) {
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_FIRST, null_txn);
+        if (r != 0) break;
+        int kk;
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+
+        r = toku_brt_cursor_delete(cursor, 0); assert(r == 0);
+    }
+    assert(i == n);
+
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+static void test_new_brt_cursor_last(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_last:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
+
+    for (i=n-1; ; i--) {
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_LAST, null_txn);
+        if (r != 0) break;
+        int kk;
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+
+        r = toku_brt_cursor_delete(cursor, 0); assert(r == 0);
+    }
+    assert(i == -1);
+
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+static void test_new_brt_cursor_next(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_next:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
+
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    for (i=0; ; i++) {
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_NEXT, null_txn);
+        if (r != 0) break;
+        int kk;
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+    }
+    assert(i == n);
+
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+static void test_new_brt_cursor_prev(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_prev:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
+
+    for (i=n-1; ; i--) {
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_PREV, null_txn);
+        if (r != 0) break;
+        int kk;
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+    }
+    assert(i == -1);
+
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+static void test_new_brt_cursor_current(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_current:%d\n", n);
+
+    BRT t;
+    int r;
+    CACHETABLE ct;
+    char fname[]="testbrt.brt";
+    int i;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&t); assert(r == 0);
+    r = toku_brt_set_flags(t, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(t, 4096); assert(r == 0);
+    r = toku_brt_open(t, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    DBT key, val;
+    int k, v;
+
+    for (i=0; i<n; i++) {
+        k = htonl(i); v = htonl(i);
+        r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    BRT_CURSOR cursor;
+
+    r = toku_brt_cursor(t, &cursor); assert(r == 0);
+
+    toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
+    toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
+
+    for (i=0; ; i++) {
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_FIRST, null_txn);
+        if (r != 0) break;
+        int kk;
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        int vv;
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT, null_txn); assert(r == 0);
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT+256, null_txn); assert(r == 0);
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+
+        r = toku_brt_cursor_delete(cursor, 0); assert(r == 0);
+
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT, null_txn); assert(r == DB_KEYEMPTY);
+
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT+256, null_txn); assert(r == 0);
+        assert(key.size == sizeof kk);
+        memcpy(&kk, key.data, key.size);
+        assert(kk == (int) htonl(i));
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == (int) htonl(i));
+    }
+    assert(i == n);
+
+    if (key.data) toku_free(key.data);
+    if (val.data) toku_free(val.data);
+
+    r = toku_brt_cursor_close(cursor); assert(r == 0);
+    r = toku_close_brt(t); assert(r==0);
+    r = toku_cachetable_close(&ct);assert(r==0);
+}
+
+static void test_new_brt_cursor_set_range(int n, int dup_mode) {
+    if (verbose) printf("test_brt_cursor_set_range:%d %d\n", n, dup_mode);
+
+    int r;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+    unlink(fname);
+    r = toku_brt_create(&brt); assert(r == 0);
+    r = toku_brt_set_flags(brt, dup_mode); assert(r == 0);
+    r = toku_brt_set_nodesize(brt, 4096); assert(r == 0);
+    r = toku_brt_open(brt, fname, fname, 0, 1, 1, 0, ct, null_txn, 0); assert(r==0);
+
+    int i;
+    DBT key, val;
+    int k, v;
+
+    /* insert keys 0, 10, 20 .. 10*(n-1) */
+    int max_key = 10*(n-1);
+    for (i=0; i<n; i++) {
+        k = htonl(10*i);
+        v = 10*i;
+        r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    r = toku_brt_cursor(brt, &cursor); assert(r==0);
+
+    /* pick random keys v in 0 <= v < 10*n, the cursor should point
+       to the smallest key in the tree that is >= v */
+    for (i=0; i<n; i++) {
+        int vv;
+
+        v = random() % (10*n);
+        k = htonl(v);
+        toku_fill_dbt(&key, &k, sizeof k);
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_SET_RANGE, null_txn);
+        if (v > max_key)
+            /* there is no smallest key if v > the max key */
+            assert(r == DB_NOTFOUND);
+        else {
+            assert(r == 0);
+            assert(val.size == sizeof vv);
+            memcpy(&vv, val.data, val.size);
+            assert(vv == (((v+9)/10)*10));
+            toku_free(val.data);
+        }
+    }
+
+    r = toku_brt_cursor_close(cursor); assert(r==0);
+
+    r = toku_close_brt(brt); assert(r==0);
+
+    r = toku_cachetable_close(&ct); assert(r==0);
+}
+
+static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
+    if (verbose) printf("test_brt_cursor_set:%d %d %p\n", n, cursor_op, db);
+
+    int r;
+    char fname[]="testbrt.brt";
+    CACHETABLE ct;
+    BRT brt;
+    BRT_CURSOR cursor;
+
+    unlink(fname);
+
+    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
+
+    r = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db); assert(r==0);
+
+    int i;
+    DBT key, val;
+    int k, v;
+
+    /* insert keys 0, 10, 20 .. 10*(n-1) */
+    for (i=0; i<n; i++) {
+        k = htonl(10*i);
+        v = 10*i;
+        r = toku_brt_insert(brt, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
+    }
+
+    r = toku_brt_cursor(brt, &cursor); assert(r==0);
+
+    /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
+    for (i=0; i<n; i++) {
+        int vv;
+
+        v = 10*(random() % n);
+        k = htonl(v);
+        toku_fill_dbt(&key, &k, sizeof k);
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = toku_brt_cursor_get(cursor, &key, &val, cursor_op, null_txn);
+        assert(r == 0);
+        assert(val.size == sizeof vv);
+        memcpy(&vv, val.data, val.size);
+        assert(vv == v);
+        toku_free(val.data);
+        if (cursor_op == DB_SET) assert(key.data == &k);
+    }
+
+    /* try to set cursor to keys not in the tree, all should fail */
+    for (i=0; i<10*n; i++) {
+        if (i % 10 == 0)
+            continue;
+        k = htonl(i);
+        toku_fill_dbt(&key, &k, sizeof k);
+        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_SET, null_txn);
+        assert(r == DB_NOTFOUND);
+        assert(key.data == &k);
+    }
+
+    r = toku_brt_cursor_close(cursor); assert(r==0);
+
+    r = toku_close_brt(brt); assert(r==0);
+
+    r = toku_cachetable_close(&ct); assert(r==0);
+}
+
+static void test_new_brt_cursors(int dup_mode) {
+    test_new_brt_cursor_create_close(dup_mode);   toku_memory_check_all_free();
+    test_new_brt_cursor_first(8, dup_mode);       toku_memory_check_all_free();
+    test_new_brt_cursor_last(8, dup_mode);        toku_memory_check_all_free();
+    test_new_brt_cursor_last(512, dup_mode);      toku_memory_check_all_free();
+    test_new_brt_cursor_next(8, dup_mode);        toku_memory_check_all_free();
+    test_new_brt_cursor_prev(8, dup_mode);        toku_memory_check_all_free();
+    test_new_brt_cursor_current(8, dup_mode);     toku_memory_check_all_free();
+    test_new_brt_cursor_next(512, dup_mode);      toku_memory_check_all_free();
+    test_new_brt_cursor_set_range(512, dup_mode); toku_memory_check_all_free();
+    test_new_brt_cursor_set(512, DB_SET, 0);      toku_memory_check_all_free();
+};
+
 static void brt_blackbox_test (void) {
     toku_memory_check = 1;
-    test_brt_delete_both(512);               toku_memory_check_all_free();
     test_wrongendian_compare(0, 2);          toku_memory_check_all_free();
     test_wrongendian_compare(1, 2);          toku_memory_check_all_free();
     test_wrongendian_compare(1, 257);        toku_memory_check_all_free();
     test_wrongendian_compare(1, 1000);        toku_memory_check_all_free();
+
+    test_new_brt_cursors(0);
+    test_new_brt_cursors(TOKU_DB_DUP+TOKU_DB_DUPSORT);
+    test_brt_delete_both(512);               toku_memory_check_all_free();
+
     test_read_what_was_written();         toku_memory_check_all_free(); if (verbose) printf("did read_what_was_written\n");
     test_cursor_next();                   toku_memory_check_all_free();
     test_multiple_dbs_many();             toku_memory_check_all_free();

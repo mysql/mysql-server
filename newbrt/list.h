@@ -1,3 +1,6 @@
+#ifndef _TOKUDB_LIST_H
+#define _TOKUDB_LIST_H
+
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 // This list is intended to be embedded in other data structures.
@@ -59,7 +62,7 @@ static inline struct list *list_pop_head(struct list *head) {
 static inline void list_move(struct list *newhead, struct list *oldhead) {
     struct list *first = oldhead->next;
     struct list *last = oldhead->prev;
-    assert(!list_empty(oldhead));
+    // assert(!list_empty(oldhead));
     newhead->next = first;
     newhead->prev = last;
     last->next = first->prev = newhead;
@@ -75,6 +78,4 @@ static inline void list_move(struct list *newhead, struct list *oldhead) {
 #define list_struct(p, t, f) ((t*)((char*)(p) - ((char*)&((t*)0)->f)))
 #endif
 
-
-
-
+#endif

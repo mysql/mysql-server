@@ -8,6 +8,7 @@
 #include "pma.h"
 #include "brt.h"
 #include "crc.h"
+#include "list.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -130,7 +131,7 @@ struct brt {
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
 
-    BRT_CURSOR cursors_head, cursors_tail;
+    struct list cursors;
 
     unsigned int nodesize;
     unsigned int flags;
@@ -162,47 +163,7 @@ void toku_brtnode_free (BRTNODE *node);
 #define DEADBEEF ((void*)0xDEADBEEFDEADBEEF)
 #endif
 
-
-#define CURSOR_PATHLEN_LIMIT 32
-struct brt_cursor {
-    BRT brt;
-    int path_len;                       /* -1 if the cursor points nowhere. */
-    BRTNODE path[CURSOR_PATHLEN_LIMIT]; /* Include the leaf (last).    These are all pinned. */
-    int pathcnum[CURSOR_PATHLEN_LIMIT]; /* which child did we descend to from here? */
-    PMA_CURSOR pmacurs;                 /* The cursor into the leaf.  NULL if the cursor doesn't exist. */
-    BRT_CURSOR prev,next;
-    int op; DBT *key; DBT *val;         /* needed when flushing buffers */
-};
-
-/* print the cursor path */
-void toku_brt_cursor_print(BRT_CURSOR cursor);
-
-/* is the cursor path empty? */
-static inline int toku_brt_cursor_path_empty(BRT_CURSOR cursor) {
-    return cursor->path_len == 0;
-}
-
-/*is the cursor path full? */
-static inline int toku_brt_cursor_path_full(BRT_CURSOR cursor) {
-    return cursor->path_len == CURSOR_PATHLEN_LIMIT;
-}
-
-static inline int toku_brt_cursor_active(BRT_CURSOR cursor) {
-    return cursor->path_len > 0;
-}
-
-/* brt has a new root.  add the root to this cursor. */
-void toku_brt_cursor_new_root(BRT_CURSOR cursor, BRT t, BRTNODE newroot, BRTNODE left, BRTNODE right);
-
-/* a brt leaf has split.  modify this cursor if it includes the old node in its path. */
-void toku_brt_cursor_leaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE newright);
-
-/* a brt internal node has expanded.  modify this cursor if it includes the  old node in its path. */
-void toku_brt_cursor_nonleaf_expand(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, int childnum, BRTNODE left, BRTNODE right, struct kv_pair *splitk);
-
-/* a brt internal node has split.  modify this cursor if it includes the old node in its path. */
-void toku_brt_cursor_nonleaf_split(BRT_CURSOR cursor, BRT t, BRTNODE oldnode, BRTNODE left, BRTNODE right);
-
+/* tree command types */
 enum brt_cmd_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
@@ -210,6 +171,7 @@ enum brt_cmd_type {
     BRT_DELETE_BOTH = 3,
 };
 
+/* tree commands */
 struct brt_cmd {
     enum brt_cmd_type type;
     union {
@@ -244,5 +206,13 @@ extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
 unsigned int toku_brtnode_pivot_key_len (BRTNODE, struct kv_pair *); // Given the node
+
+/* a brt cursor is represented as a kv pair in a tree */
+struct brt_cursor {
+    struct list cursors_link;
+    BRT brt;
+    DBT key;
+    DBT val;
+};
 
 #endif

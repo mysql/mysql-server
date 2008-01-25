@@ -10,6 +10,7 @@
 #include "../include/db.h"
 #include "cachetable.h"
 #include "log.h"
+#include "brt-search.h"
 
 int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *, int nodesize, CACHETABLE, TOKUTXN, int(*)(DB*,const DBT*,const DBT*), DB*);
 
