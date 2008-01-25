@@ -3418,7 +3418,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   @param thd     current thread
   @param ref     column reference being resolved
-  @param select  the sub-select that ref is resolved against
+  @param select  the select that ref is resolved against
 
   @note
     The resolution procedure is:
@@ -3478,6 +3478,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   }
 
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+      select->having_fix_field  &&
       select_ref != not_found_item && !group_by_ref)
   {
     /*

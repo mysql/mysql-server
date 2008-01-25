@@ -1,4 +1,4 @@
-/* Copyright (C) 2006 MySQL AB
+/* Copyright (C) 2008 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,32 +13,21 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#if defined(__i386__) || defined(_M_IX86) || defined(HAVE_GCC_ATOMIC_BUILTINS)
+#define make_atomic_add_body(S)                     \
+  v= __sync_fetch_and_add(a, v);
+#define make_atomic_swap_body(S)                    \
+  v= __sync_lock_test_and_set(a, v);
+#define make_atomic_cas_body(S)                     \
+  int ## S sav;                                     \
+  sav= __sync_val_compare_and_swap(a, *cmp, set);   \
+  if (!(ret= (sav == *cmp))) *cmp= sav;
 
 #ifdef MY_ATOMIC_MODE_DUMMY
-#  define LOCK ""
+#define make_atomic_load_body(S)   ret= *a
+#define make_atomic_store_body(S)  *a= v
 #else
-#  define LOCK "lock"
+#define make_atomic_load_body(S)                    \
+  ret= __sync_fetch_and_or(a, 0);
+#define make_atomic_store_body(S)                   \
+  (void) __sync_lock_test_and_set(a, v);
 #endif
-
-#ifdef HAVE_GCC_ATOMIC_BUILTINS
-#include "gcc_builtins.h"
-#elif __GNUC__
-#include "x86-gcc.h"
-#elif defined(_MSC_VER)
-#include "x86-msvc.h"
-#endif
-#endif
-
-#ifdef make_atomic_cas_body
-
-typedef struct { } my_atomic_rwlock_t;
-#define my_atomic_rwlock_destroy(name)
-#define my_atomic_rwlock_init(name)
-#define my_atomic_rwlock_rdlock(name)
-#define my_atomic_rwlock_wrlock(name)
-#define my_atomic_rwlock_rdunlock(name)
-#define my_atomic_rwlock_wrunlock(name)
-
-#endif
-

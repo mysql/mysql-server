@@ -520,6 +520,83 @@ drop table t1;
 drop procedure proc_26977_broken;
 drop procedure proc_26977_works;
 
+#
+# Bug#33618 Crash in sp_rcontext
+#
+
+--disable_warnings
+drop procedure if exists proc_33618_h;
+drop procedure if exists proc_33618_c;
+--enable_warnings
+
+delimiter //;
+
+create procedure proc_33618_h(num int)
+begin
+  declare count1 int default '0';
+  declare vb varchar(30);
+  declare last_row int;
+        
+  while(num>=1) do
+    set num=num-1;
+    begin
+      declare cur1 cursor for select `a` from t_33618;
+      declare continue handler for not found set last_row = 1;
+      set last_row:=0;
+      open cur1;
+      rep1:
+      repeat
+        begin
+          declare exit handler for 1062 begin end;
+          fetch cur1 into vb;
+          if (last_row = 1) then
+            ## should generate a hpop instruction here
+            leave rep1;
+          end if;
+        end;
+        until last_row=1
+      end repeat;
+      close cur1;
+    end;
+  end while;
+end//
+
+create procedure proc_33618_c(num int)
+begin
+  declare count1 int default '0';
+  declare vb varchar(30);
+  declare last_row int;
+        
+  while(num>=1) do
+    set num=num-1;
+    begin
+      declare cur1 cursor for select `a` from t_33618;
+      declare continue handler for not found set last_row = 1;
+      set last_row:=0;
+      open cur1;
+      rep1:
+      repeat
+        begin
+          declare cur2 cursor for select `b` from t_33618;
+          fetch cur1 into vb;
+          if (last_row = 1) then
+            ## should generate a cpop instruction here
+            leave rep1;
+          end if;
+        end;
+        until last_row=1
+      end repeat;
+      close cur1;
+    end;
+  end while;
+end//
+delimiter ;//
+
+show procedure code proc_33618_h;
+show procedure code proc_33618_c;
+
+drop procedure proc_33618_h;
+drop procedure proc_33618_c;
 
 --echo End of 5.0 tests.
 
