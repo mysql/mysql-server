@@ -36,8 +36,8 @@ void runtest(BOOL dups) {
     dbt_init    (key_left,  &nums[3], sizeof(nums[3]));
     dbt_init    (key_right, &nums[6], sizeof(nums[6]));
     if (dups) {
-        dbt_init(data_left, &nums[3], sizeof(nums[3]));
-        dbt_init(data_left, &nums[6], sizeof(nums[6]));
+        dbt_init(data_left,  &nums[3], sizeof(nums[3]));
+        dbt_init(data_right, &nums[6], sizeof(nums[6]));
     }
     
 
