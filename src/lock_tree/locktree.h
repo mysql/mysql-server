@@ -67,7 +67,7 @@ int __toku_lt_point_cmp(void* a, void* b);
     \param user_realloc   A user provided realloc(3) function.
  * Returns:
  *      0:      Success
- *      EINVAL: If (ptree == NULL || db == NULL).
+ *      EINVAL: If any pointer parameter is NULL.
  *              FutureChecks: Try to return EINVAL for already opened db,
  *              or already closed db.
  *      May return other errors due to system calls.
@@ -163,7 +163,7 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                             (tree->db is dupsort && key_right != data_right &&
  *                                  (key_right == toku_lt_infinity ||
  *                                   key_right == toku_lt_neg_infinity))
- *      ERANGE:             In a DB_DUPSORT db:
+ *      EDOM:             In a DB_DUPSORT db:
  *                            If (key_left, data_left) >  (key_right, data_right) or
  *                          In a nodup db:      if (key_left) >  (key_right)
  *                          (According to the db's comparison functions.
