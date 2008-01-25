@@ -65,6 +65,7 @@ create table t1(a tinyint NOT NULL, b tinyint unsigned, c char(5));
 insert into t1 values(NULL,100,'mysql'),(10,-1,'mysql ab'),(500,256,'open source'),(20,NULL,'test');
 alter table t1 modify c char(4);
 alter table t1 add d char(2);
+--error 1048
 update t1 set a=NULL where a=10;
 update t1 set c='mysql ab' where c='test';
 update t1 set d=c;

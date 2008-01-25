@@ -15674,7 +15674,7 @@ static void test_mysql_insert_id()
   myquery(rc);
   res= mysql_insert_id(mysql);
   DIE_UNLESS(res == 0);
-  rc= mysql_query(mysql, "update t2 set f1=NULL where f1=14");
+  rc= mysql_query(mysql, "update t2 set f1=0 where f1=14");
   myquery(rc);
   res= mysql_insert_id(mysql);
   DIE_UNLESS(res == 0);

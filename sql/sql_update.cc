@@ -526,7 +526,9 @@ int mysql_update(THD *thd,
   init_read_record(&info,thd,table,select,0,1);
 
   updated= found= 0;
-  thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
+  /* Generate an error when trying to set a NOT NULL field to NULL. */
+  thd->count_cuted_fields= ignore ? CHECK_FIELD_WARN
+                                  : CHECK_FIELD_ERROR_FOR_NULL;
   thd->cuted_fields=0L;
   thd_proc_info(thd, "Updating");
 
@@ -623,9 +625,9 @@ int mysql_update(THD *thd,
             call then it should be included in the count of dup_key_found
             and error should be set to 0 (only if these errors are ignored).
           */
-          error= table->file->bulk_update_row(table->record[1],
-                                              table->record[0],
-                                              &dup_key_found);
+          error= table->file->ha_bulk_update_row(table->record[1],
+                                                 table->record[0],
+                                                 &dup_key_found);
           limit+= dup_key_found;
           updated-= dup_key_found;
         }
