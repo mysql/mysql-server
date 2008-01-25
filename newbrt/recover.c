@@ -43,7 +43,7 @@ int main (int argc, char *argv[]) {
 	}
 	if (r!=EOF) {
 	    if (r==DB_BADFORMAT) {
-		fprintf(stderr, "Bad log format\n");
+		fprintf(stderr, "Bad log format at record %d\n", entrycount);
 		exit(1);
 	    } else {
 		fprintf(stderr, "Huh? %s\n", strerror(r));

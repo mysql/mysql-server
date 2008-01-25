@@ -213,68 +213,6 @@ int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
     return toku_logger_log_bytes(logger, wbuf->ndone, wbuf->buf);
 }
 
-// Log an insertion of a key-value pair into a particular node of the tree.
-int toku_logger_log_brt_insert_with_no_overwrite (TOKULOGGER logger,
-						 TXNID txnid,
-						 FILENUM fileid,
-						 DISKOFF diskoff,
-						 unsigned char *key,
-						 int keylen,
-						 unsigned char *val,
-						 int vallen) {
-    if (logger->is_panicked) return EINVAL;
-    printf("%s:%d\n", __FILE__, __LINE__);
-    return 0;
-    int buflen=(keylen+vallen+4+4 // key and value
-		+1 // command
-		+8 // lsn
-		+8 // txnid
-		+4 // fileid
-		+8 // diskoff
-		+8 // crc and len
-		);
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init(&wbuf, buf, buflen) ;
-    wbuf_char(&wbuf, LT_INSERT_WITH_NO_OVERWRITE);
-    wbuf_LSN (&wbuf, logger->lsn); logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txnid);
-    wbuf_FILENUM(&wbuf, fileid);
-    wbuf_DISKOFF(&wbuf, diskoff);
-    wbuf_bytes(&wbuf, key, keylen);
-    wbuf_bytes(&wbuf, val, vallen);
-    return toku_logger_finish (logger, &wbuf);
-}
-
-int toku_logger_log_phys_add_or_delete_in_leaf (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair) {
-    assert(is_add==0);
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    assert(db);
-    int keylen = pair->keylen;
-    int vallen = pair->vallen;
-    const int buflen=(keylen+vallen+4+4 // the key and value
-		      +1 // log command
-		      +8 // lsn
-		      +8 // txnid
-		      +8 // fileid
-		      +8 // diskoff
-		      +8 // crc & len
-		      );
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init(&wbuf, buf, buflen) ;
-    wbuf_char(&wbuf, is_add ? LT_INSERT_WITH_NO_OVERWRITE : LT_DELETE);
-    wbuf_LSN (&wbuf, txn->logger->lsn);
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    wbuf_FILENUM(&wbuf, db->i->fileid);
-    wbuf_DISKOFF(&wbuf, diskoff);
-    wbuf_bytes(&wbuf, kv_pair_key_const(pair), keylen);
-    wbuf_bytes(&wbuf, kv_pair_val_const(pair), vallen);
-    return toku_logger_finish(txn->logger, &wbuf);
-}
-
 int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
     int r = toku_log_commit(txn, txn->txnid64, nosync);
@@ -314,31 +252,6 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid
     return 0;
 }
 
-int toku_logger_log_block_rename (TOKULOGGER logger, FILENUM fileid, DISKOFF olddiskoff, DISKOFF newdiskoff, DISKOFF parentdiskoff, int childnum) {
-    if (logger->is_panicked) return EINVAL;
-    const int buflen=(+1 // log command
-		      +8 // lsn
-		      +8 // fileid
-		      +8 // olddiskoff
-		      +8 // newdiskoff
-		      +8 // parentdiskoff
-		      +4 // childnum
-		      +8 // crc & len
-		      );
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init   (&wbuf, buf, buflen) ;
-    wbuf_char   (&wbuf, LT_BLOCK_RENAME);
-    wbuf_LSN    (&wbuf, logger->lsn);
-    logger->lsn.lsn++;
-    wbuf_FILENUM(&wbuf, fileid);
-    wbuf_DISKOFF(&wbuf, olddiskoff);
-    wbuf_DISKOFF(&wbuf, newdiskoff);
-    wbuf_DISKOFF(&wbuf, parentdiskoff);
-    wbuf_int    (&wbuf, childnum);
-    return toku_logger_finish(logger, &wbuf);
-}
-
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
@@ -358,24 +271,6 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     return toku_log_fopen (txn,toku_txn_get_txnid(txn), bs, filenum);
     
 }
-
-
-int toku_logger_log_unlink (TOKUTXN txn, const char *fname) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    const int fnamelen = strlen(fname);
-    const int buflen = (+1 // log command
-			+4 // length of fname
-			+fnamelen
-			+8 // crc & len
-			);
-    unsigned char buf[buflen];
-    struct wbuf wbuf;
-    wbuf_init (&wbuf, buf, buflen);
-    wbuf_char (&wbuf, LT_UNLINK);
-    wbuf_bytes(&wbuf, fname, fnamelen);
-    return toku_logger_finish(txn->logger, &wbuf);
-};
 
 int toku_logger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     if (txn==0) return 0;

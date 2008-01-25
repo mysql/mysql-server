@@ -23,15 +23,11 @@ int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF 
 
 int toku_logger_commit (TOKUTXN txn, int no_sync);
 
-int toku_logger_log_block_rename (TOKULOGGER /*logger*/, FILENUM /*fileid*/, DISKOFF /*olddiskoff*/, DISKOFF /*newdiskoff*/, DISKOFF /*parentdiskoff*/, int /*childnum*/);
-
 int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID /*txnid64*/, TOKULOGGER /*logger*/);
 
 int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
 
 int toku_logger_log_fopen (TOKUTXN, const char * /*fname*/, FILENUM);
-
-int toku_logger_log_unlink (TOKUTXN, const char */*fname*/);
 
 int toku_logger_log_header (TOKUTXN, FILENUM, struct brt_header *);
 
@@ -66,7 +62,6 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *version);
 
 TXNID toku_txn_get_txnid (TOKUTXN);
 LSN   toku_txn_get_last_lsn (TOKUTXN);
-
 static inline int toku_copy_FILENUM(FILENUM *target, FILENUM val) { *target = val; return 0; }
 static inline void toku_free_FILENUM(FILENUM val __attribute__((__unused__))) {}
 

@@ -86,6 +86,8 @@ We wanted a mode in which matching data is overwritten, however
 ``matching'' is defined.  Thus for non-duplicates, a matching pair is
 one with the same key.  For sorted duplicates, a matching pair is one
 with the same key and data.
+
+For high performance, use @code{DB_YESOVERWRITE}.
 @end table
 
 @c man end

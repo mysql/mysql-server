@@ -230,7 +230,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     assert(node->height>0);
     assert(le->childnum <= (unsigned)node->u.n.n_children);
     unsigned int i;
-    for (i=node->u.n.n_children; i+1>le->childnum; i--) {
+    for (i=node->u.n.n_children; i>le->childnum; i--) {
 	node->u.n.childinfos[i]=node->u.n.childinfos[i-1];
 	BRTNODE_CHILD_DISKOFF(node,i) = BRTNODE_CHILD_DISKOFF(node, i-1);
 	node->u.n.buffers[i]      = node->u.n.buffers[i-1];
@@ -370,6 +370,51 @@ int toku_rollback_insertinleaf (struct logtype_insertinleaf *c, TOKUTXN txn)  {
     return r;
 }
 
+
+void toku_recover_deleteinleaf (struct logtype_deleteinleaf *c) {
+    struct cf_pair *pair;
+    int r = find_cachefile(c->filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height==0);
+    VERIFY_COUNTS(node);
+    r = toku_cachetable_get_and_pin(pair->cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
+    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
+
+    VERIFY_COUNTS(node);
+
+    node->log_lsn = c->lsn;
+    r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+    toku_free(c->key.data);
+    toku_free(c->data.data);
+}
+
+int toku_rollback_deleteinleaf (struct logtype_deleteinleaf *c, TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    void *node_v;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, c->filenum, &cf, &brt);
+    assert(r==0);
+    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    if (r!=0) return r;
+    BRTNODE node = node_v;
+    DBT key,data;
+    r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, toku_fill_dbt(&key, c->key.data, c->key.len), toku_fill_dbt(&data, c->data.data, c->data.len));
+    if (r!=0) return r;
+    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
+    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
+    VERIFY_COUNTS(node);
+    node->log_lsn = c->lsn;
+    r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    return r;
+}
 
 // a newbrtnode should have been done before this
 void toku_recover_resizepma (struct logtype_resizepma *c) {
