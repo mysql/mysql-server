@@ -952,133 +952,9 @@ static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) 
     return r;
 }
 
-static inline int keyeq(DBC *c, DBT *a, DBT *b) {
-    DB *db = c->dbp;
-    return db->i->brt->compare_fun(db, a, b) == 0;
-}
-
-static int toku_c_get_next_dup(DBC *c, DBT *key, DBT *data) {
-    int r;
-    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
-    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
-    DBT nkey; memset(&nkey, 0, sizeof nkey); nkey.flags = DB_DBT_REALLOC;
-    DBT nval; memset(&nval, 0, sizeof nval); nval.flags = DB_DBT_REALLOC;
-    r = toku_c_get_noassociate(c, &currentkey, &currentval, DB_CURRENT+256); 
-    if (r != 0) goto finish;
-    r = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT);
-    if (r != 0) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_LAST); if (0) assert(rr == 0); /* sticky */
-        goto finish;
-    }
-    if (!keyeq(c, &currentkey, &nkey)) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV); if (0) assert(rr == 0); /* sticky */
-        r = DB_NOTFOUND;
-        goto finish;
-    }
-    r = toku_c_get_noassociate(c, key, data, DB_CURRENT);
-finish:
-    if (nkey.data) toku_free(nkey.data);
-    if (nval.data) toku_free(nval.data);
-    if (currentkey.data) toku_free(currentkey.data);
-    if (currentval.data) toku_free(currentval.data);
-    return r;
-}
-
-#ifdef DB_PREV_DUP
-
-static int toku_c_get_prev_dup(DBC *c, DBT *key, DBT *data) {
-    int r;
-    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
-    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
-    DBT nkey; memset(&nkey, 0, sizeof nkey); nkey.flags = DB_DBT_REALLOC;
-    DBT nval; memset(&nval, 0, sizeof nval); nval.flags = DB_DBT_REALLOC;
-    r = toku_c_get_noassociate(c, &currentkey, &currentval, DB_CURRENT+256); 
-    if (r != 0) goto finish;
-    r = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV);
-    if (r != 0) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_FIRST); if (0) assert(rr == 0); /* sticky */
-        goto finish;
-    }
-    if (!keyeq(c, &currentkey, &nkey)) {
-        int rr = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT); if (0) assert(rr == 0); /* sticky */
-        r = DB_NOTFOUND;
-        goto finish;
-    }
-    r = toku_c_get_noassociate(c, key, data, DB_CURRENT);
-finish:
-    if (nkey.data) toku_free(nkey.data);
-    if (nval.data) toku_free(nval.data);
-    if (currentkey.data) toku_free(currentkey.data);
-    if (currentval.data) toku_free(currentval.data);
-    return r;
-}
-
-#endif
-
-static int toku_c_get_next_nodup(DBC *c, DBT *key, DBT *data) {
-    int r;
-    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
-    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
-    DBT nkey; memset(&nkey, 0, sizeof nkey); nkey.flags = DB_DBT_REALLOC;
-    DBT nval; memset(&nval, 0, sizeof nval); nval.flags = DB_DBT_REALLOC;
-    r = toku_c_get_noassociate(c, &currentkey, &currentval, DB_CURRENT+256); 
-    if (r != 0)
-        r = toku_c_get_noassociate(c, key, data, DB_FIRST);
-    else {
-        while (r == 0) {
-            r = toku_c_get_noassociate(c, &nkey, &nval, DB_NEXT);
-            if (r != 0) break;
-            if (!keyeq(c, &currentkey, &nkey)) break;
-        }
-        if (r == 0) r = toku_c_get_noassociate(c, key, data, DB_CURRENT);
-    }
-    if (nkey.data) toku_free(nkey.data);
-    if (nval.data) toku_free(nval.data);
-    if (currentkey.data) toku_free(currentkey.data);
-    if (currentval.data) toku_free(currentval.data);
-    return r;
-}
-
-static int toku_c_get_prev_nodup(DBC *c, DBT *key, DBT *data) {
-    int r;
-    DBT currentkey; memset(&currentkey, 0, sizeof currentkey); currentkey.flags = DB_DBT_REALLOC;
-    DBT currentval; memset(&currentval, 0, sizeof currentval); currentval.flags = DB_DBT_REALLOC;
-    DBT nkey; memset(&nkey, 0, sizeof nkey); nkey.flags = DB_DBT_REALLOC;
-    DBT nval; memset(&nval, 0, sizeof nval); nval.flags = DB_DBT_REALLOC;
-    r = toku_c_get_noassociate(c, &currentkey, &currentval, DB_CURRENT+256); 
-    if (r != 0)
-        r = toku_c_get_noassociate(c, key, data, DB_LAST);
-    else {
-        while (r == 0) {
-            r = toku_c_get_noassociate(c, &nkey, &nval, DB_PREV);
-            if (r != 0) break;
-            if (!keyeq(c, &currentkey, &nkey)) break;
-        }
-        if (r == 0) r = toku_c_get_noassociate(c, key, data, DB_CURRENT);
-    }
-    if (nkey.data) toku_free(nkey.data);
-    if (nval.data) toku_free(nval.data);
-    if (currentkey.data) toku_free(currentkey.data);
-    if (currentval.data) toku_free(currentval.data);
-    return r;
-}
-
 static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     HANDLE_PANICKED_DB(c->dbp);
-    int r;
-    u_int32_t op = flag & DB_OPFLAGS_MASK;
-    if (op == DB_NEXT_DUP)
-        r = toku_c_get_next_dup(c, key, data);
-    else if (op == DB_NEXT_NODUP)
-        r = toku_c_get_next_nodup(c, key, data);
-    else if (op == DB_PREV_NODUP) 
-        r = toku_c_get_prev_nodup(c, key, data);
-#ifdef DB_PREV_DUP
-    else if (op == DB_PREV_DUP)
-        r = toku_c_get_prev_dup(c, key, data);
-#endif
-    else
-        r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
+    int r = toku_brt_cursor_get(c->i->c, key, data, flag, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
 }
 
@@ -1240,6 +1116,11 @@ static int toku_c_close(DBC * c) {
     toku_free(c->i);
     toku_free(c);
     return r;
+}
+
+static inline int keyeq(DBC *c, DBT *a, DBT *b) {
+    DB *db = c->dbp;
+    return db->i->brt->compare_fun(db, a, b) == 0;
 }
 
 static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
