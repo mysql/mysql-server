@@ -12,8 +12,6 @@
 
 #include "test.h"
 
-
-
 void db_put(DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
@@ -141,10 +139,6 @@ void test_icdi_search(int n, int dup_mode) {
         r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
         expect_cursor_get_both_range(cursor, k, v, 0);
         expect_cursor_get_current(cursor, k, v);
-#if USE_TDB
-        expect_cursor_get_both_range(cursor, 0, 0, 0);
-        expect_cursor_get_current(cursor, k, v);
-#endif
         r = cursor->c_close(cursor); assert(r == 0);
     } 
 
@@ -155,14 +149,12 @@ void test_icdi_search(int n, int dup_mode) {
     if (n>1)
 	expect_cursor_get_both_range(cursor, htonl(1+n/2), 0, 0);
     expect_cursor_get_both_range(cursor, htonl(1+n), 0, DB_NOTFOUND);
-#if USE_BDB
     r = cursor->c_close(cursor); assert(r == 0);
+
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
-#endif
     for (i=0; i<n; i++) {
         expect_cursor_get(cursor, htonl(1+n/2), htonl(1+n+i));
     }
-
     r = cursor->c_close(cursor); assert(r == 0);
 
     r = db->close(db, 0); assert(r == 0);
