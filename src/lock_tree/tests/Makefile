@@ -94,4 +94,4 @@ make_libs:
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
-	rm -rf dir.*.log dir.*.LIN
+	rm -rf dir.*.log dir.*.lin
