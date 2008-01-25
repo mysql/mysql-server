@@ -1399,15 +1399,15 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tOperation->write_attr("NEXTID", 1);
       tOperation->interpret_exit_ok();
       tOperation->def_label(0);
-      tOperation->interpret_exit_nok(9999);
-      
+      tOperation->interpret_exit_ok();
+      tRecAttrResult = tOperation->getValue("NEXTID");
       if (tConnection->execute( NdbTransaction::Commit ) == -1)
       {
-        if (tConnection->theError.code != 9999)
-          goto error_handler;
+        goto error_handler;
       }
       else
       {
+        range.m_highest_seen = tRecAttrResult->u_64_value();
         DBUG_PRINT("info", 
                    ("Setting next auto increment value (db) to %lu",
                     (ulong) opValue));  
@@ -1420,7 +1420,7 @@ Ndb::opTupleIdOnNdb(const NdbTableImpl* table,
       tRecAttrResult = tOperation->getValue("NEXTID");
       if (tConnection->execute( NdbTransaction::Commit ) == -1 )
         goto error_handler;
-      opValue = tRecAttrResult->u_64_value(); // out
+      range.m_highest_seen = opValue = tRecAttrResult->u_64_value(); // out
       break;
     default:
       goto error_handler;
