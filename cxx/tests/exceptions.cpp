@@ -4,7 +4,14 @@
 #include <unistd.h>
 #include <stdlib.h>
 
+#ifndef DB_DELETE_ANY
+#define DB_DELETE_ANY 0
+#endif
+
+int verbose = 0;
+
 #define TC(expr, expect) ({        \
+  if (verbose) printf("%s expect %d\n", #expr, expect); \
   try {                            \
     expr;                          \
     assert(expect==0); 	           \
@@ -134,7 +141,8 @@ void test_dbc_exceptions () {
     free(val.get_data());
     TC(curs->del(DB_DELETE_ANY), 0);
     TC(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
-    TC(curs->del(DB_DELETE_ANY), DB_NOTFOUND);
+    TC(curs->del(0), DB_KEYEMPTY);
+    TC(curs->del(DB_DELETE_ANY), 0);
     curs->close(); // no deleting cursors.
 }
 
