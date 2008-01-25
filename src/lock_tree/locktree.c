@@ -112,7 +112,7 @@ static int __toku_payload_copy(toku_lock_tree* tree,
         *payload_out = tree->malloc(len_in);
         if (!*payload_out) return errno;
         *len_out     = len_in;
-        memcpy(payload_out, payload_in, len_in);
+        memcpy(*payload_out, payload_in, len_in);
     }
     return 0;
 }
@@ -597,7 +597,8 @@ static void __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
 
     unsigned numfound;
     r = toku_rt_find(rt, &query, 0, &tree->buf, &tree->buflen, &numfound);
-    if (r!=0) {
+    if (r==0) __toku_lt_free_points(tree, &query, numfound);
+    else {
         /*
             To free space the fast way, we need to allocate more space.
             Since we can't, we free the slow way.
@@ -615,7 +616,6 @@ static void __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
             __toku_lt_free_points(tree, &query, numfound);
         } while (TRUE);
     }
-    else __toku_lt_free_points(tree, &query, numfound);
     r = toku_rt_close(rt);
     assert(r == 0);
 }
