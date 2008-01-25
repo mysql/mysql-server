@@ -10,7 +10,7 @@ ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  LIBEXT=dylib
  VGRIND=
- CPPFLAGS = 
+ CPPFLAGS = -Wl,-rpath,..,-rpath,../../range_tree
  SETENV=export DYLD_LIBRARY_PATH=..:../../range_tree ;
 else
  SETTOKUENV=
