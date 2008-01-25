@@ -57,7 +57,7 @@ insert into t_bug25347 values (1),(2),(3);
 flush tables;
 --echo removing and creating
 --remove_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
---write_file  $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI EOF
+--write_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
 EOF
 --exec $MYSQL_CHECK --repair --databases d_bug25347
 --error 130
