@@ -2444,7 +2444,7 @@ static my_bool translog_buffer_flush(struct st_translog_buffer *buffer)
     }
   }
   file->is_sync= 0;
-  if (my_pwrite(file->handler.file, (char*) buffer->buffer,
+  if (my_pwrite(file->handler.file, buffer->buffer,
                 buffer->size, LSN_OFFSET(buffer->offset),
                 log_write_flags))
   {
@@ -2905,7 +2905,7 @@ restart:
   buffer=
     (uchar*) pagecache_read(log_descriptor.pagecache, &file->handler,
                             LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
-                            3, (direct_link ? NULL : (char*) buffer),
+                            3, (direct_link ? NULL : buffer),
                             PAGECACHE_PLAIN_PAGE,
                             (direct_link ?
                              PAGECACHE_LOCK_READ :
@@ -5024,7 +5024,7 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
       We write the result in backward direction with no special sense or
       tricks both directions are equal in complicity
     */
-    for (src_ptr= buffer + lsns_len - LSN_STORE_SIZE;
+    for (src_ptr= ((uchar*) buffer) + lsns_len - LSN_STORE_SIZE;
          src_ptr >= (uchar*) buffer;
          src_ptr-= LSN_STORE_SIZE)
     {
@@ -8300,7 +8300,7 @@ static void dump_datapage(uchar *buffer)
 static void dump_page(uchar *buffer)
 {
   printf("Page by offset %lld\n", opt_offset);
-  if (strncmp(maria_trans_file_magic, buffer,
+  if (strncmp((char*)maria_trans_file_magic, (char*)buffer,
               sizeof(maria_trans_file_magic)) == 0)
   {
     dump_header_page(buffer);

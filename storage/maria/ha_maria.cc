@@ -128,6 +128,13 @@ static MYSQL_SYSVAR_BOOL(page_checksum, maria_page_checksums, 0,
        "Maintain page checksums (can be overridden per table "
        "with PAGE_CHECKSUM clause in CREATE TABLE)", 0, 0, 1);
 
+/* It is only command line argument */
+static MYSQL_SYSVAR_STR(log_dir_path, maria_data_root,
+       PLUGIN_VAR_NOSYSVAR | PLUGIN_VAR_RQCMDARG,
+       "Path to the directory where to store transactional log",
+       NULL, NULL, mysql_real_data_home);
+
+
 static MYSQL_SYSVAR_ULONG(log_file_size, log_file_size,
        PLUGIN_VAR_RQCMDARG,
        "Limit for transaction log size",
@@ -2756,7 +2763,6 @@ static int ha_maria_init(void *p)
   /* TODO: decide if we support Maria being used for log tables */
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
-  maria_data_root= mysql_real_data_home;
   maria_tmpdir= &mysql_tmpdir_list;             /* For REDO */
   res= maria_init() || ma_control_file_create_or_open() ||
     !init_pagecache(maria_pagecache,
@@ -2856,6 +2862,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(block_size),
   MYSQL_SYSVAR(checkpoint_interval),
   MYSQL_SYSVAR(page_checksum),
+  MYSQL_SYSVAR(log_dir_path),
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_purge_type),
   MYSQL_SYSVAR(max_sort_file_size),
@@ -2894,6 +2901,7 @@ static void update_log_file_size(MYSQL_THD thd,
   translog_set_file_size(size);
   *(ulong *)var_ptr= size;
 }
+
 
 static SHOW_VAR status_variables[]= {
   {"Maria_pagecache_blocks_not_flushed", (char*) &maria_pagecache_var.global_blocks_changed, SHOW_LONG_NOFLUSH},

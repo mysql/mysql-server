@@ -725,7 +725,7 @@ extern uchar maria_file_magic[], maria_pack_file_magic[];
 extern uchar maria_uuid[MY_UUID_SIZE];
 extern uint maria_read_vec[], maria_readnext_vec[];
 extern uint maria_quick_table_bits;
-extern const char *maria_data_root;
+extern char *maria_data_root;
 extern uchar maria_zero_string[];
 extern my_bool maria_inited;
 
