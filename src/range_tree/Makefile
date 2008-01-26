@@ -5,7 +5,7 @@ LIBNAMELINEAR=librangetreelinear
 LIBNAME=librangetree
 
 OPTFLAGS = #-O2
-# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+GCOV_FLAGS = -O0 -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CPPFLAGS = -I../../include -I../../newbrt
 #CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE

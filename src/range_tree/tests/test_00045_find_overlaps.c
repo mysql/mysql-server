@@ -59,6 +59,16 @@ void runinsert(int rexpect, toku_range* toinsert) {
     CKERR2(r, rexpect);
 }
 
+
+void verify_overlap(BOOL allow_overlaps) {
+    int r;
+    BOOL allowed;
+
+    r = toku_rt_get_allow_overlaps(tree, &allowed);
+    CKERR(r);
+    assert(allowed == allow_overlaps);
+}
+
 void tests(BOOL allow_overlaps) {
     toku_range expect;
     toku_range query;
@@ -73,8 +83,11 @@ void tests(BOOL allow_overlaps) {
         * Tree: {|0-1|}, insert of of |1-2| success == allow_overlaps
     */
 
-    /* Tree: {|0-1|}, query of |1-2| returns |0-1| */
+    /* Tree: {|0-1|}, query of |1-2| returns |0-1| 
+       In this test, I am also going to verify that the allow_overlaps bit
+       is set appropriately. */
     setup_tree(allow_overlaps, 0, 1, 0);
+    verify_overlap(allow_overlaps);
     runsearch(0, init_range(&query, 1, 2, -1), init_range(&expect, 0, 1, 0));
     close_tree();
 

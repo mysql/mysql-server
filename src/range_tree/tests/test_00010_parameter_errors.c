@@ -21,6 +21,15 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_create(&tree, dummy_cmp, NULL, FALSE, malloc, free, realloc);
     CKERR2(r, EINVAL);
 
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, NULL, free, realloc);
+    CKERR2(r, EINVAL);
+
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, NULL, realloc);
+    CKERR2(r, EINVAL);
+
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, NULL);
+    CKERR2(r, EINVAL);
+
     assert(tree == NULL);
 
     /* Close tests */
@@ -153,6 +162,24 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_close(tree);                                CKERR(r);
 
     tree = NULL;
+
+
+    /* Get allow overlap */
+    BOOL allowed;
+    r = toku_rt_get_allow_overlaps(NULL, &allowed);
+    CKERR2(r, EINVAL);
+    
+    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
+    CKERR(r);
+    assert(tree != NULL);
+
+    r = toku_rt_get_allow_overlaps(tree, NULL);
+    CKERR2(r, EINVAL);
+
+    r = toku_rt_close(tree);                                CKERR(r);
+    tree = NULL;
+
+    /* That's it: clean up and go home */
     toku_free(buf);
     buf = NULL;
     return 0;
