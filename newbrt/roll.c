@@ -235,7 +235,6 @@ void toku_recover_addchild (struct logtype_addchild *le) {
 	BRTNODE_CHILD_DISKOFF(node,i) = BRTNODE_CHILD_DISKOFF(node, i-1);
 	node->u.n.buffers[i]      = node->u.n.buffers[i-1];
 	node->u.n.n_bytes_in_buffer[i]      = node->u.n.n_bytes_in_buffer[i-1];
-	node->u.n.n_cursors[i]              = node->u.n.n_cursors[i-1];
 	if (i!=(unsigned int)node->u.n.n_children) {
 	    node->u.n.childkeys [i]= 	    node->u.n.childkeys [i-1];
 	}
@@ -245,7 +244,6 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     node->u.n.children  [le->childnum] = -1;
     int r= toku_fifo_create(&node->u.n.buffers[le->childnum]); assert(r==0);
     node->u.n.n_bytes_in_buffer[le->childnum] = 0;
-    node->u.n.n_cursors[le->childnum] = 0;
     node->u.n.n_children++;
     node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
