@@ -1181,9 +1181,8 @@ int plugin_init(int *argc, char **argv, int flags)
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
   {
-    if (opt_plugin_load &&
-        plugin_load_list(&tmp_root, argc, argv, opt_plugin_load))
-      goto err;
+    if (opt_plugin_load)
+      plugin_load_list(&tmp_root, argc, argv, opt_plugin_load);
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
   }
