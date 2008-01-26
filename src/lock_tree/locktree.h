@@ -3,24 +3,43 @@
 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+/**
+   \file  locktree.h
+   \brief Lock trees: header and comments
+  
+   Lock trees are toku-struct's for granting long-lived locks to transactions.
+   See more details on the design document.
+*/
+
 #include <assert.h>
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
 
+/** The lock tree structure */
 typedef struct {
+    /** The database for which this locktree will be handling locks */
     DB*                 db;
+    /** Whether the db supports duplicate */
     BOOL                duplicates;
-    toku_range_tree*    mainread;
-    toku_range_tree*    borderwrite;
+    toku_range_tree*    mainread;    /**< See design document */
+    toku_range_tree*    borderwrite; /**< See design document */
     //TODO: Remove this tree and have one per transaction.
     toku_range_tree*    selfread;
     //TODO: Remove this tree and have one per transaction.
     toku_range_tree*    selfwrite;
-    toku_range*         buf;
-    unsigned            buflen;
-    BOOL                panicked;
+    /** A temporary area where we store the results of various find on 
+        the range trees that this lock tree owns */
+    toku_range*         buf;      
+    unsigned            buflen;      /**< The length of buf */
+    /** It is true only if the various range trees are inconsistent with
+        each other, due to some system error like failed malloc. 
+        If the lock tree implementation panicks, it defers to the db
+        panic handler */
+    BOOL                panicked;    
+    /** The key compare function */
     int                 (*compare_fun)(DB*,const DBT*,const DBT*);
+    /** The data compare function */
     int                 (*dup_compare)(DB*,const DBT*,const DBT*);
     /** The user malloc function */
     void*               (*malloc) (size_t);
@@ -31,49 +50,60 @@ typedef struct {
 } toku_lock_tree;
 
 
-extern const DBT* const toku_lt_infinity;
-extern const DBT* const toku_lt_neg_infinity;
+extern const DBT* const toku_lt_infinity;     /**< Special value denoting 
+                                                   +infty */
+extern const DBT* const toku_lt_neg_infinity; /**< Special value denoting 
+                                                   -infty */
 
-/*
- * key_data = (void*)toku_lt_infinity is how we refer to the infinities.
+/**
+   Observe the toku_point, and marvel! 
+   It makes the pair (key, data) into a 1-dimensional point,
+   on which a total order is defined by toku_lt_point_cmp.
+   Additionally, we have points at +infty and -infty as
+   key_payload = (void*) toku_lt_infinity or 
+   key_payload = (void*) toku_lt_neg infinity 
  */
 typedef struct {
-    toku_lock_tree* lt;
-    void*           key_payload;
-    u_int32_t       key_len;
-    void*           data_payload;
-    u_int32_t       data_len;
+    toku_lock_tree* lt;           /**< The lock tree, where toku_lt_point_cmp 
+                                       is defined */
+    void*           key_payload;  /**< The key ... */
+    u_int32_t       key_len;      /**< and its length */
+    void*           data_payload; /**< The data ... */
+    u_int32_t       data_len;     /**< and its length */
 } toku_point;
 
-/*
- * Wrapper of db compare and dup_compare functions.
- * In addition, also uses toku_lt_infinity and toku_lt_neg_infinity.
- * Parameters are of type toku_point.
- *
- * Return values conform to cmp from quicksort(3).
+/**
+   A comparison function between toku_point's.
+   It is implemented as a wrapper of db compare and dup_compare functions,
+   but it checks whether the point is +/- infty.
+   Parameters are of type toku_point.
+   Return values conform to cmp from qsort(3).
  */
 int toku_lt_point_cmp(void* a, void* b);
 
-/*
- * Create a lock tree.  Should be called only inside DB->open.
- * Params:
- *      ptree:          We set *ptree to the newly allocated tree.
- *      db:             This is the db that the lock tree will be performing locking for.
- *      duplicates      whether the db supports duplicates.
- *      compare_fun     the key compare function.
- *      dup_compare     the data compare function.
-    \param user_malloc    A user provided malloc(3) function.
-    \param user_free      A user provided free(3) function.
-    \param user_realloc   A user provided realloc(3) function.
- * Returns:
- *      0:      Success
- *      EINVAL: If any pointer parameter is NULL.
- *              FutureChecks: Try to return EINVAL for already opened db,
- *              or already closed db.
- *      May return other errors due to system calls.
- * Asserts:
- *      The EINVAL cases described will use assert to abort instead of returning errors.
- *      If this library is ever exported to users, we will use error datas instead.
+/**
+   Create a lock tree.  Should be called only inside DB->open.
+
+   \param ptree:         We set *ptree to the newly allocated tree.
+   \param db:            This is the db that the lock tree will be performing 
+                         locking for.
+   \param duplicates     Whether the db supports duplicates.
+   \param compare_fun    The key compare function.
+   \param dup_compare    The data compare function.
+   \param user_malloc    A user provided malloc(3) function.
+   \param user_free      A user provided free(3) function.
+   \param user_realloc   A user provided realloc(3) function.
+   
+   \return
+   - 0:      Success
+   - May return other errors due to system calls.
+
+   A pre-condition is that no pointer parameter can be NULL;
+   this pre-condition is assert(3)'ed.
+   A future check is that it should return EINVAL for already opened db
+   or already closed db. 
+   If this library is ever exported to users, we will use error datas 
+   instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
@@ -83,26 +113,25 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
                    void* (*user_realloc)(void*, size_t));
 
 
-/*
- * Closes/Frees a lock tree.
- * Params:
- *      tree:   The tree to free.
- * Returns:
- *      0:      Success.
- *      EINVAL: If (tree == NULL)
- * Asserts:
- *      The EINVAL cases described will use assert to abort instead of returning errors.
- *      If this library is ever exported to users, we will use error datas instead.
- * Memory:
- *      This will free memory used by the tree, and all keys/datas
- *      from all internal structures.
- */
+/**
+   Closes and frees a lock tree.
+   It will free memory used by the tree, and all keys/datas
+   from all internal structures.
+   It handles the case of transactions that are still active
+   when lt_close is invoked: it can throw away other tables, but 
+   it keeps lists of selfread and selfwrite, and frees the memory
+   pointed to by the DBTs contained in the selfread and selfwrite.
+
+   \param tree:   The tree to free.
+   
+   \return 
+   - 0:      Success.
+
+   It asserts that the tree != NULL. 
+   If this library is ever exported to users, we will use error datas instead.
+
+*/
 int toku_lt_close(toku_lock_tree* tree);
- //NOTE: Must handle case of transactions still active.
- //Need to keep lists of selfread and selfwrite.
- //can throw away other tables, but must go through each
- //of the selfread and selfwrite tables and free the memory
- //pointed to by the DBTs contained.
 
 /*
  * Acquires a read lock on a single key (or key/data).
