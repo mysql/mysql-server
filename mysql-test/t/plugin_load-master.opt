@@ -1,0 +1,3 @@
+$EXAMPLE_PLUGIN_OPT
+"--plugin-load=;EXAMPLE=ha_example.so;"
+--plugin-example-enum-var=e2
