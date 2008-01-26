@@ -38,6 +38,16 @@ int main(int argc, const char *argv[]) {
     /* Try and fail to insert exact same thing. */
     r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
 
+    /* Try and succeed to insert (and delete) similar yet different things */
+    range.right = &nums[6];
+    r = toku_rt_insert(tree, &range);   CKERR(r);
+    r = toku_rt_delete(tree, &range);   CKERR(r);
+    range.right = &nums[5];
+    range.data = &letters[1];
+    r = toku_rt_insert(tree, &range);   CKERR(r);
+    r = toku_rt_delete(tree, &range);   CKERR(r);
+    range.data = &letters[0];
+
     range.left = &nums[2];
     range.right = &nums[6];
     range.data = &letters[0];
