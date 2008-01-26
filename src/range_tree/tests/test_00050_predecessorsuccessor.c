@@ -235,6 +235,26 @@ void tests(BOOL allow_overlaps) {
     runtest(SUCC, init_point(40), FALSE, 0, 0, 0);
 
     close_tree();
+
+
+    /*
+        With other interval that cannot be the predecessor
+        or the successor, but that need to be looked at.  */
+
+    setup_tree(allow_overlaps, FALSE, 0, 0, 0);
+    runinsert(0, init_range(&insert,  5, 7, 0)); 
+    runinsert(0, init_range(&insert, 50, 60, 0)); 
+    runinsert(0, init_range(&insert, 10, 20, 0)); 
+    runinsert(0, init_range(&insert, 30, 40, 0)); 
+    runinsert(0, init_range(&insert,  2, 4, 0)); 
+    runinsert(0, init_range(&insert, 70, 80, 0)); 
+
+    runtest(PRED, init_point(25), TRUE, 10, 20, 0);
+    runtest(PRED, init_point(4), FALSE, 0, 0, 0);
+    runtest(SUCC, init_point(25), TRUE, 30, 40, 0);
+    runtest(SUCC, init_point(95), FALSE, 0, 0, 0);
+    
+    close_tree();
 }
 
 int main(int argc, const char *argv[]) {

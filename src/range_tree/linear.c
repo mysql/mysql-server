@@ -94,8 +94,11 @@ static BOOL __toku_rt_exact(toku_range_tree* tree,
     assert(tree);
     assert(a);
     assert(b);
+    /* The comparison function must be commutative */
+    assert(tree->end_cmp (a->left,  b->left)  != 0 ||
+           tree->end_cmp (a->right, b->right) == 0 );
+
     return (tree->end_cmp (a->left,  b->left)  == 0 &&
-            tree->end_cmp (a->right, b->right) == 0 &&
             tree->data_cmp(a->data,  b->data)  == 0);
 }
 
@@ -145,6 +148,9 @@ int toku_rt_close(toku_range_tree* tree) {
     return 0;
 }
 
+/* It is all too true that this is a worst-case linear implementation, 
+   but great performance gains could be obtained by simply making the 
+   list into move-to-front (see Sleator, Tarjan, CACM 1985) */
 int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
                  toku_range** buf, unsigned* buflen, unsigned* numfound) {
     if (!tree || !query || !buf || !buflen || !numfound) return EINVAL;

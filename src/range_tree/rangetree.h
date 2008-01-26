@@ -36,7 +36,7 @@ typedef struct {
 struct __toku_range_tree_internal {
     //Shared fields:
     /** A comparison function, as in bsearch(3), to compare the end-points of 
-        a range */
+        a range. It is assumed to be commutative. */
     int         (*end_cmp)(void*,void*);  
     /** A comparison function, as in bsearch(3), to compare the data associated
         with a range */
@@ -87,6 +87,7 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
     \param ptree          Points to the new range tree if create is successful 
     \param end_cmp        User provided function to compare end points.
                           Return value conforms to cmp in qsort(3). 
+                          It must be commutative.
     \param data_cmp       User provided function to compare data values.
                           Return value conforms to cmp in qsort(3). 
     \param allow_overlaps Whether ranges in this range tree are permitted 
