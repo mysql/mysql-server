@@ -1,24 +1,35 @@
 TAGS: */*.c */*.h
 	etags */*.c */*.h
 
-SRCDIRS = newbrt src src/tests cxx cxx/tests utils db-benchmark-test db-benchmark-test-cxx
-
-clean:
-	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
+SRCDIRS = newbrt src src/range_tree src/range_tree/tests src/lock_tree src/lock_tree/tests cxx cxx/tests \
+		utils db-benchmark-test db-benchmark-test-cxx
 
 build:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k); done
 
-build-coverage:
-	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k OPTFLAGS="-O0" GCOV_FLAGS="-fprofile-arcs -ftest-coverage"); done
-	(cd utils; make clean; make coverage OPTFLAGS="-O0" GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
+check:
+	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k check); done
 
-test-coverage: test-coverage-newbrt test-coverage-src-tests test-coverage-utils test-coverage-cxx-tests
-test-coverage-newbrt:
+clean:
+	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
+
+# maybe we should have a coverage target in each makefile
+build-coverage:
+	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage"); done
+	(cd utils; $(MAKE) clean; $(MAKE) coverage OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
+
+# this is messy now since we dont have consistent make targets
+check-coverage: check-coverage-newbrt check-coverage-src-tests check-coverage-utils check-coverage-cxx-tests \
+		check-coverage-range-tree-tests check-coverage-lock-tree-tests
+check-coverage-newbrt:
 	(cd newbrt; $(MAKE) -k check DTOOL="")
-test-coverage-src-tests:
+check-coverage-src-tests:
 	(cd src/tests; $(MAKE) -k check.tdb VGRIND="")
-test-coverage-utils:
+check-coverage-utils:
 	(cd utils; $(MAKE) -k test-coverage)
-test-coverage-cxx-tests:
+check-coverage-cxx-tests:
 	(cd cxx/tests; $(MAKE) -k check VGRIND="") 
+check-coverage-range-tree-tests:
+	(cd src/range_tree/tests; $(MAKE) clean; $(MAKE) -k check.lin VGRIND="" OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
+check-coverage-lock-tree-tests:
+	(cd src/lock_tree/tests; $(MAKE) clean; $(MAKE) -k check.lin VGRIND="" OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
