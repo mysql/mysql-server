@@ -94,11 +94,9 @@ static BOOL __toku_rt_exact(toku_range_tree* tree,
     assert(tree);
     assert(a);
     assert(b);
-    /* The comparison function must be commutative */
-    assert(tree->end_cmp (a->left,  b->left)  != 0 ||
-           tree->end_cmp (a->right, b->right) == 0 );
 
     return (tree->end_cmp (a->left,  b->left)  == 0 &&
+            tree->end_cmp (a->right, b->right) == 0 &&
             tree->data_cmp(a->data,  b->data)  == 0);
 }
 
@@ -188,8 +186,10 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     }
     else {
         for (i = 0; i < tree->numelements; i++) {
-            if (__toku_rt_overlap(tree, range, &tree->ranges[i]) ||
-                __toku_rt_overlap(tree, &tree->ranges[i], range)) return EDOM;
+            /* I am going to check that end_cmp is commutative as such: */
+            assert (__toku_rt_overlap(tree, range, &tree->ranges[i]) ==
+                    __toku_rt_overlap(tree, &tree->ranges[i], range));
+            if (__toku_rt_overlap(tree, range, &tree->ranges[i])) return EDOM;
         }
     }
     r = __toku_rt_increase_capacity(tree, tree->numelements + 1);
