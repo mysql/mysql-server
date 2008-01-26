@@ -594,12 +594,22 @@ static int toku_pma_cursor_set_position_next (PMA_CURSOR cursor) {
     return r;
 }
 
-#if 0
-static int toku_pma_cursor_set_position_prev (PMA_CURSOR cursor) {
-    cursor = cursor; assert(0);
-    return 0;
+static int cursor_compare_prev(brt_search_t *so, DBT *x, DBT *y) {
+    PMA pma = so->context;
+    return compare_kv_xy(pma, so->k, so->v, x, y) > 0;
 }
-#endif
+
+static int toku_pma_cursor_set_position_prev (PMA_CURSOR cursor) {
+    DBT newkey; toku_init_dbt(&newkey); newkey.flags = DB_DBT_MALLOC;
+    DBT newval; toku_init_dbt(&newval); newval.flags = DB_DBT_MALLOC;
+    brt_search_t so; brt_search_init(&so, cursor_compare_prev, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->pma);
+    int r = toku_pma_search(cursor->pma, &so, &newkey, &newval);
+    if (r == 0) 
+        pma_cursor_set_key_val(cursor, &newkey, &newval);
+    toku_destroy_dbt(&newkey);
+    toku_destroy_dbt(&newval);
+    return r;
+}
 
 static int cursor_compare_both(brt_search_t *so, DBT *x, DBT *y) {
     PMA pma = so->context;
@@ -731,6 +741,7 @@ static void test_pma_cursor_2 (void) {
     toku_init_dbt(&val); val.flags=DB_DBT_REALLOC;
     r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r==0);
     r=toku_pma_cursor(pma, &c, &skey, &sval); assert(r==0); assert(c!=0);
+    r=toku_pma_cursor_set_position_first(c); assert(r==DB_NOTFOUND);
     r=toku_pma_cursor_set_position_last(c); assert(r==DB_NOTFOUND);
     r=toku_pma_cursor_free(&c); assert(r==0);
     r=toku_pma_free(&pma); assert(r==0);
@@ -778,6 +789,11 @@ static void test_pma_cursor_3 (void) {
 
 
     r=toku_pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+
+    r = toku_pma_cursor_set_position_first(c); assert(r == 0);
+    r = toku_pma_cursor_set_position_prev(c); assert(r == DB_NOTFOUND);
+    r = toku_pma_cursor_set_position_last(c); assert(r == 0);
+    r = toku_pma_cursor_set_position_next(c); assert(r == DB_NOTFOUND);
 
     toku_free(key.data);
     toku_free(val.data);
@@ -906,6 +922,7 @@ static void test_pma_cursor_delete(int n) {
 
     error = toku_pma_cursor_set_position_first(cursor);
     assert(error == 0);
+    error = toku_pma_cursor_set_position_prev(cursor); assert(error == DB_NOTFOUND);
 
     int kk;
     toku_init_dbt(&cursorkey); cursorkey.flags = DB_DBT_MALLOC;
@@ -1015,6 +1032,21 @@ static void test_pma_compare_fun (int wrong_endian_p) {
     }
 
     r=toku_pma_cursor_set_position_next(c); assert(r==DB_NOTFOUND);
+
+    for (i=3; i>=0; i--) {
+	if (i==3) {
+	    r=toku_pma_cursor_set_position_last(c); assert(r==0);
+	} else {
+	    r=toku_pma_cursor_set_position_prev(c); assert(r==0);
+	}
+	r=toku_pma_cursor_get_current(c, &key, &val, 0); assert(r==0);
+	//printf("Got %s, expect %s\n", (char*)key.data, expected_keys[i]);
+	assert(key.size=3); assert(memcmp(key.data,expected_keys[i],3)==0);
+	assert(val.size=4); assert(memcmp(val.data,expected_keys[i],2)==0);
+	assert(memcmp(2+(char*)val.data,"v",2)==0);
+    }
+
+    r=toku_pma_cursor_set_position_prev(c); assert(r==DB_NOTFOUND);
     
     toku_free(key.data);
     toku_free(val.data);
