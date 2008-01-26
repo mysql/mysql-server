@@ -24,7 +24,7 @@
 #include "trnman.h"
 
 extern PAGECACHE *maria_log_pagecache;
-extern const char *maria_data_root;
+extern char *maria_data_root;
 
 #define MAX_REC_LENGTH 1024
 

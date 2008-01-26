@@ -30,6 +30,6 @@ let $mms_copy=0;
 
 -- error 0,1
 remove_file $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control;
-copy_file $MYSQLTEST_VARDIR/master-data/maria_log_control $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control;
+copy_file $MYSQLTEST_VARDIR/master-data/$MARIA_LOG/maria_log_control $MYSQLTEST_VARDIR/tmp/mms_for_$mms_purpose.maria_log_control;
 
 connection default;

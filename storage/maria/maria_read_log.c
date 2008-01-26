@@ -45,9 +45,9 @@ int main(int argc, char **argv)
 
   load_defaults("my", load_default_groups, &argc, &argv);
   default_argv= argv;
+  maria_data_root= (char *)".";
   get_options(&argc, &argv);
 
-  maria_data_root= ".";
   maria_in_recovery= TRUE;
 
   if (maria_init())
@@ -171,6 +171,10 @@ static struct my_option my_long_options[] =
   {"display-only", 'd', "display brief info read from records' header",
    (uchar **) &opt_display_only, (uchar **) &opt_display_only, 0, GET_BOOL,
    NO_ARG,0, 0, 0, 0, 0, 0},
+  {"maria_log_dir_path", 'l',
+    "Path to the directory where to store transactional log",
+    (uchar **) &maria_data_root, (uchar **) &maria_data_root, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "page_buffer_size", 'P', "",
     (uchar**) &opt_page_buffer_size, (uchar**) &opt_page_buffer_size, 0,
     GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT,
@@ -224,7 +228,7 @@ static void usage(void)
        "test scripts that tries to compare files before and after recovery.");
 #endif
   VOID(printf("\nUsage: %s OPTIONS\n", my_progname_short));
-  puts("You need to use one of -o or -a");
+  puts("You need to use one of -d or -a");
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
