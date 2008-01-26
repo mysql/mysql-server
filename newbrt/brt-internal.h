@@ -39,7 +39,6 @@ struct brtnode_nonleaf_childinfo {
     DISKOFF      diskoff;
     FIFO         htable;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
-    unsigned int n_cursors;
 #endif
 };
 
@@ -92,7 +91,6 @@ struct brtnode {
 #define BRTNODE_CHILD_DISKOFF(node,i) ((node)->u.n.children[i])
 	    FIFO            buffers[TREE_FANOUT+1];
 	    unsigned int    n_bytes_in_buffer[TREE_FANOUT+1]; /* how many bytes are in each buffer (including overheads) */
-	    unsigned int    n_cursors[TREE_FANOUT+1];
 #endif
         } n;
 	struct leaf {

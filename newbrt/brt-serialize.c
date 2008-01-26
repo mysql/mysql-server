@@ -284,7 +284,6 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
             result->u.n.children[i]=0; 
             result->u.n.buffers[i]=0; 
             result->u.n.n_bytes_in_buffer[i]=0;
-            result->u.n.n_cursors[i]=0;
         }
 	u_int32_t subtree_fingerprint = rbuf_int(&rc);
 	u_int32_t check_subtree_fingerprint = 0;

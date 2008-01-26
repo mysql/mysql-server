@@ -54,7 +54,6 @@ void toku_brtnode_free (BRTNODE *nodep) {
 	    if (node->u.n.buffers[i]) {
 		toku_fifo_free(&node->u.n.buffers[i]);
 	    }
-            assert(node->u.n.n_cursors[i] == 0);
 	}
     } else {
 	if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
@@ -270,7 +269,6 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 //	    n->u.n.children[i] = 0;
 //	    n->u.n.buffers[i] = 0;
 	    n->u.n.n_bytes_in_buffer[i] = 0;
-	    n->u.n.n_cursors[i] = 0; // This one is simpler to initialize properly
 	}
 	n->u.n.n_bytes_in_buffers = 0;
     } else {
@@ -321,7 +319,6 @@ static void delete_node (BRT t, BRTNODE node) {
 		toku_fifo_free(&node->u.n.buffers[i]);
 	    }
 	    node->u.n.n_bytes_in_buffer[0]=0;
-            assert(node->u.n.n_cursors[i] == 0);
 	}
 	node->u.n.n_bytes_in_buffers = 0;
 	node->u.n.totalchildkeylens=0;
@@ -615,11 +612,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.buffers[cnum] = node->u.n.buffers[cnum-1];
 	BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum-1);
 	node->u.n.n_bytes_in_buffer[cnum] = node->u.n.n_bytes_in_buffer[cnum-1];
-        node->u.n.n_cursors[cnum] = node->u.n.n_cursors[cnum-1];
     }
     BRTNODE_CHILD_DISKOFF(node, childnum)   = childa->thisnodename;
     BRTNODE_CHILD_DISKOFF(node, childnum+1) = childb->thisnodename;
-    node->u.n.n_cursors[childnum+1] = 0;
     fixup_child_fingerprint(node, childnum,   childa, t, txn);
     fixup_child_fingerprint(node, childnum+1, childb, t, txn);
     r=toku_fifo_create(&node->u.n.buffers[childnum]);   assert(r==0); // ??? SHould handle this error case
@@ -998,19 +993,6 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
                                       int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                                       int debug, TOKUTXN txn, unsigned int childnum, int can_push, int *do_push_down) {
     //verify_local_fingerprint_nonleaf(node);
-
-    /* non-buffering mode when cursors are open on this child */
-    if (node->u.n.n_cursors[childnum] > 0) {
-        assert(node->u.n.n_bytes_in_buffer[childnum] == 0);
-        int r = brt_nonleaf_put_cmd_child_node(t, node, cmd, did_split, nodea, nodeb, splitk, debug, txn, childnum, 0);
-	//if (*did_split) {
-	//    verify_local_fingerprint_nonleaf(*nodea);
-	//    verify_local_fingerprint_nonleaf(*nodeb);
-	//} else {
-	//    verify_local_fingerprint_nonleaf(node);
-	//}
-        return r;
-    }
 
     /* try to push the cmd to the subtree if the buffer is empty and pushes are enabled */
     if (node->u.n.n_bytes_in_buffer[childnum] == 0 && can_push && toku_brt_do_push_cmd) {
