@@ -2,33 +2,52 @@
 
 #include "test.h"
 
+int mallocced = 0;
+int failon    = -1;
+
+void* fail_malloc(size_t size) {
+    if (++mallocced == failon) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    return malloc(size);
+}
+
 int main(int argc, const char *argv[]) {
     int r;
     toku_range_tree *tree;
+    BOOL allow_overlaps;
+    BOOL temp;
 
     parse_args(argc, argv);
 
-    /* Test no overlap */
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, FALSE, malloc, free, realloc);
-    CKERR(r);
+    for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+    	r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, allow_overlaps, malloc, free, realloc);
+    	CKERR(r);
     
-    assert(tree!=NULL);
+    	assert(tree!=NULL);
+    	r = toku_rt_get_allow_overlaps(tree, &temp);
+        CKERR(r);
+        assert((temp != 0) == (allow_overlaps != 0));
 
-    r = toku_rt_close(tree);
-    CKERR(r);
+    	r = toku_rt_close(tree);
+    	CKERR(r);
 
-    tree = NULL;
+    	tree = NULL;
+    }
+    
+    for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+        int i;
+        for (i = 1; i <= 2; i++) {
+            mallocced = 0;
+            failon = i;
+            r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, allow_overlaps,
+                               fail_malloc, free, realloc);
+            CKERR2(r, ENOMEM);
 
-    /* Test overlap */
-    r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, TRUE, malloc, free, realloc);
-    CKERR(r);
-
-    assert(tree!=NULL);
-
-    r = toku_rt_close(tree);
-    CKERR(r);
-
-    tree = NULL;
-
+            assert(tree==NULL);
+        }
+    }
     return 0;
 }
+
