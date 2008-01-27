@@ -1625,7 +1625,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
     int is_db_rdonly  = flags & DB_RDONLY;  flags&=~DB_RDONLY;
-    int is_db_unknown = flags & DB_UNKNOWN; flags&=~DB_UNKNOWN;
+    int is_db_unknown = dbtype == DB_UNKNOWN;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;

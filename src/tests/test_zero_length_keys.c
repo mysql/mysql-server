@@ -39,14 +39,16 @@ void walk(DB *db) {
     if (val.data) free(val.data);
 }
 
-void test_insert_zero_length(int n, int dup_mode) {
+void test_insert_zero_length(int n, int dup_mode, const char *dbname) {
     if (verbose) printf("test_insert_zero_length:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
     int r;
+
+    char fname[strlen(DIR) + strlen("/") + strlen(dbname) + 1];
+    sprintf(fname, "%s/%s", DIR, dbname);
 
     unlink(fname);
 
@@ -74,14 +76,16 @@ void test_insert_zero_length(int n, int dup_mode) {
     r = db->close(db, 0); assert(r == 0);
 }
 
-void test_insert_zero_length_keys(int n, int dup_mode) {
+void test_insert_zero_length_keys(int n, int dup_mode, const char *dbname) {
     if (verbose) printf("test_insert_zero_length_keys:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
     int r;
+
+    char fname[strlen(DIR) + strlen("/") + strlen(dbname) + 1];
+    sprintf(fname, "%s/%s", DIR, dbname);
 
     unlink(fname);
 
@@ -116,9 +120,9 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    test_insert_zero_length(32, 0);
-    test_insert_zero_length_keys(32, 0);
-    test_insert_zero_length_keys(32, DB_DUP+DB_DUPSORT);
+    test_insert_zero_length(32, 0, "test0");
+    test_insert_zero_length_keys(32, 0, "test0keys");
+    test_insert_zero_length_keys(32, DB_DUP+DB_DUPSORT, "test0keys_dupsort");
 
     return 0;
 }
