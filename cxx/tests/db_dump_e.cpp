@@ -23,7 +23,7 @@ int dbdump(char *dbfile, char *dbname) {
     Db db(0, 0);
 #endif
     try {
-	r = db.open(0, dbfile, dbname, DB_BTREE, 0, 0777);
+	r = db.open(0, dbfile, dbname, DB_UNKNOWN, 0, 0777);
 	assert(r==0);
     } catch (DbException e) {
 	printf("Cannot open %s:%s due to error %d\n", dbfile, dbname, e.get_errno());

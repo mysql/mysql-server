@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
          }
          case ('s'): {
             g.subdatabase = optarg;
-            goto error;
+            break;
          }
          case ('V'): {
             printf("%s\n", db_version(NULL, NULL, NULL));
@@ -178,7 +178,7 @@ cleanup:
       g.exitcode = EXIT_FAILURE;
       fprintf(stderr, "%s: %s: dbenv->close\n", g.progname, db_strerror(retval));
    }
-   if (g.subdatabase)      free(g.subdatabase);
+   //   if (g.subdatabase)      free(g.subdatabase);
    resend_signals();
 
    return g.exitcode;

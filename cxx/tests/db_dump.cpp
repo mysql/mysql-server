@@ -21,7 +21,7 @@ int dbdump(char *dbfile, char *dbname) {
 #else
     Db db(0, DB_CXX_NO_EXCEPTIONS);
 #endif
-    r = db.open(0, dbfile, dbname, DB_BTREE, DB_UNKNOWN, 0777); 
+    r = db.open(0, dbfile, dbname, DB_UNKNOWN, 0, 0777); 
     if (r != 0) {
         printf("cant open %s:%s\n", dbfile, dbname);
 #if USE_ENV
