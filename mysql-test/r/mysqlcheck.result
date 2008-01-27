@@ -50,6 +50,7 @@ create database d_bug25347;
 use d_bug25347;
 create table t_bug25347 (a int);
 create view v_bug25347 as select * from t_bug25347;
+flush tables;
 removing and creating
 d_bug25347.t_bug25347                              OK
 drop view v_bug25347;
