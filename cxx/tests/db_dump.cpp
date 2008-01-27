@@ -21,7 +21,7 @@ int dbdump(char *dbfile, char *dbname) {
 #else
     Db db(0, DB_CXX_NO_EXCEPTIONS);
 #endif
-    r = db.open(0, dbfile, dbname, DB_BTREE, 0, 0777); 
+    r = db.open(0, dbfile, dbname, DB_BTREE, DB_UNKNOWN, 0777); 
     if (r != 0) {
         printf("cant open %s:%s\n", dbfile, dbname);
 #if USE_ENV
@@ -33,18 +33,19 @@ int dbdump(char *dbfile, char *dbname) {
     Dbc *cursor;
     r = db.cursor(0, &cursor, 0); assert(r == 0);
 
+    Dbt key; key.set_flags(DB_DBT_REALLOC);
+    Dbt val; val.set_flags(DB_DBT_REALLOC);
     for (;;) {
-        Dbt key; key.set_flags(DB_DBT_MALLOC);
-        Dbt val; val.set_flags(DB_DBT_MALLOC);
         r = cursor->get(&key, &val, DB_NEXT);
         if (r != 0) break;
         // printf("%.*s\n", key.get_size(), (char *)key.get_data());
         hexdump(&key);
-        free(key.get_data());
         // printf("%.*s\n", val.get_size(), (char *)val.get_data());
         hexdump(&val);
-        free(val.get_data());
     }
+    if (key.get_data()) free(key.get_data());
+    if (val.get_data()) free(val.get_data());
+
     r = cursor->close(); assert(r == 0);
     r = db.close(0); assert(r == 0);
 #if USE_ENV
