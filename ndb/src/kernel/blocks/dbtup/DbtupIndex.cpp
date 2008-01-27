@@ -246,8 +246,18 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
   return ret;
 }
 
+/*
+ * TUX index contains all tuple versions.  A scan in TUX has scanned
+ * one of them and asks if it can be returned as scan result.  This
+ * depends on trans id, dirty read flag, and savepoint within trans.
+ *
+ * Previously this faked a ZREAD operation and used getPage().
+ * In TUP getPage() is run after ACC locking, but TUX comes here
+ * before ACC access.  Instead of modifying getPage() it is more
+ * clear to do the full check here.
+ */
 bool
-Dbtup::tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId)
+Dbtup::tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savePointId)
 {
   ljamEntry();
   FragrecordPtr fragPtr;
@@ -256,33 +266,73 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 tra
   TablerecPtr tablePtr;
   tablePtr.i = fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  // get page
   PagePtr pagePtr;
-  Uint32 fragPageId = tupAddr >> MAX_TUPLES_BITS;
-  Uint32 pageIndex = tupAddr & ((1 << MAX_TUPLES_BITS ) - 1);
-  // use temp op rec
-  Operationrec tempOp;
-  tempOp.fragPageId = fragPageId;
-  tempOp.pageIndex = pageIndex;
-  tempOp.transid1 = transId1;
-  tempOp.transid2 = transId2;
-  tempOp.savePointId = savePointId;
-  tempOp.optype = ZREAD;
-  tempOp.dirtyOp = 1;
-  if (getPage(pagePtr, &tempOp, fragPtr.p, tablePtr.p)) {
-    /*
-    * We use the normal getPage which will return the tuple to be used
-    * for this transaction and savepoint id.  If its tuple version
-    * equals the requested then we have a visible tuple otherwise not.
-    */
+  pagePtr.i = pageId;
+  ptrCheckGuard(pagePtr, cnoOfPage, page);
+
+  OperationrecPtr currOpPtr;
+  currOpPtr.i = pagePtr.p->pageWord[pageOffset];
+  if (currOpPtr.i == RNIL) {
     ljam();
-    Uint32 read_tupVersion = pagePtr.p->pageWord[tempOp.pageOffset + 1];
-    if (read_tupVersion == tupVersion) {
+    // tuple has no operation, any scan can see it
+    return true;
+  }
+  ptrCheckGuard(currOpPtr, cnoOfOprec, operationrec);
+
+  const bool sameTrans =
+    transId1 == currOpPtr.p->transid1 &&
+    transId2 == currOpPtr.p->transid2;
+
+  bool res = false;
+  OperationrecPtr loopOpPtr = currOpPtr;
+
+  if (!sameTrans) {
+    ljam();
+    if (!dirty) {
       ljam();
-      return true;
+      if (currOpPtr.p->prevActiveOp == RNIL) {
+        ljam();
+        // last op - TUX makes ACC lock request in same timeslice
+        res = true;
+      }
+    }
+    else {
+      // loop to first op (returns false)
+      find_savepoint(loopOpPtr, 0);
+      const Uint32 op_type = loopOpPtr.p->optype;
+
+      if (op_type != ZINSERT) {
+        ljam();
+        // read committed version from the page
+        const Uint32 origVersion = pagePtr.p->pageWord[pageOffset + 1];
+        if (origVersion == tupVersion) {
+          ljam();
+          res = true;
+        }
+      }
     }
   }
-  return false;
+  else {
+    ljam();
+    // for own trans, ignore dirty flag
+
+    if (find_savepoint(loopOpPtr, savePointId)) {
+      ljam();
+      const Uint32 op_type = loopOpPtr.p->optype;
+
+      if (op_type != ZDELETE) {
+        ljam();
+        // check if this op has produced the scanned version
+        Uint32 loopVersion = loopOpPtr.p->tupVersion;
+        if (loopVersion == tupVersion) {
+          ljam();
+          res = true;
+        }
+      }
+    }
+  }
+
+  return res;
 }
 
 // ordered index build
