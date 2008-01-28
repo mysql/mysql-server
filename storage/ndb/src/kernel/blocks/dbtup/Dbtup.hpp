@@ -1558,7 +1558,7 @@ public:
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savePointId);
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savepointId);
 
   int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI, 
 		    Uint32 local_key, Uint32 flags);
@@ -3041,16 +3041,15 @@ inline
 bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
 {
   while (true) {
-    if (savepointId > loopOpPtr.p->savePointId) {
+    if (savepointId > loopOpPtr.p->savepointId) {
       jam();
       return true;
     }
-    // note 5.0 has reversed next/prev pointers
-    loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+    loopOpPtr.i = loopOpPtr.p->prevActiveOp;
     if (loopOpPtr.i == RNIL) {
       break;
     }
-    ptrCheckGuard(loopOpPtr, cnoOfOprec, operationrec);
+    c_operation_pool.getPtr(loopOpPtr);
   }
   return false;
 }

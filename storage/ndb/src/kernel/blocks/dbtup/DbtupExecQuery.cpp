@@ -358,21 +358,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       dirty= false;
     }
 
-    OperationrecPtr prevOpPtr = currOpPtr;  
-    bool found= false;
-    while(true) 
-    {
-      if (savepointId > currOpPtr.p->savepointId) {
-	found= true;
-	break;
-      }
-      if (currOpPtr.p->is_first_operation()){
-	break;
-      }
-      prevOpPtr= currOpPtr;
-      currOpPtr.i = currOpPtr.p->prevActiveOp;
-      c_operation_pool.getPtr(currOpPtr);
-    }
+    bool found= find_savepoint(currOpPtr, savepointId);
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
