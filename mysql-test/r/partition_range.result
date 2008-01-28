@@ -1,4 +1,15 @@
 drop table if exists t1, t2;
+create table t1 (a int)
+partition by range (a)
+( partition p0 values less than (maxvalue));
+alter table t1 add partition (partition p1 values less than (100000));
+ERROR HY000: MAXVALUE can only be used in last partition definition
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (a) (PARTITION p0 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+drop table t1;
 create table t1 (a int unsigned)
 partition by range (a)
 (partition pnull values less than (0),

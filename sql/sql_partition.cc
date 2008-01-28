@@ -4313,7 +4313,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       {
         my_error(ER_NO_BINLOG_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
-      } 
+      }
+      if (tab_part_info->defined_max_value)
+      {
+        my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
       if (no_new_partitions == 0)
       {
         my_error(ER_ADD_PARTITION_NO_NEW_PARTITION, MYF(0));
