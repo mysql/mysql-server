@@ -36,7 +36,15 @@ void test_dup_flags(int dup_flags) {
 #endif
     assert(r == 0);
     u_int32_t flags; r = db->get_flags(db, &flags); assert(r == 0); assert(flags == dup_flags);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); 
+#if USE_TDB
+    if (r != 0 && dup_flags == DB_DUP) {
+        if (verbose) printf("%s:%d: WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+        r = db->close(db, 0); assert(r == 0);
+        return;
+    }
+#endif
+    assert(r == 0);
     r = db->close(db, 0); assert(r == 0);
 
     /* verify dup flags match */
