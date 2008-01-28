@@ -125,7 +125,7 @@ do_malloc(Uint32 pages, InitChunk* chunk)
 }
 
 Uint32
-Ndbd_mem_manager::log2(Uint32 input)
+Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
   input = input | (input >> 8);
   input = input | (input >> 4);
@@ -400,7 +400,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
   Int32 i;
   Uint32 start;
   Uint32 cnt = * pages;
-  Uint32 list = log2(cnt - 1);
+  Uint32 list = ndb_log2(cnt - 1);
   
   assert(cnt);
   assert(list <= 16);
@@ -438,7 +438,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
    *   search in other lists...
    */
 
-  Int32 min_list = log2(min - 1);
+  Int32 min_list = ndb_log2(min - 1);
   assert((Int32)list >= min_list);
   for (i = list - 1; i >= min_list; i--) 
   {
@@ -470,7 +470,7 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 void
 Ndbd_mem_manager::insert_free_list(Uint32 start, Uint32 size)
 {
-  Uint32 list = log2(size) - 1;
+  Uint32 list = ndb_log2(size) - 1;
   Uint32 last = start + size - 1;
 
   Uint32 head = m_buddy_lists[list];
