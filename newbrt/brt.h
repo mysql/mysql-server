@@ -27,8 +27,8 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v);
-int toku_brt_delete (BRT brt, DBT *k);
-int toku_brt_delete_both (BRT brt, DBT *k, DBT *v);
+int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
+int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN);
 int toku_close_brt (BRT);
 int toku_dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
@@ -49,7 +49,7 @@ int toku_verify_brt (BRT brt);
 typedef struct brt_cursor *BRT_CURSOR;
 int toku_brt_cursor (BRT, BRT_CURSOR*);
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
-int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags);
+int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);
 
 typedef struct brtenv *BRTENV;

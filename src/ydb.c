@@ -960,7 +960,7 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag
 
 static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
     HANDLE_PANICKED_DB(c->dbp);
-    int r = toku_brt_cursor_delete(c->i->c, flags);
+    int r = toku_brt_cursor_delete(c->i->c, flags, c->i->txn ? c->i->txn->i->tokutxn : 0);
     return r;
 }
 
@@ -1202,7 +1202,7 @@ static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t f
         toku_free(search_val.data);
     } 
     //Do the actual deleting.
-    r = toku_brt_delete(db->i->brt, key);
+    r = toku_brt_delete(db->i->brt, key, txn ? txn->i->tokutxn : 0);
     return r;
 }
 
