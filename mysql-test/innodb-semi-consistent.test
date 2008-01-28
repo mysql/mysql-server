@@ -1,6 +1,10 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
 # basic tests of semi-consistent reads
 
 connect (a,localhost,root,,);
