@@ -1070,7 +1070,7 @@ insert into t1 values (1);
 insert into t1 values (1);
 insert into t2 values (1),(2);
 delete t2 from t2;
-ERROR 23000: Duplicate entry '1' for key 1
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
 select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
 count(*)
 2
@@ -1740,10 +1740,10 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	70
+Innodb_rows_deleted	71
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1082
+Innodb_rows_inserted	1084
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	885
