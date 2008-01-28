@@ -1687,7 +1687,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     return r;
 }
 
-int toku_brt_delete(BRT brt, DBT *key) {
+int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
     BRT_CMD brtcmd;
     DBT val;
@@ -1697,18 +1697,18 @@ int toku_brt_delete(BRT brt, DBT *key) {
     brtcmd.type = BRT_DELETE;
     brtcmd.u.id.key = key;
     brtcmd.u.id.val = &val;
-    r = brt_root_put_cmd(brt, &brtcmd, 0);
+    r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
 
-int toku_brt_delete_both(BRT brt, DBT *key, DBT *val) {
+int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
     BRT_CMD brtcmd;
 
     brtcmd.type = BRT_DELETE_BOTH;
     brtcmd.u.id.key = key;
     brtcmd.u.id.val = val;
-    r = brt_root_put_cmd(brt, &brtcmd, 0);
+    r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
 
@@ -2292,16 +2292,16 @@ int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, int get_flags, T
     return r;
 }
 
-int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags) {
+int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN txn) {
     if ((flags & ~DB_DELETE_ANY) != 0)
         return EINVAL;
     if (brt_cursor_not_set(cursor))
         return EINVAL;
     int r = 0;
     if (!(flags & DB_DELETE_ANY))
-        r = brt_cursor_current(cursor, DB_CURRENT, 0, 0, 0);
+        r = brt_cursor_current(cursor, DB_CURRENT, 0, 0, txn);
     if (r == 0)
-        r = toku_brt_delete_both(cursor->brt, &cursor->key, &cursor->val);
+        r = toku_brt_delete_both(cursor->brt, &cursor->key, &cursor->val, txn);
     return r;
 }
 
