@@ -200,16 +200,24 @@ parse_arguments() {
 
 #
 # First, try to find BASEDIR and ledir (where mysqld is)
-# 
+#
+
+if echo '@pkgdatadir@' | grep '^@prefix@' > /dev/null
+then
+  relpkgdata=`echo '@pkgdatadir@' | sed -e 's,^@prefix@,,' -e 's,^/,,' -e 's,^,./,'`
+else
+  # pkgdatadir is not relative to prefix
+  relpkgdata='@pkgdatadir@'
+fi
 
 MY_PWD=`pwd`
 # Check for the directories we would expect from a binary release install
-if test -f ./share/mysql/english/errmsg.sys -a -x ./bin/mysqld
+if test -f "$relpkgdata"/english/errmsg.sys -a -x ./bin/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where bin, share and data are
   ledir=$MY_BASEDIR_VERSION/bin		# Where mysqld is
 # Check for the directories we would expect from a source install
-elif test -f ./share/mysql/english/errmsg.sys -a -x ./libexec/mysqld
+elif test -f "$relpkgdata"/english/errmsg.sys -a -x ./libexec/mysqld
 then
   MY_BASEDIR_VERSION=$MY_PWD		# Where libexec, share and var are
   ledir=$MY_BASEDIR_VERSION/libexec	# Where mysqld is
@@ -218,6 +226,7 @@ else
   MY_BASEDIR_VERSION=@prefix@
   ledir=@libexecdir@
 fi
+
 
 #
 # Second, try to find the data directory
