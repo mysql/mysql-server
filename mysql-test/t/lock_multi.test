@@ -463,6 +463,5 @@ drop table t1;
 disconnect waiter;
 connection default;
 show status like 'Table_locks_waited';
-#show global status like "Table_locks_waited";
 
 --echo End of 5.1 tests
