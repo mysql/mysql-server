@@ -785,12 +785,16 @@ error:
    return EXIT_FAILURE;
 }
 
+#ifndef DB_YESOVERWRITE
+#define DB_YESOVERWRITE 0
+#endif
+
 int insert_pair(DBT* key, DBT* data)
 {
    DB_ENV* dbenv = g.dbenv;
    DB* db = g.db;
 
-   int retval = db->put(db, NULL, key, data, g.overwritekeys ? 0 : DB_NOOVERWRITE);
+   int retval = db->put(db, NULL, key, data, g.overwritekeys ? DB_YESOVERWRITE : DB_NOOVERWRITE);
    if (retval != 0) {
       //TODO: Check for transaction failures/etc.. retry if necessary.
       ERROR(retval, "DB->put");

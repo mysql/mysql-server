@@ -69,12 +69,15 @@ void test_dup_key(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
     if (maybe_do_db_dup_warning(r, dup_mode)) {
-        r = db->close(db, 0); assert(r == 0);
-	return;
+        r = db->close(db, 0); assert(r == 0); return;
     }
     assert(r == 0);
     r = db->set_pagesize(db, 4096); assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); 
+    if (maybe_do_db_dup_warning(r, dup_mode)) {
+        r = db->close(db, 0); assert(r == 0); return;
+    }
+    assert(r == 0);
 
     db_put(db, 0, 0, put_flags, rexpect);
     db_put(db, 0, 1, put_flags, rexpectdupdup);
@@ -117,12 +120,15 @@ void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     db->set_errfile(db, stderr);
     r = db->set_flags(db, dup_mode);
     if (maybe_do_db_dup_warning(r, dup_mode)) {
-        r = db->close(db, 0); assert(r == 0);
-	return;
+        r = db->close(db, 0); assert(r == 0); return;
     }
     assert(r == 0);
     r = db->set_pagesize(db, 4096); assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
+    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); 
+    if (maybe_do_db_dup_warning(r, dup_mode)) {
+        r = db->close(db, 0); assert(r == 0); return;
+    }
+    assert(r == 0);
 
     db_put(db, 0, 0, put_flags, rexpect);
     db_put(db, 0, 0, put_flags, rexpectdupdup);

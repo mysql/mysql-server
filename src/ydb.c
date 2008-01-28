@@ -1631,6 +1631,14 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     if (is_db_excl && !is_db_create) return EINVAL;
     if (dbtype==DB_UNKNOWN && is_db_excl) return EINVAL;
 
+    /* tokudb supports no duplicates and sorted duplicates only */
+    unsigned int tflags;
+    r = toku_brt_get_flags(db->i->brt, &tflags);
+    if (r != 0) 
+        return r;
+    if ((tflags & TOKU_DB_DUP) && !(tflags & TOKU_DB_DUPSORT))
+        return EINVAL;
+
     if (db_opened(db))
         return EINVAL;              /* It was already open. */
     
@@ -1843,12 +1851,10 @@ static int toku_db_set_flags(DB *db, u_int32_t flags) {
     int r = toku_brt_get_flags(db->i->brt, &tflags);
     if (r!=0) return r;
     
-    /* we support no duplicates and sorted duplicates */
-    if (flags) {
-        if (flags != (DB_DUP + DB_DUPSORT))
-            return EINVAL;
-        tflags += TOKU_DB_DUP + TOKU_DB_DUPSORT;
-    }
+    if (flags & DB_DUP)
+        tflags += TOKU_DB_DUP;
+    if (flags & DB_DUPSORT)
+        tflags += TOKU_DB_DUPSORT;
     r = toku_brt_set_flags(db->i->brt, tflags);
     return r;
 }
