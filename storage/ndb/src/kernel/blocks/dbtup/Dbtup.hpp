@@ -1558,7 +1558,7 @@ public:
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savePointId);
 
   int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI, 
 		    Uint32 local_key, Uint32 flags);
@@ -2421,6 +2421,7 @@ private:
 
   void setNullBits(Uint32*, Tablerec* regTabPtr);
   bool checkNullAttributes(KeyReqStruct * const, Tablerec* const);
+  bool find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId);
   bool setup_read(KeyReqStruct* req_struct,
 		  Operationrec* regOperPtr,
 		  Fragrecord* regFragPtr,
@@ -3035,5 +3036,23 @@ Dbtup::get_dd_ptr(PagePtr* pagePtr,
 
 NdbOut&
 operator<<(NdbOut&, const Dbtup::Tablerec&);
+
+inline
+bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
+{
+  while (true) {
+    if (savepointId > loopOpPtr.p->savePointId) {
+      jam();
+      return true;
+    }
+    // note 5.0 has reversed next/prev pointers
+    loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+    if (loopOpPtr.i == RNIL) {
+      break;
+    }
+    ptrCheckGuard(loopOpPtr, cnoOfOprec, operationrec);
+  }
+  return false;
+}
 
 #endif
