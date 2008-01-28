@@ -46,7 +46,8 @@ bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
 bool           force_unique   = true;
-
+bool           duplicates     = false;
+bool           dupsort        = false;
 
 int main (int argc, char *argv[]) {
    int ch;
@@ -60,7 +61,7 @@ int main (int argc, char *argv[]) {
    
    strcpy(sort_delimiter, "");
 
-   while ((ch = getopt(argc, argv, "PpTo:r:m:M:n:uVhHfFd:s:")) != EOF) {
+   while ((ch = getopt(argc, argv, "PpTo:r:m:M:n:uVhHfFd:s:DS")) != EOF) {
       switch (ch) {
          case ('P'): {
             printableonly  = true;
@@ -172,6 +173,8 @@ int main (int argc, char *argv[]) {
             printf("%s\n", db_version(NULL, NULL, NULL));
             return EXIT_SUCCESS;
          }
+         case 'D': duplicates = true; break;
+         case 'S': dupsort = true; break;
          case ('?'):
          default: {
             return (usage());
@@ -238,12 +241,15 @@ int main (int argc, char *argv[]) {
       return usage();
    }
    if (header) {
-      printf("VERSION=3\n"
-             "format=%s\n"
-             "type=btree\n"
-             //"db_pagesize=4096\n"  //Don't write pagesize which would be useless.
-             "HEADER=END\n",
-             g.plaintext ? "print" : "bytevalue");
+      printf("VERSION=3\n");
+      printf("format=%s\n", g.plaintext ? "print" : "bytevalue");
+      printf("type=btree\n");
+      // printf("db_pagesize=%d\n", 4096);  //Don't write pagesize which would be useless.
+      if (duplicates)
+         printf("duplicates=%d\n", duplicates);
+      if (dupsort)
+         printf("dupsort=%d\n", dupsort);
+      printf("HEADER=END\n");
    }
    if (outputkeys) generate_keys();
    if (footer)     printf("DATA=END\n");
@@ -257,7 +263,7 @@ error:
 int usage()
 {
    fprintf(stderr,
-           "usage: %s [-PpTuVhHfF] [-o output] [-r seed] [-m minsize] [-M limitsize]\n"
+           "usage: %s [-PpTuVhHfFDS] [-o output] [-r seed] [-m minsize] [-M limitsize]\n"
            "       %*s[-n numpairs] [-d delimiter] [-s delimiter]\n",
            g.progname, (int)strlen(g.progname) + 1, "");
    return EXIT_FAILURE;
