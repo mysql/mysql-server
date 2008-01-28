@@ -16,11 +16,9 @@ let $engine_type= memory;
 
 eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
 
-# FIXME Replace the following, when "if" for mysqltest is available
 let $run= `SELECT @NO_REFRESH`;
-while ($run)
+if ($run)
 {
-
     # Create some objects needed in many testcases
     USE test;
     --source suite/funcs_1/include/memory_tb1.inc
@@ -39,7 +37,5 @@ while ($run)
   
     # These tables are needed for the stored procedure testscases
     --source suite/funcs_1/include/sp_tb.inc
-
-    let $run= 0;
 }
 

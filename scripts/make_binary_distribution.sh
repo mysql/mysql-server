@@ -23,7 +23,8 @@
 #  Note that the structure created by this script is slightly different from
 #  what a normal "make install" would produce. No extra "mysql" sub directory
 #  will be created, i.e. no "$prefix/include/mysql", "$prefix/lib/mysql" or
-#  "$prefix/share/mysql".
+#  "$prefix/share/mysql".  This is because the build system explicitly calls
+#  make with pkgdatadir=<datadir>, etc.
 #
 #  In GNU make/automake terms
 #
@@ -218,11 +219,13 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
   # If we compiled with gcc, copy libgcc.a to the dist as libmygcc.a
   # ----------------------------------------------------------------------
   if [ x"@GXX@" = x"yes" ] ; then
-    gcclib=`@CC@ @CFLAGS@ --print-libgcc-file`
-    if [ $? -ne 0 ] ; then
-      echo "Warning: Couldn't find libgcc.a!"
-    else
+    gcclib=`@CC@ @CFLAGS@ --print-libgcc-file 2>/dev/null` || true
+    if [ -z "$gcclib" ] ; then
+      echo "Warning: Compiler doesn't tell libgcc.a!"
+    elif [ -f "$gcclib" ] ; then
       $CP $gcclib $DEST/lib/libmygcc.a
+    else
+      echo "Warning: Compiler result '$gcclib' not found / no file!"
     fi
   fi
 

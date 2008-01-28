@@ -53,26 +53,26 @@ ENGINE = MEMORY
 #    con2:       SELECT COUNT(*) <> 1 FROM t1 WHERE f1 = 1 (expect to get ER_NO_SUCH_TABLE)
 # Subtest 3A (one connection, no PREPARE/EXECUTE)
 #    connection  action
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
 #    default:    DROP TABLE t1
 #    default:    DROP TABLE t1 (expect to get ER_BAD_TABLE_ERROR)
 # Subtest 3B (one connection, use PREPARE/EXECUTE)
 #    connection  action
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
 #    default:    DROP TABLE t1
 #    default:    DROP TABLE t1 (expect to get ER_BAD_TABLE_ERROR)
 # Subtest 3C (two connections, no PREPARE/EXECUTE)
 #    connection  action
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY
-#    con2:       CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY
+#    con2:       CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
 #    default:    DROP TABLE t1
 #    con2:       DROP TABLE t1 (expect to get ER_BAD_TABLE_ERROR)
 # Subtest 3D (two connections, use PREPARE/EXECUTE)
 #    connection  action
-#    default:    CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY
-#    con2:       CREATE TABLE t1 (f1 BIGINT) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
+#    default:    CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY
+#    con2:       CREATE TABLE t1 (f1 BIGINT NOT NULL) ENGINE=MEMORY (expect to get ER_TABLE_EXISTS_ERROR)
 #    default:    DROP TABLE t1
 #    con2:       DROP TABLE t1 (expect to get ER_BAD_TABLE_ERROR)
 CREATE TABLE t1 (f1 BIGINT, f2 BIGINT, UNIQUE(f1), UNIQUE (f2)) ENGINE=MEMORY;
