@@ -21,6 +21,7 @@ let $message= Section 3.1.10 - CALL checks:;
 --source include/show_msg80.inc
 
 
+USE db_storedproc;
 
 # ------------------------------------------------------------------------------
 let $message= Testcase 3.1.10.2 + 3.1.10.5:;
@@ -73,11 +74,12 @@ connect (user2_2, localhost, user_2, , db_storedproc);
 --source suite/funcs_1/include/show_connection.inc
 
 # no privileges exist
---error 1370
+--error ER_PROCACCESS_DENIED_ERROR
 CALL sp31102();
 SELECT fn31105( 9 );
 
 # now 'add' EXECUTE to INVOKER
+--echo connection default;
 connection default;
 USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
@@ -97,6 +99,7 @@ SELECT fn31105( 9 );
 disconnect user2_3;
 
 # now 'remove' SELECT from INVOKER
+--echo connection default;
 connection default;
 USE db_storedproc;
 --source suite/funcs_1/include/show_connection.inc
@@ -144,7 +147,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
 CALL fn1();
 
 # cleanup
@@ -170,7 +173,7 @@ BEGIN
 END//
 delimiter ;//
 
---error 1305
+--error ER_SP_DOES_NOT_EXIST
   SELECT sp1();
 
 # cleanup
@@ -184,26 +187,32 @@ let $message=
 Ensure that the ROW_COUNT() SQL function always returns the correct number of
 rows affected by the execution of a stored procedure.;
 --source include/show_msg80.inc
+# Note(mleich): Information taken from a comments in
+#     Bug#21818 Return value of ROW_COUNT() is incorrect for
+#               ALTER TABLE, LOAD DATA
+#     ROW_COUNT() is -1 following any statement which is not DELETE, INSERT
+#     or UPDATE.
+#     Also, after a CALL statement, ROW_COUNT() will return the value of the
+#     last statement in the stored procedure.
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp_ins_1;
 DROP PROCEDURE IF EXISTS sp_ins_3;
 DROP PROCEDURE IF EXISTS sp_upd;
 DROP PROCEDURE IF EXISTS sp_ins_upd;
+DROP PROCEDURE IF EXISTS sp_del;
+DROP PROCEDURE IF EXISTS sp_with_rowcount;
 --enable_warnings
 
 CREATE TABLE temp(f1 CHAR(20),f2 CHAR(25),f3 DATE,f4 INT,f5 CHAR(25),f6 INT);
 INSERT INTO temp SELECT * FROM t10;
 
 delimiter //;
-#FIXME: add to proc: SELECT row_count() 'ins';
 CREATE PROCEDURE sp_ins_1()
 BEGIN
   INSERT INTO temp VALUES ('abc', 'abc', '20051003', 100, 'uvw', 1000);
 END//
 
-
-#FIXME: add to proc: SELECT row_count() 'ins_3';
 CREATE PROCEDURE sp_ins_3()
 BEGIN
   INSERT INTO temp VALUES  ('abc', 'xyz', '19490523',   100, 'uvw', 1000);
@@ -211,26 +220,11 @@ BEGIN
   INSERT INTO temp VALUES  ('abc', 'xyz', '2005-10-24', 100, 'uvw', 1000);
 END//
 
-# FIXME: add to proc:  SELECT row_count() AS 'updated';
 CREATE PROCEDURE sp_upd()
 BEGIN
   UPDATE temp SET temp.f1 = 'updated' WHERE temp.f1 ='abc';
 END//
 
-# FIXME: use commented proc
-# CREATE PROCEDURE sp_ins_upd()
-# BEGIN
-#    BEGIN
-#       INSERT INTO temp VALUES  ('qwe', 'abc', '1989-11-09', 100, 'uvw', 1000);
-#       INSERT INTO temp VALUES  ('qwe', 'xyz', '1998-03-26', 100, 'uvw', 1000);
-#       INSERT INTO temp VALUES  ('qwe', 'abc', '2000-11-09', 100, 'uvw', 1000);
-#       INSERT INTO temp VALUES  ('qwe', 'abc', '2005-11-07', 100, 'uvw', 1000);
-#    END;
-#    SELECT row_count() AS 'insert "qwe"';
-#    SELECT COUNT( f1 ), f1 FROM temp GROUP BY f1;
-#    UPDATE temp SET temp.f1 = 'updated_2' WHERE temp.f1 ='qwe' AND temp.f2 = 'abc';
-#    SELECT row_count() AS 'update "qwe" AND "abc"';
-# END//
 CREATE PROCEDURE sp_ins_upd()
 BEGIN
    BEGIN
@@ -242,31 +236,70 @@ BEGIN
    SELECT COUNT( f1 ), f1 FROM temp GROUP BY f1;
    UPDATE temp SET temp.f1 = 'updated_2' WHERE temp.f1 ='qwe' AND temp.f2 = 'abc';
 END//
+
+CREATE PROCEDURE sp_del()
+BEGIN
+  DELETE FROM temp WHERE temp.f1 ='qwe' OR temp.f1 = 'updated_2';
+END//
+
+CREATE PROCEDURE sp_with_rowcount()
+BEGIN
+   BEGIN
+      INSERT INTO temp VALUES  ('qwe', 'abc', '1989-11-09', 100, 'uvw', 1000),
+                               ('qwe', 'xyz', '1998-03-26', 100, 'uvw', 1000),
+                               ('qwe', 'abc', '2000-11-09', 100, 'uvw', 1000),
+                               ('qwe', 'xyz', '2005-11-07', 100, 'uvw', 1000);
+   END;
+   SELECT row_count() AS 'row_count() after insert';
+   SELECT row_count() AS 'row_count() after select row_count()';
+   SELECT f1,f2,f3 FROM temp ORDER BY f1,f2,f3;
+   UPDATE temp SET temp.f1 = 'updated_2' WHERE temp.f2 = 'abc';
+   SELECT row_count() AS 'row_count() after update';
+   SELECT f1,f2,f3 FROM temp ORDER BY f1,f2,f3;
+   DELETE FROM temp WHERE temp.f1 = 'updated_2';
+   SELECT row_count() AS 'row_count() after delete';
+END//
 delimiter ;//
 
 CALL sp_ins_1();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+--sorted_result
+SELECT * FROM temp;
 
 CALL sp_ins_3();
-#FIXME: check is 1 correct here? I expect 3 for 3 inserted rows inside the procedure
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+--sorted_result
+SELECT * FROM temp;
 
 CALL sp_upd();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+--sorted_result
+SELECT * FROM temp;
 
-#FIXME: check is 3 correct here?  I expect 7 for 4 inserted and then 3 updated rows inside the procedure
 CALL sp_ins_upd();
 SELECT row_count();
-SELECT * FROM temp ORDER BY f4;
+--sorted_result
+SELECT * FROM temp;
+
+CALL sp_del();
+SELECT row_count();
+--sorted_result
+SELECT * FROM temp;
+
+DELETE FROM temp;
+CALL sp_with_rowcount();
+SELECT row_count();
+--sorted_result
+SELECT * FROM temp;
+
 
 # cleanup
 DROP PROCEDURE sp_ins_1;
 DROP PROCEDURE sp_ins_3;
 DROP PROCEDURE sp_upd;
 DROP PROCEDURE sp_ins_upd;
+DROP PROCEDURE sp_del;
+DROP PROCEDURE sp_with_rowcount;
 DROP TABLE temp;
 
 

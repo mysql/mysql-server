@@ -4,6 +4,7 @@
 # 2007-10-05 mleich
 #    1. Fix for Bug#31237 Test "ndb_views" fails because of differing order ...
 #    2. Cleanup of test
+# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ... 
 
 let $message= ! Attention: The file with the expected results is not
               |            thoroughly checked.
@@ -13,24 +14,19 @@ let $message= ! Attention: The file with the expected results is not
 --source include/show_msg80.inc
 
 # As long as
-# Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill
-# is not fixed, we must switch the ps-protocol for some statements off.
+# Bug#32285: mysqltest, --ps-protocol, strange output, float/double/real with zerofill
+# is not fixed, we must switch the ps-protocol for some statements off (formerly bug#11589).
 # If this bug is fixed, please
 # 1. set the following variable to 0
 # 2. check, if the test passes
-# 3. remove the workarounds
-let $have_bug_11589= 1;
-if ($have_bug_11589)
+# 3. remove the workarounds 
+let $have_bug_32285= 1;
+if ($have_bug_32285)
 {
    let $message= There are some statements where the ps-protocol is switched off.
-                 Bug#11589: mysqltest, --ps-protocol, strange output, float/double/real with zerofill;
+                 Bug#32285: mysqltest, --ps-protocol, strange output, float/double/real with zerofill;
    --source include/show_msg80.inc
 }
-
-let $message= ! Attention: The file with the expected results suffers from
-Bug#10713: mysqldump includes database in create view and referenced tables;
---source include/show_msg80.inc
-
 
 # The sub testcases are nearly independend. That is the reason why
 # we do not want to abort after the first error.
@@ -112,7 +108,7 @@ insert into tb2 (f59,f60,f61) values (109,108,104);
 INSERT INTO tb2 (f59,f60) VALUES( 299,899 );
 INSERT INTO tb2 (f59,f60) VALUES( 242,79  );
 INSERT INTO tb2 (f59,f60) VALUES( 424,89  );
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
@@ -225,10 +221,11 @@ Insert into t1  values (500,9866);
     select * FROM v1 order by f59 limit 0,10;
 
 #(15)
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
     CREATE or REPLACE VIEW v1 AS select *
     FROM test.tb2 WITH LOCAL CHECK OPTION ;
     select * FROM v1 order by f59,f60,f61,f62,f63,f64 limit 0,50;
@@ -237,6 +234,7 @@ if ($have_bug_11589)
 CREATE or REPLACE VIEW v1 AS select *
     FROM test.tb2 WITH CASCADED CHECK OPTION ;
     select * FROM v1 order by f59,f60,f61,f62,f63,f64 limit 0,10;
+--horizontal_results
 --enable_ps_protocol
 
 #(17)
@@ -814,11 +812,13 @@ CREATE TABLE t1 (f1 BIGINT);
 INSERT INTO t1 VALUES(1);
 CREATE VIEW test.v1 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
+--sorted_result
 SELECT * FROM test.v1;
 # Switch the algorithm
 CREATE OR REPLACE ALGORITHM = TEMPTABLE VIEW test.v1
 AS SELECT * FROM t1 limit 2;
 SHOW CREATE VIEW test.v1;
+--sorted_result
 SELECT * FROM test.v1;
 # Switch the base table
 CREATE OR REPLACE VIEW test.v1 AS SELECT * FROM tb2 order by f59 limit 2;
@@ -827,7 +827,9 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM test.v1 order by f59,f60,f61,f62,f63,f64,f65;
+--horizontal_results
 --enable_ps_protocol
 # Switch the SELECT but not the base table
 CREATE OR REPLACE VIEW test.v1 AS SELECT F59 FROM tb2;
@@ -862,11 +864,12 @@ let $message= Testcase 3.3.1.15 ;
 Drop table if exists test.v1 ;
 --enable_warnings
 CREATE OR REPLACE view test.v1 as select * from tb2;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 ORDER BY f59,f60,f61 LIMIT 2;
+--sorted_result
+SELECT * FROM test.v1;
 --enable_ps_protocol
 Drop view test.v1 ;
 
@@ -1039,12 +1042,15 @@ let $message= Testcase 3.3.1.22 ;
 --disable_warnings
 DROP VIEW  IF EXISTS v1;
 --enable_warnings
-CREATE VIEW test.v1( product ) AS SELECT f59*f60 From tb2;
-SELECT * FROM test.v1 WHERE product IS NOT NULL ORDER BY product LIMIT 2;
+CREATE VIEW test.v1( product ) AS SELECT f59*f60 From tb2 WHERE f59 < 3;
+--sorted_result
+SELECT * FROM test.v1;
 CREATE OR REPLACE VIEW test.v1( product ) AS SELECT 1*2;
-SELECT * FROM test.v1 LIMIT 2;
+--sorted_result
+SELECT * FROM test.v1;
 CREATE OR REPLACE VIEW test.v1( product ) AS SELECT USER();
-SELECT * FROM test.v1 LIMIT 2;
+--sorted_result
+SELECT * FROM test.v1;
 Drop view if exists test.v1 ;
 
 
@@ -1163,7 +1169,8 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-Select * from test.v1 order by f59, f60, f61 limit 2;
+--sorted_result
+Select * from test.v1;
 --enable_ps_protocol
 Drop view test.v1 ;
 
@@ -1198,12 +1205,15 @@ create database test2 ;
 Create view test2.v2 AS Select * from test.tb2 limit 50,50;
 use test2 ;
 Create view v1 AS Select * from test.tb2 limit 50 ;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 Select * from v1 order by f59,f60,f61,f62,f63,f64,f65;
+--horizontal_results
 --enable_ps_protocol
+--sorted_result
 Select * from test2.v2 ;
 Drop view if exists test2.v1 ;
 Drop view if exists test2.v2 ;
@@ -1247,6 +1257,7 @@ INSERT INTO test.t1 VALUES( 445, 765 );
 Create or replace view test.v1
 AS SELECT test.t1.F59, test.tb2.F60
 FROM test.tb2 JOIN test.t1 ON test.tb2.F59 = test.t1.F59     ;
+--sorted_result
 Select * from test.v1;
 Drop view test.v1 ;
 
@@ -1271,6 +1282,7 @@ INSERT INTO t1 VALUES( 445, 765 );
 CREATE VIEW test2.v1
 AS SELECT test.tb2.F59, test.tb2.F60
 FROM test.tb2 INNER JOIN test2.t1 ON tb2.f59 = t1.f59;
+--sorted_result
 Select * from test2.v1;
 
 Use test;
@@ -1585,7 +1597,7 @@ let $message= Testcase 3.3.1.41 ;
 ###############################################################################
 # Testcase 3.3.1.41: Ensure that a view definition within a stored procedure
 #                    definition cannot include references to any of the stored
-#                    procedure’s parameters.
+#                    procedures parameters.
 ###############################################################################
 --disable_warnings
 Drop view if exists test.v1 ;
@@ -1648,20 +1660,24 @@ CREATE VIEW test.v1 AS SELECT f59,f60 FROM test.tb2;
 
 INSERT INTO test.v1 values(122,432);
 
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM test.tb2 where f59 = 122 and f60 = 432 limit 0,20;
+--horizontal_results
 --enable_ps_protocol
 
 UPDATE test.v1 SET f59 = 3000 WHERE test.v1.f59 = 122 ;
 
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM test.tb2  where f59 = 3000 limit 0,20;
+--horizontal_results
 --enable_ps_protocol
 
 DELETE FROM test.v1
@@ -1712,21 +1728,25 @@ CREATE VIEW test.v1 AS SELECT * FROM test.tb2 where f59 = 04;
 UPDATE test.v1 SET f59 = 30 where F59 = 04 ;
 --disable_info
 SELECT * FROM test.v1   where f59 = 30 order by f59;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM test.tb2        where f59 = 30 ;
+--horizontal_results
 --enable_ps_protocol
 
 --enable_info
 UPDATE tb2 SET f59 = 100 where f59 = 30 ;
 --disable_info
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM tb2 where f59 = 100 ;
+--horizontal_results
 --enable_ps_protocol
 SELECT * FROM test.v1 order by f59 ;
 
@@ -1984,10 +2004,10 @@ let $message= Testcase 3.3.1.49A ;
 #       The annoying redundant
 #       eval INSERT INTO t1_results VALUES (@v3_to_v1_options,@statement,
 #                                           @v3_to_v1_violation,$mysql_errno);
-#       could not be put into a file to be sourced because of
+#       could not be put into a file to be sourced because of the closed 
 #       Bug#10267 mysqltest, wrong number of loops when a script is sourced
 #                 within a loop
-#
+# To be implemented later.
 
 USE test;
 --disable_warnings
@@ -2298,11 +2318,13 @@ DROP VIEW  IF EXISTS test.v1;
 #                    AS SELECT * FROM <table name>.
 ###############################################################################
 CREATE VIEW test.v1 AS SELECT * FROM test.tb2;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 order by f59 limit 5;
+--vertical_results
+SELECT * FROM test.v1 order by f59,f60,f61 ;
+--horizontal_results
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2327,7 +2349,9 @@ if ($have_bug_11589)
 {
 --disable_ps_protocol
 }
-SELECT * FROM test.v1 order by f59,f60,f61 limit 20;
+--vertical_results
+SELECT * FROM test.v1 order by f59,f60,f61 ;
+--horizontal_results
 --enable_ps_protocol
 drop view test.v1 ;
 ###############################################################################
@@ -2684,11 +2708,13 @@ SELECT * FROM test.v1 order by f59 limit 0,10;
 
 ALTER VIEW test.v1 AS  SELECT *
 FROM test.tb2 WHERE test.tb2.f59 = 242 ;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM test.v1 order by f59 limit 0,10;
+--horizontal_results
 --enable_ps_protocol
 
 Drop view test.v1 ;
@@ -3165,11 +3191,13 @@ Create view test.v1 AS SELECT f59,f60,f61 FROM tb2  ;
 INSERT INTO test.v1 ( f59 , f60 ) values (2005,0101) ;
 --disable_info
 
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM tb2 where f59 = 2005 and f60 = 0101 ;
+--horizontal_results
 --enable_ps_protocol
 SELECT f59,f60 FROM test.v1 where f59 = 2005 and f60 = 0101 ;
 DELETE FROM tb2 where f59 = 2005 and f60 = 0101 ;
@@ -3194,11 +3222,13 @@ CREATE VIEW test.v1 AS SELECT f59,f60,f61 FROM tb2  ;
 UPDATE test.v1 SET f59 = 8 WHERE f59 = 780 and f60 = 105;
 --disable_info
 
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM tb2 where f59 = 8 and f60 = 105;
+--horizontal_results
 --enable_ps_protocol
 SELECT f59,f60 FROM test.v1 where f59 = 8 and f60 = 105 ;
 
@@ -3222,11 +3252,13 @@ CREATE VIEW test.v1 AS SELECT f59,f60,f61 FROM tb2 ;
 UPDATE test.v1 SET f59 = 891 WHERE f60 = 105 ;
 --disable_info
 
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM tb2 where f59 = 891 and f60 = 105;
+--horizontal_results
 --enable_ps_protocol
 SELECT f59,f60 FROM test.v1 where f59 = 891 and f60 = 105 ;
 
@@ -3779,23 +3811,6 @@ SET @variant6= 'CREATE VIEW v1 AS SELECT (SELECT f60 FROM t2 WHERE f59=19) AS f6
 # For a WHERE clause sub query that refers to a table also referenced in a
 # FROM clause 3.3.2.18
 SET @variant7= 'CREATE VIEW v1 AS SELECT f61 FROM v2';
-# Attention: The attempt to UPDATE the next VIEW fails like expected,
-#            but the error message
-#                ERROR 1093 (HY000) : You can't specify target table 'v1' for
-#                update in FORM clause"
-#            is wrong.
-#            The server must deliver ERROR 1288 (ER_NON_UPDATABLE_TABLE).
-#            Bug#10773 Incorrect message is displayed while updating a view
-# mleich FIXME: Remove the comment above, replace
-#                  --error ER_NON_UPDATABLE_TABLE,ER_UPDATE_TABLE_USED
-#               with
-#                  --error ER_NON_UPDATABLE_TABLE
-#               and update the file with expected results when the
-#               Bug#10773 is fixed.
-# For a reference to a non-updateable view 3.3.2.19
-let $message= Some server responses suffer from
-Bug#10773 Incorrect message is displayed while updating a view;
---source include/show_msg80.inc
 SET @variant8= 'CREATE VIEW v1 AS SELECT f59 AS f61 FROM t1 WHERE f60 IN (SELECT f59 FROM t1)';
 # For ALGORITHM = TEMPTABLE          3.3.2.20
 SET @variant9= 'CREATE ALGORITHM = TEMPTABLE VIEW v1 (f61) AS select f60 from t1';
@@ -3819,9 +3834,7 @@ while ($num)
    UPDATE v1 SET f61=1007;
    --error ER_NON_UPDATABLE_TABLE
    DELETE FROM v1;
-
    DROP VIEW v1;
-
    dec $num;
 }
 
@@ -3997,27 +4010,33 @@ DESCRIBE v2;
 SELECT * FROM v2 order by 2;
 # - What will be the content of base table created with AS SELECT ?
 CREATE TABLE t2 AS SELECT f1, SQRT(f2) my_sqrt FROM t1;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM t2 order by 2;
+--horizontal_results
 --enable_ps_protocol
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v1;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM t2 order by 2;
+--horizontal_results
 --enable_ps_protocol
 DROP TABLE t2;
 CREATE TABLE t2 AS SELECT * FROM v2;
-if ($have_bug_11589)
+if ($have_bug_32285)
 {
 --disable_ps_protocol
 }
+--vertical_results
 SELECT * FROM t2 order by 2;
+--horizontal_results
 --enable_ps_protocol
 #
 DROP TABLE t1;
