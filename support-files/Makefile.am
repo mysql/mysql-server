@@ -65,6 +65,9 @@ CLEANFILES =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
+                        config.huge.ini \
+                        config.medium.ini \
+                        config.small.ini \
 			my-innodb-heavy-4G.cnf \
 			mysql.spec \
 			mysql-@VERSION@.spec \
