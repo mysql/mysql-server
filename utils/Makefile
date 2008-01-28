@@ -6,6 +6,7 @@ BDB_LOAD=$(BDBDIR)/bin/db_load
 
 DIFF=diff -I 'db_pagesize='
 
+OPTFLAGS = -O2
 CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g $(OPTFLAGS) $(GCOV_FLAGS)
 
 # vars to compile bins that handle tokudb using libdb.so
@@ -61,9 +62,9 @@ coverage: $(UTILS)
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
 
-test: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_bdb_tokudb
+test: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_nodup test_dupsort
 
-test-coverage: $(UTILS) test_gen test_load test_dump test_bdb_tokudb
+test-coverage: $(UTILS) test_gen test_load test_dump test_nodup test_dupsort
 
 test_gen: test_gen_hex
 
@@ -86,7 +87,6 @@ test_gen_hex:
 	rm $@.*.temp
 
 test_load: test_load_hex test_load_text
-	
 
 test_load_hex:
 	#Generating $(TEST_GEN_HEX_NUMKEYS) keys.  [$(TEST_GEN_HEX_LENGTHMIN),$(TEST_GEN_HEX_LENGTHLIMIT)) bytes + identifier overhead
@@ -129,11 +129,26 @@ test_dump:
 	$(UNSETTOKUENV) ./tokudb_dump.bdb $@.bdb.temp > $@.dump.tokudb.temp
 	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tokudb.temp; then echo "Test Failed!"; exit 1; fi
 
-test_bdb_tokudb:
+test_nodup:
 	rm -rf $@.*.temp
 	./tokudb_gen $(TEST_GEN_HEX_FLAGS) >$@.gen.temp
 	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp
 	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
+	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp
+	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
+	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp
+	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
+
+test_dupsort:
+	rm -rf $@.*.temp
+	./tokudb_gen $(TEST_GEN_HEX_FLAGS) -DS >$@.gen.temp
+	$(UNSETTOKUENV) $(BDB_LOAD) $@.bdb.temp <$@.gen.temp
+	$(UNSETTOKUENV) $(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp
+	$(SETTOKUENV)   ./tokudb_load $@.tdb.temp <$@.gen.temp
+	$(SETTOKUENV)   ./tokudb_dump $@.tdb.temp >$@.dump.tdb.temp
+	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
 	$(SETTOKUENV)   ./tokudb_load_static $@.tdb.temp <$@.gen.temp
 	$(SETTOKUENV)   ./tokudb_dump_static $@.tdb.temp >$@.dump.tdb.temp
 	if ! $(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp; then echo "$@ failed"; exit 1; fi
