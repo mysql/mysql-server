@@ -439,4 +439,30 @@ connection default;
 disconnect flush;
 drop table t1;
 
+#
+# Bug#30331: Table_locks_waited shows inaccurate values
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+
+create table t1 (a int);
+flush status;
+lock tables t1 read;
+show status like 'Table_locks_waited';
+connect (waiter,localhost,root,,);
+connection waiter;
+--send insert into t1 values(1);
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "insert into t1 values(1)";
+--source include/wait_condition.inc
+drop table t1;
+disconnect waiter;
+connection default;
+show status like 'Table_locks_waited';
+#show global status like "Table_locks_waited";
+
 --echo End of 5.1 tests
