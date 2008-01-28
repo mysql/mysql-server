@@ -10,6 +10,17 @@ drop table if exists t1, t2;
 --enable_warnings
 
 #
+# BUG 33429: Succeeds in  adding partition when maxvalue on last partition
+#
+create table t1 (a int)
+partition by range (a)
+( partition p0 values less than (maxvalue));
+--error ER_PARTITION_MAXVALUE_ERROR
+alter table t1 add partition (partition p1 values less than (100000));
+show create table t1;
+drop table t1;
+
+#
 # BUG 18198: Various tests for partition functions
 #
 #create table t1 (a varchar(10) charset latin1 collate latin1_bin, b int)
