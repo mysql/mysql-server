@@ -62,9 +62,6 @@ struct sync_cell_struct {
 	ibool		waiting;	/* TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
-	ibool		event_set;	/* TRUE if the event is set */
-        os_event_t 	event;   	/* operating system event
-                                        semaphore handle */
 	time_t		reservation_time;/* time when the thread reserved
 					the wait cell */
 };
@@ -218,10 +215,7 @@ sync_array_create(
         for (i = 0; i < n_cells; i++) {
 		cell = sync_array_get_nth_cell(arr, i);        	
                 cell->wait_object = NULL;
-
-                /* Create an operating system event semaphore with no name */
-                cell->event = os_event_create(NULL);
-		cell->event_set = FALSE; /* it is created in reset state */
+		cell->waiting = FALSE;
 	}
 
 	return(arr);
@@ -235,19 +229,12 @@ sync_array_free(
 /*============*/
 	sync_array_t*	arr)	/* in, own: sync wait array */
 {
-        ulint           i;
-        sync_cell_t*   	cell;
 	ulint		protection;
 
         ut_a(arr->n_reserved == 0);
         
 	sync_array_validate(arr);
         
-        for (i = 0; i < arr->n_cells; i++) {
-		cell = sync_array_get_nth_cell(arr, i);        	
-		os_event_free(cell->event);
-        }
-
 	protection = arr->protection;
 
         /* Release the mutex protecting the wait array complex */
@@ -293,27 +280,19 @@ sync_array_validate(
 }
 
 /***********************************************************************
-Puts the cell event in set state. */
-static
-void
-sync_cell_event_set(
-/*================*/
-	sync_cell_t*	cell)	/* in: array cell */
-{
-	os_event_set(cell->event);
-	cell->event_set = TRUE;
-}		
-
-/***********************************************************************
 Puts the cell event in reset state. */
 static
 void
 sync_cell_event_reset(
 /*==================*/
-	sync_cell_t*	cell)	/* in: array cell */
+	ulint		type,	/* in: lock type mutex/rw_lock */
+	void*		object) /* in: the rw_lock/mutex object */
 {
-	os_event_reset(cell->event);
-	cell->event_set = FALSE;
+	if (type == SYNC_MUTEX) {
+		os_event_reset(((mutex_t *) object)->event);
+	} else {
+		os_event_reset(((rw_lock_t *) object)->event);
+	}
 }		
 
 /**********************************************************************
@@ -346,14 +325,7 @@ sync_array_reserve_cell(
 
                 if (cell->wait_object == NULL) {
 
-                        /* Make sure the event is reset */
-			if (cell->event_set) {	
-                        	sync_cell_event_reset(cell);
-			}
-
-			cell->reservation_time = time(NULL);
-			cell->thread = os_thread_get_curr_id();
-
+			cell->waiting = FALSE;
 			cell->wait_object = object;
 
 			if (type == SYNC_MUTEX) {
@@ -363,7 +335,6 @@ sync_array_reserve_cell(
 			}
 				
 			cell->request_type = type;
-			cell->waiting = FALSE;
 			
 			cell->file = file;
 			cell->line = line;
@@ -373,6 +344,13 @@ sync_array_reserve_cell(
 			*index = i;
 
 			sync_array_exit(arr);
+
+			/* Make sure the event is reset */
+			sync_cell_event_reset(type, object);
+
+			cell->reservation_time = time(NULL);
+
+			cell->thread = os_thread_get_curr_id();
                         
                         return;
                 }
@@ -408,7 +386,12 @@ sync_array_wait_event(
 	ut_a(!cell->waiting);
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
-       	event = cell->event;
+	if (cell->request_type == SYNC_MUTEX) {
+		event = ((mutex_t*) cell->wait_object)->event;
+	} else {
+		event = ((rw_lock_t*) cell->wait_object)->event;
+	}
+
        	cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -509,10 +492,6 @@ sync_array_cell_print(
 
         if (!cell->waiting) {
 		fputs("wait has ended\n", file);
-	}
-
-        if (cell->event_set) {
-		fputs("wait is ending\n", file);
 	}
 }
 
@@ -623,7 +602,7 @@ sync_array_detect_deadlock(
 	
 	depth++;
 	
-	if (cell->event_set || !cell->waiting) {
+	if (!cell->waiting) {
 
 		return(FALSE); /* No deadlock here */
 	}
@@ -802,6 +781,7 @@ sync_array_free_cell(
 
         ut_a(cell->wait_object != NULL);
 
+	cell->waiting = FALSE;
 	cell->wait_object =  NULL;
 
 	ut_a(arr->n_reserved > 0);
@@ -811,43 +791,16 @@ sync_array_free_cell(
 }
 
 /**************************************************************************
-Looks for the cells in the wait array which refer to the wait object
-specified, and sets their corresponding events to the signaled state. In this
-way releases the threads waiting for the object to contend for the object.
-It is possible that no such cell is found, in which case does nothing. */
+Increments the signalled count. */
 
 void
-sync_array_signal_object(
-/*=====================*/
-	sync_array_t*	arr,	/* in: wait array */
-	void*		object)	/* in: wait object */
+sync_array_object_signalled(
+/*========================*/
+	sync_array_t*	arr)	/* in: wait array */
 {
-        sync_cell_t*   	cell;
-        ulint           count;
-        ulint           i;
-
         sync_array_enter(arr);
 
 	arr->sg_count++;
-
-	i = 0;
-	count = 0;
-
-        while (count < arr->n_reserved) {
-
-        	cell = sync_array_get_nth_cell(arr, i);
-
-                if (cell->wait_object != NULL) {
-
-                        count++;
-                        if (cell->wait_object == object) {
-
-                        	sync_cell_event_set(cell);
-                        }
-                }
-
-                i++;
-        }
 
         sync_array_exit(arr);
 }
@@ -881,7 +834,17 @@ sync_arr_wake_threads_if_sema_free(void)
 
                         if (sync_arr_cell_can_wake_up(cell)) {
 
-                        	sync_cell_event_set(cell);
+				if (cell->request_type == SYNC_MUTEX) {
+					mutex_t*	mutex;
+
+					mutex = cell->wait_object;
+					os_event_set(mutex->event);
+				} else {
+					rw_lock_t*	lock;
+
+					lock = cell->wait_object;
+					os_event_set(lock->event);
+				}
                         }
                 }
 
@@ -911,7 +874,7 @@ sync_array_print_long_waits(void)
 
         	cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
-                if (cell->wait_object != NULL
+		if (cell->wait_object != NULL && cell->waiting
 		    && difftime(time(NULL), cell->reservation_time) > 240) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 				stderr);
@@ -919,7 +882,7 @@ sync_array_print_long_waits(void)
 			noticed = TRUE;
                 }
 
-                if (cell->wait_object != NULL
+		if (cell->wait_object != NULL && cell->waiting
 		    && difftime(time(NULL), cell->reservation_time)
 		    > fatal_timeout) {
 			fatal = TRUE;
