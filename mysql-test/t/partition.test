@@ -14,6 +14,10 @@
 drop table if exists t1;
 --enable_warnings
 
+--error ER_PARTITION_FUNCTION_IS_NOT_ALLOWED
+create table t1 (a int) partition by list ((a/3)*10 div 1)
+(partition p0 values in (0), partition p1 values in (1));
+
 #
 # Bug #30695: An apostrophe ' in the comment of the ADD PARTITION causes the Server to crash.
 #

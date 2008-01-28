@@ -1,4 +1,7 @@
 drop table if exists t1;
+create table t1 (a int) partition by list ((a/3)*10 div 1)
+(partition p0 values in (0), partition p1 values in (1));
+ERROR HY000: This partition function is not allowed
 CREATE TABLE t1 (
 d DATE NOT NULL
 )
