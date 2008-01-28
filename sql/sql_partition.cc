@@ -5838,31 +5838,31 @@ static void release_log_entries(partition_info *part_info)
 
 
 /*
-  Get a lock on table name to avoid that anyone can open the table in
-  a critical part of the ALTER TABLE.
-  SYNOPSIS
-    get_name_lock()
+  Final part of partition changes to handle things when under
+  LOCK TABLES.
+  SYNPOSIS
+    alter_partition_lock_handling()
     lpt                        Struct carrying parameters
   RETURN VALUES
-    FALSE                      Success
-    TRUE                       Failure
+    NONE
 */
-
-static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  int error= 0;
-  DBUG_ENTER("get_name_lock");
-
-  bzero(&lpt->table_list, sizeof(lpt->table_list));
-  lpt->table_list.db= (char*)lpt->db;
-  lpt->table_list.table= lpt->table;
-  lpt->table_list.table_name= (char*)lpt->table_name;
-  pthread_mutex_lock(&LOCK_open);
-  error= lock_table_name(lpt->thd, &lpt->table_list, FALSE);
-  pthread_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(error);
+  int err;
+  if (lpt->thd->locked_tables)
+  {
+    pthread_mutex_lock(&LOCK_open);
+    lpt->thd->in_lock_tables= 1;
+    err= reopen_tables(lpt->thd, 1, 1);
+    lpt->thd->in_lock_tables= 0;
+    pthread_mutex_unlock(&LOCK_open);
+    if (err)
+    {
+      /* Issue a warning since we weren't able to regain the lock again. */
+      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+    }
+  }
 }
-
 
 /*
   Unlock and close table before renaming and dropping partitions
@@ -5876,35 +5876,16 @@ static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   THD *thd= lpt->thd;
-  TABLE *table= lpt->table;
+  const char *db= lpt->db;
+  const char *table_name= lpt->table_name;
   DBUG_ENTER("alter_close_tables");
   /*
     We need to also unlock tables and close all handlers.
     We set lock to zero to ensure we don't do this twice
     and we set db_stat to zero to ensure we don't close twice.
   */
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-  table->file->close();
-  table->db_stat= 0;
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Release a lock name
-  SYNOPSIS
-    release_name_lock()
-    lpt
-  RETURN VALUES
-    0
-*/
-
-static int release_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  DBUG_ENTER("release_name_lock");
   pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(lpt->thd, &lpt->table_list);
+  close_data_files_and_morph_locks(thd, db, table_name);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
@@ -6202,7 +6183,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          name lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
-         get_name_lock call.
+         close_data_files_and_morph_locks call.
       6) We are now ready to release all locks we got in this thread.
       7) Write the bin log
          Unfortunately the writing of the binlog is not synchronised with
@@ -6219,8 +6200,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       9) Prepare handlers for drop of partitions
       10) Drop the partitions
       11) Remove entries from ddl log
-      12) Release name lock so that all other threads can access the table
-          again.
+      12) Reopen table if under lock tables
       13) Complete query
 
       We insert Error injections at all places where it could be interesting
@@ -6235,23 +6215,21 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        get_name_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ((frm_install= FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_8") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_10") ||
-        (release_name_lock(lpt), FALSE)) 
+        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
+        (alter_partition_lock_handling(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
       goto err;
@@ -6283,7 +6261,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          name lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
-         get_name_lock call.
+         close_data_files_and_morph_locks call.
       6) Close all table handlers and unlock all handlers but retain name lock
       7) Write binlog
       8) Now the change is completed except for the installation of the
@@ -6293,7 +6271,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          added to the table.
       10)Wait until all accesses using the old frm file has completed
       11)Remove entries from ddl log
-      12)Release name lock
+      12)Reopen tables if under lock tables
       13)Complete query
     */
     if (write_log_add_change_partition(lpt) ||
@@ -6303,8 +6281,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        get_name_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
@@ -6320,7 +6296,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_9") ||
-        (release_name_lock(lpt), FALSE)) 
+        (alter_partition_lock_handling(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;
@@ -6374,15 +6350,15 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       7) Close all tables opened but not yet locked, after this call we are
          certain that no other thread is in the lock wait queue or has
          opened the table. The name lock will ensure that they are blocked
-         on the open call. This is achieved also by get_name_lock call.
+         on the open call.
+         This is achieved also by close_data_files_and_morph_locks call.
       8) Close all partitions opened by this thread, but retain name lock.
       9) Write bin log
       10) Prepare handlers for rename and delete of partitions
       11) Rename and drop the reorged partitions such that they are no
           longer used and rename those added to their real new names.
       12) Install the shadow frm file
-      13) Release the name lock to enable other threads to start using the
-          table again.
+      13) Reopen the table if under lock tables
       14) Complete query
     */
     if (write_log_add_change_partition(lpt) ||
@@ -6396,24 +6372,22 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        get_name_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_7") ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_change_partition_8") ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_change_partition_9") ||
+        ERROR_INJECT_CRASH("crash_change_partition_8") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
+        ERROR_INJECT_CRASH("crash_change_partition_9") ||
         mysql_rename_partitions(lpt) ||
         ((frm_install= TRUE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_12") ||
-        (release_name_lock(lpt), FALSE))
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        (alter_partition_lock_handling(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;
