@@ -2944,18 +2944,63 @@ Format_description_log_event(const char* buf,
     If post_header_len is null, it means malloc failed, and is_valid
     will fail, so there is no need to do anything.
 
-    The trees which have wrong event id's are:
-    mysql-5.1-wl2325-5.0-drop6p13-alpha, mysql-5.1-wl2325-5.0-drop6,
-    mysql-5.1-wl2325-5.0, mysql-5.1-wl2325-no-dd (`grep -C2
-    BEGIN_LOAD_QUERY_EVENT /home/bk/ * /sql/log_event.h`). The
-    corresponding version (`grep mysql, configure.in` in those trees)
-    strings are 5.2.2-a_drop6p13-alpha, 5.2.2-a_drop6p13c,
-    5.1.5-a_drop5p20, 5.1.2-a_drop5p5.
+    The trees in which events have wrong id's are:
+
+    mysql-5.1-wl1012.old mysql-5.1-wl2325-5.0-drop6p13-alpha
+    mysql-5.1-wl2325-5.0-drop6 mysql-5.1-wl2325-5.0
+    mysql-5.1-wl2325-no-dd
+
+    (this was found by grepping for two lines in sequence where the
+    first matches "FORMAT_DESCRIPTION_EVENT," and the second matches
+    "TABLE_MAP_EVENT," in log_event.h in all trees)
+
+    In these trees, the following server_versions existed since
+    TABLE_MAP_EVENT was introduced:
+
+    5.1.1-a_drop5p3   5.1.1-a_drop5p4        5.1.1-alpha
+    5.1.2-a_drop5p10  5.1.2-a_drop5p11       5.1.2-a_drop5p12
+    5.1.2-a_drop5p13  5.1.2-a_drop5p14       5.1.2-a_drop5p15
+    5.1.2-a_drop5p16  5.1.2-a_drop5p16b      5.1.2-a_drop5p16c
+    5.1.2-a_drop5p17  5.1.2-a_drop5p4        5.1.2-a_drop5p5
+    5.1.2-a_drop5p6   5.1.2-a_drop5p7        5.1.2-a_drop5p8
+    5.1.2-a_drop5p9   5.1.3-a_drop5p17       5.1.3-a_drop5p17b
+    5.1.3-a_drop5p17c 5.1.4-a_drop5p18       5.1.4-a_drop5p19
+    5.1.4-a_drop5p20  5.1.4-a_drop6p0        5.1.4-a_drop6p1
+    5.1.4-a_drop6p2   5.1.5-a_drop5p20       5.2.0-a_drop6p3
+    5.2.0-a_drop6p4   5.2.0-a_drop6p5        5.2.0-a_drop6p6
+    5.2.1-a_drop6p10  5.2.1-a_drop6p11       5.2.1-a_drop6p12
+    5.2.1-a_drop6p6   5.2.1-a_drop6p7        5.2.1-a_drop6p8
+    5.2.2-a_drop6p13  5.2.2-a_drop6p13-alpha 5.2.2-a_drop6p13b
+    5.2.2-a_drop6p13c
+
+    (this was found by grepping for "mysql," in all historical
+    versions of configure.in in the trees listed above).
+
+    There are 5.1.1-alpha versions that use the new event id's, so we
+    do not test that version string.  So replication from 5.1.1-alpha
+    with the other event id's to a new version does not work.
+    Moreover, we can safely ignore the part after drop[56].  This
+    allows us to simplify the big list above to the following regexes:
+
+    5\.1\.[1-5]-a_drop5.*
+    5\.1\.4-a_drop6.*
+    5\.2\.[0-2]-a_drop6.*
+
+    This is what we test for in the 'if' below.
   */
   if (post_header_len &&
-      (strncmp(server_version, "5.1.2-a_drop5", 13) == 0 ||
-       strncmp(server_version, "5.1.5-a_drop5", 13) == 0 ||
-       strncmp(server_version, "5.2.2-a_drop6", 13) == 0))
+      server_version[0] == '5' && server_version[1] == '.' &&
+      server_version[3] == '.' &&
+      strncmp(server_version + 5, "-a_drop", 7) == 0 &&
+      ((server_version[2] == '1' &&
+        server_version[4] >= '1' && server_version[4] <= '5' &&
+        server_version[12] == '5') ||
+       (server_version[2] == '1' &&
+        server_version[4] == '4' &&
+        server_version[12] == '6') ||
+       (server_version[2] == '2' &&
+        server_version[4] >= '0' && server_version[4] <= '2' &&
+        server_version[12] == '6')))
   {
     if (number_of_event_types != 22)
     {
