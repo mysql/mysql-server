@@ -22,6 +22,10 @@ static TRN *trn= &dummy_transaction_object;
 #define ITERATIONS (1600*4)
 
 #else
+
+#undef SKIP_BIG_TESTS
+#define SKIP_BIG_TESTS(X) /* no-op */
+
 #define LOG_FLAGS (TRANSLOG_SECTOR_PROTECTION | TRANSLOG_PAGE_CRC)
 #define LOG_FILE_SIZE (1024L*1024L*8L)
 #define ITERATIONS 1600
@@ -196,6 +200,9 @@ int main(int argc __attribute__((unused)), char *argv[])
   trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
   plan(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1 + 1);
+
+  SKIP_BIG_TESTS(((ITERATIONS - 1) * 4 + 1)*2 + ITERATIONS - 1 + 1)
+  {
 
   srand(122334817L);
 
@@ -626,6 +633,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 err:
   if (rc)
     ok(0, "read record");
+  } /* SKIP_BIG_TESTS */
   translog_destroy();
   end_pagecache(&pagecache, 1);
   ma_control_file_end();

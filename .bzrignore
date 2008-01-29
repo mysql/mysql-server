@@ -3073,3 +3073,6 @@ libmysqld/sql_profile.cc
 comments
 maria-win.patch
 storage/maria/maria_dump_log
+maria_log.00000*
+ma_test_recovery.output
+test?.MA?

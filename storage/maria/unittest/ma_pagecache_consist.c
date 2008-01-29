@@ -1,7 +1,6 @@
 /*
   TODO: use pthread_join instead of wait_for_thread_count_to_be_zero, like in
   my_atomic-t.c (see BUG#22320).
-  Use diag() instead of fprintf(stderr). Use ok() and plan().
 */
 
 #include <tap.h>
@@ -225,11 +224,9 @@ void reader(int num)
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                    0);
     check_page(buffr, page * PAGE_SIZE, 0, page, -num);
-    if (i % 500 == 0)
-      printf("reader%d: %d\n", num, i);
 
   }
-  printf("reader%d: done\n", num);
+  ok(1, "reader%d: done\n", num);
   free(buffr);
 }
 
@@ -258,10 +255,8 @@ void writer(int num)
 
     if (i % flush_divider == 0)
       flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
-    if (i % 500 == 0)
-      printf("writer%d: %d\n", num, i);
   }
-  printf("writer%d: done\n", num);
+  ok(1, "writer%d: done\n", num);
   free(buffr);
 }
 
@@ -332,10 +327,14 @@ int main(int argc __attribute__((unused)),
   {
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
+  plan(number_of_writers + number_of_readers);
+  SKIP_BIG_TESTS(number_of_writers + number_of_readers)
+  {
+
   if ((file1.file= my_open(file1_name,
                            O_CREAT | O_TRUNC | O_RDWR, MYF(0))) == -1)
   {
-    fprintf(stderr, "Got error during file1 creation from open() (errno: %d)\n",
+    diag( "Got error during file1 creation from open() (errno: %d)\n",
 	    errno);
     exit(1);
   }
@@ -348,26 +347,26 @@ int main(int argc __attribute__((unused)),
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
   {
-    fprintf(stderr, "COND_thread_count: %d from pthread_cond_init (errno: %d)\n",
+    diag( "COND_thread_count: %d from pthread_cond_init (errno: %d)\n",
 	    error, errno);
     exit(1);
   }
   if ((error= pthread_mutex_init(&LOCK_thread_count, MY_MUTEX_INIT_FAST)))
   {
-    fprintf(stderr, "LOCK_thread_count: %d from pthread_cond_init (errno: %d)\n",
+    diag( "LOCK_thread_count: %d from pthread_cond_init (errno: %d)\n",
 	    error, errno);
     exit(1);
   }
 
   if ((error= pthread_attr_init(&thr_attr)))
   {
-    fprintf(stderr,"Got error: %d from pthread_attr_init (errno: %d)\n",
+    diag("Got error: %d from pthread_attr_init (errno: %d)\n",
 	    error,errno);
     exit(1);
   }
   if ((error= pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED)))
   {
-    fprintf(stderr,
+    diag(
 	    "Got error: %d from pthread_attr_setdetachstate (errno: %d)\n",
 	    error,errno);
     exit(1);
@@ -380,7 +379,7 @@ int main(int argc __attribute__((unused)),
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
                              PAGE_SIZE, 0)) == 0)
   {
-    fprintf(stderr,"Got error: init_pagecache() (errno: %d)\n",
+    diag("Got error: init_pagecache() (errno: %d)\n",
             errno);
     exit(1);
   }
@@ -411,7 +410,7 @@ int main(int argc __attribute__((unused)),
       if ((error= pthread_create(&tid, &thr_attr, test_thread_reader,
                                  (void*) param)))
       {
-        fprintf(stderr,"Got error: %d from pthread_create (errno: %d)\n",
+        diag("Got error: %d from pthread_create (errno: %d)\n",
                 error,errno);
         exit(1);
       }
@@ -425,7 +424,7 @@ int main(int argc __attribute__((unused)),
       if ((error= pthread_create(&tid, &thr_attr, test_thread_writer,
                                  (void*) param)))
       {
-        fprintf(stderr,"Got error: %d from pthread_create (errno: %d)\n",
+        diag("Got error: %d from pthread_create (errno: %d)\n",
                 error,errno);
         exit(1);
       }
@@ -443,7 +442,7 @@ int main(int argc __attribute__((unused)),
   while (thread_count)
   {
     if ((error= pthread_cond_wait(&COND_thread_count,&LOCK_thread_count)))
-      fprintf(stderr,"COND_thread_count: %d from pthread_cond_wait\n",error);
+      diag("COND_thread_count: %d from pthread_cond_wait\n",error);
   }
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
@@ -453,17 +452,18 @@ int main(int argc __attribute__((unused)),
 
   if (my_close(file1.file, MYF(0)) != 0)
   {
-    fprintf(stderr, "Got error during file1 closing from close() (errno: %d)\n",
+    diag( "Got error during file1 closing from close() (errno: %d)\n",
 	    errno);
     exit(1);
   }
   my_delete(file1_name, MYF(0));
-  my_end(0);
 
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
-
   DBUG_PRINT("info", ("Program end"));
 
-  DBUG_RETURN(exit_status());
+  } /* SKIP_BIG_TESTS */
+  my_end(0);
+
+  return exit_status();
   }
 }

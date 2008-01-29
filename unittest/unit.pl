@@ -32,18 +32,18 @@ unit - Run unit tests in directory
 
 =head1 SYNOPSIS
 
-  unit run
+  unit [--[no]big] [--[no]verbose] run [tests to run]
 
 =cut
 
-my $big=1;
+my $big= $ENV{'MYTAP_CONFIG'} eq 'big';
 
 my $result = GetOptions (
   "big!"        => \$big,
   "verbose!"    => \$Test::Harness::verbose,
 );
 
-$ENV{'MYTAP_CONFIG'} = $big ? "big" : "";
+$ENV{'MYTAP_CONFIG'} = $big ? 'big' : '';
 
 my $cmd = shift;
 
