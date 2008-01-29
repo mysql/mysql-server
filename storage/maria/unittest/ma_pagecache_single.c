@@ -15,6 +15,11 @@
 static const char* default_dbug_option;
 #endif
 
+#ifndef BIG
+#undef SKIP_BIG_TESTS
+#define SKIP_BIG_TESTS(X) /* no-op */
+#endif
+
 static char *file1_name= (char*)"page_cache_test_file_1";
 static char *file2_name= (char*)"page_cache_test_file_2";
 static PAGECACHE_FILE file1;
@@ -631,6 +636,11 @@ int main(int argc __attribute__((unused)),
   {
   DBUG_ENTER("main");
   DBUG_PRINT("info", ("Main thread: %s\n", my_thread_name()));
+
+  plan(16);
+  SKIP_BIG_TESTS(16)
+  {
+
   if ((tmp_file= my_open(file2_name, O_CREAT | O_TRUNC | O_RDWR,
                          MYF(MY_WME))) < 0)
     exit(1);
@@ -683,8 +693,6 @@ int main(int argc __attribute__((unused)),
   VOID(thr_setconcurrency(2));
 #endif
 
-  plan(16);
-
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
                              PAGE_SIZE, MYF(MY_WME))) == 0)
   {
@@ -725,11 +733,13 @@ int main(int argc __attribute__((unused)),
     exit(1);
 
   my_delete(file1_name, MYF(0));
-  my_end(0);
 
+  } /* SKIP_BIG_TESTS */
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
   DBUG_PRINT("info", ("Program end"));
 
-  DBUG_RETURN(exit_status());
+  my_end(0);
+
   }
+  return exit_status();
 }

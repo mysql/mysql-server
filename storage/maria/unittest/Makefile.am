@@ -29,20 +29,20 @@ LDADD=			$(top_builddir)/unittest/mytap/libmytap.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
 noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_pagecache_single_1k-t ma_pagecache_single_8k-t \
-			ma_pagecache_single_64k-t-big \
-			ma_pagecache_consist_1k-t-big \
-			ma_pagecache_consist_64k-t-big \
-			ma_pagecache_consist_1kHC-t-big \
-			ma_pagecache_consist_64kHC-t-big \
-			ma_pagecache_consist_1kRD-t-big \
-			ma_pagecache_consist_64kRD-t-big \
-			ma_pagecache_consist_1kWR-t-big \
-			ma_pagecache_consist_64kWR-t-big \
+			ma_pagecache_single_64k_big-t \
+			ma_pagecache_consist_1k_big-t \
+			ma_pagecache_consist_64k_big-t \
+			ma_pagecache_consist_1kHC_big-t \
+			ma_pagecache_consist_64kHC_big-t \
+			ma_pagecache_consist_1kRD_big-t \
+			ma_pagecache_consist_64kRD_big-t \
+			ma_pagecache_consist_1kWR_big-t \
+			ma_pagecache_consist_64kWR_big-t \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
 			ma_test_loghandler_pagecache-t \
-			ma_test_loghandler_long-t-big \
+			ma_test_loghandler_long_big-t \
 			ma_test_loghandler_noflush-t \
 			ma_test_loghandler_first_lsn-t \
                         ma_test_loghandler_max_lsn-t \
@@ -54,8 +54,8 @@ ma_test_loghandler_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_
 ma_test_loghandler_multigroup_t_SOURCES = ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_multithread_t_SOURCES = ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_pagecache_t_SOURCES = ma_test_loghandler_pagecache-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
-ma_test_loghandler_long_t_big_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
-ma_test_loghandler_long_t_big_CPPFLAGS = -DLONG_LOG_TEST
+ma_test_loghandler_long_big_t_SOURCES = ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
+ma_test_loghandler_long_big_t_CPPFLAGS = -DLONG_LOG_TEST
 ma_test_loghandler_noflush_t_SOURCES = ma_test_loghandler_noflush-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_first_lsn_t_SOURCES = ma_test_loghandler_first_lsn-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
 ma_test_loghandler_max_lsn_t_SOURCES = ma_test_loghandler_max_lsn-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c
@@ -70,30 +70,30 @@ ma_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 
 ma_pagecache_single_1k_t_SOURCES =	$(ma_pagecache_single_src)
 ma_pagecache_single_8k_t_SOURCES =	$(ma_pagecache_single_src)
-ma_pagecache_single_64k_t_big_SOURCES =	$(ma_pagecache_single_src)
+ma_pagecache_single_64k_big_t_SOURCES =	$(ma_pagecache_single_src)
 ma_pagecache_single_1k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
 ma_pagecache_single_8k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=8192
-ma_pagecache_single_64k_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
+ma_pagecache_single_64k_big_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DBIG
 
-ma_pagecache_consist_1k_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1k_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
-ma_pagecache_consist_64k_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64k_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
+ma_pagecache_consist_1k_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1k_big_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
+ma_pagecache_consist_64k_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64k_big_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
 
-ma_pagecache_consist_1kHC_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kHC_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
-ma_pagecache_consist_64kHC_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kHC_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_1kHC_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kHC_big_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_64kHC_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kHC_big_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
 
-ma_pagecache_consist_1kRD_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kRD_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
-ma_pagecache_consist_64kRD_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kRD_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
+ma_pagecache_consist_1kRD_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kRD_big_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
+ma_pagecache_consist_64kRD_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kRD_big_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
 
-ma_pagecache_consist_1kWR_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kWR_t_big_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
-ma_pagecache_consist_64kWR_t_big_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kWR_t_big_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
+ma_pagecache_consist_1kWR_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_1kWR_big_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
+ma_pagecache_consist_64kWR_big_t_SOURCES =	$(ma_pagecache_consist_src)
+ma_pagecache_consist_64kWR_big_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # so we don't build lockman-t and lockman1-t 
