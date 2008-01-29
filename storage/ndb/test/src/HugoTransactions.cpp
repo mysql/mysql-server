@@ -757,8 +757,8 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
     
     // Execute the transaction and insert the record
     check = pTrans->execute(Commit, CommitAsMuchAsPossible); 
-    if(check == -1 ) {
-      const NdbError err = pTrans->getNdbError();
+    const NdbError err = pTrans->getNdbError();
+    if(check == -1 || err.code != 0) {
       closeTransaction(pNdb);
       
       switch(err.status){
