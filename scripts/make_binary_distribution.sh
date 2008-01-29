@@ -23,7 +23,8 @@
 #  Note that the structure created by this script is slightly different from
 #  what a normal "make install" would produce. No extra "mysql" sub directory
 #  will be created, i.e. no "$prefix/include/mysql", "$prefix/lib/mysql" or
-#  "$prefix/share/mysql".
+#  "$prefix/share/mysql".  This is because the build system explicitly calls
+#  make with pkgdatadir=<datadir>, etc.
 #
 #  In GNU make/automake terms
 #
