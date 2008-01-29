@@ -3009,8 +3009,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     ptr+= 2;
     is_index= ptr[0];
     ptr++;
-    page_id= uint4korr(ptr);
-    ptr+= 4;
+    page_id= uint5korr(ptr);
+    ptr+= 5;
     rec_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     if (new_page((is_index << 16) | table_id,
@@ -3056,7 +3056,7 @@ static int new_page(uint32 fileid, pgcache_page_no_t pageid, LSN rec_lsn,
                     struct st_dirty_page *dirty_page)
 {
   /* serves as hash key */
-  dirty_page->file_and_page_id= (((uint64)fileid) << 32) | pageid;
+  dirty_page->file_and_page_id= (((uint64)fileid) << 40) | pageid;
   dirty_page->rec_lsn= rec_lsn;
   return my_hash_insert(&all_dirty_pages, (uchar *)dirty_page);
 }

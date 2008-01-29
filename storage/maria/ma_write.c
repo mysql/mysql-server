@@ -877,7 +877,7 @@ int _ma_split_page(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   MARIA_PINNED_PAGE tmp_page_link, *page_link= &tmp_page_link;
   MARIA_SHARE *share= info->s;
   int res;
-  DBUG_ENTER("maria_split_page");
+  DBUG_ENTER("_ma_split_page");
 
   LINT_INIT(after_key);
   DBUG_DUMP("buff", split_buff, _ma_get_page_used(share, split_buff));

@@ -655,7 +655,7 @@ void _ma_check_print_warning(HA_CHECK *param, const char *fmt, ...)
 #define BULK_INSERT_SINGLE_UNDO_AND_REPAIR    1
 /**
   Transactional table doing bulk insert with one single UNDO
-  (UNDO_BULK_INSERT) and with repair.
+  (UNDO_BULK_INSERT) and without repair.
 */
 #define BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR 2
 /**
@@ -1756,15 +1756,16 @@ void ha_maria::start_bulk_insert(ha_rows rows)
       {
         bulk_insert_single_undo= BULK_INSERT_SINGLE_UNDO_AND_NO_REPAIR;
         write_log_record_for_bulk_insert(file);
+        _ma_tmp_disable_logging_for_table(file, TRUE);
         /*
           Pages currently in the page cache have type PAGECACHE_LSN_PAGE, we
           are not allowed to overwrite them with PAGECACHE_PLAIN_PAGE, so
           throw them away. It is not losing data, because we just wrote and
-          forced an UNDO which will for sure empty the table if we crash.
+          forced an UNDO which will for sure empty the table if we crash. The
+          upcoming unique-key insertions however need a proper index, so we
+          cannot leave the corrupted on-disk index file, thus we truncate it.
         */
-        _ma_flush_table_files(file, MARIA_FLUSH_DATA|MARIA_FLUSH_INDEX,
-                              FLUSH_IGNORE_CHANGED, FLUSH_IGNORE_CHANGED);
-        _ma_tmp_disable_logging_for_table(file, TRUE);
+        maria_delete_all_rows(file);
       }
     }
     else if (!file->bulk_insert &&
@@ -1772,11 +1773,6 @@ void ha_maria::start_bulk_insert(ha_rows rows)
     {
       maria_init_bulk_insert(file, thd->variables.bulk_insert_buff_size, rows);
     }
-    /**
-       @todo If we have 0 records here, there is no need to log REDO/UNDO for
-       each data row, we can just log some special UNDO which will empty the
-       data file if need to rollback.
-    */
   }
   DBUG_VOID_RETURN;
 }

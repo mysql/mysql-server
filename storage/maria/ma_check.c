@@ -164,10 +164,11 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
 
   LINT_INIT(old_link);
 
+  param->record_checksum=0;
+
   if (share->data_file_type == BLOCK_RECORD)
     DBUG_RETURN(0);                             /* No delete links here */
 
-  param->record_checksum=0;
   delete_link_length=((share->options & HA_OPTION_PACK_RECORD) ? 20 :
 		      share->rec_reflength+1);
 

@@ -5718,6 +5718,23 @@ my_bool write_hook_for_undo_row_update(enum translog_record_type type
 }
 
 
+my_bool write_hook_for_undo_bulk_insert(enum translog_record_type type
+                                        __attribute__ ((unused)),
+                                        TRN *trn, MARIA_HA *tbl_info,
+                                        LSN *lsn, void *hook_arg)
+{
+  /*
+    We are going to call maria_delete_all_rows(), but without logging and
+    syncing, as an optimization (if we crash before commit, the UNDO will
+    empty; if we crash after commit, we have flushed and forced the files).
+    Status still needs to be reset under log mutex, in case of a concurrent
+    checkpoint.
+  */
+  _ma_reset_status(tbl_info);
+  return write_hook_for_undo(type, trn, tbl_info, lsn, hook_arg);
+}
+
+
 /**
    @brief Updates table's lsn_of_file_id.
 

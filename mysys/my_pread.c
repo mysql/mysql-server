@@ -16,6 +16,7 @@
 #include "mysys_priv.h"
 #include "mysys_err.h"
 #include "my_base.h"
+#include <m_string.h>
 #include <errno.h>
 #ifdef HAVE_PREAD
 #include <unistd.h>
@@ -47,10 +48,13 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
 {
   size_t readbytes;
   int error= 0;
+#ifndef DBUG_OFF
+  char llbuf1[22], llbuf2[22];
   DBUG_ENTER("my_pread");
-  DBUG_PRINT("my",("fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
-                   MyFlags));
+  DBUG_PRINT("my",("fd: %d  Seek: %s  Buffer: 0x%lx  Count: %s  MyFlags: %d",
+		   Filedes, ullstr(offset, llbuf1),
+                   (long) Buffer, ullstr(Count, llbuf2), MyFlags));
+#endif
   for (;;)
   {
 #ifndef __WIN__
@@ -127,10 +131,13 @@ size_t my_pwrite(int Filedes, const uchar *Buffer, size_t Count,
 {
   size_t writenbytes, written;
   uint errors;
+#ifndef DBUG_OFF
+  char llbuf1[22], llbuf2[22];
   DBUG_ENTER("my_pwrite");
-  DBUG_PRINT("my",("fd: %d  Seek: %lu  Buffer: 0x%lx  Count: %u  MyFlags: %d",
-		   Filedes, (ulong) offset, (long) Buffer, (uint) Count,
-                   MyFlags));
+  DBUG_PRINT("my",("fd: %d  Seek: %s  Buffer: 0x%lx  Count: %s  MyFlags: %d",
+		   Filedes, ullstr(offset, llbuf1),
+                   (long) Buffer, ullstr(Count, llbuf2), MyFlags));
+#endif
   errors= 0;
   written= 0;
 

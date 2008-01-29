@@ -266,6 +266,9 @@ my_bool write_hook_for_undo_row_delete(enum translog_record_type type,
 my_bool write_hook_for_undo_row_update(enum translog_record_type type,
                                        TRN *trn, MARIA_HA *tbl_info,
                                        LSN *lsn, void *hook_arg);
+my_bool write_hook_for_undo_bulk_insert(enum translog_record_type type,
+                                        TRN *trn, MARIA_HA *tbl_info,
+                                        LSN *lsn, void *hook_arg);
 my_bool write_hook_for_file_id(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                void *hook_arg);
