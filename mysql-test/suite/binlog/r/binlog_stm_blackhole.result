@@ -125,8 +125,8 @@ master-bin.000001	#	Query	#	#	use `test`; replace into t1 values(100)
 master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
-master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t2 ;file_id=1
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t2 ;file_id=#
 master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 add b int
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 drop b
