@@ -474,7 +474,7 @@ insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	222		
+master-bin.000001	232		
 /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -489,7 +489,7 @@ count(*)
 2
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	227		
+master-bin.000001	231		
 /* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 count(*)
@@ -855,10 +855,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Begin_load_query	#	#	;file_id=2;block_len=12
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=12
 master-bin.000001	#	Intvar	#	#	INSERT_ID=10
 master-bin.000001	#	User var	#	#	@`b`=_latin1 0x3135 COLLATE latin1_swedish_ci
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=2
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2) ;file_id=#
 master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
