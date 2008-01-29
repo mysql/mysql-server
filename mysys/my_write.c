@@ -15,6 +15,7 @@
 
 #include "mysys_priv.h"
 #include "mysys_err.h"
+#include <m_string.h>
 #include <errno.h>
 
 
@@ -24,9 +25,12 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
 {
   size_t writenbytes, written;
   uint errors;
+#ifndef DBUG_OFF
+  char llbuf[22];
   DBUG_ENTER("my_write");
-  DBUG_PRINT("my",("fd: %d  Buffer: 0x%lx  Count: %lu  MyFlags: %d",
-		   Filedes, (long) Buffer, (ulong) Count, MyFlags));
+  DBUG_PRINT("my",("fd: %d  Buffer: 0x%lx  Count: %s  MyFlags: %d",
+		   Filedes, (long) Buffer, ullstr(Count, llbuf), MyFlags));
+#endif
   errors=0; written=0;
 
   /* The behavior of write(fd, buf, 0) is not portable */

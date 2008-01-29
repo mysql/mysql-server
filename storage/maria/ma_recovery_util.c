@@ -117,13 +117,12 @@ my_bool _ma_redo_not_needed_for_page(uint16 shortid, LSN lsn,
   {
     /*
       64-bit key is formed like this:
-      Most significant byte: 0
-      Next byte: 0 if data page, 1 if index page
+      Most significant byte: 0 if data page, 1 if index page
       Next 2 bytes: table's short id
-      Next 4 bytes: page number
+      Next 5 bytes: page number
     */
     uint64 file_and_page_id=
-      (((uint64)((index << 16) | shortid)) << 32) | page;
+      (((uint64)((index << 16) | shortid)) << 40) | page;
     struct st_dirty_page *dirty_page= (struct st_dirty_page *)
       hash_search(&all_dirty_pages,
                   (uchar *)&file_and_page_id, sizeof(file_and_page_id));

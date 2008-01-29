@@ -24,6 +24,10 @@
 
    @param  info             Maria handler
 
+   @note It is important that this function does not rely on the state
+   information, as it may be called by ma_apply_undo_bulk_insert() on an
+   inconsistent table left by a crash.
+
    @return Operation status
      @retval 0      ok
      @retval 1      error

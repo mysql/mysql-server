@@ -4255,7 +4255,7 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
   str->length= 8 + /* number of dirty pages */
     (2 + /* table id */
      1 + /* data or index file */
-     4 + /* pageno */
+     5 + /* pageno */
      LSN_STORE_SIZE /* rec_lsn */
      ) * stored_list_size;
   if (NULL == (str->str= my_malloc(str->length, MYF(MY_WME))))
@@ -4283,10 +4283,9 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       ptr+= 2;
       ptr[0]= (share->kfile.file == block->hash_link->file.file);
       ptr++;
-      /* TODO: We should fix the code here to handle 5 byte page numbers */
-      DBUG_ASSERT(block->hash_link->pageno <= UINT_MAX32);
-      int4store(ptr, block->hash_link->pageno);
-      ptr+= 4;
+      DBUG_ASSERT(block->hash_link->pageno < ((ULL(1)) << 40));
+      int5store(ptr, block->hash_link->pageno);
+      ptr+= 5;
       lsn_store(ptr, block->rec_lsn);
       ptr+= LSN_STORE_SIZE;
       if (block->rec_lsn != LSN_MAX)
