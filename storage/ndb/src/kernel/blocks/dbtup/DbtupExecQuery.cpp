@@ -749,7 +749,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterInsert(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, SET_ALL_MASK);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
@@ -782,7 +783,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterUpdate(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        // XXX use terrorCode for now since all methods are void
        if (terrorCode != 0) 
        {
@@ -813,7 +815,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	*/
        checkImmediateTriggersAfterDelete(&req_struct,
 					 regOperPtr, 
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, DELETE_CHANGES);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
