@@ -901,7 +901,7 @@ trx_i_s_common_fill_table(
 	DBUG_ENTER("trx_i_s_common_fill_table");
 
 	/* deny access to non-superusers */
-	if (check_global_access(thd, SUPER_ACL)) {
+	if (check_global_access(thd, PROCESS_ACL)) {
 
 		DBUG_RETURN(0);
 	}
@@ -1056,7 +1056,7 @@ i_s_zip_fill_low(
 	DBUG_ENTER("i_s_zip_fill_low");
 
 	/* deny access to non-superusers */
-	if (check_global_access(thd, SUPER_ACL)) {
+	if (check_global_access(thd, PROCESS_ACL)) {
 
 		DBUG_RETURN(0);
 	}
