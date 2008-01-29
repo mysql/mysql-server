@@ -4,6 +4,7 @@
 #
 
 use Getopt::Long;
+use File::Basename;
 
 $|= 1;
 $VER= "1.3";
@@ -56,8 +57,9 @@ sub run_tests
   }
   if (!defined($maria_path) || !length($maria_path))
   {
-    $maria_path= ".";
+    $maria_path= dirname($0) . '/..';
   }
+  $ENV{'maria_path'}=$maria_path;
 
   usage() if ($opt_help || $flag_exit);
 
@@ -524,12 +526,17 @@ sub ok
       print " " x (5 - length("$test_counter"));
       print "$test_counter";
     }
+    else
+    {
+      print " $test_counter - $com"
+    }
     print "\n";
     return 1;
   }
   print "[ " if ($verbose);
   print "not ok";
   print " ]" if ($verbose);
+  print " $test_counter - $com" unless $verbose;
   print "\n";
   if ($verbose && defined($output) && length($output))
   {
@@ -612,9 +619,6 @@ $my_progname version $VER
 Description:
 
 Run various Maria related tests. Typically used via make test as a unittest.
-Please set environment variable maria_path before executing, if you
-are not starting the program where ma_test1, ma_test2, ma_test3,
-ma_test_recovery etc. files are.
 
 Options
 --help             Show this help and exit.
