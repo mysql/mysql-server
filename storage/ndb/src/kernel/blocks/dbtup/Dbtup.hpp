@@ -2202,17 +2202,20 @@ private:
   void
   checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
   void
   checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
   void
   checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
 #if 0
   void checkDeferredTriggers(Signal* signal, 
@@ -2226,7 +2229,8 @@ private:
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
-                             Operationrec* regOperPtr);
+                             Operationrec* regOperPtr,
+                             bool disk);
 
   void fireDeferredTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
@@ -2239,12 +2243,13 @@ private:
 
   void executeTriggers(KeyReqStruct *req_struct,
                        DLList<TupTriggerData>& triggerList,
-                       Operationrec* regOperPtr);
+                       Operationrec* regOperPtr,
+                       bool disk);
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
-                      bool disk = true);
+                      bool disk);
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
