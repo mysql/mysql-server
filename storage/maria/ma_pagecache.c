@@ -3520,14 +3520,41 @@ restart:
   }
 
 no_key_cache:
+  /*
+    We can't by pass the normal page cache operations because need
+    whole page for calling callbacks & so on.
+    This branch should not be used for now (but it is fixed as it
+    should be just to avoid confusing)
+  */
+  DBUG_ASSERT(0);
   /* Key cache is not used */
   if (write_mode == PAGECACHE_WRITE_DELAY)
   {
     pagecache->global_cache_w_requests++;
     pagecache->global_cache_write++;
+    if (offset != 0 || size != pagecache->block_size)
+    {
+      char *page_buffer= alloca(pagecache->block_size);
+      int error= pagecache_fread(pagecache, file,
+                                 page_buffer,
+                                 pageno,
+                                 pagecache->readwrite_flags);
+      if (error)
+        goto end;
+      else
+      {
+        if ((file->read_callback)(page_buffer, pageno, file->callback_data))
+        {
+          DBUG_PRINT("error", ("read callback problem"));
+          goto end;
+        }
+      }
+      memcpy(page_buffer + offset, buff, size);
+      buff= page_buffer;
+    }
     if (pagecache_fwrite(pagecache, file, (uchar*) buff, pageno, type,
                          pagecache->readwrite_flags))
-      error=1;
+      error= 1;
   }
 
 end:
