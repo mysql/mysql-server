@@ -123,16 +123,32 @@ FOO_NO_VGRIND = \
   reverse_compare_fun \
   # Comment to terminate list so the previous line can end with a slash
  
+# For BDB, VGRIND isn't happy
 NO_VGRIND = \
+  abort1 \
+  cursor_delete \
+  cursor_delete_next \
+  cursor_flags \
+  cursor_db_current \
+  cursor_nonleaf_expand \
+  cursor_stickyness \
+  db_already_exists \
+  db_assoc3 \
   db_dbt_appmalloc \
   db_dbt_mem_behavior \
-  db_assoc3 \
+  db_donotindex \
   db_curs2 \
   db_delete \
   db_env_open_nocreate \
   db_env_open_open_close \
   db_open_notexist_reopen \
   db_remove_subdb \
+  db_set_flags \
+  db_subdb \
+  dup_delete \
+  dup_dup \
+  dup_flags \
+  dup_insert \
   log4 \
   log5 \
   # Comment to terminate list so the previous line can end with a slash
