@@ -815,8 +815,17 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
     keyinfo->get_key= _mi_get_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
+      /*
+        _mi_prefix_search() compares end-space against ASCII blank (' ').
+        It cannot be used for character sets, that do not encode the
+        blank character like ASCII does. UCS2 is an example. All
+        character sets with a fixed width > 1 or a mimimum width > 1
+        cannot represent blank like ASCII does. In these cases we have
+        to use _mi_seq_search() for the search.
+      */
       if (!keyinfo->seg->charset || use_strnxfrm(keyinfo->seg->charset) ||
-          (keyinfo->seg->flag & HA_NULL_PART))
+          (keyinfo->seg->flag & HA_NULL_PART) ||
+          (keyinfo->seg->charset->mbminlen > 1))
         keyinfo->bin_search=_mi_seq_search;
       else
         keyinfo->bin_search=_mi_prefix_search;

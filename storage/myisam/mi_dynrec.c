@@ -1006,12 +1006,12 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
 	{
 	  if (rec->length > 255 && new_length > 127)
 	  {
-	    to[0]=(char) ((new_length & 127)+128);
-	    to[1]=(char) (new_length >> 7);
-	    to+=2;
-	  }
-	  else
-	    *to++= (char) new_length;
+            to[0]= (uchar) ((new_length & 127) + 128);
+            to[1]= (uchar) (new_length >> 7);
+            to+=2;
+          }
+          else
+            *to++= (uchar) new_length;
 	  memcpy((uchar*) to,pos,(size_t) new_length); to+=new_length;
 	  flag|=bit;
 	}
@@ -1045,7 +1045,7 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
       }
       if ((bit= bit << 1) >= 256)
       {
-	*packpos++ = (char) (uchar) flag;
+        *packpos++= (uchar) flag;
 	bit=1; flag=0;
       }
     }
@@ -1055,9 +1055,9 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
     }
   }
   if (bit != 1)
-    *packpos= (char) (uchar) flag;
+    *packpos= (uchar) flag;
   if (info->s->calc_checksum)
-    *to++=(char) info->checksum;
+    *to++= (uchar) info->checksum;
   DBUG_PRINT("exit",("packed length: %d",(int) (to-startpos)));
   DBUG_RETURN((uint) (to-startpos));
 } /* _mi_rec_pack */
@@ -1128,12 +1128,14 @@ my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
 	    goto err;
 	  if (rec->length > 255 && new_length > 127)
 	  {
-	    if (to[0] != (char) ((new_length & 127)+128) ||
-		to[1] != (char) (new_length >> 7))
-	      goto err;
-	    to+=2;
-	  }
-	  else if (*to++ != (char) new_length)
+            /* purecov: begin inspected */
+            if (to[0] != (uchar) ((new_length & 127) + 128) ||
+                to[1] != (uchar) (new_length >> 7))
+              goto err;
+            to+=2;
+            /* purecov: end */
+          }
+          else if (*to++ != (uchar) new_length)
 	    goto err;
 	  to+=new_length;
 	}
