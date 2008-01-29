@@ -119,6 +119,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     //printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, node->local_fingerprint);
     //printf("%s:%d w.ndone=%d n_children=%d\n", __FILE__, __LINE__, w.ndone, node->n_children);
     if (node->height>0) {
+	assert(node->u.n.n_children>0);
 	// Local fingerprint is not actually stored while in main memory.  Must calculate it.
 	// Subtract the child fingerprints from the subtree fingerprint to get the local fingerprint.
 	{

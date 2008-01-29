@@ -564,6 +564,7 @@ TXNID toku_txn_get_txnid (TOKUTXN txn) {
 }
 
 LSN toku_txn_get_last_lsn (TOKUTXN txn) {
+    if (txn==0) return (LSN){0};
     return txn->last_lsn;
 }
 

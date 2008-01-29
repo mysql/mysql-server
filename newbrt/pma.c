@@ -714,6 +714,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
 	const struct kv_pair *pair = pma->pairs[idx];
 	const BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
 	const BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
+	if (toku_txn_get_last_lsn(txn).lsn>=3836455 && toku_txn_get_last_lsn(txn).lsn<=3836460)  printf("%s:%d inserting\n", __FILE__, __LINE__);
 	int r = toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, key, data);
 	if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
 	return r;
@@ -844,8 +845,10 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
     int r;
     int found;
+    int traceit = toku_txn_get_last_lsn(txn).lsn>=3836455 && toku_txn_get_last_lsn(txn).lsn<=3836460;
     unsigned int idx = pma_search(pma, k, pma->dup_mode & TOKU_DB_DUPSORT ? v : 0, 0, pma->N, &found);
     if (found) {
+	if (traceit) printf("%s:%d Already present at lsn %ld\n", __FILE__, __LINE__, toku_txn_get_last_lsn(txn).lsn);
         struct kv_pair *kv = pma->pairs[idx];
         *replaced_v_size = kv->vallen;
         *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
@@ -868,6 +871,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
 	unsigned int newidx;
+	if (traceit) printf("%s:%d inuse\n", __FILE__, __LINE__);
         r = toku_pmainternal_make_space_at (txn, filenum, diskoff, pma, idx, &newidx, node_lsn); /* returns the new idx. */
 	if (r!=0) return r;
 	idx=newidx;
@@ -884,6 +888,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 	const struct kv_pair *pair = pma->pairs[idx];
 	const BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
 	const BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
+	if (traceit)  printf("%s:%d inserting\n", __FILE__, __LINE__);
 	r = toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, key, data);
 	if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
     }
