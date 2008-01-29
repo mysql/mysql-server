@@ -222,6 +222,13 @@ static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf,
     *cf = pair->cf;
 }
 
+int toku_rollback_brtdeq (struct logtype_brtdeq * le, TOKUTXN txn) ABORTIT
+void toku_recover_brtdeq (struct logtype_brtdeq *le) { le=le; assert(0); }
+
+int toku_rollback_brtenq (struct logtype_brtenq * le, TOKUTXN txn) ABORTIT
+void toku_recover_brtenq (struct logtype_brtenq *le) { le=le; assert(0); }
+
+
 int toku_rollback_addchild (struct logtype_addchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_addchild (struct logtype_addchild *le) {
     CACHEFILE cf;
@@ -241,7 +248,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     }
     node->u.n.childinfos[le->childnum].subtree_fingerprint = 0;
     node->u.n.childkeys [le->childnum] = 0;
-    node->u.n.children  [le->childnum] = -1;
+    node->u.n.children  [le->childnum] = le->child;
     int r= toku_fifo_create(&node->u.n.buffers[le->childnum]); assert(r==0);
     node->u.n.n_bytes_in_buffer[le->childnum] = 0;
     node->u.n.n_children++;
@@ -249,6 +256,9 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
+
+int toku_rollback_delchild (struct logtype_delchild * le, TOKUTXN txn) ABORTIT
+void toku_recover_delchild (struct logtype_delchild *le) { le=le; assert(0); }
 
 int toku_rollback_setchild (struct logtype_setchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_setchild (struct logtype_setchild *le) {
@@ -262,7 +272,7 @@ void toku_recover_setchild (struct logtype_setchild *le) {
     BRTNODE node = node_v;
     assert(node->height>0);
     assert(le->childnum < (unsigned)node->u.n.n_children);
-    node->u.n.children[le->childnum] = le->child;
+    node->u.n.children[le->childnum] = le->newchild;
     node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
@@ -298,6 +308,7 @@ void toku_recover_changechildfingerprint (struct logtype_changechildfingerprint 
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height>0);
+    assert((signed)le->childnum < node->u.n.n_children);
     BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, le->childnum) = le->newfingerprint;
     node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(pair->cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
@@ -380,13 +391,11 @@ void toku_recover_deleteinleaf (struct logtype_deleteinleaf *c) {
     BRTNODE node = node_v;
     assert(node->height==0);
     VERIFY_COUNTS(node);
-    r = toku_cachetable_get_and_pin(pair->cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
-    assert(r==0);
+    r = toku_pma_clear_at_index(node->u.l.buffer, c->pmaidx);
+    assert (r==0);
     node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
     node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
-
     VERIFY_COUNTS(node);
-
     node->log_lsn = c->lsn;
     r = toku_cachetable_unpin(pair->cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);

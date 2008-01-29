@@ -77,7 +77,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     return 0;
 }
 
-/* peek at the head of the fifo */
+/* peek at the head (the oldest entry) of the fifo */
 int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, int *type) {
     struct fifo_entry *entry = fifo_peek(fifo);
     if (entry == 0) return -1;
@@ -91,7 +91,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
 
 int toku_fifo_deq(FIFO fifo) {
     struct fifo_entry *entry = fifo_deq(fifo);
-    if (entry == 0) return ENOMEM;
+    if (entry == 0) return -1; // if entry is 0 then it was an empty fifo
     toku_free_n(entry, fifo_entry_size(entry));
     return 0;
 }
