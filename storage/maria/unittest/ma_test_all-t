@@ -420,14 +420,7 @@ sub run_ma_test_recovery
   my ($verbose, $count)= @_;
 
   return 1 if ($count);                # Number of tests in this function
-  if ($ENV{MYTAP_CONFIG} eq 'big')
-  {
-    ok("$maria_path/ma_test_recovery", $verbose, 0);
-  }
-  else
-  {
-    skip("$maria_path/ma_test_recovery", 'big test', $verbose,);
-  }
+  ok("$maria_path/ma_test_recovery", $verbose, 0);
   return 0;
 }
 
