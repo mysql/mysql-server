@@ -29,7 +29,7 @@ unsigned buflen;
 unsigned numfound;
 
 void setup_tree(BOOL dups) {
-    r = toku_lt_create(&lt, db, dups, mem, dbcmp, dbcmp,
+    r = toku_lt_create(&lt, db, dups, dbpanic, mem, dbcmp, dbcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
@@ -42,17 +42,18 @@ void close_tree(void) {
     lt = NULL;
 }
 
-typedef enum { infinite = -2, neg_infinite = -3 } lt_infty;
+typedef enum { null = -1, infinite = -2, neg_infinite = -3 } lt_infty;
 
-DBT *set_to_infty(DBT *dbt, lt_infty value) {
+DBT* set_to_infty(DBT *dbt, lt_infty value) {
     if (value == infinite) return (DBT*)toku_lt_infinity;
     if (value == neg_infinite) return (DBT*)toku_lt_neg_infinity;
+    if (value == null) return dbt_init(dbt, NULL, 0);
     assert(value >= 0);
-    return dbt_init(dbt, &nums[value], sizeof(nums[0]));
+    return                    dbt_init(dbt, &nums[value], sizeof(nums[0]));
 }
 
 
-void lt_insert(BOOL dups, int key_l, int key_r, int data_l, int data_r) {
+void lt_insert(BOOL dups, int key_l, int data_l, int key_r, int data_r) {
     DBT _key_left;
     DBT _key_right;
     DBT _data_left;
@@ -66,9 +67,9 @@ void lt_insert(BOOL dups, int key_l, int key_r, int data_l, int data_r) {
     key_right = set_to_infty(key_right, key_r);
     if (dups) {
         if (key_left != &_key_left) data_left = key_left;
-        else data_left = set_to_infty(key_left,  key_l);
+        else data_left = set_to_infty(data_left,  data_l);
         if (key_right != &_key_right) data_right = key_right;
-        else data_right = set_to_infty(key_right,  key_r);
+        else data_right = set_to_infty(data_right,  data_r);
         assert(key_left  && data_left);
         assert(key_right && data_right);
     } else {
@@ -85,14 +86,22 @@ void lt_insert(BOOL dups, int key_l, int key_r, int data_l, int data_r) {
 void setup_payload_len(void** payload, u_int32_t* len, int val) {
     assert(payload && len);
 
-    *payload = set_to_infty(*payload, val);
-    if (val < 0) *len = 0;
-    *len = sizeof(nums[0]);
+    DBT temp;
+
+    *payload = set_to_infty(&temp, val);
+    
+    if (val < 0) {
+        *len = 0;
+    }
+    else {
+        *len = sizeof(nums[0]);
+        *payload = temp.data;
+    }
 }
 
 void lt_find(BOOL dups, toku_range_tree* rt,
-                        unsigned k, int key_l,  int key_r,
-                                    int data_l, int data_r,
+                        unsigned k, int key_l, int data_l,
+                                    int key_r, int data_r,
                                     DB_TXN* find_txn) {
 
     r = toku_rt_find(rt, &query, 0, &buf, &buflen, &numfound);
@@ -103,22 +112,22 @@ void lt_find(BOOL dups, toku_range_tree* rt,
     memset(&left,0,sizeof(left));
     setup_payload_len(&left.key_payload, &left.key_len, key_l);
     if (dups) {
-        if (key_l < 0) left.data_payload = left.key_payload;
+        if (key_l < null) left.data_payload = left.key_payload;
         else setup_payload_len(&left.data_payload, &left.data_len, data_l);
     }
     memset(&right,0,sizeof(right));
     setup_payload_len(&right.key_payload, &right.key_len, key_r);
     if (dups) {
-        if (key_r < 0) right.data_payload = right.key_payload;
+        if (key_r < null) right.data_payload = right.key_payload;
         else setup_payload_len(&right.data_payload, &right.data_len, data_r);
     }
     unsigned i;
     for (i = 0; i < numfound; i++) {
-        if (toku_lt_point_cmp(buf[0].left,  &left ) == 0 &&
-            toku_lt_point_cmp(buf[0].right, &right) == 0 &&
-            buf[0].data == find_txn) return;
+        if (toku_lt_point_cmp(buf[i].left,  &left ) == 0 &&
+            toku_lt_point_cmp(buf[i].right, &right) == 0 &&
+            buf[i].data == find_txn) return;
     }
-    assert(FALSE);
+    assert(FALSE);  //Crash since we didn't find it.
 }
               
 
@@ -229,53 +238,128 @@ void runtest(BOOL dups) {
         insert_1(dups, 3, 3, 7, 7, choices[a], choices[a],
                                    choices[b], choices[b]);
     }
-
-    int key_l[2];
-    int key_r[2];
-    int data_l[2];
-    int data_r[2];
-    const void* kl[2];
-    const void* dl[2];
-    const void* kr[2];
-    const void* dr[2];
+    
     toku_range_tree *rt;
+    /* ************************************** */
+    setup_tree(dups);
 
-    key_l[0]  = 3;
-    data_l[0] = 3;
-    key_r[0]  = dups ? 3 : 7;
-    data_r[0] = 7;
-    kl[0] = kr[0] = dl[0] = dr[0] = NULL;
-
-    key_l[1]  = dups ? 3 : 4;
-    data_l[1] = 4;
-    key_r[1]  = dups ? 3 : 5;
-    data_r[1] = 5;
-    kl[1] = kr[1] = dl[1] = dr[1] = NULL;
-
-    insert_2_noclose(dups, key_l, key_r, data_l, data_r, kl, dl, kr, dr);
+    /////BUG HERE MAYBE NOT CONSOLIDATING.
+    /*nodups:
+        [(3, 3),  (7,7)] and [(4,4), (5,5)]
+      dups:
+        [(3, 3),  (3,7)] and [(3,4), (3,5)]
+    */
+    
+    lt_insert(dups,
+              3,            3,
+              dups ? 3 : 7, 7);
+    lt_insert(dups,
+              dups ? 3 : 4, 4,
+              dups ? 3 : 5, 5);
     
     rt = __toku_lt_ifexist_selfread(lt, txn);
     assert(rt);
 
-    r = toku_rt_find(rt, &query, 0, &buf, &buflen, &numfound);
-    CKERR(r);
-    assert(numfound==1);
+    lt_find(dups, rt, 1,
+            3,            3,
+            dups ? 3 : 7, 7,
+            txn);
 
-    toku_point left, right;
-    memset(&left,0,sizeof(left));
-    left.key_payload  = &nums[key_l[0]];
-    left.key_len      = sizeof(nums[0]);
-    left.data_payload = &nums[data_l[0]];
-    left.data_len     = sizeof(nums[0]);
-    memset(&right,0,sizeof(right));
-    right.key_payload  = &nums[key_r[0]];
-    right.key_len      = sizeof(nums[0]);
-    right.data_payload = &nums[data_r[0]];
-    right.data_len     = sizeof(nums[0]);
+    rt = lt->mainread;
+    assert(rt);
 
-    assert(toku_lt_point_cmp(buf[0].left , &left ) == 0);
-    assert(toku_lt_point_cmp(buf[0].right, &right) == 0);
+    lt_find(dups, rt, 1,
+            3,            3,
+            dups ? 3 : 7, 7,
+            txn);
 
+    close_tree();
+    /* ************************************** */
+    setup_tree(dups);
+
+    /*nodups:
+        [(3, 3),  (7,7)] and [(4,4), (5,5)]
+      dups:
+        [(3, 3),  (3,7)] and [(3,4), (3,5)]
+    */
+    lt_insert(dups,
+              dups ? 3 : 4, 4,
+              dups ? 3 : 5, 5);
+    lt_insert(dups,
+              3,            3,
+              dups ? 3 : 7, 7);
+    
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+
+    lt_find(dups, rt, 1,
+            3,            3,
+            dups ? 3 : 7, 7,
+            txn);
+
+    rt = lt->mainread;                          assert(rt);
+
+    lt_find(dups, rt, 1,
+            3,            3,
+            dups ? 3 : 7, 7,
+            txn);
+    rt = NULL;
+    close_tree();
+    /* ************************************** */
+    setup_tree(dups);
+    lt_insert(dups, 3, 3, 3, 3);
+    lt_insert(dups, 4, 4, 4, 4);
+    lt_insert(dups, 3, 3, 3, 3);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 2, 3, 3, 3, 3, txn);
+    lt_find(dups, rt, 2, 4, 4, 4, 4, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 2, 3, 3, 3, 3, txn);
+    lt_find(dups, rt, 2, 4, 4, 4, 4, txn);
+    rt = NULL;
+    close_tree();
+    /* ************************************** */
+    setup_tree(dups);
+    for (i = 0; i < 20; i += 2) {
+        lt_insert(dups,       i, 5, i + 1, 10);
+    }
+    rt = __toku_lt_ifexist_selfread(lt, txn);
+    assert(rt);
+    for (i = 0; i < 20; i += 2) {
+        lt_find(dups, rt, 10, i, 5, i + 1, 10, txn);
+    }
+    rt = lt->mainread; assert(rt);
+    for (i = 0; i < 20; i += 2) {
+        lt_find(dups, rt, 10, i, 5, i + 1, 10, txn);
+    }
+    lt_insert(dups,        0, neg_infinite, 20, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(  dups, rt, 1, 0, neg_infinite, 20, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(  dups, rt, 1, 0, neg_infinite, 20, infinite, txn);
+    rt = NULL;
+    close_tree();
+    /* ************************************** */
+    setup_tree(dups);
+    lt_insert(dups,        0, neg_infinite, 1, infinite);
+    lt_insert(dups,        1, neg_infinite, 2, infinite);
+
+    lt_insert(dups,        4, neg_infinite, 5, infinite);
+    lt_insert(dups,        3, neg_infinite, 4, infinite);
+    
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 2,   0, neg_infinite, 2, infinite, txn);
+    lt_find(dups, rt, 2,   3, neg_infinite, 5, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 2,   0, neg_infinite, 2, infinite, txn);
+    lt_find(dups, rt, 2,   3, neg_infinite, 5, infinite, txn);
+
+    lt_insert(dups,        2, neg_infinite, 3, infinite);
+
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   0, neg_infinite, 5, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   0, neg_infinite, 5, infinite, txn);
+    rt = NULL;
     close_tree();
 }
 
