@@ -1716,7 +1716,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     } else {
         unsigned int limit = nodesize / (3*BRT_FANOUT-1);
         if (key->size >= limit || data->size >= limit)
-            return EINVAL;
+            return do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %d bytes", limit);
     }
 
     if (flags == DB_YESOVERWRITE) {
