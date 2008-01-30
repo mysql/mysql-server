@@ -24,4 +24,5 @@ SET(CSV_SOURCES  ha_tina.cc ha_tina.h transparent_file.cc transparent_file.h)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(csv ${CSV_SOURCES})
+  ADD_DEPENDENCIES(csv GenError)
 ENDIF(NOT SOURCE_SUBLIBS)
