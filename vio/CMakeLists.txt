@@ -23,5 +23,6 @@ SET(VIO_SOURCES  vio.c viosocket.c viossl.c viosslfactories.c)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(vio ${VIO_SOURCES})
+  ADD_DEPENDENCIES(vio GenError)
 ENDIF(NOT SOURCE_SUBLIBS)
 

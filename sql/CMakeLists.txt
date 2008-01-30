@@ -167,5 +167,5 @@ SET_DIRECTORY_PROPERTIES(PROPERTIES ADDITIONAL_MAKE_CLEAN_FILES
                          "lex_hash.h;message.rc;message.h;sql_yacc.h;sql_yacc.cc")
 
 ADD_LIBRARY(udf_example MODULE udf_example.c udf_example.def)
-ADD_DEPENDENCIES(udf_example strings)
+ADD_DEPENDENCIES(udf_example strings GenError)
 TARGET_LINK_LIBRARIES(udf_example strings wsock32)
