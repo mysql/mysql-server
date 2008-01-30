@@ -15,12 +15,10 @@ count(*)
 show binlog events in 'master-bin.000002' from 98;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	98	Query	1	#	use `test`; create table t2 (id int not null primary key auto_increment)
-master-bin.000002	221	Begin_load_query	1	#	;file_id=1;block_len=7168
-master-bin.000002	7412	Append_block	1	#	;file_id=1;block_len=7168
-master-bin.000002	14603	Append_block	1	#	;file_id=1;block_len=2048
-master-bin.000002	16674	Append_block	1	#	;file_id=1;block_len=7168
-master-bin.000002	23865	Append_block	1	#	;file_id=1;block_len=341
-master-bin.000002	24229	Execute_load_query	1	#	use `test`; load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2 ;file_id=1
+master-bin.000002	221	Begin_load_query	1	#	;file_id=#;block_len=8192
+master-bin.000002	8436	Append_block	1	#	;file_id=#;block_len=8192
+master-bin.000002	16651	Append_block	1	#	;file_id=#;block_len=7509
+master-bin.000002	24183	Execute_load_query	1	#	use `test`; load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2 ;file_id=#
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
