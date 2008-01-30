@@ -3192,10 +3192,13 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
              ("Trying to set next auto increment value to %s",
               llstr(next_val, buff)));
 #endif
-  Ndb_tuple_id_range_guard g(m_share);
-  if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
-      == -1)
-    ERR_RETURN(ndb->getNdbError());
+  if (ndb->checkUpdateAutoIncrementValue(m_share->tuple_id_range, next_val))
+  {
+    Ndb_tuple_id_range_guard g(m_share);
+    if (ndb->setAutoIncrementValue(m_table, g.range, next_val, TRUE)
+        == -1)
+      ERR_RETURN(ndb->getNdbError());
+  }
   DBUG_RETURN(0);
 }
 
