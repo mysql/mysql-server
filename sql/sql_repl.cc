@@ -1595,7 +1595,7 @@ int log_loaded_block(IO_CACHE* file)
   LOAD_FILE_INFO *lf_info;
   uint block_len;
   /* buffer contains position where we started last read */
-  char* buffer= my_b_get_buffer_start(file);
+  uchar* buffer= my_b_get_buffer_start(file);
   uint max_event_size= current_thd->variables.max_allowed_packet;
   lf_info= (LOAD_FILE_INFO*) file->arg;
   if (lf_info->thd->current_stmt_binlog_row_based)

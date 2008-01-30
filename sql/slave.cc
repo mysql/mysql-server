@@ -2846,7 +2846,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       }
       if (unlikely(cev_not_written))
       {
-        cev->block = (char*)net->read_pos;
+        cev->block = net->read_pos;
         cev->block_len = num_bytes;
         if (unlikely(mi->rli.relay_log.append(cev)))
         {
@@ -2860,7 +2860,7 @@ static int process_io_create_file(Master_info* mi, Create_file_log_event* cev)
       }
       else
       {
-        aev.block = (char*)net->read_pos;
+        aev.block = net->read_pos;
         aev.block_len = num_bytes;
         aev.log_pos = cev->log_pos;
         if (unlikely(mi->rli.relay_log.append(&aev)))
