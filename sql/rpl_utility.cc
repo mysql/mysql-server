@@ -164,7 +164,7 @@ uint32 table_def::calc_field_size(uint col, uchar *master_data) const
     break;
   }
   default:
-    length= ~(uint32) -1;
+    length= ~(uint32) 0;
   }
   return length;
 }
