@@ -371,7 +371,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	 * The splitter key is key number n_children_in_a */
 	int i;
 
-	for (i=n_children_in_a; i<old_n_children; i++) {
+	for (i=0; i<old_n_children; i++) {
 	    int targchild = i-n_children_in_a;
 	    int r = toku_fifo_create(&B->u.n.buffers[targchild]);
 	    if (r!=0) return r;
@@ -422,14 +422,15 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		verify_local_fingerprint_nonleaf(node);
 	    }
 
-	    // Delete a child, removing it's fingerprint, and also the preceeding pivot key
+	    // Delete a child, removing it's fingerprint, and also the preceeding pivot key.  The child number must be > 0
 	    {
 		BYTESTRING bs = { .len = kv_pair_keylen(node->u.n.childkeys[i-1]),
 				  .data = kv_pair_key(node->u.n.childkeys[i-1]) };
+		assert(i>0);
 		r = toku_log_delchild(txn, txnid, fnum, node->thisnodename, n_children_in_a, thischilddiskoff, BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i), bs);
 		if (r!=0) return r;
 		if (i>n_children_in_a) {
-		    r = toku_log_setpivot(txn, txnid, fnum, B->thisnodename, targchild, bs);
+		    r = toku_log_setpivot(txn, txnid, fnum, B->thisnodename, targchild-1, bs);
 		    if (r!=0) return r;
 		    B->u.n.childkeys[targchild-1] = node->u.n.childkeys[i-1];
 		    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i-1]);
@@ -615,9 +616,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum) = BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, cnum-1);
 	node->u.n.n_bytes_in_buffer[cnum] = node->u.n.n_bytes_in_buffer[cnum-1];
     }
-    r = toku_log_addchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), node->thisnodename, childnum,   childb->thisnodename, 0);
-    r = toku_log_setchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), node->thisnodename, childnum,   BRTNODE_CHILD_DISKOFF(node, childnum+1), childb->thisnodename);
-    BRTNODE_CHILD_DISKOFF(node, childnum)   = childa->thisnodename;
+    r = toku_log_addchild(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
+    assert(BRTNODE_CHILD_DISKOFF(node, childnum)==childa->thisnodename);
     BRTNODE_CHILD_DISKOFF(node, childnum+1) = childb->thisnodename;
     fixup_child_fingerprint(node, childnum,   childa, t, txn);
     fixup_child_fingerprint(node, childnum+1, childb, t, txn);
@@ -631,6 +631,12 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
                  node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_cmd(type, skey, skeylen, sval, svallen));
 
     // Slide the keys over
+    {
+	BYTESTRING bs = { .len  = childsplitk->size,
+			  .data = childsplitk->data };
+	r = toku_log_setpivot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
+	if (r!=0) return r;
+    }
     for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
 	node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
     }
