@@ -453,6 +453,7 @@ int simple_delete_flush_test()
 {
   unsigned char *buffw= malloc(PAGE_SIZE);
   unsigned char *buffr= malloc(PAGE_SIZE);
+  PAGECACHE_BLOCK_LINK *link;
   int res;
   DBUG_ENTER("simple_delete_flush_test");
   /* prepare the file */
@@ -462,7 +463,7 @@ int simple_delete_flush_test()
                   PAGECACHE_LOCK_WRITE,
                   PAGECACHE_PIN,
                   PAGECACHE_WRITE_DELAY,
-                  0, LSN_IMPOSSIBLE);
+                  &link, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
   bfill(buffw, PAGE_SIZE, '\2');
@@ -472,12 +473,16 @@ int simple_delete_flush_test()
                   PAGECACHE_PIN_LEFT_PINNED,
                   PAGECACHE_WRITE_DELAY,
                   0, LSN_IMPOSSIBLE);
-  pagecache_delete(&pagecache, &file1, 0,
-                   PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
+  if (pagecache_delete_by_link(&pagecache, link,
+			       PAGECACHE_LOCK_LEFT_WRITELOCKED, 1))
+  {
+    diag("simple_delete_flush_test: error during delete");
+    exit(1);
+  }
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
                           simple_delete_flush_test_file))),
-     "Simple delete-forget page file");
+     "Simple delete flush (link) page file");
   if (res)
     reset_file(&file1, file1_name);
   free(buffw);

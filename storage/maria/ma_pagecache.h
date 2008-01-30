@@ -283,6 +283,10 @@ extern my_bool pagecache_delete(PAGECACHE *pagecache,
                                 pgcache_page_no_t pageno,
                                 enum pagecache_page_lock lock,
                                 my_bool flush);
+extern my_bool pagecache_delete_by_link(PAGECACHE *pagecache,
+					PAGECACHE_BLOCK_LINK *link,
+					enum pagecache_page_lock lock,
+					my_bool flush);
 extern my_bool pagecache_delete_pages(PAGECACHE *pagecache,
                                       PAGECACHE_FILE *file,
                                       pgcache_page_no_t pageno,
@@ -296,6 +300,9 @@ extern my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
 extern int reset_pagecache_counters(const char *name, PAGECACHE *pagecache);
 extern uchar *pagecache_block_link_to_buffer(PAGECACHE_BLOCK_LINK *block);
 
+extern uint pagacache_pagelevel(PAGECACHE_BLOCK_LINK *block);
+extern void pagecache_add_level_by_link(PAGECACHE_BLOCK_LINK *block,
+					uint level);
 
 /* Functions to handle multiple key caches */
 extern my_bool multi_pagecache_init(void);
