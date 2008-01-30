@@ -2,6 +2,7 @@
 # with a syntax error, replicates fine
 
 -- source include/have_log_bin.inc
+reset master;
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
@@ -11,6 +12,11 @@ load data infile '../std_data_ln/words.dat' into table t1 -- load data to t1;
 insert into t2 values ("Ada");
 flush logs;
 select * from t2;
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 | $MYSQL
+--exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 flush logs;
 select * from t2;
+
+# clean up
+drop table t1,t2;
+--system rm $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
