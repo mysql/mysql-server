@@ -1,0 +1,19 @@
+#############################################################
+# Author: Rafal Somla
+# Date: 2006-08-20
+# Purpose: Trying to test ability to replicate from cluster
+# to other engines (innodb, myisam), see also rpl_ndb_2other.test
+##############################################################
+--source include/have_binlog_format_mixed_or_row.inc
+--source include/ndb_master-slave.inc
+
+# On master use NDB as storage engine.
+connection master;
+SET storage_engine=ndb;
+
+--echo
+--echo === NDB -> NDB ===
+--echo
+connection slave;
+SET storage_engine=ndb;
+--source extra/rpl_tests/rpl_ndb_2multi_basic.test

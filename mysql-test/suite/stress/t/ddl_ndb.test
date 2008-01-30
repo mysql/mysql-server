@@ -10,6 +10,8 @@
 
 # Storage engine to be used in CREATE TABLE
 --source include/have_ndb.inc
+connection default;
+
 let $engine_type= NDB;
 
 

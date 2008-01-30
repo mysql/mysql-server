@@ -15,3 +15,6 @@ ndb_autodiscover2        : BUG#18952 2006-02-16 jmiller Needs to be fixed w.r.t 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_autodiscover3        : bug#21806
 #ndb_autodiscover3         : Bug#20872 2007-07-15 ingo master*.err: miscellaneous error messages
+#rpl_ndb_extraColMaster   : BUG#30854 : Tables name show as binary in slave err msg on vm-win2003-64-b and Solaris
+#rpl_ndb_mix_innodb       : Bug #32720   Test rpl_ndb_mix_innodb fails on SPARC and PowerPC
+#rpl_ndb_dd_advance	 : Bug #30222  	rpl_ndb_dd_advance.test fails
