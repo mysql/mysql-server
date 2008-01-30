@@ -418,7 +418,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
     TABLE_LIST **save_query_tables_own_last= thd->lex->query_tables_own_last;
     thd->lex->query_tables_own_last= 0;
 
-    err_status= check_table_access(thd, TRIGGER_ACL, tables, 0);
+    err_status= check_table_access(thd, TRIGGER_ACL, tables, 1, FALSE);
 
     thd->lex->query_tables_own_last= save_query_tables_own_last;
 
