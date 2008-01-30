@@ -8,7 +8,7 @@ int main() {
     BOOL duplicates;
 
     for (duplicates = 0; duplicates < 2; duplicates++) {
-        r = toku_lt_create(&lt, db, duplicates, mem, dbcmp, dbcmp,
+        r = toku_lt_create(&lt, db, duplicates, dbpanic, mem, dbcmp, dbcmp,
                            toku_malloc, toku_free, toku_realloc);
         CKERR(r);
         assert(lt);
