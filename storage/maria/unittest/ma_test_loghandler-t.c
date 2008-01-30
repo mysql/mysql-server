@@ -154,7 +154,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   MY_INIT(argv[0]);
 
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   if (maria_log_remove())
     exit(1);
 

@@ -34,7 +34,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   bzero(&pagecache, sizeof(pagecache));
   bzero(long_buffer, LONG_BUFFER_SIZE);
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   if (maria_log_remove())
     exit(1);
 

@@ -8325,7 +8325,7 @@ int main(int argc, char **argv)
   default_argv= argv;
   get_options(&argc, &argv);
 
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
 
   if ((handler= my_open(opt_file, O_RDONLY, MYF(MY_WME))) < 0)
   {

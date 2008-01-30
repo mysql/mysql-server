@@ -207,7 +207,7 @@ int main(int argc __attribute__((unused)),
   plan(WRITERS + ITERATIONS * WRITERS * 3);
 
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   long_buffer= malloc(LONG_BUFFER_SIZE + 7 * 2 + 2);
   if (long_buffer == 0)
   {

@@ -59,7 +59,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   plan(1);
 
   bzero(&pagecache, sizeof(pagecache));
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   if (maria_log_remove())
     exit(1);
   /* be sure that we have no logs in the directory*/

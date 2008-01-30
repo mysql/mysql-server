@@ -72,7 +72,7 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
   get_options(argc,argv);
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,

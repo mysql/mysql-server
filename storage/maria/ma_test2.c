@@ -78,7 +78,7 @@ int main(int argc, char *argv[])
   if (! async_io)
     my_disable_async_io=1;
 
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */
   if (maria_init() ||
       (init_pagecache(maria_pagecache, pagecache_size, 0, 0,
