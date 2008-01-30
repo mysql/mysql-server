@@ -212,9 +212,9 @@ uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
 */
 
 #ifdef MYSQL_CLIENT
-static void pretty_print_str(IO_CACHE* cache, char* str, int len)
+static void pretty_print_str(IO_CACHE* cache, const char* str, int len)
 {
-  char* end = str + len;
+  const char* end = str + len;
   my_b_printf(cache, "\'");
   while (str < end)
   {
@@ -277,9 +277,9 @@ inline int ignored_error_code(int err_code)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-static char *pretty_print_str(char *packet, char *str, int len)
+static char *pretty_print_str(char *packet, const char *str, int len)
 {
-  char *end= str + len;
+  const char *end= str + len;
   char *pos= packet;
   *pos++= '\'';
   while (str < end)
@@ -388,7 +388,7 @@ static void cleanup_load_tmpdir()
   write_str()
 */
 
-static bool write_str(IO_CACHE *file, char *str, uint length)
+static bool write_str(IO_CACHE *file, const char *str, uint length)
 {
   uchar tmp[1];
   tmp[0]= (uchar) length;
@@ -6011,7 +6011,8 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   sql_ex_info::init()
 */
 
-char *sql_ex_info::init(char *buf, char *buf_end, bool use_new_format)
+const char *sql_ex_info::init(const char *buf, const char *buf_end,
+                              bool use_new_format)
 {
   cached_new_format = use_new_format;
   if (use_new_format)
@@ -6024,12 +6025,11 @@ char *sql_ex_info::init(char *buf, char *buf_end, bool use_new_format)
       the case when we have old format because we will be reusing net buffer
       to read the actual file before we write out the Create_file event.
     */
-    const char *ptr= buf;
-    if (read_str(&ptr, buf_end, (const char **) &field_term, &field_term_len) ||
-	read_str(&ptr, buf_end, (const char **) &enclosed,   &enclosed_len) ||
-	read_str(&ptr, buf_end, (const char **) &line_term,  &line_term_len) ||
-	read_str(&ptr, buf_end, (const char **) &line_start, &line_start_len) ||
-	read_str(&ptr, buf_end, (const char **) &escaped,    &escaped_len))
+    if (read_str(&buf, buf_end, &field_term, &field_term_len) ||
+        read_str(&buf, buf_end, &enclosed,   &enclosed_len) ||
+        read_str(&buf, buf_end, &line_term,  &line_term_len) ||
+        read_str(&buf, buf_end, &line_start, &line_start_len) ||
+        read_str(&buf, buf_end, &escaped,    &escaped_len))
       return 0;
     opt_flags = *buf++;
   }
