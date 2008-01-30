@@ -9,6 +9,11 @@
   
    Lock trees are toku-struct's for granting long-lived locks to transactions.
    See more details on the design document.
+
+   TODO: If the various range trees are inconsistent with
+   each other, due to some system error like failed malloc,
+   we defer to the db panic handler
+      TODO: Pass in another parameter to do this.
 */
 
 #include <assert.h>
@@ -32,11 +37,6 @@ typedef struct {
         the range trees that this lock tree owns */
     toku_range*         buf;      
     unsigned            buflen;      /**< The length of buf */
-    /** It is true only if the various range trees are inconsistent with
-        each other, due to some system error like failed malloc. 
-        If the lock tree implementation panicks, it defers to the db
-        panic handler */
-    BOOL                panicked;
     /** The maximum amount of memory to be used for DBT payloads. */
     size_t              payload_capacity;
     /** The current amount of memory used for DBT payloads. */
@@ -45,6 +45,8 @@ typedef struct {
     int                 (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
     int                 (*dup_compare)(DB*,const DBT*,const DBT*);
+    /** The panic function */
+    void                (*panic)(DB*);
     /** The user malloc function */
     void*               (*malloc) (size_t);
     /** The user free function */
@@ -94,10 +96,11 @@ int toku_lt_point_cmp(void* a, void* b);
    \param duplicates     Whether the db supports duplicates.
    \param compare_fun    The key compare function.
    \param dup_compare    The data compare function.
+   \param panic          The function to cause the db to panic.  i.e. godzilla_rampage()
+   \param payload_capacity The maximum amount of memory to use for dbt payloads.
    \param user_malloc    A user provided malloc(3) function.
    \param user_free      A user provided free(3) function.
    \param user_realloc   A user provided realloc(3) function.
-   \param payload_capacity The maximum amount of memory to use for dbt payloads.
    
    \return
    - 0:      Success
@@ -113,7 +116,7 @@ int toku_lt_point_cmp(void* a, void* b);
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   size_t payload_capacity,
+                   void(*panic)(DB*), size_t payload_capacity,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
