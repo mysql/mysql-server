@@ -26,8 +26,6 @@ DB_TXN *const null_txn = 0;
 DB_ENV *dbenv = 0;
 
 
-void* lastmalloced = NULL;
-
 /*
  * getname -- extracts a secondary key (the last name) from a primary
  * 	key/data pair
@@ -57,8 +55,8 @@ int getskey(DB *secondary, const DBT *pkey, const DBT *pdata, DBT *skey)
     if (callback_init_data) {
         skey->size = sizeof(entry->skey);
         if (callback_set_malloc) {
-            skey->data = lastmalloced = malloc(skey->size);
-        	memcpy(skey->data, &entry->skey, skey->size);
+            skey->data = malloc(skey->size);
+	    memcpy(skey->data, &entry->skey, skey->size);
         }
         else skey->data = &entry->skey;
     }
@@ -135,10 +133,10 @@ int main(int argc, const char *argv[]) {
         callback_set_malloc = i & (1 << 1);
         callback_return_DONOTINDEX = i & (1 << 2);
 
-        lastmalloced = NULL;
         insert();
         check_secondary(callback_return_DONOTINDEX ? DB_NOTFOUND : 0);
-        if (callback_return_DONOTINDEX) free(lastmalloced);
+	// For recent versions of BDB, we don't need to free any malloced object, even if it we returned DB_DONOTINDEX because if we malloced it then we set DB_DBT_APPMALLOC
+	// Older versions of BDB didn't free it.  Which versions did?
         close_dbs();
     }
     return 0;

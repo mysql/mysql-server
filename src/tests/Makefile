@@ -149,6 +149,8 @@ NO_VGRIND = \
   dup_dup \
   dup_flags \
   dup_insert \
+  dup_next \
+  dup_search \
   log4 \
   log5 \
   # Comment to terminate list so the previous line can end with a slash
