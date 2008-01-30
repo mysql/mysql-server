@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+set global max_connections=151;
 stop slave;
 start slave;
 show variables like 'init_slave';
