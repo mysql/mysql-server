@@ -7,7 +7,7 @@
 --source include/have_ndb.inc
 --source include/have_innodb.inc
 --source include/have_binlog_format_mixed_or_row.inc
---source include/ndb_master-slave.inc
+--source include/master-slave.inc
 
 # On master use NDB as storage engine.
 connection master;
@@ -17,6 +17,13 @@ SET storage_engine=ndb;
 --echo === NDB -> MYISAM ===
 --echo
 connection slave;
+CREATE TABLE mysql.ndb_apply_status
+                   ( server_id INT UNSIGNED NOT NULL,
+                   epoch BIGINT UNSIGNED NOT NULL,
+                   log_name VARCHAR(255) BINARY NOT NULL,
+                   start_pos BIGINT UNSIGNED NOT NULL,
+                   end_pos BIGINT UNSIGNED NOT NULL,
+                   PRIMARY KEY USING HASH (server_id)) ENGINE=MYISAM;
 SET storage_engine=myisam;
 --source extra/rpl_tests/rpl_ndb_2multi_basic.test
 
@@ -24,12 +31,9 @@ SET storage_engine=myisam;
 --echo === NDB -> INNODB ===
 --echo
 connection slave;
+alter table mysql.ndb_apply_status engine=innodb;
 SET storage_engine=innodb;
 --source extra/rpl_tests/rpl_ndb_2multi_basic.test
 
---echo
---echo === NDB -> NDB ===
---echo
 connection slave;
-SET storage_engine=ndb;
---source extra/rpl_tests/rpl_ndb_2multi_basic.test
+drop table mysql.ndb_apply_status;
