@@ -298,7 +298,12 @@ struct st_pagecache_block_link
 #endif
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
   uchar *buffer;           /* buffer for the block page                      */
-  void *write_locker;
+#ifdef THREAD
+  pthread_t write_locker;
+#else
+  int write_locker;
+#endif
+
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   WQUEUE
     wqueue[COND_SIZE];    /* queues on waiting requests for new/old pages    */
@@ -2208,9 +2213,9 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
   PAGECACHE_FILE file= block->hash_link->file;
   pgcache_page_no_t pageno= block->hash_link->pageno;
 #ifdef THREAD
-  void *locker= pthread_self();
+  pthread_t locker= pthread_self();
 #else
-  void *locker= NULL;
+  int locker= 0;
 #endif
   DBUG_ENTER("get_wrlock");
   DBUG_PRINT("info", ("the block 0x%lx "
