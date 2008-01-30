@@ -3,8 +3,13 @@
 
 LIBNAME=liblocktree
 
-OPTFLAGS = #-O2
-# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+OPTFLAGS = -O0
+ifeq ($(GCOV),GCOV)
+ GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+else
+ GCOV_FLAGS =
+endif
+
 CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt -L../range_tree
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
