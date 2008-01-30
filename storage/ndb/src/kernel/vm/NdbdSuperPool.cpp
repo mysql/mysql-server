@@ -48,7 +48,7 @@ NdbdSuperPool::NdbdSuperPool(class Ndbd_mem_manager & mm,
 {
   m_memRoot = m_mm.get_memroot();
   
-  m_shift = Ndbd_mem_manager::log2((1 << (BMW_2LOG + 2)) / pageSize) - 1;
+  m_shift = Ndbd_mem_manager::ndb_log2((1 << (BMW_2LOG + 2)) / pageSize) - 1;
   m_add = (1 << m_shift) - 1;
 }
 

@@ -383,21 +383,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       dirty= false;
     }
 
-    OperationrecPtr prevOpPtr = currOpPtr;  
-    bool found= false;
-    while(true) 
-    {
-      if (savepointId > currOpPtr.p->savepointId) {
-	found= true;
-	break;
-      }
-      if (currOpPtr.p->is_first_operation()){
-	break;
-      }
-      prevOpPtr= currOpPtr;
-      currOpPtr.i = currOpPtr.p->prevActiveOp;
-      c_operation_pool.getPtr(currOpPtr);
-    }
+    bool found= find_savepoint(currOpPtr, savepointId);
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
@@ -788,7 +774,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterInsert(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, SET_ALL_MASK);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
@@ -821,7 +808,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterUpdate(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        // XXX use terrorCode for now since all methods are void
        if (terrorCode != 0) 
        {
@@ -852,7 +840,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	*/
        checkImmediateTriggersAfterDelete(&req_struct,
 					 regOperPtr, 
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, DELETE_CHANGES);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
