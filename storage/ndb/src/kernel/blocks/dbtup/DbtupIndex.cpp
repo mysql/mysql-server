@@ -15,6 +15,7 @@
 
 #define DBTUP_C
 #define DBTUP_INDEX_CPP
+#include <Dblqh.hpp>
 #include "Dbtup.hpp"
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
@@ -319,13 +320,25 @@ Dbtup::accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIn
   return ret;
 }
 
+/*
+ * TUX index contains all tuple versions.  A scan in TUX has scanned
+ * one of them and asks if it can be returned as scan result.  This
+ * depends on trans id, dirty read flag, and savepoint within trans.
+ *
+ * Previously this faked a ZREAD operation and used getPage().
+ * In TUP getPage() is run after ACC locking, but TUX comes here
+ * before ACC access.  Instead of modifying getPage() it is more
+ * clear to do the full check here.
+ */
 bool
 Dbtup::tuxQueryTh(Uint32 fragPtrI,
-                  Uint32 tupAddr,
+                  Uint32 pageId,
+                  Uint32 pageIndex,
                   Uint32 tupVersion,
                   Uint32 transId1,
                   Uint32 transId2,
-                  Uint32 savePointId)
+                  bool dirty,
+                  Uint32 savepointId)
 {
   jamEntry();
   FragrecordPtr fragPtr;
@@ -334,35 +347,83 @@ Dbtup::tuxQueryTh(Uint32 fragPtrI,
   TablerecPtr tablePtr;
   tablePtr.i= fragPtr.p->fragTableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
-  // get page
-  Uint32 fragPageId= tupAddr >> MAX_TUPLES_BITS;
-  Uint32 pageIndex= tupAddr & ((1 << MAX_TUPLES_BITS ) - 1);
-  // use temp op rec
-  Operationrec tempOp;
+  PagePtr pagePtr;
+  pagePtr.i = pageId;
+  c_page_pool.getPtr(pagePtr);
+
   KeyReqStruct req_struct;
-  tempOp.m_tuple_location.m_page_no= getRealpid(fragPtr.p, fragPageId);
-  tempOp.m_tuple_location.m_page_idx= pageIndex;
-  tempOp.savepointId= savePointId;
-  tempOp.op_struct.op_type= ZREAD;
-  req_struct.frag_page_id= fragPageId;
-  req_struct.trans_id1= transId1;
-  req_struct.trans_id2= transId2;
-  req_struct.dirty_op= 1;
-  
-  setup_fixed_part(&req_struct, &tempOp, tablePtr.p);
-  if (setup_read(&req_struct, &tempOp, fragPtr.p, tablePtr.p, false)) {
-    /*
-     * We use the normal getPage which will return the tuple to be used
-     * for this transaction and savepoint id.  If its tuple version
-     * equals the requested then we have a visible tuple otherwise not.
-     */
+
+  {
+    Operationrec tmpOp;
+    tmpOp.m_tuple_location.m_page_no = pageId;
+    tmpOp.m_tuple_location.m_page_idx = pageIndex;
+    setup_fixed_part(&req_struct, &tmpOp, tablePtr.p);
+  }
+
+  Tuple_header* tuple_ptr = req_struct.m_tuple_ptr;
+
+  OperationrecPtr currOpPtr;
+  currOpPtr.i = tuple_ptr->m_operation_ptr_i;
+  if (currOpPtr.i == RNIL) {
     jam();
-    if (req_struct.m_tuple_ptr->get_tuple_version() == tupVersion) {
+    // tuple has no operation, any scan can see it
+    return true;
+  }
+  c_operation_pool.getPtr(currOpPtr);
+
+  const bool sameTrans =
+    c_lqh->is_same_trans(currOpPtr.p->userpointer, transId1, transId2);
+
+  bool res = false;
+  OperationrecPtr loopOpPtr = currOpPtr;
+
+  if (!sameTrans) {
+    jam();
+    if (!dirty) {
       jam();
-      return true;
+      if (currOpPtr.p->nextActiveOp == RNIL) {
+        jam();
+        // last op - TUX makes ACC lock request in same timeslice
+        res = true;
+      }
+    }
+    else {
+      // loop to first op (returns false)
+      find_savepoint(loopOpPtr, 0);
+      const Uint32 op_type = loopOpPtr.p->op_struct.op_type;
+
+      if (op_type != ZINSERT) {
+        jam();
+        // read committed version
+        const Uint32 origVersion = tuple_ptr->get_tuple_version();
+        if (origVersion == tupVersion) {
+          jam();
+          res = true;
+        }
+      }
     }
   }
-  return false;
+  else {
+    jam();
+    // for own trans, ignore dirty flag
+
+    if (find_savepoint(loopOpPtr, savepointId)) {
+      jam();
+      const Uint32 op_type = loopOpPtr.p->op_struct.op_type;
+
+      if (op_type != ZDELETE) {
+        jam();
+        // check if this op has produced the scanned version
+        Uint32 loopVersion = loopOpPtr.p->tupVersion;
+        if (loopVersion == tupVersion) {
+          jam();
+          res = true;
+        }
+      }
+    }
+  }
+
+  return res;
 }
 
 // ordered index build

@@ -73,7 +73,7 @@ public:
    * @note size = 0     -> 0
    * @note size > 65536 -> 16
    */
-  static Uint32 log2(Uint32 size);
+  static Uint32 ndb_log2(Uint32 size);
 
 private:
   void grow(Uint32 start, Uint32 cnt);
