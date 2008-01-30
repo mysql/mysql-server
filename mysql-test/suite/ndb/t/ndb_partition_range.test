@@ -48,6 +48,11 @@ select * from t1 where a=21 order by a;
 select * from t1 where a in (1,6,10,21) order by a;
 select * from t1 where b=1 and a in (1,6,10,21) order by a;
 
+# BUG#33061: ORDER BY DESC becomes ASC in NDB partition pruning to one partition
+INSERT into t1 values (1, 2, 2);
+select max(b) from t1 where a = 1;
+select b from t1 where a = 1 order by b desc;
+
 drop table t1;
 
 #
