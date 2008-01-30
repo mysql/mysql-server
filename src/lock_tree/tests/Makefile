@@ -6,6 +6,7 @@
 # For very verbose output do 
 #   make VERBOSE=2
 
+OPTFLAGS = -O0
 ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  LIBEXT=dylib
@@ -23,7 +24,11 @@ else
 endif
 
 LIBNAME=librt.$(LIBEXT)
-# GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+ifeq ($(GCOV),GCOV)
+ GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+else
+ GCOV_FLAGS =
+endif
 CFLAGS = -Wall -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CPPFLAGS += -L../ -L../../range_tree 
 CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -lpthread
