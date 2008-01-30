@@ -328,16 +328,18 @@ Backup::execCONTINUEB(Signal* signal)
     ptr.p->files.getPtr(filePtr, ptr.p->ctlFilePtr);
     FsBuffer & buf = filePtr.p->operation.dataBuffer;
     
-    if(buf.getFreeSize() + buf.getMinRead() < buf.getUsableSize()) {
+    if(buf.getFreeSize() < buf.getMaxWrite()) {
       jam();
       TablePtr tabPtr LINT_SET_PTR;
       c_tablePool.getPtr(tabPtr, Tdata2);
       
-      DEBUG_OUT("Backup - Buffer full - " << buf.getFreeSize()
-		<< " + " << buf.getMinRead()
-		<< " < " << buf.getUsableSize()
-		<< " - tableId = " << tabPtr.p->tableId);
-
+      DEBUG_OUT("Backup - Buffer full - " 
+                << buf.getFreeSize()
+		<< " < " << buf.getMaxWrite()
+                << " (sz: " << buf.getUsableSize()
+                << " getMinRead: " << buf.getMinRead()
+		<< ") - tableId = " << tabPtr.p->tableId);
+      
       signal->theData[0] = BackupContinueB::BUFFER_FULL_META;
       signal->theData[1] = Tdata1;
       signal->theData[2] = Tdata2;
