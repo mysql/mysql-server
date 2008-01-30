@@ -36,7 +36,11 @@ typedef struct {
         each other, due to some system error like failed malloc. 
         If the lock tree implementation panicks, it defers to the db
         panic handler */
-    BOOL                panicked;    
+    BOOL                panicked;
+    /** The maximum amount of memory to be used for DBT payloads. */
+    size_t              payload_capacity;
+    /** The current amount of memory used for DBT payloads. */
+    size_t              payload_used;
     /** The key compare function */
     int                 (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
@@ -93,9 +97,12 @@ int toku_lt_point_cmp(void* a, void* b);
    \param user_malloc    A user provided malloc(3) function.
    \param user_free      A user provided free(3) function.
    \param user_realloc   A user provided realloc(3) function.
+   \param payload_capacity The maximum amount of memory to use for dbt payloads.
    
    \return
    - 0:      Success
+   - EINVAL: If any pointer or function argument is NULL.
+   - EINVAL: If payload_capacity is 0.
    - May return other errors due to system calls.
 
    A pre-condition is that no pointer parameter can be NULL;
@@ -106,6 +113,7 @@ int toku_lt_point_cmp(void* a, void* b);
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
+                   size_t payload_capacity,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
@@ -151,6 +159,8 @@ int toku_lt_close(toku_lock_tree* tree);
  *                             (tree->db is dupsort && key != data &&
  *                                  (key == toku_lt_infinity ||
  *                                   key == toku_lt_neg_infinity))
+ *      ENOMEM:             If adding the lock would exceed the maximum
+ *                          memory allowed for payloads.
  * Asserts:
  *      The EINVAL cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
@@ -196,6 +206,8 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                            If (key_left, data_left) >  (key_right, data_right) or
  *                          In a nodup db:      if (key_left) >  (key_right)
  *                          (According to the db's comparison functions.
+ *      ENOMEM:             If adding the lock would exceed the maximum
+ *                          memory allowed for payloads.
  * Asserts:
  *      The EINVAL and ERANGE cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
@@ -230,6 +242,8 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                             (tree->db is dupsort && key != data &&
  *                                  (key == toku_lt_infinity ||
  *                                   key == toku_lt_neg_infinity))
+ *      ENOMEM:             If adding the lock would exceed the maximum
+ *                          memory allowed for payloads.
  * Asserts:
  *      The EINVAL cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.
@@ -282,6 +296,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                          (According to the db's comparison functions.
  *      ENOSYS:             THis is not yet implemented.  Till it is, it will return ENOSYS,
  *                            if other errors do not occur first.
+ *      ENOMEM:             If adding the lock would exceed the maximum
+ *                          memory allowed for payloads.
  * Asserts:
  *      The EINVAL and ERANGE cases described will use assert to abort instead of returning errors.
  *      If this library is ever exported to users, we will use error datas instead.

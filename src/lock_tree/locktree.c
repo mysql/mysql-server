@@ -82,6 +82,9 @@ int toku_lt_point_cmp(void* a, void* b) {
 
 static int __toku_p_free(toku_lock_tree* tree, toku_point* point) {
     assert(point);
+    tree->payload_used -= point->key_len;
+    tree->payload_used -= point->data_len;
+    tree->payload_used -= sizeof(toku_point);
     if (!__toku_lt_is_infinite(point->key_payload)) {
         tree->free(point->key_payload);
     }
@@ -109,8 +112,10 @@ static int __toku_payload_copy(toku_lock_tree* tree,
         *len_out     = 0;
     }
     else {
+        if (tree->payload_used + len_in > tree->payload_capacity) return ENOMEM;
         *payload_out = tree->malloc(len_in);
         if (!*payload_out) return errno;
+        tree->payload_used += len_in;
         *len_out     = len_in;
         memcpy(*payload_out, payload_in, len_in);
     }
@@ -123,14 +128,18 @@ static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
     toku_point*     temp_point = NULL;
     int r;
 
+    if (tree->payload_used + sizeof(toku_point) >
+        tree->payload_capacity)                                   return ENOMEM;
     temp_point = (toku_point*)tree->malloc(sizeof(toku_point));
     if (0) {
         died1:
         tree->free(temp_point);
+        tree->payload_used -= sizeof(toku_point);
         return r;
     }
     if (!temp_point) return errno;
     memcpy(temp_point, point, sizeof(toku_point));
+    tree->payload_used += sizeof(toku_point);
 
     r = __toku_payload_copy(tree,
                             &temp_point->key_payload, &temp_point->key_len,
@@ -139,6 +148,7 @@ static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
         died2:
         if (!__toku_lt_is_infinite(temp_point->key_payload)) {
             tree->free(temp_point->key_payload);
+            tree->payload_used -= temp_point->key_len;
         }
         goto died1;
     }
@@ -450,6 +460,7 @@ static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
         *alloc_right = FALSE;
         copy_left    = TRUE;
     }
+
     if (alloc_left) {
         r = __toku_p_makecopy(tree, &to_insert->left);
         if (0) {
@@ -642,13 +653,14 @@ static void __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
 }
 
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
+                   size_t payload_capacity,
                    int   (*compare_fun)(DB*,const DBT*,const DBT*),
                    int   (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
-    if (!ptree || !db || !compare_fun || !dup_compare ||
-        !user_malloc || !user_free || !user_realloc)    return EINVAL;
+    if (!ptree || !db || !compare_fun || !dup_compare || !payload_capacity ||
+        !user_malloc || !user_free || !user_realloc)        return EINVAL;
     int r;
 
     toku_lock_tree* temp_tree =(toku_lock_tree*)user_malloc(sizeof(*temp_tree));
@@ -666,6 +678,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     temp_tree->malloc      = user_malloc;
     temp_tree->free        = user_free;
     temp_tree->realloc     = user_realloc;
+    temp_tree->payload_capacity = payload_capacity;
     r = toku_rt_create(&temp_tree->mainread,
                        toku_lt_point_cmp, __toku_lt_txn_cmp, TRUE,
                        user_malloc, user_free, user_realloc);
@@ -860,6 +873,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         This is a point, and if merging was possible it would have been
         dominated by selfwrite.
     */
+    //TODO: Right here, //////
     r = __toku_p_makecopy(tree, &to_insert.left);
     if (0) {
         died1:
