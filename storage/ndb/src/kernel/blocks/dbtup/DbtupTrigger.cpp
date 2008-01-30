@@ -377,7 +377,8 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber send
 void
 Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
                                          Operationrec *regOperPtr, 
-                                         Tablerec *regTablePtr)
+                                         Tablerec *regTablePtr,
+                                         bool disk)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -388,14 +389,16 @@ Dbtup::checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
     jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->afterInsertTriggers,
-                          regOperPtr);
+                          regOperPtr,
+                          disk);
   }
 }
 
 void
 Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
                                          Operationrec* regOperPtr, 
-                                         Tablerec* regTablePtr)
+                                         Tablerec* regTablePtr,
+                                         bool disk)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -406,21 +409,24 @@ Dbtup::checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
     jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->afterUpdateTriggers,
-                          regOperPtr);
+                          regOperPtr,
+                          disk);
   }
   if ((regOperPtr->op_struct.primary_replica) &&
       (!(regTablePtr->constraintUpdateTriggers.isEmpty()))) {
     jam();
     fireImmediateTriggers(req_struct,
                           regTablePtr->constraintUpdateTriggers,
-                          regOperPtr);
+                          regOperPtr,
+                          disk);
   }
 }
 
 void
 Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
                                          Operationrec* regOperPtr, 
-                                         Tablerec* regTablePtr)
+                                         Tablerec* regTablePtr,
+                                         bool disk)
 {
   if(refToBlock(req_struct->TC_ref) != DBTC) {
     return;
@@ -431,7 +437,8 @@ Dbtup::checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
     jam();
     executeTriggers(req_struct,
                     regTablePtr->afterDeleteTriggers,
-                    regOperPtr);
+                    regOperPtr,
+                    disk);
   }
 }
 
@@ -555,7 +562,8 @@ end:
 void 
 Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
-                             Operationrec* const regOperPtr)
+                             Operationrec* const regOperPtr,
+                             bool disk)
 {
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
@@ -566,7 +574,8 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
       jam();
       executeTrigger(req_struct,
                      trigPtr.p,
-                     regOperPtr);
+                     regOperPtr,
+                     disk);
     }//if
     triggerList.next(trigPtr);
   }//while
@@ -629,7 +638,8 @@ Dbtup::fireDetachedTriggers(KeyReqStruct *req_struct,
 
 void Dbtup::executeTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList, 
-                            Operationrec* regOperPtr)
+                            Operationrec* regOperPtr,
+                            bool disk)
 {
   TriggerPtr trigPtr;
   triggerList.first(trigPtr);
@@ -637,7 +647,8 @@ void Dbtup::executeTriggers(KeyReqStruct *req_struct,
     jam();
     executeTrigger(req_struct,
                    trigPtr.p,
-                   regOperPtr);
+                   regOperPtr,
+                   disk);
     triggerList.next(trigPtr);
 
   }
