@@ -947,7 +947,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     *is_null= item->null_value;
   }
   if (*is_null)
-    return -1;
+    return ~(ulonglong) 0;
   /*
     Convert strings to the integer DATE/DATETIME representation.
     Even if both dates provided in strings we can't compare them directly as
