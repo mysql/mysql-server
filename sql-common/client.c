@@ -2095,7 +2095,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   /* Check if version of protocol matches current one */
 
   mysql->protocol_version= net->read_pos[0];
-  DBUG_DUMP("packet",(char*) net->read_pos,10);
+  DBUG_DUMP("packet",(uchar*) net->read_pos,10);
   DBUG_PRINT("info",("mysql protocol version %d, server=%d",
 		     PROTOCOL_VERSION, mysql->protocol_version));
   if (mysql->protocol_version != PROTOCOL_VERSION)
@@ -2221,7 +2221,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       Send client_flag, max_packet_size - unencrypted otherwise
       the server does not know we want to do SSL
     */
-    if (my_net_write(net,buff,(uint) (end-buff)) || net_flush(net))
+    if (my_net_write(net, (uchar*) buff, (uint) (end-buff)) || net_flush(net))
     {
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER(CR_SERVER_LOST_EXTENDED),

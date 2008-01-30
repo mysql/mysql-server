@@ -270,7 +270,7 @@ public:
   File prepare_new_file_for_old_format(Load_log_event *le, char *filename);
   int load_old_format_file(NET* net, const char *server_fname,
 			   uint server_fname_len, File file);
-  int process_first_event(const char *bname, uint blen, const char *block,
+  int process_first_event(const char *bname, uint blen, const uchar *block,
                           uint block_len, uint file_id,
                           Create_file_log_event *ce);
 };
@@ -375,7 +375,7 @@ int Load_log_processor::load_old_format_file(NET* net, const char*server_fname,
 */
 
 int Load_log_processor::process_first_event(const char *bname, uint blen,
-                                            const char *block, uint block_len,
+                                            const uchar *block, uint block_len,
                                             uint file_id,
                                             Create_file_log_event *ce)
 {
