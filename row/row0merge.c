@@ -227,7 +227,7 @@ row_merge_buf_add(
 					FALSE if out of space */
 	row_merge_buf_t*	buf,	/* in/out: sort buffer */
 	const dtuple_t*		row,	/* in: row in clustered index */
-	row_ext_t*		ext)	/* in/out: cache of externally stored
+	const row_ext_t*	ext)	/* in: cache of externally stored
 					column prefixes, or NULL */
 {
 	ulint			i;
