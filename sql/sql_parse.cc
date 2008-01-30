@@ -495,7 +495,7 @@ static bool check_merge_table_access(THD *thd, char *db,
         tlist->db= db; /* purecov: inspected */
     }
     error= check_table_access(thd, SELECT_ACL | UPDATE_ACL | DELETE_ACL,
-                              table_list,0);
+                              table_list, UINT_MAX, FALSE);
   }
   return error;
 }
@@ -1994,7 +1994,7 @@ mysql_execute_command(THD *thd)
       res= check_table_access(thd,
                               lex->exchange ? SELECT_ACL | FILE_ACL :
                               SELECT_ACL,
-                              all_tables, 0);
+                              all_tables, UINT_MAX, FALSE);
     }
     else
       res= check_access(thd,
@@ -2019,7 +2019,7 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_DO:
-    if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+    if (check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE) ||
         open_and_lock_tables(thd, all_tables))
       goto error;
 
@@ -2116,7 +2116,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_BACKUP_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+    if (check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -2128,7 +2128,7 @@ mysql_execute_command(THD *thd)
   case SQLCOM_RESTORE_TABLE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, INSERT_ACL, all_tables, 0) ||
+    if (check_table_access(thd, INSERT_ACL, all_tables, UINT_MAX, FALSE) ||
 	check_global_access(thd, FILE_ACL))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -2677,7 +2677,8 @@ end_with_restore_list:
   case SQLCOM_CHECKSUM:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL, all_tables,
+                           UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     res = mysql_checksum_table(thd, first_table, &lex->check_opt);
     break;
@@ -2685,7 +2686,8 @@ end_with_restore_list:
   case SQLCOM_REPAIR:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
+                           UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_repair_table(thd, first_table, &lex->check_opt);
@@ -2704,7 +2706,8 @@ end_with_restore_list:
   case SQLCOM_CHECK:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | EXTRA_ACL , all_tables,
+                           UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res = mysql_check_table(thd, first_table, &lex->check_opt);
@@ -2715,7 +2718,8 @@ end_with_restore_list:
   case SQLCOM_ANALYZE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
+                           UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= mysql_analyze_table(thd, first_table, &lex->check_opt);
@@ -2735,7 +2739,8 @@ end_with_restore_list:
   case SQLCOM_OPTIMIZE:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL | INSERT_ACL, all_tables,
+                           UINT_MAX, FALSE))
       goto error; /* purecov: inspected */
     thd->enable_slow_log= opt_log_slow_admin_statements;
     res= (specialflag & (SPECIAL_SAFE_MODE | SPECIAL_NO_NEW_FUNC)) ?
@@ -3064,7 +3069,7 @@ end_with_restore_list:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     if (!lex->drop_temporary)
     {
-      if (check_table_access(thd, DROP_ACL, all_tables, 0))
+      if (check_table_access(thd, DROP_ACL, all_tables, UINT_MAX, FALSE))
 	goto error;				/* purecov: inspected */
       if (end_active_trans(thd))
         goto error;
@@ -3168,7 +3173,7 @@ end_with_restore_list:
     if (lex->autocommit && end_active_trans(thd))
       goto error;
 
-    if ((check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+    if ((check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE) ||
 	 open_and_lock_tables(thd, all_tables)))
       goto error;
     if (lex->one_shot_set && not_all_support_one_shot(lex_var_list))
@@ -3210,7 +3215,8 @@ end_with_restore_list:
     /* we must end the trasaction first, regardless of anything */
     if (end_active_trans(thd))
       goto error;
-    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables, 0))
+    if (check_table_access(thd, LOCK_TABLES_ACL | SELECT_ACL, all_tables,
+                           UINT_MAX, FALSE))
       goto error;
     thd->in_lock_tables=1;
     thd->options|= OPTION_TABLE_LOCK;
@@ -3704,7 +3710,7 @@ end_with_restore_list:
 #endif
   case SQLCOM_HA_OPEN:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-    if (check_table_access(thd, SELECT_ACL, all_tables, 0))
+    if (check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE))
       goto error;
     res= mysql_ha_open(thd, first_table, 0);
     break;
@@ -3952,7 +3958,7 @@ create_sp_error:
         This will cache all SP and SF and open and lock all tables
         required for execution.
       */
-      if (check_table_access(thd, SELECT_ACL, all_tables, 0) ||
+      if (check_table_access(thd, SELECT_ACL, all_tables, UINT_MAX, FALSE) ||
 	  open_and_lock_tables(thd, all_tables))
        goto error;
 
@@ -4299,7 +4305,7 @@ create_sp_error:
     }
   case SQLCOM_DROP_VIEW:
     {
-      if (check_table_access(thd, DROP_ACL, all_tables, 0) ||
+      if (check_table_access(thd, DROP_ACL, all_tables, UINT_MAX, FALSE) ||
           end_active_trans(thd))
         goto error;
       /* Conditionally writes to binlog. */
@@ -4778,7 +4784,7 @@ bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables)
       subselects_tables= subselects_tables->next_global;
     }
     if (subselects_tables &&
-        (check_table_access(thd, SELECT_ACL, subselects_tables, 0)))
+        (check_table_access(thd, SELECT_ACL, subselects_tables, UINT_MAX, FALSE)))
       return 1;
   }
   return 0;
@@ -5011,39 +5017,39 @@ static bool check_show_access(THD *thd, TABLE_LIST *table)
 /*
   Check the privilege for all used tables.
 
-  SYNOPSYS
-    check_table_access()
-      thd          Thread context
-      want_access  Privileges requested
-      tables       List of tables to be checked
-      no_errors    FALSE/TRUE - report/don't report error to
-                   the client (using my_error() call).
+  @param    thd          Thread context
+  @param    want_access  Privileges requested
+  @param    tables       List of tables to be checked
+  @param    number       Check at most this number of tables.
+  @param    no_errors    FALSE/TRUE - report/don't report error to
+                         the client (using my_error() call).
 
-  NOTES
+  @note
     Table privileges are cached in the table list for GRANT checking.
     This functions assumes that table list used and
     thd->lex->query_tables_own_last value correspond to each other
     (the latter should be either 0 or point to next_global member
     of one of elements of this table list).
 
-  RETURN VALUE
-    FALSE - OK
-    TRUE  - Access denied
+  @retval  FALSE   OK
+  @retval  TRUE    Access denied
 */
 
 bool
 check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
-		   bool no_errors)
+		   uint number, bool no_errors)
 {
   TABLE_LIST *org_tables= tables;
   TABLE_LIST *first_not_own_table= thd->lex->first_not_own_table();
+  uint i= 0;
   Security_context *sctx= thd->security_ctx, *backup_ctx= thd->security_ctx;
   /*
     The check that first_not_own_table is not reached is for the case when
     the given table list refers to the list for prelocking (contains tables
     of other queries). For simple queries first_not_own_table is 0.
   */
-  for (; tables != first_not_own_table; tables= tables->next_global)
+  for (; i < number && tables != first_not_own_table;
+       tables= tables->next_global, i++)
   {
     if (tables->security_ctx)
       sctx= tables->security_ctx;
@@ -5093,7 +5099,7 @@ check_table_access(THD *thd, ulong want_access,TABLE_LIST *tables,
   }
   thd->security_ctx= backup_ctx;
   return check_grant(thd,want_access & ~EXTRA_ACL,org_tables,
-		       test(want_access & EXTRA_ACL), UINT_MAX, no_errors);
+		       test(want_access & EXTRA_ACL), number, no_errors);
 deny:
   thd->security_ctx= backup_ctx;
   return TRUE;
@@ -6855,7 +6861,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
 
   /* sql_yacc guarantees that tables and aux_tables are not zero */
   DBUG_ASSERT(aux_tables != 0);
-  if (check_table_access(thd, SELECT_ACL, tables, 0))
+  if (check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
   /*
@@ -6864,7 +6870,7 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
     call check_table_access() safely.
   */
   thd->lex->query_tables_own_last= 0;
-  if (check_table_access(thd, DELETE_ACL, aux_tables, 0))
+  if (check_table_access(thd, DELETE_ACL, aux_tables, UINT_MAX, FALSE))
   {
     thd->lex->query_tables_own_last= save_query_tables_own_last;
     DBUG_RETURN(TRUE);
@@ -7108,7 +7114,7 @@ bool create_table_precheck(THD *thd, TABLE_LIST *tables,
       }
     }
 #endif
-    if (tables && check_table_access(thd, SELECT_ACL, tables,0))
+    if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE))
       goto err;
   }
   else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
