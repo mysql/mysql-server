@@ -1670,7 +1670,7 @@ public:
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savepointId);
 
   int load_diskpage(Signal*, Uint32 opRec, Uint32 fragPtrI, 
 		    Uint32 local_key, Uint32 flags);
@@ -2489,17 +2489,20 @@ private:
   void
   checkImmediateTriggersAfterInsert(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
   void
   checkImmediateTriggersAfterUpdate(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
   void
   checkImmediateTriggersAfterDelete(KeyReqStruct *req_struct,
                                     Operationrec* regOperPtr, 
-                                    Tablerec* tablePtr);
+                                    Tablerec* tablePtr,
+                                    bool disk);
 
 #if 0
   void checkDeferredTriggers(Signal* signal, 
@@ -2513,7 +2516,8 @@ private:
 
   void fireImmediateTriggers(KeyReqStruct *req_struct,
                              DLList<TupTriggerData>& triggerList, 
-                             Operationrec* regOperPtr);
+                             Operationrec* regOperPtr,
+                             bool disk);
 
   void fireDeferredTriggers(KeyReqStruct *req_struct,
                             DLList<TupTriggerData>& triggerList,
@@ -2526,12 +2530,13 @@ private:
 
   void executeTriggers(KeyReqStruct *req_struct,
                        DLList<TupTriggerData>& triggerList,
-                       Operationrec* regOperPtr);
+                       Operationrec* regOperPtr,
+                       bool disk);
 
   void executeTrigger(KeyReqStruct *req_struct,
                       TupTriggerData* trigPtr, 
                       Operationrec* regOperPtr,
-                      bool disk = true);
+                      bool disk);
 
   bool readTriggerInfo(TupTriggerData* trigPtr,
                        Operationrec* regOperPtr,
@@ -2708,6 +2713,7 @@ private:
 
   void setNullBits(Uint32*, Tablerec* regTabPtr);
   bool checkNullAttributes(KeyReqStruct * const, Tablerec* const);
+  bool find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId);
   bool setup_read(KeyReqStruct* req_struct,
 		  Operationrec* regOperPtr,
 		  Fragrecord* regFragPtr,
@@ -3346,5 +3352,22 @@ Dbtup::get_len(Ptr<Page>* pagePtr, Var_part_ref ref)
 
 NdbOut&
 operator<<(NdbOut&, const Dbtup::Tablerec&);
+
+inline
+bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
+{
+  while (true) {
+    if (savepointId > loopOpPtr.p->savepointId) {
+      jam();
+      return true;
+    }
+    loopOpPtr.i = loopOpPtr.p->prevActiveOp;
+    if (loopOpPtr.i == RNIL) {
+      break;
+    }
+    c_operation_pool.getPtr(loopOpPtr);
+  }
+  return false;
+}
 
 #endif
