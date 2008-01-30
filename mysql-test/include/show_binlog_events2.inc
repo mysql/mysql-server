@@ -1,8 +1,4 @@
-#
-# Differs slightly from show_binlog events in showing server_id
-# which is important for some tests
-#
---let $binlog_start=106
+--let $binlog_start=98
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/

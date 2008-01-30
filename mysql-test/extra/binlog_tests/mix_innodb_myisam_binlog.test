@@ -355,7 +355,6 @@ drop table t1, t2;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
-show master status;
 
 # action
 
@@ -368,9 +367,7 @@ rollback;
 # check
 
 select count(*) from tt /* 2 */;
-show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from ti /* that is what slave would miss - a bug */;
@@ -380,7 +377,6 @@ select * from ti /* that is what slave would miss - a bug */;
 delete from ti;
 delete from tt where a=1;
 reset master;
-show master status;
 
 # action
 
@@ -393,9 +389,7 @@ rollback;
 
 # check
 
-show master status;
---replace_column 2 # 5 #
-show binlog events from 106;
+source include/show_binlog_events.inc;
 select count(*) from ti /* zero */;
 insert into ti select * from tt;
 select * from tt /* that is what otherwise slave missed - the bug */;
@@ -439,14 +433,14 @@ reset master;
 
 --error ER_DUP_ENTRY
 insert into t2 values (bug27417(2)); 
-show master status; /* only (!) with fixes for #23333 will show there is the query */;
+source include/show_binlog_events.inc; /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 
 reset master;
 select count(*) from t2;
 delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */; 
-show master status; /* the query must be in regardless of #23333 */;
+source include/show_binlog_events.inc; /* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 
 --enable_info
@@ -488,7 +482,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
   
 # check
 
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 1 */;
 
 #
@@ -508,7 +502,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
   
 # check
 
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 2 */;
 
 #
@@ -525,7 +519,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  update t3 set b=b+bug27417(1);
 
 # check
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 2 */;
 
 ## multi_update::send_eof() branch
@@ -543,7 +537,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 
 # check
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 4 */;
 
 ## send_error() branch of multi_update
@@ -586,7 +580,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  --error ER_DUP_ENTRY
  delete from t2;
 # check
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 1 */;
 
 # cleanup
@@ -607,7 +601,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
  delete t2.* from t2,t5 where t2.a=t5.a + 1;
 
 # check
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
  select count(*) from t1 /* must be 1 */;
 
 
@@ -627,7 +621,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 # check
  select * from t4;
  select count(*) from t1 /* must be 2 */;
- show master status /* the offset must denote there is the query */;
+ source include/show_binlog_events.inc; /* the output must denote there is the query */;
 
 #
 # bug#23333 cleanup

@@ -5579,6 +5579,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_created= FALSE;
   DBUG_ENTER("mysql_create_user");
 
   /*
@@ -5614,6 +5615,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    some_users_created= TRUE;
     sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
@@ -5624,12 +5626,14 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
+
+  if (some_users_created)
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 
@@ -5654,6 +5658,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_deleted= FALSE;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -5682,7 +5687,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
+      continue;
     }
+    some_users_deleted= TRUE;
   }
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -5693,7 +5700,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (some_users_deleted)
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5722,6 +5730,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_to, *tmp_user_to;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_renamed= FALSE;
   DBUG_ENTER("mysql_rename_user");
 
   /*
@@ -5762,7 +5771,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     {
       append_user(&wrong_users, user_from);
       result= TRUE;
+      continue;
     }
+    some_users_renamed= TRUE;
   }
   
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -5770,12 +5781,14 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
+  
+  if (some_users_renamed && mysql_bin_log.is_open())
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 

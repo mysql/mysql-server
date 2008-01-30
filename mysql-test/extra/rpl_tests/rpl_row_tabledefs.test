@@ -122,7 +122,7 @@ INSERT INTO t1_nodef VALUES (1,2);
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -142,7 +142,7 @@ sync_slave_with_master;
 --echo **** On Slave ****
 SELECT * FROM t2;
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 
 connection master;
@@ -154,7 +154,7 @@ INSERT INTO t4 VALUES (4);
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -168,7 +168,7 @@ INSERT INTO t5 VALUES (5,10,25);
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -182,7 +182,7 @@ INSERT INTO t6 VALUES (6,12,36);
 connection slave;
 --source include/wait_for_slave_sql_to_stop.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
@@ -191,7 +191,7 @@ connection master;
 INSERT INTO t9 VALUES (6);
 sync_slave_with_master;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 1 # 4 # 7 # 8 # 9 # 22 # 23 # 33 #
+--replace_column 1 # 4 # 7 # 8 # 9 # 20 <Last_Error> 22 # 23 # 33 # 36 <Last_IO_Error> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS
 
 # Testing some tables extra field that can be null and cannot be null

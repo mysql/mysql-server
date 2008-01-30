@@ -423,9 +423,6 @@ drop table t1, t2;
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -436,17 +433,14 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 select count(*) from tt /* 2 */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	395		
-show binlog events from 106;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	1	#	use `test`; BEGIN
-master-bin.000001	#	Table_map	1	#	table_id: 27 (test.ti)
-master-bin.000001	#	Write_rows	1	#	table_id: 27 flags: STMT_END_F
-master-bin.000001	#	Table_map	1	#	table_id: 27 (test.ti)
-master-bin.000001	#	Write_rows	1	#	table_id: 27 flags: STMT_END_F
-master-bin.000001	#	Query	1	#	use `test`; ROLLBACK
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.ti)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from ti /* zero */;
 count(*)
 0
@@ -458,19 +452,13 @@ a
 delete from ti;
 delete from tt where a=1;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
 ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
-show binlog events from 106;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
 count(*)
@@ -497,9 +485,11 @@ insert into t2 select bug27417(2);
 reset master;
 insert into t2 values (bug27417(2));
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	222		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 /* only (!) with fixes for #23333 will show there is the query */;
 select count(*) from t1 /* must be 3 */;
 count(*)
@@ -512,9 +502,11 @@ delete from t2 where a=bug27417(3);
 select count(*) from t2 /* nothing got deleted */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	227		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 /* the query must be in regardless of #23333 */;
 select count(*) from t1 /* must be 5 */;
 count(*)
@@ -534,9 +526,14 @@ insert into t2 values (1);
 reset master;
 insert into t2 values (bug27417(1));
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	361		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -546,9 +543,15 @@ insert into t2 values (2);
 reset master;
 insert into t2 select bug27417(1) union select bug27417(2);
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	400		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -557,9 +560,14 @@ insert into t3 values (1,1),(2,3),(3,4);
 reset master;
 update t3 set b=b+bug27417(1);
 ERROR 23000: Duplicate entry '4' for key 'b'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	305		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Update_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
@@ -570,9 +578,14 @@ insert into t4 values (1,1),(2,2);
 reset master;
 UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	367		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 4 */;
 count(*)
 4
@@ -598,9 +611,15 @@ insert into t3 values (bug27417(1), 2);
 reset master;
 delete from t2;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	403		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t3)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -615,9 +634,16 @@ insert into t5 values (1),(2);
 reset master;
 delete t2.* from t2,t5 where t2.a=t5.a + 1;
 ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	429		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Delete_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 select count(*) from t1 /* must be 1 */;
 count(*)
 1
@@ -633,9 +659,16 @@ a	b
 select count(*) from t1 /* must be 2 */;
 count(*)
 2
-show master status /* the offset must denote there is the query */;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	430		
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t4)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: #
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
+/* the output must denote there is the query */;
 drop trigger trg_del_t2;
 drop table t1,t2,t3,t4,t5;
 drop function bug27417;
@@ -643,9 +676,6 @@ end of tests
 create temporary table tt (a int unique);
 create table ti (a int) engine=innodb;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) ;
@@ -656,9 +686,6 @@ Warning	1196	Some non-transactional changed tables couldn't be rolled back
 select count(*) from tt /* 2 */;
 count(*)
 2
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	395		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
@@ -678,18 +705,12 @@ a
 delete from ti;
 delete from tt where a=1;
 reset master;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 begin;
 insert into ti values (1);
 insert into ti values (2) /* to make the dup error in the following */;
 insert into tt select * from ti /* one affected and error */;
 ERROR 23000: Duplicate entry '2' for key 'a'
 rollback;
-show master status;
-File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106		
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 select count(*) from ti /* zero */;
