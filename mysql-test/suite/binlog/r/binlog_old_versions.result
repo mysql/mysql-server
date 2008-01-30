@@ -1,0 +1,61 @@
+DROP TABLE IF EXISTS t1, t2, t3;
+==== Read modern binlog (version 5.1.23) ====
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	last_insert_id
+1	one
+3	last stm in trx: next event should be xid
+4	four
+674568	random
+SELECT * FROM t2 ORDER BY a;
+a	b
+3	first stm in trx
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+17920
+DROP TABLE t1, t2, t3;
+==== Read binlog from version 5.1.17 ====
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	last_insert_id
+1	one
+3	last stm in trx: next event should be xid
+4	four
+764247	random
+SELECT * FROM t2 ORDER BY a;
+a	b
+3	first stm in trx
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+17920
+DROP TABLE t1, t2, t3;
+==== Read binlog from alcatel tree (mysql-5.1-wl2325-5.0-drop6) ====
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	last_insert_id
+1	one
+3	last stm in trx: next event should be xid
+4	four
+781729	random
+SELECT * FROM t2 ORDER BY a;
+a	b
+3	first stm in trx
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+17920
+DROP TABLE t1, t2, t3;
+==== Read binlog from ndb tree (mysql-5.1-telco-6.1) ====
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	last_insert_id
+1	one
+3	last stm in trx: next event should be xid
+4	four
+703356	random
+SELECT * FROM t2 ORDER BY a;
+a	b
+3	first stm in trx
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+17920
+DROP TABLE t1, t2, t3;

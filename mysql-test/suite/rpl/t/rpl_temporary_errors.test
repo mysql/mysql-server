@@ -23,7 +23,7 @@ sync_slave_with_master;
 set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 DROP TABLE t1;
 
 --echo **** On Master ****

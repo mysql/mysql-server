@@ -104,8 +104,9 @@ select * from t2;
 a
 select * from t3;
 a
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
@@ -163,8 +164,9 @@ start transaction;
 insert into t1 values(2);
 rollback;
 set autocommit=1;
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(1)
