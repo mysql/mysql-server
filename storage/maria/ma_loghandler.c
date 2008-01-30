@@ -250,10 +250,12 @@ struct st_translog_descriptor
   LSN flushed;
   /* Last LSN sent to the disk (but maybe not written yet) */
   LSN sent_to_disk;
+  /* Horizon from which log started after initialization */
+  TRANSLOG_ADDRESS log_start;
   TRANSLOG_ADDRESS previous_flush_horizon;
   /* All what is after this address is not sent to disk yet */
   TRANSLOG_ADDRESS in_buffers_only;
-  /* protection of sent_to_file and in_buffers_only */
+  /* protection of sent_to_disk and in_buffers_only */
   pthread_mutex_t sent_to_disk_lock;
   /*
     Protect flushed (see above) and for flush serialization (will
@@ -2054,13 +2056,20 @@ static void translog_set_sent_to_disk(LSN lsn, TRANSLOG_ADDRESS in_buffers)
   DBUG_ENTER("translog_set_sent_to_disk");
   pthread_mutex_lock(&log_descriptor.sent_to_disk_lock);
   DBUG_PRINT("enter", ("lsn: (%lu,0x%lx) in_buffers: (%lu,0x%lx)  "
-                       "in_buffers_only: (%lu,0x%lx)  "
+                       "in_buffers_only: (%lu,0x%lx)  start: (%lu,0x%lx)  "
                        "sent_to_disk: (%lu,0x%lx)",
                        LSN_IN_PARTS(lsn),
                        LSN_IN_PARTS(in_buffers),
+                       LSN_IN_PARTS(log_descriptor.log_start),
                        LSN_IN_PARTS(log_descriptor.in_buffers_only),
                        LSN_IN_PARTS(log_descriptor.sent_to_disk)));
-  DBUG_ASSERT(cmp_translog_addr(lsn, log_descriptor.sent_to_disk) >= 0);
+  /*
+    We write sequentially (first part of following assert) but we rewrite
+    the same page in case we started mysql and shut it down immediately
+    (second part of the following assert)
+  */
+  DBUG_ASSERT(cmp_translog_addr(lsn, log_descriptor.sent_to_disk) >= 0 ||
+              cmp_translog_addr(lsn, log_descriptor.log_start) < 0);
   log_descriptor.sent_to_disk= lsn;
   /* LSN_IMPOSSIBLE == 0 => it will work for very first time */
   if (cmp_translog_addr(in_buffers, log_descriptor.in_buffers_only) > 0)
@@ -3646,7 +3655,7 @@ my_bool translog_init_with_table(const char *directory,
   }
 
   /* all LSNs that are on disk are flushed */
-  log_descriptor.sent_to_disk=
+  log_descriptor.log_start= log_descriptor.sent_to_disk=
     log_descriptor.flushed= log_descriptor.horizon;
   log_descriptor.in_buffers_only= log_descriptor.bc.buffer->offset;
   log_descriptor.max_lsn= LSN_IMPOSSIBLE; /* set to 0 */
@@ -3780,7 +3789,7 @@ my_bool translog_init_with_table(const char *directory,
                              "reading record header: (%lu,0x%lx)  len: %d",
                              LSN_IN_PARTS(last_lsn), len));
         if (readonly)
-          log_descriptor.horizon= last_lsn;
+          log_descriptor.log_start= log_descriptor.horizon= last_lsn;
         else if (translog_truncate_log(last_lsn))
         {
           translog_free_record_header(&rec);
@@ -3805,7 +3814,8 @@ my_bool translog_init_with_table(const char *directory,
                                  LSN_IN_PARTS(rec.lsn),
                                  len));
             if (readonly)
-              log_descriptor.horizon= last_lsn;
+              log_descriptor.log_start= log_descriptor.horizon= last_lsn;
+
             else if (translog_truncate_log(last_lsn))
             {
               translog_free_record_header(&rec);
@@ -3869,11 +3879,13 @@ void translog_destroy()
 {
   TRANSLOG_FILE **file;
   uint i;
+  uint8 current_buffer;
   DBUG_ENTER("translog_destroy");
 
   DBUG_ASSERT(translog_status == TRANSLOG_OK ||
               translog_status == TRANSLOG_READONLY);
   translog_lock();
+  current_buffer= log_descriptor.bc.buffer_no;
   translog_status= (translog_status == TRANSLOG_READONLY ?
                     TRANSLOG_UNINITED :
                     TRANSLOG_SHUTDOWN);
@@ -3883,7 +3895,9 @@ void translog_destroy()
 
   for (i= 0; i < TRANSLOG_BUFFERS_NO; i++)
   {
-    struct st_translog_buffer *buffer= log_descriptor.buffers + i;
+    struct st_translog_buffer *buffer= (log_descriptor.buffers +
+                                        ((i + current_buffer + 1) %
+                                         TRANSLOG_BUFFERS_NO));
     translog_buffer_destroy(buffer);
   }
   translog_status= TRANSLOG_UNINITED;
