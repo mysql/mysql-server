@@ -3793,6 +3793,7 @@ Xid_log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 bool Xid_log_event::write(IO_CACHE* file)
 {
+  DBUG_EXECUTE_IF("do_not_write_xid", return 0;);
   return write_header(file, sizeof(xid)) ||
          my_b_safe_write(file, (byte*) &xid, sizeof(xid));
 }
