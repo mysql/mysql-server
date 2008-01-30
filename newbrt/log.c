@@ -145,7 +145,7 @@ int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	logger->n_in_file += logger->n_in_buf+nbytes;
 	logger->n_in_buf=0;
 	if (logger->n_in_file > 100<<20) {
-	    fprintf(stderr, "%s:%d closing logfile\n", __FILE__, __LINE__);
+	    //fprintf(stderr, "%s:%d closing logfile\n", __FILE__, __LINE__);
 	    r = close(logger->fd);
 	    if (r!=0) return errno;
 	    logger->fd=-1;
