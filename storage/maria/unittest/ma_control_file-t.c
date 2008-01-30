@@ -120,7 +120,7 @@ int main(int argc,char *argv[])
   MY_INIT(argv[0]);
   my_init();
 
-  maria_data_root= ".";
+  maria_data_root= (char *)".";
   default_error_handler_hook= error_handler_hook;
 
   plan(12);
