@@ -14,6 +14,7 @@
 #include <errno.h>
 /* Only needed for testing. */
 #include <string.h>
+#include <inttypes.h>
 #include "list.h"
 #include "kv-pair.h"
 #include "pma-internal.h"
@@ -848,7 +849,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     int traceit = toku_txn_get_last_lsn(txn).lsn>=3836455 && toku_txn_get_last_lsn(txn).lsn<=3836460;
     unsigned int idx = pma_search(pma, k, pma->dup_mode & TOKU_DB_DUPSORT ? v : 0, 0, pma->N, &found);
     if (found) {
-	if (traceit) printf("%s:%d Already present at lsn %ld\n", __FILE__, __LINE__, toku_txn_get_last_lsn(txn).lsn);
+	if (traceit) printf("%s:%d Already present at lsn %" PRIu64 "\n", __FILE__, __LINE__, toku_txn_get_last_lsn(txn).lsn);
         struct kv_pair *kv = pma->pairs[idx];
         *replaced_v_size = kv->vallen;
         *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
