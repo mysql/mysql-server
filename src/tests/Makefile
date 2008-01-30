@@ -136,7 +136,6 @@ NO_VGRIND = \
   db_assoc3 \
   db_dbt_appmalloc \
   db_dbt_mem_behavior \
-  db_donotindex \
   db_curs2 \
   db_delete \
   db_env_open_nocreate \
