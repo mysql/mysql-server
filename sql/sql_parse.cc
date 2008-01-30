@@ -1166,7 +1166,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       unregister_slave(thd,1,1);
       /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
       error = TRUE;
-      net->error = 0;
       break;
     }
 #endif
