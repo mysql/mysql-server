@@ -25,4 +25,5 @@ SET(ARCHIVE_SOURCES  azio.c ha_archive.cc ha_archive.h)
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(archive ${ARCHIVE_SOURCES})
+  ADD_DEPENDENCIES(archive GenError)
 ENDIF(NOT SOURCE_SUBLIBS)
