@@ -5109,7 +5109,7 @@ Create_file_log_event(THD* thd_arg, sql_exchange* ex,
 		      const char* db_arg, const char* table_name_arg,
 		      List<Item>& fields_arg, enum enum_duplicates handle_dup,
                       bool ignore,
-		      char* block_arg, uint block_len_arg, bool using_trans)
+		      uchar* block_arg, uint block_len_arg, bool using_trans)
   :Load_log_event(thd_arg,ex,db_arg,table_name_arg,fields_arg,handle_dup, ignore,
 		  using_trans),
    fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
@@ -5208,7 +5208,7 @@ Create_file_log_event::Create_file_log_event(const char* buf, uint len,
                    create_file_header_len + 1);
     if (len < block_offset)
       DBUG_VOID_RETURN;
-    block = (char*)buf + block_offset;
+    block = (uchar*)buf + block_offset;
     block_len = len - block_offset;
   }
   else
@@ -5366,7 +5366,7 @@ err:
 #ifndef MYSQL_CLIENT  
 Append_block_log_event::Append_block_log_event(THD *thd_arg,
                                                const char *db_arg,
-					       char *block_arg,
+					       uchar *block_arg,
 					       uint block_len_arg,
 					       bool using_trans)
   :Log_event(thd_arg,0, using_trans), block(block_arg),
@@ -5392,7 +5392,7 @@ Append_block_log_event::Append_block_log_event(const char* buf, uint len,
   if (len < total_header_len)
     DBUG_VOID_RETURN;
   file_id= uint4korr(buf + common_header_len + AB_FILE_ID_OFFSET);
-  block= (char*)buf + total_header_len;
+  block= (uchar*)buf + total_header_len;
   block_len= len - total_header_len;
   DBUG_VOID_RETURN;
 }
@@ -5784,7 +5784,7 @@ err:
 
 #ifndef MYSQL_CLIENT
 Begin_load_query_log_event::
-Begin_load_query_log_event(THD* thd_arg, const char* db_arg, char* block_arg,
+Begin_load_query_log_event(THD* thd_arg, const char* db_arg, uchar* block_arg,
                            uint block_len_arg, bool using_trans)
   :Append_block_log_event(thd_arg, db_arg, block_arg, block_len_arg,
                           using_trans)
