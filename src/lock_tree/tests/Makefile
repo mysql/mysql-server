@@ -31,7 +31,7 @@ else
 endif
 CFLAGS = -Wall -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CPPFLAGS += -L../ -L../../range_tree 
-CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -lpthread
+CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include -lpthread
 
 
 SRCS = $(wildcard *.c)
