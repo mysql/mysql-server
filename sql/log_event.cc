@@ -99,27 +99,51 @@ static const char *HA_ERR(int i)
   case HA_ERR_RECORD_IS_THE_SAME: return "HA_ERR_RECORD_IS_THE_SAME";
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
+  case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
   return 0;
 }
 
 /**
-   macro to call from different branches of Rows_log_event::do_apply_event
+   Error reporting facility for Rows_log_event::do_apply_event
+
+   @param level     error, warning or info
+   @param ha_error  HA_ERR_ code
+   @param rli       pointer to the active Relay_log_info instance
+   @param thd       pointer to the slave thread's thd
+   @param table     pointer to the event's table object
+   @param type      the type of the event
+   @param log_name  the master binlog file name
+   @param pos       the master binlog file pos (the next after the event)
+
 */
 static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            Relay_log_info const *rli, THD *thd,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error=  HA_ERR(ha_error);
+  const char *handler_error= HA_ERR(ha_error);
+  char buff[MAX_SLAVE_ERRMSG], *slider;
+  const char *buff_end= buff + sizeof(buff);
+  uint len;
+  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  MYSQL_ERROR *err;
+  buff[0]= 0;
+
+  for (err= it++, slider= buff; err && slider < buff_end - 1;
+       slider += len, err= it++)
+  {
+    len= my_snprintf(slider, buff_end - slider,
+                     " %s, Error_code: %d;", err->msg, err->code);
+  }
+  
   rli->report(level, thd->net.last_errno,
               "Could not execute %s event on table %s.%s;"
-              "%s%s handler error %s; "
+              "%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
               type, table->s->db.str,
               table->s->table_name.str,
-              thd->net.last_error[0] != 0 ? thd->net.last_error : "",
-              thd->net.last_error[0] != 0 ? ";" : "",
+              buff,
               handler_error == NULL? "<unknown>" : handler_error,
               log_name, pos);
 }
@@ -7548,7 +7572,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
   /* fill table->record[0] with default values */
 
-  if ((error= prepare_record(rli, table, m_width,
+  if ((error= prepare_record(table, m_width,
                              TRUE /* check if columns have def. values */)))
     DBUG_RETURN(error);
   
@@ -7863,13 +7887,17 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   DBUG_ASSERT(m_table && m_table->in_use != NULL);
 
   TABLE *table= m_table;
-  int error;
+  int error= 0;
 
-  /* unpack row - missing fields get default values */
-
-  // TODO: shall we check and report errors here?
-  prepare_record(NULL,table,m_width,FALSE /* don't check errors */); 
-  error= unpack_current_row(rli); 
+  /*
+    rpl_row_tabledefs.test specifies that
+    if the extra field on the slave does not have a default value
+    and this is okay with Delete or Update events.
+    Todo: fix wl3228 hld that requires defauls for all types of events
+  */
+  
+  prepare_record(table, m_width, FALSE);
+  error= unpack_current_row(rli);
 
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("looking for the following record"));
