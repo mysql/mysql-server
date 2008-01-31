@@ -146,9 +146,6 @@ int toku_rt_close(toku_range_tree* tree) {
     return 0;
 }
 
-/* It is all too true that this is a worst-case linear implementation, 
-   but great performance gains could be obtained by simply making the 
-   list into move-to-front (see Sleator, Tarjan, CACM 1985) */
 int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
                  toku_range** buf, unsigned* buflen, unsigned* numfound) {
     if (!tree || !query || !buf || !buflen || !numfound) return EINVAL;
@@ -186,9 +183,6 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     }
     else {
         for (i = 0; i < tree->numelements; i++) {
-            /* I am going to check that end_cmp is commutative as such: */
-            assert (__toku_rt_overlap(tree, range, &tree->ranges[i]) ==
-                    __toku_rt_overlap(tree, &tree->ranges[i], range));
             if (__toku_rt_overlap(tree, range, &tree->ranges[i])) return EDOM;
         }
     }
