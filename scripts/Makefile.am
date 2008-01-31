@@ -90,7 +90,6 @@ CLEANFILES =		@server_scripts@ \
 			mysql_find_rows \
 			mysqlhotcopy \
 			mysqldumpslow \
-			mysql_tableinfo \
 			mysqld_multi
 
 # Default same as 'pkgdatadir', but we can override it
