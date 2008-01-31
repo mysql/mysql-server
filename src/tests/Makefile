@@ -138,8 +138,13 @@ NO_VGRIND = \
   insert_cursor_delete_insert \
   insert_memleak \
   kv_limits \
+  log0 \
+  log1 \
+  log2 \
+  log3 \
   log4 \
   log5 \
+  nodup_set \
   # Comment to terminate list so the previous line can end with a slash
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
