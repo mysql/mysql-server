@@ -794,8 +794,18 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       partition_element *part_elem= part_it++;
       if (part_elem->engine_type == NULL)
         part_elem->engine_type= default_engine_type;
-      if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
-        part_elem->data_file_name= part_elem->index_file_name= 0;
+#ifdef HAVE_READLINK
+      if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif
+      {
+        if (part_elem->data_file_name)
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                       "DATA DIRECTORY option ignored");
+        if (part_elem->index_file_name)
+          push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                       "INDEX DIRECTORY option ignored");
+        part_elem->data_file_name= part_elem->index_file_name= NULL;
+      }
       if (!is_sub_partitioned())
       {
         if (check_table_name(part_elem->partition_name,
