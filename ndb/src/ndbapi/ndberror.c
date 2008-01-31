@@ -291,6 +291,7 @@ ErrorBundle ErrorCodes[] = {
   { 242,  AE, "Zero concurrency in scan"},
   { 244,  AE, "Too high concurrency in scan"},
   { 269,  AE, "No condition and attributes to read in scan"},
+  { 874,  AE, "Too much attrinfo (e.g. scan filter) for scan in tuple manager" },
   { 4600, AE, "Transaction is already started"},
   { 4601, AE, "Transaction is not started"},
   { 4602, AE, "You must call getNdbOperation before executeScan" },

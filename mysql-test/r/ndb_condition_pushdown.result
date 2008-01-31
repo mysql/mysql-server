@@ -1904,6 +1904,12 @@ a	b	d
 10	1	4369
 20	2	8738
 50	5	21845
+-- big filter just below limit
+a	b	d
+10	1	4369
+20	2	8738
+50	5	21845
+-- big filter just above limit
 a	b	d
 10	1	4369
 20	2	8738
