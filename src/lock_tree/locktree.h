@@ -48,7 +48,7 @@
 #include <brttypes.h>
 #include <rangetree.h>
 
-/** The lock tree structure */
+/** \brief The lock tree structure */
 typedef struct {
     /** The database for which this locktree will be handling locks */
     DB*                 db;
@@ -89,6 +89,9 @@ extern const DBT* const toku_lt_neg_infinity; /**< Special value denoting
                                                    -infty */
 
 /**
+
+   \brief A 2D BDB-inspired point.
+
    Observe the toku_point, and marvel! 
    It makes the pair (key, data) into a 1-dimensional point,
    on which a total order is defined by toku_lt_point_cmp.
@@ -117,8 +120,8 @@ int toku_lt_point_cmp(void* a, void* b);
 /**
    Create a lock tree.  Should be called only inside DB->open.
 
-   \param ptree:         We set *ptree to the newly allocated tree.
-   \param db:            This is the db that the lock tree will be performing 
+   \param ptree          We set *ptree to the newly allocated tree.
+   \param db             This is the db that the lock tree will be performing 
                          locking for.
    \param duplicates     Whether the db supports duplicates.
    \param compare_fun    The key compare function.
@@ -160,7 +163,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
    it keeps lists of selfread and selfwrite, and frees the memory
    pointed to by the DBTs contained in the selfread and selfwrite.
 
-   \param tree:   The tree to free.
+   \param tree    The tree to free.
    
    \return 
    - 0:      Success.
@@ -174,10 +177,10 @@ int toku_lt_close(toku_lock_tree* tree);
 /**
    Acquires a read lock on a single key (or key/data).
 
-   \param tree:   The lock tree for the db.
-   \param txn:    The TOKU Transaction this lock is for.
-   \param key:    The key this lock is for.
-   \param data:  The data this lock is for.
+   \param tree    The lock tree for the db.
+   \param txn     The TOKU Transaction this lock is for.
+   \param key     The key this lock is for.
+   \param data   The data this lock is for.
 
    \return
    - 0:                  Success.
@@ -197,7 +200,7 @@ int toku_lt_close(toku_lock_tree* tree);
    If this library is ever exported to users, we will use EINVAL instead.
 
    In BDB, txn can actually be NULL (mixed operations with transactions and 
-   no transactions). This can cause conflicts, nobody was unable (so far) 
+   no transactions). This can cause conflicts, nobody was able (so far) 
    to verify that MySQL does or does not use this.
 */
 int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
@@ -206,12 +209,12 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
 /*
    Acquires a read lock on a key range (or key/data range).  (Closed range).
 
-   \param tree:           The lock tree for the db.
-   \param txn:            The TOKU Transaction this lock is for.
-   \param key_left:       The left end key of the range.
-   \param data_left:      The left end data of the range.
-   \param key_right:      The right end key of the range.
-   \param data_right:     The right end data of the range.
+   \param tree            The lock tree for the db.
+   \param txn             The TOKU Transaction this lock is for.
+   \param key_left        The left end key of the range.
+   \param data_left       The left end data of the range.
+   \param key_right       The right end key of the range.
+   \param data_right      The right end data of the range.
 
    \return
    - 0:                  Success.
@@ -247,7 +250,7 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     Note that txn == NULL is not supported at this time.
 
     In BDB, txn can actually be NULL (mixed operations with transactions and 
-    no transactions). This can cause conflicts, nobody was unable (so far) 
+    no transactions). This can cause conflicts, nobody was able (so far) 
     to verify that MySQL does or does not use this.
  */
 int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
@@ -257,10 +260,10 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
 /*
  * Acquires a write lock on a single key (or key/data).
  * Params:
- *      tree:   The lock tree for the db.
- *      txn:    The TOKU Transaction this lock is for.
- *      key:    The key this lock is for.
- *      data:  The data this lock is for.
+ *      tree    The lock tree for the db.
+ *      txn     The TOKU Transaction this lock is for.
+ *      key     The key this lock is for.
+ *      data   The data this lock is for.
  * Returns:
  *      0:                  Success.
  *      DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
