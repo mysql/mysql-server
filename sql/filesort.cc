@@ -112,6 +112,13 @@ ha_rows filesort(THD *thd, TABLE *table, SORT_FIELD *sortorder, uint s_length,
   FILESORT_INFO table_sort;
   TABLE_LIST *tab= table->pos_in_table_list;
   Item_subselect *subselect= tab ? tab->containing_subselect() : 0;
+
+  /*
+   Release InnoDB's adaptive hash index latch (if holding) before
+   running a sort.
+  */
+  ha_release_temporary_latches(thd);
+
   /* 
     Don't use table->sort in filesort as it is also used by 
     QUICK_INDEX_MERGE_SELECT. Work with a copy and put it back at the end 
