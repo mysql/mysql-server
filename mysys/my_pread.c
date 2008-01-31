@@ -70,11 +70,12 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
     {
       my_errno= errno;
-      if (errno == 0 || (errno == -1 && (MyFlags & (MY_NABP | MY_FNABP))))
+      if (errno == 0 || (readbytes == (size_t) -1 &&
+                         (MyFlags & (MY_NABP | MY_FNABP))))
         my_errno= HA_ERR_FILE_TOO_SHORT;
     }
 #endif
-    if (error || readbytes != Count)
+    if (error)
     {
       DBUG_PRINT("warning",("Read only %d bytes off %u from %d, errno: %d",
                             (int) readbytes, (uint) Count,Filedes,my_errno));

@@ -101,7 +101,7 @@ int _ma_write_keypage(register MARIA_HA *info,
     _ma_get_used_and_nod(share, buff, page_length, nod);
     if (pos < share->base.keystart ||
         pos+block_size > info->state->key_file_length ||
-      (pos & (MARIA_MIN_KEY_BLOCK_LENGTH-1)))
+        (pos & (maria_block_size-1)))
     {
       DBUG_PRINT("error",("Trying to write inside key status region: "
                           "key_start: %lu  length: %lu  page: %lu",
@@ -182,7 +182,7 @@ int _ma_write_keypage(register MARIA_HA *info,
 int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
 {
   my_off_t old_link;
-  uchar buff[MAX_KEYPAGE_HEADER_SIZE+8];
+  uchar buff[MAX_KEYPAGE_HEADER_SIZE+ 8 + 2];
   ulonglong page_no;
   MARIA_SHARE *share= info->s;
   MARIA_PINNED_PAGE page_link;

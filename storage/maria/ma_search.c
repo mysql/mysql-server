@@ -590,11 +590,11 @@ my_off_t _ma_kpos(uint nod_flag, uchar *after_key)
   switch (nod_flag) {
 #if SIZEOF_OFF_T > 4
   case 7:
-    return mi_uint7korr(after_key)*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return mi_uint7korr(after_key)*maria_block_size;
   case 6:
-    return mi_uint6korr(after_key)*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return mi_uint6korr(after_key)*maria_block_size;
   case 5:
-    return mi_uint5korr(after_key)*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return mi_uint5korr(after_key)*maria_block_size;
 #else
   case 7:
     after_key++;
@@ -604,13 +604,13 @@ my_off_t _ma_kpos(uint nod_flag, uchar *after_key)
     after_key++;
 #endif
   case 4:
-    return ((my_off_t) mi_uint4korr(after_key))*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return ((my_off_t) mi_uint4korr(after_key))*maria_block_size;
   case 3:
-    return ((my_off_t) mi_uint3korr(after_key))*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return ((my_off_t) mi_uint3korr(after_key))*maria_block_size;
   case 2:
-    return (my_off_t) (mi_uint2korr(after_key)*MARIA_MIN_KEY_BLOCK_LENGTH);
+    return (my_off_t) (mi_uint2korr(after_key)*maria_block_size);
   case 1:
-    return (uint) (*after_key)*MARIA_MIN_KEY_BLOCK_LENGTH;
+    return (uint) (*after_key)*maria_block_size;
   case 0:                                       /* At leaf page */
   default:                                      /* Impossible */
     return(HA_OFFSET_ERROR);
@@ -622,7 +622,7 @@ my_off_t _ma_kpos(uint nod_flag, uchar *after_key)
 
 void _ma_kpointer(register MARIA_HA *info, register uchar *buff, my_off_t pos)
 {
-  pos/=MARIA_MIN_KEY_BLOCK_LENGTH;
+  pos/=maria_block_size;
   switch (info->s->base.key_reflength) {
 #if SIZEOF_OFF_T > 4
   case 7: mi_int7store(buff,pos); break;

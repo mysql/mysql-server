@@ -65,7 +65,7 @@ typedef struct st_maria_status_info
 typedef struct st_maria_state_info
 {
   struct
-  {					/* Fileheader */
+  {					/* Fileheader (24 bytes) */
     uchar file_version[4];
     uchar options[2];
     uchar header_length[2];
@@ -285,6 +285,10 @@ typedef struct st_maria_share
   uchar *file_map;			/* mem-map of file if possible */
   PAGECACHE *pagecache;			/* ref to the current key cache */
   MARIA_DECODE_TREE *decode_trees;
+  /*
+    Previous auto-increment value. Used to verify if we can restore the
+    auto-increment counter if we have to abort an insert (duplicate key).
+  */
   ulonglong last_auto_increment;
   uint16 *decode_tables;
   uint16 id; /**< 2-byte id by which log records refer to the table */
@@ -485,7 +489,7 @@ struct st_maria_handler
   uint32 int_keytree_version;		/* -""- */
   int (*read_record)(MARIA_HA *, uchar*, MARIA_RECORD_POS);
   invalidator_by_filename invalidator;	/* query cache invalidator */
-  ulonglong last_auto_increment;
+  ulonglong last_auto_increment;  	/* auto value at start of statement */
   ulong this_unique;			/* uniq filenumber or thread */
   ulong last_unique;			/* last unique number */
   ulong this_loop;			/* counter for this open */

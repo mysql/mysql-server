@@ -449,7 +449,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 		   (ulonglong) 1 << (share->base.rec_reflength*8))-1);
 
     max_key_file_length=
-      _ma_safe_mul(MARIA_MIN_KEY_BLOCK_LENGTH,
+      _ma_safe_mul(maria_block_size,
 		  ((ulonglong) 1 << (share->base.key_reflength*8))-1);
 #if SIZEOF_OFF_T == 4
     set_if_smaller(max_data_file_length, INT_MAX32);
