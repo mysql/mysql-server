@@ -24,7 +24,7 @@ static void verify_local_fingerprint (BRTNODE node) {
     int i;
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++)
-	    FIFO_ITERATE(node->u.n.buffers[i], key, keylen, data, datalen, type,
+	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
 			      ({
 				  fp += node->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, data, datalen);
 			      }));
@@ -76,7 +76,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 			result=1;
 		    }
 		}
-		toku_fifo_iterate(node->u.n.buffers[i], verify_pair, 0);
+		toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, 0);
 	    }
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
@@ -85,7 +85,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 		if (hirange) assert(toku_keycompare(kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]), hirange, hilen)<=0);
 	    }
 	    if (recurse) {
-		result|=toku_verify_brtnode(brt, node->u.n.children[i],
+		result|=toku_verify_brtnode(brt, BNC_DISKOFF(node, i),
                                             (i==0) ? lorange : kv_pair_key(node->u.n.childkeys[i-1]),
                                             (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
                                             (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
