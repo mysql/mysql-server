@@ -73,7 +73,7 @@ typedef struct {
     /** The data compare function */
     int                 (*dup_compare)(DB*,const DBT*,const DBT*);
     /** The panic function */
-    void                (*panic)(DB*);
+    int                 (*panic)(DB*);
     /** The user malloc function */
     void*               (*malloc) (size_t);
     /** The user free function */
@@ -146,7 +146,7 @@ int toku_lt_point_cmp(void* a, void* b);
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   void(*panic)(DB*), size_t payload_capacity,
+                   int (*panic)(DB*), size_t payload_capacity,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
