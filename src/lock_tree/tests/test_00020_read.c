@@ -361,6 +361,60 @@ void runtest(BOOL dups) {
     lt_find(dups, rt, 1,   0, neg_infinite, 5, infinite, txn);
     rt = NULL;
     close_tree();
+    /* ************************************** */
+    setup_tree(dups);
+    lt_insert(dups,        1, neg_infinite, 3, infinite);
+    lt_insert(dups,        4, neg_infinite, 6, infinite);
+    lt_insert(dups,        2, neg_infinite, 5, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 6, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 6, infinite, txn);
+    close_tree();
+
+    setup_tree(dups);
+    lt_insert(dups, neg_infinite, neg_infinite, 3, infinite);
+    lt_insert(dups,        4, neg_infinite, 5, infinite);
+    lt_insert(dups,        6, neg_infinite, 8, infinite);
+    lt_insert(dups,        2, neg_infinite, 7, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   neg_infinite, neg_infinite, 8, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   neg_infinite, neg_infinite, 8, infinite, txn);
+    close_tree();
+
+    setup_tree(dups);
+    lt_insert(dups,        1, neg_infinite, 2, infinite);
+    lt_insert(dups,        3, neg_infinite, infinite, infinite);
+    lt_insert(dups,        2, neg_infinite, 3, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, infinite, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, infinite, infinite, txn);
+    close_tree();
+
+    setup_tree(dups);
+    lt_insert(dups,        1, neg_infinite, 2, infinite);
+    lt_insert(dups,        3, neg_infinite, 4, infinite);
+    lt_insert(dups,        5, neg_infinite, 6, infinite);
+    lt_insert(dups,        2, neg_infinite, 5, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 6, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 6, infinite, txn);
+    close_tree();
+
+    setup_tree(dups);
+    lt_insert(dups,        1, neg_infinite, 2, infinite);
+    lt_insert(dups,        3, neg_infinite, 5, infinite);
+    lt_insert(dups,        2, neg_infinite, 4, infinite);
+    rt = __toku_lt_ifexist_selfread(lt, txn);   assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 5, infinite, txn);
+    rt = lt->mainread;                          assert(rt);
+    lt_find(dups, rt, 1,   1, neg_infinite, 5, infinite, txn);
+    close_tree();
+
+    /* ************************************** */
 }
 
 
