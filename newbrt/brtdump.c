@@ -64,7 +64,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	printf(" subfingerprints={");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    if (i>0) printf(" ");
-	    printf("%08x", BRTNODE_CHILD_SUBTREE_FINGERPRINTS(n, i));
+	    printf("%08x", BNC_SUBTREE_FINGERPRINT(n, i));
 	}
 	printf("}\n");
 	printf(" pivots:\n");
@@ -77,7 +77,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	}
 	printf(" children:\n");
 	for (i=0; i<n->u.n.n_children; i++) {
-	    printf("   child %d: %lld\n", i, BRTNODE_CHILD_DISKOFF(n, i));
+	    printf("   child %d: %lld\n", i, BNC_DISKOFF(n, i));
 	    printf("   buffer contains %d bytes (%d items)\n", n->u.n.n_bytes_in_buffer[i], toku_fifo_n_entries(n->u.n.buffers[i]));
 	    FIFO_ITERATE(n->u.n.buffers[i], key, keylen, data, datalen, typ,
 			 ({

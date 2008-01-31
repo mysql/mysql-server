@@ -46,11 +46,11 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	size+=4; /* n_entries */
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (i=0; i< n_buffers; i++) {
-	    FIFO_ITERATE(node->u.n.buffers[i],
-			      key __attribute__((__unused__)), keylen,
-			      data __attribute__((__unused__)), datalen,
-                              type __attribute__((__unused__)),
-			      (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
+	    FIFO_ITERATE(BNC_BUFFER(node,i),
+			 key __attribute__((__unused__)), keylen,
+			 data __attribute__((__unused__)), datalen,
+			 type __attribute__((__unused__)),
+			 (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
 	}
 	assert(hsize==node->u.n.n_bytes_in_buffers);
 	assert(csize==node->u.n.totalchildkeylens);
@@ -125,13 +125,13 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	{
 	    u_int32_t subtree_fingerprint = node->local_fingerprint;
 	    for (i=0; i<node->u.n.n_children; i++) {
-		subtree_fingerprint += BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i);
+		subtree_fingerprint += BNC_SUBTREE_FINGERPRINT(node, i);
 	    }
 	    wbuf_int(&w, subtree_fingerprint);
 	}
 	wbuf_int(&w, node->u.n.n_children);
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_int(&w, BRTNODE_CHILD_SUBTREE_FINGERPRINTS(node, i));
+	    wbuf_int(&w, BNC_SUBTREE_FINGERPRINT(node, i));
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
@@ -144,7 +144,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_DISKOFF(&w, node->u.n.children[i]);
+	    wbuf_DISKOFF(&w, BNC_DISKOFF(node,i));
 	    //printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	}
 
@@ -153,8 +153,8 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    u_int32_t check_local_fingerprint = 0;
 	    for (i=0; i< n_buffers; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
-		wbuf_int(&w, toku_fifo_n_entries(node->u.n.buffers[i]));
-		FIFO_ITERATE(node->u.n.buffers[i], key, keylen, data, datalen, type,
+		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
+		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
 				  ({
 				      wbuf_char(&w, type);
 				      wbuf_bytes(&w, key, keylen);
@@ -278,13 +278,13 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
 	for (i=0; i<TREE_FANOUT; i++) { 
-	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(result, i)=0;
             result->u.n.childkeys[i]=0; 
         }
 	for (i=0; i<TREE_FANOUT+1; i++) { 
-            result->u.n.children[i]=0; 
-            result->u.n.buffers[i]=0; 
-            result->u.n.n_bytes_in_buffer[i]=0;
+	    BNC_SUBTREE_FINGERPRINT(result, i)=0;
+            BNC_DISKOFF(result,i)=0; 
+            BNC_BUFFER(result,i)=0; 
+            BNC_NBYTESINBUF(result,i)=0;
         }
 	u_int32_t subtree_fingerprint = rbuf_int(&rc);
 	u_int32_t check_subtree_fingerprint = 0;
@@ -293,7 +293,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
 	for (i=0; i<result->u.n.n_children; i++) {
 	    u_int32_t childfp = rbuf_int(&rc);
-	    BRTNODE_CHILD_SUBTREE_FINGERPRINTS(result, i)= childfp;
+	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
@@ -313,19 +313,19 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	    result->u.n.totalchildkeylens+=toku_brtnode_pivot_key_len(result, result->u.n.childkeys[i]);
 	}
 	for (i=0; i<result->u.n.n_children; i++) {
-	    result->u.n.children[i] = rbuf_diskoff(&rc);
+	    BNC_DISKOFF(result,i) = rbuf_diskoff(&rc);
 	    //printf("Child %d at %lld\n", i, result->children[i]);
 	}
 	for (i=0; i<TREE_FANOUT+1; i++) {
-	    result->u.n.n_bytes_in_buffer[i] = 0;
+	    BNC_NBYTESINBUF(result,i)=0;
 	}
 	result->u.n.n_bytes_in_buffers = 0; 
 	for (i=0; i<result->u.n.n_children; i++) {
-	    r=toku_fifo_create(&result->u.n.buffers[i]);
+	    r=toku_fifo_create(&BNC_BUFFER(result,i));
 	    if (r!=0) {
 		int j;
 		if (0) { died_12: j=result->u.n.n_bytes_in_buffers; }
-		for (j=0; j<i; j++) toku_fifo_free(&result->u.n.buffers[j]);
+		for (j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
 		goto died1;
 	    }
 	}
@@ -347,12 +347,12 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			r=toku_fifo_enq(result->u.n.buffers[cnum], key, keylen, val, vallen, type); /* Copies the data into the hash table. */
+			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
 		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
 		    result->u.n.n_bytes_in_buffers += diff;
-		    result->u.n.n_bytes_in_buffer[cnum] += diff;
+		    BNC_NBYTESINBUF(result,cnum)   += diff;
 		    //printf("Inserted\n");
 		}
 	    }
@@ -456,11 +456,11 @@ void toku_verify_counts (BRTNODE node) {
 	unsigned int sum = 0;
 	int i;
 	for (i=0; i<node->u.n.n_children; i++)
-	    sum += node->u.n.n_bytes_in_buffer[i];
+	    sum += BNC_NBYTESINBUF(node,i);
 	// We don't rally care of the later buffers have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
 	// But for now the code always initializes the later tables so they are 0.
 	for (; i<TREE_FANOUT+1; i++) {
-	    assert(node->u.n.n_bytes_in_buffer[i]==0);
+	    assert(BNC_NBYTESINBUF(node,i)==0);
         }
 	assert(sum==node->u.n.n_bytes_in_buffers);
     }
