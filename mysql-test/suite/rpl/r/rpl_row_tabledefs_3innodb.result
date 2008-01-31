@@ -37,6 +37,7 @@ ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
 ADD e3 INT NOT NULL DEFAULT 0, ADD e4 INT NOT NULL DEFAULT 0,
 ADD e5 INT NOT NULL DEFAULT 0, ADD e6 INT NOT NULL DEFAULT 0,
 ADD e7 INT NOT NULL DEFAULT 0, ADD e8 INT NOT NULL DEFAULT 0;
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 INSERT INTO t1_int  VALUES (2, 4, 4711);
 INSERT INTO t1_char VALUES (2, 4, 'Foo is a bar');
 INSERT INTO t1_bit  VALUES (2, 4, b'101', b'11100', b'01');
@@ -60,6 +61,7 @@ a	b
 1	2
 2	5
 **** On Slave ****
+set @@global.slave_exec_mode= default;
 SELECT a,b,x FROM t1_int ORDER BY a;
 a	b	x
 1	2	42
@@ -123,7 +125,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1364
-Last_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. Field 'x' doesn't have a default value
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -139,9 +141,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1364
-Last_SQL_Error	Error in Write_rows event: error during transaction execution on table test.t1_nodef. Field 'x' doesn't have a default value
+Last_SQL_Error	<Last_SQL_Error>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (2);
@@ -174,7 +176,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
-Last_Error	
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -190,9 +192,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	0
-Last_SQL_Error	
+Last_SQL_Error	<Last_SQL_Error>
 INSERT INTO t9 VALUES (4);
 INSERT INTO t4 VALUES (4);
 SHOW SLAVE STATUS;
@@ -215,7 +217,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -231,9 +233,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 0 type mismatch - received type 3, test.t4 has type 4
+Last_SQL_Error	<Last_SQL_Error>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (5);
@@ -258,7 +260,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -274,9 +276,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 1 type mismatch - received type 3, test.t5 has type 4
+Last_SQL_Error	<Last_SQL_Error>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -301,7 +303,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	1535
-Last_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -317,9 +319,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	1535
-Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 3, test.t6 has type 4
+Last_SQL_Error	<Last_SQL_Error>
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 INSERT INTO t9 VALUES (6);
@@ -343,7 +345,7 @@ Replicate_Ignore_Table
 Replicate_Wild_Do_Table	
 Replicate_Wild_Ignore_Table	
 Last_Errno	0
-Last_Error	
+Last_Error	<Last_Error>
 Skip_Counter	0
 Exec_Master_Log_Pos	#
 Relay_Log_Space	#
@@ -359,9 +361,9 @@ Master_SSL_Key
 Seconds_Behind_Master	#
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	0
-Last_IO_Error	
+Last_IO_Error	<Last_IO_Error>
 Last_SQL_Errno	0
-Last_SQL_Error	
+Last_SQL_Error	<Last_SQL_Error>
 INSERT INTO t7 VALUES (1),(2),(3);
 INSERT INTO t8 VALUES (1),(2),(3);
 SELECT * FROM t7 ORDER BY a;

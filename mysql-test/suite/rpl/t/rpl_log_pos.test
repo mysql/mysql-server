@@ -11,14 +11,13 @@
 # Passes with rbr no problem, removed statement include [jbm]
 
 source include/master-slave.inc;
---replace_column 3 <Binlog_Ignore_DB>
-show master status;
+source include/show_master_status.inc;
 sync_slave_with_master;
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 
 change master to master_log_pos=75;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 start slave;
 let $slave_param= Slave_SQL_Running;
 let $slave_param_value= Yes;
@@ -31,15 +30,14 @@ stop slave;
 
 source include/show_slave_status.inc;
 connection master;
---replace_column 3 <Binlog_Ignore_DB>
-show master status;
+source include/show_master_status.inc;
 create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
 save_master_pos;
 connection slave;
-change master to master_log_pos=106;
+change master to master_log_pos=4;
 start slave;
 sync_with_master;
 select * from t1 ORDER BY n;

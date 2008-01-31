@@ -282,4 +282,31 @@ connection default;
 DROP DATABASE mysqltest1;
 DROP USER untrusted@localhost;
 
+--echo BUG#32580: mysqlbinlog cannot read binlog event with user variables
+
+# Testing that various kinds of events can be read and restored properly.
+
+connection default;
+USE test;
+SET BINLOG_FORMAT = STATEMENT;
+FLUSH LOGS;
+CREATE TABLE t1 (a_real FLOAT, an_int INT, a_decimal DECIMAL(5,2), a_string CHAR(32));
+SET @a_real = rand(20) * 1000;
+SET @an_int = 1000;
+SET @a_decimal = CAST(rand(19) * 999 AS DECIMAL(5,2));
+SET @a_string = 'Just a test';
+INSERT INTO t1 VALUES (@a_real, @an_int, @a_decimal, @a_string);
+FLUSH LOGS;
+query_vertical SELECT * FROM t1;
+DROP TABLE t1;
+
+echo >> mysqlbinlog var/log/master-bin.000019 > var/tmp/bug32580.sql;
+exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000019 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+echo >> mysql test < var/tmp/bug32580.sql;
+exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+
+query_vertical SELECT * FROM t1;
+DROP TABLE t1;
+
 --echo End of 5.1 tests
