@@ -46,7 +46,7 @@ ALTER TABLE t1_bit
 ALTER TABLE t1_char ADD x CHAR(20) DEFAULT 'Just a test';
 # ... and add one non-nullable INT column last in table 't1_text'
 #     with no default,
-ALTER TABLE t1_nodef ADD x INT NOT NULL;
+ALTER TABLE t1_nodef ADD x INT NOT NULL, ADD y INT NOT NULL, ADD z INT NOT NULL;
 # ... and remove the last column in t2
 ALTER TABLE t2 DROP b;
 # ... change the type of the single column in table 't4'
@@ -222,8 +222,8 @@ sync_slave_with_master;
 
 --echo **** On Slave ****
 connection slave;
-INSERT INTO t1_nodef VALUES (1,2,3);
-INSERT INTO t1_nodef VALUES (2,4,6);
+INSERT INTO t1_nodef VALUES (1,2,3,4,5);
+INSERT INTO t1_nodef VALUES (2,4,6,8,10);
 
 --echo **** On Master ****
 connection master;
