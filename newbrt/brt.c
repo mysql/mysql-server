@@ -632,16 +632,20 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     // Slide the keys over
     {
+	struct kv_pair *pivot = childsplitk->data;
 	BYTESTRING bs = { .len  = childsplitk->size,
-			  .data = childsplitk->data };
+			  .data = kv_pair_key(pivot) };
 	r = toku_log_setpivot(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
 	if (r!=0) return r;
+
+	for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
+	    node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
+	}
+	assert((t->flags&TOKU_DB_DUPSORT)==0); // none of this works for dupsort databases. The size is wrong. The setpivot is wrong.
+	node->u.n.childkeys[childnum]= pivot;
+	node->u.n.totalchildkeylens += childsplitk->size;
     }
-    for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
-	node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
-    }
-    node->u.n.childkeys[childnum]= (void*)childsplitk->data;
-    node->u.n.totalchildkeylens += childsplitk->size;
+
     node->u.n.n_children++;
 
     if (toku_brt_debug_mode) {
