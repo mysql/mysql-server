@@ -10,10 +10,37 @@
    Lock trees are toku-struct's for granting long-lived locks to transactions.
    See more details on the design document.
 
+    
+    This is so important that it should go into doxygen at some point,
+    either here or in the .h file
+       
+    Memory ownership: 
+     - tree->buf is an array of toku_range's, which the lt owns
+       The contents of tree->buf are volatile (this is a buffer space
+       that we pass around to various functions, and every time we
+       invoke a new function, its previous contents may become 
+       meaningless)
+     - tree->buf[i].left, .right are toku_points (ultimately a struct), 
+       also owned by lt. We gave a pointer only to this memory to the 
+       range tree earlier when we inserted a range, but the range tree
+       does not own it!
+     - tree->buf[i].{left,right}.{key_payload,data_payload} is owned by
+       the lt, we made copies from the DB at some point
+     - to_insert we own (it's static)
+     - to_insert.left, .right are toku_point's, and we own them.
+       If we have consolidated, we own them because we had allocated
+       them earlier, but
+       if we have not consolidated we need to gain ownership now: 
+       we will gain ownership by copying all payloads and 
+       allocating the points. 
+     - to_insert.{left,right}.{key_payload, data_payload} are owned by lt,
+       we made copies from the DB at consolidation time 
+   
+
    TODO: If the various range trees are inconsistent with
    each other, due to some system error like failed malloc,
    we defer to the db panic handler
-      TODO: Pass in another parameter to do this.
+   TODO: Pass in another parameter to do this.
 */
 
 #include <assert.h>
@@ -144,41 +171,38 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
 */
 int toku_lt_close(toku_lock_tree* tree);
 
-/*
- * Acquires a read lock on a single key (or key/data).
- * Params:
- *      tree:   The lock tree for the db.
- *      txn:    The TOKU Transaction this lock is for.
- *      key:    The key this lock is for.
- *      data:  The data this lock is for.
- * Returns:
- *      0:                  Success.
- *      DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
- *                          This can only happen if some other transaction has
- *                          a write lock that overlaps this point.
- *      EINVAL:             If (tree == NULL || txn == NULL || key == NULL) or
- *                             (tree->db is dupsort && data == NULL) or
- *                             (tree->db is nodup   && data != NULL) or
- *                             (tree->db is dupsort && key != data &&
- *                                  (key == toku_lt_infinity ||
- *                                   key == toku_lt_neg_infinity))
- *      ENOMEM:             If adding the lock would exceed the maximum
- *                          memory allowed for payloads.
- * Asserts:
- *      The EINVAL cases described will use assert to abort instead of returning errors.
- *      If this library is ever exported to users, we will use error datas instead.
- * Memory:
- *      It is safe to free keys and datas after this call.
- *      If the lock tree needs to hold onto the key or data, it will make copies
- *      to its local memory.
- * *** Note that txn == NULL is not supported at this time.
- */
+/**
+   Acquires a read lock on a single key (or key/data).
+
+   \param tree:   The lock tree for the db.
+   \param txn:    The TOKU Transaction this lock is for.
+   \param key:    The key this lock is for.
+   \param data:  The data this lock is for.
+
+   \return
+   - 0:                  Success.
+   - DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
+                         This can only happen if some other transaction has
+                         a write lock that overlaps this point.
+   - ENOMEM:             If adding the lock would exceed the maximum
+                         memory allowed for payloads.
+
+   The following is asserted: 
+     (tree == NULL || txn == NULL || key == NULL) or
+     (tree->db is dupsort && data == NULL) or
+     (tree->db is nodup   && data != NULL) or
+     (tree->db is dupsort && key != data &&
+       (key == toku_lt_infinity ||
+       (toku_lock_tree* tree, DB_TXN* txn, const DBT* key, const DBT* data);
+   If this library is ever exported to users, we will use EINVAL instead.
+
+   In BDB, txn can actually be NULL (mixed operations with transactions and 
+   no transactions). This can cause conflicts, nobody was unable (so far) 
+   to verify that MySQL does or does not use this.
+*/
 int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                               const DBT* key, const DBT* data);
 
- //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
- //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
- //this.
 /*
  * Acquires a read lock on a key range (or key/data range).  (Closed range).
  * Params:

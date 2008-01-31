@@ -543,33 +543,7 @@ static int __toku_consolidate(toku_lock_tree* tree,
     assert(tree && to_insert && txn);
     toku_range_tree* mainread      = tree->mainread;
     assert(mainread);
-    
-    /** This is so important that it should go into doxygen at some point,
-        either here or in the .h file
-       
-       Memory ownership: 
-       - tree->buf is an array of toku_range's, which the lt owns
-         The contents of tree->buf are volatile (this is a buffer space
-         that we pass around to various functions, and every time we
-         invoke a new function, its previous contents may become 
-         meaningless)
-       - tree->buf[i].left, .right are toku_points (ultimately a struct), 
-         also owned by lt. We gave a pointer only to this memory to the 
-         range tree earlier when we inserted a range, but the range tree
-         does not own it!
-       - tree->buf[i].{left,right}.{key_payload,data_payload} is owned by
-         the lt, we made copies from the DB at some point
-       - to_insert we own (it's static)
-       - to_insert.left, .right are toku_point's, and we own them.
-         If we have consolidated, we own them because we had allocated
-         them earlier, but
-         if we have not consolidated we need to gain ownership now: 
-         we will gain ownership by copying all payloads and 
-         allocating the points. 
-        -to_insert.{left,right}.{key_payload, data_payload} are owned by lt,
-         we made copies from the DB at consolidation time 
-    */   
-    
+
     /* Find the self read tree */
     r = __toku_lt_selfread(tree, txn, &selfread);
     if (r!=0) return r;
@@ -835,6 +809,9 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     if (tree->duplicates && !data)                          return EINVAL;
     if (tree->duplicates && key != data &&
         __toku_lt_is_infinite(key))                         return EINVAL;
+
+    /* Verify that NULL keys have payload and size that are mutually 
+       consistent */
     __toku_lt_verify_null_key(key);
     __toku_lt_verify_null_key(data);
 
@@ -847,7 +824,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     
     __toku_init_point(&left,   tree,  key, data);
     __toku_init_point(&right,  tree,  key, data);
-    __toku_init_query(&query, &left, &right);
+    __toku_init_query(&query,  &left, &right);
 
     /* if 'K' is dominated by selfwrite('txn') then return success. */
     r = __toku_lt_dominated(tree, &query, 
