@@ -53,11 +53,15 @@ delimiter ;//
 
 -- disable_query_log
 -- disable_result_log
+SET @wait_count = 1;
 let $1=10;
 while ($1)
 {
   CALL test.p2();
-  sleep 1;
+  let $wait_condition= SELECT COUNT(*) = @wait_count FROM test.t3;
+  --source include/wait_condition.inc
+  --disable_query_log
+  SET @wait_count = @wait_count + 1;
   dec $1;
 }
 -- enable_result_log

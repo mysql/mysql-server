@@ -50,9 +50,13 @@ my $tot_real_time= 0;
 
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
+  my $tname= $tinfo->{name};
 
-  _mtr_log("$tinfo->{name}");
-  printf "%-30s ", $tinfo->{'name'};
+  $tname.= " '$tinfo->{combination}'"
+    if defined $tinfo->{combination};
+
+  _mtr_log($tname);
+  printf "%-30s ", $tname;
 }
 
 sub mtr_report_test_skipped ($) {
