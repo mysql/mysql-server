@@ -1,7 +1,9 @@
 # Test case for bug#32205 Replaying statements from mysqlbinlog fails
 # with a syntax error, replicates fine
 
--- source include/have_log_bin.inc
+source include/have_log_bin.inc;
+source include/have_local_infile.inc;
+
 reset master;
 --disable_warnings
 drop table if exists t1,t2;
@@ -19,4 +21,4 @@ select * from t2;
 
 # clean up
 drop table t1,t2;
---system rm $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+#--system rm $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
