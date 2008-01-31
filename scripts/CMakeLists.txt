@@ -61,17 +61,11 @@ CONFIGURE_FILE(mysql_config.pl.in
 CONFIGURE_FILE(mysql_convert_table_format.sh
                scripts/mysql_convert_table_format.pl ESCAPE_QUOTES @ONLY)
 
-CONFIGURE_FILE(mysql_explain_log.sh
-               scripts/mysql_explain_log.pl ESCAPE_QUOTES @ONLY)
-
 CONFIGURE_FILE(mysql_install_db.pl.in
                scripts/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysql_secure_installation.pl.in
                scripts/mysql_secure_installation.pl ESCAPE_QUOTES @ONLY)
-
-CONFIGURE_FILE(mysql_tableinfo.sh
-               scripts/mysql_tableinfo.pl ESCAPE_QUOTES @ONLY)
 
 CONFIGURE_FILE(mysqld_multi.sh
                scripts/mysqld_multi.pl ESCAPE_QUOTES @ONLY)
