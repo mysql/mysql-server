@@ -9,6 +9,7 @@
 
 source include/master-slave.inc;
 source include/have_innodb.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
 
 --disable_query_log
 let $rows= 5000;
@@ -33,7 +34,7 @@ eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 
 # the binglog will show fragmented Append_block events
---let $binlog_start=98
+--let $binlog_start=106
 --replace_column 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /file_id=[0-9]+/file_id=#/
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR

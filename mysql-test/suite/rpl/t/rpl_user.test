@@ -7,8 +7,13 @@ reset master;
 #
 # remove all users will be used in the test
 #
+set session sql_log_bin=0; 
 delete from mysql.user where Host='fakehost';
-sync_slave_with_master;
+set session sql_log_bin=1; 
+connection slave;
+set session sql_log_bin=0; 
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1; 
 
 #
 # Test create user
