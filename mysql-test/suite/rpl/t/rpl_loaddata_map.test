@@ -1,0 +1,53 @@
+#
+#  check replication of load data with the server parameters subjected to
+#  read_buffer_size > max_allowed_packet
+#
+#  BUG#30435 loading large LOAD DATA INFILE breaks slave with 
+#            read_buffer_size set on master
+#  BUG#33413 show binlog events fails if binlog has event size of close
+#            to max_allowed_packet
+
+source include/master-slave.inc;
+source include/have_innodb.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
+--disable_query_log
+let $rows= 5000;
+create table t1 (id int not null primary key auto_increment);
+
+while($rows)
+{
+  eval insert into t1 values (null);
+  dec $rows;
+}
+eval select * into outfile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' from t1;
+flush logs;
+--enable_query_log
+
+connection master;
+create table t2 (id int not null primary key auto_increment);
+
+select @@session.read_buffer_size - @@session.max_allowed_packet > 0 ;
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
+select count(*) from t2 /* 5 000 */;
+
+# the binglog will show fragmented Append_block events
+--let $binlog_start=106
+--replace_column 5 #
+--replace_regex /\/\* xid=.* \*\//\/* XID *\// /file_id=[0-9]+/file_id=#/
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--eval show binlog events in 'master-bin.000002' from $binlog_start
+
+
+sync_slave_with_master;
+#connection slave;
+select count(*) from t2 /* 5 000 */;
+
+connection master;
+drop table t1, t2;
+sync_slave_with_master;
+remove_file $MYSQLTEST_VARDIR/tmp/bug30435_5k.txt;
+
+--echo end of the tests

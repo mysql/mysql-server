@@ -1,0 +1,130 @@
+# Tests that transactions are replicated correctly, with various
+# combinations of non-transactional and transactional non-XA tables.
+# Also tests that an XA transaction where the master crashes just
+# before writing the XID log event is executed correctly.  See below
+# for implementation details.
+
+source include/ndb_master-slave.inc;
+source include/have_ndb.inc;
+
+CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
+CREATE TABLE tinnodb (a int) ENGINE = INNODB;
+CREATE TABLE tndb (a int) ENGINE = NDB;
+
+SHOW CREATE TABLE tmyisam;
+SHOW CREATE TABLE tinnodb;
+SHOW CREATE TABLE tndb;
+
+
+--echo ==== Test 1: Non-XA Engines ====
+# Test that everything works fine with non-XA engines.  We just try
+# all ways to do transactions involving ndb and/or myisam, with
+# rollback or commit.
+
+--echo --- on master ---
+
+SET AUTOCOMMIT = 1;
+
+INSERT INTO tndb VALUES (1);
+INSERT INTO tmyisam VALUES (1);
+
+BEGIN;
+INSERT INTO tndb VALUES (2);
+INSERT INTO tndb VALUES (3);
+COMMIT;
+
+BEGIN;
+INSERT INTO tmyisam VALUES (2);
+INSERT INTO tmyisam VALUES (3);
+COMMIT;
+
+BEGIN;
+INSERT INTO tndb VALUES (4);
+INSERT INTO tmyisam VALUES (4);
+COMMIT;
+
+BEGIN;
+INSERT INTO tndb VALUES (5);
+INSERT INTO tndb VALUES (6);
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tmyisam VALUES (5);
+INSERT INTO tmyisam VALUES (6);
+--warning 1196
+ROLLBACK;
+
+BEGIN;
+INSERT INTO tndb VALUES (7);
+INSERT INTO tmyisam VALUES (7);
+--warning 1196
+ROLLBACK;
+
+SELECT * FROM tndb ORDER BY a;
+SELECT * FROM tmyisam ORDER BY a;
+
+--echo --- on slave ---
+--sync_slave_with_master
+SELECT * FROM tndb ORDER BY a;
+SELECT * FROM tmyisam ORDER BY a;
+
+
+--echo ==== Test 2: Master crash before writing XID event on XA engine ====
+# We now want to test the following scenario, to verify that BUG#26395
+# has been fixed:
+
+#   "master and slave have a transactional table that uses XA. Master
+#    has AUTOCOMMIT on and executes a statement (in this case an
+#    INSERT). Master crashes just before writing the XID event."
+
+# In this scenario, master will roll back, so slave should not execute
+# the statement, and slave should roll back later when master is
+# restarted.
+
+# However, we want the master to be alive so that we are sure it
+# replicates the statement to the slave. So in the test case, we must
+# therefore not crash the master. Instead, we fake the crash by just
+# not writing the XID event to the binlog. This is done by the
+# --debug=d,do_not_write_xid flag in the .opt file.
+
+# So, unlike if the master had crashed, the master *will* execute the
+# statement. But the slave should not execute it. Hence, after the
+# first test is executed, the expected result on master is a table
+# with one row, and on slave a table with no rows.
+
+# To simulate the slave correctly, we wait until everything up to the
+# XID is replicated. We cannot sync_slave_with_master, because that
+# would wait for the transaction to end. Instead, we wait for
+# "sufficiently long time". Then we stop the slave.
+
+# Note: since this puts the master binlog in an inconsistent state,
+# this should be the last test of the file.
+
+--echo --- on master ---
+--connection master
+
+INSERT INTO tinnodb VALUES (1);
+SELECT * FROM tinnodb ORDER BY a;
+
+--echo --- on slave ---
+--connection slave
+--sleep 3
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Slave_IO_State, 1);
+eval SELECT "$tmp" AS Slave_IO_State;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_SQL_Error, 1);
+eval SELECT "$tmp" AS Last_SQL_Error;
+let $tmp= query_get_value("SHOW SLAVE STATUS", Last_IO_Error, 1);
+eval SELECT "$tmp" AS Last_IO_Error;
+SELECT * FROM tinnodb ORDER BY a;
+
+# Clean up. We cannot do it on master and replicate over, because
+# master binlog is in a bad state after last test. So we do it both on
+# master and on slave.
+--echo --- on master ---
+connection master;
+DROP TABLE tmyisam, tinnodb, tndb;
+
+connection slave;
+DROP TABLE tmyisam, tinnodb, tndb;
