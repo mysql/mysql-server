@@ -31,7 +31,9 @@ Known bugs that are planned to be fixed before next minor release
   Temporary fix is to remove or maria_log.???????? files from the data
   directory, restart mysqld and run CHECK TABLE / REPAIR TABLE or 
   mysqlcheck on your Maria tables
-
+- LOAD INDEX commands are for the moment ignored for Maria tables
+  (The code needs to be rewritten to do all reads through page cache to
+  avoid half-block reads)
 
 Known bugs that are planned to be fixed before Beta
 ===================================================
