@@ -5,7 +5,12 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 reset master;
+set session sql_log_bin=0;
 delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
 create user 'foo'@'fakehost';
 create user 'foo'@'fakehost', 'bar'@'fakehost';
 ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
@@ -31,12 +36,11 @@ drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
 select Host,User from mysql.user where Host='fakehost';
 Host	User
-show binlog events from 98;
+show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	98	Query	1	#	use `test`; delete from mysql.user where Host='fakehost'
-master-bin.000001	205	Query	1	#	use `test`; create user 'foo'@'fakehost'
-master-bin.000001	296	Query	1	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
-master-bin.000001	405	Query	1	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
-master-bin.000001	519	Query	1	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
-master-bin.000001	686	Query	1	#	use `test`; drop user 'foofoo'@'fakehost'
-master-bin.000001	778	Query	1	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'
