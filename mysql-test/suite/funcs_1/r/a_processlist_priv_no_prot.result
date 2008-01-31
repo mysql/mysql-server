@@ -39,11 +39,11 @@ Id	User	Host	db	Command	Time	State	Info
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-1	root	localhost	information_schema	Query	TIME	preparing	SELECT * FROM processlist  ORDER BY id
+1	root	localhost	information_schema	Query	TIME	executing	SELECT * FROM processlist  ORDER BY id
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-1	root	localhost	information_schema	Query	TIME	preparing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
+1	root	localhost	information_schema	Query	TIME	executing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 CREATE TEMPORARY TABLE test.t_processlist AS SELECT * FROM processlist;
 UPDATE test.t_processlist SET user='horst' WHERE id=1  ;
@@ -108,10 +108,10 @@ Id	User	Host	db	Command	Time	State	Info
 2	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-2	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM processlist  ORDER BY id
+2	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM processlist  ORDER BY id
 SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-2	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
+2	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT ID, USER, HOST, DB, COMMAND, TIME, STATE, INFO FROM processlist  ORDER BY id
 CREATE TEMPORARY TABLE test.t_processlist AS SELECT * FROM processlist;
 UPDATE test.t_processlist SET user='horst' WHERE id=1  ;
 INSERT INTO processlist SELECT * FROM test.t_processlist;
@@ -173,7 +173,7 @@ Id	User	Host	db	Command	Time	State	Info
 2	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-2	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+2	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 ####################################################################################
 4.2 New connection con101 (ddicttestuser1 with PROCESS privilege)
 SHOW/SELECT shows all processes/threads.
@@ -188,7 +188,7 @@ Id	User	Host	db	Command	Time	State	Info
 3	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-3	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+3	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 1	root	localhost	information_schema	Sleep	TIME		NULL
 ####################################################################################
@@ -212,7 +212,7 @@ Id	User	Host	db	Command	Time	State	Info
 4		localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-4		localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+4		localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 3	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 1	root	localhost	information_schema	Sleep	TIME		NULL
@@ -236,7 +236,7 @@ Id	User	Host	db	Command	Time	State	Info
 5	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-5	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+5	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 3	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 ####################################################################################
@@ -254,7 +254,7 @@ Grants for @localhost
 GRANT USAGE ON *.* TO ''@'localhost'
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-6		localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+6		localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 4		localhost	information_schema	Sleep	TIME		NULL
 ####################################################################################
 8 Grant SUPER (does not imply PROCESS) privilege to ddicttestuser1
@@ -276,7 +276,7 @@ Id	User	Host	db	Command	Time	State	Info
 7	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-7	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+7	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 5	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 3	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 2	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
@@ -302,7 +302,7 @@ Id	User	Host	db	Command	Time	State	Info
 8	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-8	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+8	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 7	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 5	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 3	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
@@ -356,7 +356,7 @@ Id	User	Host	db	Command	Time	State	Info
 11	ddicttestuser2	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-11	ddicttestuser2	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+11	ddicttestuser2	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 10	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 9	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 8	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
@@ -385,7 +385,7 @@ Id	User	Host	db	Command	Time	State	Info
 12	ddicttestuser2	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-12	ddicttestuser2	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+12	ddicttestuser2	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 11	ddicttestuser2	localhost	information_schema	Sleep	TIME		NULL
 ####################################################################################
 11.2 Revoke SUPER,PROCESS,GRANT OPTION privilege from user ddicttestuser1
@@ -414,7 +414,7 @@ Id	User	Host	db	Command	Time	State	Info
 13	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-13	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+13	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 10	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 9	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 8	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
@@ -450,7 +450,7 @@ Id	User	Host	db	Command	Time	State	Info
 14	ddicttestuser1	localhost	information_schema	Query	TIME	NULL	SHOW processlist
 SELECT * FROM information_schema.processlist;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-14	ddicttestuser1	localhost	information_schema	Query	TIME	preparing	SELECT * FROM information_schema.processlist
+14	ddicttestuser1	localhost	information_schema	Query	TIME	executing	SELECT * FROM information_schema.processlist
 13	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 10	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL
 9	ddicttestuser1	localhost	information_schema	Sleep	TIME		NULL

@@ -483,6 +483,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+PROFILING
 REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
@@ -786,6 +787,27 @@ TABLE_TYPE	SYSTEM VIEW
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Dynamic
+TABLE_ROWS	NULL
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	YYYY-MM-DD hh:mm:ss
+UPDATE_TIME	YYYY-MM-DD hh:mm:ss
+CHECK_TIME	YYYY-MM-DD hh:mm:ss
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	information_schema
+TABLE_NAME	PROFILING
+TABLE_TYPE	SYSTEM VIEW
+ENGINE	MEMORY
+VERSION	10
+ROW_FORMAT	Fixed
 TABLE_ROWS	NULL
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
@@ -1915,6 +1937,7 @@ NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
+NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
@@ -1964,6 +1987,7 @@ NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
+NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
@@ -2051,6 +2075,7 @@ NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
+NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
@@ -2100,6 +2125,7 @@ NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
+NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
@@ -2187,6 +2213,7 @@ NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
+NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
@@ -2236,6 +2263,7 @@ NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
+NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
@@ -2433,6 +2461,24 @@ NULL	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	16	48	NULL	NULL	utf8	u
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(7)			select	
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	PROFILING	QUERY_ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SEQ	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	STATE	3		NO	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	DURATION	4	0.000000	NO	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_USER	5	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_SYSTEM	6	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CONTEXT_VOLUNTARY	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	CONTEXT_INVOLUNTARY	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_IN	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_OUT	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_SENT	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_RECEIVED	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MAJOR	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MINOR	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SWAPS	15	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SOURCE_FUNCTION	16	NULL	YES	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	SOURCE_FILE	17	NULL	YES	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	PROFILING	SOURCE_LINE	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -3491,6 +3537,7 @@ Table or view 'KEY_COLUMN_USAGE' is associated with the database 'information_sc
 Table or view 'PARTITIONS' is associated with the database 'information_schema'.
 Table or view 'PLUGINS' is associated with the database 'information_schema'.
 Table or view 'PROCESSLIST' is associated with the database 'information_schema'.
+Table or view 'PROFILING' is associated with the database 'information_schema'.
 Table or view 'REFERENTIAL_CONSTRAINTS' is associated with the database 'information_schema'.
 Table or view 'ROUTINES' is associated with the database 'information_schema'.
 Table or view 'SCHEMATA' is associated with the database 'information_schema'.
@@ -3609,6 +3656,7 @@ PLUGINS	10
 proc	20
 PROCESSLIST	8
 procs_priv	8
+PROFILING	18
 REFERENTIAL_CONSTRAINTS	11
 ROUTINES	23
 SCHEMATA	5
@@ -4066,6 +4114,27 @@ TABLE_TYPE	SYSTEM VIEW
 ENGINE	MyISAM
 VERSION	10
 ROW_FORMAT	Dynamic
+TABLE_ROWS	NULL
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	YYYY-MM-DD hh:mm:ss
+UPDATE_TIME	YYYY-MM-DD hh:mm:ss
+CHECK_TIME	YYYY-MM-DD hh:mm:ss
+TABLE_COLLATION	utf8_general_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	
+TABLE_CATALOG	NULL
+TABLE_SCHEMA	information_schema
+TABLE_NAME	PROFILING
+TABLE_TYPE	SYSTEM VIEW
+ENGINE	MEMORY
+VERSION	10
+ROW_FORMAT	Fixed
 TABLE_ROWS	NULL
 AVG_ROW_LENGTH	#ARL#
 DATA_LENGTH	#DL#
@@ -5195,6 +5264,7 @@ NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
+NULL	db_datadict	latin1	SYSTEM VIEW	MEMORY
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
 NULL	db_datadict	latin1	SYSTEM VIEW	MyISAM
@@ -5244,6 +5314,7 @@ NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
 NULL	information_schema	utf8	BASE TABLE	MyISAM
+NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
 NULL	information_schema	utf8	SYSTEM VIEW	MEMORY
@@ -5331,6 +5402,7 @@ NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MEMORY
+NULL	mysql	latin1	SYSTEM VIEW	MEMORY
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
 NULL	mysql	latin1	SYSTEM VIEW	MyISAM
@@ -5380,6 +5452,7 @@ NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
 NULL	test	latin1	BASE TABLE	MyISAM
+NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
 NULL	test	latin1	SYSTEM VIEW	MEMORY
@@ -5467,6 +5540,7 @@ NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MEMORY
+NULL	test1	latin1	SYSTEM VIEW	MEMORY
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
 NULL	test1	latin1	SYSTEM VIEW	MyISAM
@@ -5516,6 +5590,7 @@ NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
 NULL	test4	latin1	BASE TABLE	MyISAM
+NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
 NULL	test4	latin1	SYSTEM VIEW	MEMORY
@@ -5642,10 +5717,10 @@ COUNT(*)
 6
 SELECT COUNT(*) FROM information_schema. tables                                ;
 COUNT(*)
-68
+69
 SELECT COUNT(*) FROM information_schema. columns                               ;
 COUNT(*)
-886
+904
 SELECT COUNT(*) FROM information_schema. character_sets                        ;
 COUNT(*)
 36
@@ -5707,10 +5782,10 @@ NULL	test1	latin1
 NULL	test4	latin1
 select count(*) as tot_tabs from tables;
 tot_tabs
-65
+66
 select count(*) as the_cols from columns;
 the_cols
-861
+879
 select max(maxlen) as the_max from character_sets;
 the_max
 3
@@ -5757,6 +5832,7 @@ information_schema, KEY_COLUMN_USAGE
 information_schema, PARTITIONS
 information_schema, PLUGINS
 information_schema, PROCESSLIST
+information_schema, PROFILING
 information_schema, REFERENTIAL_CONSTRAINTS
 information_schema, ROUTINES
 information_schema, SCHEMATA
@@ -8415,6 +8491,7 @@ information_schema	KEY_COLUMN_USAGE	MEMORY
 information_schema	PARTITIONS	MyISAM
 information_schema	PLUGINS	MyISAM
 information_schema	PROCESSLIST	MyISAM
+information_schema	PROFILING	MEMORY
 information_schema	REFERENTIAL_CONSTRAINTS	MEMORY
 information_schema	ROUTINES	MyISAM
 information_schema	SCHEMATA	MEMORY
@@ -8458,6 +8535,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+PROFILING
 REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
@@ -8499,6 +8577,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+PROFILING
 REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
@@ -8684,6 +8763,7 @@ KEY_COLUMN_USAGE
 PARTITIONS
 PLUGINS
 PROCESSLIST
+PROFILING
 REFERENTIAL_CONSTRAINTS
 ROUTINES
 SCHEMATA
@@ -8877,6 +8957,24 @@ PROCESSLIST	COMMAND	varchar(16)
 PROCESSLIST	TIME	bigint(7)
 PROCESSLIST	STATE	varchar(64)
 PROCESSLIST	INFO	longtext
+PROFILING	QUERY_ID	int(20)
+PROFILING	SEQ	int(20)
+PROFILING	STATE	varchar(30)
+PROFILING	DURATION	decimal(9,6)
+PROFILING	CPU_USER	decimal(9,6)
+PROFILING	CPU_SYSTEM	decimal(9,6)
+PROFILING	CONTEXT_VOLUNTARY	int(20)
+PROFILING	CONTEXT_INVOLUNTARY	int(20)
+PROFILING	BLOCK_OPS_IN	int(20)
+PROFILING	BLOCK_OPS_OUT	int(20)
+PROFILING	MESSAGES_SENT	int(20)
+PROFILING	MESSAGES_RECEIVED	int(20)
+PROFILING	PAGE_FAULTS_MAJOR	int(20)
+PROFILING	PAGE_FAULTS_MINOR	int(20)
+PROFILING	SWAPS	int(20)
+PROFILING	SOURCE_FUNCTION	varchar(30)
+PROFILING	SOURCE_FILE	varchar(20)
+PROFILING	SOURCE_LINE	int(20)
 REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar(4096)
 REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar(64)
 REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar(64)
@@ -10421,6 +10519,24 @@ NULL	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	16	48	NULL	NULL	utf8	u
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(7)			select	
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	PROFILING	QUERY_ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SEQ	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	STATE	3		NO	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	DURATION	4	0.000000	NO	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_USER	5	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_SYSTEM	6	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CONTEXT_VOLUNTARY	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	CONTEXT_INVOLUNTARY	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_IN	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_OUT	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_SENT	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_RECEIVED	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MAJOR	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MINOR	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SWAPS	15	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SOURCE_FUNCTION	16	NULL	YES	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	SOURCE_FILE	17	NULL	YES	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	PROFILING	SOURCE_LINE	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11288,6 +11404,24 @@ NULL	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	16	48	NULL	NULL	utf8	u
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(7)			select	
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	PROFILING	QUERY_ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SEQ	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	STATE	3		NO	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	DURATION	4	0.000000	NO	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_USER	5	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_SYSTEM	6	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CONTEXT_VOLUNTARY	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	CONTEXT_INVOLUNTARY	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_IN	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_OUT	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_SENT	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_RECEIVED	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MAJOR	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MINOR	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SWAPS	15	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SOURCE_FUNCTION	16	NULL	YES	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	SOURCE_FILE	17	NULL	YES	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	PROFILING	SOURCE_LINE	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -11877,6 +12011,24 @@ NULL	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	16	48	NULL	NULL	utf8	u
 NULL	information_schema	PROCESSLIST	TIME	6	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(7)			select	
 NULL	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
+NULL	information_schema	PROFILING	QUERY_ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SEQ	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	STATE	3		NO	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	DURATION	4	0.000000	NO	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_USER	5	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CPU_SYSTEM	6	NULL	YES	decimal	NULL	NULL	9	6	NULL	NULL	decimal(9,6)			select	
+NULL	information_schema	PROFILING	CONTEXT_VOLUNTARY	7	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	CONTEXT_INVOLUNTARY	8	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_IN	9	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	BLOCK_OPS_OUT	10	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_SENT	11	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	MESSAGES_RECEIVED	12	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MAJOR	13	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	PAGE_FAULTS_MINOR	14	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SWAPS	15	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
+NULL	information_schema	PROFILING	SOURCE_FUNCTION	16	NULL	YES	varchar	30	90	NULL	NULL	utf8	utf8_general_ci	varchar(30)			select	
+NULL	information_schema	PROFILING	SOURCE_FILE	17	NULL	YES	varchar	20	60	NULL	NULL	utf8	utf8_general_ci	varchar(20)			select	
+NULL	information_schema	PROFILING	SOURCE_LINE	18	NULL	YES	int	NULL	NULL	10	0	NULL	NULL	int(20)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	1	NULL	YES	varchar	4096	12288	NULL	NULL	utf8	utf8_general_ci	varchar(4096)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
@@ -12562,6 +12714,24 @@ NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
 NULL	information_schema	PROCESSLIST	TIME	bigint	NULL	NULL	NULL	NULL	bigint(7)
 3.0000	information_schema	PROCESSLIST	STATE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 1.0000	information_schema	PROCESSLIST	INFO	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
+NULL	information_schema	PROFILING	QUERY_ID	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	SEQ	int	NULL	NULL	NULL	NULL	int(20)
+3.0000	information_schema	PROFILING	STATE	varchar	30	90	utf8	utf8_general_ci	varchar(30)
+NULL	information_schema	PROFILING	DURATION	decimal	NULL	NULL	NULL	NULL	decimal(9,6)
+NULL	information_schema	PROFILING	CPU_USER	decimal	NULL	NULL	NULL	NULL	decimal(9,6)
+NULL	information_schema	PROFILING	CPU_SYSTEM	decimal	NULL	NULL	NULL	NULL	decimal(9,6)
+NULL	information_schema	PROFILING	CONTEXT_VOLUNTARY	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	CONTEXT_INVOLUNTARY	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	BLOCK_OPS_IN	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	BLOCK_OPS_OUT	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	MESSAGES_SENT	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	MESSAGES_RECEIVED	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	PAGE_FAULTS_MAJOR	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	PAGE_FAULTS_MINOR	int	NULL	NULL	NULL	NULL	int(20)
+NULL	information_schema	PROFILING	SWAPS	int	NULL	NULL	NULL	NULL	int(20)
+3.0000	information_schema	PROFILING	SOURCE_FUNCTION	varchar	30	90	utf8	utf8_general_ci	varchar(30)
+3.0000	information_schema	PROFILING	SOURCE_FILE	varchar	20	60	utf8	utf8_general_ci	varchar(20)
+NULL	information_schema	PROFILING	SOURCE_LINE	int	NULL	NULL	NULL	NULL	int(20)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_CATALOG	varchar	4096	12288	utf8	utf8_general_ci	varchar(4096)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_SCHEMA	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	REFERENTIAL_CONSTRAINTS	CONSTRAINT_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
@@ -14181,6 +14351,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	
 NULL	information_schema	PARTITIONS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PLUGINS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PROCESSLIST	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
+NULL	information_schema	PROFILING	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	ROUTINES	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	SCHEMATA	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
@@ -14232,6 +14403,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	
 NULL	information_schema	PARTITIONS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PLUGINS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PROCESSLIST	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
+NULL	information_schema	PROFILING	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	ROUTINES	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	SCHEMATA	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
@@ -14281,6 +14453,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	
 NULL	information_schema	PARTITIONS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PLUGINS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PROCESSLIST	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
+NULL	information_schema	PROFILING	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	ROUTINES	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	SCHEMATA	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
@@ -14331,6 +14504,7 @@ NULL	information_schema	KEY_COLUMN_USAGE	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	
 NULL	information_schema	PARTITIONS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PLUGINS	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	PROCESSLIST	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
+NULL	information_schema	PROFILING	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	REFERENTIAL_CONSTRAINTS	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	ROUTINES	SYSTEM VIEW	MyISAM	10	Dynamic	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
 NULL	information_schema	SCHEMATA	SYSTEM VIEW	MEMORY	10	Fixed	NULL	#ARL#	#DL#	#MDL#	#IL#	#DF#	NULL	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	YYYY-MM-DD hh:mm:ss	utf8_general_ci	NULL	#CO#	
