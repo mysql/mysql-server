@@ -15068,23 +15068,23 @@ CALL sp2( 'insert' );
 SELECT * from t3 where f3 <=5 && f3 >= 0;
 f1	f2	f3
 f1	address	1
+f1	address	1
+f1	address	1
+f1	address	1
+f1	address	2
+f1	address	2
+f1	address	2
 f1	address	2
 f1	address	3
+f1	address	3
+f1	address	3
+f1	address	3
+f1	address	4
+f1	address	4
+f1	address	4
 f1	address	4
 f1	address	5
-f1	address	1
-f1	address	2
-f1	address	3
-f1	address	4
 f1	address	5
-f1	address	1
-f1	address	2
-f1	address	3
-f1	address	4
-f1	address	1
-f1	address	2
-f1	address	3
-f1	address	4
 SELECT count(*) from t3;
 count(*)
 28
@@ -15603,7 +15603,7 @@ set count1 = count1 + 1;
 iterate label1;
 END loop label2;
 END//
-ERROR 42000: End-label label2 without match
+ERROR 42000: End-label label1 without match
 drop table res_t3_itisalongname_1381742_itsaverylongname_1381742;
 
 Testcase 4.3.13:

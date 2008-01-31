@@ -176,8 +176,12 @@ let $message= Testcase 3.5.9.4:;
 		@tr_var_af_136, @tr_var_af_151, @tr_var_af_163;
 --enable_query_log
 
+--error ER_BAD_NULL_ERROR
 	Update tb3 Set f122='Test 3.5.9.4-trig', f136=NULL, f151=DEFAULT, f163=NULL
 		 where f122='Test 3.5.9.4';
+
+        Update tb3 Set f122='Test 3.5.9.4-trig', f136=0, f151=DEFAULT, f163=NULL
+                 where f122='Test 3.5.9.4';
 
 	select f118, f121, f122, f136, f151, f163 from tb3 
 		where f122 like 'Test 3.5.9.4-trig' order by f163;
