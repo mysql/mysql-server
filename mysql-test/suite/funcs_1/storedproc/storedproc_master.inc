@@ -18241,6 +18241,7 @@ END//
 delimiter ;//
 
 CALL sp2( 'insert' );
+--sorted_result
 SELECT * from t3 where f3 <=5 && f3 >= 0;
 
 SELECT count(*) from t3;
