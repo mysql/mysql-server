@@ -371,9 +371,8 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	 * The splitter key is key number n_children_in_a */
 	int i;
 
-	for (i=0; i<old_n_children; i++) {
-	    int targchild = i-n_children_in_a; assert(targchild >= 0);
-	    int r = toku_fifo_create(&B->u.n.buffers[targchild]);
+	for (i=0; i<n_children_in_b; i++) {
+	    int r = toku_fifo_create(&B->u.n.buffers[i]);
 	    if (r!=0) return r;
 	}
 
