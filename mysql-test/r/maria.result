@@ -1,3 +1,6 @@
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="MARIA";
+ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
+MARIA	YES	Crash-safe tables with MyISAM heritage	YES	NO	NO
 set global storage_engine=maria;
 set session storage_engine=maria;
 set global maria_page_checksum=0;

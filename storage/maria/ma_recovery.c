@@ -3009,8 +3009,8 @@ static LSN parse_checkpoint_record(LSN lsn)
     ptr+= 2;
     is_index= ptr[0];
     ptr++;
-    page_id= uint5korr(ptr);
-    ptr+= 5;
+    page_id= page_korr(ptr);
+    ptr+= PAGE_STORE_SIZE;
     rec_lsn= lsn_korr(ptr);
     ptr+= LSN_STORE_SIZE;
     if (new_page((is_index << 16) | table_id,

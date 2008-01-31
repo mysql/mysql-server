@@ -2920,7 +2920,7 @@ mysql_declare_plugin(maria)
   &maria_storage_engine,
   "MARIA",
   "MySQL AB",
-  "Traditional transactional MySQL tables",
+  "Crash-safe tables with MyISAM heritage",
   PLUGIN_LICENSE_GPL,
   ha_maria_init,              /* Plugin Init                     */
   NULL,                       /* Plugin Deinit                   */

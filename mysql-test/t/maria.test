@@ -5,6 +5,8 @@
 
 -- source include/have_maria.inc
 
+select * from INFORMATION_SCHEMA.ENGINES where ENGINE="MARIA";
+
 let $default_engine=`select @@global.storage_engine`;
 let $default_checksum=`select @@global.maria_page_checksum`;
 set global storage_engine=maria;

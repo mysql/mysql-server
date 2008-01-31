@@ -175,7 +175,7 @@ int _ma_write_keypage(register MARIA_HA *info,
 
   @return
   @retval  0    ok
-  £retval  1    error
+  @retval  1    error
 
 */
 
@@ -327,8 +327,14 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
         (single linked list):
       */
       share->current_key_del= mi_sizekorr(buff+share->keypage_header);
-      DBUG_ASSERT(share->current_key_del != share->state.key_del &&
-                  share->current_key_del);
+#ifndef DBUG_OFF
+      my_off_t current_key_del= share->current_key_del;
+      DBUG_ASSERT(current_key_del != share->state.key_del &&
+                  (current_key_del != 0) &&
+                  ((current_key_del == HA_OFFSET_ERROR) ||
+                   (current_key_del <=
+                    (info->state->key_file_length - block_size))));
+#endif
     }
 
     (*page_link)->unlock=     PAGECACHE_LOCK_WRITE_UNLOCK;

@@ -2959,16 +2959,19 @@ uchar *pagecache_read(PAGECACHE *pagecache,
   int error= 0;
   enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
   PAGECACHE_BLOCK_LINK *fake_link;
+#ifndef DBUG_OFF
+  char llbuf[22];
   DBUG_ENTER("pagecache_read");
-  DBUG_PRINT("enter", ("fd: %u  page: %lu  buffer: 0x%lx level: %u  "
+  DBUG_PRINT("enter", ("fd: %u  page: %s  buffer: 0x%lx level: %u  "
                        "t:%s  %s  %s",
-                       (uint) file->file, (ulong) pageno,
+                       (uint) file->file, ullstr(pageno, llbuf),
                        (ulong) buff, level,
                        page_cache_page_type_str[type],
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin]));
   DBUG_ASSERT(buff != 0 || (buff == 0 && (pin == PAGECACHE_PIN ||
                                           pin == PAGECACHE_PIN_LEFT_PINNED)));
+#endif
 
   if (!page_link)
     page_link= &fake_link;
@@ -3458,10 +3461,12 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   PAGECACHE_BLOCK_LINK *fake_link;
   int error= 0;
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
+#ifndef DBUG_OFF
+  char llbuf[22];
   DBUG_ENTER("pagecache_write_part");
-  DBUG_PRINT("enter", ("fd: %u  page: %lu  level: %u  type: %s  lock: %s  "
+  DBUG_PRINT("enter", ("fd: %u  page: %s  level: %u  type: %s  lock: %s  "
                        "pin: %s   mode: %s  offset: %u  size %u",
-                       (uint) file->file, (ulong) pageno, level,
+                       (uint) file->file, ullstr(pageno, llbuf), level,
                        page_cache_page_type_str[type],
                        page_cache_page_lock_str[lock],
                        page_cache_page_pin_str[pin],
@@ -3471,6 +3476,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
+#endif
 
   if (!page_link)
     page_link= &fake_link;
@@ -4431,8 +4437,8 @@ my_bool pagecache_collect_changed_blocks_with_lsn(PAGECACHE *pagecache,
       ptr[0]= (share->kfile.file == block->hash_link->file.file);
       ptr++;
       DBUG_ASSERT(block->hash_link->pageno < ((ULL(1)) << 40));
-      int5store(ptr, block->hash_link->pageno);
-      ptr+= 5;
+      page_store(ptr, block->hash_link->pageno);
+      ptr+= PAGE_STORE_SIZE;
       lsn_store(ptr, block->rec_lsn);
       ptr+= LSN_STORE_SIZE;
       if (block->rec_lsn != LSN_MAX)

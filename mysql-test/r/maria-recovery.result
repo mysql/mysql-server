@@ -213,6 +213,32 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`i`),
   KEY `c` (`c`)
 ) ENGINE=MARIA AUTO_INCREMENT=16 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+* TEST of INSERT's rollback vs state.auto_increment
+flush table t1;
+* copied t1 for comparison
+lock tables t1 write;
+insert into t1 values(null, "e");
+SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
+* crashing mysqld intentionally
+set global maria_checkpoint_interval=1;
+ERROR HY000: Lost connection to MySQL server during query
+* recovery happens
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+mysqltest.t1	check	status	OK
+* testing that checksum after recovery is as expected
+Checksum-check
+ok
+use mysqltest;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `i` int(11) NOT NULL AUTO_INCREMENT,
+  `c` varchar(6) DEFAULT NULL,
+  PRIMARY KEY (`i`),
+  KEY `c` (`c`)
+) ENGINE=MARIA AUTO_INCREMENT=17 DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+insert into t1 values(null, "f");
 drop table t1;
 * TEST of removing logs manually
 * shut down mysqld, removed logs, restarted it

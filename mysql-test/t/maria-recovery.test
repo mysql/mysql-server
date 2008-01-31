@@ -178,6 +178,20 @@ let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
 let $mvr_crash_statement= set global maria_checkpoint_interval=1;
 -- source include/maria_verify_recovery.inc
 show create table t1;
+
+# Test that INSERT's rollback does not set auto-increment counter to 1
+# (BUG#34106)
+--echo * TEST of INSERT's rollback vs state.auto_increment
+-- source include/maria_make_snapshot_for_comparison.inc
+let $mvr_restore_old_snapshot=0;
+let $mms_compare_physically=0;
+let $mvr_debug_option="+d,maria_flush_whole_log,maria_crash";
+let $mvr_crash_statement= set global maria_checkpoint_interval=1;
+lock tables t1 write;
+insert into t1 values(null, "e");
+-- source include/maria_verify_recovery.inc
+show create table t1;
+insert into t1 values(null, "f");
 drop table t1;
 
 # Test of removing logs manually
