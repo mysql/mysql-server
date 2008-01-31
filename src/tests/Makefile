@@ -129,9 +129,15 @@ NO_VGRIND = \
   dup_search \
   dupsort_delete \
   dupsort_get \
+  dupsort_get_both \
   dupsort_get_both_range \
   dupsort_set \
   dupsort_set_range \
+  get_zeroed_dbt \
+  hsoc \
+  insert_cursor_delete_insert \
+  insert_memleak \
+  kv_limits \
   log4 \
   log5 \
   # Comment to terminate list so the previous line can end with a slash
