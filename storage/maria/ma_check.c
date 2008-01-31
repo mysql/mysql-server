@@ -2362,11 +2362,11 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       if (my_errno != HA_ERR_FOUND_DUPP_KEY)
 	goto err;
       DBUG_DUMP("record",(uchar*) sort_param.record,share->base.pack_reclength);
-      _ma_check_print_info(param,
-                           "Duplicate key %2d for record at %10s against new record at %10s",
-			  info->errkey+1,
-			  llstr(sort_param.start_recpos,llbuff),
-			  llstr(info->dup_key_pos,llbuff2));
+      _ma_check_print_warning(param,
+                              "Duplicate key %2d for record at %10s against new record at %10s",
+                              info->errkey+1,
+                              llstr(sort_param.current_filepos, llbuff),
+                              llstr(info->dup_key_pos,llbuff2));
       if (param->testflag & T_VERBOSE)
       {
 	VOID(_ma_make_key(info,(uint) info->errkey,info->lastkey,
@@ -4973,13 +4973,14 @@ static int sort_key_write(MARIA_SORT_PARAM *sort_param, const uchar *a)
                                                          sort_param->keyinfo,
                                                          a);
     _ma_check_print_warning(param,
-			   "Duplicate key for record at %10s against record at %10s",
-			   llstr(sort_info->info->cur_row.lastpos, llbuff),
-			   llstr(get_record_for_key(sort_info->info,
-						    sort_param->keyinfo,
-						    sort_info->key_block->
-						    lastkey),
-				 llbuff2));
+			   "Duplicate key %2u for record at %10s against record at %10s",
+                            sort_param->key + 1,
+                            llstr(sort_info->info->cur_row.lastpos, llbuff),
+                            llstr(get_record_for_key(sort_info->info,
+                                                     sort_param->keyinfo,
+                                                     sort_info->key_block->
+                                                     lastkey),
+                                  llbuff2));
     param->testflag|=T_RETRY_WITHOUT_QUICK;
     if (sort_info->param->testflag & T_VERBOSE)
       _ma_print_key(stdout,sort_param->seg, a, USE_WHOLE_KEY);
@@ -5410,7 +5411,8 @@ int maria_test_if_almost_full(MARIA_HA *info)
     (my_off_t) share->base.max_data_file_length;
 }
 
-	/* Recreate table with bigger more alloced record-data */
+
+/* Recreate table with bigger more alloced record-data */
 
 int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
 {
@@ -5433,8 +5435,8 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   status_info= (*org_info)->state[0];
   info.state= &status_info;
   share= *(*org_info)->s;
-  unpack= (share.options & HA_OPTION_COMPRESS_RECORD) &&
-    (param->testflag & T_UNPACK);
+  unpack= ((share.data_file_type == COMPRESSED_RECORD) &&
+           (param->testflag & T_UNPACK));
   if (!(keyinfo=(MARIA_KEYDEF*) my_alloca(sizeof(MARIA_KEYDEF) *
                                           share.base.keys)))
     DBUG_RETURN(0);
@@ -5464,19 +5466,11 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
     DBUG_RETURN(1);
   }
 
-  /* Copy the column definitions */
-  memcpy((uchar*) columndef,(uchar*) share.columndef,
-	 (size_t) (sizeof(MARIA_COLUMNDEF)*(share.base.fields+1)));
-  for (column=columndef, end= columndef+share.base.fields;
+  /* Copy the column definitions in their original order */
+  for (column= share.columndef, end= share.columndef+share.base.fields;
        column != end ;
        column++)
-  {
-    if (unpack && !(share.options & HA_OPTION_PACK_RECORD) &&
-	column->type != FIELD_BLOB &&
-	column->type != FIELD_VARCHAR &&
-	column->type != FIELD_CHECK)
-      column->type=(int) FIELD_NORMAL;
-  }
+    columndef[column->column_nr]= *column;
 
   /* Change the new key to point at the saved key segments */
   memcpy((uchar*) keysegs,(uchar*) share.keyparts,
@@ -5506,25 +5500,23 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
     u_ptr->seg=keyseg;
     keyseg+=u_ptr->keysegs+1;
   }
+
+  file_length=(ulonglong) my_seek(info.dfile.file, 0L, MY_SEEK_END, MYF(0));
   if (share.options & HA_OPTION_COMPRESS_RECORD)
     share.base.records=max_records=info.state->records;
   else if (share.base.min_pack_length)
-    max_records=(ha_rows) (my_seek(info.dfile.file, 0L, MY_SEEK_END,
-                                   MYF(0)) /
-			   (ulong) share.base.min_pack_length);
+    max_records=(ha_rows) (file_length / share.base.min_pack_length);
   else
     max_records=0;
-  unpack= (share.data_file_type == COMPRESSED_RECORD) &&
-    (param->testflag & T_UNPACK);
   share.options&= ~HA_OPTION_TEMP_COMPRESS_RECORD;
 
-  file_length=(ulonglong) my_seek(info.dfile.file, 0L, MY_SEEK_END, MYF(0));
   tmp_length= file_length+file_length/10;
   set_if_bigger(file_length,param->max_data_file_length);
   set_if_bigger(file_length,tmp_length);
   set_if_bigger(file_length,(ulonglong) share.base.max_data_file_length);
 
   VOID(maria_close(*org_info));
+
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=max(max_records,share.base.records);
   create_info.reloc_rows=share.base.reloc;
@@ -5545,6 +5537,8 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
   */
   create_info.with_auto_increment= TRUE;
   create_info.null_bytes= share.base.null_bytes;
+  create_info.transactional= share.base.born_transactional;
+
   /*
     We don't have to handle symlinks here because we are using
     HA_DONT_TOUCH_DATA
@@ -5561,10 +5555,13 @@ int maria_recreate_table(HA_CHECK *param, MARIA_HA **org_info, char *filename)
                           my_errno);
     goto end;
   }
-  *org_info=maria_open(filename,O_RDWR,
-		    (param->testflag & T_WAIT_FOREVER) ? HA_OPEN_WAIT_IF_LOCKED :
-		    (param->testflag & T_DESCRIPT) ? HA_OPEN_IGNORE_IF_LOCKED :
-		    HA_OPEN_ABORT_IF_LOCKED);
+  *org_info= maria_open(filename,O_RDWR,
+                        (HA_OPEN_FOR_REPAIR |
+                         ((param->testflag & T_WAIT_FOREVER) ?
+                          HA_OPEN_WAIT_IF_LOCKED :
+                          (param->testflag & T_DESCRIPT) ?
+                          HA_OPEN_IGNORE_IF_LOCKED :
+                          HA_OPEN_ABORT_IF_LOCKED)));
   if (!*org_info)
   {
     _ma_check_print_error(param,
@@ -6144,7 +6141,11 @@ read_next_page:
       sort_info->page++;                        /* In case of errors */
       page++;
       if (!(page % share->bitmap.pages_covered))
-        page++;                                 /* Skip bitmap */
+      {
+        /* Skip bitmap */
+        page++;
+        sort_info->page++;
+      }
       if ((my_off_t) (page + 1) * share->block_size > sort_info->filelength)
         DBUG_RETURN(HA_ERR_END_OF_FILE);
       if (!(pagecache_read(share->pagecache,

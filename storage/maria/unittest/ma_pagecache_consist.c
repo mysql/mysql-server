@@ -37,6 +37,8 @@ static uint number_of_tests= 30000;
 static uint record_length_limit= PAGE_SIZE/200;
 static uint number_of_pages= 20;
 static uint flush_divider= 1000;
+#undef SKIP_BIG_TESTS
+#define SKIP_BIG_TESTS(X) /* no-op */
 #else /*TEST_READERS*/
 #ifdef TEST_WRITERS
 static uint number_of_readers= 0;
@@ -45,6 +47,8 @@ static uint number_of_tests= 30000;
 static uint record_length_limit= PAGE_SIZE/200;
 static uint number_of_pages= 20;
 static uint flush_divider= 1000;
+#undef SKIP_BIG_TESTS
+#define SKIP_BIG_TESTS(X) /* no-op */
 #else /*TEST_WRITERS*/
 static uint number_of_readers= 10;
 static uint number_of_writers= 10;
@@ -226,7 +230,6 @@ void reader(int num)
     check_page(buffr, page * PAGE_SIZE, 0, page, -num);
 
   }
-  ok(1, "reader%d: done\n", num);
   free(buffr);
 }
 
@@ -256,7 +259,6 @@ void writer(int num)
     if (i % flush_divider == 0)
       flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   }
-  ok(1, "writer%d: done\n", num);
   free(buffr);
 }
 
@@ -274,6 +276,7 @@ static void *test_thread_reader(void *arg)
 
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
+  ok(1, "reader%d: done\n", param);
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -294,6 +297,7 @@ static void *test_thread_writer(void *arg)
 
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
+  ok(1, "writer%d: done\n", param);
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);

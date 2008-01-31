@@ -71,6 +71,8 @@ int maria_delete(MARIA_HA *info,const uchar *record)
   if (_ma_mark_file_changed(info))
     goto err;
 
+  /* Ensure we don't change the autoincrement value */
+  info->last_auto_increment= ~(ulonglong) 0;
   /* Remove all keys from the index file */
 
   old_key= info->lastkey2;
@@ -212,6 +214,11 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
 
     msg.root= &share->state.key_root[keynr];
     msg.value= new_root;
+    /*
+      set autoincrement to 1 if this is an auto_increment key
+      This is only used if we are now in a rollback of a duplicate key
+    */
+    msg.auto_increment= share->base.auto_key == keynr + 1;
 
     if (translog_write_record(&lsn, log_type,
                               info->trn, info,

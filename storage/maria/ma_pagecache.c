@@ -2224,7 +2224,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
                       file.file, block->hash_link->file.file,
                       (ulong) pageno, (ulong) block->hash_link->pageno));
   PCBLOCK_INFO(block);
-  while (block->wlocks && block->write_locker != locker)
+  while (block->wlocks && !pthread_equal(block->write_locker, locker))
   {
     /* Lock failed we will wait */
 #ifdef THREAD
@@ -3658,19 +3658,16 @@ no_key_cache:
     if (offset != 0 || size != pagecache->block_size)
     {
       char *page_buffer= alloca(pagecache->block_size);
-      int error= pagecache_fread(pagecache, file,
-                                 page_buffer,
-                                 pageno,
-                                 pagecache->readwrite_flags);
-      if (error)
+      if ((error= pagecache_fread(pagecache, file,
+                                  page_buffer,
+                                  pageno,
+                                  pagecache->readwrite_flags)))
         goto end;
-      else
+      if ((file->read_callback)(page_buffer, pageno, file->callback_data))
       {
-        if ((file->read_callback)(page_buffer, pageno, file->callback_data))
-        {
-          DBUG_PRINT("error", ("read callback problem"));
-          goto end;
-        }
+        DBUG_PRINT("error", ("read callback problem"));
+        error= 1;
+        goto end;
       }
       memcpy(page_buffer + offset, buff, size);
       buff= page_buffer;
