@@ -100,29 +100,6 @@ endif
 %.tdbrun: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
-# For a few of the tests bdb is making valgrind unhappy.
-FOO_NO_VGRIND = \
-  db_already_exists \
-  db_curs2 \
-  db_dbt_appmalloc \
-  db_dbt_mem_behavior \
-  db_dup \
-  db_env_open_nocreate \
-  db_env_open_open_close \
-  db_open_notexist_reopen \
-  db_remove_subdb \
-  db_subdb \
-  db_thread_insert \
-  dup_delete \
-  dup_flags \
-  dup_insert \
-  dup_search \
-  kv_limits \
-  log4 \
-  rand_insert \
-  reverse_compare_fun \
-  # Comment to terminate list so the previous line can end with a slash
- 
 # For BDB, VGRIND isn't happy
 NO_VGRIND = \
   abort1 \
@@ -150,6 +127,11 @@ NO_VGRIND = \
   dup_insert \
   dup_next \
   dup_search \
+  dupsort_delete \
+  dupsort_get \
+  dupsort_get_both_range \
+  dupsort_set \
+  dupsort_set_range \
   log4 \
   log5 \
   # Comment to terminate list so the previous line can end with a slash
