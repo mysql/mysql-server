@@ -75,9 +75,17 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     jam();
     ndbrequire(copyAttrBufPtr.i < RnoOfAttrBufrec);
     ptrAss(copyAttrBufPtr, attrbufrec);
-    RbufLen= copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
-    Rnext= copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    Rfirst= cfirstfreeAttrbufrec;
+    RbufLen = copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
+    Rnext = copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
+    Rfirst = cfirstfreeAttrbufrec;
+    /*
+     * ATTRINFO comes from 2 mutually exclusive places:
+     * 1) TUPKEYREQ (also interpreted part)
+     * 2) STORED_PROCREQ before scan start
+     * Assert here that both have a check for overflow.
+     * The "<" instead of "<=" is intentional.
+     */
+    ndbrequire(RinBufIndex + RbufLen < ZATTR_BUFFER_SIZE);
     MEMCOPY_NO_WORDS(&inBuffer[RinBufIndex],
                      &copyAttrBufPtr.p->attrbuf[0],
                      RbufLen);
