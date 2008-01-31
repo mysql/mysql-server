@@ -159,10 +159,6 @@ my_bool write_hook_for_clr_end(enum translog_record_type type
   case LOGREC_UNDO_ROW_INSERT:
     share->state.state.records--;
     share->state.state.checksum+= msg->checksum_delta;
-    /* Restore auto increment if no one has changed it in between */
-    if (share->last_auto_increment == tbl_info->last_auto_increment)
-      share->state.auto_increment= tbl_info->last_auto_increment;
-    break;
     break;
   case LOGREC_UNDO_ROW_UPDATE:
     share->state.state.checksum+= msg->checksum_delta;
@@ -212,7 +208,7 @@ my_bool write_hook_for_undo_key(enum translog_record_type type,
 
 
 /**
-   Upates "auto_increment" and calls the generic UNDO_KEY hook
+   Updates "auto_increment" and calls the generic UNDO_KEY hook
 
    @return Operation status, always 0 (success)
 */
@@ -262,6 +258,32 @@ my_bool write_hook_for_undo_key_insert(enum translog_record_type type,
   }
   return write_hook_for_undo_key(type, trn, tbl_info, lsn, hook_arg);
 }
+
+
+/**
+   @brief Updates "share->auto_increment" in case of abort and calls
+   generic UNDO_KEY hook
+
+   @return Operation status, always 0 (success)
+*/
+
+my_bool write_hook_for_undo_key_delete(enum translog_record_type type,
+                                       TRN *trn, MARIA_HA *tbl_info,
+                                       LSN *lsn, void *hook_arg)
+{
+  struct st_msg_to_write_hook_for_undo_key *msg=
+    (struct st_msg_to_write_hook_for_undo_key *) hook_arg;
+  MARIA_SHARE *share= tbl_info->s;
+  if (msg->auto_increment > 0)                  /* If auto increment key */
+  {
+    /* Restore auto increment if no one has changed it in between */
+    if (share->last_auto_increment == tbl_info->last_auto_increment &&
+        tbl_info->last_auto_increment != ~(ulonglong) 0)
+      share->state.auto_increment= tbl_info->last_auto_increment;
+  }
+  return write_hook_for_undo_key(type, trn, tbl_info, lsn, hook_arg);
+}
+
 
 
 /*****************************************************************************

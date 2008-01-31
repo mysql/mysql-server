@@ -6415,6 +6415,7 @@ my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
   checksum= 0;
   if (share->calc_checksum)
     checksum= (ha_checksum) 0 - ha_checksum_korr(header);
+  info->last_auto_increment= ~ (ulonglong) 0;
   if (_ma_write_clr(info, undo_lsn, LOGREC_UNDO_ROW_INSERT,
                     share->calc_checksum != 0, checksum, &lsn, (void*) 0))
     goto err;
@@ -6815,6 +6816,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
                 (*share->calc_checksum)(info, current_record));
   }
 
+  info->last_auto_increment= ~ (ulonglong) 0;
   /* Now records are up to date, execute the update to original values */
   if (_ma_update_at_original_place(info, page, rownr, length_on_head_page,
                                    extent_count, extent_info,

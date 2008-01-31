@@ -76,6 +76,9 @@ int maria_update(register MARIA_HA *info, const uchar *oldrec, uchar *newrec)
     goto err_end;
   }
 
+  /* Ensure we don't try to restore auto_increment if it doesn't change */
+  info->last_auto_increment= ~(ulonglong) 0;
+
   /* Check which keys changed from the original row */
 
   new_key= info->lastkey2;

@@ -332,7 +332,7 @@ static struct my_option my_long_options[] =
   { "page_buffer_size", OPT_PAGE_BUFFER_SIZE,
     "Size of page buffer. Used by --safe-repair",
     (uchar**) &check_param.use_buffers, (uchar**) &check_param.use_buffers, 0,
-    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, (long) USE_BUFFER_INIT,
+    GET_ULONG, REQUIRED_ARG, (long) USE_BUFFER_INIT, 1024L*1024L,
     (long) ~0L, (long) MALLOC_OVERHEAD, (long) IO_SIZE, 0},
   { "read_buffer_size", OPT_READ_BUFFER_SIZE, "",
     (uchar**) &check_param.read_buffer_length,
@@ -1466,14 +1466,14 @@ static void descript(HA_CHECK *param, register MARIA_HA *info, char *name)
       pos=strmov(pos,null_txt);
     *pos=0;
 
-    printf("%-4d%-6ld%-3d %-8s%-21s",
+    printf("%-4d%-6ld%-3d %-8s%-23s",
 	   key+1,(long) keyseg->start+1,keyseg->length,text,buff);
     if (share->state.key_root[key] != HA_OFFSET_ERROR)
       llstr(share->state.key_root[key],buff);
     else
       buff[0]=0;
     if (param->testflag & T_VERBOSE)
-      printf("%11.0f %12s %10d",
+      printf("%9.0f %12s %10d",
 	     share->state.rec_per_key_part[keyseg_nr++],
 	     buff,keyinfo->block_length);
     VOID(putchar('\n'));

@@ -47,7 +47,8 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
     if ((readbytes= read(Filedes, Buffer, Count)) != Count)
     {
       my_errno= errno;
-      if (errno == 0 || (errno == -1 && (MyFlags & (MY_NABP | MY_FNABP))))
+      if (errno == 0 || (readbytes == (size_t) -1 &&
+                         (MyFlags & (MY_NABP | MY_FNABP))))
         my_errno= HA_ERR_FILE_TOO_SHORT;
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
                             (int) readbytes, (ulong) Count, Filedes,

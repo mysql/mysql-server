@@ -1426,6 +1426,33 @@ SELECT * FROM t1;
 drop table t1;
 SET SQL_MODE = 'TRADITIONAL';
 
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c));
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+--error 1062
+insert into t1 values(50, "a");
+insert into t1 values(null, "c");
+select * from t1;
+--error 1062
+update t1 set n=400,c='a' where n=301;
+insert into t1 values(null, "d");
+select * from t1;
+drop table t1;
+
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c)) transactional=0 row_format=dynamic;
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+--error 1062
+insert into t1 values(50, "a");
+insert into t1 values(null, "c");
+select * from t1;
+--error 1062
+update t1 set n=400,c='a' where n=301;
+insert into t1 values(null, "d");
+select * from t1;
+drop table t1;
+
+
 # End of 5.2 tests
 
 --disable_result_log

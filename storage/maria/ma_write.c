@@ -138,6 +138,9 @@ int maria_write(MARIA_HA *info, uchar *record)
       goto err2;
   }
 
+  /* Ensure we don't try to restore auto_increment if it doesn't change */
+  info->last_auto_increment= ~(ulonglong) 0;
+
   if ((info->opt_flag & OPT_NO_ROWS))
     filepos= HA_OFFSET_ERROR;
   else

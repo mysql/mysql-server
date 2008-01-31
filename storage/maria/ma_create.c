@@ -97,15 +97,18 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   {
     org_datafile_type= ci->org_data_file_type;
     if (!(ci->old_options & HA_OPTION_TEMP_COMPRESS_RECORD))
-      options=ci->old_options &
-	(HA_OPTION_COMPRESS_RECORD | HA_OPTION_PACK_RECORD |
-	 HA_OPTION_READ_ONLY_DATA | HA_OPTION_CHECKSUM |
-	 HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE);
+      options= (ci->old_options &
+                (HA_OPTION_COMPRESS_RECORD | HA_OPTION_PACK_RECORD |
+                 HA_OPTION_READ_ONLY_DATA | HA_OPTION_CHECKSUM |
+                 HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE |
+                 HA_OPTION_LONG_BLOB_PTR | HA_OPTION_PAGE_CHECKSUM));
     else
     {
       /* Uncompressing rows */
-      options=ci->old_options &
-	(HA_OPTION_CHECKSUM | HA_OPTION_TMP_TABLE | HA_OPTION_DELAY_KEY_WRITE);
+      options= (ci->old_options &
+                (HA_OPTION_CHECKSUM | HA_OPTION_TMP_TABLE |
+                 HA_OPTION_DELAY_KEY_WRITE | HA_OPTION_LONG_BLOB_PTR |
+                 HA_OPTION_PAGE_CHECKSUM));
     }
   }
 
@@ -256,31 +259,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     min_pack_length+= not_block_record_extra_length;
   else
     min_pack_length+= 5;                        /* Min row overhead */
-
-  if ((packed & 7) == 1)
-  {
-    /*
-      Not optimal packing, try to remove a 1 uchar length zero-field as
-      this will get same record length, but smaller pack overhead
-    */
-    while (column != columndef)
-    {
-      column--;
-      if (column->type == (int) FIELD_SKIP_ZERO && column->length == 1)
-      {
-        /*
-          NOTE1: here we change a field type FIELD_SKIP_ZERO ->
-          FIELD_NORMAL
-        */
-	column->type=(int) FIELD_NORMAL;
-        column->empty_pos= 0;
-        column->empty_bit= 0;
-	packed--;
-	min_pack_length++;
-	break;
-      }
-    }
-  }
 
   if (flags & HA_CREATE_TMP_TABLE)
   {
@@ -641,7 +619,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
 
     if (length > max_key_length)
       max_key_length= length;
-    tot_length+= ((max_rows/(ulong) (((uint) maria_block_size-5)/
+    tot_length+= ((max_rows/(ulong) (((uint) maria_block_size -
+                                      MAX_KEYPAGE_HEADER_SIZE -
+                                      KEYPAGE_CHECKSUM_SIZE)/
                                      (length*2))) *
                   maria_block_size);
   }
@@ -652,7 +632,9 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     uniquedef->key=keys+i;
     unique_key_parts+=uniquedef->keysegs;
     share.state.key_root[keys+i]= HA_OFFSET_ERROR;
-    tot_length+= (max_rows/(ulong) (((uint) maria_block_size-5)/
+    tot_length+= (max_rows/(ulong) (((uint) maria_block_size -
+                                     MAX_KEYPAGE_HEADER_SIZE -
+                                     KEYPAGE_CHECKSUM_SIZE) /
                          ((MARIA_UNIQUE_HASH_LENGTH + pointer)*2)))*
                          (ulong) maria_block_size;
   }
@@ -704,12 +686,16 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   share.base.rec_reflength=pointer;
   share.base.block_size= maria_block_size;
 
-  /* Get estimate for index file length (this may be wrong for FT keys) */
+  /*
+    Get estimate for index file length (this may be wrong for FT keys)
+    This is used for pointers to other key pages.
+  */
   tmp= (tot_length + maria_block_size * keys *
 	MARIA_INDEX_BLOCK_MARGIN) / maria_block_size;
+
   /*
     use maximum of key_file_length we calculated and key_file_length value we
-    got from MYI file header (see also mariapack.c:save_state)
+    got from MAI file header (see also mariapack.c:save_state)
   */
   share.base.key_reflength=
     maria_get_pointer_length(max(ci->key_file_length,tmp),3);

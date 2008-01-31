@@ -1491,6 +1491,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
   maria_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
               (void*) &thd->variables.preload_buff_size);
 
+#ifndef NOT_YET
   if ((error= maria_preload(file, map, ignore_leaves)))
   {
     switch (error) {
@@ -1508,7 +1509,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
     error= HA_ADMIN_FAILED;
     goto err;
   }
-
+#endif
   DBUG_RETURN(HA_ADMIN_OK);
 
 err:

@@ -55,6 +55,9 @@ extern my_bool write_hook_for_undo_key(enum translog_record_type type,
 extern my_bool write_hook_for_undo_key_insert(enum translog_record_type type,
                                               TRN *trn, MARIA_HA *tbl_info,
                                               LSN *lsn, void *hook_arg);
+extern my_bool write_hook_for_undo_key_delete(enum translog_record_type type,
+                                              TRN *trn, MARIA_HA *tbl_info,
+                                              LSN *lsn, void *hook_arg);
 void _ma_unpin_all_pages(MARIA_HA *info, LSN undo_lsn);
 
 my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,

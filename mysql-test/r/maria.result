@@ -2200,3 +2200,45 @@ id	f1
 2	test2
 drop table t1;
 SET SQL_MODE = 'TRADITIONAL';
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c));
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+insert into t1 values(50, "a");
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "c");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+update t1 set n=400,c='a' where n=301;
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "d");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+302	d
+drop table t1;
+create table t1 (n int not null primary key auto_increment, c char(1), unique(c)) transactional=0 row_format=dynamic;
+insert into t1 values(100, "a");
+insert into t1 values(300, "b");
+insert into t1 values(50, "a");
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "c");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+update t1 set n=400,c='a' where n=301;
+ERROR 23000: Duplicate entry 'a' for key 'c'
+insert into t1 values(null, "d");
+select * from t1;
+n	c
+100	a
+300	b
+301	c
+302	d
+drop table t1;
