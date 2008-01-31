@@ -1862,7 +1862,7 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   print_query_header(file, print_event_info);
   my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
-  fprintf(file, "%s\n", print_event_info->delimiter);
+  fprintf(file, "\n%s\n", print_event_info->delimiter);
 }
 #endif /* MYSQL_CLIENT */
 
@@ -3793,6 +3793,7 @@ Xid_log_event(const char* buf,
 #ifndef MYSQL_CLIENT
 bool Xid_log_event::write(IO_CACHE* file)
 {
+  DBUG_EXECUTE_IF("do_not_write_xid", return 0;);
   return write_header(file, sizeof(xid)) ||
          my_b_safe_write(file, (byte*) &xid, sizeof(xid));
 }
@@ -5180,12 +5181,12 @@ void Execute_load_query_log_event::print(FILE* file,
     fprintf(file, " INTO");
     my_fwrite(file, (byte*) query + fn_pos_end, q_len-fn_pos_end,
         MYF(MY_NABP | MY_WME));
-    fprintf(file, "%s\n", print_event_info->delimiter);
+    fprintf(file, "\n%s\n", print_event_info->delimiter);
   }
   else
   {
     my_fwrite(file, (byte*) query, q_len, MYF(MY_NABP | MY_WME));
-    fprintf(file, "%s\n", print_event_info->delimiter);
+    fprintf(file, "\n%s\n", print_event_info->delimiter);
   }
 
   if (!print_event_info->short_form)
