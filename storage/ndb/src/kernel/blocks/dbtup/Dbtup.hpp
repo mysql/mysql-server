@@ -255,6 +255,7 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZUNSUPPORTED_BRANCH 892
 
 #define ZSTORED_SEIZE_ATTRINBUFREC_ERROR 873 // Part of Scan
+#define ZSTORED_TOO_MUCH_ATTRINFO_ERROR 874
 
 #define ZREAD_ONLY_CONSTRAINT_VIOLATION 893
 #define ZVAR_SIZED_NOT_SUPPORTED 894
@@ -2824,7 +2825,8 @@ private:
                      Operationrec* regOperPtr,
                      Uint32 lenAttrInfo);
   void storedSeizeAttrinbufrecErrorLab(Signal* signal,
-                                       Operationrec* regOperPtr);
+                                       Operationrec* regOperPtr,
+                                       Uint32 errorCode);
   bool storedProcedureAttrInfo(Signal* signal,
                                Operationrec* regOperPtr,
 			       const Uint32* data,
