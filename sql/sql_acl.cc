@@ -3041,6 +3041,12 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
+  /* 
+    The lock api is depending on the thd->lex variable which needs to be
+    re-initialized.
+  */
+  Query_tables_list backup;
+  thd->lex->reset_n_backup_query_tables_list(&backup);
   if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -3173,6 +3179,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     send_ok(thd);
 
   /* Tables are automatically closed */
+  thd->lex->restore_backup_query_tables_list(&backup);
   DBUG_RETURN(result);
 }
 
