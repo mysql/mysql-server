@@ -220,7 +220,7 @@ select * from information_schema.global_variables where variable_name like 'myis
 VARIABLE_NAME	VARIABLE_VALUE
 MYISAM_MAX_SORT_FILE_SIZE	1048576
 set GLOBAL myisam_max_sort_file_size=default;
-show variables like 'myisam_max_sort_file_size';
+show global variables like 'myisam_max_sort_file_size';
 Variable_name	Value
 myisam_max_sort_file_size	FILE_SIZE
 select * from information_schema.session_variables where variable_name like 'myisam_max_sort_file_size';
