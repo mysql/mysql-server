@@ -525,13 +525,18 @@ static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
     return 0;
 }
 
-static void __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
-                                  u_int32_t numfound) {
+static int __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
+                                  u_int32_t numfound, toku_range_tree *rt) {
     assert(tree && to_insert);
     assert(numfound <= tree->buflen);
 
+    int r;
     u_int32_t i;
     for (i = 0; i < numfound; i++) {
+        if (rt != NULL) {
+            r = toku_rt_delete(rt, to_insert);  
+            if (r!=0) return __toku_lt_panic(tree);
+        }
         /*
            We will maintain the invariant: (separately for read and write
            environments)
@@ -546,6 +551,7 @@ static void __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
             __toku_p_free(tree, tree->buf[i].left);
         }
     }
+    return 0;
 }
 
 /* Consolidate the new range and all the overlapping ranges */
@@ -589,7 +595,7 @@ static int __toku_consolidate(toku_lock_tree* tree,
     r = __toku_lt_delete_overlapping_ranges(tree, mainread, numfound);
     if (r!=0) return __toku_lt_panic(tree);
     /* Free all the points from ranges in tree->buf[0]..tree->buf[numfound-1] */
-    __toku_lt_free_points(tree, to_insert, numfound);
+    __toku_lt_free_points(tree, to_insert, numfound, NULL);
     /* We don't necessarily need to panic after here unless numfound > 0
        Which indicates we deleted something. */
     /* Insert extreme range into selfread. */
@@ -619,7 +625,8 @@ static void __toku_lt_init_full_query(toku_lock_tree* tree, toku_range* query,
 }
 
 static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
-                                        toku_range_tree* rt) {
+                                        toku_range_tree* rt,
+                                        toku_range_tree* rtdel) {
     int r;
     toku_range query;
     toku_point left;
@@ -640,12 +647,13 @@ static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
         assert(numfound == 1);
         r = toku_rt_delete(rt, &tree->buf[0]);
         if (r!=0)      break;
-        __toku_lt_free_points(tree, &query, numfound);
+        r = __toku_lt_free_points(tree, &query, numfound, rtdel);
     } while (TRUE);
     return r;
 }
 
-static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
+static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
+                                   toku_range_tree *rtdel) {
     assert(tree);
     if (!rt) return 0;
     
@@ -659,10 +667,12 @@ static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
 
     u_int32_t numfound;
     r = toku_rt_find(rt, &query, 0, &tree->buf, &tree->buflen, &numfound);
-    if (r==0)               __toku_lt_free_points(tree, &query, numfound);
-    else if (r==ENOMEM) r = __toku_lt_free_contents_slow(tree, rt);
+    if (r==0)           r = __toku_lt_free_points(tree, &query, numfound, 
+                                                  rtdel);
+    else if (r==ENOMEM) r = __toku_lt_free_contents_slow(tree, rt, rtdel);
     r2 = toku_rt_close(rt);
-    return r ? r : r2;
+    assert(r2 == 0);
+    return r;
 }
 
 static BOOL __toku_r_backwards(toku_range* range) {
@@ -705,15 +715,15 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     return 0;
 }
 
-static int __toku_lt_get_border(toku_lock_tree* tree, u_int32_t numfound,
+static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_self,
                                 toku_range* pred, toku_range* succ,
                                 BOOL* found_p,    BOOL* found_s,
                                 toku_range* to_insert) {
     assert(tree && pred && succ && found_p && found_s);                                    
     int r;
     toku_range_tree* rt;
-    rt = (numfound == 0) ? tree->borderwrite : 
-                           __toku_lt_ifexist_selfwrite(tree, tree->buf[0].data);
+    rt = in_self ? tree->borderwrite : 
+                   __toku_lt_ifexist_selfwrite(tree, tree->buf[0].data);
     if (!rt)  return __toku_lt_panic(tree);
     r = toku_rt_predecessor(rt, to_insert->left,  pred, found_p);
     if (r!=0) return r;
@@ -819,8 +829,8 @@ static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
     BOOL found_p;
     BOOL found_s;
 
-    r = __toku_lt_get_border(tree, numfound, &pred, &succ, &found_p, &found_s,
-                             to_insert);
+    r = __toku_lt_get_border(tree, numfound == 0, &pred, &succ, 
+                             &found_p, &found_s, to_insert);
     if (r!=0) return __toku_lt_panic(tree);
     
     if (numfound == 0) {
@@ -895,10 +905,10 @@ int toku_lt_close(toku_lock_tree* tree) {
 //TODO: Do this to ALLLLLLLL selfread and ALLLLLL selfwrite tables.
     /* Free all points referred to in a range tree (and close the tree). */
 r = __toku_lt_free_contents(tree,
-                            __toku_lt_ifexist_selfread (tree, (DB_TXN*)1));
+                            __toku_lt_ifexist_selfread (tree, (DB_TXN*)1), NULL);
 if (!r2 && r!=0) r2 = r;
 r= __toku_lt_free_contents( tree,
-                            __toku_lt_ifexist_selfwrite(tree, (DB_TXN*)1));
+                            __toku_lt_ifexist_selfwrite(tree, (DB_TXN*)1), NULL);
 if (!r2 && r!=0) r2 = r;
 //TODO: After freeing the tree, need to remove it from both lists!!!
 //      One list probably IN the transaction, and one additional one here.
@@ -1031,4 +1041,111 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     //Not needed for Feb 1 release.
 }
 
-int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
+
+static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
+    assert(tree && range);
+    toku_range_tree* borderwrite = tree->borderwrite;
+    assert(borderwrite);
+
+    /* Find overlapping range in borderwrite */
+    int r;
+    const u_int32_t query_size = 1;
+    toku_range      buffer[query_size];
+    u_int32_t       buflen     = query_size;
+    toku_range*     buf        = &buffer[0];
+    u_int32_t       numfound;
+
+    toku_range query = *range;
+    query.data = NULL;
+    r = toku_rt_find(borderwrite, &query, query_size, &buf, &buflen, &numfound);
+    if (r!=0) return r;
+    assert(numfound <= query_size);
+    
+    /*  If none exists or data is not ours (we have already deleted the real
+        overlapping range), continue to the end of the loop (i.e., return) */
+    if (!numfound || buf[0].data != range->data) return 0;
+    assert(numfound == 1);
+
+    /* Delete s from borderwrite */
+    r = toku_rt_delete(borderwrite, &buf[0]);
+    if (r!=0) return r;
+
+    /* Find pred(s.left), and succ(s.right) */
+    toku_range pred;
+    toku_range succ;
+    BOOL found_p;
+    BOOL found_s;
+
+    r = __toku_lt_get_border(tree, FALSE, &pred, &succ, &found_p, &found_s,
+                             &buf[0]);
+    if (r!=0) return r;
+
+    /* If both found and pred.data=succ.data, merge pred and succ (expand?)
+       free_points */
+    if (!found_p || !found_s || pred.data != succ.data) return 0;
+
+    r = toku_rt_delete(borderwrite, &pred);
+    if (r!=0) return r;
+    r = toku_rt_delete(borderwrite, &succ);
+    if (r!=0) return r;
+
+    pred.right = succ.right;
+    r = toku_rt_insert(borderwrite, &pred);
+    if (r!=0) return r;
+
+    return 0;
+}
+
+/*
+  Algorithm:
+    For each range r in selfwrite
+      Find overlapping range s in borderwrite 
+      If none exists or data is not ours (we have already deleted the real
+        overlapping range), continue
+      Delete s from borderwrite
+      Find pred(s.left), and succ(s.right)
+      If both found and pred.data=succ.data, merge pred and succ (expand?)
+    free_points
+*/
+static int __toku_lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
+    int r;
+    assert(tree);
+    if (!rt) return 0;
+
+    /* Find the ranges in rt */
+    toku_range query;
+    toku_point left;
+    toku_point right;
+    __toku_lt_init_full_query(tree, &query, &left, &right);
+
+    u_int32_t numfound;
+    r = toku_rt_find(rt, &query, 0, &tree->buf, &tree->buflen, &numfound);
+    if (r!=0) return r;
+    assert(numfound <= tree->buflen);
+    
+    u_int32_t i;
+    for (i = 0; i < numfound; i++) {
+        r = __toku_sweep_border(tree, &tree->buf[i]);
+        if (r!=0) return r;
+    }
+
+    return 0;
+}
+
+/*
+     TODO: delete selfread and selfwrite from txn and/or local list
+*/
+int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
+    int r;
+    toku_range_tree *selfwrite;
+
+    r = __toku_lt_free_contents(tree, __toku_lt_ifexist_selfread(tree, txn), 
+                                tree->mainread);
+    if (r!=0) return __toku_lt_panic(tree);
+
+    selfwrite = __toku_lt_ifexist_selfwrite(tree, txn);
+    r = __toku_lt_border_delete(tree, selfwrite);
+    if (r!=0) return __toku_lt_panic(tree);
+
+    return 0;
+}
