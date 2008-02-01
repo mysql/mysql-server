@@ -731,9 +731,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=3 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=3 --test-undo=1 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -818,9 +818,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=3 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=3 --test-undo=2 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -905,9 +905,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=3 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=3 --test-undo=3 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -992,9 +992,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N  -H2  --testflag=3 --test-undo=4 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N  -H2 --testflag=3 --test-undo=4 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1079,9 +1079,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=3 --test-undo=1 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=3 --test-undo=1 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1166,9 +1166,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=3 --test-undo=2 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=3 --test-undo=2 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1253,9 +1253,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=3 --test-undo=3 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=3 --test-undo=3 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
@@ -1340,9 +1340,9 @@ testing idempotency
 applying log
 testing applying of CLRs to recreate table
 applying log
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=2 (commit at end)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=2 (commit at end)
 Terminating after inserts
-TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2  --testflag=3 --test-undo=4 (additional aborted work)
+TEST WITH ma_test1 -s -M -T -c -N -b32768 -H2 --testflag=3 --test-undo=4 (additional aborted work)
 Terminating after updates
 Dying on request without maria_commit()/maria_close()
 applying log
