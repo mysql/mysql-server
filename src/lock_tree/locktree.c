@@ -24,7 +24,7 @@ static int __toku_lt_panic(toku_lock_tree *tree) {
     return tree->panic(tree->db);
 }
                 
-const unsigned __toku_default_buflen = 2;
+const u_int32_t __toku_default_buflen = 2;
 
 static const DBT __toku_lt_infinity;
 static const DBT __toku_lt_neg_infinity;
@@ -134,11 +134,11 @@ static int __toku_payload_copy(toku_lock_tree* tree,
     else {
         assert(payload_in);
         if (tree->payload_used + len_in > tree->payload_capacity) return ENOMEM;
-        *payload_out = tree->malloc(len_in);
+        *payload_out = tree->malloc((size_t)len_in);
         if (!*payload_out) return errno;
         tree->payload_used += len_in;
         *len_out     = len_in;
-        memcpy(*payload_out, payload_in, len_in);
+        memcpy(*payload_out, payload_in, (size_t)len_in);
     }
     return 0;
 }
@@ -242,19 +242,19 @@ assert(tree->selfread);
 */
 static int __toku_lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
                                   toku_range_tree* rt, BOOL* dominated) {
-    assert(tree && query && rt && dominated);
+    assert(tree && query && dominated);
     if (!rt) {
         *dominated = FALSE;
         return 0;
     }
     
-    BOOL         allow_overlaps;
-    const size_t query_size = 1;
-    toku_range   buffer[query_size];
-    unsigned     buflen     = query_size;
-    toku_range*  buf        = &buffer[0];
-    unsigned     numfound;
-    int          r;
+    BOOL            allow_overlaps;
+    const u_int32_t query_size = 1;
+    toku_range      buffer[query_size];
+    u_int32_t       buflen     = query_size;
+    toku_range*     buf        = &buffer[0];
+    u_int32_t       numfound;
+    int             r;
 
     /* Sanity check. (Function only supports non-overlap range trees.) */
     r = toku_rt_get_allow_overlaps(rt, &allow_overlaps);
@@ -292,11 +292,11 @@ static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
     toku_range_tree* rt = tree->borderwrite;
     assert(rt);
 
-    const size_t query_size = 2;
+    const u_int32_t query_size = 2;
     toku_range   buffer[query_size];
-    unsigned     buflen     = query_size;
+    u_int32_t     buflen     = query_size;
     toku_range*  buf        = &buffer[0];
-    unsigned     numfound;
+    u_int32_t     numfound;
     int          r;
 
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
@@ -322,11 +322,11 @@ static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
 static int __toku_lt_meets(toku_lock_tree* tree, toku_range* query, 
                            toku_range_tree* rt, BOOL* met) {
     assert(tree && query && rt && met);
-    const size_t query_size = 1;
+    const u_int32_t query_size = 1;
     toku_range   buffer[query_size];
-    unsigned     buflen     = query_size;
+    u_int32_t     buflen     = query_size;
     toku_range*  buf        = &buffer[0];
-    unsigned     numfound;
+    u_int32_t     numfound;
     int          r;
     BOOL         allow_overlaps;
 
@@ -354,11 +354,11 @@ static int __toku_lt_meets_peer(toku_lock_tree* tree, toku_range* query,
     assert(tree && query && rt && self && met);
     assert(query->left == query->right);
 
-    const size_t query_size = 2;
+    const u_int32_t query_size = 2;
     toku_range   buffer[query_size];
-    unsigned     buflen     = query_size;
+    u_int32_t     buflen     = query_size;
     toku_range*  buf        = &buffer[0];
-    unsigned     numfound;
+    u_int32_t     numfound;
     int          r;
 
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
@@ -451,9 +451,9 @@ static BOOL __toku_lt_p_independent(toku_point* point, toku_range* range) {
 
 static int __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
                                     BOOL* alloc_left, BOOL* alloc_right,
-                                    unsigned numfound) {
+                                    u_int32_t numfound) {
     assert(to_insert && tree && alloc_left && alloc_right);
-    unsigned i;
+    u_int32_t i;
     assert(numfound <= tree->buflen);
     for (i = 0; i < numfound; i++) {
         int c;
@@ -513,10 +513,10 @@ static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
 
 static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
                                                toku_range_tree* rt,
-                                               unsigned numfound) {
+                                               u_int32_t numfound) {
     assert(tree && rt);
     int r;
-    unsigned i;
+    u_int32_t i;
     assert(numfound <= tree->buflen);
     for (i = 0; i < numfound; i++) {
         r = toku_rt_delete(rt, &tree->buf[i]);
@@ -526,11 +526,11 @@ static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
 }
 
 static void __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
-                                  unsigned numfound) {
+                                  u_int32_t numfound) {
     assert(tree && to_insert);
     assert(numfound <= tree->buflen);
 
-    unsigned i;
+    u_int32_t i;
     for (i = 0; i < numfound; i++) {
         /*
            We will maintain the invariant: (separately for read and write
@@ -564,7 +564,7 @@ static int __toku_consolidate(toku_lock_tree* tree,
     if (r!=0) return r;
     assert(selfread);
     /* Find all overlapping ranges in the self-read */
-    unsigned numfound;
+    u_int32_t numfound;
     r = toku_rt_find(selfread, query, 0, &tree->buf, &tree->buflen,
                      &numfound);
     if (r!=0) return r;
@@ -624,7 +624,7 @@ static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
     toku_range query;
     toku_point left;
     toku_point right;
-    unsigned numfound;
+    u_int32_t numfound;
 
     __toku_lt_init_full_query(tree, &query, &left, &right);
     /*
@@ -657,7 +657,7 @@ static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt) {
     toku_point right;
     __toku_lt_init_full_query(tree, &query, &left, &right);
 
-    unsigned numfound;
+    u_int32_t numfound;
     r = toku_rt_find(rt, &query, 0, &tree->buf, &tree->buflen, &numfound);
     if (r==0)               __toku_lt_free_points(tree, &query, numfound);
     else if (r==ENOMEM) r = __toku_lt_free_contents_slow(tree, rt);
@@ -673,7 +673,7 @@ static BOOL __toku_r_backwards(toku_range* range) {
     /* Optimization: if all the pointers are equal, clearly left == right. */
     return (left->key_payload  != right->key_payload ||
             left->data_payload != right->data_payload) &&
-           __toku_lt_point_cmp(&left, &right) > 0;
+           __toku_lt_point_cmp(left, right) > 0;
 }
 
 
@@ -705,7 +705,7 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     return 0;
 }
 
-static int __toku_lt_get_border(toku_lock_tree* tree, unsigned numfound,
+static int __toku_lt_get_border(toku_lock_tree* tree, u_int32_t numfound,
                                 toku_range* pred, toku_range* succ,
                                 BOOL* found_p,    BOOL* found_s,
                                 toku_range* to_insert) {
@@ -800,12 +800,12 @@ static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
     assert(tree && query && to_insert);
     int r;
     toku_range_tree* borderwrite = tree->borderwrite;   assert(borderwrite);
-    const size_t query_size = 1;
+    const u_int32_t query_size = 1;
     toku_range   buffer[query_size];
-    unsigned     buflen     = query_size;
+    u_int32_t     buflen     = query_size;
     toku_range*  buf        = &buffer[0];
 
-    unsigned numfound;
+    u_int32_t numfound;
     r = toku_rt_find(borderwrite, query, query_size, &buf, &buflen, &numfound);
     if (r!=0) return __toku_lt_panic(tree);
     assert(numfound <= query_size);

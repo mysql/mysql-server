@@ -106,3 +106,9 @@ DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
    Return values conform to cmp from qsort(3).
  */
 extern int __toku_lt_point_cmp(void* a, void* b);
+
+void init_point(toku_point* point, toku_lock_tree* tree) {
+    assert(point && tree);
+    memset(point, 0, sizeof(toku_point));
+    point->lt = tree;
+}
