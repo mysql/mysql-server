@@ -1384,7 +1384,7 @@ def_week_frmt: %lu",
     table_list.db = table->db();
     table_list.alias= table_list.table_name= table->table();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (check_table_access(thd,SELECT_ACL,&table_list,1))
+    if (check_table_access(thd,SELECT_ACL,&table_list, 1, TRUE))
     {
       DBUG_PRINT("qcache",
 		 ("probably no SELECT access to %s.%s =>  return to normal processing",

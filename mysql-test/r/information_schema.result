@@ -1623,4 +1623,19 @@ Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	E
 show events where Db= 'information_schema';
 Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
 use test;
+#
+# Bug#34166: Server crash in SHOW OPEN TABLES and prelocking
+#
+drop table if exists t1;
+drop function if exists f1;
+create table t1 (a int);
+create function f1() returns int
+begin
+insert into t1 (a) values (1);
+return 0;
+end|
+show open tables where f1()=0;
+show open tables where f1()=0;
+drop table t1;
+drop function f1;
 End of 5.1 tests.
