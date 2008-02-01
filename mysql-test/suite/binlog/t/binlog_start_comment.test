@@ -14,7 +14,7 @@ load data infile '../std_data_ln/words.dat' into table t1 -- load data to t1;
 insert into t2 values ("Ada");
 flush logs;
 select * from t2;
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 --exec $MYSQL --local-infile=1 < $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 flush logs;
 select * from t2;
