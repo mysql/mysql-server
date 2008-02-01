@@ -2866,7 +2866,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     }
     else
     {
-      DBUG_RETURN(-1);
+      DBUG_RETURN(ndb_err(trans));
     }
   } while (local_check == 2);
 
