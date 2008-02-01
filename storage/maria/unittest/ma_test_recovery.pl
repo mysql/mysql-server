@@ -73,7 +73,7 @@ foreach my $prog (@t)
 {
   unlink <maria_log.* maria_log_control>;
   my $prog_no_suffix= $prog;
-  $prog_no_suffix=~ s/$suffix//;
+  $prog_no_suffix=~ s/$suffix// if ($suffix);
   print MY_LOG "TEST WITH $prog_no_suffix\n";
   $res= `$maria_exe_path/$prog`;
   print MY_LOG $res;
@@ -149,8 +149,8 @@ foreach my $take_checkpoint (@take_checkpoints)
 	$commit_run_args= $t2[$k + 1];
 	$abort_run_args= $t2[$k + 2];
 	unlink <maria_log.* maria_log_control>;
-      my $prog_no_suffix= $prog;
-      $prog_no_suffix=~ s/$suffix//;
+        my $prog_no_suffix= $prog;
+        $prog_no_suffix=~ s/$suffix// if ($suffix);
 	print MY_LOG "TEST WITH $prog_no_suffix $commit_run_args (commit at end)\n";
 	$res= `$maria_exe_path/$prog $commit_run_args`;
 	print MY_LOG $res;
