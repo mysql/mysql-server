@@ -1266,6 +1266,28 @@ DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
 
+#
+# Bug #33201 Crash occurs when granting update privilege on one column of a view
+#
+drop table if exists test;
+drop function if exists test_function;
+drop view if exists v1;
+create table test (col1 varchar(30));
+delimiter |;
+create function test_function() returns varchar(30)
+begin
+        declare tmp varchar(30);
+        select col1 from test limit 1 into tmp;
+        return '1';
+end|
+delimiter ;|
+create view v1 as select test.* from test where test.col1=test_function();
+grant update (col1) on v1 to 'greg';
+revoke all privileges on v1 from 'greg';
+drop view v1;
+drop table test;
+drop function test_function;
+
 --echo End of 5.0 tests
 
 #
