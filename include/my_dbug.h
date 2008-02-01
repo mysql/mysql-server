@@ -22,8 +22,7 @@ extern "C" {
 #if !defined(DBUG_OFF) && !defined(_lint)
 struct  _db_code_state_;
 extern  my_bool _dbug_on_;
-extern	my_bool _db_keyword_(struct _db_code_state_ *cs, const char *keyword);
-extern  my_bool _db_strict_keyword_(const char *keyword);
+extern	my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
 extern	void _db_setjmp_(void);
@@ -58,13 +57,13 @@ extern  void _db_force_flush();
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
-        do {if (_db_keyword_(0, (keyword))) { a1 }} while(0)
+        do {if (_db_keyword_(0, (keyword), 0)) { a1 }} while(0)
 #define DBUG_EXECUTE_IF(keyword,a1) \
-        do {if (_db_strict_keyword_ (keyword)) { a1 } } while(0)
+        do {if (_db_keyword_(0, (keyword), 1)) { a1 }} while(0)
 #define DBUG_EVALUATE(keyword,a1,a2) \
-        (_db_keyword_(0,(keyword)) ? (a1) : (a2))
+        (_db_keyword_(0,(keyword), 0) ? (a1) : (a2))
 #define DBUG_EVALUATE_IF(keyword,a1,a2) \
-        (_db_strict_keyword_((keyword)) ? (a1) : (a2))
+        (_db_keyword_(0,(keyword), 1) ? (a1) : (a2))
 #define DBUG_PRINT(keyword,arglist) \
         do {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;} while(0)
 #define DBUG_PUSH(a1) _db_push_ (a1)
