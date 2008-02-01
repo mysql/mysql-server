@@ -22,7 +22,7 @@ int main(int argc, const char *argv[]) {
     unsigned found;
     toku_range* buf = (toku_range*)toku_malloc(2*sizeof(toku_range));
     unsigned bufsize = 2;
-    int i;
+    unsigned i;
     
     parse_args(argc, argv);
 

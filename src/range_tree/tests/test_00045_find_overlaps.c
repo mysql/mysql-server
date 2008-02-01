@@ -154,6 +154,8 @@ void tests(BOOL allow_overlaps) {
 }
 
 int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
     buflen = 2;
     buf = (toku_range*)toku_malloc(2 * sizeof(toku_range));
     tests(FALSE);
