@@ -58,14 +58,13 @@ syncSlaveWithMaster()
      know when the slave has caught up
   */
 
-  MYSQL_RES * result;
-  MYSQL_ROW   row;
+  SqlResultSet result;
   unsigned int masterEpoch = 0;
   unsigned int slaveEpoch = 0;
   unsigned int slaveEpochOld = 0;
   int maxLoops = 100;
   int loopCnt = 0;
-
+  
   //Create a DbUtil object for the master
   DbUtil master("mysql","");
 
@@ -75,16 +74,13 @@ syncSlaveWithMaster()
     return NDBT_FAILED;
   } 
 
-  //Get max epoch from master
-  if(master.doQuery("SELECT MAX(epoch) FROM mysql.ndb_binlog_index"))
+    //Get max epoch from master
+  if(master.doQuery("SELECT MAX(epoch) FROM mysql.ndb_binlog_index", result))
   {
     return NDBT_FAILED;
   }
-  result = mysql_use_result(master.getMysql());
-  row    = mysql_fetch_row(result);
-  masterEpoch = atoi(row[0]);
-  mysql_free_result(result);
-
+  masterEpoch = result.columnAsInt("epoch");
+  
   /*
      Now we will pull current epoch from slave. If not the
      same as master, we will continue to retrieve the epoch
@@ -103,15 +99,12 @@ syncSlaveWithMaster()
 
   while(slaveEpoch != masterEpoch && loopCnt < maxLoops)
   {
-    if(slave.doQuery("SELECT epoch FROM mysql.ndb_apply_status"))
+    if(slave.doQuery("SELECT epoch FROM mysql.ndb_apply_status",result))
     {
       return NDBT_FAILED;
     }
-    result = mysql_use_result(slave.getMysql());
-    row    = mysql_fetch_row(result);
-    slaveEpoch = atoi(row[0]);
-    mysql_free_result(result);
-
+    slaveEpoch = result.columnAsInt("epoch");
+   
     if(slaveEpoch != slaveEpochOld)
     {
       slaveEpochOld = slaveEpoch;
@@ -135,17 +128,15 @@ syncSlaveWithMaster()
 }
 
 int
-verifySlaveLoad(BaseString *table)
+verifySlaveLoad(BaseString &table)
 {
-  BaseString  sqlStm;
+  //BaseString  sqlStm;
   BaseString  db;
-  MYSQL_RES * result;
-  MYSQL_ROW   row;
   unsigned int masterCount = 0;
   unsigned int slaveCount  = 0;
  
   db.assign("TEST_DB");
-  sqlStm.assfmt("SELECT COUNT(*) FROM %s", table);
+  //sqlStm.assfmt("SELECT COUNT(*) FROM %s", table);
 
   //First thing to do is sync slave
   if(syncSlaveWithMaster())
@@ -163,15 +154,11 @@ verifySlaveLoad(BaseString *table)
     return NDBT_FAILED;
   }
 
-  if(master.doQuery(sqlStm.c_str()))
+  if((masterCount = master.selectCountTable(table.c_str())) == 0 )
   {
     return NDBT_FAILED;
   }
-  result = mysql_use_result(master.getMysql());
-  row    = mysql_fetch_row(result);
-  masterCount = atoi(row[0]);
-  mysql_free_result(result);
-
+  
   //Create a DB Object for slave
   DbUtil slave(db.c_str(),".slave");
 
@@ -181,15 +168,11 @@ verifySlaveLoad(BaseString *table)
     return NDBT_FAILED;
   }
 
-  if(slave.doQuery(sqlStm.c_str()))
+  if((slaveCount = slave.selectCountTable(table.c_str())) == 0 )
   {
     return NDBT_FAILED;
   }
-  result = mysql_use_result(slave.getMysql());
-  row    = mysql_fetch_row(result);
-  slaveCount = atoi(row[0]);
-  mysql_free_result(result);
-
+  
   if(slaveCount != masterCount)
   {
     g_err << "Verify Load -> Slave Count != Master Count "
@@ -245,10 +228,9 @@ dropTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
-verifySlave(BaseString& sqlStm, BaseString& db)
+verifySlave(BaseString& sqlStm, BaseString& db, BaseString& column)
 {
-  MYSQL_RES*  resource;
-  MYSQL_ROW   row;
+  SqlResultSet result;
   float       masterSum;
   float       slaveSum;
 
@@ -269,30 +251,24 @@ verifySlave(BaseString& sqlStm, BaseString& db)
     return NDBT_FAILED;
   }
 
-  if(master.doQuery(sqlStm.c_str()) != NDBT_OK)
+  if(master.doQuery(sqlStm.c_str(),result) != NDBT_OK)
   {
     return NDBT_FAILED;
   }
-  resource = mysql_use_result(master.getMysql());
-  row = mysql_fetch_row(resource);
-  masterSum = atoi(row[0]);
-  mysql_free_result(resource);
-
+  masterSum = result.columnAsInt(column.c_str());
+  
   //Login to slave
   if (!slave.connect())
   {
     return NDBT_FAILED;
   }
 
-  if(slave.doQuery(sqlStm.c_str()) != NDBT_OK)
+  if(slave.doQuery(sqlStm.c_str(),result) != NDBT_OK)
   {
      return NDBT_FAILED;
   }
-  resource = mysql_use_result(slave.getMysql());
-  row = mysql_fetch_row(resource);
-  slaveSum = atoi(row[0]);
-  mysql_free_result(resource);
-
+  slaveSum = result.columnAsInt(column.c_str());
+  
   if(masterSum != slaveSum)
   {
     g_err << "VerifySlave -> masterSum != slaveSum..." << endl;
@@ -364,7 +340,7 @@ createTable_rep1(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if(verifySlaveLoad(&table)!= NDBT_OK)
+  if(verifySlaveLoad(table)!= NDBT_OK)
   {
     g_err << "Create Table -> Failed on verify slave load!" 
           << endl;
@@ -429,11 +405,13 @@ verifySlave_rep1(NDBT_Context* ctx, NDBT_Step* step)
 {
   BaseString sql;
   BaseString db;
+  BaseString column;
 
   sql.assign("SELECT SUM(c3) FROM rep1");
   db.assign("TEST_DB");
+  column.assign("c3");
 
-  if (verifySlave(sql,db) != NDBT_OK)
+  if (verifySlave(sql,db,column) != NDBT_OK)
     return NDBT_FAILED;
   return NDBT_OK;
 }
@@ -452,7 +430,7 @@ verifySlave_rep1(NDBT_Context* ctx, NDBT_Step* step)
  dropTEST_DB() 
  {Drops TEST_DB database on master} 
 
- verifySlave(BaseString& sql, BaseSting& db) 
+ verifySlave(BaseString& sql, BaseSting& db, BaseSting& column) 
  {The SQL statement must sum a column and will verify
   that the sum of the column is equal on master & slave}
 */
