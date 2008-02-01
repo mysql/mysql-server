@@ -51,6 +51,7 @@ select "--- Local --" as "";
 select "--- Broken LOAD DATA --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000002 2> /dev/null
 
 # this should show almost nothing
@@ -58,6 +59,7 @@ select "--- Broken LOAD DATA --" as "";
 select "--- --database --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLTEST_VARDIR/log/master-bin.000001 2> /dev/null
 
 # this test for position option
@@ -65,6 +67,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=239 $MYSQLTEST_VARDIR/log/master-bin.000002
 
 # These are tests for remote binlog.
@@ -76,6 +79,7 @@ select "--- Remote --" as "";
 
 # This is broken now
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 
 # This is broken too
@@ -83,6 +87,7 @@ select "--- Remote --" as "";
 select "--- Broken LOAD DATA --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002 2> /dev/null
 
 # And this too ! (altough it is documented)
@@ -90,6 +95,7 @@ select "--- Broken LOAD DATA --" as "";
 select "--- --database --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT --database=nottest master-bin.000001 2> /dev/null
 
 # Strangely but this works
@@ -97,6 +103,7 @@ select "--- --database --" as "";
 select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --read-from-remote-server --position=239 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000002
 
 # Bug#7853 (mysqlbinlog does not accept input from stdin)
@@ -104,9 +111,11 @@ select "--- --position --" as "";
 select "--- reading stdin --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --position=79 - < $MYSQL_TEST_DIR/std_data/trunc_binlog.000001
 drop table t1,t2;
 
@@ -170,6 +179,7 @@ call p1();
 drop procedure p1;
 --error 1305
 call p1();
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008
 --exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
 call p1();
@@ -205,6 +215,7 @@ select hex(a) from t1;
 drop table t1;
 flush logs;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000010
 
 #
