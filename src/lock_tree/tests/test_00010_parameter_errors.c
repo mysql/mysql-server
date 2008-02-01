@@ -179,6 +179,8 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
 }
 
 int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
     int r;
     toku_lock_tree* lt  = NULL;
     DB*             db  = (DB*)1;

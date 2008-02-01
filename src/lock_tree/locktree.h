@@ -109,15 +109,6 @@ typedef struct {
 } toku_point;
 
 /**
-   A comparison function between toku_point's.
-   It is implemented as a wrapper of db compare and dup_compare functions,
-   but it checks whether the point is +/- infty.
-   Parameters are of type toku_point.
-   Return values conform to cmp from qsort(3).
- */
-int toku_lt_point_cmp(void* a, void* b);
-
-/**
    Create a lock tree.  Should be called only inside DB->open.
 
    \param ptree          We set *ptree to the newly allocated tree.
