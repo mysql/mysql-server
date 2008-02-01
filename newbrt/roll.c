@@ -187,7 +187,7 @@ void toku_recover_newbrtnode (struct logtype_newbrtnode *c) {
 	n->u.n.n_bytes_in_buffers = 0;
 	int i;
 	for (i=0; i<TREE_FANOUT+1; i++)
-	    n->u.n.n_bytes_in_buffer[i]=0;
+	    BNC_NBYTESINBUF(n, i) = 0;
     }
     // Now put it in the cachetable
     toku_cachetable_put(pair->cf, c->diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
@@ -239,7 +239,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     unsigned int i;
     for (i=node->u.n.n_children; i>le->childnum; i--) {
 	node->u.n.childinfos[i]=node->u.n.childinfos[i-1];
-	node->u.n.n_bytes_in_buffer[i] = node->u.n.n_bytes_in_buffer[i-1];
+	BNC_NBYTESINBUF(node,i) = BNC_NBYTESINBUF(node,i-1);
 	assert(i>=2);
 	node->u.n.childkeys [i-1]      = node->u.n.childkeys [i-2];
     }
@@ -247,7 +247,7 @@ void toku_recover_addchild (struct logtype_addchild *le) {
     BNC_DISKOFF(node, le->childnum) = le->child;
     node->u.n.childkeys [le->childnum-1] = 0;
     int r= toku_fifo_create(&BNC_BUFFER(node, le->childnum)); assert(r==0);
-    node->u.n.n_bytes_in_buffer[le->childnum] = 0;
+    BNC_NBYTESINBUF(node, le->childnum) = 0;
     node->u.n.n_children++;
     node->log_lsn = le->lsn;
     r = toku_cachetable_unpin(cf, le->diskoff, 1, toku_serialize_brtnode_size(node));
@@ -271,7 +271,7 @@ void toku_recover_delchild (struct logtype_delchild *le) {
     assert(node->u.n.childinfos[childnum].subtree_fingerprint == le->childfingerprint);
     assert(BNC_DISKOFF(node, childnum)==le->child);
     assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))==0);
-    assert(node->u.n.n_bytes_in_buffer[childnum]==0);
+    assert(BNC_NBYTESINBUF(node,childnum)==0);
     assert(node->u.n.n_children>2); // Must be at least two children.
     u_int32_t i;
     assert(childnum>0);
@@ -280,7 +280,7 @@ void toku_recover_delchild (struct logtype_delchild *le) {
     toku_fifo_free(&BNC_BUFFER(node,childnum));
     for (i=childnum+1; i<(unsigned)node->u.n.n_children; i++) {
 	node->u.n.childinfos[i-1] = node->u.n.childinfos[i];
-	node->u.n.n_bytes_in_buffer[i-1]          = node->u.n.n_bytes_in_buffer[i];
+	BNC_NBYTESINBUF(node,i-1) = BNC_NBYTESINBUF(node,i);
 	node->u.n.childkeys[i-2] = node->u.n.childkeys[i-1];
     }
     node->u.n.n_children--;
