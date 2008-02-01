@@ -675,6 +675,13 @@ Create_file event for file_id: %u\n",exv->file_id);
 
       if (fname)
       {
+        /*
+          Fix the path so it can be consumed by mysql client (requires Unix path).
+        */
+        int stop= strlen(fname);
+        for (int i= 0; i < stop; i++)
+          if (fname[i] == '\\')
+            fname[i]= '/';
 	exlq->print(result_file, print_event_info, fname);
 	my_free(fname, MYF(MY_WME));
       }
