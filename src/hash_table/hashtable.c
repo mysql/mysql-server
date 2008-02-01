@@ -65,13 +65,7 @@ int toku_hashtable_create (HASHTABLE *h) {
     assert(sizeof(*tab->array)==sizeof(void*));
     tab->array = toku_calloc(tab->arraysize, sizeof(*tab->array));
     for (i=0; i<tab->arraysize; i++) tab->array[i]=0;
-    tab->allow_dups = 1;
     *h=tab;
-    return 0;
-}
-
-int toku_hashtable_set_dups (HASHTABLE tab, unsigned int allow_dups) {
-    tab->allow_dups = allow_dups;
     return 0;
 }
 
@@ -88,7 +82,7 @@ static void hash_find_internal (HASHTABLE tab, unsigned int hash, const unsigned
 	}
     }
     *prev_ptr = prev;
-    *dup_ptr = 0;
+    *dup_ptr = NULL;
 }
 
 int toku_hash_find_idx (HASHTABLE tab, bytevec key, ITEMLEN keylen, int idx, bytevec *data, ITEMLEN *datalen, int *type) {
@@ -114,7 +108,7 @@ int toku_hash_find_idx (HASHTABLE tab, bytevec key, ITEMLEN keylen, int idx, byt
 int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen, int *type) {
     HASHDUP dup, *prev;
     hash_find_internal(tab, hash_key (key, keylen), key, keylen, &dup, &prev);
-    if (dup==0) {
+    if (dup==NULL) {
 	return -1;
     } else {
         HASHELT he = hashelt_list_peek(&dup->kdlist);
