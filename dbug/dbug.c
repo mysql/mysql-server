@@ -57,17 +57,19 @@
  *      seismo!bpa!sjuvax!bbanerje
  *
  *      Michael Widenius:
- *      DBUG_DUMP       - To dump a block of memory.
- *      PUSH_FLAG "O"   - To be used insted of "o" if we
- *                        want flushing after each write
- *      PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
- *                        of creating a new one.
- *      Check of malloc on entry/exit (option "S")
+ *        DBUG_DUMP       - To dump a block of memory.
+ *        PUSH_FLAG "O"   - To be used insted of "o" if we
+ *                          want flushing after each write
+ *        PUSH_FLAG "A"   - as 'O', but we will append to the out file instead
+ *                          of creating a new one.
+ *        Check of malloc on entry/exit (option "S")
  *
- *      DBUG_EXECUTE_IF
- *      incremental mode (-#+t:-d,info ...)
- *      DBUG_SET, _db_explain_
- *      thread-local settings
+ *      Sergei Golubchik:
+ *        DBUG_EXECUTE_IF
+ *        incremental mode (-#+t:-d,info ...)
+ *        DBUG_SET, _db_explain_
+ *        thread-local settings
+ *        negative lists (-#-d,info => everything but "info")
  *
  */
 
@@ -174,8 +176,13 @@ IMPORT int _sanity(const char *file,uint line); /* safemalloc sanity checker */
 
 struct link {
     struct link *next_link;   /* Pointer to the next link */
-    char   str[1];        /* Pointer to link's contents */
+    char   flags;
+    char   str[1];            /* Pointer to link's contents */
 };
+
+/* flags for struct link */
+#define INCLUDE         1
+#define EXCLUDE         2
 
 /*
  *      Debugging settings can be pushed or popped off of a
@@ -188,18 +195,18 @@ struct link {
  */
 
 struct settings {
-  int flags;                    /* Current settings flags */
-  int maxdepth;                 /* Current maximum trace depth */
-  uint delay;                   /* Delay after each output line */
-  int sub_level;                /* Sub this from code_state->level */
-  FILE *out_file;               /* Current output stream */
-  FILE *prof_file;              /* Current profiling stream */
-  char name[FN_REFLEN];         /* Name of output file */
-  struct link *functions;       /* List of functions */
-  struct link *p_functions;     /* List of profiled functions */
-  struct link *keywords;        /* List of debug keywords */
-  struct link *processes;       /* List of process names */
-  struct settings *next;        /* Next settings in the list */
+  int flags;                    /* Current settings flags               */
+  int maxdepth;                 /* Current maximum trace depth          */
+  uint delay;                   /* Delay after each output line         */
+  int sub_level;                /* Sub this from code_state->level      */
+  FILE *out_file;               /* Current output stream                */
+  FILE *prof_file;              /* Current profiling stream             */
+  char name[FN_REFLEN];         /* Name of output file                  */
+  struct link *functions;       /* List of functions                    */
+  struct link *p_functions;     /* List of profiled functions           */
+  struct link *keywords;        /* List of debug keywords               */
+  struct link *processes;       /* List of process names                */
+  struct settings *next;        /* Next settings in the list            */
 };
 
 #define is_shared(S, V) ((S)->next && (S)->next->V == (S)->V)
@@ -249,9 +256,12 @@ typedef struct _db_code_state_ {
 #define get_code_state_or_return if (!((cs=code_state()))) return
 
         /* Handling lists */
-static struct link *ListAdd(struct link *, const char *, const char *);
-static struct link *ListDel(struct link *, const char *, const char *);
+#define ListAdd(A,B,C) ListAddDel(A,B,C,INCLUDE)
+#define ListDel(A,B,C) ListAddDel(A,B,C,EXCLUDE)
+static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
+static int InList(struct link *linkp,const char *cp);
+static int ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
         /* OpenClose debug output stream */
@@ -277,7 +287,6 @@ static void DoPrefix(CODE_STATE *cs, uint line);
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
-static BOOLEAN InList(struct link *linkp,const char *cp);
 static void dbug_flush(CODE_STATE *);
 static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
@@ -508,7 +517,7 @@ void _db_set_(CODE_STATE *cs, const char *control)
   {
     int c, sign= (*control == '+') ? 1 : (*control == '-') ? -1 : 0;
     if (sign) control++;
-    if (!rel) sign=0;
+    /* if (!rel) sign=0; */
     c= *control++;
     if (*control == ',') control++;
     /* XXX when adding new cases here, don't forget _db_explain_ ! */
@@ -780,11 +789,12 @@ void _db_pop_()
         buf=strnmov(buf, (S), len+1);           \
         if (buf >= end) goto overflow;          \
       } while (0)
-#define list_to_buf(l)  do {                    \
+#define list_to_buf(l, f)  do {                 \
         struct link *listp=(l);                 \
         while (listp)                           \
         {                                       \
-          str_to_buf(listp->str);               \
+          if (listp->flags & (f))               \
+            str_to_buf(listp->str);             \
           listp=listp->next_link;               \
         }                                       \
       } while (0)
@@ -824,9 +834,18 @@ void _db_pop_()
 #define op_list_to_buf(C, val, cond) do {       \
         if ((cond))                             \
         {                                       \
+          int f=ListFlags(val);                 \
           colon_to_buf;                         \
           char_to_buf((C));                     \
-          list_to_buf(val);                     \
+          if (f & INCLUDE)                      \
+            list_to_buf(val, INCLUDE);          \
+          if (f & EXCLUDE)                      \
+          {                                     \
+            colon_to_buf;                       \
+            char_to_buf('-');                   \
+            char_to_buf((C));                   \
+            list_to_buf(val, EXCLUDE);          \
+          }                                     \
         }                                       \
       } while (0)
 #define op_bool_to_buf(C, cond) do {            \
@@ -1137,7 +1156,7 @@ void _db_doprnt_(const char *format,...)
 
   va_start(args,format);
 
-  if (_db_keyword_(cs, cs->u_keyword))
+  if (_db_keyword_(cs, cs->u_keyword, 0))
   {
     int save_errno=errno;
     if (!cs->locked)
@@ -1183,7 +1202,7 @@ void _db_dump_(uint _line_, const char *keyword,
   CODE_STATE *cs;
   get_code_state_or_return;
 
-  if (_db_keyword_(cs, keyword))
+  if (_db_keyword_(cs, keyword, 0))
   {
     if (!cs->locked)
       pthread_mutex_lock(&THR_LOCK_dbug);
@@ -1223,93 +1242,66 @@ void _db_dump_(uint _line_, const char *keyword,
 /*
  *  FUNCTION
  *
- *      ListAdd    add to the list modifiers from debug control string
- *
- *  SYNOPSIS
- *
- *      static struct link *ListAdd(listp, ctlp, end)
- *      struct link *listp;
- *      char *ctlp;
- *      char *end;
+ *      ListAddDel    modify the list according to debug control string
  *
  *  DESCRIPTION
  *
  *      Given pointer to a comma separated list of strings in "cltp",
- *      parses the list, and adds it to listp, returning a pointer
- *      to the new list
+ *      parses the list, and modifies "listp", returning a pointer
+ *      to the new list.
  *
- *      Note that since each link is added at the head of the list,
- *      the final list will be in "reverse order", which is not
- *      significant for our usage here.
+ *      The mode of operation is defined by "todo" parameter.
  *
+ *      If it's INCLUDE, elements (strings from "cltp") are added to the
+ *      list, they'll have INCLUDE flag set. If the list already contains
+ *      the string in question, new element is not added, but a flag of
+ *      the existing element is adjusted (INCLUDE bit is set, EXCLUDE bit
+ *      is removed).
+ *
+ *      If it's EXCLUDE, elements are added to the list with the EXCLUDE
+ *      flag set. If the list already contains the string in question,
+ *      it is removed, new element is not added.
  */
 
-static struct link *ListAdd(struct link *head,
-                             const char *ctlp, const char *end)
-{
-  const char *start;
-  struct link *new_malloc;
-  int len;
-
-  while (ctlp < end)
-  {
-    start= ctlp;
-    while (ctlp < end && *ctlp != ',')
-      ctlp++;
-    len=ctlp-start;
-    new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
-    memcpy(new_malloc->str, start, len);
-    new_malloc->str[len]=0;
-    new_malloc->next_link= head;
-    head= new_malloc;
-    ctlp++;
-  }
-  return head;
-}
-
-/*
- *  FUNCTION
- *
- *      ListDel    remove from the list modifiers in debug control string
- *
- *  SYNOPSIS
- *
- *      static struct link *ListDel(listp, ctlp, end)
- *      struct link *listp;
- *      char *ctlp;
- *      char *end;
- *
- *  DESCRIPTION
- *
- *      Given pointer to a comma separated list of strings in "cltp",
- *      parses the list, and removes these strings from the listp,
- *      returning a pointer to the new list.
- *
- */
-
-static struct link *ListDel(struct link *head,
-                             const char *ctlp, const char *end)
+static struct link *ListAddDel(struct link *head, const char *ctlp,
+                               const char *end, int todo)
 {
   const char *start;
   struct link **cur;
   int len;
 
-  while (ctlp < end)
+  ctlp--;
+next:
+  while (++ctlp < end)
   {
     start= ctlp;
     while (ctlp < end && *ctlp != ',')
       ctlp++;
     len=ctlp-start;
-    cur=&head;
-    do
+    if (len == 0) continue;
+    for (cur=&head; *cur; cur=&((*cur)->next_link))
     {
-      while (*cur && !strncmp((*cur)->str, start, len))
+      if (!strncmp((*cur)->str, start, len))
       {
-        struct link *delme=*cur;
-        *cur=(*cur)->next_link;
-        free((void*) delme);
+        if (todo == EXCLUDE)
+        {
+          struct link *delme=*cur;
+          *cur=(*cur)->next_link;
+          free((void*) delme);
+        }
+        else
+        {
+          (*cur)->flags&=~EXCLUDE;
+          (*cur)->flags|=INCLUDE;
+        }
+        goto next;
       }
-    } while (*cur && *(cur=&((*cur)->next_link)));
+    }
+    *cur= (struct link *) DbugMalloc(sizeof(struct link)+len);
+    memcpy((*cur)->str, start, len);
+    (*cur)->str[len]=0;
+    (*cur)->flags=todo;
+    (*cur)->next_link=0;
   }
   return head;
 }
@@ -1350,6 +1342,7 @@ static struct link *ListCopy(struct link *orig)
     new_malloc= (struct link *) DbugMalloc(sizeof(struct link)+len);
     memcpy(new_malloc->str, orig->str, len);
     new_malloc->str[len]= 0;
+    new_malloc->flags=orig->flags;
     new_malloc->next_link= head;
     head= new_malloc;
     orig= orig->next_link;
@@ -1364,7 +1357,7 @@ static struct link *ListCopy(struct link *orig)
  *
  *  SYNOPSIS
  *
- *      static BOOLEAN InList(linkp, cp)
+ *      static int InList(linkp, cp)
  *      struct link *linkp;
  *      char *cp;
  *
@@ -1372,37 +1365,48 @@ static struct link *ListCopy(struct link *orig)
  *
  *      Tests the string pointed to by "cp" to determine if it is in
  *      the list pointed to by "linkp".  Linkp points to the first
- *      link in the list.  If linkp is NULL then the string is treated
- *      as if it is in the list (I.E all strings are in the null list).
+ *      link in the list.  If linkp is NULL or contains only EXCLUDE
+ *      elements then the string is treated as if it is in the list.
  *      This may seem rather strange at first but leads to the desired
  *      operation if no list is given.  The net effect is that all
  *      strings will be accepted when there is no list, and when there
  *      is a list, only those strings in the list will be accepted.
  *
+ *  RETURN
+ *      0 - not in the list (or matched an EXCLUDE element)
+ *      1 - in the list by default (list is empty or only has EXCLUDE elements)
+ *      2 - in the list explictly (matched an INCLUDE element)
+ *
  */
 
-static BOOLEAN InList(struct link *linkp, const char *cp)
+static int InList(struct link *linkp, const char *cp)
 {
-  REGISTER struct link *scan;
-  REGISTER BOOLEAN result;
+  int result;
 
-  if (linkp == NULL)
-    result= TRUE;
-  else
+  for (result=1; linkp != NULL; linkp= linkp->next_link)
   {
-    result= FALSE;
-    for (scan= linkp; scan != NULL; scan= scan->next_link)
-    {
-      if (!strcmp(scan->str, cp))
-      {
-        result= TRUE;
-        break;
-      }
-    }
+    if (!strcmp(linkp->str, cp))
+      return linkp->flags & EXCLUDE ? 0 : 2;
+    if (!(linkp->flags & EXCLUDE))
+      result=0;
   }
   return result;
 }
 
+/*
+ *  FUNCTION
+ *
+ *      ListFlags    returns aggregated list flags (ORed over all elements)
+ *
+ */
+
+static int ListFlags(struct link *linkp)
+{
+  int f;
+  for (f=0; linkp != NULL; linkp= linkp->next_link)
+    f|= linkp->flags;
+  return f;
+}
 
 /*
  *  FUNCTION
@@ -1589,50 +1593,15 @@ FILE *_db_fp_(void)
   return cs->stack->out_file;
 }
 
-
-/*
- *  FUNCTION
- *
- *      _db_strict_keyword_     test keyword for member of keyword list
- *
- *  SYNOPSIS
- *
- *      BOOLEAN _db_strict_keyword_(keyword)
- *      char *keyword;
- *
- *  DESCRIPTION
- *
- *      Similar to _db_keyword_, but keyword is NOT accepted if keyword list
- *      is empty. Used in DBUG_EXECUTE_IF() - for actions that must not be
- *      executed by default.
- *
- *      Returns TRUE if keyword accepted, FALSE otherwise.
- *
- */
-
-BOOLEAN _db_strict_keyword_(const char *keyword)
-{
-  CODE_STATE *cs;
-  get_code_state_or_return FALSE;
-  if (!DEBUGGING || cs->stack->keywords == NULL)
-    return FALSE;
-  return _db_keyword_(cs, keyword);
-}
-
 /*
  *  FUNCTION
  *
  *      _db_keyword_    test keyword for member of keyword list
  *
- *  SYNOPSIS
- *
- *      BOOLEAN _db_keyword_(keyword)
- *      char *keyword;
- *
  *  DESCRIPTION
  *
  *      Test a keyword to determine if it is in the currently active
- *      keyword list.  As with the function list, a keyword is accepted
+ *      keyword list.  If strict=0, a keyword is accepted
  *      if the list is null, otherwise it must match one of the list
  *      members.  When debugging is not on, no keywords are accepted.
  *      After the maximum trace level is exceeded, no keywords are
@@ -1644,14 +1613,14 @@ BOOLEAN _db_strict_keyword_(const char *keyword)
  *
  */
 
-BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword)
+BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 {
   get_code_state_if_not_set_or_return FALSE;
 
   return (DEBUGGING &&
           (!TRACING || cs->level <= cs->stack->maxdepth) &&
           InList(cs->stack->functions, cs->func) &&
-          InList(cs->stack->keywords, keyword) &&
+          InList(cs->stack->keywords, keyword) > (strict != 0) &&
           InList(cs->stack->processes, cs->process));
 }
 
