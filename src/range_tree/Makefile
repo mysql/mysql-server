@@ -4,13 +4,30 @@
 LIBNAMELINEAR=librangetreelinear
 LIBNAME=librangetree
 
-OPTFLAGS = #-O2
-#GCOV_FLAGS = -O0 -fprofile-arcs -ftest-coverage
-CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+ifneq ($(OPT),)
+ OPTFLAGS = -O4
+else
+ OPTFLAGS = -O0 -g3 -ggdb3
+endif
+
+ifneq ($(GCOV),)
+ GCOV_FLAGS = -fprofile-arcs -ftest-coverage
+else
+ GCOV_FLAGS =
+endif
+
+CFLAGS = -W -Wall -Werror -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
+ifneq ($(W),)
+ CFLAGS+= -Wunreachable-code
+endif
 CPPFLAGS = -I../../include -I../../newbrt
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
-ifeq ($(OSX),OSX)
+
+
+ifneq ($(OSX),)
 LIBEXT=dylib
 SHARED=-dynamiclib
 CFLAGS+=-fno-common
