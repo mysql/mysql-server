@@ -106,6 +106,11 @@ void Dbtup::scanProcedure(Signal* signal,
   regOperPtr->attrinbufLen = lenAttrInfo;
   regOperPtr->currentAttrinbufLen = 0;
   regOperPtr->storedProcPtr = storedPtr.i;
+  if (lenAttrInfo >= ZATTR_BUFFER_SIZE) { // yes ">="
+    jam();
+    // send REF and change state to ignore the ATTRINFO to come
+    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr, ZSTORED_TOO_MUCH_ATTRINFO_ERROR);
+  }
 }//Dbtup::scanProcedure()
 
 void Dbtup::copyProcedure(Signal* signal,
@@ -146,7 +151,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   Uint32 RnoFree = cnoFreeAttrbufrec;
   if (ERROR_INSERTED(4004) && !copyProcedure) {
     CLEAR_ERROR_INSERT_VALUE;
-    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr);
+    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr, ZSTORED_SEIZE_ATTRINBUFREC_ERROR);
     return false;
   }//if
   regOperPtr->currentAttrinbufLen += length;
@@ -162,7 +167,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
     regAttrPtr.p->attrbuf[ZBUF_NEXT] = RNIL;
   } else {
     jam();
-    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr);
+    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr, ZSTORED_SEIZE_ATTRINBUFREC_ERROR);
     return false;
   }//if
   if (regOperPtr->firstAttrinbufrec == RNIL) {
@@ -190,7 +195,7 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
   }//if
   if (ERROR_INSERTED(4005) && !copyProcedure) {
     CLEAR_ERROR_INSERT_VALUE;
-    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr);
+    storedSeizeAttrinbufrecErrorLab(signal, regOperPtr, ZSTORED_SEIZE_ATTRINBUFREC_ERROR);
     return false;
   }//if
 
@@ -212,7 +217,8 @@ bool Dbtup::storedProcedureAttrInfo(Signal* signal,
 }//Dbtup::storedProcedureAttrInfo()
 
 void Dbtup::storedSeizeAttrinbufrecErrorLab(Signal* signal,
-                                            Operationrec* regOperPtr)
+                                            Operationrec* regOperPtr,
+                                            Uint32 errorCode)
 {
   StoredProcPtr storedPtr;
   c_storedProcPool.getPtr(storedPtr, regOperPtr->storedProcPtr);
@@ -224,7 +230,7 @@ void Dbtup::storedSeizeAttrinbufrecErrorLab(Signal* signal,
   regOperPtr->m_any_value = 0;
   set_trans_state(regOperPtr, TRANS_ERROR_WAIT_STORED_PROCREQ);
   signal->theData[0] = regOperPtr->userpointer;
-  signal->theData[1] = ZSTORED_SEIZE_ATTRINBUFREC_ERROR;
+  signal->theData[1] = errorCode;
   signal->theData[2] = regOperPtr->storedProcPtr;
   sendSignal(DBLQH_REF, GSN_STORED_PROCREF, signal, 3, JBB);
 }//Dbtup::storedSeizeAttrinbufrecErrorLab()
