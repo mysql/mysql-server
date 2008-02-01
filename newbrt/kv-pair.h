@@ -23,9 +23,9 @@ static inline int kv_pair_size(struct kv_pair *pair) {
 
 static inline void kv_pair_init(struct kv_pair *pair, const void *key, unsigned int keylen, const void *val, unsigned int vallen) {
     pair->keylen = keylen;
-    memcpy(pair->key, key, keylen);
+    memcpy(pair->key,          key, (size_t)keylen);
     pair->vallen = vallen;
-    memcpy(pair->key + keylen, val, vallen);
+    memcpy(pair->key + keylen, val, (size_t)vallen);
 }
 
 static inline struct kv_pair *kv_pair_malloc(const void *key, unsigned int keylen, const void *val, unsigned int vallen) {
@@ -40,7 +40,7 @@ static inline struct kv_pair *kv_pair_realloc_same_key(struct kv_pair *p, void *
     struct kv_pair *pair = toku_realloc(p, sizeof (struct kv_pair) + p->keylen + newvallen);
     if (pair) {
 	pair->vallen = newvallen;
-	memcpy(pair->key + pair->keylen, newval, newvallen);
+	memcpy(pair->key + pair->keylen, newval, (size_t)newvallen);
     }
     return pair;
 }
