@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const unsigned minlen = 64;
+const u_int32_t minlen = 64;
 
 /*
  *  Returns:
@@ -32,12 +32,12 @@ static int __toku_rt_p_cmp(toku_range_tree* tree,
     return 0;
 }
     
-static int __toku_rt_decrease_capacity(toku_range_tree* tree, unsigned _num) {
+static int __toku_rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
     assert(tree);
-    unsigned num = _num < minlen ? minlen : _num;
+    u_int32_t num = _num < minlen ? minlen : _num;
     
     if (tree->ranges_len >= num * 2) {
-        unsigned temp_len = tree->ranges_len;
+        u_int32_t temp_len = tree->ranges_len;
         while (temp_len >= num * 2) temp_len /= 2;
         assert(temp_len >= _num);   //Sanity check.
         toku_range* temp_ranges =
@@ -49,10 +49,10 @@ static int __toku_rt_decrease_capacity(toku_range_tree* tree, unsigned _num) {
     return 0;
 }
 
-static int __toku_rt_increase_capacity(toku_range_tree* tree, unsigned num) {
+static int __toku_rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
     assert(tree);
     if (tree->ranges_len < num) {
-        unsigned temp_len = tree->ranges_len;
+        u_int32_t temp_len = tree->ranges_len;
         while (temp_len < num) temp_len *= 2;
         toku_range* temp_ranges =
                      tree->realloc(tree->ranges, temp_len * sizeof(toku_range));
@@ -64,11 +64,11 @@ static int __toku_rt_increase_capacity(toku_range_tree* tree, unsigned num) {
 }
 
 static int __toku_rt_increase_buffer(toku_range_tree* tree, toku_range** buf,
-                                     unsigned* buflen, unsigned num) {
+                                     u_int32_t* buflen, u_int32_t num) {
     assert(buf);
     assert(buflen);
     if (*buflen < num) {
-        unsigned temp_len = *buflen;
+        u_int32_t temp_len = *buflen;
         while (temp_len < num) temp_len *= 2;
         toku_range* temp_buf =
                              tree->realloc(*buf, temp_len * sizeof(toku_range));
@@ -146,15 +146,15 @@ int toku_rt_close(toku_range_tree* tree) {
     return 0;
 }
 
-int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
-                 toku_range** buf, unsigned* buflen, unsigned* numfound) {
+int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
+                 toku_range** buf, u_int32_t* buflen, u_int32_t* numfound) {
     if (!tree || !query || !buf || !buflen || !numfound) return EINVAL;
     if (query->data != NULL)                             return EINVAL;
     if (*buflen == 0)                                    return EINVAL;
     
-    unsigned temp_numfound = 0;
+    u_int32_t temp_numfound = 0;
     int r;
-    unsigned i;
+    u_int32_t i;
     
     for (i = 0; i < tree->numelements; i++) {
         if (__toku_rt_overlap(tree, query, &tree->ranges[i])) {
@@ -172,7 +172,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, unsigned k,
 int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     if (!tree || !range)                                 return EINVAL;
 
-    unsigned i;
+    u_int32_t i;
     int r;
 
     //EDOM cases
@@ -194,7 +194,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
 
 int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     if (!tree || !range)                                 return EINVAL;
-    unsigned i;
+    u_int32_t i;
     
     for (i = 0;
          i < tree->numelements &&
@@ -214,7 +214,7 @@ int toku_rt_predecessor (toku_range_tree* tree, void* point, toku_range* pred,
     if (!tree || !point || !pred || !wasfound)           return EINVAL;
     if (tree->allow_overlaps)                            return EINVAL;
     toku_range* best = NULL;
-    unsigned i;
+    u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
         if (__toku_rt_p_cmp(tree, point, &tree->ranges[i]) > 0 &&
@@ -232,7 +232,7 @@ int toku_rt_successor (toku_range_tree* tree, void* point, toku_range* succ,
     if (!tree || !point || !succ || !wasfound)           return EINVAL;
     if (tree->allow_overlaps)                            return EINVAL;
     toku_range* best = NULL;
-    unsigned i;
+    u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
         if (__toku_rt_p_cmp(tree, point, &tree->ranges[i]) < 0 &&

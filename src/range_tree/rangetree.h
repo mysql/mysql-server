@@ -44,7 +44,7 @@ struct __toku_range_tree_internal {
     /** Whether this tree allows ranges to overlap */
     BOOL        allow_overlaps;
     /** The number of ranges in the range tree */
-    unsigned    numelements;
+    u_int32_t    numelements;
     /** The user malloc function */
     void*       (*malloc) (size_t);
     /** The user free function */
@@ -57,7 +57,7 @@ struct __toku_range_tree_internal {
     #endif
     //Linear version only fields:
     toku_range* ranges;
-    unsigned    ranges_len;
+    u_int32_t    ranges_len;
 #elif defined(TOKU_LOG_RANGE_TREE)
     #error Not defined yet.
     //Log version only fields:
@@ -145,8 +145,8 @@ int toku_rt_close(toku_range_tree* tree  /**< The range tree to free */);
     parameter to specify whether more elements exist in the tree that overlap 
     (in excess of the requested limit of k).
  */
-int toku_rt_find(toku_range_tree* tree,toku_range* query, unsigned k,
-                 toku_range** buf, unsigned* buflen, unsigned* numfound);
+int toku_rt_find(toku_range_tree* tree,toku_range* query, u_int32_t k,
+                 toku_range** buf, u_int32_t* buflen, u_int32_t* numfound);
  
 
 /**
