@@ -326,9 +326,12 @@ my_off_t _ma_new(register MARIA_HA *info, int level,
         Next deleted page's number is in the header of the present page
         (single linked list):
       */
+#ifndef DBUG_OFF
+      my_off_t current_key_del;
+#endif
       share->current_key_del= mi_sizekorr(buff+share->keypage_header);
 #ifndef DBUG_OFF
-      my_off_t current_key_del= share->current_key_del;
+      current_key_del= share->current_key_del;
       DBUG_ASSERT(current_key_del != share->state.key_del &&
                   (current_key_del != 0) &&
                   ((current_key_del == HA_OFFSET_ERROR) ||
