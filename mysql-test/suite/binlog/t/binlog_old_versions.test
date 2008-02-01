@@ -30,7 +30,7 @@ DROP TABLE IF EXISTS t1, t2, t3;
 --echo ==== Read modern binlog (version 5.1.23) ====
 
 # Read binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_5_1_23.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_23.000001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -42,7 +42,7 @@ DROP TABLE t1, t2, t3;
 --echo ==== Read binlog from version 5.1.17 ====
 
 # Read binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_5_1_17.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_17.000001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -59,9 +59,9 @@ DROP TABLE t1, t2, t3;
 # replication.
 
 # Read rbr binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_5_1-wl2325_row.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_row.000001 | $MYSQL --local-infile=1
 # Read stm binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_5_1-wl2325_stm.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_stm.000001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -73,7 +73,7 @@ DROP TABLE t1, t2, t3;
 --echo ==== Read binlog from ndb tree (mysql-5.1-telco-6.1) ====
 
 # Read binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_5_1-telco.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-telco.000001 | $MYSQL --local-infile=1
 # Show resulting tablea.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
