@@ -29,7 +29,9 @@ ifeq ($(GCOV),GCOV)
 else
  GCOV_FLAGS =
 endif
-CFLAGS = -Wall -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
+CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute -Wunreachable-code
 CPPFLAGS += -L../ -L../../range_tree 
 CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include -lpthread
 

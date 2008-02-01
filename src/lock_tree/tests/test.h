@@ -36,8 +36,12 @@ int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-void dbpanic(DB* db) {
+BOOL panicked = FALSE;
+
+int dbpanic(DB* db) {
     if (verbose) printf("AHH!!!!  Run away %p!!!\n", db);
+    panicked = TRUE;
+    return EINVAL;
 }
 
 
@@ -92,3 +96,13 @@ DBT *dbt_init(DBT *dbt, void *data, u_int32_t size) {
     dbt->size = size;
     return dbt;
 }
+
+
+/**
+   A comparison function between toku_point's.
+   It is implemented as a wrapper of db compare and dup_compare functions,
+   but it checks whether the point is +/- infty.
+   Parameters are of type toku_point.
+   Return values conform to cmp from qsort(3).
+ */
+extern int __toku_lt_point_cmp(void* a, void* b);

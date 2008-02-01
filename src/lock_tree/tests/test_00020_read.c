@@ -123,8 +123,8 @@ void lt_find(BOOL dups, toku_range_tree* rt,
     }
     unsigned i;
     for (i = 0; i < numfound; i++) {
-        if (toku_lt_point_cmp(buf[i].left,  &left ) == 0 &&
-            toku_lt_point_cmp(buf[i].right, &right) == 0 &&
+        if (__toku_lt_point_cmp(buf[i].left,  &left ) == 0 &&
+            __toku_lt_point_cmp(buf[i].right, &right) == 0 &&
             buf[i].data == find_txn) return;
     }
     assert(FALSE);  //Crash since we didn't find it.
@@ -419,7 +419,7 @@ void runtest(BOOL dups) {
 
 
 void init_test(void) {
-    int i;
+    unsigned i;
     for (i = 0; i < sizeof(nums)/sizeof(nums[0]); i++) nums[i] = i;
 
     buflen = 64;
@@ -431,6 +431,7 @@ void init_test(void) {
 
 
 int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
 
     init_test();
 
