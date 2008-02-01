@@ -127,16 +127,16 @@ SET TIMESTAMP=1000000000/*!*/;
 insert into t2 values ()
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-2' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-2' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-2' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-2' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 DELIMITER ;
 # End of log file
@@ -318,18 +318,18 @@ SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.
 create table t1 (a varchar(64) character set utf8)
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-6-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-7-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-8-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-9-0' INTO table t1
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
 /*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
