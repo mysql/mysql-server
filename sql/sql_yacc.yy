@@ -2982,15 +2982,15 @@ column_def:
 	;
 
 key_def:
-	key_type opt_ident key_alg '(' key_list ')'
+	key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
 	    LEX *lex=Lex;
-            Key *key= new Key($1, $2, $3, 0, lex->col_list);
+            Key *key= new Key($1, $2, $7 ? $7 : $3, 0, lex->col_list);
             lex->alter_info.key_list.push_back(key);
 
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3:$1;
