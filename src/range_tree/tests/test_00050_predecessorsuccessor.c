@@ -25,8 +25,7 @@ toku_range* init_range(toku_range* range, int left, int right, int data) {
     return range;
 }
 
-void* init_point(int left) {
-    assert(left >= 0);
+void* init_point(unsigned left) {
     assert(left < sizeof(nums) / sizeof(nums[0]));
     return (&nums[left]);
 }
@@ -77,13 +76,13 @@ void runlimitsearch(toku_range* query, unsigned limit, unsigned findexpect) {
 
 typedef enum {PRED=0, SUCC=1} predsucc;
 void runtest(predsucc testtype, void* query, BOOL findexpect,
-             int left, int right, int data) {
+             unsigned left, unsigned right, unsigned data) {
     int r;
     BOOL found;
     toku_range out;
-    assert(data >= 0 && data < sizeof(letters) / sizeof(letters[0]));
-    assert(left >= 0 && left < sizeof(nums) / sizeof(nums[0]));
-    assert(right >= 0 && right < sizeof(nums) / sizeof(nums[0]));
+    assert(data < sizeof(letters) / sizeof(letters[0]));
+    assert(left < sizeof(nums) / sizeof(nums[0]));
+    assert(right < sizeof(nums) / sizeof(nums[0]));
     if (testtype == PRED) {
         r = toku_rt_predecessor(tree, query, &out, &found);
 
@@ -258,7 +257,9 @@ void tests(BOOL allow_overlaps) {
 }
 
 int main(int argc, const char *argv[]) {
-    int i;
+    parse_args(argc, argv);
+
+    unsigned i;
     
     for (i = 0; i < sizeof(nums) / sizeof(nums[0]); i++) nums[i] = i; 
     buflen = 2;
