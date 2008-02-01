@@ -28,11 +28,29 @@ toku_range* buf;
 unsigned buflen;
 unsigned numfound;
 
+void init_query(BOOL dups) {  
+    init_point(&qleft,  lt);
+    init_point(&qright, lt);
+    
+    qleft.key_payload  = (void *) toku_lt_neg_infinity;
+    qright.key_payload = (void *) toku_lt_infinity;
+
+    if (dups) {
+        qleft.data_payload  = qleft.key_payload;
+        qright.data_payload = qright.key_payload;
+    }
+
+    memset(&query,0,sizeof(query));
+    query.left  = &qleft;
+    query.right = &qright;
+}
+
 void setup_tree(BOOL dups) {
     r = toku_lt_create(&lt, db, dups, dbpanic, mem, dbcmp, dbcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
+    init_query(dups);
 }
 
 void close_tree(void) {
@@ -109,13 +127,13 @@ void lt_find(BOOL dups, toku_range_tree* rt,
     assert(numfound==k);
 
     toku_point left, right;
-    memset(&left,0,sizeof(left));
+    init_point(&left, lt);
     setup_payload_len(&left.key_payload, &left.key_len, key_l);
     if (dups) {
         if (key_l < null) left.data_payload = left.key_payload;
         else setup_payload_len(&left.data_payload, &left.data_len, data_l);
     }
-    memset(&right,0,sizeof(right));
+    init_point(&right, lt);
     setup_payload_len(&right.key_payload, &right.key_len, key_r);
     if (dups) {
         if (key_r < null) right.data_payload = right.key_payload;
@@ -202,30 +220,11 @@ void insert_2_noclose(BOOL dups, int key_l[2], int key_r[2],
 
 }
 
-void init_query(BOOL dups) {  
-
-    memset(&qleft, 0,sizeof(qleft));
-    memset(&qright,0,sizeof(qright));
-    
-    qleft.key_payload  = (void *) toku_lt_neg_infinity;
-    qright.key_payload = (void *) toku_lt_infinity;
-
-    if (dups) {
-        qleft.data_payload  = qleft.key_payload;
-        qright.data_payload = qright.key_payload;
-    }
-
-    memset(&query,0,sizeof(query));
-    query.left  = &qleft;
-    query.right = &qright;
-}
 
 
 void runtest(BOOL dups) {
     int i;
     const DBT* choices[3];
-
-    init_query(dups);
 
     choices[0] = toku_lt_neg_infinity;
     choices[1] = NULL;

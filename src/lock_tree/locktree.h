@@ -63,7 +63,7 @@ typedef struct {
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns */
     toku_range*         buf;      
-    unsigned            buflen;      /**< The length of buf */
+    u_int32_t            buflen;      /**< The length of buf */
     /** The maximum amount of memory to be used for DBT payloads. */
     size_t              payload_capacity;
     /** The current amount of memory used for DBT payloads. */
