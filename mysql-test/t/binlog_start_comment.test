@@ -15,7 +15,7 @@ insert into t2 values ("Ada");
 flush logs;
 select * from t2;
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
+--exec $MYSQL --local-infile=1 < $MYSQLTEST_VARDIR/tmp/binlog_start_comment.binlog
 flush logs;
 select * from t2;
 
