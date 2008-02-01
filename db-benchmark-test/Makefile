@@ -18,6 +18,8 @@ else
 BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb
 endif
+TDB_CPPFLAGS = -I../include
+TDB_LDFLAGS = -L../lib -ldb -Wl,-rpath=$(PWD)/../lib
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
@@ -37,6 +39,6 @@ clean:
 	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
 
 db-benchmark-test-tokudb: db-benchmark-test.c
-	$(CC) $(CFLAGS) -I../include -L../lib -ldb -Wl,-rpath,$(PWD)/../lib $< -o $@ -DDIRSUF=tokudb
+	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LDFLAGS) $< -o $@ -DDIRSUF=tokudb
 db-benchmark-test-bdb: db-benchmark-test.c
-	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS)                      $< -o $@ -DDIRSUF=bdb
+	$(CC) $(CFLAGS) $(BDB_CPPFLAGS) $(BDB_LDFLAGS) $< -o $@ -DDIRSUF=bdb
