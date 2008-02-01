@@ -13,11 +13,6 @@ typedef struct hashtable *HASHTABLE;
 
 int toku_hashtable_create (HASHTABLE*);
 
-/* Configure the hash table for duplicate keys.
-   allow_dups != 0 -> duplications allowed,  allow_dups == 0 -> no duplicates */
-
-int toku_hashtable_set_dups (HASHTABLE, unsigned int allow_dups);
-
 /* Return 0 if the key is found in the hashtable, -1 otherwise. */
 /* Warning: The data returned points to the internals of the hashtable.  It is set to "const" to try to prevent you from messing it up. */
 int toku_hash_find (HASHTABLE tab, bytevec key, ITEMLEN keylen, bytevec *data, ITEMLEN *datalen, int *type);
@@ -75,7 +70,6 @@ struct hashtable {
     unsigned int n_keys;
     unsigned int arraysize;
     unsigned int primeidx;
-    unsigned int allow_dups;
 };
 
 /* You cannot add or delete elements from the hashtable while iterating. */
