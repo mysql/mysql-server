@@ -43,6 +43,7 @@ select "--- Local --" as "";
 #
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
 --exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # this should not fail but shouldn't produce any working statements
