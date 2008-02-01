@@ -89,7 +89,7 @@ static inline void toku_free_INTPAIRARRAY(INTPAIRARRAY val) {
 
 static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
     target->len = val.len;
-    target->data = toku_memdup(val.data, val.len);
+    target->data = toku_memdup(val.data, (size_t)val.len);
     if (target->data==0) return errno;
     return 0;
 }
