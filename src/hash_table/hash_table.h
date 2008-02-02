@@ -27,7 +27,7 @@ typedef struct __toku_rth_elt toku_rth_elt;
 struct __toku_rth_elt {
     DB_TXN* key;
     toku_range_forest value;
-    toku_rth_elt* next;
+    toku_rth_elt*   next;
 };
 
 typedef struct {
@@ -37,14 +37,34 @@ typedef struct {
 
 typedef struct __toku_rt_hash_elt toku_rt_hash_elt;
 struct toku_rt_hashtable {
-    toku_rth_elt** table;
-    uint32 num_keys;
-    uint32 array_size;
+    toku_rth_elt**  table;
+    uint32          num_keys;
+    uint32          array_size;
+    uint32          finger_index;
+    toku_rth_elt*   finger_ptr;
+    toku_rth_elt*   free_list;
+    /** The user malloc function */
+    void*          (*malloc) (size_t);
+    /** The user free function */
+    void           (*free)   (void*);
+    /** The user realloc function */
+    void*          (*realloc)(void*, size_t);
 };
 
-int toku_rth_create(toku_rt_hashtable** ptable);
+int toku_rth_create(toku_rt_hashtable** ptable,
+                    void* (*user_malloc) (size_t),
+                    void  (*user_free)   (void*),
+                    void* (*user_realloc)(void*, size_t));
 
-int toku_rth_find(toku_rt_hashtable* table, DB_TXN* key, toku_rt_forest* value, BOOL* found);
-int toku_rth_scan(toku_rt_hashtable* table, toku_rt_forest* value, toku_rth_finger* finger);
+void toku_rth_find(toku_rt_hashtable* table, DB_TXN* key, toku_rt_forest* value,
+                                                                   BOOL* found);
+void toku_rth_start_scan(toku_rt_hashtable* table);
+
+toku_rt_forest* toku_rth_next(toku_rt_hashtable* table);
+
 int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key);
-int toku_rth_close(toku_rt_hashtable* table);
+
+void toku_rth_close(toku_rt_hashtable* table);
+
+int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key,
+                    toku_rt_forsest* value);

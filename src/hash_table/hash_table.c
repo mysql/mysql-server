@@ -9,42 +9,137 @@
   
 */
 
-//Defines BOOL data type.
-#include <brttypes.h>
+#include "hash_table.h"
 
-typedef u_int32_t uint32;
+static uint32 __toku_rth_hash(toku_rt_hashtable* table, DB_TXN* key) {
+    assert(table);
+    size_t tmp = (size_t)key;
+    return tmp % table->array_size;
+}
 
-/* TODO: reallocate the hash table if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
-const uint32 __toku_rth_init_size = 521;
+int toku_rth_create(toku_rt_hashtable** ptable,
+                    void* (*user_malloc) (size_t),
+                    void  (*user_free)   (void*),
+                    void* (*user_realloc)(void*, size_t)) {
+    int r;
+    toku_rt_hashtable* tmp = (toku_rt_hashtable*)user_malloc(sizeof(*tmp));
+    if (0) { died1: user_free(tmp); return r; }
+    if (!tmp) return errno;
 
-typedef struct __toku_rt_forest toku_rt_forest;
-struct __toku_rt_forest {
-    toku_range_tree* selfread;
-    toku_range_tree* selfwrite;
-};
+    memset(tmp, 0, sizeof(*tmp));
+    tmp->malloc     = user_malloc;
+    tmp->free       = user_free;
+    tmp->realloc    = user_realloc;
+    tmp->array_size = __toku_rth_init_size;
+    tmp->table      = (toku_rth_elt**)
+                      tmp->malloc(tmp->array_size * sizeof(*tmp->table));
+    if (!tmp->table) { r = errno; goto died1; }
+    *ptable = tmp;
+    return 0;
+}
 
-typedef struct __toku_rth_elt toku_rth_elt;
-struct __toku_rth_elt {
-    DB_TXN* key;
-    toku_range_forest value;
-    toku_rth_elt* next;
-};
+toku_rt_forest* toku_rth_find(toku_rt_hashtable* table, DB_TXN* key) {
+    assert(table && key);
 
-typedef struct {
-    uint32 index;
-    toku_rth_elt* next;
-} toku_rth_finger;
+    uint32 index = __toku_rth_hash(table, key);
+    toku_rt_hash_elt* element = table->table[index];
+    while (element && element->key != key) element = element->next;
+    return element ? &element->value : NULL;
+}
 
-typedef struct __toku_rt_hash_elt toku_rt_hash_elt;
-struct toku_rt_hashtable {
-    toku_rth_elt** table;
-    uint32 num_keys;
-    uint32 array_size;
-};
+void toku_rth_start_scan(toku_rt_hashtable* table) {
+    assert(table);
+    table->finger_index = 0;
+    table->finger_ptr   = NULL;
+}
 
-int toku_rth_create(toku_rt_hashtable** ptable);
+toku_rt_forest* toku_rth_next(toku_rt_hashtable* table) {
+    assert(table && value && found);
+    if (table->finger_ptr) table->finger_ptr = table->finger_ptr->next;
+    while (!table->finger_ptr && table->finger_index < table->array_size) {
+       table->finger_ptr = table->table[++table->finger_index];
+    };
+    return table->finger_ptr;
+}
 
-int toku_rth_find(toku_rt_hashtable* table, DB_TXN* key, toku_rt_forest* value, BOOL* found);
-int toku_rth_scan(toku_rt_hashtable* table, toku_rt_forest* value, toku_rth_finger* finger);
-int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key);
-int toku_rth_close(toku_rt_hashtable* table);
+int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
+    assert(table && key);
+    /* No elements. */
+    if (!table->num_keys) return EDOM;
+
+    uint32 index = __toku_rth_hash(table, key);
+    toku_rt_hash_elt* element = table->table[index];
+
+    /* No elements of the right hash. */
+    if (!element) return EDOM;
+    /* Case where it is the first element. */
+    if (element->key == key) {
+        table->table[index] = element->next;
+        goto recycle;
+    }
+    toku_rt_hash_elt* prev;
+    /* Case where it is not the first element. */
+    do {
+        prev = element;
+        element = element->next;
+    } while (element && element->key != key);
+    /* Not found. */
+    if (!element) return EDOM;
+    prev->next              = element->next;
+    goto recycle;
+
+recycle:
+    element->next           = table->free_list;
+    table->free_list        = element;
+    table->num_keys--;
+    return 0;    
+}
+    
+void toku_rth_close(toku_rt_hashtable* table) {
+    toku_rt_hash_elt* element;
+    toku_rt_hash_elt* next = NULL;
+
+    toku_rth_start_scan(table);
+    next = toku_rth_next(table);
+    while (next) {
+        element = next;
+        next    = toku_rth_next(table);
+        table->free(element);
+    }
+
+    next = table->free_list;
+    while (next) {
+        element = next;
+        next    = next->next;
+        table->free(element);
+    }
+
+    table->free(table->table);
+    table->free(table);
+}
+
+/* Will allow you to insert it over and over.  You need to keep track. */
+int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key,
+                    toku_rt_forsest* value) {
+    assert(table && key && value);
+
+    uint32 index = __toku_rth_hash(table, key);
+    toku_rt_hash_elt* next      = table->table[index];
+
+    /* Recycle */
+    toku_rt_hash_elt* element;
+    if (table->free_list) {
+        element                 = table->free_list;
+        table->free_list        = table->free_list->next;
+    }
+    else {
+        /* Allocate a new one. */
+        element = (toku_rt_hash_elt*)table->malloc(sizeof(*element));
+        if (!element) return errno;
+    }
+    element->next               = table->table[index];
+    table->table[index]->next   = element;
+    table->num_keys++;
+    return 0;    
+}
+       
