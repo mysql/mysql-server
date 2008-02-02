@@ -47,6 +47,7 @@
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
+#include <rth.h>
 
 /** \brief The lock tree structure */
 typedef struct {
@@ -56,10 +57,7 @@ typedef struct {
     BOOL                duplicates;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
-    //TODO: Remove this tree and have one per transaction.
-    toku_range_tree*    selfread;
-    //TODO: Remove this tree and have one per transaction.
-    toku_range_tree*    selfwrite;
+    toku_rt_hashtable* rth;
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns */
     toku_range*         buf;      

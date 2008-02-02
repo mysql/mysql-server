@@ -45,8 +45,11 @@ clean:
 locktree.o: locktree.c locktree.h
 	gcc $(CFLAGS) $(CPPFLAGS) -c -DTOKU_LINEAR_RANGE_TREE $< -o $@
 
-$(LIBNAME).$(LIBEXT): locktree.o
-	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS) -lrangetreelinear
+rth.o: rth.c rth.h
+	gcc $(CFLAGS) $(CPPFLAGS) -c -DTOKU_LINEAR_RANGE_TREE $< -o $@
 
-$(LIBNAME).a: locktree.o
-	$(AR) rv $@ $<
+$(LIBNAME).$(LIBEXT): locktree.o rth.o
+	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lrangetreelinear
+
+$(LIBNAME).a: locktree.o rth.o
+	$(AR) rv $@ $^

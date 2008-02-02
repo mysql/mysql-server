@@ -9,7 +9,13 @@
   
 */
 
-#include "hash_table.h"
+#include "rth.h"
+#include <assert.h>
+#include <errno.h>
+#include <string.h>
+
+/* TODO: reallocate the hash table if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
+const uint32 __toku_rth_init_size = 521;
 
 static uint32 __toku_rth_hash(toku_rt_hashtable* table, DB_TXN* key) {
     assert(table);
@@ -41,8 +47,8 @@ int toku_rth_create(toku_rt_hashtable** ptable,
 toku_rt_forest* toku_rth_find(toku_rt_hashtable* table, DB_TXN* key) {
     assert(table && key);
 
-    uint32 index = __toku_rth_hash(table, key);
-    toku_rt_hash_elt* element = table->table[index];
+    uint32 index            = __toku_rth_hash(table, key);
+    toku_rth_elt* element   = table->table[index];
     while (element && element->key != key) element = element->next;
     return element ? &element->value : NULL;
 }
@@ -53,13 +59,19 @@ void toku_rth_start_scan(toku_rt_hashtable* table) {
     table->finger_ptr   = NULL;
 }
 
-toku_rt_forest* toku_rth_next(toku_rt_hashtable* table) {
-    assert(table && value && found);
+toku_rth_elt* __toku_rth_next(toku_rt_hashtable* table) {
+    assert(table);
     if (table->finger_ptr) table->finger_ptr = table->finger_ptr->next;
     while (!table->finger_ptr && table->finger_index < table->array_size) {
        table->finger_ptr = table->table[++table->finger_index];
     };
     return table->finger_ptr;
+}
+
+toku_rt_forest* toku_rth_next(toku_rt_hashtable* table) {
+    assert(table);
+    toku_rth_elt* next = __toku_rth_next(table);
+    return next ? &next->value : NULL;
 }
 
 int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
@@ -68,7 +80,7 @@ int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
     if (!table->num_keys) return EDOM;
 
     uint32 index = __toku_rth_hash(table, key);
-    toku_rt_hash_elt* element = table->table[index];
+    toku_rth_elt* element = table->table[index];
 
     /* No elements of the right hash. */
     if (!element) return EDOM;
@@ -77,7 +89,7 @@ int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
         table->table[index] = element->next;
         goto recycle;
     }
-    toku_rt_hash_elt* prev;
+    toku_rth_elt* prev;
     /* Case where it is not the first element. */
     do {
         prev = element;
@@ -96,14 +108,14 @@ recycle:
 }
     
 void toku_rth_close(toku_rt_hashtable* table) {
-    toku_rt_hash_elt* element;
-    toku_rt_hash_elt* next = NULL;
+    toku_rth_elt* element;
+    toku_rth_elt* next = NULL;
 
     toku_rth_start_scan(table);
-    next = toku_rth_next(table);
+    next = __toku_rth_next(table);
     while (next) {
         element = next;
-        next    = toku_rth_next(table);
+        next    = __toku_rth_next(table);
         table->free(element);
     }
 
@@ -119,27 +131,26 @@ void toku_rth_close(toku_rt_hashtable* table) {
 }
 
 /* Will allow you to insert it over and over.  You need to keep track. */
-int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key,
-                    toku_rt_forsest* value) {
-    assert(table && key && value);
+int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key) {
+    assert(table && key);
 
     uint32 index = __toku_rth_hash(table, key);
-    toku_rt_hash_elt* next      = table->table[index];
 
     /* Recycle */
-    toku_rt_hash_elt* element;
+    toku_rth_elt* element;
     if (table->free_list) {
-        element                 = table->free_list;
-        table->free_list        = table->free_list->next;
+        element             = table->free_list;
+        table->free_list    = table->free_list->next;
     }
     else {
         /* Allocate a new one. */
-        element = (toku_rt_hash_elt*)table->malloc(sizeof(*element));
+        element = (toku_rth_elt*)table->malloc(sizeof(*element));
         if (!element) return errno;
     }
-    element->next               = table->table[index];
-    table->table[index]->next   = element;
+    memset(&element->value, 0, sizeof(toku_rt_forest));
+    element->key            = key;
+    element->next           = table->table[index];
+    table->table[index]     = element;
     table->num_keys++;
     return 0;    
 }
-       

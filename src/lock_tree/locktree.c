@@ -176,42 +176,22 @@ static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
     return 0;
 }
 
-/* Provides access to a selfwrite tree for a particular transaction.
-   Returns NULL if it does not exist yet. */
-toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
-                                             DB_TXN* txn) {
-    assert(tree && txn);
-//TODO: Implement real version.
-return tree->selfwrite;
-}
 
 /* Provides access to a selfread tree for a particular transaction.
    Returns NULL if it does not exist yet. */
 toku_range_tree* __toku_lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn) {
     assert(tree && txn);
-//TODO: Implement.
-return tree->selfread;
+    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    return forest ? forest->self_read : NULL;
 }
 
 /* Provides access to a selfwrite tree for a particular transaction.
-   Creates it if it does not exist. */
-static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
-                               toku_range_tree** pselfwrite) {
-    int r;
-    assert(tree && txn && pselfwrite);
-
-//TODO: Remove this, and use multiples per transaction
-if (!tree->selfwrite)
-{
-r = toku_rt_create(&tree->selfwrite,
-                   __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
-                   tree->malloc, tree->free, tree->realloc);
-if(r!=0) return r;
-}
-assert(tree->selfwrite);
-*pselfwrite = tree->selfwrite;
-
-    return 0;
+   Returns NULL if it does not exist yet. */
+toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
+                                             DB_TXN* txn) {
+    assert(tree && txn);
+    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    return forest ? forest->self_write : NULL;
 }
 
 /* Provides access to a selfread tree for a particular transaction.
@@ -221,19 +201,51 @@ static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
     int r;
     assert(tree && txn && pselfread);
 
-//TODO: Remove this, and use multiples per transaction
-if (!tree->selfread)
-{
-r = toku_rt_create(&tree->selfread,
-                   __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
-                   tree->malloc, tree->free, tree->realloc);
-if(r!=0) return r;
-}
-assert(tree->selfread);
-*pselfread = tree->selfread;
-
+    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    if (!forest) {
+        r = toku_rth_insert(tree->rth, txn);
+        if (r!=0) return r;
+        forest = toku_rth_find(tree->rth, txn);
+    }
+    assert(forest);
+    if (!forest->self_read) {
+        r = toku_rt_create(&forest->self_read,
+                           __toku_lt_point_cmp, __toku_lt_txn_cmp,
+                           FALSE,
+                           tree->malloc, tree->free, tree->realloc);
+        if (r!=0) return r;
+        assert(forest->self_read);
+    }
+    *pselfread = forest->self_read;
     return 0;
 }
+
+/* Provides access to a selfwrite tree for a particular transaction.
+   Creates it if it does not exist. */
+static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
+                               toku_range_tree** pselfwrite) {
+    int r;
+    assert(tree && txn && pselfwrite);
+
+    toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
+    if (!forest) {
+        r = toku_rth_insert(tree->rth, txn);
+        if (r!=0) return r;
+        forest = toku_rth_find(tree->rth, txn);
+    }
+    assert(forest);
+    if (!forest->self_write) {
+        r = toku_rt_create(&forest->self_write,
+                           __toku_lt_point_cmp, __toku_lt_txn_cmp,
+                           FALSE,
+                           tree->malloc, tree->free, tree->realloc);
+        if (r!=0) return r;
+        assert(forest->self_write);
+    }
+    *pselfwrite = forest->self_write;
+    return 0;
+}
+
 
 /*
     This function only supports non-overlapping trees.
@@ -884,12 +896,13 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
                        user_malloc, user_free, user_realloc);
     if (0) { died3: toku_rt_close(tmp_tree->borderwrite); goto died2; }
     if (r!=0) goto died2;
+    r = toku_rth_create(&tmp_tree->rth, user_malloc, user_free, user_realloc);
+    if (0) { died4: toku_rth_close(tmp_tree->rth); goto died3; }
+    if (r!=0) goto died3;
     tmp_tree->buflen = __toku_default_buflen;
     tmp_tree->buf    = (toku_range*)
                         user_malloc(tmp_tree->buflen * sizeof(toku_range));
-    if (!tmp_tree->buf) { r = errno; goto died3; }
-//TODO: Create list of selfreads
-//TODO: Create list of selfwrites
+    if (!tmp_tree->buf) { r = errno; goto died4; }
     *ptree = tmp_tree;
     return 0;
 }
@@ -902,16 +915,18 @@ int toku_lt_close(toku_lock_tree* tree) {
     if        (r!=0) r2 = r;
     r = toku_rt_close(tree->borderwrite);
     if (!r2 && r!=0) r2 = r;
-//TODO: Do this to ALLLLLLLL selfread and ALLLLLL selfwrite tables.
-    /* Free all points referred to in a range tree (and close the tree). */
-r = __toku_lt_free_contents(tree,
-                            __toku_lt_ifexist_selfread (tree, (DB_TXN*)1), NULL);
-if (!r2 && r!=0) r2 = r;
-r= __toku_lt_free_contents( tree,
-                            __toku_lt_ifexist_selfwrite(tree, (DB_TXN*)1), NULL);
-if (!r2 && r!=0) r2 = r;
-//TODO: After freeing the tree, need to remove it from both lists!!!
-//      One list probably IN the transaction, and one additional one here.
+
+    toku_rth_start_scan(tree->rth);
+    toku_rt_forest* forest;
+    
+    while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        r = __toku_lt_free_contents(tree, forest->self_read,  NULL);
+        if (!r2 && r!=0) r2 = r;
+        r = __toku_lt_free_contents(tree, forest->self_write, NULL);
+        if (!r2 && r!=0) r2 = r;
+    }
+    toku_rth_close(tree->rth);
+
     tree->free(tree->buf);
     tree->free(tree);
     return r2;
