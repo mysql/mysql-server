@@ -3,6 +3,8 @@
 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#if !defined(TOKU_RANGE_TREE_H)
+#define TOKU_RANGE_TREE_H
 /**
    \file  rangetree.h
    \brief Range trees: header and comments
@@ -223,3 +225,4 @@ int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
  */
 int toku_rt_successor(toku_range_tree* tree, void* point, toku_range* succ,
                       BOOL* wasfound);
+#endif  /* #if !defined(TOKU_RANGE_TREE_H) */
