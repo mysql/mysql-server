@@ -47,7 +47,10 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
                 myf MyFlags)
 {
   size_t readbytes;
-  int error= 0, save_errno;
+  int error= 0;
+#ifndef HAVE_PREAD
+  int save_errno;
+#endif
 #ifndef DBUG_OFF
   char llbuf[22];
   DBUG_ENTER("my_pread");
