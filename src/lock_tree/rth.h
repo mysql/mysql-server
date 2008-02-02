@@ -36,6 +36,7 @@ struct __toku_rt_hashtable {
     uint32          array_size;
     uint32          finger_index;
     toku_rth_elt*   finger_ptr;
+    BOOL            finger_end;
     toku_rth_elt*   free_list;
     /** The user malloc function */
     void*          (*malloc) (size_t);

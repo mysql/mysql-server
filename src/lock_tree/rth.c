@@ -23,6 +23,10 @@ static uint32 __toku_rth_hash(toku_rt_hashtable* table, DB_TXN* key) {
     return tmp % table->array_size;
 }
 
+static inline void __toku_invalidate_scan(toku_rt_hashtable* table) {
+    table->finger_end   = TRUE;
+}
+
 int toku_rth_create(toku_rt_hashtable** ptable,
                     void* (*user_malloc) (size_t),
                     void  (*user_free)   (void*),
@@ -33,13 +37,15 @@ int toku_rth_create(toku_rt_hashtable** ptable,
     if (!tmp) return errno;
 
     memset(tmp, 0, sizeof(*tmp));
-    tmp->malloc     = user_malloc;
-    tmp->free       = user_free;
-    tmp->realloc    = user_realloc;
-    tmp->array_size = __toku_rth_init_size;
-    tmp->table      = (toku_rth_elt**)
-                      tmp->malloc(tmp->array_size * sizeof(*tmp->table));
+    tmp->malloc         = user_malloc;
+    tmp->free           = user_free;
+    tmp->realloc        = user_realloc;
+    tmp->array_size     = __toku_rth_init_size;
+    tmp->table          = (toku_rth_elt**)
+                          tmp->malloc(tmp->array_size * sizeof(*tmp->table));
     if (!tmp->table) { r = errno; goto died1; }
+    memset(tmp->table, 0, tmp->array_size * sizeof(*tmp->table));
+    __toku_invalidate_scan(tmp);
     *ptable = tmp;
     return 0;
 }
@@ -56,15 +62,19 @@ toku_rt_forest* toku_rth_find(toku_rt_hashtable* table, DB_TXN* key) {
 void toku_rth_start_scan(toku_rt_hashtable* table) {
     assert(table);
     table->finger_index = 0;
-    table->finger_ptr   = NULL;
+    table->finger_ptr   = table->table[table->finger_index];
+    table->finger_end   = FALSE;
 }
 
 toku_rth_elt* __toku_rth_next(toku_rt_hashtable* table) {
     assert(table);
+    assert(!table->finger_end);
+    
     if (table->finger_ptr) table->finger_ptr = table->finger_ptr->next;
-    while (!table->finger_ptr && table->finger_index < table->array_size) {
-       table->finger_ptr = table->table[++table->finger_index];
-    };
+    while (!table->finger_ptr && ++table->finger_index < table->array_size) {
+       table->finger_ptr = table->table[table->finger_index]; 
+    }
+    table->finger_end = !table->finger_ptr;
     return table->finger_ptr;
 }
 
@@ -76,6 +86,8 @@ toku_rt_forest* toku_rth_next(toku_rt_hashtable* table) {
 
 int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
     assert(table && key);
+    __toku_invalidate_scan(table);
+
     /* No elements. */
     if (!table->num_keys) return EDOM;
 
@@ -133,6 +145,7 @@ void toku_rth_close(toku_rt_hashtable* table) {
 /* Will allow you to insert it over and over.  You need to keep track. */
 int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key) {
     assert(table && key);
+    __toku_invalidate_scan(table);
 
     uint32 index = __toku_rth_hash(table, key);
 
