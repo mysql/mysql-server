@@ -16,44 +16,47 @@
 #ifndef _dbug_h
 #define _dbug_h
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 extern "C" {
 #endif
 #if !defined(DBUG_OFF) && !defined(_lint)
+
+struct _db_stack_frame_ {
+  const char *func;      /* function name of the previous stack frame       */
+  const char *file;      /* filename of the function of previous frame      */
+  uint level;            /* this nesting level, highest bit enables tracing */
+  struct _db_stack_frame_ *prev; /* pointer to the previous frame */
+};
+
 struct  _db_code_state_;
 extern  my_bool _dbug_on_;
-extern	my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
+extern  my_bool _db_keyword_(struct _db_code_state_ *, const char *, int);
 extern  int _db_explain_(struct _db_code_state_ *cs, char *buf, size_t len);
 extern  int _db_explain_init_(char *buf, size_t len);
-extern	void _db_setjmp_(void);
-extern	void _db_longjmp_(void);
+extern  void _db_setjmp_(void);
+extern  void _db_longjmp_(void);
 extern  void _db_process_(const char *name);
-extern	void _db_push_(const char *control);
-extern	void _db_pop_(void);
-extern  void _db_set_(struct _db_code_state_ *cs, const char *control);
+extern  void _db_push_(const char *control);
+extern  void _db_pop_(void);
+extern  void _db_set_(const char *control);
 extern  void _db_set_init_(const char *control);
-extern	void _db_enter_(const char *_func_,const char *_file_,uint _line_,
-			const char **_sfunc_,const char **_sfile_,
-			uint *_slevel_, char ***);
-extern	void _db_return_(uint _line_,const char **_sfunc_,const char **_sfile_,
-			 uint *_slevel_);
-extern	void _db_pargs_(uint _line_,const char *keyword);
-extern	void _db_doprnt_ _VARARGS((const char *format,...))
+extern void _db_enter_(const char *_func_, const char *_file_, uint _line_,
+                       struct _db_stack_frame_ *_stack_frame_);
+extern  void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_);
+extern  void _db_pargs_(uint _line_,const char *keyword);
+extern  void _db_doprnt_ _VARARGS((const char *format,...))
   ATTRIBUTE_FORMAT(printf, 1, 2);
-extern	void _db_dump_(uint _line_,const char *keyword,
+extern  void _db_dump_(uint _line_,const char *keyword,
                        const unsigned char *memory, size_t length);
-extern	void _db_end_(void);
-extern	void _db_lock_file_(void);
-extern	void _db_unlock_file_(void);
+extern  void _db_end_(void);
+extern  void _db_lock_file_(void);
+extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
 extern  void _db_force_flush();
 
-#define DBUG_ENTER(a) const char *_db_func_, *_db_file_; uint _db_level_; \
-	char **_db_framep_; \
-	_db_enter_ (a,__FILE__,__LINE__,&_db_func_,&_db_file_,&_db_level_, \
-		    &_db_framep_)
-#define DBUG_LEAVE \
-	_db_return_ (__LINE__, &_db_func_, &_db_file_, &_db_level_)
+#define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
+        _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
+#define DBUG_LEAVE _db_return_ (__LINE__, &_db_stack_frame_)
 #define DBUG_RETURN(a1) do {DBUG_LEAVE; return(a1);} while(0)
 #define DBUG_VOID_RETURN do {DBUG_LEAVE; return;} while(0)
 #define DBUG_EXECUTE(keyword,a1) \
@@ -68,7 +71,7 @@ extern  void _db_force_flush();
         do {_db_pargs_(__LINE__,keyword); _db_doprnt_ arglist;} while(0)
 #define DBUG_PUSH(a1) _db_push_ (a1)
 #define DBUG_POP() _db_pop_ ()
-#define DBUG_SET(a1) _db_set_ (0, (a1))
+#define DBUG_SET(a1) _db_set_ (a1)
 #define DBUG_SET_INITIAL(a1) _db_set_init_ (a1)
 #define DBUG_PROCESS(a1) _db_process_(a1)
 #define DBUG_FILE _db_fp_()
@@ -84,7 +87,7 @@ extern  void _db_force_flush();
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
-#else						/* No debugger */
+#else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
 #define DBUG_LEAVE
@@ -114,7 +117,7 @@ extern  void _db_force_flush();
 #define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A)
 #endif
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 #endif

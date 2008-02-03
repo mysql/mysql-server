@@ -908,17 +908,17 @@ via the
 .B DBUG_PUSH 
 or
 .B DBUG_SET
-macros. Control string consists of colon separate flags.  Colons
+macros. Control string consists of colon separated flags.  Colons
 that are part of ':\\',  ':/', or '::' are not considered flag
 separators. A flag may take an argument or a list of arguments.
 If a control string starts from a '+' sign it works
 .I incrementally,
-that is, it can modify existing state without overriding it. In such a
-string every flag may be preceded by a '+' or '-' to enable or disable
-a corresponding option in the debugger state.  This section summarizes
-the currently available debugger options and the flag characters which
-enable or disable them.  Argument lists enclosed in '[' and ']' are
-optional.
+that is, it can modify existing state without overriding it.  Every
+flag may be preceded by a '+' or '-' to enable or disable a
+corresponding option in the debugger state or to add or remove
+arguments to the list. This section summarizes the currently available
+debugger options and the flag characters which enable or disable them.
+Argument lists enclosed in '[' and ']' are optional.
 .SP 2
 .BL 22
 .LI a[,file]
@@ -942,6 +942,15 @@ Default is zero.
 .LI f[,functions]
 Limit debugger actions to the specified list of functions.
 An empty list of functions implies that all functions are selected.
+Every function in the list may optionally be followed by a '/' -
+this will implicitly select all the functions down the call stack.
+.SP 1
+EX: \fCf,func1,func2/:-f,func3,func4/\fR
+.SP 1
+This would enable debugger in functions 'func1()', 'func2()' and all
+functions called from it (directly or indirectly). But not in
+functions 'func3()' or 'func4()' and all functions called from
+it.
 .LI F
 Mark each debugger output line with the name of the source file
 containing the macro causing the output.

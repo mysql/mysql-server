@@ -6,6 +6,8 @@
 #undef DBUG_OFF
 #endif
 
+char *push1=0;
+
 #include <my_global.h>  /* This includes dbug.h */
 #include <my_pthread.h>
 #include <string.h>
@@ -29,6 +31,11 @@ int func1()
 {
   DBUG_ENTER("func1");
   func2();
+  if (push1)
+  {
+    DBUG_PUSH(push1);
+    fprintf(DBUG_FILE, "=> push1\n");
+  }
   DBUG_RETURN(10);
 }
 
@@ -43,12 +50,16 @@ int main (int argc, char *argv[])
 #endif
   dup2(1, 2);
   for (i = 1; i < argc; i++)
-    DBUG_PUSH (argv[i]);
+  {
+    if (strncmp(argv[i], "--push1=", 8) == 0)
+      push1=argv[i]+8;
+    else
+      DBUG_PUSH (argv[i]);
+  }
   {
     DBUG_ENTER ("main");
     DBUG_PROCESS ("dbug-tests");
     func1();
-    func2();
     DBUG_EXECUTE_IF("dump",
     {
       char s[1000];
@@ -68,6 +79,7 @@ int main (int argc, char *argv[])
       DBUG_EXPLAIN(s, sizeof(s)-1);
       DBUG_PRINT("explain", ("dbug explained: %s", s));
     }
+    func2();
     DBUG_RETURN (0);
   }
 }
