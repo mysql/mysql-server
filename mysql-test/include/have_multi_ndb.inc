@@ -4,7 +4,7 @@ connect (server2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 
 # Check that server1 has NDB  support
 connection server1;
-let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'engines', Tables_in_information_schema (engines), 1);
+let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'ENGINES', Tables_in_information_schema (ENGINES), 1);
 disable_query_log;
 if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
@@ -16,7 +16,7 @@ enable_query_log;
 
 # Check that server2 has NDB support
 connection server2;
-let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'engines', Tables_in_information_schema (engines), 1);
+let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'ENGINES', Tables_in_information_schema (ENGINES), 1);
 disable_query_log;
 if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
 {
