@@ -367,8 +367,18 @@ sub mtr_report_stats ($) {
 		# master
 		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
 		/Slave: Can't DROP 'c7'.* 1091/ or
-		/Slave: Key column 'c6'.* 1072/
-	       )
+		/Slave: Key column 'c6'.* 1072/ or
+
+		# rpl_idempotency.test produces warnings for the slave.
+		($testname eq 'rpl.rpl_idempotency' and
+		 (/Slave: Can\'t find record in \'t1\' Error_code: 1032/ or
+                  /Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452/
+		 )) or
+
+		# rpl_skip_error produce an error which is skipped (slave does not stop)
+		($testname eq 'rpl.rpl_skip_error' and
+		 /Failed to write to mysql\.general_log/)
+		)
             {
               next;                       # Skip these lines
             }
