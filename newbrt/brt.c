@@ -2053,10 +2053,10 @@ static int brt_cursor_compare_set(brt_search_t *search, DBT *x, DBT *y) {
     return compare_kv_xy(brt, search->k, search->v, x, y) <= 0; /* return min xy: kv <= xy */
 }
 
-static int brt_cursor_current(BRT_CURSOR cursor, int get_flags, DBT *outkey, DBT *outval, TOKUTXN txn) {
+static int brt_cursor_current(BRT_CURSOR cursor, int op, DBT *outkey, DBT *outval, TOKUTXN txn) {
     if (brt_cursor_not_set(cursor))
         return EINVAL;
-    if ((get_flags & 256) == 0) {
+    if (op == DB_CURRENT) {
         DBT newkey; toku_init_dbt(&newkey);
         DBT newval; toku_init_dbt(&newval);
 
@@ -2236,17 +2236,16 @@ static int brt_cursor_set_range(BRT_CURSOR cursor, DBT *key, DBT *outkey, DBT *o
 }
 
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, int get_flags, TOKUTXN txn) {
-    assert(txn == 0);
-
     int r;
 
-    if ((get_flags & ~(DB_OPFLAGS_MASK+256)))
+    int op = get_flags & DB_OPFLAGS_MASK;
+    if (get_flags & ~DB_OPFLAGS_MASK) 
         return EINVAL;
 
-    switch (get_flags) {
+    switch (op) {
     case DB_CURRENT:
-    case DB_CURRENT+256:
-        r = brt_cursor_current(cursor, get_flags, key, val, txn);
+    case DB_CURRENT_BINDING:
+        r = brt_cursor_current(cursor, op, key, val, txn);
         break;
     case DB_FIRST:
         r = brt_cursor_first(cursor, key, val, txn);

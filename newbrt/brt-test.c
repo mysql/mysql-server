@@ -2577,7 +2577,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
         memcpy(&vv, val.data, val.size);
         assert(vv == (int) htonl(i));
 
-        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT+256, null_txn); assert(r == 0);
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT_BINDING, null_txn); assert(r == 0);
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
         assert(kk == (int) htonl(i));
@@ -2589,7 +2589,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
 
         r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT, null_txn); assert(r == DB_KEYEMPTY);
 
-        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT+256, null_txn); assert(r == 0);
+        r = toku_brt_cursor_get(cursor, &key, &val, DB_CURRENT_BINDING, null_txn); assert(r == 0);
         assert(key.size == sizeof kk);
         memcpy(&kk, key.data, key.size);
         assert(kk == (int) htonl(i));

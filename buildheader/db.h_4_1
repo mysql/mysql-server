@@ -89,6 +89,7 @@ typedef enum {
 #define DB_PREV_NODUP 28
 #define DB_SET 30
 #define DB_SET_RANGE 32
+#define DB_CURRENT_BINDING 253
 #define DB_RMW 1073741824
 #define DB_DBT_APPMALLOC 1
 #define DB_TXN_WRITE_NOSYNC 524288
