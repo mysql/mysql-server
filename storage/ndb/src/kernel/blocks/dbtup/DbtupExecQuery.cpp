@@ -1503,32 +1503,22 @@ int Dbtup::handleDeleteReq(Signal* signal,
   else 
   {
     regOperPtr->tupVersion= req_struct->m_tuple_ptr->get_tuple_version();
-    if(regTabPtr->m_no_of_disk_attributes)
+  }
+
+  if(disk && regOperPtr->m_undo_buffer_space == 0)
+  {
+    regOperPtr->op_struct.m_wait_log_buffer = 1;
+    regOperPtr->op_struct.m_load_diskpage_on_commit = 1;
+    Uint32 sz= regOperPtr->m_undo_buffer_space= 
+      (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
+      regTabPtr->m_offsets[DD].m_fix_header_size - 1;
+    
+    terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
+                                         sz);
+    if(unlikely(terrorCode))
     {
-      Uint32 sz;
-      if(regTabPtr->m_attributes[DD].m_no_of_varsize)
-      {
-	/**
-	 * Need to have page in memory to read size 
-	 *   to alloc undo space
-	 */
-	abort();
-      }
-      else
-	sz= (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
-	  regTabPtr->m_offsets[DD].m_fix_header_size - 1;
-      
-      regOperPtr->m_undo_buffer_space= sz;
-      
-      int res;
-      if((res= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id, 
-					sz)))
-      {
-	terrorCode= res;
-	regOperPtr->m_undo_buffer_space= 0;
-	goto error;
-      }
-      
+      regOperPtr->m_undo_buffer_space= 0;
+      goto error;
     }
   }
   if (req_struct->attrinfo_len == 0)
@@ -1537,7 +1527,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
   }
 
   if (regTabPtr->need_expand(disk))
+  {
     prepare_read(req_struct, regTabPtr, disk);
+  }
   
   {
     Uint32 RlogSize;
