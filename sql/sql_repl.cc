@@ -1599,7 +1599,7 @@ int log_loaded_block(IO_CACHE* file)
   uint max_event_size= current_thd->variables.max_allowed_packet;
   lf_info= (LOAD_FILE_INFO*) file->arg;
   if (lf_info->thd->current_stmt_binlog_row_based)
-    return 0;
+    DBUG_RETURN(0);
   if (lf_info->last_pos_in_file != HA_POS_ERROR &&
       lf_info->last_pos_in_file >= my_b_get_pos_in_file(file))
     DBUG_RETURN(0);
