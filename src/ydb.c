@@ -1135,7 +1135,7 @@ static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
         r = EINVAL; goto finish;
     }
 
-    r = toku_c_get(cursor, &currentkey, &currentval, DB_CURRENT+256);
+    r = toku_c_get(cursor, &currentkey, &currentval, DB_CURRENT_BINDING);
     if (r != 0) goto finish;
     
     r = toku_db_cursor(cursor->dbp, 0, &count_cursor, 0);

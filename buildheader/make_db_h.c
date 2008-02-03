@@ -101,6 +101,7 @@ void print_defines (void) {
     dodefine(DB_PREV_NODUP);
     dodefine(DB_SET);
     dodefine(DB_SET_RANGE);
+    printf("#define DB_CURRENT_BINDING 253\n"); // private tokudb
     dodefine(DB_RMW);
 
     dodefine(DB_DBT_APPMALLOC);
