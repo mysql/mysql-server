@@ -11,10 +11,7 @@
 ##############################################################################
 partition_03ndb          : BUG#16385 2006-03-24 mikael Partitions: crash when updating a range partitioned NDB table
 
-ndb_binlog_log_bin       : Bug #34244 2008-02-02 mats Test ndb_binlog_log_bin fails for 'drop table if exists t1,t2,t3'
-ndb_binlog_multi         : Bug #34245 2008-02-02 mats Test ndb_binlog_multi fails for 'CREATE TABLE'
 ndb_partition_error2	 : HF is not sure if the test can work as internded on all the platforms
-rpl_ndb_transaction      : Bug #34246 2008-02-02 mats Test rpl_ndb_transaction fails with 'Failed to create 'mysql/ndb_apply_status'
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 #ndb_binlog_ddl_multi     : BUG#18976 2006-04-10 kent    CRBR: multiple binlog, second binlog may miss schema log events
