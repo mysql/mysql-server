@@ -1876,11 +1876,7 @@ Ndb::printState(const char* fmt, ...)
   NdbMutex_Lock(ndb_print_state_mutex);
   bool dups = false;
   unsigned i;
-  ndbout << buf << " ndb=" << hex << this << dec;
-#ifndef NDB_WIN32
-  ndbout << " thread=" << (int)pthread_self();
-#endif
-  ndbout << endl;
+  ndbout << buf << " ndb=" << hex << (void*)this << endl;
   for (unsigned n = 0; n < MAX_NDB_NODES; n++) {
     NdbTransaction* con = theConnectionArray[n];
     if (con != 0) {
