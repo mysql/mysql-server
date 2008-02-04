@@ -728,21 +728,22 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     return 0;
 }
 
-static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_self,
+static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_borderwrite,
                                 toku_range* pred, toku_range* succ,
                                 BOOL* found_p,    BOOL* found_s,
                                 toku_range* to_insert) {
     assert(tree && pred && succ && found_p && found_s);                                    
     int r;
     toku_range_tree* rt;
-    rt = in_self ? tree->borderwrite : 
-                   __toku_lt_ifexist_selfwrite(tree, tree->buf[0].data);
+    rt = in_borderwrite ? tree->borderwrite : 
+                          __toku_lt_ifexist_selfwrite(tree, tree->buf[0].data);
     if (!rt)  return __toku_lt_panic(tree);
     r = toku_rt_predecessor(rt, to_insert->left,  pred, found_p);
     if (r!=0) return r;
     r = toku_rt_successor  (rt, to_insert->right, succ, found_s);
     if (r!=0) return r;
-    if (*found_p && *found_s && pred->data == succ->data) {
+    if (in_borderwrite && *found_p && *found_s && pred->data == succ->data &&
+        pred->data == to_insert->data) {
         return __toku_lt_panic(tree); }
     return 0;
 }
@@ -1090,7 +1091,7 @@ static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
     BOOL found_p;
     BOOL found_s;
 
-    r = __toku_lt_get_border(tree, FALSE, &pred, &succ, &found_p, &found_s,
+    r = __toku_lt_get_border(tree, TRUE, &pred, &succ, &found_p, &found_s,
                              &buf[0]);
     if (r!=0) return r;
 
