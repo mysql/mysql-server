@@ -4,7 +4,6 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-reset master;
 set session sql_log_bin=0;
 delete from mysql.user where Host='fakehost';
 set session sql_log_bin=1;
