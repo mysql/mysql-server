@@ -2138,8 +2138,11 @@ btr_cur_pessimistic_update(
 	rec_offs_make_valid(rec, index, offsets);
 
 	/* The page containing the clustered index record
-	corresponding to new_entry is latched in mtr.
-	Thus the following call is safe. */
+	corresponding to new_entry is latched in mtr.  If the
+	clustered index record is delete-marked, then its externally
+	stored fields cannot have been purged yet, because then the
+	purge would also have removed the clustered index record
+	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
 						     FALSE, *heap, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {

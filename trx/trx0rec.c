@@ -1363,7 +1363,7 @@ trx_undo_get_undo_rec(
 Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
-is locked. */
+is locked all the way down to the purge_view. */
 
 ulint
 trx_undo_prev_version_build(
@@ -1384,7 +1384,9 @@ trx_undo_prev_version_build(
 				needed is allocated */
 	rec_t**		old_vers)/* out, own: previous version, or NULL if
 				rec is the first inserted version, or if
-				history data has been deleted */
+				history data has been deleted (an error),
+				or if the purge COULD have removed the version
+				though it has not yet done so */
 {
 	trx_undo_rec_t*	undo_rec;
 	dtuple_t*	entry;
@@ -1440,7 +1442,9 @@ trx_undo_prev_version_build(
 
 	err = trx_undo_get_undo_rec(roll_ptr, rec_trx_id, &undo_rec, heap);
 
-	if (err != DB_SUCCESS) {
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		/* The undo record may already have been purged.
+		This should never happen in InnoDB. */
 
 		return(err);
 	}
@@ -1450,6 +1454,29 @@ trx_undo_prev_version_build(
 
 	ptr = trx_undo_update_rec_get_sys_cols(ptr, &trx_id, &roll_ptr,
 					       &info_bits);
+
+	/* (a) If a clustered index record version is such that the
+	trx id stamp in it is bigger than purge_sys->view, then the
+	BLOBs in that version are known to exist (the purge has not
+	progressed that far);
+
+	(b) if the version is the first version such that trx id in it
+	is less than purge_sys->view, and it is not delete-marked,
+	then the BLOBs in that version are known to exist (the purge
+	cannot have purged the BLOBs referenced by that version
+	yet). */
+
+	if ((info_bits & REC_INFO_DELETED_FLAG)
+	     && !trx_purge_update_undo_must_exist(trx_id)) {
+
+		/* The purge may have already freed the externally
+		stored fields associated with this update undo log
+		record.  Do not try to fetch them, as our read view
+		would see this row version as delete-marked anyway. */
+
+		return(DB_SUCCESS);
+	}
+
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
 	ptr = trx_undo_update_rec_get_update(ptr, index, type, trx_id,
