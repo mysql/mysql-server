@@ -17,22 +17,22 @@
 /* TODO: reallocate the hash table if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
 const uint32 __toku_rth_init_size = 521;
 
-static uint32 __toku_rth_hash(toku_rt_hashtable* table, DB_TXN* key) {
-    assert(table);
+static inline uint32 __toku_rth_hash(toku_rth* table, DB_TXN* key) {
     size_t tmp = (size_t)key;
     return tmp % table->array_size;
 }
 
-static inline void __toku_invalidate_scan(toku_rt_hashtable* table) {
+static inline void __toku_invalidate_scan(toku_rth* table) {
     table->finger_end   = TRUE;
 }
 
-int toku_rth_create(toku_rt_hashtable** ptable,
+int toku_rth_create(toku_rth** ptable,
                     void* (*user_malloc) (size_t),
                     void  (*user_free)   (void*),
                     void* (*user_realloc)(void*, size_t)) {
+    assert(ptable && user_malloc && user_free && user_realloc);
     int r;
-    toku_rt_hashtable* tmp = (toku_rt_hashtable*)user_malloc(sizeof(*tmp));
+    toku_rth* tmp = (toku_rth*)user_malloc(sizeof(*tmp));
     if (0) { died1: user_free(tmp); return r; }
     if (!tmp) return errno;
 
@@ -50,7 +50,7 @@ int toku_rth_create(toku_rt_hashtable** ptable,
     return 0;
 }
 
-toku_rt_forest* toku_rth_find(toku_rt_hashtable* table, DB_TXN* key) {
+toku_rt_forest* toku_rth_find(toku_rth* table, DB_TXN* key) {
     assert(table && key);
 
     uint32 index            = __toku_rth_hash(table, key);
@@ -59,14 +59,14 @@ toku_rt_forest* toku_rth_find(toku_rt_hashtable* table, DB_TXN* key) {
     return element ? &element->value : NULL;
 }
 
-void toku_rth_start_scan(toku_rt_hashtable* table) {
+void toku_rth_start_scan(toku_rth* table) {
     assert(table);
     table->finger_index = 0;
     table->finger_ptr   = table->table[table->finger_index];
     table->finger_end   = FALSE;
 }
 
-toku_rth_elt* __toku_rth_next(toku_rt_hashtable* table) {
+static inline toku_rth_elt* __toku_rth_next(toku_rth* table) {
     assert(table);
     assert(!table->finger_end);
     
@@ -78,48 +78,67 @@ toku_rth_elt* __toku_rth_next(toku_rt_hashtable* table) {
     return table->finger_ptr;
 }
 
-toku_rt_forest* toku_rth_next(toku_rt_hashtable* table) {
+toku_rt_forest* toku_rth_next(toku_rth* table) {
     assert(table);
     toku_rth_elt* next = __toku_rth_next(table);
     return next ? &next->value : NULL;
 }
 
-int toku_rth_delete(toku_rt_hashtable* table, DB_TXN* key) {
+/* Element MUST exist. */
+void toku_rth_delete(toku_rth* table, DB_TXN* key) {
     assert(table && key);
     __toku_invalidate_scan(table);
 
-    /* No elements. */
-    if (!table->num_keys) return EDOM;
+    /* Must have elements. */
+    assert(table->num_keys);
 
     uint32 index = __toku_rth_hash(table, key);
     toku_rth_elt* element = table->table[index];
 
-    /* No elements of the right hash. */
-    if (!element) return EDOM;
+    /* Elements of the right hash must exist. */
+    assert(element);
     /* Case where it is the first element. */
     if (element->key == key) {
         table->table[index] = element->next;
-        goto recycle;
+        table->free(element);
+        table->num_keys--;
+        return;
     }
     toku_rth_elt* prev;
     /* Case where it is not the first element. */
     do {
+        assert(element);
         prev = element;
         element = element->next;
-    } while (element && element->key != key);
-    /* Not found. */
-    if (!element) return EDOM;
+    } while (element->key != key);
+    /* Must be found. */
+    assert(element);
     prev->next              = element->next;
-    goto recycle;
-
-recycle:
-    element->next           = table->free_list;
-    table->free_list        = element;
+    table->free(element);
     table->num_keys--;
-    return 0;    
+    return;
 }
     
-void toku_rth_close(toku_rt_hashtable* table) {
+/* Will allow you to insert it over and over.  You need to keep track. */
+int toku_rth_insert(toku_rth* table, DB_TXN* key) {
+    assert(table && key);
+    __toku_invalidate_scan(table);
+
+    uint32 index = __toku_rth_hash(table, key);
+
+    /* Allocate a new one. */
+    toku_rth_elt* element = (toku_rth_elt*)table->malloc(sizeof(*element));
+    if (!element) return errno;
+    memset(&element->value, 0, sizeof(toku_rt_forest));
+    element->key            = key;
+    element->next           = table->table[index];
+    table->table[index]     = element;
+    table->num_keys++;
+    return 0;    
+}
+
+void toku_rth_close(toku_rth* table) {
+    assert(table);
     toku_rth_elt* element;
     toku_rth_elt* next = NULL;
 
@@ -131,39 +150,6 @@ void toku_rth_close(toku_rt_hashtable* table) {
         table->free(element);
     }
 
-    next = table->free_list;
-    while (next) {
-        element = next;
-        next    = next->next;
-        table->free(element);
-    }
-
     table->free(table->table);
     table->free(table);
-}
-
-/* Will allow you to insert it over and over.  You need to keep track. */
-int toku_rth_insert(toku_rt_hashtable* table, DB_TXN* key) {
-    assert(table && key);
-    __toku_invalidate_scan(table);
-
-    uint32 index = __toku_rth_hash(table, key);
-
-    /* Recycle */
-    toku_rth_elt* element;
-    if (table->free_list) {
-        element             = table->free_list;
-        table->free_list    = table->free_list->next;
-    }
-    else {
-        /* Allocate a new one. */
-        element = (toku_rth_elt*)table->malloc(sizeof(*element));
-        if (!element) return errno;
-    }
-    memset(&element->value, 0, sizeof(toku_rt_forest));
-    element->key            = key;
-    element->next           = table->table[index];
-    table->table[index]     = element;
-    table->num_keys++;
-    return 0;    
 }

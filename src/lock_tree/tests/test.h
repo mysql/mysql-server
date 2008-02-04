@@ -112,3 +112,14 @@ void init_point(toku_point* point, toku_lock_tree* tree) {
     memset(point, 0, sizeof(toku_point));
     point->lt = tree;
 }
+
+int mallocced = 0;
+int failon    = -1;
+
+void* fail_malloc(size_t size) {
+    if (++mallocced == failon) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    return malloc(size);
+}

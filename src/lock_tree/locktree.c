@@ -203,6 +203,7 @@ static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
 
     toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
     if (!forest) {
+        /* Neither selfread nor selfwrite exist. */
         r = toku_rth_insert(tree->rth, txn);
         if (r!=0) return r;
         forest = toku_rth_find(tree->rth, txn);
@@ -1147,20 +1148,19 @@ static int __toku_lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
     return 0;
 }
 
-/*
-     TODO: delete selfread and selfwrite from txn and/or local list
-*/
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
+    assert(tree && txn);
     int r;
-    toku_range_tree *selfwrite;
+    toku_range_tree *selfwrite = __toku_lt_ifexist_selfwrite(tree, txn);
+    toku_range_tree *selfread  = __toku_lt_ifexist_selfread (tree, txn);
 
-    r = __toku_lt_free_contents(tree, __toku_lt_ifexist_selfread(tree, txn), 
-                                tree->mainread);
+    r = __toku_lt_free_contents(tree, selfread, tree->mainread);
     if (r!=0) return __toku_lt_panic(tree);
 
-    selfwrite = __toku_lt_ifexist_selfwrite(tree, txn);
     r = __toku_lt_border_delete(tree, selfwrite);
     if (r!=0) return __toku_lt_panic(tree);
+
+    if (selfread || selfwrite) toku_rth_delete(tree->rth, txn);
 
     return 0;
 }

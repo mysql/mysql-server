@@ -57,27 +57,27 @@ typedef struct {
     BOOL                duplicates;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
-    toku_rt_hashtable* rth;
+    toku_rth*           rth;
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns */
     toku_range*         buf;      
-    u_int32_t            buflen;      /**< The length of buf */
+    u_int32_t           buflen;      /**< The length of buf */
     /** The maximum amount of memory to be used for DBT payloads. */
     size_t              payload_capacity;
     /** The current amount of memory used for DBT payloads. */
     size_t              payload_used;
     /** The key compare function */
-    int                 (*compare_fun)(DB*,const DBT*,const DBT*);
+    int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
-    int                 (*dup_compare)(DB*,const DBT*,const DBT*);
+    int               (*dup_compare)(DB*,const DBT*,const DBT*);
     /** The panic function */
-    int                 (*panic)(DB*);
+    int               (*panic)(DB*);
     /** The user malloc function */
-    void*               (*malloc) (size_t);
+    void*             (*malloc) (size_t);
     /** The user free function */
-    void                (*free)   (void*);
+    void              (*free)   (void*);
     /** The user realloc function */
-    void*               (*realloc)(void*, size_t);
+    void*             (*realloc)(void*, size_t);
 } toku_lock_tree;
 
 
