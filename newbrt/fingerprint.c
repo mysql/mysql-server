@@ -28,7 +28,7 @@ u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void 
 				       key, keylen, val, vallen);
 }
 
-u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd) {
+u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd) {
     if (cmd->type <= BRT_DELETE_BOTH)
 	return toku_calccrc32_cmd (cmd->type, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size);
     else 
