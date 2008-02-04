@@ -90,6 +90,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 our $opt_suites= DEFAULT_SUITES;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
+our $opt_verbose_restart= 0;  # Verbose output for restarts
 
 my $exe_mysqld;
 our $exe_mysql;
@@ -186,8 +187,6 @@ our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster= 0;
 our $glob_ndbcluster_supported= 0;
 our $opt_ndb_extra_test= 0;
-our $opt_skip_master_binlog= 0;
-our $opt_skip_slave_binlog= 0;
 
 our $exe_ndb_mgm="";
 our $exe_ndb_waiter;
@@ -300,8 +299,6 @@ sub command_line_setup {
              'skip-ndbcluster-slave|skip-ndb-slave'
                                         => \$opt_skip_ndbcluster_slave,
              'ndb-extra-test'           => \$opt_ndb_extra_test,
-             'skip-master-binlog'       => \$opt_skip_master_binlog,
-             'skip-slave-binlog'        => \$opt_skip_slave_binlog,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
@@ -373,6 +370,7 @@ sub command_line_setup {
              'reorder'                  => \&collect_option,
              'enable-disabled'          => \&collect_option,
              'verbose+'                 => \$opt_verbose,
+             'verbose-restart'          => \$opt_verbose_restart,
              'sleep=i'                  => \$opt_sleep,
              'start-dirty'              => \$opt_start_dirty,
              'start'                    => \$opt_start,
@@ -2807,36 +2805,36 @@ sub server_need_restart {
 
   if ( using_extern() )
   {
-    mtr_verbose("No restart: using extern");
+    mtr_verbose_restart($server, "no restart for --extern server");
     return 0;
   }
 
   if ( $opt_embedded_server )
   {
-    mtr_verbose("No start or restart for embedded server");
+    mtr_verbose_restart($server, "no start or restart for embedded server");
     return 0;
   }
 
   if ( $tinfo->{'force_restart'} ) {
-    mtr_verbose("Restart: forced in .opt file");
+    mtr_verbose_restart($server, "forced in .opt file");
     return 1;
   }
 
   if ( $tinfo->{template_path} ne $current_config_name)
   {
-    mtr_verbose("Restart: using different config file");
+    mtr_verbose_restart($server, "using different config file");
     return 1;
   }
 
   if ( $tinfo->{'master_sh'}  || $tinfo->{'slave_sh'} )
   {
-    mtr_verbose("Restart: script to run");
+    mtr_verbose_restart($server, "sh script to run");
     return 1;
   }
 
   if ( ! started($server) )
   {
-    mtr_verbose("Restart: not started");
+    mtr_verbose_restart($server, "not started");
     return 1;
   }
 
@@ -2848,7 +2846,7 @@ sub server_need_restart {
     # with differs from timezone of next test
     if ( timezone($started_tinfo) ne timezone($tinfo) )
     {
-      mtr_verbose("Restart: Different timezone");
+      mtr_verbose_restart($server, "different timezone");
       return 1;
     }
   }
@@ -2865,7 +2863,13 @@ sub server_need_restart {
     if (!My::Options::same($started_opts, $extra_opts) )
     {
       my $use_dynamic_option_switch= 0;
-      return 1 if (!$use_dynamic_option_switch);
+      if (!$use_dynamic_option_switch)
+      {
+	mtr_verbose_restart($server, "running with different options '" .
+			    join(" ", @{$extra_opts}) . "' != '" .
+			    join(" ", @{$started_opts}) . "'" );
+	return 1;
+      }
 
       mtr_verbose(My::Options::toStr("started_opts", @$started_opts));
       mtr_verbose(My::Options::toStr("extra_opts", @$extra_opts));
@@ -2879,7 +2883,7 @@ sub server_need_restart {
       if (run_query($tinfo, $server, $query)){
 	mtr_verbose("Restart: running with different options '" .
 		    join(" ", @{$extra_opts}) . "' != '" .
-		    join(" ", @{$server->{'started_opts'}}) . "'" );
+		    join(" ", @{$started_opts}) . "'" );
 	return 1;
       }
 
@@ -3249,6 +3253,10 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--skip-ssl");
   }
 
+  if ( defined $tinfo->{'include_file'} ) {
+    mtr_add_arg($args, "--include=%s", $tinfo->{'include_file'}); # MASV
+  }
+
 
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
@@ -3561,8 +3569,6 @@ Options to control what engine/variation to run
                         all generated configs
 
 Options to control directories to use
-  benchdir=DIR          The directory where the benchmark suite is stored
-                        (default: ../../mysql-bench)
   tmpdir=DIR            The directory where temporary files are stored
                         (default: ./var/tmp).
   vardir=DIR            The directory where files generated from the test run
