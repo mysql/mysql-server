@@ -2,13 +2,19 @@
 
 --source include/master-slave.inc
 
-reset master;
-
 #
 # remove all users will be used in the test
 #
+connection master;
+set sql_log_bin=0;
 delete from mysql.user where Host='fakehost';
-sync_slave_with_master;
+set sql_log_bin=1;
+
+connection slave;
+set sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set sql_log_bin=1;
+
 
 #
 # Test create user
