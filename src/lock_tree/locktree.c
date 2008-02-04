@@ -742,9 +742,6 @@ static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_borderwrite,
     if (r!=0) return r;
     r = toku_rt_successor  (rt, to_insert->right, succ, found_s);
     if (r!=0) return r;
-    if (in_borderwrite && *found_p && *found_s && pred->data == succ->data &&
-        pred->data == to_insert->data) {
-        return __toku_lt_panic(tree); }
     return 0;
 }
 
@@ -846,6 +843,8 @@ static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
     if (r!=0) return __toku_lt_panic(tree);
     
     if (numfound == 0) {
+        if (found_p && found_s && pred.data == succ.data) {
+            return __toku_lt_panic(tree); }
         r = __toku_lt_expand_border(tree, to_insert, &pred,   &succ,
                                                       found_p, found_s);
         if (r!=0) return __toku_lt_panic(tree);
@@ -1094,6 +1093,8 @@ static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
     r = __toku_lt_get_border(tree, TRUE, &pred, &succ, &found_p, &found_s,
                              &buf[0]);
     if (r!=0) return r;
+    if (found_p && found_s && pred.data == succ.data &&
+        pred.data == buf[0].data) { return __toku_lt_panic(tree); }
 
     /* If both found and pred.data=succ.data, merge pred and succ (expand?)
        free_points */
