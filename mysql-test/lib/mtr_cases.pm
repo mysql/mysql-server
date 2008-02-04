@@ -24,6 +24,8 @@ use strict;
 use base qw(Exporter);
 our @EXPORT= qw(collect_option collect_test_cases);
 
+use mtr_report;
+
 # Options used for the collect phase
 our $start_from;
 our $print_testcases;
@@ -52,8 +54,6 @@ use File::Basename;
 use IO::File();
 use My::Config;
 
-require "mtr_settings.pl";
-require "mtr_report.pl";
 require "mtr_match.pl";
 require "mtr_misc.pl";
 

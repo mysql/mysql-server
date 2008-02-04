@@ -33,9 +33,6 @@ BEGIN {
       "Could not find the lib/ directory \n";
     exit(1);
   }
-
-  # Include settings that control how the script behaves
-  require "lib/mtr_settings.pl";
 }
 
 
@@ -50,6 +47,7 @@ use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
 use mtr_cases;
+use mtr_report;
 
 our $is_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
 our $is_cygwin=      ($^O eq "cygwin");  # Cygwin Perl
@@ -58,7 +56,6 @@ our $is_win32=       ($is_win32_perl or $is_cygwin);
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
-require "lib/mtr_report.pl";
 require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_unique.pl";
@@ -87,7 +84,8 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-our $opt_suites= DEFAULT_SUITES;
+my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
+our $opt_suites= $DEFAULT_SUITES;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $opt_verbose_restart= 0;  # Verbose output for restarts
@@ -100,7 +98,7 @@ our $exe_ndbd;
 our $exe_ndb_mgmd= "";
 our $exe_libtool;
 
-our $opt_big_test= 0;
+my $opt_big_test= 0;
 
 our @opt_combinations;
 
@@ -384,6 +382,7 @@ sub command_line_setup {
              'suite-timeout=i'          => \$opt_suite_timeout,
              'shutdown-timeout=i'       => \$opt_shutdown_timeout,
              'warnings!'                => \$opt_warnings,
+	     'timestamp'                => \&report_option,
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
@@ -1946,8 +1945,6 @@ sub initialize_servers {
     }
   }
   check_running_as_root();
-
-  mtr_log_init("$opt_vardir/log/mysql-test-run.log");
 }
 
 
@@ -2090,7 +2087,7 @@ sub run_testcase_check_skip_test($)
       {
 	$tinfo->{comment}=
 	  "Failed to find cluster binaries";
-	mtr_report_test_failed($tinfo);
+	mtr_report_test_failed($tinfo, undef);
 	return 1;
       }
     }
@@ -2357,6 +2354,7 @@ sub run_testcase ($) {
 	  {
 	    # Stop all servers that are known to be running
 	    stop_all_servers();
+	    after_test_failure($tinfo->{'name'});
 	    mtr_report("Resuming tests...\n");
 	  }
 	}
