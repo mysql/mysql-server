@@ -456,7 +456,7 @@ sub collect_one_suite($)
 	  push(@{$new_test->{master_opt}}, @{$comb->{comb_opt}});
 	  push(@{$new_test->{slave_opt}}, @{$comb->{comb_opt}});
 
-	  # Add combination name shrt name
+	  # Add combination name short name
 	  $new_test->{combination}= $comb->{name};
 
 	  # Add the new test to new test cases list

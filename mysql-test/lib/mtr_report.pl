@@ -536,4 +536,16 @@ sub mtr_verbose (@) {
 }
 
 
+sub mtr_verbose_restart (@) {
+  my ($server, @args)= @_;
+  my $proc= $server->{proc};
+  # Always print to log, print to screen only when --verbose is used
+  _mtr_log("> Restart: $proc - ",@args);
+  if ( $::opt_verbose_restart )
+  {
+    print STDERR "> Restart $proc - ",join(" ", @args),"\n";
+  }
+}
+
+
 1;
