@@ -252,11 +252,6 @@ struct Ndb_local_table_statistics {
   ha_rows records;
 };
 
-typedef struct st_thd_ndb_share {
-  const void *key;
-  struct Ndb_local_table_statistics stat;
-} THD_NDB_SHARE;
-
 class Thd_ndb 
 {
  public:
@@ -264,7 +259,6 @@ class Thd_ndb
   ~Thd_ndb();
 
   void init_open_tables();
-  THD_NDB_SHARE *get_open_table(THD *thd, const void *key);
 
   Ndb_cluster_connection *connection;
   Ndb *ndb;
@@ -666,6 +660,7 @@ private:
                                  8*sizeof(my_bitmap_map) - 1) /
                                 (8*sizeof(my_bitmap_map))]; // Buffer for m_pk_bitmap
   struct Ndb_local_table_statistics *m_table_info;
+  struct Ndb_local_table_statistics m_table_info_instance;
   char m_dbname[FN_HEADLEN];
   //char m_schemaname[FN_HEADLEN];
   char m_tabname[FN_HEADLEN];
@@ -674,7 +669,6 @@ private:
   bool m_lock_tuple;
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
-  THD_NDB_SHARE *m_thd_ndb_share;
   /*
     Pointer to row returned from scan nextResult().
   */
