@@ -18,29 +18,37 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
+package mtr_report;
 use strict;
-use warnings;
 
-sub mtr_report_test_passed($$);
-sub mtr_report_test_failed($$);
-sub mtr_report_test_skipped($);
-sub mtr_report_stats ($);
+use base qw(Exporter);
+our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
+		mtr_print_header mtr_report mtr_report_stats
+		mtr_warning mtr_error mtr_debug mtr_verbose
+		mtr_verbose_restart mtr_report_test_passed
+		mtr_report_test_failed mtr_report_test_skipped
+		mtr_report_stats);
 
-sub mtr_print_line ();
-sub mtr_print_thick_line ($);
-sub mtr_print_header ();
-sub mtr_report (@);
-sub mtr_warning (@);
-sub mtr_error (@);
-sub mtr_debug (@);
-sub mtr_verbose (@);
+require "mtr_io.pl";
 
 my $tot_real_time= 0;
 
-sub mtr_report_test_name ($) {
+our $timestamp= 0;
+
+sub report_option {
+  my ($opt, $value)= @_;
+
+  # Convert - to _ in option name
+  $opt =~ s/-/_/;
+  no strict 'refs';
+  ${$opt}= $value;
+}
+
+sub SHOW_SUITE_NAME() { return  1; };
+
+sub _mtr_report_test_name ($) {
   my $tinfo= shift;
   my $tname= $tinfo->{name};
-
 
   # Remove suite part of name
   $tname =~ s/.*\.// unless SHOW_SUITE_NAME;
@@ -49,14 +57,14 @@ sub mtr_report_test_name ($) {
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
-  _mtr_log("$tname");
+  print _timestamp();
   printf "%-30s ", $tname;
 }
 
 
 sub mtr_report_test_skipped ($) {
   my $tinfo= shift;
-  mtr_report_test_name($tinfo);
+  _mtr_report_test_name($tinfo);
 
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
   if ( $tinfo->{'disable'} )
@@ -83,7 +91,7 @@ sub mtr_report_test_skipped ($) {
 
 sub mtr_report_test_passed ($$) {
   my ($tinfo, $use_timer)= @_;
-  mtr_report_test_name($tinfo);
+  _mtr_report_test_name($tinfo);
 
   my $timer=  "";
   if ( $use_timer and -f "$::opt_vardir/log/timer" )
@@ -102,7 +110,7 @@ sub mtr_report_test_passed ($$) {
 
 sub mtr_report_test_failed ($$) {
   my ($tinfo, $logfile)= @_;
-  mtr_report_test_name($tinfo);
+  _mtr_report_test_name($tinfo);
 
   $tinfo->{'result'}= 'MTR_RES_FAILED';
   my $test_failures= $tinfo->{'failures'} || 0;
@@ -440,7 +448,7 @@ sub mtr_print_line () {
 }
 
 
-sub mtr_print_thick_line ($) {
+sub mtr_print_thick_line {
   my $char= shift || '=';
   print $char x 60, "\n";
 }
@@ -467,52 +475,33 @@ sub mtr_print_header () {
 #
 ##############################################################################
 
-use IO::File;
 use Time::localtime;
 
 sub _timestamp {
+  return "" unless $timestamp;
+
   my $tm= localtime();
   return sprintf("%02d%02d%02d %2d:%02d:%02d ",
 		 $tm->year % 100, $tm->mon+1, $tm->mday,
 		 $tm->hour, $tm->min, $tm->sec);
 }
 
-my $log_file_ref= undef;
 
-sub mtr_log_init ($) {
-  my ($filename)= @_;
-
-  mtr_error("Log is already open") if defined $log_file_ref;
-
-  $log_file_ref= IO::File->new($filename, "a") or
-    mtr_warning("Could not create logfile $filename: $!");
-}
-
-
-sub _mtr_log (@) {
-  print $log_file_ref join(" ", _timestamp(), @_),"\n"
-    if defined $log_file_ref;
-}
-
-
+# Print message to screen
 sub mtr_report (@) {
-  # Print message to screen and log
-  _mtr_log(@_);
-  print join(" ", @_),"\n";
+  print join(" ", @_), "\n";
 }
 
 
+# Print warning to screen
 sub mtr_warning (@) {
-  # Print message to screen and log
-  _mtr_log("WARNING: ", @_);
-  print STDERR "mysql-test-run: WARNING: ",join(" ", @_),"\n";
+  print STDERR _timestamp(), "mysql-test-run: WARNING: ", join(" ", @_), "\n";
 }
 
 
+# Print error to screen and then exit
 sub mtr_error (@) {
-  # Print message to screen and log
-  _mtr_log("ERROR: ", @_);
-  print STDERR "mysql-test-run: *** ERROR: ",join(" ", @_),"\n";
+  print STDERR _timestamp(), "mysql-test-run: *** ERROR: ", join(" ", @_), "\n";
   exit(1);
 }
 
@@ -520,18 +509,15 @@ sub mtr_error (@) {
 sub mtr_debug (@) {
   if ( $::opt_verbose > 1 )
   {
-    _mtr_log("###: ", @_);
-    print STDERR "####: ",join(" ", @_),"\n";
+    print STDERR _timestamp(), "####: ", join(" ", @_), "\n";
   }
 }
 
 
 sub mtr_verbose (@) {
-  # Always print to log, print to screen only when --verbose is used
-  _mtr_log("> ",@_);
   if ( $::opt_verbose )
   {
-    print STDERR "> ",join(" ", @_),"\n";
+    print STDERR _timestamp(), "> ",join(" ", @_),"\n";
   }
 }
 
@@ -539,11 +525,9 @@ sub mtr_verbose (@) {
 sub mtr_verbose_restart (@) {
   my ($server, @args)= @_;
   my $proc= $server->{proc};
-  # Always print to log, print to screen only when --verbose is used
-  _mtr_log("> Restart: $proc - ",@args);
   if ( $::opt_verbose_restart )
   {
-    print STDERR "> Restart $proc - ",join(" ", @args),"\n";
+    print STDERR _timestamp(), "> Restart $proc - ",join(" ", @args),"\n";
   }
 }
 
