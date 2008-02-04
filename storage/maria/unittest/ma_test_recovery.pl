@@ -90,8 +90,10 @@ foreach my $prog (@t)
   `mv $table.MAD $tmp/$table-good.MAD`;
   `mv $table.MAI $tmp/$table-good.MAI`;
   apply_log($table, "shouldnotchangelog");
-  `cmp $table.MAD $tmp/$table-good.MAD`;
-  `cmp $table.MAI $tmp/$table-good.MAI`;
+  $res= `cmp $table.MAD $tmp/$table-good.MAD`;
+  print MY_LOG $res;
+  $res= `cmp $table.MAI $tmp/$table-good.MAI`;
+  print MY_LOG $res;
   check_table_is_same($table, $checksum);
   print MY_LOG "testing idempotency\n";
   apply_log($table, "shouldnotchangelog");
