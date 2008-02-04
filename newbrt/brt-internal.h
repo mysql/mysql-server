@@ -167,7 +167,7 @@ struct brt_cmd {
         } id;
     } u;
 };
-typedef struct brt_cmd BRT_CMD;
+typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
 
 struct brtenv {
     CACHETABLE ct;
@@ -186,7 +186,7 @@ static const BRTNODE null_brtnode=0;
 
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
-extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD *cmd);
+extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD_S *cmd);
 
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree

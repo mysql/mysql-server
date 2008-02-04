@@ -487,7 +487,7 @@ static void find_heaviest_child (BRTNODE node, int *childnum) {
     if (0) printf("\n");
 }
 
-static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 			    DBT *split,
 			    int debug,
@@ -495,7 +495,7 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 
 /* key is not in the buffer.  Either put the key-value pair in the child, or put it in the node. */
 static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRTNODE node, BRTNODE child,
-								      BRT_CMD *cmd,
+								      BRT_CMD cmd,
 								      int childnum_of_node,
 								      TOKUTXN txn) {
     assert(node->height>0); /* Not a leaf. */
@@ -532,7 +532,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 }
 
 static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum,
-				BRT_CMD *cmd,
+				BRT_CMD cmd,
 				int *child_did_split, BRTNODE *childa, BRTNODE *childb,
 				DBT *childsplitk,
 				TOKUTXN txn) {
@@ -657,7 +657,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
         DBT skd, svd;
 	toku_fill_dbt(&skd, skey, skeylen);
 	toku_fill_dbt(&svd, sval, svallen);
-        BRT_CMD brtcmd;
+        BRT_CMD_S brtcmd;
         brtcmd.type = type; brtcmd.u.id.key = &skd; brtcmd.u.id.val = &svd;
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
         int tochildnum = childnum;
@@ -773,7 +773,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	    int child_did_split=0; BRTNODE childa, childb;
 	    DBT hk,hv;
 	    DBT childsplitk;
-            BRT_CMD brtcmd;
+            BRT_CMD_S brtcmd;
 
             toku_fill_dbt(&hk, key, keylen);
             toku_fill_dbt(&hv, val, vallen);
@@ -875,7 +875,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
-static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			     int debug,
 			     TOKUTXN txn) {
@@ -959,7 +959,7 @@ static unsigned int brtnode_right_child (BRTNODE node, DBT *k, DBT *data, BRT t)
 }
 
 /* put a cmd into a nodes child */
-static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD cmd,
                                            int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, 
                                            int debug, TOKUTXN txn, int childnum, int maybe) {
     int r;
@@ -1010,7 +1010,7 @@ static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD *cmd,
 int toku_brt_do_push_cmd = 1;
 
 /* put a cmd into a node at childnum */
-static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
                                       int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                                       int debug, TOKUTXN txn, unsigned int childnum, int can_push, int *do_push_down) {
     //verify_local_fingerprint_nonleaf(node);
@@ -1041,7 +1041,7 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD *cmd,
     return 0;
 }
 
-static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
                                    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                                    int debug, TOKUTXN txn) {
     //verify_local_fingerprint_nonleaf(node);
@@ -1087,7 +1087,7 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
 }
 
 /* delete in all subtrees starting from the left most one which contains the key */
-static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
                                    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
                                    int debug,
                                    TOKUTXN txn) {
@@ -1155,7 +1155,7 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
     }
     return 0;
 }
-static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
 				int debug,
@@ -1181,7 +1181,7 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     assert(fp==node->local_fingerprint);
 }
 
-static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD *cmd,
+static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			    int debug,
 			    TOKUTXN txn) {
@@ -1630,7 +1630,7 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     return 0;
 }
 
-static int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
+static int brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKUTXN txn) {
     void *node_v;
     BRTNODE node;
     CACHEKEY *rootp;
@@ -1682,7 +1682,7 @@ static int brt_root_put_cmd(BRT brt, BRT_CMD *cmd, TOKUTXN txn) {
 
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
-    BRT_CMD brtcmd;
+    BRT_CMD_S brtcmd;
 
     brtcmd.type = BRT_INSERT;
     brtcmd.u.id.key = key;
@@ -1708,7 +1708,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    BRT_CMD brtcmd;
+    BRT_CMD_S brtcmd;
     DBT val;
 
     toku_init_dbt(&val);
@@ -1722,7 +1722,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
-    BRT_CMD brtcmd;
+    BRT_CMD_S brtcmd;
 
     brtcmd.type = BRT_DELETE_BOTH;
     brtcmd.u.id.key = key;
