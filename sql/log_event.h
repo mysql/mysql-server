@@ -152,11 +152,11 @@ struct old_sql_ex
 struct sql_ex_info
 {
   sql_ex_info() {}                            /* Remove gcc warning */
-  char* field_term;
-  char* enclosed;
-  char* line_term;
-  char* line_start;
-  char* escaped;
+  const char* field_term;
+  const char* enclosed;
+  const char* line_term;
+  const char* line_start;
+  const char* escaped;
   int cached_new_format;
   uint8 field_term_len,enclosed_len,line_term_len,line_start_len, escaped_len;
   char opt_flags;
@@ -171,7 +171,7 @@ struct sql_ex_info
 	    line_start_len + escaped_len + 6 : 7);
   }
   bool write_data(IO_CACHE* file);
-  char* init(char* buf,char* buf_end,bool use_new_format);
+  const char* init(const char* buf, const char* buf_end, bool use_new_format);
   bool new_format()
   {
     return ((cached_new_format != -1) ? cached_new_format :
