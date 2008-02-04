@@ -40,28 +40,28 @@
   do { \
     EmulatedJamBuffer *jamBuffer = jam_buf_getter; \
     Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
-    jamBuffer->theEmulatedJam[jamIndex++] = line; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (line); \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
   } while(0)
 #define jamBlockLine(block, line) \
-   _jamBlockLine(block, line, (block)->jamBuffer())
+   _jamBlockLine(block, (line), (block)->jamBuffer())
 #define jamBlock(block) jamBlockLine(block, __LINE__)
-#define jamLine(line) jamBlockLine(this, line)
+#define jamLine(line) jamBlockLine(this, (line))
 #define jam() jamLine(__LINE__)
 #define jamBlockEntryLine(block, line) \
   do { \
     EmulatedJamBuffer *jamBuffer = (block)->jamBuffer(); \
     Uint32 blockNumber= (block)->number(); \
     Uint32 jamIndex = jamBuffer->theEmulatedJamIndex; \
-    jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | line; \
+    jamBuffer->theEmulatedJam[jamIndex++] = (blockNumber << 20) | (line); \
     jamBuffer->theEmulatedJamBlockNumber = blockNumber; \
     jamBuffer->theEmulatedJamIndex = jamIndex & JAM_MASK; \
   } while(0)
 #define jamEntryBlock(block) jamEntryBlockLine(block, __LINE__)
-#define jamEntryLine(line) jamBlockEntryLine(this, line)
+#define jamEntryLine(line) jamBlockEntryLine(this, (line))
 #define jamEntry() jamEntryLine(__LINE__)
 #define jamNoBlockLine(line) _jamBlockLine \
-    (block, line, (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM))
+    (block, (line), (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM))
 #define jamNoBlock() jamNoBlockLine(__LINE__)
 
 #endif
@@ -219,6 +219,6 @@
 #define MEMCOPY_PAGE(to, from, page_size_in_bytes) \
   memcpy((void*)(to), (void*)(from), (size_t)(page_size_in_bytes));
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \
-  memcpy((to), (void*)(from), (size_t)(no_of_words << 2));
+  memcpy((to), (void*)(from), (size_t)((no_of_words) << 2));
 
 #endif
