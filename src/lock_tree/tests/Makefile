@@ -7,7 +7,7 @@
 #   make VERBOSE=2
 
 OPTFLAGS = -O0
-ifeq ($(OSX),OSX)
+ifneq ($(OSX),)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  LIBEXT=dylib
  VGRIND=
