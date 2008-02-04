@@ -36,6 +36,7 @@ struct __toku_rth {
     uint32          array_size;
     uint32          finger_index;
     toku_rth_elt*   finger_ptr;
+    BOOL            finger_start;
     BOOL            finger_end;
     /** The user malloc function */
     void*         (*malloc) (size_t);

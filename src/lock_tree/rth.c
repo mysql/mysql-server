@@ -63,6 +63,7 @@ void toku_rth_start_scan(toku_rth* table) {
     assert(table);
     table->finger_index = 0;
     table->finger_ptr   = table->table[table->finger_index];
+    table->finger_start = TRUE;
     table->finger_end   = FALSE;
 }
 
@@ -70,11 +71,14 @@ static inline toku_rth_elt* __toku_rth_next(toku_rth* table) {
     assert(table);
     assert(!table->finger_end);
     
-    if (table->finger_ptr) table->finger_ptr = table->finger_ptr->next;
+    if (table->finger_ptr && !table->finger_start) {
+        table->finger_ptr = table->finger_ptr->next;
+    }
     while (!table->finger_ptr && ++table->finger_index < table->array_size) {
        table->finger_ptr = table->table[table->finger_index]; 
     }
-    table->finger_end = !table->finger_ptr;
+    table->finger_start = FALSE;
+    table->finger_end   = !table->finger_ptr;
     return table->finger_ptr;
 }
 
