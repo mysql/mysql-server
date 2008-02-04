@@ -1282,8 +1282,8 @@ begin
 end|
 delimiter ;|
 create view v1 as select test.* from test where test.col1=test_function();
-grant update (col1) on v1 to 'greg';
-revoke all privileges on v1 from 'greg';
+grant update (col1) on v1 to 'greg'@'localhost';
+drop user 'greg'@'localhost';
 drop view v1;
 drop table test;
 drop function test_function;
@@ -1396,6 +1396,7 @@ GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
 CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 
 
