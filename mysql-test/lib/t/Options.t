@@ -1,3 +1,4 @@
+
 # -*- cperl -*-
 use Test::More qw(no_plan);
 use strict;
@@ -94,6 +95,12 @@ my @tests=
   [ '--binlog-format=statement' ],
   ['--relay-log=/path/to/a/relay-log', '-O', 'max_binlog_size=1'],
   ['--max_binlog_size=1', '--relay-log=/path/to/a/relay-log', '--binlog-format=default' ]
+ ],
+
+ [
+  [ '--slow-query-log=0' ],
+  [ '--slow-query-log' ],
+  [ '--slow-query-log' ]
  ],
 
 
