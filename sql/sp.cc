@@ -507,6 +507,31 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
 }
 
 
+/**
+  Silence DEPRECATED SYNTAX warnings when loading a stored procedure
+  into the cache.
+*/
+struct Silence_deprecated_warning : public Internal_error_handler
+{
+public:
+  virtual bool handle_error(uint sql_errno, const char *message,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+};
+
+bool
+Silence_deprecated_warning::handle_error(uint sql_errno, const char *message,
+                                         MYSQL_ERROR::enum_warning_level level,
+                                         THD *thd)
+{
+  if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
+      level == MYSQL_ERROR::WARN_LEVEL_WARN)
+    return TRUE;
+
+  return FALSE;
+}
+
+
 static int
 db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
                 ulong sql_mode, const char *params, const char *returns,
@@ -523,7 +548,8 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
   ulong old_sql_mode= thd->variables.sql_mode;
   ha_rows old_select_limit= thd->variables.select_limit;
   sp_rcontext *old_spcont= thd->spcont;
-  
+  Silence_deprecated_warning warning_handler;
+
   char definer_user_name_holder[USERNAME_LENGTH + 1];
   LEX_STRING definer_user_name= { definer_user_name_holder,
                                   USERNAME_LENGTH };
@@ -583,7 +609,9 @@ db_load_routine(THD *thd, int type, sp_name *name, sp_head **sphp,
 
     lex_start(thd);
 
+    thd->push_internal_handler(&warning_handler);
     ret= parse_sql(thd, &lip, creation_ctx) || newlex.sphead == NULL;
+    thd->pop_internal_handler();
 
     /*
       Force switching back to the saved current database (if changed),
