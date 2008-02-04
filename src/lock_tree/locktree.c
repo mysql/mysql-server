@@ -824,12 +824,10 @@ static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
     int r;
     toku_range_tree* borderwrite = tree->borderwrite;   assert(borderwrite);
     const u_int32_t query_size = 1;
-    toku_range   buffer[query_size];
-    u_int32_t     buflen     = query_size;
-    toku_range*  buf        = &buffer[0];
 
     u_int32_t numfound;
-    r = toku_rt_find(borderwrite, query, query_size, &buf, &buflen, &numfound);
+    r = toku_rt_find(borderwrite, query, query_size, &tree->buf, &tree->buflen,
+                     &numfound);
     if (r!=0) return __toku_lt_panic(tree);
     assert(numfound <= query_size);
 

@@ -9,6 +9,8 @@
 #include <errno.h>
 int verbose=0;
 
+BOOL want_panic = FALSE;
+
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len) {
     int comparelen = key1len<key2len ? key1len : key2len;
     const unsigned char *k1;
@@ -41,6 +43,7 @@ BOOL panicked = FALSE;
 int dbpanic(DB* db) {
     if (verbose) printf("AHH!!!!  Run away %p!!!\n", db);
     panicked = TRUE;
+    assert(want_panic);
     return EINVAL;
 }
 
