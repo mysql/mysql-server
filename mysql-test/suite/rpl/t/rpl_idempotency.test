@@ -2,6 +2,10 @@
 # work the same way under statement based as under row based.
 
 source include/master-slave.inc;
+connection master;
+source include/have_innodb.inc;
+connection slave;
+source include/have_innodb.inc;
 
 connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY);
