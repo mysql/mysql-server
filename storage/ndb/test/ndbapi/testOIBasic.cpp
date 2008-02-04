@@ -4911,7 +4911,7 @@ struct Thr {
   enum State { Wait, Start, Stop, Exit };
   State m_state;
   Par m_par;
-  Uint64 m_id;
+  pthread_t m_id;
   NdbThread* m_thread;
   NdbMutex* m_mutex;
   NdbCondition* m_cond;
@@ -4947,7 +4947,6 @@ struct Thr {
 Thr::Thr(Par par, uint n) :
   m_state(Wait),
   m_par(par),
-  m_id(0),
   m_thread(0),
   m_mutex(0),
   m_cond(0),
@@ -4989,7 +4988,7 @@ static void*
 runthread(void* arg)
 {
   Thr& thr = *(Thr*)arg;
-  thr.m_id = (Uint64)pthread_self();
+  thr.m_id = pthread_self();
   if (thr.run() < 0) {
     LL1("exit on error");
   } else {
@@ -5071,11 +5070,11 @@ static Thr*
 getthr()
 {
   if (g_thrlist != 0) {
-    Uint64 id = (Uint64)pthread_self();
+    pthread_t id = pthread_self();
     for (uint n = 0; n < g_opt.m_threads; n++) {
       if (g_thrlist[n] != 0) {
         Thr& thr = *g_thrlist[n];
-        if (thr.m_id == id)
+        if (pthread_equal(thr.m_id, id))
           return &thr;
       }
     }

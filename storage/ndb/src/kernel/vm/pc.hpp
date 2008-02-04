@@ -49,7 +49,7 @@
   theEmulatedJamBlockNumber = number(); \
   Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
   *(Uint32*)(theEmulatedJam + tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | line); \
+    ((theEmulatedJamBlockNumber << 20) | (line)); \
   theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
 
 #else
@@ -72,7 +72,7 @@
   theEmulatedJamBlockNumber = number(); \
   Uint32 tEmulatedJamIndex = theEmulatedJamIndex; \
   *(Uint32*)((UintPtr)theEmulatedJam + (Uint32)tEmulatedJamIndex) = \
-    ((theEmulatedJamBlockNumber << 20) | line); \
+    ((theEmulatedJamBlockNumber << 20) | (line)); \
   theEmulatedJamIndex = (tEmulatedJamIndex + 4) & JAM_MASK; }
 
 #endif
@@ -231,6 +231,6 @@
 #define MEMCOPY_PAGE(to, from, page_size_in_bytes) \
   memcpy((void*)(to), (void*)(from), (size_t)(page_size_in_bytes));
 #define MEMCOPY_NO_WORDS(to, from, no_of_words) \
-  memcpy((to), (void*)(from), (size_t)(no_of_words << 2));
+  memcpy((to), (void*)(from), (size_t)((no_of_words) << 2));
 
 #endif
