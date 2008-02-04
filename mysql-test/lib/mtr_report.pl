@@ -375,9 +375,16 @@ sub mtr_report_stats ($) {
                   /Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452/
 		 )) or
 
-		# rpl_skip_error produce an error which is skipped (slave does not stop)
-		($testname eq 'rpl.rpl_skip_error' and
-		 /Failed to write to mysql\.general_log/)
+		# rpl_skip_error and binlog_killed_simulate produce an error which is skipped (slave does not stop)
+		(($testname eq 'rpl.rpl_skip_error' or
+		  $testname eq 'binlog.binlog_killed_simulate') and
+		 (/Failed to write to mysql\.general_log/
+		 )) or
+
+		# rpl_temporary has an error on slave that can be ignored
+		($testname eq 'rpl.rpl_temporary' and
+		 (/Slave: Can\'t find record in \'user\' Error_code: 1032/
+		 ))
 		)
             {
               next;                       # Skip these lines
