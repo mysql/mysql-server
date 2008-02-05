@@ -13,6 +13,9 @@ check:
 clean:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
 
+install:
+	./install.bash
+
 # maybe we should have a coverage target in each makefile
 build-coverage:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage"); done
