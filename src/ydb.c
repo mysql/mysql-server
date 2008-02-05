@@ -1598,6 +1598,7 @@ static int find_db_file(DB_ENV* dbenv, const char *fname, char** full_name_out) 
             if (r == 0) goto finish;
             else {
                 toku_free(full_name);
+                r = errno;
                 if (r != ENOENT) return r;
             }
         }
