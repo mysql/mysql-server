@@ -2287,6 +2287,7 @@ static void test_brt_delete() {
     test_brt_delete_cursor_first(100); toku_memory_check_all_free();
     test_brt_delete_cursor_first(500); toku_memory_check_all_free();
     test_brt_delete_cursor_first(10000); toku_memory_check_all_free();
+    test_insert_delete_lookup(2);   toku_memory_check_all_free();
     test_insert_delete_lookup(512); toku_memory_check_all_free();
 }
 
@@ -2831,6 +2832,7 @@ static void brt_blackbox_test (void) {
 
 int main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
+
     brt_blackbox_test();
     toku_malloc_cleanup();
     if (verbose) printf("test ok\n");

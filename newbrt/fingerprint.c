@@ -21,16 +21,20 @@ u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, i
     return toku_calc_more_crc32_kvpair(toku_null_crc, key, keylen, val, vallen);
 }
 
-u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen) {
+u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, const void *val, int vallen) {
     unsigned char type_c = type;
-    return toku_calc_more_crc32_kvpair(toku_crc32(toku_null_crc,
-						  &type_c, 1),
+    unsigned int a = htonl(xid>>32);
+    unsigned int b = htonl(xid&0xffffffff);
+    return toku_calc_more_crc32_kvpair(toku_crc32(toku_crc32(toku_crc32(toku_null_crc,
+									&type_c, 1),
+							     &a, 4),
+						  &b, 4),
 				       key, keylen, val, vallen);
 }
 
 u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd) {
     if (cmd->type <= BRT_DELETE_BOTH)
-	return toku_calccrc32_cmd (cmd->type, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size);
+	return toku_calccrc32_cmd (cmd->type, cmd->xid, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size);
     else 
         assert(0); /* Should not have come here. */
 }

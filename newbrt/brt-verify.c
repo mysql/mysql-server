@@ -24,9 +24,9 @@ static void verify_local_fingerprint (BRTNODE node) {
     int i;
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children; i++)
-	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
+	    FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 			      ({
-				  fp += node->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, data, datalen);
+				  fp += node->rand4fingerprint * toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 			      }));
 	assert(fp==node->local_fingerprint);
     } else {
@@ -69,6 +69,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 				  bytevec data __attribute__((__unused__)), 
                                   unsigned int datalen __attribute__((__unused__)),
                                   int type __attribute__((__unused__)),
+				  TXNID xid __attribute__((__unused__)),
 				  void *ignore __attribute__((__unused__))) {
 		    if (thislorange) assert(toku_keycompare(thislorange,thislolen,key,keylen)<0);
 		    if (thishirange && toku_keycompare(key,keylen,thishirange,thishilen)>0) {

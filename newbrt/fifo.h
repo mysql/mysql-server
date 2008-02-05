@@ -5,6 +5,7 @@ struct fifo_entry {
     unsigned int keylen;
     unsigned int vallen;
     unsigned char type;
+    TXNID xid;
     unsigned char key[];
 };
 
@@ -18,20 +19,21 @@ typedef struct fifo *FIFO;
 int toku_fifo_create(FIFO *);
 void toku_fifo_free(FIFO *);
 int toku_fifo_n_entries(FIFO);
-int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type);
-int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type);
+int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, TXNID xid);
+int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type, TXNID *xid);
 int toku_fifo_deq(FIFO);
 int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type);
-void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, void*), void*);
+void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void*);
 
-#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,body) ({ \
+#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,xidvar,body) ({ \
             struct fifo_entry *entry; \
             for (entry = fifo->head; entry; entry = entry->next) { \
                 unsigned int keylenvar = entry->keylen; \
                 void *keyvar = entry->key; \
                 unsigned int datalenvar = entry->vallen; \
                 void *datavar = entry->key + entry->keylen; \
-                unsigned int typevar = entry->type; \
+                enum brt_cmd_type typevar = entry->type;	    \
+		TXNID xidvar = entry->xid; \
                 body; \
             } \
         })

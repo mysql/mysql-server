@@ -49,7 +49,7 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	    FIFO_ITERATE(BNC_BUFFER(node,i),
 			 key __attribute__((__unused__)), keylen,
 			 data __attribute__((__unused__)), datalen,
-			 type __attribute__((__unused__)),
+			 type __attribute__((__unused__)), xid __attribute__((__unused__)),
 			 (hsize+=BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
 	}
 	assert(hsize==node->u.n.n_bytes_in_buffers);
@@ -154,12 +154,13 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    for (i=0; i< n_buffers; i++) {
 		//printf("%s:%d p%d=%p n_entries=%d\n", __FILE__, __LINE__, i, node->mdicts[i], mdict_n_entries(node->mdicts[i]));
 		wbuf_int(&w, toku_fifo_n_entries(BNC_BUFFER(node,i)));
-		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
+		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
 				      wbuf_char(&w, type);
+				      wbuf_TXNID(&w, xid);
 				      wbuf_bytes(&w, key, keylen);
 				      wbuf_bytes(&w, data, datalen);
-				      check_local_fingerprint+=node->rand4fingerprint*toku_calccrc32_cmd(type, key, keylen, data, datalen);
+				      check_local_fingerprint+=node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 				  }));
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
@@ -257,7 +258,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=1) {
+    if (result->layout_version!=2) {
 	r=DB_BADFORMAT;
 	goto died1;
     }
@@ -337,17 +338,17 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 		//printf("%d in hash\n", n_in_hash);
 		for (i=0; i<n_in_this_hash; i++) {
 		    int diff;
-                    int type;
 		    bytevec key; ITEMLEN keylen; 
 		    bytevec val; ITEMLEN vallen;
 		    toku_verify_counts(result);
-                    type = rbuf_char(&rc);
+                    int type = rbuf_char(&rc);
+		    TXNID xid  = rbuf_ulonglong(&rc);
 		    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 		    rbuf_bytes(&rc, &val, &vallen);
-		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, val, vallen);
+		    check_local_fingerprint += result->rand4fingerprint * toku_calccrc32_cmd(type, xid, key, keylen, val, vallen);
 		    //printf("Found %s,%s\n", (char*)key, (char*)val);
 		    {
-			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type); /* Copies the data into the hash table. */
+			r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type, xid); /* Copies the data into the hash table. */
 			if (r!=0) { goto died_12; }
 		    }
 		    diff =  keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;

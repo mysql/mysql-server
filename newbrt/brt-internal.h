@@ -16,7 +16,9 @@
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { PMA_ITEM_OVERHEAD = 4 };
-enum { BRT_CMD_OVERHEAD = 1 };
+enum { BRT_CMD_OVERHEAD = (1     // the type
+			   + 8)  // the xid
+};
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 20 };
 
 struct nodeheader_in_file {
@@ -56,7 +58,7 @@ struct brtnode {
     //      When we checkpoint:  Create a checkpoint record, and cause every dirty node to be written to disk.  The new checkpoint record is *not* incorporated into the disk_lsn of the written nodes.
     //      While we are checkpointing, someone may modify a dirty node that has not yet been written.   In that case, when we unpin the node, we make the new copy (because the disk_lsn<checkpoint_lsn), just as we would usually.
     //
-    int     layout_version; // What version of the data structure?
+    int     layout_version; // What version of the data structure? (version 2 adds the xid to the brt cmds)
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
@@ -159,6 +161,7 @@ enum brt_cmd_type {
 /* tree commands */
 struct brt_cmd {
     enum brt_cmd_type type;
+    TXNID xid;
     union {
         /* insert or delete */
         struct brt_cmd_insert_delete {
@@ -185,8 +188,8 @@ extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
 static const BRTNODE null_brtnode=0;
 
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
-extern u_int32_t toku_calccrc32_cmd (int type, const void *key, int keylen, const void *val, int vallen);
-extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD_S *cmd);
+extern u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, const void *val, int vallen);
+extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd);
 
 // How long is the pivot key?
 unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree

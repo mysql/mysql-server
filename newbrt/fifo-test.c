@@ -46,10 +46,10 @@ void test_fifo_enq(int n) {
     for (i=0; i<n; i++) {
         buildkey(i);
         buildval(i);
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i); assert(r == 0);
+        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, i, (TXNID)i); assert(r == 0);
     }
 
-    void checkit(bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen, int type, void *arg) {
+    void checkit(bytevec key, ITEMLEN keylen, bytevec val, ITEMLEN vallen, int type, TXNID xid, void *arg) {
         if (verbose) printf("checkit %d %d\n", i, type);
         assert(arg == 0);
         buildkey(i);
@@ -57,6 +57,7 @@ void test_fifo_enq(int n) {
         assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
         assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
         assert(i % 256 == type);
+	assert((TXNID)i==xid);
         
         i += 1;
     }
