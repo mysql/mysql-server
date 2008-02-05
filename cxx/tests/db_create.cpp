@@ -1,7 +1,7 @@
 #include <assert.h>
 #include <db_cxx.h>
 
-int dbcreate(char *dbfile, char *dbname, int argc, char *argv[]) {
+int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     int r;
 #if USE_ENV
     DbEnv *env = new DbEnv(DB_CXX_NO_EXCEPTIONS);
@@ -10,6 +10,8 @@ int dbcreate(char *dbfile, char *dbname, int argc, char *argv[]) {
     DbEnv *env = 0;
 #endif
     Db *db = new Db(env, DB_CXX_NO_EXCEPTIONS);
+    r = db->set_flags(dbflags); 
+    assert(r == 0);
     r = db->open(0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777);
     assert(r == 0);
 
@@ -33,12 +35,13 @@ int dbcreate(char *dbfile, char *dbname, int argc, char *argv[]) {
 }
 
 int usage() {
-    printf("db_create [-s DBNAME] DBFILE [KEY VAL]*\n");
+    printf("db_create [-s DBNAME] [-D] [-S] DBFILE [KEY VAL]*\n");
     return 1;
 }
 
 int main(int argc, char *argv[]) {
     char *dbname = 0;
+    int dbflags = 0;
 
     int i;
     for (i=1; i<argc; i++) {
@@ -46,10 +49,17 @@ int main(int argc, char *argv[]) {
         if (0 == strcmp(arg, "-h") || 0 == strcmp(arg, "--help"))
             return usage();
         if (0 == strcmp(arg, "-s")) {
-            i++;
-            if (i >= argc)
+            if (i+1 >= argc)
                 return usage();
-            dbname = argv[i];
+            dbname = argv[++i];
+            continue;
+        }
+        if (0 == strcmp(arg, "-D")) {
+            dbflags += DB_DUP;
+            continue;
+        }
+        if (0 == strcmp(arg, "-S")) {
+            dbflags += DB_DUPSORT;
             continue;
         }
         break;
@@ -58,6 +68,6 @@ int main(int argc, char *argv[]) {
     if (i >= argc)
         return usage();
     char *dbfile = argv[i++];
-    return dbcreate(dbfile, dbname, argc-i, &argv[i]);
+    return dbcreate(dbfile, dbname, dbflags, argc-i, &argv[i]);
 }
 
