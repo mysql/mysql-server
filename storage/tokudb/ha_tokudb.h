@@ -146,6 +146,8 @@ public:
   int cmp_ref(const uchar *ref1, const uchar *ref2);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
 
+ private:
+  int __close(int mutex_is_locked);
 };
 
 #ifdef UNDEF
