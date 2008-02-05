@@ -46,15 +46,34 @@
 #include <assert.h>
 #include <db.h>
 #include <brttypes.h>
+
+#if   defined(TOKU_LT_LINEAR)
+    #define TOKU_RT_LINEAR
+#elif defined(TOKU_LT_TLOG)
+    #define TOKU_RT_TLOG
+#elif defined(TOKU_LT_LOG)
+    #define TOKU_RT_LOG
+#else
+    #error Using an undefined LOCK TREE TYPE.
+#endif
+
 #include <rangetree.h>
 #include <rth.h>
 
+typedef enum {
+    TOKU_LT_INCONSISTENT=-1,
+} TOKU_LT_ERROR;
+
+char* toku_lt_strerror(TOKU_LT_ERROR r) __attribute__((const,pure));
+
 /** \brief The lock tree structure */
-typedef struct {
+typedef struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
     DB*                 db;
     /** Whether the db supports duplicate */
     BOOL                duplicates;
+    /** Whether the duplicates flag can no longer be changed. */
+    BOOL                dups_final;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;
@@ -62,16 +81,16 @@ typedef struct {
         the range trees that this lock tree owns */
     toku_range*         buf;      
     u_int32_t           buflen;      /**< The length of buf */
-    /** The maximum amount of memory to be used for DBT payloads. */
-    size_t              payload_capacity;
-    /** The current amount of memory used for DBT payloads. */
-    size_t              payload_used;
+    /** The maximum number of ranges allowed. */
+    u_int32_t           max_ranges;
+    /** The current number of ranges. */
+    u_int32_t*          num_ranges;
     /** The key compare function */
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
     int               (*dup_compare)(DB*,const DBT*,const DBT*);
     /** The panic function */
-    int               (*panic)(DB*);
+    int               (*panic)(DB*, int);
     /** The user malloc function */
     void*             (*malloc) (size_t);
     /** The user free function */
@@ -135,13 +154,23 @@ typedef struct {
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   int (*panic)(DB*), size_t payload_capacity,
+                   int (*panic)(DB*, int), u_int32_t max_locks,
+                   u_int32_t* num_locks,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t));
 
+/**
+    Set whether duplicates are allowed.
+    This can be called after create, but NOT after any locks or unlocks have
+    occurred.
+    Return: 0 on success.
+    Return: EINVAL if tree is NULL
+    Return: EDOM   if it is too late to change. 
+*/
+int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates);
 
 /**
    Closes and frees a lock tree.

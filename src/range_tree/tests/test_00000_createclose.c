@@ -2,17 +2,6 @@
 
 #include "test.h"
 
-int mallocced = 0;
-int failon    = -1;
-
-void* fail_malloc(size_t size) {
-    if (++mallocced == failon) {
-        errno = ENOMEM;
-        return NULL;
-    }
-    return malloc(size);
-}
-
 int main(int argc, const char *argv[]) {
     int r;
     toku_range_tree *tree;

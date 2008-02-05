@@ -72,3 +72,14 @@ void toku_free(void* p) {
 void* toku_realloc(void *ptr, size_t size) {
     return realloc(ptr, size);
 }
+
+int mallocced = 0;
+int failon    = -1;
+
+void* fail_malloc(size_t size) {
+    if (++mallocced == failon) {
+        errno = ENOMEM;
+        return NULL;
+    }
+    return malloc(size);
+}

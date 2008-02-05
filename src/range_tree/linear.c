@@ -33,7 +33,7 @@ static int __toku_rt_p_cmp(toku_range_tree* tree,
 }
     
 static int __toku_rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
-    assert(tree);
+    //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(tree);
     u_int32_t num = _num < minlen ? minlen : _num;
     
     if (tree->ranges_len >= num * 2) {
@@ -50,7 +50,7 @@ static int __toku_rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
 }
 
 static int __toku_rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
-    assert(tree);
+    //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(tree);
     if (tree->ranges_len < num) {
         u_int32_t temp_len = tree->ranges_len;
         while (temp_len < num) temp_len *= 2;
@@ -66,7 +66,7 @@ static int __toku_rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
 static int __toku_rt_increase_buffer(toku_range_tree* tree, toku_range** buf,
                                      u_int32_t* buflen, u_int32_t num) {
     assert(buf);
-    assert(buflen);
+    //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
     if (*buflen < num) {
         u_int32_t temp_len = *buflen;
         while (temp_len < num) temp_len *= 2;
@@ -249,4 +249,9 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
     if (!tree || !allowed)                               return EINVAL;
     *allowed = tree->allow_overlaps;
     return 0;
+}
+
+u_int32_t toku_rt_get_size(toku_range_tree *rt) {
+    assert(rt);
+    return rt->numelements;
 }

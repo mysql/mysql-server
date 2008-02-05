@@ -14,6 +14,8 @@ struct db_header {
     BRT  *database_brts;  // These 
 };
 
+struct __toku_lock_tree;
+
 struct __toku_db_internal {
     DB *db; // A pointer back to the DB.
     int freed;
@@ -30,6 +32,7 @@ struct __toku_db_internal {
     DB *primary;            // For secondary (associated) databases, what is the primary?  NULL if not a secondary.
     int(*associate_callback)(DB*, const DBT*, const DBT*, DBT*); // For secondary, the callback function for associate.  NULL if not secondary
     int associate_is_immutable; // If this DB is a secondary then this field indicates that the index never changes due to updates.
+    struct __toku_lock_tree* lt;
 };
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
@@ -57,6 +60,8 @@ struct __toku_db_env_internal {
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
+    u_int32_t max_locks;
+    u_int32_t num_locks;
 };
 
 struct __toku_db_txn_internal {

@@ -39,31 +39,35 @@ CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include -l
 SRCS = $(wildcard *.c)
 
 LOG_TESTS = $(patsubst %.c,%.log,$(SRCS))
+TLOG_TESTS = $(patsubst %.c,%.tlog,$(SRCS))
 LIN_TESTS = $(patsubst %.c,%.lin,$(SRCS))
 
-ALL_TESTS = $(LOG_TESTS) $(LIN_TESTS)
+ALL_TESTS = $(LIN_TESTS) $(TLOG_TESTS) $(LOG_TESTS)
 
-RUN_LOG_TESTS = $(patsubst %.log,%.logrun,$(LOG_TESTS))
-RUN_LIN_TESTS = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
-RUN_ALL_TESTS = $(RUN_LOG_TESTS) $(RUN_LIN_TESTS)
+RUN_LOG_TESTS  = $(patsubst %.log,%.logrun,$(LOG_TESTS))
+RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
+RUN_LIN_TESTS  = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
+RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
 
 all: make_libs $(ALL_TESTS)
 
-.PHONY: check check.lin check.log tests.lin tests.log
-check: check.lin check.log
+.PHONY: check check.lin check.log tests.lin tests.log check.tlog tests.tlog
+check: check.lin check.tlog check.log
 	@ echo ok
 tests.lin: make_libs $(LIN_TESTS)
 check.lin: make_libs $(RUN_LIN_TESTS)
+tests.tlog: make_libs $(TLOG_TESTS)
+check.tlog: make_libs $(RUN_TLOG_TESTS)
 tests.log: make_libs $(LOG_TESTS)
 check.log: make_libs $(RUN_LOG_TESTS)
 
 # Need these rule so that Make knows about all the file names
-.PHONY: %.linrun %.logrun %.run
+.PHONY: %.linrun %.logrun %.run %.tlogrun
 $(RUN_ALL_TESTS):
 $(ALL_TESTS):
 
-%.run: %.linrun %.logrun
+%.run: %.linrun %.tlogrun %.logrun
 	@ echo ok
 
 ifeq ($(VERBOSE),2)
@@ -87,14 +91,18 @@ endif
 	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
 %.logrun: %.log
 	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
+%.tlogrun: %.tlog
+	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
 libs:
 	cd ..;make
 
 %.lin: %.c ../locktree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.lin\" -DTOKU_LINEAR_RANGE_TREE $(CPPFLAGS) $(CFLAGS) $< -lrangetreelinear -llocktree -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.lin\" -DTOKU_LT_LINEAR $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -llocktree_linear -o $@
+%.tlog: %.c ../locktree.h test.h
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_TLOG   $(CPPFLAGS) $(CFLAGS) $< -lrangetree_tlog   -llocktree_tlog   -o $@
 %.log: %.c ../locktree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_LOG_RANGE_TREE    $(CPPFLAGS) $(CFLAGS) $< -lrangetree -llocktre        -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_LOG    $(CPPFLAGS) $(CFLAGS) $< -lrangetree_log    -llocktree_log    -o $@
 
 .PHONY: make_libs
 
