@@ -24,6 +24,7 @@
  *     
  */
 
+#include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
@@ -254,7 +255,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = 1;
+    n->layout_version = 2;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -308,11 +309,11 @@ static void create_new_brtnode (BRT t, BRTNODE *result, int height, TOKUTXN txn)
     toku_update_brtnode_lsn(n, txn);
 }
 
-static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v, int type) {
+static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v, int type, TXNID xid) {
     unsigned int n_bytes_added = BRT_CMD_OVERHEAD + KEY_VALUE_OVERHEAD + k->size + v->size;
-    int r = toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type);
+    int r = toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, xid);
     if (r!=0) return r;
-    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_cmd(type, k->data, k->size, v->data, v->size);
+    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_cmd(type, xid, k->data, k->size, v->data, v->size);
     BNC_NBYTESINBUF(node,childnum) += n_bytes_added;
     node->u.n.n_bytes_in_buffers += n_bytes_added;
     node->dirty = 1;
@@ -392,21 +393,22 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		bytevec key, data;
 		unsigned int keylen, datalen;
 		int type;
-		int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type);
+		TXNID xid;
+		int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type, &xid);
 		if (fr!=0) break;
 		int n_bytes_moved = keylen+datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
 		BYTESTRING keybs  = { .len = keylen,  .data = (char*)key  };
 		BYTESTRING databs = { .len = datalen, .data = (char*)data };
 		u_int32_t old_from_fingerprint = node->local_fingerprint;
 		u_int32_t old_to_fingerprint   = B->local_fingerprint;
-		u_int32_t delta = toku_calccrc32_cmd(type, key, keylen, data, datalen);
+		u_int32_t delta = toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		u_int32_t new_to_fingerprint   = old_to_fingerprint   + B->rand4fingerprint   *delta;
 		if (r!=0) return r;
-		r = toku_log_brtdeq(txn, txnid, fnum, node->thisnodename, n_children_in_a, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
+		r = toku_log_brtdeq(txn, xid, fnum, node->thisnodename, n_children_in_a, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
 		if (r!=0) return r;
-		r = toku_log_brtenq(txn, txnid, fnum, B->thisnodename,    targchild,       type, keybs, databs, old_to_fingerprint,   new_to_fingerprint);
-		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type);
+		r = toku_log_brtenq(txn, xid, fnum, B->thisnodename,    targchild,       type, keybs, databs, old_to_fingerprint,   new_to_fingerprint);
+		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
 		if (r!=0) return r;
 		toku_fifo_deq(from_htab);
 		// key and data will no longer be valid
@@ -525,7 +527,7 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
 	if (r!=0) return r;
 	assert(again_split==0); /* I only did the insert if I knew it wouldn't push down, and hence wouldn't split. */
     } else {
-	r=insert_to_buffer_in_nonleaf(node, childnum_of_node, k, v, cmd->type);
+	r=insert_to_buffer_in_nonleaf(node, childnum_of_node, k, v, cmd->type, cmd->xid);
     }
     fixup_child_fingerprint(node, childnum_of_node, child, t, txn);
     return r;
@@ -576,7 +578,7 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
 static int split_count=0;
 
 /* NODE is a node with a child.
- * childnum was split into two nodes childa, and childb.
+ * childnum was split into two nodes childa, and childb.  childa is the same as the original child.  childb is a new child.
  * We must slide things around, & move things from the old table to the new tables.
  * We also move things to the new children as much as we can without doing any pushdowns or splitting of the child.
  * We must delete the old buffer (but the old child is already deleted.)
@@ -623,8 +625,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     BNC_NBYTESINBUF(node, childnum+1) = 0;
 
     // Remove all the cmds from the local fingerprint.  Some may get added in again when we try to push to the child.
-    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type,
-                 node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_cmd(type, skey, skeylen, sval, svallen));
+    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid,
+                 node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen));
 
     // Slide the keys over
     {
@@ -653,40 +655,44 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     node->u.n.n_bytes_in_buffers -= old_count; /* By default, they are all removed.  We might add them back in. */
     /* Keep pushing to the children, but not if the children would require a pushdown */
-    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, ({
+    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid, ({
         DBT skd, svd;
-	toku_fill_dbt(&skd, skey, skeylen);
-	toku_fill_dbt(&svd, sval, svallen);
-        BRT_CMD_S brtcmd;
-        brtcmd.type = type; brtcmd.u.id.key = &skd; brtcmd.u.id.val = &svd;
+        BRT_CMD_S brtcmd = { type, xid, .u.id= {toku_fill_dbt(&skd, skey, skeylen),
+						toku_fill_dbt(&svd, sval, svallen)} };
 	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
-        int tochildnum = childnum;
-        BRTNODE tochild = childa;
-        if (type == BRT_INSERT || type == BRT_DELETE_BOTH) {
-            int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
-            if (cmp > 0) {
-                tochildnum = childnum+1; tochild = childb;
-            }
-        }
-	r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, tochild, &brtcmd, tochildnum, txn);
-	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
-        if (type == BRT_DELETE) {
-            int r2 = push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1, txn);
-            //verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
-            if (r2!=0) {
-		// In this case we must put things from old_h into the new buffers.
-		// This code is wrong, so I'll abort.
-		abort();
-		return r2;
+        int tochildnum;
+        BRTNODE tochild;
+	switch (type) {
+	case BRT_INSERT:
+	case BRT_DELETE_BOTH:
+	case BRT_DELETE:
+	//case BRT_DELETE:
+            {
+		int cmp = brt_compare_pivot(t, &skd, &svd, childsplitk->data);
+		if (cmp > 0) {
+		    tochildnum = childnum+1; tochild = childb;
+		} else {
+		    tochildnum = childnum;   tochild = childa;
+		}
 	    }
-        }
-	if (r!=0) {
-	    // In this case we must put things from old_h into the new buffers.
-	    // This code is wrong, so I'll abort.
-	    abort();
-	    return r;
+	    goto ok;
+	case BRT_NONE:
+	    // Don't have to do anything in this case, can just drop the command
+	    goto ok;
 	}
-    }));
+	printf("Bad type %d\n", type); // Don't use default: because I want a compiler warning if I forget a enum case, and I want a runtime error if the type isn't one of the expected ones.
+	assert(0);
+     ok:
+	// If we already have something in the buffer, we must add the new command to the buffer so that commands don't get out of order.
+	if (toku_fifo_n_entries(BNC_BUFFER(node,tochildnum))==0) {
+	    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, tochild, &brtcmd, tochildnum, txn);
+	} else {
+	    r=insert_to_buffer_in_nonleaf(node, tochildnum, &skd, &svd, type, xid);
+	}
+	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
+	if (r!=0) printf("r=%d\n", r);
+	assert(r==0);
+		     }));
 
     toku_fifo_free(&old_h);
 
@@ -769,17 +775,14 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
 	assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
 	int type;
-        while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type)) {
+	TXNID xid;
+        while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type, &xid)) {
 	    int child_did_split=0; BRTNODE childa, childb;
 	    DBT hk,hv;
 	    DBT childsplitk;
-            BRT_CMD_S brtcmd;
 
-            toku_fill_dbt(&hk, key, keylen);
-            toku_fill_dbt(&hv, val, vallen);
-            brtcmd.type = type;
-            brtcmd.u.id.key = &hk;
-            brtcmd.u.id.val = &hv;
+	    BRT_CMD_S brtcmd = { type, xid, .u.id= {toku_fill_dbt(&hk, key, keylen),
+						    toku_fill_dbt(&hv, val, vallen)} };
 
 	    //printf("%s:%d random_picked\n", __FILE__, __LINE__);
 	    toku_init_dbt(&childsplitk);
@@ -792,7 +795,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 
 	    if (0){
 		unsigned int sum=0;
-		FIFO_ITERATE(BNC_BUFFER(node,childnum), subhk __attribute__((__unused__)), hkl, hd __attribute__((__unused__)), hdl, subtype __attribute__((__unused__)),
+		FIFO_ITERATE(BNC_BUFFER(node,childnum), subhk __attribute__((__unused__)), hkl, hd __attribute__((__unused__)), hdl, subtype __attribute__((__unused__)), subxid __attribute__((__unused__)),
                              sum+=hkl+hdl+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD);
 		printf("%s:%d sum=%d\n", __FILE__, __LINE__, sum);
 		assert(sum==BNC_NBYTESINBUF(node, childnum));
@@ -1030,9 +1033,9 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
         DBT *v = cmd->u.id.val;
 
 	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type);
+        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
 	assert(r==0);
-	node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmd(type, k->data, k->size, v->data, v->size);
+	node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmd(type, cmd->xid, k->data, k->size, v->data, v->size);
 	node->u.n.n_bytes_in_buffers += diff;
 	BNC_NBYTESINBUF(node, childnum) += diff;
         node->dirty = 1;
@@ -1174,9 +1177,9 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     int i;
     if (node->height==0) return;
     for (i=0; i<node->u.n.n_children; i++)
-	FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
+	FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 			  ({
-			      fp += node->rand4fingerprint * toku_calccrc32_cmd(type, key, keylen, data, datalen);
+			      fp += node->rand4fingerprint * toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 			  }));
     assert(fp==node->local_fingerprint);
 }
@@ -1682,11 +1685,8 @@ static int brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKUTXN txn) {
 
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
-    BRT_CMD_S brtcmd;
+    BRT_CMD_S brtcmd = { BRT_INSERT, toku_txn_get_txnid(txn), .u.id={key,val}};
 
-    brtcmd.type = BRT_INSERT;
-    brtcmd.u.id.key = key;
-    brtcmd.u.id.val = val;
     r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
@@ -1708,25 +1708,15 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
-    BRT_CMD_S brtcmd;
     DBT val;
-
-    toku_init_dbt(&val);
-    val.size = 0;
-    brtcmd.type = BRT_DELETE;
-    brtcmd.u.id.key = key;
-    brtcmd.u.id.val = &val;
+    BRT_CMD_S brtcmd = { BRT_DELETE, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
     r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
 
 int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
-    BRT_CMD_S brtcmd;
-
-    brtcmd.type = BRT_DELETE_BOTH;
-    brtcmd.u.id.key = key;
-    brtcmd.u.id.val = val;
+    BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, toku_txn_get_txnid(txn), .u.id={key,val}};
     r = brt_root_put_cmd(brt, &brtcmd, txn);
     return r;
 }
@@ -1750,19 +1740,20 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 	//printf("%s %s\n", lorange ? lorange : "NULL", hirange ? hirange : "NULL");
 	{
 	    int i;
-	    for (i=0; i< node->u.n.n_children-1; i++) {
+	    for (i=0; i< node->u.n.n_children; i++) {
 		printf("%*schild %d buffered (%d entries):\n", depth+1, "", i, toku_fifo_n_entries(BNC_BUFFER(node,i)));
-		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type,
+		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
-				      printf("%*s %s %s %d\n", depth+2, "", (char*)key, (char*)data, type);
-				      assert(strlen((char*)key)+1==keylen);
-				      assert(strlen((char*)data)+1==datalen);
+				      data=data; datalen=datalen; keylen=keylen;
+				      printf("%*s xid=%lld %d (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
+				      //assert(strlen((char*)key)+1==keylen);
+				      //assert(strlen((char*)data)+1==datalen);
 				  }));
 	    }
 	    for (i=0; i<node->u.n.n_children; i++) {
 		printf("%*schild %d\n", depth, "", i);
 		if (i>0) {
-		    printf("%*spivot %d=%s\n", depth+1, "", i-1, (char*)node->u.n.childkeys[i-1]);
+		    printf("%*spivot %d len=%d %d\n", depth+1, "", i-1, node->u.n.childkeys[i-1]->keylen, ntohl(*(int*)&node->u.n.childkeys[i-1]->key));
 		}
 		toku_dump_brtnode(brt, BNC_DISKOFF(node, i), depth+4,
 				  (i==0) ? lorange : node->u.n.childkeys[i-1],
@@ -1774,10 +1765,10 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 	    }
 	}
     } else {
-	printf("%*sNode %lld nodesize=%d height=%d n_bytes_in_buffer=%d keyrange=%s %s\n",
-	       depth, "", off, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, (char*)lorange, (char*)hirange);
-	PMA_ITERATE(node->u.l.buffer, key, keylen, val, vallen,
-		    ( keylen=keylen, vallen=vallen, printf(" %s:%s", (char*)key, (char*)val)));
+	printf("%*sNode %lld nodesize=%d height=%d n_bytes_in_buffer=%d keyrange=%d %d\n",
+	       depth, "", off, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
+	PMA_ITERATE(node->u.l.buffer, key, keylen, val __attribute__((__unused__)), vallen,
+		    ( keylen=keylen, vallen=vallen, printf(" (%d)%d ", keylen, ntohl(*(int*)key))));
 	printf("\n");
     }
     r = toku_cachetable_unpin(brt->cf, off, 0, 0);
@@ -1788,6 +1779,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 int toku_dump_brt (BRT brt) {
     int r;
     CACHEKEY *rootp;
+    struct brt_header *prev_header = brt->h;
     if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
 	if (0) { died0: toku_unpin_brt_header(brt); }
 	return r;
@@ -1796,6 +1788,7 @@ int toku_dump_brt (BRT brt) {
     printf("split_count=%d\n", split_count);
     if ((r = toku_dump_brtnode(brt, *rootp, 0, 0, 0, 0, 0, null_brtnode))) goto died0;
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
+    brt->h = prev_header;
     return 0;
 }
 

@@ -26,7 +26,7 @@ static void test_serialize(void) {
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
-    sn.layout_version = 1;
+    sn.layout_version = 2;
     sn.height = 1;
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
@@ -40,9 +40,9 @@ static void test_serialize(void) {
     BNC_SUBTREE_FINGERPRINT(&sn, 1) = random();
     r = toku_fifo_create(&BNC_BUFFER(&sn,0)); assert(r==0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,1)); assert(r==0);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "a", 2, "aval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "b", 2, "bval", 5);
-    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE,   "x", 2, "xval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, (TXNID)0); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE, (TXNID)0, "a", 2, "aval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,0), "b", 2, "bval", 5, BRT_NONE, (TXNID)123); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE, (TXNID)123,  "b", 2, "bval", 5);
+    r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, (TXNID)234); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE, (TXNID)234, "x", 2, "xval", 5);
     BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     {
@@ -59,7 +59,7 @@ static void test_serialize(void) {
 
     assert(dn->thisnodename==nodesize*20);
     assert(dn->disk_lsn.lsn==123456);
-    assert(dn->layout_version ==1);
+    assert(dn->layout_version ==2);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);

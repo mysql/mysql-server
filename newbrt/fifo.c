@@ -65,10 +65,11 @@ int toku_fifo_n_entries(FIFO fifo) {
     return fifo->n;
 }
 
-int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type) {
+int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *data, unsigned int datalen, int type, TXNID xid) {
     struct fifo_entry *entry = toku_malloc(sizeof (struct fifo_entry) + keylen + datalen);
     if (entry == 0) return ENOMEM;
     entry->type = type;
+    entry->xid  = xid;
     entry->keylen = keylen;
     memcpy(entry->key, key, keylen);
     entry->vallen = datalen;
@@ -78,7 +79,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
 }
 
 /* peek at the head (the oldest entry) of the fifo */
-int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, int *type) {
+int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, int *type, TXNID *xid) {
     struct fifo_entry *entry = fifo_peek(fifo);
     if (entry == 0) return -1;
     *key = entry->key;
@@ -86,6 +87,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
     *data = entry->key + entry->keylen;
     *datalen = entry->vallen;
     *type = entry->type;
+    *xid  = entry->xid;
     return 0;
 }
 
@@ -96,10 +98,10 @@ int toku_fifo_deq(FIFO fifo) {
     return 0;
 }
 
-void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, void*), void *arg) {
+void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {
     struct fifo_entry *entry;
     for (entry = fifo_peek(fifo); entry; entry = entry->next)
-        f(entry->key, entry->keylen, entry->key + entry->keylen, entry->vallen, entry->type, arg);
+        f(entry->key, entry->keylen, entry->key + entry->keylen, entry->vallen, entry->type, entry->xid, arg);
 }
 
 
