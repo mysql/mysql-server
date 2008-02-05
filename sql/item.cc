@@ -3418,7 +3418,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
   @param thd     current thread
   @param ref     column reference being resolved
-  @param select  the sub-select that ref is resolved against
+  @param select  the select that ref is resolved against
 
   @note
     The resolution procedure is:
@@ -3478,6 +3478,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
   }
 
   if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
+      select->having_fix_field  &&
       select_ref != not_found_item && !group_by_ref)
   {
     /*
@@ -4460,7 +4461,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     break;
   case MYSQL_TYPE_NEWDATE:
   case MYSQL_TYPE_DATE:
-    field= new Field_date(maybe_null, name, &my_charset_bin);
+    field= new Field_newdate(maybe_null, name, &my_charset_bin);
     break;
   case MYSQL_TYPE_TIME:
     field= new Field_time(maybe_null, name, &my_charset_bin);
@@ -6695,6 +6696,8 @@ enum_field_types Item_type_holder::get_real_type(Item *item)
     */
     Field *field= ((Item_field *) item)->field;
     enum_field_types type= field->real_type();
+    if (field->is_created_from_null_item)
+      return MYSQL_TYPE_NULL;
     /* work around about varchar type field detection */
     if (type == MYSQL_TYPE_STRING && field->type() == MYSQL_TYPE_VAR_STRING)
       return MYSQL_TYPE_VAR_STRING;
@@ -6948,6 +6951,8 @@ Field *Item_type_holder::make_field_by_type(TABLE *table)
     if (field)
       field->init(table);
     return field;
+  case MYSQL_TYPE_NULL:
+    return make_string_field(table);
   default:
     break;
   }

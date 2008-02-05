@@ -155,13 +155,15 @@ c1	c3	c4	c5
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)/*!*/;
+CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -178,13 +180,17 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-DROP TABLE IF EXISTS t1,t2,t3/*!*/;
+DROP TABLE IF EXISTS t1,t2,t3
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t1(word VARCHAR(20))/*!*/;
+CREATE TABLE t1(word VARCHAR(20))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)/*!*/;
+CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)/*!*/;
+CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -279,13 +285,17 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-DROP TABLE IF EXISTS t1,t2,t3/*!*/;
+DROP TABLE IF EXISTS t1,t2,t3
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t1(word VARCHAR(20))/*!*/;
+CREATE TABLE t1(word VARCHAR(20))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)/*!*/;
+CREATE TABLE t2(id INT AUTO_INCREMENT NOT NULL PRIMARY KEY)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)/*!*/;
+CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -295,13 +305,15 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
+ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)/*!*/;
+CREATE TABLE t3(c1 INT NOT NULL PRIMARY KEY, c2 LONGBLOB, c3 TIMESTAMP, c4 TEXT, c5 FLOAT)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

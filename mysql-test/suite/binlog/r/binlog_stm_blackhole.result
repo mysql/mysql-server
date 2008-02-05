@@ -104,23 +104,40 @@ select * from t2;
 a
 select * from t3;
 a
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; delete from t1 where a=10
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; update t1 set a=11 where a=15
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(1)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert ignore into t1 values(1)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; replace into t1 values(100)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
-master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t2 ;file_id=1
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t2 ;file_id=#
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 add b int
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 drop b
 master-bin.000001	#	Query	#	#	use `test`; create table t3 like t1
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 select * from t3
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; replace into t1 select * from t3
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 drop table t1,t2,t3;
 CREATE TABLE t1(a INT) ENGINE=BLACKHOLE;
 INSERT DELAYED INTO t1 VALUES(1);
@@ -147,8 +164,9 @@ start transaction;
 insert into t1 values(2);
 rollback;
 set autocommit=1;
-show binlog events from <binlog_start>;
+show binlog events;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Format_desc	#	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int) engine=blackhole
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values(1)

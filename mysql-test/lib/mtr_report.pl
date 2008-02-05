@@ -50,9 +50,13 @@ my $tot_real_time= 0;
 
 sub mtr_report_test_name ($) {
   my $tinfo= shift;
+  my $tname= $tinfo->{name};
 
-  _mtr_log("$tinfo->{name}");
-  printf "%-30s ", $tinfo->{'name'};
+  $tname.= " '$tinfo->{combination}'"
+    if defined $tinfo->{combination};
+
+  _mtr_log($tname);
+  printf "%-30s ", $tname;
 }
 
 sub mtr_report_test_skipped ($) {
@@ -365,6 +369,24 @@ sub mtr_report_stats ($) {
 		/Slave: Can't DROP 'c7'.* 1091/ or
 		/Slave: Key column 'c6'.* 1072/ or
 
+                # rpl_idempotency.test produces warnings for the slave.
+                ($testname eq 'rpl.rpl_idempotency' and
+                 (/Slave: Can\'t find record in \'t1\' Error_code: 1032/ or
+                   /Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452/
+                 )) or
+ 
+                # These tests does "kill" on queries, causing sporadic errors when writing to logs
+                (($testname eq 'rpl.rpl_skip_error' or
+                  $testname eq 'rpl.rpl_err_ignoredtable' or
+                  $testname eq 'binlog.binlog_killed_simulate' or
+                  $testname eq 'binlog.binlog_killed') and
+                 (/Failed to write to mysql\.\w+_log/
+                 )) or
+ 
+                # rpl_temporary has an error on slave that can be ignored
+                ($testname eq 'rpl.rpl_temporary' and
+                 (/Slave: Can\'t find record in \'user\' Error_code: 1032/
+                 ))
                 # maria-recovery.test has warning about missing log file
                 /Can't get stat of '.*maria_log.00/ or
                 # and about marked-corrupted table

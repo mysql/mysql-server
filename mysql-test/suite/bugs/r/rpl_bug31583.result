@@ -1,0 +1,15 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE t1 ( a INT, b INT DEFAULT -3 );
+INSERT INTO t1 VALUES (1, DEFAULT);
+UPDATE t1 SET a = 3;
+SELECT * FROM t1 ORDER BY a;
+a	b
+3	-3
+SELECT * FROM t1 ORDER BY a;
+a	b
+3	-3
