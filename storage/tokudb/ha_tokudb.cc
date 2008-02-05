@@ -701,6 +701,8 @@ tokudb_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
       if (!*new_key_ptr++)
 	continue;
     }
+    if (key->table->insert_or_update != 1)
+        printf("%s:%d:insert_or_update=%d\n", key->table->insert_or_update);
     if ((cmp= key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,
 					key_part->length,
 					key->table->insert_or_update)))
@@ -1081,7 +1083,7 @@ DBT *ha_tokudb::create_key(DBT *key, uint keynr, uchar *buff,
   {
     key->data= current_ident;
     key->size= TDB_HIDDEN_PRIMARY_KEY_LENGTH;
-    return key;
+    DBUG_RETURN(key);
   }
 
   KEY *key_info= table->key_info+keynr;
