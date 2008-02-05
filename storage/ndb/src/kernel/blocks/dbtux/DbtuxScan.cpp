@@ -217,7 +217,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
       // fill in any gap
       while (maxAttrId[j] <= attrId) {
         jam();
-        BoundInfo& b = boundInfo[j][maxAttrId[j]++];
+        BoundInfo& b = boundInfo[j][maxAttrId[j]];
+        maxAttrId[j]++;
         b.type2 = -1;
       }
       BoundInfo& b = boundInfo[j][attrId];
