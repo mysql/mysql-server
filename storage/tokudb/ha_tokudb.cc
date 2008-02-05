@@ -701,8 +701,7 @@ tokudb_cmp_packed_key(DB *file, const DBT *new_key, const DBT *saved_key)
       if (!*new_key_ptr++)
 	continue;
     }
-    if (key->table->insert_or_update != 1)
-        printf("%s:%d:insert_or_update=%d\n", key->table->insert_or_update);
+    if (0) printf("%s:%d:insert_or_update=%d\n", __FILE__, __LINE__, key->table->insert_or_update);
     if ((cmp= key_part->field->pack_cmp(new_key_ptr,saved_key_ptr,
 					key_part->length,
 					key->table->insert_or_update)))
@@ -857,7 +856,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
       {
 	if ((error=db_create(ptr, db_env, 0)))
 	{
-	  close();
+	  __close(1);
 	  my_errno=error;
 	  DBUG_RETURN(1);
 	}
@@ -867,8 +866,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
 	(*ptr)->app_private= (void*) (table->key_info+i);
 	if (!(table->key_info[i].flags & HA_NOSAME))
 	{
-	  DBUG_PRINT("info",("Setting DB_DUP for key %u", i));
-	  (*ptr)->set_flags(*ptr, DB_DUP);
+	  DBUG_PRINT("info",("Setting DB_DUP+DB_DUPSORT for key %u", i));
+	  (*ptr)->set_flags(*ptr, DB_DUP+DB_DUPSORT);
 	}
 	if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction,
 				      0)) ||
@@ -876,7 +875,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
 				 open_mode, 0))) ||
 	    (error= transaction->commit(transaction, 0)))
 	{
-	  close();
+	  __close(1);
 	  my_errno=error;
 	  DBUG_RETURN(1);
 	}
@@ -917,6 +916,12 @@ int ha_tokudb::close(void)
 {
   DBUG_ENTER("ha_tokudb::close");
   TOKUDB_CLOSE();
+  DBUG_RETURN(__close(0));
+}
+
+int ha_tokudb::__close(int mutex_is_locked)
+{
+  DBUG_ENTER("ha_tokudb::__close");
   printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
   if (file->app_private == table->key_info + table_share->primary_key) {
       printf("%s:%d:reset app_private\n", __FILE__, __LINE__);
@@ -925,7 +930,7 @@ int ha_tokudb::close(void)
   my_free(rec_buff,MYF(MY_ALLOW_ZERO_PTR));
   my_free(alloc_ptr,MYF(MY_ALLOW_ZERO_PTR));
   ha_tokudb::reset();  // current_row buffer
-  DBUG_RETURN(free_share(share,table, hidden_primary_key,0));
+  DBUG_RETURN(free_share(share, table, hidden_primary_key, mutex_is_locked));
 }
 
 /* Reallocate buffer if needed */
@@ -2403,7 +2408,7 @@ static int create_sub_table(const char *table_name, const char *sub_name,
   }
   else
   {
-    DBUG_PRINT("error",("Got error: %d when creting table",error));
+    DBUG_PRINT("error",("Got error: %d when creating table",error));
   }
   if (error)
     my_errno=error;
@@ -2435,7 +2440,7 @@ int ha_tokudb::create(const char *name, TABLE *form,
       sprintf(part,"key%02d",index++);
       if ((error= create_sub_table(name_buff, part, DB_BTREE,
 				   (form->key_info[i].flags & HA_NOSAME) ? 0 :
-				   DB_DUP)))
+				   DB_DUP+DB_DUPSORT)))
 	DBUG_RETURN(error);
     }
   }
