@@ -115,6 +115,7 @@ NO_VGRIND = \
   db_dbt_mem_behavior \
   db_curs2 \
   db_delete \
+  db_donotindex \
   db_env_open_nocreate \
   db_env_open_open_close \
   db_open_notexist_reopen \
@@ -145,6 +146,7 @@ NO_VGRIND = \
   log4 \
   log5 \
   nodup_set \
+  thread_insert \
   # Comment to terminate list so the previous line can end with a slash
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
