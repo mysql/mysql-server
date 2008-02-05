@@ -42,6 +42,11 @@ int Db::set_flags(u_int32_t flags) {
     return the_Env->maybe_throw_error(ret);
 }
 
+int Db::get_flags(u_int32_t *flags) {
+    int ret = the_db->get_flags(the_db, flags);
+    return the_Env->maybe_throw_error(ret);
+}
+
 int Db::close (u_int32_t flags) {
     if (!the_db) {
 	return the_Env->maybe_throw_error(EINVAL);
