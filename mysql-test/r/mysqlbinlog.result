@@ -23,24 +23,33 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-drop table if exists t1,t2,t3,t4,t5,t03,t04/*!*/;
+drop table if exists t1,t2,t3,t4,t5,t03,t04
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create table t1 (word varchar(20))/*!*/;
+create table t1 (word varchar(20))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create table t2 (id int auto_increment not null primary key)/*!*/;
+create table t2 (id int auto_increment not null primary key)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 values ("abirvalg")/*!*/;
+insert into t1 values ("abirvalg")
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t2 values ()/*!*/;
+insert into t2 values ()
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -56,7 +65,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values ("Alas")/*!*/;
+insert into t1 values ("Alas")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -83,7 +93,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values ("Alas")/*!*/;
+insert into t1 values ("Alas")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -100,24 +111,33 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-drop table if exists t1,t2,t3,t4,t5,t03,t04/*!*/;
+drop table if exists t1,t2,t3,t4,t5,t03,t04
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create table t1 (word varchar(20))/*!*/;
+create table t1 (word varchar(20))
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-create table t2 (id int auto_increment not null primary key)/*!*/;
+create table t2 (id int auto_increment not null primary key)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t1 values ("abirvalg")/*!*/;
+insert into t1 values ("abirvalg")
+/*!*/;
 SET INSERT_ID=1/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-insert into t2 values ()/*!*/;
+insert into t2 values ()
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-1-2' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-2-2' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-3-2' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-4-2' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -133,7 +153,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values ("Alas")/*!*/;
+insert into t1 values ("Alas")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -160,7 +181,8 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-insert into t1 values ("Alas")/*!*/;
+insert into t1 values ("Alas")
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -173,9 +195,11 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
-BEGIN/*!*/;
+BEGIN
+/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
-insert t1 values (1)/*!*/;
+insert t1 values (1)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -185,9 +209,11 @@ ROLLBACK /* added by mysqlbinlog */;
 DELIMITER /*!*/;
 use test/*!*/;
 SET TIMESTAMP=1108844556/*!*/;
-BEGIN/*!*/;
+BEGIN
+/*!*/;
 SET TIMESTAMP=1108844555/*!*/;
-insert t1 values (1)/*!*/;
+insert t1 values (1)
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -246,7 +272,8 @@ SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.
 CREATE DEFINER=`root`@`localhost` procedure p1()
 begin
 select 1;
-end/*!*/;
+end
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -288,27 +315,36 @@ SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.uniq
 SET @@session.sql_mode=0/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-create table t1 (a varchar(64) character set utf8)/*!*/;
+create table t1 (a varchar(64) character set utf8)
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-6-0' INTO table t1/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-SET @@session.collation_database=7/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-7-0' INTO table t1/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-8-0' INTO table t1/*!*/;
-SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-9-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=7/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-a-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-b-0' INTO table t1/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-c-0' INTO table t1 character set koi8r/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-#-#' INTO table t1
+/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
-drop table t1/*!*/;
+SET @@session.collation_database=7/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-a-0' INTO table t1
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-b-0' INTO table t1
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+load data LOCAL INFILE 'MYSQLTEST_VARDIR/tmp/SQL_LOAD_MB-c-0' INTO table t1 character set koi8r
+/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+drop table t1
+/*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -352,4 +388,29 @@ a	b
 1	root@localhost
 DROP DATABASE mysqltest1;
 DROP USER untrusted@localhost;
+BUG#32580: mysqlbinlog cannot read binlog event with user variables
+USE test;
+SET BINLOG_FORMAT = STATEMENT;
+FLUSH LOGS;
+CREATE TABLE t1 (a_real FLOAT, an_int INT, a_decimal DECIMAL(5,2), a_string CHAR(32));
+SET @a_real = rand(20) * 1000;
+SET @an_int = 1000;
+SET @a_decimal = CAST(rand(19) * 999 AS DECIMAL(5,2));
+SET @a_string = 'Just a test';
+INSERT INTO t1 VALUES (@a_real, @an_int, @a_decimal, @a_string);
+FLUSH LOGS;
+SELECT * FROM t1;
+a_real	158.883
+an_int	1000
+a_decimal	907.79
+a_string	Just a test
+DROP TABLE t1;
+>> mysqlbinlog var/log/master-bin.000019 > var/tmp/bug32580.sql
+>> mysql test < var/tmp/bug32580.sql
+SELECT * FROM t1;
+a_real	158.883
+an_int	1000
+a_decimal	907.79
+a_string	Just a test
+DROP TABLE t1;
 End of 5.1 tests

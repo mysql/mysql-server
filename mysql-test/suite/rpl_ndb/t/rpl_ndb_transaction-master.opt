@@ -1,0 +1,1 @@
+--innodb --debug=d,do_not_write_xid
