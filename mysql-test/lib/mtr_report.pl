@@ -375,11 +375,12 @@ sub mtr_report_stats ($) {
                   /Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452/
 		 )) or
 
-		# rpl_skip_error and binlog_killed_simulate produce an error which is skipped (slave does not stop)
+		# These tests does "kill" on queries, causing sporadic errors when writing to logs
 		(($testname eq 'rpl.rpl_skip_error' or
+		  $testname eq 'rpl.rpl_err_ignoredtable' or
 		  $testname eq 'binlog.binlog_killed_simulate' or
 		  $testname eq 'binlog.binlog_killed') and
-		 (/Failed to write to mysql\.general_log/
+		 (/Failed to write to mysql\.\w+_log/
 		 )) or
 
 		# rpl_temporary has an error on slave that can be ignored
