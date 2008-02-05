@@ -319,7 +319,7 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/* in: transaction */
 /*************************************************************************
-Drops a table for MySQL. If the name of the table ends in
+Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
