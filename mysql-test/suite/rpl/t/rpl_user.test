@@ -1,0 +1,61 @@
+# BUG#33862 completely failed DROP USER statement gets replicated
+
+--source include/master-slave.inc
+
+#
+# remove all users will be used in the test
+#
+connection master;
+set session sql_log_bin=0; 
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1; 
+
+connection slave;
+set session sql_log_bin=0; 
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1; 
+
+#
+# Test create user
+#
+connection master;
+create user 'foo'@'fakehost';
+--error ER_CANNOT_USER
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+--error ER_CANNOT_USER
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+
+sync_slave_with_master;
+select Host,User from mysql.user where Host='fakehost';
+
+#
+# Test rename user
+#
+connection master;
+rename user 'foo'@'fakehost' to 'foofoo'@'fakehost';
+--error ER_CANNOT_USER
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost';
+--error ER_CANNOT_USER
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
+
+sync_slave_with_master;
+select Host,User from mysql.user where Host='fakehost';
+
+#
+# Test drop user
+#
+connection master;
+drop user 'foofoo'@'fakehost';
+--error ER_CANNOT_USER
+drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
+--error ER_CANNOT_USER
+drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
+
+sync_slave_with_master;
+select Host,User from mysql.user where Host='fakehost';
+
+#
+# show the binlog events on the master
+#
+connection master;
+source include/show_binlog_events.inc;
