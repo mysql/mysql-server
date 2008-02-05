@@ -59,7 +59,7 @@ DROP TABLE t1, t2, t3;
 # part and the "get xid event" part, and it does not create table t2.
 
 # Read binlog.
---exec $MYSQL_BINLOG suite/binlog/std_data/binlog_old_version_4_1.000001 | $MYSQL
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_4_1.000001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT COUNT(*) FROM t3;
