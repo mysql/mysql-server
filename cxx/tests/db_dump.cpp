@@ -30,6 +30,18 @@ int dbdump(char *dbfile, char *dbname) {
         return 1;
     }
 
+    u_int32_t dbflags;
+    r = db.get_flags(&dbflags); assert(r == 0);
+    if (dbflags & DB_DUP)
+        printf("duplicates=1\n");
+    if (dbflags & DB_DUPSORT)
+        printf("dupsort=1\n");
+#if 0
+    u_int32_t nodesize;
+    r = db.get_nodesize(&nodesize); assert(r == 0);
+    printf("nodesize=%d\n", nodesize);
+#endif
+
     Dbc *cursor;
     r = db.cursor(0, &cursor, 0); assert(r == 0);
 
@@ -60,25 +72,24 @@ int usage() {
 }
 
 int main(int argc, char *argv[]) {
-    int i;
-
     char *dbname = 0;
+
+    int i;
     for (i=1; i<argc; i++) {
         char *arg = argv[i];
         if (0 == strcmp(arg, "-h") || 0 == strcmp(arg, "--help")) 
             return usage();
         if (0 == strcmp(arg, "-s")) {
-            i++;
-            if (i >= argc)
+            if (i+1 >= argc)
                 return usage();
-            dbname = argv[i];
+            dbname = argv[++i];
             continue;
         }
         break;
     }
-
     if (i >= argc)
         return usage();
+
     return dbdump(argv[i], dbname);
 }
 
