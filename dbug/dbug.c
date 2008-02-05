@@ -2399,7 +2399,7 @@ static void dbug_flush(CODE_STATE *cs)
 
 /* For debugging */
 
-void _db_force_flush()
+void _db_force_flush_()
 {
   CODE_STATE *cs;
   get_code_state_or_return;

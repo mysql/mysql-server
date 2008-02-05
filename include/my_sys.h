@@ -871,7 +871,7 @@ extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
 #ifndef DBUG_OFF
 extern void my_debug_put_break_here(void);
 #else
-#define my_debug_put_break_here() {}
+#define my_debug_put_break_here() do {} while(0)
 #endif
 
 extern void my_sleep(ulong m_seconds);

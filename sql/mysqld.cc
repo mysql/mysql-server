@@ -7430,10 +7430,8 @@ mysqld_get_one_option(int optid,
 {
   switch(optid) {
   case '#':
-#ifndef DBUG_OFF
-    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
-#endif
     DEBUGGER_ON;
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':

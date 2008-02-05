@@ -52,7 +52,6 @@ extern  void _db_end_(void);
 extern  void _db_lock_file_(void);
 extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
-extern  void _db_force_flush();
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
