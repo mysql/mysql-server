@@ -219,11 +219,11 @@ fi
 # also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
 # this is normal: removing records does not shrink the data/key file,
 # does not put back the "analyzed,optimized keys"(etc) index state.
-diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output > /dev/null || diff_failed=1
+diff $maria_path/unittest/ma_test_recovery.expected $tmp/ma_test_recovery.output > /dev/null || diff_failed=1
 if [ "$diff_failed" == "1" ]
     then
     echo "UNEXPECTED OUTPUT OF TESTS, FAILED"
-    echo "For more info, do diff $maria_path/ma_test_recovery.expected $tmp/ma_test_recovery.output"
+    echo "For more info, do diff $maria_path/unittest/ma_test_recovery.expected $tmp/ma_test_recovery.output"
     exit 1
     fi
 echo "ALL RECOVERY TESTS OK"

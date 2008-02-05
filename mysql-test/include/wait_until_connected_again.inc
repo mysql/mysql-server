@@ -8,7 +8,7 @@ let $counter= 5000;
 let $mysql_errno= 1;
 while ($mysql_errno)
 {
-  --error 0,2002,2003,2006
+  --error 0,2002,2003,2006,1053
   show status;
 
   dec $counter;

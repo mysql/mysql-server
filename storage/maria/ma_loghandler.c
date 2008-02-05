@@ -3246,6 +3246,7 @@ my_bool translog_init_with_table(const char *directory,
   DBUG_ENTER("translog_init_with_table");
 
   id_to_share= NULL;
+  log_descriptor.directory_fd= -1;
 
   (*init_table_func)();
 
@@ -3914,7 +3915,8 @@ void translog_destroy()
   delete_dynamic(&log_descriptor.open_files);
   delete_dynamic(&log_descriptor.unfinished_files);
 
-  my_close(log_descriptor.directory_fd, MYF(MY_WME));
+  if (log_descriptor.directory_fd >= 0)
+    my_close(log_descriptor.directory_fd, MYF(MY_WME));
   my_atomic_rwlock_destroy(&LOCK_id_to_share);
   if (id_to_share != NULL)
     my_free((uchar*)(id_to_share + 1), MYF(MY_WME));
