@@ -8,7 +8,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
-#define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
+#include "test.h"
 
 // DIR is defined in the Makefile
 
@@ -19,16 +19,13 @@ int main() {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    r = db_env_create(&dbenv, 0);
-    assert(r == 0);
+    r = db_env_create(&dbenv, 0); assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR);
-    assert(r == 0);
+    r = dbenv->set_data_dir(dbenv, DIR); assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR);
-    assert(r == 0);
+    r = dbenv->set_data_dir(dbenv, DIR); assert(r == 0);
 
-    r = dbenv->open(dbenv, DIR, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
+    r = dbenv->open(dbenv, 0, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     CKERR(r);
 
 #ifdef USE_TDB
@@ -37,9 +34,15 @@ int main() {
     r = dbenv->set_data_dir(dbenv, "foo" DIR);
     assert(r == EINVAL);
 #endif
+
+    DB *db;
+    r = db_create(&db, dbenv, 0); assert(r == 0);
+
+    r = db->open(db, 0, "test.db", "main", DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     
-    r = dbenv->close(dbenv, 0);
-    assert(r == 0);
+    r = db->close(db, 0); assert(r == 0);
+    
+    r = dbenv->close(dbenv, 0); assert(r == 0);
 
     return 0;
 }
