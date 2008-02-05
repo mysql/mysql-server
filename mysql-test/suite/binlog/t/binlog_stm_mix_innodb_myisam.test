@@ -1,28 +1,8 @@
 # This is a wrapper for binlog.test so that the same test case can be used 
 # For both statement and row based bin logs 9/19/2005 [jbm]
 
--- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_binlog_format_statement.inc
 -- source extra/binlog_tests/mix_innodb_myisam_binlog.test
-
-# This piece below cannot be put into
-# extra/binlog_tests/mix_innodb_myisam_binlog.test
-# because the argument of --start-position differs between statement-
-# and row-based (and "eval --exec" doesn't work).
-# we check that the error code of the "ROLLBACK" event is 0 and not
-# ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
-# and does not make slave to stop)
-flush logs;
---exec $MYSQL_BINLOG --start-position=555 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select
-(@a:=load_file("$MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output"))
-is not null;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval select
-@a like "%#%error_code=0%ROLLBACK/*!*/;%ROLLBACK /* added by mysqlbinlog */;%",
-@a not like "%#%error_code=%error_code=%";
-
-drop table t1, t2;
 
 set @@session.binlog_format=statement;
 -- source  extra/binlog_tests/mix_innodb_myisam_side_effects.test

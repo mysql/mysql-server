@@ -127,7 +127,7 @@ NULL	5	10
 NULL	6	12
 CREATE TABLE t7 (UNIQUE(b)) SELECT a,b FROM tt3;
 ERROR 23000: Duplicate entry '2' for key 'b'
-SHOW BINLOG EVENTS FROM 1100;
+SHOW BINLOG EVENTS FROM 1374;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 CREATE TABLE t7 (a INT, b INT UNIQUE);
 INSERT INTO t7 SELECT a,b FROM tt3;
@@ -137,11 +137,11 @@ a	b
 1	2
 2	4
 3	6
-SHOW BINLOG EVENTS FROM 1100;
+SHOW BINLOG EVENTS FROM 1374;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1100	Query	#	1200	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	1200	Table_map	#	1242	table_id: # (test.t7)
-#	1242	Write_rows	#	1298	table_id: # flags: STMT_END_F
+#	1374	Query	#	1474	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+#	1474	Table_map	#	1516	table_id: # (test.t7)
+#	1516	Write_rows	#	1572	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -154,10 +154,10 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
-SHOW BINLOG EVENTS FROM 1298;
+SHOW BINLOG EVENTS FROM 1572;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1298	Table_map	#	1340	table_id: # (test.t7)
-#	1340	Write_rows	#	1396	table_id: # flags: STMT_END_F
+#	1572	Table_map	#	1614	table_id: # (test.t7)
+#	1614	Write_rows	#	1670	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -192,10 +192,10 @@ Create Table	CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-SHOW BINLOG EVENTS FROM 1396;
+SHOW BINLOG EVENTS FROM 1670;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1396	Query	#	1482	use `test`; CREATE TABLE t8 LIKE t4
-#	1482	Query	#	1621	use `test`; CREATE TABLE `t9` (
+#	1670	Query	#	1756	use `test`; CREATE TABLE t8 LIKE t4
+#	1756	Query	#	1895	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
@@ -398,14 +398,15 @@ SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 637;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	637	Query	#	717	use `test`; TRUNCATE TABLE t2
-#	717	Xid	#	744	COMMIT /* XID */
-#	744	Query	#	812	use `test`; BEGIN
-#	812	Table_map	#	853	table_id: # (test.t2)
-#	853	Write_rows	#	897	table_id: # flags: STMT_END_F
-#	897	Table_map	#	938	table_id: # (test.t2)
-#	938	Write_rows	#	977	table_id: # flags: STMT_END_F
-#	977	Query	#	1048	use `test`; ROLLBACK
+#	637	Query	#	705	use `test`; BEGIN
+#	705	Query	#	785	use `test`; TRUNCATE TABLE t2
+#	785	Xid	#	812	COMMIT /* XID */
+#	812	Query	#	880	use `test`; BEGIN
+#	880	Table_map	#	921	table_id: # (test.t2)
+#	921	Write_rows	#	965	table_id: # flags: STMT_END_F
+#	965	Table_map	#	1006	table_id: # (test.t2)
+#	1006	Write_rows	#	1045	table_id: # flags: STMT_END_F
+#	1045	Query	#	1116	use `test`; ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;

@@ -33,6 +33,7 @@ Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
+   group_relay_log_pos(0),
    cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
    ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0),
@@ -1160,6 +1161,11 @@ void Relay_log_info::cleanup_context(THD *thd, bool error)
   close_thread_tables(thd);
   clear_tables_to_lock();
   clear_flag(IN_STMT);
+  /*
+    Cleanup for the flags that have been set at do_apply_event.
+  */
+  thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+  thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
   last_event_start_time= 0;
   DBUG_VOID_RETURN;
 }

@@ -15,8 +15,12 @@ COMMIT;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t2 SET m = 2, b = 3 WHERE n = c
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t3 VALUES (1,1), (1,2), (2,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1, t3 SET m = 2, e = 3 WHERE n = f
