@@ -26,7 +26,7 @@ ADD x BIT(3) DEFAULT b'011',
 ADD y BIT(5) DEFAULT b'10101',
 ADD z BIT(2) DEFAULT b'10';
 ALTER TABLE t1_char ADD x CHAR(20) DEFAULT 'Just a test';
-ALTER TABLE t1_nodef ADD x INT NOT NULL;
+ALTER TABLE t1_nodef ADD x INT NOT NULL, ADD y INT NOT NULL, ADD z INT NOT NULL;
 ALTER TABLE t2 DROP b;
 ALTER TABLE t4 MODIFY a FLOAT;
 ALTER TABLE t5 MODIFY b FLOAT;
@@ -393,8 +393,8 @@ INSERT INTO t1_nodef VALUES (1,2);
 INSERT INTO t1_nodef VALUES (2,4);
 SET SQL_LOG_BIN=1;
 **** On Slave ****
-INSERT INTO t1_nodef VALUES (1,2,3);
-INSERT INTO t1_nodef VALUES (2,4,6);
+INSERT INTO t1_nodef VALUES (1,2,3,4,5);
+INSERT INTO t1_nodef VALUES (2,4,6,8,10);
 **** On Master ****
 UPDATE t1_nodef SET b=2*b WHERE a=1;
 SELECT * FROM t1_nodef ORDER BY a;
@@ -403,9 +403,9 @@ a	b
 2	4
 **** On Slave ****
 SELECT * FROM t1_nodef ORDER BY a;
-a	b	x
-1	4	3
-2	4	6
+a	b	x	y	z
+1	4	3	4	5
+2	4	6	8	10
 **** On Master ****
 DELETE FROM t1_nodef WHERE a=2;
 SELECT * FROM t1_nodef ORDER BY a;
@@ -413,8 +413,8 @@ a	b
 1	4
 **** On Slave ****
 SELECT * FROM t1_nodef ORDER BY a;
-a	b	x
-1	4	3
+a	b	x	y	z
+1	4	3	4	5
 **** Cleanup ****
 DROP TABLE IF EXISTS t1_int,t1_bit,t1_char,t1_nodef;
 DROP TABLE IF EXISTS t2,t3,t4,t5,t6,t7,t8,t9;

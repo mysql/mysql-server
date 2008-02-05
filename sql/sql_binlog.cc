@@ -152,14 +152,13 @@ void mysql_client_binlog_statement(THD* thd)
       */
       if (!have_fd_event)
       {
-        if (bufptr[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+        int type = bufptr[EVENT_TYPE_OFFSET];
+        if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
           have_fd_event= TRUE;
         else
         {
           my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
-                   MYF(0),
-                   Log_event::get_type_str(
-                     (Log_event_type)bufptr[EVENT_TYPE_OFFSET]));
+                   MYF(0), Log_event::get_type_str((Log_event_type)type));
           goto end;
         }
       }
