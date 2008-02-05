@@ -560,7 +560,6 @@ set @a:= mysqltest2.f1();
 sync_slave_with_master;
 connection master;
 
-
 # Final inspection which verifies how all statements of this test file
 # were written to the binary log.
 --replace_column 2 # 5 #
@@ -577,3 +576,4 @@ set global log_bin_trust_function_creators=0;
 # Clean up
 drop database mysqltest;
 drop database mysqltest2;
+sync_slave_with_master;
