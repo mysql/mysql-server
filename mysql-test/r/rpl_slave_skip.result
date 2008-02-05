@@ -5,8 +5,10 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 **** On Master ****
-CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=INNODB;
-CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MYISAM;
+CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MyISAM;
+CREATE TABLE t3 (a CHAR(20), b SET('master','slave')) ENGINE=InnoDB;
+CREATE TABLE t4 (a CHAR(20), b SET('master','slave')) ENGINE=MyISAM;
 ==== Skipping normal transactions ==== 
 **** On Slave ****
 STOP SLAVE;
@@ -139,6 +141,102 @@ a	b
 SELECT * FROM t2 ORDER BY a;
 a	b
 5	master,slave
+==== Skipping first event of a LOAD DATA for a transactional table ==== 
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+SET AUTOCOMMIT=1;
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t3(a) SET b = 'master';
+INSERT INTO t3 VALUES ('Go Rin No Sho', 'master,slave');
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+71
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+-- Should only contain records marked 'master,slave'
+SELECT * FROM t3 ORDER BY a;
+a	b
+Go Rin No Sho	master,slave
+**** On Master ****
+DELETE FROM t3;
+==== Skipping first event of a LOAD DATA for a non-transactional table ==== 
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+SET AUTOCOMMIT=1;
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 VALUES ('Go Rin No Sho', 'master,slave');
+SELECT COUNT(*) FROM t4;
+COUNT(*)
+71
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+-- Should only contain records marked 'master,slave'
+SELECT * FROM t4 ORDER BY a;
+a	b
+Go Rin No Sho	master,slave
+**** On Master ****
+DELETE FROM t4;
+==== Try with a big file so that we get an append_block event as well
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+SET AUTOCOMMIT=1;
+SET SQL_LOG_BIN=0;
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+SELECT a FROM t4 INTO OUTFILE 'rpl_slave_skip_words.dat';
+SET SQL_LOG_BIN=1;
+LOAD DATA INFILE 'rpl_slave_skip_words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 VALUES ('Go Rin No Sho', 'master,slave');
+SELECT COUNT(*) FROM t4;
+COUNT(*)
+286721
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+-- Should only contain records marked 'master,slave'
+SELECT * FROM t4 ORDER BY a;
+a	b
+Go Rin No Sho	master,slave
+**** On Master ****
+DELETE FROM t4;
+**** On Master ****
+CREATE TABLE t5 (a int, b int, c SET('master','slave'), PRIMARY KEY (a,b)) ENGINE=MyISAM;
+LOAD DATA INFILE '../std_data_ln/loaddata5.dat' INTO TABLE t5 FIELDS TERMINATED BY '' ENCLOSED BY '' (a,b) SET c='master,slave';
+**** On Slave ****
+STOP SLAVE;
+**** On Master ****
+LOAD DATA INFILE '../std_data_ln/loaddata5.dat' INTO TABLE t5 FIELDS TERMINATED BY '' ENCLOSED BY '' (a,b) SET c='';
+ERROR 23000: Duplicate entry '1-2' for key 1
+INSERT INTO t5 VALUES (42, 42, 'master,slave');
+SELECT * FROM t5;
+a	b	c
+1	2	master,slave
+3	4	master,slave
+5	6	master,slave
+42	42	master,slave
+**** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+SELECT * FROM t5;
+a	b	c
+1	2	master,slave
+3	4	master,slave
+5	6	master,slave
+42	42	master,slave
 ==== Cleanup ==== 
 **** On Master ****
-DROP TABLE t1, t2;
+DROP TABLE t1, t2, t3, t4, t5;
