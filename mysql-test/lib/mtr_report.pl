@@ -377,7 +377,8 @@ sub mtr_report_stats ($) {
 
 		# rpl_skip_error and binlog_killed_simulate produce an error which is skipped (slave does not stop)
 		(($testname eq 'rpl.rpl_skip_error' or
-		  $testname eq 'binlog.binlog_killed_simulate') and
+		  $testname eq 'binlog.binlog_killed_simulate' or
+		  $testname eq 'binlog.binlog_killed') and
 		 (/Failed to write to mysql\.general_log/
 		 )) or
 
