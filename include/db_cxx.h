@@ -165,7 +165,8 @@ class DbEnv {
     int txn_begin(DbTxn *, DbTxn **, u_int32_t);
     int set_data_dir(const char *dir);
     void set_errpfx(const char *errpfx);
-    void err(int error, const char *fmt, ...);
+    void err(int error, const char *fmt, ...)
+             __attribute__((__format__(__printf__, 3, 4)));
     void set_errfile(FILE *errfile);
     void set_errcall(void (*)(const DbEnv *, const char *, const char *));
     void set_error_stream(std::ostream *);
