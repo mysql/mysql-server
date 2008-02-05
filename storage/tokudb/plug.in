@@ -1,0 +1,5 @@
+MYSQL_STORAGE_ENGINE(berkeley,,[Berkeley Storage Engine], [Berkeley Engine], [max,max-no-ndb])
+MYSQL_PLUGIN_DIRECTORY(berkeley, [storage/berkeley])
+MYSQL_PLUGIN_STATIC(berkeley, [libberkeley.a])
+MYSQL_PLUGIN_DYNAMIC(berkeley, [ha_berkeley.la])
+MYSQL_PLUGIN_DEPENDS_ON_MYSQL_INTERNALS(berkeley, [ha_berkeley.cc])
