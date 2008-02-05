@@ -4,9 +4,9 @@
 LIBNAME=liblocktree
 
 ifneq ($(OPT),)
- OPTFLAGS = -O4
+ OPTFLAGS = -O3
 else
- OPTFLAGS = -O0 -g3 -ggdb3
+ OPTFLAGS = -O2 -g3 -ggdb3
 endif
 
 ifneq ($(GCOV),)
@@ -17,7 +17,7 @@ endif
 
 CFLAGS = -W -Wall -Wextra -Werror -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute -Wunreachable-code
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt -L../range_tree
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -37,19 +37,21 @@ install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
 	cp $(LIBNAME).a ../../lib
 
 clean:
-	rm -rf $(LIBNAMELINEAR).$(LIBEXT) $(LIBNAMELINEAR).a
-	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
+	rm -rf $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a
+	rm -rf $(LIBNAME_TLOG).$(LIBEXT)   $(LIBNAME_TLOG).a
+	rm -rf $(LIBNAME_LOG).$(LIBEXT)    $(LIBNAME_LOG).a
+	rm -rf *.gcno *.gcda *.gcov
 	cd tests;make clean
 
 
 locktree.o: locktree.c locktree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -c -DTOKU_LINEAR_RANGE_TREE $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_LT_LINEAR -c $< -o $@
 
 rth.o: rth.c rth.h
-	gcc $(CFLAGS) $(CPPFLAGS) -c -DTOKU_LINEAR_RANGE_TREE $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 $(LIBNAME).$(LIBEXT): locktree.o rth.o
-	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lrangetreelinear
+	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lrangetree_linear
 
 $(LIBNAME).a: locktree.o rth.o
 	$(AR) rv $@ $^

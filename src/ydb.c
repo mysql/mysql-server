@@ -28,6 +28,11 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 
+#define TOKU_LT_LINEAR
+#include <locktree.h>
+
+const u_int32_t __toku_env_default_max_locks = 1000;
+
 /* the ydb big lock serializes access to the tokudb
    every call (including methods) into the tokudb library gets the lock 
    no internal function should invoke a method through an object */
@@ -147,6 +152,9 @@ void toku_do_error_all_cases(const DB_ENV * env, int error, int include_stderrst
 	}
     }
 }
+
+static int do_error (DB_ENV *dbenv, int error, const char *string, ...)
+                     __attribute__((__format__(__printf__, 3, 4)));
 
 // Handle all the error cases (but don't do the default thing.)
 static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
@@ -607,6 +615,10 @@ void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg
 
 #if _THREAD_SAFE
 
+
+static void locked_env_err(const DB_ENV * env, int error, const char *fmt, ...)
+                           __attribute__((__format__(__printf__, 3, 4)));
+
 static void locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     ydb_lock();
     va_list ap;
@@ -725,6 +737,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->i->errcall = 0;
     result->i->errpfx = 0;
     result->i->errfile = 0;
+    result->i->max_locks = __toku_env_default_max_locks;
 
     {
 	int r = toku_logger_create(&result->i->logger);
@@ -1616,6 +1629,31 @@ finish:
     return 0;    
 }
 
+
+static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
+    HANDLE_PANICKED_ENV(dbenv);
+    if (env_opened(dbenv))  return EINVAL;
+    if (!max)               return EINVAL;
+    dbenv->i->max_locks = max;
+    return 0;
+}
+
+static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
+    HANDLE_PANICKED_ENV(dbenv);
+    if (!lk_maxp)           return EINVAL;
+    *lk_maxp = dbenv->i->max_locks;
+    return 0;
+}
+
+static int toku_db_lt_panic(DB* db, int r) {
+    assert(db && db->i && db->dbenv && db->dbenv->i);
+    DB_ENV* env = db->dbenv;
+    env->i->is_panicked = 1;
+    if (r < 0) do_error(env, 0, toku_lt_strerror(r));
+    else       do_error(env, r, "Error in locktree.\n");
+    return EINVAL;
+}
+
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
@@ -1679,6 +1717,14 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
+    /* TODO: Only create lock tree if necessary! (lock subsystem?) */
+    r = toku_lt_create(&db->i->lt, db, FALSE,
+                       toku_db_lt_panic, db->dbenv->i->max_locks,
+                       &db->dbenv->i->num_locks,
+                       db->i->brt->compare_fun, db->i->brt->dup_compare,
+                       toku_malloc, toku_free, toku_realloc);
+    if (r!=0) goto error_cleanup;
+
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		      is_db_create, is_db_excl, is_db_unknown,
 		      db->dbenv->i->cachetable,
@@ -1686,6 +1732,15 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 		      db);
     if (r != 0)
         goto error_cleanup;
+
+    unsigned int brtflags;
+    BOOL dups;
+    /* Whether we have dups is only known starting now. */
+    toku_brt_get_flags(db->i->brt, &brtflags);
+    dups = (brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP);
+    r = toku_lt_set_dups(db->i->lt, dups);
+    /* toku_lt_set_dups cannot return an error here. */
+    assert(r==0);
 
     return 0;
  
@@ -1697,6 +1752,10 @@ error_cleanup:
     if (db->i->full_fname) {
         toku_free(db->i->full_fname);
         db->i->full_fname = NULL;
+    }
+    if (db->i->lt) {
+        toku_lt_close(db->i->lt);
+        db->i->lt = NULL;
     }
     return r;
 }
@@ -1902,6 +1961,14 @@ static int toku_db_fd(DB *db, int *fdp) {
 }
 
 #if _THREAD_SAFE
+
+static int __attribute__((unused)) locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
+    ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); ydb_unlock(); return r;
+}
+
+static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
+    ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); ydb_unlock(); return r;
+}
 
 static int locked_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
                                 int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {

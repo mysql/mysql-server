@@ -146,6 +146,12 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
         CKERR(r);
         assert(lt);
 
+        r = toku_lt_unlock(NULL, (DB_TXN*)1);
+        CKERR2(r, EINVAL);
+    
+        r = toku_lt_unlock(lt, NULL);
+        CKERR2(r, EINVAL);
+
         r = acquire(NULL, txn,  key,  data);
         CKERR2(r, EINVAL);
 

@@ -1,13 +1,14 @@
 # On OSX do:
 #   make OSX=OSX
 
-LIBNAMELINEAR=librangetreelinear
-LIBNAME=librangetree
+LIBNAME_LINEAR = librangetree_linear
+LIBNAME_TLOG   = librangetree_tlog
+LIBNAME_LOG    = librangetree_log
 
 ifneq ($(OPT),)
- OPTFLAGS = -O4
+ OPTFLAGS = -O3
 else
- OPTFLAGS = -O0 -g3 -ggdb3
+ OPTFLAGS = -O2 -g3 -ggdb3
 endif
 
 ifneq ($(GCOV),)
@@ -18,7 +19,7 @@ endif
 
 CFLAGS = -W -Wall -Wextra -Werror -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute -Wunreachable-code
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS = -I../../include -I../../newbrt
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -34,32 +35,44 @@ SHARED=-shared
 endif
 
 .PHONY: install logformat
-install: $(LIBNAMELINEAR).$(LIBEXT) $(LIBNAMELINEAR).a #$(LIBNAME).$(LIBEXT) $(LIBNAME).a
-	#cp $(LIBNAME).$(LIBEXT) ../../lib/
-	#cp $(LIBNAME).a ../../lib
-	cp $(LIBNAMELINEAR).$(LIBEXT) ../../lib/
-	cp $(LIBNAMELINEAR).a ../../lib
+install: $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a #$(LIBNAME_TLOG).$(LIBEXT) $(LIBNAME_TLOG).a $(LIBNAME_LOG).$(LIBEXT) $(LIBNAME_LOG).a
+	#cp $(LIBNAME_LOG).$(LIBEXT) ../../lib/
+	#cp $(LIBNAME_LOG).a ../../lib
+	#cp $(LIBNAME_TLOG).$(LIBEXT) ../../lib/
+	#cp $(LIBNAME_TLOG).a ../../lib
+	cp $(LIBNAME_LINEAR).$(LIBEXT) ../../lib/
+	cp $(LIBNAME_LINEAR).a ../../lib
 
 clean:
-	rm -rf $(LIBNAMELINEAR).$(LIBEXT) $(LIBNAMELINEAR).a
-	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
+	rm -rf $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a
+	rm -rf $(LIBNAME_TLOG).$(LIBEXT)   $(LIBNAME_TLOG).a
+	rm -rf $(LIBNAME_LOG).$(LIBEXT)    $(LIBNAME_LOG).a
 	cd tests;make clean
 
 
 linear.o: linear.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_LINEAR_RANGE_TREE -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_LINEAR -c $< -o $@
 
 log.o: log.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_LOG_RANGE_TREE    -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_LOG    -c $< -o $@
 
-$(LIBNAME).$(LIBEXT): log.o
+tlog.o: tlog.c rangetree.h
+	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_TLOG    -c $< -o $@
+
+$(LIBNAME_TLOG).$(LIBEXT): tlog.o
 	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS)
 
-$(LIBNAMELINEAR).$(LIBEXT): linear.o
+$(LIBNAME_LOG).$(LIBEXT): log.o
 	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS)
 
-$(LIBNAME).a: log.o
+$(LIBNAME_LINEAR).$(LIBEXT): linear.o
+	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS)
+
+$(LIBNAME_TLOG).a: tlog.o
 	$(AR) rv $@ $<
 
-$(LIBNAMELINEAR).a: linear.o
+$(LIBNAME_LOG).a: log.o
+	$(AR) rv $@ $<
+
+$(LIBNAME_LINEAR).a: linear.o
 	$(AR) rv $@ $<

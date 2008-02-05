@@ -53,14 +53,20 @@ struct __toku_range_tree_internal {
     void        (*free)   (void*);
     /** The user realloc function */
     void*       (*realloc)(void*, size_t);
-#if defined(TOKU_LINEAR_RANGE_TREE)
-    #if defined(TOKU_LOG_RANGE_TREE)
+#if defined(TOKU_RT_LINEAR)
+    #if defined(TOKU_RT_TLOG) || defined(TOKU_RT_LOG)
         #error Choose just one range tree type.
     #endif
     //Linear version only fields:
     toku_range* ranges;
     u_int32_t    ranges_len;
-#elif defined(TOKU_LOG_RANGE_TREE)
+#elif defined(TOKU_RT_TLOG)
+    #if defined(TOKU_RT_LOG)
+        #error Choose just one range tree type.
+    #endif
+    #error Not defined yet.
+    //TLog version only fields:
+#elif defined(TOKU_RT_LOG)
     #error Not defined yet.
     //Log version only fields:
 #else
@@ -225,4 +231,7 @@ int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
  */
 int toku_rt_successor(toku_range_tree* tree, void* point, toku_range* succ,
                       BOOL* wasfound);
+                      
+u_int32_t toku_rt_get_size(toku_range_tree *);                    
+                      
 #endif  /* #if !defined(TOKU_RANGE_TREE_H) */
