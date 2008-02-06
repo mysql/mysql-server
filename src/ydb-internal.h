@@ -7,6 +7,7 @@
 #include "../newbrt/brttypes.h"
 #include "../newbrt/brt.h"
 #include "../newbrt/list.h"
+#include "./lock_tree/lth.h"
 
 struct db_header {
     int n_databases; // Or there can be >=1 named databases.  This is the count.
@@ -67,6 +68,7 @@ struct __toku_db_env_internal {
 struct __toku_db_txn_internal {
     //TXNID txnid64; /* A sixty-four bit txn id. */
     TOKUTXN tokutxn;
+    toku_lth* lth;
     DB_TXN *parent;
 };
 

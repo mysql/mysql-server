@@ -206,7 +206,6 @@ int toku_lt_close(toku_lock_tree* tree);
    The following is asserted: 
      (tree == NULL || txn == NULL || key == NULL) or
      (tree->db is dupsort && data == NULL) or
-     (tree->db is nodup   && data != NULL) or
      (tree->db is dupsort && key != data &&
        (key == toku_lt_infinity ||
        (toku_lock_tree* tree, DB_TXN* txn, const DBT* key, const DBT* data);
@@ -247,8 +246,6 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
          key_left == NULL || key_right == NULL) or
         (tree->db is dupsort &&
           (data_left == NULL || data_right == NULL)) or
-        (tree->db is nodup   &&
-          (data_left != NULL || data_right != NULL)) or
         (tree->db is dupsort && key_left != data_left &&
              (key_left == toku_lt_infinity ||
               key_left == toku_lt_neg_infinity)) or
@@ -284,7 +281,6 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                          a write (or read) lock that overlaps this point.
  *      EINVAL:             If (tree == NULL || txn == NULL || key == NULL) or
  *                             (tree->db is dupsort && data == NULL) or
- *                             (tree->db is nodup   && data != NULL)
  *                             (tree->db is dupsort && key != data &&
  *                                  (key == toku_lt_infinity ||
  *                                   key == toku_lt_neg_infinity))
@@ -327,8 +323,6 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                              key_left == NULL || key_right == NULL) or
  *                             (tree->db is dupsort &&
  *                               (data_left == NULL || data_right == NULL)) or
- *                             (tree->db is nodup   &&
- *                               (data_left != NULL || data_right != NULL))
  or
  *                             (tree->db is dupsort && key_left != data_left &&
  *                                  (key_left == toku_lt_infinity ||
@@ -368,8 +362,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *      txn:        The transaction to release all locks for.
  * Returns:
  *      0:          Success.
- *      EINVAL:     If (tree == NULL || txn == NULL) or
- *                  if toku_lt_unlock has already been called on this txn.
+ *      EINVAL:     If (tree == NULL || txn == NULL).
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
@@ -383,7 +376,7 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
     Return: EINVAL if tree is NULL
     Return: EDOM   if it is too late to change. 
 */
-int toku_lt_set_txn_callback(toku_lock_tree* tree,
-                             int (*callback)(DB_TXN*, toku_lock_tree*));
+int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
+                                    int (*callback)(DB_TXN*, toku_lock_tree*));
 
 #endif

@@ -28,10 +28,6 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 
-#define TOKU_LT_LINEAR
-#include <locktree.h>
-#include <lth.h>
-
 const u_int32_t __toku_env_default_max_locks = 1000;
 
 /* the ydb big lock serializes access to the tokudb
@@ -759,6 +755,24 @@ int db_env_create(DB_ENV ** envp, u_int32_t flags) {
     ydb_lock(); int r = toku_env_create(envp, flags); ydb_unlock(); return r;
 }
 
+static void toku_txn_release_locks(DB_TXN* txn) {
+    assert(txn);
+    toku_lth* lth = txn->i->lth;
+    assert(lth);
+
+    int r;
+    toku_lth_start_scan(lth);
+    toku_lock_tree* next = toku_lth_next(lth);
+    while (next) {
+        r = toku_lt_unlock(next, txn);
+        /* Only NULL parameters can give a non 0 return value. */
+        assert(r==0);
+        next = toku_lth_next(lth);
+    }
+    toku_lth_close(lth);
+    txn->i->lth = NULL;
+}
+
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     //notef("flags=%d\n", flags);
@@ -774,6 +788,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
 	toku_free(txn->i->tokutxn);
     }
     // Cleanup */
+    toku_txn_release_locks(txn);
     if (txn->i)
         toku_free(txn->i);
     toku_free(txn);
@@ -792,6 +807,8 @@ static TXNID next_txn = 0;
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     int r = toku_logger_abort(txn->i->tokutxn);
+
+    toku_txn_release_locks(txn);
     toku_free(txn->i);
     toku_free(txn);
     return r;
@@ -833,9 +850,20 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     result->commit = locked_txn_commit;
     result->id = locked_txn_id;
     MALLOC(result->i);
-    assert(result->i);
+    if (!result->i) {
+        toku_free(result);
+        return ENOMEM;
+    }
     result->i->parent = stxn;
-    int r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
+    
+    int r = toku_lth_create(&result->i->lth, toku_malloc, toku_free, toku_realloc);
+    if (r!=0) {
+        toku_free(result->i);
+        toku_free(result);
+        return r;
+    }
+    
+    r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
     if (r != 0)
         return r;
     *txn = result;
@@ -1106,14 +1134,128 @@ delete_silently_and_retry:
 
 static int toku_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
     DB *db = c->dbp;
+//    DB_TXN *txn = c->i->txn;
     HANDLE_PANICKED_DB(db);
+    u_int32_t get_flag = get_main_cursor_flag(flag);
     int r;
 
-    if (db->i->primary==0) r = toku_c_get_noassociate(c, key, data, flag);
+    if (db->i->primary==0) {
+        r = toku_c_get_noassociate(c, key, data, flag);
+        int r2 = 0;
+        switch (get_flag) {
+/*
+These should be done but were not tested prior to commit.  
+            case (DB_CURRENT): {
+                // No locking necessary. You already own a lock by virtue
+                // of having a cursor pointing to this. 
+                break;
+            }
+            case (DB_FIRST): {
+                int r2;
+                if (r == DB_NOTFOUND) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                     toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                     toku_lt_infinity,     toku_lt_infinity);
+                }
+                else if (r == 0) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                     toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                     key,                  data);
+                }
+                else return r;
+                break;
+            }
+            case (DB_LAST): {
+                if (r == DB_NOTFOUND) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                     toku_lt_neg_infinity, toku_lt_neg_infinity,
+                                     toku_lt_infinity,     toku_lt_infinity);
+                }
+                else if (r == 0) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                     key,                  data,
+                                     toku_lt_infinity,     toku_lt_infinity);
+                }
+                else return r;
+                break;
+            }
+            case (DB_SET): {
+                if (r == DB_NOTFOUND) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                                      key, toku_lt_neg_infinity,
+                                                      key, toku_lt_infinity);
+                }
+                else if (r == 0) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                                      key, toku_lt_neg_infinity,
+                                                      key, data);
+                }
+                else return r;
+                break;
+            }
+            case (DB_GET_BOTH): {
+                if (r != DB_NOTFOUND && r != 0) return r;
+                r2 = toku_lt_acquire_read_lock(db->i->lt, txn, key, data);
+                break;
+            }
+*/
+            
+/*
+These are not ready and are just notes.
+            case (DB_GET_BOTH_RANGE): {
+                barf();
+                //Not ready yet.
+                break;
+            }
+            case (DB_NEXT): {
+                post_get_DB_NEXT:
+                //TODO: Need 'am I initialized' function, and if not, goto post_get_DB_FIRST
+                //TODO: Need get old data function. MUST BE CALLED BEFORE CGET
+                break;
+            }
+
+            case (DB_PREV): {
+                //TODO: Need 'am I initialized' function
+                //TODO: Need get old data function. MUST BE CALLED BEFORE CGET
+                break;
+            }
+            case (DB_SET_RANGE): {
+                //TODO: Need to save key_in
+                if (r == DB_NOTFOUND) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                         key_in,           toku_lt_neg_infinity,
+                                         toku_lt_infinity, toku_lt_infinity);
+                }
+                else if (r == 0) {
+                    r2 = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+                                         key_in, toku_lt_neg_infinity,
+                                         key,    data);
+                }
+                else return r;
+                break;
+            }
+            case (DB_NEXT_NODUP): {
+                goto post_get_DB_NEXT;
+            }
+            case (DB_PREV_NODUP): {
+                goto post_get_DB_PREV;
+            }
+            case (DB_NEXT_DUP): {
+                //Not ready yet./not needed for MySQL.
+                barf();
+                break;
+            }
+            default: {
+                barf();
+                assert(FALSE);
+            }
+*/
+        }
+        if (r2!=0) return r2;
+    }
     else {
         // It's a c_get on a secondary.
         DBT primary_key;
-        u_int32_t get_flag = get_main_cursor_flag(flag);
         
         /* It is an error to use the DB_GET_BOTH or DB_GET_BOTH_RANGE flag on a
          * cursor that has been opened on a secondary index handle.
@@ -1659,6 +1801,20 @@ static int toku_db_lt_panic(DB* db, int r) {
     return EINVAL;
 }
 
+static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
+    assert(txn && lt);
+    toku_lth* lth = txn->i->lth;
+    assert(lth);
+
+    toku_lock_tree* find = toku_lth_find(lth, lt);
+    if (find) {
+        assert(find == lt);
+        return 0;
+    }
+    int r = toku_lth_insert(lth, lt);
+    return r;
+}
+
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
@@ -1729,6 +1885,8 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
                        db->i->brt->compare_fun, db->i->brt->dup_compare,
                        toku_malloc, toku_free, toku_realloc);
     if (r!=0) goto error_cleanup;
+    r = toku_lt_set_txn_add_lt_callback(db->i->lt, toku_txn_add_lt);
+    assert(r==0);
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		      is_db_create, is_db_excl, is_db_unknown,
