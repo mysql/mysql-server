@@ -152,7 +152,7 @@ struct trx_i_s_cache_struct {
 INFORMATION SCHEMA tables is fetched and later retrieved by the C++
 code in handler/i_s.cc. */
 static trx_i_s_cache_t	trx_i_s_cache_static;
-trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
+UNIV_INTERN trx_i_s_cache_t*	trx_i_s_cache = &trx_i_s_cache_static;
 
 /***********************************************************************
 For a record lock that is in waiting state retrieves the only bit that

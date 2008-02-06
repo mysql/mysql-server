@@ -373,7 +373,7 @@ static struct st_mysql_information_schema	i_s_info =
 	MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
 };
 
-struct st_mysql_plugin	i_s_innodb_trx =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_trx =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -648,7 +648,7 @@ innodb_locks_init(
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_locks =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_locks =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -831,7 +831,7 @@ innodb_lock_waits_init(
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_lock_waits =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_lock_waits =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1171,7 +1171,7 @@ i_s_zip_reset_init(
 	DBUG_RETURN(0);
 }
 
-struct st_mysql_plugin	i_s_innodb_zip =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_zip =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1220,7 +1220,7 @@ struct st_mysql_plugin	i_s_innodb_zip =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-struct st_mysql_plugin	i_s_innodb_zip_reset =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_zip_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
