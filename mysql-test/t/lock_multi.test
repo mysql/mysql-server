@@ -446,7 +446,6 @@ drop table t1;
 --disable_warnings
 drop table if exists t1,t2;
 --enable_warnings
-
 create table t1 (a int);
 flush status;
 lock tables t1 read;
