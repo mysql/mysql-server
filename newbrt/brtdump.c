@@ -2,7 +2,7 @@
 #include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
-
+#include <inttypes.h>
 #include "key.h"
 #include "brt-internal.h"
 
@@ -51,7 +51,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
     printf(" nodesize    =%u\n", n->nodesize);
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%lld\n", n->thisnodename);
-    printf(" disk_lsn    =%lld\n", n->disk_lsn.lsn);
+    printf(" disk_lsn    =%" PRId64 "\n", n->disk_lsn.lsn);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
     printf(" rand4fp     =%08x\n", n->rand4fingerprint);
@@ -90,7 +90,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 			     }
 			     printf("HUH?");
 			 ok:
-			     printf(" xid=%lld ", xid);
+			     printf(" xid=%"PRId64" ", xid);
 			     print_item(key, keylen);
 			     if (datalen>0) {
 				 printf(" ");
