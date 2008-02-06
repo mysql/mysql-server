@@ -28,6 +28,8 @@ int main(int argc, const char *argv[]) {
     range.right = &nums[1];
     range.data = &letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
+    u_int32_t num_in_range = toku_rt_get_size(tree);
+    assert(num_in_range == 1);
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     range.left = &nums[1];
