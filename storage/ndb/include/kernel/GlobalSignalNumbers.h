@@ -287,9 +287,9 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_DROP_TAB_REF                203
 #define GSN_DROP_TAB_CONF               204
 
-#define GSN_WAIT_DROP_TAB_REQ           208
-#define GSN_WAIT_DROP_TAB_REF           209
-#define GSN_WAIT_DROP_TAB_CONF          216
+#define GSN_208
+#define GSN_209
+#define GSN_216
 
 /*****************************************/
 

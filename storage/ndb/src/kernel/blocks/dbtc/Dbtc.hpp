@@ -947,8 +947,7 @@ public:
       NF_TAKEOVER          = 0x1,
       NF_CHECK_SCAN        = 0x2,
       NF_CHECK_TRANSACTION = 0x4,
-      NF_CHECK_DROP_TAB    = 0x8,
-      NF_NODE_FAIL_BITS    = 0xF // All bits...
+      NF_NODE_FAIL_BITS    = 0x7 // All bits...
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
@@ -1001,12 +1000,6 @@ public:
     }
 
     Uint32 getErrorCode(Uint32 schemaVersion) const;
-
-    struct DropTable {
-      Uint32 senderRef;
-      Uint32 senderData;
-      SignalCounter waitDropTabCount;
-    } dropTable;
   };
   typedef Ptr<TableRecord> TableRecordPtr;
 
@@ -1375,8 +1368,6 @@ private:
   void execCREATE_TAB_REQ(Signal* signal);
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REF(Signal* signal);
-  void execWAIT_DROP_TAB_CONF(Signal* signal);
   void checkWaitDropTabFailedLqh(Signal*, Uint32 nodeId, Uint32 tableId);
   void execALTER_TAB_REQ(Signal* signal);
   void set_timeout_value(Uint32 timeOut);

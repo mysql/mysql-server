@@ -615,13 +615,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
     waitDropTabWritingToFile(signal, tabPtr);
     return;
   }
-  case DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:{
-    jam();
-    Uint32 nodeId = signal->theData[1];
-    Uint32 tableId = signal->theData[2];
-    checkWaitDropTabFailedLqh(signal, nodeId, tableId);
-    return;
-  }
   case DihContinueB::ZTO_START_FRAGMENTS:
   {
     TakeOverRecordPtr takeOverPtr;
@@ -4498,7 +4491,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     /*--------------------------------------------------*/
     checkStopMe(signal, failedNodePtr);
     failedNodeLcpHandling(signal, failedNodePtr);
-    checkWaitDropTabFailedLqh(signal, failedNodePtr.i, 0); // 0 = start w/ tab 0
     startRemoveFailedNode(signal, failedNodePtr);
 
     /**
@@ -15194,28 +15186,6 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
     ndbrequire(ok);
   }  
   
-  { /**
-     * Send WaitDropTabReq to all LQH
-     */
-    WaitDropTabReq * req = (WaitDropTabReq*)signal->getDataPtrSend();
-    req->tableId = tabPtr.i;
-    req->senderRef = reference();
-    
-    NodeRecordPtr nodePtr;
-    nodePtr.i = cfirstAliveNode;
-    tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor();
-    while(nodePtr.i != RNIL){
-      jam();
-      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-      
-      tabPtr.p->m_prepDropTab.waitDropTabCount.setWaitingFor(nodePtr.i);
-      sendSignal(calcLqhBlockRef(nodePtr.i), GSN_WAIT_DROP_TAB_REQ,
-		 signal, WaitDropTabReq::SignalLength, JBB);
-      
-      nodePtr.i = nodePtr.p->nextNode;
-    }
-  }
-  
   waitDropTabWritingToFile(signal, tabPtr);
 }
 
@@ -15248,7 +15218,8 @@ Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
   }
   
   const Uint32 ref = tabPtr.p->m_prepDropTab.senderRef;
-  if(ref != 0){
+  if(ref != 0)
+  {
     PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
     conf->senderRef = reference();
@@ -15258,77 +15229,6 @@ Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
     tabPtr.p->m_prepDropTab.senderRef = 0;
   }
 }
-			
-void
-Dbdih::execWAIT_DROP_TAB_REF(Signal* signal){
-  jamEntry();
-  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtr();
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = ref->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
-  Uint32 nodeId = refToNode(ref->senderRef);
- 
-  ndbrequire(ref->errorCode == WaitDropTabRef::NoSuchTable ||
-	     ref->errorCode == WaitDropTabRef::NF_FakeErrorREF);
-
-  tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor(nodeId);
-  checkPrepDropTabComplete(signal, tabPtr);
-}
-
-void
-Dbdih::execWAIT_DROP_TAB_CONF(Signal* signal){
-  jamEntry();
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = conf->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
-  Uint32 nodeId = refToNode(conf->senderRef);
-  tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor(nodeId);
-  checkPrepDropTabComplete(signal, tabPtr);
-}
-
-void
-Dbdih::checkWaitDropTabFailedLqh(Signal* signal, Uint32 nodeId, Uint32 tableId){
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = tableId;
-
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-  conf->tableId = tableId;
-
-  const Uint32 RT_BREAK = 16;
-  for(Uint32 i = 0; i<RT_BREAK && tabPtr.i < ctabFileSize; i++, tabPtr.i++){
-    ptrAss(tabPtr, tabRecord);
-    if(tabPtr.p->tabStatus == TabRecord::TS_DROPPING){
-      if(tabPtr.p->m_prepDropTab.waitDropTabCount.isWaitingFor(nodeId)){
-	conf->senderRef = calcLqhBlockRef(nodeId);
-	execWAIT_DROP_TAB_CONF(signal);
-	tabPtr.i++;
-	break;
-      }
-    }
-  }
-  
-  if(tabPtr.i == ctabFileSize){
-    /**
-     * Finished
-     */
-    jam();
-    return;
-  }
-  
-  signal->theData[0] = DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH;
-  signal->theData[1] = nodeId;
-  signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-}
-
 
 void
 Dbdih::execNDB_TAMPER(Signal* signal)
