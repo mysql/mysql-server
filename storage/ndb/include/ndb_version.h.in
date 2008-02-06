@@ -171,5 +171,35 @@ ndb_pnr(Uint32 version)
     version == NDB_VERSION_D || version >= NDBD_PNR;
 }
 
+#if NOT_YET
+#define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
+#define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
+#endif
+
+static
+inline
+int
+ndb_fire_trig_ord_transid(Uint32 version)
+{
+  if (version >= NDB_VERSION_D)
+    return 1;
+
+#if NOT_YET
+  const Uint32 major = (version >> 16) & 0xFF;
+  const Uint32 minor = (version >>  8) & 0xFF;
+  if (major >= 6)
+  {
+    if (minor == 2)
+    {
+      return version >= NDBD_FIRE_TRIG_ORD_TRANSID_62;
+    }
+
+    return version >= NDBD_FIRE_TRIG_ORD_TRANSID_63;
+  }
+#endif
+
+  return 0;
+}
+
 #endif
  

@@ -274,8 +274,6 @@ Dbtc::Dbtc(Block_context& ctx):
   //addRecSignal(GSN_CREATE_TAB_REQ, &Dbtc::execCREATE_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtc::execDROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbtc::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbtc::execWAIT_DROP_TAB_REF);
-  addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbtc::execWAIT_DROP_TAB_CONF);
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
   addRecSignal(GSN_ROUTE_ORD, &Dbtc::execROUTE_ORD);

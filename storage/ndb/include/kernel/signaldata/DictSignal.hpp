@@ -18,7 +18,8 @@
 
 #include <Bitmask.hpp>
 
-struct DictSignal {
+struct DictSignal
+{
   // DICT transaction and operation REQs include Uint32 requestInfo
   // implementation signals have only requestType
   // requestInfo format should be as follows
@@ -82,16 +83,6 @@ public:
      */
     RF_NO_BUILD = (1 << 17),
 
-    // local
-
-    /*
-     * Client does not create a schema trans.  Client sends a single
-     * operation request with this flag set.  DICT creates an internal
-     * trans and runs the op (and any sub-ops) within it.
-     *
-     * NOTE: not yet implemented
-     */
-    RF_SIMPLE_TRANS = (1 << 24)
   };
 
   static void
@@ -112,8 +103,6 @@ public:
       strcat(buf, " LOCAL_TRANS");
     if (info & RF_NO_BUILD)
       strcat(buf, " NO_BUILD");
-    if (info & RF_SIMPLE_TRANS)
-      strcat(buf, " SIMPLE_TRANS");
     return &buf[1];
   }
 

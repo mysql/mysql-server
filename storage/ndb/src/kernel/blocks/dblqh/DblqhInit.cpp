@@ -280,7 +280,6 @@ Dblqh::Dblqh(Block_context& ctx):
 
   //addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dblqh::execPREP_DROP_TAB_REQ);
-  addRecSignal(GSN_WAIT_DROP_TAB_REQ, &Dblqh::execWAIT_DROP_TAB_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dblqh::execDROP_TAB_REQ);
 
   addRecSignal(GSN_LQH_ALLOCREQ, &Dblqh::execLQH_ALLOCREQ);

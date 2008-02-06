@@ -52,7 +52,7 @@ class FireTrigOrd {
   friend bool printFIRE_TRIG_ORD(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo);
 
 public:
-  STATIC_CONST( SignalLength = 8 );
+  STATIC_CONST( SignalLength = 11 );
   STATIC_CONST( SignalWithGCILength = 9 );
   STATIC_CONST( SignalLengthSuma = 12 );
 
@@ -60,14 +60,23 @@ private:
   Uint32 m_connectionPtr;
   Uint32 m_userRef;
   Uint32 m_triggerId;
-  TriggerEvent::Value m_triggerEvent;
+  Uint32 m_triggerEvent;
   Uint32 m_noPrimKeyWords;
   Uint32 m_noBeforeValueWords;
   Uint32 m_noAfterValueWords;
   Uint32 fragId;
-  Uint32 m_gci_hi;
-  Uint32 m_hashValue;
-  Uint32 m_any_value;
+  union {
+    Uint32 m_gci_hi;
+    Uint32 m_triggerType;
+  };
+  union {
+    Uint32 m_hashValue;
+    Uint32 m_transId1;
+  };
+  union {
+    Uint32 m_any_value;
+    Uint32 m_transId2;
+  };
   Uint32 m_gci_lo;
   // Public methods
 public:
@@ -132,7 +141,7 @@ void FireTrigOrd::setTriggerId(Uint32 aTriggerId)
 inline
 TriggerEvent::Value FireTrigOrd::getTriggerEvent() const
 {
-  return m_triggerEvent;
+  return (TriggerEvent::Value)m_triggerEvent;
 }
 
 inline

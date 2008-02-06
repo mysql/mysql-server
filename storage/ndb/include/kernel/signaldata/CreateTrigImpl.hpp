@@ -20,10 +20,12 @@
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
 
-struct CreateTrigImplReq {
-  enum RequestType {
+struct CreateTrigImplReq
+{
+  enum RequestType
+  {
     CreateTriggerOnline = 1,
-    CreateTriggerOffline = 2
+    CreateTriggerOffline = 2,
   };
 
   STATIC_CONST( SignalLength = 11 + MAXNROFATTRIBUTESINWORDS);

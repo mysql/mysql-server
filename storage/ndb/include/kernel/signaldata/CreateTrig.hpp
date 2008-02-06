@@ -21,18 +21,33 @@
 #include <trigger_definitions.h>
 #include <AttributeList.hpp>
 
-struct CreateTrigReq {
-  enum RequestType {
+struct CreateTrigReq
+{
+  enum OnlineFlag
+  {
     CreateTriggerOnline = 1,
     CreateTriggerOffline = 2
+  };
+
+  enum EndpointFlag
+  {
+    MainTrigger = 0,
+    TriggerDst = 1, // TC  "consuming" block(s)
+    TriggerSrc = 2  // LQH "producing" block(s)
   };
 
   STATIC_CONST( SignalLength = 13 + MAXNROFATTRIBUTESINWORDS);
   SECTION( TRIGGER_NAME_SECTION = 0 );
   SECTION( ATTRIBUTE_MASK_SECTION = 1 );        // not yet in use
 
+  static Uint32 getOnlineFlag(Uint32 i) { return i & 3; }
+  static void setOnlineFlag(Uint32 & i, Uint32 v) { i |= (v & 3); }
+  static Uint32 getEndpointFlag(Uint32 i) { return (i >> 2) & 3;}
+  static void setEndpointFlag(Uint32 & i, Uint32 v) { i |= ((v & 3) << 2); }
+
   Uint32 clientRef;
   Uint32 clientData;
+
   Uint32 transId;
   Uint32 transKey;
   Uint32 requestInfo;
@@ -59,7 +74,8 @@ struct CreateTrigConf {
   Uint32 triggerInfo;
 };
 
-struct CreateTrigRef {
+struct CreateTrigRef
+{
   enum ErrorCode {
     NoError = 0,
     Busy = 701,
