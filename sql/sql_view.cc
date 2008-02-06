@@ -1465,6 +1465,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   char *wrong_object_db= NULL, *wrong_object_name= NULL;
   bool error= FALSE;
   enum legacy_db_type not_used;
+  bool some_views_deleted= FALSE;
+  bool something_wrong= FALSE;
   DBUG_ENTER("mysql_drop_view");
 
   VOID(pthread_mutex_lock(&LOCK_open));
@@ -1506,6 +1508,8 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     if (my_delete(path, MYF(MY_WME)))
       error= TRUE;
 
+    some_views_deleted= TRUE;
+
     /*
       For a view, there is only one table_share object which should never
       be used outside of LOCK_open
@@ -1523,29 +1527,32 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     sp_cache_invalidate();
   }
 
-  if (error)
-  {
-    VOID(pthread_mutex_unlock(&LOCK_open));
-    DBUG_RETURN(TRUE);
-  }
   if (wrong_object_name)
   {
-    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_WRONG_OBJECT, MYF(0), wrong_object_db, wrong_object_name, 
              "VIEW");
-    DBUG_RETURN(TRUE);
   }
   if (non_existant_views.length())
   {
-    VOID(pthread_mutex_unlock(&LOCK_open));
     my_error(ER_BAD_TABLE_ERROR, MYF(0), non_existant_views.c_ptr());
-    DBUG_RETURN(TRUE);
   }
 
-  write_bin_log(thd, TRUE, thd->query, thd->query_length);
+  something_wrong= error || wrong_object_name || non_existant_views.length();
+  if (some_views_deleted || !something_wrong)
+  {
+    /* if something goes wrong, bin-log with possible error code,
+       otherwise bin-log with error code cleared.
+     */
+    write_bin_log(thd, !something_wrong, thd->query, thd->query_length);
+  }
 
-  send_ok(thd);
   VOID(pthread_mutex_unlock(&LOCK_open));
+  
+  if (something_wrong)
+  {
+    DBUG_RETURN(TRUE);
+  }
+  send_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
