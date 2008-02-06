@@ -621,6 +621,10 @@ void HandShakeHeader::Process(input_buffer& input, SSL& ssl)
     }
 
     uint len = c24to32(length_);
+    if (len > input.get_remaining()) {
+        ssl.SetError(bad_input);
+        return;
+    }
     hashHandShake(ssl, input, len);
 
     hs->set_length(len);
@@ -1391,10 +1395,15 @@ input_buffer& operator>>(input_buffer& input, ClientHello& hello)
     
     // Suites
     byte tmp[2];
+    uint16 len;
     tmp[0] = input[AUTO];
     tmp[1] = input[AUTO];
-    ato16(tmp, hello.suite_len_);
+    ato16(tmp, len);
+
+    hello.suite_len_ = min(len, static_cast<uint16>(MAX_SUITE_SZ));
     input.read(hello.cipher_suites_, hello.suite_len_);
+    if (len > hello.suite_len_) // ignore extra suites
+        input.set_current(input.get_current() + len -  hello.suite_len_);
 
     // Compression
     hello.comp_len_ = input[AUTO];
