@@ -1879,7 +1879,8 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   
   Uint32 errCode = 0;
   errCode = checkDropTabState(tabPtr.p->tableStatus, GSN_PREP_DROP_TAB_REQ);
-  if(errCode != 0){
+  if(errCode != 0)
+  {
     jam();
 
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
@@ -1893,15 +1894,6 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   }
   
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_ONGOING;
-  tabPtr.p->waitingTC.clear();
-  tabPtr.p->waitingDIH.clear();
-  
-  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
-  conf->tableId = tabPtr.i;
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
-	     PrepDropTabConf::SignalLength, JBB);
   
   signal->theData[0] = ZPREP_DROP_TABLE;
   signal->theData[1] = tabPtr.i;
@@ -1916,6 +1908,9 @@ Dblqh::checkDropTab(Signal* signal){
   TablerecPtr tabPtr;
   tabPtr.i = signal->theData[1];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  Uint32 senderRef = signal->theData[2];
+  Uint32 senderData = signal->theData[3];
   
   ndbrequire(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING);
   
@@ -1951,89 +1946,12 @@ Dblqh::checkDropTab(Signal* signal){
   
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
 
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtrSend();
+  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
-  for(Uint32 i = 1; i<MAX_NDB_NODES; i++){
-    if(tabPtr.p->waitingTC.get(i)){
-      tabPtr.p->waitingTC.clear(i);
-      sendSignal(calcTcBlockRef(i), GSN_WAIT_DROP_TAB_CONF, signal,
-		 WaitDropTabConf::SignalLength, JBB);
-    }
-    if(tabPtr.p->waitingDIH.get(i)){
-      tabPtr.p->waitingDIH.clear(i);
-      sendSignal(calcDihBlockRef(i), GSN_WAIT_DROP_TAB_CONF, signal,
-		 WaitDropTabConf::SignalLength, JBB);
-    }
-  }
-}
-
-void
-Dblqh::execWAIT_DROP_TAB_REQ(Signal* signal){
-  jamEntry();
-  WaitDropTabReq * req = (WaitDropTabReq*)signal->getDataPtr();
-  
-  TablerecPtr tabPtr;
-  tabPtr.i = req->tableId;
-  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-  
-  Uint32 senderRef = req->senderRef;
-  Uint32 nodeId = refToNode(senderRef);
-  Uint32 blockNo = refToBlock(senderRef);
-
-  if(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING){
-    jam();
-    switch(blockNo){
-    case DBTC:
-      tabPtr.p->waitingTC.set(nodeId);
-      break;
-    case DBDIH:
-      tabPtr.p->waitingDIH.set(nodeId);
-      break;
-    default:
-      ndbrequire(false);
-    }
-    return;
-  }
-
-  if(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
-    jam();
-    WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderRef = reference();
-    sendSignal(senderRef, GSN_WAIT_DROP_TAB_CONF, signal,
-	       WaitDropTabConf::SignalLength, JBB);
-    return;
-  }
-
-  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtrSend();
-  ref->tableId = tabPtr.i;
-  ref->senderRef = reference();
-
-  bool ok = false;
-  switch(tabPtr.p->tableStatus){
-  case Tablerec::TABLE_DEFINED:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::IllegalTableState;
-    break;
-  case Tablerec::NOT_DEFINED:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::NoSuchTable;
-    break;
-  case Tablerec::ADD_TABLE_ONGOING:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::IllegalTableState;
-    break;
-  case Tablerec::PREP_DROP_TABLE_ONGOING:
-  case Tablerec::PREP_DROP_TABLE_DONE:
-    // Should have been take care of above
-    ndbrequire(false);
-  }
-  ndbrequire(ok);
-  ref->tableStatus = tabPtr.p->tableStatus;
-  sendSignal(senderRef, GSN_WAIT_DROP_TAB_REF, signal,
-	     WaitDropTabRef::SignalLength, JBB);
-  return;
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+	     PrepDropTabConf::SignalLength, JBB);
 }
 
 void

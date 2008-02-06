@@ -6504,30 +6504,16 @@ Dbdict::dropTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   D("dropTable_prepare" << V(itRepeat) << *op_ptr.p);
 
-  if (itRepeat == 0) {
-    jam();
-    dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_block = 0;
 
-    // master checks table state and all sync via next repeat
-
-    if (trans_ptr.p->m_isMaster) {
-      jam();
-      Mutex mutex(signal, c_mutexMgr, dropTabPtr.p->m_define_backup_mutex);
-      Callback c = {
-        safe_cast(&Dbdict::dropTable_backup_mutex_locked),
-        op_ptr.p->op_key
-      };
-      bool ok = mutex.lock(c);
-      ndbrequire(ok);
-      return;
-    }
-
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
-    return;
-  }
-
-  prepDropTab_nextStep(signal, op_ptr);
+  Mutex mutex(signal, c_mutexMgr, dropTabPtr.p->m_define_backup_mutex);
+  Callback c = {
+    safe_cast(&Dbdict::dropTable_backup_mutex_locked),
+    op_ptr.p->op_key
+  };
+  bool ok = mutex.lock(c);
+  ndbrequire(ok);
+  return;
 }
 
 void
@@ -6553,16 +6539,16 @@ Dbdict::dropTable_backup_mutex_locked(Signal* signal,
   Mutex mutex(signal, c_mutexMgr, dropTabPtr.p->m_define_backup_mutex);
   mutex.unlock(); // ignore response
 
-  if (tablePtr.p->tabState == TableRecord::BACKUP_ONGOING) {
+  if (tablePtr.p->tabState == TableRecord::BACKUP_ONGOING)
+  {
     jam();
     setError(op_ptr, DropTableRef::BackupInProgress, __LINE__);
     sendTransRef(signal, op_ptr);
-  } else {
-    jam();
-    tablePtr.p->tabState = TableRecord::PREPARE_DROPPING;
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
+    return;
   }
+
+  tablePtr.p->tabState = TableRecord::PREPARE_DROPPING;
+  prepDropTab_nextStep(signal, op_ptr);
 }
 
 void
@@ -6727,7 +6713,8 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal)
   Uint32 errorCode = ref->errorCode;
   ndbrequire(errorCode != 0);
 
-  if (errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH) {
+  if (errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH)
+  {
     jam();
     /**
      * Ignore errors:
@@ -6746,14 +6733,13 @@ Dbdict::prepDropTab_fromLocal(Signal* signal, Uint32 op_key, Uint32 errorCode)
   findSchemaOp(op_ptr, dropTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
 
-  if (errorCode != 0) {
+  if (errorCode != 0)
+  {
     jam();
     setError(op_ptr, errorCode, __LINE__);
   }
 
-  // one local block done, coordinator will order next
-  Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-  sendTransConf(signal, op_ptr, itFlags);
+  prepDropTab_nextStep(signal, op_ptr);
 }
 
 void
@@ -6778,39 +6764,33 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   D("dropTable_commit" << V(itRepeat) << *op_ptr.p);
 
-  if (itRepeat == 0) {
-    jam();
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, dropTabPtr.p->m_request.tableId);
+  tablePtr.p->tabState = TableRecord::DROPPING;
 
-    // on first round do like old execDROP_TAB_REQ
+  dropTabPtr.p->m_block = 0;
+  dropTabPtr.p->m_callback.m_callbackData =
+    op_ptr.p->op_key;
+  dropTabPtr.p->m_callback.m_callbackFunction =
+    safe_cast(&Dbdict::dropTab_complete);
 
-    TableRecordPtr tablePtr;
-    c_tableRecordPool.getPtr(tablePtr, dropTabPtr.p->m_request.tableId);
-    tablePtr.p->tabState = TableRecord::DROPPING;
-
-    dropTabPtr.p->m_block = 0;
-    dropTabPtr.p->m_callback.m_callbackData =
-      op_ptr.p->op_key;
-    dropTabPtr.p->m_callback.m_callbackFunction =
-      safe_cast(&Dbdict::dropTab_complete);
-
-    if (tablePtr.p->m_tablespace_id != RNIL)
-    {
-      FilegroupPtr ptr;
-      ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
-      decrease_ref_count(ptr.p->m_obj_ptr_i);
-    }
+  if (tablePtr.p->m_tablespace_id != RNIL)
+  {
+    FilegroupPtr ptr;
+    ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
+    decrease_ref_count(ptr.p->m_obj_ptr_i);
+  }
 
 #if defined VM_TRACE || defined ERROR_INSERT
-    // from a newer execDROP_TAB_REQ version
-    {
-      char buf[1024];
-      Rope name(c_rope_pool, tablePtr.p->tableName);
-      name.copy(buf);
-      ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i, 
-               tablePtr.p->m_obj_ptr_i);
-    }
-#endif
+  // from a newer execDROP_TAB_REQ version
+  {
+    char buf[1024];
+    Rope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i,
+             tablePtr.p->m_obj_ptr_i);
   }
+#endif
 
   dropTab_nextStep(signal, op_ptr);
 }
@@ -6924,17 +6904,7 @@ Dbdict::dropTab_fromLocal(Signal* signal, Uint32 op_key)
 
   D("dropTab_fromLocal" << *op_ptr.p);
 
-  Uint32 requestType = impl_req->requestType;
-  if (requestType == DropTabReq::CreateTabDrop ||
-      requestType == DropTabReq::RestartDropTab) {
-    jam();
-    dropTab_nextStep(signal, op_ptr);
-    return;
-  }
-
-  // one local block done, coordinator will order next
-  Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-  sendTransConf(signal, op_ptr, itFlags);
+  dropTab_nextStep(signal, op_ptr);
 }
 
 void
@@ -20026,6 +19996,8 @@ void
 Dbdict::trans_commit(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
+  ndbout_c("trans_commit");
+
   Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
   Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
 
@@ -20040,6 +20012,8 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
                                   Uint32 ret)
 {
   jamEntry();
+  ndbout_c("trans_commit_mutex_locked");
+
   SchemaTransPtr trans_ptr;
   c_schemaTransPool.getPtr(trans_ptr, transPtrI);
 
@@ -20051,10 +20025,23 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
 void
 Dbdict::trans_commit_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
+  ndbout_c("trans_commit_done");
   Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
   Callback c = { safe_cast(&Dbdict::trans_commit_mutex_unlocked), trans_ptr.i };
 
-  mutex.unlock(c);
+  if (mutex.isNull())
+  {
+    /**
+     * Argh...this is a temporary fix until trans-phases are "clear"
+     */
+    jam();
+    trans_commit_mutex_unlocked(signal, trans_ptr.i, 0);
+  }
+  else
+  {
+    jam();
+    mutex.unlock(c);
+  }
 }
 
 void
@@ -20063,8 +20050,22 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
                                     Uint32 ret)
 {
   jamEntry();
+  ndbout_c("trans_commit_mutex_unlocked");
   SchemaTransPtr trans_ptr;
   c_schemaTransPool.getPtr(trans_ptr, transPtrI);
+
+  if (trans_ptr.p->m_commit_mutex.isNull())
+  {
+    jam();
+    /**
+     * Argh...this is a temporary fix until trans-phases are "clear"
+     */
+  }
+  else
+  {
+    jam();
+    trans_ptr.p->m_commit_mutex.release(c_mutexMgr);
+  }
 
   sendTransClientReply(signal, trans_ptr);
   // unlock
