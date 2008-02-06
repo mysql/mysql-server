@@ -870,7 +870,7 @@ inline bool check_and_unset_keyword(const char *dbug_str)
 {
   const char *extra_str= "-d,";
   char total_str[200];
-  if (_db_strict_keyword_ (dbug_str))
+  if (_db_keyword_ (0, dbug_str, 1))
   {
     strxmov(total_str, extra_str, dbug_str, NullS);
     DBUG_SET(total_str);
