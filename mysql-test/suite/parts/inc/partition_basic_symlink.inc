@@ -1,16 +1,17 @@
 ################################################################################
-# inc/partition_basic.inc                                                      #
+# inc/partition_basic_symlink.inc                                              #
 #                                                                              #
 # Purpose:                                                                     #
 #   Basic tests around create partitioned table with/without PRIMARY KEY and   #
 #   /or UNIQUE INDEX                                                           #
+#   Also includes test for DATA/INDEX DIR which requires symlinked files       #
 #                                                                              #
 #------------------------------------------------------------------------------#
 # Original Author: mleich                                                      #
 # Original Date: 2006-03-05                                                    #
-# Change Author:                                                               #
-# Change Date:                                                                 #
-# Change:                                                                      #
+# Change Author: mattiasj                                                      #
+# Change Date: 2008-02-06                                                      #
+# Change: copied it from partition_basic.inc and kept DATA/INDEX DIR           #
 ################################################################################
 --enable_abort_on_error
 
@@ -30,6 +31,29 @@
 let $unique= ;
 --source suite/parts/inc/partition_methods1.inc
 #
+   --echo # 1.1.1 with DATA DIECTORY/INDEX DIRECTORY
+   #
+   --disable_query_log
+   # DATA DIRECTORY
+   # Make directory for partition data
+   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/data || true
+   eval SET @data_dir = 'DATA DIRECTORY =
+   ''''$MYSQLTEST_VARDIR/master-data/test/data''''';
+   let $data_directory = `select @data_dir`;
+
+   #INDEX DIRECTORY
+   # Make directory for partition index
+   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/index || true
+   eval SET @indx_dir = 'INDEX DIRECTORY =
+   ''''$MYSQLTEST_VARDIR/master-data/test/index''''';
+   let $index_directory = `select @indx_dir`;
+
+   let $with_directories= 1;
+   --source suite/parts/inc/partition_methods1.inc
+   --source suite/parts/inc/partition_directory.inc
+   let $with_directories= 0;
+   --enable_query_log
+   #
 --echo #  1.2 The partitioning function contains two columns.
 let $unique= ;
 --source suite/parts/inc/partition_methods2.inc
@@ -49,6 +73,28 @@ if ($more_pk_ui_tests)
    --echo #  2.2 UNIQUE INDEX consisting of one column
    let $unique= , UNIQUE INDEX uidx1 (f_int1);
    --source suite/parts/inc/partition_methods1.inc
+
+   --echo # 2.2.1 with DATA DIECTORY/INDEX DIRECTORY
+   #
+   --disable_query_log
+   # DATA DIRECTORY
+   # Make directory for partition data
+   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/data || true
+   eval SET @data_dir = 'DATA DIRECTORY =
+   ''''$MYSQLTEST_VARDIR/master-data/test/data''''';
+   let $data_directory = `select @data_dir`;
+
+   #INDEX DIRECTORY
+   # Make directory for partition index
+   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/index || true
+   eval SET @indx_dir = 'INDEX DIRECTORY =
+   ''''$MYSQLTEST_VARDIR/master-data/test/index''''';
+   let $index_directory = `select @indx_dir`;
+
+   let $with_directories= TRUE;
+   --source suite/parts/inc/partition_methods1.inc
+   let $with_directories= FALSE;
+   --enable_query_log
    #
    if ($do_pk_tests)
    {
