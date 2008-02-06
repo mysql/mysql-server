@@ -5872,87 +5872,21 @@ Dbdict::createTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   D("createTable_commit" << V(itRepeat) << *op_ptr.p);
 
-  if (itRepeat == 0) {
-    jam();
+  bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
 
-    // take mutex at commit start
+  SchemaFile::TableEntry& te = createTabPtr.p->m_curr_entry;
+  if (savetodisk)
+    te.m_tableState = SchemaFile::TABLE_ADD_COMMITTED;
+  else
+    te.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
+  te.m_transId = 0;
 
-    if (trans_ptr.p->m_isMaster) {
-      jam();
-      Mutex mutex(signal, c_mutexMgr, createTabPtr.p->m_startLcpMutex);
-      Callback c = {
-        safe_cast(&Dbdict::createTab_startLcpMutex_locked),
-        op_ptr.p->op_key
-      };
-      bool ok = mutex.lock(c);
-      ndbrequire(ok);
-      return;
-    }
+  Callback callback;
+  callback.m_callbackData = op_ptr.p->op_key;
+  callback.m_callbackFunction =
+    safe_cast(&Dbdict::createTab_writeSchemaConf2);
 
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
-    return;
-  }
-
-  if (itRepeat == 1) {
-    jam();
-    bool savetodisk = !(tabPtr.p->m_bits & TableRecord::TR_Temporary);
-
-    SchemaFile::TableEntry& te = createTabPtr.p->m_curr_entry;
-    if (savetodisk)
-      te.m_tableState = SchemaFile::TABLE_ADD_COMMITTED;
-    else
-      te.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
-    te.m_transId = 0;
-
-    Callback callback;
-    callback.m_callbackData = op_ptr.p->op_key;
-    callback.m_callbackFunction =
-      safe_cast(&Dbdict::createTab_writeSchemaConf2);
-
-    updateSchemaState(signal, tabPtr.i, &te, &callback, savetodisk, 1);
-    return;
-  }
-
-  ndbrequire(itRepeat == 2);
-  {
-    jam();
-
-    // release mutex at commit end
-
-    if (trans_ptr.p->m_isMaster) {
-      jam();
-      Mutex mutex(signal, c_mutexMgr, createTabPtr.p->m_startLcpMutex);
-      Callback c = {
-        safe_cast(&Dbdict::createTab_startLcpMutex_unlocked),
-        op_ptr.p->op_key
-      };
-      mutex.unlock(c);
-      return;
-    }
-
-    sendTransConf(signal, trans_ptr);
-    return;
-  }
-}
-
-void
-Dbdict::createTab_startLcpMutex_locked(Signal* signal,
-				       Uint32 op_key,
-				       Uint32 ret)
-{
-  jamEntry();
-  D("createTab_startLcpMutex_locked");
-
-  ndbrequire(ret == 0);
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
-  Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-  sendTransConf(signal, op_ptr, itFlags);
+  updateSchemaState(signal, tabPtr.i, &te, &callback, savetodisk, 1);
 }
 
 void
@@ -6040,31 +5974,8 @@ Dbdict::createTab_alterComplete(Signal* signal,
 #endif
   }
 
-  Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-  sendTransConf(signal, op_ptr, itFlags);
+  sendTransConf(signal, op_ptr, 0);
 }
-
-void
-Dbdict::createTab_startLcpMutex_unlocked(Signal* signal,
-					 Uint32 op_key,
-					 Uint32 ret)
-{
-  jamEntry();
-  D("createTab_startLcpMutex_unlocked");
-
-  ndbrequire(ret == 0);
-
-  SchemaOpPtr op_ptr;
-  CreateTableRecPtr createTabPtr;
-  findSchemaOp(op_ptr, createTabPtr, op_key);
-  ndbrequire(!op_ptr.isNull());
-
-  createTabPtr.p->m_startLcpMutex.release(c_mutexMgr);
-
-  sendTransConf(signal, op_ptr);
-}
-
-// CreateTable: ABORT
 
 void
 Dbdict::createTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
@@ -19331,17 +19242,6 @@ Dbdict::g_defaultPhaseList = {
   g_defaultPhaseEntry
 };
 
-void
-Dbdict::dummySimplePhase(Signal* signal, SchemaTransPtr trans_ptr)
-{
-  jam();
-  Uint32 itRepeat = getIteratorRepeat(trans_ptr);
-
-  D("dummySimplePhase");
-  ndbrequire(itRepeat == 0);
-  sendTransConf(signal, trans_ptr);
-}
-
 // SchemaTrans
 
 bool
@@ -19950,13 +19850,11 @@ Dbdict::handleTransReply(Signal* signal, SchemaTransPtr trans_ptr)
       jam();
       runTransMaster(signal, trans_ptr);
     }
-    else if (tLoc.m_phase == TransPhase::End) {
+    else if (tLoc.m_phase == TransPhase::End)
+    {
       jam();
-      sendTransClientReply(signal, trans_ptr);
-      // unlock
-      const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-      dict_lock_unlock(signal, &lockReq);
-      releaseSchemaTrans(trans_ptr);
+      trans_commit_done(signal, trans_ptr);
+      return;
     }
     else {
       ndbrequire(false);
@@ -20087,6 +19985,8 @@ Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
   D("runTransMaster");
   TransLoc& tLoc = trans_ptr.p->m_transLoc;
 
+  bool is_prepare = tLoc.m_phase == TransPhase::Prepare;
+
   if (tLoc.m_phase == TransPhase::Begin) {
     jam();
     // skip trans with no operations
@@ -20106,10 +20006,71 @@ Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
     ndbrequire(found);
   }
 
+  if (is_prepare && tLoc.m_phase == TransPhase::Commit)
+  {
+    /**
+     * This is commit moment...
+     */
+    jam();
+    trans_commit(signal, trans_ptr);
+    return;
+  }
+
   // always send to all in order to keep iterators synced
   SectionHandle handle(this);
   handle.m_cnt = 0;
   sendTransReq(signal, trans_ptr, handle);
+}
+
+void
+Dbdict::trans_commit(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  jam();
+  Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+  Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
+
+  // Todo should alloc mutex on SCHEMA_BEGIN
+  bool ok = mutex.lock(c);
+  ndbrequire(ok);
+}
+
+void
+Dbdict::trans_commit_mutex_locked(Signal* signal,
+                                  Uint32 transPtrI,
+                                  Uint32 ret)
+{
+  jamEntry();
+  SchemaTransPtr trans_ptr;
+  c_schemaTransPool.getPtr(trans_ptr, transPtrI);
+
+  SectionHandle handle(this);
+  handle.m_cnt = 0;
+  sendTransReq(signal, trans_ptr, handle);
+}
+
+void
+Dbdict::trans_commit_done(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
+  Callback c = { safe_cast(&Dbdict::trans_commit_mutex_unlocked), trans_ptr.i };
+
+  mutex.unlock(c);
+}
+
+void
+Dbdict::trans_commit_mutex_unlocked(Signal* signal,
+                                    Uint32 transPtrI,
+                                    Uint32 ret)
+{
+  jamEntry();
+  SchemaTransPtr trans_ptr;
+  c_schemaTransPool.getPtr(trans_ptr, transPtrI);
+
+  sendTransClientReply(signal, trans_ptr);
+  // unlock
+  const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
+  dict_lock_unlock(signal, &lockReq);
+  releaseSchemaTrans(trans_ptr);
 }
 
 void

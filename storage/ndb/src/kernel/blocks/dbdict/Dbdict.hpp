@@ -1773,9 +1773,6 @@ private:
   Uint32 getGlobFlags(SchemaTransPtr trans_ptr,
                       const NdbNodeBitmask& nodes);
 
-  // a dummy simple phase
-  void dummySimplePhase(Signal*, SchemaTransPtr);
-
   /*
    * Trans client is the API client (not us, for recursive ops).
    * Its state is shared by SchemaTrans / TxHandle (for takeover).
@@ -1850,6 +1847,11 @@ private:
     // error is reset after each req/reply
     ErrorInfo m_error;
 
+    /**
+     * Mutex handling
+     */
+    MutexHandle2<DIH_START_LCP_MUTEX> m_commit_mutex;
+
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70002 };
     Uint32 m_magic;
@@ -1865,7 +1867,7 @@ private:
       m_takeOverTxKey = 0;
       m_initNodes.clear();
       m_failedNodes.clear();
-      memset(&m_lockReq, 0, sizeof(m_lockReq)),
+      bzero(&m_lockReq, sizeof(m_lockReq));
       m_opDepth = 0;
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
@@ -1902,6 +1904,11 @@ private:
   void abortSubOps(Signal*, SchemaOpPtr, ErrorInfo);
   void runTransMaster(Signal*, SchemaTransPtr);
   void setTransMode(SchemaTransPtr, TransMode::Value, bool hold);
+
+  void trans_commit(Signal*, SchemaTransPtr);
+  void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
+  void trans_commit_done(Signal* signal, SchemaTransPtr);
+  void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
 
   // participant
   void recvTransReq(Signal*);
@@ -2218,11 +2225,9 @@ private:
   void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit
-  void createTab_startLcpMutex_locked(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_writeSchemaConf2(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
   void createTab_alterComplete(Signal*, Uint32 op_key, Uint32 ret);
-  void createTab_startLcpMutex_unlocked(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort prepare
   void createTable_abortLocalConf(Signal*, Uint32 aux_op_key, Uint32 ret);
