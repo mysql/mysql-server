@@ -46,7 +46,6 @@
 #include <signaldata/UtilSequence.hpp>
 
 #include <signaldata/CreateTrigImpl.hpp>
-#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>

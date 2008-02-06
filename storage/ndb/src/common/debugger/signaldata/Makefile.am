@@ -25,7 +25,7 @@ libsignaldataprint_la_SOURCES = \
           CloseComReqConf.cpp PackedSignal.cpp PrepFailReqRef.cpp \
 	  GCP.cpp DictTabInfo.cpp \
 	  AlterTable.cpp AlterTab.cpp \
-	  CreateTrig.cpp AlterTrig.cpp DropTrig.cpp \
+	  CreateTrig.cpp DropTrig.cpp \
 	  FireTrigOrd.cpp TrigAttrInfo.cpp \
 	  CreateIndx.cpp AlterIndx.cpp DropIndx.cpp TcIndx.cpp \
 	  IndxKeyInfo.cpp IndxAttrInfo.cpp \
@@ -41,7 +41,7 @@ libsignaldataprint_la_SOURCES = \
           ScanFrag.cpp \
 	  SchemaTrans.cpp SchemaTransImpl.cpp GetTabInfo.cpp \
  	  CreateTab.cpp CreateTable.cpp DropTable.cpp \
-  	  CreateTrigImpl.cpp DropTrigImpl.cpp AlterTrigImpl.cpp \
+  	  CreateTrigImpl.cpp DropTrigImpl.cpp \
  	  CreateIndxImpl.cpp DropIndxImpl.cpp AlterIndxImpl.cpp \
  	  BuildIndx.cpp BuildIndxImpl.cpp
 

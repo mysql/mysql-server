@@ -281,10 +281,6 @@ void Dbtc::execCONTINUEB(Signal* signal)
     jam();
     nodeFailCheckTransactions(signal, Tdata0, Tdata1);
     return;
-  case TcContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:
-    jam();
-    checkWaitDropTabFailedLqh(signal, Tdata0, Tdata1);
-    return;
   case TcContinueB::TRIGGER_PENDING:
     jam();
     ApiConnectRecordPtr transPtr;
@@ -415,7 +411,8 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
   Uint32 senderRef = req->senderRef;
   Uint32 senderData = req->senderData;
   
-  if(!tabPtr.p->get_enabled()){
+  if(!tabPtr.p->get_enabled())
+  {
     jam();
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -427,7 +424,8 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
     return;
   }
 
-  if(tabPtr.p->get_dropping()){
+  if(tabPtr.p->get_dropping())
+  {
     jam();
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
@@ -440,132 +438,13 @@ Dbtc::execPREP_DROP_TAB_REQ(Signal* signal)
   }
   
   tabPtr.p->set_dropping(true);
-  tabPtr.p->dropTable.senderRef = senderRef;
-  tabPtr.p->dropTable.senderData = senderData;
 
-  {
-    WaitDropTabReq * req = (WaitDropTabReq*)signal->getDataPtrSend();
-    req->tableId = tabPtr.i;
-    req->senderRef = reference();
-    
-    HostRecordPtr hostPtr;
-    tabPtr.p->dropTable.waitDropTabCount.clearWaitingFor();
-    for (hostPtr.i = 1; hostPtr.i < MAX_NDB_NODES; hostPtr.i++) {
-      jam();
-      ptrAss(hostPtr, hostRecord);
-      if (hostPtr.p->hostStatus == HS_ALIVE) {
-	jam();
-	tabPtr.p->dropTable.waitDropTabCount.setWaitingFor(hostPtr.i);
-	sendSignal(calcLqhBlockRef(hostPtr.i), GSN_WAIT_DROP_TAB_REQ,
-		   signal, WaitDropTabReq::SignalLength, JBB);
-      }//for
-    }//if
-    
-    ndbrequire(tabPtr.p->dropTable.waitDropTabCount.done() != true);
-  }
-}
-
-void
-Dbtc::execWAIT_DROP_TAB_CONF(Signal* signal)
-{
-  jamEntry();
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-
-  TableRecordPtr tabPtr;
-  tabPtr.i = conf->tableId;
-  ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
-  
-  ndbrequire(tabPtr.p->get_dropping() == true);
-  Uint32 nodeId = refToNode(conf->senderRef);
-  tabPtr.p->dropTable.waitDropTabCount.clearWaitingFor(nodeId);
-  
-  if(!tabPtr.p->dropTable.waitDropTabCount.done()){
-    jam();
-    return;
-  }
-  
-  {
-    PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderRef = reference();
-    conf->senderData = tabPtr.p->dropTable.senderData;
-    sendSignal(tabPtr.p->dropTable.senderRef, GSN_PREP_DROP_TAB_CONF, signal,
-	       PrepDropTabConf::SignalLength, JBB);
-    tabPtr.p->dropTable.senderRef = 0;
-  }
-}
-
-void
-Dbtc::execWAIT_DROP_TAB_REF(Signal* signal)
-{
-  jamEntry();
-  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtr();
-
-  TableRecordPtr tabPtr;
-  tabPtr.i = ref->tableId;
-  ptrCheckGuard(tabPtr, ctabrecFilesize, tableRecord);
-  
-  ndbrequire(tabPtr.p->get_dropping() == true);
-  Uint32 nodeId = refToNode(ref->senderRef);
-  tabPtr.p->dropTable.waitDropTabCount.clearWaitingFor(nodeId);
-  
-  ndbrequire(ref->errorCode == WaitDropTabRef::NoSuchTable ||
-	     ref->errorCode == WaitDropTabRef::NF_FakeErrorREF);
-  
-  if(!tabPtr.p->dropTable.waitDropTabCount.done()){
-    jam();
-    return;
-  }
-  
-  {
-    PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderRef = reference();
-    conf->senderData = tabPtr.p->dropTable.senderData;
-    sendSignal(tabPtr.p->dropTable.senderRef, GSN_PREP_DROP_TAB_CONF, signal,
-	       PrepDropTabConf::SignalLength, JBB);
-    tabPtr.p->dropTable.senderRef = 0;
-  }
-}  
-
-void
-Dbtc::checkWaitDropTabFailedLqh(Signal* signal, Uint32 nodeId, Uint32 tableId)
-{
-  
-  TableRecordPtr tabPtr;
-  tabPtr.i = tableId;
-
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-  conf->tableId = tableId;
-
-  const Uint32 RT_BREAK = 16;
-  for(Uint32 i = 0; i<RT_BREAK && tabPtr.i < ctabrecFilesize; i++, tabPtr.i++){
-    jam();
-    ptrAss(tabPtr, tableRecord);
-    if(tabPtr.p->get_enabled() && tabPtr.p->get_dropping()){
-      if(tabPtr.p->dropTable.waitDropTabCount.isWaitingFor(nodeId)){
-        jam();
-	conf->senderRef = calcLqhBlockRef(nodeId);
-	execWAIT_DROP_TAB_CONF(signal);
-	tabPtr.i++;
-	break;
-      }
-    }
-  }
-  
-  if(tabPtr.i == ctabrecFilesize){
-    /**
-     * Finished
-     */
-    jam();
-    checkNodeFailComplete(signal, nodeId, HostRecord::NF_CHECK_DROP_TAB);
-    return;
-  }
-  
-  signal->theData[0] = TcContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH;
-  signal->theData[1] = nodeId;
-  signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
+  conf->tableId = tabPtr.i;
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+             PrepDropTabConf::SignalLength, JBB);
 }
 
 void
@@ -7292,7 +7171,6 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
     }
 
     checkScanActiveInFailedLqh(signal, 0, hostptr.i);
-    checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
     nodeFailCheckTransactions(signal, 0, hostptr.i);
   }
 }//Dbtc::execNODE_FAILREP()
@@ -11763,7 +11641,6 @@ void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
   triggerData->triggerId = req->triggerId;
   triggerData->triggerType = TriggerInfo::getTriggerType(req->triggerInfo);
   triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
-  triggerData->attributeMask = req->attributeMask;
   if (triggerData->triggerType == TriggerType::SECONDARY_INDEX)
     triggerData->indexId = req->indexId;
 
@@ -11934,15 +11811,31 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   key.fireingOperation = fireOrd->getConnectionPtr();
   key.nodeId = refToNode(signal->getSendersBlockRef());
   FiredTriggerPtr trigPtr;
-  if(c_firedTriggerHash.find(trigPtr, key)){
-    
+  if(c_firedTriggerHash.find(trigPtr, key))
+  {
+    jam();
     c_firedTriggerHash.remove(trigPtr);
+
+    trigPtr.p->triggerType = (TriggerType::Value)fireOrd->m_triggerType;
+    trigPtr.p->triggerEvent = (TriggerEvent::Value)fireOrd->m_triggerEvent;
+
+    if (unlikely(signal->getLength() < FireTrigOrd::SignalLength))
+    {
+      Uint32 version = getNodeInfo(key.nodeId).m_version;
+      ndbrequire(!ndb_fire_trig_ord_transid(version));
+      Ptr<TcDefinedTriggerData> ptr;
+      c_theDefinedTriggers.getPtr(ptr, trigPtr.p->triggerId);
+      trigPtr.p->triggerType = ptr.p->triggerType;
+      trigPtr.p->triggerEvent = ptr.p->triggerEvent;
+    }
 
     trigPtr.p->fragId= fireOrd->fragId;
     bool ok = trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
     ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
     ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
-    if(ok){
+    if(ok)
+    {
+      jam();
       opPtr.i = key.fireingOperation;
       ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
       transPtr.i = opPtr.p->apiConnect;
@@ -11950,7 +11843,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       
       opPtr.p->noReceivedTriggers++;
       opPtr.p->triggerExecutionCount++;
-    
+
       // Insert fired trigger in execution queue
       transPtr.p->theFiredTriggers.add(trigPtr);
       if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
@@ -13309,8 +13202,9 @@ void Dbtc::executeTrigger(Signal* signal,
 
   if ((definedTriggerData = 
        c_theDefinedTriggers.getPtr(firedTriggerData->triggerId)) 
-      != NULL) {
-    switch(definedTriggerData->triggerType) {
+      != NULL)
+  {
+    switch(firedTriggerData->triggerType) {
     case(TriggerType::SECONDARY_INDEX):
       jam();
       executeIndexTrigger(signal, definedTriggerData, firedTriggerData, 
@@ -13328,12 +13222,10 @@ void Dbtc::executeIndexTrigger(Signal* signal,
                                ApiConnectRecordPtr* transPtr,
                                TcConnectRecordPtr* opPtr)
 {
-  TcIndexData* indexData;
-
-  indexData = c_theIndexes.getPtr(definedTriggerData->indexId);
+  TcIndexData* indexData = c_theIndexes.getPtr(definedTriggerData->indexId);
   ndbassert(indexData != NULL);
 
-  switch (definedTriggerData->triggerEvent) {
+  switch (firedTriggerData->triggerEvent) {
   case(TriggerEvent::TE_INSERT): {
     jam();
     insertIntoIndexTable(signal, firedTriggerData, transPtr, opPtr, indexData);

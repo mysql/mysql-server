@@ -20,7 +20,18 @@
 #include <NodeBitmask.hpp>
 #include <trigger_definitions.h>
 
-struct DropTrigReq {
+struct DropTrigReq
+{
+  enum EndpointFlag
+  {
+    MainTrigger = 0,
+    TriggerDst = 1, // TC  "consuming" block(s)
+    TriggerSrc = 2  // LQH "producing" block(s)
+  };
+
+  static Uint32 getEndpointFlag(Uint32 i) { return (i >> 2) & 3;}
+  static void setEndpointFlag(Uint32 & i, Uint32 v) { i |= ((v & 3) << 2); }
+
   STATIC_CONST( SignalLength = 11 );
   SECTION( TRIGGER_NAME_SECTION = 0 ); // optional
 
@@ -55,7 +66,8 @@ struct DropTrigRef {
     TriggerNotFound = 4238,
     BadRequestType = 4247,
     InvalidName = 4248,
-    InvalidTable = 4249
+    InvalidTable = 4249,
+    UnsupportedTriggerType = 4240
   };
 
   STATIC_CONST( SignalLength = 11 );

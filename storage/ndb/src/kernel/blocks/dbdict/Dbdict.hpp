@@ -56,8 +56,6 @@
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/DropTrigImpl.hpp>
-#include <signaldata/AlterTrig.hpp>
-#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include "SchemaFile.hpp"
@@ -375,32 +373,8 @@ public:
     IndexState indexState;
 
     /**   Trigger ids of index (volatile data) */
-    Uint32 insertTriggerId;     // hash index (3)
-    Uint32 deleteTriggerId;
-    Uint32 updateTriggerId;
-    Uint32 customTriggerId;     // ordered index (1)
-    Uint32 indexTriggerCount;
-
-    // get ref to index trigger id
-    inline Uint32 &
-    indexTriggerId(int i) {
-      if (tableType == DictTabInfo::UniqueHashIndex) {
-        if (i == 0)
-          return insertTriggerId;
-        if (i == 1)
-          return deleteTriggerId;
-        if (i == 2)
-          return updateTriggerId;
-      }
-      if (tableType == DictTabInfo::OrderedIndex) {
-        if (i == 0)
-          return customTriggerId;
-      }
-      assert(false);
-      return *(Uint32*)0;
-    }
-
-    Uint32 buildTriggerId;      // temp during build
+    Uint32 triggerId;      // ordered index (1)
+    Uint32 buildTriggerId; // temp during build
     
     Uint32 noOfNullBits;
     
@@ -1270,65 +1244,6 @@ private:
   void resetError(SchemaTransPtr);
   void resetError(TxHandlePtr);
 
-  // transaction mode and phase
-
-  struct TransMode {
-    enum Value {
-      Undef = 0,
-      Normal,
-      Rollback, // rolling back current op and sub-ops
-      Abort     // rolling back entire transaction
-    };
-  };
-
-  struct TransPhase {
-    enum Value {
-      Undef = 0,
-      Begin,
-      Parse,
-      Prepare,
-      Commit,
-      Complete,
-      End
-    };
-  };
-
-  struct TransStep {
-    TransMode::Value m_mode;
-    TransPhase::Value m_phase;
-    Uint32 m_repeat;
-    TransStep() {
-      m_mode = TransMode::Undef;
-      m_phase = TransPhase::Undef;
-      m_repeat = 0;
-    }
-  };
-
-  struct TransPhaseFlag {
-    enum Value {
-      Master = (1 << 0), // no-op on slave participant
-      Simple = (1 << 1)  // not iterated over operations
-    };
-  };
-
-  struct TransPhaseEntry {
-    TransPhase::Value m_phase;
-    Uint32 m_phaseFlags;
-    // for Simple phase
-    void (Dbdict::*m_run)(Signal*, SchemaTransPtr);
-    void (Dbdict::*m_abort)(Signal*, SchemaTransPtr);
-  };
-
-  struct TransPhaseList {
-    Uint32 m_id;
-    Uint32 m_length;
-    const TransPhaseEntry* const m_phaseEntry;
-  };
-
-  // default (and only) phase list
-  static const TransPhaseEntry g_defaultPhaseEntry[];
-  static const TransPhaseList g_defaultPhaseList;
-
   // OpInfo
 
   struct OpInfo {
@@ -1341,7 +1256,8 @@ private:
     void (Dbdict::*m_release)(SchemaOpPtr);
 
     // parse phase
-    void (Dbdict::*m_parse)(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+    void (Dbdict::*m_parse)(Signal*, bool master,
+                            SchemaOpPtr, SectionHandle&, ErrorInfo&);
     bool (Dbdict::*m_subOps)(Signal*, SchemaOpPtr);
     void (Dbdict::*m_reply)(Signal*, SchemaOpPtr, ErrorInfo);
 
@@ -1360,28 +1276,12 @@ private:
   static const OpInfo* g_opInfoList[];
   const OpInfo* findOpInfo(Uint32 gsn);
 
-  // Feedback is a sub-op callback for a parent op on all nodes
-
-  enum FeedbackId {
-    AlterIndex_atCreateTrigger = 1,
-    AlterIndex_atDropTrigger = 2,
-    BuildIndex_atCreateConstraint = 3,
-    BuildIndex_atDropConstraint = 4
-  };
-
-  struct FeedbackEntry {
-    Uint32 m_id;
-    TransPhase::Value m_phase;
-    void (Dbdict::*m_method)(Signal*, SchemaOpPtr);
-  };
-
-  static const FeedbackEntry g_feedbackTable[];
-  const FeedbackEntry* findFeedbackEntry(Uint32 id, TransPhase::Value phase);
-  void runFeedbackMethod(Signal*, SchemaOpPtr);
-
   // OpRec
 
-  struct OpRec {
+  struct OpRec
+  {
+    char m_opType[4];
+
     Uint32 nextPool;
 
     // reference to the static member in subclass
@@ -1396,8 +1296,6 @@ private:
     // Copy of original and current schema file entry
     SchemaFile::TableEntry m_orig_entry;
     SchemaFile::TableEntry m_curr_entry;
-
-    char m_opType[4];
 
     OpRec(const OpInfo& info, Uint32* impl_req_data) :
       m_opInfo(info),
@@ -1451,7 +1349,25 @@ private:
   struct SchemaOp {
     Uint32 nextPool;
 
+    enum OpState
+    {
+      OS_INTIAL           = 0,
+      OS_PARSE_MASTER     = 1,
+      OS_PARSING          = 2,
+      OS_PARSED           = 3,
+      OS_PREPARING        = 4,
+      OS_PREPARED         = 5,
+      OS_ABORTING_PREPARE = 6,
+      OS_ABORTED_PREPARE  = 7,
+      OS_ABORTING_PARSE   = 8,
+      //OS_ABORTED_PARSE    = 9,  // Not used, op released
+      OS_COMMITTING       = 10,
+      OS_COMMITTED        = 11 // TODO: Not used, op released
+    };
+
+    Uint32 m_state;
     Uint32 op_key;
+    Uint32 m_base_op_ptr_i;
     Uint32 nextHash;
     Uint32 prevHash;
     Uint32 hashValue() const {
@@ -1484,21 +1400,9 @@ private:
     // callback for use with sub-operations
     Callback m_callback;
 
-    // index (0-based) of operation in schema trans op list
-    Uint32 m_opIndex;
-
-    // sub-operation tree structure expressed as depth (top level = 0)
-    Uint32 m_opDepth;
-
     // link to an extra "helper" op and link back from it
     SchemaOpPtr m_oplnk_ptr;
     SchemaOpPtr m_opbck_ptr;
-
-    // last successfully completed step
-    TransStep m_step;
-
-    // flag if this op has been aborted in RT_PREPARE phase
-    bool m_abortPrepareDone;
 
     // error always propagates to trans level
     ErrorInfo m_error;
@@ -1516,12 +1420,10 @@ private:
       m_sections = 0;
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
-      m_opIndex = ~(Uint32)0;
-      m_opDepth = 0;
       m_oplnk_ptr.setNull();
       m_opbck_ptr.setNull();
-      m_abortPrepareDone = false;
       m_magic = 0;
+      m_base_op_ptr_i = RNIL;
     }
 
     SchemaOp(Uint32 the_op_key) {
@@ -1666,116 +1568,6 @@ private:
   void releaseDictObject(SchemaOpPtr);
   void findDictObjectOp(SchemaOpPtr&, DictObjectPtr);
 
-  // list of SchemaOp (sans pool)
-  struct OpList {
-    DLFifoList<SchemaOp>::Head m_head;
-    Uint32 m_size;
-    OpList() {
-      m_size = 0;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  /*
-   * Transaction state, location, and iteration.  Maintained
-   * by master and copied to slaves on each round.
-   *
-   * Iteration is over phases, operations, and repeats.
-   */
-
-  struct TransLoc : public TransStep {
-    const TransPhaseList* m_phaseList;
-    Uint32 m_phaseIndex;
-    OpList m_opList;
-    Uint32 m_opKey;
-    bool m_hold; // master-local temp flag
-    TransLoc () {
-      m_phaseIndex = 0;
-      m_opKey = 0;
-      m_hold = false;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  bool getOpPtr(const TransLoc&, SchemaOpPtr&);
-  const TransPhaseEntry& getPhaseEntry(const TransLoc&);
-
-  void iteratorAddOp(TransLoc&, SchemaOpPtr);
-  void iteratorRemoveLastOp(TransLoc&, SchemaOpPtr&);
-  bool iteratorFirstOp(TransLoc&, int dir);
-  bool iteratorNextOp(TransLoc&, int dir);
-
-  bool iteratorFirst(TransLoc&, int dir);
-  bool iteratorNext(TransLoc&, int dir);
-  bool iteratorInit(TransLoc&);
-  bool iteratorMove(TransLoc&, bool repeatFlag);
-  void iteratorCopy(TransLoc&, Uint32 mode,
-                    Uint32 phaseIndex, Uint32 op_key, Uint32 repeat);
-
-  /*
-   * Transaction state of each node tracked by master only.
-   * Also records requests for repeat after each round.
-   */
-
-  struct TransGlob {
-    enum State {
-      Undef = 0,
-      Ok,
-      Error,
-      NodeFail,
-      // handle cases where slave has no free record
-      NeedTrans,
-      NoTrans,
-      NeedOp,
-      NoOp,
-      // end valid values
-      End
-    };
-    // pack State to save space
-    Uint8 m_state;
-    Uint8 m_flags;
-    TransGlob() {
-      m_state = Undef;
-      m_flags = 0;
-    }
-    TransGlob(State state, Uint32 flags) {
-      m_state = (Uint8)state;
-      m_flags = flags;
-    }
-    State state() const {
-      return (State)m_state;
-    }
-    void state(State state) {
-      assert(state > 0 && state < End);
-      m_state = (Uint8)state;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  TransGlob& getTransGlob(SchemaTransPtr, Uint32 nodeId);
-
-  void setGlobState(SchemaTransPtr,
-                    Uint32 nodeId, TransGlob::State state);
-  void setGlobState(SchemaTransPtr,
-                    const NdbNodeBitmask&, TransGlob::State state);
-  void setGlobState(SchemaTransPtr,
-                    TransGlob::State oldstate, TransGlob::State state);
-  void setGlobFlags(SchemaTransPtr,
-                    Uint32 nodeId, Uint32 flags, int op);
-  void setGlobFlags(SchemaTransPtr,
-                    const NdbNodeBitmask&, Uint32 flags, int op);
-  Uint32 getGlobFlags(SchemaTransPtr trans_ptr,
-                      const NdbNodeBitmask& nodes);
-
-  // a dummy simple phase
-  void dummySimplePhase(Signal*, SchemaTransPtr);
-
   /*
    * Trans client is the API client (not us, for recursive ops).
    * Its state is shared by SchemaTrans / TxHandle (for takeover).
@@ -1793,7 +1585,8 @@ private:
     enum Flag {
       ApiFail = 1,
       Background = 2,
-      TakeOver = 4
+      TakeOver = 4,
+      Commit = 8
     };
   };
 
@@ -1803,6 +1596,24 @@ private:
     // ArrayPool
     Uint32 nextPool;
 
+    enum TransState
+    {
+      TS_INITIAL          = 0,
+      TS_STARTING         = 1, // Starting at participants
+      TS_ABORT_START      = 2, // Endreq on all START_CONF
+      TS_STARTED          = 3, // Started (potentially with parsed ops)
+      TS_PARSING          = 4, // Parsing at participants
+      TS_SUBOP            = 5, // Creating subop
+      TS_ROLLBACK_SP      = 6, // Rolling back to SP (supported before prepare)
+      TS_PREPARING        = 7, // Preparing operations
+      TS_ABORTING_PREPARE = 8, // Aborting prepared operations
+      TS_ABORTING_PARSE   = 9, // Aborting parsed operations
+      TS_COMMITTING       = 10,// Committing
+      TS_COMMITTED        = 11,// Committed
+      TS_COMPLETING       = 12,// Completing
+    };
+
+    Uint32 m_state;
     // DLHashTable
     Uint32 trans_key;
     Uint32 nextHash;
@@ -1830,19 +1641,15 @@ private:
     Uint32 m_clientFlags;
     Uint32 m_takeOverTxKey;
 
-    // local and global transaction state
-    TransLoc m_transLoc;
-    TransGlob m_transGlob[MAX_NDB_NODES];
+    NdbNodeBitmask m_nodes;      // Nodes part of transaction
+    NdbNodeBitmask m_ref_nodes;  // Nodes replying REF to req
+    SafeCounterHandle m_counter; // Outstanding REQ's
 
-    NdbNodeBitmask m_initNodes;
-    NdbNodeBitmask m_failedNodes;
-    SafeCounterHandle m_counter;
+    Uint32 m_curr_op_ptr_i;
+    DLFifoList<SchemaOp>::Head m_op_list;
 
     // request for lock/unlock
     DictLockReq m_lockReq;
-
-    // operation depth during parse (increased for sub-ops)
-    Uint32 m_opDepth;
 
     // callback (not yet used)
     Callback m_callback;
@@ -1850,11 +1657,17 @@ private:
     // error is reset after each req/reply
     ErrorInfo m_error;
 
+    /**
+     * Mutex handling
+     */
+    MutexHandle2<DIH_START_LCP_MUTEX> m_commit_mutex;
+
     // magic is on when record is seized
     enum { DICT_MAGIC = 0xd1c70002 };
     Uint32 m_magic;
 
     SchemaTrans() {
+      m_state = TS_INITIAL;
       m_isMaster = false;
       m_masterRef = 0;
       m_requestInfo = 0;
@@ -1863,10 +1676,7 @@ private:
       m_clientState = TransClient::StateUndef;
       m_clientFlags = 0;
       m_takeOverTxKey = 0;
-      m_initNodes.clear();
-      m_failedNodes.clear();
-      memset(&m_lockReq, 0, sizeof(m_lockReq)),
-      m_opDepth = 0;
+      bzero(&m_lockReq, sizeof(m_lockReq));
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
       m_magic = 0;
@@ -1891,17 +1701,44 @@ private:
   bool findSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
   void releaseSchemaTrans(SchemaTransPtr&);
 
-  Uint32 getIteratorRepeat(SchemaTransPtr trans_ptr);
-
   // coordinator
-  void sendTransReq(Signal*, SchemaTransPtr, SectionHandle&);
-  void sendTransParseReq(Signal*, SchemaOpPtr, SectionHandle&);
-  void recvTransReply(Signal*, bool isConf);
-  void handleTransReply(Signal*, SchemaTransPtr);
   void createSubOps(Signal*, SchemaOpPtr, bool first = false);
   void abortSubOps(Signal*, SchemaOpPtr, ErrorInfo);
-  void runTransMaster(Signal*, SchemaTransPtr);
-  void setTransMode(SchemaTransPtr, TransMode::Value, bool hold);
+
+  void trans_recv_reply(Signal*, SchemaTransPtr);
+  void trans_start_recv_reply(Signal*, SchemaTransPtr);
+  void trans_parse_recv_reply(Signal*, SchemaTransPtr);
+
+  void trans_prepare_start(Signal*, SchemaTransPtr);
+  void trans_prepare_recv_reply(Signal*, SchemaTransPtr);
+  void trans_prepare_next(Signal*, SchemaTransPtr, SchemaOpPtr);
+  void trans_prepare_done(Signal*, SchemaTransPtr);
+
+  void trans_abort_prepare_start(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_recv_reply(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_next(Signal*, SchemaTransPtr, SchemaOpPtr);
+  void trans_abort_prepare_done(Signal*, SchemaTransPtr);
+
+  void trans_abort_parse_start(Signal*, SchemaTransPtr);
+  void trans_abort_parse_recv_reply(Signal*, SchemaTransPtr);
+  void trans_abort_parse_next(Signal*, SchemaTransPtr, SchemaOpPtr);
+  void trans_abort_parse_done(Signal*, SchemaTransPtr);
+
+  void trans_rollback_sp_start(Signal* signal, SchemaTransPtr);
+  void trans_rollback_sp_recv_reply(Signal* signal, SchemaTransPtr);
+  void trans_rollback_sp_next(Signal* signal, SchemaTransPtr, SchemaOpPtr);
+  void trans_rollback_sp_done(Signal* signal, SchemaTransPtr, SchemaOpPtr);
+
+  void trans_commit_start(Signal*, SchemaTransPtr);
+  void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
+  void trans_commit_recv_reply(Signal*, SchemaTransPtr);
+  void trans_commit_next(Signal*, SchemaTransPtr, SchemaOpPtr);
+  void trans_commit_done(Signal* signal, SchemaTransPtr);
+  void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
+
+  void trans_complete_start(Signal* signal, SchemaTransPtr);
+  void trans_complete_recv_reply(Signal*, SchemaTransPtr);
+  void trans_complete_done(Signal*, SchemaTransPtr);
 
   // participant
   void recvTransReq(Signal*);
@@ -1909,10 +1746,15 @@ private:
                          Uint32 op_key, const OpInfo& info,
                          Uint32 requestInfo);
   void runTransSlave(Signal*, SchemaTransPtr);
-  void sendTransConf(Signal*, SchemaOpPtr, Uint32 itFlags = 0);
-  void sendTransConf(Signal*, SchemaTransPtr, Uint32 itFlags = 0);
+  void sendTransConf(Signal*, SchemaOpPtr);
+  void sendTransConf(Signal*, SchemaTransPtr);
   void sendTransRef(Signal*, SchemaOpPtr);
   void sendTransRef(Signal*, SchemaTransPtr);
+
+  void slave_run_start(Signal*, const SchemaTransImplReq*);
+  void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
+  void slave_run_complete(Signal*, SchemaTransPtr);
+  void slave_flush_schema(Signal*, SchemaTransPtr);
 
   // reply to trans client for begin/end trans
   void sendTransClientReply(Signal*, SchemaTransPtr);
@@ -1950,8 +1792,7 @@ private:
       return;
     }
 
-    TransLoc& tLoc = trans_ptr.p->m_transLoc;
-    D("before add op" << *trans_ptr.p << tLoc << tLoc.m_opList);
+    D("before add op" << *trans_ptr.p);
 
     if (trans_ptr.p->m_transId != req->transId) {
       jam();
@@ -1959,43 +1800,10 @@ private:
       return;
     }
 
-    if (trans_ptr.p->m_opDepth == 0) {
-      jam();
-      if (trans_ptr.p->m_clientState != TransClient::BeginReply &&
-          trans_ptr.p->m_clientState != TransClient::ParseReply) {
-        jam();
-        setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
-        return;
-      }
-    }
-
-    if (tLoc.m_phase != TransPhase::Begin &&
-        tLoc.m_phase != TransPhase::Parse) {
-      jam();
-      setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
-      return;
-    }
-
-    ndbrequire(!hasError(trans_ptr.p->m_error));
-
-    if (tLoc.m_mode == TransMode::Rollback) {
-      jam();
-      D("continuing after rollback");
-      resetError(trans_ptr);
-      setTransMode(trans_ptr, TransMode::Normal, false);
-    }
-    ndbrequire(tLoc.m_mode == TransMode::Normal);
-
     if (!seizeSchemaOp(op_ptr, t_ptr)) {
       jam();
       setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
       return;
-    }
-
-    // switch to parse phase on first op
-    if (tLoc.m_phase == TransPhase::Begin) {
-      jam();
-      iteratorMove(tLoc, false);
     }
 
     trans_ptr.p->m_clientState = TransClient::ParseReq;
@@ -2016,16 +1824,6 @@ private:
     // client of this REQ (trans client or us, recursively)
     op_ptr.p->m_clientRef = req->clientRef;
     op_ptr.p->m_clientData = req->clientData;
-
-    const Uint32 ownNodeId = getOwnNodeId();
-    const TransGlob& tGlob = getTransGlob(trans_ptr, ownNodeId);
-    ndbrequire(tGlob.state() == TransGlob::Ok);
-
-    // other nodes have no op record yet
-    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
-    nodes.bitANDC(trans_ptr.p->m_failedNodes);
-    nodes.clear(ownNodeId);
-    setGlobState(trans_ptr, nodes, TransGlob::NeedOp);
   }
 
   /*
@@ -2180,6 +1978,9 @@ private:
     // who is using local create tab
     Callback m_callback;
 
+    // flag if this op has been aborted in RT_PREPARE phase
+    bool m_abortPrepareDone;
+
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2187,6 +1988,7 @@ private:
       m_fragmentsPtrI = RNIL;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
+      m_abortPrepareDone = false;
     }
 
 #ifdef VM_TRACE
@@ -2201,7 +2003,8 @@ private:
   bool createTable_seize(SchemaOpPtr);
   void createTable_release(SchemaOpPtr);
   //
-  void createTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTable_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createTable_subOps(Signal*, SchemaOpPtr);
   void createTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2218,11 +2021,9 @@ private:
   void createTab_dihComplete(Signal*, Uint32 op_key, Uint32 ret);
 
   // commit
-  void createTab_startLcpMutex_locked(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_writeSchemaConf2(Signal*, Uint32 op_key, Uint32 ret);
   void createTab_activate(Signal*, SchemaOpPtr, Callback*);
   void createTab_alterComplete(Signal*, Uint32 op_key, Uint32 ret);
-  void createTab_startLcpMutex_unlocked(Signal*, Uint32 op_key, Uint32 ret);
 
   // abort prepare
   void createTable_abortLocalConf(Signal*, Uint32 aux_op_key, Uint32 ret);
@@ -2264,7 +2065,8 @@ private:
   bool dropTable_seize(SchemaOpPtr);
   void dropTable_release(SchemaOpPtr);
   //
-  void dropTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTable_parse(Signal*, bool master,
+                       SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropTable_subOps(Signal*, SchemaOpPtr);
   void dropTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2311,7 +2113,6 @@ private:
     TableRecordPtr m_newTablePtr;
 
     // before image
-    SchemaFile::TableEntry m_oldTableEntry;
     RopeHandle m_oldTableName;
     RopeHandle m_oldFrmData;
 
@@ -2352,7 +2153,8 @@ private:
   bool alterTable_seize(SchemaOpPtr);
   void alterTable_release(SchemaOpPtr);
   //
-  void alterTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void alterTable_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterTable_subOps(Signal*, SchemaOpPtr);
   void alterTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2432,7 +2234,8 @@ private:
   bool createIndex_seize(SchemaOpPtr);
   void createIndex_release(SchemaOpPtr);
   //
-  void createIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createIndex_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createIndex_subOps(Signal*, SchemaOpPtr);
   void createIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2483,7 +2286,8 @@ private:
   bool dropIndex_seize(SchemaOpPtr);
   void dropIndex_release(SchemaOpPtr);
   //
-  void dropIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropIndex_parse(Signal*, bool master,
+                       SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropIndex_subOps(Signal*, SchemaOpPtr);
   void dropIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2506,7 +2310,7 @@ private:
     const TriggerInfo triggerInfo;
   };
 
-  static const TriggerTmpl g_hashIndexTriggerTmpl[3];
+  static const TriggerTmpl g_hashIndexTriggerTmpl[1];
   static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
 
@@ -2525,9 +2329,7 @@ private:
 
     // sub-operation counters
     const TriggerTmpl* m_triggerTmpl;
-    Uint32 m_triggerCount;      // 3 or 1
-    Uint32 m_triggerIndex;      // 0 1 2
-    Uint32 m_triggerNo;         // 0 1 2 or 2 1 0 on drop
+    bool m_sub_trigger;
     bool m_sub_build_index;
 
     // prepare phase
@@ -2539,11 +2341,9 @@ private:
       memset(&m_attrList, 0, sizeof(m_attrList));
       m_attrMask.clear();
       m_triggerTmpl = 0;
-      m_triggerCount = 0;
-      m_triggerIndex = 0;
-      m_triggerNo = 0;
       m_sub_build_index = false;
       m_tc_index_done = false;
+      m_sub_trigger = false;
     }
 
 #ifdef VM_TRACE
@@ -2558,7 +2358,8 @@ private:
   bool alterIndex_seize(SchemaOpPtr);
   void alterIndex_release(SchemaOpPtr);
   //
-  void alterIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void alterIndex_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterIndex_subOps(Signal*, SchemaOpPtr);
   void alterIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2633,7 +2434,8 @@ private:
   bool buildIndex_seize(SchemaOpPtr);
   void buildIndex_release(SchemaOpPtr);
   //
-  void buildIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void buildIndex_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool buildIndex_subOps(Signal*, SchemaOpPtr);
   void buildIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2779,7 +2581,6 @@ private:
   typedef Ptr<OpDropEvent> OpDropEventPtr;
 
   // MODULE: CreateTrigger
-
   struct CreateTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
 
@@ -2792,13 +2593,20 @@ private:
 
     char m_triggerName[MAX_TAB_NAME_SIZE];
     // sub-operation counters
-    bool m_sub_alter_trigger;
+    bool m_created;
+    bool m_main_op;
+    bool m_sub_dst; // Create trigger destination
+    bool m_sub_src; // Create trigger source
+    Uint32 m_block_list[1]; // Only 1 block...
 
     CreateTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       memset(m_triggerName, 0, sizeof(m_triggerName));
-      m_sub_alter_trigger = false;
+      m_main_op = true;
+      m_sub_src = false;
+      m_sub_dst = false;
+      m_created = false;
     }
   };
 
@@ -2809,19 +2617,25 @@ private:
   bool createTrigger_seize(SchemaOpPtr);
   void createTrigger_release(SchemaOpPtr);
   //
-  void createTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTrigger_parse(Signal*, bool master,
+                           SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool createTrigger_subOps(Signal*, SchemaOpPtr);
+  void createTrigger_toCreateEndpoint(Signal*, SchemaOpPtr,
+				      CreateTrigReq::EndpointFlag);
+  void createTrigger_fromCreateEndpoint(Signal*, Uint32, Uint32);
+
   void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
   void createTrigger_prepare(Signal*, SchemaOpPtr);
+  void createTrigger_prepare_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
   void createTrigger_commit(Signal*, SchemaOpPtr);
+  void createTrigger_commit_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
   //
   void createTrigger_abortParse(Signal*, SchemaOpPtr);
   void createTrigger_abortPrepare(Signal*, SchemaOpPtr);
-
-  // sub-ops
-  void createTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
-  void createTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void createTrigger_abortPrepare_fromLocal(Signal*, Uint32, Uint32);
+  void send_create_trig_req(Signal*, SchemaOpPtr);
 
   // MODULE: DropTrigger
 
@@ -2837,13 +2651,18 @@ private:
 
     char m_triggerName[MAX_TAB_NAME_SIZE];
     // sub-operation counters
-    bool m_sub_alter_trigger;
+    bool m_main_op;
+    bool m_sub_dst; // Create trigger destination
+    bool m_sub_src; // Create trigger source
+    Uint32 m_block_list[1]; // Only 1 block...
 
     DropTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       memset(m_triggerName, 0, sizeof(m_triggerName));
-      m_sub_alter_trigger = false;
+      m_main_op = true;
+      m_sub_src = false;
+      m_sub_dst = false;
     }
   };
 
@@ -2854,74 +2673,23 @@ private:
   bool dropTrigger_seize(SchemaOpPtr);
   void dropTrigger_release(SchemaOpPtr);
   //
-  void dropTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTrigger_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool dropTrigger_subOps(Signal*, SchemaOpPtr);
+  void dropTrigger_toDropEndpoint(Signal*, SchemaOpPtr,
+				  DropTrigReq::EndpointFlag);
+  void dropTrigger_fromDropEndpoint(Signal*, Uint32, Uint32);
   void dropTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
   void dropTrigger_prepare(Signal*, SchemaOpPtr);
   void dropTrigger_commit(Signal*, SchemaOpPtr);
+  void dropTrigger_commit_fromLocal(Signal*, Uint32, Uint32);
   //
   void dropTrigger_abortParse(Signal*, SchemaOpPtr);
   void dropTrigger_abortPrepare(Signal*, SchemaOpPtr);
 
-  // sub-ops
-  void dropTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
-  void dropTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
-
-  // MODULE: AlterTrigger
-
-  struct AlterTriggerRec : public OpRec {
-    static const OpInfo g_opInfo;
-
-    static ArrayPool<Dbdict::AlterTriggerRec>&
-    getPool(Dbdict* dict) {
-      return dict->c_alterTriggerRecPool;
-    };
-
-    AlterTrigImplReq m_request;
-
-    // local triggers
-    Uint32 m_triggerCount; // 2 or 1
-    Uint32 m_triggerMax;   // normally m_triggerCount
-    Uint32 m_triggerNo;
-    // TC-LQH or LQH (if drop, done in reversed order)
-    BlockReference m_triggerBlock[2];
-
-    AlterTriggerRec() :
-      OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      m_triggerCount = 0;
-      m_triggerMax = 0;
-      m_triggerNo = 0;
-      m_triggerBlock[0] = 0;
-      m_triggerBlock[1] = 0;
-    }
-  };
-
-  typedef Ptr<AlterTriggerRec> AlterTriggerRecPtr;
-  ArrayPool<AlterTriggerRec> c_alterTriggerRecPool;
-
-  // OpInfo
-  bool alterTrigger_seize(SchemaOpPtr);
-  void alterTrigger_release(SchemaOpPtr);
-  //
-  void alterTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
-  bool alterTrigger_subOps(Signal*, SchemaOpPtr);
-  void alterTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
-  //
-  void alterTrigger_prepare(Signal*, SchemaOpPtr);
-  void alterTrigger_commit(Signal*, SchemaOpPtr);
-  //
-  void alterTrigger_abortParse(Signal*, SchemaOpPtr);
-  void alterTrigger_abortPrepare(Signal*, SchemaOpPtr);
-
-  // prepare phase
-  void alterTrigger_toCreateLocal(Signal*, SchemaOpPtr);
-  void alterTrigger_toDropLocal(Signal*, SchemaOpPtr);
-  void alterTrigger_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
-
-  // abort
-  void alterTrigger_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+  void send_drop_trig_req(Signal*, SchemaOpPtr);
 
 public:
   struct SchemaOperation : OpRecordCommon {
@@ -3415,9 +3183,6 @@ public:
   friend NdbOut& operator<<(NdbOut& out, const DictObject&);
   friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaOp&);
-  friend NdbOut& operator<<(NdbOut& out, const OpList&);
-  friend NdbOut& operator<<(NdbOut& out, const TransLoc&);
-  friend NdbOut& operator<<(NdbOut& out, const TransGlob&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaTrans&);
   friend NdbOut& operator<<(NdbOut& out, const TxHandle&);
   void check_consistency();
