@@ -3637,30 +3637,14 @@ st_init_objects(ST_Con& c, NDBT_Context* ctx)
         tab.induniquecount++;
 
         { char trg_name[ST_MAX_NAME_SIZE];
-          sprintf(trg_name, "NDB$INDEX_<%s>_INSERT", ind.name);
+          sprintf(trg_name, "NDB$INDEX_<%s>_UI", ind.name);
           ind.trglist->push_back(new ST_Trg("", trg_name));
           ST_Trg& trg = *ind.trglist->back();
           trg.ind = &ind;
           trg.type = NdbDictionary::Object::HashIndexTrigger;
           trg.event = TriggerEvent::TE_INSERT;
         }
-        { char trg_name[ST_MAX_NAME_SIZE];
-          sprintf(trg_name, "NDB$INDEX_<%s>_DELETE", ind.name);
-          ind.trglist->push_back(new ST_Trg("", trg_name));
-          ST_Trg& trg = *ind.trglist->back();
-          trg.ind = &ind;
-          trg.type = NdbDictionary::Object::HashIndexTrigger;
-          trg.event = TriggerEvent::TE_DELETE;
-        }
-        { char trg_name[ST_MAX_NAME_SIZE];
-          sprintf(trg_name, "NDB$INDEX_<%s>_UPDATE", ind.name);
-          ind.trglist->push_back(new ST_Trg("", trg_name));
-          ST_Trg& trg = *ind.trglist->back();
-          trg.ind = &ind;
-          trg.type = NdbDictionary::Object::HashIndexTrigger;
-          trg.event = TriggerEvent::TE_UPDATE;
-        }
-        ind.trgcount = 3;
+        ind.trgcount = 1;
       }
       else if (strcmp(type, "ORDERED") == 0) {
         ind.type = NdbDictionary::Object::OrderedIndex;
@@ -4440,7 +4424,7 @@ st_begin_trans(ST_Con& c, ST_Retry retry)
       code = c.dic->getNdbError().code;
       assert(code != 0);
     }
-    chk2(code == 0 || code == 780, c.dic->getNdbError());
+    chk2(code == 0 || code == 780 || code == 701, c.dic->getNdbError());
     if (code == 0) {
       chk1(c.dic->hasSchemaTrans() == true);
       g_info << "begin trans at try " << tries << endl;
@@ -4671,11 +4655,9 @@ st_errins_index[] = {
   ST_Errins(6112, 783),
   ST_Errins(6113, 783),
   ST_Errins(6114, 783),
-  ST_Errins(6115, 783),
   ST_Errins(6122, 9122),
   ST_Errins(6123, 9123),
   ST_Errins(6124, 9124),
-  ST_Errins(6125, 9125),
   //ST_Errins(6132, 9131),
   //ST_Errins(6133, 9131),
   //ST_Errins(6134, 9131),
@@ -4867,7 +4849,7 @@ st_test_rollback_drop_index(ST_Con& c, int arg = -1)
     for (j = 0; j < tab.indcount; j++) {
       ST_Ind& ind = tab.ind(j);
       if (j % 2 == 0) {
-        ST_Errins errins(6115, 783, 0); // fail ATr seize op
+        ST_Errins errins(6114, 783, 0); // fail ATr seize op
         chk1(st_drop_index(c, ind, errins) == 0);
       } else {
         chk1(st_drop_index(c, ind) == 0);
@@ -5494,6 +5476,8 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
       g_info << "restart node " << node_id << " (async)" << endl;
       int flags = 0;
       chk1(c.restarter->restartOneDbNode2(node_id, flags) == 0);
+      chk1(c.restarter->waitNodesNoStart(&node_id, 1) == 0);
+      chk1(c.restarter->startNodes(&node_id, 1) == 0);
     }
     chk1(st_create_table_index(c, tab) == 0);
   }
@@ -5503,7 +5487,7 @@ st_test_snf_parse(ST_Con& c, int arg = -1)
     chk1(st_end_trans(c, ST_AbortFlag) == 0);
 
   g_info << "wait for node " << node_id << " to come up" << endl;
-  chk1(st_wait_db_node_up(c, node_id) == 0);
+  chk1(c.restarter->waitClusterStarted() == 0);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);
   return NDBT_OK;
@@ -5537,9 +5521,11 @@ st_test_sr_parse(ST_Con& c, int arg = -1)
 
   g_info << "restart all" << endl;
   int flags;
-  flags = 0;
+  flags = NdbRestarter::NRRF_NOSTART;
   chk1(c.restarter->restartAll2(flags) == 0);
   g_info << "wait for cluster started" << endl;
+  chk1(c.restarter->waitClusterNoStart() == 0);
+  chk1(c.restarter->startAll() == 0);
   chk1(c.restarter->waitClusterStarted() == 0);
   g_info << "verify all" << endl;
   chk1(st_verify_all(c) == 0);

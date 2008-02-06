@@ -433,6 +433,7 @@ Dbtup::execBUILD_INDX_IMPL_REQ(Signal* signal)
       if (triggerPtr.i == RNIL) {
 	jam();
 	// trigger was not created
+        ndbassert(false);
 	buildPtr.p->m_errorCode = BuildIndxImplRef::InternalError;
 	break;
       }

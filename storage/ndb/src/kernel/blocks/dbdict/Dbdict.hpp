@@ -56,8 +56,6 @@
 #include <signaldata/CreateTrigImpl.hpp>
 #include <signaldata/DropTrig.hpp>
 #include <signaldata/DropTrigImpl.hpp>
-#include <signaldata/AlterTrig.hpp>
-#include <signaldata/AlterTrigImpl.hpp>
 #include <signaldata/DictLock.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include "SchemaFile.hpp"
@@ -375,32 +373,8 @@ public:
     IndexState indexState;
 
     /**   Trigger ids of index (volatile data) */
-    Uint32 insertTriggerId;     // hash index (3)
-    Uint32 deleteTriggerId;
-    Uint32 updateTriggerId;
-    Uint32 customTriggerId;     // ordered index (1)
-    Uint32 indexTriggerCount;
-
-    // get ref to index trigger id
-    inline Uint32 &
-    indexTriggerId(int i) {
-      if (tableType == DictTabInfo::UniqueHashIndex) {
-        if (i == 0)
-          return insertTriggerId;
-        if (i == 1)
-          return deleteTriggerId;
-        if (i == 2)
-          return updateTriggerId;
-      }
-      if (tableType == DictTabInfo::OrderedIndex) {
-        if (i == 0)
-          return customTriggerId;
-      }
-      assert(false);
-      return *(Uint32*)0;
-    }
-
-    Uint32 buildTriggerId;      // temp during build
+    Uint32 triggerId;      // ordered index (1)
+    Uint32 buildTriggerId; // temp during build
     
     Uint32 noOfNullBits;
     
@@ -2511,7 +2485,7 @@ private:
     const TriggerInfo triggerInfo;
   };
 
-  static const TriggerTmpl g_hashIndexTriggerTmpl[3];
+  static const TriggerTmpl g_hashIndexTriggerTmpl[1];
   static const TriggerTmpl g_orderedIndexTriggerTmpl[1];
   static const TriggerTmpl g_buildIndexConstraintTmpl[1];
 
@@ -2530,9 +2504,7 @@ private:
 
     // sub-operation counters
     const TriggerTmpl* m_triggerTmpl;
-    Uint32 m_triggerCount;      // 3 or 1
-    Uint32 m_triggerIndex;      // 0 1 2
-    Uint32 m_triggerNo;         // 0 1 2 or 2 1 0 on drop
+    bool m_sub_trigger;
     bool m_sub_build_index;
 
     // prepare phase
@@ -2544,11 +2516,9 @@ private:
       memset(&m_attrList, 0, sizeof(m_attrList));
       m_attrMask.clear();
       m_triggerTmpl = 0;
-      m_triggerCount = 0;
-      m_triggerIndex = 0;
-      m_triggerNo = 0;
       m_sub_build_index = false;
       m_tc_index_done = false;
+      m_sub_trigger = false;
     }
 
 #ifdef VM_TRACE
@@ -2784,7 +2754,6 @@ private:
   typedef Ptr<OpDropEvent> OpDropEventPtr;
 
   // MODULE: CreateTrigger
-
   struct CreateTriggerRec : public OpRec {
     static const OpInfo g_opInfo;
 
@@ -2797,13 +2766,20 @@ private:
 
     char m_triggerName[MAX_TAB_NAME_SIZE];
     // sub-operation counters
-    bool m_sub_alter_trigger;
+    bool m_created;
+    bool m_main_op;
+    bool m_sub_dst; // Create trigger destination
+    bool m_sub_src; // Create trigger source
+    Uint32 m_block_list[1]; // Only 1 block...
 
     CreateTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       memset(m_triggerName, 0, sizeof(m_triggerName));
-      m_sub_alter_trigger = false;
+      m_main_op = true;
+      m_sub_src = false;
+      m_sub_dst = false;
+      m_created = false;
     }
   };
 
@@ -2815,18 +2791,23 @@ private:
   void createTrigger_release(SchemaOpPtr);
   //
   void createTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool createTrigger_subOps(Signal*, SchemaOpPtr);
+  void createTrigger_toCreateEndpoint(Signal*, SchemaOpPtr,
+				      CreateTrigReq::EndpointFlag);
+  void createTrigger_fromCreateEndpoint(Signal*, Uint32, Uint32);
+
   void createTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
   void createTrigger_prepare(Signal*, SchemaOpPtr);
+  void createTrigger_prepare_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
   void createTrigger_commit(Signal*, SchemaOpPtr);
+  void createTrigger_commit_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
   //
   void createTrigger_abortParse(Signal*, SchemaOpPtr);
   void createTrigger_abortPrepare(Signal*, SchemaOpPtr);
-
-  // sub-ops
-  void createTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
-  void createTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
+  void createTrigger_abortPrepare_fromLocal(Signal*, Uint32, Uint32);
+  void send_create_trig_req(Signal*, SchemaOpPtr);
 
   // MODULE: DropTrigger
 
@@ -2842,13 +2823,18 @@ private:
 
     char m_triggerName[MAX_TAB_NAME_SIZE];
     // sub-operation counters
-    bool m_sub_alter_trigger;
+    bool m_main_op;
+    bool m_sub_dst; // Create trigger destination
+    bool m_sub_src; // Create trigger source
+    Uint32 m_block_list[1]; // Only 1 block...
 
     DropTriggerRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
       memset(m_triggerName, 0, sizeof(m_triggerName));
-      m_sub_alter_trigger = false;
+      m_main_op = true;
+      m_sub_src = false;
+      m_sub_dst = false;
     }
   };
 
@@ -2860,73 +2846,21 @@ private:
   void dropTrigger_release(SchemaOpPtr);
   //
   void dropTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool dropTrigger_subOps(Signal*, SchemaOpPtr);
+  void dropTrigger_toDropEndpoint(Signal*, SchemaOpPtr,
+				  DropTrigReq::EndpointFlag);
+  void dropTrigger_fromDropEndpoint(Signal*, Uint32, Uint32);
   void dropTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
   void dropTrigger_prepare(Signal*, SchemaOpPtr);
   void dropTrigger_commit(Signal*, SchemaOpPtr);
+  void dropTrigger_commit_fromLocal(Signal*, Uint32, Uint32);
   //
   void dropTrigger_abortParse(Signal*, SchemaOpPtr);
   void dropTrigger_abortPrepare(Signal*, SchemaOpPtr);
 
-  // sub-ops
-  void dropTrigger_toAlterTrigger(Signal*, SchemaOpPtr);
-  void dropTrigger_fromAlterTrigger(Signal*, Uint32 op_key, Uint32 ret);
-
-  // MODULE: AlterTrigger
-
-  struct AlterTriggerRec : public OpRec {
-    static const OpInfo g_opInfo;
-
-    static ArrayPool<Dbdict::AlterTriggerRec>&
-    getPool(Dbdict* dict) {
-      return dict->c_alterTriggerRecPool;
-    };
-
-    AlterTrigImplReq m_request;
-
-    // local triggers
-    Uint32 m_triggerCount; // 2 or 1
-    Uint32 m_triggerMax;   // normally m_triggerCount
-    Uint32 m_triggerNo;
-    // TC-LQH or LQH (if drop, done in reversed order)
-    BlockReference m_triggerBlock[2];
-
-    AlterTriggerRec() :
-      OpRec(g_opInfo, (Uint32*)&m_request) {
-      memset(&m_request, 0, sizeof(m_request));
-      m_triggerCount = 0;
-      m_triggerMax = 0;
-      m_triggerNo = 0;
-      m_triggerBlock[0] = 0;
-      m_triggerBlock[1] = 0;
-    }
-  };
-
-  typedef Ptr<AlterTriggerRec> AlterTriggerRecPtr;
-  ArrayPool<AlterTriggerRec> c_alterTriggerRecPool;
-
-  // OpInfo
-  bool alterTrigger_seize(SchemaOpPtr);
-  void alterTrigger_release(SchemaOpPtr);
-  //
-  void alterTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
-  bool alterTrigger_subOps(Signal*, SchemaOpPtr);
-  void alterTrigger_reply(Signal*, SchemaOpPtr, ErrorInfo);
-  //
-  void alterTrigger_prepare(Signal*, SchemaOpPtr);
-  void alterTrigger_commit(Signal*, SchemaOpPtr);
-  //
-  void alterTrigger_abortParse(Signal*, SchemaOpPtr);
-  void alterTrigger_abortPrepare(Signal*, SchemaOpPtr);
-
-  // prepare phase
-  void alterTrigger_toCreateLocal(Signal*, SchemaOpPtr);
-  void alterTrigger_toDropLocal(Signal*, SchemaOpPtr);
-  void alterTrigger_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
-
-  // abort
-  void alterTrigger_abortFromLocal(Signal*, Uint32 op_key, Uint32 ret);
+  void send_drop_trig_req(Signal*, SchemaOpPtr);
 
 public:
   struct SchemaOperation : OpRecordCommon {
