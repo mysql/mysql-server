@@ -20,7 +20,21 @@
 #include "SignalData.hpp"
 #include "GlobalSignalNumbers.h"
 
-struct SchemaTransImplReq {
+struct SchemaTransImplReq
+{
+  enum RequestType
+  {
+    RT_START         = 0x0,
+    RT_PARSE         = 0x1,
+    RT_PREPARE       = 0x2,
+    RT_ABORT_PARSE   = 0x3,
+    RT_ABORT_PREPARE = 0x4,
+    RT_COMMIT        = 0x5,
+
+    RT_COMPLETE      = 0x6,// Not yet used
+    RT_FLUSH_SCHEMA  = 0x7 // Not yet used
+  };
+
   STATIC_CONST( SignalLength = 9 );
   Uint32 senderRef;
   Uint32 transKey;
@@ -31,6 +45,8 @@ struct SchemaTransImplReq {
   Uint32 iteratorInfo;  // list id | list index | repeat | 0
   Uint32 clientRef;
   Uint32 transId;
+
+  Uint32 requestType;
 
   // phaseInfo
   static Uint32 getMode(const Uint32& info) {
@@ -96,7 +112,8 @@ struct SchemaTransImplReq {
   }
 };
 
-struct SchemaTransImplConf {
+struct SchemaTransImplConf
+{
   enum {
     IT_REPEAT = (1 << 1)
   };
@@ -107,7 +124,8 @@ struct SchemaTransImplConf {
   Uint32 itFlags;
 };
 
-struct SchemaTransImplRef {
+struct SchemaTransImplRef
+{
   STATIC_CONST( SignalLength = 6 );
   STATIC_CONST( GSN = GSN_SCHEMA_TRANS_IMPL_REF );
   enum ErrorCode {

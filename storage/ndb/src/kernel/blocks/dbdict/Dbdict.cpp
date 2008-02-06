@@ -19394,7 +19394,8 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
   const OpInfo& info = getOpInfo(op_ptr);
   (this->*(info.m_parse))(signal, true, op_ptr, handle, error);
 
-  if (hasError(error)) {
+  if (hasError(error))
+  {
     jam();
     setError(op_ptr, error);
     setTransMode(trans_ptr, TransMode::Rollback, true);
@@ -19864,7 +19865,7 @@ Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
      * This is commit moment...
      */
     jam();
-    trans_commit(signal, trans_ptr);
+    trans_commit_start(signal, trans_ptr);
     return;
   }
 
@@ -19875,10 +19876,66 @@ Dbdict::runTransMaster(Signal* signal, SchemaTransPtr trans_ptr)
 }
 
 void
-Dbdict::trans_commit(Signal* signal, SchemaTransPtr trans_ptr)
+Dbdict::trans_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  trans_ptr.p->m_state = SchemaTrans::TS_PREPARING;
+}
+
+void
+Dbdict::trans_prepare_next(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_PREPARING);
+}
+
+void
+Dbdict::trans_prepare_done(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_PREPARING);
+}
+
+void
+Dbdict::trans_abort_parse_start(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PARSE;
+}
+
+void
+Dbdict::trans_abort_parse_next(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
+}
+
+void
+Dbdict::trans_abort_parse_done(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PARSE);
+}
+
+void
+Dbdict::trans_abort_prepare_start(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  trans_ptr.p->m_state = SchemaTrans::TS_ABORTING_PREPARE;
+}
+
+void
+Dbdict::trans_abort_prepare_next(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
+}
+
+void
+Dbdict::trans_abort_prepare_done(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_ABORTING_PREPARE);
+}
+
+void
+Dbdict::trans_commit_start(Signal* signal, SchemaTransPtr trans_ptr)
 {
   jam();
   ndbout_c("trans_commit");
+
+  trans_ptr.p->m_state = SchemaTrans::TS_COMMITTING;
 
   Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
   Callback c = { safe_cast(&Dbdict::trans_commit_mutex_locked), trans_ptr.i };
@@ -19899,6 +19956,8 @@ Dbdict::trans_commit_mutex_locked(Signal* signal,
   SchemaTransPtr trans_ptr;
   c_schemaTransPool.getPtr(trans_ptr, transPtrI);
 
+  ndbrequire(trans_ptr.p->m_state == SchemaTrans::TS_COMMITTING);
+
   SectionHandle handle(this);
   handle.m_cnt = 0;
   sendTransReq(signal, trans_ptr, handle);
@@ -19910,7 +19969,6 @@ Dbdict::trans_commit_done(Signal* signal, SchemaTransPtr trans_ptr)
   ndbout_c("trans_commit_done");
   Mutex mutex(signal, c_mutexMgr, trans_ptr.p->m_commit_mutex);
   Callback c = { safe_cast(&Dbdict::trans_commit_mutex_unlocked), trans_ptr.i };
-
   if (mutex.isNull())
   {
     /**
@@ -19982,12 +20040,202 @@ Dbdict::setTransMode(SchemaTransPtr trans_ptr,
 void
 Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
 {
+  jamEntry();
   if (!assembleFragments(signal)) {
     jam();
     return;
   }
-  jamEntry();
+
+  SchemaTransImplReq reqCopy =
+    *(const SchemaTransImplReq*)signal->getDataPtr();
+  const SchemaTransImplReq *req = &reqCopy;
+
+  Uint32 i = ~0;
+  if (i == SchemaTransImplReq::RT_START)
+  {
+    jam();
+    slave_run_start(signal, req);
+    return;
+  }
+
+  ErrorInfo error;
+  SchemaTransPtr trans_ptr;
+  const Uint32 trans_key = req->transKey;
+  if (!findSchemaTrans(trans_ptr, trans_key))
+  {
+    jam();
+    setError(error, SchemaTransImplRef::InvalidTransKey, __LINE__);
+    goto err;
+  }
+
+  /**
+   * Check *transaction* request
+   */
+  switch(i){
+  case SchemaTransImplReq::RT_PARSE:
+    jam();
+    slave_run_parse(signal, trans_ptr, req);
+    return;
+  case SchemaTransImplReq::RT_COMPLETE:
+    jam();
+    //slave_run_complete(signal, trans_ptr);
+    return;
+  case SchemaTransImplReq::RT_FLUSH_SCHEMA:
+    jam();
+    slave_flush_schema(signal, trans_ptr);
+    return;
+  default:
+    break;
+  }
+
+  SchemaOpPtr op_ptr;
+  if (!findSchemaOp(op_ptr, req->opKey))
+  {
+    jam();
+    // wl3600_todo better error no
+    setError(error, SchemaTransImplRef::InvalidTransKey, __LINE__);
+    goto err;
+  }
+
+  {
+    const OpInfo info = getOpInfo(op_ptr);
+    switch(i){
+    case SchemaTransImplReq::RT_START:
+    case SchemaTransImplReq::RT_PARSE:
+    case SchemaTransImplReq::RT_COMPLETE:
+    case SchemaTransImplReq::RT_FLUSH_SCHEMA:
+      ndbrequire(false); // handled above
+    case SchemaTransImplReq::RT_PREPARE:
+      jam();
+      (this->*(info.m_prepare))(signal, op_ptr);
+      return;
+    case SchemaTransImplReq::RT_ABORT_PARSE:
+      jam();
+      (this->*(info.m_abortParse))(signal, op_ptr);
+      return;
+    case SchemaTransImplReq::RT_ABORT_PREPARE:
+      jam();
+      (this->*(info.m_abortPrepare))(signal, op_ptr);
+      return;
+    case SchemaTransImplReq::RT_COMMIT:
+      jam();
+      (this->*(info.m_commit))(signal, op_ptr);
+      return;
+    }
+  }
+
   recvTransReq(signal);
+  return;
+err:
+  ndbrequire(false);
+}
+
+void
+Dbdict::slave_run_start(Signal *signal, const SchemaTransImplReq* req)
+{
+  ErrorInfo error;
+  SchemaTransPtr trans_ptr;
+  const Uint32 trans_key = req->transKey;
+  if (req->senderRef != reference())
+  {
+    jam();
+    if (!seizeSchemaTrans(trans_ptr, trans_key))
+    {
+      jam();
+      setError(error, SchemaTransImplRef::TooManySchemaTrans, __LINE__);
+      goto err;
+    }
+    trans_ptr.p->m_clientRef = req->clientRef;
+    trans_ptr.p->m_transId = req->transId;
+  }
+  else
+  {
+    jam();
+    ndbrequire(findSchemaTrans(trans_ptr, req->transKey));
+  }
+  sendTransConf(signal, trans_ptr);
+  return;
+
+err:
+  sendTransRef(signal, trans_ptr);
+}
+
+void
+Dbdict::slave_run_parse(Signal *signal,
+                        SchemaTransPtr trans_ptr,
+                        const SchemaTransImplReq* req)
+{
+  SchemaOpPtr op_ptr;
+  D("slave_run_parse");
+
+  const Uint32 op_key = req->opKey;
+  const Uint32 phaseInfo = req->phaseInfo;
+  const Uint32 gsn = SchemaTransImplReq::getGsn(phaseInfo);
+  const Uint32 requestInfo = req->requestInfo;
+  const OpInfo& info = *findOpInfo(gsn);
+
+  // signal data contains impl_req
+  const Uint32* src = signal->getDataPtr();
+  const Uint32 len = info.m_impl_req_length;
+
+  SectionHandle handle(this, signal);
+
+  ndbrequire(op_key != RNIL);
+  ErrorInfo error;
+  if (trans_ptr.p->m_isMaster)
+  {
+    jam();
+    // this branch does nothing but is convenient for signal pong
+
+    //XXX Check if op == last op in trans
+    findSchemaOp(op_ptr, op_key);
+    ndbrequire(!op_ptr.isNull());
+
+    OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+    const Uint32* dst = oprec_ptr.p->m_impl_req_data;
+    ndbrequire(memcmp(dst, src, len << 2) == 0);
+  }
+  else
+  {
+    if (seizeSchemaOp(op_ptr, op_key, info))
+    {
+      jam();
+
+      DictSignal::addRequestExtra(op_ptr.p->m_requestInfo, requestInfo);
+      DictSignal::addRequestFlags(op_ptr.p->m_requestInfo, requestInfo);
+
+      OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
+      Uint32* dst = oprec_ptr.p->m_impl_req_data;
+      memcpy(dst, src, len << 2);
+
+      (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
+      if (!hasError(error))
+      {
+        jam();
+        addSchemaOp(trans_ptr, op_ptr);
+      }
+    } else {
+      jam();
+      setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
+    }
+  }
+
+  // parse must consume but not release signal sections
+  releaseSections(handle);
+
+  if (hasError(error))
+  {
+    jam();
+    sendTransRef(signal, trans_ptr);
+    return;
+  }
+  sendTransConf(signal, op_ptr);
+}
+
+void
+Dbdict::slave_flush_schema(Signal *signal,
+			   SchemaTransPtr trans_ptr)
+{
 }
 
 void
@@ -20189,7 +20437,8 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
 
   ndbrequire(op_key != RNIL);
   ErrorInfo error;
-  if (trans_ptr.p->m_isMaster) {
+  if (trans_ptr.p->m_isMaster)
+  {
     jam();
     // this branch does nothing but is convenient for signal pong
     findSchemaOp(op_ptr, op_key);
@@ -20198,8 +20447,11 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
     OpRecPtr oprec_ptr = op_ptr.p->m_oprec_ptr;
     const Uint32* dst = oprec_ptr.p->m_impl_req_data;
     ndbrequire(memcmp(dst, src, len << 2) == 0);
-  } else {
-    if (seizeSchemaOp(op_ptr, op_key, info)) {
+  }
+  else
+  {
+    if (seizeSchemaOp(op_ptr, op_key, info))
+    {
       jam();
 
       DictSignal::addRequestExtra(op_ptr.p->m_requestInfo, requestInfo);
@@ -20212,7 +20464,8 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
       memcpy(dst, src, len << 2);
 
       (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
-      if (!hasError(error)) {
+      if (!hasError(error))
+      {
         jam();
         updateSchemaOpStep(trans_ptr, op_ptr);
       }
@@ -20225,7 +20478,8 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
   // parse must consume but not release signal sections
   releaseSections(handle);
 
-  if (hasError(error)) {
+  if (hasError(error))
+  {
     jam();
     setError(trans_ptr, error);
     sendTransRef(signal, trans_ptr);
