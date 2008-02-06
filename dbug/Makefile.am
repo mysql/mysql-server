@@ -64,7 +64,7 @@ output5.r:      factorial
 
 # a hack to have executable in builddir, not in srcdir
 tests-t:	tests-t.pl
-		cp $(srcdir)/tests-t.pl $(builddir)/tests-t
+		cp -f $(srcdir)/tests-t.pl ./tests-t
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
