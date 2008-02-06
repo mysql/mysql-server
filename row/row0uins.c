@@ -254,7 +254,7 @@ row_undo_ins_parse_undo_rec(
 Undoes a fresh insert of a row to a table. A fresh insert means that
 the same clustered index unique key did not have any record, even delete
 marked, at the time of the insert. */
-
+UNIV_INTERN
 ulint
 row_undo_ins(
 /*=========*/

@@ -86,7 +86,7 @@ UT_LIST_BASE_NODE_T(mem_block_t)	mem_block_list;
 
 /**************************************************************************
 Duplicates a NUL-terminated string, allocated from a memory heap. */
-
+UNIV_INTERN
 char*
 mem_heap_strdup(
 /*============*/
@@ -99,7 +99,7 @@ mem_heap_strdup(
 
 /**************************************************************************
 Duplicate a block of data, allocated from a memory heap. */
-
+UNIV_INTERN
 void*
 mem_heap_dup(
 /*=========*/
@@ -113,7 +113,7 @@ mem_heap_dup(
 
 /**************************************************************************
 Concatenate two memory blocks and return the result, using a memory heap. */
-
+UNIV_INTERN
 void*
 mem_heap_cat(
 /*=========*/
@@ -134,7 +134,7 @@ mem_heap_cat(
 
 /**************************************************************************
 Concatenate two strings and return the result, using a memory heap. */
-
+UNIV_INTERN
 char*
 mem_heap_strcat(
 /*============*/
@@ -273,7 +273,7 @@ A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type). */
-
+UNIV_INTERN
 char*
 mem_heap_printf(
 /*============*/
@@ -303,7 +303,7 @@ mem_heap_printf(
 
 /*******************************************************************
 Creates a memory heap block where data can be allocated. */
-
+UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -398,7 +398,7 @@ mem_heap_create_block(
 
 /*******************************************************************
 Adds a new block to a memory heap. */
-
+UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
 /*===============*/
@@ -454,7 +454,7 @@ mem_heap_add_block(
 
 /**********************************************************************
 Frees a block from a memory heap. */
-
+UNIV_INTERN
 void
 mem_heap_block_free(
 /*================*/
@@ -510,7 +510,7 @@ mem_heap_block_free(
 
 /**********************************************************************
 Frees the free_block field from a memory heap. */
-
+UNIV_INTERN
 void
 mem_heap_free_block_free(
 /*=====================*/
@@ -528,7 +528,7 @@ mem_heap_free_block_free(
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
-
+UNIV_INTERN
 void
 mem_validate_all_blocks(void)
 /*=========================*/

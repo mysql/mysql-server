@@ -643,7 +643,7 @@ dict_create_index_tree_step(
 
 /***********************************************************************
 Drops the index tree associated with a row in SYS_INDEXES table. */
-
+UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
@@ -706,7 +706,7 @@ dict_drop_index_tree(
 
 /***********************************************************************
 Truncates the index tree associated with a row in SYS_INDEXES table. */
-
+UNIV_INTERN
 ulint
 dict_truncate_index_tree(
 /*=====================*/
@@ -842,7 +842,7 @@ create:
 
 /*************************************************************************
 Creates a table create graph. */
-
+UNIV_INTERN
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
@@ -878,7 +878,7 @@ tab_create_graph_create(
 
 /*************************************************************************
 Creates an index create graph. */
-
+UNIV_INTERN
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
@@ -915,7 +915,7 @@ ind_create_graph_create(
 
 /***************************************************************
 Creates a table. This is a high-level function used in SQL execution graphs. */
-
+UNIV_INTERN
 que_thr_t*
 dict_create_table_step(
 /*===================*/
@@ -1022,7 +1022,7 @@ function_exit:
 /***************************************************************
 Creates an index. This is a high-level function used in SQL execution
 graphs. */
-
+UNIV_INTERN
 que_thr_t*
 dict_create_index_step(
 /*===================*/
@@ -1155,7 +1155,7 @@ function_exit:
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
 not of the right form. */
-
+UNIV_INTERN
 ulint
 dict_create_or_check_foreign_constraint_tables(void)
 /*================================================*/
@@ -1450,7 +1450,7 @@ dict_create_add_foreign_to_dictionary(
 
 /************************************************************************
 Adds foreign key definitions to data dictionary tables in the database. */
-
+UNIV_INTERN
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/

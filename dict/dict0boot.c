@@ -25,7 +25,7 @@ Created 4/18/1996 Heikki Tuuri
 
 /**************************************************************************
 Gets a pointer to the dictionary header and x-latches its page. */
-
+UNIV_INTERN
 dict_hdr_t*
 dict_hdr_get(
 /*=========*/
@@ -47,7 +47,7 @@ dict_hdr_get(
 
 /**************************************************************************
 Returns a new table, index, or tree id. */
-
+UNIV_INTERN
 dulint
 dict_hdr_get_new_id(
 /*================*/
@@ -77,7 +77,7 @@ dict_hdr_get_new_id(
 /**************************************************************************
 Writes the current value of the row id counter to the dictionary header file
 page. */
-
+UNIV_INTERN
 void
 dict_hdr_flush_row_id(void)
 /*=======================*/
@@ -205,7 +205,7 @@ dict_hdr_create(
 /*********************************************************************
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */
-
+UNIV_INTERN
 void
 dict_boot(void)
 /*===========*/
@@ -419,7 +419,7 @@ dict_insert_initial_data(void)
 
 /*********************************************************************
 Creates and initializes the data dictionary at the database creation. */
-
+UNIV_INTERN
 void
 dict_create(void)
 /*=============*/

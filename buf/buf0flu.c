@@ -45,7 +45,7 @@ buf_flush_validate_low(void);
 
 /************************************************************************
 Inserts a modified block into the flush list. */
-
+UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
@@ -90,7 +90,7 @@ buf_flush_insert_into_flush_list(
 Inserts a modified block into the flush list in the right sorted position.
 This function is used by recovery, because there the modifications do not
 necessarily come in the order of lsn's. */
-
+UNIV_INTERN
 void
 buf_flush_insert_sorted_into_flush_list(
 /*====================================*/
@@ -149,7 +149,7 @@ buf_flush_insert_sorted_into_flush_list(
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed. */
-
+UNIV_INTERN
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
@@ -216,7 +216,7 @@ buf_flush_ready_for_flush(
 
 /************************************************************************
 Remove a block from the flush list of modified blocks. */
-
+UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
@@ -254,7 +254,7 @@ buf_flush_remove(
 
 /************************************************************************
 Updates the flush system data structures when a write is completed. */
-
+UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
@@ -589,7 +589,7 @@ try_again:
 
 /************************************************************************
 Initializes a page for writing to the tablespace. */
-
+UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
@@ -988,7 +988,7 @@ NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages! */
-
+UNIV_INTERN
 ulint
 buf_flush_batch(
 /*============*/
@@ -1147,7 +1147,7 @@ flush_next:
 
 /**********************************************************************
 Waits until a flush batch of the given type ends */
-
+UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
@@ -1216,7 +1216,7 @@ of replaceable pages there or in the free list. VERY IMPORTANT: this function
 is called also by threads which have locks on pages. To avoid deadlocks, we
 flush only pages such that the s-lock required for flushing can be acquired
 immediately, without waiting. */
-
+UNIV_INTERN
 void
 buf_flush_free_margin(void)
 /*=======================*/
@@ -1268,7 +1268,7 @@ buf_flush_validate_low(void)
 
 /**********************************************************************
 Validates the flush list. */
-
+UNIV_INTERN
 ibool
 buf_flush_validate(void)
 /*====================*/

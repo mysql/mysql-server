@@ -24,10 +24,10 @@ struct dulint_struct{
 };
 
 /* Zero value for a dulint */
-extern dulint	ut_dulint_zero;
+extern const dulint	ut_dulint_zero;
 
 /* Maximum value for a dulint */
-extern dulint	ut_dulint_max;
+extern const dulint	ut_dulint_max;
 
 /***********************************************************
 Creates a 64-bit dulint out of two ulints. */

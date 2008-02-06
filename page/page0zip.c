@@ -25,11 +25,11 @@ Created June 2005 by Marko Makela
 #include "zlib.h"
 
 /** Number of page compressions, indexed by page_zip_des_t::ssize */
-ulint	page_zip_compress_count[8];
+UNIV_INTERN ulint	page_zip_compress_count[8];
 /** Number of successful page compressions, indexed by page_zip_des_t::ssize */
-ulint	page_zip_compress_ok[8];
+UNIV_INTERN ulint	page_zip_compress_ok[8];
 /** Number of page decompressions, indexed by page_zip_des_t::ssize */
-ulint	page_zip_decompress_count[8];
+UNIV_INTERN ulint	page_zip_decompress_count[8];
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -93,7 +93,7 @@ page_zip_fail_func(
 
 /**************************************************************************
 Determine the guaranteed free space on an empty page. */
-
+UNIV_INTERN
 ulint
 page_zip_empty_size(
 /*================*/
@@ -644,7 +644,7 @@ page_zip_free(
 
 /**************************************************************************
 Configure the zlib allocator to use the given memory heap. */
-
+UNIV_INTERN
 void
 page_zip_set_alloc(
 /*===============*/
@@ -661,7 +661,7 @@ page_zip_set_alloc(
 #if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
 /* Set this variable in a debugger to enable
 excessive logging in page_zip_compress(). */
-ibool	page_zip_compress_dbg;
+UNIV_INTERN ibool	page_zip_compress_dbg;
 
 /**************************************************************************
 Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
@@ -1055,7 +1055,7 @@ func_exit:
 
 /**************************************************************************
 Compress a page. */
-
+UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
@@ -2696,7 +2696,7 @@ zlib_done:
 Decompress a page.  This function should tolerate errors on the compressed
 page.  Instead of letting assertions fail, it will return FALSE if an
 inconsistency is detected. */
-
+UNIV_INTERN
 ibool
 page_zip_decompress(
 /*================*/
@@ -2874,11 +2874,11 @@ err_exit:
 
 #ifdef UNIV_ZIP_DEBUG
 /* Flag: make page_zip_validate() compare page headers only */
-ibool	page_zip_validate_header_only = FALSE;
+UNIV_INTERN ibool	page_zip_validate_header_only = FALSE;
 
 /**************************************************************************
 Check that the compressed and decompressed pages match. */
-
+UNIV_INTERN
 ibool
 page_zip_validate(
 /*==============*/
@@ -3109,7 +3109,7 @@ page_zip_write_rec_ext(
 /**************************************************************************
 Write an entire record on the compressed page.  The data must already
 have been written to the uncompressed page. */
-
+UNIV_INTERN
 void
 page_zip_write_rec(
 /*===============*/
@@ -3296,7 +3296,7 @@ page_zip_write_rec(
 
 /***************************************************************
 Parses a log record of writing a BLOB pointer of a record. */
-
+UNIV_INTERN
 byte*
 page_zip_parse_write_blob_ptr(
 /*==========================*/
@@ -3356,7 +3356,7 @@ corrupt:
 /**************************************************************************
 Write a BLOB pointer of a record on the leaf page of a clustered index.
 The information must already have been updated on the uncompressed page. */
-
+UNIV_INTERN
 void
 page_zip_write_blob_ptr(
 /*====================*/
@@ -3437,7 +3437,7 @@ page_zip_write_blob_ptr(
 
 /***************************************************************
 Parses a log record of writing the node pointer of a record. */
-
+UNIV_INTERN
 byte*
 page_zip_parse_write_node_ptr(
 /*==========================*/
@@ -3514,7 +3514,7 @@ corrupt:
 
 /**************************************************************************
 Write the node pointer of a record on a non-leaf compressed page. */
-
+UNIV_INTERN
 void
 page_zip_write_node_ptr(
 /*====================*/
@@ -3579,7 +3579,7 @@ page_zip_write_node_ptr(
 
 /**************************************************************************
 Write the trx_id and roll_ptr of a record on a B-tree leaf node page. */
-
+UNIV_INTERN
 void
 page_zip_write_trx_id_and_roll_ptr(
 /*===============================*/
@@ -3649,7 +3649,7 @@ The only observable effect should be the compression ratio due to
 deleted records not being zeroed out.  In rare cases, there can be
 page_zip_validate() failures on the node_ptr, trx_id and roll_ptr
 columns if the space is reallocated for a smaller record. */
-ibool	page_zip_clear_rec_disable;
+UNIV_INTERN ibool	page_zip_clear_rec_disable;
 #endif /* UNIV_ZIP_DEBUG */
 
 /**************************************************************************
@@ -3761,7 +3761,7 @@ page_zip_clear_rec(
 /**************************************************************************
 Write the "deleted" flag of a record on a compressed page.  The flag must
 already have been written on the uncompressed page. */
-
+UNIV_INTERN
 void
 page_zip_rec_set_deleted(
 /*=====================*/
@@ -3785,7 +3785,7 @@ page_zip_rec_set_deleted(
 /**************************************************************************
 Write the "owned" flag of a record on a compressed page.  The n_owned field
 must already have been written on the uncompressed page. */
-
+UNIV_INTERN
 void
 page_zip_rec_set_owned(
 /*===================*/
@@ -3805,7 +3805,7 @@ page_zip_rec_set_owned(
 
 /**************************************************************************
 Insert a record to the dense page directory. */
-
+UNIV_INTERN
 void
 page_zip_dir_insert(
 /*================*/
@@ -3884,7 +3884,7 @@ page_zip_dir_insert(
 /**************************************************************************
 Shift the dense page directory and the array of BLOB pointers
 when a record is deleted. */
-
+UNIV_INTERN
 void
 page_zip_dir_delete(
 /*================*/
@@ -3981,7 +3981,7 @@ skip_blobs:
 
 /**************************************************************************
 Add a slot to the dense page directory. */
-
+UNIV_INTERN
 void
 page_zip_dir_add_slot(
 /*==================*/
@@ -4037,7 +4037,7 @@ page_zip_dir_add_slot(
 
 /***************************************************************
 Parses a log record of writing to the header of a page. */
-
+UNIV_INTERN
 byte*
 page_zip_parse_write_header(
 /*========================*/
@@ -4095,7 +4095,7 @@ corrupt:
 
 /**************************************************************************
 Write a log record of writing to the uncompressed header portion of a page. */
-
+UNIV_INTERN
 void
 page_zip_write_header_log(
 /*======================*/
@@ -4137,7 +4137,7 @@ IMPORTANT: if page_zip_reorganize() is invoked on a leaf page of a
 non-clustered index, the caller must update the insert buffer free
 bits in the same mini-transaction in such a way that the modification
 will be redo-logged. */
-
+UNIV_INTERN
 ibool
 page_zip_reorganize(
 /*================*/
@@ -4209,7 +4209,7 @@ page_zip_reorganize(
 
 /**************************************************************************
 Copy a page byte for byte, except for the file page header and trailer. */
-
+UNIV_INTERN
 void
 page_zip_copy(
 /*==========*/
@@ -4279,7 +4279,7 @@ page_zip_copy(
 
 /**************************************************************************
 Parses a log record of compressing an index page. */
-
+UNIV_INTERN
 byte*
 page_zip_parse_compress(
 /*====================*/
@@ -4339,7 +4339,7 @@ corrupt:
 
 /**************************************************************************
 Calculate the compressed page checksum. */
-
+UNIV_INTERN
 ulint
 page_zip_calc_checksum(
 /*===================*/

@@ -20,7 +20,7 @@ index field in bytes.
 
 NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
 this function, you MUST change also the prototype here! */
-
+UNIV_INTERN
 ulint
 innobase_get_at_most_n_mbchars(
 /*===========================*/
@@ -44,7 +44,7 @@ ulint	data_mysql_default_charset_coll		= 99999999;
 Determine how many bytes the first n characters of the given string occupy.
 If the string is shorter than n characters, returns the number of bytes
 the characters in the string occupy. */
-
+UNIV_INTERN
 ulint
 dtype_get_at_most_n_mbchars(
 /*========================*/
@@ -91,7 +91,7 @@ dtype_get_at_most_n_mbchars(
 /*************************************************************************
 Checks if a data main type is a string type. Also a BLOB is considered a
 string type. */
-
+UNIV_INTERN
 ibool
 dtype_is_string_type(
 /*=================*/
@@ -112,7 +112,7 @@ dtype_is_string_type(
 Checks if a type is a binary string type. Note that for tables created with
 < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column. For
 those DATA_BLOB columns this function currently returns FALSE. */
-
+UNIV_INTERN
 ibool
 dtype_is_binary_string_type(
 /*========================*/
@@ -135,7 +135,7 @@ Checks if a type is a non-binary string type. That is, dtype_is_string_type is
 TRUE and dtype_is_binary_string_type is FALSE. Note that for tables created
 with < 4.0.14, we do not know if a DATA_BLOB column is a BLOB or a TEXT column.
 For those DATA_BLOB columns this function currently returns TRUE. */
-
+UNIV_INTERN
 ibool
 dtype_is_non_binary_string_type(
 /*============================*/
@@ -155,7 +155,7 @@ dtype_is_non_binary_string_type(
 /*************************************************************************
 Forms a precise type from the < 4.1.2 format precise type plus the
 charset-collation code. */
-
+UNIV_INTERN
 ulint
 dtype_form_prtype(
 /*==============*/
@@ -171,7 +171,7 @@ dtype_form_prtype(
 
 /*************************************************************************
 Validates a data type structure. */
-
+UNIV_INTERN
 ibool
 dtype_validate(
 /*===========*/
@@ -193,7 +193,7 @@ dtype_validate(
 
 /*************************************************************************
 Prints a data type structure. */
-
+UNIV_INTERN
 void
 dtype_print(
 /*========*/

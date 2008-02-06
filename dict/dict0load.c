@@ -47,7 +47,7 @@ name_of_col_is(
 
 /************************************************************************
 Finds the first table name in the given database. */
-
+UNIV_INTERN
 char*
 dict_get_first_table_name_in_db(
 /*============================*/
@@ -132,7 +132,7 @@ loop:
 /************************************************************************
 Prints to the standard output information on all tables found in the data
 dictionary system table. */
-
+UNIV_INTERN
 void
 dict_print(void)
 /*============*/
@@ -269,7 +269,7 @@ to what we already read with fil_load_single_table_tablespaces().
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
 We also scan the biggest space id, and store it to fil_system. */
-
+UNIV_INTERN
 void
 dict_check_tablespaces_and_store_max_id(
 /*====================================*/
@@ -757,7 +757,7 @@ the cluster definition if the table is a member in a cluster. Also loads
 all foreign key constraints where the foreign key is in the table or where
 a foreign key references columns in this table. Adds all these to the data
 dictionary cache. */
-
+UNIV_INTERN
 dict_table_t*
 dict_load_table(
 /*============*/
@@ -950,7 +950,7 @@ err_exit:
 
 /***************************************************************************
 Loads a table object based on the table id. */
-
+UNIV_INTERN
 dict_table_t*
 dict_load_table_on_id(
 /*==================*/
@@ -1043,7 +1043,7 @@ dict_load_table_on_id(
 This function is called when the database is booted. Loads system table
 index definitions except for the clustered index which is added to the
 dictionary cache at booting before calling this function. */
-
+UNIV_INTERN
 void
 dict_load_sys_table(
 /*================*/
@@ -1264,7 +1264,7 @@ holder or where the table is referenced by a foreign key. Adds these
 constraints to the data dictionary. Note that we know that the dictionary
 cache already contains all constraints where the other relevant table is
 already in the dictionary cache. */
-
+UNIV_INTERN
 ulint
 dict_load_foreigns(
 /*===============*/

@@ -35,12 +35,6 @@ Created 10/4/1994 Heikki Tuuri
 # define PAGE_CUR_DBG	6	/* As PAGE_CUR_LE, but skips search shortcut */
 #endif /* UNIV_SEARCH_DEBUG */
 
-#ifdef PAGE_CUR_ADAPT
-# ifdef UNIV_SEARCH_PERF_STAT
-extern ulint	page_cur_short_succ;
-# endif /* UNIV_SEARCH_PERF_STAT */
-#endif /* PAGE_CUR_ADAPT */
-
 #ifdef UNIV_DEBUG
 /*************************************************************
 Gets pointer to the page frame where the cursor is positioned. */

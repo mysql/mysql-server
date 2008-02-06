@@ -8,21 +8,21 @@ Created 6/9/1994 Heikki Tuuri
 *************************************************************************/
 
 #ifdef UNIV_MEM_DEBUG
-mutex_t	mem_hash_mutex;	 /* The mutex which protects in the
-			debug version the hash table containing
-			the list of live memory heaps, and
-			also the global variables below. */
+/* The mutex which protects in the debug version the hash table
+containing the list of live memory heaps, and also the global
+variables below. */
+UNIV_INTERN mutex_t	mem_hash_mutex;
 
 /* The following variables contain information about the
 extent of memory allocations. Only used in the debug version.
 Protected by mem_hash_mutex above. */
 
-static ulint	mem_n_created_heaps		= 0;
-static ulint	mem_n_allocations		= 0;
-static ulint	mem_total_allocated_memory	= 0;
-ulint		mem_current_allocated_memory	= 0;
-static ulint	mem_max_allocated_memory	= 0;
-static ulint	mem_last_print_info		= 0;
+static ulint		mem_n_created_heaps		= 0;
+static ulint		mem_n_allocations		= 0;
+static ulint		mem_total_allocated_memory	= 0;
+UNIV_INTERN ulint	mem_current_allocated_memory	= 0;
+static ulint		mem_max_allocated_memory	= 0;
+static ulint		mem_last_print_info		= 0;
 
 /* Size of the hash table for memory management tracking */
 #define	MEM_HASH_SIZE	997
@@ -68,37 +68,42 @@ mem_hash_get_nth_cell(ulint i)
 }
 
 /* Accessor functions for a memory field in the debug version */
-
+UNIV_INTERN
 void
 mem_field_header_set_len(byte* field, ulint len)
 {
 	mach_write_to_4(field - 2 * sizeof(ulint), len);
 }
 
+UNIV_INTERN
 ulint
 mem_field_header_get_len(byte* field)
 {
 	return(mach_read_from_4(field - 2 * sizeof(ulint)));
 }
 
+UNIV_INTERN
 void
 mem_field_header_set_check(byte* field, ulint check)
 {
 	mach_write_to_4(field - sizeof(ulint), check);
 }
 
+UNIV_INTERN
 ulint
 mem_field_header_get_check(byte* field)
 {
 	return(mach_read_from_4(field - sizeof(ulint)));
 }
 
+UNIV_INTERN
 void
 mem_field_trailer_set_check(byte* field, ulint check)
 {
 	mach_write_to_4(field + mem_field_header_get_len(field), check);
 }
 
+UNIV_INTERN
 ulint
 mem_field_trailer_get_check(byte* field)
 {
@@ -109,7 +114,7 @@ mem_field_trailer_get_check(byte* field)
 
 /**********************************************************************
 Initializes the memory system. */
-
+UNIV_INTERN
 void
 mem_init(
 /*=====*/
@@ -139,7 +144,7 @@ mem_init(
 #ifdef UNIV_MEM_DEBUG
 /**********************************************************************
 Initializes an allocated memory field in the debug version. */
-
+UNIV_INTERN
 void
 mem_field_init(
 /*===========*/
@@ -186,7 +191,7 @@ mem_field_init(
 
 /**********************************************************************
 Erases an allocated memory field in the debug version. */
-
+UNIV_INTERN
 void
 mem_field_erase(
 /*============*/
@@ -214,7 +219,7 @@ mem_field_erase(
 /*******************************************************************
 Initializes a buffer to a random combination of hex BA and BE.
 Used to initialize allocated memory. */
-
+UNIV_INTERN
 void
 mem_init_buf(
 /*=========*/
@@ -240,7 +245,7 @@ mem_init_buf(
 /*******************************************************************
 Initializes a buffer to a random combination of hex DE and AD.
 Used to erase freed memory.*/
-
+UNIV_INTERN
 void
 mem_erase_buf(
 /*==========*/
@@ -265,7 +270,7 @@ mem_erase_buf(
 /*******************************************************************
 Inserts a created memory heap to the hash table of current allocated
 memory heaps. */
-
+UNIV_INTERN
 void
 mem_hash_insert(
 /*============*/
@@ -308,7 +313,7 @@ the heap (not the total space occupied by the heap).
 Also validates the heap.
 NOTE: This function does not free the storage occupied by the
 heap itself, only the node in the list of heaps. */
-
+UNIV_INTERN
 void
 mem_hash_remove(
 /*============*/
@@ -387,7 +392,7 @@ Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
 blocks in the heap. In case of error returns 0 as sizes and number
 of blocks. */
-
+UNIV_INTERN
 void
 mem_heap_validate_or_print(
 /*=======================*/
@@ -582,7 +587,7 @@ mem_heap_print(
 
 /******************************************************************
 Validates the contents of a memory heap. */
-
+UNIV_INTERN
 ibool
 mem_heap_validate(
 /*==============*/
@@ -611,7 +616,7 @@ mem_heap_validate(
 #ifdef UNIV_DEBUG
 /******************************************************************
 Checks that an object is a memory heap (or a block of it). */
-
+UNIV_INTERN
 ibool
 mem_heap_check(
 /*===========*/
@@ -627,7 +632,7 @@ mem_heap_check(
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
 TRUE if no memory is currently allocated. */
-
+UNIV_INTERN
 ibool
 mem_all_freed(void)
 /*===============*/
@@ -664,7 +669,7 @@ mem_all_freed(void)
 
 /*********************************************************************
 Validates the dynamic memory allocation system. */
-
+UNIV_INTERN
 ibool
 mem_validate_no_assert(void)
 /*========================*/
@@ -737,7 +742,7 @@ mem_validate_no_assert(void)
 
 /****************************************************************
 Validates the dynamic memory */
-
+UNIV_INTERN
 ibool
 mem_validate(void)
 /*==============*/
@@ -752,7 +757,7 @@ mem_validate(void)
 /****************************************************************
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
-
+UNIV_INTERN
 void
 mem_analyze_corruption(
 /*===================*/
@@ -964,7 +969,7 @@ next_heap:
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
-
+UNIV_INTERN
 void
 mem_print_info(void)
 /*================*/
@@ -975,7 +980,7 @@ mem_print_info(void)
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
-
+UNIV_INTERN
 void
 mem_print_new_info(void)
 /*====================*/

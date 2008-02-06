@@ -12,7 +12,7 @@ Created 6/8/1994 Heikki Tuuri
 
 /*******************************************************************
 Creates a memory heap block where data can be allocated. */
-
+UNIV_INTERN
 mem_block_t*
 mem_heap_create_block(
 /*==================*/
@@ -28,7 +28,7 @@ mem_heap_create_block(
 	ulint		line);	/* in: line where created */
 /**********************************************************************
 Frees a block from a memory heap. */
-
+UNIV_INTERN
 void
 mem_heap_block_free(
 /*================*/
@@ -36,14 +36,14 @@ mem_heap_block_free(
 	mem_block_t*	block);	/* in: block to free */
 /**********************************************************************
 Frees the free_block field from a memory heap. */
-
+UNIV_INTERN
 void
 mem_heap_free_block_free(
 /*=====================*/
 	mem_heap_t*	heap);	/* in: heap */
 /*******************************************************************
 Adds a new block to a memory heap. */
-
+UNIV_INTERN
 mem_block_t*
 mem_heap_add_block(
 /*===============*/

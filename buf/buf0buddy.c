@@ -21,24 +21,24 @@ Created December 2006 by Marko Makela
 
 /** Number of frames allocated from the buffer pool to the buddy system.
 Protected by buf_pool_mutex. */
-ulint buf_buddy_n_frames;
+UNIV_INTERN ulint buf_buddy_n_frames;
 /** Counts of blocks allocated from the buddy system.
 Protected by buf_pool_mutex. */
-ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
+UNIV_INTERN ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool_mutex. */
-ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+UNIV_INTERN ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded or the buffer
 pool is scarce, the LRU algorithm will not free compressed-only pages
 in order to satisfy an allocation request.  Protected by buf_pool_mutex. */
-ulint buf_buddy_min_n_frames = 0;
+UNIV_INTERN ulint buf_buddy_min_n_frames = 0;
 /** Preferred maximum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded, the buddy allocator
 will not try to free clean compressed-only pages before falling back
 to the LRU algorithm.  Protected by buf_pool_mutex. */
-ulint buf_buddy_max_n_frames = ULINT_UNDEFINED;
+UNIV_INTERN ulint buf_buddy_max_n_frames = ULINT_UNDEFINED;
 
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
@@ -398,7 +398,7 @@ free_LRU:
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any block->mutex.
 The buf_pool_mutex may only be released and reacquired if lru != NULL. */
-
+UNIV_INTERN
 void*
 buf_buddy_alloc_low(
 /*================*/
@@ -621,7 +621,7 @@ success:
 
 /**************************************************************************
 Deallocate a block. */
-
+UNIV_INTERN
 void
 buf_buddy_free_low(
 /*===============*/

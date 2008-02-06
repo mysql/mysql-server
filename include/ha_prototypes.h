@@ -12,7 +12,7 @@ InnoDB's C-code. */
 /*************************************************************************
 Wrapper around MySQL's copy_and_convert function, see it for
 documentation. */
-
+UNIV_INTERN
 ulint
 innobase_convert_string(
 /*====================*/
@@ -27,7 +27,7 @@ innobase_convert_string(
 /*********************************************************************
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed. */
-
+UNIV_INTERN
 char*
 innobase_convert_name(
 /*==================*/
@@ -46,7 +46,7 @@ server. Used in srv_conc_enter_innodb() to determine if the thread
 should be allowed to enter InnoDB - the replication thread is treated
 differently than other threads. Also used in
 srv_conc_force_exit_innodb(). */
-
+UNIV_INTERN
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
@@ -58,7 +58,7 @@ Returns true if the transaction this thread is processing has edited
 non-transactional tables. Used by the deadlock detector when deciding
 which transaction to rollback in case of a deadlock - we try to avoid
 rolling back transactions that have edited non-transactional tables. */
-
+UNIV_INTERN
 ibool
 thd_has_edited_nontrans_tables(
 /*===========================*/
@@ -68,7 +68,7 @@ thd_has_edited_nontrans_tables(
 
 /*****************************************************************
 Prints info of a THD object (== user session thread) to the given file. */
-
+UNIV_INTERN
 void
 innobase_mysql_print_thd(
 /*=====================*/
@@ -81,7 +81,7 @@ innobase_mysql_print_thd(
 Converts a MySQL type to an InnoDB type. Note that this function returns
 the 'mtype' of InnoDB. InnoDB differentiates between MySQL's old <= 4.1
 VARCHAR and the new true VARCHAR in >= 5.0.3 by the 'prtype'. */
-
+UNIV_INTERN
 ulint
 get_innobase_type_from_mysql_type(
 /*==============================*/
@@ -102,7 +102,7 @@ protect MySQL from setting thd->query NULL. If you print a thd of the current
 thread, we know that MySQL cannot modify thd->query, and it is not necessary
 to call this. Call innobase_mysql_end_print_arbitrary_thd() after you release
 the kernel_mutex. */
-
+UNIV_INTERN
 void
 innobase_mysql_prepare_print_arbitrary_thd(void);
 /*============================================*/
@@ -112,10 +112,19 @@ Releases the mutex reserved by innobase_mysql_prepare_print_arbitrary_thd().
 In the InnoDB latching order, the mutex sits right above the
 kernel_mutex.  In debug builds, we assert that the kernel_mutex is
 released before this function is invoked. */
-
+UNIV_INTERN
 void
 innobase_mysql_end_print_arbitrary_thd(void);
 /*========================================*/
 
+/**********************************************************************
+Get the variable length bounds of the given character set. */
+UNIV_INTERN
+void
+innobase_get_cset_width(
+/*====================*/
+	ulint	cset,		/* in: MySQL charset-collation code */
+	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
+	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
 #endif
 #endif

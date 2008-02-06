@@ -69,7 +69,7 @@ trx_undof_page_add_undo_rec_log(
 
 /***************************************************************
 Parses a redo log record of adding an undo log record. */
-
+UNIV_INTERN
 byte*
 trx_undo_parse_add_undo_rec(
 /*========================*/
@@ -258,7 +258,7 @@ trx_undo_page_report_insert(
 
 /**************************************************************************
 Reads from an undo log record the general parameters. */
-
+UNIV_INTERN
 byte*
 trx_undo_rec_get_pars(
 /*==================*/
@@ -353,7 +353,7 @@ trx_undo_rec_get_col_val(
 
 /***********************************************************************
 Builds a row reference from an undo log record. */
-
+UNIV_INTERN
 byte*
 trx_undo_rec_get_row_ref(
 /*=====================*/
@@ -400,7 +400,7 @@ trx_undo_rec_get_row_ref(
 
 /***********************************************************************
 Skips a row reference from an undo log record. */
-
+UNIV_INTERN
 byte*
 trx_undo_rec_skip_row_ref(
 /*======================*/
@@ -794,7 +794,7 @@ trx_undo_page_report_modify(
 /**************************************************************************
 Reads from an undo log update record the system field values of the old
 version. */
-
+UNIV_INTERN
 byte*
 trx_undo_update_rec_get_sys_cols(
 /*=============================*/
@@ -858,7 +858,7 @@ trx_undo_update_rec_get_field_no(
 
 /***********************************************************************
 Builds an update vector based on a remaining part of an undo log record. */
-
+UNIV_INTERN
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
@@ -981,7 +981,7 @@ trx_undo_update_rec_get_update(
 /***********************************************************************
 Builds a partial row from an update undo log record. It contains the
 columns which occur as ordering in any index of the table. */
-
+UNIV_INTERN
 byte*
 trx_undo_rec_get_partial_row(
 /*=========================*/
@@ -1076,7 +1076,7 @@ trx_undo_erase_page_end(
 
 /***************************************************************
 Parses a redo log record of erasing of an undo page end. */
-
+UNIV_INTERN
 byte*
 trx_undo_parse_erase_page_end(
 /*==========================*/
@@ -1103,7 +1103,7 @@ Writes information to an undo log about an insert, update, or a delete marking
 of a clustered index record. This information is used in a rollback of the
 transaction and in consistent reads that must look to the history of this
 transaction. */
-
+UNIV_INTERN
 ulint
 trx_undo_report_row_operation(
 /*==========================*/
@@ -1290,7 +1290,7 @@ trx_undo_report_row_operation(
 /**********************************************************************
 Copies an undo record to heap. This function can be called if we know that
 the undo log record exists. */
-
+UNIV_INTERN
 trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
@@ -1325,7 +1325,7 @@ trx_undo_get_undo_rec_low(
 
 /**********************************************************************
 Copies an undo record to heap. */
-
+UNIV_INTERN
 ulint
 trx_undo_get_undo_rec(
 /*==================*/
@@ -1364,7 +1364,7 @@ Build a previous version of a clustered index record. This function checks
 that the caller has a latch on the index page of the clustered index record
 and an s-latch on the purge_view. This guarantees that the stack of versions
 is locked all the way down to the purge_view. */
-
+UNIV_INTERN
 ulint
 trx_undo_prev_version_build(
 /*========================*/
