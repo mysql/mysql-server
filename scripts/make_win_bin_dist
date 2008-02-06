@@ -322,10 +322,8 @@ fi
 mysql_scripts="\
 mysql_config.pl \
 mysql_convert_table_format.pl \
-mysql_explain_log.pl \
 mysql_install_db.pl \
 mysql_secure_installation.pl \
-mysql_tableinfo.pl \
 mysqld_multi.pl \
 mysqldumpslow.pl \
 mysqlhotcopy.pl \
