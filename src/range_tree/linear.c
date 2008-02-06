@@ -17,7 +17,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-const u_int32_t minlen = 64;
+static const u_int32_t minlen = 64;
 
 /*
  *  Returns:
