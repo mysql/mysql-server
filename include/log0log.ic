@@ -13,7 +13,7 @@ Created 12/9/1995 Heikki Tuuri
 /**********************************************************
 Checks by parsing that the catenated log segment for a single mtr is
 consistent. */
-
+UNIV_INTERN
 ibool
 log_check_log_recs(
 /*===============*/

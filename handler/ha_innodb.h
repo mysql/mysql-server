@@ -83,32 +83,22 @@ class ha_innobase: public handler
 	/* Init values for the class: */
  public:
 	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
-	~ha_innobase() {}
+	~ha_innobase();
 	/*
 	  Get the row type from the storage engine.  If this method returns
 	  ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
 	*/
 	enum row_type get_row_type() const;
 
-	const char* table_type() const { return("InnoDB");}
-	const char *index_type(uint key_number) { return "BTREE"; }
+	const char* table_type() const;
+	const char* index_type(uint key_number);
 	const char** bas_ext() const;
 	Table_flags table_flags() const;
-	ulong index_flags(uint idx, uint part, bool all_parts) const {
-		return(HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-		       | HA_READ_RANGE | HA_KEYREAD_ONLY);
-	}
-	uint max_supported_keys()	   const { return MAX_KEY; }
-				/* An InnoDB page must store >= 2 keys;
-				a secondary key record must also contain the
-				primary key value:
-				max key length is therefore set to slightly
-				less than 1 / 4 of page size which is 16 kB;
-				but currently MySQL does not work with keys
-				whose size is > MAX_KEY_LENGTH */
-	uint max_supported_key_length() const { return 3500; }
+	ulong index_flags(uint idx, uint part, bool all_parts) const;
+	uint max_supported_keys() const;
+	uint max_supported_key_length() const;
 	uint max_supported_key_part_length() const;
-	const key_map *keys_to_use_for_scanning() { return &key_map_full; }
+	const key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
 	int close(void);
@@ -187,7 +177,7 @@ class ha_innobase: public handler
 
 	virtual bool get_error_message(int error, String *buf);
 
-	uint8 table_cache_type() { return HA_CACHE_TBL_ASKTRANSACT; }
+	uint8 table_cache_type();
 	/*
 	  ask handler about permission to cache table during query registration
 	*/
@@ -197,7 +187,7 @@ class ha_innobase: public handler
 					   ulonglong *engine_data);
 	static char *get_mysql_bin_log_name();
 	static ulonglong get_mysql_bin_log_pos();
-	bool primary_key_is_clustered() { return true; }
+	bool primary_key_is_clustered();
 	int cmp_ref(const uchar *ref1, const uchar *ref2);
 	/** Fast index creation (smart ALTER TABLE) @see handler0alter.cc @{ */
 	int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys);

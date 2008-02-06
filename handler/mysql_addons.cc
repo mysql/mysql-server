@@ -26,7 +26,7 @@ Created November 07, 2007 Vasil Dimov
 /***********************************************************************
 Retrieve THD::thread_id
 http://bugs.mysql.com/30930 */
-extern "C"
+extern "C" UNIV_INTERN
 unsigned long
 ib_thd_get_thread_id(
 /*=================*/

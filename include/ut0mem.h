@@ -196,7 +196,7 @@ ut_strcount(
 Replace every occurrence of s1 in str with s2. Overlapping instances of s1
 are only replaced once. */
 
-char *
+char*
 ut_strreplace(
 /*==========*/
 				/* out, own: modified string, must be

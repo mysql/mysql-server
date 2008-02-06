@@ -24,7 +24,8 @@ s/\(void yypop_buffer_state\)/static \1/;
 s/\(YY_BUFFER_STATE yy_\(create_buffer\|scan_\(buffer\|string\|bytes\)\)\)/static \1/;
 s/\(\(int\|void\) yy[gs]et_\)/static \1/;
 s/\(void \*\?yy\(\(re\)\?alloc\|free\)\)/static \1/;
-s/\(extern \)\?\(int yy\(leng\|lex\|lineno\|_flex_debug\)\)/static \2/;
+s/\(extern \)\?\(int yy\(leng\|lex_destroy\|lineno\|_flex_debug\)\)/static \2/;
+s/\(extern \)\?\(int yylex \)/UNIV_INTERN \2/;
 s/^\(extern \)\?\(\(FILE\|char\) *\* *yy\)/static \2/;
 ' < $TMPFILE >> $OUTFILE
 

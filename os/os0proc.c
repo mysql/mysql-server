@@ -23,16 +23,16 @@ MAP_ANON but MAP_ANON is marked as deprecated */
 #define OS_MAP_ANON	MAP_ANON
 #endif
 
-ibool os_use_large_pages;
+UNIV_INTERN ibool os_use_large_pages;
 /* Large page size. This may be a boot-time option on some platforms */
-ulint os_large_page_size;
+UNIV_INTERN ulint os_large_page_size;
 
 /********************************************************************
 Converts the current process id to a number. It is not guaranteed that the
 number is unique. In Linux returns the 'process number' of the current
 thread. That number is the same as one sees in 'top', for example. In Linux
 the thread id is not the same as one sees in 'top'. */
-
+UNIV_INTERN
 ulint
 os_proc_get_number(void)
 /*====================*/
@@ -46,7 +46,7 @@ os_proc_get_number(void)
 
 /********************************************************************
 Allocates non-cacheable memory. */
-
+UNIV_INTERN
 void*
 os_mem_alloc_nocache(
 /*=================*/
@@ -68,7 +68,7 @@ os_mem_alloc_nocache(
 
 /********************************************************************
 Allocates large pages memory. */
-
+UNIV_INTERN
 void*
 os_mem_alloc_large(
 /*===============*/
@@ -164,7 +164,7 @@ skip:
 
 /********************************************************************
 Frees large pages memory. */
-
+UNIV_INTERN
 void
 os_mem_free_large(
 /*==============*/
@@ -205,7 +205,7 @@ os_mem_free_large(
 /********************************************************************
 Sets the priority boost for threads released from waiting within the current
 process. */
-
+UNIV_INTERN
 void
 os_process_set_priority_boost(
 /*==========================*/

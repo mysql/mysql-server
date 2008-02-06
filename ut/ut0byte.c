@@ -13,10 +13,10 @@ Created 5/11/1994 Heikki Tuuri
 #endif
 
 /* Zero value for a dulint */
-dulint	ut_dulint_zero		= {0, 0};
+UNIV_INTERN const dulint	ut_dulint_zero	= {0, 0};
 
 /* Maximum value for a dulint */
-dulint	ut_dulint_max		= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
+UNIV_INTERN const dulint	ut_dulint_max	= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
 
 #ifdef notdefined /* unused code */
 #include "ut0sort.h"

@@ -49,7 +49,7 @@ row_ext_cache_fill(
 
 /************************************************************************
 Creates a cache of column prefixes of externally stored columns. */
-
+UNIV_INTERN
 row_ext_t*
 row_ext_create(
 /*===========*/

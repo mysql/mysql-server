@@ -18,7 +18,7 @@ says that "in" has to go in the same place as "out".*/
 
 /**********************************************************************
 Sets the waiters field in a mutex. */
-
+UNIV_INTERN
 void
 mutex_set_waiters(
 /*==============*/
@@ -28,7 +28,7 @@ mutex_set_waiters(
 Reserves a mutex for the current thread. If the mutex is reserved, the
 function spins a preset time (controlled by SYNC_SPIN_ROUNDS) waiting
 for the mutex before suspending the thread. */
-
+UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
@@ -39,7 +39,7 @@ mutex_spin_wait(
 #ifdef UNIV_SYNC_DEBUG
 /**********************************************************************
 Sets the debug information for a reserved mutex. */
-
+UNIV_INTERN
 void
 mutex_set_debug_info(
 /*=================*/
@@ -49,7 +49,7 @@ mutex_set_debug_info(
 #endif /* UNIV_SYNC_DEBUG */
 /**********************************************************************
 Releases the threads waiting in the primary wait array for this mutex. */
-
+UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/

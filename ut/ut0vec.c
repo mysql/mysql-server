@@ -6,7 +6,7 @@
 
 /********************************************************************
 Create a new vector with the given initial size. */
-
+UNIV_INTERN
 ib_vector_t*
 ib_vector_create(
 /*=============*/
@@ -30,7 +30,7 @@ ib_vector_create(
 
 /********************************************************************
 Push a new element to the vector, increasing its size if necessary. */
-
+UNIV_INTERN
 void
 ib_vector_push(
 /*===========*/

@@ -82,8 +82,9 @@ extern ulint	srv_log_file_size;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 
-extern byte	srv_latin1_ordering[256];/* The sort order table of the latin1
-					character set */
+/* The sort order table of the MySQL latin1_swedish_ci character set
+collation */
+extern const byte*	srv_latin1_ordering;
 extern ulong	srv_buf_pool_size;	/* requested size in bytes */
 extern ulong	srv_buf_pool_old_size;	/* previously requested size */
 extern ulong	srv_buf_pool_curr_size;	/* current size in bytes */

@@ -94,17 +94,17 @@ struct mem_pool_struct{
 };
 
 /* The common memory pool */
-mem_pool_t*	mem_comm_pool	= NULL;
+UNIV_INTERN mem_pool_t*	mem_comm_pool	= NULL;
 
 /* We use this counter to check that the mem pool mutex does not leak;
 this is to track a strange assertion failure reported at
 mysql@lists.mysql.com */
 
-ulint		mem_n_threads_inside		= 0;
+UNIV_INTERN ulint	mem_n_threads_inside		= 0;
 
 /************************************************************************
 Reserves the mem pool mutex. */
-
+UNIV_INTERN
 void
 mem_pool_mutex_enter(void)
 /*======================*/
@@ -114,7 +114,7 @@ mem_pool_mutex_enter(void)
 
 /************************************************************************
 Releases the mem pool mutex. */
-
+UNIV_INTERN
 void
 mem_pool_mutex_exit(void)
 /*=====================*/
@@ -180,7 +180,7 @@ mem_area_set_free(
 
 /************************************************************************
 Creates a memory pool. */
-
+UNIV_INTERN
 mem_pool_t*
 mem_pool_create(
 /*============*/
@@ -319,7 +319,7 @@ mem_pool_fill_free_list(
 /************************************************************************
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*! */
-
+UNIV_INTERN
 void*
 mem_area_alloc(
 /*===========*/
@@ -456,7 +456,7 @@ mem_area_get_buddy(
 
 /************************************************************************
 Frees memory to a pool. */
-
+UNIV_INTERN
 void
 mem_area_free(
 /*==========*/
@@ -579,7 +579,7 @@ mem_area_free(
 
 /************************************************************************
 Validates a memory pool. */
-
+UNIV_INTERN
 ibool
 mem_pool_validate(
 /*==============*/
@@ -625,7 +625,7 @@ mem_pool_validate(
 
 /************************************************************************
 Prints info of a memory pool. */
-
+UNIV_INTERN
 void
 mem_pool_print_info(
 /*================*/
@@ -658,7 +658,7 @@ mem_pool_print_info(
 
 /************************************************************************
 Returns the amount of reserved memory. */
-
+UNIV_INTERN
 ulint
 mem_pool_get_reserved(
 /*==================*/

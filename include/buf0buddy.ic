@@ -21,7 +21,7 @@ Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any block->mutex.
 The buf_pool_mutex may only be released and reacquired if
 lru == BUF_BUDDY_USE_LRU. */
-
+UNIV_INTERN
 void*
 buf_buddy_alloc_low(
 /*================*/
@@ -37,7 +37,7 @@ buf_buddy_alloc_low(
 
 /**************************************************************************
 Deallocate a block. */
-
+UNIV_INTERN
 void
 buf_buddy_free_low(
 /*===============*/

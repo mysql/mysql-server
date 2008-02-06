@@ -35,7 +35,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 
 /* Provide optional 4.x backwards compatibility for 5.0 and above */
-ibool	row_rollback_on_timeout	= FALSE;
+UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
 /* List of tables we should drop in background. ALTER TABLE in MySQL requires
 that the table handler can drop the table in background when there are no
@@ -46,8 +46,8 @@ struct row_mysql_drop_struct{
 	UT_LIST_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
 };
 
-UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
-ibool	row_mysql_drop_list_inited	= FALSE;
+static UT_LIST_BASE_NODE_T(row_mysql_drop_t)	row_mysql_drop_list;
+static ibool	row_mysql_drop_list_inited	= FALSE;
 
 /* Magic table names for invoking various monitor threads */
 static const char S_innodb_monitor[] = "innodb_monitor";
@@ -106,7 +106,7 @@ row_mysql_delay_if_needed(void)
 
 /***********************************************************************
 Frees the blob heap in prebuilt when no longer needed. */
-
+UNIV_INTERN
 void
 row_mysql_prebuilt_free_blob_heap(
 /*==============================*/
@@ -120,7 +120,7 @@ row_mysql_prebuilt_free_blob_heap(
 /***********************************************************************
 Stores a >= 5.0.3 format true VARCHAR length to dest, in the MySQL row
 format. */
-
+UNIV_INTERN
 byte*
 row_mysql_store_true_var_len(
 /*=========================*/
@@ -149,7 +149,7 @@ row_mysql_store_true_var_len(
 /***********************************************************************
 Reads a >= 5.0.3 format true VARCHAR length, in the MySQL row format, and
 returns a pointer to the data. */
-
+UNIV_INTERN
 const byte*
 row_mysql_read_true_varchar(
 /*========================*/
@@ -176,7 +176,7 @@ row_mysql_read_true_varchar(
 
 /***********************************************************************
 Stores a reference to a BLOB in the MySQL format. */
-
+UNIV_INTERN
 void
 row_mysql_store_blob_ref(
 /*=====================*/
@@ -213,7 +213,7 @@ row_mysql_store_blob_ref(
 
 /***********************************************************************
 Reads a reference to a BLOB in the MySQL format. */
-
+UNIV_INTERN
 const byte*
 row_mysql_read_blob_ref(
 /*====================*/
@@ -237,7 +237,7 @@ row_mysql_read_blob_ref(
 Stores a non-SQL-NULL field given in the MySQL format in the InnoDB format.
 The counterpart of this function is row_sel_field_store_in_mysql_format() in
 row0sel.c. */
-
+UNIV_INTERN
 byte*
 row_mysql_store_col_in_innobase_format(
 /*===================================*/
@@ -453,7 +453,7 @@ next_column:
 
 /********************************************************************
 Handles user errors and lock waits detected by the database engine. */
-
+UNIV_INTERN
 ibool
 row_mysql_handle_errors(
 /*====================*/
@@ -572,7 +572,7 @@ handle_new_error:
 
 /************************************************************************
 Create a prebuilt struct for a MySQL table handle. */
-
+UNIV_INTERN
 row_prebuilt_t*
 row_create_prebuilt(
 /*================*/
@@ -624,7 +624,7 @@ row_create_prebuilt(
 
 /************************************************************************
 Free a prebuilt struct for a MySQL table handle. */
-
+UNIV_INTERN
 void
 row_prebuilt_free(
 /*==============*/
@@ -710,7 +710,7 @@ row_prebuilt_free(
 /*************************************************************************
 Updates the transaction pointers in query graphs stored in the prebuilt
 struct. */
-
+UNIV_INTERN
 void
 row_update_prebuilt_trx(
 /*====================*/
@@ -838,7 +838,7 @@ row_update_statistics_if_needed(
 
 /*************************************************************************
 Unlocks an AUTO_INC type lock possibly reserved by trx. */
-
+UNIV_INTERN
 void
 row_unlock_table_autoinc_for_mysql(
 /*===============================*/
@@ -858,7 +858,7 @@ AUTO_INC lock gives exclusive access to the auto-inc counter of the
 table. The lock is reserved only for the duration of an SQL statement.
 It is not compatible with another AUTO_INC or exclusive lock on the
 table. */
-
+UNIV_INTERN
 int
 row_lock_table_autoinc_for_mysql(
 /*=============================*/
@@ -930,7 +930,7 @@ run_again:
 
 /*************************************************************************
 Sets a table lock on the table mentioned in prebuilt. */
-
+UNIV_INTERN
 int
 row_lock_table_for_mysql(
 /*=====================*/
@@ -1007,7 +1007,7 @@ run_again:
 
 /*************************************************************************
 Does an insert for MySQL. */
-
+UNIV_INTERN
 int
 row_insert_for_mysql(
 /*=================*/
@@ -1140,7 +1140,7 @@ run_again:
 
 /*************************************************************************
 Builds a dummy query graph used in selects. */
-
+UNIV_INTERN
 void
 row_prebuild_sel_graph(
 /*===================*/
@@ -1167,7 +1167,7 @@ row_prebuild_sel_graph(
 /*************************************************************************
 Creates an query graph node of 'update' type to be used in the MySQL
 interface. */
-
+UNIV_INTERN
 upd_node_t*
 row_create_update_node_for_mysql(
 /*=============================*/
@@ -1205,7 +1205,7 @@ row_create_update_node_for_mysql(
 Gets pointer to a prebuilt update vector used in updates. If the update
 graph has not yet been built in the prebuilt struct, then this function
 first builds it. */
-
+UNIV_INTERN
 upd_t*
 row_get_prebuilt_update_vector(
 /*===========================*/
@@ -1239,7 +1239,7 @@ row_get_prebuilt_update_vector(
 
 /*************************************************************************
 Does an update or delete of a row for MySQL. */
-
+UNIV_INTERN
 int
 row_update_for_mysql(
 /*=================*/
@@ -1404,7 +1404,7 @@ in the case of an UPDATE or a DELETE statement, where the row lock is of the
 LOCK_X type.
 Thus, this implements a 'mini-rollback' that releases the latest record
 locks we set. */
-
+UNIV_INTERN
 int
 row_unlock_for_mysql(
 /*=================*/
@@ -1499,7 +1499,7 @@ func_exit:
 
 /**************************************************************************
 Does a cascaded delete or set null in a foreign key operation. */
-
+UNIV_INTERN
 ulint
 row_update_cascade_for_mysql(
 /*=========================*/
@@ -1569,7 +1569,7 @@ run_again:
 /*************************************************************************
 Checks if a table is such that we automatically created a clustered
 index on it (on row id). */
-
+UNIV_INTERN
 ibool
 row_table_got_default_clust_index(
 /*==============================*/
@@ -1585,7 +1585,7 @@ row_table_got_default_clust_index(
 /*************************************************************************
 Calculates the key number used inside MySQL for an Innobase index. We have
 to take into account if we generated a default clustered index for the table */
-
+UNIV_INTERN
 ulint
 row_get_mysql_key_number_for_index(
 /*===============================*/
@@ -1615,7 +1615,7 @@ row_get_mysql_key_number_for_index(
 /*************************************************************************
 Locks the data dictionary in shared mode from modifications, for performing
 foreign key check, rollback, or other operation invisible to MySQL. */
-
+UNIV_INTERN
 void
 row_mysql_freeze_data_dictionary(
 /*=============================*/
@@ -1630,7 +1630,7 @@ row_mysql_freeze_data_dictionary(
 
 /*************************************************************************
 Unlocks the data dictionary shared lock. */
-
+UNIV_INTERN
 void
 row_mysql_unfreeze_data_dictionary(
 /*===============================*/
@@ -1646,7 +1646,7 @@ row_mysql_unfreeze_data_dictionary(
 /*************************************************************************
 Locks the data dictionary exclusively for performing a table create or other
 data dictionary modification operation. */
-
+UNIV_INTERN
 void
 row_mysql_lock_data_dictionary(
 /*===========================*/
@@ -1666,7 +1666,7 @@ row_mysql_lock_data_dictionary(
 
 /*************************************************************************
 Unlocks the data dictionary exclusive lock. */
-
+UNIV_INTERN
 void
 row_mysql_unlock_data_dictionary(
 /*=============================*/
@@ -1690,7 +1690,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate(). */
-
+UNIV_INTERN
 int
 row_create_table_for_mysql(
 /*=======================*/
@@ -1895,7 +1895,7 @@ row_create_table_for_mysql(
 Does an index creation operation for MySQL. TODO: currently failure
 to create an index results in dropping the whole table! This is no problem
 currently as all indexes must be created at the same time as the table. */
-
+UNIV_INTERN
 int
 row_create_index_for_mysql(
 /*=======================*/
@@ -2015,7 +2015,7 @@ Each foreign key constraint must be accompanied with indexes in
 bot participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint. Check also that foreign key
 constraints which reference this table are ok. */
-
+UNIV_INTERN
 int
 row_table_add_foreign_constraints(
 /*==============================*/
@@ -2120,7 +2120,7 @@ row_drop_table_for_mysql_in_background(
 The master thread in srv0srv.c calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
 dropping of tables is needed in ALTER TABLE on Unix. */
-
+UNIV_INTERN
 ulint
 row_drop_tables_for_mysql_in_background(void)
 /*=========================================*/
@@ -2195,7 +2195,7 @@ already_dropped:
 /*************************************************************************
 Get the background drop list length. NOTE: the caller must own the kernel
 mutex! */
-
+UNIV_INTERN
 ulint
 row_get_background_drop_list_len_low(void)
 /*======================================*/
@@ -2270,7 +2270,7 @@ row_add_table_to_background_drop_list(
 Discards the tablespace of a table which stored in an .ibd file. Discarding
 means that this function deletes the .ibd file and assigns a new table id for
 the table. Also the flag table->ibd_file_missing is set TRUE. */
-
+UNIV_INTERN
 int
 row_discard_tablespace_for_mysql(
 /*=============================*/
@@ -2461,7 +2461,7 @@ funct_exit:
 /*********************************************************************
 Imports a tablespace. The space id in the .ibd file must match the space id
 of the table in the data dictionary. */
-
+UNIV_INTERN
 int
 row_import_tablespace_for_mysql(
 /*============================*/
@@ -2597,7 +2597,7 @@ funct_exit:
 
 /*************************************************************************
 Truncates a table for MySQL. */
-
+UNIV_INTERN
 int
 row_truncate_table_for_mysql(
 /*=========================*/
@@ -2927,7 +2927,7 @@ Drops a table for MySQL. If the name of the dropped table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also stop the printing of monitor
 output by the master thread. */
-
+UNIV_INTERN
 int
 row_drop_table_for_mysql(
 /*=====================*/
@@ -2950,7 +2950,7 @@ name of the dropped table ends in one of "innodb_monitor",
 "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also stop the printing of
 monitor output by the master thread. */
-
+UNIV_INTERN
 int
 row_drop_table_for_mysql_no_commit(
 /*===============================*/
@@ -3401,7 +3401,7 @@ drop_all_foreign_keys_in_db(
 
 /*************************************************************************
 Drops a database for MySQL. */
-
+UNIV_INTERN
 int
 row_drop_database_for_mysql(
 /*========================*/
@@ -3564,7 +3564,7 @@ row_delete_constraint(
 
 /*************************************************************************
 Renames a table for MySQL. */
-
+UNIV_INTERN
 ulint
 row_rename_table_for_mysql(
 /*=======================*/
@@ -4043,7 +4043,7 @@ not_ok:
 
 /*************************************************************************
 Checks a table for corruption. */
-
+UNIV_INTERN
 ulint
 row_check_table_for_mysql(
 /*======================*/

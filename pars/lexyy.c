@@ -880,9 +880,9 @@ static int input (void );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-static int yylex (void);
+UNIV_INTERN int yylex (void);
 
-#define YY_DECL static int yylex (void)
+#define YY_DECL UNIV_INTERN int yylex (void)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng

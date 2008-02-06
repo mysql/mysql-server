@@ -15,7 +15,7 @@ Created 11/28/1995 Heikki Tuuri
 
 /*************************************************************
 Reads a ulint in a compressed form if the log record fully contains it. */
-
+UNIV_INTERN
 byte*
 mach_parse_compressed(
 /*==================*/
@@ -79,7 +79,7 @@ mach_parse_compressed(
 
 /*************************************************************
 Reads a dulint in a compressed form if the log record fully contains it. */
-
+UNIV_INTERN
 byte*
 mach_dulint_parse_compressed(
 /*=========================*/

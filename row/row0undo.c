@@ -105,7 +105,7 @@ or if the roll ptr is NULL, i.e., it was a fresh insert. */
 
 /************************************************************************
 Creates a row undo node to a query graph. */
-
+UNIV_INTERN
 undo_node_t*
 row_undo_node_create(
 /*=================*/
@@ -138,7 +138,7 @@ Looks for the clustered index record when node has the row reference.
 The pcur in node is used in the search. If found, stores the row to node,
 and stores the position of pcur, and detaches it. The pcur must be closed
 by the caller in any case. */
-
+UNIV_INTERN
 ibool
 row_undo_search_clust_to_pcur(
 /*==========================*/
@@ -313,7 +313,7 @@ row_undo(
 /***************************************************************
 Undoes a row operation in a table. This is a high-level function used
 in SQL execution graphs. */
-
+UNIV_INTERN
 que_thr_t*
 row_undo_step(
 /*==========*/

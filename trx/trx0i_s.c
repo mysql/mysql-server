@@ -1128,7 +1128,7 @@ fetch_data_into_cache(
 /***********************************************************************
 Update the transactions cache if it has not been read for some time.
 Called from handler/i_s.cc. */
-
+UNIV_INTERN
 int
 trx_i_s_possibly_fetch_data_into_cache(
 /*===================================*/
@@ -1158,7 +1158,7 @@ trx_i_s_possibly_fetch_data_into_cache(
 /***********************************************************************
 Returns TRUE if the data in the cache is truncated due to the memory
 limit posed by TRX_I_S_MEM_LIMIT. */
-
+UNIV_INTERN
 ibool
 trx_i_s_cache_is_truncated(
 /*=======================*/
@@ -1170,7 +1170,7 @@ trx_i_s_cache_is_truncated(
 
 /***********************************************************************
 Initialize INFORMATION SCHEMA trx related cache. */
-
+UNIV_INTERN
 void
 trx_i_s_cache_init(
 /*===============*/
@@ -1209,7 +1209,7 @@ trx_i_s_cache_init(
 
 /***********************************************************************
 Issue a shared/read lock on the tables cache. */
-
+UNIV_INTERN
 void
 trx_i_s_cache_start_read(
 /*=====================*/
@@ -1220,7 +1220,7 @@ trx_i_s_cache_start_read(
 
 /***********************************************************************
 Release a shared/read lock on the tables cache. */
-
+UNIV_INTERN
 void
 trx_i_s_cache_end_read(
 /*===================*/
@@ -1243,7 +1243,7 @@ trx_i_s_cache_end_read(
 
 /***********************************************************************
 Issue an exclusive/write lock on the tables cache. */
-
+UNIV_INTERN
 void
 trx_i_s_cache_start_write(
 /*======================*/
@@ -1254,7 +1254,7 @@ trx_i_s_cache_start_write(
 
 /***********************************************************************
 Release an exclusive/write lock on the tables cache. */
-
+UNIV_INTERN
 void
 trx_i_s_cache_end_write(
 /*====================*/
@@ -1304,7 +1304,7 @@ cache_select_table(
 /***********************************************************************
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table. */
-
+UNIV_INTERN
 ullint
 trx_i_s_cache_get_rows_used(
 /*========================*/
@@ -1322,7 +1322,7 @@ trx_i_s_cache_get_rows_used(
 /***********************************************************************
 Retrieves the nth row (zero-based) in the cache for a given
 INFORMATION SCHEMA table. */
-
+UNIV_INTERN
 void*
 trx_i_s_cache_get_nth_row(
 /*======================*/
@@ -1363,7 +1363,7 @@ Crafts a lock id string from a i_s_locks_row_t object. Returns its
 second argument. This function aborts if there is not enough space in
 lock_id. Be sure to provide at least TRX_I_S_LOCK_ID_MAX_LEN + 1 if you
 want to be 100% sure that it will not abort. */
-
+UNIV_INTERN
 char*
 trx_i_s_create_lock_id(
 /*===================*/
