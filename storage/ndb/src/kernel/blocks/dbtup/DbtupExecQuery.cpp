@@ -229,7 +229,7 @@ Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
   // includes tupVersion
   //printf("%p - ", tuple_ptr);
   
-  for (i= 0; i < rec_size-2; i++) {
+  for (i= 0; i < rec_size-Tuple_header::HeaderSize; i++) {
     checksum ^= tuple_header[i];
     //printf("%.8x ", tuple_header[i]);
   }
