@@ -4525,7 +4525,7 @@ void Dbtc::commit020Lab(Signal* signal)
 
     if (localTcConnectptr.i != RNIL) {
       Tcount = Tcount + 1;
-      if (Tcount < 16) {
+      if (Tcount < 16 && !ERROR_INSERTED(8057)) {
         ptrCheckGuard(localTcConnectptr,
                       TtcConnectFilesize, localTcConnectRecord);
         jam();
@@ -4544,6 +4544,9 @@ void Dbtc::commit020Lab(Signal* signal)
       }//if
     } else {
       jam();
+      if (ERROR_INSERTED(8057))
+        CLEAR_ERROR_INSERT_VALUE;
+
       regApiPtr->apiConnectstate = CS_COMMIT_SENT;
       return;
     }//if
