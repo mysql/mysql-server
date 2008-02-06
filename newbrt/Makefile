@@ -60,6 +60,7 @@ REGRESSION_TESTS = \
 
 BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
+        brtdump \
         randbrt \
         randdb4 \
         tdb_logprint \

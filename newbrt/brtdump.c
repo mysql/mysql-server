@@ -78,8 +78,8 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	printf(" children:\n");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    printf("   child %d: %lld\n", i, BNC_DISKOFF(n, i));
-	    printf("   buffer contains %d bytes (%d items)\n", n->u.n.n_bytes_in_buffer[i], toku_fifo_n_entries(n->u.n.buffers[i]));
-	    FIFO_ITERATE(n->u.n.buffers[i], key, keylen, data, datalen, typ,
+	    printf("   buffer contains %d bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
+	    FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
 			 ({
 			     printf("    TYPE=");
 			     switch ((enum brt_cmd_type)typ) {
@@ -90,7 +90,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 			     }
 			     printf("HUH?");
 			 ok:
-			     printf(" ");
+			     printf(" xid=%lld ", xid);
 			     print_item(key, keylen);
 			     if (datalen>0) {
 				 printf(" ");
