@@ -11,11 +11,39 @@
 
 //Currently this is a stub implementation just so we can write and compile tests
 //before actually implementing the range tree.
+
 #include "rangetree.h"
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+/** \brief Internal range representation 
+    Internal representation of a range tree. Some fields depend on the
+    implementation of range trees, and some others are shared. */
+struct __toku_range_tree {
+    //Shared fields:
+    /** A comparison function, as in bsearch(3), to compare the end-points of 
+        a range. It is assumed to be commutative. */
+    int         (*end_cmp)(void*,void*);  
+    /** A comparison function, as in bsearch(3), to compare the data associated
+        with a range */
+    int         (*data_cmp)(void*,void*);
+    /** Whether this tree allows ranges to overlap */
+    BOOL        allow_overlaps;
+    /** The number of ranges in the range tree */
+    u_int32_t    numelements;
+    /** The user malloc function */
+    void*       (*malloc) (size_t);
+    /** The user free function */
+    void        (*free)   (void*);
+    /** The user realloc function */
+    void*       (*realloc)(void*, size_t);
+    
+    //Linear version only fields:
+    toku_range* ranges;
+    u_int32_t    ranges_len;
+};
 
 static const u_int32_t minlen = 64;
 

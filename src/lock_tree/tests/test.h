@@ -41,8 +41,7 @@ int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
 BOOL panicked = FALSE;
 
 int dbpanic(DB* db, int r) {
-    r++;
-    if (verbose) printf("AHH!!!!  Run away %p!!!\n", db);
+    if (verbose) printf("AHH!!!! %d is rampaging! Run away %p!!!\n", r, db);
     panicked = TRUE;
     assert(want_panic);
     return EINVAL;
