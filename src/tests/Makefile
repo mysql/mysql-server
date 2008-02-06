@@ -65,10 +65,10 @@ foo:
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok
-tests.bdb: $(BDB_TESTS)
-check.bdb: $(RUN_BDB_TESTS)
-tests.tdb: $(TDB_TESTS)
-check.tdb: $(RUN_TDB_TESTS)
+tests.bdb: make_libs $(BDB_TESTS)
+check.bdb: make_libs $(RUN_BDB_TESTS)
+tests.tdb: make_libs $(TDB_TESTS)
+check.tdb: make_libs $(RUN_TDB_TESTS)
 
 # Need these rule so that Make knows about all the file names
 .PHONY: %.bdbrun %.tdbrun %.run
