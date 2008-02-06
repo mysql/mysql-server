@@ -410,3 +410,38 @@ void Dbtup::send_TUPKEYREF(Signal* signal,
              TupKeyRef::SignalLength, JBB);
 }
 
+/**
+ * Unlink one operation from the m_operation_ptr_i list in the tuple.
+ */
+void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
+                               Tuple_header *tuple_ptr)
+{
+  OperationrecPtr raoOperPtr;
+
+  if(!regOperPtr->m_copy_tuple_location.isNull())
+  {
+    jam();
+    c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
+  }
+
+  if (regOperPtr->op_struct.in_active_list) {
+    regOperPtr->op_struct.in_active_list= false;
+    if (regOperPtr->nextActiveOp != RNIL) {
+      jam();
+      raoOperPtr.i= regOperPtr->nextActiveOp;
+      c_operation_pool.getPtr(raoOperPtr);
+      raoOperPtr.p->prevActiveOp= regOperPtr->prevActiveOp;
+    } else {
+      jam();
+      tuple_ptr->m_operation_ptr_i = regOperPtr->prevActiveOp;
+    }
+    if (regOperPtr->prevActiveOp != RNIL) {
+      jam();
+      raoOperPtr.i= regOperPtr->prevActiveOp;
+      c_operation_pool.getPtr(raoOperPtr);
+      raoOperPtr.p->nextActiveOp= regOperPtr->nextActiveOp;
+    }
+    regOperPtr->prevActiveOp= RNIL;
+    regOperPtr->nextActiveOp= RNIL;
+  }
+}
