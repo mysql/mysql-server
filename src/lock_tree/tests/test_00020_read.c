@@ -9,7 +9,8 @@ int r;
 toku_lock_tree* lt  = NULL;
 DB*             db  = (DB*)1;
 DB_TXN*         txn = (DB_TXN*)1;
-size_t mem = 4096 * 1000;
+u_int32_t mem = 4096 * 1000;
+u_int32_t memcnt = 0;
 BOOL duplicates = FALSE;
 int  nums[100];
 
@@ -46,7 +47,8 @@ void init_query(BOOL dups) {
 }
 
 void setup_tree(BOOL dups) {
-    r = toku_lt_create(&lt, db, dups, dbpanic, mem, dbcmp, dbcmp,
+    memcnt = 0;
+    r = toku_lt_create(&lt, db, dups, dbpanic, mem, &memcnt, dbcmp, dbcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);

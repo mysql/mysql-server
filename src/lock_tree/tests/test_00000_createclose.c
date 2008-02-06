@@ -5,10 +5,11 @@ int main() {
     toku_lock_tree* lt = NULL;
     DB* db = (DB*)1;
     u_int32_t mem = 4096 * 1000;
-    u_int32_t memcnt;
+    u_int32_t memcnt = 0;
     BOOL duplicates;
 
     for (duplicates = 0; duplicates < 2; duplicates++) {
+        memcnt = 0;
         r = toku_lt_create(&lt, db, duplicates, dbpanic, mem, &memcnt,
                            dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR(r);
