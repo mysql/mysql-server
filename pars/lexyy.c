@@ -1,7 +1,7 @@
 #include "univ.i"
-#line 2 "_flex_tmp.c"
+#line 2 "lexyy.c"
 
-#line 4 "_flex_tmp.c"
+#line 4 "lexyy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -141,9 +141,9 @@ typedef unsigned int flex_uint32_t;
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
 #endif
 
-extern int yyleng;
+static int yyleng;
 
-extern FILE *yyin, *yyout;
+static FILE *yyin, *yyout;
 
 #define EOB_ACT_CONTINUE_SCAN 0
 #define EOB_ACT_END_OF_FILE 1
@@ -265,7 +265,7 @@ static YY_BUFFER_STATE * yy_buffer_stack = 0; /**< Stack as an array. */
 /* yy_hold_char holds the character lost when yytext is formed. */
 static char yy_hold_char;
 static int yy_n_chars;		/* number of characters read into yy_ch_buf */
-int yyleng;
+static int yyleng;
 
 /* Points to current character in buffer. */
 static char *yy_c_buf_p = (char *) 0;
@@ -277,13 +277,13 @@ static int yy_start = 0;	/* start state number */
  */
 static int yy_did_buffer_switch_on_eof;
 
-void yyrestart (FILE *input_file  );
-void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
-YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
-void yy_delete_buffer (YY_BUFFER_STATE b  );
-void yy_flush_buffer (YY_BUFFER_STATE b  );
-void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
-void yypop_buffer_state (void );
+static void yyrestart (FILE *input_file  );
+static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+static YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
+static void yy_delete_buffer (YY_BUFFER_STATE b  );
+static void yy_flush_buffer (YY_BUFFER_STATE b  );
+static void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
+static void yypop_buffer_state (void );
 
 static void yyensure_buffer_stack (void );
 static void yy_load_buffer_state (void );
@@ -291,13 +291,13 @@ static void yy_init_buffer (YY_BUFFER_STATE b,FILE *file  );
 
 #define YY_FLUSH_BUFFER yy_flush_buffer(YY_CURRENT_BUFFER )
 
-YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
-YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
-YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
+static YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
+static YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
+static YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
 
-void *yyalloc (yy_size_t  );
-void *yyrealloc (void *,yy_size_t  );
-void yyfree (void *  );
+static void *yyalloc (yy_size_t  );
+static void *yyrealloc (void *,yy_size_t  );
+static void yyfree (void *  );
 
 #define yy_new_buffer yy_create_buffer
 
@@ -330,15 +330,15 @@ void yyfree (void *  );
 
 typedef unsigned char YY_CHAR;
 
-FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
+static FILE *yyin = (FILE *) 0, *yyout = (FILE *) 0;
 
 typedef int yy_state_type;
 
-extern int yylineno;
+static int yylineno;
 
-int yylineno = 1;
+static int yylineno = 1;
 
-extern char *yytext;
+static char *yytext;
 #define yytext_ptr yytext
 
 static yy_state_type yy_get_previous_state (void );
@@ -673,8 +673,8 @@ static yyconst flex_int16_t yy_chk[499] =
 static yy_state_type yy_last_accepting_state;
 static char *yy_last_accepting_cpos;
 
-extern int yy_flex_debug;
-int yy_flex_debug = 0;
+static int yy_flex_debug;
+static int yy_flex_debug = 0;
 
 /* The intent behind this definition is that it'll catch
  * any uses of REJECT which flex missed.
@@ -683,7 +683,7 @@ int yy_flex_debug = 0;
 #define yymore() yymore_used_but_not_detected
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
-char *yytext;
+static char *yytext;
 #line 1 "pars0lex.l"
 /******************************************************
 SQL parser lexical analyzer: input file for the GNU Flex lexer generator
@@ -756,7 +756,7 @@ string_append(
 
 
 
-#line 759 "_flex_tmp.c"
+#line 759 "lexyy.c"
 
 #define INITIAL 0
 #define comment 1
@@ -880,9 +880,9 @@ static int input (void );
 #ifndef YY_DECL
 #define YY_DECL_IS_OURS 1
 
-extern int yylex (void);
+static int yylex (void);
 
-#define YY_DECL int yylex (void)
+#define YY_DECL static int yylex (void)
 #endif /* !YY_DECL */
 
 /* Code executed at the beginning of each rule, after yytext and yyleng
@@ -911,7 +911,7 @@ YY_DECL
 #line 92 "pars0lex.l"
 
 
-#line 914 "_flex_tmp.c"
+#line 914 "lexyy.c"
 
 	if ( (yy_init) )
 		{
@@ -1913,7 +1913,7 @@ YY_RULE_SETUP
 #line 648 "pars0lex.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 1916 "_flex_tmp.c"
+#line 1916 "lexyy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(comment):
 case YY_STATE_EOF(quoted):
@@ -2317,7 +2317,7 @@ static int yy_get_next_buffer (void)
  * 
  * @note This function does not reset the start condition to @c INITIAL .
  */
-    void yyrestart  (FILE * input_file )
+    static void yyrestart  (FILE * input_file )
 {
     
 	if ( ! YY_CURRENT_BUFFER ){
@@ -2334,7 +2334,7 @@ static int yy_get_next_buffer (void)
  * @param new_buffer The new input buffer.
  * 
  */
-    void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
+    static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
 {
     
 	/* TODO. We should be able to replace this entire function body
@@ -2379,7 +2379,7 @@ static void yy_load_buffer_state  (void)
  * 
  * @return the allocated buffer state.
  */
-    YY_BUFFER_STATE yy_create_buffer  (FILE * file, int  size )
+    static YY_BUFFER_STATE yy_create_buffer  (FILE * file, int  size )
 {
 	YY_BUFFER_STATE b;
     
@@ -2407,7 +2407,7 @@ static void yy_load_buffer_state  (void)
  * @param b a buffer created with yy_create_buffer()
  * 
  */
-    void yy_delete_buffer (YY_BUFFER_STATE  b )
+    static void yy_delete_buffer (YY_BUFFER_STATE  b )
 {
     
 	if ( ! b )
@@ -2454,7 +2454,7 @@ static void yy_load_buffer_state  (void)
  * @param b the buffer state to be flushed, usually @c YY_CURRENT_BUFFER.
  * 
  */
-    void yy_flush_buffer (YY_BUFFER_STATE  b )
+    static void yy_flush_buffer (YY_BUFFER_STATE  b )
 {
     	if ( ! b )
 		return;
@@ -2483,7 +2483,7 @@ static void yy_load_buffer_state  (void)
  *  @param new_buffer The new state.
  *  
  */
-void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
+static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 {
     	if (new_buffer == NULL)
 		return;
@@ -2513,7 +2513,7 @@ void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
  *  The next element becomes the new top.
  *  
  */
-void yypop_buffer_state (void)
+static void yypop_buffer_state (void)
 {
     	if (!YY_CURRENT_BUFFER)
 		return;
@@ -2603,7 +2603,7 @@ static void yy_fatal_error (yyconst char* msg )
 /** Get the current line number.
  * 
  */
-int yyget_lineno  (void)
+static int yyget_lineno  (void)
 {
         
     return yylineno;
@@ -2612,7 +2612,7 @@ int yyget_lineno  (void)
 /** Get the input stream.
  * 
  */
-FILE *yyget_in  (void)
+static FILE *yyget_in  (void)
 {
         return yyin;
 }
@@ -2620,7 +2620,7 @@ FILE *yyget_in  (void)
 /** Get the output stream.
  * 
  */
-FILE *yyget_out  (void)
+static FILE *yyget_out  (void)
 {
         return yyout;
 }
@@ -2628,7 +2628,7 @@ FILE *yyget_out  (void)
 /** Get the length of the current token.
  * 
  */
-int yyget_leng  (void)
+static int yyget_leng  (void)
 {
         return yyleng;
 }
@@ -2637,7 +2637,7 @@ int yyget_leng  (void)
  * 
  */
 
-char *yyget_text  (void)
+static char *yyget_text  (void)
 {
         return yytext;
 }
@@ -2646,7 +2646,7 @@ char *yyget_text  (void)
  * @param line_number
  * 
  */
-void yyset_lineno (int  line_number )
+static void yyset_lineno (int  line_number )
 {
     
     yylineno = line_number;
@@ -2658,28 +2658,28 @@ void yyset_lineno (int  line_number )
  * 
  * @see yy_switch_to_buffer
  */
-void yyset_in (FILE *  in_str )
+static void yyset_in (FILE *  in_str )
 {
         yyin = in_str ;
 }
 
-void yyset_out (FILE *  out_str )
+static void yyset_out (FILE *  out_str )
 {
         yyout = out_str ;
 }
 
-int yyget_debug  (void)
+static int yyget_debug  (void)
 {
         return yy_flex_debug;
 }
 
-void yyset_debug (int  bdebug )
+static void yyset_debug (int  bdebug )
 {
         yy_flex_debug = bdebug ;
 }
 
 /* yylex_destroy is for both reentrant and non-reentrant scanners. */
-int yylex_destroy  (void)
+static int yylex_destroy  (void)
 {
     
     /* Pop the buffer stack, destroying each element. */
@@ -2720,12 +2720,12 @@ static int yy_flex_strlen (yyconst char * s )
 }
 #endif
 
-void *yyalloc (yy_size_t  size )
+static void *yyalloc (yy_size_t  size )
 {
 	return (void *) malloc( size );
 }
 
-void *yyrealloc  (void * ptr, yy_size_t  size )
+static void *yyrealloc  (void * ptr, yy_size_t  size )
 {
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
@@ -2737,7 +2737,7 @@ void *yyrealloc  (void * ptr, yy_size_t  size )
 	return (void *) realloc( (char *) ptr, size );
 }
 
-void yyfree (void * ptr )
+static void yyfree (void * ptr )
 {
 	free( (char *) ptr );	/* see yyrealloc() for (char *) cast */
 }
