@@ -235,7 +235,14 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
   if (my_access(name,F_OK))
-    DBUG_RETURN(create_control_file(name, open_flags));
+  {
+    if (create_control_file(name, open_flags))
+    {
+      errmsg= "Can't create file";
+      goto err;
+    }
+    goto lock_file;
+  }
 
   /* Otherwise, file exists */
 
@@ -348,6 +355,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                                 CF_LSN_OFFSET);
   last_logno= uint4korr(buffer + new_cf_create_time_size + CF_FILENO_OFFSET);
 
+lock_file:
   retry= 0;
 
   /*
@@ -365,7 +373,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                       name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
     if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
     {
-      errmsg= "Could not get an exclusive lock; File is probably in use by another process";
+      errmsg= "Could not get an exclusive lock; file is probably in use by another process";
       goto err;
     }
     sleep(1);

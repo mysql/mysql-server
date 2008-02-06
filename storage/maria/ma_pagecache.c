@@ -1553,6 +1553,7 @@ static void unlink_hash(PAGECACHE *pagecache, PAGECACHE_HASH_LINK *hash_link)
     struct st_my_thread_var *thread;
 
     hash_link->file= first_page->file;
+    DBUG_ASSERT(first_page->pageno < ((ULL(1)) << 40));
     hash_link->pageno= first_page->pageno;
     do
     {
@@ -1714,6 +1715,7 @@ restart:
       goto restart;
     }
     hash_link->file= *file;
+    DBUG_ASSERT(pageno < ((ULL(1)) << 40));
     hash_link->pageno= pageno;
     link_hash(start, hash_link);
     /* Register the request for the page */
@@ -2971,6 +2973,7 @@ uchar *pagecache_read(PAGECACHE *pagecache,
                        page_cache_page_pin_str[pin]));
   DBUG_ASSERT(buff != 0 || (buff == 0 && (pin == PAGECACHE_PIN ||
                                           pin == PAGECACHE_PIN_LEFT_PINNED)));
+  DBUG_ASSERT(pageno < ((ULL(1)) << 40));
 #endif
 
   if (!page_link)
@@ -3302,6 +3305,7 @@ my_bool pagecache_delete(PAGECACHE *pagecache,
               pin == PAGECACHE_PIN_LEFT_PINNED);
 restart:
 
+  DBUG_ASSERT(pageno < ((ULL(1)) << 40));
   if (pagecache->can_be_used)
   {
     /* Key cache is used */
@@ -3476,6 +3480,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   DBUG_ASSERT(lock != PAGECACHE_LOCK_LEFT_READLOCKED);
   DBUG_ASSERT(lock != PAGECACHE_LOCK_READ_UNLOCK);
   DBUG_ASSERT(offset + size <= pagecache->block_size);
+  DBUG_ASSERT(pageno < ((ULL(1)) << 40));
 #endif
 
   if (!page_link)
