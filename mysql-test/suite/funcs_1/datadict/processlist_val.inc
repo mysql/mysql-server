@@ -2,7 +2,7 @@
 #                                                                      #
 # Testing of values within INFORMATION_SCHEMA.PROCESSLIST              #
 #                                                                      #
-# Ensure that the values fit to the current state of the connection    #
+# Ensure that the values fit to the current event of the connection    #
 # and especially that they change if a connection does nothing or      #
 # runs some SQL.                                                       #
 # Examples:                                                            #
@@ -32,7 +32,9 @@
 # Creation:                                                            #
 # 2007-08-09 mleich Implement this test as part of                     #
 #                   WL#3982 Test information_schema.processlist        #
-#                                                                      #
+# 2008-01-05 HHunger Changed time test and long statement test.        #
+#                    It could happen that the long statement test      #
+#                    fail due to timing problems.                      #          #                                                                      #
 ########################################################################
 
 # Basic preparations
@@ -108,29 +110,22 @@ connection default;
 #   - State IS NULL
 #   - INFO must be empty
 #
-let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
+let $wait_condition= SELECT id,user,host,db,command,@time:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE COMMAND = 'Sleep' AND TIME > 0;
 --source include/wait_condition.inc
 #
-# Expect to hit TIME = 1.
---replace_column 1 <ID>
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
-#    Change the SQL command (affects content of INFO)
---replace_column 1 <ID>
-SHOW FULL PROCESSLIST;
+# Expect to hit TIME > 1.
+SELECT @time > 0;
 #
 --echo # Sleep some time
 # The value of TIME must increase and reach 2 after some sleeps.
-let $wait_timeout= 2;
-let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE TIME > 1;
+let $wait_timeout= 4;
+let $wait_condition= SELECT id,user,host,db,command,@time2:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
+        WHERE TIME > @time;
 --source include/wait_condition.inc
 # 
-# Expect to hit TIME = 2.
---replace_column 1 <ID>
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID>
-SHOW FULL PROCESSLIST;
+# Expect to hit TIME > @time
+SELECT @time < @time2;
 #
 #
 # The second connection must have an ID = my ID + 1;
@@ -201,28 +196,22 @@ connection default;
 --echo # Sleep some time
 # The command must be after some time in work by the server.
 # So poll till INFO is no more NULL and TIME > 0.
-let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
+let $wait_condition= SELECT id,user,host,db,command,@time:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE INFO IS NOT NULL AND TIME > 0;
 --source include/wait_condition.inc
 #
-# Expect to see TIME = 1
---replace_column 1 <ID>
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID>
-SHOW FULL PROCESSLIST;
+# Expect to see TIME > 0;
+SELECT @time > 0;
 #
 --echo # Sleep some time
 # The value of TIME must increase and reach 2 after some sleeps.
 let $wait_timeout= 2;
-let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE TIME > 1;
+let $wait_condition= SELECT id,user,host,db,command,@time2:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
+        WHERE TIME > @time;
 --source include/wait_condition.inc
 #
-# Expect to see TIME = 2
---replace_column 1 <ID>
-SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID>
-SHOW FULL PROCESSLIST;
+# Expect to see @time < @time2
+SELECT @time < @time2;
 #
 --echo
 --echo ----- switch to connection ddicttestuser1 (user = ddicttestuser1) -----
@@ -247,26 +236,26 @@ connection default;
 --echo # Sleep some time
 # The command must be after some time in work by the server.
 # There is a short phase with STATE IS NULL followed by a longer phase
-# with STATE = 'init'.
-# So poll till INFO is no more NULL AND STATE = 'init'.
+# with STATE = 'executing'.
+# So poll till INFO is no more NULL AND STATE = 'executing'.
+let $wait_timeout= 9;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
-        WHERE INFO IS NOT NULL AND STATE = 'init';
+       WHERE INFO IS NOT NULL AND STATE = 'executing';
 --source include/wait_condition.inc
 #
 # Expect to see that SELECT/SHOW PROCESSLIST can handle my statement monster.
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 5 <COMMAND> 6 <TIME> 7 <STATE>
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 5 <COMMAND> 6 <TIME> 7 <STATE>
 SHOW FULL PROCESSLIST;
 # SHOW PROCESSLIST truncates INFO after 100 characters.
---replace_column 1 <ID> 6 <TIME>
+--replace_column 1 <ID> 5 <COMMAND> 6 <TIME> 7 <STATE>
 SHOW PROCESSLIST;
 --echo
 --echo ----- switch to connection ddicttestuser1 (user = ddicttestuser1) -----
 connection ddicttestuser1;
 --echo # Pull("reap") the result set from the monster statement executed with "send".
 reap;
-
 
 # Ensure that we see that a connection "hangs" when colliding with a
 # WRITE TABLE LOCK
@@ -289,6 +278,7 @@ connection default;
 --echo # Sleep some time
 # The command must be after some time in work by the server.
 # So poll till INFO is no more NULL.
+let $wait_timeout= 4;
 let $wait_condition= SELECT COUNT(*) FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE INFO IS NOT NULL AND STATE = 'Locked';
 --source include/wait_condition.inc
