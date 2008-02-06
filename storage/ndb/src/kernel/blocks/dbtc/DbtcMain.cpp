@@ -11639,7 +11639,6 @@ void Dbtc::execCREATE_TRIG_IMPL_REQ(Signal* signal)
   triggerData->triggerId = req->triggerId;
   triggerData->triggerType = TriggerInfo::getTriggerType(req->triggerInfo);
   triggerData->triggerEvent = TriggerInfo::getTriggerEvent(req->triggerInfo);
-  triggerData->attributeMask = req->attributeMask;
   if (triggerData->triggerType == TriggerType::SECONDARY_INDEX)
     triggerData->indexId = req->indexId;
 
@@ -11810,15 +11809,31 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
   key.fireingOperation = fireOrd->getConnectionPtr();
   key.nodeId = refToNode(signal->getSendersBlockRef());
   FiredTriggerPtr trigPtr;
-  if(c_firedTriggerHash.find(trigPtr, key)){
-    
+  if(c_firedTriggerHash.find(trigPtr, key))
+  {
+    jam();
     c_firedTriggerHash.remove(trigPtr);
+
+    trigPtr.p->triggerType = (TriggerType::Value)fireOrd->m_triggerType;
+    trigPtr.p->triggerEvent = (TriggerEvent::Value)fireOrd->m_triggerEvent;
+
+    if (unlikely(signal->getLength() < FireTrigOrd::SignalLength))
+    {
+      Uint32 version = getNodeInfo(key.nodeId).m_version;
+      ndbrequire(!ndb_fire_trig_ord_transid(version));
+      Ptr<TcDefinedTriggerData> ptr;
+      c_theDefinedTriggers.getPtr(ptr, trigPtr.p->triggerId);
+      trigPtr.p->triggerType = ptr.p->triggerType;
+      trigPtr.p->triggerEvent = ptr.p->triggerEvent;
+    }
 
     trigPtr.p->fragId= fireOrd->fragId;
     bool ok = trigPtr.p->keyValues.getSize() == fireOrd->m_noPrimKeyWords;
     ok &= trigPtr.p->afterValues.getSize() == fireOrd->m_noAfterValueWords;
     ok &= trigPtr.p->beforeValues.getSize() == fireOrd->m_noBeforeValueWords;
-    if(ok){
+    if(ok)
+    {
+      jam();
       opPtr.i = key.fireingOperation;
       ptrCheckGuard(opPtr, ctcConnectFilesize, localTcConnectRecord);
       transPtr.i = opPtr.p->apiConnect;
@@ -11826,7 +11841,7 @@ void Dbtc::execFIRE_TRIG_ORD(Signal* signal)
       
       opPtr.p->noReceivedTriggers++;
       opPtr.p->triggerExecutionCount++;
-    
+
       // Insert fired trigger in execution queue
       transPtr.p->theFiredTriggers.add(trigPtr);
       if (opPtr.p->noReceivedTriggers == opPtr.p->noFiredTriggers) {
@@ -13186,8 +13201,9 @@ void Dbtc::executeTrigger(Signal* signal,
 
   if ((definedTriggerData = 
        c_theDefinedTriggers.getPtr(firedTriggerData->triggerId)) 
-      != NULL) {
-    switch(definedTriggerData->triggerType) {
+      != NULL)
+  {
+    switch(firedTriggerData->triggerType) {
     case(TriggerType::SECONDARY_INDEX):
       jam();
       executeIndexTrigger(signal, definedTriggerData, firedTriggerData, 
@@ -13205,12 +13221,10 @@ void Dbtc::executeIndexTrigger(Signal* signal,
                                ApiConnectRecordPtr* transPtr,
                                TcConnectRecordPtr* opPtr)
 {
-  TcIndexData* indexData;
-
-  indexData = c_theIndexes.getPtr(definedTriggerData->indexId);
+  TcIndexData* indexData = c_theIndexes.getPtr(definedTriggerData->indexId);
   ndbassert(indexData != NULL);
 
-  switch (definedTriggerData->triggerEvent) {
+  switch (firedTriggerData->triggerEvent) {
   case(TriggerEvent::TE_INSERT): {
     jam();
     insertIntoIndexTable(signal, firedTriggerData, transPtr, opPtr, indexData);

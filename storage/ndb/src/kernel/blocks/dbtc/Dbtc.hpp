@@ -319,12 +319,6 @@ public:
     TriggerEvent::Value triggerEvent;
     
     /**
-     * Attribute mask, defines what attributes are to be monitored
-     * Can be seen as a compact representation of SQL column name list
-     */
-    Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
-
-    /**
      * Next ptr (used in pool/list)
      */
     union {
@@ -398,6 +392,16 @@ public:
      * Used for scrapping in case of node failure
      */
     Uint32 nodeId;
+
+    /**
+     * Trigger type, defines what the trigger is used for
+     */
+    TriggerType::Value triggerType;
+
+    /**
+     * Trigger type, defines what the trigger is used for
+     */
+    TriggerEvent::Value triggerEvent;
 
     /**
      * Trigger attribute info, primary key value(s)
