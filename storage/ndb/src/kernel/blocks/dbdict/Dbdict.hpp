@@ -1356,7 +1356,8 @@ private:
 
   // OpRec
 
-  struct OpRec {
+  struct OpRec
+  {
     Uint32 nextPool;
 
     // reference to the static member in subclass
@@ -1426,6 +1427,21 @@ private:
   struct SchemaOp {
     Uint32 nextPool;
 
+    enum OpState
+    {
+      OS_PARSING          = 1,
+      OS_PARSED           = 2,
+      OS_PREPARING        = 3,
+      OS_PREPARED         = 4,
+      OS_ABORTING_PREPARE = 5,
+      OS_ABORTED_PREPARE  = 6,
+      OS_ABORTING_PARSE   = 7,
+      //OS_ABORTED_PARSE    = 8  // Not used, op released
+      OS_COMMITTING       = 9,
+      //OS_COMMITTED        = 10 // Not used, op released
+    };
+
+    Uint32 m_state;
     Uint32 op_key;
     Uint32 nextHash;
     Uint32 prevHash;
@@ -1775,6 +1791,22 @@ private:
     // ArrayPool
     Uint32 nextPool;
 
+    enum TransState
+    {
+      TS_STARTING         = 1, // Starting at participants
+      TS_STARTED          = 2, // Started (potentially with parsed ops)
+      TS_PARSING          = 3, // Parsing at participants
+      TS_SUBOP            = 4, // Creating subop
+      TS_ROLLBACK_SP      = 5, // Rolling back to SP (supported before prepare)
+      TS_PREPARING        = 6, // Preparing operations
+      TS_ABORTING_PREPARE = 7, // Aborting prepared operations
+      TS_ABORTING_PARSE   = 8, // Aborting parsed operations
+      TS_COMMITTING       = 9, // Committing
+      TS_COMMITTED        = 10,// Committed
+      TS_COMPLETING       = 11,// Completing
+    };
+
+    Uint32 m_state;
     // DLHashTable
     Uint32 trans_key;
     Uint32 nextHash;
@@ -1880,8 +1912,21 @@ private:
   void runTransMaster(Signal*, SchemaTransPtr);
   void setTransMode(SchemaTransPtr, TransMode::Value, bool hold);
 
-  void trans_commit(Signal*, SchemaTransPtr);
+  void trans_prepare_start(Signal*, SchemaTransPtr);
+  void trans_prepare_next(Signal*, SchemaTransPtr);
+  void trans_prepare_done(Signal*, SchemaTransPtr);
+
+  void trans_abort_prepare_start(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_next(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_done(Signal*, SchemaTransPtr);
+
+  void trans_abort_parse_start(Signal*, SchemaTransPtr);
+  void trans_abort_parse_next(Signal*, SchemaTransPtr);
+  void trans_abort_parse_done(Signal*, SchemaTransPtr);
+
+  void trans_commit_start(Signal*, SchemaTransPtr);
   void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
+  void trans_commit_next(Signal*, SchemaTransPtr);
   void trans_commit_done(Signal* signal, SchemaTransPtr);
   void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
 
@@ -1895,6 +1940,10 @@ private:
   void sendTransConf(Signal*, SchemaTransPtr, Uint32 itFlags = 0);
   void sendTransRef(Signal*, SchemaOpPtr);
   void sendTransRef(Signal*, SchemaTransPtr);
+
+  void slave_run_start(Signal*, const SchemaTransImplReq*);
+  void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
+  void slave_flush_schema(Signal*, SchemaTransPtr);
 
   // reply to trans client for begin/end trans
   void sendTransClientReply(Signal*, SchemaTransPtr);
