@@ -3,6 +3,9 @@
 
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#if !defined(TOKU_LOCKTREE_H)
+#define TOKU_LOCKTREE_H
+
 /**
    \file  locktree.h
    \brief Lock trees: header and comments
@@ -55,6 +58,7 @@ typedef enum {
 
 char* toku_lt_strerror(TOKU_LT_ERROR r) __attribute__((const,pure));
 
+#define TOKU_LOCK_TREE_DEFINED
 /** \brief The lock tree structure */
 typedef struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
@@ -367,3 +371,5 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
+
+#endif

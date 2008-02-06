@@ -95,7 +95,7 @@ endif
 	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
 libs:
-	cd ..;make
+	cd .. && make
 
 %.lin: %.c ../locktree.h test.h
 	$(SETENV) cc  -DDIR=\"dir.$<.lin\" -DTOKU_LT_LINEAR $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -llocktree_linear -o $@
@@ -107,7 +107,7 @@ libs:
 .PHONY: make_libs
 
 make_libs:
-	cd ..;make
+	cd .. && make
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

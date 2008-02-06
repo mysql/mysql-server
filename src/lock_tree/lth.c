@@ -9,30 +9,30 @@
   
 */
 
-#include "rth.h"
+#include "lth.h"
 #include <assert.h>
 #include <errno.h>
 #include <string.h>
 
 /* TODO: reallocate the hash table if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
-const uint32 __toku_rth_init_size = 521;
+const uint32 __toku_lth_init_size = 521;
 
-static inline uint32 __toku_rth_hash(toku_rth* table, DB_TXN* key) {
+static inline uint32 __toku_lth_hash(toku_lth* table, toku_lock_tree* key) {
     size_t tmp = (size_t)key;
     return tmp % table->array_size;
 }
 
-static inline void __toku_invalidate_scan(toku_rth* table) {
+static inline void __toku_invalidate_scan(toku_lth* table) {
     table->finger_end   = TRUE;
 }
 
-int toku_rth_create(toku_rth** ptable,
+int toku_lth_create(toku_lth** ptable,
                     void* (*user_malloc) (size_t),
                     void  (*user_free)   (void*),
                     void* (*user_realloc)(void*, size_t)) {
     assert(ptable && user_malloc && user_free && user_realloc);
     int r;
-    toku_rth* tmp = (toku_rth*)user_malloc(sizeof(*tmp));
+    toku_lth* tmp = (toku_lth*)user_malloc(sizeof(*tmp));
     if (0) { died1: user_free(tmp); return r; }
     if (!tmp) return errno;
 
@@ -40,8 +40,8 @@ int toku_rth_create(toku_rth** ptable,
     tmp->malloc         = user_malloc;
     tmp->free           = user_free;
     tmp->realloc        = user_realloc;
-    tmp->array_size     = __toku_rth_init_size;
-    tmp->table          = (toku_rth_elt**)
+    tmp->array_size     = __toku_lth_init_size;
+    tmp->table          = (toku_lth_elt**)
                           tmp->malloc(tmp->array_size * sizeof(*tmp->table));
     if (!tmp->table) { r = errno; goto died1; }
     memset(tmp->table, 0, tmp->array_size * sizeof(*tmp->table));
@@ -50,16 +50,16 @@ int toku_rth_create(toku_rth** ptable,
     return 0;
 }
 
-toku_rt_forest* toku_rth_find(toku_rth* table, DB_TXN* key) {
+toku_lock_tree* toku_lth_find(toku_lth* table, toku_lock_tree* key) {
     assert(table && key);
 
-    uint32 index            = __toku_rth_hash(table, key);
-    toku_rth_elt* element   = table->table[index];
+    uint32 index            = __toku_lth_hash(table, key);
+    toku_lth_elt* element   = table->table[index];
     while (element && element->key != key) element = element->next;
-    return element ? &element->value : NULL;
+    return element ? element->key : NULL;
 }
 
-void toku_rth_start_scan(toku_rth* table) {
+void toku_lth_start_scan(toku_lth* table) {
     assert(table);
     table->finger_index = 0;
     table->finger_ptr   = table->table[table->finger_index];
@@ -67,7 +67,7 @@ void toku_rth_start_scan(toku_rth* table) {
     table->finger_end   = FALSE;
 }
 
-static inline toku_rth_elt* __toku_rth_next(toku_rth* table) {
+static inline toku_lth_elt* __toku_lth_next(toku_lth* table) {
     assert(table);
     assert(!table->finger_end);
     
@@ -82,22 +82,22 @@ static inline toku_rth_elt* __toku_rth_next(toku_rth* table) {
     return table->finger_ptr;
 }
 
-toku_rt_forest* toku_rth_next(toku_rth* table) {
+toku_lock_tree* toku_lth_next(toku_lth* table) {
     assert(table);
-    toku_rth_elt* next = __toku_rth_next(table);
-    return next ? &next->value : NULL;
+    toku_lth_elt* next = __toku_lth_next(table);
+    return next ? next->key : NULL;
 }
 
 /* Element MUST exist. */
-void toku_rth_delete(toku_rth* table, DB_TXN* key) {
+void toku_lth_delete(toku_lth* table, toku_lock_tree* key) {
     assert(table && key);
     __toku_invalidate_scan(table);
 
     /* Must have elements. */
     assert(table->num_keys);
 
-    uint32 index = __toku_rth_hash(table, key);
-    toku_rth_elt* element = table->table[index];
+    uint32 index = __toku_lth_hash(table, key);
+    toku_lth_elt* element = table->table[index];
 
     /* Elements of the right hash must exist. */
     assert(element);
@@ -108,7 +108,7 @@ void toku_rth_delete(toku_rth* table, DB_TXN* key) {
         table->num_keys--;
         return;
     }
-    toku_rth_elt* prev;
+    toku_lth_elt* prev;
     /* Case where it is not the first element. */
     do {
         assert(element);
@@ -124,14 +124,14 @@ void toku_rth_delete(toku_rth* table, DB_TXN* key) {
 }
     
 /* Will allow you to insert it over and over.  You need to keep track. */
-int toku_rth_insert(toku_rth* table, DB_TXN* key) {
+int toku_lth_insert(toku_lth* table, toku_lock_tree* key) {
     assert(table && key);
     __toku_invalidate_scan(table);
 
-    uint32 index = __toku_rth_hash(table, key);
+    uint32 index = __toku_lth_hash(table, key);
 
     /* Allocate a new one. */
-    toku_rth_elt* element = (toku_rth_elt*)table->malloc(sizeof(*element));
+    toku_lth_elt* element = (toku_lth_elt*)table->malloc(sizeof(*element));
     if (!element) return errno;
     memset(element, 0, sizeof(*element));
     element->key            = key;
@@ -141,16 +141,16 @@ int toku_rth_insert(toku_rth* table, DB_TXN* key) {
     return 0;    
 }
 
-void toku_rth_close(toku_rth* table) {
+void toku_lth_close(toku_lth* table) {
     assert(table);
-    toku_rth_elt* element;
-    toku_rth_elt* next = NULL;
+    toku_lth_elt* element;
+    toku_lth_elt* next = NULL;
 
-    toku_rth_start_scan(table);
-    next = __toku_rth_next(table);
+    toku_lth_start_scan(table);
+    next = __toku_lth_next(table);
     while (next) {
         element = next;
-        next    = __toku_rth_next(table);
+        next    = __toku_lth_next(table);
         table->free(element);
     }
 
