@@ -198,12 +198,12 @@ void runtest(BOOL dups) {
     /* ********************* */
     setup_tree(dups);
     lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 1, 1, 1, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'b', 1, 1, 1, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
     lt_insert_read (dups, 0, 'b', 1, 1, 1, 1);
-    lt_insert_write(dups, DB_LOCK_NOTGRANTED, 'a', 1, 1);
+    lt_insert_write(dups, DB_LOCK_DEADLOCK, 'a', 1, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -212,7 +212,7 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'a', 3, 1);
     lt_insert_write(dups, 0, 'a', 4, 1);
     lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 2, 1, 4, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'b', 2, 1, 4, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -221,7 +221,7 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'a', 3, 1);
     lt_insert_write(dups, 0, 'a', 4, 1);
     lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_write (dups, DB_LOCK_NOTGRANTED, 'b', 2, 1);
+    lt_insert_write (dups, DB_LOCK_DEADLOCK, 'b', 2, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -250,7 +250,7 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'a', 7, 1);
     lt_insert_write(dups, 0, 'a', 8, 1);
     lt_insert_write(dups, 0, 'a', 9, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'a', 3, 1, 7, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -263,7 +263,7 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'b', 7, 1);
     lt_insert_write(dups, 0, 'b', 8, 1);
     lt_insert_write(dups, 0, 'b', 9, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'a', 3, 1, 7, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -279,7 +279,7 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'b', 2, 1);
     lt_insert_write(dups, 0, 'b', 3, 1);
     lt_insert_write(dups, 0, 'b', 4, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'a', 3, 1, 7, 1);
     close_tree();
     /* ********************* */
     setup_tree(dups);
@@ -303,10 +303,10 @@ void runtest(BOOL dups) {
     lt_insert_write(dups, 0, 'a', 2, 1);
     lt_insert_write(dups, 0, 'a', 3, 1);
     lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 3, 1, 3, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'b', 3, 1, 3, 1);
     lt_unlock('a');
     lt_insert_write(dups, 0, 'b', 3, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 3, 1);
+    lt_insert_read (dups, DB_LOCK_DEADLOCK, 'a', 3, 1, 3, 1);
     lt_unlock('b');
     lt_insert_read (dups, 0, 'a', 3, 1, 3, 1);
     close_tree();

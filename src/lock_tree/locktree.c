@@ -729,12 +729,15 @@ static BOOL __toku_r_backwards(toku_range* range) {
 
 
 static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
-                                const DBT* key_left,  const DBT* data_left,
-                                const DBT* key_right, const DBT* data_right,
+                                const DBT* key_left,  const DBT** pdata_left,
+                                const DBT* key_right, const DBT** pdata_right,
                                 toku_point* left, toku_point* right,
                                 toku_range* query) {
+    assert(pdata_left && pdata_right);
     if (!tree || !txn || !key_left || !key_right)           return EINVAL;
-    if (!tree->duplicates && ( data_left ||  data_right))   return EINVAL;
+    if (!tree->duplicates) *pdata_right = *pdata_left = NULL;
+    const DBT* data_left  = *pdata_left;
+    const DBT* data_right = *pdata_right;
     if (tree->duplicates  && (!data_left || !data_right))   return EINVAL;
     if (tree->duplicates  && key_left != data_left &&
         __toku_lt_is_infinite(key_left))                    return EINVAL;
@@ -978,9 +981,9 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     toku_range query;
     BOOL dominated;
     
-    r = __toku_lt_preprocess(tree, txn, key_left,  data_left,
-                                        key_right, data_right,
-                                           &left,      &right,
+    r = __toku_lt_preprocess(tree, txn, key_left,  &data_left,
+                                        key_right, &data_right,
+                                           &left,       &right,
                              &query);
     if (r!=0) return r;
 
@@ -1025,8 +1028,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     BOOL dominated;
     toku_range_tree* mainread;
     
-    r = __toku_lt_preprocess(tree, txn, key,       data,
-                                        key,       data,
+    r = __toku_lt_preprocess(tree, txn, key,      &data,
+                                        key,      &data,
                                        &endpoint, &endpoint,
                              &query);
     if (r!=0) return r;
@@ -1081,9 +1084,9 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     toku_point right;
     toku_range query;
     
-    r = __toku_lt_preprocess(tree, txn, key_left,  data_left,
-                                        key_right, data_right,
-                                           &left,      &right,
+    r = __toku_lt_preprocess(tree, txn, key_left,  &data_left,
+                                        key_right, &data_right,
+                                           &left,       &right,
                              &query);
     if (r!=0) return r;
 
@@ -1220,8 +1223,8 @@ int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates) {
     return 0;
 }
 
-int toku_lt_set_txn_callback(toku_lock_tree* tree,
-                             int (*callback)(DB_TXN*, toku_lock_tree*)) {
+int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
+                                    int (*callback)(DB_TXN*, toku_lock_tree*)) {
     if (!tree || !callback) return EINVAL;
     if (!tree->dups_final)  return EDOM;
     tree->lock_callback = callback;

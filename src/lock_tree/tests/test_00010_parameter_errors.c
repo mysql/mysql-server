@@ -62,14 +62,16 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
         r = acquire(lt,     txn,  NULL,   data_l,
                                   key_r,  data_r);
         CKERR2(r, EINVAL);
-        r = acquire(lt,     txn,  key_l,  reverse_data_l,
-                                  key_r,  data_r);
-        CKERR2(r, EINVAL);
+        if (duplicates) {
+            r = acquire(lt,     txn,  key_l,  reverse_data_l,
+                                      key_r,  data_r);
+            CKERR2(r, EINVAL);
+            r = acquire(lt,     txn,  key_l,  data_l,
+                                      key_r,  reverse_data_r);
+            CKERR2(r, EINVAL);
+        }
         r = acquire(lt,     txn,  key_l,  data_l,
                                   NULL,   data_r);
-        CKERR2(r, EINVAL);
-        r = acquire(lt,     txn,  key_l,  data_l,
-                                  key_r,  reverse_data_r);
         CKERR2(r, EINVAL);
 
         /* Infinite tests. */
@@ -164,8 +166,10 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
         r = acquire(lt,   txn,  NULL, data);
         CKERR2(r, EINVAL);
 
-        r = acquire(lt,   txn,  key,  reverse_data);
-        CKERR2(r, EINVAL);
+        if (duplicates) {
+            r = acquire(lt,   txn,  key,  reverse_data);
+            CKERR2(r, EINVAL);
+        }
 
         /* Infinite tests. */
         if (duplicates) {
