@@ -14,7 +14,18 @@ flex -o $TMPFILE pars0lex.l
 echo '#include "univ.i"' > $OUTFILE
 
 # flex assigns a pointer to an int in one place without a cast, resulting in
-# a warning on Win64. this adds the cast.
-sed -e 's/int offset = (yy_c_buf_p) - (yytext_ptr);/int offset = (int)((yy_c_buf_p) - (yytext_ptr));/;' < $TMPFILE >> $OUTFILE
+# a warning on Win64.  Add the cast.  Also define some functions as static.
+sed -e '
+s/'"$TMPFILE"'/'"$OUTFILE"'/;
+s/\(int offset = \)\((yy_c_buf_p) - (yytext_ptr)\);/\1(int)(\2);/;
+s/\(void \(yyrestart\|yy_\(switch_to\|delete\|flush\)_buffer\)\)/static \1/;
+s/\(void yypush_buffer_state\)/static \1/;
+s/\(void yypop_buffer_state\)/static \1/;
+s/\(YY_BUFFER_STATE yy_\(create_buffer\|scan_\(buffer\|string\|bytes\)\)\)/static \1/;
+s/\(\(int\|void\) yy[gs]et_\)/static \1/;
+s/\(void \*\?yy\(\(re\)\?alloc\|free\)\)/static \1/;
+s/\(extern \)\?\(int yy\(leng\|lex\|lineno\|_flex_debug\)\)/static \2/;
+s/^\(extern \)\?\(\(FILE\|char\) *\* *yy\)/static \2/;
+' < $TMPFILE >> $OUTFILE
 
 rm $TMPFILE
