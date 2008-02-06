@@ -1316,9 +1316,16 @@ LSN translog_get_file_max_lsn_stored(uint32 file)
 
   {
     LOGHANDLER_FILE_INFO info;
+    my_bool error;
     File fd= open_logfile_by_number_no_cache(file);
-    if (fd < 0 ||
-        translog_read_file_header(&info, fd))
+    if (fd >= 0)
+    {
+      error= translog_read_file_header(&info, fd);
+      my_close(fd, MYF(MY_WME));
+    }
+    else
+      error= TRUE;
+    if (error)
     {
       DBUG_PRINT("error", ("Can't read file header"));
       DBUG_RETURN(LSN_ERROR);

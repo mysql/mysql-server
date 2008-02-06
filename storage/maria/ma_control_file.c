@@ -235,7 +235,14 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     DBUG_RETURN(CONTROL_FILE_UNKNOWN_ERROR);
 
   if (my_access(name,F_OK))
-    DBUG_RETURN(create_control_file(name, open_flags));
+  {
+    if (create_control_file(name, open_flags))
+    {
+      errmsg= "Can't create file";
+      goto err;
+    }
+    goto lock_file;
+  }
 
   /* Otherwise, file exists */
 
@@ -348,13 +355,23 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                                 CF_LSN_OFFSET);
   last_logno= uint4korr(buffer + new_cf_create_time_size + CF_FILENO_OFFSET);
 
+lock_file:
   retry= 0;
 
+  /*
+    On Windows, my_lock() uses locking() which is mandatory locking and so
+    prevents maria-recovery.test from copying the control file. And in case of
+    crash, it may take a while for Windows to unlock file, causing downtime.
+  */
+  /**
+    @todo BUG We should explore my_sopen(_SH_DENYWRD) to open or create the
+    file under Windows.
+  */
+#ifndef __WIN__
   /*
     We can't here use the automatic wait in my_lock() as the alarm thread
     may not yet exists.
   */
-
   while (my_lock(control_file_fd, F_WRLCK, 0L, F_TO_EOF,
                  MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK | MY_NO_WAIT)))
   {
@@ -365,11 +382,12 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
                       name, my_errno, MARIA_MAX_CONTROL_FILE_LOCK_RETRY);
     if (retry++ > MARIA_MAX_CONTROL_FILE_LOCK_RETRY)
     {
-      errmsg= "Could not get an exclusive lock; File is probably in use by another process";
+      errmsg= "Could not get an exclusive lock; file is probably in use by another process";
       goto err;
     }
     sleep(1);
   }
+#endif
 
   DBUG_RETURN(0);
 
@@ -487,8 +505,10 @@ int ma_control_file_end()
   if (control_file_fd < 0) /* already closed */
     DBUG_RETURN(0);
 
+#ifndef __WIN__
   (void) my_lock(control_file_fd, F_UNLCK, 0L, F_TO_EOF,
                  MYF(MY_SEEK_NOT_DONE | MY_FORCE_LOCK));
+#endif
 
   close_error= my_close(control_file_fd, MYF(MY_WME));
   /*

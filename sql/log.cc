@@ -4099,7 +4099,7 @@ bool MYSQL_BIN_LOG::write(THD *thd, IO_CACHE *cache, Log_event *commit_event)
         goto err;
       if (flush_and_sync())
         goto err;
-      DBUG_EXECUTE_IF("half_binlogged_transaction", abort(););
+      DBUG_EXECUTE_IF("half_binlogged_transaction", DBUG_ABORT(););
       if (cache->error)				// Error on read
       {
         sql_print_error(ER(ER_ERROR_ON_READ), cache->file_name, errno);
