@@ -745,9 +745,6 @@ lock_rec_get_page_no(
 				/* out: page number */
 	const lock_t*	lock);	/* in: lock */
 
-/* The lock system */
-extern lock_sys_t*	lock_sys;
-
 /* Lock modes and types */
 #define LOCK_MODE_MASK	0xFUL	/* mask used to extract mode from the
 				type_mode field in a lock */

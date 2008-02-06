@@ -23,40 +23,40 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0file.h"
 
 /* The transaction system */
-trx_sys_t*		trx_sys		= NULL;
-trx_doublewrite_t*	trx_doublewrite = NULL;
+UNIV_INTERN trx_sys_t*		trx_sys		= NULL;
+UNIV_INTERN trx_doublewrite_t*	trx_doublewrite = NULL;
 
 /* The following is set to TRUE when we are upgrading from the old format data
 files to the new >= 4.1.x format multiple tablespaces format data files */
 
-ibool			trx_doublewrite_must_reset_space_ids	= FALSE;
+UNIV_INTERN ibool	trx_doublewrite_must_reset_space_ids	= FALSE;
 
 /* The following is TRUE when we are using the database in the new format,
 i.e., we have successfully upgraded, or have created a new database
 installation */
 
-ibool			trx_sys_multiple_tablespace_format	= FALSE;
+UNIV_INTERN ibool	trx_sys_multiple_tablespace_format	= FALSE;
 
 /* In a MySQL replication slave, in crash recovery we store the master log
 file name and position here. We have successfully got the updates to InnoDB
 up to this position. If .._pos is -1, it means no crash recovery was needed,
 or there was no master log position info inside InnoDB. */
 
-char		trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-ib_longlong	trx_sys_mysql_master_log_pos	= -1;
+UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+UNIV_INTERN ib_longlong	trx_sys_mysql_master_log_pos	= -1;
 
 /* If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
 here. If .._pos is -1, it means there was no binlog position info inside
 InnoDB. */
 
-char		trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
+UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
+UNIV_INTERN ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
 
 
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
-
+UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(
 /*========================*/
@@ -121,7 +121,7 @@ trx_doublewrite_init(
 /********************************************************************
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
-
+UNIV_INTERN
 void
 trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 /*===============================================*/
@@ -158,7 +158,7 @@ trx_sys_mark_upgraded_to_multiple_tablespaces(void)
 /********************************************************************
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
-
+UNIV_INTERN
 void
 trx_sys_create_doublewrite_buf(void)
 /*================================*/
@@ -341,7 +341,7 @@ upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function uses a possible doublewrite buffer to restore
 half-written pages in the data files. */
-
+UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
@@ -548,7 +548,7 @@ leave_func:
 
 /********************************************************************
 Checks that trx is in the trx list. */
-
+UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
@@ -576,7 +576,7 @@ trx_in_trx_list(
 
 /*********************************************************************
 Writes the value of max_trx_id to the file based trx system header. */
-
+UNIV_INTERN
 void
 trx_sys_flush_max_trx_id(void)
 /*==========================*/
@@ -600,7 +600,7 @@ Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
 replication has proceeded. */
-
+UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
@@ -660,7 +660,7 @@ trx_sys_update_mysql_binlog_offset(
 /*********************************************************************
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
@@ -694,7 +694,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 /*********************************************************************
 Stores the MySQL binlog offset info in the trx system header if
 the magic number shows it valid, and print the info to stderr */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset(void)
 /*===================================*/
@@ -744,7 +744,7 @@ trx_sys_print_mysql_binlog_offset(void)
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_master_log_pos(void)
 /*====================================*/
@@ -797,7 +797,7 @@ trx_sys_print_mysql_master_log_pos(void)
 
 /********************************************************************
 Looks for a free slot for a rollback segment in the trx system file copy. */
-
+UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
@@ -906,7 +906,7 @@ trx_sysf_create(
 /*********************************************************************
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
-
+UNIV_INTERN
 void
 trx_sys_init_at_db_start(void)
 /*==========================*/
@@ -993,7 +993,7 @@ trx_sys_init_at_db_start(void)
 
 /*********************************************************************
 Creates and initializes the transaction system at the database creation. */
-
+UNIV_INTERN
 void
 trx_sys_create(void)
 /*================*/

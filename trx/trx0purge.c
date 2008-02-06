@@ -27,16 +27,16 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0thread.h"
 
 /* The global data structure coordinating a purge */
-trx_purge_t*	purge_sys = NULL;
+UNIV_INTERN trx_purge_t*	purge_sys = NULL;
 
 /* A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
-trx_undo_rec_t	trx_purge_dummy_rec;
+UNIV_INTERN trx_undo_rec_t	trx_purge_dummy_rec;
 
 /*********************************************************************
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system. */
-
+UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
@@ -192,7 +192,7 @@ trx_purge_graph_build(void)
 /************************************************************************
 Creates the global purge system control structure and inits the history
 mutex. */
-
+UNIV_INTERN
 void
 trx_purge_sys_create(void)
 /*======================*/
@@ -236,7 +236,7 @@ trx_purge_sys_create(void)
 /************************************************************************
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
-
+UNIV_INTERN
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
@@ -914,7 +914,7 @@ trx_purge_get_next_rec(
 /************************************************************************
 Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function. */
-
+UNIV_INTERN
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
@@ -1009,7 +1009,7 @@ trx_purge_fetch_next_rec(
 
 /***********************************************************************
 Releases a reserved purge undo record. */
-
+UNIV_INTERN
 void
 trx_purge_rec_release(
 /*==================*/
@@ -1028,7 +1028,7 @@ trx_purge_rec_release(
 
 /***********************************************************************
 This function runs a purge batch. */
-
+UNIV_INTERN
 ulint
 trx_purge(void)
 /*===========*/
@@ -1136,7 +1136,7 @@ trx_purge(void)
 
 /**********************************************************************
 Prints information of the purge system to stderr. */
-
+UNIV_INTERN
 void
 trx_purge_sys_print(void)
 /*=====================*/

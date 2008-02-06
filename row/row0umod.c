@@ -726,7 +726,7 @@ row_undo_mod_parse_undo_rec(
 
 /***************************************************************
 Undoes a modify operation on a row of a table. */
-
+UNIV_INTERN
 ulint
 row_undo_mod(
 /*=========*/

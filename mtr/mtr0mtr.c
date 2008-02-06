@@ -147,7 +147,7 @@ mtr_log_reserve_and_write(
 
 /*******************************************************************
 Commits a mini-transaction. */
-
+UNIV_INTERN
 void
 mtr_commit(
 /*=======*/
@@ -192,7 +192,7 @@ mtr_commit(
 Releases the latches stored in an mtr memo down to a savepoint.
 NOTE! The mtr must not have made changes to buffer pages after the
 savepoint, as these can be handled only by mtr_commit. */
-
+UNIV_INTERN
 void
 mtr_rollback_to_savepoint(
 /*======================*/
@@ -224,7 +224,7 @@ mtr_rollback_to_savepoint(
 
 /*******************************************************
 Releases an object in the memo stack. */
-
+UNIV_INTERN
 void
 mtr_memo_release(
 /*=============*/
@@ -260,7 +260,7 @@ mtr_memo_release(
 
 /************************************************************
 Reads 1 - 4 bytes from a file page buffered in the buffer pool. */
-
+UNIV_INTERN
 ulint
 mtr_read_ulint(
 /*===========*/
@@ -285,7 +285,7 @@ mtr_read_ulint(
 
 /************************************************************
 Reads 8 bytes from a file page buffered in the buffer pool. */
-
+UNIV_INTERN
 dulint
 mtr_read_dulint(
 /*============*/
@@ -303,7 +303,7 @@ mtr_read_dulint(
 #ifdef UNIV_DEBUG
 /**************************************************************
 Checks if memo contains the given page. */
-
+UNIV_INTERN
 ibool
 mtr_memo_contains_page(
 /*===================*/
@@ -322,7 +322,7 @@ mtr_memo_contains_page(
 
 /*************************************************************
 Prints info of an mtr handle. */
-
+UNIV_INTERN
 void
 mtr_print(
 /*======*/

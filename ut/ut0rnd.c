@@ -23,7 +23,7 @@ ulint	ut_rnd_ulint_counter = 65654363;
 /***************************************************************
 Looks for a prime number slightly greater than the given argument.
 The prime is chosen so that it is not near any power of 2. */
-
+UNIV_INTERN
 ulint
 ut_find_prime(
 /*==========*/

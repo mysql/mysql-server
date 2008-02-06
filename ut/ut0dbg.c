@@ -12,28 +12,27 @@ Created 1/30/1994 Heikki Tuuri
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #else
 /* This is used to eliminate compiler warnings */
-ulint	ut_dbg_zero	= 0;
+UNIV_INTERN ulint	ut_dbg_zero	= 0;
 #endif
 
 #if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /* If this is set to TRUE all threads will stop into the next assertion
 and assert */
-ibool	ut_dbg_stop_threads	= FALSE;
+UNIV_INTERN ibool	ut_dbg_stop_threads	= FALSE;
 #endif
 #ifdef __NETWARE__
-ibool panic_shutdown = FALSE;	/* This is set to TRUE when on NetWare there
-				happens an InnoDB assertion failure or other
-				fatal error condition that requires an
-				immediate shutdown. */
+/* This is set to TRUE when on NetWare there happens an InnoDB
+assertion failure or other fatal error condition that requires an
+immediate shutdown. */
+UNIV_INTERN ibool panic_shutdown = FALSE;
 #elif !defined(UT_DBG_USE_ABORT)
 /* Null pointer used to generate memory trap */
-
-ulint*	ut_dbg_null_ptr		= NULL;
+UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
 #endif
 
 /*****************************************************************
 Report a failed assertion. */
-
+UNIV_INTERN
 void
 ut_dbg_assertion_failed(
 /*====================*/
@@ -69,7 +68,7 @@ ut_dbg_assertion_failed(
 #ifdef __NETWARE__
 /*****************************************************************
 Shut down MySQL/InnoDB after assertion failure. */
-
+UNIV_INTERN
 void
 ut_dbg_panic(void)
 /*==============*/
@@ -84,7 +83,7 @@ ut_dbg_panic(void)
 # if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
 /*****************************************************************
 Stop a thread after assertion failure. */
-
+UNIV_INTERN
 void
 ut_dbg_stop_thread(
 /*===============*/
@@ -120,7 +119,7 @@ ut_dbg_stop_thread(
 
 /***********************************************************************
 Resets a speedo (records the current time in it). */
-
+UNIV_INTERN
 void
 speedo_reset(
 /*=========*/
@@ -134,7 +133,7 @@ speedo_reset(
 /***********************************************************************
 Shows the time elapsed and usage statistics since the last reset of a
 speedo. */
-
+UNIV_INTERN
 void
 speedo_show(
 /*========*/

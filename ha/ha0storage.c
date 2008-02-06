@@ -65,7 +65,7 @@ data_len bytes need to be allocated) and the size of storage is going to
 become more than "memlim" then "data" is not added and NULL is returned.
 To disable this behavior "memlim" can be set to 0, which stands for
 "no limit". */
-
+UNIV_INTERN
 const void*
 ha_storage_put_memlim(
 /*==================*/

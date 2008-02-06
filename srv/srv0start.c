@@ -57,19 +57,19 @@ Created 2/16/1996 Heikki Tuuri
 #include "que0que.h"
 
 /* Log sequence number immediately after startup */
-ib_uint64_t	srv_start_lsn;
+UNIV_INTERN ib_uint64_t	srv_start_lsn;
 /* Log sequence number at shutdown */
-ib_uint64_t	srv_shutdown_lsn;
+UNIV_INTERN ib_uint64_t	srv_shutdown_lsn;
 
 #ifdef HAVE_DARWIN_THREADS
 # include <sys/utsname.h>
-ibool		srv_have_fullfsync = FALSE;
+UNIV_INTERN ibool	srv_have_fullfsync = FALSE;
 #endif
 
-ibool		srv_start_raw_disk_in_use = FALSE;
+UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
-ibool		srv_startup_is_before_trx_rollback_phase = FALSE;
-ibool		srv_is_being_started = FALSE;
+UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
+UNIV_INTERN ibool	srv_is_being_started = FALSE;
 #ifndef UNIV_HOTBACKUP
 static ibool	srv_start_has_been_called = FALSE;
 static ibool	srv_was_started = FALSE;
@@ -77,7 +77,7 @@ static ibool	srv_was_started = FALSE;
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
 and then to SRV_SHUTDOWN_LAST_PHASE */
-ulint		srv_shutdown_state = 0;
+UNIV_INTERN ulint		srv_shutdown_state = 0;
 
 #ifndef UNIV_HOTBACKUP
 static os_file_t	files[1000];
@@ -148,7 +148,7 @@ srv_parse_megabytes(
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
 the .cnf file. */
-
+UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
@@ -340,7 +340,7 @@ srv_parse_data_file_paths_and_sizes(
 /*************************************************************************
 Reads log group home directories from a character string given in
 the .cnf file. */
-
+UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
@@ -455,7 +455,7 @@ io_handler_thread(
 
 /*************************************************************************
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-
+UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
@@ -475,7 +475,7 @@ srv_normalize_path_for_win(
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
-
+UNIV_INTERN
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -957,7 +957,7 @@ skip_size_check:
 Starts InnoDB and creates a new database if database files
 are not found and the user wants. Server parameters are
 read from a file of name "srv_init" in the ib_home directory. */
-
+UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void)
 /*====================================*/
@@ -1738,7 +1738,7 @@ innobase_start_or_create_for_mysql(void)
 
 /********************************************************************
 Shuts down the InnoDB database. */
-
+UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void)
 /*=============================*/

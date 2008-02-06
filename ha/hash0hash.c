@@ -15,7 +15,7 @@ Created 5/20/1997 Heikki Tuuri
 
 /****************************************************************
 Reserves the mutex for a fold value in a hash table. */
-
+UNIV_INTERN
 void
 hash_mutex_enter(
 /*=============*/
@@ -27,7 +27,7 @@ hash_mutex_enter(
 
 /****************************************************************
 Releases the mutex for a fold value in a hash table. */
-
+UNIV_INTERN
 void
 hash_mutex_exit(
 /*============*/
@@ -39,7 +39,7 @@ hash_mutex_exit(
 
 /****************************************************************
 Reserves all the mutexes of a hash table, in an ascending order. */
-
+UNIV_INTERN
 void
 hash_mutex_enter_all(
 /*=================*/
@@ -55,7 +55,7 @@ hash_mutex_enter_all(
 
 /****************************************************************
 Releases all the mutexes of a hash table. */
-
+UNIV_INTERN
 void
 hash_mutex_exit_all(
 /*================*/
@@ -72,7 +72,7 @@ hash_mutex_exit_all(
 /*****************************************************************
 Creates a hash table with >= n array cells. The actual number of cells is
 chosen to be a prime number slightly bigger than n. */
-
+UNIV_INTERN
 hash_table_t*
 hash_create(
 /*========*/
@@ -108,7 +108,7 @@ hash_create(
 
 /*****************************************************************
 Frees a hash table. */
-
+UNIV_INTERN
 void
 hash_table_free(
 /*============*/
@@ -122,7 +122,7 @@ hash_table_free(
 
 /*****************************************************************
 Creates a mutex array to protect a hash table. */
-
+UNIV_INTERN
 void
 hash_create_mutexes_func(
 /*=====================*/

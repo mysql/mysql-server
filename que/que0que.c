@@ -31,11 +31,11 @@ Created 5/27/1996 Heikki Tuuri
 #define QUE_ROUND_ROBIN_LIMIT	(64 * 256 * 256 * 256)
 #define QUE_MAX_LOOPS_WITHOUT_CHECK	16
 
+#ifdef UNIV_DEBUG
 /* If the following flag is set TRUE, the module will print trace info
 of SQL execution in the UNIV_SQL_DEBUG version */
-ibool	que_trace_on		= FALSE;
-
-ibool	que_always_false	= FALSE;
+UNIV_INTERN ibool	que_trace_on		= FALSE;
+#endif /* UNIV_DEBUG */
 
 /* Short introduction to query graphs
    ==================================
@@ -120,7 +120,7 @@ que_thr_move_to_run_state(
 
 /***************************************************************************
 Adds a query graph to the session's list of graphs. */
-
+UNIV_INTERN
 void
 que_graph_publish(
 /*==============*/
@@ -134,7 +134,7 @@ que_graph_publish(
 
 /***************************************************************************
 Creates a query graph fork node. */
-
+UNIV_INTERN
 que_fork_t*
 que_fork_create(
 /*============*/
@@ -180,7 +180,7 @@ que_fork_create(
 
 /***************************************************************************
 Creates a query graph thread node. */
-
+UNIV_INTERN
 que_thr_t*
 que_thr_create(
 /*===========*/
@@ -219,7 +219,7 @@ Moves a suspended query thread to the QUE_THR_RUNNING state and may release
 a single worker thread to execute it. This function should be used to end
 the wait state of a query thread waiting for a lock or a stored procedure
 completion. */
-
+UNIV_INTERN
 void
 que_thr_end_wait(
 /*=============*/
@@ -264,7 +264,7 @@ que_thr_end_wait(
 
 /**************************************************************************
 Same as que_thr_end_wait, but no parameter next_thr available. */
-
+UNIV_INTERN
 void
 que_thr_end_wait_no_next_thr(
 /*=========================*/
@@ -318,7 +318,7 @@ Starts execution of a command in a query fork. Picks a query thread which
 is not in the QUE_THR_RUNNING state and moves it to that state. If none
 can be chosen, a situation which may arise in parallelized fetches, NULL
 is returned. */
-
+UNIV_INTERN
 que_thr_t*
 que_fork_start_command(
 /*===================*/
@@ -406,7 +406,7 @@ que_fork_start_command(
 After signal handling is finished, returns control to a query graph error
 handling routine. (Currently, just returns the control to the root of the
 graph so that the graph can communicate an error message to the client.) */
-
+UNIV_INTERN
 void
 que_fork_error_handle(
 /*==================*/
@@ -488,7 +488,7 @@ que_graph_free_stat_list(
 /**************************************************************************
 Frees a query graph, but not the heap where it was created. Does not free
 explicit cursor declarations, they are freed in que_graph_free. */
-
+UNIV_INTERN
 void
 que_graph_free_recursive(
 /*=====================*/
@@ -651,7 +651,7 @@ que_graph_free_recursive(
 
 /**************************************************************************
 Frees a query graph. */
-
+UNIV_INTERN
 void
 que_graph_free(
 /*===========*/
@@ -684,7 +684,7 @@ que_graph_free(
 Checks if the query graph is in a state where it should be freed, and
 frees it in that case. If the session is in a state where it should be
 closed, also this is done. */
-
+UNIV_INTERN
 ibool
 que_graph_try_free(
 /*===============*/
@@ -911,7 +911,7 @@ que_thr_dec_refer_count(
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx. The kernel mutex has
 to be reserved. */
-
+UNIV_INTERN
 ibool
 que_thr_stop(
 /*=========*/
@@ -959,7 +959,7 @@ A patch for MySQL used to 'stop' a dummy query thread used in MySQL. The
 query thread is stopped and made inactive, except in the case where
 it was put to the lock wait state in lock0lock.c, but the lock has already
 been granted or the transaction chosen as a victim in deadlock resolution. */
-
+UNIV_INTERN
 void
 que_thr_stop_for_mysql(
 /*===================*/
@@ -1005,7 +1005,7 @@ que_thr_stop_for_mysql(
 Moves a thread from another state to the QUE_THR_RUNNING state. Increments
 the n_active_thrs counters of the query graph and transaction if thr was
 not active. */
-
+UNIV_INTERN
 void
 que_thr_move_to_run_state_for_mysql(
 /*================================*/
@@ -1037,7 +1037,7 @@ que_thr_move_to_run_state_for_mysql(
 /**************************************************************************
 A patch for MySQL used to 'stop' a dummy query thread used in MySQL
 select, when there is no error or lock wait. */
-
+UNIV_INTERN
 void
 que_thr_stop_for_mysql_no_error(
 /*============================*/
@@ -1070,7 +1070,7 @@ que_thr_stop_for_mysql_no_error(
 /********************************************************************
 Get the first containing loop node (e.g. while_node_t or for_node_t) for the
 given node, or NULL if the node is not within a loop. */
-
+UNIV_INTERN
 que_node_t*
 que_node_get_containing_loop_node(
 /*==============================*/
@@ -1100,7 +1100,7 @@ que_node_get_containing_loop_node(
 
 /**************************************************************************
 Prints info of an SQL query graph node. */
-
+UNIV_INTERN
 void
 que_node_print_info(
 /*================*/
@@ -1346,6 +1346,7 @@ loop:
 
 /**************************************************************************
 Run a query thread. Handles lock waits. */
+UNIV_INTERN
 void
 que_run_threads(
 /*============*/
@@ -1400,7 +1401,7 @@ loop:
 
 /*************************************************************************
 Evaluate the given SQL. */
-
+UNIV_INTERN
 ulint
 que_eval_sql(
 /*=========*/

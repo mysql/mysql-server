@@ -13,7 +13,7 @@ Created 12/29/1997 Heikki Tuuri
 
 /*********************************************************************
 Evaluates a function node. */
-
+UNIV_INTERN
 void
 eval_func(
 /*======*/
@@ -24,7 +24,7 @@ NOTE that this memory must be explicitly freed when the query graph is
 freed. If the node already has allocated buffer, that buffer is freed
 here. NOTE that this is the only function where dynamic memory should be
 allocated for a query node val field. */
-
+UNIV_INTERN
 byte*
 eval_node_alloc_val_buf(
 /*====================*/

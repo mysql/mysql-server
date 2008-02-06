@@ -107,7 +107,7 @@ innobase_col_to_mysql(
 
 /*****************************************************************
 Copies an InnoDB record to table->record[0]. */
-extern "C"
+extern "C" UNIV_INTERN
 void
 innobase_rec_to_mysql(
 /*==================*/
@@ -157,7 +157,7 @@ null_field:
 
 /*****************************************************************
 Resets table->record[0]. */
-extern "C"
+extern "C" UNIV_INTERN
 void
 innobase_rec_reset(
 /*===============*/
@@ -613,7 +613,7 @@ innobase_create_temporary_tablename(
 
 /***********************************************************************
 Create indexes. */
-
+UNIV_INTERN
 int
 ha_innobase::add_index(
 /*===================*/
@@ -917,7 +917,7 @@ convert_error:
 
 /***********************************************************************
 Prepare to drop some indexes of a table. */
-
+UNIV_INTERN
 int
 ha_innobase::prepare_drop_index(
 /*============================*/
@@ -1076,7 +1076,7 @@ func_exit:
 
 /***********************************************************************
 Drop the indexes that were passed to a successful prepare_drop_index(). */
-
+UNIV_INTERN
 int
 ha_innobase::final_drop_index(
 /*==========================*/

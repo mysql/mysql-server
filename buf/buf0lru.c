@@ -46,7 +46,7 @@ initial segment in buf_LRU_get_recent_limit */
 
 /* If we switch on the InnoDB monitor because there are too few available
 frames in the buffer pool, we set this to TRUE */
-ibool	buf_lru_switched_on_innodb_mon	= FALSE;
+UNIV_INTERN ibool	buf_lru_switched_on_innodb_mon	= FALSE;
 
 /**********************************************************************
 Takes a block out of the LRU list and page hash table.
@@ -81,7 +81,7 @@ buf_LRU_block_free_hashed_page(
 /**********************************************************************
 Invalidates all pages belonging to a given tablespace when we are deleting
 the data file(s) of that tablespace. */
-
+UNIV_INTERN
 void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
@@ -185,7 +185,7 @@ next_page:
 Gets the minimum LRU_position field for the blocks in an initial segment
 (determined by BUF_LRU_INITIAL_RATIO) of the LRU list. The limit is not
 guaranteed to be precise, because the ulint_clock may wrap around. */
-
+UNIV_INTERN
 ulint
 buf_LRU_get_recent_limit(void)
 /*==========================*/
@@ -218,7 +218,7 @@ buf_LRU_get_recent_limit(void)
 
 /************************************************************************
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
-
+UNIV_INTERN
 void
 buf_LRU_insert_zip_clean(
 /*=====================*/
@@ -251,7 +251,7 @@ buf_LRU_insert_zip_clean(
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
-
+UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
@@ -368,7 +368,7 @@ taken out of the buffer pool, and their inserts redirected to the insert
 buffer. Otherwise, the flushed blocks could get modified again before read
 operations need new buffer blocks, and the i/o work done in flushing would be
 wasted. */
-
+UNIV_INTERN
 void
 buf_LRU_try_free_flushed_blocks(void)
 /*=================================*/
@@ -391,7 +391,7 @@ buf_LRU_try_free_flushed_blocks(void)
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks. */
-
+UNIV_INTERN
 ibool
 buf_LRU_buf_pool_running_out(void)
 /*==============================*/
@@ -416,7 +416,7 @@ buf_LRU_buf_pool_running_out(void)
 /**********************************************************************
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL. */
-
+UNIV_INTERN
 buf_block_t*
 buf_LRU_get_free_only(void)
 /*=======================*/
@@ -452,7 +452,7 @@ buf_LRU_get_free_only(void)
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
-
+UNIV_INTERN
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
@@ -887,7 +887,7 @@ buf_LRU_add_block_low(
 
 /**********************************************************************
 Adds a block to the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_add_block(
 /*==============*/
@@ -903,7 +903,7 @@ buf_LRU_add_block(
 
 /**********************************************************************
 Moves a block to the start of the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_make_block_young(
 /*=====================*/
@@ -915,7 +915,7 @@ buf_LRU_make_block_young(
 
 /**********************************************************************
 Moves a block to the end of the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_make_block_old(
 /*===================*/
@@ -927,7 +927,7 @@ buf_LRU_make_block_old(
 
 /**********************************************************************
 Try to free a block. */
-
+UNIV_INTERN
 ibool
 buf_LRU_free_block(
 /*===============*/
@@ -1116,7 +1116,7 @@ alloc:
 
 /**********************************************************************
 Puts a block back to the free list. */
-
+UNIV_INTERN
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
@@ -1373,7 +1373,7 @@ buf_LRU_block_free_hashed_page(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
-
+UNIV_INTERN
 ibool
 buf_LRU_validate(void)
 /*==================*/
@@ -1446,7 +1446,7 @@ buf_LRU_validate(void)
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Prints the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_print(void)
 /*===============*/

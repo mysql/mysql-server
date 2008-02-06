@@ -169,6 +169,14 @@ by one. */
 			/* the above option enables basic recovery debugging:
 			new allocated file pages are reset */
 
+/* Linkage specifier for non-static InnoDB symbols (variables and functions)
+that are only referenced from within InnoDB, not from MySQL */
+#ifdef __WIN__
+# define UNIV_INTERN
+#else
+# define UNIV_INTERN __attribute__((visibility ("hidden")))
+#endif
+
 #if (!defined(UNIV_DEBUG) && !defined(UNIV_MUST_NOT_INLINE))
 /* Definition for inline version */
 
@@ -183,7 +191,7 @@ by one. */
 definitions: */
 
 #define UNIV_NONINL
-#define UNIV_INLINE
+#define UNIV_INLINE	UNIV_INTERN
 
 #endif	/* UNIV_DEBUG */
 
