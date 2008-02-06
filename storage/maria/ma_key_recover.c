@@ -1095,6 +1095,9 @@ my_bool _ma_apply_undo_key_delete(MARIA_HA *info, LSN undo_lsn,
 
     This is safe as we in this case don't write current_key_del into
     the redo log and during recover we are not updating key_del.
+
+  @retval 1  Use page at end of file
+  @retval 0  Use page at share->current_key_del
 */
 
 my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
@@ -1119,7 +1122,7 @@ my_bool _ma_lock_key_del(MARIA_HA *info, my_bool insert_at_end)
     share->current_key_del= share->state.key_del;
     pthread_mutex_unlock(&share->intern_lock);
   }
-  return 0;
+  return share->current_key_del == HA_OFFSET_ERROR;
 }
 
 
