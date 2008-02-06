@@ -44,6 +44,7 @@ install: $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a #$(LIBNAME_TLOG).$(LIBE
 	cp $(LIBNAME_LINEAR).a ../../lib
 
 clean:
+	rm -rf *.o
 	rm -rf $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a
 	rm -rf $(LIBNAME_TLOG).$(LIBEXT)   $(LIBNAME_TLOG).a
 	rm -rf $(LIBNAME_LOG).$(LIBEXT)    $(LIBNAME_LOG).a

@@ -37,6 +37,7 @@ install: $(LIBNAME).$(LIBEXT) $(LIBNAME).a
 	cp $(LIBNAME).a ../../lib
 
 clean:
+	rm -rf *.o
 	rm -rf $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a
 	rm -rf $(LIBNAME_TLOG).$(LIBEXT)   $(LIBNAME_TLOG).a
 	rm -rf $(LIBNAME_LOG).$(LIBEXT)    $(LIBNAME_LOG).a
@@ -48,7 +49,7 @@ locktree.o: locktree.c locktree.h
 	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_LT_LINEAR -c $< -o $@
 
 rth.o: rth.c rth.h
-	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_LINEAR -c $< -o $@
 
 $(LIBNAME).$(LIBEXT): locktree.o rth.o
 	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lrangetree_linear
