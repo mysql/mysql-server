@@ -1,10 +1,10 @@
 # On OSX do:
 #   make OSX=OSX
 
-LIBNAME=liblocktree
+LIBNAME=liblocktree_linear
 
 ifneq ($(OPT),)
- OPTFLAGS = -O3
+ OPTFLAGS = -O0 -g3 -ggdb3
 else
  OPTFLAGS = -O2 -g3 -ggdb3
 endif

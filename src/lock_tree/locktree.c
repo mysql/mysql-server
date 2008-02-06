@@ -1186,14 +1186,15 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
     toku_range_tree *selfread  = __toku_lt_ifexist_selfread (tree, txn);
 
     u_int32_t ranges = 0;
-    if (selfwrite) {
-        ranges  = toku_rt_get_size(selfwrite);
+
+    if (selfread) {
+        ranges  = toku_rt_get_size(selfread);
         r = __toku_lt_free_contents(tree, selfread, tree->mainread);
         if (r!=0) return __toku_lt_panic(tree, r);
     }
 
-    if (selfread) {
-        ranges += toku_rt_get_size(selfread);
+    if (selfwrite) {
+        ranges += toku_rt_get_size(selfwrite);
         r = __toku_lt_border_delete(tree, selfwrite);
         if (r!=0) return __toku_lt_panic(tree, r);
     }
