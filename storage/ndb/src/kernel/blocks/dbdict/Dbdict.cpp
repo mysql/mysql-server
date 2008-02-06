@@ -7390,124 +7390,14 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   D("alterTable_prepare" << V(itRepeat) << *op_ptr.p);
 
-  if (itRepeat == 0) {
-    jam();
-
-    // master checks table state and all sync via next repeat
-
-    if (trans_ptr.p->m_isMaster) {
-      jam();
-      Mutex mutex(signal, c_mutexMgr, alterTabPtr.p->m_define_backup_mutex);
-      Callback c = {
-        safe_cast(&Dbdict::alterTable_backup_mutex_locked),
-        op_ptr.p->op_key
-      };
-      bool ok = mutex.lock(c);
-      ndbrequire(ok);
-      return;
-    }
-
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
-    return;
-  }
-
-  if (itRepeat == 1) {
-    jam();
-
-    TableRecordPtr tablePtr;
-    c_tableRecordPool.getPtr(tablePtr, impl_req->tableId);
-    TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
-
-    const Uint32 changeMask = impl_req->changeMask;
-    Uint32& changeMaskDone = alterTabPtr.p->m_changeMaskDone; // ref
-
-    if (AlterTableReq::getNameFlag(changeMask)) {
-      jam();
-      const Uint32 sz = MAX_TAB_NAME_SIZE;
-      D("alter name:"
-        << " old=" << copyRope<sz>(tablePtr.p->tableName)
-        << " new=" << copyRope<sz>(newTablePtr.p->tableName));
-
-      Ptr<DictObject> obj_ptr;
-      c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
-
-      // remove old name from hash
-      c_obj_hash.remove(obj_ptr);
-
-      // save old name and replace it by new
-      bool ok =
-        copyRope<sz>(alterTabPtr.p->m_oldTableName, tablePtr.p->tableName) &&
-        copyRope<sz>(tablePtr.p->tableName, newTablePtr.p->tableName);
-      ndbrequire(ok);
-
-      // add new name to object hash
-      obj_ptr.p->m_name = tablePtr.p->tableName;
-      c_obj_hash.add(obj_ptr);
-
-      AlterTableReq::setNameFlag(changeMaskDone, true);
-    }
-
-    if (AlterTableReq::getFrmFlag(changeMask)) {
-      jam();
-      // save old frm and replace it by new
-      const Uint32 sz = MAX_FRM_DATA_SIZE;
-      bool ok =
-        copyRope<sz>(alterTabPtr.p->m_oldFrmData, tablePtr.p->frmData) &&
-        copyRope<sz>(tablePtr.p->frmData, newTablePtr.p->frmData);
-      ndbrequire(ok);
-
-      AlterTableReq::setFrmFlag(changeMaskDone, true);
-    }
-
-    if (AlterTableReq::getAddAttrFlag(changeMask)) {
-      jam();
-
-      /* Move the column definitions to the real table definitions. */
-      LocalDLFifoList<AttributeRecord>
-        list(c_attributeRecordPool, tablePtr.p->m_attributes);
-      LocalDLFifoList<AttributeRecord>
-        newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
-
-      const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
-      ndbrequire(noOfNewAttr > 0);
-      Uint32 i;
-
-      /* Move back to find the first column to move. */
-      AttributeRecordPtr pPtr;
-      ndbrequire(newlist.last(pPtr));
-      for (i = 1; i < noOfNewAttr; i++) {
-        jam();
-        ndbrequire(newlist.prev(pPtr));
-      }
-
-      /* Move columns. */
-      for (i = 0; i < noOfNewAttr; i++) {
-        AttributeRecordPtr qPtr = pPtr;
-        newlist.next(pPtr);
-        newlist.remove(qPtr);
-        list.addLast(qPtr);
-      }
-      tablePtr.p->noOfAttributes += noOfNewAttr;
-    }
-
-    /*
-      TODO RONM:  Some new code for FragmentData and RangeOrListData
-    */
-
-    // repeat to do local blocks
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
-    return;
-  }
-
-  ndbrequire(itRepeat >= 2);
-  {
-    jam();
-    ndbrequire(2 + alterTabPtr.p->m_blockIndex == itRepeat);
-    alterTable_toLocal(signal, op_ptr);
-    return;
-  }
+  Mutex mutex(signal, c_mutexMgr, alterTabPtr.p->m_define_backup_mutex);
+  Callback c = {
+    safe_cast(&Dbdict::alterTable_backup_mutex_locked),
+    op_ptr.p->op_key
+  };
+  bool ok = mutex.lock(c);
+  ndbrequire(ok);
+  return;
 }
 
 void
@@ -7533,17 +7423,96 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
   Mutex mutex(signal, c_mutexMgr, alterTabPtr.p->m_define_backup_mutex);
   mutex.unlock(); // ignore response
 
-  if (tablePtr.p->tabState == TableRecord::BACKUP_ONGOING) {
+  if (tablePtr.p->tabState == TableRecord::BACKUP_ONGOING)
+  {
     jam();
     setError(op_ptr, AlterTableRef::BackupInProgress, __LINE__);
     sendTransRef(signal, op_ptr);
-  } else {
-    jam();
-    // wl3600_todo fix state
-    tablePtr.p->tabState = TableRecord::PREPARE_DROPPING;
-    Uint32 itFlags = SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, trans_ptr, itFlags);
+    return;
   }
+
+  jam();
+  // wl3600_todo fix state
+  tablePtr.p->tabState = TableRecord::PREPARE_DROPPING;
+
+  TableRecordPtr newTablePtr = alterTabPtr.p->m_newTablePtr;
+
+  const Uint32 changeMask = impl_req->changeMask;
+  Uint32& changeMaskDone = alterTabPtr.p->m_changeMaskDone; // ref
+
+  if (AlterTableReq::getNameFlag(changeMask))
+  {
+    jam();
+    const Uint32 sz = MAX_TAB_NAME_SIZE;
+    D("alter name:"
+      << " old=" << copyRope<sz>(tablePtr.p->tableName)
+      << " new=" << copyRope<sz>(newTablePtr.p->tableName));
+
+    Ptr<DictObject> obj_ptr;
+    c_obj_pool.getPtr(obj_ptr, tablePtr.p->m_obj_ptr_i);
+
+    // remove old name from hash
+    c_obj_hash.remove(obj_ptr);
+
+    // save old name and replace it by new
+    bool ok =
+      copyRope<sz>(alterTabPtr.p->m_oldTableName, tablePtr.p->tableName) &&
+      copyRope<sz>(tablePtr.p->tableName, newTablePtr.p->tableName);
+    ndbrequire(ok);
+
+    // add new name to object hash
+    obj_ptr.p->m_name = tablePtr.p->tableName;
+    c_obj_hash.add(obj_ptr);
+
+    AlterTableReq::setNameFlag(changeMaskDone, true);
+  }
+
+  if (AlterTableReq::getFrmFlag(changeMask))
+  {
+    jam();
+    // save old frm and replace it by new
+    const Uint32 sz = MAX_FRM_DATA_SIZE;
+    bool ok =
+      copyRope<sz>(alterTabPtr.p->m_oldFrmData, tablePtr.p->frmData) &&
+      copyRope<sz>(tablePtr.p->frmData, newTablePtr.p->frmData);
+    ndbrequire(ok);
+
+    AlterTableReq::setFrmFlag(changeMaskDone, true);
+  }
+
+  if (AlterTableReq::getAddAttrFlag(changeMask))
+  {
+    jam();
+
+    /* Move the column definitions to the real table definitions. */
+    LocalDLFifoList<AttributeRecord>
+      list(c_attributeRecordPool, tablePtr.p->m_attributes);
+    LocalDLFifoList<AttributeRecord>
+      newlist(c_attributeRecordPool, newTablePtr.p->m_attributes);
+
+    const Uint32 noOfNewAttr = impl_req->noOfNewAttr;
+    ndbrequire(noOfNewAttr > 0);
+    Uint32 i;
+
+    /* Move back to find the first column to move. */
+    AttributeRecordPtr pPtr;
+    ndbrequire(newlist.last(pPtr));
+    for (i = 1; i < noOfNewAttr; i++) {
+      jam();
+      ndbrequire(newlist.prev(pPtr));
+    }
+
+    /* Move columns. */
+    for (i = 0; i < noOfNewAttr; i++) {
+      AttributeRecordPtr qPtr = pPtr;
+      newlist.next(pPtr);
+      newlist.remove(qPtr);
+      list.addLast(qPtr);
+    }
+    tablePtr.p->noOfAttributes += noOfNewAttr;
+  }
+
+  alterTable_toLocal(signal, op_ptr);
 }
 
 void
@@ -7626,26 +7595,34 @@ Dbdict::alterTable_fromLocal(Signal* signal,
   ndbrequire(blockIndex < AlterTableRec::BlockCount);
   const Uint32 blockNo = alterTabPtr.p->m_blockNo[blockIndex];
 
-  if (ret == 0) {
-    jam();
-    blockIndex += 1;
-
-    // save TUP operation record for commit/abort
-    const AlterTabConf* conf = (const AlterTabConf*)signal->getDataPtr();
-    if (blockNo == DBTUP) {
-      jam();
-      alterTabPtr.p->m_tupAlterTabPtr = conf->connectPtr;
-    }
-
-    Uint32 itFlags = 0;
-    if (blockIndex < AlterTableRec::BlockCount)
-      itFlags |= SchemaTransImplConf::IT_REPEAT;
-
-    sendTransConf(signal, op_ptr, itFlags);
-  } else {
+  if (ret)
+  {
     jam();
     setError(op_ptr, ret, __LINE__);
     sendTransRef(signal, op_ptr);
+    return;
+  }
+
+  blockIndex += 1;
+
+  // save TUP operation record for commit/abort
+  const AlterTabConf* conf = (const AlterTabConf*)signal->getDataPtr();
+  if (blockNo == DBTUP)
+  {
+    jam();
+    alterTabPtr.p->m_tupAlterTabPtr = conf->connectPtr;
+  }
+
+  if (blockIndex < AlterTableRec::BlockCount)
+  {
+    jam();
+    alterTable_toLocal(signal, op_ptr);
+    return;
+  }
+  else
+  {
+    jam();
+    sendTransConf(signal, op_ptr);
   }
 }
 
@@ -7667,48 +7644,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   ndbrequire(signal->getNoOfSections() == 0);
 
-  // on first round commit in TUP
-  if (itRepeat == 0) {
-    jam();
-    alterTable_toTupCommit(signal, op_ptr);
-    return;
-  }
-
-  // write schema entry for altered table to disk
-  ndbrequire(itRepeat == 1);
-
-  const Uint32 tableId = impl_req->tableId;
-  TableRecordPtr tablePtr;
-  c_tableRecordPool.getPtr(tablePtr, tableId);
-
-  const OpSection& tabInfoSec =
-    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
-  const Uint32 size = tabInfoSec.getSize();
-  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-
-  // update table record
-  tablePtr.p->packedSize = size;
-  tablePtr.p->tableVersion = impl_req->newTableVersion;
-  tablePtr.p->gciTableCreated = impl_req->gci;
-
-  SchemaFile::TableEntry tabEntry;
-  tabEntry.init();
-  tabEntry.m_tableVersion = impl_req->newTableVersion;
-  tabEntry.m_tableType = tablePtr.p->tableType;
-  if (savetodisk)
-    tabEntry.m_tableState = SchemaFile::ALTER_TABLE_COMMITTED;
-  else
-    tabEntry.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
-  tabEntry.m_gcp = impl_req->gci;
-  tabEntry.m_info_words = size;
-  tabEntry.m_transId = 0;
-
-  Callback callback = {
-    safe_cast(&Dbdict::alterTab_writeSchemaConf),
-    op_ptr.p->op_key
-  };
-
-  updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
+  alterTable_toTupCommit(signal, op_ptr);
 }
 
 void
@@ -7756,16 +7692,41 @@ Dbdict::alterTable_fromTupCommit(Signal* signal,
   findSchemaOp(op_ptr, alterTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
 
-  if (ret == 0) {
-    jam();
-    Uint32 itFlags = 0;
-    itFlags |= SchemaTransImplConf::IT_REPEAT;
-    sendTransConf(signal, op_ptr, itFlags);
-  } else {
-    jam();
-    setError(op_ptr, ret, __LINE__);
-    sendTransRef(signal, op_ptr);
-  }
+  ndbrequire(ret == 0); // Failure during commit is not allowed
+
+  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+  const Uint32 tableId = impl_req->tableId;
+  TableRecordPtr tablePtr;
+  c_tableRecordPool.getPtr(tablePtr, tableId);
+
+  const OpSection& tabInfoSec =
+    getOpSection(op_ptr, CreateTabReq::DICT_TAB_INFO);
+  const Uint32 size = tabInfoSec.getSize();
+  bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+
+  // update table record
+  tablePtr.p->packedSize = size;
+  tablePtr.p->tableVersion = impl_req->newTableVersion;
+  tablePtr.p->gciTableCreated = impl_req->gci;
+
+  SchemaFile::TableEntry tabEntry;
+  tabEntry.init();
+  tabEntry.m_tableVersion = impl_req->newTableVersion;
+  tabEntry.m_tableType = tablePtr.p->tableType;
+  if (savetodisk)
+    tabEntry.m_tableState = SchemaFile::ALTER_TABLE_COMMITTED;
+  else
+    tabEntry.m_tableState = SchemaFile::TEMPORARY_TABLE_COMMITTED;
+  tabEntry.m_gcp = impl_req->gci;
+  tabEntry.m_info_words = size;
+  tabEntry.m_transId = 0;
+
+  Callback callback = {
+    safe_cast(&Dbdict::alterTab_writeSchemaConf),
+    op_ptr.p->op_key
+  };
+
+  updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
 }
 
 void
@@ -7924,16 +7885,6 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   getOpRec(op_ptr, alterTabPtr);
   const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
-  if (alterTabPtr.p->m_blockIndex > 0) {
-    jam();
-    /*
-     * Local blocks have only updated table version.
-     * Reset it to original in reverse block order.
-     */
-    alterTable_abortToLocal(signal, op_ptr);
-    return;
-  }
-
   // reset DICT memory changes (there was no prepare to disk)
   {
     jam();
@@ -7944,7 +7895,8 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 
     const Uint32 changeMask = alterTabPtr.p->m_changeMaskDone;
 
-    if (AlterTableReq::getNameFlag(changeMask)) {
+    if (AlterTableReq::getNameFlag(changeMask))
+    {
       jam();
       const Uint32 sz = MAX_TAB_NAME_SIZE;
       D("reset name:"
@@ -7967,7 +7919,8 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
       c_obj_hash.add(obj_ptr);
     }
 
-    if (AlterTableReq::getFrmFlag(changeMask)) {
+    if (AlterTableReq::getFrmFlag(changeMask))
+    {
       jam();
       const Uint32 sz = MAX_FRM_DATA_SIZE;
 
@@ -7977,7 +7930,8 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
       ndbrequire(ok);
     }
 
-    if (AlterTableReq::getAddAttrFlag(changeMask)) {
+    if (AlterTableReq::getAddAttrFlag(changeMask))
+    {
       jam();
 
       /* Release the extra columns, not to be used anyway. */
@@ -7994,12 +7948,21 @@ Dbdict::alterTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
         list.release(pPtr);
       }
     }
+  }
 
+  if (alterTabPtr.p->m_blockIndex > 0)
+  {
+    jam();
     /*
-      TODO RONM: Lite ny kod för FragmentData och RangeOrListData
-    */
-
-    // there is no mutex to unlock so we are done
+     * Local blocks have only updated table version.
+     * Reset it to original in reverse block order.
+     */
+    alterTable_abortToLocal(signal, op_ptr);
+    return;
+  }
+  else
+  {
+    jam();
     sendTransConf(signal, op_ptr);
     return;
   }
@@ -8056,20 +8019,20 @@ Dbdict::alterTable_abortFromLocal(Signal*signal, Uint32 op_key, Uint32 ret)
   const Uint32 blockCount = alterTabPtr.p->m_blockIndex;
   ndbrequire(blockCount != 0 && blockCount <= AlterTableRec::BlockCount);
   const Uint32 blockIndex = blockCount - 1;
+  alterTabPtr.p->m_blockIndex = blockIndex;
 
-  if (ret == 0) {
+  ndbrequire(ret == 0); // abort is not allowed to fail
+
+  if (blockIndex > 0)
+  {
     jam();
-    alterTabPtr.p->m_blockIndex = blockIndex;
-
-    // continue to next block or DICT
-    Uint32 itFlags = 0;
-    itFlags |= SchemaTransImplConf::IT_REPEAT;
-
-    sendTransConf(signal, op_ptr, itFlags);
-  } else {
+    alterTable_toLocal(signal, op_ptr);
+    return;
+  }
+  else
+  {
     jam();
-    // abort is not allowed to fail
-    ndbrequire(false);
+    sendTransConf(signal, op_ptr);
   }
 }
 
