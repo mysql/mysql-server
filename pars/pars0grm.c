@@ -293,7 +293,7 @@ typedef int YYSTYPE;
 
 
 /* Line 213 of yacc.c.  */
-#line 297 "pars0grm.tab.c"
+#line 297 "pars0grm.c"
 
 #if ! defined (yyoverflow) || YYERROR_VERBOSE
 
@@ -1349,28 +1349,28 @@ yydestruct (yymsg, yytype, yyvaluep)
 
 #ifdef YYPARSE_PARAM
 # if defined (__STDC__) || defined (__cplusplus)
-int yyparse (void *YYPARSE_PARAM);
+UNIV_INTERN int yyparse (void *YYPARSE_PARAM);
 # else
-int yyparse ();
+UNIV_INTERN int yyparse ();
 # endif
 #else /* ! YYPARSE_PARAM */
 #if defined (__STDC__) || defined (__cplusplus)
-int yyparse (void);
+UNIV_INTERN int yyparse (void);
 #else
-int yyparse ();
+UNIV_INTERN int yyparse ();
 #endif
 #endif /* ! YYPARSE_PARAM */
 
 
 
 /* The look-ahead symbol.  */
-int yychar;
+static int yychar;
 
 /* The semantic value of the look-ahead symbol.  */
-YYSTYPE yylval;
+UNIV_INTERN YYSTYPE yylval;
 
 /* Number of syntax errors so far.  */
-int yynerrs;
+static int yynerrs;
 
 
 
@@ -1380,9 +1380,9 @@ int yynerrs;
 
 #ifdef YYPARSE_PARAM
 # if defined (__STDC__) || defined (__cplusplus)
-int yyparse (void *YYPARSE_PARAM)
+UNIV_INTERN int yyparse (void *YYPARSE_PARAM)
 # else
-int yyparse (YYPARSE_PARAM)
+UNIV_INTERN int yyparse (YYPARSE_PARAM)
   void *YYPARSE_PARAM;
 # endif
 #else /* ! YYPARSE_PARAM */
@@ -2366,7 +2366,7 @@ yyreduce:
     }
 
 /* Line 1010 of yacc.c.  */
-#line 2345 "pars0grm.tab.c"
+#line 2345 "pars0grm.c"
 
   yyvsp -= yylen;
   yyssp -= yylen;
