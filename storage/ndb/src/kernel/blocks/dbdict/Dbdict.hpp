@@ -1315,7 +1315,8 @@ private:
     void (Dbdict::*m_release)(SchemaOpPtr);
 
     // parse phase
-    void (Dbdict::*m_parse)(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+    void (Dbdict::*m_parse)(Signal*, bool master,
+                            SchemaOpPtr, SectionHandle&, ErrorInfo&);
     bool (Dbdict::*m_subOps)(Signal*, SchemaOpPtr);
     void (Dbdict::*m_reply)(Signal*, SchemaOpPtr, ErrorInfo);
 
@@ -2182,7 +2183,8 @@ private:
   bool createTable_seize(SchemaOpPtr);
   void createTable_release(SchemaOpPtr);
   //
-  void createTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTable_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createTable_subOps(Signal*, SchemaOpPtr);
   void createTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2243,7 +2245,8 @@ private:
   bool dropTable_seize(SchemaOpPtr);
   void dropTable_release(SchemaOpPtr);
   //
-  void dropTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTable_parse(Signal*, bool master,
+                       SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropTable_subOps(Signal*, SchemaOpPtr);
   void dropTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2331,7 +2334,8 @@ private:
   bool alterTable_seize(SchemaOpPtr);
   void alterTable_release(SchemaOpPtr);
   //
-  void alterTable_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void alterTable_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterTable_subOps(Signal*, SchemaOpPtr);
   void alterTable_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2411,7 +2415,8 @@ private:
   bool createIndex_seize(SchemaOpPtr);
   void createIndex_release(SchemaOpPtr);
   //
-  void createIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createIndex_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool createIndex_subOps(Signal*, SchemaOpPtr);
   void createIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2462,7 +2467,8 @@ private:
   bool dropIndex_seize(SchemaOpPtr);
   void dropIndex_release(SchemaOpPtr);
   //
-  void dropIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropIndex_parse(Signal*, bool master,
+                       SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool dropIndex_subOps(Signal*, SchemaOpPtr);
   void dropIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2533,7 +2539,8 @@ private:
   bool alterIndex_seize(SchemaOpPtr);
   void alterIndex_release(SchemaOpPtr);
   //
-  void alterIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void alterIndex_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool alterIndex_subOps(Signal*, SchemaOpPtr);
   void alterIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2608,7 +2615,8 @@ private:
   bool buildIndex_seize(SchemaOpPtr);
   void buildIndex_release(SchemaOpPtr);
   //
-  void buildIndex_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void buildIndex_parse(Signal*, bool master,
+                        SchemaOpPtr, SectionHandle&, ErrorInfo&);
   bool buildIndex_subOps(Signal*, SchemaOpPtr);
   void buildIndex_reply(Signal*, SchemaOpPtr, ErrorInfo);
   //
@@ -2790,7 +2798,8 @@ private:
   bool createTrigger_seize(SchemaOpPtr);
   void createTrigger_release(SchemaOpPtr);
   //
-  void createTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void createTrigger_parse(Signal*, bool master,
+                           SchemaOpPtr, SectionHandle&, ErrorInfo&);
   void createTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool createTrigger_subOps(Signal*, SchemaOpPtr);
   void createTrigger_toCreateEndpoint(Signal*, SchemaOpPtr,
@@ -2845,7 +2854,8 @@ private:
   bool dropTrigger_seize(SchemaOpPtr);
   void dropTrigger_release(SchemaOpPtr);
   //
-  void dropTrigger_parse(Signal*, SchemaOpPtr, SectionHandle&, ErrorInfo&);
+  void dropTrigger_parse(Signal*, bool master,
+                         SchemaOpPtr, SectionHandle&, ErrorInfo&);
   void dropTrigger_parse_endpoint(Signal*, SchemaOpPtr op_ptr, ErrorInfo&);
   bool dropTrigger_subOps(Signal*, SchemaOpPtr);
   void dropTrigger_toDropEndpoint(Signal*, SchemaOpPtr,
