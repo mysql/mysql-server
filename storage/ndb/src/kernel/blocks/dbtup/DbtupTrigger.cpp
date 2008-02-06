@@ -1030,15 +1030,15 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   switch(regOperPtr->op_struct.op_type) {
   case(ZINSERT):
     jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_INSERT);
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_INSERT;
     break;
   case(ZDELETE):
     jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_DELETE);
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_DELETE;
     break;
   case(ZUPDATE):
     jam();
-    fireTrigOrd->setTriggerEvent(TriggerEvent::TE_UPDATE);
+    fireTrigOrd->m_triggerEvent = TriggerEvent::TE_UPDATE;
     break;
   default:
     ndbrequire(false);
@@ -1052,6 +1052,9 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
     jam();
+    fireTrigOrd->m_triggerType = TriggerType::SECONDARY_INDEX;
+    fireTrigOrd->m_transId1 = req_struct->trans_id1;
+    fireTrigOrd->m_transId2 = req_struct->trans_id2;
     sendSignal(req_struct->TC_ref, GSN_FIRE_TRIG_ORD, 
                signal, FireTrigOrd::SignalLength, JBB);
     break;
