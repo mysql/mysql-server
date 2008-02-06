@@ -1,0 +1,25 @@
+
+# BUG#31582: 5.1-telco-6.1 -> 5.1.22. Slave crashes when reading
+#            UPDATE for VARCHAR
+
+# This is a problem for any update statement replicating from an old
+# server to a new server. The bug consisted of a new slave trying to
+# read two column bitmaps, but there is only one available in the old
+# format.
+
+# This test case should be executed replicating from an old server to
+# a new server, so make sure you have one handy.
+
+source include/master-slave.inc;
+
+CREATE TABLE t1 (a VARCHAR(10) PRIMARY KEY) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('a');
+UPDATE t1 SET a = 'MyISAM';
+SELECT * FROM t1 ORDER BY a;
+sync_slave_with_master;
+SELECT * FROM t1 ORDER BY a;
+
+connection master;
+DROP TABLE t1;
+sync_slave_with_master;
+

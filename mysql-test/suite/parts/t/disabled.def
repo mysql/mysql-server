@@ -3,16 +3,23 @@ ndb_dd_backuprestore           : cannot create t1
 ndb_partition_error            : cannot create t1
 ndb_partition_list             : cannot create t1
 ndb_partition_range            : cannot create t1
-partition_bit_ndb              : cannot create t1
-partition_int_ndb              : cannot create t1
-partition_syntax_ndb           : cannot create t1
-partition_value_myisam         : Bug#30581 partition_value tests use disallowed CAST() function
-partition_value_innodb         : Bug#30581 partition_value tests use disallowed CAST() function
-partition_value_ndb            : cannot create t1
-partition_basic_ndb            : cannot create t1
+part_supported_sql_func_ndb    : cannot create t1
 partition_alter1_ndb           : timeout. Needs too much time.
 partition_alter2_ndb           : cannot create t1
-partition_sessions             : needs system_3_init.inc
+partition_basic_ndb            : cannot create t1
+partition_bit_myisam           : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_bit_ndb              : cannot create t1
+partition_char_myisam          : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_datetime_myisam      : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_decimal_myisam       : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
 partition_engine_ndb           : cannot create t1
-part_supported_sql_func_ndb    : cannot create t1
+partition_float_myisam         : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_int_myisam           : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_int_ndb              : cannot create t1
+partition_sessions             : needs system_3_init.inc
+partition_special_myisam       : BUG#34225 2008-02-02 mats test suit parts uses /tmp-dir instead of mysql-test dir, which causes failures
+partition_syntax_ndb           : cannot create t1
+partition_value_innodb         : Bug#30581 partition_value tests use disallowed CAST() function
+partition_value_myisam         : Bug#30581 partition_value tests use disallowed CAST() function
+partition_value_ndb            : cannot create t1
 rpl_ndb_dd_partitions          : cannot create t1

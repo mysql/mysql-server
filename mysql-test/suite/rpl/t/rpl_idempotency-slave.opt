@@ -1,0 +1,2 @@
+--slave-exec-mode=IDEMPOTENT --innodb
+
