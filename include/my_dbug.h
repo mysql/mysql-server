@@ -85,6 +85,7 @@ extern  void _db_force_flush();
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
+#define DBUG_ABORT()       ((void)fflush(DBUG_FILE), abort())
 #else						/* No debugger */
 
 #define DBUG_ENTER(a1)
@@ -114,6 +115,7 @@ extern  void _db_force_flush();
 #define DEBUGGER_OFF                    do { } while(0)
 #define DEBUGGER_ON                     do { } while(0)
 #define IF_DBUG(A)
+#define DBUG_ABORT()                    ((void)(0))
 #endif
 #ifdef	__cplusplus
 }

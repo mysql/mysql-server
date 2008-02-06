@@ -930,7 +930,7 @@ check_and_unset_inject_value(int value)
 #define SET_ERROR_INJECT_VALUE(x) \
   current_thd->error_inject_value= (x)
 #define ERROR_INJECT_CRASH(code) \
-  DBUG_EVALUATE_IF(code, (abort(), 0), 0)
+  DBUG_EVALUATE_IF(code, (DBUG_ABORT(), 0), 0)
 #define ERROR_INJECT_ACTION(code, action) \
   (check_and_unset_keyword(code) ? ((action), 0) : 0)
 #define ERROR_INJECT(code) \
@@ -940,7 +940,7 @@ check_and_unset_inject_value(int value)
 #define ERROR_INJECT_VALUE_ACTION(value,action) \
   (check_and_unset_inject_value(value) ? (action) : 0)
 #define ERROR_INJECT_VALUE_CRASH(value) \
-  ERROR_INJECT_VALUE_ACTION(value, (abort(), 0))
+  ERROR_INJECT_VALUE_ACTION(value, (DBUG_ABORT(), 0))
 
 #endif
 
