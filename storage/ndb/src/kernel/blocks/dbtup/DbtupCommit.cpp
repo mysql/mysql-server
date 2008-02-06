@@ -486,7 +486,7 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
      */
     fix_commit_order(regOperPtr);
   }
-  ndbassert(regOperPtr.p->is_first_operation());
+  //ndbassert(regOperPtr.p->is_first_operation());
   
   regFragPtr.i= regOperPtr.p->fragmentPtr;
   trans_state= get_trans_state(regOperPtr.p);
