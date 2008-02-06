@@ -1,15 +1,3 @@
---disable_query_log
-# DATA DIRECTORY
-eval SET @data_dir = 'DATA DIRECTORY =
-''/tmp''';
-let $data_directory = `select @data_dir`;
-
-#INDEX DIRECTORY
-eval SET @indx_dir = 'INDEX DIRECTORY =
-''/tmp''';
-let $index_directory = `select @indx_dir`;
---enable_query_log
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -23,8 +11,8 @@ drop table t1;
 
 eval create table t1 (a bit(0), primary key (a)) engine=$engine 
 partition by key (a) (
-partition pa1 $data_directory $index_directory,
-partition pa2 $data_directory $index_directory);
+partition pa1,
+partition pa2);
 show create table t1;
 drop table t1;
 
@@ -42,10 +30,10 @@ drop table t1;
 
 eval create table t1 (a bit(64), primary key (a)) engine=$engine 
 partition by key (a) (
-partition pa1 $data_directory $index_directory max_rows=20 min_rows=2,
-partition pa2 $data_directory $index_directory max_rows=30 min_rows=3,
-partition pa3 $data_directory $index_directory max_rows=30 min_rows=4,
-partition pa4 $data_directory $index_directory max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
