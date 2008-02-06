@@ -52,6 +52,7 @@ extern  void _db_end_(void);
 extern  void _db_lock_file_(void);
 extern  void _db_unlock_file_(void);
 extern  FILE *_db_fp_(void);
+extern  void _db_flush_();
 
 #define DBUG_ENTER(a) struct _db_stack_frame_ _db_stack_frame_; \
         _db_enter_ (a,__FILE__,__LINE__,&_db_stack_frame_)
@@ -86,7 +87,7 @@ extern  FILE *_db_fp_(void);
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
-#define DBUG_ABORT()       ((void)fflush(DBUG_FILE), abort())
+#define DBUG_ABORT()                    (_db_flush_(), abort())
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)

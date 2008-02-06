@@ -511,7 +511,7 @@ possible since all code preceding the first call to
 .B DBUG_PUSH 
 is
 essentially invisible to 
-.B dbug
+.I dbug
 (this can be worked around by
 inserting a temporary 
 .B DBUG_PUSH(argv[1])
@@ -707,7 +707,7 @@ EX:\ \fCDBUG_PROCESS\ (argv[0]);\fR
 .SP 1
 .LI DBUG_PUSH\ 
 Sets a new debugger state by pushing the current
-.B dbug
+.I dbug
 state onto an internal stack and setting up the new state using the
 debug control string passed as the macro argument.  The most common
 usage is to set the state specified by a debug control string
@@ -767,14 +767,14 @@ the 'd' flag. Used to conditionally execute "dangerous" actions, e.g
 to crash the program testing how recovery works, or to introduce an
 artificial delay checking for race conditions.
 .SP 1
-EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ abort\ ());\fR
+EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ DBUG_ABORT()\ ());\fR
 .SP 1
 .LI DBUG_EVALUATE\ 
 The DBUG_EVALUATE macro is similar to DBUG_EXECUTE, but it can be used in
 the expression context. The first argument is the debug keyword that is used to
 choose whether the second (keyword is enabled) or the third (keyword is not
 enabled) argument is evaluated. When
-.B dbug
+.I dbug
 is compiled off, the third argument is evaluated.
 .SP 1
 EX:\fC
@@ -794,7 +794,7 @@ EX:\fC
 .br
     if (prepare_transaction () ||
 .br
-        DBUG_EVALUATE ("crashme", (abort (), 0), 0) ||
+        DBUG_EVALUATE ("crashme", (DBUG_ABORT(), 0), 0) ||
 .br
         commit_transaction () )\fR
 .SP 1
@@ -872,6 +872,12 @@ disabled by DBUG_OFF togeher with the
 library. So there will be no need to disable asserts separately with NDEBUG.
 .SP 1
 EX:\ \fCDBUG_ASSERT(\ a\ >\ 0\ );\fR
+.SP 1
+.LI DBUG_ABORT\ 
+This macro could be used instead of abort(). It flushes DBUG_FILE stream
+to ensure that no
+.I dbug
+output is lost and then calls abort().
 .SP 1
 .LI DBUG_EXPLAIN\ 
 Generates control string corresponding to the current debug state.

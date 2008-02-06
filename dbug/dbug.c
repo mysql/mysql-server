@@ -310,7 +310,7 @@ static void DoPrefix(CODE_STATE *cs, uint line);
 static char *DbugMalloc(size_t size);
 static const char *BaseName(const char *pathname);
 static void Indent(CODE_STATE *cs, int indent);
-static void dbug_flush(CODE_STATE *);
+static void DbugFlush(CODE_STATE *);
 static void DbugExit(const char *why);
 static const char *DbugStrTok(const char *s);
 
@@ -1164,7 +1164,7 @@ void _db_enter_(const char *_func_, const char *_file_,
     DoPrefix(cs, _line_);
     Indent(cs, cs->level);
     (void) fprintf(cs->stack->out_file, ">%s\n", cs->func);
-    dbug_flush(cs);                       /* This does a unlock */
+    DbugFlush(cs);                       /* This does a unlock */
     break;
   case DISABLE_TRACE:
     cs->framep->level&= ~TRACE_ON;
@@ -1214,7 +1214,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
       pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_MISSING_RETURN, cs->process,
                    cs->func);
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
   else
   {
@@ -1236,7 +1236,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
       (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
-      dbug_flush(cs);
+      DbugFlush(cs);
     }
   }
   /*
@@ -1328,7 +1328,7 @@ void _db_doprnt_(const char *format,...)
     (void) fprintf(cs->stack->out_file, "%s: ", cs->u_keyword);
     (void) vfprintf(cs->stack->out_file, format, args);
     (void) fputc('\n',cs->stack->out_file);
-    dbug_flush(cs);
+    DbugFlush(cs);
     errno=save_errno;
   }
   va_end(args);
@@ -1393,7 +1393,7 @@ void _db_dump_(uint _line_, const char *keyword,
       fputc(' ',cs->stack->out_file);
     }
     (void) fputc('\n',cs->stack->out_file);
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
 }
 
@@ -2089,7 +2089,7 @@ static void DBUGCloseFile(CODE_STATE *cs, FILE *fp)
     pthread_mutex_lock(&THR_LOCK_dbug);
     (void) fprintf(cs->stack->out_file, ERR_CLOSE, cs->process);
     perror("");
-    dbug_flush(cs);
+    DbugFlush(cs);
   }
 }
 
@@ -2384,7 +2384,7 @@ char *s;
         /* This is because some systems (MSDOS!!) dosn't flush fileheader */
         /* and dbug-file isn't readable after a system crash !! */
 
-static void dbug_flush(CODE_STATE *cs)
+static void DbugFlush(CODE_STATE *cs)
 {
   if (cs->stack->flags & FLUSH_ON_WRITE)
   {
@@ -2394,12 +2394,12 @@ static void dbug_flush(CODE_STATE *cs)
   }
   if (!cs->locked)
     pthread_mutex_unlock(&THR_LOCK_dbug);
-} /* dbug_flush */
+} /* DbugFlush */
 
 
 /* For debugging */
 
-void _db_force_flush_()
+void _db_flush_()
 {
   CODE_STATE *cs;
   get_code_state_or_return;

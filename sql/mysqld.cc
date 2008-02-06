@@ -5470,11 +5470,6 @@ struct my_option my_long_options[] =
    "Call my_debug_put_break_here() if crc matches this number (for debug).",
    (uchar**) &opt_my_crc_dbug_check, (uchar**) &opt_my_crc_dbug_check,
    0, GET_ULONG, REQUIRED_ARG, 0, 0, ~(ulong) 0L, 0, 0, 0},
-  {"debug-on", OPT_DEBUG_ON,
-   "Enable all DBUG commands. Needed if you want to use DBUG_EXECUTE without "
-   "starting mysqld with --debug",
-   (uchar**) &_dbug_on_, (uchar**) 0, 0, GET_BOOL, NO_ARG, 1,
-   0, 0, 0, 0, 0},
 #endif
   {"default-character-set", 'C', "Set the default character set (deprecated option, use --character-set-server instead).",
    (uchar**) &default_character_set_name, (uchar**) &default_character_set_name,
