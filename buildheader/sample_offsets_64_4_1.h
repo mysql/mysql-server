@@ -27,6 +27,7 @@ struct fieldinfo db_env_fields64[] = {
   {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 664, 8},
   {"int  (*set_lk_detect) (DB_ENV *, u_int32_t)", 704, 8},
   {"int  (*set_lk_max) (DB_ENV *, u_int32_t)", 712, 8},
+  {"int  (*set_lk_max_locks) (DB_ENV *, u_int32_t)", 720, 8},
   {"int  (*set_cachesize) (DB_ENV *, u_int32_t, u_int32_t, int)", 840, 8},
   {"int  (*txn_begin) (DB_ENV *, DB_TXN *, DB_TXN **, u_int32_t)", 1016, 8},
   {"int  (*txn_checkpoint) (DB_ENV *, u_int32_t, u_int32_t, u_int32_t)", 1024, 8},
