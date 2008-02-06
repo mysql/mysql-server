@@ -25,7 +25,10 @@
 #ifdef MY_ATOMIC_MODE_DUMMY
 #define make_atomic_load_body(S)   ret= *a
 #define make_atomic_store_body(S)  *a= v
+#define MY_ATOMIC_MODE "gcc-builtins-up"
+
 #else
+#define MY_ATOMIC_MODE "gcc-builtins-smp"
 #define make_atomic_load_body(S)                    \
   ret= __sync_fetch_and_or(a, 0);
 #define make_atomic_store_body(S)                   \

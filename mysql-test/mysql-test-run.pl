@@ -427,7 +427,7 @@ sub main () {
     my $tests= collect_test_cases($opt_suites);
 
     # Turn off NDB and other similar options if no tests use it
-    my ($need_ndbcluster,$need_im);
+    my ($need_ndbcluster,$need_im, $need_debug);
     foreach my $test (@$tests)
     {
       next if $test->{skip};
@@ -435,6 +435,7 @@ sub main () {
       if (!$opt_extern)
       {
 	$need_ndbcluster||= $test->{ndb_test};
+        $need_debug||=$test->{need_debug};
 	$need_im||= $test->{component_id} eq 'im';
 
 	# Count max number of slaves used by a test case
@@ -458,6 +459,11 @@ sub main () {
     {
       $opt_skip_ndbcluster= 1;
       $opt_skip_ndbcluster_slave= 1;
+    }
+
+    if ( !$need_debug && !$opt_debug)
+    {
+      $opt_debug=0;
     }
 
     # Check if slave cluster can be skipped
@@ -3127,8 +3133,8 @@ sub install_db ($$) {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
-  mtr_add_arg($args, "--sync-frm=0");
-  mtr_add_arg($args, "--loose-debug-on=0");
+  mtr_add_arg($args, "--disable-sync-frm");
+  mtr_add_arg($args, "--loose-disable-debug");
   mtr_add_arg($args, "--tmpdir=.");
   mtr_add_arg($args, "--core-file");
 
@@ -3922,8 +3928,7 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--datadir=%s", $prefix,
 	      $mysqld->{'path_myddir'});
 
-  mtr_add_arg($args, "--sync-frm=0");  # Faster test
-  mtr_add_arg($args, "--loose-debug-on=0");
+  mtr_add_arg($args, "--disable-sync-frm");  # Faster test
 
   if ( $mysql_version_id >= 50106 )
   {
@@ -4052,10 +4057,17 @@ sub mysqld_arguments ($$$$) {
 
   } # end slave
 
-  if ( $opt_debug )
+  if ( defined $opt_debug )
   {
-    mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s%s.trace",
-		$prefix, $path_vardir_trace, $mysqld->{'type'}, $sidx);
+    if ( $opt_debug )
+    {
+      mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s%s.trace",
+                  $prefix, $path_vardir_trace, $mysqld->{'type'}, $sidx);
+    }
+    else
+    {
+      mtr_add_arg($args, "--disable-debug");
+    }
   }
 
   mtr_add_arg($args, "%s--key_buffer_size=1M", $prefix);

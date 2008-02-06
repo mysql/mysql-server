@@ -1,2 +1,1 @@
---skip-stack-trace --skip-core-file --loose-debug-on=1 --maria-log-dir-path=../tmp
-
+--skip-stack-trace --skip-core-file --maria-log-dir-path=../tmp

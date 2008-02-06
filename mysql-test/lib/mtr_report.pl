@@ -386,7 +386,7 @@ sub mtr_report_stats ($) {
                 # rpl_temporary has an error on slave that can be ignored
                 ($testname eq 'rpl.rpl_temporary' and
                  (/Slave: Can\'t find record in \'user\' Error_code: 1032/
-                 ))
+                 )) or
                 # maria-recovery.test has warning about missing log file
                 /Can't get stat of '.*maria_log.00/ or
                 # and about marked-corrupted table
