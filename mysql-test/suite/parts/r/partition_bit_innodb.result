@@ -12,18 +12,14 @@ t1	CREATE TABLE `t1` (
 drop table t1;
 create table t1 (a bit(0), primary key (a)) engine='INNODB' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp',
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp');
+partition pa1,
+partition pa2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(1) NOT NULL DEFAULT '\0',
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 ENGINE = InnoDB, PARTITION pa2 ENGINE = InnoDB) */
 drop table t1;
 create table t1 (a bit(64), primary key (a)) engine='INNODB' 
 partition by key (a) partitions 2;
@@ -49,24 +45,16 @@ FFFFFFFFFFFFFFFF
 drop table t1;
 create table t1 (a bit(64), primary key (a)) engine='INNODB' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` bit(64) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0',
   PRIMARY KEY (`a`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
 (b'1000000000000000000000000000000000000000000000000000000000000000'),
