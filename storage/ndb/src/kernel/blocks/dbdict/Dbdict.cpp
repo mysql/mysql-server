@@ -4984,7 +4984,8 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal)
 // CreateTable: PARSE
 
 void
-Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::createTable_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
                           SectionHandle& handle, ErrorInfo& error)
 {
   D("createTable_parse");
@@ -5007,7 +5008,8 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
    * The new DictTabInfo (sec 0) and the fragmentation (sec 1) are
    * sent to all participants when master parse returns.
    */
-  if (trans_ptr.p->m_isMaster) {
+  if (master)
+  {
     jam();
 
     // parse client DictTabInfo into new TableRecord
@@ -5158,7 +5160,8 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
   }
 
   // wl3600_todo parse the rewritten DictTabInfo in master too
-  if (!trans_ptr.p->m_isMaster) {
+  if (!master)
+  {
     jam();
     createTabPtr.p->m_request.tableId = tableId;
 
@@ -5171,7 +5174,8 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
     bool checkExist = true;
     handleTabInfoInit(r, &parseRecord, checkExist);
 
-    if (parseRecord.errorCode != 0) {
+    if (parseRecord.errorCode != 0)
+    {
       jam();
       setError(error, parseRecord);
       return;
@@ -5229,8 +5233,8 @@ Dbdict::createTable_parse(Signal* signal, SchemaOpPtr op_ptr,
   }
 
   D("createTable_parse: "
-      << copyRope<MAX_TAB_NAME_SIZE>(tabPtr.p->tableName)
-      << V(tabPtr.p->tableVersion));
+    << copyRope<MAX_TAB_NAME_SIZE>(tabPtr.p->tableName)
+    << V(tabPtr.p->tableVersion));
 }
 
 bool
@@ -6340,7 +6344,8 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal)
 // DropTable: PARSE
 
 void
-Dbdict::dropTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::dropTable_parse(Signal* signal, bool master,
+                        SchemaOpPtr op_ptr,
                         SectionHandle& handle, ErrorInfo& error)
 {
   D("dropTable_parse" << V(op_ptr.i) << *op_ptr.p);
@@ -7160,7 +7165,8 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
 // AlterTable: PARSE
 
 void
-Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::alterTable_parse(Signal* signal, bool master,
+                         SchemaOpPtr op_ptr,
                          SectionHandle& handle, ErrorInfo& error)
 {
   D("alterTable_parse");
@@ -7268,12 +7274,16 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr,
       return;
     }
 
-    if (trans_ptr.p->m_isMaster) {
+    if (master)
+    {
       jam();
       impl_req->noOfNewAttr = noOfNewAttr;
       impl_req->newNoOfCharsets = newTablePtr.p->noOfCharsets;
       impl_req->newNoOfKeyAttrs = newTablePtr.p->noOfPrimkey;
-    } else {
+    }
+    else
+    {
+      jam();
       ndbrequire(impl_req->noOfNewAttr == noOfNewAttr);
     }
 
@@ -7310,7 +7320,8 @@ Dbdict::alterTable_parse(Signal* signal, SchemaOpPtr op_ptr,
   }
 
   // master rewrites DictTabInfo (it is re-parsed only on slaves)
-  if (trans_ptr.p->m_isMaster) {
+  if (master)
+  {
     jam();
     releaseSections(handle);
     SimplePropertiesSectionWriter w(getSectionSegmentPool());
@@ -8637,7 +8648,8 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
 // CreateIndex: PARSE
 
 void
-Dbdict::createIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::createIndex_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
                           SectionHandle& handle, ErrorInfo& error)
 {
   D("createIndex_parse");
@@ -9338,7 +9350,8 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
 // DropIndex: PARSE
 
 void
-Dbdict::dropIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::dropIndex_parse(Signal* signal, bool master,
+                        SchemaOpPtr op_ptr,
                         SectionHandle& handle, ErrorInfo& error)
 {
   D("dropIndex_parse" << V(op_ptr.i) << *op_ptr.p);
@@ -9386,16 +9399,22 @@ Dbdict::dropIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
   c_tableRecordPool.getPtr(tablePtr, indexPtr.p->primaryTableId);
 
   // master sets primary table, slave verifies it agrees
-  if (reference() == impl_req->senderRef) {
+  if (master)
+  {
+    jam();
     impl_req->tableId = tablePtr.p->tableId;
     impl_req->tableVersion = tablePtr.p->tableVersion;
-  } else {
-    if (impl_req->tableId != tablePtr.p->tableId) {
+  }
+  else
+  {
+    if (impl_req->tableId != tablePtr.p->tableId)
+    {
       jam(); // wl3600_todo better error code
       setError(error, DropIndxRef::InvalidIndexVersion, __LINE__);
       return;
     }
-    if (impl_req->tableVersion != tablePtr.p->tableVersion) {
+    if (impl_req->tableVersion != tablePtr.p->tableVersion)
+    {
       jam(); // wl3600_todo better error code
       setError(error, DropIndxRef::InvalidIndexVersion, __LINE__);
       return;
@@ -9797,7 +9816,8 @@ Dbdict::g_buildIndexConstraintTmpl[1] = {
 // AlterIndex: PARSE
 
 void
-Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::alterIndex_parse(Signal* signal, bool master,
+                         SchemaOpPtr op_ptr,
                          SectionHandle& handle, ErrorInfo& error)
 {
   D("alterIndex_parse" << V(op_ptr.i) << *op_ptr.p);
@@ -9838,9 +9858,13 @@ Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
     return;
   }
 
-  if (trans_ptr.p->m_isMaster) {
+  if (master)
+  {
+    jam();
     impl_req->indexType = indexPtr.p->tableType;
-  } else {
+  }
+  else
+  {
     jam();
     ndbrequire(impl_req->indexType == (Uint32)indexPtr.p->tableType);
   }
@@ -9856,16 +9880,22 @@ Dbdict::alterIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
   c_tableRecordPool.getPtr(tablePtr, indexPtr.p->primaryTableId);
 
   // master sets primary table, participant verifies it agrees
-  if (trans_ptr.p->m_isMaster) {
+  if (master)
+  {
+    jam();
     impl_req->tableId = tablePtr.p->tableId;
     impl_req->tableVersion = tablePtr.p->tableVersion;
-  } else {
-    if (impl_req->tableId != tablePtr.p->tableId) {
+  }
+  else
+  {
+    if (impl_req->tableId != tablePtr.p->tableId)
+    {
       jam(); // wl3600_todo better error code
       setError(error, AlterIndxRef::InvalidIndexVersion, __LINE__);
       return;
     }
-    if (impl_req->tableVersion != tablePtr.p->tableVersion) {
+    if (impl_req->tableVersion != tablePtr.p->tableVersion)
+    {
       jam(); // wl3600_todo better error code
       setError(error, AlterIndxRef::InvalidIndexVersion, __LINE__);
       return;
@@ -10646,7 +10676,8 @@ Dbdict::execBUILDINDXREQ(Signal* signal)
 // BuildIndex: PARSE
 
 void
-Dbdict::buildIndex_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::buildIndex_parse(Signal* signal, bool master,
+                         SchemaOpPtr op_ptr,
                          SectionHandle& handle, ErrorInfo& error)
 {
   D("buildIndex_parse");
@@ -13701,7 +13732,8 @@ Dbdict::execCREATE_TRIG_REQ(Signal* signal)
 // CreateTrigger: PARSE
 
 void
-Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::createTrigger_parse(Signal* signal, bool master,
+                            SchemaOpPtr op_ptr,
                             SectionHandle& handle, ErrorInfo& error)
 {
   D("createTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
@@ -13800,7 +13832,7 @@ Dbdict::createTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
   }
 
   TriggerRecordPtr triggerPtr;
-  if (trans_ptr.p->m_isMaster)
+  if (master)
   {
     jam();
     if (impl_req->triggerId == RNIL)
@@ -14444,7 +14476,8 @@ Dbdict::execDROP_TRIG_REQ(Signal* signal)
 // DropTrigger: PARSE
 
 void
-Dbdict::dropTrigger_parse(Signal* signal, SchemaOpPtr op_ptr,
+Dbdict::dropTrigger_parse(Signal* signal, bool master,
+                          SchemaOpPtr op_ptr,
                           SectionHandle& handle, ErrorInfo& error)
 {
   D("dropTrigger_parse" << V(op_ptr.i) << *op_ptr.p);
@@ -19359,7 +19392,7 @@ Dbdict::handleClientReq(Signal* signal, SchemaOpPtr op_ptr,
 
   ErrorInfo error;
   const OpInfo& info = getOpInfo(op_ptr);
-  (this->*(info.m_parse))(signal, op_ptr, handle, error);
+  (this->*(info.m_parse))(signal, true, op_ptr, handle, error);
 
   if (hasError(error)) {
     jam();
@@ -20178,7 +20211,7 @@ Dbdict::recvTransParseReq(Signal* signal, SchemaTransPtr trans_ptr,
       Uint32* dst = oprec_ptr.p->m_impl_req_data;
       memcpy(dst, src, len << 2);
 
-      (this->*(info.m_parse))(signal, op_ptr, handle, error);
+      (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
       if (!hasError(error)) {
         jam();
         updateSchemaOpStep(trans_ptr, op_ptr);
