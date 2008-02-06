@@ -933,6 +933,10 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     int r = toku_close_brt(db->i->brt);
     if (r != 0)
         return r;
+    if (db->i->lt) {
+        r = toku_lt_close(db->i->lt);
+        if (r!=0) return r;
+    }
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     int is_panicked = env_is_panicked(db->dbenv); // Even if panicked, let's close as much as we can.
     env_unref(db->dbenv);
