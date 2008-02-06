@@ -1384,6 +1384,11 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   struct Tuple_header
   {
     union {
+      /**
+       * List of prepared operations for this tuple.
+       * Points to most recent/last operation, ie. to walk the list must follow
+       * regOperPtr->prevActiveOp links.
+       */
       Uint32 m_operation_ptr_i;  // OperationPtrI
       Uint32 m_base_record_ref;  // For disk tuple, ref to MM tuple
     };
@@ -3156,7 +3161,7 @@ private:
   void verify_page_lists(Disk_alloc_info&) {}
 #endif
   
-  void fix_commit_order(OperationrecPtr);
+  void findFirstOp(OperationrecPtr&);
   void commit_operation(Signal*, Uint32, Tuple_header*, PagePtr,
 			Operationrec*, Fragrecord*, Tablerec*);
   
