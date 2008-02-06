@@ -1002,7 +1002,7 @@ static void ndbcluster_get_schema(NDB_SHARE *share,
     uint blob_len= field_blob->get_length((*field)->ptr);
     uchar *blob_ptr= 0;
     field_blob->get_ptr(&blob_ptr);
-    assert(blob_len == 0 || blob_ptr != 0);
+    DBUG_ASSERT(blob_len == 0 || blob_ptr != 0);
     s->query_length= blob_len;
     s->query= sql_strmake((char*) blob_ptr, blob_len);
   }
