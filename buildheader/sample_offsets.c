@@ -74,6 +74,7 @@ void sample_db_env_offsets (void) {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     STRUCT_SETUP(DB_ENV, get_cachesize, "int (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
     STRUCT_SETUP(DB_ENV, get_flags, "int (*%s) (DB_ENV *, u_int32_t *)");
+    STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t *)");    
 #endif
     STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
     STRUCT_SETUP(DB_ENV, log_flush, "int  (*%s) (DB_ENV *, const DB_LSN *)");
@@ -96,6 +97,7 @@ void sample_db_env_offsets (void) {
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
     STRUCT_SETUP(DB_ENV, set_lk_max, "int  (*%s) (DB_ENV *, u_int32_t)");
 #endif
+    STRUCT_SETUP(DB_ENV, set_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t)");
     //STRUCT_SETUP(DB_ENV, set_noticecall, "void (*%s) (DB_ENV *, void (*)(DB_ENV *, db_notices))");
     STRUCT_SETUP(DB_ENV, set_tmp_dir, "int  (*%s) (DB_ENV *, const char *)");
     STRUCT_SETUP(DB_ENV, set_verbose, "int  (*%s) (DB_ENV *, u_int32_t, int)");
