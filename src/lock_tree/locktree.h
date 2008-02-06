@@ -58,9 +58,9 @@ typedef enum {
 
 char* toku_lt_strerror(TOKU_LT_ERROR r) __attribute__((const,pure));
 
-#define TOKU_LOCK_TREE_DEFINED
+typedef struct __toku_lock_tree toku_lock_tree;
 /** \brief The lock tree structure */
-typedef struct __toku_lock_tree {
+struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
     DB*                 db;
     /** Whether the db supports duplicate */
@@ -78,6 +78,8 @@ typedef struct __toku_lock_tree {
     u_int32_t           max_ranges;
     /** The current number of ranges. */
     u_int32_t*          num_ranges;
+    /** The lock callback function. */
+    int               (*lock_callback)(DB_TXN*, toku_lock_tree*);
     /** The key compare function */
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
@@ -90,7 +92,7 @@ typedef struct __toku_lock_tree {
     void              (*free)   (void*);
     /** The user realloc function */
     void*             (*realloc)(void*, size_t);
-} toku_lock_tree;
+};
 
 
 extern const DBT* const toku_lt_infinity;     /**< Special value denoting 
@@ -371,5 +373,17 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
+
+/**
+    Set a callback function to run after parameter checking but before
+    any locks.
+    This can be called after create, but NOT after any locks or unlocks have
+    occurred.
+    Return: 0 on success.
+    Return: EINVAL if tree is NULL
+    Return: EDOM   if it is too late to change. 
+*/
+int toku_lt_set_txn_callback(toku_lock_tree* tree,
+                             int (*callback)(DB_TXN*, toku_lock_tree*));
 
 #endif
