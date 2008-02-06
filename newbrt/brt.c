@@ -678,7 +678,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	    goto ok;
 	case BRT_NONE:
 	    // Don't have to do anything in this case, can just drop the command
-	    goto ok;
+            break;
 	}
 	printf("Bad type %d\n", type); // Don't use default: because I want a compiler warning if I forget a enum case, and I want a runtime error if the type isn't one of the expected ones.
 	assert(0);
@@ -1745,7 +1745,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 		FIFO_ITERATE(BNC_BUFFER(node,i), key, keylen, data, datalen, type, xid,
 				  ({
 				      data=data; datalen=datalen; keylen=keylen;
-				      printf("%*s xid=%lld %d (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
+				      printf("%*s xid=%"PRId64" %d (type=%d)\n", depth+2, "", xid, ntohl(*(int*)key), type);
 				      //assert(strlen((char*)key)+1==keylen);
 				      //assert(strlen((char*)data)+1==datalen);
 				  }));
