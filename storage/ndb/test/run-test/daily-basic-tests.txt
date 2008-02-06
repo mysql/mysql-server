@@ -1052,7 +1052,7 @@ args: -n Bug33793 T1
 
 max-time: 600
 cmd: testNodeRestart
-args: --nologging -n Bug34216 -l 10 T1 I3 D2
+args: -n Bug34216 -l 10 T1 I3 D2
 
 max-time: 1200
 cmd: testNodeRestart
