@@ -1677,8 +1677,7 @@ int ha_maria::enable_indexes(uint mode)
   DBUG_EXECUTE_IF("maria_crash_enable_index",
                   {
                     DBUG_PRINT("maria_crash_enable_index", ("now"));
-                    fflush(DBUG_FILE);
-                    abort();
+                    DBUG_ABORT();
                   });
   return error;
 }

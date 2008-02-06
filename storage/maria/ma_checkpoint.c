@@ -419,11 +419,7 @@ void ma_checkpoint_end(void)
                     flush_all_tables(1);
                   });
   DBUG_EXECUTE_IF("maria_crash",
-                  {
-                    DBUG_PRINT("maria_crash", ("now"));
-                    fflush(DBUG_FILE);
-                    abort();
-                  });
+                  { DBUG_PRINT("maria_crash", ("now")); DBUG_ABORT(); });
 
   if (checkpoint_inited)
   {
