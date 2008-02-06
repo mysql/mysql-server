@@ -20,6 +20,8 @@ else
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
+OPTFLAGS=-O0
+
 LIBNAME=librt.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
@@ -87,7 +89,7 @@ endif
 	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
 libs:
-	cd ..;make
+	cd .. && make
 
 %.lin: %.c ../rangetree.h test.h
 	$(SETENV) cc  -DDIR=\"dir.$<.lin\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -o $@
@@ -99,7 +101,7 @@ libs:
 .PHONY: make_libs
 
 make_libs:
-	cd ..;make
+	cd .. && make
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

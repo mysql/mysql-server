@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <errno.h>
 int verbose=0;
+#include <lth.h>
 
 BOOL want_panic = FALSE;
 
