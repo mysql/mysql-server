@@ -497,9 +497,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   no_of_tablerec= cnoOfTablerec;
   regTabPtr.i= regFragPtr.p->fragTableId;
-  hash_value= tupCommitReq->hashValue;
-  Uint32 gci_hi = tupCommitReq->gci_hi;
-  Uint32 gci_lo = tupCommitReq->gci_lo;
 
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
