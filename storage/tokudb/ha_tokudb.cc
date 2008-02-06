@@ -2567,7 +2567,9 @@ int ha_tokudb::rename_table(const char * from, const char * to)
 					MY_UNPACK_FILENAME|MY_APPEND_EXT), 0);
   }
 #else
-  error = rename(from, to);
+  char newfrom[strlen(from) + 32]; sprintf(newfrom, "%s%s", from, ha_tokudb_ext);
+  char newto[strlen(to) + 32]; sprintf(newto, "%s%s", to, ha_tokudb_ext);
+  error = rename(newfrom, newto);
   if (error != 0) 
       error = my_errno = errno;
 #endif
@@ -2590,6 +2592,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range *start_key,
                                       key_range *end_key)
 {
   DBUG_ENTER("ha_tokudb::records_in_range");
+#if 0
   DBT key;
   DB_KEY_RANGE start_range, end_range;
   DB *kfile=key_file[keynr];
@@ -2639,6 +2642,9 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range *start_key,
   rows=(end_pos-start_pos)*stats.records;
   DBUG_PRINT("exit",("rows: %g",rows));
   DBUG_RETURN((ha_rows)(rows <= 1.0 ? 1 : rows));
+#else
+  DBUG_RETURN(HA_TOKUDB_RANGE_COUNT);
+#endif
 }
 
 
@@ -2769,8 +2775,10 @@ int ha_tokudb::analyze(THD* thd, HA_CHECK_OPT* check_opt)
 err:
   if (stat)
     free(stat);
-#endif
   return HA_ADMIN_FAILED;
+#else
+  return HA_ADMIN_NOT_IMPLEMENTED;
+#endif
 }
 
 int ha_tokudb::optimize(THD* thd, HA_CHECK_OPT* check_opt)
