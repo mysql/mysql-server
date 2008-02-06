@@ -34,7 +34,7 @@ endif
 install: $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a #$(LIBNAME_TLOG).$(LIBEXT) $(LIBNAME_TLOG).a $(LIBNAME_LOG).$(LIBEXT) $(LIBNAME_LOG).a
 
 clean:
-	rm -rf *.o
+	rm -rf *.o *.gcno *.gcda *.gcov
 	rm -rf $(LIBNAME_LINEAR).$(LIBEXT) $(LIBNAME_LINEAR).a
 	rm -rf $(LIBNAME_TLOG).$(LIBEXT)   $(LIBNAME_TLOG).a
 	rm -rf $(LIBNAME_LOG).$(LIBEXT)    $(LIBNAME_LOG).a

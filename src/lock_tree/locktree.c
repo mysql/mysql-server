@@ -24,6 +24,10 @@ inline static int __toku_lt_panic(toku_lock_tree *tree, int r) {
     return tree->panic(tree->db, r);
 }
                 
+inline static int __toku_lt_callback(toku_lock_tree *tree, DB_TXN* txn) {
+    return tree->lock_callback ? tree->lock_callback(txn, tree) : 0;
+}
+
 const u_int32_t __toku_default_buflen = 2;
 
 static const DBT __toku_lt_infinity;
@@ -424,7 +428,7 @@ static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
         if (r!=0)   return r;
         conflict = met ? TOKU_YES_CONFLICT : TOKU_NO_CONFLICT;
     }
-    if    (conflict == TOKU_YES_CONFLICT) return DB_LOCK_NOTGRANTED;
+    if    (conflict == TOKU_YES_CONFLICT) return DB_LOCK_DEADLOCK;
     assert(conflict == TOKU_NO_CONFLICT);
     return 0;
 }
@@ -750,6 +754,9 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     /* Verify left <= right, otherwise return EDOM. */
     if (__toku_r_backwards(query))                          return EDOM;
     tree->dups_final = TRUE;
+
+    int r = __toku_lt_callback(tree, txn);
+    if (r!=0) return r;
     return 0;
 }
 
@@ -1032,7 +1039,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     mainread = tree->mainread;                          assert(mainread);
     r = __toku_lt_meets_peer(tree, &query, mainread, txn, &met);
     if (r!=0) return r; 
-    if (met)  return DB_LOCK_NOTGRANTED;
+    if (met)  return DB_LOCK_DEADLOCK;
     /*
         else if 'K' meets borderwrite at 'peer' ('peer'!='txn') &&
                 'K' meets selfwrite('peer') then return failure.
@@ -1210,5 +1217,13 @@ int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates) {
     if (!tree)              return EINVAL;
     if (tree->dups_final)   return EDOM;
     tree->duplicates = duplicates;
+    return 0;
+}
+
+int toku_lt_set_txn_callback(toku_lock_tree* tree,
+                             int (*callback)(DB_TXN*, toku_lock_tree*)) {
+    if (!tree || !callback) return EINVAL;
+    if (!tree->dups_final)  return EDOM;
+    tree->lock_callback = callback;
     return 0;
 }

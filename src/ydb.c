@@ -30,6 +30,7 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 
 #define TOKU_LT_LINEAR
 #include <locktree.h>
+#include <lth.h>
 
 const u_int32_t __toku_env_default_max_locks = 1000;
 
