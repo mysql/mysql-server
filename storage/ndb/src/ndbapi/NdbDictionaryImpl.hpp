@@ -520,7 +520,6 @@ public:
     Uint32 requestFlags() const {
       Uint32 flags = 0;
       // not yet supported in DICT
-      flags |= m_transOn ? 0 : DictSignal::RF_SIMPLE_TRANS;
       return flags;
     }
   };

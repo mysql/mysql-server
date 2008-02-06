@@ -1244,65 +1244,6 @@ private:
   void resetError(SchemaTransPtr);
   void resetError(TxHandlePtr);
 
-  // transaction mode and phase
-
-  struct TransMode {
-    enum Value {
-      Undef = 0,
-      Normal,
-      Rollback, // rolling back current op and sub-ops
-      Abort     // rolling back entire transaction
-    };
-  };
-
-  struct TransPhase {
-    enum Value {
-      Undef = 0,
-      Begin,
-      Parse,
-      Prepare,
-      Commit,
-      Complete,
-      End
-    };
-  };
-
-  struct TransStep {
-    TransMode::Value m_mode;
-    TransPhase::Value m_phase;
-    Uint32 m_repeat;
-    TransStep() {
-      m_mode = TransMode::Undef;
-      m_phase = TransPhase::Undef;
-      m_repeat = 0;
-    }
-  };
-
-  struct TransPhaseFlag {
-    enum Value {
-      Master = (1 << 0), // no-op on slave participant
-      Simple = (1 << 1)  // not iterated over operations
-    };
-  };
-
-  struct TransPhaseEntry {
-    TransPhase::Value m_phase;
-    Uint32 m_phaseFlags;
-    // for Simple phase
-    void (Dbdict::*m_run)(Signal*, SchemaTransPtr);
-    void (Dbdict::*m_abort)(Signal*, SchemaTransPtr);
-  };
-
-  struct TransPhaseList {
-    Uint32 m_id;
-    Uint32 m_length;
-    const TransPhaseEntry* const m_phaseEntry;
-  };
-
-  // default (and only) phase list
-  static const TransPhaseEntry g_defaultPhaseEntry[];
-  static const TransPhaseList g_defaultPhaseList;
-
   // OpInfo
 
   struct OpInfo {
@@ -1335,29 +1276,12 @@ private:
   static const OpInfo* g_opInfoList[];
   const OpInfo* findOpInfo(Uint32 gsn);
 
-  // Feedback is a sub-op callback for a parent op on all nodes
-
-  enum FeedbackId {
-    AlterIndex_atCreateTrigger = 1,
-    AlterIndex_atDropTrigger = 2,
-    BuildIndex_atCreateConstraint = 3,
-    BuildIndex_atDropConstraint = 4
-  };
-
-  struct FeedbackEntry {
-    Uint32 m_id;
-    TransPhase::Value m_phase;
-    void (Dbdict::*m_method)(Signal*, SchemaOpPtr);
-  };
-
-  static const FeedbackEntry g_feedbackTable[];
-  const FeedbackEntry* findFeedbackEntry(Uint32 id, TransPhase::Value phase);
-  void runFeedbackMethod(Signal*, SchemaOpPtr);
-
   // OpRec
 
   struct OpRec
   {
+    char m_opType[4];
+
     Uint32 nextPool;
 
     // reference to the static member in subclass
@@ -1372,8 +1296,6 @@ private:
     // Copy of original and current schema file entry
     SchemaFile::TableEntry m_orig_entry;
     SchemaFile::TableEntry m_curr_entry;
-
-    char m_opType[4];
 
     OpRec(const OpInfo& info, Uint32* impl_req_data) :
       m_opInfo(info),
@@ -1429,20 +1351,23 @@ private:
 
     enum OpState
     {
-      OS_PARSING          = 1,
-      OS_PARSED           = 2,
-      OS_PREPARING        = 3,
-      OS_PREPARED         = 4,
-      OS_ABORTING_PREPARE = 5,
-      OS_ABORTED_PREPARE  = 6,
-      OS_ABORTING_PARSE   = 7,
-      //OS_ABORTED_PARSE    = 8  // Not used, op released
-      OS_COMMITTING       = 9,
-      //OS_COMMITTED        = 10 // Not used, op released
+      OS_INTIAL           = 0,
+      OS_PARSE_MASTER     = 1,
+      OS_PARSING          = 2,
+      OS_PARSED           = 3,
+      OS_PREPARING        = 4,
+      OS_PREPARED         = 5,
+      OS_ABORTING_PREPARE = 6,
+      OS_ABORTED_PREPARE  = 7,
+      OS_ABORTING_PARSE   = 8,
+      //OS_ABORTED_PARSE    = 9,  // Not used, op released
+      OS_COMMITTING       = 10,
+      OS_COMMITTED        = 11 // TODO: Not used, op released
     };
 
     Uint32 m_state;
     Uint32 op_key;
+    Uint32 m_base_op_ptr_i;
     Uint32 nextHash;
     Uint32 prevHash;
     Uint32 hashValue() const {
@@ -1475,21 +1400,9 @@ private:
     // callback for use with sub-operations
     Callback m_callback;
 
-    // index (0-based) of operation in schema trans op list
-    Uint32 m_opIndex;
-
-    // sub-operation tree structure expressed as depth (top level = 0)
-    Uint32 m_opDepth;
-
     // link to an extra "helper" op and link back from it
     SchemaOpPtr m_oplnk_ptr;
     SchemaOpPtr m_opbck_ptr;
-
-    // last successfully completed step
-    TransStep m_step;
-
-    // flag if this op has been aborted in RT_PREPARE phase
-    bool m_abortPrepareDone;
 
     // error always propagates to trans level
     ErrorInfo m_error;
@@ -1507,12 +1420,10 @@ private:
       m_sections = 0;
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
-      m_opIndex = ~(Uint32)0;
-      m_opDepth = 0;
       m_oplnk_ptr.setNull();
       m_opbck_ptr.setNull();
-      m_abortPrepareDone = false;
       m_magic = 0;
+      m_base_op_ptr_i = RNIL;
     }
 
     SchemaOp(Uint32 the_op_key) {
@@ -1657,113 +1568,6 @@ private:
   void releaseDictObject(SchemaOpPtr);
   void findDictObjectOp(SchemaOpPtr&, DictObjectPtr);
 
-  // list of SchemaOp (sans pool)
-  struct OpList {
-    DLFifoList<SchemaOp>::Head m_head;
-    Uint32 m_size;
-    OpList() {
-      m_size = 0;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  /*
-   * Transaction state, location, and iteration.  Maintained
-   * by master and copied to slaves on each round.
-   *
-   * Iteration is over phases, operations, and repeats.
-   */
-
-  struct TransLoc : public TransStep {
-    const TransPhaseList* m_phaseList;
-    Uint32 m_phaseIndex;
-    OpList m_opList;
-    Uint32 m_opKey;
-    bool m_hold; // master-local temp flag
-    TransLoc () {
-      m_phaseIndex = 0;
-      m_opKey = 0;
-      m_hold = false;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  bool getOpPtr(const TransLoc&, SchemaOpPtr&);
-  const TransPhaseEntry& getPhaseEntry(const TransLoc&);
-
-  void iteratorAddOp(TransLoc&, SchemaOpPtr);
-  void iteratorRemoveLastOp(TransLoc&, SchemaOpPtr&);
-  bool iteratorFirstOp(TransLoc&, int dir);
-  bool iteratorNextOp(TransLoc&, int dir);
-
-  bool iteratorFirst(TransLoc&, int dir);
-  bool iteratorNext(TransLoc&, int dir);
-  bool iteratorInit(TransLoc&);
-  bool iteratorMove(TransLoc&, bool repeatFlag);
-  void iteratorCopy(TransLoc&, Uint32 mode,
-                    Uint32 phaseIndex, Uint32 op_key, Uint32 repeat);
-
-  /*
-   * Transaction state of each node tracked by master only.
-   * Also records requests for repeat after each round.
-   */
-
-  struct TransGlob {
-    enum State {
-      Undef = 0,
-      Ok,
-      Error,
-      NodeFail,
-      // handle cases where slave has no free record
-      NeedTrans,
-      NoTrans,
-      NeedOp,
-      NoOp,
-      // end valid values
-      End
-    };
-    // pack State to save space
-    Uint8 m_state;
-    Uint8 m_flags;
-    TransGlob() {
-      m_state = Undef;
-      m_flags = 0;
-    }
-    TransGlob(State state, Uint32 flags) {
-      m_state = (Uint8)state;
-      m_flags = flags;
-    }
-    State state() const {
-      return (State)m_state;
-    }
-    void state(State state) {
-      assert(state > 0 && state < End);
-      m_state = (Uint8)state;
-    }
-#ifdef VM_TRACE
-    void print(NdbOut&) const;
-#endif
-  };
-
-  TransGlob& getTransGlob(SchemaTransPtr, Uint32 nodeId);
-
-  void setGlobState(SchemaTransPtr,
-                    Uint32 nodeId, TransGlob::State state);
-  void setGlobState(SchemaTransPtr,
-                    const NdbNodeBitmask&, TransGlob::State state);
-  void setGlobState(SchemaTransPtr,
-                    TransGlob::State oldstate, TransGlob::State state);
-  void setGlobFlags(SchemaTransPtr,
-                    Uint32 nodeId, Uint32 flags, int op);
-  void setGlobFlags(SchemaTransPtr,
-                    const NdbNodeBitmask&, Uint32 flags, int op);
-  Uint32 getGlobFlags(SchemaTransPtr trans_ptr,
-                      const NdbNodeBitmask& nodes);
-
   /*
    * Trans client is the API client (not us, for recursive ops).
    * Its state is shared by SchemaTrans / TxHandle (for takeover).
@@ -1781,7 +1585,8 @@ private:
     enum Flag {
       ApiFail = 1,
       Background = 2,
-      TakeOver = 4
+      TakeOver = 4,
+      Commit = 8
     };
   };
 
@@ -1793,17 +1598,19 @@ private:
 
     enum TransState
     {
+      TS_INITIAL          = 0,
       TS_STARTING         = 1, // Starting at participants
-      TS_STARTED          = 2, // Started (potentially with parsed ops)
-      TS_PARSING          = 3, // Parsing at participants
-      TS_SUBOP            = 4, // Creating subop
-      TS_ROLLBACK_SP      = 5, // Rolling back to SP (supported before prepare)
-      TS_PREPARING        = 6, // Preparing operations
-      TS_ABORTING_PREPARE = 7, // Aborting prepared operations
-      TS_ABORTING_PARSE   = 8, // Aborting parsed operations
-      TS_COMMITTING       = 9, // Committing
-      TS_COMMITTED        = 10,// Committed
-      TS_COMPLETING       = 11,// Completing
+      TS_ABORT_START      = 2, // Endreq on all START_CONF
+      TS_STARTED          = 3, // Started (potentially with parsed ops)
+      TS_PARSING          = 4, // Parsing at participants
+      TS_SUBOP            = 5, // Creating subop
+      TS_ROLLBACK_SP      = 6, // Rolling back to SP (supported before prepare)
+      TS_PREPARING        = 7, // Preparing operations
+      TS_ABORTING_PREPARE = 8, // Aborting prepared operations
+      TS_ABORTING_PARSE   = 9, // Aborting parsed operations
+      TS_COMMITTING       = 10,// Committing
+      TS_COMMITTED        = 11,// Committed
+      TS_COMPLETING       = 12,// Completing
     };
 
     Uint32 m_state;
@@ -1834,19 +1641,15 @@ private:
     Uint32 m_clientFlags;
     Uint32 m_takeOverTxKey;
 
-    // local and global transaction state
-    TransLoc m_transLoc;
-    TransGlob m_transGlob[MAX_NDB_NODES];
+    NdbNodeBitmask m_nodes;      // Nodes part of transaction
+    NdbNodeBitmask m_ref_nodes;  // Nodes replying REF to req
+    SafeCounterHandle m_counter; // Outstanding REQ's
 
-    NdbNodeBitmask m_initNodes;
-    NdbNodeBitmask m_failedNodes;
-    SafeCounterHandle m_counter;
+    Uint32 m_curr_op_ptr_i;
+    DLFifoList<SchemaOp>::Head m_op_list;
 
     // request for lock/unlock
     DictLockReq m_lockReq;
-
-    // operation depth during parse (increased for sub-ops)
-    Uint32 m_opDepth;
 
     // callback (not yet used)
     Callback m_callback;
@@ -1864,6 +1667,7 @@ private:
     Uint32 m_magic;
 
     SchemaTrans() {
+      m_state = TS_INITIAL;
       m_isMaster = false;
       m_masterRef = 0;
       m_requestInfo = 0;
@@ -1872,10 +1676,7 @@ private:
       m_clientState = TransClient::StateUndef;
       m_clientFlags = 0;
       m_takeOverTxKey = 0;
-      m_initNodes.clear();
-      m_failedNodes.clear();
       bzero(&m_lockReq, sizeof(m_lockReq));
-      m_opDepth = 0;
       m_callback.m_callbackFunction = 0;
       m_callback.m_callbackData = 0;
       m_magic = 0;
@@ -1900,35 +1701,44 @@ private:
   bool findSchemaTrans(SchemaTransPtr&, Uint32 trans_key);
   void releaseSchemaTrans(SchemaTransPtr&);
 
-  Uint32 getIteratorRepeat(SchemaTransPtr trans_ptr);
-
   // coordinator
-  void sendTransReq(Signal*, SchemaTransPtr, SectionHandle&);
-  void sendTransParseReq(Signal*, SchemaOpPtr, SectionHandle&);
-  void recvTransReply(Signal*, bool isConf);
-  void handleTransReply(Signal*, SchemaTransPtr);
   void createSubOps(Signal*, SchemaOpPtr, bool first = false);
   void abortSubOps(Signal*, SchemaOpPtr, ErrorInfo);
-  void runTransMaster(Signal*, SchemaTransPtr);
-  void setTransMode(SchemaTransPtr, TransMode::Value, bool hold);
+
+  void trans_recv_reply(Signal*, SchemaTransPtr);
+  void trans_start_recv_reply(Signal*, SchemaTransPtr);
+  void trans_parse_recv_reply(Signal*, SchemaTransPtr);
 
   void trans_prepare_start(Signal*, SchemaTransPtr);
-  void trans_prepare_next(Signal*, SchemaTransPtr);
+  void trans_prepare_recv_reply(Signal*, SchemaTransPtr);
+  void trans_prepare_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_prepare_done(Signal*, SchemaTransPtr);
 
   void trans_abort_prepare_start(Signal*, SchemaTransPtr);
-  void trans_abort_prepare_next(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_recv_reply(Signal*, SchemaTransPtr);
+  void trans_abort_prepare_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_abort_prepare_done(Signal*, SchemaTransPtr);
 
   void trans_abort_parse_start(Signal*, SchemaTransPtr);
-  void trans_abort_parse_next(Signal*, SchemaTransPtr);
+  void trans_abort_parse_recv_reply(Signal*, SchemaTransPtr);
+  void trans_abort_parse_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_abort_parse_done(Signal*, SchemaTransPtr);
+
+  void trans_rollback_sp_start(Signal* signal, SchemaTransPtr);
+  void trans_rollback_sp_recv_reply(Signal* signal, SchemaTransPtr);
+  void trans_rollback_sp_next(Signal* signal, SchemaTransPtr, SchemaOpPtr);
+  void trans_rollback_sp_done(Signal* signal, SchemaTransPtr, SchemaOpPtr);
 
   void trans_commit_start(Signal*, SchemaTransPtr);
   void trans_commit_mutex_locked(Signal*, Uint32, Uint32);
-  void trans_commit_next(Signal*, SchemaTransPtr);
+  void trans_commit_recv_reply(Signal*, SchemaTransPtr);
+  void trans_commit_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_commit_done(Signal* signal, SchemaTransPtr);
   void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
+
+  void trans_complete_start(Signal* signal, SchemaTransPtr);
+  void trans_complete_recv_reply(Signal*, SchemaTransPtr);
+  void trans_complete_done(Signal*, SchemaTransPtr);
 
   // participant
   void recvTransReq(Signal*);
@@ -1936,13 +1746,14 @@ private:
                          Uint32 op_key, const OpInfo& info,
                          Uint32 requestInfo);
   void runTransSlave(Signal*, SchemaTransPtr);
-  void sendTransConf(Signal*, SchemaOpPtr, Uint32 itFlags = 0);
-  void sendTransConf(Signal*, SchemaTransPtr, Uint32 itFlags = 0);
+  void sendTransConf(Signal*, SchemaOpPtr);
+  void sendTransConf(Signal*, SchemaTransPtr);
   void sendTransRef(Signal*, SchemaOpPtr);
   void sendTransRef(Signal*, SchemaTransPtr);
 
   void slave_run_start(Signal*, const SchemaTransImplReq*);
   void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
+  void slave_run_complete(Signal*, SchemaTransPtr);
   void slave_flush_schema(Signal*, SchemaTransPtr);
 
   // reply to trans client for begin/end trans
@@ -1981,8 +1792,7 @@ private:
       return;
     }
 
-    TransLoc& tLoc = trans_ptr.p->m_transLoc;
-    D("before add op" << *trans_ptr.p << tLoc << tLoc.m_opList);
+    D("before add op" << *trans_ptr.p);
 
     if (trans_ptr.p->m_transId != req->transId) {
       jam();
@@ -1990,43 +1800,10 @@ private:
       return;
     }
 
-    if (trans_ptr.p->m_opDepth == 0) {
-      jam();
-      if (trans_ptr.p->m_clientState != TransClient::BeginReply &&
-          trans_ptr.p->m_clientState != TransClient::ParseReply) {
-        jam();
-        setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
-        return;
-      }
-    }
-
-    if (tLoc.m_phase != TransPhase::Begin &&
-        tLoc.m_phase != TransPhase::Parse) {
-      jam();
-      setError(error, SchemaTransImplRef::InvalidTransState, __LINE__);
-      return;
-    }
-
-    ndbrequire(!hasError(trans_ptr.p->m_error));
-
-    if (tLoc.m_mode == TransMode::Rollback) {
-      jam();
-      D("continuing after rollback");
-      resetError(trans_ptr);
-      setTransMode(trans_ptr, TransMode::Normal, false);
-    }
-    ndbrequire(tLoc.m_mode == TransMode::Normal);
-
     if (!seizeSchemaOp(op_ptr, t_ptr)) {
       jam();
       setError(error, SchemaTransImplRef::TooManySchemaOps, __LINE__);
       return;
-    }
-
-    // switch to parse phase on first op
-    if (tLoc.m_phase == TransPhase::Begin) {
-      jam();
-      iteratorMove(tLoc, false);
     }
 
     trans_ptr.p->m_clientState = TransClient::ParseReq;
@@ -2047,16 +1824,6 @@ private:
     // client of this REQ (trans client or us, recursively)
     op_ptr.p->m_clientRef = req->clientRef;
     op_ptr.p->m_clientData = req->clientData;
-
-    const Uint32 ownNodeId = getOwnNodeId();
-    const TransGlob& tGlob = getTransGlob(trans_ptr, ownNodeId);
-    ndbrequire(tGlob.state() == TransGlob::Ok);
-
-    // other nodes have no op record yet
-    NdbNodeBitmask nodes = trans_ptr.p->m_initNodes;
-    nodes.bitANDC(trans_ptr.p->m_failedNodes);
-    nodes.clear(ownNodeId);
-    setGlobState(trans_ptr, nodes, TransGlob::NeedOp);
   }
 
   /*
@@ -2211,6 +1978,9 @@ private:
     // who is using local create tab
     Callback m_callback;
 
+    // flag if this op has been aborted in RT_PREPARE phase
+    bool m_abortPrepareDone;
+
     CreateTableRec() :
       OpRec(g_opInfo, (Uint32*)&m_request) {
       memset(&m_request, 0, sizeof(m_request));
@@ -2218,6 +1988,7 @@ private:
       m_fragmentsPtrI = RNIL;
       m_dihAddFragPtr = RNIL;
       m_lqhFragPtr = RNIL;
+      m_abortPrepareDone = false;
     }
 
 #ifdef VM_TRACE
@@ -2342,7 +2113,6 @@ private:
     TableRecordPtr m_newTablePtr;
 
     // before image
-    SchemaFile::TableEntry m_oldTableEntry;
     RopeHandle m_oldTableName;
     RopeHandle m_oldFrmData;
 
@@ -3413,9 +3183,6 @@ public:
   friend NdbOut& operator<<(NdbOut& out, const DictObject&);
   friend NdbOut& operator<<(NdbOut& out, const ErrorInfo&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaOp&);
-  friend NdbOut& operator<<(NdbOut& out, const OpList&);
-  friend NdbOut& operator<<(NdbOut& out, const TransLoc&);
-  friend NdbOut& operator<<(NdbOut& out, const TransGlob&);
   friend NdbOut& operator<<(NdbOut& out, const SchemaTrans&);
   friend NdbOut& operator<<(NdbOut& out, const TxHandle&);
   void check_consistency();

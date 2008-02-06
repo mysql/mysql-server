@@ -20,8 +20,10 @@
 #include <DebuggerNames.hpp>
 
 bool
-printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16 rbn)
+printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData,
+                           Uint32 len, Uint16 rbn)
 {
+#if 0
   const SchemaTransImplReq* sig = (const SchemaTransImplReq*)theData;
   const Uint32 phaseInfo = sig->phaseInfo;
   Uint32 mode = SchemaTransImplReq::getMode(phaseInfo);
@@ -106,7 +108,8 @@ printSCHEMA_TRANS_IMPL_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint
     break;
     }
   }
-  return true;
+#endif
+  return false;
 }
 
 bool
@@ -115,7 +118,6 @@ printSCHEMA_TRANS_IMPL_CONF(FILE* output, const Uint32* theData, Uint32 len, Uin
   const SchemaTransImplConf* sig = (const SchemaTransImplConf*)theData;
   fprintf(output, " senderRef: 0x%x", sig->senderRef);
   fprintf(output, " transKey: %u", sig->transKey);
-  fprintf(output, " itFlags: 0x%x", sig->itFlags);
   fprintf(output, "\n");
   return true;
 }

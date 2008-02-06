@@ -57,7 +57,8 @@ struct SchemaTransEndReq {
   // must match NdbDictionary::Dictionary::SchemaTransFlag
   enum Flag {
     SchemaTransAbort = 1,
-    SchemaTransBackground = 2
+    SchemaTransBackground = 2,
+    SchemaTransPrepare = 4 // Only run prepare
   };
   STATIC_CONST( SignalLength = 5 );
   Uint32 clientRef;
