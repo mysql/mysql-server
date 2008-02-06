@@ -18,7 +18,8 @@
 
 #include <Bitmask.hpp>
 
-struct DictSignal {
+struct DictSignal
+{
   // DICT transaction and operation REQs include Uint32 requestInfo
   // implementation signals have only requestType
   // requestInfo format should be as follows
