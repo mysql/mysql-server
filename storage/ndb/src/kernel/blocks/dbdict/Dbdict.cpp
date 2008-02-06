@@ -209,12 +209,14 @@ alter_obj_inc_schema_version(Uint32 old)
    return (old & 0x00FFFFFF) + ((old + 0x1000000) & 0xFF000000);
 }
 
+#if 0
 static
 Uint32
 alter_obj_dec_schema_version(Uint32 old)
 {
   return (old & 0x00FFFFFF) + ((old - 0x1000000) & 0xFF000000);
 }
+#endif
 
 static
 Uint32
@@ -3746,7 +3748,7 @@ Dbdict::restartDropTab_complete(Signal* signal,
   DropTableRecPtr dropTabPtr;  
   findSchemaOp(op_ptr, dropTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
+  //const DropTabReq* impl_req = &dropTabPtr.p->m_request;
 
   //@todo check error
 
@@ -5771,7 +5773,7 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, signal->theData[0]);
   ndbrequire(!op_ptr.isNull());
-  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
+  //const CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
   TableRecordPtr tabPtr;
   c_tableRecordPool.getPtr(tabPtr, createTabPtr.p->m_request.tableId);
@@ -5830,7 +5832,7 @@ Dbdict::createTab_dihComplete(Signal* signal,
   CreateTableRecPtr createTabPtr;
   findSchemaOp(op_ptr, createTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  const CreateTabReq* impl_req = &createTabPtr.p->m_request;
+  //const CreateTabReq* impl_req = &createTabPtr.p->m_request;
 
   //@todo check for master failed
 
@@ -6032,7 +6034,7 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
   CreateTableRecPtr createTabPtr;
   getOpRec(op_ptr, createTabPtr);
   const CreateTabReq* impl_req = &createTabPtr.p->m_request;
-  const Uint32 tableId = impl_req->tableId;
+  //const Uint32 tableId = impl_req->tableId;
 
   D("createTable_abortPrepare" << *op_ptr.p);
 
@@ -6896,7 +6898,7 @@ Dbdict::dropTab_fromLocal(Signal* signal, Uint32 op_key)
   DropTableRecPtr dropTabPtr;
   findSchemaOp(op_ptr, dropTabPtr, op_key);
   ndbrequire(!op_ptr.isNull());
-  const DropTabReq* impl_req = &dropTabPtr.p->m_request;
+  //const DropTabReq* impl_req = &dropTabPtr.p->m_request;
 
   D("dropTab_fromLocal" << *op_ptr.p);
 
@@ -7382,7 +7384,7 @@ Dbdict::alterTable_prepare(Signal* signal, SchemaOpPtr op_ptr)
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
-  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+  //const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
   D("alterTable_prepare" << V(itRepeat) << *op_ptr.p);
 
@@ -7632,7 +7634,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
-  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+  //const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
   D("alterTable_commit" << V(itRepeat) << *op_ptr.p);
 
@@ -7848,7 +7850,7 @@ Dbdict::alterTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 
   AlterTableRecPtr alterTabPtr;
   getOpRec(op_ptr, alterTabPtr);
-  const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
+  //const AlterTabReq* impl_req = &alterTabPtr.p->m_request;
 
   TableRecordPtr& newTablePtr = alterTabPtr.p->m_newTablePtr; // ref
   if (!newTablePtr.isNull()) {
@@ -8953,7 +8955,7 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
 
   // write index key attributes
 
-  const AttributeList& attrList = createIndexPtr.p->m_attrList;
+  //const AttributeList& attrList = createIndexPtr.p->m_attrList;
   const AttributeMap& attrMap = createIndexPtr.p->m_attrMap;
   Uint32 k;
   for (k = 0; k < createIndexPtr.p->m_attrList.sz; k++) {
@@ -9129,7 +9131,7 @@ Dbdict::createIndex_fromAlterIndex(Signal* signal, Uint32 op_key, Uint32 ret)
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
 
-  Uint32 errorCode = 0;
+  //Uint32 errorCode = 0;
   if (ret == 0) {
     const AlterIndxConf* conf =
       (const AlterIndxConf*)signal->getDataPtr();
@@ -10055,7 +10057,7 @@ Dbdict::alterIndex_fromCreateTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
   findSchemaOp(op_ptr, alterIndexPtr, op_key);
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
+  //const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
 
   D("alterIndex_fromCreateTrigger" << dec << V(op_key) << V(ret));
 
@@ -10088,7 +10090,7 @@ Dbdict::alterIndex_toDropTrigger(Signal* signal, SchemaOpPtr op_ptr)
   TableRecordPtr indexPtr;
   c_tableRecordPool.getPtr(indexPtr, impl_req->indexId);
 
-  const TriggerTmpl& triggerTmpl = alterIndexPtr.p->m_triggerTmpl[0];
+  //const TriggerTmpl& triggerTmpl = alterIndexPtr.p->m_triggerTmpl[0];
 
   DropTrigReq* req = (DropTrigReq*)signal->getDataPtrSend();
 
@@ -10141,7 +10143,7 @@ Dbdict::alterIndex_fromDropTrigger(Signal* signal, Uint32 op_key, Uint32 ret)
   findSchemaOp(op_ptr, alterIndexPtr, op_key);
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
+  //const AlterIndxImplReq* impl_req = &alterIndexPtr.p->m_request;
 
   D("alterIndex_fromDropTrigger" << dec << V(op_key) << V(ret));
 
@@ -10730,7 +10732,7 @@ Dbdict::buildIndex_subOps(Signal* signal, SchemaOpPtr op_ptr)
 
   BuildIndexRecPtr buildIndexPtr;
   getOpRec(op_ptr, buildIndexPtr);
-  const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
+  //const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
 
   if (buildIndexPtr.p->m_subOpIndex < buildIndexPtr.p->m_subOpCount) {
     jam();
@@ -10863,7 +10865,7 @@ Dbdict::buildIndex_fromCreateConstraint(Signal* signal, Uint32 op_key, Uint32 re
   findSchemaOp(op_ptr, buildIndexPtr, op_key);
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
+  //const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
 
   D("buildIndex_fromCreateConstraint" << dec << V(op_key) << V(ret));
 
@@ -11032,7 +11034,7 @@ Dbdict::buildIndex_fromDropConstraint(Signal* signal, Uint32 op_key, Uint32 ret)
   findSchemaOp(op_ptr, buildIndexPtr, op_key);
   ndbrequire(!op_ptr.isNull());
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
+  //const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
 
   D("buildIndex_fromDropConstraint" << dec << V(op_key) << V(ret));
 
@@ -11107,7 +11109,7 @@ Dbdict::buildIndex_prepare(Signal* signal, SchemaOpPtr op_ptr)
   jam();
   BuildIndexRecPtr buildIndexPtr;
   getOpRec(op_ptr, buildIndexPtr);
-  const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
+  //const BuildIndxImplReq* impl_req = &buildIndexPtr.p->m_request;
 
   Uint32 requestInfo = op_ptr.p->m_requestInfo;
   bool noBuild = (requestInfo & DictSignal::RF_NO_BUILD);
@@ -19624,9 +19626,9 @@ Dbdict::handleTransReply(Signal* signal, SchemaTransPtr trans_ptr)
   SchemaOpPtr op_ptr;
   getOpPtr(tLoc, op_ptr);
 
-  const Uint32 trans_key = trans_ptr.p->trans_key;
-  const Uint32 clientRef = trans_ptr.p->m_clientRef;
-  const Uint32 transId = trans_ptr.p->m_transId;
+  //const Uint32 trans_key = trans_ptr.p->trans_key;
+  //const Uint32 clientRef = trans_ptr.p->m_clientRef;
+  //const Uint32 transId = trans_ptr.p->m_transId;
 
   D("handleTransReply" << tLoc);
   if (!op_ptr.isNull())
@@ -19783,7 +19785,7 @@ Dbdict::abortSubOps(Signal* signal, SchemaOpPtr op_ptr, ErrorInfo error)
   D("abortSubOps" << *op_ptr.p << error);
 
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-  const OpInfo& info = getOpInfo(op_ptr);
+  //const OpInfo& info = getOpInfo(op_ptr);
 
   // restore operation depth
   ndbrequire(trans_ptr.p->m_opDepth != 0);
