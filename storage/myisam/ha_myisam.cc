@@ -397,7 +397,26 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     }
     for (j=  t1_keyinfo[i].keysegs; j--;)
     {
-      if (t1_keysegs[j].type != t2_keysegs[j].type ||
+      uint8 t1_keysegs_j__type= t1_keysegs[j].type;
+
+      /*
+        Table migration from 4.1 to 5.1. In 5.1 a *TEXT key part is
+        always HA_KEYTYPE_VARTEXT2. In 4.1 we had only the equivalent of
+        HA_KEYTYPE_VARTEXT1. Since we treat both the same on MyISAM
+        level, we can ignore a mismatch between these types.
+      */
+      if ((t1_keysegs[j].flag & HA_BLOB_PART) &&
+          (t2_keysegs[j].flag & HA_BLOB_PART))
+      {
+        if ((t1_keysegs_j__type == HA_KEYTYPE_VARTEXT2) &&
+            (t2_keysegs[j].type == HA_KEYTYPE_VARTEXT1))
+          t1_keysegs_j__type= HA_KEYTYPE_VARTEXT1;
+        else if ((t1_keysegs_j__type == HA_KEYTYPE_VARBINARY2) &&
+                 (t2_keysegs[j].type == HA_KEYTYPE_VARBINARY1))
+          t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1;
+      }
+
+      if (t1_keysegs_j__type != t2_keysegs[j].type ||
           t1_keysegs[j].language != t2_keysegs[j].language ||
           t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
           t1_keysegs[j].length != t2_keysegs[j].length)
