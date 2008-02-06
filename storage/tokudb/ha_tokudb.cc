@@ -831,7 +831,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
     if (!hidden_primary_key)
       file->app_private= (void*) (table->key_info + table_share->primary_key);
     char newname[strlen(name) + 32];
-    sprintf(newname, "%s/main", name);
+    sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
     fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
     if ((error= db_env->txn_begin(db_env, NULL, (DB_TXN**) &transaction, 0)) ||
 	(error= (file->open(file, transaction, name_buff,
@@ -862,9 +862,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked)
 	  DBUG_RETURN(1);
 	}
 	sprintf(part,"key%02d",++used_keys);
-        sprintf(newname, "%s/%s", name, part);
+        sprintf(newname, "%s%s/%s", name, ha_tokudb_ext, part);
         fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
-	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : 0;
+	key_type[i]=table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
 	(*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
 	(*ptr)->app_private= (void*) (table->key_info+i);
 	if (!(table->key_info[i].flags & HA_NOSAME))
@@ -1211,7 +1211,7 @@ void ha_tokudb::get_status()
     {
       char name_buff[FN_REFLEN];
       char newname[strlen(share->table_name) + 32];
-      sprintf(newname, "%s/status", share->table_name);
+      sprintf(newname, "%s%s/status", share->table_name, ha_tokudb_ext);
       uint open_mode= (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
 		       | DB_THREAD);
       fn_format(name_buff, newname, "", ha_tokudb_ext,
@@ -1293,10 +1293,8 @@ static void update_status(TOKUDB_SHARE *share, TABLE *table)
 
       char name_buff[FN_REFLEN];
       char newname[strlen(share->table_name) + 32];
-      sprintf(newname, "%s/status", share->table_name);
-				    fn_format(name_buff, newname,
-					      "", ha_tokudb_ext,
-					      MY_UNPACK_FILENAME|MY_APPEND_EXT);
+      sprintf(newname, "%s%s/status", share->table_name, ha_tokudb_ext);
+      fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if (db_create(&share->status_block, db_env, 0))
 	goto end;
       share->status_block->set_flags(share->status_block, 0);
@@ -2430,12 +2428,13 @@ int ha_tokudb::create(const char *name, TABLE *form,
   int error;
   char newname[strlen(name) + 32];
 
-  error = mkdir(name, 0777);
+  sprintf(newname, "%s%s", name, ha_tokudb_ext);
+  error = mkdir(newname, 0777);
   if (error != 0) {
       DBUG_RETURN(errno);
   }
 
-  sprintf(newname, "%s/main", name);
+  sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
   fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
 
   /* Create the main table that will hold the real rows */
@@ -2452,7 +2451,7 @@ int ha_tokudb::create(const char *name, TABLE *form,
     if (i != primary_key)
     {
       sprintf(part,"key%02d",index++);
-      sprintf(newname, "%s/%s", name, part);
+      sprintf(newname, "%s%s/%s", name, ha_tokudb_ext, part);
       fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
       if ((error= create_sub_table(name_buff, part, DB_BTREE,
 				   (form->key_info[i].flags & HA_NOSAME) ? 0 :
@@ -2467,7 +2466,7 @@ int ha_tokudb::create(const char *name, TABLE *form,
   DB *status_block;
   if (!(error=(db_create(&status_block, db_env, 0))))
   {
-    sprintf(newname, "%s/status", name);
+    sprintf(newname, "%s%s/status", name, ha_tokudb_ext);
     fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME|MY_APPEND_EXT);
 
     if (!(error=(status_block->open(status_block, NULL, name_buff,
@@ -2539,7 +2538,10 @@ exit:
   file= 0;  // Safety
   my_errno = error;
 #else
-  error = rmall(name);
+  char newname[strlen(name) + 32];
+  sprintf(newname, "%s%s", name, ha_tokudb_ext);
+  error = rmall(newname); 
+  my_errno = error;
 #endif
   DBUG_RETURN(error);
 }
@@ -2566,8 +2568,8 @@ int ha_tokudb::rename_table(const char * from, const char * to)
   }
 #else
   error = rename(from, to);
-  if (error != 0)
-      error = errno;
+  if (error != 0) 
+      error = my_errno = errno;
 #endif
   return error;
 }
