@@ -90,11 +90,11 @@ libs:
 	cd ..;make
 
 %.lin: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.lin\" -DTOKU_RT_LINEAR $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.lin\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -o $@
 %.log: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_RT_LOG   $(CPPFLAGS) $(CFLAGS) $<  -lrangetree_log    -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_log    -o $@
 %.tlog: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_RT_TLOG   $(CPPFLAGS) $(CFLAGS) $< -lrangetree_tlog   -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_tlog   -o $@
 
 .PHONY: make_libs
 

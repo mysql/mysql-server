@@ -52,13 +52,13 @@ clean:
 
 
 linear.o: linear.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_LINEAR -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 log.o: log.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_LOG    -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 tlog.o: tlog.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -DTOKU_RT_TLOG    -c $< -o $@
+	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 $(LIBNAME_TLOG).$(LIBEXT): tlog.o
 	cc  $(CPPFLAGS) $< $(SHARED) -o $@ $(CFLAGS)

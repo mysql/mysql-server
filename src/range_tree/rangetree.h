@@ -32,51 +32,11 @@ typedef struct {
 	void*   data;  /**< Data associated with the range */
 } toku_range;
 
-/** \brief Internal range representation 
-    Internal representation of a range tree. Some fields depend on the
-    implementation of range trees, and some others are shared. */
-struct __toku_range_tree_internal {
-    //Shared fields:
-    /** A comparison function, as in bsearch(3), to compare the end-points of 
-        a range. It is assumed to be commutative. */
-    int         (*end_cmp)(void*,void*);  
-    /** A comparison function, as in bsearch(3), to compare the data associated
-        with a range */
-    int         (*data_cmp)(void*,void*);
-    /** Whether this tree allows ranges to overlap */
-    BOOL        allow_overlaps;
-    /** The number of ranges in the range tree */
-    u_int32_t    numelements;
-    /** The user malloc function */
-    void*       (*malloc) (size_t);
-    /** The user free function */
-    void        (*free)   (void*);
-    /** The user realloc function */
-    void*       (*realloc)(void*, size_t);
-#if defined(TOKU_RT_LINEAR)
-    #if defined(TOKU_RT_TLOG) || defined(TOKU_RT_LOG)
-        #error Choose just one range tree type.
-    #endif
-    //Linear version only fields:
-    toku_range* ranges;
-    u_int32_t    ranges_len;
-#elif defined(TOKU_RT_TLOG)
-    #if defined(TOKU_RT_LOG)
-        #error Choose just one range tree type.
-    #endif
-    #error Not defined yet.
-    //TLog version only fields:
-#elif defined(TOKU_RT_LOG)
-    #error Not defined yet.
-    //Log version only fields:
-#else
-    #error Using an undefined RANGE TREE TYPE.
-#endif
-};
+struct __toku_range_tree;
 
 /** Export the internal representation to a sensible name */
 /*  These lines will remain. */
-typedef struct __toku_range_tree_internal toku_range_tree;
+typedef struct __toku_range_tree toku_range_tree;
 
 /**
     Gets whether the range tree allows overlapping ranges.

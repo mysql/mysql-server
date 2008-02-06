@@ -46,17 +46,6 @@
 #include <assert.h>
 #include <db.h>
 #include <brttypes.h>
-
-#if   defined(TOKU_LT_LINEAR)
-    #define TOKU_RT_LINEAR
-#elif defined(TOKU_LT_TLOG)
-    #define TOKU_RT_TLOG
-#elif defined(TOKU_LT_LOG)
-    #define TOKU_RT_LOG
-#else
-    #error Using an undefined LOCK TREE TYPE.
-#endif
-
 #include <rangetree.h>
 #include <rth.h>
 
