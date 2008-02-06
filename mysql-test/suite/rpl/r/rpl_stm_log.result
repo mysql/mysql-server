@@ -196,8 +196,8 @@ master-bin.000001	#	Intvar	#	#	INSERT_ID=1
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (NULL)
 master-bin.000001	#	Query	#	#	use `test`; drop table t1
 master-bin.000001	#	Query	#	#	use `test`; create table t1 (word char(20) not null)ENGINE=MyISAM
-master-bin.000001	#	Begin_load_query	#	#	;file_id=1;block_len=581
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=1
+master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines ;file_id=#
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=4
 show binlog events in 'master-bin.000002';
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info

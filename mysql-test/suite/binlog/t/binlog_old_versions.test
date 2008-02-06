@@ -1,0 +1,148 @@
+# Test that old binlog formats can be read.
+
+# Some previous versions of MySQL use their own binlog format,
+# especially in row-based replication.  This test uses saved binlogs
+# from those old versions to test that we can replicate from old
+# versions to the present version.
+
+# Replicating from old versions to new versions is necessary in an
+# online upgrade scenario, where the .
+
+# The previous versions we currently test are:
+#  - version 5.1.17 and earlier trees
+#  - mysql-5.1-wl2325-xxx trees (AKA alcatel trees)
+#  - mysql-5.1-telco-6.1 trees (AKA ndb trees)
+# For completeness, we also test mysql-5.1-new_rpl, which is supposed
+# to be the "correct" version.
+
+# All binlogs were generated with the same commands (listed at the end
+# of this test for reference).  The binlogs contain the following
+# events: Table_map, Write_rows, Update_rows, Delete_rows Query, Xid,
+# User_var, Int_var, Rand, Begin_load, Append_file, Execute_load.
+
+# Related bugs: BUG#27779, BUG#31581, BUG#31582, BUG#31583, BUG#32407
+
+source include/not_embedded.inc;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2, t3;
+
+
+--echo ==== Read modern binlog (version 5.1.23) ====
+
+# Read binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_23.000001 | $MYSQL --local-infile=1
+# Show result.
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t2, t3;
+
+
+--echo ==== Read binlog from version 5.1.17 ====
+
+# Read binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_17.000001 | $MYSQL --local-infile=1
+# Show result.
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t2, t3;
+
+
+--echo ==== Read binlog from alcatel tree (mysql-5.1-wl2325-5.0-drop6) ====
+
+# In this version, it was not possible to switch between row-based and
+# statement-based binlogging without restarting the server.  So, we
+# have two binlogs; one for row based and one for statement based
+# replication.
+
+# Read rbr binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_row.000001 | $MYSQL --local-infile=1
+# Read stm binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_stm.000001 | $MYSQL --local-infile=1
+# Show result.
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t2, t3;
+
+
+--echo ==== Read binlog from ndb tree (mysql-5.1-telco-6.1) ====
+
+# Read binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-telco.000001 | $MYSQL --local-infile=1
+# Show resulting tablea.
+SELECT * FROM t1 ORDER BY a;
+SELECT * FROM t2 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t2, t3;
+
+
+#### The following commands were used to generate the binlogs ####
+#
+#source include/master-slave.inc;
+#
+## ==== initialize ====
+#USE test;
+#CREATE TABLE t1 (a int, b char(50)) ENGINE = MyISAM;
+#CREATE TABLE t2 (a int, b char(50)) ENGINE = InnoDB;
+#CREATE TABLE t3 (a char(20));
+#
+#
+## ==== row based tests ====
+#SET BINLOG_FORMAT='row';
+#
+## ---- get write, update, and delete rows events ----
+#INSERT INTO t1 VALUES (0, 'one'), (1, 'two');
+#UPDATE t1 SET a=a+1;
+#DELETE FROM t1 WHERE a=2;
+#
+#
+## ==== statement based tests ====
+#SET BINLOG_FORMAT = 'statement';
+#
+## ---- get xid events ----
+#BEGIN;
+#INSERT INTO t2 VALUES (3, 'first stm in trx');
+#INSERT INTO t1 VALUES (3, 'last stm in trx: next event should be xid');
+#COMMIT;
+#
+## ---- get user var events ----
+#SET @x = 4;
+#INSERT INTO t1 VALUES (@x, 'four');
+#
+## ---- get rand event ----
+#INSERT INTO t1 VALUES (RAND() * 1000000, 'random');
+#
+## ---- get intvar event ----
+#INSERT INTO t1 VALUES (LAST_INSERT_ID(), 'last_insert_id');
+#
+## ---- get begin, append and execute load events ----
+## double the file until we have more than 2^17 bytes, so that the
+## event has to be split and we can use Append_file_log_event.
+#
+#SET SQL_LOG_BIN=0;
+#CREATE TABLE temp (a char(20));
+#LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#INSERT INTO temp SELECT * FROM temp;
+#SELECT a FROM temp INTO OUTFILE 'big_file.dat';
+#DROP TABLE temp;
+#SET SQL_LOG_BIN=1;
+#
+#LOAD DATA INFILE 'big_file.dat' INTO TABLE t3;
+#
+#SELECT * FROM t1 ORDER BY a;
+#SELECT * FROM t2 ORDER BY a;
+#SELECT COUNT(*) FROM t3;

@@ -4,18 +4,26 @@ connect (server2,127.0.0.1,root,,test,$MASTER_MYPORT1,);
 
 # Check that server1 has NDB  support
 connection server1;
+let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'ENGINES', Tables_in_information_schema (ENGINES), 1);
 disable_query_log;
+if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
+{
 --require r/true.require
-select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
 --source include/ndb_not_readonly.inc
+}
 enable_query_log;
 
 # Check that server2 has NDB support
 connection server2;
+let $engines_table= query_get_value(SHOW TABLES FROM information_schema LIKE 'ENGINES', Tables_in_information_schema (ENGINES), 1);
 disable_query_log;
+if (`SELECT 1 FROM dual WHERE '$engines_table' = 'engines'`)
+{
 --require r/true.require
-select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'ndbcluster';
+SELECT (support = 'YES' or support = 'DEFAULT' or support = 'ENABLED') as `TRUE` FROM information_schema.engines WHERE engine = 'ndbcluster';
 --source include/ndb_not_readonly.inc
+}
 enable_query_log;
 
 # cleanup

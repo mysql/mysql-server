@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106	<Binlog_Ignore_DB>	
+master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 stop slave;
 change master to master_log_pos=75;
 SHOW SLAVE STATUS;
@@ -16,7 +16,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	75
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -31,7 +31,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	75
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -91,12 +91,12 @@ Last_SQL_Errno	0
 Last_SQL_Error	
 show master status;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	106	<Binlog_Ignore_DB>	
+master-bin.000001	#	<Binlog_Do_DB>	<Binlog_Ignore_DB>
 create table if not exists t1 (n int);
 drop table if exists t1;
 create table t1 (n int);
 insert into t1 values (1),(2),(3);
-change master to master_log_pos=106;
+change master to master_log_pos=4;
 start slave;
 select * from t1 ORDER BY n;
 n
