@@ -18,7 +18,7 @@ Created 5/11/1994 Heikki Tuuri
 #define UT_RANDOM_3	1.0132677
 
 
-ulint	ut_rnd_ulint_counter = 65654363;
+UNIV_INTERN ulint	ut_rnd_ulint_counter = 65654363;
 
 /***************************************************************
 Looks for a prime number slightly greater than the given argument.
