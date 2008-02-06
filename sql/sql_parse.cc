@@ -2271,14 +2271,14 @@ mysql_execute_command(THD *thd)
 #endif /* HAVE_REPLICATION */
   case SQLCOM_SHOW_ENGINE_STATUS:
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, PROCESS_ACL))
         goto error;
       res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_STATUS);
       break;
     }
   case SQLCOM_SHOW_ENGINE_MUTEX:
     {
-      if (check_global_access(thd, SUPER_ACL))
+      if (check_global_access(thd, PROCESS_ACL))
         goto error;
       res = ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_MUTEX);
       break;

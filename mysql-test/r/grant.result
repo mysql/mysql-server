@@ -1235,8 +1235,8 @@ select col1 from test limit 1 into tmp;
 return '1';
 end|
 create view v1 as select test.* from test where test.col1=test_function();
-grant update (col1) on v1 to 'greg';
-revoke all privileges on v1 from 'greg';
+grant update (col1) on v1 to 'greg'@'localhost';
+drop user 'greg'@'localhost';
 drop view v1;
 drop table test;
 drop function test_function;
@@ -1304,5 +1304,6 @@ CALL mysqltest1.test();
 1
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 End of 5.1 tests
