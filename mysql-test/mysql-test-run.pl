@@ -4057,7 +4057,7 @@ sub mysqld_arguments ($$$$) {
 
   } # end slave
 
-  if ( defined $opt_debug )
+  if ( $debug_compiled_binaries && defined $opt_debug )
   {
     if ( $opt_debug )
     {
