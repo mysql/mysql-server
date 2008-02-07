@@ -1,4 +1,11 @@
 drop table if exists t1;
+# test with not null
+create table t1 (a bit not null) partition by key (a);
+insert into t1 values (b'1');
+select hex(a) from t1 where a = b'1';
+hex(a)
+1
+drop table t1;
 create table t1 (a tinyint not null) partition by key (a);
 insert into t1 values (2);
 select * from t1 where a = 2;
@@ -124,6 +131,13 @@ insert into t1 values ('y');
 select * from t1 where a = 'y';
 a
 y
+drop table t1;
+# test with null allowed
+create table t1 (a bit) partition by key (a);
+insert into t1 values (b'1');
+select hex(a) from t1 where a = b'1';
+hex(a)
+1
 drop table t1;
 create table t1 (a tinyint) partition by key (a);
 insert into t1 values (2);
