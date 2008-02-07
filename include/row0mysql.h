@@ -464,6 +464,16 @@ row_check_table_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 
+/*************************************************************************
+Determines if a table is a magic monitor table. */
+
+ibool
+row_is_magic_monitor_table(
+/*=======================*/
+					/* out: TRUE if monitor table */
+	const char*	table_name);	/* in: name of the table, in the
+					form database/table_name */
+
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
