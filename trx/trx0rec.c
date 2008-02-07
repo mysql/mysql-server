@@ -1388,7 +1388,7 @@ trx_undo_prev_version_build(
 				or if the purge COULD have removed the version
 				though it has not yet done so */
 {
-	trx_undo_rec_t*	undo_rec;
+	trx_undo_rec_t*	undo_rec	= NULL;
 	dtuple_t*	entry;
 	dulint		rec_trx_id;
 	ulint		type;
