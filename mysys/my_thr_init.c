@@ -444,18 +444,3 @@ static uint get_thread_lib(void)
 }
 
 #endif /* THREAD */
-
-
-#ifdef __WIN__
-/*
-  With Windows debug builds abort() causes a popup from CRT; as abort()
-  is used in tests it is annoying so we use a custom one.
-*/
-void abort(void)
-{
-#ifdef REENABLE_AFTER_FIX_FOR_BUG_31745 /* don't want a popup */
-  raise(SIGABRT);
-#endif
-  _exit(3);
-}
-#endif
