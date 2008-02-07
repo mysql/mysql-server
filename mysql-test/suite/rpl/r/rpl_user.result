@@ -1,0 +1,45 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+set session sql_log_bin=0;
+delete from mysql.user where Host='fakehost';
+set session sql_log_bin=1;
+create user 'foo'@'fakehost';
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost'
+create user 'foo'@'fakehost', 'bar'@'fakehost';
+ERROR HY000: Operation CREATE USER failed for 'foo'@'fakehost','bar'@'fakehost'
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	bar
+fakehost	foo
+rename user 'foo'@'fakehost' to 'foofoo'@'fakehost';
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost'
+rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'not_exist_user2'@'fakehost' to 'barfoo'@'fakehost';
+ERROR HY000: Operation RENAME USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+fakehost	barbar
+fakehost	foofoo
+drop user 'foofoo'@'fakehost';
+drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost'
+drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
+ERROR HY000: Operation DROP USER failed for 'not_exist_user1'@'fakehost','not_exist_user2'@'fakehost'
+select Host,User from mysql.user where Host='fakehost';
+Host	User
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'foofoo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; drop user 'not_exist_user1'@'fakehost', 'barbar'@'fakehost'

@@ -2,6 +2,10 @@
 # work the same way under statement based as under row based.
 
 source include/master-slave.inc;
+connection master;
+source include/have_innodb.inc;
+connection slave;
+source include/have_innodb.inc;
 
 connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY);
@@ -77,3 +81,335 @@ enable_query_log;
 connection master;
 DROP TABLE t1, t2;
 sync_slave_with_master;
+
+# bug#31609 Not all RBR slave errors reported as errors
+# bug#31552 Replication breaks when deleting rows from out-of-sync table
+#           without PK
+
+#
+# Idempotent applying is not default any longer.
+# The default for slave-exec-mode option and server
+# variable slave_exec_mode  is 'STRICT'.
+# When 'STRICT' mode is set, the slave SQL thread will stop whenever
+# the row to change is not found. In 'IDEMPOTENT' mode, the SQL thread
+# will continue running and apply the row - replace if it's Write_rows event -
+# or skip to the next event.
+
+# the previous part of the tests was with IDEMPOTENT slave's mode.
+
+
+#
+# Other than above idempotent errors dealing with foreign keys constraint
+#
+
+select @@global.slave_exec_mode /* must be IDEMPOTENT */;
+
+connection master;
+
+create table ti1 (b int primary key) engine = innodb;
+create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
+     engine = innodb;
+set foreign_key_checks=1 /* ensure the check */;
+
+insert into ti1 values (1),(2),(3);
+insert into ti2 set a=2, b=2;
+
+sync_slave_with_master;
+
+#connection slave;
+select * from ti1 order by b /* must be (1),(2),(3) */;
+insert into ti2 set a=1, b=1;
+select * from ti2 order by b /* must be (1,1) (2,2) */;
+
+connection master;
+
+# from now on checking rbr specific idempotent errors
+set @save_binlog_format= @@session.binlog_format;
+set @@session.binlog_format= row;
+delete from ti1 where b=1;
+
+select * from ti1 order by b /* must be (2),(3) */;
+
+# slave must catch up (expect some warnings in error.log)
+sync_slave_with_master;
+
+#connection slave;
+select * from ti1 order by b /* must stays as were on master (1),(2),(3) */;
+
+delete from ti1 where b=3;
+
+connection master;
+insert into ti2 set a=3, b=3;
+
+# slave must catch up (expect some warnings in error.log)
+sync_slave_with_master;
+
+#connection slave;
+select * from ti2 order by b /* must be (1,1),(2,2) - not inserted */;
+
+
+#
+# Checking the new global sys variable
+#
+
+connection slave;
+
+set global slave_exec_mode='IDEMPOTENT';
+set global slave_exec_mode='STRICT';
+
+# checking mutual exclusion for the options
+--error ER_SLAVE_AMBIGOUS_EXEC_MODE
+set global slave_exec_mode='IDEMPOTENT,STRICT';
+
+select @@global.slave_exec_mode /* must be STRICT */;
+
+#
+# Checking stops.
+# In the following sections strict slave sql thread is going to
+# stop when faces an idempotent error. In order to proceed
+# the mode is temporarily switched to indempotent.
+#
+
+#
+--echo *** foreign keys errors as above now forces to stop
+#
+
+connection master;
+
+set foreign_key_checks=0;
+drop table ti2, ti1;
+
+create table ti1 (b int primary key) engine = innodb;
+create table ti2 (a int primary key, b int, foreign key (b) references ti1(b))
+     engine = innodb;
+set foreign_key_checks=1 /* ensure the check */;
+
+insert into ti1 values (1),(2),(3);
+insert into ti2 set a=2, b=2;
+
+sync_slave_with_master;
+
+#connection slave;
+select * from ti1 order by b /* must be (1),(2),(3) */;
+--echo *** conspire future problem
+insert into ti2 set a=1, b=1;
+select * from ti2 order by b /* must be (1,1) (2,2) */;
+
+connection master;
+
+delete from ti1 where b=1 /* offending delete event */;
+select * from ti1 order by b /* must be (2),(3) */;
+
+# foreign key: row is referenced
+
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+select * from ti1 order by b /* must be (1),(2),(3) - not deleted */;
+set foreign_key_checks= 0;
+delete from ti2 where b=1;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+connection master;
+
+sync_slave_with_master;
+
+#connection slave;
+--echo *** conspire the following insert failure
+# foreign key: no referenced row
+
+--echo *** conspire future problem
+delete from ti1 where b=3;
+
+connection master;
+insert into ti2 set a=3, b=3 /* offending write event */;
+--echo *** slave must stop
+
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+select * from ti2 order by b /* must be (2,2) */;
+set foreign_key_checks= 0;
+insert into ti1 set b=3;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+connection master;
+
+sync_slave_with_master;
+
+select * from ti2 order by b /* must be (2,2),(3,3) */;
+
+# 
+--echo *** other errors
+# 
+
+# dup key insert
+
+#connection slave;
+--echo *** conspiring query
+insert into ti1 set b=1;
+
+connection master;
+insert into ti1 set b=1 /* offending write event */;
+
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+set foreign_key_checks= 0;
+delete from ti1 where b=1;
+set foreign_key_checks= 1;
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+# key not found
+
+connection master;
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (-1),(-2),(-3);
+INSERT INTO t2 VALUES (-1),(-2),(-3);
+sync_slave_with_master;
+
+#connection slave;
+DELETE FROM t1 WHERE a = -2;
+DELETE FROM t2 WHERE a = -2;
+connection master;
+DELETE FROM t1 WHERE a = -2;
+
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+connection master;
+DELETE FROM t2 WHERE a = -2;
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+UPDATE t1 SET a = 1 WHERE a = -1;
+UPDATE t2 SET a = 1 WHERE a = -1;
+
+connection master;
+UPDATE t1 SET a = 1 WHERE a = -1;
+
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+
+connection master;
+UPDATE t2 SET a = 1 WHERE a = -1;
+
+--echo *** slave must stop
+source include/wait_for_slave_sql_to_stop.inc;
+
+connection slave;
+
+let $last_error = query_get_value("SHOW SLAVE STATUS", Last_SQL_Errno, 1);
+disable_query_log;
+eval SELECT "$last_error" AS Last_SQL_Error;
+enable_query_log;
+
+set global slave_exec_mode='IDEMPOTENT';
+start slave sql_thread;
+connection master;
+sync_slave_with_master;
+#connection slave;
+set global slave_exec_mode='STRICT';
+
+
+# cleanup for bug#31609 tests
+
+connection master;
+set @@session.binlog_format= @save_binlog_format;
+drop table t1,t2,ti2,ti1;
+
+sync_slave_with_master;
+
+
+--echo *** end of tests
+
+
+
+
+
+
+
+
+
