@@ -8793,6 +8793,23 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
 }
 
 
+void Field_bit::hash(ulong *nr, ulong *nr2)
+{
+  if (is_null())
+  {
+    *nr^= (*nr << 1) | 1;
+  }
+  else
+  {
+    CHARSET_INFO *cs= &my_charset_bin;
+    longlong value= Field_bit::val_int();
+    uchar tmp[8];
+    mi_int8store(tmp,value);
+    cs->coll->hash_sort(cs, tmp, 8, nr, nr2);
+  }
+}
+
+
 size_t
 Field_bit::do_last_null_byte() const
 {
