@@ -221,6 +221,11 @@ extern "C" int gethostname(char *name, int namelen);
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
+/*
+  WARNING: When adding new SQL modes don't forget to update the
+           tables definitions that stores it's value.
+           (ie: mysql.event, mysql.proc)
+*/
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
