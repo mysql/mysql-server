@@ -3,8 +3,10 @@
 #
 # This test takes rather long time so let us run it only in --big-test mode
 --source include/big_test.inc
-# We are using some debug-only features in this test
+# We use some debug-only features in this test
 --source include/have_debug.inc
+# We use INFORMATION_SCHEMA.PROCESSLIST in this test
+--source include/not_embedded.inc
 
 --disable_warnings
 drop table if exists t1,t2,t3,t4,t5,t6;
@@ -46,6 +48,8 @@ LOCK TABLE t1 WRITE;
 --echo # connection default
 connection default;
 --echo # Let INSERT go into thr_multi_lock().
+#--sleep 8
+#SELECT ID,STATE,INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
     WHERE ID = $con1_id AND STATE = 'Locked';
 --source include/wait_condition.inc
@@ -54,8 +58,10 @@ let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
 FLUSH TABLES;
 #SELECT NOW();
 --echo # Let INSERT go through open_tables() where it sleeps.
+#--sleep 8
+#SELECT ID,STATE,INFO FROM INFORMATION_SCHEMA.PROCESSLIST;
 let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE ID = $con1_id AND STATE = 'DBUG sleep';
+    WHERE ID = $con1_id AND STATE = 'Waiting for table';
 --source include/wait_condition.inc
 #SELECT NOW();
 --echo # Unlock and close table and wait for con1 to close too.
@@ -74,77 +80,3 @@ UNLOCK TABLES;
 connection default;
 DROP TABLE t1;
 
---echo #
---echo # Extra tests for Bug#26379 - Combination of FLUSH TABLE and
---echo #                             REPAIR TABLE corrupts a MERGE table
---echo #
-CREATE TABLE t1 (c1 INT);
-CREATE TABLE t2 (c1 INT);
-CREATE TABLE t3 (c1 INT);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (2);
-INSERT INTO t3 VALUES (3);
---echo #
---echo # CREATE ... SELECT
---echo # try to access parent from another thread.
---echo #
-#SELECT NOW();
-    --echo # connection con1
-    connect (con1,localhost,root,,);
-    let $con1_id= `SELECT CONNECTION_ID()`;
-    SET SESSION debug="+d,sleep_create_select_before_lock";
-    send CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
-         INSERT_METHOD=FIRST SELECT * FROM t3;
---echo # connection default
-connection default;
-# wait for the other query to start executing
-let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE ID = $con1_id AND STATE = 'DBUG sleep';
---source include/wait_condition.inc
-#SELECT NOW();
---echo # Now try to access the parent.
---echo # If 3 is in table, SELECT had to wait.
-SELECT * FROM t4 ORDER BY c1;
-#SELECT NOW();
-    --echo # connection con1
-    connection con1;
-    reap;
-    #SELECT NOW();
-    SET SESSION debug="-d,sleep_create_select_before_lock";
-    disconnect con1;
---echo # connection default
-connection default;
---echo # Cleanup for next test.
-DROP TABLE t4;
-DELETE FROM t1 WHERE c1 != 1;
---echo #
---echo # CREATE ... SELECT
---echo # try to access child from another thread.
---echo #
-#SELECT NOW();
-    --echo # connection con1
-    connect (con1,localhost,root,,);
-    let $con1_id= `SELECT CONNECTION_ID()`;
-    SET SESSION debug="+d,sleep_create_select_before_lock";
-    send CREATE TABLE t4 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2)
-         INSERT_METHOD=FIRST SELECT * FROM t3;
---echo # connection default
-connection default;
-# wait for the other query to start executing
-let $wait_condition= SELECT 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE ID = $con1_id AND STATE = 'DBUG sleep';
---source include/wait_condition.inc
-#SELECT NOW();
---echo # Now try to access a child.
---echo # If 3 is in table, SELECT had to wait.
-SELECT * FROM t1 ORDER BY c1;
-#SELECT NOW();
-    --echo # connection con1
-    connection con1;
-    reap;
-    #SELECT NOW();
-    SET SESSION debug="-d,sleep_create_select_before_lock";
-    disconnect con1;
---echo # connection default
-connection default;
-DROP TABLE t1, t2, t3, t4;
