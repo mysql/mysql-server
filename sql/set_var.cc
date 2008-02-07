@@ -1090,6 +1090,7 @@ void fix_slave_exec_mode(enum_var_type type)
   }
   if (bit_is_set(slave_exec_mode_options, SLAVE_EXEC_MODE_IDEMPOTENT) == 0)
     bit_do_set(slave_exec_mode_options, SLAVE_EXEC_MODE_STRICT);
+  DBUG_VOID_RETURN;
 }
 
 bool sys_var_thd_binlog_format::is_readonly() const
@@ -1121,7 +1122,7 @@ bool sys_var_thd_binlog_format::is_readonly() const
   if (thd->in_sub_stmt)
   {
     my_error(ER_STORED_FUNCTION_PREVENTS_SWITCH_BINLOG_FORMAT, MYF(0));
-    return 1;    
+    return 1;
   }
   return sys_var_thd_enum::is_readonly();
 }
