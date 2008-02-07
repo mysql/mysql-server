@@ -54,6 +54,7 @@ REGRESSION_TESTS = \
         fifo-test \
         brt-test \
 	test_oexcl \
+	test-assert \
 	test-primes \
 	list-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
@@ -69,11 +70,11 @@ BINS =  $(REGRESSION_TESTS) \
 
 tdb_logprint: LDFLAGS+=-lz
 tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h
-tdb_logprint: log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o roll.o brt.o cachetable.o brt-verify.o key.o
+tdb_logprint: log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o roll.o brt.o cachetable.o brt-verify.o key.o
 
 recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
-recover: recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o cachetable.o brt.o brt-verify.o key.o roll.o
+recover: recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o cachetable.o brt.o brt-verify.o key.o roll.o
 
 roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h pma.h
 
@@ -90,14 +91,27 @@ CHECKS = \
  cachetable-test \
  cachetable-test2 \
  brt-serialize-test \
- brt-test fifo-test \
+ brt-test \
+ fifo-test \
  test_toku_malloc_plain_free \
  test-primes \
- list-test
+ list-test \
+# This line intentially kept commented so I can have a \ on the previous line
+
 check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
 check_benchmarktest_256: benchmark-test
 	$(DTOOL) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
 
+check_test-assert: test-assert
+	@# no arguments, should err
+	$(DTOOL) ./test-assert > /dev/null 2>&1 ; test \($$?\)
+	@# one argument, not "ok" should err
+	@echo Expect an abort message:
+	($(DTOOL) ./test-assert notok) > test-assert.out 2>&1 ; test \($$?\)
+	@fgrep failed test-assert.out > /dev/null
+	@rm test-assert.out
+	@# one argument, "ok" should not error
+	$(DTOOL) ./test-assert ok
 check_%: %
 	$(DTOOL)  ./$< $(VERBVERBOSE) 
 
@@ -114,20 +128,20 @@ pma-test benchmark-test brt-test brt-serialize-test brtdump: LDFLAGS+=-lz
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
 key.o: brttypes.h key.h
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
-pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
+pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o toku_assert.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
 memory.o: memory.h
-primes.o: primes.h
+primes.o: primes.h toku_assert.h
 fifo-test: fifo.o memory.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o
@@ -135,23 +149,26 @@ brt-bigtest.o: brt.h ../include/db.h
 log-test: log.o memory.o
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
+toku_assert.o: toku_assert.h
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o fifo.o pma.o key.o ybt.o brt.o cachetable.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o fifo.o pma.o key.o ybt.o brt.o cachetable.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 test_toku_malloc_plain_free: memory.o
 
 
 cachetable-test.o: cachetable.h memory.h 
-cachetable-test: cachetable.o memory.o cachetable-test.o primes.o
+cachetable-test: cachetable.o memory.o cachetable-test.o primes.o toku_assert.o
 
 cachetable-test2.o: cachetable.h memory.h
-cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o
+cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o toku_assert.o
 
-benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o primes.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+benchmark-test: benchmark-test.o ybt.o memory.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 benchmark-test.o: brt.h ../include/db.h
 
-test-primes: test-primes.o primes.o
+test-primes: test-primes.o toku_assert.o primes.o toku_assert.o toku_assert.o
 
-brtdump: brtdump.o brt-serialize.o memory.o pma.o key.o fingerprint.o log.o log_code.o roll.o cachetable.o primes.o brt.o ybt.o fifo.o mempool.o brt-verify.o
+test-assert: test-assert.o toku_assert.o
+
+brtdump: brtdump.o brt-serialize.o memory.o pma.o key.o fingerprint.o log.o log_code.o roll.o cachetable.o primes.o toku_assert.o brt.o ybt.o fifo.o mempool.o brt-verify.o
 
 checko2:
 ifeq ($(OPTFLAGS),-O2)
