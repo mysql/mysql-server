@@ -1,6 +1,8 @@
 #include <assert.h>
 #include <db_cxx.h>
 
+#define USE_ENV 1
+
 int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     int r;
 #if USE_ENV
@@ -26,11 +28,13 @@ int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     }
             
     r = db->close(0); assert(r == 0);
+    delete db;
+#if USE_ENV
     if (env) {
         r = env->close(0); assert(r == 0);
         delete env;
     }
-    delete db;
+#endif
     return 0;
 }
 

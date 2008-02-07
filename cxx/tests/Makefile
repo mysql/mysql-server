@@ -22,9 +22,14 @@ $(DBCXX):
 clean:
 	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db
 
-check: $(TARGETS)
+check: $(TARGETS) \
+	check_db_create_1 check_db_create_2 check_db_create_3 check_db_create_4
 	$(VGRIND) ./test1
 	$(VGRIND) ./test1e
+	rm -f foo.db
+	$(VGRIND) ./db_create -s main foo.db
+	rm -f foo.db
+	$(VGRIND) ./db_create -D -S -s main foo.db
 	rm -f foo.db
 	$(VGRIND) ./db_create foo.db a b c d
 	$(VGRIND) ./db_dump foo.db > foo.out
@@ -41,3 +46,12 @@ check: $(TARGETS)
 	$(VGRIND) ./test_error_stream
 	$(VGRIND) ./test_reverse_compare_fun
 	$(VGRIND) ./test_db_delete
+
+check_db_create_1:
+	$(VGRIND) ./db_create; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+check_db_create_2:
+	$(VGRIND) ./db_create -h; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+check_db_create_3:
+	$(VGRIND) ./db_create --help; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+check_db_create_4:
+	$(VGRIND) ./db_create -s; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
