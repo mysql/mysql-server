@@ -51,6 +51,10 @@
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
 #endif
+#ifdef __WIN__
+#include <direct.h>
+#endif
+
 
 #ifndef WEXITSTATUS
 # ifdef __WIN__
