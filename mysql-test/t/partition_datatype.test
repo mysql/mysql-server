@@ -37,14 +37,14 @@ insert into t1 values (2);
 select * from t1 where a = 2;
 drop table t1;
 create table t1 (a float not null) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 drop table t1;
 create table t1 (a double not null) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 drop table t1;
-create table t1 (a decimal not null) partition by key (a);
+create table t1 (a decimal(4,2) not null) partition by key (a);
 insert into t1 values (2.1);
 select * from t1 where a = 2.1;
 drop table t1;
@@ -126,14 +126,14 @@ insert into t1 values (2);
 select * from t1 where a = 2;
 drop table t1;
 create table t1 (a float) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 drop table t1;
 create table t1 (a double) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 drop table t1;
-create table t1 (a decimal) partition by key (a);
+create table t1 (a decimal(4,2)) partition by key (a);
 insert into t1 values (2.1);
 select * from t1 where a = 2.1;
 drop table t1;
@@ -192,18 +192,23 @@ drop table t1;
 create table t1 (a varchar(65531)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
+select * from t1 where a = 'bbbb';
 drop table t1;
 create table t1 (a varchar(65532)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
 select * from t1 where a like 'aaa%';
+select * from t1 where a = 'bbbb';
 drop table t1;
 create table t1 (a varchar(65533) not null) partition by key (a);
+insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
+select * from t1 where a like 'aaa%';
+select * from t1 where a = 'bbbb';
 drop table t1;
 -- error ER_TOO_BIG_ROWSIZE
 create table t1 (a varchar(65533)) partition by key (a);
@@ -211,3 +216,14 @@ create table t1 (a varchar(65533)) partition by key (a);
 create table t1 (a varchar(65534) not null) partition by key (a);
 -- error ER_TOO_BIG_ROWSIZE
 create table t1 (a varchar(65535)) partition by key (a);
+
+#
+# Bug#34358: error in key_restore for bitfields with uneven bits
+#
+create table t1 (a bit(27), primary key (a)) engine=myisam
+partition by hash (a)
+(partition p0, partition p1, partition p2);
+show create table t1;
+insert into t1 values (1),(4),(7),(10),(13),(16),(19),(22),(25),(28),(31),(34);
+select hex(a) from t1 where a = 7;
+drop table t1;

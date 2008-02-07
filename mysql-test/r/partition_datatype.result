@@ -37,22 +37,22 @@ a
 2
 drop table t1;
 create table t1 (a float not null) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 a
+0.5
 drop table t1;
 create table t1 (a double not null) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 a
-2.1
+0.5
 drop table t1;
-create table t1 (a decimal not null) partition by key (a);
+create table t1 (a decimal(4,2) not null) partition by key (a);
 insert into t1 values (2.1);
-Warnings:
-Note	1265	Data truncated for column 'a' at row 1
 select * from t1 where a = 2.1;
 a
+2.10
 drop table t1;
 create table t1 (a date not null) partition by key (a);
 insert into t1 values ('2001-01-01');
@@ -170,22 +170,22 @@ a
 2
 drop table t1;
 create table t1 (a float) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 a
+0.5
 drop table t1;
 create table t1 (a double) partition by key (a);
-insert into t1 values (2.1);
-select * from t1 where a = 2.1;
+insert into t1 values (0.5);
+select * from t1 where a = 0.5;
 a
-2.1
+0.5
 drop table t1;
-create table t1 (a decimal) partition by key (a);
+create table t1 (a decimal(4,2)) partition by key (a);
 insert into t1 values (2.1);
-Warnings:
-Note	1265	Data truncated for column 'a' at row 1
 select * from t1 where a = 2.1;
 a
+2.10
 drop table t1;
 create table t1 (a date) partition by key (a);
 insert into t1 values ('2001-01-01');
@@ -268,25 +268,41 @@ drop table t1;
 create table t1 (a varchar(65531)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
 a
+aaaa
 select * from t1 where a like 'aaa%';
 a
 aaaa
+select * from t1 where a = 'bbbb';
+a
+bbbb
 drop table t1;
 create table t1 (a varchar(65532)) partition by key (a);
 insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
 a
+aaaa
 select * from t1 where a like 'aaa%';
 a
 aaaa
+select * from t1 where a = 'bbbb';
+a
+bbbb
 drop table t1;
 create table t1 (a varchar(65533) not null) partition by key (a);
+insert into t1 values ('bbbb');
 insert into t1 values ('aaaa');
-select * from t1 where a = 'aaa%';
+select * from t1 where a = 'aaaa';
 a
+aaaa
+select * from t1 where a like 'aaa%';
+a
+aaaa
+select * from t1 where a = 'bbbb';
+a
+bbbb
 drop table t1;
 create table t1 (a varchar(65533)) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
@@ -294,3 +310,17 @@ create table t1 (a varchar(65534) not null) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
 create table t1 (a varchar(65535)) partition by key (a);
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
+create table t1 (a bit(27), primary key (a)) engine=myisam
+partition by hash (a)
+(partition p0, partition p1, partition p2);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` bit(27) NOT NULL DEFAULT '\0\0\0\0',
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (a) (PARTITION p0 ENGINE = MyISAM, PARTITION p1 ENGINE = MyISAM, PARTITION p2 ENGINE = MyISAM) */
+insert into t1 values (1),(4),(7),(10),(13),(16),(19),(22),(25),(28),(31),(34);
+select hex(a) from t1 where a = 7;
+hex(a)
+7
+drop table t1;
