@@ -108,13 +108,14 @@ const uint error_conflict_fn_max_violation= 9999;
 class Ndb_table_guard
 {
 public:
+  Ndb_table_guard(NDBDICT *dict)
+    : m_dict(dict), m_ndbtab(NULL), m_invalidate(0)
+  {}
   Ndb_table_guard(NDBDICT *dict, const char *tabname)
     : m_dict(dict)
   {
     DBUG_ENTER("Ndb_table_guard");
-    m_ndbtab= m_dict->getTableGlobal(tabname);
-    m_invalidate= 0;
-    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
+    init(tabname);
     DBUG_VOID_RETURN;
   }
   ~Ndb_table_guard()
@@ -126,6 +127,14 @@ public:
                           m_ndbtab, m_invalidate));
       m_dict->removeTableGlobal(*m_ndbtab, m_invalidate);
     }
+    DBUG_VOID_RETURN;
+  }
+  void init(const char *tabname)
+  {
+    DBUG_ENTER("Ndb_table_guard::init");
+    m_ndbtab= m_dict->getTableGlobal(tabname);
+    m_invalidate= 0;
+    DBUG_PRINT("info", ("m_ndbtab: %p", m_ndbtab));
     DBUG_VOID_RETURN;
   }
   const NDBTAB *get_table() { return m_ndbtab; }
