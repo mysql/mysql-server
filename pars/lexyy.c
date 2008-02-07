@@ -278,12 +278,12 @@ static int yy_start = 0;	/* start state number */
 static int yy_did_buffer_switch_on_eof;
 
 static void yyrestart (FILE *input_file  );
-static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
+__attribute__((unused)) static void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer  );
 static YY_BUFFER_STATE yy_create_buffer (FILE *file,int size  );
 static void yy_delete_buffer (YY_BUFFER_STATE b  );
 static void yy_flush_buffer (YY_BUFFER_STATE b  );
-static void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
-static void yypop_buffer_state (void );
+__attribute__((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buffer  );
+__attribute__((unused)) static void yypop_buffer_state (void );
 
 static void yyensure_buffer_stack (void );
 static void yy_load_buffer_state (void );
@@ -291,9 +291,9 @@ static void yy_init_buffer (YY_BUFFER_STATE b,FILE *file  );
 
 #define YY_FLUSH_BUFFER yy_flush_buffer(YY_CURRENT_BUFFER )
 
-static YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
-static YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
-static YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
+YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size  );
+YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str  );
+YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,int len  );
 
 static void *yyalloc (yy_size_t  );
 static void *yyrealloc (void *,yy_size_t  );
@@ -2334,7 +2334,7 @@ static int yy_get_next_buffer (void)
  * @param new_buffer The new input buffer.
  * 
  */
-    static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
+    __attribute__((unused)) static void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer )
 {
     
 	/* TODO. We should be able to replace this entire function body
@@ -2483,7 +2483,7 @@ static void yy_load_buffer_state  (void)
  *  @param new_buffer The new state.
  *  
  */
-static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
+__attribute__((unused)) static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
 {
     	if (new_buffer == NULL)
 		return;
@@ -2513,7 +2513,7 @@ static void yypush_buffer_state (YY_BUFFER_STATE new_buffer )
  *  The next element becomes the new top.
  *  
  */
-static void yypop_buffer_state (void)
+__attribute__((unused)) static void yypop_buffer_state (void)
 {
     	if (!YY_CURRENT_BUFFER)
 		return;
@@ -2603,7 +2603,7 @@ static void yy_fatal_error (yyconst char* msg )
 /** Get the current line number.
  * 
  */
-static int yyget_lineno  (void)
+__attribute__((unused)) static int yyget_lineno  (void)
 {
         
     return yylineno;
@@ -2612,7 +2612,7 @@ static int yyget_lineno  (void)
 /** Get the input stream.
  * 
  */
-static FILE *yyget_in  (void)
+__attribute__((unused)) static FILE *yyget_in  (void)
 {
         return yyin;
 }
@@ -2620,7 +2620,7 @@ static FILE *yyget_in  (void)
 /** Get the output stream.
  * 
  */
-static FILE *yyget_out  (void)
+__attribute__((unused)) static FILE *yyget_out  (void)
 {
         return yyout;
 }
@@ -2628,7 +2628,7 @@ static FILE *yyget_out  (void)
 /** Get the length of the current token.
  * 
  */
-static int yyget_leng  (void)
+__attribute__((unused)) static int yyget_leng  (void)
 {
         return yyleng;
 }
@@ -2637,7 +2637,7 @@ static int yyget_leng  (void)
  * 
  */
 
-static char *yyget_text  (void)
+__attribute__((unused)) static char *yyget_text  (void)
 {
         return yytext;
 }
@@ -2646,7 +2646,7 @@ static char *yyget_text  (void)
  * @param line_number
  * 
  */
-static void yyset_lineno (int  line_number )
+__attribute__((unused)) static void yyset_lineno (int  line_number )
 {
     
     yylineno = line_number;
@@ -2658,28 +2658,28 @@ static void yyset_lineno (int  line_number )
  * 
  * @see yy_switch_to_buffer
  */
-static void yyset_in (FILE *  in_str )
+__attribute__((unused)) static void yyset_in (FILE *  in_str )
 {
         yyin = in_str ;
 }
 
-static void yyset_out (FILE *  out_str )
+__attribute__((unused)) static void yyset_out (FILE *  out_str )
 {
         yyout = out_str ;
 }
 
-static int yyget_debug  (void)
+__attribute__((unused)) static int yyget_debug  (void)
 {
         return yy_flex_debug;
 }
 
-static void yyset_debug (int  bdebug )
+__attribute__((unused)) static void yyset_debug (int  bdebug )
 {
         yy_flex_debug = bdebug ;
 }
 
 /* yylex_destroy is for both reentrant and non-reentrant scanners. */
-static int yylex_destroy  (void)
+__attribute__((unused)) static int yylex_destroy  (void)
 {
     
     /* Pop the buffer stack, destroying each element. */
