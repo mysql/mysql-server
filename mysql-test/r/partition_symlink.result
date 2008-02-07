@@ -81,3 +81,34 @@ Got one of the listed errors
 DROP DATABASE mysqltest2;
 USE test;
 DROP USER mysqltest_1@localhost;
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+@@sql_mode
+NO_DIR_IN_CREATE
+create table t1 (i int )
+partition by range (i)
+(
+partition p01 values less than (1000)
+data directory='/not/existing'
+    index directory='/not/existing'
+);
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (i) (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+create table t1 (a int)
+partition by key (a)
+(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+ERROR 42000: Incorrect table name 'part-data'
+create table t1 (a int)
+partition by key (a)
+(partition p0,
+partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+ERROR 42000: Incorrect table name 'part-data'
