@@ -263,7 +263,7 @@ enum enum_commands {
   Q_REPLACE_REGEX, Q_REMOVE_FILE, Q_FILE_EXIST,
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
-  Q_SEND_QUIT, Q_CHANGE_USER,
+  Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -353,6 +353,9 @@ const char *command_names[]=
   "diff_files",
   "send_quit",
   "change_user",
+  "mkdir",
+  "rmdir",
+
   0
 };
 
@@ -2732,6 +2735,67 @@ void do_file_exist(struct st_command *command)
   error= (access(ds_filename.str, F_OK) != 0);
   handle_command_error(command, error);
   dynstr_free(&ds_filename);
+  DBUG_VOID_RETURN;
+}
+
+
+/*
+  SYNOPSIS
+  do_mkdir
+  command	called command
+
+  DESCRIPTION
+  mkdir <dir_name>
+  Create the directory <dir_name>
+*/
+
+void do_mkdir(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_dirname;
+  const struct command_arg mkdir_args[] = {
+    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"
+  };
+  DBUG_ENTER("do_mkdir");
+
+  check_command_args(command, command->first_argument,
+                     mkdir_args, sizeof(mkdir_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("creating directory: %s", ds_dirname.str));
+  error= my_mkdir(ds_dirname.str, 0777, MYF(0)) != 0;
+  handle_command_error(command, error);
+  dynstr_free(&ds_dirname);
+  DBUG_VOID_RETURN;
+}
+
+/*
+  SYNOPSIS
+  do_rmdir
+  command	called command
+
+  DESCRIPTION
+  rmdir <dir_name>
+  Remove the empty directory <dir_name>
+*/
+
+void do_rmdir(struct st_command *command)
+{
+  int error;
+  static DYNAMIC_STRING ds_dirname;
+  const struct command_arg rmdir_args[] = {
+    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"
+  };
+  DBUG_ENTER("do_rmdir");
+
+  check_command_args(command, command->first_argument,
+                     rmdir_args, sizeof(rmdir_args)/sizeof(struct command_arg),
+                     ' ');
+
+  DBUG_PRINT("info", ("removing directory: %s", ds_dirname.str));
+  error= rmdir(ds_dirname.str) != 0;
+  handle_command_error(command, error);
+  dynstr_free(&ds_dirname);
   DBUG_VOID_RETURN;
 }
 
@@ -6913,6 +6977,8 @@ int main(int argc, char **argv)
       case Q_ECHO: do_echo(command); command_executed++; break;
       case Q_SYSTEM: do_system(command); break;
       case Q_REMOVE_FILE: do_remove_file(command); break;
+      case Q_MKDIR: do_mkdir(command); break;
+      case Q_RMDIR: do_rmdir(command); break;
       case Q_FILE_EXIST: do_file_exist(command); break;
       case Q_WRITE_FILE: do_write_file(command); break;
       case Q_APPEND_FILE: do_append_file(command); break;
