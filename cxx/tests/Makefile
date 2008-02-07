@@ -20,7 +20,7 @@ $(DBCXX):
 	cd ..;make
 
 clean:
-	rm -rf $(TARGETS) *.gcno *.gcda *.gcov
+	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db
 
 check: $(TARGETS)
 	$(VGRIND) ./test1
@@ -39,4 +39,5 @@ check: $(TARGETS)
 	$(VGRIND) ./test_cursor_count
 	$(VGRIND) ./test_fd
 	$(VGRIND) ./test_error_stream
-
+	$(VGRIND) ./test_reverse_compare_fun
+	$(VGRIND) ./test_db_delete

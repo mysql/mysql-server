@@ -23,7 +23,9 @@ build-coverage:
 
 # this is messy now since we dont have consistent make targets
 check-coverage: check-coverage-newbrt check-coverage-src-tests check-coverage-utils check-coverage-cxx-tests \
+		check-coverage-db-benchmark-test check-coverage-db-benchmark-test-cxx \
 		check-coverage-range-tree-tests check-coverage-lock-tree-tests
+
 check-coverage-newbrt:
 	(cd newbrt; $(MAKE) -k check DTOOL="")
 check-coverage-src-tests:
@@ -32,6 +34,10 @@ check-coverage-utils:
 	(cd utils; $(MAKE) -k test-coverage)
 check-coverage-cxx-tests:
 	(cd cxx/tests; $(MAKE) -k check VGRIND="") 
+check-coverage-db-benchmark-test:
+	(cd db-benchmark-test; $(MAKE) -k check VGRIND="") 
+check-coverage-db-benchmark-test-cxx:
+	(cd db-benchmark-test-cxx; $(MAKE) -k check VGRIND="") 
 check-coverage-range-tree-tests:
 	(cd src/range_tree/tests; $(MAKE) clean; $(MAKE) -k check.lin VGRIND="" OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
 check-coverage-lock-tree-tests:
