@@ -258,7 +258,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
   MARIA_HA info,*m_info,*old_info;
   MARIA_SHARE share_buff,*share;
   double rec_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
-  long   nulls_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
+  ulong  nulls_per_key_part[HA_MAX_POSSIBLE_KEY*HA_MAX_KEY_SEG];
   my_off_t key_root[HA_MAX_POSSIBLE_KEY];
   ulonglong max_key_file_length, max_data_file_length;
   File data_file= -1;
@@ -311,7 +311,7 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
 	       (uchar*) maria_file_magic, 4))
     {
       DBUG_PRINT("error",("Wrong header in %s",name_buff));
-      DBUG_DUMP("error_dump",(char*) share->state.header.file_version,
+      DBUG_DUMP("error_dump", share->state.header.file_version,
 		head_length);
       my_errno=HA_ERR_NOT_A_TABLE;
       goto err;

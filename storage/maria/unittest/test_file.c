@@ -74,7 +74,7 @@ int test_file(PAGECACHE_FILE file, char *file_name,
   my_seek(file.file, 0, SEEK_SET, MYF(MY_WME));
   while (desc[step].length != 0)
   {
-    if (my_read(file.file, (char*)buffr, desc[step].length, MYF(0)) !=
+    if (my_read(file.file, buffr, desc[step].length, MYF(0)) !=
         desc[step].length)
     {
       diag("Can't read %u bytes from %s (file: %d  errno: %d)\n",
