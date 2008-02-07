@@ -1,14 +1,30 @@
-DROP TABLE IF EXISTS `example`;
-CREATE TABLE `example` (
-`ID_EXAMPLE` int(10) unsigned NOT NULL AUTO_INCREMENT,
-`DESCRIPTION` varchar(30) NOT NULL,
-`LEVEL` smallint(5) unsigned DEFAULT NULL,
-PRIMARY KEY (`ID_EXAMPLE`)
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (
+c1 int(10) unsigned NOT NULL AUTO_INCREMENT,
+c2 varchar(30) NOT NULL,
+c3 smallint(5) unsigned DEFAULT NULL,
+PRIMARY KEY (c1)
 ) ENGINE = MYISAM 
-PARTITION BY HASH(ID_EXAMPLE)(
-PARTITION p0 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p0Data',
-PARTITION p1 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p1Data',
-PARTITION p2 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p2Data',
-PARTITION p3 DATA DIRECTORY = 'C:/build/5.1/data/partitiontest/p3Data'
+PARTITION BY HASH(c1)(
+PARTITION p0
+DATA DIRECTORY = 'C:/mysqltest/p0Data'
+    INDEX DIRECTORY = 'D:/mysqltest/p0Index',
+PARTITION p1,
+PARTITION p2
+DATA DIRECTORY = 'E:/mysqltest/p2Data'
+    INDEX DIRECTORY = 'F:/mysqltest/p2Index'
 );
-ERROR HY000: Can't create/write to file 'C:\build\5.1\data\partitiontest\p0Data\example#P#p0.MYD' (Errcode: 2)
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+INSERT INTO t1 VALUES (NULL, "first", 1);
+INSERT INTO t1 VALUES (NULL, "second", 2);
+INSERT INTO t1 VALUES (NULL, "third", 3);
+ALTER TABLE t1 ADD PARTITION (PARTITION p3 DATA DIRECTORY = 'G:/mysqltest/p3Data' INDEX DIRECTORY = 'H:/mysqltest/p3Index');
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
+INSERT INTO t1 VALUES (NULL, "last", 4);
+DROP TABLE t1;
