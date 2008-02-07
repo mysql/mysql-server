@@ -1,15 +1,3 @@
---disable_query_log
-# DATA DIRECTORY
-eval SET @data_dir = 'DATA DIRECTORY =
-''/tmp''';
-let $data_directory = `select @data_dir`;
-
-#INDEX DIRECTORY
-eval SET @indx_dir = 'INDEX DIRECTORY =
-''/tmp''';
-let $index_directory = `select @indx_dir`;
---enable_query_log
-
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -23,8 +11,8 @@ drop table t1;
 
 eval create table t1 (a bit(0), primary key (a)) engine=$engine 
 partition by key (a) (
-partition pa1 $data_directory $index_directory,
-partition pa2 $data_directory $index_directory);
+partition pa1,
+partition pa2);
 show create table t1;
 drop table t1;
 
@@ -37,15 +25,16 @@ insert into t1 values
 (b'0000000000000000000000000000000000000000000000000000000000000001'),
 (b'1010101010101010101010101010101010101010101010101010101010101010'),
 (b'0101010101010101010101010101010101010101010101010101010101010101');
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 
 eval create table t1 (a bit(64), primary key (a)) engine=$engine 
 partition by key (a) (
-partition pa1 $data_directory $index_directory max_rows=20 min_rows=2,
-partition pa2 $data_directory $index_directory max_rows=30 min_rows=3,
-partition pa3 $data_directory $index_directory max_rows=30 min_rows=4,
-partition pa4 $data_directory $index_directory max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 insert into t1 values 
 (b'1111111111111111111111111111111111111111111111111111111111111111'),
@@ -55,6 +44,7 @@ insert into t1 values
 (b'0101010101010101010101010101010101010101010101010101010101010101');
 select hex(a) from t1 where a=b'0101010101010101010101010101010101010101010101010101010101010101';
 delete from t1 where a=b'0101010101010101010101010101010101010101010101010101010101010101';
+--sorted_result
 select hex(a) from t1;
 drop table t1;
 
@@ -62,12 +52,15 @@ eval create table t2 (a bit, primary key (a)) engine=$engine
 partition by key (a) partitions 4;
 show create table t2;
 insert into t2 values (b'0'), (b'1');
+--sorted_result
 select hex(a) from t2;
 alter table t2 drop primary key;
 show create table t2;
+--sorted_result
 select hex(a) from t2;
 alter table t2 add primary key (a);
 show create table t2;
+--sorted_result
 select hex(a) from t2;
 drop table t2;
 
@@ -90,6 +83,7 @@ dec $count;
 select hex(a) from t3 where a=b'01010101';
 delete from t3 where a=b'01010101';
 select count(*) from t3;
+--sorted_result
 select hex(a) from t3;
 drop table t3;
 
@@ -111,5 +105,6 @@ dec $count;
 select hex(a) from t4 where a=b'00000001';
 delete from t4 where a=b'00000001';
 select count(*) from t4;
+--sorted_result
 select hex(a) from t4;
 drop table t4;
