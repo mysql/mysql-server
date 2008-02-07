@@ -1896,7 +1896,9 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     if (!rli->is_fake)
 #endif
     {
+#ifndef DBUG_OFF
       char buf[22];
+#endif
       DBUG_PRINT("info", ("update_pos error = %d", error));
       DBUG_PRINT("info", ("group %s %s",
                           llstr(rli->group_relay_log_pos, buf),
