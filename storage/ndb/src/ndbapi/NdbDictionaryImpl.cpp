@@ -43,6 +43,7 @@
 #include <NdbEnv.h>
 #include <NdbMem.h>
 #include <util/version.h>
+#include <NdbSleep.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -1721,7 +1722,23 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
 {
   DBUG_ENTER("NdbDictInterface::dictSignal");
   DBUG_PRINT("enter", ("useMasterNodeId: %d", node_specification));
-  for(Uint32 i = 0; i<RETRIES; i++){
+
+  int sleep = 50;
+  int mod = 5;
+
+  for(Uint32 i = 0; i<RETRIES; i++)
+  {
+    if (i > 0)
+      NdbSleep_MilliSleep(sleep + 10 * (rand() % mod));
+    if (i == RETRIES / 2)
+    {
+      mod = 10;
+    }
+    if (i == 3*RETRIES/4)
+    {
+      sleep = 100;
+    }
+
     m_buffer.clear();
 
     // Protected area
