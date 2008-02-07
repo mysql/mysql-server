@@ -19,7 +19,6 @@
 #include "log-internal.h"
 #include "wbuf.h"
 #include "memory.h"
-#include "../src/ydb-internal.h"
 #include "log_header.h"
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result) {
