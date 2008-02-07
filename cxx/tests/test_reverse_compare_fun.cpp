@@ -15,9 +15,7 @@
 #include <unistd.h>
 
 #define DIR "dir_test_reverse_compare_fun"
-#include "test.h"
-
-
+int verbose;
 
 int keycompare (const void *key1, unsigned int key1len, const void *key2, unsigned int key2len) {
     if (key1len==key2len) {
@@ -39,7 +37,7 @@ void expect(Dbc *cursor, int k, int v) {
     Dbt key; key.set_flags(DB_DBT_MALLOC);
     Dbt val; val.set_flags(DB_DBT_MALLOC);
     int r = cursor->get(&key, &val, DB_NEXT);
-    CKERR(r);
+    assert(r == 0);
     assert(key.get_size() == sizeof k);
     int kk;
     memcpy(&kk, key.get_data(), key.get_size());
@@ -72,15 +70,15 @@ void test_reverse_compare(int n, int dup_flags) {
     db = new Db(null_env, 0);
     assert(db);
     r = db->set_flags(dup_flags);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_pagesize(4096);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_bt_compare(reverse_compare);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_dup_compare(reverse_compare);
-    CKERR(r);
+    assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
-    CKERR(r);
+    assert(r == 0);
 
     /* insert n unique keys {0, 1,  n-1} */
     for (i=0; i<n; i++) {
@@ -90,26 +88,26 @@ void test_reverse_compare(int n, int dup_flags) {
         v = htonl(i);
         Dbt val(&v, sizeof v);
         r = db->put(null_txn, &key, &val, DB_YESOVERWRITE);
-        CKERR(r);
+        assert(r == 0);
     }
 
     /* reopen the database to force nonleaf buffering */
     r = db->close(0);
-    CKERR(r);
+    assert(r == 0);
     delete db;
 
     db = new Db(null_env, 0);
     assert(db);
     r = db->set_flags(dup_flags);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_pagesize(4096);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_bt_compare(reverse_compare);
-    CKERR(r);
+    assert(r == 0);
     r = db->set_dup_compare(reverse_compare);
-    CKERR(r);
+    assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, 0, 0666);
-    CKERR(r);
+    assert(r == 0);
 
     /* insert n unique keys {n, n+1,  2*n-1} */
     for (i=n; i<2*n; i++) {
@@ -119,31 +117,28 @@ void test_reverse_compare(int n, int dup_flags) {
         v = htonl(i);
         Dbt val(&v, sizeof v);
         r = db->put(null_txn, &key, &val, DB_YESOVERWRITE);
-        CKERR(r);
+        assert(r == 0);
     }
 
     /* verify the sort order with a cursor */
     Dbc *cursor;
     r = db->cursor(null_txn, &cursor, 0);
-    CKERR(r);
+    assert(r == 0);
 
     //for (i=0; i<2*n; i++) 
     for (i=2*n-1; i>=0; i--)
         expect(cursor, htonl(dup_flags ? n : i), htonl(i));
 
     r = cursor->close();
-    CKERR(r);
+    assert(r == 0);
 
     r = db->close(0);
-    CKERR(r);
+    assert(r == 0);
     delete db;
 }
 
 int main(int argc, const char *argv[]) {
-    parse_args(argc, argv);
-
     int i;
-
     for (i = 1; i <= (1<<16); i *= 2) {
         test_reverse_compare(i, 0);
         test_reverse_compare(i, DB_DUP + DB_DUPSORT);
