@@ -1773,4 +1773,15 @@ drop table t1;
 CREATE TABLE t1(a INT) ENGINE=CSV;
 SHOW WARNINGS;
 
+#
+# BUG#33067 - .
+#
+create table t1 (c1 tinyblob not null) engine=csv;
+insert into t1 values("This");
+--enable_info            
+update t1 set c1="That" where c1="This";
+--disable_info
+select * from t1;
+drop table t1;
+
 --echo End of 5.1 tests
