@@ -1893,14 +1893,19 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
   if (exec_res == 0)
   {
     int error= ev->update_pos(rli);
-    char buf[22];
-    DBUG_PRINT("info", ("update_pos error = %d", error));
-    DBUG_PRINT("info", ("group %s %s",
-                        llstr(rli->group_relay_log_pos, buf),
-                        rli->group_relay_log_name));
-    DBUG_PRINT("info", ("event %s %s",
-                        llstr(rli->event_relay_log_pos, buf),
-                        rli->event_relay_log_name));
+#ifdef HAVE_purify
+    if (!rli->is_fake)
+#endif
+    {
+      char buf[22];
+      DBUG_PRINT("info", ("update_pos error = %d", error));
+      DBUG_PRINT("info", ("group %s %s",
+                          llstr(rli->group_relay_log_pos, buf),
+                          rli->group_relay_log_name));
+      DBUG_PRINT("info", ("event %s %s",
+                          llstr(rli->event_relay_log_pos, buf),
+                          rli->event_relay_log_name));
+    }
     /*
       The update should not fail, so print an error message and
       return an error code.
@@ -1910,6 +1915,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     */
     if (error)
     {
+      char buf[22];
       rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
                   "It was not possible to update the positions"
                   " of the relay log information: the slave may"
