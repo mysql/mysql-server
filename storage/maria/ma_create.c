@@ -1013,7 +1013,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     /* we store the end-zero, for Recovery to just pass it to my_create() */
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *) log_data;
     /* symlink description is also needed for re-creation by Recovery: */
     log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)
       (ci->data_file_name ? ci->data_file_name : empty_string);
@@ -1333,7 +1333,7 @@ int _ma_update_state_lsns(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
 int _ma_update_state_lsns_sub(MARIA_SHARE *share, LSN lsn, my_bool do_sync,
                               my_bool update_create_rename_lsn)
 {
-  char buf[LSN_STORE_SIZE * 3], *ptr;
+  uchar buf[LSN_STORE_SIZE * 3], *ptr;
   File file= share->kfile.file;
   DBUG_ASSERT(file >= 0);
   for (ptr= buf; ptr < (buf + sizeof(buf)); ptr+= LSN_STORE_SIZE)

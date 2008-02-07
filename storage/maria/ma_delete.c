@@ -1403,7 +1403,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, changed_length);
     log_pos+= 3;
     translog_parts= 2;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char *) buff + offset;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
   }
 
@@ -1416,7 +1416,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, page_length);
     int4store(log_pos+3, crc);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     changed_length+= 7;
     translog_parts++;

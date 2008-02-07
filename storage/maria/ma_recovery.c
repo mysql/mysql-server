@@ -709,7 +709,7 @@ prototype_redo_exec_hook(REDO_CREATE_TABLE)
   kfile_header= (uchar *)ptr;
   ptr+= kfile_size_before_extension;
   /* set header lsns */
-  ptr2= kfile_header + sizeof(info->s->state.header) +
+  ptr2= (char *) kfile_header + sizeof(info->s->state.header) +
     MARIA_FILE_CREATE_RENAME_LSN_OFFSET;
   for (i= 0; i<3; i++)
   {

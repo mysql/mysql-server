@@ -1198,7 +1198,7 @@ static void calc_record_size(MARIA_HA *info, const uchar *record,
       break;
     case FIELD_SKIP_ENDSPACE:                   /* CHAR */
     {
-      const char *pos, *end;
+      const uchar *pos, *end;
       for (pos= record + column->offset, end= pos + column->length;
            end > pos && end[-1] == ' '; end--)
         ;
@@ -2240,7 +2240,7 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
     pagerange_store(log_data + FILEID_STORE_SIZE, extents_count);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    compact_extent_info;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) compact_extent_info;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
     res= translog_write_record(&lsn, LOGREC_REDO_FREE_BLOCKS, info->trn,
                                info,
@@ -3094,7 +3094,7 @@ static my_bool write_block_record(MARIA_HA *info,
         log_array[TRANSLOG_INTERNAL_PARTS + 0].length+= (2 +
                                                          PAGERANGE_STORE_SIZE);
         info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].str=
-          info->cur_row.extents;
+          (char *) info->cur_row.extents;
         info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].length=
           extents_length= info->cur_row.extents_count * ROW_EXTENT_SIZE;
 
@@ -3975,7 +3975,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
                           info->log_row_parts[TRANSLOG_INTERNAL_PARTS +
                                               0].length);
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].str=
-      info->cur_row.extents;
+      (char *) info->cur_row.extents;
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].length=
       extents_length= info->cur_row.extents_count * ROW_EXTENT_SIZE;
 
@@ -5236,7 +5236,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   log_parts++;
 
   /* Stored bitmap over packed (zero length or all-zero fields) */
-  log_parts->str=    info->cur_row.empty_bits;
+  log_parts->str=    (char *) info->cur_row.empty_bits;
   log_parts->length= share->base.pack_bytes;
   row_length+=       log_parts->length;
   log_parts++;
@@ -5244,7 +5244,7 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   if (share->base.max_field_lengths)
   {
     /* Store length of all not empty char, varchar and blob fields */
-    log_parts->str=      field_lengths-2;
+    log_parts->str=      (char *) field_lengths - 2;
     log_parts->length=   info->cur_row.field_lengths_length+2;
     int2store(log_parts->str, info->cur_row.field_lengths_length);
     row_length+= log_parts->length;
@@ -5256,8 +5256,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
     /*
       Store total blob length to make buffer allocation easier during UNDO
      */
-    log_parts->str=      info->length_buff;
-    log_parts->length=   (uint) (ma_store_length(log_parts->str,
+    log_parts->str=      (char *) info->length_buff;
+    log_parts->length=   (uint) (ma_store_length((uchar *) log_parts->str,
                                                  info->cur_row.blob_length) -
                                  (uchar*) log_parts->str);
     row_length+=          log_parts->length;
@@ -5561,7 +5561,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
   start_log_parts->str=  ((char*)
                           (start_field_data -
                            ma_calc_length_for_store_length(field_lengths)));
-  ma_store_length(start_log_parts->str, field_lengths);
+  ma_store_length((uchar *) start_log_parts->str, field_lengths);
   start_log_parts->length= (size_t) ((char*) field_data -
                                      start_log_parts->str);
   row_length+= start_log_parts->length;

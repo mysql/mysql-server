@@ -70,7 +70,7 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
       DBUG_PRINT("error",("page %lu had wrong page length: %u  keynr: %u",
                           (ulong) (pos / block_size), page_size,
                           _ma_get_keynr(share, tmp)));
-      DBUG_DUMP("page", (char*) tmp, page_size);
+      DBUG_DUMP("page", tmp, page_size);
       info->last_keypage = HA_OFFSET_ERROR;
       maria_print_error(share, HA_ERR_CRASHED);
       my_errno= HA_ERR_CRASHED;

@@ -83,7 +83,7 @@ static int walk_and_match(FT_WORD *word, uint32 count, ALL_IN_ONE *aio)
 
   word->weight=LWS_FOR_QUERY;
 
-  keylen= _ma_ft_make_key(info,aio->keynr,(char*) keybuff,word,0);
+  keylen= _ma_ft_make_key(info, aio->keynr, keybuff, word, 0);
   keylen-=HA_FT_WLEN;
   doc_cnt=0;
 
@@ -319,7 +319,7 @@ int maria_ft_nlq_read_next(FT_INFO *handler, char *record)
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
 
   info->cur_row.lastpos= handler->doc[handler->curdoc].dpos;
-  if (!(*info->read_record)(info, record, info->cur_row.lastpos))
+  if (!(*info->read_record)(info, (uchar *) record, info->cur_row.lastpos))
   {
     info->update|= HA_STATE_AKTIV;		/* Record is read */
     return 0;

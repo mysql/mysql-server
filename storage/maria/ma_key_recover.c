@@ -340,7 +340,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
   }
 
   translog_parts= 1;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *)log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   if (changed_length)
@@ -360,7 +360,7 @@ my_bool _ma_log_prefix(MARIA_HA *info, my_off_t page,
     int2store(log_pos+1, page_length);
     int4store(log_pos+3, crc);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *)log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     changed_length+= 7;
     translog_parts++;
@@ -419,7 +419,7 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
     extra_length= (uint) diff;
   }
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
 
@@ -431,7 +431,7 @@ my_bool _ma_log_suffix(MARIA_HA *info, my_off_t page,
     int2store(log_pos+1, new_length);
     int4store(log_pos+3, crc);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     extra_length+= 7;
     translog_parts++;
@@ -531,10 +531,10 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
   log_pos+= 3;
   translog_parts= 2;
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char *) key_pos;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
 
 #ifdef EXTRA_DEBUG_KEY_CHANGES
@@ -549,7 +549,7 @@ my_bool _ma_log_add(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, new_length);
     int4store(log_pos+3, crc);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     changed_length+= 7;
     translog_parts++;

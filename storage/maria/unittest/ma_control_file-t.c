@@ -305,7 +305,7 @@ static int test_binary_content()
     future change/breakage.
   */
 
-  char buffer[45];
+  uchar buffer[45];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
@@ -373,7 +373,7 @@ static int test_bad_magic_string()
 
 static int test_bad_checksum()
 {
-  char buffer[4];
+  uchar buffer[4];
   int fd;
 
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
@@ -421,7 +421,7 @@ static int test_future_size()
   */
   uint32 sum;
   int fd;
-  char buffer[CF_CREATE_TIME_TOTAL_SIZE + CF_CHANGEABLE_TOTAL_SIZE + 2];
+  uchar buffer[CF_CREATE_TIME_TOTAL_SIZE + CF_CHANGEABLE_TOTAL_SIZE + 2];
   RET_ERR_UNLESS((fd= my_open(file_name,
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
@@ -463,7 +463,7 @@ static int test_future_size()
 
 static int test_bad_hchecksum()
 {
-  char buffer[4];
+  uchar buffer[4];
   int fd;
 
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
@@ -490,7 +490,7 @@ static int test_bad_hchecksum()
 
 static int test_bad_size()
 {
-  char buffer[]=
+  uchar buffer[]=
     "123456789012345678901234567890123456789012345678901234567890123456";
   int fd, i;
 

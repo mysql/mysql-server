@@ -227,7 +227,7 @@ int maria_chk_del(HA_CHECK *param, register MARIA_HA *info,
       else
       {
 	param->record_checksum+=(ha_checksum) next_link;
-	next_link= _ma_rec_pos(info, buff+1);
+	next_link= _ma_rec_pos(info, (uchar *) buff + 1);
 	empty+=share->base.pack_reclength;
       }
     }
@@ -926,7 +926,7 @@ static int chk_index(HA_CHECK *param, MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(info->state->data_file_length,llbuff3)));
       DBUG_DUMP("key",(uchar*) key,key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("new_in_page", old_keypos, (uint) (keypos-old_keypos));
       goto err;
     }
     param->record_checksum+= (ha_checksum) record;
@@ -2311,8 +2311,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       goto err;
   }
 
-  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))) ||
+  if (!(sort_param.record= (uchar *) my_malloc((uint)
+                                               share->base.pack_reclength,
+                                               MYF(0))) ||
       _ma_alloc_buffer(&sort_param.rec_buff, &sort_param.rec_buff_size,
                        share->base.default_rec_buff_size))
   {
@@ -2370,7 +2371,7 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       if (param->testflag & T_VERBOSE)
       {
 	VOID(_ma_make_key(info,(uint) info->errkey,info->lastkey,
-			  sort_param.record,0L));
+                          sort_param.record,0L));
 	_ma_print_key(stdout,share->keyinfo[info->errkey].seg,info->lastkey,
 		      USE_WHOLE_KEY);
       }
@@ -2833,7 +2834,7 @@ err2:
   @param length          length of the page
 */
 
-static void put_crc(char *buff, my_off_t pos, MARIA_SHARE *share)
+static void put_crc(uchar *buff, my_off_t pos, MARIA_SHARE *share)
 {
   maria_page_crc_set_index(buff, (pgcache_page_no_t) (pos / share->block_size),
                            (uchar*) share);
@@ -3322,7 +3323,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   }
 
   if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))) ||
+                                          MYF(0))) ||
       _ma_alloc_buffer(&sort_param.rec_buff, &sort_param.rec_buff_size,
                        share->base.default_rec_buff_size))
   {
@@ -3910,7 +3911,7 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     sort_param[i].max_pos=sort_param[i].pos=share->pack.header_length;
 
     sort_param[i].record= (((uchar *)(sort_param+share->base.keys))+
-			   (share->base.pack_reclength * i));
+                          (share->base.pack_reclength * i));
     if (_ma_alloc_buffer(&sort_param[i].rec_buff, &sort_param[i].rec_buff_size,
                          share->base.default_rec_buff_size))
     {
@@ -4857,7 +4858,7 @@ int _ma_sort_write_record(MARIA_SORT_PARAM *sort_param)
 	    DBUG_RETURN(1);
 	  sort_info->buff_length=reclength;
 	}
-	from=sort_info->buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER);
+	from= (uchar *) sort_info->buff+ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER);
       }
       /* We can use info->checksum here as only one thread calls this */
       info->cur_row.checksum= (*share->calc_check_checksum)(info,

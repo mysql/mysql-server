@@ -145,7 +145,7 @@ int main(int argc __attribute__((unused)), char *argv[])
 
     bzero(page, PCACHE_PAGE);
     lsn_store(page, lsn);
-    pagecache_write(&pagecache, &file1, 0, 3, (char*)page,
+    pagecache_write(&pagecache, &file1, 0, 3, page,
                     PAGECACHE_LSN_PAGE,
                     PAGECACHE_LOCK_LEFT_UNLOCKED,
                     PAGECACHE_PIN_LEFT_UNPINNED,

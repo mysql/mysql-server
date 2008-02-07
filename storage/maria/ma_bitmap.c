@@ -2532,7 +2532,7 @@ int _ma_bitmap_create_first(MARIA_SHARE *share)
 {
   uint block_size= share->bitmap.block_size;
   File file= share->bitmap.file.file;
-  char marker[CRC_SIZE];
+  uchar marker[CRC_SIZE];
 
   /*
     Next write operation of the page will write correct CRC

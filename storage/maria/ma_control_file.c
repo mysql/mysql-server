@@ -472,11 +472,11 @@ int ma_control_file_write_and_force(const LSN checkpoint_lsn, uint32 logno,
 
   /* Checksum is stored first */
   compile_time_assert(CF_CHECKSUM_OFFSET == 0);
-  sum= my_checksum(0, buffer + CF_CHECKSUM_SIZE,
+  sum= my_checksum(0, (const uchar *) buffer + CF_CHECKSUM_SIZE,
                    cf_changeable_size - CF_CHECKSUM_SIZE);
   int4store(buffer, sum);
 
-  if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
+  if (my_pwrite(control_file_fd, (uchar *) buffer, cf_changeable_size,
                 cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
       my_sync(control_file_fd, MYF(MY_WME)))
     DBUG_RETURN(1);

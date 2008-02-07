@@ -223,7 +223,7 @@ void reader(int num)
   for (i= 0; i < number_of_tests; i++)
   {
     uint page= get_len(number_of_pages);
-    pagecache_read(&pagecache, &file1, page, 3, (char*)buffr,
+    pagecache_read(&pagecache, &file1, page, 3, buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                    0);
@@ -243,13 +243,13 @@ void writer(int num)
   {
     uint end;
     uint page= get_len(number_of_pages);
-    pagecache_read(&pagecache, &file1, page, 3, (char*)buffr,
+    pagecache_read(&pagecache, &file1, page, 3, buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_WRITE,
                    0);
     end= check_page(buffr, page * PAGE_SIZE, 1, page, num);
     put_rec(buffr, end, get_len(record_length_limit), num);
-    pagecache_write(&pagecache, &file1, page, 3, (char*)buffr,
+    pagecache_write(&pagecache, &file1, page, 3, buffr,
                     PAGECACHE_PLAIN_PAGE,
                     PAGECACHE_LOCK_WRITE_UNLOCK,
                     PAGECACHE_UNPIN,
@@ -347,7 +347,7 @@ int main(int argc __attribute__((unused)),
   DBUG_PRINT("info", ("file1: %d", file1.file));
   if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
     exit(1);
-  my_pwrite(file1.file, "test file", 9, 0, MYF(0));
+  my_pwrite(file1.file, (const uchar *)"test file", 9, 0, MYF(0));
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
   {
@@ -394,7 +394,7 @@ int main(int argc __attribute__((unused)),
     memset(buffr, '\0', PAGE_SIZE);
     for (i= 0; i < number_of_pages; i++)
     {
-      pagecache_write(&pagecache, &file1, i, 3, (char*)buffr,
+      pagecache_write(&pagecache, &file1, i, 3, buffr,
                       PAGECACHE_PLAIN_PAGE,
                       PAGECACHE_LOCK_LEFT_UNLOCKED,
                       PAGECACHE_PIN_LEFT_UNPINNED,

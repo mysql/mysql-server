@@ -220,7 +220,7 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                     (uchar*) key, key_len, comp_flag, not_used);
   if (flag < 0)
     start++;                    /* point at next, bigger key */
-  *ret_pos= (char*) (page+(uint) start*totlength);
+  *ret_pos= (page + (uint) start * totlength);
   *last_key= end == save_end;
   DBUG_PRINT("exit",("flag: %d  keypos: %d",flag,start));
   DBUG_RETURN(flag);
@@ -874,7 +874,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
 	    DBUG_PRINT("error",
                        ("Found too long null packed key: %u of %u at 0x%lx",
                         length, keyseg->length, (long) *page_pos));
-	    DBUG_DUMP("key",(char*) *page_pos,16);
+	    DBUG_DUMP("key", *page_pos, 16);
             maria_print_error(keyinfo->share, HA_ERR_CRASHED);
 	    my_errno=HA_ERR_CRASHED;
 	    return 0;
@@ -931,7 +931,7 @@ uint _ma_get_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
       {
         DBUG_PRINT("error",("Found too long packed key: %u of %u at 0x%lx",
                             length, keyseg->length, (long) *page_pos));
-        DBUG_DUMP("key",(char*) *page_pos,16);
+        DBUG_DUMP("key", *page_pos, 16);
         maria_print_error(keyinfo->share, HA_ERR_CRASHED);
         my_errno=HA_ERR_CRASHED;
         return 0;                               /* Error */
@@ -1003,7 +1003,7 @@ uint _ma_get_binary_pack_key(register MARIA_KEYDEF *keyinfo, uint nod_flag,
       DBUG_PRINT("error",
                  ("Found too long binary packed key: %u of %u at 0x%lx",
                   length, keyinfo->maxlength, (long) *page_pos));
-      DBUG_DUMP("key",(char*) *page_pos,16);
+      DBUG_DUMP("key", *page_pos, 16);
       maria_print_error(keyinfo->share, HA_ERR_CRASHED);
       my_errno=HA_ERR_CRASHED;
       DBUG_RETURN(0);                                 /* Wrong key */

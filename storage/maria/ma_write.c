@@ -1680,7 +1680,7 @@ static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
   page_length-= LSN_STORE_SIZE;
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + LSN_STORE_SIZE;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *) buff + LSN_STORE_SIZE;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= page_length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX_NEW_PAGE,
@@ -1721,7 +1721,7 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char *) buff + offset;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -1851,7 +1851,7 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
     extra_length+= data_length;
   }
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -1954,7 +1954,7 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
     translog_parts= 2;
     extra_length= key_length;
   }
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -2026,7 +2026,7 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
   int2store(log_pos+3, data_changed_first);
   log_pos+= 5;
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    ((char*) buff +

@@ -28,9 +28,9 @@
 #define KEYALG HA_KEY_ALG_RTREE
 
 static int read_with_pos(MARIA_HA * file, int silent);
-static void create_record(char *record,uint rownr);
-static void create_record1(char *record,uint rownr);
-static void print_record(char * record,my_off_t offs,const char * tail);
+static void create_record(uchar *record,uint rownr);
+static void create_record1(uchar *record,uint rownr);
+static void print_record(uchar * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
 
 static double rt_data[]=
@@ -109,8 +109,8 @@ static int run_test(const char *filename)
   int i;
   int error;
   int row_count=0;
-  char record[MAX_REC_LENGTH];
-  char read_record[MAX_REC_LENGTH];
+  uchar record[MAX_REC_LENGTH];
+  uchar read_record[MAX_REC_LENGTH];
   int upd= 10;
   ha_rows hrows;
 
@@ -347,7 +347,7 @@ static int read_with_pos (MARIA_HA * file,int silent)
 {
   int error;
   int i;
-  char read_record[MAX_REC_LENGTH];
+  uchar read_record[MAX_REC_LENGTH];
 
   if (!silent)
     printf("- Reading rows with position\n");
@@ -390,12 +390,12 @@ static void bprint_record(char * record,
 #endif
 
 
-static void print_record(char * record,
+static void print_record(uchar *record,
 			 my_off_t offs __attribute__((unused)),
 			 const char * tail)
 {
   int i;
-  char * pos;
+  uchar *pos;
   double c;
 
   printf("     rec=(%d)",(unsigned char)record[0]);
@@ -412,10 +412,10 @@ static void print_record(char * record,
 
 
 
-static void create_record1(char *record,uint rownr)
+static void create_record1(uchar *record, uint rownr)
 {
    int i;
-   char * pos;
+   uchar *pos;
    double c=rownr+10;
 
    bzero((char*) record,MAX_REC_LENGTH);
@@ -454,10 +454,10 @@ static void create_record0(char *record,uint rownr)
 
 #endif
 
-static void create_record(char *record,uint rownr)
+static void create_record(uchar *record, uint rownr)
 {
    int i;
-   char *pos;
+   uchar *pos;
    double *data= rt_data+rownr*4;
    record[0]=0x01; /* DEL marker */
    for ( pos=record+1, i=0; i<ndims*2; i++)

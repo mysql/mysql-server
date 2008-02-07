@@ -3668,7 +3668,7 @@ no_key_cache:
     pagecache->global_cache_write++;
     if (offset != 0 || size != pagecache->block_size)
     {
-      char *page_buffer= alloca(pagecache->block_size);
+      uchar *page_buffer= (uchar *) alloca(pagecache->block_size);
       if ((error= pagecache_fread(pagecache, file,
                                   page_buffer,
                                   pageno,
@@ -3680,7 +3680,7 @@ no_key_cache:
         error= 1;
         goto end;
       }
-      memcpy(page_buffer + offset, buff, size);
+      memcpy((char *)page_buffer + offset, buff, size);
       buff= page_buffer;
     }
     if (pagecache_fwrite(pagecache, file, (uchar*) buff, pageno, type,
