@@ -1226,7 +1226,7 @@ int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates) {
 int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
                                     int (*callback)(DB_TXN*, toku_lock_tree*)) {
     if (!tree || !callback) return EINVAL;
-    if (!tree->dups_final)  return EDOM;
+    if (tree->dups_final)   return EDOM;
     tree->lock_callback = callback;
     return 0;
 }
