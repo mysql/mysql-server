@@ -44,6 +44,10 @@ have disabled the InnoDB inlining in this file. */
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
+
+/* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
+but we need it here */
+bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
@@ -4645,6 +4649,12 @@ innodb_check_for_record_too_big_error(
 	}
 }
 
+/* limit innodb monitor access to users with PROCESS privilege.
+See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
+#define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
+	(row_is_magic_monitor_table(table_name) \
+	 && check_global_access(thd, PROCESS_ACL))
+
 /*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
@@ -4680,6 +4690,12 @@ create_table_def(
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
+
+	ut_a(trx->mysql_thd != NULL);
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
+						  (THD*) trx->mysql_thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
 
 	n_cols = form->s->fields;
 
@@ -5221,6 +5237,14 @@ ha_innobase::delete_table(
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
+	/* Strangely, MySQL passes the table name without the '.frm'
+	extension, in contrast to ::create */
+	normalize_table_name(norm_name, name);
+
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -5253,11 +5277,6 @@ ha_innobase::delete_table(
 	name_len = strlen(name);
 
 	assert(name_len < 1000);
-
-	/* Strangely, MySQL passes the table name without the '.frm'
-	extension, in contrast to ::create */
-
-	normalize_table_name(norm_name, name);
 
 	/* Drop the table in InnoDB */
 
