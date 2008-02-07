@@ -27,27 +27,6 @@ f4 datetime;
 let $col_access_list = f1,f2,f3,f4 ;
 let $col_new_list    = new.f1,new.f2,new.f3 new.f4 ;
 
-#--------------------------------------------------
-# initialize directories for partitions
-#--------------------------------------------------
-
---disable_query_log
-# DATA DIRECTORY
-# Make directory for partition data
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
-eval SET @data_dir = 'DATA DIRECTORY =
-''$MYSQLTEST_VARDIR/master-data/tmpdata''';
-let $data_directory = `select @data_dir`;
-
-#INDEX DIRECTORY
-# Make directory for partition index
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpindex || true
-eval SET @indx_dir = 'INDEX DIRECTORY =
-''$MYSQLTEST_VARDIR/master-data/tmpindex''';
-let $index_directory = `select @indx_dir`;
---enable_query_log
-
-
 #---------------------------------------------------
 # Setting the parameters to use during testing
 #---------------------------------------------------
@@ -134,16 +113,16 @@ create table test_stat (
 # tb3_eng1: key partitioning
 #----------------------------------------------------------------------
 
-#--replace_result $data_directory <data_directory> $index_directory <index_directory> $ENG1 ENG1
+#--replace_result $ENG1 ENG1
 eval create table tb3_eng1 (
    i1 int NOT NULL auto_increment, primary key (i1),
    $column_list
 ) engine=$ENG1
 PARTITION BY KEY (i1) PARTITIONS 4
-(PARTITION part1 $data_directory $index_directory,
-PARTITION part2 $data_directory $index_directory,
-PARTITION part3 $data_directory $index_directory,
-PARTITION part4 $data_directory $index_directory);
+(PARTITION part1,
+PARTITION part2,
+PARTITION part3,
+PARTITION part4);
 
 #--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval load data local infile '$MYSQL_TEST_DIR/suite/system_3/data/tb1.txt'
