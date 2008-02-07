@@ -15,7 +15,7 @@
 # The binlog contains row events equivalent to:
 # CREATE TABLE t1 (a int) engine = myisam
 # INSERT INTO t1 VALUES (1), (1)
-exec $MYSQL_BINLOG suite/binlog/std_data/binlog-bug32407.000001 | $MYSQL;
+exec $MYSQL_BINLOG suite/binlog/std_data/bug32407.001 | $MYSQL;
 # The above line should succeed and t1 should contain two ones
 select * from t1;
 
@@ -68,7 +68,7 @@ select * from t1;
 # mysqlbinlog should fail
 --replace_regex /#[0-9][0-9][0-9][0-9][0-9][0-9] .*/#/
 error 1;
-exec $MYSQL_BINLOG --base64-output=never suite/binlog/std_data/binlog-bug32407.000001;
+exec $MYSQL_BINLOG --base64-output=never suite/binlog/std_data/bug32407.001;
 # the above line should output the query log event and then stop
 
 
@@ -78,7 +78,7 @@ exec $MYSQL_BINLOG --base64-output=never suite/binlog/std_data/binlog-bug32407.0
 --echo ==== Test non-matching FD event and Row event ====
 
 # This is the Format_description_log_event from
-# binlog-bug32407.000001, encoded in base64. It contains only the old
+# bug32407.001, encoded in base64. It contains only the old
 # row events (number of event types is 22)
 BINLOG '
 4CdYRw8BAAAAYgAAAGYAAAAAAAQANS4xLjE1LW5kYi02LjEuMjQtZGVidWctbG9nAAAAAAAAAAAA
