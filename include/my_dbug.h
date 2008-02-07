@@ -87,7 +87,20 @@ extern  void _db_flush_();
 #define DEBUGGER_OFF                    do { _dbug_on_= 0; } while(0)
 #define DEBUGGER_ON                     do { _dbug_on_= 1; } while(0)
 #define IF_DBUG(A) A
+#ifndef __WIN__
 #define DBUG_ABORT()                    (_db_flush_(), abort())
+#else
+/*
+  Avoid popup with abort/retry/ignore buttons. When BUG#31745 is fixed we can
+  call abort() instead of _exit(3) (now it would cause a "test signal" popup).
+*/
+#include <crtdbg.h>
+#define DBUG_ABORT() (_db_flush_(),\
+                     (void)_CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE),\
+                     (void)_CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR),\
+                     _exit(3))
+#endif
+
 #else                                           /* No debugger */
 
 #define DBUG_ENTER(a1)
