@@ -115,7 +115,7 @@ UNIV_INTERN char**	srv_log_group_home_dirs = NULL;
 UNIV_INTERN ulint	srv_n_log_groups	= ULINT_MAX;
 UNIV_INTERN ulint	srv_n_log_files		= ULINT_MAX;
 /* size in database pages */
-UNIV_INTERN ulint	srv_log_filen_size	= ULINT_MAX;
+UNIV_INTERN ulint	srv_log_file_size	= ULINT_MAX;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
