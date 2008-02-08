@@ -17,6 +17,10 @@ void handle_error (const DB_ENV *dbenv, const char *errpfx, const char *msg) {
 }
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
+
+#if defined(OSX)
+    if (verbose) printf("Warning: fmemopen does not exist in OSX!\n");
+#else
     
     system("rm -rf " DIR);
     int r=mkdir(DIR, 0777); assert(r==0);
@@ -59,6 +63,6 @@ int main (int argc, const char *argv[]) {
 	    }
 	}
     }
-
+#endif
     return 0;
 }
