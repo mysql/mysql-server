@@ -420,8 +420,8 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		BNC_NBYTESINBUF(B, targchild) += n_bytes_moved;
 		node->u.n.n_bytes_in_buffers  -= n_bytes_moved;
 		BNC_NBYTESINBUF(node, i)      -= n_bytes_moved;
-		verify_local_fingerprint_nonleaf(B);
-		verify_local_fingerprint_nonleaf(node);
+		// verify_local_fingerprint_nonleaf(B);
+		// verify_local_fingerprint_nonleaf(node);
 	    }
 
 	    // Delete a child, removing it's fingerprint, and also the preceeding pivot key.  The child number must be > 0
