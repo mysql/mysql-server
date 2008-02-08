@@ -2798,6 +2798,7 @@ restart:
       cmp_translog_addr(addr, in_buffers) >= 0)
   {
     translog_lock();
+    DBUG_ASSERT(cmp_translog_addr(addr, log_descriptor.horizon) < 0);
     /* recheck with locked loghandler */
     in_buffers= translog_only_in_buffers();
     if (cmp_translog_addr(addr, in_buffers) >= 0)
@@ -2975,7 +2976,7 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
 {
   MY_STAT stat_buff, *local_stat;
   char path[FN_REFLEN];
-  uint32 rec_offset;
+  uint32 rec_offset, file_size;
   uint32 file_no= LSN_FILE_NO(*addr);
   DBUG_ENTER("translog_get_last_page_addr");
 
@@ -2984,11 +2985,12 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
                             (no_errors ? MYF(0) : MYF(MY_WME)))))
     DBUG_RETURN(1);
   DBUG_PRINT("info", ("File size: %lu", (ulong) local_stat->st_size));
-  if (local_stat->st_size > TRANSLOG_PAGE_SIZE)
+  file_size= (uint32)local_stat->st_size; /* st_size can be 'long' on Windows*/
+  if (file_size > TRANSLOG_PAGE_SIZE)
   {
-    rec_offset= (((local_stat->st_size / TRANSLOG_PAGE_SIZE) - 1) *
+    rec_offset= (((file_size / TRANSLOG_PAGE_SIZE) - 1) *
                        TRANSLOG_PAGE_SIZE);
-    *last_page_ok= (local_stat->st_size == rec_offset + TRANSLOG_PAGE_SIZE);
+    *last_page_ok= (file_size == rec_offset + TRANSLOG_PAGE_SIZE);
   }
   else
   {
