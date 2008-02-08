@@ -79,7 +79,7 @@ int run_test(const char *filename)
   /* Define spatial column  */
   
   recinfo[1].type=FIELD_BLOB;
-  recinfo[1].length=4 + mi_portable_sizeof_char_ptr;
+  recinfo[1].length=4 + portable_sizeof_char_ptr;
   
   
   
