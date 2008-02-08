@@ -347,7 +347,7 @@ static int test_2_open_and_2_close()
 
 static int test_bad_magic_string()
 {
-  char buffer[4];
+  uchar buffer[4];
   int fd;
 
   RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
@@ -358,7 +358,8 @@ static int test_bad_magic_string()
                           O_BINARY | O_RDWR,
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_pread(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
-  RET_ERR_UNLESS(my_pwrite(fd, "papa", 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
+  RET_ERR_UNLESS(my_pwrite(fd, (const uchar *)"papa", 4, 0,
+                           MYF(MY_FNABP |  MY_WME)) == 0);
 
   /* Check that control file module sees the problem */
   RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
