@@ -144,23 +144,6 @@ if [ ! -f include/mysqld_error.h ]; then
 	(cd extra; $MAKE ../include/mysqld_error.h)
 fi
 
-# Compile the InnoDB plugin, we do this twice because after the first build
-# we extract the global symbols from the .so and create a header file that
-# renames the global symbols with a prefix of "ibd_". The second build is
-# with the renamed global symbols.
-(
-	cd $INNODIR
-	echo "Building InnoDB plugin first pass ..."
-	$MAKE > /dev/null
-
-	nm -g .libs/ha_innodb.so |
-	sed -ne 's/^[^ ]* . \([a-zA-Z][a-zA-Z0-9_]*\)$/#define \1 ibd_\1/p' |
-	grep -v 'innodb_hton_ptr\|builtin_innobase_plugin' \
-		> include/innodb_redefine.h
-
-	echo "Building InnoDB plugin second pass ..."
-	$MAKE > /dev/null
-)
-
-exit 0
-
+# Compile the InnoDB plugin.
+cd $INNODIR
+exec $MAKE

@@ -76,10 +76,6 @@ the mutex is freed. Removes a mutex object from the mutex list. The mutex
 is checked to be in the reset state. */
 
 #undef mutex_free			/* Fix for MacOS X */
-#define mutex_free mutex0_free		/* Fix for innodb_redefine.h;
-					we must not undefine symbols
-					defined there; thus, that file
-					will use mutex0_free. */
 void
 mutex_free(
 /*=======*/
