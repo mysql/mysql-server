@@ -29,9 +29,12 @@ static void make_db (void) {
     int r;
     int i;
 
+    int maxcount = 24073;
+
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
+    r=env->set_lk_max_locks(env, 2*maxcount); CKERR(r);
     r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
@@ -39,7 +42,7 @@ static void make_db (void) {
     r=tid->commit(tid, 0);    assert(r==0);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     
-    for (i=0; i<24073; i++) {
+    for (i=0; i<maxcount; i++) {
 	char hello[30], there[30];
 	DBT key,data;
 	struct in_db *newitem = malloc(sizeof(*newitem));
