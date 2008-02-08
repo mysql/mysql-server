@@ -1498,7 +1498,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
   maria_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
               (void*) &thd->variables.preload_buff_size);
 
-#ifndef NOT_YET
+#ifdef NOT_YET
   if ((error= maria_preload(file, map, ignore_leaves)))
   {
     switch (error) {
