@@ -441,7 +441,7 @@ bool Log_to_csv_event_handler::
   result= FALSE;
 
 err:
-  if (result)
+  if (result && !thd->killed)
     sql_print_error("Failed to write to mysql.general_log: %s",
                     error_handler.message());
 
@@ -639,7 +639,7 @@ bool Log_to_csv_event_handler::
 err:
   thd->pop_internal_handler();
 
-  if (result)
+  if (result && !thd->killed)
     sql_print_error("Failed to write to mysql.slow_log: %s",
                     error_handler.message());
 
