@@ -1363,7 +1363,7 @@ CREATE TABLE t1(
   c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
   c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
   c6 VARCHAR(255))
-  COLLATE ucs2_unicode_ci;
+  COLLATE latin1_bin;
 
 --echo
 
