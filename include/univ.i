@@ -10,19 +10,12 @@ Created 1/20/1994 Heikki Tuuri
 #define univ_i
 
 #ifdef MYSQL_DYNAMIC_PLUGIN
-/* In the dynamic plugin, redefine all symbols not to conflict with
-the symbols of a builtin InnoDB.  The build process works as follows:
+/* In the dynamic plugin, redefine some externally visible symbols
+in order not to conflict with the symbols of a builtin InnoDB. */
 
-* compile the InnoDB plugin using an empty include/innodb_redefine.h
-* overwrite include/innodb_redefine.h with the following command
-* compile the final InnoDB plugin
-
-nm .libs/ha_innodb.so.0.0.0|
-sed -ne 's/^[^ ]* . \([a-zA-Z][a-zA-Z0-9_]*\)$/#define \1 ibd_\1/p'|
-grep -v 'innodb_hton_ptr\|builtin_innobase_plugin' > include/innodb_redefine.h
-*/
-# include "innodb_redefine.h"
-/* Redefine all C++ classes here. */
+/* Rename all C++ classes that contain virtual functions, because we
+have not figured out how to apply the visibility=hidden attribute to
+the virtual method table (vtable) in GCC 3. */
 # define ha_innobase ha_innodb
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
