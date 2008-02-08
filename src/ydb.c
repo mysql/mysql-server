@@ -566,6 +566,29 @@ static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 }
 #endif
 
+static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
+    HANDLE_PANICKED_ENV(dbenv);
+    if (env_opened(dbenv))  return EINVAL;
+    if (!max)               return EINVAL;
+    dbenv->i->max_locks = max;
+    return 0;
+}
+
+static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
+    HANDLE_PANICKED_ENV(dbenv);
+    if (!lk_maxp)           return EINVAL;
+    *lk_maxp = dbenv->i->max_locks;
+    return 0;
+}
+
+static int locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
+    ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); ydb_unlock(); return r;
+}
+
+static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
+    ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); ydb_unlock(); return r;
+}
+
 //void __toku_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
 //    env->i->noticecall = noticecall;
 //}
@@ -611,7 +634,6 @@ void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg
 }
 
 #if _THREAD_SAFE
-
 
 static void locked_env_err(const DB_ENV * env, int error, const char *fmt, ...)
                            __attribute__((__format__(__printf__, 3, 4)));
@@ -711,6 +733,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_lg_bsize = locked_env_set_lg_bsize;
     result->set_lg_dir = locked_env_set_lg_dir;
     result->set_lg_max = locked_env_set_lg_max;
+    result->set_lk_max_locks = locked_env_set_lk_max_locks;
     result->set_cachesize = locked_env_set_cachesize;
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     result->get_cachesize = locked_env_get_cachesize;
@@ -1781,22 +1804,6 @@ finish:
     return 0;    
 }
 
-
-static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
-    HANDLE_PANICKED_ENV(dbenv);
-    if (env_opened(dbenv))  return EINVAL;
-    if (!max)               return EINVAL;
-    dbenv->i->max_locks = max;
-    return 0;
-}
-
-static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
-    HANDLE_PANICKED_ENV(dbenv);
-    if (!lk_maxp)           return EINVAL;
-    *lk_maxp = dbenv->i->max_locks;
-    return 0;
-}
-
 static int toku_db_lt_panic(DB* db, int r) {
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
@@ -2139,14 +2146,6 @@ static int toku_db_fd(DB *db, int *fdp) {
 }
 
 #if _THREAD_SAFE
-
-static int __attribute__((unused)) locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
-    ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); ydb_unlock(); return r;
-}
-
-static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
-    ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); ydb_unlock(); return r;
-}
 
 static int locked_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
                                 int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {
