@@ -1759,7 +1759,7 @@ c3 INT NOT NULL COMMENT 'column3',
 c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
 c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
 c6 VARCHAR(255))
-COLLATE ucs2_unicode_ci;
+COLLATE latin1_bin;
 
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -1769,8 +1769,8 @@ t1	CREATE TABLE `t1` (
   `c3` int(11) NOT NULL COMMENT 'column3',
   `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
-  `c6` varchar(255) COLLATE ucs2_unicode_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=ucs2 COLLATE=ucs2_unicode_ci
+  `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
 
 CREATE TABLE t2 AS SELECT * FROM t1;
 
@@ -1782,7 +1782,7 @@ t2	CREATE TABLE `t2` (
   `c3` int(11) NOT NULL COMMENT 'column3',
   `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
   `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
-  `c6` varchar(255) CHARACTER SET ucs2 COLLATE ucs2_unicode_ci DEFAULT NULL
+  `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 
 DROP TABLE t2;
