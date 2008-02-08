@@ -17,9 +17,9 @@ int main (int argc, char *argv[]) {
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
     r = db_env_create (&env, 0); assert(r==0);
-    r = env->open(env, DIR, DB_CREATE | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); assert(r==0);
+    r = env->open(env, DIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); CKERR(r);
     r = db_create(&db, env, 0);
-    assert(r==0);
+    CKERR(r);
     db->set_errfile(db, stderr);
     {
 	DB_TXN *x;
