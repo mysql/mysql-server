@@ -17,11 +17,11 @@
 #define _ma_loghandler_h
 
 /* transaction log default cache size  (TODO: make it global variable) */
-#define TRANSLOG_PAGECACHE_SIZE (1024*1024*2)
+#define TRANSLOG_PAGECACHE_SIZE (1024U*1024*2)
 /* transaction log default file size */
-#define TRANSLOG_FILE_SIZE (1024*1024*1024)
+#define TRANSLOG_FILE_SIZE (1024U*1024*1024)
 /* minimum possible transaction log size */
-#define TRANSLOG_MIN_FILE_SIZE (1024*1024*8)
+#define TRANSLOG_MIN_FILE_SIZE (1024U*1024*8)
 /* transaction log default flags (TODO: make it global variable) */
 #define TRANSLOG_DEFAULT_FLAGS 0
 
@@ -45,7 +45,7 @@
   It should be Power of 2 and multiple of DISK_DRIVE_SECTOR_SIZE
   (DISK_DRIVE_SECTOR_SIZE * 2^N)
 */
-#define TRANSLOG_PAGE_SIZE (8*1024)
+#define TRANSLOG_PAGE_SIZE (8U*1024)
 
 #include "ma_loghandler_lsn.h"
 #include "trnman_public.h"
@@ -92,7 +92,7 @@ struct st_maria_handler;
   Length of disk drive sector size (we assume that writing it
   to disk is an atomic operation)
 */
-#define DISK_DRIVE_SECTOR_SIZE 512
+#define DISK_DRIVE_SECTOR_SIZE 512U
 
 /* position reserved in an array of parts of a log record */
 #define TRANSLOG_INTERNAL_PARTS 2
@@ -166,7 +166,7 @@ enum en_key_op
 /* Size of log file; One log file is restricted to 4G */
 typedef uint32 translog_size_t;
 
-#define TRANSLOG_RECORD_HEADER_MAX_SIZE 1024
+#define TRANSLOG_RECORD_HEADER_MAX_SIZE 1024U
 
 typedef struct st_translog_group_descriptor
 {
