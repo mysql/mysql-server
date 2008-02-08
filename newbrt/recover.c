@@ -37,7 +37,7 @@ int main (int argc, char *argv[]) {
 	assert(r==0 && version==0);
 	while ((r = toku_log_fread(f, &le))==0) {
 	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
-	    logtype_dispatch(&le, toku_recover_);
+	    logtype_dispatch_args(&le, toku_recover_);
 	    entrycount++;
 	}
 	if (r!=EOF) {

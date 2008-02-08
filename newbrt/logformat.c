@@ -205,7 +205,9 @@ void generate_log_struct (void) {
 		    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
 		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
 		    fprintf(hf, "};\n");
-		    fprintf(hf, "void toku_recover_%s (struct logtype_%s *);\n", lt->name, lt->name);
+		    fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
+		    DO_FIELDS(ft, lt, fprintf(hf, ", %s %s", ft->type, ft->name));
+		    fprintf(hf, ");\n");
 		    fprintf(hf, "int toku_rollback_%s (struct logtype_%s *, TOKUTXN);\n", lt->name, lt->name);
 		}));
     fprintf(hf, "struct log_entry {\n");
@@ -227,6 +229,14 @@ void generate_dispatch (void) {
     DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, ## args); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
 
+    fprintf(hf, "#define logtype_dispatch_args(s, funprefix) ({ switch((s)->cmd) {\\\n");
+    DO_LOGTYPES(lt,
+		({
+		    fprintf(hf, "  case LT_%s: funprefix ## %s ((s)->u.%s.lsn", lt->name, lt->name, lt->name);
+		    DO_FIELDS(ft, lt, fprintf(hf, ",(s)->u.%s.%s", lt->name, ft->name));
+		    fprintf(hf, "); break;\\\n");
+		}));
+    fprintf(hf, " }})\n");
 }
 		
 void generate_log_free(void) {
