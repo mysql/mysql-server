@@ -2258,7 +2258,7 @@ int ha_maria::start_stmt(THD *thd, thr_lock_type lock_type)
     trn= THD_TRN;
     DBUG_ASSERT(trn); // this may be called only after external_lock()
     DBUG_ASSERT(trnman_has_locked_tables(trn));
-    DBUG_ASSERT(lock_type != F_UNLCK);
+    DBUG_ASSERT(lock_type != TL_UNLOCK);
     /*
       If there was an implicit commit under this LOCK TABLES by a previous
       statement (like a DDL), at least if that previous statement was about a
