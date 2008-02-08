@@ -18,6 +18,7 @@ int toku_logger_log_checkpoint (TOKULOGGER, LSN*);
 void toku_logger_panic(TOKULOGGER, int/*err*/);
 int toku_logger_panicked(TOKULOGGER /*logger*/);
 int toku_logger_is_open(TOKULOGGER);
+LSN toku_logger_last_lsn(TOKULOGGER);
 
 int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair);
 
@@ -62,6 +63,8 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *version);
 
 TXNID toku_txn_get_txnid (TOKUTXN);
 LSN   toku_txn_get_last_lsn (TOKUTXN);
+TOKULOGGER toku_txn_logger (TOKUTXN txn);
+
 static inline int toku_copy_FILENUM(FILENUM *target, FILENUM val) { *target = val; return 0; }
 static inline void toku_free_FILENUM(FILENUM val __attribute__((__unused__))) {}
 

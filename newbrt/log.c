@@ -214,7 +214,13 @@ int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
 
 int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
-    int r = toku_log_commit(txn, txn->txnid64, nosync);
+    int r = toku_log_commit(txn->logger, txn->txnid64);
+    if (r!=0) goto free_and_return;
+    if (txn->parent && !nosync) {
+	r = toku_logger_fsync(txn->logger);
+	if (r!=0) toku_logger_panic(txn->logger, r);
+    }
+ free_and_return: /*nothing*/;
     struct log_entry *item;
     while ((item=txn->oldest_logentry)) {
 	txn->oldest_logentry = item->next;
@@ -257,7 +263,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fcreate (txn, toku_txn_get_txnid(txn), bs, mode);
+    return toku_log_fcreate (txn->logger, toku_txn_get_txnid(txn), bs, mode);
 }
 
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
@@ -267,7 +273,7 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fopen (txn,toku_txn_get_txnid(txn), bs, filenum);
+    return toku_log_fopen (txn->logger, toku_txn_get_txnid(txn), bs, filenum);
     
 }
 
@@ -565,6 +571,15 @@ TXNID toku_txn_get_txnid (TOKUTXN txn) {
 LSN toku_txn_get_last_lsn (TOKUTXN txn) {
     if (txn==0) return (LSN){0};
     return txn->last_lsn;
+}
+LSN toku_logger_last_lsn(TOKULOGGER logger) {
+    LSN result=logger->lsn;
+    result.lsn--;
+    return result;
+}
+
+TOKULOGGER toku_txn_logger (TOKUTXN txn) {
+    return txn ? txn->logger : 0;
 }
 
 int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn) {
