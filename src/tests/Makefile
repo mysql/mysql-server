@@ -173,6 +173,7 @@ all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.rec
 	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover;make $(VERBQUIET)
 	$(MAYBEATSIGN) cd ..;make $(VERBQUIET)
 	$(MAYBEATSIGN) $(VGRIND) ./$<
+	$(MAYBEATSIGN) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover;$(VGRIND) ../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
