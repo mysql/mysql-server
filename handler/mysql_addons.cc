@@ -22,6 +22,7 @@ Created November 07, 2007 Vasil Dimov
 #include <mysql_priv.h>
 
 #include "mysql_addons.h"
+#include "univ.i"
 
 /***********************************************************************
 Retrieve THD::thread_id
