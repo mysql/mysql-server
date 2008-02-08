@@ -7871,10 +7871,10 @@ int Field_set::store(const char *from,uint length,CHARSET_INFO *cs)
 int Field_set::store(longlong nr, bool unsigned_val)
 {
   int error= 0;
-  if ((ulonglong) nr > (ulonglong) (((longlong) 1 << typelib->count) -
-				    (longlong) 1))
+  ulonglong max_nr= set_bits(ulonglong, typelib->count);
+  if ((ulonglong) nr > max_nr)
   {
-    nr&= (longlong) (((longlong) 1 << typelib->count) - (longlong) 1);    
+    nr&= max_nr;
     set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
     error=1;
   }

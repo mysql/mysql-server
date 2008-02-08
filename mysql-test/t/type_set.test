@@ -56,3 +56,23 @@ set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16','17',
 '50','51','52','53','54','55','56','57','58','59','60','61','62','63','64','1'));
 show create table t1;
 drop table t1;
+
+#
+# Bug#15409: Columns with SET datatype with 64-element sets
+#            may not be updated with integers
+#
+
+let $i=64;
+let $s='$i';
+dec $i;
+while ($i) {
+  let $s='$i',$s;
+  dec $i;
+}
+--eval CREATE TABLE t1(c set($s))
+INSERT INTO t1 VALUES(7); 
+INSERT INTO t1 VALUES(9223372036854775808);
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--# echo End of 5.0 tests
