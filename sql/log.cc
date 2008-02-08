@@ -501,11 +501,13 @@ bool Log_to_csv_event_handler::
   bool result= TRUE;
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
+  Silence_log_table_errors error_handler;
   Open_tables_state open_tables_backup;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
+  thd->push_internal_handler(& error_handler);
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
     which will set thd->time_zone_used
@@ -635,8 +637,11 @@ bool Log_to_csv_event_handler::
   result= FALSE;
 
 err:
+  thd->pop_internal_handler();
+
   if (result)
-    sql_print_error("Failed to write to mysql.slow_log");
+    sql_print_error("Failed to write to mysql.slow_log: %s",
+                    error_handler.message());
 
   if (need_rnd_end)
   {
