@@ -1997,7 +1997,7 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
       break;
     }
 
-    int rows = 1;
+    int rows = 10;
     int batch = 1;
     int row = (records - rows) ? rand() % (records - rows) : 0;
 
