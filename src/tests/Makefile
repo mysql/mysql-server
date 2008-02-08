@@ -13,6 +13,7 @@ endif
 
 ifeq ($(OSX),OSX)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
+ CFLAGS = -DOSX
  LIBEXT=dylib
  VGRIND=
  BDB_SUPPRESSIONS=
@@ -20,6 +21,7 @@ ifeq ($(OSX),OSX)
  SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
  UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
 else
+ CFLAGS =
  SETTOKUENV=
  UNSETTOKUENV=
  LIBEXT=so
@@ -40,7 +42,7 @@ endif
 
 LIBNAME=libdb.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -Wall -Werror $(OPTFLAGS) -g $(GCOV_FLAGS)
+CFLAGS += -Wall -Werror $(OPTFLAGS) -g $(GCOV_FLAGS)
 TDB_CPPFLAGS = -I../../include
 
 
