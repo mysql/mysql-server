@@ -405,6 +405,8 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     wait->last= &data->next;
   }
 
+  statistic_increment(locks_waited, &THR_LOCK_lock);
+
   /* Set up control struct to allow others to abort locks */
   thread_var->current_mutex= &data->lock->mutex;
   thread_var->current_cond=  cond;
@@ -469,7 +471,6 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
   else
   {
     result= THR_LOCK_SUCCESS;
-    statistic_increment(locks_waited, &THR_LOCK_lock);
     if (data->lock->get_status)
       (*data->lock->get_status)(data->status_param, 0);
     check_locks(data->lock,"got wait_for_lock",0);
