@@ -526,7 +526,9 @@ struct thr_safe_pool
     {
       Uint32 dummy;
       unlock(&m_lock);
-      ret = reinterpret_cast<T*>(m_mm->alloc_page(RT_JOB_BUFFER, &dummy));
+      ret = reinterpret_cast<T*>
+        (m_mm->alloc_page(RT_JOB_BUFFER, &dummy, 
+                          Ndbd_mem_manager::NDB_ZONE_ANY));
       // ToDo: How to deal with failed allocation?!?
       // I think in this case we need to start grabbing buffers kept for signal
       // trace.
