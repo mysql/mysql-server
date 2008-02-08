@@ -2926,10 +2926,7 @@ const String *Item_param::query_val_str(String* str) const
 {
   switch (state) {
   case INT_VALUE:
-    if (unsigned_flag)
-      str->set((ulonglong) value.integer, &my_charset_bin);
-    else
-      str->set(value.integer, &my_charset_bin);
+    str->set_int(value.integer, unsigned_flag, &my_charset_bin);
     break;
   case REAL_VALUE:
     str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
