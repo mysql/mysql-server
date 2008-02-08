@@ -216,9 +216,17 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
     int r = toku_log_commit(txn->logger, txn->txnid64);
     if (r!=0) goto free_and_return;
-    if (txn->parent && !nosync) {
-	r = toku_logger_fsync(txn->logger);
-	if (r!=0) toku_logger_panic(txn->logger, r);
+    if (txn->parent==0) {
+	if (!nosync) {
+	    r = toku_logger_fsync(txn->logger);
+	    if (r!=0) toku_logger_panic(txn->logger, r);
+	}
+	goto free_and_return;
+    } else {
+	if (txn->parent->oldest_logentry) txn->parent->newest_logentry->next = txn->oldest_logentry;
+	else                              txn->parent->oldest_logentry       = txn->oldest_logentry;
+	if (txn->newest_logentry) txn->parent->newest_logentry = txn->newest_logentry;
+	txn->newest_logentry = txn->oldest_logentry = 0;
     }
  free_and_return: /*nothing*/;
     struct log_entry *item;
