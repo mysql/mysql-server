@@ -16,12 +16,14 @@
 /* we use pma cursors for testing the pma_search function.  otherwise, there are no pma cursors */
 #include "pma-cursor.h"
 
+static TOKULOGGER const null_logger = 0;
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 static const DISKOFF null_diskoff = -1;
 static const FILENUM null_filenum = {0};
+static TXNID const null_txnid = 0;
 
-#define NULL_ARGS null_txn, null_filenum, null_diskoff
+#define NULL_ARGS null_logger, null_txnid, null_filenum, null_diskoff
 
 void *skey=0, *sval=0;
 
@@ -47,7 +49,7 @@ static void test_make_space_at (void) {
     r=toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(r==0);
     assert(toku_pma_n_entries(pma)==0);
-    r=toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 2, &newi, (LSN*)0);
+    r=toku_pmainternal_make_space_at(null_logger, null_filenum, null_diskoff, pma, 2, &newi, (LSN*)0);
     assert(r==0);
     assert(toku_pma_index_limit(pma)==4);
     assert((unsigned long)pma->pairs[toku_pma_index_limit(pma)]==0xdeadbeefL);
@@ -55,7 +57,7 @@ static void test_make_space_at (void) {
 
     pma->pairs[2] = key_A;
     pma->n_pairs_present++;
-    r=toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 2, &newi, (LSN*)0);
+    r=toku_pmainternal_make_space_at(null_logger, null_filenum, null_diskoff, pma, 2, &newi, (LSN*)0);
     assert(r==0);
     if (verbose) printf("Requested space at 2, got space at %d\n", newi);
     if (verbose) toku_print_pma(pma);    
@@ -69,7 +71,7 @@ static void test_make_space_at (void) {
     pma->pairs[3] = 0;
     pma->n_pairs_present=2;
     if (verbose) toku_print_pma(pma);    
-    toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 0, &newi, (LSN*)0);
+    toku_pmainternal_make_space_at(null_logger, null_filenum, null_diskoff, pma, 0, &newi, (LSN*)0);
     assert(r==0);
     if (verbose) printf("Requested space at 0, got space at %d\n", newi);
     if (verbose) toku_print_pma(pma);
@@ -86,7 +88,7 @@ static void test_make_space_at (void) {
     pma->pairs[7] = 0;
     pma->n_pairs_present=2;
     if (verbose) toku_print_pma(pma);
-    r=toku_pmainternal_make_space_at(null_txn, null_filenum, null_diskoff, pma, 5, &newi, (LSN*)0);
+    r=toku_pmainternal_make_space_at(null_logger, null_filenum, null_diskoff, pma, 5, &newi, (LSN*)0);
     assert(r==0);
     if (verbose) toku_print_pma(pma);
     if (verbose) printf("r=%d\n", newi);
@@ -180,7 +182,7 @@ static void test_smooth_region_N (int N) {
 		}
 	    }
 	    if (verbose) { toku_pmainternal_printpairs(pairs, N); printf(" at %d becomes f", insertat); }
-	    toku_pmainternal_smooth_region(null_txn, null_filenum, null_diskoff, pairs, N, insertat, 0, 0, &r, (LSN*)0);
+	    toku_pmainternal_smooth_region(null_logger, null_filenum, null_diskoff, pairs, N, insertat, 0, 0, &r, (LSN*)0);
 	    if (verbose) { toku_pmainternal_printpairs(pairs, N); printf(" at %d\n", r); }
 	    assert(0<=r); assert(r<N);
 	    assert(pairs[r]==0);
@@ -222,7 +224,7 @@ static void test_smooth_region6 (void) {
     pairs[1] = kv_pair_malloc(key, strlen(key)+1, 0, 0);
 
     int r;
-    toku_pmainternal_smooth_region(null_txn, null_filenum, null_diskoff, pairs, N, 2, 0, 0, &r, (LSN*)0);
+    toku_pmainternal_smooth_region(null_logger, null_filenum, null_diskoff, pairs, N, 2, 0, 0, &r, (LSN*)0);
     if (verbose) {
 	printf("{ ");
 	for (i=0; i<N; i++)
@@ -921,10 +923,10 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
 
     /* split the pma */
     DBT splitk;
-    r = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, arand, &asum, (LSN*)0,
-			   &splitk,
-			   null_diskoff, pmac, 0, crand, &csum, (LSN*)0);
+    r = toku_pma_split(null_logger, null_filenum,
+		       null_diskoff, pmaa, 0, arand, &asum, (LSN*)0,
+		       &splitk,
+		       null_diskoff, pmac, 0, crand, &csum, (LSN*)0);
     assert(r == 0);
 
     toku_pma_verify(pmaa);
@@ -1044,10 +1046,10 @@ static void test_pma_split_varkey(void) {
 
     if (verbose) { printf("a:"); toku_print_pma(pmaa); }
 
-    r = toku_pma_split(null_txn, null_filenum,
-			   null_diskoff, pmaa, 0, arand, &asum, (LSN*)0,
-			   0,
-			   null_diskoff, pmac, 0, crand, &csum, (LSN*)0);
+    r = toku_pma_split(null_logger, null_filenum,
+		       null_diskoff, pmaa, 0, arand, &asum, (LSN*)0,
+		       0,
+		       null_diskoff, pmac, 0, crand, &csum, (LSN*)0);
     assert(r == 0);
     toku_pma_verify(pmaa);
     toku_pma_verify(pmac);
@@ -1192,7 +1194,7 @@ static void test_pma_bulk_insert_n(int n) {
     }
 
     /* bulk insert n kv pairs */
-    r = toku_pma_bulk_insert(null_txn, null_filenum, (DISKOFF)0, pma, keys, vals, n, rand4fingerprint, &sum, 0);
+    r = toku_pma_bulk_insert(null_logger, null_filenum, (DISKOFF)0, pma, keys, vals, n, rand4fingerprint, &sum, 0);
     assert(r == 0);
     assert(sum==expect_fingerprint);
     toku_pma_verify(pma);

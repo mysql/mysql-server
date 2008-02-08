@@ -27,9 +27,9 @@
 /**************************** static functions forward declarations. *********************/
 
 /* resize the pma array to asksize.  zero all array entries starting from startx.*/
-static int pma_resize_array(TOKUTXN, FILENUM, DISKOFF, PMA pma, int asksize, int startx, LSN *node_lsn);
+static int pma_resize_array(TOKULOGGER, FILENUM, DISKOFF, PMA pma, int asksize, int startx, LSN *node_lsn);
 static int old_pma_resize_array(PMA pma, int asksize, int startx) {
-    return pma_resize_array((TOKUTXN)0, (FILENUM){0}, (DISKOFF)0, pma, asksize, startx, (LSN*)0);
+    return pma_resize_array((TOKULOGGER)0, (FILENUM){0}, (DISKOFF)0, pma, asksize, startx, (LSN*)0);
 }
 
 /* extract pairs from the pma in the window delimited by lo and hi.*/
@@ -351,7 +351,7 @@ static int distribute_data (struct kv_pair *destpairs[],      int dcount,
     }
 }
 
-static int pma_log_distribute (TOKUTXN txn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, int n_pairs, struct kv_pair_tag *pairs, LSN *oldnode_lsn, LSN*newnode_lsn) {
+static int pma_log_distribute (TOKULOGGER logger, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, int n_pairs, struct kv_pair_tag *pairs, LSN *oldnode_lsn, LSN*newnode_lsn) {
     INTPAIRARRAY ipa;
     MALLOC_N(n_pairs, ipa.array);
     if (ipa.array==0) return errno;
@@ -365,9 +365,9 @@ static int pma_log_distribute (TOKUTXN txn, FILENUM filenum, DISKOFF old_diskoff
 	}
     }
     ipa.size=j;
-    int r=toku_log_pmadistribute(txn, toku_txn_get_txnid(txn), filenum, old_diskoff, new_diskoff, ipa);
-    if (txn && oldnode_lsn) *oldnode_lsn = toku_txn_get_last_lsn(txn);
-    if (txn && newnode_lsn) *newnode_lsn = toku_txn_get_last_lsn(txn);
+    int r=toku_log_pmadistribute(logger, filenum, old_diskoff, new_diskoff, ipa);
+    if (logger && oldnode_lsn) *oldnode_lsn = toku_logger_last_lsn(logger);
+    if (logger && newnode_lsn) *newnode_lsn = toku_logger_last_lsn(logger);
 //    if (0 && pma) {
 //	printf("Pma state:\n");
 //	PMA_ITERATE_IDX (pma, pidx, key, keylen, data, datalen,
@@ -379,7 +379,7 @@ static int pma_log_distribute (TOKUTXN txn, FILENUM filenum, DISKOFF old_diskoff
 
 /* spread the non-empty pairs around.  There are n of them.  Create an empty slot just before the IDXth
    element, and return that slot's index in the smoothed array. */
-int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskoff, struct kv_pair *pairs[], int n, int idx, int base, PMA pma, int *new_idx, LSN *node_lsn) {
+int toku_pmainternal_smooth_region (TOKULOGGER logger, FILENUM filenum, DISKOFF diskoff, struct kv_pair *pairs[], int n, int idx, int base, PMA pma, int *new_idx, LSN *node_lsn) {
     int i;
     int n_present=0;
     for (i=0; i<n; i++) {
@@ -414,7 +414,7 @@ int toku_pmainternal_smooth_region (TOKUTXN txn, FILENUM filenum, DISKOFF diskof
 	/* Now the tricky part.  Distribute the data. */
 	newidx=distribute_data (pairs, n,
 				tmppairs, n_saved, pma);
-	int r = pma_log_distribute(txn, filenum, diskoff, diskoff,
+	int r = pma_log_distribute(logger, filenum, diskoff, diskoff,
 				   n_saved,
 				   tmppairs,
 				   node_lsn, node_lsn);
@@ -538,12 +538,12 @@ static int pma_resize_array_nolog(PMA pma, int asksize, int startz, unsigned int
     return 0;
 }
 
-static int pma_resize_array(TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz, LSN *node_lsn) {
+static int pma_resize_array(TOKULOGGER logger, FILENUM filenum, DISKOFF offset, PMA pma, int asksize, int startz, LSN *node_lsn) {
     unsigned int oldN, n;
     int r = pma_resize_array_nolog(pma, asksize, startz, &oldN, &n);
     if (r!=0) return r;
-    toku_log_resizepma (txn, toku_txn_get_txnid(txn), filenum, offset, oldN, n);
-    if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
+    toku_log_resizepma (logger, filenum, offset, oldN, n);
+    if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
     return 0;
 }
 
@@ -580,7 +580,7 @@ static int pma_next_key(PMA pma, DBT *k, DBT *v, int here, int n, int *found) {
 
 /* Make some space for a key to go at idx (the thing currently at idx should end up at to the right.) */
 /* (Making space may involve moving things around, including the hole at index.) */
-int toku_pmainternal_make_space_at (TOKUTXN txn, FILENUM filenum, DISKOFF offset, PMA pma, int idx, unsigned int *new_index, LSN *node_lsn) {
+int toku_pmainternal_make_space_at (TOKULOGGER logger, FILENUM filenum, DISKOFF offset, PMA pma, int idx, unsigned int *new_index, LSN *node_lsn) {
     /* Within a range LO to HI we have a limit of how much packing we will tolerate.
      * We allow the entire array to be 50% full.
      * We allow a region of size lgN to be full.
@@ -616,7 +616,7 @@ int toku_pmainternal_make_space_at (TOKUTXN txn, FILENUM filenum, DISKOFF offset
 		size*=2;
 
                 // printf("pma_make_space_realloc %d to %d hi %d\n", pma->N, size, hi);
-                pma_resize_array(txn, filenum, offset, pma, size, hi, node_lsn);
+                pma_resize_array(logger, filenum, offset, pma, size, hi, node_lsn);
 
 		hi=size;
 		//printf("doubled N\n");
@@ -629,7 +629,7 @@ int toku_pmainternal_make_space_at (TOKUTXN txn, FILENUM filenum, DISKOFF offset
     //printf("%s:%d Smoothing from %d to %d to density %f\n", __FILE__, __LINE__, lo, hi, density);
     {
 	int sub_new_index;
-	int r = toku_pmainternal_smooth_region(txn, filenum, offset, pma->pairs+lo, hi-lo, idx-lo, lo, pma, &sub_new_index, node_lsn);
+	int r = toku_pmainternal_smooth_region(logger, filenum, offset, pma->pairs+lo, hi-lo, idx-lo, lo, pma, &sub_new_index, node_lsn);
 	if (r!=0) return r;
 	*new_index=sub_new_index+lo; 
 	return 0;
@@ -693,7 +693,7 @@ int toku_pma_free (PMA *pmap) {
 
 /* Copies keylen and datalen */ 
 /* returns an error if the key is already present. */
-int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISKOFF diskoff, u_int32_t rand4fingerprint, u_int32_t *fingerprint, LSN *node_lsn) {
+int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKULOGGER logger, TXNID xid, FILENUM filenum, DISKOFF diskoff, u_int32_t rand4fingerprint, u_int32_t *fingerprint, LSN *node_lsn) {
     int found;
     unsigned int idx = pma_search(pma, k, pma->dup_mode & TOKU_DB_DUPSORT ? v : 0, 0, pma->N, &found);
     if (found) 
@@ -701,7 +701,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
     
     if (kv_pair_inuse(pma->pairs[idx])) {
 	unsigned int newidx;
-        int r = toku_pmainternal_make_space_at (txn, filenum, diskoff, pma, idx, &newidx, (LSN*)0); /* returns the new idx. */
+        int r = toku_pmainternal_make_space_at (logger, filenum, diskoff, pma, idx, &newidx, (LSN*)0); /* returns the new idx. */
 	if (r!=0) return r;
 	idx = newidx;
     }
@@ -715,9 +715,8 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKUTXN txn, FILENUM filenum, DISK
 	const struct kv_pair *pair = pma->pairs[idx];
 	const BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
 	const BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
-	if (toku_txn_get_last_lsn(txn).lsn>=3836455 && toku_txn_get_last_lsn(txn).lsn<=3836460)  printf("%s:%d inserting\n", __FILE__, __LINE__);
-	int r = toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, key, data);
-	if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
+	int r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
 	return r;
     }
 }    
@@ -840,7 +839,7 @@ static void pma_delete_at(PMA pma, int here) {
 
 int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 				int *replaced_v_size, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
-				TOKUTXN txn, FILENUM filenum, DISKOFF diskoff,
+				TOKULOGGER logger, TXNID xid, FILENUM filenum, DISKOFF diskoff,
 				u_int32_t rand4fingerprint, u_int32_t *fingerprint,
 				LSN *node_lsn) {
     //printf("%s:%d v->size=%d\n", __FILE__, __LINE__, v->size);
@@ -854,10 +853,10 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 	{
 	    const BYTESTRING deletedkey  = { kv->keylen, kv_pair_key(kv) };
 	    const BYTESTRING deleteddata = { kv->vallen, kv_pair_val(kv) };
-	    r=toku_log_deleteinleaf(txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, deletedkey, deleteddata);
+	    r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
 	    if (r!=0) return r;
 	}
-        if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
+        if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
         if (v->size == (unsigned int) kv_pair_vallen(kv)) {
             memcpy(kv_pair_val(kv), v->data, v->size);
         } else {
@@ -870,7 +869,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     }
     if (kv_pair_inuse(pma->pairs[idx])) {
 	unsigned int newidx;
-        r = toku_pmainternal_make_space_at (txn, filenum, diskoff, pma, idx, &newidx, node_lsn); /* returns the new idx. */
+        r = toku_pmainternal_make_space_at (logger, filenum, diskoff, pma, idx, &newidx, node_lsn); /* returns the new idx. */
 	if (r!=0) return r;
 	idx=newidx;
     }
@@ -886,8 +885,8 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 	const struct kv_pair *pair = pma->pairs[idx];
 	const BYTESTRING key  = { pair->keylen, (char*)kv_pair_key_const(pair) };
 	const BYTESTRING data = { pair->vallen, (char*)kv_pair_val_const(pair) };
-	r = toku_log_insertinleaf (txn, toku_txn_get_txnid(txn), pma->filenum, diskoff, idx, key, data);
-	if (txn && node_lsn) *node_lsn = toku_txn_get_last_lsn(txn);
+	r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
     }
     *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
     return r;
@@ -944,7 +943,7 @@ static void __pma_relocate_kvpairs(PMA pma) {
 #endif
 
 
-int toku_pma_split(TOKUTXN txn, FILENUM filenum,
+int toku_pma_split(TOKULOGGER logger, FILENUM filenum,
 		   DISKOFF diskoff,    PMA pma,     unsigned int *pma_size_p,     u_int32_t rand4fp,    u_int32_t *fingerprint_p,    LSN *lsn,
 		   DBT *splitk,
 		   DISKOFF newdiskoff, PMA newpma,  unsigned int *newpma_size_p,  u_int32_t newrand4fp, u_int32_t *newfingerprint_p, LSN *newlsn) {
@@ -1015,11 +1014,11 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
     /* put the second half of pairs into the right pma */
     /* Do this first, so that the logging will move the stuff out of the left pma first, and then later when we redistribute in the left PMA, we won't overwrite something. */ 
     n = npairs - spliti;
-    error = pma_resize_array(txn, filenum, newdiskoff, newpma, n + n/4, 0, newlsn);
+    error = pma_resize_array(logger, filenum, newdiskoff, newpma, n + n/4, 0, newlsn);
     assert(error == 0);
     distribute_data(newpma->pairs, toku_pma_index_limit(newpma), &pairs[spliti], n, newpma);
     {
-	int r = pma_log_distribute(txn, filenum, diskoff, newdiskoff, n, &pairs[spliti], lsn, newlsn);
+	int r = pma_log_distribute(logger, filenum, diskoff, newdiskoff, n, &pairs[spliti], lsn, newlsn);
 	if (r!=0) { toku_free(pairs); return r; }
     }
 #if PMA_USE_MEMPOOL
@@ -1041,11 +1040,11 @@ int toku_pma_split(TOKUTXN txn, FILENUM filenum,
     assert(error == 0);
     distribute_data(pma->pairs, toku_pma_index_limit(pma), &pairs[0], n, pma);
     {
-	int r = pma_log_distribute(txn, filenum, diskoff, diskoff, spliti, &pairs[0], lsn, lsn);
+	int r = pma_log_distribute(logger, filenum, diskoff, diskoff, spliti, &pairs[0], lsn, lsn);
 	if (r!=0) { toku_free(pairs); return r; }
-	r = toku_log_resizepma(txn, toku_txn_get_txnid(txn), filenum, diskoff, oldn_for_logging, newn_for_logging);
+	r = toku_log_resizepma(logger, filenum, diskoff, oldn_for_logging, newn_for_logging);
 	if (r!=0) { toku_free(pairs); return r; }
-	if (txn && lsn) *lsn = toku_txn_get_last_lsn(txn);
+	if (logger && lsn) *lsn = toku_logger_last_lsn(logger);
 
     }
     // Don't have to relocate kvpairs, because these ones are still there.
@@ -1071,7 +1070,7 @@ static void __pma_bulk_cleanup(struct pma *pma, struct kv_pair_tag *pairs, int n
             pma_mfree_kv_pair(pma, pairs[i].pair);
 }
 
-int toku_pma_bulk_insert(TOKUTXN txn, FILENUM filenum, DISKOFF diskoff, PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4fp, u_int32_t *sum, LSN *node_lsn) {
+int toku_pma_bulk_insert(TOKULOGGER logger, FILENUM filenum, DISKOFF diskoff, PMA pma, DBT *keys, DBT *vals, int n_newpairs, u_int32_t rand4fp, u_int32_t *sum, LSN *node_lsn) {
     struct kv_pair_tag *newpairs;
     int i;
     int error;
@@ -1103,7 +1102,7 @@ int toku_pma_bulk_insert(TOKUTXN txn, FILENUM filenum, DISKOFF diskoff, PMA pma,
         }
     }
 
-    error = pma_resize_array(txn, filenum, diskoff, pma, n_newpairs + n_newpairs/4, 0, node_lsn);
+    error = pma_resize_array(logger, filenum, diskoff, pma, n_newpairs + n_newpairs/4, 0, node_lsn);
     if (error) {
         __pma_bulk_cleanup(pma, newpairs, n_newpairs);
         toku_free(newpairs);

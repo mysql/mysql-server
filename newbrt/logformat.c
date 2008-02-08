@@ -53,61 +53,52 @@ const struct logtype logtypes[] = {
 			   {"FILENUM",    "filenum", 0},
 			   {"LOGGEDBRTHEADER",  "header", 0},
 			   NULLFIELD}},
-    {"newbrtnode", 'N', FA{{"TXNID",   "txnid", 0},
-			   {"FILENUM", "filenum", 0},
+    {"newbrtnode", 'N', FA{{"FILENUM", "filenum", 0},
 			   {"DISKOFF", "diskoff", 0},
 			   {"u_int32_t", "height", 0},
 			   {"u_int32_t", "nodesize", 0},
 			   {"u_int8_t", "is_dup_sort", 0},
 			   {"u_int32_t", "rand4fingerprint", "%08x"},
 			   NULLFIELD}},
-    {"changechildfingerprint", 'f', FA{{"TXNID",   "txnid", 0},
-				       {"FILENUM", "filenum", 0},
+    {"changechildfingerprint", 'f', FA{{"FILENUM", "filenum", 0},
 				       {"DISKOFF", "diskoff", 0},
 				       {"u_int32_t", "childnum", 0},
 				       {"u_int32_t", "oldfingerprint", "%08x"},
 				       {"u_int32_t", "newfingerprint", "%08x"},
 				       NULLFIELD}},
-    {"changeunnamedroot", 'u', FA{{"TXNID",   "txnid", 0},
-				 {"FILENUM", "filenum", 0},
-				 {"DISKOFF", "oldroot", 0},
-				 {"DISKOFF", "newroot", 0},
-				 NULLFIELD}},
-    {"changenamedroot", 'n', FA{{"TXNID",   "txnid", 0},
-				{"FILENUM", "filenum", 0},
+    {"changeunnamedroot", 'u', FA{{"FILENUM", "filenum", 0},
+				  {"DISKOFF", "oldroot", 0},
+				  {"DISKOFF", "newroot", 0},
+				  NULLFIELD}},
+    {"changenamedroot", 'n', FA{{"FILENUM", "filenum", 0},
 				{"BYTESTRING", "name", 0},
 				{"DISKOFF", "oldroot", 0},
 				{"DISKOFF", "newroot", 0},
 				NULLFIELD}},
-    {"changeunusedmemory", 'm',  FA{{"TXNID",   "txnid", 0},
-				    {"FILENUM", "filenum", 0},
+    {"changeunusedmemory", 'm',  FA{{"FILENUM", "filenum", 0},
 				    {"DISKOFF", "oldunused", 0},
 				    {"DISKOFF", "newunused", 0},
 				    NULLFIELD}},
-    {"addchild", 'c', FA{{"TXNID",   "txnid", 0},
-			 {"FILENUM", "filenum", 0},
+    {"addchild", 'c', FA{{"FILENUM", "filenum", 0},
 			 {"DISKOFF", "diskoff", 0},
 			 {"u_int32_t", "childnum", 0}, // children scoot over
 			 {"DISKOFF",   "child", 0},
 			 {"u_int32_t", "childfingerprint", "%08x"},
 			 NULLFIELD}},
-    {"delchild", 'r', FA{{"TXNID",   "txnid", 0},
-			 {"FILENUM", "filenum", 0},
+    {"delchild", 'r', FA{{"FILENUM", "filenum", 0},
 			 {"DISKOFF", "diskoff", 0},
 			 {"u_int32_t", "childnum", 0}, // children scoot over
 			 {"DISKOFF",   "child", 0},
 			 {"u_int32_t", "childfingerprint", "%08x"},
 			 {"BYTESTRING", "pivotkey", 0},
 			 NULLFIELD}},
-    {"setchild", 'i', FA{{"TXNID",     "txnid", 0},
-			 {"FILENUM",   "filenum", 0},
+    {"setchild", 'i', FA{{"FILENUM",   "filenum", 0},
 			 {"DISKOFF",   "diskoff", 0},
 			 {"u_int32_t", "childnum", 0},
 			 {"DISKOFF",   "oldchild", 0},
 			 {"DISKOFF",   "newchild", 0},
 			 NULLFIELD}},
-    {"setpivot", 'k', FA{{"TXNID",   "txnid", 0},
-			 {"FILENUM", "filenum", 0},
+    {"setpivot", 'k', FA{{"FILENUM", "filenum", 0},
 			 {"DISKOFF", "diskoff", 0},
 			 {"u_int32_t", "childnum", 0},
 			 {"BYTESTRING", "pivotkey", 0},
@@ -116,20 +107,20 @@ const struct logtype logtypes[] = {
 			{"BYTESTRING", "fname", 0},
 			{"FILENUM",    "filenum", 0},
 			NULLFIELD}},
-    {"brtdeq",       'U', FA{{"TXNID",      "txnid", 0},
-			     {"FILENUM",    "filenum", 0},
+    {"brtdeq",       'U', FA{{"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
 			     {"u_int32_t",  "childnum", 0},
+			     {"TXNID",      "xid", 0},
 			     {"u_int32_t",  "typ", 0},
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
 			     {"u_int32_t",  "oldfingerprint", "%08x"},
 			     {"u_int32_t",  "newfingerprint", "%08x"},
 			     NULLFIELD}},
-    {"brtenq",       'Q', FA{{"TXNID",      "txnid", 0},
-			     {"FILENUM",    "filenum", 0},
+    {"brtenq",       'Q', FA{{"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
 			     {"u_int32_t",  "childnum", 0},
+			     {"TXNID",      "xid", 0},
 			     {"u_int32_t",  "typ", 0},
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
@@ -150,14 +141,12 @@ const struct logtype logtypes[] = {
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
                              NULLFIELD}},
-    {"resizepma", 'R', FA{{"TXNID", "txnid", 0},
-			  {"FILENUM",    "filenum", 0},
+    {"resizepma", 'R', FA{{"FILENUM",    "filenum", 0},
 			  {"DISKOFF",    "diskoff", 0},
 			  {"u_int32_t",  "oldsize", 0},
 			  {"u_int32_t",  "newsize", 0},
 			  NULLFIELD}},
-    {"pmadistribute", 'M', FA{{"TXNID", "txnid", 0},
-			      {"FILENUM",    "filenum", 0},
+    {"pmadistribute", 'M', FA{{"FILENUM",    "filenum", 0},
 			      {"DISKOFF",    "old_diskoff", 0},
 			      {"DISKOFF",    "new_diskoff", 0},
 			      {"INTPAIRARRAY",   "fromto",    0},
@@ -252,15 +241,12 @@ void generate_log_free(void) {
 
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "int toku_log_%s (TOKUTXN txn", lt->name);
+			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger", lt->name);
 			DO_FIELDS(ft, lt,
 				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
-			if (lt->command=='C') {
-			    fprintf2(cf,hf, ", int nosync");
-			}
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
-			fprintf(cf, "  if (txn==0) return 0;\n");
+			fprintf(cf, "  if (logger==0) return 0;\n");
 			fprintf(cf, "  const unsigned int buflen= (+4 // len at the beginning\n");
 			fprintf(cf, "                              +1 // log command\n");
 			fprintf(cf, "                              +8 // lsn\n");
@@ -274,48 +260,15 @@ void generate_log_writer (void) {
 			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", lt->command);
-			fprintf(cf, "  wbuf_LSN(&wbuf, txn->logger->lsn);\n");
-			fprintf(cf, "  txn->last_lsn = txn->logger->lsn;\n");
-			fprintf(cf, "  txn->logger->lsn.lsn++;\n");
+			fprintf(cf, "  wbuf_LSN(&wbuf, logger->lsn);\n");
+			fprintf(cf, "  logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
-			fprintf(cf, "  int r= toku_logger_finish(txn->logger, &wbuf);\n");
+			fprintf(cf, "  int r= toku_logger_finish(logger, &wbuf);\n");
 			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
 			fprintf(cf, "  toku_free(buf);\n");
-			if (lt->command=='C') {
-			    fprintf(cf, "  if (r!=0) return r;\n");
-			    fprintf(cf, "  // commit has some extra work to do.\n");
-			    fprintf(cf, "  if (nosync) return 0;\n");
-			    fprintf(cf, "  if (txn->parent) { // do not fsync if there is a parent.  Instead append the log entries onto the parent.\n");
-			    fprintf(cf, "    if (txn->parent->oldest_logentry) txn->parent->newest_logentry->next = txn->oldest_logentry;\n");
-			    fprintf(cf, "    else                              txn->parent->oldest_logentry       = txn->oldest_logentry;\n");
-			    fprintf(cf, "    if (txn->newest_logentry) txn->parent->newest_logentry = txn->newest_logentry;\n");
-			    fprintf(cf, "    txn->newest_logentry = txn->oldest_logentry = 0;\n");
-			    fprintf(cf, "  } else {\n");
-			    fprintf(cf, "    r = toku_logger_fsync(txn->logger);\n");
-			    fprintf(cf, "    if (r!=0) toku_logger_panic(txn->logger, r);\n");
-			    fprintf(cf, "  }\n");
-			    fprintf(cf, "  return 0;\n");
-			} else {
-			    int i=0;
-			    fprintf(cf, "  struct log_entry *MALLOC(lentry);\n");
-			    fprintf(cf, "  if (lentry==0) return errno;\n");
-			    fprintf(cf, "  if (0) { died0: toku_free(lentry); return r; }\n");
-			    fprintf(cf, "  lentry->cmd = %d;\n", lt->command);
-			    fprintf(cf, "  lentry->u.%s.lsn = toku_txn_get_last_lsn(txn);\n", lt->name);
-			    DO_FIELDS(ft, lt,
-				      ({
-					  fprintf(cf, "  r=toku_copy_%s(&lentry->u.%s.%s, %s);\n", ft->type, lt->name, ft->name, ft->name);
-					  fprintf(cf, "  if (r!=0) { if(0) { died%d: toku_free_%s(lentry->u.%s.%s); } goto died%d; }\n", i+1, ft->type, lt->name, ft->name, i);
-					  i++;
-				      }));
-			    fprintf(cf, "  if (0) { goto died%d; }\n", i); // Need to use that label.
-			    fprintf(cf, "  lentry->next = 0;\n");
-			    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry = lentry;\n");
-			    fprintf(cf, "  else txn->newest_logentry->next = lentry;\n");
-			    fprintf(cf, "  txn->newest_logentry = lentry;\n");
-			    fprintf(cf, "  return r;\n");
-			}
+
+			fprintf(cf, "  return r;\n");
 			fprintf(cf, "}\n\n");
 		    }));
 
