@@ -570,7 +570,7 @@ static int __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
     u_int32_t i;
     for (i = 0; i < numfound; i++) {
         if (rt != NULL) {
-            r = toku_rt_delete(rt, to_insert);  
+            r = toku_rt_delete(rt, &tree->buf[i]);
             if (r!=0) return __toku_lt_panic(tree, r);
         }
         /*
@@ -1206,6 +1206,8 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
     if (selfwrite) {
         ranges += toku_rt_get_size(selfwrite);
         r = __toku_lt_border_delete(tree, selfwrite);
+        if (r!=0) return __toku_lt_panic(tree, r);
+        r = __toku_lt_free_contents(tree, selfwrite, NULL);
         if (r!=0) return __toku_lt_panic(tree, r);
     }
 
