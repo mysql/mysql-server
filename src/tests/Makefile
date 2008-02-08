@@ -97,8 +97,13 @@ else
 endif
 
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
+# Give up VGRIND of bdbrun
+# It was this:
+#%.bdbrun: %.bdb
+#	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
+# Now thiss:
 %.bdbrun: %.bdb
-	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
 
@@ -199,9 +204,10 @@ test_db_assoc3.tdbrun: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
 	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
+# Give up on VGRIND for bdbrun
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(MAYBEATSIGN) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(MAYBEATSIGN) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
