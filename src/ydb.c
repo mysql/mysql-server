@@ -1835,7 +1835,8 @@ static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
-    BOOL transactions = (db->dbenv->i->open_flags & DB_INIT_TXN) != 0;
+    BOOL need_locktree = (db->dbenv->i->open_flags & DB_INIT_LOCK) &&
+                         (db->dbenv->i->open_flags & DB_INIT_TXN);
 
     int openflags = 0;
     int r;
@@ -1896,7 +1897,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    if (transactions) {
+    if (need_locktree) {
         r = toku_lt_create(&db->i->lt, db, FALSE,
                            toku_db_lt_panic, db->dbenv->i->max_locks,
                            &db->dbenv->i->num_locks,
