@@ -1344,26 +1344,15 @@ finish:
 
 static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
     int r;
-    unsigned int brtflags;
     if (flags!=0 && flags!=DB_GET_BOTH) return EINVAL;
-    
-    toku_brt_get_flags(db->i->brt, &brtflags);
-    if ((brtflags & TOKU_DB_DUPSORT) || flags == DB_GET_BOTH) {
 
-        if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
-        // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-        
-        DBC *dbc;
-        r = toku_db_cursor(db, txn, &dbc, 0);
-        if (r!=0) return r;
-        r = toku_c_get_noassociate(dbc, key, data, flags == DB_GET_BOTH ? DB_GET_BOTH : DB_SET);
-        int r2 = toku_c_close(dbc);
-        if (r!=0) return r;
-        return r2;
-    } else {
-        if (flags != 0) return EINVAL;
-        return toku_brt_lookup(db->i->brt, key, data);
-    }
+    DBC *dbc;
+    r = toku_db_cursor(db, txn, &dbc, 0);
+    if (r!=0) return r;
+    r = toku_c_get_noassociate(dbc, key, data,
+                               (flags == 0) ? DB_SET : DB_GET_BOTH);
+    int r2 = toku_c_close(dbc);
+    return r ? r : r2;
 }
 
 static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
@@ -1679,16 +1668,15 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     if ((db->i->open_flags & DB_THREAD) && db_thread_need_flags(data))
         return EINVAL;
 
-    if (db->i->primary==0) r = toku_db_get_noassociate(db, txn, key, data, flags);
-    else {
-        // It's a get on a secondary.
-        if (flags == DB_GET_BOTH) return EINVAL;
-        assert(flags == 0); // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
-        DBT primary_key; memset(&primary_key, 0, sizeof(primary_key)); primary_key.flags = DB_DBT_MALLOC;
-        r = toku_db_pget(db, txn, key, &primary_key, data, 0);
-        if (primary_key.data) toku_free(primary_key.data);
-    }
-    return r;
+    if (flags != 0 && flags != DB_GET_BOTH) return EINVAL;
+    // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
+
+    DBC *dbc;
+    r = toku_db_cursor(db, txn, &dbc, 0);
+    if (r!=0) return r;
+    r = toku_c_get(dbc, key, data, (flags == 0) ? DB_SET : DB_GET_BOTH);
+    int r2 = toku_c_close(dbc);
+    return r ? r : r2;
 }
 
 static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
