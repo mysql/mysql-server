@@ -8,7 +8,7 @@
 
 #include "key.h"
 #include "memory.h"
-#include "myassert.h"
+#include "toku_assert.h"
 #include "../include/db.h"
 #include <stdio.h>
 #include <errno.h>

@@ -1,9 +1,9 @@
+#include "fifo.h"
+#include "memory.h"
+#include "toku_assert.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
-#include "memory.h"
-#include "fifo.h"
 
 int verbose;
 

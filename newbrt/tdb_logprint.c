@@ -2,18 +2,17 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Dump the log from stdin to stdout. */
+#include "brttypes.h"
+#include "log-internal.h"
+#include "log_header.h"
+#include "toku_assert.h"
 #include <arpa/inet.h>
-#include <assert.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <zlib.h>
-
-#include "brttypes.h"
-#include "log-internal.h"
-#include "log_header.h"
 
 #if 0
 static u_int32_t crc=0;

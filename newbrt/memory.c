@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "memory.h"
-#include <assert.h>
+#include "toku_assert.h"
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>

@@ -1,11 +1,10 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <assert.h>
+#include "log.h"
+#include "toku_assert.h"
+#include "yerror.h"
 #include <stdio.h>
 #include <sys/types.h>
-
-#include "yerror.h"
-#include "log.h"
 
 #define LOGGER_BUF_SIZE (1<<24)
 struct tokulogger {

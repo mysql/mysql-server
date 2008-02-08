@@ -5,7 +5,7 @@
 
 #include "ybt.h"
 #include "memory.h"
-#include <assert.h>
+#include "toku_assert.h"
 #include <string.h>
 
 static void ybt_test0 (void) {

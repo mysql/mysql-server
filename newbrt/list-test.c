@@ -1,8 +1,8 @@
+#include "list.h"
+#include "toku_assert.h"
+#include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <memory.h>
-#include <assert.h>
-#include "list.h"
 
 struct testlist {
     struct list next;

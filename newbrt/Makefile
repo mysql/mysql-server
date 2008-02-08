@@ -127,22 +127,24 @@ pma-test benchmark-test brt-test brt-serialize-test brtdump: LDFLAGS+=-lz
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
 key.o: brttypes.h key.h
+list-test: list-test.o toku_assert.o
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
 pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o toku_assert.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h
 ybt.o: ybt.h brttypes.h ../include/db.h
-ybt-test: ybt-test.o ybt.o memory.o
+ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
 brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
+logformat: logformat.o toku_assert.o
 brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
 memory.o: memory.h
 primes.o: primes.h toku_assert.h
-fifo-test: fifo.o memory.o
+fifo-test: fifo.o memory.o toku_assert.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
@@ -152,7 +154,7 @@ fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 toku_assert.o: toku_assert.h
 
 brt-serialize-test: brt-serialize-test.o brt-serialize.o memory.o fifo.o pma.o key.o ybt.o brt.o cachetable.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
-test_toku_malloc_plain_free: memory.o
+test_toku_malloc_plain_free: memory.o toku_assert.o
 
 
 cachetable-test.o: cachetable.h memory.h 
@@ -170,6 +172,9 @@ test-assert: test-assert.o toku_assert.o
 
 brtdump: brtdump.o brt-serialize.o memory.o pma.o key.o fingerprint.o log.o log_code.o roll.o cachetable.o primes.o toku_assert.o brt.o ybt.o fifo.o mempool.o brt-verify.o
 
+test_oexcl: test_oexcl.o toku_assert.o
+
+
 checko2:
 ifeq ($(OPTFLAGS),-O2)
 	@echo OPTFLAGS=$(OPTFLAGS) ok
@@ -182,6 +187,7 @@ clean:
 	rm -rf test_oexcl.c.tmp *.brt
 
 randdb4: LOADLIBES=-ldb
+randdb4: randdb4.o toku_assert.o
 randbrt: brt.o fifo.o cachetable.o memory.o brt-serialize.o
 
 # After doing (cd ../src/tests;make test_log5.recover), run these.  The files should have no differences.

@@ -1,10 +1,10 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "assert.h"
 #include "brt-internal.h"
 
 #include <fcntl.h>
-#include <assert.h>
 #include <string.h>
 #include <zlib.h>
 #include <arpa/inet.h>

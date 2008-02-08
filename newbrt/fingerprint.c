@@ -2,8 +2,8 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include <arpa/inet.h>
-#include <assert.h>
 #include "brt-internal.h"
+#include "toku_assert.h"
 
 // Calculate the fingerprint for a kvpair
 static inline u_int32_t toku_calc_more_crc32_kvpair (u_int32_t crc, const void *key, int keylen, const void *val, int vallen) {
@@ -35,6 +35,8 @@ u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, 
 u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd) {
     if (cmd->type <= BRT_DELETE_BOTH)
 	return toku_calccrc32_cmd (cmd->type, cmd->xid, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size);
-    else 
+    else {
         assert(0); /* Should not have come here. */
+	return 0;
+    }
 }

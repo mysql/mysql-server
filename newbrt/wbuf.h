@@ -3,10 +3,10 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <assert.h>
-#include <string.h>
-#include <errno.h>
 #include "memory.h"
+#include "toku_assert.h"
+#include <errno.h>
+#include <string.h>
 
 //#define CRC_NO
 #define CRC_INCR
