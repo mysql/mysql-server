@@ -105,14 +105,14 @@ sub squeeze($) {
 	return(rtrim(ltrim($string)));
 }
 
-if ($#ARGV < 0) {
-	die "usage: $0 <path/to/mysqlbug> [options e.g. CC=gcc CXX=gcc]\n";
+if ($#ARGV != 0) {
+	die "usage: $0 path/to/mysqlbug\n";
 }
 
 open(F, $ARGV[0]) ||
-	die "Error opening $ARGV[0]: $!";
+	die "Error opening $ARGV[0]: $!\n";
 read(F, $buffer, 131072) ||
-	die "Error reading file $ARGV[0]: $!";
+	die "Error reading file $ARGV[0]: $!\n";
 close(F);
 
 my @matched = grep(/^CONFIGURE_LINE=/, split(/\n/, $buffer));
@@ -122,7 +122,7 @@ if ($#matched == -1 ) {
 	die "CONFIGURE_LINE= not found in : $ARGV[0]\n";
 # Check if more than one line matched
 } elsif ($#matched > 0) {
-	die "Error: $#matched matches found.\n";
+	die "Error: $#matched matches for CONFIGURE_LINE= found.\n";
 }
 
 # Since CONFIGURE_LINE is an environment variable we extract the value,
