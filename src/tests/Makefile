@@ -44,7 +44,7 @@ CFLAGS = -Wall -Werror $(OPTFLAGS) -g $(GCOV_FLAGS)
 TDB_CPPFLAGS = -I../../include
 
 
-SRCS = $(wildcard *.c)
+SRCS = $(sort $(wildcard *.c))
 
 TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
 BDB_TESTS = $(patsubst %.c,%.bdb,$(SRCS))
