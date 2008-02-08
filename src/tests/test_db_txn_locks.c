@@ -122,7 +122,9 @@ void setup_dbs(u_int32_t dup_flags) {
     /* Open/create primary */
     r = db_env_create(&dbenv, 0);
         CKERR(r);
-    r = dbenv->open(dbenv, DIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN, 0600);
+    u_int32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
+    u_int32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
+	r = dbenv->open(dbenv, DIR, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
     r = db_create(&db, dbenv, 0);
@@ -131,13 +133,14 @@ void setup_dbs(u_int32_t dup_flags) {
         r = db->set_flags(db, dup_flags);
             CKERR(r);
     }
-    r = db->open(db, NULL, "foobar.db", NULL, DB_BTREE, DB_CREATE, 0600);
-        CKERR(r);
+
     char a;
-    for (a = 'a'; a <= 'z'; a++) {
-        init_txn(a);
-        init_dbc(a);
-    }
+    for (a = 'a'; a <= 'z'; a++) init_txn(a);
+    init_txn('\0');
+    r = db->open(db, txns[(int)'\0'], "foobar.db", NULL, DB_BTREE, DB_CREATE, 0600);
+        CKERR(r);
+    commit_txn('\0');
+    for (a = 'a'; a <= 'z'; a++) init_dbc(a);
 }
 
 void close_dbs(void) {
