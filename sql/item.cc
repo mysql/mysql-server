@@ -2628,6 +2628,7 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   if (entry && entry->value)
   {
     item_result_type= entry->type;
+    unsigned_flag= entry->unsigned_flag;
     if (strict_type && required_result_type != item_result_type)
       DBUG_RETURN(1);
     switch (item_result_type) {
@@ -2925,7 +2926,10 @@ const String *Item_param::query_val_str(String* str) const
 {
   switch (state) {
   case INT_VALUE:
-    str->set(value.integer, &my_charset_bin);
+    if (unsigned_flag)
+      str->set((ulonglong) value.integer, &my_charset_bin);
+    else
+      str->set(value.integer, &my_charset_bin);
     break;
   case REAL_VALUE:
     str->set_real(value.real, NOT_FIXED_DEC, &my_charset_bin);
