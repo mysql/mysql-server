@@ -3004,14 +3004,6 @@ restart:
                       test((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                            (pin == PAGECACHE_PIN)),
                       &page_st);
-    DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
-                block->type == type ||
-                type == PAGECACHE_LSN_PAGE ||
-                type == PAGECACHE_READ_UNKNOWN_PAGE ||
-                block->type == PAGECACHE_READ_UNKNOWN_PAGE);
-    if (type != PAGECACHE_READ_UNKNOWN_PAGE ||
-        block->type == PAGECACHE_EMPTY_PAGE)
-      block->type= type;
     if (((block->status & PCBLOCK_ERROR) == 0) && (page_st != PAGE_READ))
     {
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
@@ -3020,6 +3012,26 @@ restart:
                  (my_bool)(page_st == PAGE_TO_BE_READ));
       DBUG_PRINT("info", ("read is done"));
     }
+    /*
+      Assert after block is read. Imagine two concurrent SELECTs on same
+      table (thread1 and 2), which want to pagecache_read() the same
+      pageno/fileno. Thread1 calls find_block(), decides to evict a dirty
+      page from LRU; while it's writing this dirty page to disk, it is
+      pre-empted and thread2 runs its find_block(), gets the block (in
+      PAGE_TO_BE_READ state). This block is still containing the in-eviction
+      dirty page so has an its type, which cannot be tested.
+      So thread2 has to wait for read_block() to finish (when it wakes up in
+      read_block(), it's woken up by read_block() of thread1, which implies
+      that block's type was set to EMPTY by thread1 as part of find_block()).
+    */
+    DBUG_ASSERT(block->type == PAGECACHE_EMPTY_PAGE ||
+                block->type == type ||
+                type == PAGECACHE_LSN_PAGE ||
+                type == PAGECACHE_READ_UNKNOWN_PAGE ||
+                block->type == PAGECACHE_READ_UNKNOWN_PAGE);
+    if (type != PAGECACHE_READ_UNKNOWN_PAGE ||
+        block->type == PAGECACHE_EMPTY_PAGE)
+      block->type= type;
 
     if (make_lock_and_pin(pagecache, block, lock, pin))
     {
