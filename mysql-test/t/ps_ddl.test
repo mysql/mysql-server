@@ -55,8 +55,28 @@ let $base_count = SELECT VARIABLE_VALUE from
 INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE'
 into @base_count ;
 
-let $reprepared = SELECT VARIABLE_VALUE - @base_count AS REPREPARED from
-INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
+let $check = SELECT CASE (VARIABLE_VALUE - @base_count - @expected)
+  WHEN 0 THEN "PASSED"
+  ELSE "FAILED"
+  END
+ AS `CHECK`, 
+ (VARIABLE_VALUE - @base_count - @expected) AS `OFFSET`
+ from INFORMATION_SCHEMA.SESSION_STATUS
+ where variable_name='COM_STMT_REPREPARE' ;
+
+eval $base_count;
+set @expected = 0;
+
+# Maintainer:
+# When not expecting a re-prepare, write the test like this:
+#   execute stmt;
+#   eval $check;
+#
+# When expecting a re-prepare, write the test like this:
+#   set @expected = @expected + 1;
+#   execute stmt;
+#   eval $check;
+#
 
 --echo =====================================================================
 --echo Testing 1: NOTHING -> TABLE transitions
@@ -65,8 +85,6 @@ INFORMATION_SCHEMA.SESSION_STATUS where variable_name='COM_STMT_REPREPARE' ;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-
-eval $base_count;
 
 # can not be tested since prepare failed
 --error ER_NO_SUCH_TABLE
@@ -92,23 +110,21 @@ prepare stmt from 'select * from t1';
 drop table if exists t4;
 --enable_warnings
 
-eval $base_count;
-
 create table t4(a int);
 
 prepare stmt from 'select * from t4';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t4;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 
 --echo =====================================================================
 --echo Testing 5: TABLE -> TABLE (DDL) transitions
@@ -118,23 +134,21 @@ eval $reprepared;
 drop table if exists t5;
 --enable_warnings
 
-eval $base_count;
-
 create table t5(a int);
 
-prepare stmt from 'select * from t5';
+prepare stmt from 'select a from t5';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t5 add column (b int);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t5;
 
@@ -155,17 +169,15 @@ drop table t5;
 drop table if exists t6;
 --enable_warnings
 
-eval $base_count;
-
 create table t6(a int);
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @val=1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 set @val=2;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 
 # Relevant trigger: execute should reprepare
 delimiter $$;
@@ -178,25 +190,25 @@ delimiter ;$$
 
 set @message="none";
 set @val=3;
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @val=4;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @message="none";
 set @val=5;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=6;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 # Unrelated trigger: execute can pass of fail, implementation dependent
@@ -210,25 +222,26 @@ delimiter ;$$
 
 set @message="none";
 set @val=7;
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=8;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @message="none";
 set @val=9;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=10;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 # Relevant trigger: execute should reprepare
@@ -243,25 +256,25 @@ delimiter ;$$
 
 set @message="none";
 set @val=11;
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @val=12;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @message="none";
 set @val=13;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=14;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 # Unrelated trigger: execute can pass of fail, implementation dependent
@@ -276,63 +289,62 @@ delimiter ;$$
 
 set @message="none";
 set @val=15;
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=16;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @message="none";
 set @val=17;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @message="none";
 set @val=18;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 drop trigger t6_bi;
 
 set @message="none";
 set @val=19;
-# safe to re-execute
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @val=20;
-# safe to re-execute
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 prepare stmt from 'insert into t6(a) value (?)';
 set @message="none";
 set @val=21;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @val=22;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 drop trigger t6_bd;
 
 set @val=23;
-# safe to re-execute
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 set @val=24;
-# safe to re-execute
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 select @message;
 
 select * from t6 order by a;
@@ -362,8 +374,6 @@ drop procedure if exists audit_proc;
 drop function if exists audit_func;
 drop view if exists audit_view;
 --enable_warnings
-
-eval $base_count;
 
 create table t7_proc(a int);
 create table t7_func(a int);
@@ -400,10 +410,10 @@ create trigger t7_table_trigger_bi before insert on t7_dependent_table
 prepare stmt_proc from 'insert into t7_proc(a) value (?)';
 set @val=101;
 execute stmt_proc using @val;
-eval $reprepared;
+eval $check;
 set @val=102;
 execute stmt_proc using @val;
-eval $reprepared;
+eval $check;
 
 drop procedure audit_proc;
 
@@ -411,20 +421,21 @@ create procedure audit_proc(a int)
   insert into t7_audit values (NULL, a, "proc v2");
 
 set @val=103;
+set @expected = @expected + 1;
 execute stmt_proc using @val;
-eval $reprepared;
+eval $check;
 set @val=104;
 execute stmt_proc using @val;
-eval $reprepared;
+eval $check;
 
 
 prepare stmt_func from 'insert into t7_func(a) value (?)';
 set @val=201;
 execute stmt_func using @val;
-eval $reprepared;
+eval $check;
 set @val=202;
 execute stmt_func using @val;
-eval $reprepared;
+eval $check;
 
 drop function audit_func;
 
@@ -432,19 +443,20 @@ create function audit_func() returns varchar(50)
   return "func v2";
 
 set @val=203;
+set @expected = @expected + 1;
 execute stmt_func using @val;
-eval $reprepared;
+eval $check;
 set @val=204;
 execute stmt_func using @val;
-eval $reprepared;
+eval $check;
 
 prepare stmt_view from 'insert into t7_view(a) value (?)';
 set @val=301;
 execute stmt_view using @val;
-eval $reprepared;
+eval $check;
 set @val=302;
 execute stmt_view using @val;
-eval $reprepared;
+eval $check;
 
 drop view audit_view;
 
@@ -455,52 +467,53 @@ create view audit_view as select "view v2" as reason from dual;
 # This is because the table trigger is cached and is not invalidated.
 
 set @val=303;
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt_view using @val;
-eval $reprepared;
+eval $check;
 set @val=304;
 execute stmt_view using @val;
-eval $reprepared;
+eval $check;
 
 
 prepare stmt_table from 'insert into t7_table(a) value (?)';
 set @val=401;
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 set @val=402;
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 
 alter table t7_dependent_table add column comments varchar(100) default NULL;
 
 set @val=403;
-# REPREPARED +1
+set @expected = @expected + 1;
 --error ER_WRONG_VALUE_COUNT_ON_ROW
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 set @val=404;
+set @expected = @expected + 1;
 --error ER_WRONG_VALUE_COUNT_ON_ROW
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 
 alter table t7_dependent_table drop column comments;
 
 set @val=405;
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 set @val=406;
 execute stmt_table using @val;
-eval $reprepared;
+eval $check;
 
 
 prepare stmt_table_trigger from 'insert into t7_table(a) value (?)';
 set @val=501;
 execute stmt_table_trigger using @val;
-eval $reprepared;
+eval $check;
 set @val=502;
 execute stmt_table_trigger using @val;
-eval $reprepared;
+eval $check;
 
 drop trigger t7_table_trigger_bi;
 
@@ -508,12 +521,12 @@ create trigger t7_table_trigger_bi before insert on t7_dependent_table
   for each row set NEW.reason="trigger v2";
 
 set @val=503;
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt_table_trigger using @val;
-eval $reprepared;
+eval $check;
 set @val=504;
 execute stmt_table_trigger using @val;
-eval $reprepared;
+eval $check;
 
 select * from t7_audit order by new_a;
 
@@ -538,24 +551,22 @@ drop view audit_view;
 drop table if exists t8;
 --enable_warnings
 
-eval $base_count;
-
 create table t8(a int);
 
 prepare stmt from 'select * from t8';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t8;
 create temporary table t8(a int);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t8;
 
@@ -568,25 +579,23 @@ drop table if exists t9;
 drop table if exists t9_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t9(a int);
 create table t9_b(a int);
 
 prepare stmt from 'select * from t9';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t9;
 create view t9 as select * from t9_b;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t9;
 drop table t9_b;
@@ -599,23 +608,21 @@ drop table t9_b;
 drop temporary table if exists t10;
 --enable_warnings
 
-eval $base_count;
-
 create temporary table t10(a int);
 
 prepare stmt from 'select * from t10';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop temporary table t10;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 
 --echo =====================================================================
 --echo Testing 11: TEMPORARY TABLE -> TABLE transitions
@@ -626,25 +633,23 @@ drop table if exists t11;
 drop temporary table if exists t11;
 --enable_warnings
 
-eval $base_count;
-
 create table t11(a int);
 insert into t11(a) value (1);
 create temporary table t11(a int);
 
 prepare stmt from 'select * from t11';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop temporary table t11;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 select * from t11;
 drop table t11;
@@ -657,24 +662,22 @@ drop table t11;
 drop temporary table if exists t12;
 --enable_warnings
 
-eval $base_count;
-
 create temporary table t12(a int);
 
-prepare stmt from 'select * from t12';
+prepare stmt from 'select a from t12';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop temporary table t12;
 create temporary table t12(a int, b int);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 select * from t12;
 drop table t12;
@@ -688,25 +691,23 @@ drop temporary table if exists t13;
 drop table if exists t13_b;
 --enable_warnings
 
-eval $base_count;
-
 create temporary table t13(a int);
 create table t13_b(a int);
 
 prepare stmt from 'select * from t13';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop temporary table t13;
 create view t13 as select * from t13_b;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t13;
 drop table t13_b;
@@ -720,26 +721,25 @@ drop view if exists t14;
 drop table if exists t14_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t14_b(a int);
 create view t14 as select * from t14_b;
 
 prepare stmt from 'select * from t14';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t14;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t14_b;
 
@@ -752,25 +752,23 @@ drop view if exists t15;
 drop table if exists t15_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t15_b(a int);
 create view t15 as select * from t15_b;
 
 prepare stmt from 'select * from t15';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t15;
 create table t15(a int);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t15_b;
 drop table t15;
@@ -784,25 +782,23 @@ drop view if exists t16;
 drop table if exists t16_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t16_b(a int);
 create view t16 as select * from t16_b;
 
 prepare stmt from 'select * from t16';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t16;
 create temporary table t16(a int);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t16_b;
 drop temporary table t16;
@@ -816,8 +812,6 @@ drop view if exists t17;
 drop table if exists t17_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t17_b(a int);
 insert into t17_b values (10), (20), (30);
 
@@ -826,19 +820,19 @@ select * from t17;
 
 prepare stmt from 'select * from t17';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop view t17;
-create view t17 as select a, 2*a as b, 10*a as c from t17_b;
+create view t17 as select a, 2*a as b, 5*a as c from t17_b;
 select * from t17;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t17_b;
 drop view t17;
@@ -865,8 +859,6 @@ drop function if exists view_func;
 drop view if exists view_view;
 --enable_warnings
 
-eval $base_count;
-
 # TODO: insertable view -> trigger
 # TODO: insertable view -> trigger -> proc ?
 
@@ -886,47 +878,48 @@ create view t18_table as select * from t18;
 
 prepare stmt_func from 'select * from t18_func';
 execute stmt_func;
-eval $reprepared;
+eval $check;
 execute stmt_func;
-eval $reprepared;
+eval $check;
 
 drop function view_func;
 create function view_func(x int) returns int
   return x*x;
 
+set @expected = @expected + 1;
 execute stmt_func;
-eval $reprepared;
+eval $check;
 execute stmt_func;
-eval $reprepared;
+eval $check;
 
 prepare stmt_view from 'select * from t18_view';
 execute stmt_view;
-eval $reprepared;
+eval $check;
 execute stmt_view;
-eval $reprepared;
+eval $check;
 
 drop view view_view;
 create view view_view as select "view v2" as reason from dual;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt_view;
-eval $reprepared;
+eval $check;
 execute stmt_view;
-eval $reprepared;
+eval $check;
 
 prepare stmt_table from 'select * from t18_table';
 execute stmt_table;
-eval $reprepared;
+eval $check;
 execute stmt_table;
-eval $reprepared;
+eval $check;
 
 alter table t18 add column comments varchar(50) default NULL;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt_table;
-eval $reprepared;
+eval $check;
 execute stmt_table;
-eval $reprepared;
+eval $check;
 
 drop table t18;
 drop table t18_dependent_table;
@@ -944,8 +937,6 @@ drop view view_view;
 drop procedure if exists proc_19;
 --enable_warnings
 
-eval $base_count;
-
 # Using a temporary table internally should not confuse the prepared
 # statement code, and should not raise ER_PS_INVALIDATED errors
 prepare stmt from
@@ -956,17 +947,17 @@ prepare stmt from
 create procedure proc_19() select "hi there";
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure proc_19;
 create procedure proc_19() select "hi there, again";
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure proc_19;
 
@@ -974,19 +965,17 @@ drop procedure proc_19;
 --echo Testing 20: Special tables (log tables)
 --echo =====================================================================
 
-eval $base_count;
-
 prepare stmt from
  'select * from mysql.general_log where argument=\'IMPOSSIBLE QUERY STRING\'';
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 --echo =====================================================================
 --echo Testing 21: Special tables (system tables)
@@ -996,25 +985,23 @@ eval $reprepared;
 drop procedure if exists proc_21;
 --enable_warnings
 
-eval $base_count;
-
 prepare stmt from
  'select type, db, name from mysql.proc where name=\'proc_21\'';
 
 create procedure proc_21() select "hi there";
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure proc_21;
 create procedure proc_21() select "hi there, again";
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure proc_21;
 
@@ -1026,8 +1013,6 @@ drop procedure proc_21;
 drop table if exists t22_b;
 drop view if exists t22;
 --enable_warnings
-
-eval $base_count;
 
 create table t22_b(a int);
 
@@ -1041,15 +1026,15 @@ prepare stmt from 'select * from t22';
 
 insert into t22_b values (1), (2), (3);
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 insert into t22_b values (4), (5), (6);
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t22_b;
 drop view t22;
@@ -1063,8 +1048,6 @@ drop table if exists t23_a;
 drop table if exists t23_b;
 --enable_warnings
 
-eval $base_count;
-
 create table t23_a(a int);
 create table t23_b(b int);
 
@@ -1075,16 +1058,16 @@ prepare stmt from 'select * from t23_a join t23_b';
 insert into t23_a values (1), (2), (3);
 insert into t23_b values (10), (20), (30);
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 insert into t23_a values (4);
 insert into t23_b values (40);
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t23_a;
 drop table t23_b;
@@ -1099,28 +1082,26 @@ drop table t23_b;
 drop table if exists t24_alter;
 --enable_warnings
 
-eval $base_count;
-
 create table t24_alter(a int);
 
 prepare stmt from 'alter table t24_alter add column b int';
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_alter;
 create table t24_alter(a1 int, a2 int);
 
 # t24_alter has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_alter drop column b;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_alter drop column b;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_alter;
 
@@ -1135,7 +1116,7 @@ insert into t24_repair values (1), (2), (3);
 
 prepare stmt from 'repair table t24_repair';
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_repair;
 create table t24_repair(a1 int, a2 int);
@@ -1143,15 +1124,15 @@ insert into t24_repair values (1, 10), (2, 20), (3, 30);
 
 # t24_repair has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_repair add column b varchar(50) default NULL;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_repair drop column b;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_repair;
 
@@ -1166,7 +1147,7 @@ insert into t24_analyze values (1), (2), (3);
 
 prepare stmt from 'analyze table t24_analyze';
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_analyze;
 create table t24_analyze(a1 int, a2 int);
@@ -1174,15 +1155,15 @@ insert into t24_analyze values (1, 10), (2, 20), (3, 30);
 
 # t24_analyze has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_analyze add column b varchar(50) default NULL;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_analyze drop column b;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_analyze;
 
@@ -1197,7 +1178,7 @@ insert into t24_optimize values (1), (2), (3);
 
 prepare stmt from 'optimize table t24_optimize';
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_optimize;
 create table t24_optimize(a1 int, a2 int);
@@ -1205,15 +1186,15 @@ insert into t24_optimize values (1, 10), (2, 20), (3, 30);
 
 # t24_optimize has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_optimize add column b varchar(50) default NULL;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t24_optimize drop column b;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_optimize;
 
@@ -1226,35 +1207,35 @@ drop procedure if exists changing_proc;
 prepare stmt from 'show create procedure changing_proc';
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 create procedure changing_proc() begin end;
 
 # changing_proc has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure changing_proc;
 create procedure changing_proc(x int, y int) begin end;
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop procedure changing_proc;
 
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 # SQLCOM_SHOW_CREATE_FUNC:
 
@@ -1265,35 +1246,35 @@ drop function if exists changing_func;
 prepare stmt from 'show create function changing_func';
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 create function changing_func() returns int return 0;
 
 # changing_proc has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop function changing_func;
 create function changing_func(x int, y int) returns int return x+y;
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop function changing_func;
 
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_SP_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 # SQLCOM_SHOW_CREATE_TRIGGER:
 
@@ -1306,10 +1287,10 @@ create table t24_trigger(a int);
 prepare stmt from 'show create trigger t24_bi;';
 --error ER_TRG_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_TRG_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 delimiter $$;
 create trigger t24_bi before insert on t24_trigger for each row
@@ -1321,9 +1302,9 @@ delimiter ;$$
 
 # t24_bi has changed, and it's not a problem
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop trigger t24_bi;
 delimiter $$;
@@ -1335,19 +1316,20 @@ $$
 delimiter ;$$
 
 # t24_bi has changed, and it's not a problem
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop trigger t24_bi;
 
 --error ER_TRG_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 --error ER_TRG_DOES_NOT_EXIST
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t24_trigger;
 
@@ -1361,23 +1343,21 @@ drop table t24_trigger;
 drop table if exists t25_num_col;
 --enable_warnings
 
-eval $base_count;
-
 create table t25_num_col(a int);
 
-prepare stmt from 'select * from t25_num_col';
+prepare stmt from 'select a from t25_num_col';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_num_col add column b varchar(50) default NULL;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_num_col;
 
@@ -1391,17 +1371,20 @@ create table t25_col_name(a int);
 
 prepare stmt from 'select * from t25_col_name';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_col_name change a b int;
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_col_name;
 
@@ -1415,17 +1398,20 @@ create table t25_col_type(a int);
 
 prepare stmt from 'select * from t25_col_type';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_col_type change a a varchar(10);
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_col_type;
 
@@ -1439,17 +1425,20 @@ create table t25_col_type_length(a varchar(10));
 
 prepare stmt from 'select * from t25_col_type_length';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_col_type_length change a a varchar(20);
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_col_type_length;
 
@@ -1463,17 +1452,20 @@ create table t25_col_null(a varchar(10));
 
 prepare stmt from 'select * from t25_col_null';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_col_null change a a varchar(10) NOT NULL;
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_col_null;
 
@@ -1488,22 +1480,23 @@ create table t25_col_default(a int, b int DEFAULT 10);
 prepare stmt from 'insert into t25_col_default(a) values (?)';
 set @val=1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 set @val=2;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 
 alter table t25_col_default change b b int DEFAULT 20;
 
 set @val=3;
 # Must insert the correct default value for b
+set @expected = @expected + 1;
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 
 set @val=4;
 # Must insert the correct default value for b
 execute stmt using @val;
-eval $reprepared;
+eval $check;
 
 select * from t25_col_default;
 
@@ -1519,17 +1512,17 @@ create table t25_index(a varchar(10));
 
 prepare stmt from 'select * from t25_index';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 create index i1 on t25_index(a);
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_index;
 
@@ -1546,20 +1539,20 @@ show create table t25_index_unique;
 
 prepare stmt from 'select * from t25_index_unique';
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 alter table t25_index_unique drop index i1;
 create unique index i1 on t25_index_unique(a, b);
 
 show create table t25_index_unique;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table t25_index_unique;
 
@@ -1578,8 +1571,6 @@ drop function if exists func_12093;
 drop function if exists func_12093_unrelated;
 drop procedure if exists proc_12093;
 --enable_warnings
-
-eval $base_count;
 
 connect (con1,localhost,root,,);
 
@@ -1609,9 +1600,9 @@ prepare stmt_sf from 'select func_12093();';
 prepare stmt_sp from 'call proc_12093(func_12093())';
 
 execute stmt_sf;
-eval $reprepared;
+eval $check;
 execute stmt_sp;
-eval $reprepared;
+eval $check;
 
 connection con1;
 
@@ -1622,17 +1613,17 @@ connection default;
 
 # previously, failed with --error 1305
 execute stmt_sf;
-eval $reprepared;
+eval $check;
 # previously, failed with --error 1305
 execute stmt_sp;
-eval $reprepared;
+eval $check;
 
 # previously, failed with --error 1305
 execute stmt_sf;
-eval $reprepared;
+eval $check;
 # previously, failed with --error 1305
 execute stmt_sp;
-eval $reprepared;
+eval $check;
 
 deallocate prepare stmt_sf;
 deallocate prepare stmt_sp;
@@ -1652,26 +1643,25 @@ drop procedure proc_12093;
 drop function if exists func_21294;
 --enable_warnings
 
-eval $base_count;
-
 create function func_21294() returns int return 10;
 
 prepare stmt from "select func_21294()";
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop function func_21294;
 create function func_21294() returns int return 10;
 
 # might pass or fail, implementation dependent
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop function func_21294;
 create function func_21294() returns int return 20;
 
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 deallocate prepare stmt;
 drop function func_21294;
@@ -1686,8 +1676,6 @@ drop table if exists t_27420_100;
 drop table if exists t_27420_101;
 drop view if exists v_27420;
 --enable_warnings
-
-eval $base_count;
 
 connect (con1,localhost,root,,);
 
@@ -1706,7 +1694,7 @@ create view v_27420 as select t_27420_100.a X, t_27420_101.a Y
 prepare stmt from 'select * from v_27420';
 
 execute stmt;
-eval $reprepared;
+eval $check;
 
 connection con1;
 
@@ -1715,9 +1703,9 @@ create table v_27420(X int, Y int);
 
 connection default;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 connection con1;
 
@@ -1727,9 +1715,10 @@ create table v_27420 (a int, b int, filler char(200));
 
 connection default;
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 disconnect con1;
 
@@ -1747,8 +1736,6 @@ drop table v_27420;
 drop table if exists t_27430_1;
 drop table if exists t_27430_2;
 --enable_warnings
-
-eval $base_count;
 
 create table t_27430_1 (a int not null, oref int not null, key(a));
 insert into t_27430_1 values
@@ -1769,9 +1756,9 @@ prepare stmt from
  'select oref, a, a in (select a from t_27430_1 where oref=t_27430_2.oref) Z from t_27430_2';
 
 execute stmt; 
-eval $reprepared;
+eval $check;
 execute stmt; 
-eval $reprepared;
+eval $check;
 
 drop table t_27430_1, t_27430_2;
 
@@ -1790,11 +1777,14 @@ insert into t_27430_2 values
   (NULL, 3),
   (NULL, 4);
 
-# REPREPARED +1
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
+set @expected = @expected + 1;
+--error ER_PS_REBIND
 execute stmt;
-eval $reprepared;
+eval $check;
 
 deallocate prepare stmt;
 drop table t_27430_1;
@@ -1811,8 +1801,6 @@ drop view if exists v_27690_1;
 drop table if exists v_27690_2;
 --enable_warnings
 
-eval $base_count;
-
 create table t_27690_1 (a int, b int);
 insert into t_27690_1 values (1,1),(2,2);
 
@@ -1822,27 +1810,27 @@ create table v_27690_2 as select * from t_27690_1;
 prepare stmt from 'select * from v_27690_1, v_27690_2'; 
 
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 drop table v_27690_1;
 
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 
 --error ER_NO_SUCH_TABLE
 execute stmt;
-eval $reprepared;
+eval $check;
 
 create view v_27690_1 as select A.a, A.b from t_27690_1 A, t_27690_1 B;
 
-# REPREPARED +1
+set @expected = @expected + 1;
 execute stmt;
-eval $reprepared;
+eval $check;
 execute stmt;
-eval $reprepared;
+eval $check;
 
 deallocate prepare stmt;
 drop table t_27690_1;

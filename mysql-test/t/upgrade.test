@@ -1,10 +1,5 @@
 -- source include/not_embedded.inc
 
-# Temporary disabled on windows,
-# because of --exec mkdir
-# TODO: implement Bug#31004 and remove this limitation
---source include/not_windows.inc
-
 --disable_warnings
 drop database if exists `mysqltest1`;
 drop database if exists `mysqltest-1`;
@@ -75,7 +70,7 @@ create table tabc.t1 (a int);
 FLUSH TABLES;
 
 # Manually make a 5.0 database from the template
---exec mkdir $MYSQLTEST_VARDIR/master-data/a-b-c
+--mkdir $MYSQLTEST_VARDIR/master-data/a-b-c
 --copy_file $MYSQLTEST_VARDIR/master-data/tabc/db.opt $MYSQLTEST_VARDIR/master-data/a-b-c/db.opt
 --copy_file $MYSQLTEST_VARDIR/master-data/tabc/t1.frm $MYSQLTEST_VARDIR/master-data/a-b-c/t1.frm
 --copy_file $MYSQLTEST_VARDIR/master-data/tabc/t1.MYD $MYSQLTEST_VARDIR/master-data/a-b-c/t1.MYD
