@@ -363,6 +363,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  * Returns:
  *      0:          Success.
  *      EINVAL:     If (tree == NULL || txn == NULL).
+ *      EINVAL:     If panicking.
  * *** Note that txn == NULL is not supported at this time.
  */
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
