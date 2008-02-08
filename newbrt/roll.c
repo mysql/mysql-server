@@ -243,9 +243,11 @@ void toku_recover_addchild (struct logtype_addchild *le) {
 	assert(i>=2);
 	node->u.n.childkeys [i-1]      = node->u.n.childkeys [i-2];
     }
-    node->u.n.childinfos[le->childnum].subtree_fingerprint = le->childfingerprint;
+    if (le->childnum>0) {
+	node->u.n.childkeys [le->childnum-1] = 0;
+    }
     BNC_DISKOFF(node, le->childnum) = le->child;
-    node->u.n.childkeys [le->childnum-1] = 0;
+    BNC_SUBTREE_FINGERPRINT(node, le->childnum) = le->childfingerprint;
     int r= toku_fifo_create(&BNC_BUFFER(node, le->childnum)); assert(r==0);
     BNC_NBYTESINBUF(node, le->childnum) = 0;
     node->u.n.n_children++;
