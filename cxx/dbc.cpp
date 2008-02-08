@@ -39,6 +39,14 @@ int Dbc::count(db_recno_t *count, u_int32_t flags) {
     return env->maybe_throw_error(ret);
 }
 
+int Dbc::put(Dbt* key, Dbt *data, u_int32_t flags) {
+    DBC *dbc = this;
+    int ret = dbc->c_put(dbc, key, data, flags);
+    DB_ENV *dbenv_c=dbc->dbp->dbenv;
+    DbEnv *env = (DbEnv*)dbenv_c->api1_internal;
+    return env->maybe_throw_error(ret);
+}
+
 // Not callable, but some compilers require it to be defined anyway.
 Dbc::~Dbc()
 {

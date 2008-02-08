@@ -21,6 +21,17 @@ int verbose = 0;
   }                                \
 })
 
+#define TCRET(expr, expect) ({        \
+  if (verbose) printf("%s expect %d\n", #expr, expect); \
+  try {                            \
+    int r = expr;                  \
+    assert(expect==r); 	           \
+  } catch (DbException e) {        \
+    if (e.get_errno()!=expect) fprintf(stderr, "err=%d %s\n", e.get_errno(), db_strerror(e.get_errno())); \
+    assert(e.get_errno()==expect); \
+  }                                \
+})
+
 void test_env_exceptions (void) {
     {
 	DbEnv env(0);
@@ -42,7 +53,7 @@ void test_env_exceptions (void) {
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(0),                                                               0); 
-	delete txn;
+        delete txn;
     }
 
     {
@@ -51,7 +62,7 @@ void test_env_exceptions (void) {
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(-1),                                                              EINVAL);
-	delete txn;
+        delete txn;
     }
 }
 
@@ -100,7 +111,7 @@ void test_db_exceptions (void) {
 	Dbc *curs;
 	TC(db.cursor(0, &curs, 0),  0);
 	Dbt key,val;
-	TC(curs->get(&key, &val, DB_FIRST), DB_NOTFOUND);
+        //	TC(curs->get(&key, &val, DB_FIRST), DB_NOTFOUND);
 	TC(curs->get(&key, &val, -1), EINVAL); // bad flags
 	curs->close(); // no deleting cursors.
     }
@@ -140,13 +151,20 @@ void test_dbc_exceptions () {
     free(key.get_data());
     free(val.get_data());
     TC(curs->del(DB_DELETE_ANY), 0);
-    TC(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
-    TC(curs->del(0), DB_KEYEMPTY);
-    TC(curs->del(DB_DELETE_ANY), 0);
+    TCRET(curs->get(&key, &val, DB_CURRENT), DB_KEYEMPTY);
+    TCRET(curs->del(0), DB_KEYEMPTY);
+    TCRET(curs->del(DB_DELETE_ANY), 0);
     curs->close(); // no deleting cursors.
 }
 
 int main(int argc, char *argv[]) {
+    for (int i = 1; i < argc; i++) {
+        char *arg = argv[i];
+        if (0 == strcmp(arg, "-v")) {
+            verbose++;
+            continue;
+        }
+    }
     test_env_exceptions();
     test_db_exceptions();
     test_dbc_exceptions();

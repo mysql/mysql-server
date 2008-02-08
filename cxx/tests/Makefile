@@ -46,6 +46,7 @@ check: $(TARGETS) \
 	$(VGRIND) ./test_error_stream
 	$(VGRIND) ./test_reverse_compare_fun
 	$(VGRIND) ./test_db_delete
+	$(VGRIND) ./test_get_not_found
 
 check_db_create_1:
 	$(VGRIND) ./db_create; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
