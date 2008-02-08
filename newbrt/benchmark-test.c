@@ -5,7 +5,7 @@
 #include "brt.h"
 #include "key.h"
 #include "memory.h"
-#include <assert.h>
+#include "toku_assert.h"
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>

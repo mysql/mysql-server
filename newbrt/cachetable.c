@@ -2,16 +2,17 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "cachetable.h"
-#include "memory.h"
-#include "yerror.h"
-#include <assert.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <errno.h>
-#include <sys/stat.h>
-#include <string.h>
 #include "hashfun.h"
+#include "memory.h"
 #include "primes.h"
+#include "toku_assert.h"
+#include "yerror.h"
+
+#include <errno.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 //#define TRACE_CACHETABLE
 #ifdef TRACE_CACHETABLE

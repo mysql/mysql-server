@@ -9,7 +9,7 @@
  *   The struct definitions.
  *   The Latex documentation.
  */
-#include <assert.h>
+#include "toku_assert.h"
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>

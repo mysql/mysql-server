@@ -1,8 +1,9 @@
 /* Tell me the diff between two brt files. */
-#include <assert.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <inttypes.h>
+
+#include "toku_assert.h"
 #include "key.h"
 #include "brt-internal.h"
 

@@ -16,8 +16,7 @@
  */
 
 #include "brt-internal.h"
-
-#include <assert.h>
+#include "toku_assert.h"
 
 static void verify_local_fingerprint (BRTNODE node) {
     u_int32_t fp=0;

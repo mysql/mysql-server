@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <errno.h>
 
+#include "toku_assert.h"
 #include "memory.h"
 #include "fifo.h"
 

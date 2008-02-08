@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 /* Test random insertions using db4 */
-#include <assert.h>
+#include "toku_assert.h"
 #include <db.h>
 #include <stdlib.h>
 #include <sys/stat.h>

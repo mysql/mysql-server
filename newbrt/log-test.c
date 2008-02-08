@@ -2,11 +2,11 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "log-internal.h"
+#include "toku_assert.h"
+#include <fcntl.h>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fcntl.h>
-#include <assert.h>
-#include <stdlib.h>
 #include <unistd.h>
 
 #define dname "log-test-dir"

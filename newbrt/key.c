@@ -2,7 +2,7 @@
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
 #include "brt-internal.h"
-#include <assert.h>
+#include "toku_assert.h"
 #include <string.h>
 
 #if 0
@@ -108,4 +108,5 @@ int toku_default_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, 
 
 int toku_dont_call_this_compare_fun (DB *db __attribute__((__unused__)), const DBT *a __attribute__((__unused__)), const DBT*b __attribute__((__unused__))) {
     assert(0);
+    return 0;
 }

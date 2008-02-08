@@ -7,15 +7,14 @@
 //    cd ../src/tests/tmpdir
 //    ../../../newbrt/recover ../dir.test_log2.c.tdb
 
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <fcntl.h>
-
-#include "log_header.h"
-#include "log-internal.h"
 #include "cachetable.h"
 #include "key.h"
+#include "log-internal.h"
+#include "log_header.h"
+#include "toku_assert.h"
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 int main (int argc, char *argv[]) {
     const char *dir;

@@ -1,9 +1,9 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include <stdio.h>
-#include <assert.h>
 #include "mempool.h"
+#include "toku_assert.h"
+#include <stdio.h>
 
 void toku_mempool_init(struct mempool *mp, void *base, int size) {
     // printf("mempool_init %p %p %d\n", mp, base, size);

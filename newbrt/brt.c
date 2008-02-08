@@ -25,7 +25,6 @@
  */
 
 #include <arpa/inet.h>
-#include <assert.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdio.h>
@@ -33,6 +32,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "toku_assert.h"
 #include "brt-internal.h"
 #include "key.h"
 #include "log_header.h"

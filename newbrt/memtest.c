@@ -3,7 +3,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
+#include "toku_assert.h"
 #include "memory.h"
 #include "mempool.h"
 

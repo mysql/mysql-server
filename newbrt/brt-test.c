@@ -5,9 +5,9 @@
 #include "key.h"
 #include "pma.h"
 #include "brt-internal.h"
-
 #include "memory.h"
-#include <assert.h>
+#include "toku_assert.h"
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>

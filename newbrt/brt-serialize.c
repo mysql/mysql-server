@@ -4,12 +4,12 @@
 #define _XOPEN_SOURCE 500
 
 //#include "pma.h"
+#include "toku_assert.h"
 #include "brt-internal.h"
 #include "key.h"
 #include "rbuf.h"
 #include "wbuf.h"
 
-#include <assert.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <arpa/inet.h>

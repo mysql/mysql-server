@@ -26,16 +26,16 @@ int toku_get_prime (unsigned int idx) {
 	    primes[i]=j;
 	}
     }
-    toku_assert(idx<N_PRIMES);
+    assert(idx<N_PRIMES);
     return primes[idx];
 }
 
 void toku_test_primes (void) {
-    toku_assert(toku_get_prime(0)==2);
-    toku_assert(toku_get_prime(1)==5);
-    toku_assert(toku_get_prime(2)==11);
-    toku_assert(toku_get_prime(3)==17);
-    toku_assert(toku_get_prime(4)==37);
-    toku_assert(toku_get_prime(5)==67);
-    toku_assert(toku_get_prime(6)==131);
+    assert(toku_get_prime(0)==2);
+    assert(toku_get_prime(1)==5);
+    assert(toku_get_prime(2)==11);
+    assert(toku_get_prime(3)==17);
+    assert(toku_get_prime(4)==37);
+    assert(toku_get_prime(5)==67);
+    assert(toku_get_prime(6)==131);
 }
