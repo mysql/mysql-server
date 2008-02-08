@@ -39,7 +39,7 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
 	if (errno!=0) return errno;
 	//if (old!=staticptr) printf("%s:%d MALLOC --> %p\n", __FILE__, __LINE__, staticptr);
 	*staticptrp = staticptr;
-	ybt->data = staticptr;
+	ybt->data = vallen > 0 ? staticptr : 0;
     }
     ybt->size = vallen;
     if (ybt->size>0) {
