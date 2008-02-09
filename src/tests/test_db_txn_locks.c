@@ -206,6 +206,12 @@ void test(u_int32_t dup_flags) {
     close_dbs();
     /* ********************************************************************** */
     setup_dbs(dup_flags);
+    put(TRUE, 'a', 1, 1);
+    early_abort('a');
+    cget(TRUE, FALSE, 'b', 1, 1);
+    close_dbs();
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
     cget(TRUE, FALSE, 'a', 1, 1);
     cget(TRUE, FALSE, 'b', 1, 1);
     put(FALSE, 'a', 1, 1);
@@ -222,6 +228,6 @@ void test(u_int32_t dup_flags) {
 
 int main() {
     test(0);
-    test(DB_DUP | DB_DUPSORT);
+//    test(DB_DUP | DB_DUPSORT);
     return 0;
 }
