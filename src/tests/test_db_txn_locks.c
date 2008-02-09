@@ -228,6 +228,6 @@ void test(u_int32_t dup_flags) {
 
 int main() {
     test(0);
-//    test(DB_DUP | DB_DUPSORT);
+    test(DB_DUP | DB_DUPSORT);
     return 0;
 }
