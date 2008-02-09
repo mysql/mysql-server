@@ -59,6 +59,9 @@ void setup (void) {
 	assert(r==0);
     }
 #endif
+    r = dbenv->set_lk_max_locks(ITEMS_PER_TRANSACTION*2);
+    assert(r == 0);
+
     if (cachesize) {
         r = dbenv->set_cachesize(cachesize / (1024*1024*1024), cachesize % (1024*1024*1024), 1);
         if (r != 0) 

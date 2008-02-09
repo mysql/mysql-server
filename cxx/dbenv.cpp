@@ -145,7 +145,8 @@ void DbEnv::set_error_stream(std::ostream *new_error_stream) {
 // locking not yet implemented
 
 int DbEnv::set_lk_max_locks(u_int32_t max_locks) {
-    return 0;
+    int ret = the_env->set_lk_max_locks(the_env, max_locks);
+    return maybe_throw_error(ret);
 }
 
 int DbEnv::set_lk_max_lockers(u_int32_t max_lockers) {
