@@ -94,7 +94,7 @@ Silence_log_table_errors::handle_error(uint /* sql_errno */,
                                        MYSQL_ERROR::enum_warning_level /* level */,
                                        THD * /* thd */)
 {
-  strmake(m_message, message_arg, sizeof(m_message));
+  strmake(m_message, message_arg, sizeof(m_message)-1);
   return TRUE;
 }
 
