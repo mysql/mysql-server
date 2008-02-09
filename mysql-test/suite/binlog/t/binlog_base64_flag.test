@@ -6,6 +6,10 @@
 # See also BUG#32407.
 
 
+# BINLOG statement does not work in embedded mode.
+source include/not_embedded.inc;
+
+
 # Test to show BUG#32407.  This reads a binlog created with the
 # mysql-5.1-telco-6.1 tree, specifically at the tag
 # mysql-5.1.15-ndb-6.1.23, and applies it to the database.  The test
