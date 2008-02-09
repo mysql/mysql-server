@@ -69,6 +69,25 @@ void test_insert_zero_length(int n, int dup_mode, const char *dbname) {
             if (verbose) printf("db->put %d %d = %d\n", n, n, r);
             assert(r == 0);
         }
+        if (i == 0) {
+            dbt_init(&key, &k, i);
+            memset(&val, 0, sizeof val);
+            r = db->get(db, null_txn, &key, &val, 0);
+            assert(r == 0 && val.data == 0 && val.size == 0);
+
+            r = db->get(db, null_txn, &key, dbt_init_malloc(&val), 0);
+            assert(r == 0 && val.data != 0 && val.size == 0);
+            free(val.data);
+
+            memset(&key, 0, sizeof key);
+            memset(&val, 0, sizeof val);
+            r = db->get(db, null_txn, &key, &val, 0);
+            assert(r == 0 && val.data == 0 && val.size == 0);
+
+            r = db->get(db, null_txn, &key, dbt_init_malloc(&val), 0);
+            assert(r == 0 && val.data != 0 && val.size == 0);
+            free(val.data);
+        }
     }
 
     walk(db);
