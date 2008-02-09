@@ -2177,8 +2177,8 @@ static int brt_cursor_compare_get_both_range(brt_search_t *search, DBT *x, DBT *
     int keycmp = compare_k_x(brt, search->k, x);
     if (keycmp < 0) 
         return 1; 
-    else 
-        return keycmp == 0 && compare_v_y(brt, search->v, y) <= 0; /* return min xy: k <= x && v <= y */
+    else
+        return keycmp == 0 && (y == 0 || compare_v_y(brt, search->v, y) <= 0); /* return min xy: k <= x && v <= y */
 }
 
 static int brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, DBT *outkey, DBT *outval, TOKULOGGER logger) {
