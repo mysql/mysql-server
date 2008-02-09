@@ -2217,9 +2217,9 @@ static int brt_cursor_compare_prev_dup(brt_search_t *search, DBT *x, DBT *y) {
         return keycmp == 0 && compare_v_y(brt, search->v, y) > 0; /* return max xy: k >= x && v > y */
 }
 
-static int brt_cursor_prev_dup(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKUTXN txn) {
+static int brt_cursor_prev_dup(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
     brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev_dup, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
-    return brt_cursor_search_eq_k_x(cursor, &search, outkey, outval, txn);
+    return brt_cursor_search_eq_k_x(cursor, &search, outkey, outval, logger);
 }
 
 #endif
