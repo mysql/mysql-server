@@ -25,6 +25,7 @@ void test_db_set_flags(int flags, int expectr, int flags2, int expectr2) {
     unlink(fname);
 
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->set_flags(db, flags); assert(r == expectr);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
     r = db->set_flags(db, flags2); assert(r == expectr2);
