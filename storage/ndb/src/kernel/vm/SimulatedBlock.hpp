@@ -117,6 +117,8 @@ protected:
   void addRecSignalImpl(GlobalSignalNumber g, ExecFunction fun, bool f =false);
   void installSimulatedBlockFunctions();
   ExecFunction theExecArray[MAX_GSN+1];
+
+  void initCommon();
 public:
   /**
    * 
@@ -844,7 +846,7 @@ public:\
 private: \
   void addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force = false)
 
-#define BLOCK_CONSTRUCTOR(BLOCK)
+#define BLOCK_CONSTRUCTOR(BLOCK) do { SimulatedBlock::initCommon(); } while(0)
 
 #define BLOCK_FUNCTIONS(BLOCK) \
 void \

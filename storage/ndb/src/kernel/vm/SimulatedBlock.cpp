@@ -69,40 +69,6 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
   
-  Properties tmp;
-  const Properties * p = &tmp;
-  ndbrequire(p != 0);
-
-  Uint32 count = 10;
-  char buf[255];
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentSendPool", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentSendPool", &count);
-  c_fragmentSendPool.setSize(count);
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentInfoPool", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentInfoPool", &count);
-  c_fragmentInfoPool.setSize(count);
-
-  count = 10;
-  BaseString::snprintf(buf, 255, "%s.FragmentInfoHash", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    p->get("FragmentInfoHash", &count);
-  c_fragmentInfoHash.setSize(count);
-
-  count = 5;
-  BaseString::snprintf(buf, 255, "%s.ActiveMutexes", getBlockName(blockNumber));
-  if(!p->get(buf, &count))
-    if (!this->getParam("ActiveMutexes", &count))
-      p->get("ActiveMutexes", &count);
-  c_mutexMgr.setSize(count);
-  
-  c_counterMgr.setSize(5);
-  
 #ifdef VM_TRACE_TIME
   clearTimes();
 #endif
@@ -119,6 +85,30 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   m_global_variables = new Ptr<void> * [1];
   m_global_variables[0] = 0;
 #endif
+}
+
+void
+SimulatedBlock::initCommon()
+{
+  Uint32 count = 10;
+  this->getParam("FragmentSendPool", &count);
+  c_fragmentSendPool.setSize(count);
+
+  count = 10;
+  this->getParam("FragmentInfoPool", &count);
+  c_fragmentInfoPool.setSize(count);
+
+  count = 10;
+  this->getParam("FragmentInfoHash", &count);
+  c_fragmentInfoHash.setSize(count);
+
+  count = 5;
+  this->getParam("ActiveMutexes", &count);
+  c_mutexMgr.setSize(count);
+  
+  count = 5;
+  this->getParam("ActiveCounters", &count);
+  c_counterMgr.setSize(count);
 }
 
 SimulatedBlock::~SimulatedBlock()
