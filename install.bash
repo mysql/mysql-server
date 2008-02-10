@@ -40,6 +40,7 @@ cp include/db_cxx.h $targetdir/include
 
 mkdir $targetdir/lib
 cp lib/libtokudb.so $targetdir/lib
+cp lib/libtokudb_cxx.a $targetdir/lib
 
 mkdir $targetdir/bin
 cp utils/tokudb_load_static $targetdir/bin/tokudb_load

@@ -5,7 +5,7 @@ TARGETS = $(patsubst %.cpp,%,$(SRCS))
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
-LDLIBS = ../../lib/libtdb_cxx.a ../../lib/libdb.a -lz
+LDLIBS = ../../lib/libtokudb_cxx.a ../../lib/libtokudb.a -lz
 
 ifneq ($(OSX),)
  VGRIND=

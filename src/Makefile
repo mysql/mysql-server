@@ -1,7 +1,7 @@
 # On OSX do:
 #   make OSX=OSX
 
-LIBNAME=libdb
+LIBNAME=libtokudb
 
 OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
@@ -55,4 +55,4 @@ $(LIBNAME).$(LIBEXT): $(DBBINS) $(LOCKTREE_BINS)
 $(LIBNAME).a: $(DBBINS) $(LOCKTREE_BINS)
 	$(AR) rv $@ $^
 
-libdb.a(ydb.o): ydb.o
+$(LIBNAME).a(ydb.o): ydb.o

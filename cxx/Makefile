@@ -7,7 +7,7 @@ LDFLAGS = -lz
 SRCS = $(wildcard *.cpp)
 OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
-LIBNAME = libtdb_cxx
+LIBNAME = libtokudb_cxx
 
 default: install
 install: $(LIBNAME).a
