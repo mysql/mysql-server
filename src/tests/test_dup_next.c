@@ -1,4 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+/* test the cursor DB_NEXT_DUP operation */
+
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <stdio.h>
@@ -13,7 +15,7 @@
 
 #include "test.h"
 
-
+int testlevel = 0;
 
 DBT *dbt_init_zero(DBT *dbt) {
     memset(dbt, 0, sizeof *dbt);
@@ -85,8 +87,8 @@ int expect_cursor_get(DBC *cursor, int expectk, int expectv, int op) {
     return r;
 }
 
-void test_dup_next(int n, int dup_mode, int bracket_dups) {
-    if (verbose) printf("test_dup_next:%d %d %d\n", n, dup_mode, bracket_dups);
+void test_dup_next(int n, int dup_mode) {
+    if (verbose) printf("test_dup_next:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
     DB *db;
@@ -103,31 +105,39 @@ void test_dup_next(int n, int dup_mode, int bracket_dups) {
     r = db->set_pagesize(db, 4096); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
-    db_put(db, 0, 0);
-    if (bracket_dups) db_put(db, 2, 0);
-
     int i;
+
+    /* insert (0,0), (1,0), .. (n-1,0) */
     for (i=0; i<n; i++) {
-        int k = htonl(1);
-        int v = htonl(i);
-        db_put(db, k, v);
+        db_put(db, htonl(i), htonl(0));
+    }
+
+    /* insert (n/2, 1), ... (n/2, n-1) duplicates */
+    for (i=1; dup_mode && i<n; i++) {
+        db_put(db, htonl(n/2), htonl(i));
     } 
 
-    /* use a cursor to iterate through the duplicates */
     DBC *cursor;
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
 
+    /* assert cursor not set */
     r = expect_cursor_get(cursor, htonl(1), htonl(0), DB_NEXT_DUP); assert(r == EINVAL);
 
-    expect_cursor_set(cursor, htonl(1), htonl(0));
+    /* set the cursor to (n/2,0) */
+    expect_cursor_set(cursor, htonl(n/2), htonl(0));
     
     for (i=1; i<n; i++) {
-        r = expect_cursor_get(cursor, htonl(1), htonl(i), DB_NEXT_DUP); assert(r == 0);
+        r = expect_cursor_get(cursor, htonl(n/2), htonl(i), DB_NEXT_DUP); 
+        if (dup_mode == 0) 
+            assert(r == DB_NOTFOUND); /* for nodup trees, there are no move dups */
+        else
+            assert(r == 0); /* for dup trees there should be exactly n-2 dups */
     }
 
-    r = expect_cursor_get(cursor, htonl(1), htonl(i), DB_NEXT_DUP); assert(r == DB_NOTFOUND);
+    r = expect_cursor_get(cursor, htonl(n/2), htonl(i), DB_NEXT_DUP); assert(r == DB_NOTFOUND);
 
-    r = expect_cursor_get(cursor, htonl(1), htonl(i-1), DB_CURRENT); assert(r == 0);
+    /* check that the cursor moved */
+    r = expect_cursor_get(cursor, htonl(n/2), dup_mode ? htonl(i-1) : htonl(0), DB_CURRENT); assert(r == 0);
 
     r = cursor->c_close(cursor); assert(r == 0);
 
@@ -136,15 +146,24 @@ void test_dup_next(int n, int dup_mode, int bracket_dups) {
 
 int main(int argc, const char *argv[]) {
     int i;
-
-    parse_args(argc, argv);
+    for (i = 1; i < argc; i++) {
+        const char *arg = argv[i];
+        if (0 == strcmp(arg, "-v") || 0 == strcmp(arg, "--verbose")) {
+            verbose++;
+            continue;
+        }
+        if (0 == strcmp(arg, "-l") || 0 == strcmp(arg, "--level")) {
+            testlevel++;
+            continue;
+        }
+    }
   
     system("rm -rf " DIR);
     mkdir(DIR, 0777);
 
-    for (i = 1; i <= 65536; i *= 2) {
-        test_dup_next(i, DB_DUP + DB_DUPSORT, 0);
-        test_dup_next(i, DB_DUP + DB_DUPSORT, 1);
+    for (i = 1; i <= 65536; i = testlevel ? i+1 : i*2) {
+        test_dup_next(i, DB_DUP + DB_DUPSORT);
+        test_dup_next(i, 0);
     }
 
     return 0;
