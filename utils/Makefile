@@ -14,7 +14,7 @@ CFLAGS = -std=gnu89 -W -Wall -Wno-unused -g $(OPTFLAGS) $(GCOV_FLAGS)
 # to the current directory
 CPPFLAGS = -I../include
 
-ifeq ($(OSX),OSX)
+ifneq ($(OSX),)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  TDB_LOADLIBES = 
  BDB_LOADLIBES =
