@@ -325,30 +325,34 @@ void toku_print_pma (PMA pma) {
     assert(count==pma->n_pairs_present);
 }
 
-/* Smooth the data, and return the location of the null. */
+/* Smooth the data, and return the location of the null.
+ * The sourcepairs are dense.  The destpairs are sized to leave some holes.
+ * The destpairs are all initialized with null.
+ */
 static int distribute_data (struct kv_pair *destpairs[],      int dcount,
 			    struct kv_pair_tag sourcepairs[], int scount,
 			    PMA pma) {
+    int null_location = -1;
+    unsigned long long numerator=0;
+    unsigned long long have_placed=0;
+    int i;
     assert(scount<=dcount);
-    if (scount==0) {
-	return -1;
+    assert(dcount<(1<<30)); // so that long long will be enough to do everything precisely
+    for (i=0; i<dcount; i++) {
+	numerator+=scount;
+	if (numerator>dcount*have_placed) {
+	    struct kv_pair *pair = sourcepairs[have_placed].pair;
+	    assert(have_placed<(unsigned int)scount);
+	    destpairs[i] = pair;
+	    if (pma) sourcepairs[have_placed].newtag = destpairs+i-pma->pairs;
+	    if (pair==0) {
+		assert(null_location==-1);
+		null_location=i;
+	    }
+	    have_placed++;
+	}
     }
-    if (scount==1) {
-	destpairs[0]=sourcepairs[0].pair;
-        if (pma)
-            sourcepairs[0].newtag = destpairs - pma->pairs;
-	if (destpairs[0]==0) return 0;
-	else return -1;
-    } else {
-	int r1 = distribute_data(destpairs, dcount/2,
-				 sourcepairs, scount/2, pma);
-	int r2 = distribute_data(destpairs  +dcount/2, dcount-dcount/2,
-				 sourcepairs+scount/2, scount-scount/2, pma);
-	assert(r1==-1 || r2==-1);
-	if (r1!=-1)      return r1;
-	else if (r2!=-1) return r2+dcount/2;
-	else             return -1;
-    }
+    return null_location;
 }
 
 static int pma_log_distribute (TOKULOGGER logger, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, int n_pairs, struct kv_pair_tag *pairs, LSN *oldnode_lsn, LSN*newnode_lsn) {
