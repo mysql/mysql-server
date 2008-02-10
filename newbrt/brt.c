@@ -2164,7 +2164,7 @@ static int brt_cursor_compare_next_dup(brt_search_t *search, DBT *x, DBT *y) {
     if (keycmp < 0) 
         return 1; 
     else 
-        return keycmp == 0 && compare_v_y(brt, search->v, y) < 0; /* return min xy: k <= x && v < y */
+        return keycmp == 0 && y && compare_v_y(brt, search->v, y) < 0; /* return min xy: k <= x && v < y */
 }
 
 static int brt_cursor_next_dup(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
@@ -2214,7 +2214,7 @@ static int brt_cursor_compare_prev_dup(brt_search_t *search, DBT *x, DBT *y) {
     if (keycmp > 0) 
         return 1; 
     else 
-        return keycmp == 0 && compare_v_y(brt, search->v, y) > 0; /* return max xy: k >= x && v > y */
+        return keycmp == 0 && y && compare_v_y(brt, search->v, y) > 0; /* return max xy: k >= x && v > y */
 }
 
 static int brt_cursor_prev_dup(BRT_CURSOR cursor, DBT *outkey, DBT *outval, TOKULOGGER logger) {
