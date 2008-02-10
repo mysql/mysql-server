@@ -25,6 +25,7 @@ void test_cursor_flags(int cursor_flags, int expectr) {
     unlink(fname);
 
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     DBC *cursor;

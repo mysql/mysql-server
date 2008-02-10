@@ -54,6 +54,7 @@ void second_setup() {
 
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
+    dbp->set_errfile(dbp,0); // Turn off those annoying errors
     r = dbp->open(dbp, NULL, DIR "/students.db", NULL, DB_BTREE, DB_CREATE+DB_THREAD, 0600);   CKERR(r);
 
     /*
@@ -61,6 +62,7 @@ void second_setup() {
      * items, since last names might not be unique.
      */
     r = db_create(&sdbp, dbenv, 0);                                             CKERR(r);
+    sdbp->set_errfile(sdbp,0); // Turn off those annoying errors
     r = sdbp->set_flags(sdbp, DB_DUP | DB_DUPSORT);                             CKERR(r);
     r = sdbp->open(sdbp, NULL, DIR "/lastname.db", NULL, DB_BTREE, DB_CREATE+DB_THREAD, 0600); CKERR(r);
     

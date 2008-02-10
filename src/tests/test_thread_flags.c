@@ -43,6 +43,7 @@ void test_db_create() {
 
     unlink(dbfile);
     r = db_create(&db, 0, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
     r = db_get(db, htonl(1), 1, 0); assert(r == 0);
@@ -56,6 +57,7 @@ void test_db_thread() {
 
     unlink(dbfile);
     r = db_create(&db, 0, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, 0, dbfile, dbname, DB_BTREE, DB_CREATE + DB_THREAD, 0777); assert(r == 0);
     r = db_put(db, htonl(1), 1); assert(r == 0);
     r = db_get(db, htonl(1), 1, 0); assert(r == EINVAL);

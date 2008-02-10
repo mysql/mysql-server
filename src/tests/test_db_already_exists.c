@@ -25,22 +25,27 @@ int main() {
     r=chdir(DIR);       assert(r==0);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);
+    db->set_errfile(db,0); // Turn off those annoying errors
     //    r = db->set_flags(db, DB_DUP);                                           CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
     r = db_create(&db, null_env, 0);                                         CKERR(r);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
     r = db_create(&db, null_env, 0);                                         CKERR(r);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);            CKERR(r);
     r = db->close(db, 0);                                                    CKERR(r);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_EXCL, 0666);
     assert(r == EINVAL);
 
     r = db->close(db, 0);                                                    CKERR(r);
     r = db_create(&db, null_env, 0);                                         CKERR(r);
+    db->set_errfile(db,0); // Turn off those annoying errors
 
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE | DB_EXCL, 0666);
     assert(r == EEXIST);
