@@ -141,6 +141,7 @@ error 1115;
 set character_set_client=9999999;
 error 1273;
 set collation_server=9999998;
+set max_join_size=default;
 
 # This one was contributed by Sergey Petrunia (BUG#3943)
 
@@ -151,7 +152,6 @@ SET CHARACTER_SET_CLIENT=koi8r,
  CHARACTER_SET_CONNECTION=cp1251, 
  CHARACTER_SET_RESULTS=koi8r;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
-SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 sync_slave_with_master;
 SET SQL_BIG_SELECTS=1;

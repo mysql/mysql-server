@@ -171,6 +171,7 @@ set character_set_client=9999999;
 ERROR 42000: Unknown character set: '9999999'
 set collation_server=9999998;
 ERROR HY000: Unknown collation: '9999998'
+set max_join_size=default;
 select "--- --3943--" as "";
 
 --- --3943--
@@ -180,7 +181,6 @@ SET CHARACTER_SET_CLIENT=koi8r,
 CHARACTER_SET_CONNECTION=cp1251, 
 CHARACTER_SET_RESULTS=koi8r;
 INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
-SET SQL_BIG_SELECTS=1;
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
