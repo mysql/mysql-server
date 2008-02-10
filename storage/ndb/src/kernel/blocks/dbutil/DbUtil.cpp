@@ -207,7 +207,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   c_lockQueuePool.setSize(5);
-  c_lockElementPool.setSize(5);
+  c_lockElementPool.setSize(4*MAX_NDB_NODES);
   c_lockQueues.setSize(8);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
