@@ -7,7 +7,7 @@ CPPFLAGS = -I../ -I../../include
 CXXFLAGS = -Wall $(OPTFLAGS) -g $(GCOV_FLAGS)
 LDLIBS = ../../lib/libtdb_cxx.a ../../lib/libdb.a -lz
 
-ifeq ($(OSX),OSX)
+ifneq ($(OSX),)
  VGRIND=
 else
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes

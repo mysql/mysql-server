@@ -11,7 +11,7 @@ BDB_CPPFLAGS = -I$(BDBDIR)/include
 BDB_LDFLAGS = -L$(BDBDIR)/lib -ldb
 endif
 
-ifeq ($(OSX),OSX)
+ifneq ($(OSX),)
 #Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
  CFLAGS = -DOSX
  LIBEXT=dylib

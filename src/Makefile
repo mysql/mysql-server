@@ -10,7 +10,7 @@ CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
 
-ifeq ($(OSX),OSX)
+ifneq ($(OSX),)
 LIBEXT=dylib
 SHARED=-dynamiclib
 CFLAGS+=-fno-common
