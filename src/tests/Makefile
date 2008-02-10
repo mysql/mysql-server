@@ -17,7 +17,7 @@ ifneq ($(OSX),)
  LIBEXT=dylib
  VGRIND=
  BDB_SUPPRESSIONS=
- TDB_LOADLIBES = -L../ -ldb
+ TDB_LOADLIBES = -L../ -ltokudb
  SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
  UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
 else
@@ -29,7 +29,7 @@ else
   BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib
  endif
  BDB_LDFLAGS += -lpthread
- TDB_LOADLIBES = -L../ -ldb -Wl,-rpath,.. -lpthread
+ TDB_LOADLIBES = -L../ -ltokudb -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 ifeq ($(VGRIND),)
