@@ -60,6 +60,7 @@ void setup(u_int32_t flags) {
     mkdir(DIR, 0777);
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
+    dbp->set_errfile(dbp,0); // Turn off those annoying errors
     if (flags) {
         r = dbp->set_flags(dbp, flags);                                       CKERR(r);
     }    
@@ -219,6 +220,7 @@ void setup_secondary(u_int32_t flags) {
 
     /* Open/create primary */
     r = db_create(&sdbp, dbenv, 0);                                                     CKERR(r);
+    sdbp->set_errfile(sdbp,0); // Turn off those annoying errors
     if (flags) {
         r = sdbp->set_flags(dbp, flags);                                                CKERR(r);
     }    

@@ -28,6 +28,7 @@ int main (int argc, const char *argv[]) {
     {
 	DB_ENV *env;
 	r = db_env_create(&env, 0); assert(r==0);
+	env->set_errfile(env,0); // Turn off those annoying errors
 	r = env->open(env, DIR, -1, 0644);
 	assert(r==EINVAL);
 	assert(n_handle_error==0);
@@ -42,6 +43,7 @@ int main (int argc, const char *argv[]) {
 	    FILE *write_here = fmemopen(buf, sizeof(buf), "w");
 	    n_handle_error=0;
 	    r = db_env_create(&env, 0); assert(r==0);
+	    env->set_errfile(env,0); // Turn off those annoying errors
 	    if (do_errfile)
 		env->set_errfile(env, write_here);
 	    if (do_errcall) 

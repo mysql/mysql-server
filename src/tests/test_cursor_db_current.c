@@ -32,6 +32,7 @@ void test_cursor_current() {
     unlink(fname);
 
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
     int k = 42, v = 42000;
@@ -103,6 +104,7 @@ void test_reopen() {
     int r;
 
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
 
     db_get(db, 1, 1, DB_NOTFOUND);

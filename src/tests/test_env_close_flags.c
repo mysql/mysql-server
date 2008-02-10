@@ -19,10 +19,12 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
+    env->set_errfile(env,0); // Turn off those annoying errors
     r=env->close   (env, 0);   assert(r==0);
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);        assert(r==0);
     r=db_env_create(&env, 0);  assert(r==0);
+    env->set_errfile(env,0); // Turn off those annoying errors
     r=env->close   (env, 1);  
     //BDB does not check this in some versions
 #if defined(USE_TDB) || (DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3)
@@ -34,6 +36,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     r=mkdir(DIR, 0777);        assert(r==0);
 
     r=db_env_create(&env, 0);  assert(r==0);
+    env->set_errfile(env,0); // Turn off those annoying errors
     r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=env->close   (env, 0);  assert(r==0);
     
@@ -41,6 +44,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     r=mkdir(DIR, 0777);        assert(r==0);
 
     r=db_env_create(&env, 0);  assert(r==0);
+    env->set_errfile(env,0); // Turn off those annoying errors
     r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=env->close   (env, 1);
     //BDB does not check this.

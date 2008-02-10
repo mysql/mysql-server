@@ -58,6 +58,7 @@ void test_cursor_delete(int dup_mode) {
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, pagesize); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
@@ -104,6 +105,7 @@ void test_cursor_delete_dupsort() {
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0); assert(r == 0);
+    db->set_errfile(db,0); // Turn off those annoying errors
     r = db->set_flags(db, DB_DUP + DB_DUPSORT); assert(r == 0);
     r = db->set_pagesize(db, pagesize); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
