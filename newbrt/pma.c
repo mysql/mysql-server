@@ -220,6 +220,7 @@ static int pma_compare_dbt_kv(PMA pma, DBT *k, DBT *v, struct kv_pair *kv) {
 }
 
 /* search the index for a matching key and maybe value */
+// this is just as fast as the iterative loop, since the compiler recognizes the tail calls.
 static unsigned int pma_search(PMA pma, DBT *k, DBT *v, int lo, int hi, int *found) {
     assert(0 <= lo && lo <= hi);
     if (lo >= hi) {
