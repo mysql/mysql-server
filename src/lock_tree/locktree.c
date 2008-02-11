@@ -44,7 +44,7 @@ char* toku_lt_strerror(TOKU_LT_ERROR r) {
     return "Unknown error in locking data structures.\n";
 }
 /* Compare two payloads assuming that at least one of them is infinite */ 
-static int __toku_infinite_compare(void* a, void* b) {
+inline static int __toku_infinite_compare(void* a, void* b) {
     if    (a == b)                      return  0;
     if    (a == toku_lt_infinity)       return  1;
     if    (b == toku_lt_infinity)       return -1;
@@ -52,7 +52,7 @@ static int __toku_infinite_compare(void* a, void* b) {
     assert(b == toku_lt_neg_infinity);  return  1;
 }
 
-static BOOL __toku_lt_is_infinite(const void* p) {
+inline static BOOL __toku_lt_is_infinite(const void* p) {
     if (p == toku_lt_infinity || p == toku_lt_neg_infinity) {
         DBT* dbt = (DBT*)p;
         assert(!dbt->data && !dbt->size);
@@ -63,19 +63,19 @@ static BOOL __toku_lt_is_infinite(const void* p) {
 
 /* Verifies that NULL data and size are consistent.
    i.e. The size is 0 if and only if the data is NULL. */
-static void __toku_lt_verify_null_key(const DBT* key) {
-    assert(!key || __toku_lt_is_infinite(key) ||
-           (key->size > 0) == (key->data != NULL));
+inline static int __toku_lt_verify_null_key(const DBT* key) {
+    if (key && key->size && !key->data) return EINVAL;
+    return 0;
 }
 
-static DBT* __toku_recreate_DBT(DBT* dbt, void* payload, u_int32_t length) {
+inline static DBT* __toku_recreate_DBT(DBT* dbt, void* payload, u_int32_t length) {
     memset(dbt, 0, sizeof(DBT));
     dbt->data = payload;
     dbt->size = length;
     return dbt;
 }
 
-static int __toku_lt_txn_cmp(void* a, void* b) {
+inline static int __toku_lt_txn_cmp(void* a, void* b) {
     return a < b ? -1 : (a != b);
 }
 
@@ -118,27 +118,27 @@ int __toku_lt_point_cmp(void* a, void* b) {
 
 /* Functions to update the range count and compare it with the
    maximum number of ranges */
-static BOOL __toku_lt_range_test_incr(toku_lock_tree* tree, u_int32_t replace) {
+inline static BOOL __toku_lt_range_test_incr(toku_lock_tree* tree, u_int32_t replace) {
     assert(tree);
     assert(tree->num_ranges);
     assert(replace <= *tree->num_ranges);
     return *tree->num_ranges - replace < tree->max_ranges;
 } 
 
-static void __toku_lt_range_incr(toku_lock_tree* tree, u_int32_t replace) {
+inline static void __toku_lt_range_incr(toku_lock_tree* tree, u_int32_t replace) {
     assert(__toku_lt_range_test_incr(tree, replace));
     *tree->num_ranges -= replace;
     *tree->num_ranges += 1;
 }
 
-static void __toku_lt_range_decr(toku_lock_tree* tree, u_int32_t ranges) {
+inline static void __toku_lt_range_decr(toku_lock_tree* tree, u_int32_t ranges) {
     assert(tree);
     assert(tree->num_ranges);
     assert(*tree->num_ranges >= ranges);
     *tree->num_ranges -= ranges;
 }
 
-static void __toku_p_free(toku_lock_tree* tree, toku_point* point) {
+inline static void __toku_p_free(toku_lock_tree* tree, toku_point* point) {
     assert(point);
     if (!__toku_lt_is_infinite(point->key_payload)) {
         tree->free(point->key_payload);
@@ -152,7 +152,7 @@ static void __toku_p_free(toku_lock_tree* tree, toku_point* point) {
 /*
    Allocate and copy the payload.
 */
-static int __toku_payload_copy(toku_lock_tree* tree,
+inline static int __toku_payload_copy(toku_lock_tree* tree,
                                void** payload_out, u_int32_t* len_out,
                                void*  payload_in,  u_int32_t  len_in) {
     assert(payload_out && len_out);
@@ -171,7 +171,7 @@ static int __toku_payload_copy(toku_lock_tree* tree,
     return 0;
 }
 
-static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
+inline static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
     assert(ppoint);
     toku_point*     point      = *(toku_point**)ppoint;
     toku_point*     temp_point = NULL;
@@ -219,7 +219,7 @@ toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree,
 
 /* Provides access to a selfread tree for a particular transaction.
    Creates it if it does not exist. */
-static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
+inline static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
                               toku_range_tree** pselfread) {
     int r;
     assert(tree && txn && pselfread);
@@ -246,7 +246,7 @@ static int __toku_lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
 
 /* Provides access to a selfwrite tree for a particular transaction.
    Creates it if it does not exist. */
-static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
+inline static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
                                toku_range_tree** pselfwrite) {
     int r;
     assert(tree && txn && pselfwrite);
@@ -276,7 +276,7 @@ static int __toku_lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
     Uses the standard definition of dominated from the design document.
     Determines whether 'query' is dominated by 'rt'.
 */
-static int __toku_lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
+inline static int __toku_lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
                                   toku_range_tree* rt, BOOL* dominated) {
     assert(tree && query && dominated);
     if (!rt) {
@@ -321,7 +321,7 @@ typedef enum
     If exactly one range overlaps and its data != self, there might be a
     conflict.  We need to check the 'peer'write table to verify.
 */
-static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
+inline static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
                                        toku_range* query,
                                        toku_conflict* conflict, DB_TXN** peer) {
     assert(tree && self && query && conflict && peer);
@@ -355,7 +355,7 @@ static int __toku_lt_borderwrite_conflict(toku_lock_tree* tree, DB_TXN* self,
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
-static int __toku_lt_meets(toku_lock_tree* tree, toku_range* query, 
+inline static int __toku_lt_meets(toku_lock_tree* tree, toku_range* query, 
                            toku_range_tree* rt, BOOL* met) {
     assert(tree && query && rt && met);
     const u_int32_t query_size = 1;
@@ -385,7 +385,7 @@ static int __toku_lt_meets(toku_lock_tree* tree, toku_range* query,
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
-static int __toku_lt_meets_peer(toku_lock_tree* tree, toku_range* query, 
+inline static int __toku_lt_meets_peer(toku_lock_tree* tree, toku_range* query, 
                                 toku_range_tree* rt, DB_TXN* self, BOOL* met) {
     assert(tree && query && rt && self && met);
     assert(query->left == query->right);
@@ -408,7 +408,7 @@ static int __toku_lt_meets_peer(toku_lock_tree* tree, toku_range* query,
     Utility function to implement: (from design document)
     if K meets E at v'!=t and K meets W_v' then return failure.
 */
-static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
+inline static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
                                                DB_TXN* txn, toku_range* query) {
     assert(tree && txn && query);
     toku_conflict conflict;
@@ -433,18 +433,21 @@ static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
     return 0;
 }
 
-static void __toku_payload_from_dbt(void** payload, u_int32_t* len,
+inline static void __toku_payload_from_dbt(void** payload, u_int32_t* len,
                                     const DBT* dbt) {
     assert(payload && len && dbt);
     if (__toku_lt_is_infinite(dbt)) *payload = (void*)dbt;
-    else {
-        assert(!dbt->data == !dbt->size);
+    else if (!dbt->size) {
+        *payload = NULL;
+        *len     = 0;
+    } else {
+        assert(dbt->data);
         *payload = dbt->data;
+        *len     = dbt->size;
     }
-    *len     = dbt->size;
 }
 
-static void __toku_init_point(toku_point* point, toku_lock_tree* tree,
+inline static void __toku_init_point(toku_point* point, toku_lock_tree* tree,
                               const DBT* key, const DBT* data) {
     assert(point && tree && key);
     assert(!tree->duplicates == !data);
@@ -463,14 +466,14 @@ static void __toku_init_point(toku_point* point, toku_lock_tree* tree,
     }
 }
 
-static void __toku_init_query(toku_range* query,
+inline static void __toku_init_query(toku_range* query,
                               toku_point* left, toku_point* right) {
     query->left  = left;
     query->right = right;
     query->data  = NULL;
 }
 
-static void __toku_init_insert(toku_range* to_insert,
+inline static void __toku_init_insert(toku_range* to_insert,
                                toku_point* left, toku_point* right,
                                DB_TXN* txn) {
     to_insert->left  = left;
@@ -480,12 +483,12 @@ static void __toku_init_insert(toku_range* to_insert,
 
 /* Returns whether the point already exists
    as an endpoint of the given range. */
-static BOOL __toku_lt_p_independent(toku_point* point, toku_range* range) {
+inline static BOOL __toku_lt_p_independent(toku_point* point, toku_range* range) {
     assert(point && range);
     return point != range->left && point != range->right;
 }
 
-static int __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
+inline static int __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
                                     BOOL* alloc_left, BOOL* alloc_right,
                                     u_int32_t numfound) {
     assert(to_insert && tree && alloc_left && alloc_right);
@@ -517,7 +520,7 @@ static int __toku_lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
     return 0;
 }
 
-static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
+inline static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
                                    BOOL alloc_left, BOOL* alloc_right) {
     assert(to_insert && alloc_right);
     BOOL copy_left = FALSE;
@@ -547,7 +550,7 @@ static int __toku_lt_alloc_extreme(toku_lock_tree* tree, toku_range* to_insert,
     return 0;
 }
 
-static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
+inline static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
                                                toku_range_tree* rt,
                                                u_int32_t numfound) {
     assert(tree && rt);
@@ -561,7 +564,7 @@ static int __toku_lt_delete_overlapping_ranges(toku_lock_tree* tree,
     return 0;
 }
 
-static int __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
+inline static int __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
                                   u_int32_t numfound, toku_range_tree *rt) {
     assert(tree && to_insert);
     assert(numfound <= tree->buflen);
@@ -591,7 +594,7 @@ static int __toku_lt_free_points(toku_lock_tree* tree, toku_range* to_insert,
 }
 
 /* Consolidate the new range and all the overlapping ranges */
-static int __toku_consolidate(toku_lock_tree* tree,
+inline static int __toku_consolidate(toku_lock_tree* tree,
                               toku_range* query, toku_range* to_insert,
                               DB_TXN* txn) {
     int r;
@@ -656,7 +659,7 @@ static int __toku_consolidate(toku_lock_tree* tree,
     return 0;
 }
 
-static void __toku_lt_init_full_query(toku_lock_tree* tree, toku_range* query,
+inline static void __toku_lt_init_full_query(toku_lock_tree* tree, toku_range* query,
                                       toku_point* left, toku_point* right) {
     __toku_init_point(left,  tree,       (DBT*)toku_lt_neg_infinity,
                       tree->duplicates ? (DBT*)toku_lt_neg_infinity : NULL);
@@ -665,7 +668,7 @@ static void __toku_lt_init_full_query(toku_lock_tree* tree, toku_range* query,
     __toku_init_query(query, left, right);
 }
 
-static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
+inline static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
                                         toku_range_tree* rt,
                                         toku_range_tree* rtdel) {
     int r;
@@ -693,7 +696,7 @@ static int __toku_lt_free_contents_slow(toku_lock_tree* tree,
     return r;
 }
 
-static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
+inline static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
                                    toku_range_tree *rtdel) {
     assert(tree);
     if (!rt) return 0;
@@ -716,7 +719,7 @@ static int __toku_lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
     return r;
 }
 
-static BOOL __toku_r_backwards(toku_range* range) {
+inline static BOOL __toku_r_backwards(toku_range* range) {
     assert(range && range->left && range->right);
     toku_point* left  = (toku_point*)range->left;
     toku_point* right = (toku_point*)range->right;
@@ -728,7 +731,7 @@ static BOOL __toku_r_backwards(toku_range* range) {
 }
 
 
-static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
+inline static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
                                 const DBT* key_left,  const DBT** pdata_left,
                                 const DBT* key_right, const DBT** pdata_right,
                                 toku_point* left, toku_point* right,
@@ -744,12 +747,13 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     if (tree->duplicates  && key_right != data_right &&
         __toku_lt_is_infinite(key_right))                   return EINVAL;
 
+    int r;
     /* Verify that NULL keys have payload and size that are mutually 
        consistent*/
-    __toku_lt_verify_null_key(key_left);
-    __toku_lt_verify_null_key(data_left);
-    __toku_lt_verify_null_key(key_right);
-    __toku_lt_verify_null_key(data_right);
+    if ((r = __toku_lt_verify_null_key(key_left))   != 0) return r;
+    if ((r = __toku_lt_verify_null_key(data_left))  != 0) return r;
+    if ((r = __toku_lt_verify_null_key(key_right))  != 0) return r;
+    if ((r = __toku_lt_verify_null_key(data_right)) != 0) return r;
 
     __toku_init_point(left,  tree, key_left,  data_left);
     __toku_init_point(right, tree, key_right, data_right);
@@ -758,12 +762,12 @@ static int __toku_lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     if (__toku_r_backwards(query))                          return EDOM;
     tree->dups_final = TRUE;
 
-    int r = __toku_lt_callback(tree, txn);
+    r = __toku_lt_callback(tree, txn);
     if (r!=0) return r;
     return 0;
 }
 
-static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_borderwrite,
+inline static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_borderwrite,
                                 toku_range* pred, toku_range* succ,
                                 BOOL* found_p,    BOOL* found_s,
                                 toku_range* to_insert) {
@@ -780,7 +784,7 @@ static int __toku_lt_get_border(toku_lock_tree* tree, BOOL in_borderwrite,
     return 0;
 }
 
-static int __toku_lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
+inline static int __toku_lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
                                    toku_range* pred, toku_range* succ,
                                    BOOL  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
@@ -798,7 +802,7 @@ static int __toku_lt_expand_border(toku_lock_tree* tree, toku_range* to_insert,
     return 0;
 }
 
-static int __toku_lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
+inline static int __toku_lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
                                    toku_range* pred, toku_range* succ,
                                    BOOL  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
@@ -850,7 +854,7 @@ static int __toku_lt_split_border(toku_lock_tree* tree, toku_range* to_insert,
      done with borderwrite.
      insert point,point into selfwrite.
 */
-static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
+inline static int __toku_lt_borderwrite_insert(toku_lock_tree* tree,
                                         toku_range* query,
                                         toku_range* to_insert) {
     assert(tree && query && to_insert);
@@ -1083,7 +1087,13 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     toku_point left;
     toku_point right;
     toku_range query;
-    
+
+    assert(tree);
+    if (key_left == key_right &&
+        (data_left == data_right || !tree->duplicates)) {
+        return toku_lt_acquire_write_lock(tree, txn, key_left, data_left);
+    }
+
     r = __toku_lt_preprocess(tree, txn, key_left,  &data_left,
                                         key_right, &data_right,
                                            &left,       &right,
@@ -1096,7 +1106,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 }
 
 
-static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
+inline static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
     assert(tree && range);
     toku_range_tree* borderwrite = tree->borderwrite;
     assert(borderwrite);
@@ -1164,7 +1174,7 @@ static int __toku_sweep_border(toku_lock_tree* tree, toku_range* range) {
       If both found and pred.data=succ.data, merge pred and succ (expand?)
     free_points
 */
-static int __toku_lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
+inline static int __toku_lt_border_delete(toku_lock_tree* tree, toku_range_tree* rt) {
     int r;
     assert(tree);
     if (!rt) return 0;
