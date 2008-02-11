@@ -567,4 +567,19 @@ master-bin.000001	36585	Rotate	1	36629	master-bin.000002;pos=4
 drop table t1;
 set global binlog_cache_size=@bcs;
 set session autocommit = @ac;
+drop table if exists t1;
+reset master;
+create table t1 (a bigint unsigned, b bigint(20) unsigned);
+prepare stmt from "insert into t1 values (?,?)";
+set @a= 9999999999999999;
+set @b= 14632475938453979136;
+execute stmt using @a, @b;
+deallocate prepare stmt;
+drop table t1;
+show binlog events from 0;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	4	Format_desc	1	98	Server version, Binlog ver: 4
+master-bin.000001	98	Query	1	219	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
+master-bin.000001	219	Query	1	343	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
+master-bin.000001	343	Query	1	419	use `test`; drop table t1
 End of 5.0 tests
