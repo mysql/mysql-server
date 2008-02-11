@@ -977,6 +977,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "32000" },
 
   {
+    CFG_DB_MAX_BUFFERED_GCP,
+    "MaxBufferedEpochs",
+    DB_TOKEN,
+    "Allowed numbered of epochs that a subscribing node can lag behind (unprocessed epochs).  Exceeding will cause lagging subscribers to be disconnected.",
+    ConfigInfo::CI_USED,
+    true,
+    ConfigInfo::CI_INT,
+    "100",
+    "0",
+    "100000" },
+
+  {
     CFG_DB_NO_REDOLOG_FILES,
     "NoOfFragmentLogFiles",
     DB_TOKEN,
