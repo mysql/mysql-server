@@ -100,39 +100,6 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   } while (true);
 }
 
-void Dbtup::removeActiveOpList(Operationrec*  const regOperPtr,
-                               Tuple_header *tuple_ptr)
-{
-  OperationrecPtr raoOperPtr;
-
-  /**
-   * Release copy tuple
-   */
-  if(!regOperPtr->m_copy_tuple_location.isNull())
-    c_undo_buffer.free_copy_tuple(&regOperPtr->m_copy_tuple_location);
-  
-  if (regOperPtr->op_struct.in_active_list) {
-    regOperPtr->op_struct.in_active_list= false;
-    if (regOperPtr->nextActiveOp != RNIL) {
-      jam();
-      raoOperPtr.i= regOperPtr->nextActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->prevActiveOp= regOperPtr->prevActiveOp;
-    } else {
-      jam();
-      tuple_ptr->m_operation_ptr_i = regOperPtr->prevActiveOp;
-    }
-    if (regOperPtr->prevActiveOp != RNIL) {
-      jam();
-      raoOperPtr.i= regOperPtr->prevActiveOp;
-      c_operation_pool.getPtr(raoOperPtr);
-      raoOperPtr.p->nextActiveOp= regOperPtr->nextActiveOp;
-    }
-    regOperPtr->prevActiveOp= RNIL;
-    regOperPtr->nextActiveOp= RNIL;
-  }
-}
-
 /* ---------------------------------------------------------------- */
 /* INITIALIZATION OF ONE CONNECTION RECORD TO PREPARE FOR NEXT OP.  */
 /* ---------------------------------------------------------------- */
@@ -145,6 +112,7 @@ void Dbtup::initOpConnection(Operationrec* regOperPtr)
   regOperPtr->op_struct.m_disk_preallocated= 0;
   regOperPtr->op_struct.m_load_diskpage_on_commit= 0;
   regOperPtr->op_struct.m_wait_log_buffer= 0;
+  regOperPtr->op_struct.in_active_list = false;
   regOperPtr->m_undo_buffer_space= 0;
 }
 
@@ -173,6 +141,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   Uint32 extra_bits = Tuple_header::FREED;
   if (bits & Tuple_header::DISK_PART)
   {
+    jam();
     Local_key disk;
     memcpy(&disk, ptr->get_disk_ref_ptr(regTabPtr), sizeof(disk));
     PagePtr tmpptr;
@@ -185,6 +154,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   if (! (bits & (Tuple_header::LCP_SKIP | Tuple_header::ALLOC)) && 
       lcpScan_ptr_i != RNIL)
   {
+    jam();
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
@@ -192,6 +162,7 @@ Dbtup::dealloc_tuple(Signal* signal,
     rowid.m_page_no = page->frag_page_id;
     if (rowid > scanpos)
     {
+      jam();
       extra_bits = Tuple_header::LCP_KEEP; // Note REMOVE FREE
       ptr->m_operation_ptr_i = lcp_keep_list;
       regFragPtr->m_lcp_keep_list = rowid.ref();
@@ -250,11 +221,13 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
   if((mm_vars+mm_dyns) == 0)
   {
+    jam();
     memcpy(tuple_ptr, copy, 4*fixsize);
     disk_ptr= (Tuple_header*)(((Uint32*)copy)+fixsize);
   }
   else
   {
+    jam();
     /**
      * Var_part_ref is only stored in *allocated* tuple
      * so memcpy from copy, will over write it...
@@ -268,9 +241,9 @@ Dbtup::commit_operation(Signal* signal,
     ref->assign(&tmp);
 
     PagePtr vpagePtr;
-    
     if (copy_bits & Tuple_header::VAR_PART)
     {
+      jam();
       ndbassert(tmp.m_page_no != RNIL);
       ndbassert(bits & Tuple_header::VAR_PART);
       Uint32 *dst= get_ptr(&vpagePtr, *ref);
@@ -283,13 +256,16 @@ Dbtup::commit_operation(Signal* signal,
 
       if(copy_bits & Tuple_header::MM_SHRINK)
       {
+        jam();
         ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
         if (len)
         {
+          jam();
           vpagePtrP->shrink_entry(tmp.m_page_idx, len);
         }
         else
         {
+          jam();
           vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
           tmp.m_page_no = RNIL;
           ref->assign(&tmp);
@@ -299,6 +275,7 @@ Dbtup::commit_operation(Signal* signal,
       }
       else
       {
+        jam();
         ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) == len);
       }
 
@@ -310,6 +287,7 @@ Dbtup::commit_operation(Signal* signal,
     }
     else
     {
+      jam();
       ndbassert(tmp.m_page_no == RNIL);
       disk_ptr = (Tuple_header*)copy->get_end_of_fix_part_ptr(regTabPtr);
     }
@@ -318,6 +296,7 @@ Dbtup::commit_operation(Signal* signal,
   if (regTabPtr->m_no_of_disk_attributes &&
       (copy_bits & Tuple_header::DISK_INLINE))
   {
+    jam();
     Local_key key;
     memcpy(&key, copy->get_disk_ref_ptr(regTabPtr), sizeof(Local_key));
     Uint32 logfile_group_id= regFragPtr->m_logfile_group_id;
@@ -328,22 +307,26 @@ Dbtup::commit_operation(Signal* signal,
     Uint32 sz, *dst;
     if(copy_bits & Tuple_header::DISK_ALLOC)
     {
+      jam();
       disk_page_alloc(signal, regTabPtr, regFragPtr, &key, diskPagePtr, gci);
     }
     
     if(regTabPtr->m_attributes[DD].m_no_of_varsize == 0)
     {
+      jam();
       sz= regTabPtr->m_offsets[DD].m_fix_header_size;
       dst= ((Fix_page*)diskPagePtr.p)->get_ptr(key.m_page_idx, sz);
     }
     else
     {
+      jam();
       dst= ((Var_page*)diskPagePtr.p)->get_ptr(key.m_page_idx);
       sz= ((Var_page*)diskPagePtr.p)->get_entry_len(key.m_page_idx);
     }
     
     if(! (copy_bits & Tuple_header::DISK_ALLOC))
     {
+      jam();
       disk_page_undo_update(diskPagePtr.p, 
 			    &key, dst, sz, gci, logfile_group_id);
     }
@@ -357,6 +340,7 @@ Dbtup::commit_operation(Signal* signal,
   
   if(lcpScan_ptr_i != RNIL && (bits & Tuple_header::ALLOC))
   {
+    jam();
     ScanOpPtr scanOp;
     c_scanOpPool.getPtr(scanOp, lcpScan_ptr_i);
     Local_key rowid = regOperPtr->m_tuple_location;
@@ -364,6 +348,7 @@ Dbtup::commit_operation(Signal* signal,
     rowid.m_page_no = pagePtr.p->frag_page_id;
     if(rowid > scanpos)
     {
+      jam();
        copy_bits |= Tuple_header::LCP_SKIP;
     }
   }
@@ -423,7 +408,10 @@ Dbtup::disk_page_commit_callback(Signal* signal,
   
   execTUP_COMMITREQ(signal);
   if(signal->theData[0] == 0)
+  {
+    jam();
     c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
+  }
 }
 
 void
@@ -459,35 +447,21 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
   c_lqh->tupcommit_conf_callback(signal, regOperPtr.p->userpointer);
 }
 
+/**
+ * Move to the first operation performed on this tuple
+ */
 void
-Dbtup::fix_commit_order(OperationrecPtr opPtr)
+Dbtup::findFirstOp(OperationrecPtr & firstPtr)
 {
-  ndbassert(!opPtr.p->is_first_operation());
-  OperationrecPtr firstPtr = opPtr;
+  jam();
+  printf("Detect out-of-order commit(%u) -> ", firstPtr.i);
+  ndbassert(!firstPtr.p->is_first_operation());
   while(firstPtr.p->prevActiveOp != RNIL)
   {
     firstPtr.i = firstPtr.p->prevActiveOp;
     c_operation_pool.getPtr(firstPtr);    
   }
-
-  ndbout_c("fix_commit_order (swapping %d and %d)",
-	   opPtr.i, firstPtr.i);
-  
-  /**
-   * Swap data between first and curr
-   */
-  Uint32 prev= opPtr.p->prevActiveOp;
-  Uint32 next= opPtr.p->nextActiveOp;
-  Uint32 seco= firstPtr.p->nextActiveOp;
-
-  Operationrec tmp = *opPtr.p;
-  * opPtr.p = * firstPtr.p;
-  * firstPtr.p = tmp;
-
-  c_operation_pool.getPtr(seco)->prevActiveOp = opPtr.i;
-  c_operation_pool.getPtr(prev)->nextActiveOp = firstPtr.i;
-  if(next != RNIL)
-    c_operation_pool.getPtr(next)->prevActiveOp = firstPtr.i;
+  ndbout_c("%u", firstPtr.i);
 }
 
 /* ----------------------------------------------------------------- */
@@ -500,22 +474,18 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   TablerecPtr regTabPtr;
   KeyReqStruct req_struct;
   TransState trans_state;
-  Uint32 no_of_fragrec, no_of_tablerec, hash_value;
+  Uint32 no_of_fragrec, no_of_tablerec;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
 
   regOperPtr.i= tupCommitReq->opPtr;
+  Uint32 hash_value= tupCommitReq->hashValue;
+  Uint32 gci_hi = tupCommitReq->gci_hi;
+  Uint32 gci_lo = tupCommitReq->gci_lo;
+
   jamEntry();
 
   c_operation_pool.getPtr(regOperPtr);
-  if(!regOperPtr.p->is_first_operation())
-  {
-    /**
-     * Out of order commit   XXX check effect on triggers
-     */
-    fix_commit_order(regOperPtr);
-  }
-  ndbassert(regOperPtr.p->is_first_operation());
   
   regFragPtr.i= regOperPtr.p->fragmentPtr;
   trans_state= get_trans_state(regOperPtr.p);
@@ -527,9 +497,6 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   no_of_tablerec= cnoOfTablerec;
   regTabPtr.i= regFragPtr.p->fragTableId;
-  hash_value= tupCommitReq->hashValue;
-  Uint32 gci_hi = tupCommitReq->gci_hi;
-  Uint32 gci_lo = tupCommitReq->gci_lo;
 
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
@@ -540,8 +507,10 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 #ifdef VM_TRACE
   if (tupCommitReq->diskpage == RNIL)
   {
-    m_pgman.m_ptr.setNull();
-    req_struct.m_disk_page_ptr.setNull();
+    m_pgman.m_ptr.i = RNIL;
+    m_pgman.m_ptr.p = 0;
+    req_struct.m_disk_page_ptr.i = RNIL;
+    req_struct.m_disk_page_ptr.p = 0;
   }
 #endif
   
@@ -550,19 +519,63 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   PagePtr page;
   Tuple_header* tuple_ptr= (Tuple_header*)
     get_ptr(&page, &regOperPtr.p->m_tuple_location, regTabPtr.p);
+
+  /**
+   * NOTE: This has to be run before potential time-slice when
+   *       waiting for disk, as otherwise the "other-ops" in a multi-op
+   *       commit might run while we're waiting for disk
+   *
+   */
+  if (!regTabPtr.p->tuxCustomTriggers.isEmpty())
+  {
+    if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
+    {
+      jam();
+
+      OperationrecPtr loopPtr = regOperPtr;
+      if (unlikely(!regOperPtr.p->is_first_operation()))
+      {
+        findFirstOp(loopPtr);
+      }
+
+      /**
+       * Execute all tux triggers at first commit
+       *   since previous tuple is otherwise removed...
+       */
+      jam();
+      goto first;
+      while(loopPtr.i != RNIL)
+      {
+	c_operation_pool.getPtr(loopPtr);
+    first:
+	executeTuxCommitTriggers(signal,
+				 loopPtr.p,
+				 regFragPtr.p,
+				 regTabPtr.p);
+	set_tuple_state(loopPtr.p, TUPLE_TO_BE_COMMITTED);
+	loopPtr.i = loopPtr.p->nextActiveOp;
+      }
+    }
+  }
   
   bool get_page = false;
   if(regOperPtr.p->op_struct.m_load_diskpage_on_commit)
   {
+    jam();
     Page_cache_client::Request req;
-    ndbassert(regOperPtr.p->is_first_operation() && 
-	      regOperPtr.p->is_last_operation());
+
+    /**
+     * Only last op on tuple needs "real" commit,
+     *   hence only this one should have m_load_diskpage_on_commit
+     */
+    ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
 
     /**
      * Check for page
      */
     if(!regOperPtr.p->m_copy_tuple_location.isNull())
     {
+      jam();
       Tuple_header* tmp= (Tuple_header*)
 	c_undo_buffer.get_ptr(&regOperPtr.p->m_copy_tuple_location);
       
@@ -572,23 +585,26 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       if (unlikely(regOperPtr.p->op_struct.op_type == ZDELETE &&
 		   tmp->m_header_bits & Tuple_header::DISK_ALLOC))
       {
-	jam();
+        jam();
 	/**
 	 * Insert+Delete
 	 */
-	regOperPtr.p->op_struct.m_load_diskpage_on_commit = 0;
-	regOperPtr.p->op_struct.m_wait_log_buffer = 0;	
-	disk_page_abort_prealloc(signal, regFragPtr.p, 
+        regOperPtr.p->op_struct.m_load_diskpage_on_commit = 0;
+        regOperPtr.p->op_struct.m_wait_log_buffer = 0;	
+        disk_page_abort_prealloc(signal, regFragPtr.p, 
 				 &req.m_page, req.m_page.m_page_idx);
-	
-	c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
+        
+        c_lgman->free_log_space(regFragPtr.p->m_logfile_group_id, 
 				regOperPtr.p->m_undo_buffer_space);
-	if (0) ndbout_c("insert+delete");
 	goto skip_disk;
+        if (0) ndbout_c("insert+delete");
+        jamEntry();
+        goto skip_disk;
       }
     } 
     else
     {
+      jam();
       // initial delete
       ndbassert(regOperPtr.p->op_struct.op_type == ZDELETE);
       memcpy(&req.m_page, 
@@ -612,11 +628,14 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
       /**
        * Timeslice
        */
+      jam();
       signal->theData[0] = 1;
       return;
     case -1:
       ndbrequire("NOT YET IMPLEMENTED" == 0);
       break;
+    default:
+      jam();
     }
     get_page = true;
 
@@ -633,8 +652,12 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
   
   if(regOperPtr.p->op_struct.m_wait_log_buffer)
   {
-    ndbassert(regOperPtr.p->is_first_operation() && 
-	      regOperPtr.p->is_last_operation());
+    jam();
+    /**
+     * Only last op on tuple needs "real" commit,
+     *   hence only this one should have m_wait_log_buffer
+     */
+    ndbassert(tuple_ptr->m_operation_ptr_i == regOperPtr.i);
     
     Callback cb;
     cb.m_callbackData= regOperPtr.i;
@@ -644,50 +667,37 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     
     Logfile_client lgman(this, c_lgman, regFragPtr.p->m_logfile_group_id);
     int res= lgman.get_log_buffer(signal, sz, &cb);
+    jamEntry();
     switch(res){
     case 0:
+      jam();
       signal->theData[0] = 1;
       return;
     case -1:
       ndbrequire("NOT YET IMPLEMENTED" == 0);
       break;
+    default:
+      jam();
     }
   }
   
-  if(!tuple_ptr)
-  {
-    tuple_ptr = (Tuple_header*)
-      get_ptr(&page, &regOperPtr.p->m_tuple_location,regTabPtr.p);
-  }
+  assert(tuple_ptr);
 skip_disk:
   req_struct.m_tuple_ptr = tuple_ptr;
   
-  if(get_tuple_state(regOperPtr.p) == TUPLE_PREPARED)
-  {
-    /**
-     * Execute all tux triggers at first commit
-     *   since previous tuple is otherwise removed...
-     *   btw...is this a "good" solution??
-     *   
-     *   why can't we instead remove "own version" (when approriate ofcourse)
-     */
-    if (!regTabPtr.p->tuxCustomTriggers.isEmpty()) {
-      jam();
-      OperationrecPtr loopPtr= regOperPtr;
-      while(loopPtr.i != RNIL)
-      {
-	c_operation_pool.getPtr(loopPtr);
-	executeTuxCommitTriggers(signal,
-				 loopPtr.p,
-				 regFragPtr.p,
-				 regTabPtr.p);
-	set_tuple_state(loopPtr.p, TUPLE_TO_BE_COMMITTED);
-	loopPtr.i = loopPtr.p->nextActiveOp;
-      }
-    }
-  }
-  
-  if(regOperPtr.p->is_last_operation())
+  Uint32 nextOp = regOperPtr.p->nextActiveOp;
+  Uint32 prevOp = regOperPtr.p->prevActiveOp;
+  /**
+   * The trigger code (which is shared between detached/imediate)
+   *   check op-list to check were to read before values from
+   *   detached triggers should always read from original tuple value
+   *   from before transaction start, not from any intermediate update
+   *
+   * Setting the op-list has this effect
+   */
+  regOperPtr.p->nextActiveOp = RNIL;
+  regOperPtr.p->prevActiveOp = RNIL;
+  if(tuple_ptr->m_operation_ptr_i == regOperPtr.i)
   {
     jam();
     /**
@@ -698,26 +708,38 @@ skip_disk:
     checkDetachedTriggers(&req_struct, regOperPtr.p, regTabPtr.p, 
                           disk != RNIL);
     
+    tuple_ptr->m_operation_ptr_i = RNIL;
+    
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
       jam();
       commit_operation(signal, gci_hi, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
-      removeActiveOpList(regOperPtr.p, tuple_ptr);
     }
     else
     {
       jam();
-      removeActiveOpList(regOperPtr.p, tuple_ptr);
       if (get_page)
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
       dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
 		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
   } 
-  else
+
+  if (nextOp != RNIL)
   {
-    removeActiveOpList(regOperPtr.p, tuple_ptr);   
+    c_operation_pool.getPtr(nextOp)->prevActiveOp = prevOp;
+  }
+  
+  if (prevOp != RNIL)
+  {
+    c_operation_pool.getPtr(prevOp)->nextActiveOp = nextOp;
+  }
+  
+  if(!regOperPtr.p->m_copy_tuple_location.isNull())
+  {
+    jam();
+    c_undo_buffer.free_copy_tuple(&regOperPtr.p->m_copy_tuple_location);
   }
   
   initOpConnection(regOperPtr.p);

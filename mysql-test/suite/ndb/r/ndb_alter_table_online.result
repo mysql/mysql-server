@@ -84,9 +84,9 @@ Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ndb_show_tables completed.....
 
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%';
-id	name
-5	't1'
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
 truncate ndb_show_tables_results;
 INSERT INTO t1 values (2,1,1);
 SELECT * FROM t1 ORDER BY a;
@@ -105,9 +105,9 @@ CREATE ONLINE INDEX ci on t1(c);
 
 ndb_show_tables completed.....
 
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-id	name
-5	't1'
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
 truncate ndb_show_tables_results;
 *******************************
 * Create offline Index ci2
@@ -116,8 +116,8 @@ CREATE OFFLINE INDEX ci2 on t1(c);
 
 ndb_show_tables completed.....
 
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-id	name
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 truncate ndb_show_tables_results;
 *******************************
@@ -127,9 +127,9 @@ DROP ONLINE INDEX ci on t1;
 
 ndb_show_tables completed.....
 
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-id	name
-8	't1'
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
 truncate ndb_show_tables_results;
 *******************************
 * Drop offline Index ci2
@@ -138,8 +138,8 @@ DROP OFFLINE INDEX ci2 on t1;
 
 ndb_show_tables completed.....
 
-select id,name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
-id	name
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
 truncate ndb_show_tables_results;
 DROP TABLE t1;
 *******************************
@@ -284,6 +284,12 @@ name
 't1'
 truncate ndb_show_tables_results;
 ALTER TABLE t1 ADD d INT AFTER b;
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+truncate ndb_show_tables_results;
 INSERT INTO t1 VALUES(3,1,1,'b');
 SELECT * FROM t1 ORDER BY a;
 a	b	d	c
@@ -299,6 +305,11 @@ a	b	d	c
 *******************************
 * Not supported Test#4
 *******************************
+
+ndb_show_tables completed.....
+
+set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
+truncate ndb_show_tables_results;
 ALTER ONLINE TABLE t1 ENGINE MYISAM;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ENGINE MYISAM'
 
@@ -306,6 +317,7 @@ ndb_show_tables completed.....
 
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 name
+'t1'
 truncate ndb_show_tables_results;
 DROP TABLE t1;
 *******************************

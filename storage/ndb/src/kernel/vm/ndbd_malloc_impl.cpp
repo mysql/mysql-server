@@ -33,6 +33,14 @@ static const char * f_method = "MSms";
 #endif
 #define MAX_CHUNKS 10
 
+#define ZONE_LO 0
+#define ZONE_HI 1
+
+/**
+ * POOL_RECORD_BITS == 13 => 32 - 13 = 19 bits for page
+ */
+#define ZONE_LO_BOUND (1u << 19)
+
 struct InitChunk
 {
   Uint32 m_cnt;
@@ -145,7 +153,7 @@ retry:
 }
 
 Uint32
-Ndbd_mem_manager::log2(Uint32 input)
+Ndbd_mem_manager::ndb_log2(Uint32 input)
 {
   input = input | (input >> 8);
   input = input | (input >> 4);
@@ -420,7 +428,31 @@ found:
   {
     m_resource_limit[0].m_curr += cnt;
     m_resource_limit[0].m_max += cnt;
-    release(start, cnt);
+    if (start >= ZONE_LO_BOUND)
+    {
+      Uint64 mbytes = ((Uint64(cnt) * 32) + 1023) / 1024;
+      ndbout_c("Adding %uMb to ZONE_HI (%u,%u)", (Uint32)mbytes, start, cnt);
+      release(start, cnt);
+    }
+    else if (start + cnt <= ZONE_LO_BOUND)
+    {
+      Uint64 mbytes = ((Uint64(cnt)*32) + 1023) / 1024;
+      ndbout_c("Adding %uMb to ZONE_LO (%u,%u)", (Uint32)mbytes, start, cnt);
+      release(start, cnt);      
+    }
+    else
+    {
+      Uint32 cnt0 = ZONE_LO_BOUND - start;
+      Uint32 cnt1 = start + cnt - ZONE_LO_BOUND;
+      Uint64 mbytes0 = ((Uint64(cnt0)*32) + 1023) / 1024;
+      Uint64 mbytes1 = ((Uint64(cnt1)*32) + 1023) / 1024;
+      ndbout_c("Adding %uMb to ZONE_LO (split %u,%u)", (Uint32)mbytes0,
+               start, cnt0);
+      ndbout_c("Adding %uMb to ZONE_HI (split %u,%u)", (Uint32)mbytes1,
+               ZONE_LO_BOUND, cnt1);
+      release(start, cnt0);
+      release(ZONE_LO_BOUND, cnt1);
+    }
   }
 }
 
@@ -433,64 +465,82 @@ Ndbd_mem_manager::release(Uint32 start, Uint32 cnt)
   
   set(start, start+cnt-1);
   
-  release_impl(start, cnt);
+  Uint32 zone = start < ZONE_LO_BOUND ? 0 : 1;
+  release_impl(zone, start, cnt);
 }
 
 void
-Ndbd_mem_manager::release_impl(Uint32 start, Uint32 cnt)
+Ndbd_mem_manager::release_impl(Uint32 zone, Uint32 start, Uint32 cnt)
 {
   assert(start);  
 
   Uint32 test = check(start-1, start+cnt);
-  if (test & 1)
+  if (start != ZONE_LO_BOUND && test & 1)
   {
     Free_page_data *fd = get_free_page_data(m_base_page + start - 1, 
 					    start - 1);
     Uint32 sz = fd->m_size;
     Uint32 left = start - sz;
-    remove_free_list(left, fd->m_list);
+    remove_free_list(zone, left, fd->m_list);
     cnt += sz;
     start = left;
   }
  
   Uint32 right = start + cnt;
-  if (test & 2)
+  if (right != ZONE_LO_BOUND && test & 2)
   {
     Free_page_data *fd = get_free_page_data(m_base_page+right, right);
     Uint32 sz = fd->m_size;
-    remove_free_list(right, fd->m_list);
+    remove_free_list(zone, right, fd->m_list);
     cnt += sz;
   }
   
-  insert_free_list(start, cnt);
+  insert_free_list(zone, start, cnt);
 }
 
 void
-Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
+Ndbd_mem_manager::alloc(AllocZone zone, 
+                        Uint32* ret, Uint32 *pages, Uint32 min)
+{
+  if (zone == NDB_ZONE_ANY)
+  {
+    Uint32 save = * pages;
+    alloc_impl(ZONE_HI, ret, pages, min);
+    if (*pages)
+      return;
+    * pages = save;
+  }
+  
+  alloc_impl(ZONE_LO, ret, pages, min);
+}
+
+void
+Ndbd_mem_manager::alloc_impl(Uint32 zone, 
+                             Uint32* ret, Uint32 *pages, Uint32 min)
 {
   Int32 i;
   Uint32 start;
   Uint32 cnt = * pages;
-  Uint32 list = log2(cnt - 1);
+  Uint32 list = ndb_log2(cnt - 1);
   
   assert(cnt);
   assert(list <= 16);
 
   for (i = list; i < 16; i++) 
   {
-    if ((start = m_buddy_lists[i]))
+    if ((start = m_buddy_lists[zone][i]))
     {
 /* ---------------------------------------------------------------- */
 /*       PROPER AMOUNT OF PAGES WERE FOUND. NOW SPLIT THE FOUND     */
 /*       AREA AND RETURN THE PART NOT NEEDED.                       */
 /* ---------------------------------------------------------------- */
       
-      Uint32 sz = remove_free_list(start, i);
+      Uint32 sz = remove_free_list(zone, start, i);
       Uint32 extra = sz - cnt;
       assert(sz >= cnt);
       if (extra)
       {
-	insert_free_list(start + cnt, extra);
+	insert_free_list(zone, start + cnt, extra);
 	clear_and_set(start, start+cnt-1);
       }
       else
@@ -508,17 +558,17 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
    *   search in other lists...
    */
 
-  Int32 min_list = log2(min - 1);
+  Int32 min_list = ndb_log2(min - 1);
   assert((Int32)list >= min_list);
   for (i = list - 1; i >= min_list; i--) 
   {
-    if ((start = m_buddy_lists[i]))
+    if ((start = m_buddy_lists[zone][i]))
     {
-      Uint32 sz = remove_free_list(start, i);
+      Uint32 sz = remove_free_list(zone, start, i);
       Uint32 extra = sz - cnt;
       if (sz > cnt)
       {
-	insert_free_list(start + cnt, extra);	
+	insert_free_list(zone, start + cnt, extra);	
 	sz -= extra;
 	clear_and_set(start, start+sz-1);
       }
@@ -537,12 +587,12 @@ Ndbd_mem_manager::alloc(Uint32* ret, Uint32 *pages, Uint32 min)
 }
 
 void
-Ndbd_mem_manager::insert_free_list(Uint32 start, Uint32 size)
+Ndbd_mem_manager::insert_free_list(Uint32 zone, Uint32 start, Uint32 size)
 {
-  Uint32 list = log2(size) - 1;
+  Uint32 list = ndb_log2(size) - 1;
   Uint32 last = start + size - 1;
 
-  Uint32 head = m_buddy_lists[list];
+  Uint32 head = m_buddy_lists[zone][list];
   Free_page_data* fd_first = get_free_page_data(m_base_page+start, 
 						start);
   fd_first->m_list = list;
@@ -564,11 +614,11 @@ Ndbd_mem_manager::insert_free_list(Uint32 start, Uint32 size)
     fd->m_prev = start;
   }
   
-  m_buddy_lists[list] = start;
+  m_buddy_lists[zone][list] = start;
 }
 
 Uint32 
-Ndbd_mem_manager::remove_free_list(Uint32 start, Uint32 list)
+Ndbd_mem_manager::remove_free_list(Uint32 zone, Uint32 start, Uint32 list)
 {
   Free_page_data* fd = get_free_page_data(m_base_page+start, start);
   Uint32 size = fd->m_size;
@@ -578,7 +628,7 @@ Ndbd_mem_manager::remove_free_list(Uint32 start, Uint32 list)
   
   if (prev)
   {
-    assert(m_buddy_lists[list] != start);
+    assert(m_buddy_lists[zone][list] != start);
     fd = get_free_page_data(m_base_page+prev, prev);
     assert(fd->m_next == start);
     assert(fd->m_list == list);
@@ -586,8 +636,8 @@ Ndbd_mem_manager::remove_free_list(Uint32 start, Uint32 list)
   }
   else
   {
-    assert(m_buddy_lists[list] == start);
-    m_buddy_lists[list] = next;
+    assert(m_buddy_lists[zone][list] == start);
+    m_buddy_lists[zone][list] = next;
   }
   
   if (next)
@@ -604,32 +654,35 @@ Ndbd_mem_manager::remove_free_list(Uint32 start, Uint32 list)
 void
 Ndbd_mem_manager::dump() const
 {
-  for(Uint32 i = 0; i<16; i++)
+  for (Uint32 zone = 0; zone < 2; zone ++)
   {
-    printf(" list: %d - ", i);
-    Uint32 head = m_buddy_lists[i];
-    while(head)
+    for (Uint32 i = 0; i<16; i++)
     {
-      Free_page_data* fd = get_free_page_data(m_base_page+head, head); 
-      printf("[ i: %d prev %d next %d list %d size %d ] ", 
-	     head, fd->m_prev, fd->m_next, fd->m_list, fd->m_size);
-      head = fd->m_next;
+      printf(" list: %d - ", i);
+      Uint32 head = m_buddy_lists[zone][i];
+      while(head)
+      {
+        Free_page_data* fd = get_free_page_data(m_base_page+head, head); 
+        printf("[ i: %d prev %d next %d list %d size %d ] ", 
+               head, fd->m_prev, fd->m_next, fd->m_list, fd->m_size);
+        head = fd->m_next;
+      }
+      printf("EOL\n");
     }
-    printf("EOL\n");
-  }
-
-  for (Uint32 i = 0; i<XX_RL_COUNT; i++)
-  {
-    printf("ri: %d min: %d curr: %d max: %d\n",
-	   i, 
-	   m_resource_limit[i].m_min,
-	   m_resource_limit[i].m_curr,
-	   m_resource_limit[i].m_max);
+    
+    for (Uint32 i = 0; i<XX_RL_COUNT; i++)
+    {
+      printf("ri: %d min: %d curr: %d max: %d\n",
+             i, 
+             m_resource_limit[i].m_min,
+             m_resource_limit[i].m_curr,
+             m_resource_limit[i].m_max);
+    }
   }
 }
 
 void*
-Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
+Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i, AllocZone zone)
 {
   Uint32 idx = type & RG_MASK;
   assert(idx && idx < XX_RL_COUNT);
@@ -645,7 +698,7 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
 
   if (likely(res0 == 1 || (limit == 0 && free == 1)))
   {
-    alloc(i, &cnt, 1);
+    alloc(zone, i, &cnt, 1);
     if (likely(cnt))
     {
       m_resource_limit[0].m_curr = tot.m_curr + cnt;
@@ -656,6 +709,7 @@ Ndbd_mem_manager::alloc_page(Uint32 type, Uint32* i)
       return m_base_page + *i;
     }
   }
+
   return 0;
 }
 
@@ -718,7 +772,8 @@ Ndbd_mem_manager::alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min)
   
   if (likely(req))
   {
-    alloc(i, &req, 1); 
+    // Hi order allocations can always use any zone
+    alloc(NDB_ZONE_ANY, i, &req, 1); 
     * cnt = req;
     if (unlikely(req < res0)) // Got min than what was reserved :-(
     {

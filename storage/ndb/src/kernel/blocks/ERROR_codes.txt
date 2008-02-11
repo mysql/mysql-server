@@ -3,10 +3,10 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5048
+Next DBLQH 5050
 Next DBDICT 6008
 Next DBDIH 7202
-Next DBTC 8057
+Next DBTC 8058
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -280,6 +280,9 @@ Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
+5048: Crash in execCOMMIT
+5049: SET_ERROR_INSERT_VALUE(5048)
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 
@@ -338,6 +341,7 @@ ABORT OF TCKEYREQ
 
 8055 : Crash in sendApiCommit, disconnect API, and set 8056
 8056 : return directly in API_FAILREQ
+8057 : Send only 1 COMMIT per timeslice
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 

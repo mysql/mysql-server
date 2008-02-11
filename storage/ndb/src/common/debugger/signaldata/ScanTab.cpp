@@ -70,7 +70,7 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
 	  sig->transId1, sig->transId2);
 
   fprintf(output, " requestInfo: Eod: %d OpCount: %d\n", 
-	  (requestInfo & ScanTabConf::EndOfData == ScanTabConf::EndOfData),
+	  (requestInfo & ScanTabConf::EndOfData) == ScanTabConf::EndOfData,
 	  (requestInfo & (~ScanTabConf::EndOfData)));
   size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
   if(op_count){

@@ -100,9 +100,17 @@ void Dbtup::copyAttrinfo(Operationrec * regOperPtr,
     jam();
     ndbrequire(copyAttrBufPtr.i < RnoOfAttrBufrec);
     ptrAss(copyAttrBufPtr, attrbufrec);
-    RbufLen= copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
-    Rnext= copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
-    Rfirst= cfirstfreeAttrbufrec;
+    RbufLen = copyAttrBufPtr.p->attrbuf[ZBUF_DATA_LEN];
+    Rnext = copyAttrBufPtr.p->attrbuf[ZBUF_NEXT];
+    Rfirst = cfirstfreeAttrbufrec;
+    /*
+     * ATTRINFO comes from 2 mutually exclusive places:
+     * 1) TUPKEYREQ (also interpreted part)
+     * 2) STORED_PROCREQ before scan start
+     * Assert here that both have a check for overflow.
+     * The "<" instead of "<=" is intentional.
+     */
+    ndbrequire(RinBufIndex + RbufLen < ZATTR_BUFFER_SIZE);
     MEMCOPY_NO_WORDS(&inBuffer[RinBufIndex],
                      &copyAttrBufPtr.p->attrbuf[0],
                      RbufLen);
@@ -246,7 +254,7 @@ Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
   // includes tupVersion
   //printf("%p - ", tuple_ptr);
   
-  for (i= 0; i < rec_size-2; i++) {
+  for (i= 0; i < rec_size-Tuple_header::HeaderSize; i++) {
     checksum ^= tuple_header[i];
     //printf("%.8x ", tuple_header[i]);
   }
@@ -383,21 +391,7 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
       dirty= false;
     }
 
-    OperationrecPtr prevOpPtr = currOpPtr;  
-    bool found= false;
-    while(true) 
-    {
-      if (savepointId > currOpPtr.p->savepointId) {
-	found= true;
-	break;
-      }
-      if (currOpPtr.p->is_first_operation()){
-	break;
-      }
-      prevOpPtr= currOpPtr;
-      currOpPtr.i = currOpPtr.p->prevActiveOp;
-      c_operation_pool.getPtr(currOpPtr);
-    }
+    bool found= find_savepoint(currOpPtr, savepointId);
     
     Uint32 currOp= currOpPtr.p->op_struct.op_type;
     
@@ -788,7 +782,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterInsert(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, SET_ALL_MASK);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
@@ -821,7 +816,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
        }
        checkImmediateTriggersAfterUpdate(&req_struct,
 					 regOperPtr,
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        // XXX use terrorCode for now since all methods are void
        if (terrorCode != 0) 
        {
@@ -852,7 +848,8 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	*/
        checkImmediateTriggersAfterDelete(&req_struct,
 					 regOperPtr, 
-					 regTabPtr);
+					 regTabPtr,
+                                         disk_page != RNIL);
        set_change_mask_state(regOperPtr, DELETE_CHANGES);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
@@ -1691,32 +1688,22 @@ int Dbtup::handleDeleteReq(Signal* signal,
   else 
   {
     regOperPtr->tupVersion= req_struct->m_tuple_ptr->get_tuple_version();
-    if(regTabPtr->m_no_of_disk_attributes)
+  }
+
+  if(disk && regOperPtr->m_undo_buffer_space == 0)
+  {
+    regOperPtr->op_struct.m_wait_log_buffer = 1;
+    regOperPtr->op_struct.m_load_diskpage_on_commit = 1;
+    Uint32 sz= regOperPtr->m_undo_buffer_space= 
+      (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
+      regTabPtr->m_offsets[DD].m_fix_header_size - 1;
+    
+    terrorCode= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id,
+                                         sz);
+    if(unlikely(terrorCode))
     {
-      Uint32 sz;
-      if(regTabPtr->m_attributes[DD].m_no_of_varsize)
-      {
-	/**
-	 * Need to have page in memory to read size 
-	 *   to alloc undo space
-	 */
-	abort();
-      }
-      else
-	sz= (sizeof(Dbtup::Disk_undo::Free) >> 2) + 
-	  regTabPtr->m_offsets[DD].m_fix_header_size - 1;
-      
-      regOperPtr->m_undo_buffer_space= sz;
-      
-      int res;
-      if((res= c_lgman->alloc_log_space(regFragPtr->m_logfile_group_id, 
-					sz)))
-      {
-	terrorCode= res;
-	regOperPtr->m_undo_buffer_space= 0;
-	goto error;
-      }
-      
+      regOperPtr->m_undo_buffer_space= 0;
+      goto error;
     }
   }
   if (req_struct->attrinfo_len == 0)
@@ -1725,7 +1712,9 @@ int Dbtup::handleDeleteReq(Signal* signal,
   }
 
   if (regTabPtr->need_expand(disk))
+  {
     prepare_read(req_struct, regTabPtr, disk);
+  }
   
   {
     Uint32 RlogSize;
