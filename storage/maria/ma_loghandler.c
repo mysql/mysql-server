@@ -2608,9 +2608,9 @@ translog_check_sector_protection(uchar *page, TRANSLOG_FILE *file)
       only if it is old value, i.e. the sector was not written.
     */
     if (((test < current) &&
-         (0xFFL - current + test > DISK_DRIVE_SECTOR_SIZE / 3)) ||
+         ((uint)(0xFFL - current + test) > DISK_DRIVE_SECTOR_SIZE / 3)) ||
         ((test >= current) &&
-         (test - current > DISK_DRIVE_SECTOR_SIZE / 3)))
+         ((uint)(test - current) > DISK_DRIVE_SECTOR_SIZE / 3)))
     {
       if (translog_recover_page_up_to_sector(page, offset))
         DBUG_RETURN(1);
