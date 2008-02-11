@@ -51,7 +51,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   uchar long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn;
-  MY_STAT st, *stat;
+  my_off_t file_size;
   LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
@@ -101,18 +101,20 @@ int main(int argc __attribute__((unused)), char *argv[])
   /* Suppressing of automatic record writing */
   dummy_transaction_object.first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID;
 
-  if ((stat= my_stat(first_translog_file, &st,  MYF(0))) == 0)
+  if ((file1.file= my_open(first_translog_file, O_RDONLY,  MYF(MY_WME))) < 0)
   {
     fprintf(stderr, "There is no %s (%d)\n", first_translog_file, errno);
     exit(1);
   }
-  if (st.st_size != TRANSLOG_PAGE_SIZE)
+  file_size= my_seek(file1.file, 0, SEEK_END, MYF(MY_WME));
+  if (file_size != TRANSLOG_PAGE_SIZE)
   {
     fprintf(stderr,
             "incorrect initial size of %s: %ld instead of %ld\n",
-            first_translog_file, (long)st.st_size, (long)TRANSLOG_PAGE_SIZE);
+            first_translog_file, (long)file_size, (long)TRANSLOG_PAGE_SIZE);
     exit(1);
   }
+  my_close(file1.file, MYF(MY_WME));
   int4store(long_tr_id, 0);
   parts[TRANSLOG_INTERNAL_PARTS + 0].str= (char*)long_tr_id;
   parts[TRANSLOG_INTERNAL_PARTS + 0].length= 6;
@@ -153,20 +155,23 @@ int main(int argc __attribute__((unused)), char *argv[])
                     0, LSN_IMPOSSIBLE);
     flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   }
-  if ((stat= my_stat(first_translog_file, &st,  MYF(0))) == 0)
+  my_close(file1.file, MYF(MY_WME));
+  if ((file1.file= my_open(first_translog_file, O_RDONLY, MYF(MY_WME))) < 0)
   {
-    fprintf(stderr, "can't stat %s (%d)\n", first_translog_file, errno);
+    fprintf(stderr, "can't open %s (%d)\n", first_translog_file, errno);
     exit(1);
   }
-  if (st.st_size != TRANSLOG_PAGE_SIZE * 2)
+  file_size= my_seek(file1.file, 0, SEEK_END, MYF(MY_WME));
+  if (file_size != TRANSLOG_PAGE_SIZE * 2)
   {
     fprintf(stderr,
             "incorrect initial size of %s: %ld instead of %ld\n",
             first_translog_file,
-            (long)st.st_size, (long)(TRANSLOG_PAGE_SIZE * 2));
+            (long)file_size, (long)(TRANSLOG_PAGE_SIZE * 2));
     ok(0, "log triggered");
     exit(1);
   }
+  my_close(file1.file, MYF(MY_WME));
   ok(1, "log triggered");
 
   translog_destroy();
