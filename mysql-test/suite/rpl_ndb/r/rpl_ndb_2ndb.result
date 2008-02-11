@@ -8,7 +8,6 @@ SET storage_engine=ndb;
 
 === NDB -> NDB ===
 
-SET storage_engine=ndb;
 --- Doing pre test cleanup --- 
 DROP TABLE IF EXISTS t1;
 --- Create Table Section ---
@@ -51,7 +50,7 @@ t1	CREATE TABLE `t1` (
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -143,7 +142,7 @@ t1	CREATE TABLE `t1` (
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
@@ -236,7 +235,7 @@ t1	CREATE TABLE `t1` (
   `u` int(11) DEFAULT NULL,
   `v` char(16) DEFAULT 'default',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 SELECT * 
 FROM t1
 ORDER BY id;
@@ -267,14 +266,14 @@ select *
 from t1 
 order by id;
 id	b1	vc	bc	d	f	total	y	t	u	v
-2	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1965-11-14	NULL	default
+2	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1965-11-14	NULL	NULL
 3	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1905-11-14	7	default
-4	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1985-11-14	NULL	default
+4	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1985-11-14	NULL	NULL
 20	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1965-11-14	7	explicit
-42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1905-11-14	NULL	default
+42	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1905-11-14	NULL	NULL
 50	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1985-11-14	NULL	explicit
-142	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1995-11-14	NULL	default
-412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14	NULL	default
+142	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	1995-11-14	NULL	NULL
+412	1	Testing MySQL databases is a cool 	Must make it bug free for the customer	654321.4321	15.21	0	1965	2005-11-14	NULL	NULL
 --- Perform basic operation on master ---
 --- and ensure replicated correctly ---
 --- Update t1 on master --
@@ -299,11 +298,11 @@ FROM t1
 WHERE id < 100
 ORDER BY id;
 id	b1	vc	bc	d	f	total	y	t	u	v
-2	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	default
+2	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	NULL
 3	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	7	default
-4	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	default
+4	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	NULL
 20	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	7	explicit
-42	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	default
+42	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	NULL
 50	0	Testing MySQL databases is a cool 	updated	654321.4321	15.21	0	1965	2006-02-22	NULL	explicit
 --- Remove a record from t1 on master ---
 DELETE FROM t1 WHERE id = 412;
@@ -335,7 +334,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned NOT NULL DEFAULT '0',
   PRIMARY KEY (`id`,`total`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;

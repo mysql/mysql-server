@@ -1,1 +1,1 @@
---log-slave-updates=0
+--default-storage-engine=ndbcluster --log-slave-updates=0
