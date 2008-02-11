@@ -2952,7 +2952,8 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
   my_off_t pos;
   my_off_t key_file_length= share->state.state.key_file_length;
   uint block_size= share->block_size;
-  my_bool transactional= share->base.born_transactional;
+  my_bool zero_lsn= share->base.born_transactional &&
+    !(param->testflag & T_ZEROFILL_KEEP_LSN);
   DBUG_ENTER("maria_zerofill_index");
 
   if (!(param->testflag & T_SILENT))
@@ -2979,7 +2980,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
                             llstr(pos, llbuff), my_errno);
       DBUG_RETURN(1);
     }
-    if (transactional)
+    if (zero_lsn)
       bzero(buff, LSN_SIZE);
     length= _ma_get_page_used(share, buff);
     /* Skip mailformed blocks */
@@ -3021,6 +3022,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
   pgcache_page_no_t page;
   uint block_size= share->block_size;
   MARIA_FILE_BITMAP *bitmap= &share->bitmap;
+  my_bool zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
   DBUG_ENTER("maria_zerofill_data");
 
   /* This works only with BLOCK_RECORD files */
@@ -3055,16 +3057,23 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
     page_type= buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK;
     switch ((enum en_page_type) page_type) {
     case UNALLOCATED_PAGE:
-      bzero(buff, block_size);
+      if (zero_lsn)
+        bzero(buff, block_size);
+      else
+        bzero(buff + LSN_SIZE, block_size - LSN_SIZE);
       break;
     case BLOB_PAGE:
       if (_ma_bitmap_get_page_bits(info, bitmap, page) == 0)
       {
         /* Unallocated page */
-        bzero(buff, block_size);
+        if (zero_lsn)
+          bzero(buff, block_size);
+        else
+          bzero(buff + LSN_SIZE, block_size - LSN_SIZE);
       }
       else
-        bzero(buff, LSN_SIZE);
+        if (zero_lsn)
+          bzero(buff, LSN_SIZE);
       break;
     case HEAD_PAGE:
     case TAIL_PAGE:
@@ -3073,7 +3082,8 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
       uint offset, dir_start;
       uchar *dir;
 
-      bzero(buff, LSN_SIZE);
+      if (zero_lsn)
+        bzero(buff, LSN_SIZE);
       if (max_entry != 0)
       {
         dir= dir_entry_pos(buff, block_size, max_entry - 1);
@@ -3123,7 +3133,8 @@ err:
 
 int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
 {
-  my_bool error, reenable_logging;
+  my_bool error, reenable_logging,
+    zero_lsn= !(param->testflag & T_ZEROFILL_KEEP_LSN);
   DBUG_ENTER("maria_zerofill");
   if ((reenable_logging= info->s->now_transactional))
     _ma_tmp_disable_logging_for_table(info, 0);
@@ -3132,11 +3143,12 @@ int maria_zerofill(HA_CHECK *param, MARIA_HA *info, const char *name)
                 _ma_set_uuid(info, 0))))
   {
     /*
-      Mark that table is movable and that we have done zerofill of data and
-      index
+      Mark that we have done zerofill of data and index. If we zeroed pages'
+      LSN, table is movable.
     */
-    info->s->state.changed&= ~(STATE_NOT_ZEROFILLED | STATE_NOT_MOVABLE |
-                               STATE_MOVED);
+    info->s->state.changed&= ~STATE_NOT_ZEROFILLED;
+    if (zero_lsn)
+      info->s->state.changed&= ~(STATE_NOT_MOVABLE | STATE_MOVED);
     /* Ensure state are flushed to disk */
     info->update= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
   }

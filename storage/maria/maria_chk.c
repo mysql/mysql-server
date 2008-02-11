@@ -183,7 +183,7 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_SKIP_SAFEMALLOC
+  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN
 };
 
 static struct my_option my_long_options[] =
@@ -375,6 +375,12 @@ static struct my_option my_long_options[] =
   { "zerofill", 'z',
     "Fill empty space in data and index files with zeroes",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+  { "zerofill-keep-lsn", OPT_ZEROFILL_KEEP_LSN,
+    "Like --zerofill but does not zero out LSN of data/index pages;"
+    " used only for testing and debugging",
+#endif
+    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -505,7 +511,13 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
                       Find a record, a block at given offset belongs to.\n\
-  -z,  --zerofill     Fill empty space in data and index files with zeroes.");
+  -z,  --zerofill     Fill empty space in data and index files with zeroes"
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+"\n\
+  --zerofill-keep-lsn Like --zerofill but does not zero out LSN of\n\
+                      data/index pages; used only for testing and debugging"
+#endif
+       ".");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -778,6 +790,14 @@ get_one_option(int optid,
     else
       check_param.testflag|= T_ZEROFILL;
     break;
+#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
+  case OPT_ZEROFILL_KEEP_LSN:
+    if (argument == disabled_my_option)
+      check_param.testflag&= ~(T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
+    else
+      check_param.testflag|= (T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
+    break;
+#endif
   case 'H':
     my_print_help(my_long_options);
     exit(0);
