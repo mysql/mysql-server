@@ -212,9 +212,9 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   uchar buffer[CF_MAX_SIZE];
   char name[FN_REFLEN], errmsg_buff[256];
   const char *errmsg;
-  MY_STAT stat_buff;
   uint new_cf_create_time_size, new_cf_changeable_size, new_block_size;
   uint retry;
+  my_off_t file_size;
   int open_flags= O_BINARY | /*O_DIRECT |*/ O_RDWR;
   int error= CONTROL_FILE_UNKNOWN_ERROR;
   DBUG_ENTER("ma_control_file_create_or_open");
@@ -252,13 +252,13 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
     goto err;
   }
 
-  if (my_stat(name, &stat_buff, MYF(0)) == NULL)
+  file_size= my_seek(control_file_fd, 0, SEEK_END, MYF(MY_WME));
+  if (file_size == MY_FILEPOS_ERROR)
   {
-    errmsg= "Can't read status";
+    errmsg= "Can't read size";
     goto err;
   }
-
-  if ((uint) stat_buff.st_size < CF_MIN_SIZE)
+  if (file_size < CF_MIN_SIZE)
   {
     /*
       Given that normally we write only a sector and it's atomic, the only
@@ -277,14 +277,14 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
   }
 
   /* Check if control file is unexpectedly big */
-  if ((uint)stat_buff.st_size > CF_MAX_SIZE)
+  if (file_size > CF_MAX_SIZE)
   {
     error= CONTROL_FILE_TOO_BIG;
     errmsg= "File size bigger than expected";
     goto err;
   }
 
-  if (my_read(control_file_fd, buffer, stat_buff.st_size, MYF(MY_FNABP)))
+  if (my_pread(control_file_fd, buffer, (size_t)file_size, 0, MYF(MY_FNABP)))
   {
     errmsg= "Can't read file";
     goto err;
@@ -312,8 +312,7 @@ CONTROL_FILE_ERROR ma_control_file_create_or_open()
 
   if (new_cf_create_time_size < CF_MIN_CREATE_TIME_TOTAL_SIZE ||
       new_cf_changeable_size <  CF_MIN_CHANGEABLE_TOTAL_SIZE ||
-      new_cf_create_time_size + new_cf_changeable_size !=
-      stat_buff.st_size)
+      new_cf_create_time_size + new_cf_changeable_size != file_size)
   {
     error= CONTROL_FILE_INCONSISTENT_INFORMATION;
     errmsg= "Sizes stored in control file are inconsistent";
