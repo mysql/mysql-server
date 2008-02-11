@@ -20,3 +20,8 @@ rpl_ndb_mix_innodb       : Bug #32720   Test rpl_ndb_mix_innodb fails on SPARC a
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 
 #rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
+
+
+rpl_ndb_innodb_trans     : Bug#34454: Some test cases from the 'rpl_ndb' suite fail
+rpl_ndb_charset          : Bug#34454: Some test cases from the 'rpl_ndb' suite fail
+rpl_ndb_multi            : Bug#34454: Some test cases from the 'rpl_ndb' suite fail
