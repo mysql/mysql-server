@@ -198,6 +198,7 @@
 #define ZUNSUPPORTED_BRANCH 892
 
 #define ZSTORED_SEIZE_ATTRINBUFREC_ERROR 873 // Part of Scan
+#define ZSTORED_TOO_MUCH_ATTRINFO_ERROR 874
 
 #define ZREAD_ONLY_CONSTRAINT_VIOLATION 893
 #define ZVAR_SIZED_NOT_SUPPORTED 894
@@ -1085,7 +1086,7 @@ public:
   /*
    * TUX checks if tuple is visible to scan.
    */
-  bool tuxQueryTh(Uint32 fragPtrI, Uint32 tupAddr, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, Uint32 savePointId);
+  bool tuxQueryTh(Uint32 fragPtrI, Uint32 pageId, Uint32 pageOffset, Uint32 tupVersion, Uint32 transId1, Uint32 transId2, bool dirty, Uint32 savePointId);
 
 private:
   BLOCK_DEFINES(Dbtup);
@@ -1942,6 +1943,8 @@ private:
   bool getPageThroughSavePoint(Operationrec* const regOperPtr,
                                Operationrec* const leaderOpPtr);
 
+  bool find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId);
+
   Uint32 calculateChecksum(Page* const pagePtr, Uint32 tupHeadOffset, Uint32 tupHeadSize);
   void setChecksum(Page* const pagePtr, Uint32 tupHeadOffset, Uint32 tupHeadSize);
 
@@ -2171,7 +2174,8 @@ private:
                      Operationrec* regOperPtr,
                      Uint32 lenAttrInfo);
   void storedSeizeAttrinbufrecErrorLab(Signal* signal,
-                                       Operationrec* regOperPtr);
+                                       Operationrec* regOperPtr,
+                                       Uint32 errorCode);
   bool storedProcedureAttrInfo(Signal* signal,
                                Operationrec* regOperPtr,
                                Uint32 length,
@@ -2466,5 +2470,23 @@ bool Dbtup::isPageUndoLogged(Fragrecord* const regFragPtr,
   }//if
   return false;
 }//Dbtup::isUndoLoggingNeeded()
+
+inline
+bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
+{
+  while (true) {
+    if (savepointId > loopOpPtr.p->savePointId) {
+      jam();
+      return true;
+    }
+    // note 5.0 has reversed next/prev pointers
+    loopOpPtr.i = loopOpPtr.p->nextActiveOp;
+    if (loopOpPtr.i == RNIL) {
+      break;
+    }
+    ptrCheckGuard(loopOpPtr, cnoOfOprec, operationrec);
+  }
+  return false;
+}
 
 #endif
