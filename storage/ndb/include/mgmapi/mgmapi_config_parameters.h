@@ -115,10 +115,13 @@
 #define CFG_DB_CHECKPOINT_SPEED_SR    165
 
 #define CFG_DB_MEMREPORT_FREQUENCY    166
+#define CFG_DB_BACKUP_REPORT_FREQUENCY    167
 
 #define CFG_DB_O_DIRECT               168
 
 #define CFG_DB_MAX_ALLOCATE           169
+#define CFG_DB_MICRO_GCP_INTERVAL     170 /* micro gcp */
+#define CFG_DB_MICRO_GCP_TIMEOUT      171
 
 #define CFG_DB_SGA                    198 /* super pool mem */
 #define CFG_DB_DATA_MEM_2             199 /* used in special build in 5.1 */
@@ -159,6 +162,10 @@
 #define CFG_TCP_SEND_BUFFER_SIZE      454
 #define CFG_TCP_RECEIVE_BUFFER_SIZE   455
 #define CFG_TCP_PROXY                 456
+#define CFG_TCP_RCV_BUF_SIZE          457
+#define CFG_TCP_SND_BUF_SIZE          458
+#define CFG_TCP_MAXSEG_SIZE           459
+#define CFG_TCP_BIND_INADDR_ANY       460
 
 #define CFG_SHM_SEND_SIGNAL_ID        500
 #define CFG_SHM_CHECKSUM              501

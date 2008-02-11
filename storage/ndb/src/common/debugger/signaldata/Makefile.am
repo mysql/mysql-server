@@ -23,7 +23,7 @@ libsignaldataprint_la_SOURCES = \
           SignalDataPrint.cpp SignalNames.cpp \
           ContinueB.cpp DihContinueB.cpp NdbfsContinueB.cpp \
           CloseComReqConf.cpp PackedSignal.cpp PrepFailReqRef.cpp \
-	  GCPSave.cpp DictTabInfo.cpp \
+	  GCP.cpp DictTabInfo.cpp \
 	  AlterTable.cpp AlterTab.cpp \
 	  CreateTrig.cpp AlterTrig.cpp DropTrig.cpp \
 	  FireTrigOrd.cpp TrigAttrInfo.cpp \

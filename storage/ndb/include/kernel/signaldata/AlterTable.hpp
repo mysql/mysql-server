@@ -38,6 +38,7 @@ class AlterTableReq {
   friend class NdbEventOperationImpl;
   friend class NdbDictInterface;
   friend class Dbdict;
+  friend class Dbtup;
   friend class Suma;
 
   /**
@@ -68,10 +69,11 @@ private:
   r = Changed range or list array
   t = Changed tablespace name array
   s = Changed tablespace id array
+  a = Add attribute
 
            1111111111222222222233
  01234567890123456789012345678901
- nf------------------------------
+ nfdrtsa-------------------------
 */
 #define NAME_SHIFT        (0)
 #define FRM_SHIFT         (1)
@@ -79,6 +81,7 @@ private:
 #define RANGE_LIST_SHIFT  (3)
 #define TS_NAME_SHIFT     (4)
 #define TS_SHIFT          (5)
+#define ADD_ATTR_SHIFT    (6)
 
  /**
    * Getters and setters
@@ -95,6 +98,8 @@ private:
   static void setTsNameFlag(UintR &  changeMask, Uint32 tsNameFlg);
   static Uint8 getTsFlag(const UintR & changeMask);
   static void setTsFlag(UintR &  changeMask, Uint32 tsFlg);
+  static Uint8 getAddAttrFlag(const UintR & changeMask);
+  static void setAddAttrFlag(UintR &  changeMask, Uint32 tsFlg);
 };
 
 inline
@@ -167,6 +172,18 @@ inline
 void
 AlterTableReq::setTsNameFlag(UintR & changeMask, Uint32 tsNameFlg){
   changeMask |= (tsNameFlg << TS_NAME_SHIFT);
+}
+
+inline
+Uint8
+AlterTableReq::getAddAttrFlag(const UintR & changeMask){
+  return (Uint8)((changeMask >> ADD_ATTR_SHIFT) & 1);
+}
+
+inline
+void
+AlterTableReq::setAddAttrFlag(UintR & changeMask, Uint32 addAttrFlg){
+  changeMask |= (addAttrFlg << ADD_ATTR_SHIFT);
 }
 
 

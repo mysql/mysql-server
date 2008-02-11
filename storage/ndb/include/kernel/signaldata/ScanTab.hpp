@@ -58,6 +58,10 @@ private:
   UintR apiConnectPtr;        // DATA 0
   UintR attrLenKeyLen;        // DATA 1
   UintR requestInfo;          // DATA 2
+  /*
+    Table ID. Note that for a range scan of a table using an ordered index,
+    tableID is the ID of the index, not of the underlying table.
+  */
   UintR tableId;              // DATA 3
   UintR tableSchemaVersion;   // DATA 4
   UintR storedProcId;         // DATA 5
@@ -111,7 +115,11 @@ private:
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11
- k = Keyinfo               - 1  Bit 12
+ k = Keyinfo               - 1  Bit 12  If set, LQH will send back a KEYINFO20
+                                        signal for each scanned row,
+                                        containing information needed to
+                                        identify the row for subsequent
+                                        TCKEYREQ signal(s).
  t = Tup scan              - 1  Bit 13
  z = Descending (TUX)      - 1  Bit 14
  x = Range Scan (TUX)      - 1  Bit 15
@@ -359,7 +367,16 @@ private:
 
   struct OpData {
     Uint32 apiPtrI;
+    /*
+      tcPtrI is the scan fragment record pointer, used in SCAN_NEXTREQ to
+      acknowledge the reception of the batch of rows from a fragment scan.
+      If RNIL, this means that this particular fragment is done scanning.
+    */
     Uint32 tcPtrI;
+    /*
+      info encodes the number of rows and the length of the data sent in
+      TRANSID_AI signals.
+    */
     Uint32 info;
   };
 
@@ -427,10 +444,25 @@ private:
  
 };
 
-/**
- * 
- * SENDER:  API
- * RECIVER: Dbtc
+/*
+  SENDER:  API
+  RECIVER: Dbtc
+
+  This signal is sent by API to acknowledge the reception of batches of rows
+  from one or more fragment scans, and to request the fetching of the next
+  batches of rows.
+
+  Any locks held by the transaction on rows in the previously fetched batches
+  are released (unless explicitly transfered to this or another transaction in
+  a TCKEYREQ signal with TakeOverScanFlag set).
+
+  The fragment scan batches to acknowledge are identified by the tcPtrI words
+  in the list of struct OpData received in ScanTabConf (scan fragment record
+  pointer).
+
+  The list of scan fragment record pointers is sent as an array of words,
+  inline in the signal if <= 21 words, else as the first section in a long
+  signal.
  */
 class ScanNextReq {
   /**
@@ -467,7 +499,12 @@ private:
   UintR transId2;             // DATA 3
 
   // stopScan = 1, stop this scan
- 
+
+  /*
+    After this data comes the list of scan fragment record pointers for the
+    fragment scans to acknowledge, if they fit within the 25 words available
+    in the signal (else they are sent in the first long signal section).
+  */
 };
 
 #endif

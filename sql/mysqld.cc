@@ -402,13 +402,17 @@ const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024]= {0};
 unsigned opt_ndb_constrbuf_len= 0;
 my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
-ulong opt_ndb_cache_check_time;
+ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
+ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
 #ifdef HAVE_NDB_BINLOG
 ulong ndb_report_thresh_binlog_epoch_slip;
 ulong ndb_report_thresh_binlog_mem_usage;
+my_bool opt_ndb_log_update_as_write;
+my_bool opt_ndb_log_updated_only;
+my_bool opt_ndb_log_orig;
 #endif
 
 extern const char *ndb_distribution_names[];
@@ -461,6 +465,7 @@ ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
 ulong slave_exec_mode_options;
 const char *slave_exec_mode_str= "STRICT";
+my_bool slave_allow_batching;
 ulong thread_cache_size=0, thread_pool_size= 0;
 ulong binlog_cache_size=0, max_binlog_cache_size=0;
 ulong query_cache_size=0;
@@ -5185,6 +5190,8 @@ enum options_mysqld
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
+  OPT_NDB_WAIT_CONNECTED,
+  OPT_NDB_CLUSTER_CONNECTION_POOL,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
   OPT_NDB_DISTRIBUTION,
   OPT_NDB_INDEX_STAT_ENABLE,
@@ -5192,6 +5199,8 @@ enum options_mysqld
   OPT_NDB_REPORT_THRESH_BINLOG_EPOCH_SLIP,
   OPT_NDB_REPORT_THRESH_BINLOG_MEM_USAGE,
   OPT_NDB_USE_COPYING_ALTER_TABLE,
+  OPT_NDB_LOG_UPDATE_AS_WRITE, OPT_NDB_LOG_UPDATED_ONLY,
+  OPT_NDB_LOG_ORIG,
   OPT_SKIP_SAFEMALLOC,
   OPT_TEMP_POOL, OPT_TX_ISOLATION, OPT_COMPLETION_TYPE,
   OPT_SKIP_STACK_TRACE, OPT_SKIP_SYMLINKS,
@@ -5204,7 +5213,7 @@ enum options_mysqld
   OPT_SLAVE_LOAD_TMPDIR, OPT_NO_MIX_TYPE,
   OPT_RPL_RECOVERY_RANK,OPT_INIT_RPL_ROLE,
   OPT_RELAY_LOG, OPT_RELAY_LOG_INDEX, OPT_RELAY_LOG_INFO_FILE,
-  OPT_SLAVE_SKIP_ERRORS, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
+  OPT_SLAVE_SKIP_ERRORS, OPT_SLAVE_ALLOW_BATCHING, OPT_DES_KEY_FILE, OPT_LOCAL_INFILE,
   OPT_SSL_SSL, OPT_SSL_KEY, OPT_SSL_CERT, OPT_SSL_CA,
   OPT_SSL_CAPATH, OPT_SSL_CIPHER,
   OPT_BACK_LOG, OPT_BINLOG_CACHE_SIZE,
@@ -5754,6 +5763,27 @@ master-ssl",
    (uchar**) &ndb_report_thresh_binlog_mem_usage,
    (uchar**) &ndb_report_thresh_binlog_mem_usage,
    0, GET_ULONG, REQUIRED_ARG, 10, 0, 100, 0, 0, 0},
+  {"ndb-log-update-as-write", OPT_NDB_LOG_UPDATE_AS_WRITE,
+   "For efficiency log only after image as a write event."
+   "Ignore before image.  This may cause compatability problems if"
+   "replicating to other storage engines than ndbcluster",
+   (uchar**) &opt_ndb_log_update_as_write,
+   (uchar**) &opt_ndb_log_update_as_write,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-log-updated-only", OPT_NDB_LOG_UPDATED_ONLY,
+   "For efficiency log only updated columns. Columns are considered "
+   "as \"updated\" even if they are updated with the same value. "
+   "This may cause compatability problems if"
+   "replicating to other storage engines than ndbcluster",
+   (uchar**) &opt_ndb_log_updated_only,
+   (uchar**) &opt_ndb_log_updated_only,
+   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+  {"ndb-log-orig", OPT_NDB_LOG_ORIG,
+   "Log originating server id and epoch in ndb_binlog_index.  Each epoch may in this case have "
+   "multiple rows in ndb_binlog_index, one for each originating epoch.",
+   (uchar**) &opt_ndb_log_orig,
+   (uchar**) &opt_ndb_log_orig,
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"ndb-use-exact-count", OPT_NDB_USE_EXACT_COUNT,
    "Use exact records count during query planning and for fast "
@@ -5796,13 +5826,22 @@ master-ssl",
    (uchar**) &global_system_variables.ndb_index_stat_enable,
    (uchar**) &max_system_variables.ndb_index_stat_enable,
    0, GET_BOOL, OPT_ARG, 0, 0, 1, 0, 0, 0},
-#endif
   {"ndb-use-copying-alter-table",
    OPT_NDB_USE_COPYING_ALTER_TABLE,
    "Force ndbcluster to always copy tables at alter table (should only be used if on-line alter table fails).",
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
    (uchar**) &global_system_variables.ndb_use_copying_alter_table,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},  
+  { "ndb-wait-connected", OPT_NDB_WAIT_CONNECTED,
+    "Time (in seconds) for mysqld to wait for connection to cluster management and data nodes.",
+    (uchar**) &opt_ndb_wait_connected, (uchar**) &opt_ndb_wait_connected,
+    0, GET_ULONG, REQUIRED_ARG, 0, 0, LONG_TIMEOUT, 0, 0, 0},
+  { "ndb-cluster-connection-pool", OPT_NDB_CLUSTER_CONNECTION_POOL,
+    "Pool of cluster connections to cluster to be used by mysql server.",
+    (uchar**) &opt_ndb_cluster_connection_pool,
+    (uchar**) &opt_ndb_cluster_connection_pool,
+    0, GET_ULONG, REQUIRED_ARG, 1, 1, 63, 0, 0, 0},
+#endif
   {"new", 'n', "Use very new possible 'unsafe' functions.",
    (uchar**) &global_system_variables.new_mode,
    (uchar**) &max_system_variables.new_mode,
@@ -6510,6 +6549,10 @@ The minimum value for this variable is 4096.",
    "before giving up and stopping.",
    (uchar**) &slave_trans_retries, (uchar**) &slave_trans_retries, 0,
    GET_ULONG, REQUIRED_ARG, 10L, 0L, (longlong) ULONG_MAX, 0, 1, 0},
+  {"slave-allow-batching", OPT_SLAVE_ALLOW_BATCHING,
+   "Allow slave to batch requests.",
+   (uchar**) &slave_allow_batching, (uchar**) &slave_allow_batching,
+   0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0},
 #endif /* HAVE_REPLICATION */
   {"slow_launch_time", OPT_SLOW_LAUNCH_TIME,
    "If creating the thread takes longer than this value (in seconds), the Slow_launch_threads counter will be incremented.",

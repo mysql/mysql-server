@@ -681,7 +681,11 @@ MgmApiSession::getVersion(Parser<MgmApiSession>::Context &,
   m_output->println("id: %d", NDB_VERSION);
   m_output->println("major: %d", getMajor(NDB_VERSION));
   m_output->println("minor: %d", getMinor(NDB_VERSION));
+  m_output->println("build: %d", getBuild(NDB_VERSION));
   m_output->println("string: %s", NDB_VERSION_STRING);
+  m_output->println("mysql_major: %d", getMajor(NDB_MYSQL_VERSION_D));
+  m_output->println("mysql_minor: %d", getMinor(NDB_MYSQL_VERSION_D));
+  m_output->println("mysql_build: %d", getBuild(NDB_MYSQL_VERSION_D));
   m_output->println("");
 }
 
@@ -971,13 +975,13 @@ printNodeStatus(OutputStream *output,
   while(mgmsrv.getNextNodeId(&nodeId, type)) {
     enum ndb_mgm_node_status status;
     Uint32 startPhase = 0, 
-      version = 0, 
+      version = 0, mysql_version = 0,
       dynamicId = 0, 
       nodeGroup = 0,
       connectCount = 0;
     bool system;
     const char *address= NULL;
-    mgmsrv.status(nodeId, &status, &version, &startPhase,
+    mgmsrv.status(nodeId, &status, &version, &mysql_version, &startPhase,
 		  &system, &dynamicId, &nodeGroup, &connectCount,
 		  &address);
     output->println("node.%d.type: %s",
@@ -985,8 +989,9 @@ printNodeStatus(OutputStream *output,
 		      ndb_mgm_get_node_type_string(type));
     output->println("node.%d.status: %s",
 		      nodeId,
-		      ndb_mgm_get_node_status_string(status));
+		    ndb_mgm_get_node_status_string(status));
     output->println("node.%d.version: %d", nodeId, version);
+    output->println("node.%d.mysql_version: %d", nodeId, mysql_version);
     output->println("node.%d.startphase: %d", nodeId, startPhase);
     output->println("node.%d.dynamic_id: %d", nodeId, dynamicId);
     output->println("node.%d.node_group: %d", nodeId, nodeGroup);
@@ -1291,7 +1296,8 @@ operator<<(NdbOut& out, const LogLevel & ll)
 #endif
 
 void
-Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId){
+Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, 
+			    Uint32 len, NodeId nodeId){
   
   Uint32 threshold;
   LogLevel::EventCategory cat;
@@ -1306,7 +1312,7 @@ Ndb_mgmd_event_service::log(int eventType, const Uint32* theData, NodeId nodeId)
 
   char m_text[512];
   EventLogger::getText(m_text, sizeof(m_text),
-		       textF, theData, nodeId);
+		       textF, theData, len, nodeId);
 
   BaseString str("log event reply\n");
   str.appfmt("type=%d\n", eventType);
@@ -1690,7 +1696,7 @@ MgmApiSession::report_event(Parser_t::Context &ctx,
     sscanf(item[i].c_str(), "%u", data+i);
   }
 
-  m_mgmsrv.eventReport(data);
+  m_mgmsrv.eventReport(data, length);
   m_output->println("report event reply");
   m_output->println("result: ok");
   m_output->println("");

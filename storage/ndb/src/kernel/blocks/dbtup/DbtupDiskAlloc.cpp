@@ -528,7 +528,11 @@ Dbtup::disk_page_prealloc(Signal* signal,
       }
 #endif
       
-      ndbout << "allocated " << pages << " pages: " << ext.p->m_key << endl;
+#ifdef VM_TRACE
+      ndbout << "allocated " << pages << " pages: " << ext.p->m_key 
+	     << " table: " << fragPtr.p->fragTableId 
+	     << " fragment: " << fragPtr.p->fragmentId << endl;
+#endif
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       bzero(ext.p->m_free_page_count, sizeof(ext.p->m_free_page_count));
       ext.p->m_free_space= alloc.m_page_free_bits_map[0] * pages; 
@@ -1797,13 +1801,15 @@ Dbtup::disk_restart_alloc_extent(Uint32 tableId, Uint32 fragId,
 
     if (!fragPtr.isNull())
     {
+      jam();
       Disk_alloc_info& alloc= fragPtr.p->m_disk_alloc_info;
       
       Ptr<Extent_info> ext;
       ndbrequire(c_extent_pool.seize(ext));
-      
-      ndbout << "allocated " << pages << " pages: " << *key << endl;
-      
+#ifdef VM_TRACE
+      ndbout << "allocated " << pages << " pages: " << *key 
+	     << " table: " << tabPtr.i << " fragment: " << fragId << endl;
+#endif      
       ext.p->m_key = *key;
       ext.p->m_first_page_no = ext.p->m_key.m_page_no;
       ext.p->m_free_space= 0;

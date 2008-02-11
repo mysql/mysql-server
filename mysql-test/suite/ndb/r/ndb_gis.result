@@ -430,6 +430,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment
@@ -980,6 +982,8 @@ mpg	multipolygon	YES		NULL
 gc	geometrycollection	YES		NULL	
 gm	geometry	YES		NULL	
 ALTER TABLE t1 ADD fid INT;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 SHOW FIELDS FROM t1;
 Field	Type	Null	Key	Default	Extra
 a	int(11)	NO	PRI	NULL	auto_increment

@@ -50,6 +50,8 @@ const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
 unsigned int opt_verbose;
 unsigned int opt_hex_format;
+unsigned int opt_progress_frequency;
+unsigned int g_report_next;
 Vector<BaseString> g_databases;
 Vector<BaseString> g_tables;
 NdbRecordPrintFormat g_ndbrecord_print_format;
@@ -86,6 +88,7 @@ enum ndb_restore_options {
   OPT_FIELDS_OPTIONALLY_ENCLOSED_BY,
   OPT_LINES_TERMINATED_BY,
   OPT_APPEND,
+  OPT_PROGRESS_FREQUENCY,
   OPT_VERBOSE
 };
 static const char *opt_fields_enclosed_by= NULL;
@@ -190,6 +193,10 @@ static struct my_option my_long_options[] =
   { "lines-terminated-by", OPT_LINES_TERMINATED_BY, "",
     (uchar**) &opt_lines_terminated_by, (uchar**) &opt_lines_terminated_by, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "progress-frequency", OPT_PROGRESS_FREQUENCY,
+    "Print status uf restore periodically in given seconds", 
+    (uchar**) &opt_progress_frequency, (uchar**) &opt_progress_frequency, 0,
+    GET_INT, REQUIRED_ARG, 0, 0, 65535, 0, 0, 0 },
   { "verbose", OPT_VERBOSE,
     "verbosity", 
     (uchar**) &opt_verbose, (uchar**) &opt_verbose, 0,
@@ -639,6 +646,37 @@ static void exitHandler(int code)
     exit(code);
 }
 
+static void init_progress()
+{
+  struct timeval the_time;
+  gettimeofday(&the_time, 0);
+  g_report_next = the_time.tv_sec + opt_progress_frequency;
+}
+
+static int check_progress()
+{
+  if (!opt_progress_frequency)
+    return 0;
+  struct timeval the_time;
+  gettimeofday(&the_time, 0);
+  if (the_time.tv_sec >= g_report_next)
+  {
+    g_report_next = the_time.tv_sec + opt_progress_frequency;
+    return 1;
+  }
+  return 0;
+}
+
+static void report_progress(const char *prefix, const BackupFile &f)
+{
+  info.setLevel(255);
+  if (f.get_file_size())
+    info << prefix << (f.get_file_pos() * 100 + f.get_file_size()-1) / f.get_file_size() 
+         << "%(" << f.get_file_pos() << " bytes)\n";
+  else
+    info << prefix << f.get_file_pos() << " bytes\n";
+}
+
 int
 main(int argc, char** argv)
 {
@@ -667,6 +705,9 @@ main(int argc, char** argv)
   g_options.appfmt(" -p %d", ga_nParallelism);
 
   g_connect_string = opt_connect_str;
+
+  init_progress();
+
   /**
    * we must always load meta data, even if we will only print it to stdout
    */
@@ -684,7 +725,7 @@ main(int argc, char** argv)
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
   info << "Ndb version in backup files: " 
-       <<  ndbGetVersionString(version, 0, buf, sizeof(buf)) << endl;
+       <<  ndbGetVersionString(version, 0, 0, buf, sizeof(buf)) << endl;
   
   /**
    * check wheater we can restore the backup (right version).
@@ -694,9 +735,9 @@ main(int argc, char** argv)
   if (version >= MAKE_VERSION(5,1,3) && version <= MAKE_VERSION(5,1,9))
   {
     err << "Restore program incompatible with backup versions between "
-        << ndbGetVersionString(MAKE_VERSION(5,1,3), 0, buf, sizeof(buf))
+        << ndbGetVersionString(MAKE_VERSION(5,1,3), 0, 0, buf, sizeof(buf))
         << " and "
-        << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, buf, sizeof(buf))
+        << ndbGetVersionString(MAKE_VERSION(5,1,9), 0, 0, buf, sizeof(buf))
         << endl;
     exitHandler(NDBT_FAILED);
   }
@@ -741,6 +782,11 @@ main(int argc, char** argv)
     }
 
   }
+
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_started(ga_backupId, ga_nodeId);
+
   debug << "Restore objects (tablespaces, ..)" << endl;
   for(i = 0; i<metaData.getNoOfObjects(); i++)
   {
@@ -752,6 +798,13 @@ main(int argc, char** argv)
         err << metaData[i]->getTableName() << " ... Exiting " << endl;
 	exitHandler(NDBT_FAILED);
       } 
+    if (check_progress())
+    {
+      info.setLevel(255);
+      info << "Object create progress: "
+           << i+1 << " objects out of "
+           << metaData.getNoOfObjects() << endl;
+    }
   }
 
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
@@ -807,6 +860,13 @@ main(int argc, char** argv)
           exitHandler(NDBT_FAILED);
         }
     }
+    if (check_progress())
+    {
+      info.setLevel(255);
+      info << "Table create progress: "
+           << i+1 << " tables out of "
+           << metaData.getNoOfTables() << endl;
+    }
   }
   debug << "Close tables" << endl; 
   for(i= 0; i < g_consumers.size(); i++)
@@ -815,6 +875,11 @@ main(int argc, char** argv)
       err << "Restore: Failed while closing tables" << endl;
       exitHandler(NDBT_FAILED);
     } 
+  /* report to clusterlog if applicable */
+  for(i= 0; i < g_consumers.size(); i++)
+  {
+    g_consumers[i]->report_meta_data(ga_backupId, ga_nodeId);
+  }
   debug << "Iterate over data" << endl; 
   if (ga_restore || ga_print) 
   {
@@ -858,6 +923,8 @@ main(int argc, char** argv)
           for(Uint32 j= 0; j < g_consumers.size(); j++) 
             g_consumers[j]->tuple(* tuple, fragmentId);
           ndbout.m_out =  tmp;
+          if (check_progress())
+            report_progress("Data file progress: ", dataIter);
 	} // while (tuple != NULL);
 	
 	if (res < 0)
@@ -885,6 +952,12 @@ main(int argc, char** argv)
       
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfTuples();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_data(ga_backupId, ga_nodeId);
+      }
     }
 
     if(_restore_data || _print_log)
@@ -905,6 +978,9 @@ main(int argc, char** argv)
           continue;
         for(Uint32 j= 0; j < g_consumers.size(); j++)
           g_consumers[j]->logEntry(* logEntry);
+
+        if (check_progress())
+          report_progress("Log file progress: ", logIter);
       }
       if (res < 0)
       {
@@ -915,6 +991,12 @@ main(int argc, char** argv)
       logIter.validateFooter(); //not implemented
       for (i= 0; i < g_consumers.size(); i++)
 	g_consumers[i]->endOfLogEntrys();
+
+      /* report to clusterlog if applicable */
+      for(i= 0; i < g_consumers.size(); i++)
+      {
+        g_consumers[i]->report_log(ga_backupId, ga_nodeId);
+      }
     }
     
     if(_restore_data)
@@ -945,7 +1027,8 @@ main(int argc, char** argv)
       }
   }
 
-  for(Uint32 j= 0; j < g_consumers.size(); j++) 
+  unsigned j;
+  for(j= 0; j < g_consumers.size(); j++) 
   {
     if (g_consumers[j]->has_temp_error())
     {
@@ -955,6 +1038,10 @@ main(int argc, char** argv)
     }               
   }
   
+  /* report to clusterlog if applicable */
+  for (i = 0; i < g_consumers.size(); i++)
+    g_consumers[i]->report_completed(ga_backupId, ga_nodeId);
+
   clearConsumers();
 
   for(i = 0; i < metaData.getNoOfTables(); i++)

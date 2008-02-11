@@ -386,6 +386,8 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
       (theStatus != Init)){
     m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     if (theStatus != GetValue) {
+      if (theStatus == UseNdbRecord)
+        return getValue_NdbRecord(tAttrInfo, aValue);
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
 	  ; // Simply continue with getValue
@@ -401,7 +403,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
 	  setErrorCodeAbort(4230);
 	  return NULL;
 	}//if
-	// MASV - How would execution come here?
+        /* Final read, after running interpreted instructions. */
 	theStatus = FinalGetValue;
       } else {
 	setErrorCodeAbort(4230);
@@ -433,6 +435,23 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
   }//if
   setErrorCodeAbort(4200);
   return NULL;
+}
+
+NdbRecAttr*
+NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
+{
+  NdbRecAttr* tRecAttr;
+  /*
+    For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
+    the signal data will be constructed later.
+  */
+  if((tRecAttr = theReceiver.getValue(tAttrInfo, aValue)) != 0) {
+    theErrorLine++;
+    return tRecAttr;
+  } else {
+    setErrorCodeAbort(4000);
+    return NULL;
+  }
 }
 
 /*****************************************************************************
@@ -607,9 +626,27 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 int
 NdbOperation::setAnyValue(Uint32 any_value)
 {
+  OperationType tOpType = theOperationType;
+
+  if (theStatus == UseNdbRecord)
+  {
+    switch(tOpType)
+    {
+      case InsertRequest:
+      case WriteRequest:
+      case UpdateRequest:
+      case DeleteRequest:
+        m_any_value= any_value;
+        m_use_any_value= 1;
+        return 0;
+      default:
+        setErrorCodeAbort(4504);
+        return -1;
+    }
+  }
+
   const NdbColumnImpl* impl =
     &NdbColumnImpl::getImpl(* NdbDictionary::Column::ANY_VALUE);
-  OperationType tOpType = theOperationType;
 
   switch(tOpType){
   case DeleteRequest:{
@@ -640,6 +677,18 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
     tLastBlob = tBlob;
     tBlob = tBlob->theNext;
   }
+
+  /*
+    For NdbRecord operation, we only fetch existing blob handles here,
+    creation must be done by requesting the blob in the NdbRecord and
+    mask when creating the operation.
+  */
+  if (m_attribute_record)
+  {
+    setErrorCodeAbort(4288);
+    return NULL;
+  }
+
   tBlob = theNdb->getNdbBlob();
   if (tBlob == NULL)
     return NULL;
@@ -654,6 +703,164 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
   return tBlob;
+}
+
+/*
+  This is used to set up a blob handle for an NdbRecord operation.
+
+  It allocates the NdbBlob object, initialises it, and links it into the
+  operation.
+
+  There are two cases for how to set up the primary key info:
+    1. Normal primary key or hash index key operations. The keyinfo argument
+       is passed as NULL, and the key value is read from the NdbRecord and
+       row passed from the application.
+    2. Take-over scan operation. The keyinfo argument points to a buffer
+       containing KEYINFO20 data.
+
+  For a scan operation, there is no key info to set up at prepare time.
+*/
+NdbBlob *
+NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
+                               const NdbColumnImpl *column,
+                               NdbBlob * & lastPtr)
+{
+  int res;
+
+  NdbBlob *bh= theNdb->getNdbBlob();
+  if (bh == NULL)
+    return NULL;
+
+  if (theOperationType == OpenScanRequest ||
+      theOperationType == OpenRangeScanRequest)
+  {
+    res= bh->atPrepareNdbRecordScan(aCon, this, column);
+  }
+  else if (m_key_record == NULL)
+  {
+    /* This means that we have a scan take-over operation, and we should
+       obtain the key from KEYINFO20 data.
+    */
+    res= bh->atPrepareNdbRecordTakeover(aCon, this, column,
+                                        m_key_row, m_keyinfo_length*4);
+  }
+  else
+  {
+    res= bh->atPrepareNdbRecord(aCon, this, column, m_key_record, m_key_row);
+  }
+  if (res == -1)
+  {
+    theNdb->releaseNdbBlob(bh);
+    return NULL;
+  }
+  if (lastPtr)
+    lastPtr->theNext= bh;
+  else
+    theBlobList= bh;
+  lastPtr= bh;
+  bh->theNext= NULL;
+  theNdbCon->theBlobFlag= true;
+
+  return bh;
+}
+
+/*
+  Setup blob handles for an NdbRecord operation.
+
+  Create blob handles for all requested blob columns.
+
+  For read request, store the pointers to blob handles in the row.
+*/
+int
+NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
+{
+  NdbBlob *lastBlob= NULL;
+
+  for (Uint32 i= 0; i<m_attribute_record->noOfColumns; i++)
+  {
+    const NdbRecord::Attr *col= &m_attribute_record->columns[i];
+    if (!(col->flags & NdbRecord::IsBlob))
+      continue;
+
+    Uint32 attrId= col->attrId;
+    if (!BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                          m_read_mask, attrId))
+      continue;
+
+    const NdbColumnImpl *tableColumn= m_currentTable->getColumn(attrId);
+    assert(tableColumn != NULL);
+
+    NdbBlob *bh= linkInBlobHandle(aCon, tableColumn, lastBlob);
+    if (bh == NULL)
+      return -1;
+
+    if (theOperationType == ReadRequest || theOperationType == ReadExclusive)
+    {
+      /*
+        For read request, it is safe to cast away const-ness for the
+        m_attribute_row.
+      */
+      memcpy((char *)&m_attribute_row[col->offset], &bh, sizeof(bh));
+    }
+  }
+
+  return 0;
+}
+
+/*
+  For a delete, we need to create blob handles for all table blob columns,
+  so that we can be sure to delete all blob parts for the row.
+*/
+int
+NdbOperation::getBlobHandlesDelete(NdbTransaction* aCon)
+{
+  NdbBlob *lastBlob= NULL;
+
+  assert(theOperationType == DeleteRequest);
+
+  for (Uint32 i= 0; i < m_currentTable->m_columns.size(); i++)
+  {
+    const NdbColumnImpl* c= m_currentTable->m_columns[i];
+    assert(c != 0);
+    if (!c->getBlobType())
+      continue;
+
+    NdbBlob *bh= linkInBlobHandle(aCon, c, lastBlob);
+    if (bh == NULL)
+      return -1;
+  }
+
+  return 0;
+}
+
+NdbRecAttr*
+NdbOperation::getVarValue(const NdbColumnImpl* tAttrInfo,
+                          char* aBareValue, Uint16* aLenLoc)
+{
+  NdbRecAttr* ra = getValue(tAttrInfo, aBareValue);
+  if (ra != NULL) {
+    assert(aLenLoc != NULL);
+    ra->m_getVarValue = aLenLoc;
+  }
+  return ra;
+}
+
+int
+NdbOperation::setVarValue(const NdbColumnImpl* tAttrInfo,
+                          const char* aBareValue, const Uint16& aLen)
+{
+  DBUG_ENTER("NdbOperation::setVarValue");
+  DBUG_PRINT("info", ("aLen=%u", (Uint32)aLen));
+
+  // wl3717_todo not optimal..
+  Uint64 buf[2048];
+  unsigned char* p = (unsigned char*)buf;
+  p[0] = (aLen & 0xff);
+  p[1] = (aLen >> 8);
+  memcpy(&p[2], aBareValue, aLen);
+  if (setValue(tAttrInfo, (char*)buf) == -1)
+    DBUG_RETURN(-1);
+  DBUG_RETURN(0);
 }
 
 /****************************************************************************

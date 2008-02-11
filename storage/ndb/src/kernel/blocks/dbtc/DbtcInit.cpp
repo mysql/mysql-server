@@ -278,6 +278,7 @@ Dbtc::Dbtc(Block_context& ctx):
   
   addRecSignal(GSN_ALTER_TAB_REQ, &Dbtc::execALTER_TAB_REQ);
   addRecSignal(GSN_ROUTE_ORD, &Dbtc::execROUTE_ORD);
+  addRecSignal(GSN_TCKEY_FAILREFCONF_R, &Dbtc::execTCKEY_FAILREFCONF_R);
   
   cacheRecord = 0;
   apiConnectRecord = 0;

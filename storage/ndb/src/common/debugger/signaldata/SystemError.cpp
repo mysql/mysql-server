@@ -28,11 +28,13 @@ printSYSTEM_ERROR(FILE * output, const Uint32 * theData, Uint32 len,
 	  sig->errorRef);   
   fprintf(output, "errorCode: %d\n", 
 	  sig->errorCode);  
-  fprintf(output, "data1: H\'%.8x\n", 
-	  sig->data1);   
-  fprintf(output, "data2: H\'%.8x\n", 
-	  sig->data2);    
-
+  if (len >= 2)
+  {
+    for (Uint32 i = 0; i<len - 2; i++)
+    {
+      fprintf(output, "data[%u]: H\'%.8x\n", i, sig->data[i]);
+    }
+  }
   return true;
 }
 

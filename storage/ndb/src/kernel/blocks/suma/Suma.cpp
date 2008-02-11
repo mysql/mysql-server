@@ -38,7 +38,6 @@
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
-#include <signaldata/GCPSave.hpp>
 #include <signaldata/CreateTab.hpp>
 #include <signaldata/DropTab.hpp>
 #include <signaldata/AlterTable.hpp>
@@ -500,7 +499,7 @@ Suma::send_handover_req(Signal* signal)
   c_startup.m_handover_nodes.assign(c_alive_nodes);
   c_startup.m_handover_nodes.bitAND(c_nodes_in_nodegroup_mask);
   c_startup.m_handover_nodes.clear(getOwnNodeId());
-  Uint32 gci= m_last_complete_gci + 3;
+  Uint32 gci= (m_last_complete_gci >> 32) + 3;
   
   SumaHandoverReq* req= (SumaHandoverReq*)signal->getDataPtrSend();
   char buf[255];
@@ -541,15 +540,28 @@ Suma::execCONTINUEB(Signal* signal){
   Uint32 type= signal->theData[0];
   switch(type){
   case SumaContinueB::RELEASE_GCI:
-    release_gci(signal, signal->theData[1], signal->theData[2]);
+  {
+    Uint32 gci_hi = signal->theData[2];
+    Uint32 gci_lo = signal->theData[3];
+    Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+    release_gci(signal, signal->theData[1], gci);
     return;
+  }
   case SumaContinueB::RESEND_BUCKET:
+  {
+    Uint32 min_gci_hi = signal->theData[2];
+    Uint32 min_gci_lo = signal->theData[5];
+    Uint32 last_gci_hi = signal->theData[4];
+    Uint32 last_gci_lo = signal->theData[6];
+    Uint64 min_gci = min_gci_lo | (Uint64(min_gci_hi) << 32);
+    Uint64 last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
     resend_bucket(signal, 
 		  signal->theData[1], 
-		  signal->theData[2],
+		  min_gci,
 		  signal->theData[3],
-		  signal->theData[4]);
+		  last_gci);
     return;
+  }
   case SumaContinueB::OUT_OF_BUFFER_RELEASE:
     out_of_buffer_release(signal, signal->theData[1]);
     return;
@@ -604,7 +616,8 @@ void Suma::execAPI_FAILREQ(Signal* signal)
   for(c_gcp_list.first(gcp); !gcp.isNull(); c_gcp_list.next(gcp))
   {
     jam();
-    ack->rep.gci = gcp.p->m_gci;
+    ack->rep.gci_hi = gcp.p->m_gci >> 32;
+    ack->rep.gci_lo = gcp.p->m_gci & 0xFFFFFFFF;
     if(gcp.p->m_subscribers.get(failedApiNode))
     {
       jam();
@@ -769,8 +782,6 @@ Suma::execNODE_FAILREP(Signal* signal){
     }
   }
   
-  signal->theData[0] = SumaContinueB::RESEND_BUCKET;
-
   NdbNodeBitmask tmp;
   tmp.assign(c_alive_nodes);
   tmp.bitANDC(failed);
@@ -1829,8 +1840,9 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
   suma.suma_ndbrequire(s == SimpleProperties::Break);
 
 #if 0
-ToDo handle this
-  if(m_schemaVersion != tableDesc.TableVersion){
+  //ToDo handle this
+  if(table_version_major(m_schemaVersion) !=
+     table_version_major(tableDesc.TableVersion)){
     jam();
 
     release(* this);
@@ -1879,76 +1891,7 @@ ToDo handle this
   }
 #endif
 
-  if(m_attributes.getSize() != 0){
-    jam();
-    DBUG_RETURN(true);
-  }
-
-  /**
-   * Initialize table object
-   */
-  Uint32 noAttribs = tableDesc.NoOfAttributes;
-  Uint32 notFixed = (tableDesc.NoOfNullable+tableDesc.NoOfVariable);
-  m_schemaVersion = tableDesc.TableVersion;
-  
-  // The attribute buffer
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  
-  // Temporary buffer
-  DataBuffer<15> theRest(suma.c_dataBufferPool);
-
-  if(!attrBuf.seize(noAttribs)){
-    jam();
-    suma.suma_ndbrequire(false);
-    DBUG_RETURN(false);
-  }
-  
-  if(!theRest.seize(notFixed)){
-    jam();
-    suma.suma_ndbrequire(false);
-    DBUG_RETURN(false);
-  }
-  
-  DataBuffer<15>::DataBufferIterator attrIt; // Fixed not nullable
-  DataBuffer<15>::DataBufferIterator restIt; // variable + nullable
-  attrBuf.first(attrIt);
-  theRest.first(restIt);
-  
-  for(Uint32 i = 0; i < noAttribs; i++) {
-    DictTabInfo::Attribute attrDesc; attrDesc.init();
-    s = SimpleProperties::unpack(it, &attrDesc, 
-				 DictTabInfo::AttributeMapping, 
-				 DictTabInfo::AttributeMappingSize, 
-				 true, true);
-    jam();
-    suma.suma_ndbrequire(s == SimpleProperties::Break);
-
-    if (!attrDesc.AttributeNullableFlag 
-	/* && !attrDesc.AttributeVariableFlag */) {
-      jam();
-      * attrIt.data = attrDesc.AttributeId;
-      attrBuf.next(attrIt);
-    } else {
-      jam();
-      * restIt.data = attrDesc.AttributeId;
-      theRest.next(restIt);
-    }
-    
-    // Move to next attribute
-    it.next();
-  }
-
-  /**
-   * Put the rest in end of attrBuf
-   */
-  theRest.first(restIt);
-  for(; !restIt.isNull(); theRest.next(restIt)){
-    * attrIt.data = * restIt.data;
-    attrBuf.next(attrIt);
-  }
-
-  theRest.release();
-  
+  m_noOfAttributes = tableDesc.NoOfAttributes;
   DBUG_RETURN(true);
 }
 
@@ -2180,9 +2123,6 @@ Suma::SyncRecord::nextScan(Signal* signal)
   suma.c_subscriptions.getPtr(subPtr, m_subscriptionPtrI);
  
   DataBuffer<15>::Head head = m_attributeList;
-  if(head.getSize() == 0){
-    head = tabPtr.p->m_attributes;
-  }
   LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, head);
   
   ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
@@ -2504,7 +2444,7 @@ Suma::execSUB_START_REQ(Signal* signal){
 void
 Suma::sendSubStartComplete(Signal* signal,
 			   SubscriberPtr subbPtr, 
-			   Uint32 firstGCI,
+			   Uint64 firstGCI,
 			   SubscriptionData::Part part)
 {
   jam();
@@ -2827,8 +2767,10 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
 
   // let subscriber know that subscrber is stopped
   {
+    const Uint64 gci = get_current_gci(signal);
     SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
-    data->gci            = m_last_complete_gci + 1; // XXX ???
+    data->gci_hi         = Uint32(gci >> 32);
+    data->gci_lo         = Uint32(gci);
     data->tableId        = 0;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, 
@@ -2866,12 +2808,14 @@ Suma::reportAllSubscribers(Signal *signal,
                            SubscriptionPtr subPtr,
                            SubscriberPtr subbPtr)
 {
+  const Uint64 gci = get_current_gci(signal);
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
 
   if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE &&
       !c_startup.m_restart_server_node_id)
   {
-    data->gci            = m_last_complete_gci + 1;
+    data->gci_hi         = Uint32(gci >> 32);
+    data->gci_lo         = Uint32(gci);
     data->tableId        = subPtr.p->m_tableId;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, 
@@ -2900,7 +2844,8 @@ Suma::reportAllSubscribers(Signal *signal,
   ndbout_c("reportAllSubscribers  subPtr.i: %d  subPtr.p->n_subscribers: %d",
            subPtr.i, subPtr.p->n_subscribers);
 //#endif
-  data->gci            = m_last_complete_gci + 1;
+  data->gci_hi         = Uint32(gci >> 32);
+  data->gci_lo         = Uint32(gci);
   data->tableId        = subPtr.p->m_tableId;
   data->requestInfo    = 0;
   SubTableData::setOperation(data->requestInfo, table_event);
@@ -2997,7 +2942,8 @@ Suma::Table::setupTrigger(Signal* signal,
       req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
       req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
       req->setMonitorReplicas(true);
-      req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
+      //req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
+      req->setMonitorAllAttributes(true);
       req->setReceiverRef(SUMA_REF);
       req->setTriggerId(triggerId);
       req->setTriggerEvent((TriggerEvent::Value)j);
@@ -3024,11 +2970,8 @@ Suma::Table::createAttributeMask(AttributeMask& mask,
 {
   jam();
   mask.clear();
-  DataBuffer<15>::DataBufferIterator it;
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  for(attrBuf.first(it); !it.curr.isNull(); attrBuf.next(it)){
-    mask.set(* it.data);
-  }
+  for(Uint32 i = 0; i<m_noOfAttributes; i++)
+    mask.set(i);
 }
 
 void
@@ -3348,7 +3291,8 @@ Suma::execTRANSID_AI(Signal* signal)
   sdata->requestInfo = 0;
   SubTableData::setOperation(sdata->requestInfo, 
 			     NdbDictionary::Event::_TE_SCAN); // Scan
-  sdata->gci = 0; // Undefined
+  sdata->gci_hi = 0; // Undefined
+  sdata->gci_lo = 0;
 #if PRINT_ONLY
   ndbout_c("GSN_SUB_TABLE_DATA (scan) #attr: %d len: %d", attribs, sum);
 #else
@@ -3467,12 +3411,12 @@ Suma::get_responsible_node(Uint32 bucket, const NdbNodeBitmask& mask) const
 }
 
 bool
-Suma::check_switchover(Uint32 bucket, Uint32 gci)
+Suma::check_switchover(Uint32 bucket, Uint64 gci)
 {
   const Uint32 send_mask = (Bucket::BUCKET_STARTING | Bucket::BUCKET_TAKEOVER);
   bool send = c_buckets[bucket].m_state & send_mask;
   ndbassert(m_switchover_buckets.get(bucket));
-  if(unlikely(gci >= c_buckets[bucket].m_switchover_gci))
+  if(unlikely(gci > c_buckets[bucket].m_switchover_gci))
   {
     return send;
   }
@@ -3527,11 +3471,15 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
   FireTrigOrd* const trg = (FireTrigOrd*)signal->getDataPtr();
   const Uint32 trigId    = trg->getTriggerId();
   const Uint32 hashValue = trg->getHashValue();
-  const Uint32 gci       = trg->getGCI();
+  const Uint32 gci_hi    = trg->getGCI();
+  const Uint32 gci_lo    = trg->m_gci_lo;
+  const Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   const Uint32 event     = trg->getTriggerEvent();
   const Uint32 any_value = trg->getAnyValue();
   TablePtr tabPtr;
   tabPtr.i               = trigId & 0xFFFF;
+
+  ndbassert(gci > m_last_complete_gci);
 
   DBUG_PRINT("enter",("tabPtr.i=%u", tabPtr.i));
   ndbrequire(f_bufferLock == trigId);
@@ -3565,7 +3513,8 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     ndbrequire((tabPtr.p = c_tablePool.getPtr(tabPtr.i)) != 0);
     
     SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
-    data->gci            = gci;
+    data->gci_hi         = gci_hi;
+    data->gci_lo         = gci_lo;
     data->tableId        = tableId;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, event);
@@ -3613,7 +3562,28 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   ndbassert(signal->getNoOfSections() == 0);
 
   SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
-  Uint32 gci = m_last_complete_gci = rep->gci;
+  Uint32 gci_hi = rep->gci_hi;
+  Uint32 gci_lo = rep->gci_lo;
+  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+  Uint32 flags = rep->flags;
+
+#ifdef VM_TRACE
+  if (m_gcp_monitor == 0)
+  {
+  }
+  else if (gci_hi == Uint32(m_gcp_monitor >> 32))
+  {
+    ndbrequire(gci_lo == Uint32(m_gcp_monitor) + 1);
+  }
+  else
+  {
+    ndbrequire(gci_hi == Uint32(m_gcp_monitor >> 32) + 1);
+    ndbrequire(gci_lo == 0);
+  }
+  m_gcp_monitor = gci;
+#endif
+
+  m_last_complete_gci = gci;
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
@@ -3626,11 +3596,17 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     Uint32 i = m_switchover_buckets.find(0);
     for(; i != Bucket_mask::NotFound; i = m_switchover_buckets.find(i + 1))
     {
-      if(c_buckets[i].m_switchover_gci == gci)
+      if(gci > c_buckets[i].m_switchover_gci)
       {
 	Uint32 state = c_buckets[i].m_state;
 	m_switchover_buckets.clear(i);
-	printf("switchover complete bucket %d state: %x", i, state);
+	printf("%u/%u (%u/%u) switchover complete bucket %d state: %x", 
+	       Uint32(gci >> 32),
+	       Uint32(gci),
+	       Uint32(c_buckets[i].m_switchover_gci >> 32),
+	       Uint32(c_buckets[i].m_switchover_gci),
+	       i, state);
+
 	if(state & Bucket::BUCKET_STARTING)
 	{
 	  /**
@@ -3653,7 +3629,9 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 	  Buffer_page* page= (Buffer_page*)
 	    m_tup->c_page_pool.getPtr(pos.m_page_id);
 	  ndbout_c("takeover %d", pos.m_page_id);
-	  page->m_max_gci = pos.m_max_gci;
+	  page->m_max_gci_hi = pos.m_max_gci >> 32;
+          page->m_max_gci_lo = pos.m_max_gci & 0xFFFFFFFF;
+          ndbassert(pos.m_max_gci != 0);
 	  page->m_words_used = pos.m_page_pos;
 	  page->m_next_page = RNIL;
 	  memset(&bucket->m_buffer_head, 0, sizeof(bucket->m_buffer_head));
@@ -3692,14 +3670,16 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   if(ERROR_INSERTED(13010))
   {
     CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Don't send GCP_COMPLETE_REP(%d)", gci);
+    ndbout_c("Don't send GCP_COMPLETE_REP(%llu)", gci);
     return;
   }
 
   /**
    * Signal to subscribers
    */
-  rep->gci = gci;
+  rep->gci_hi = gci_hi;
+  rep->gci_lo = gci_lo;
+  rep->flags = flags;
   rep->senderRef  = reference();
   rep->gcp_complete_rep_count = m_gcp_complete_rep_count;
   
@@ -3734,7 +3714,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     }
   }
 
-  if(gci == m_out_of_buffer_gci)
+  if(m_out_of_buffer_gci && gci > m_out_of_buffer_gci)
   {
     infoEvent("Reenable event buffer");
     m_out_of_buffer_gci = 0;
@@ -3796,8 +3776,10 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   }
   // dict coordinator sends info to API
   
+  const Uint64 gci = get_current_gci(signal);
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
-  data->gci            = m_last_complete_gci+1;
+  data->gci_hi         = Uint32(gci >> 32);
+  data->gci_lo         = Uint32(gci);
   data->tableId        = tableId;
   data->requestInfo    = 0;
   SubTableData::setOperation(data->requestInfo,NdbDictionary::Event::_TE_DROP);
@@ -3857,6 +3839,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 
   if (senderRef == 0)
   {
+    tabPtr.p->m_state = old_state;
     DBUG_VOID_RETURN;
   }
   // dict coordinator sends info to API
@@ -3876,8 +3859,10 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 
   releaseSections(signal);
 
+  const Uint64 gci = get_current_gci(signal);
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
-  data->gci            = m_last_complete_gci+1;
+  data->gci_hi         = Uint32(gci >> 32);
+  data->gci_lo         = Uint32(gci);
   data->tableId        = tableId;
   data->requestInfo    = 0;
   SubTableData::setOperation(data->requestInfo, 
@@ -3911,11 +3896,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
       DBUG_PRINT("info",("sent to subscriber %d", subbPtr.i));
     }
   }
-  if (AlterTableReq::getFrmFlag(changeMask))
-  {
-    // Frm changes only are handled on-line
-    tabPtr.p->m_state = old_state;
-  }
+  tabPtr.p->m_state = old_state;
   DBUG_VOID_RETURN;
 }
 
@@ -3926,8 +3907,17 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   ndbassert(signal->getNoOfSections() == 0);
 
   SubGcpCompleteAck * const ack = (SubGcpCompleteAck*)signal->getDataPtr();
-  Uint32 gci = ack->rep.gci;
+  Uint32 gci_hi = ack->rep.gci_hi;
+  Uint32 gci_lo = ack->rep.gci_lo;
   Uint32 senderRef  = ack->rep.senderRef;
+  if (unlikely(signal->getLength() < SubGcpCompleteAck::SignalLength))
+  {
+    jam();
+    ndbassert(!ndb_check_micro_gcp(getNodeInfo(refToNode(senderRef)).m_version));
+    gci_lo = 0;
+  }
+
+  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   if (refToBlock(senderRef) == SUMA) {
@@ -3968,7 +3958,8 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   
   if(gcp.isNull())
   {
-    ndbout_c("ACK wo/ gcp record (gci: %d)", gci);
+    ndbout_c("ACK wo/ gcp record (gci: %u/%u)", 
+	     Uint32(gci >> 32), Uint32(gci));
   }
   else
   {
@@ -4151,9 +4142,6 @@ void
 Suma::Table::release(Suma & suma){
   jam();
 
-  LocalDataBuffer<15> attrBuf(suma.c_dataBufferPool, m_attributes);
-  attrBuf.release();
-
   LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
 
@@ -4216,8 +4204,8 @@ Suma::execSUB_CREATE_REF(Signal* signal) {
     SystemError * const sysErr = (SystemError*)&signal->theData[0];
     sysErr->errorCode = SystemError::CopySubscriptionRef;
     sysErr->errorRef = reference();
-    sysErr->data1 = error;
-    sysErr->data2 = 0;
+    sysErr->data[0] = error;
+    sysErr->data[1] = 0;
     sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
                SystemError::SignalLength, JBB);
     Restart.resetRestart(signal);
@@ -4263,8 +4251,8 @@ Suma::execSUB_START_REF(Signal* signal) {
     SystemError * const sysErr = (SystemError*)&signal->theData[0];
     sysErr->errorCode = SystemError::CopySubscriberRef;
     sysErr->errorRef = reference();
-    sysErr->data1 = error;
-    sysErr->data2 = 0;
+    sysErr->data[0] = error;
+    sysErr->data[1] = 0;
     sendSignal(cntrRef, GSN_SYSTEM_ERROR, signal,
                SystemError::SignalLength, JBB);
     Restart.resetRestart(signal);
@@ -4589,7 +4577,7 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
 
   Uint32 gci = req->gci;
   Uint32 nodeId = req->nodeId;
-  Uint32 new_gci = m_last_complete_gci + MAX_CONCURRENT_GCP + 1;
+  Uint32 new_gci = (m_last_complete_gci >> 32) + MAX_CONCURRENT_GCP + 1;
   
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
@@ -4605,7 +4593,7 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
 	tmp.set(i);
 	m_active_buckets.clear(i);
 	m_switchover_buckets.set(i);
-	c_buckets[i].m_switchover_gci = start_gci;
+	c_buckets[i].m_switchover_gci = (Uint64(start_gci) << 32) - 1;
 	c_buckets[i].m_state |= Bucket::BUCKET_HANDOVER;
 	c_buckets[i].m_switchover_node = nodeId;
 	ndbout_c("prepare to handover bucket: %d", i);
@@ -4655,7 +4643,7 @@ Suma::execSUMA_HANDOVER_CONF(Signal* signal) {
     {
       ndbrequire(get_responsible_node(i) == getOwnNodeId());
       // We should run this bucket, but _nodeId_ is
-      c_buckets[i].m_switchover_gci = gci;
+      c_buckets[i].m_switchover_gci = (Uint64(gci) << 32) - 1;
       c_buckets[i].m_state |= Bucket::BUCKET_STARTING;
     }
   }
@@ -4684,7 +4672,7 @@ operator<<(NdbOut & out, const Suma::Page_pos & pos)
 #endif
 
 Uint32*
-Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
+Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint64 gci, Uint32 sz)
 {
   sz += 1; // len
   Bucket* bucket= c_buckets+buck;
@@ -4703,7 +4691,7 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
   
   pos.m_page_pos += sz;
   pos.m_last_gci = gci;
-  Uint32 max = pos.m_max_gci > gci ? pos.m_max_gci : gci;
+  Uint64 max = pos.m_max_gci > gci ? pos.m_max_gci : gci;
   
   if(likely(same_gci && pos.m_page_pos <= Buffer_page::DATA_WORDS))
   {
@@ -4712,14 +4700,15 @@ Suma::get_buffer_ptr(Signal* signal, Uint32 buck, Uint32 gci, Uint32 sz)
     * ptr++ = (0x8000 << 16) | sz; // Same gci
     return ptr;
   }
-  else if(pos.m_page_pos + 1 <= Buffer_page::DATA_WORDS)
+  else if(pos.m_page_pos + Buffer_page::GCI_SZ32 <= Buffer_page::DATA_WORDS)
   {
 loop:
     pos.m_max_gci = max;
-    pos.m_page_pos += 1;
+    pos.m_page_pos += Buffer_page::GCI_SZ32;
     bucket->m_buffer_head = pos;
-    * ptr++ = (sz + 1); 
-    * ptr++ = gci;
+    * ptr++ = (sz + Buffer_page::GCI_SZ32);
+    * ptr++ = gci >> 32;
+    * ptr++ = gci & 0xFFFFFFFF;
     return ptr;
   }
   else
@@ -4741,9 +4730,11 @@ loop:
 
     if(likely(pos.m_page_id != RNIL))
     {
-      page->m_max_gci = pos.m_max_gci;
+      page->m_max_gci_hi = pos.m_max_gci >> 32;
+      page->m_max_gci_lo = pos.m_max_gci & 0xFFFFFFFF;
       page->m_words_used = pos.m_page_pos - sz;
       page->m_next_page= next;
+      ndbassert(pos.m_max_gci != 0);
     }
     else
     {
@@ -4813,7 +4804,7 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
    *   prepare for inclusion
    */
   m_out_of_buffer_gci = m_max_seen_gci > m_last_complete_gci 
-    ? m_max_seen_gci + 1 : m_last_complete_gci + 1;
+    ? m_max_seen_gci : m_last_complete_gci;
 }
 
 Uint32
@@ -4882,18 +4873,18 @@ Suma::free_page(Uint32 page_id, Buffer_page* page)
 }
 
 void
-Suma::release_gci(Signal* signal, Uint32 buck, Uint32 gci)
+Suma::release_gci(Signal* signal, Uint32 buck, Uint64 gci)
 {
   Bucket* bucket= c_buckets+buck;
   Uint32 tail= bucket->m_buffer_tail;
   Page_pos head= bucket->m_buffer_head;
-  Uint32 max_acked = bucket->m_max_acked_gci;
+  Uint64 max_acked = bucket->m_max_acked_gci;
 
   const Uint32 mask = Bucket::BUCKET_TAKEOVER | Bucket::BUCKET_RESEND;
   if(unlikely(bucket->m_state & mask))
   {
     jam();
-    ndbout_c("release_gci(%d, %d) -> node failure -> abort", buck, gci);
+    ndbout_c("release_gci(%d, %llu) -> node failure -> abort", buck, gci);
     return;
   }
   
@@ -4934,10 +4925,10 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint32 gci)
   {
     jam();
     Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(tail);
-    Uint32 max_gci = page->m_max_gci;
+    Uint64 max_gci = page->m_max_gci_lo | (Uint64(page->m_max_gci_hi) << 32);
     Uint32 next_page = page->m_next_page;
 
-    ndbassert(max_gci);
+    ndbassert(max_gci != 0);
     
     if(gci >= max_gci)
     {
@@ -4947,8 +4938,9 @@ Suma::release_gci(Signal* signal, Uint32 buck, Uint32 gci)
       bucket->m_buffer_tail = next_page;
       signal->theData[0] = SumaContinueB::RELEASE_GCI;
       signal->theData[1] = buck;
-      signal->theData[2] = gci;
-      sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 3, JBB);
+      signal->theData[2] = gci >> 32;
+      signal->theData[3] = gci & 0xFFFFFFFF;
+      sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 4, JBB);
       return;
     }
     else
@@ -4983,12 +4975,16 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     jam();
     m_active_buckets.set(buck);
     m_gcp_complete_rep_count ++;
-    ndbout_c("empty bucket(RNIL) -> active");
+    ndbout_c("empty bucket(RNIL) -> active max_acked: %u/%u max_gci: %u/%u",
+	     Uint32(bucket->m_max_acked_gci >> 32),
+	     Uint32(bucket->m_max_acked_gci),
+	     Uint32(pos.m_max_gci >> 32),
+	     Uint32(pos.m_max_gci));
     return;
   }
 
-  Uint32 min= bucket->m_max_acked_gci + 1;
-  Uint32 max = pos.m_max_gci;
+  Uint64 min= bucket->m_max_acked_gci + 1;
+  Uint64 max = pos.m_max_gci;
 
   ndbrequire(max <= m_max_seen_gci);
 
@@ -5004,29 +5000,34 @@ Suma::start_resend(Signal* signal, Uint32 buck)
   g_cnt = 0;
   bucket->m_state |= (Bucket::BUCKET_TAKEOVER | Bucket::BUCKET_RESEND);
   bucket->m_switchover_node = get_responsible_node(buck);
-  bucket->m_switchover_gci = max + 1;
+  bucket->m_switchover_gci = max;
 
   m_switchover_buckets.set(buck);
   
+  signal->theData[0] = SumaContinueB::RESEND_BUCKET;
   signal->theData[1] = buck;
-  signal->theData[2] = min;
+  signal->theData[2] = min >> 32;
   signal->theData[3] = 0;
   signal->theData[4] = 0;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 5, JBB);	
+  signal->theData[5] = min & 0xFFFFFFFF;
+  signal->theData[6] = 0;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 7, JBB);
   
-  ndbout_c("min: %d - max: %d) page: %d", min, max, bucket->m_buffer_tail);
+  ndbout_c("min: %u/%u - max: %u/%u) page: %d", 
+	   Uint32(min >> 32), Uint32(min), Uint32(max >> 32), Uint32(max), 
+	   bucket->m_buffer_tail);
   ndbrequire(max >= min);
 }
 
 void
-Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci, 
-		    Uint32 pos, Uint32 last_gci)
+Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
+		    Uint32 pos, Uint64 last_gci)
 {
   Bucket* bucket= c_buckets+buck;
   Uint32 tail= bucket->m_buffer_tail;
 
   Buffer_page* page= (Buffer_page*)m_tup->c_page_pool.getPtr(tail);
-  Uint32 max_gci = page->m_max_gci;
+  Uint64 max_gci = page->m_max_gci_lo | (Uint64(page->m_max_gci_hi) << 32);
   Uint32 next_page = page->m_next_page;
   Uint32 *ptr = page->m_data + pos;
   Uint32 *end = page->m_data + page->m_words_used;
@@ -5050,7 +5051,9 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
   {
     free_page(tail, page);
     tail = bucket->m_buffer_tail = next_page;
-    ndbout_c("pos==0 && min_gci(%d) > max_gci(%d) resend switching page to %d", min_gci, max_gci, tail);
+    ndbout_c("pos==0 && min_gci(%u/%u) > max_gci(%u/%u) resend switching page to %d", 
+	     Uint32(min_gci >> 32), Uint32(min_gci), 
+	     Uint32(max_gci >> 32), Uint32(max_gci), tail);
     goto next;
   }
   
@@ -5074,8 +5077,11 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
 
     if(! (tmp & (0x8000 << 16)))
     {
-      sz--;
-      last_gci = * src ++;
+      ndbrequire(sz >= Buffer_page::GCI_SZ32);
+      sz -= Buffer_page::GCI_SZ32;
+      Uint32 last_gci_hi = * src++;
+      Uint32 last_gci_lo = * src++;
+      last_gci = last_gci_lo | (Uint64(last_gci_hi) << 32);
     }
     else
     {
@@ -5093,13 +5099,16 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
     if(sz == 0)
     {
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
-      rep->gci = last_gci;
+      rep->gci_hi = last_gci >> 32;
+      rep->gci_lo = last_gci & 0xFFFFFFFF;
+      rep->flags = 0;
       rep->senderRef  = reference();
       rep->gcp_complete_rep_count = 1;
   
       char buf[255];
       c_subscriber_nodes.getText(buf);
-      ndbout_c("resending GCI: %d rows: %d -> %s", last_gci, g_cnt, buf);
+      ndbout_c("resending GCI: %u/%u rows: %d -> %s", 
+	       Uint32(last_gci >> 32), Uint32(last_gci), g_cnt, buf);
       g_cnt = 0;
       
       NodeReceiverGroup rg(API_CLUSTERMGR, c_subscriber_nodes);
@@ -5131,10 +5140,12 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint32 min_gci,
        */
       Ptr<Table> tabPtr;
       if (c_tables.find(tabPtr, table) && 
-	  tabPtr.p->m_schemaVersion == schemaVersion)
+          table_version_major(tabPtr.p->m_schemaVersion) ==
+          table_version_major(schemaVersion))
       {
 	SubTableData * data = (SubTableData*)signal->getDataPtrSend();//trg;
-	data->gci            = last_gci;
+	data->gci_hi         = last_gci >> 32;
+	data->gci_lo         = last_gci & 0xFFFFFFFF;
 	data->tableId        = table;
 	data->requestInfo    = 0;
 	SubTableData::setOperation(data->requestInfo, event);
@@ -5188,13 +5199,31 @@ next:
   
   signal->theData[0] = SumaContinueB::RESEND_BUCKET;
   signal->theData[1] = buck;
-  signal->theData[2] = min_gci;
+  signal->theData[2] = min_gci >> 32;
   signal->theData[3] = pos;
-  signal->theData[4] = last_gci;
+  signal->theData[4] = last_gci >> 32;
+  signal->theData[5] = min_gci & 0xFFFFFFFF;
+  signal->theData[6] = last_gci & 0xFFFFFFFF;
   if(!delay)
-    sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 5, JBB);
+    sendSignal(SUMA_REF, GSN_CONTINUEB, signal, 7, JBB);
   else
-    sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 5);   
+    sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 7);
+}
+
+Uint64
+Suma::get_current_gci(Signal* signal)
+{
+  signal->theData[0] = 0; // user ptr
+  signal->theData[1] = 0; // Execute direct
+  signal->theData[2] = 1; // Current
+  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
+
+  jamEntry();
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
+
+  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
+  return gci;
 }
 
 template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);

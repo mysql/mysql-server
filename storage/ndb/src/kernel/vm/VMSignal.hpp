@@ -33,6 +33,7 @@ struct NodeReceiverGroup {
   NodeReceiverGroup();
   NodeReceiverGroup(Uint32 blockRef);
   NodeReceiverGroup(Uint32 blockNo, const NodeBitmask &);
+  NodeReceiverGroup(Uint32 blockNo, const NdbNodeBitmask &);
   NodeReceiverGroup(Uint32 blockNo, const class SignalCounter &);
   
   NodeReceiverGroup& operator=(BlockReference ref);
@@ -182,7 +183,17 @@ NodeReceiverGroup::NodeReceiverGroup(Uint32 blockRef){
 }
 
 inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, const NodeBitmask & nodes){
+NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
+				     const NodeBitmask & nodes)
+{
+  m_block = blockNo;
+  m_nodes = nodes;
+}
+
+inline
+NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
+				     const NdbNodeBitmask & nodes)
+{
   m_block = blockNo;
   m_nodes = nodes;
 }
@@ -190,7 +201,8 @@ NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, const NodeBitmask & nodes){
 #include "SignalCounter.hpp"
 
 inline
-NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, const SignalCounter & nodes){
+NodeReceiverGroup::NodeReceiverGroup(Uint32 blockNo, 
+				     const SignalCounter & nodes){
   m_block = blockNo;
   m_nodes = nodes.m_nodes;
 }

@@ -22,6 +22,8 @@
 #include <BaseString.hpp>
 #include <Vector.hpp>
 #include <UtilBuffer.hpp>
+#include <SimpleProperties.hpp>
+#include <NdbSqlUtil.hpp>
 #include <NdbDictionary.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
@@ -82,7 +84,7 @@ public:
   int m_length;
   int m_column_no;
   CHARSET_INFO * m_cs;          // not const in MySQL
-  
+
   bool m_pk;
   bool m_distributionKey;
   bool m_nullable;
@@ -94,10 +96,14 @@ public:
   /**
    * Internal types and sizes, and aggregates
    */
+  Uint32 m_orgAttrSize;
   Uint32 m_attrSize;            // element size (size when arraySize==1)
   Uint32 m_arraySize;           // length or maxlength+1/2 for Var* types
   Uint32 m_arrayType;           // NDB_ARRAYTYPE_FIXED or _VAR
   Uint32 m_storageType;         // NDB_STORAGETYPE_MEMORY or _DISK
+                                // for blob, storage type of NDB$DATA
+  bool m_dynamic;
+
   /*
    * NdbTableImpl: if m_pk, 0-based index of key in m_attrId order
    * NdbIndexImpl: m_column_no of primary table column
@@ -108,6 +114,10 @@ public:
   bool getCharType() const;
   bool getStringType() const;
   bool getBlobType() const;
+
+  int m_blobVersion;            // if blob, NDB_BLOB_V1 or NDB_BLOB_V2
+  int getBlobVersion() const;
+  void setBlobVersion(int blobVersion);
 
   /**
    * Equality/assign
@@ -157,22 +167,15 @@ public:
   int aggregate(NdbError& error);
   int validate(NdbError& error);
 
-  Uint32 m_changeMask;
   Uint32 m_primaryTableId;
   BaseString m_internalName;
   BaseString m_externalName;
   BaseString m_mysqlName;
-  BaseString m_newExternalName; // Used for alter table
   UtilBuffer m_frm; 
-  UtilBuffer m_newFrm;       // Used for alter table
   UtilBuffer m_ts_name;      //Tablespace Names
-  UtilBuffer m_new_ts_name;  //Tablespace Names
   UtilBuffer m_ts;           //TablespaceData
-  UtilBuffer m_new_ts;       //TablespaceData
   UtilBuffer m_fd;           //FragmentData
-  UtilBuffer m_new_fd;       //FragmentData
   UtilBuffer m_range;        //Range Or List Array
-  UtilBuffer m_new_range;    //Range Or List Array
   NdbDictionary::Object::FragmentType m_fragmentType;
 
   /**
@@ -180,6 +183,12 @@ public:
    */
   Uint32 m_columnHashMask;
   Vector<Uint32> m_columnHash;
+  /*
+    List of all columns in the table.
+    Note that for index table objects, there is one additional column at the
+    end, NDB$TNODE (ordered index) or NDB$PK. This must be taken into account
+    if iterating over columns.
+  */
   Vector<NdbColumnImpl *> m_columns;
   void computeAggregates();
   int buildColumnHash(); 
@@ -216,7 +225,7 @@ public:
   /**
    * Index only stuff
    */
-  BaseString m_primaryTable;
+  BaseString m_primaryTable;    // Name of table indexed by us
   NdbDictionary::Object::Type m_indexType;
 
   /**
@@ -242,8 +251,8 @@ public:
   /**
    * Return count
    */
-  Uint32 get_nodes(Uint32 hashValue, const Uint16** nodes) const ;
-
+  Uint32 get_nodes(Uint32 partitionId, const Uint16** nodes) const ;
+  
   /**
    * Disk stuff
    */
@@ -276,6 +285,11 @@ public:
   bool m_logging;
   bool m_temporary;
   
+  /*
+    The m_table member refers to the NDB table object that holds the actual
+    index, not the table that is indexed by the index (so it is of index
+    type, not table type).
+  */
   NdbTableImpl * m_table;
   
   static NdbIndexImpl & getImpl(NdbDictionary::Index & t);
@@ -443,10 +457,22 @@ public:
 		 int timeout, Uint32 RETRIES,
 		 const int *errcodes = 0, int temporaryMask = 0);
 
-  int createOrAlterTable(class Ndb & ndb, NdbTableImpl &, bool alter);
-
   int createTable(class Ndb & ndb, NdbTableImpl &);
-  int alterTable(class Ndb & ndb, NdbTableImpl &);
+  bool supportedAlterTable(const NdbTableImpl &,
+			   NdbTableImpl &);
+  int alterTable(class Ndb & ndb, const NdbTableImpl &, NdbTableImpl &);
+  void syncInternalName(Ndb & ndb, NdbTableImpl &impl);
+  int compChangeMask(const NdbTableImpl &old_impl,
+                     const NdbTableImpl &impl,
+                     Uint32 &change_mask);
+  int serializeTableDesc(Ndb & ndb,
+                         NdbTableImpl & impl,
+                         UtilBufferWriter & w);
+  int sendAlterTable(const NdbTableImpl &impl,
+                     Uint32 change_mask,
+                     UtilBufferWriter &w);
+  int sendCreateTable(const NdbTableImpl &impl, UtilBufferWriter &w);
+
   int dropTable(const NdbTableImpl &);
 
   int createIndex(class Ndb & ndb, const NdbIndexImpl &, const NdbTableImpl &);
@@ -583,8 +609,9 @@ public:
   bool setTransporter(class TransporterFacade * tf);
 
   int createTable(NdbTableImpl &t);
-  int createBlobTables(NdbTableImpl& org, NdbTableImpl& created);
-  int alterTable(NdbTableImpl &t);
+  int createBlobTables(const NdbTableImpl& t);
+  bool supportedAlterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
+  int alterTable(NdbTableImpl &old_impl, NdbTableImpl &impl);
   int dropTable(const char * name);
   int dropTable(NdbTableImpl &);
   int dropBlobTables(NdbTableImpl &);
@@ -601,9 +628,10 @@ public:
 
   int createEvent(NdbEventImpl &);
   int createBlobEvents(NdbEventImpl &);
-  int dropEvent(const char * eventName);
+  int dropEvent(const char * eventName, int force);
   int dropEvent(const NdbEventImpl &);
   int dropBlobEvents(const NdbEventImpl &);
+  int listEvents(List& list);
 
   int executeSubscribeEvent(NdbEventOperationImpl &);
   int stopSubscribeEvent(NdbEventOperationImpl &);
@@ -667,6 +695,22 @@ public:
                              NdbTableImpl &prim);
   NdbIndexImpl * getIndexImpl(const char * name,
                               const BaseString& internalName);
+
+
+  NdbRecord *createRecord(const NdbTableImpl *table,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize,
+                          Uint32 flags,
+                          const NdbTableImpl *base_table= 0);
+  NdbRecord *createRecord(const NdbIndexImpl *index,
+                          const NdbTableImpl *base_table,
+                          const NdbDictionary::RecordSpecification *recSpec,
+                          Uint32 length,
+                          Uint32 elemSize,
+                          Uint32 flags);
+  void releaseRecord_impl(NdbRecord *rec);
+
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };
@@ -730,22 +774,45 @@ NdbColumnImpl::getBlobType() const {
 }
 
 inline
+int
+NdbColumnImpl::getBlobVersion() const {
+  return m_blobVersion;
+}
+
+inline
+void
+NdbColumnImpl::setBlobVersion(int blobVersion) {
+  if (blobVersion == NDB_BLOB_V1) {
+    m_arrayType = NDB_ARRAYTYPE_FIXED;
+  } else if (blobVersion == NDB_BLOB_V2) {
+    // always 2 length bytes for head+inline
+    m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
+  }
+  // invalid value should be detected at validate
+  m_blobVersion = blobVersion;
+}
+
+inline
 bool
 NdbColumnImpl::get_var_length(const void* value, Uint32& len) const
 {
+  DBUG_ENTER("NdbColumnImpl::get_var_length");
   Uint32 max_len = m_attrSize * m_arraySize;
   switch (m_arrayType) {
   case NDB_ARRAYTYPE_SHORT_VAR:
     len = 1 + *((Uint8*)value);
+    DBUG_PRINT("info", ("SHORT_VAR: len=%u max_len=%u", len, max_len));
     break;
   case NDB_ARRAYTYPE_MEDIUM_VAR:
     len = 2 + uint2korr((char*)value);
+    DBUG_PRINT("info", ("MEDIUM_VAR: len=%u max_len=%u", len, max_len));
     break;
   default:
     len = max_len;
-    return true;
+    DBUG_PRINT("info", ("FIXED: len=%u max_len=%u", len, max_len));
+    DBUG_RETURN(true);
   }
-  return (len <= max_len);
+  DBUG_RETURN(len <= max_len);
 }
 
 inline

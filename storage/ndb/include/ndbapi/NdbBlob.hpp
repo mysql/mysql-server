@@ -142,12 +142,33 @@ public:
    * operation post/pre data blob.  Always succeeds.
    */
   void getVersion(int& version);
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /**
-   * Inline blob header.
+   * Blob head V1 is 8 bytes:
+   *   8 bytes blob length - native endian (of ndb apis)
+   *
+   * Blob head V2 is 16 bytes:
+   *   2 bytes head+inline length bytes (MEDIUM_VAR) - little-endian
+   *   2 bytes reserved (zero)
+   *   4 bytes NDB$PKID for blob events - little-endian
+   *   8 bytes blob length - litte-endian
+   *
+   * Following struct is for packing/unpacking the fields.  It must
+   * not be C-cast to/from the head+inline attribute value.
    */
   struct Head {
-    Uint64 length;
+    Uint16 varsize;     // length of head+inline minus the 2 length bytes
+    Uint16 reserved;    // must be 0  wl3717_todo checksum?
+    Uint32 pkid;        // connects part and row with same PK within tx
+    Uint64 length;      // blob length
+    //
+    Uint32 headsize;    // for convenience, number of bytes in head
+    Head() :
+      varsize(0), reserved(0), pkid(0), length(0), headsize(0) {}
   };
+  static void packBlobHead(const Head& head, char* buf, int blobVersion);
+  static void unpackBlobHead(Head& head, const char* buf, int blobVersion);
+#endif
   /**
    * Prepare to read blob value.  The value is available after execute.
    * Use getNull() to check for NULL and getLength() to get the real length
@@ -263,17 +284,41 @@ private:
   friend class NdbResultSet; // atNextResult
   friend class NdbEventBuffer;
   friend class NdbEventOperationImpl;
+  friend class NdbReceiver;
 #endif
+  int theBlobVersion;
+  /*
+   * Disk data does not yet support Var* attrs.  In both V1 and V2,
+   * if the primary table blob attr is specified as disk attr then:
+   * - the primary table blob attr remains a memory attr
+   * - the blob parts "DATA" attr becomes a disk attr
+   * - the blob parts "DATA" attr is fixed size
+   * Use following flag.  It is always set for V1.
+   */
+  bool theFixedDataFlag;
+  Uint32 theHeadSize;
+  Uint32 theVarsizeBytes;
   // state
   State theState;
+  // True if theNdbOp is using NdbRecord, false if NdbRecAttr.
+  bool theNdbRecordFlag;
   void setState(State newState);
   // quick and dirty support for events (consider subclassing)
-  int theEventBlobVersion; // -1=normal blob 0=post event 1=pre event
+  int theEventBlobVersion; // -1=data op 0=post event 1=pre event
   // define blob table
   static void getBlobTableName(char* btname, const NdbTableImpl* t, const NdbColumnImpl* c);
-  static void getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c);
+  static int getBlobTable(NdbTableImpl& bt, const NdbTableImpl* t, const NdbColumnImpl* c, struct NdbError& error);
   static void getBlobEventName(char* bename, const NdbEventImpl* e, const NdbColumnImpl* c);
   static void getBlobEvent(NdbEventImpl& be, const NdbEventImpl* e, const NdbColumnImpl* c);
+  // compute blob table column number for faster access
+  enum {
+    BtColumnPk = 0,    /* V1 only */
+    BtColumnDist = 1,  /* if stripe size != 0 */
+    BtColumnPart = 2,
+    BtColumnPkid = 3,  /* V2 only */
+    BtColumnData = 4
+  };
+  int theBtColumnNo[5];
   // ndb api stuff
   Ndb* theNdb;
   NdbTransaction* theNdbCon;
@@ -283,12 +328,13 @@ private:
   NdbRecAttr* theBlobEventPkRecAttr;
   NdbRecAttr* theBlobEventDistRecAttr;
   NdbRecAttr* theBlobEventPartRecAttr;
+  NdbRecAttr* theBlobEventPkidRecAttr;
   NdbRecAttr* theBlobEventDataRecAttr;
   const NdbTableImpl* theTable;
   const NdbTableImpl* theAccessTable;
   const NdbTableImpl* theBlobTable;
   const NdbColumnImpl* theColumn;
-  char theFillChar;
+  unsigned char theFillChar;
   // sizes
   Uint32 theInlineSize;
   Uint32 thePartSize;
@@ -321,13 +367,20 @@ private:
   Buf theHeadInlineBuf;
   Buf theHeadInlineCopyBuf;     // for writeTuple
   Buf thePartBuf;
+  Uint16 thePartLen;
   Buf theBlobEventDataBuf;
-  Uint32 thePartNumber;         // for event
-  Head* theHead;
+  Uint32 theBlobEventDistValue;
+  Uint32 theBlobEventPartValue;
+  Uint32 theBlobEventPkidValue;
+  Head theHead;
   char* theInlineData;
   NdbRecAttr* theHeadInlineRecAttr;
   NdbOperation* theHeadInlineReadOp;
   bool theHeadInlineUpdateFlag;
+  // partition id for data events
+  Uint32 noPartitionId() { return ~(Uint32)0; }
+  Uint32 thePartitionId;
+  NdbRecAttr* thePartitionIdRecAttr;
   // length and read/write position
   int theNullFlag;
   Uint64 theLength;
@@ -354,16 +407,28 @@ private:
   bool isTakeOverOp();
   // computations
   Uint32 getPartNumber(Uint64 pos);
+  Uint32 getPartOffset(Uint64 pos);
   Uint32 getPartCount();
   Uint32 getDistKey(Uint32 part);
   // pack / unpack
   int packKeyValue(const NdbTableImpl* aTable, const Buf& srcBuf);
   int unpackKeyValue(const NdbTableImpl* aTable, Buf& dstBuf);
+  int copyKeyFromRow(const NdbRecord *record, const char *row,
+                     Buf& packedBuf, Buf& unpackedBuf);
+  Uint32 getHeadInlineSize() { return theHeadSize + theInlineSize; }
+  void prepareSetHeadInlineValue();
+  void getBlobHeadData(const char * & data, Uint32 & byteSize);
   // getters and setters
+  void packBlobHead();
+  void unpackBlobHead();
   int getTableKeyValue(NdbOperation* anOp);
   int setTableKeyValue(NdbOperation* anOp);
   int setAccessKeyValue(NdbOperation* anOp);
+  int setDistKeyValue(NdbOperation* anOp, Uint32 part);
   int setPartKeyValue(NdbOperation* anOp, Uint32 part);
+  int setPartPkidValue(NdbOperation* anOp, Uint32 pkid);
+  int getPartDataValue(NdbOperation* anOp, char* buf, Uint16* aLenLoc);
+  int setPartDataValue(NdbOperation* anOp, const char* buf, const Uint16& aLen);
   int getHeadInlineValue(NdbOperation* anOp);
   void getHeadFromRecAttr();
   int setHeadInlineValue(NdbOperation* anOp);
@@ -371,10 +436,15 @@ private:
   int readDataPrivate(char* buf, Uint32& bytes);
   int writeDataPrivate(const char* buf, Uint32 bytes);
   int readParts(char* buf, Uint32 part, Uint32 count);
+  int readPart(char* buf, Uint32 part, Uint16& len);
   int readTableParts(char* buf, Uint32 part, Uint32 count);
+  int readTablePart(char* buf, Uint32 part, Uint16& len);
   int readEventParts(char* buf, Uint32 part, Uint32 count);
+  int readEventPart(char* buf, Uint32 part, Uint16& len);
   int insertParts(const char* buf, Uint32 part, Uint32 count);
+  int insertPart(const char* buf, Uint32 part, const Uint16& len);
   int updateParts(const char* buf, Uint32 part, Uint32 count);
+  int updatePart(const char* buf, Uint32 part, const Uint16& len);
   int deleteParts(Uint32 part, Uint32 count);
   int deletePartsUnknown(Uint32 part);
   // pending ops
@@ -384,22 +454,29 @@ private:
   int invokeActiveHook();
   // blob handle maintenance
   int atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl* aColumn);
+  int atPrepareNdbRecord(NdbTransaction* aCon, NdbOperation* anOp,
+                         const NdbColumnImpl* aColumn,
+                         const NdbRecord *key_record, const char *key_row);
+  int atPrepareNdbRecordTakeover(NdbTransaction* aCon, NdbOperation* anOp,
+                                 const NdbColumnImpl* aColumn,
+                                 const char *keyinfo, Uint32 keyinfo_bytes);
+  int atPrepareNdbRecordScan(NdbTransaction* aCon, NdbOperation* anOp,
+                             const NdbColumnImpl* aColumn);
+  int atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
+                      const NdbColumnImpl* aColumn);
   int atPrepare(NdbEventOperationImpl* anOp, NdbEventOperationImpl* aBlobOp, const NdbColumnImpl* aColumn, int version);
   int prepareColumn();
   int preExecute(NdbTransaction::ExecType anExecType, bool& batch);
   int postExecute(NdbTransaction::ExecType anExecType);
   int preCommit();
   int atNextResult();
+  int atNextResultNdbRecord(const char *keyinfo, Uint32 keyinfo_bytes);
+  int atNextResultCommon();
   int atNextEvent();
   // errors
   void setErrorCode(int anErrorCode, bool invalidFlag = false);
   void setErrorCode(NdbOperation* anOp, bool invalidFlag = false);
-  void setErrorCode(NdbTransaction* aCon, bool invalidFlag = false);
   void setErrorCode(NdbEventOperationImpl* anOp, bool invalidFlag = false);
-#ifdef VM_TRACE
-  int getOperationType() const;
-  friend class NdbOut& operator<<(NdbOut&, const NdbBlob&);
-#endif
   // list stuff
   void next(NdbBlob* obj) { theNext= obj;}
   NdbBlob* next() { return theNext;}

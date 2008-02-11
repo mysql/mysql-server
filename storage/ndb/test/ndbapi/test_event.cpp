@@ -501,7 +501,7 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
   int records = ctx->getNumRecords();
   HugoTransactions hugoTrans(*ctx->getTab());
   
-  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
   {
     g_err << "FAIL " << __LINE__ << endl;
     return NDBT_FAILED;
@@ -537,8 +537,12 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
 
-    ctx->setProperty("LastGCI", hugoTrans.m_latest_gci);
-    if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+    ndbout_c("set(LastGCI_hi): %u/%u",
+             Uint32(hugoTrans.m_latest_gci >> 32),
+             Uint32(hugoTrans.m_latest_gci));
+    ctx->setProperty("LastGCI_lo", Uint32(hugoTrans.m_latest_gci));
+    ctx->setProperty("LastGCI_hi", Uint32(hugoTrans.m_latest_gci >> 32));
+    if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
     {
       g_err << "FAIL " << __LINE__ << endl;
       return NDBT_FAILED;
@@ -613,13 +617,13 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
     goto end;
   }
 
-  ctx->setProperty("LastGCI", ~(Uint32)0);
+  ctx->setProperty("LastGCI_hi", ~(Uint32)0);
   ctx->broadcast();
 
   while(!ctx->isTestStopped())
   {
     int count= 0;
-    Uint32 stop_gci= ~0;
+    Uint64 stop_gci= ~(Uint64)0;
     Uint64 curr_gci = 0;
     Ndb* ndb= GETNDB(step);
 
@@ -809,17 +813,20 @@ int runEventApplier(NDBT_Context* ctx, NDBT_Step* step)
 	  NdbSleep_MilliSleep(100); // sleep before retying
 	} while(1);
       }
-      stop_gci = ctx->getProperty("LastGCI", ~(Uint32)0);
+      Uint32 stop_gci_hi = ctx->getProperty("LastGCI_hi", ~(Uint32)0);
+      Uint32 stop_gci_lo = ctx->getProperty("LastGCI_lo", ~(Uint32)0);
+      stop_gci = Uint64(stop_gci_lo) | (Uint64(stop_gci_hi) << 32);
     } 
     
-    ndbout_c("Applied gci: %d, %d events", stop_gci, count);
+    ndbout_c("Applied gci: %u/%u, %d events",
+             Uint32(stop_gci >> 32), Uint32(stop_gci), count);
     if (hugoTrans.compare(GETNDB(step), shadow, 0))
     {
       g_err << "compare failed" << endl;
       result = NDBT_FAILED;
       goto end;
     }
-    ctx->setProperty("LastGCI", ~(Uint32)0);
+    ctx->setProperty("LastGCI_hi", ~(Uint32)0);
     ctx->broadcast();
   }
   
@@ -1794,6 +1801,7 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   HugoTransactions hugoTrans(*ctx->getTab());
   
   if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
   {
     g_err << "FAIL " << __LINE__ << endl;
     return NDBT_FAILED;
@@ -1827,8 +1835,9 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
   
-  ctx->setProperty("LastGCI", hugoTrans.m_latest_gci);
-  if(ctx->getPropertyWait("LastGCI", ~(Uint32)0))
+  ctx->setProperty("LastGCI_lo", Uint32(hugoTrans.m_latest_gci));
+  ctx->setProperty("LastGCI_hi", Uint32(hugoTrans.m_latest_gci >> 32));
+  if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
   {
     g_err << "FAIL " << __LINE__ << endl;
     return NDBT_FAILED;
