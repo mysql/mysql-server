@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
 ( server_id INT UNSIGNED NOT NULL,
 epoch BIGINT UNSIGNED NOT NULL,
