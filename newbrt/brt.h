@@ -51,6 +51,7 @@ int toku_brt_cursor (BRT, BRT_CURSOR*);
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);
+BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c);
 
 typedef struct brtenv *BRTENV;
 int brtenv_checkpoint (BRTENV env);

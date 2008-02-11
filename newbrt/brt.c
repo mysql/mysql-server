@@ -1999,8 +1999,12 @@ static inline void brt_cursor_cleanup(BRT_CURSOR cursor) {
     dbt_cleanup(&cursor->val);
 }
 
-inline int brt_cursor_not_set(BRT_CURSOR cursor) {
+static inline int brt_cursor_not_set(BRT_CURSOR cursor) {
     return cursor->key.data == 0 || cursor->val.data == 0;
+}
+
+BOOL toku_brt_cursor_uninitialized(BRT_CURSOR c) {
+    return brt_cursor_not_set(c);
 }
 
 static inline void brt_cursor_set_key_val(BRT_CURSOR cursor, DBT *newkey, DBT *newval) {
