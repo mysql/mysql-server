@@ -44,7 +44,7 @@ char* toku_lt_strerror(TOKU_LT_ERROR r) {
     return "Unknown error in locking data structures.\n";
 }
 /* Compare two payloads assuming that at least one of them is infinite */ 
-inline static int __toku_infinite_compare(void* a, void* b) {
+inline static int __toku_infinite_compare(const DBT* a, const DBT* b) {
     if    (a == b)                      return  0;
     if    (a == toku_lt_infinity)       return  1;
     if    (b == toku_lt_infinity)       return -1;
@@ -52,7 +52,7 @@ inline static int __toku_infinite_compare(void* a, void* b) {
     assert(b == toku_lt_neg_infinity);  return  1;
 }
 
-inline static BOOL __toku_lt_is_infinite(const void* p) {
+inline static BOOL __toku_lt_is_infinite(const DBT* p) {
     if (p == toku_lt_infinity || p == toku_lt_neg_infinity) {
         DBT* dbt = (DBT*)p;
         assert(!dbt->data && !dbt->size);
@@ -432,7 +432,7 @@ inline static int __toku_lt_check_borderwrite_conflict(toku_lock_tree* tree,
 }
 
 inline static void __toku_payload_from_dbt(void** payload, u_int32_t* len,
-                                    const DBT* dbt) {
+                                           const DBT* dbt) {
     assert(payload && len && dbt);
     if (__toku_lt_is_infinite(dbt)) *payload = (void*)dbt;
     else if (!dbt->size) {
