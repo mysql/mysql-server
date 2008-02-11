@@ -986,7 +986,8 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
   const ScanOp& scan = *scanPtr.p;
   const Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
   Uint32 tableFragPtrI = frag.m_tupTableFragPtrI;
-  Uint32 tupAddr = getTupAddr(frag, ent);
+  Uint32 pageId = ent.m_tupLoc.getPageId();
+  Uint32 pageOffset = ent.m_tupLoc.getPageOffset();
   Uint32 tupVersion = ent.m_tupVersion;
   // check for same tuple twice in row
   if (scan.m_scanEnt.m_tupLoc == ent.m_tupLoc)
@@ -996,8 +997,9 @@ Dbtux::scanVisible(ScanOpPtr scanPtr, TreeEnt ent)
   }
   Uint32 transId1 = scan.m_transId1;
   Uint32 transId2 = scan.m_transId2;
+  bool dirty = scan.m_readCommitted;
   Uint32 savePointId = scan.m_savePointId;
-  bool ret = c_tup->tuxQueryTh(tableFragPtrI, tupAddr, tupVersion, transId1, transId2, savePointId);
+  bool ret = c_tup->tuxQueryTh(tableFragPtrI, pageId, pageOffset, tupVersion, transId1, transId2, dirty, savePointId);
   jamEntry();
   return ret;
 }

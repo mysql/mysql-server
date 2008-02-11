@@ -1,7 +1,3 @@
-max-time: 3600
-cmd: atrt-mysql-test-run
-args: --force
-
 max-time: 600
 cmd: atrt-testBackup
 args: -n NFMaster T1
@@ -768,10 +764,10 @@ max-time: 1000
 cmd: testNdbApi
 args: -n Bug28443
 
-#max-time: 500
-#cmd: testInterpreter
-#args: T1 
-#
+max-time: 500
+cmd: testInterpreter
+args: T1 
+
 max-time: 150000
 cmd: testOperations
 args:
@@ -1089,4 +1085,12 @@ args: -n Bug32922 T1
 max-time: 300
 cmd: test_event
 args: -n Bug33793 T1
+
+max-time: 1200
+cmd: testNodeRestart
+args: -n Bug34216 -l 10 T1 I3 D2
+
+max-time: 1200
+cmd: testNodeRestart
+args: -n mixedmultiop -l 10 T1 I2 I3 D2
 

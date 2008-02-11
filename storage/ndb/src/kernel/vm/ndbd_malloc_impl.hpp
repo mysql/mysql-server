@@ -62,7 +62,13 @@ public:
   
   void dump() const ;
   
-  void* alloc_page(Uint32 type, Uint32* i);
+  enum AllocZone
+  {
+    NDB_ZONE_LO  = 0, // Only allocate with page_id < (1 << 13)
+    NDB_ZONE_ANY = 1  // Allocate with any page_id
+  };
+
+  void* alloc_page(Uint32 type, Uint32* i, enum AllocZone);
   void release_page(Uint32 type, Uint32 i);
   
   void alloc_pages(Uint32 type, Uint32* i, Uint32 *cnt, Uint32 min = 1);
@@ -73,7 +79,7 @@ public:
    * @note size = 0     -> 0
    * @note size > 65536 -> 16
    */
-  static Uint32 log2(Uint32 size);
+  static Uint32 ndb_log2(Uint32 size);
 
 private:
   void grow(Uint32 start, Uint32 cnt);
@@ -85,20 +91,21 @@ private:
   static Free_page_data* get_free_page_data(Alloc_page*, Uint32 idx);
   Vector<Uint32> m_used_bitmap_pages;
   
-  Uint32 m_buddy_lists[16];
+  Uint32 m_buddy_lists[2][16];
   Resource_limit m_resource_limit[XX_RL_COUNT]; // RG_COUNT in record_types.hpp
   Alloc_page * m_base_page;
   
-  void release_impl(Uint32 start, Uint32 cnt);  
-  void insert_free_list(Uint32 start, Uint32 cnt);
-  Uint32 remove_free_list(Uint32 start, Uint32 list);
+  void release_impl(Uint32 zone, Uint32 start, Uint32 cnt);  
+  void insert_free_list(Uint32 zone, Uint32 start, Uint32 cnt);
+  Uint32 remove_free_list(Uint32 zone, Uint32 start, Uint32 list);
 
   void set(Uint32 first, Uint32 last);
   void clear(Uint32 first, Uint32 last);
   void clear_and_set(Uint32 first, Uint32 last);
   Uint32 check(Uint32 first, Uint32 last);
 
-  void alloc(Uint32* ret, Uint32 *pages, Uint32 min_requested);
+  void alloc(AllocZone, Uint32* ret, Uint32 *pages, Uint32 min_requested);
+  void alloc_impl(Uint32 zone, Uint32* ret, Uint32 *pages, Uint32 min);
   void release(Uint32 start, Uint32 cnt);
 };
 
