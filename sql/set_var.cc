@@ -3529,7 +3529,7 @@ uchar *sys_var_thd_storage_engine::value_ptr(THD *thd, enum_var_type type,
   if (type == OPT_GLOBAL)
     plugin= my_plugin_lock(thd, &(global_system_variables.*offset));
   hton= plugin_data(plugin, handlerton*);
-  engine_name= &hton2plugin[hton->slot]->name;
+  engine_name= hton_name(hton);
   result= (uchar *) thd->strmake(engine_name->str, engine_name->length);
   if (type == OPT_GLOBAL)
     plugin_unlock(thd, plugin);

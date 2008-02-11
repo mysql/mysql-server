@@ -2023,4 +2023,14 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 DROP TABLE t1;
+create table t1 (n int not null, c char(1)) transactional=1;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
+drop table t1;
 End of 5.1 tests
