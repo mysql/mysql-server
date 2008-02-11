@@ -16,3 +16,5 @@ partition_sessions             : needs system_3_init.inc
 partition_engine_ndb           : cannot create t1
 part_supported_sql_func_ndb    : cannot create t1
 rpl_ndb_dd_partitions          : cannot create t1
+partition_alter4_myisam        : Bug#20129 / WL#4176
+partition_alter4_innodb        : Bug#20129 / WL#4176
