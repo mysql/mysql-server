@@ -83,17 +83,17 @@ let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
 --echo #------------------------------------------------------------------------
 --echo #  5   ALTER ... REPAIR PARTITION
 --echo #------------------------------------------------------------------------
---echo #  5.1 ALTER ... REBUILD PARTITION part_1;
-let $alter= ALTER TABLE t1 REBUILD PARTITION part_1;
+--echo #  5.1 ALTER ... REPAIR PARTITION part_1;
+let $alter= ALTER TABLE t1 REPAIR PARTITION part_1;
 --source suite/parts/inc/partition_alter_41.inc
---echo #  5.2 ALTER ... REBUILD PARTITION part_1,part_2;
-let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2;
+--echo #  5.2 ALTER ... REPAIR PARTITION part_1,part_2;
+let $alter= ALTER TABLE t1 REPAIR PARTITION part_1,part_2;
 --source suite/parts/inc/partition_alter_41.inc
---echo #  5.3 ALTER ... REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
-let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_2,part_5,part_6,part_10;
+--echo #  5.3 ALTER ... REPAIR PARTITION part_1,part_2,part_5,part_6,part_10;
+let $alter= ALTER TABLE t1 REPAIR PARTITION part_1,part_2,part_5,part_6,part_10;
 --source suite/parts/inc/partition_alter_41.inc
---echo #  5.4 ALTER ... REBUILD PARTITION part_1,part_1,part_1;
-let $alter= ALTER TABLE t1 REBUILD PARTITION part_1,part_1,part_1;
+--echo #  5.4 ALTER ... REPAIR PARTITION part_1,part_1,part_1;
+let $alter= ALTER TABLE t1 REPAIR PARTITION part_1,part_1,part_1;
 --source suite/parts/inc/partition_alter_41.inc
 
 --echo #------------------------------------------------------------------------

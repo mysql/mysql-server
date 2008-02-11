@@ -6113,7 +6113,19 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
          (error= table->file->ha_repair_partitions(thd))))
     {
-      table->file->print_error(error, MYF(0));
+      if (error == HA_ADMIN_NOT_IMPLEMENTED) {
+        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "optimize partition");
+        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "analyze partition");
+        else if (alter_info->flags & ALTER_CHECK_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "check partition");
+        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "repair partition");
+        else
+          table->file->print_error(error, MYF(0));
+      } else
+        table->file->print_error(error, MYF(0));
       goto err;
     }
   }
