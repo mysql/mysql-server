@@ -293,7 +293,7 @@ struct SubTableData {
   SECTION( AFTER_VALUES = 1 );
   SECTION( BEFORE_VALUES = 2 );
   
-  enum LogType {
+  enum Flags {
     SCAN = 1, 
     LOG  = 2,
     REMOVE_FLAGS = 0xff
@@ -303,7 +303,7 @@ struct SubTableData {
   Uint32 gci_hi;
   Uint32 tableId;
   Uint32 requestInfo;
-  Uint32 logType;
+  Uint32 flags;
   union {
     Uint32 changeMask;
     Uint32 anyValue;
@@ -393,6 +393,7 @@ struct SubGcpCompleteRep {
   STATIC_CONST( SignalLength = 5 );
   STATIC_CONST( ON_DISK = 1 );
   STATIC_CONST( IN_MEMORY = 2 );
+  STATIC_CONST( MISSING_DATA = 4 );
 
   Uint32 gci_hi;
   Uint32 senderRef;

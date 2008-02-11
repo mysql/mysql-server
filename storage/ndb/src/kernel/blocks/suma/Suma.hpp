@@ -349,6 +349,8 @@ public:
   ArrayPool<SyncRecord> c_syncPool;
   DataBuffer<15>::DataBufferPool c_dataBufferPool;
 
+  Uint32 c_maxBufferedGcp;
+
   NodeBitmask c_failedApiNodes;
   
   /**
@@ -600,11 +602,14 @@ private:
 
   Uint64 get_current_gci(Signal*);
 
+  void checkMaxBufferedGCP(Signal *signal);
+
   Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
   Uint64 m_last_complete_gci; // SUB_GCP_COMPLETE_REP
   Uint64 m_out_of_buffer_gci;
   Uint32 m_gcp_complete_rep_count;
+  bool m_missing_data;
 
   struct Gcp_record 
   {
