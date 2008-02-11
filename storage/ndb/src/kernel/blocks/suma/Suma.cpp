@@ -165,11 +165,13 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
 
   // SumaParticipant
-  Uint32 noTables, noAttrs;
+  Uint32 noTables, noAttrs, maxBufferedGcp;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
 			    &noTables);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES,  
 			    &noAttrs);
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_GCP,
+                            &maxBufferedGcp);
 
   c_tablePool.setSize(noTables);
   c_tables.setSize(noTables);
@@ -180,6 +182,8 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_subscriptionPool.setSize(noTables);
   c_syncPool.setSize(2);
   c_dataBufferPool.setSize(noAttrs);
+
+  c_maxBufferedGcp = maxBufferedGcp;
 
   // Calculate needed gcp pool as 10 records + the ones needed
   // during a possible api timeout
@@ -225,7 +229,8 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   m_last_complete_gci = 0; // SUB_GCP_COMPLETE_REP
   m_gcp_complete_rep_count = 0;
   m_out_of_buffer_gci = 0;
- 
+  m_missing_data = false;
+
   c_startup.m_wait_handover= false; 
   c_failedApiNodes.clear();
 
@@ -3518,7 +3523,7 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
     data->tableId        = tableId;
     data->requestInfo    = 0;
     SubTableData::setOperation(data->requestInfo, event);
-    data->logType        = 0;
+    data->flags          = 0;
     data->anyValue       = any_value;
     data->totalLen       = ptrLen;
     
@@ -3556,6 +3561,77 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 }
 
 void
+Suma::checkMaxBufferedGCP(Signal *signal)
+{
+  /*
+   * Check if any subscribers are exceeding the MaxBufferedEpochs
+   */
+  jamEntry();
+  if (c_gcp_list.isEmpty())
+  {
+    jam();
+    return;
+  }
+  Ptr<Gcp_record> gcp;
+  c_gcp_list.first(gcp);
+  if (ERROR_INSERTED(13035))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbout_c("Simulating exceeding the MaxBufferedEpochs %u(%llu,%llu,%llu)",
+            c_maxBufferedGcp, m_max_seen_gci,
+            m_last_complete_gci, gcp.p->m_gci);
+    c_maxBufferedGcp = 1;
+  }
+  if (m_max_seen_gci - gcp.p->m_gci >= (Uint64) c_maxBufferedGcp)
+  {
+    NodeBitmask subs = c_subscriber_nodes;
+    jam();
+    // Disconnect lagging subscribers
+    for(; !gcp.isNull(); c_gcp_list.next(gcp))
+    {
+      jam();
+      if (m_max_seen_gci - gcp.p->m_gci >= (Uint64) c_maxBufferedGcp)
+      {
+        jam();
+        for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
+        {
+          if (subs.get(nodeId))
+          {
+           jam();
+           subs.clear(nodeId);
+           // Disconnecting node
+           signal->theData[0] = NDB_LE_SubscriptionStatus;
+           signal->theData[1] = 1; // DISCONNECTED;
+           signal->theData[2] = nodeId;
+           signal->theData[3] = (Uint32) gcp.p->m_gci;
+           signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
+           sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
+           infoEvent("MaxBufferedEpochs %llu exceeded %u",
+                     m_max_seen_gci - gcp.p->m_gci,
+                     c_maxBufferedGcp);
+
+            /**
+             * Force API_FAILREQ
+            */
+           signal->theData[0] = nodeId;
+            EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
+          }
+        }
+      }
+      else
+      {
+        /*
+         * We have found a newer gci that still is
+         * allowed to be buffered
+         */
+        break;
+      }
+    }
+  }
+}
+
+void
 Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 {
   jamEntry();
@@ -3565,7 +3641,17 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   Uint32 gci_hi = rep->gci_hi;
   Uint32 gci_lo = rep->gci_lo;
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
-  Uint32 flags = rep->flags;
+  Uint32 flags = (m_missing_data)
+                 ? rep->flags | SubGcpCompleteRep::MISSING_DATA
+                 : rep->flags;
+
+  if (ERROR_INSERTED(13034))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbout_c("Simulating out of event buffer at node failure");
+    flags |= SubGcpCompleteRep::MISSING_DATA;
+  }
 
 #ifdef VM_TRACE
   if (m_gcp_monitor == 0)
@@ -3584,6 +3670,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 #endif
 
   m_last_complete_gci = gci;
+  checkMaxBufferedGCP(signal);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
@@ -3718,6 +3805,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
   {
     infoEvent("Reenable event buffer");
     m_out_of_buffer_gci = 0;
+    m_missing_data = false;
   }
 }
 
@@ -3868,7 +3956,7 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   SubTableData::setOperation(data->requestInfo, 
 			     NdbDictionary::Event::_TE_ALTER);
   SubTableData::setReqNodeId(data->requestInfo, refToNode(senderRef));
-  data->logType        = 0;
+  data->flags          = 0;
   data->changeMask     = changeMask;
   data->totalLen       = tabInfoPtr.sz;
   {
@@ -3919,6 +4007,13 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
 
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
+
+  if (ERROR_INSERTED(13035))
+  {
+    jam();
+    ndbout_c("Simulating exceeding the MaxBufferedEpochs, ignoring ack");
+    return;
+  }
 
   if (refToBlock(senderRef) == SUMA) {
     jam();
@@ -4763,7 +4858,7 @@ Suma::out_of_buffer(Signal* signal)
   
   m_out_of_buffer_gci = m_last_complete_gci - 1;
   infoEvent("Out of event buffer: nodefailure will cause event failures");
-
+  m_missing_data = false;
   out_of_buffer_release(signal, 0);
 }
 
@@ -4805,11 +4900,19 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
    */
   m_out_of_buffer_gci = m_max_seen_gci > m_last_complete_gci 
     ? m_max_seen_gci : m_last_complete_gci;
+  m_missing_data = false;
 }
 
 Uint32
 Suma::seize_page()
 {
+  if (ERROR_INSERTED(13036))
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbout_c("Simulating out of event buffer");
+    m_out_of_buffer_gci = m_max_seen_gci;
+  }
   if(unlikely(m_out_of_buffer_gci))
   {
     return RNIL;
@@ -4941,19 +5044,25 @@ void
 Suma::start_resend(Signal* signal, Uint32 buck)
 {
   printf("start_resend(%d, ", buck);
-  
-  if(m_out_of_buffer_gci)
-  {
-    progError(__LINE__, NDBD_EXIT_SYSTEM_ERROR, 
-	      "Nodefailure while out of event buffer");
-    return;
-  }
-  
+
   /**
    * Resend from m_max_acked_gci + 1 until max_gci + 1
    */
   Bucket* bucket= c_buckets + buck;
   Page_pos pos= bucket->m_buffer_head;
+
+  if(m_out_of_buffer_gci)
+  {
+    Ptr<Gcp_record> gcp;
+    c_gcp_list.last(gcp);
+    signal->theData[0] = NDB_LE_SubscriptionStatus;
+    signal->theData[1] = 2; // INCONSISTENT;
+    signal->theData[3] = (Uint32) pos.m_max_gci;
+    signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+    m_missing_data = true;
+    return;
+  }
 
   if(pos.m_page_id == RNIL)
   {
@@ -5087,9 +5196,19 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       SubGcpCompleteRep * rep = (SubGcpCompleteRep*)signal->getDataPtrSend();
       rep->gci_hi = last_gci >> 32;
       rep->gci_lo = last_gci & 0xFFFFFFFF;
-      rep->flags = 0;
+      rep->flags = (m_missing_data)
+                   ? SubGcpCompleteRep::MISSING_DATA
+                   : 0;
       rep->senderRef  = reference();
       rep->gcp_complete_rep_count = 1;
+
+      if (ERROR_INSERTED(13034))
+      {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
+        ndbout_c("Simulating out of event buffer at node failure");
+        rep->flags |= SubGcpCompleteRep::MISSING_DATA;
+      }
   
       char buf[255];
       c_subscriber_nodes.getText(buf);
@@ -5135,7 +5254,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
 	data->tableId        = table;
 	data->requestInfo    = 0;
 	SubTableData::setOperation(data->requestInfo, event);
-	data->logType        = 0;
+	data->flags          = 0;
 	data->anyValue       = any_value;
 	data->totalLen       = ptrLen;
 	

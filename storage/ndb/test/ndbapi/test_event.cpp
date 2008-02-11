@@ -1847,6 +1847,177 @@ runBug31701(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+errorInjectBufferOverflow(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb * ndb= GETNDB(step);
+  NdbRestarter restarter;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  int result= NDBT_OK;
+  int res;
+  bool found_gap = false;
+  NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
+  Uint64 gci;
+
+  if (pOp == 0)
+  {
+    g_err << "Failed to createEventOperation" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.insertErrorInAllNodes(13034) != 0)
+  {
+    result = NDBT_FAILED;
+    goto cleanup;
+  }
+
+  res = ndb->pollEvents(5000);
+
+  if (ndb->getNdbError().code != 0)
+  {
+    g_err << "pollEvents failed: \n";
+    g_err << ndb->getNdbError().code << " "
+          << ndb->getNdbError().message << endl;
+    result = (ndb->getNdbError().code == 4720)?NDBT_OK:NDBT_FAILED;
+    goto cleanup;
+  }
+  if (res >= 0) {
+    NdbEventOperation *tmp;
+    while (!found_gap && (tmp= ndb->nextEvent()))
+    {
+      if (!ndb->isConsistent(gci))
+        found_gap = true;
+    }
+  }
+  if (!ndb->isConsistent(gci))
+    found_gap = true;
+  if (!found_gap)
+  {
+    g_err << "buffer overflow not detected\n";
+    result = NDBT_FAILED;
+    goto cleanup;
+  }
+
+cleanup:
+
+  if (ndb->dropEventOperation(pOp) != 0) {
+    g_err << "dropping event operation failed\n";
+    result = NDBT_FAILED;
+  }
+
+  return result;
+}
+
+int
+errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb * ndb= GETNDB(step);
+  NdbRestarter restarter;
+  const NdbDictionary::Table* pTab = ctx->getTab();
+  NdbEventOperation *pOp= createEventOperation(ndb, *pTab);
+  int result = NDBT_OK;
+  int res;
+  bool connected = true;
+
+  if (pOp == 0)
+  {
+    g_err << "Failed to createEventOperation" << endl;
+    return NDBT_FAILED;
+  }
+
+  if (restarter.insertErrorInAllNodes(13035) != 0)
+  {
+    result = NDBT_FAILED;
+    goto cleanup;
+  }
+
+  res = ndb->pollEvents(5000) > 0;
+
+  if (ndb->getNdbError().code != 0)
+  {
+    g_err << "pollEvents failed: \n";
+    g_err << ndb->getNdbError().code << " "
+          << ndb->getNdbError().message << endl;
+    result = NDBT_FAILED;
+    goto cleanup;
+  }
+
+  if (res > 0) {
+    NdbEventOperation *tmp;
+    int count = 0;
+    while (connected && (tmp= ndb->nextEvent()))
+    {
+      if (tmp != pOp)
+      {
+        printf("Found stray NdbEventOperation\n");
+        result = NDBT_FAILED;
+        goto cleanup;
+      }
+      switch (tmp->getEventType()) {
+      case NdbDictionary::Event::TE_CLUSTER_FAILURE:
+        connected = false;
+        break;
+      default:
+        count++;
+        break;
+      }
+    }
+    if (connected)
+    {
+      g_err << "failed to detect cluster disconnect\n";
+      result = NDBT_FAILED;
+      goto cleanup;
+    }
+  }
+
+cleanup:
+
+  if (ndb->dropEventOperation(pOp) != 0) {
+    g_err << "dropping event operation failed\n";
+    result = NDBT_FAILED;
+  }
+
+  // Reconnect by trying to start a transaction
+  uint retries = 100;
+  while (!connected && retries--)
+  {
+    HugoTransactions hugoTrans(* ctx->getTab());
+    if (hugoTrans.loadTable(ndb, 100) == 0)
+    {
+      connected = true;
+      result = NDBT_OK;
+    }
+    else
+    {
+      NdbSleep_MilliSleep(300);
+      result = NDBT_FAILED;
+    }
+  }
+
+  if (!connected)
+    g_err << "Failed to reconnect\n";
+
+  // Restart cluster with abort
+  if (restarter.restartAll(false, false, true) != 0){
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+
+  // Stop the other thread
+  ctx->stopTest();
+
+  if (restarter.waitClusterStarted(300) != 0){
+    return NDBT_FAILED;
+  }
+
+  if (ndb->waitUntilReady() != 0){
+    return NDBT_FAILED;
+  }
+
+  return result;
+}
+
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -1983,6 +2154,20 @@ TESTCASE("Bug31701", ""){
   STEP(runBug31701);
   FINALIZER(runDropEvent);
   FINALIZER(runDropShadowTable);
+}
+TESTCASE("EventBufferOverflow",
+         "Simulating EventBuffer overflow while node restart"
+         "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEP(errorInjectBufferOverflow);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("StallingSubscriber",
+         "Simulating slow subscriber that will become disconnected"
+         "NOTE! No errors are allowed!" ){
+  INITIALIZER(runCreateEvent);
+  STEP(errorInjectStalling);
+  FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
 
