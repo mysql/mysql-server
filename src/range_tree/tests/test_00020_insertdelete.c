@@ -24,79 +24,79 @@ int main(int argc, const char *argv[]) {
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */
-    range.left = &nums[1];
-    range.right = &nums[1];
-    range.data = &letters[0];
+    range.left =  (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[1];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
     u_int32_t num_in_range = toku_rt_get_size(tree);
     assert(num_in_range == 1);
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
-    range.left = &nums[1];
-    range.right = &nums[5];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[5];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     /* Try and fail to insert exact same thing. */
     r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
 
     /* Try and succeed to insert (and delete) similar yet different things */
-    range.right = &nums[6];
+    range.right = (toku_point*)&nums[6];
     r = toku_rt_insert(tree, &range);   CKERR(r);
     r = toku_rt_delete(tree, &range);   CKERR(r);
-    range.right = &nums[5];
-    range.data = &letters[1];
+    range.right = (toku_point*)&nums[5];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
     r = toku_rt_delete(tree, &range);   CKERR(r);
-    range.data = &letters[0];
+    range.data = (DB_TXN*)&letters[0];
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[3];
-    range.right = &nums[7];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[3];
+    range.right = (toku_point*)&nums[7];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     /* Try to delete again, make sure it fails. (Not there anymore) */
     r = toku_rt_delete(tree, &range);   CKERR2(r,EDOM);
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     /* Clean up. */
-    range.left = &nums[1];
-    range.right = &nums[5];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[5];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
-    range.left = &nums[2];
-    range.right = &nums[6];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[2];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
-    range.left = &nums[3];
-    range.right = &nums[7];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[3];
+    range.right = (toku_point*)&nums[7];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
     /* Done */
 
@@ -114,60 +114,60 @@ int main(int argc, const char *argv[]) {
     CKERR(r);
 
     /* Verify we can insert a trivial range and lose it. */
-    range.left = &nums[1];
-    range.right = &nums[1];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[1];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
-    range.left = &nums[1];
-    range.right = &nums[3];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[3];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     /* Try and fail to insert exact same thing. */
     r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
 
     /* Try (and fail) to insert an overlapping range in a nooverlap tree. */
-    range.left = &nums[0];
-    range.right = &nums[4];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[0];
+    range.right = (toku_point*)&nums[4];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
     
     /* Try (and fail) to insert an overlapping range (different data) in a
        nooverlap tree. */
-    range.left = &nums[0];
-    range.right = &nums[4];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[0];
+    range.right = (toku_point*)&nums[4];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_insert(tree, &range);   CKERR2(r,EDOM);
     
-    range.left = &nums[4];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[4];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[4];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[4];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     /* Try to delete again, make sure it fails. (Not there anymore) */
     r = toku_rt_delete(tree, &range);   CKERR2(r,EDOM);
 
-    range.left = &nums[4];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[4];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
-    range.left = &nums[1];
-    range.right = &nums[3];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[3];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     /* Clean up. */
-    range.left = &nums[4];
-    range.right = &nums[6];
-    range.data = &letters[1];
+    range.left = (toku_point*)&nums[4];
+    range.right = (toku_point*)&nums[6];
+    range.data = (DB_TXN*)&letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
     /* Done */
 

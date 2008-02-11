@@ -20,10 +20,10 @@ toku_range* buf;
 unsigned buflen;
 
 toku_range* init_range(toku_range* range, int left, int right, int data) {
-    range->left = &nums[left];
-    range->right = &nums[right];
+    range->left = (toku_point*)&nums[left];
+    range->right = (toku_point*)&nums[right];
     if (data < 0)   range->data = NULL;
-    else            range->data = &letters[data];
+    else            range->data = (DB_TXN*)&letters[data];
     return range;
 }
 

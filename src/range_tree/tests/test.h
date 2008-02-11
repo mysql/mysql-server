@@ -40,22 +40,22 @@ static inline uint32_t myrandom (void) {
 }
 
 
-int dummy_cmp(void *a __attribute__((__unused__)),  
-              void *b __attribute__((__unused__))) {
+int dummy_cmp(toku_point *a __attribute__((__unused__)),  
+              toku_point *b __attribute__((__unused__))) {
     return 0;
 }
 
-int ptr_cmp(void *a, void *b) {
+int ptr_cmp(DB_TXN* a, DB_TXN* b) {
     return a < b ? -1 : (a != b); /* \marginpar{!?} */
 }
 
-int int_cmp(void *a, void *b) {
+int int_cmp(toku_point* a, toku_point*b) {
     int x = *(int*)a;
     int y = *(int*)b;
     return x -y;
 }
 
-int char_cmp(void *a, void *b) {
+int char_cmp(DB_TXN *a, DB_TXN *b) {
     int x = *(char*)a;
     int y = *(char*)b;
     return x -y;

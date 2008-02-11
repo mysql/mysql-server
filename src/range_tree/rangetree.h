@@ -20,6 +20,13 @@
 
 //Defines BOOL data type.
 #include <brttypes.h>
+#include <db.h>
+
+struct __toku_point;
+#if !defined(__TOKU_POINT)
+#define __TOKU_POINT
+typedef struct __toku_point toku_point;
+#endif
 
 /** \brief Range with value
     Represents a range of data with an associated value.
@@ -27,9 +34,9 @@
     buf and buflen.
  */
 typedef struct {
-	void*   left;  /**< Left end-point */
-  	void*   right; /**< Right end-point */
-	void*   data;  /**< Data associated with the range */
+	toku_point* left;  /**< Left end-point */
+  	toku_point* right; /**< Right end-point */
+	DB_TXN*     data;  /**< Data associated with the range */
 } toku_range;
 
 struct __toku_range_tree;
@@ -68,8 +75,9 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
     - 0:              Success.
     - EINVAL:         If any pointer argument is NULL.
     - Other exit codes may be forwarded from underlying system calls. */
-int toku_rt_create(toku_range_tree** ptree, int (*end_cmp)(void*,void*), 
-                   int (*data_cmp)(void*,void*), BOOL allow_overlaps,
+int toku_rt_create(toku_range_tree** ptree,
+                   int (*end_cmp)(toku_point*,toku_point*), 
+                   int (*data_cmp)(DB_TXN*,DB_TXN*), BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)); 
@@ -167,8 +175,8 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range);
                       If tree allows overlaps.
     - Other exit codes may be forwarded from underlying system calls.
  */
-int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
-                        BOOL* wasfound);
+int toku_rt_predecessor(toku_range_tree* tree, toku_point* point,
+                        toku_range* pred, BOOL* wasfound);
 
 /**
     Finds the strict successor range of a point i.e. the leftmost range
@@ -189,8 +197,8 @@ int toku_rt_predecessor(toku_range_tree* tree, void* point, toku_range* pred,
                       If tree allows overlaps.
     - Other exit codes may be forwarded from underlying system calls.
  */
-int toku_rt_successor(toku_range_tree* tree, void* point, toku_range* succ,
-                      BOOL* wasfound);
+int toku_rt_successor(toku_range_tree* tree, toku_point* point,
+                      toku_range* succ, BOOL* wasfound);
                       
 u_int32_t toku_rt_get_size(toku_range_tree *);                    
                       

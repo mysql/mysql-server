@@ -18,16 +18,16 @@ toku_range* buf;
 unsigned buflen;
 
 toku_range* init_range(toku_range* range, int left, int right, int data) {
-    range->left = &nums[left];
-    range->right = &nums[right];
+    range->left = (toku_point*)&nums[left];
+    range->right = (toku_point*)&nums[right];
     if (data < 0)   range->data = NULL;
-    else            range->data = &letters[data];
+    else            range->data = (DB_TXN*)&letters[data];
     return range;
 }
 
 void* init_point(unsigned left) {
     assert(left < sizeof(nums) / sizeof(nums[0]));
-    return (&nums[left]);
+    return ((toku_point*)&nums[left]);
 }
 
 void setup_tree(BOOL allow_overlaps, BOOL insert, int left, int right, int data) {
@@ -94,9 +94,9 @@ void runtest(predsucc testtype, void* query, BOOL findexpect,
     CKERR(r);
     assert(found == findexpect);
     if (findexpect) {
-        assert(int_cmp(out.left, &nums[left]) == 0);
-        assert(int_cmp(out.right, &nums[right]) == 0);
-        assert(char_cmp(out.data, &letters[data]) == 0);
+        assert(int_cmp(out.left, (toku_point*)&nums[left]) == 0);
+        assert(int_cmp(out.right, (toku_point*)&nums[right]) == 0);
+        assert(char_cmp(out.data, (DB_TXN*)&letters[data]) == 0);
     }
 }
 

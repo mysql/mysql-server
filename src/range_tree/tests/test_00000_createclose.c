@@ -11,7 +11,7 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
-    	r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, allow_overlaps, malloc, free, realloc);
+    	r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, malloc, free, realloc);
     	CKERR(r);
     
     	assert(tree!=NULL);
@@ -30,7 +30,7 @@ int main(int argc, const char *argv[]) {
         for (i = 1; i <= 2; i++) {
             mallocced = 0;
             failon = i;
-            r = toku_rt_create(&tree, dummy_cmp, dummy_cmp, allow_overlaps,
+            r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps,
                                fail_malloc, free, realloc);
             CKERR2(r, ENOMEM);
 
