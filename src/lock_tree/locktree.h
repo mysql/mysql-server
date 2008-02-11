@@ -111,14 +111,18 @@ extern const DBT* const toku_lt_neg_infinity; /**< Special value denoting
    key_payload = (void*) toku_lt_infinity or 
    key_payload = (void*) toku_lt_neg infinity 
  */
-typedef struct {
+struct __toku_point {
     toku_lock_tree* lt;           /**< The lock tree, where toku_lt_point_cmp 
                                        is defined */
     void*           key_payload;  /**< The key ... */
     u_int32_t       key_len;      /**< and its length */
     void*           data_payload; /**< The data ... */
     u_int32_t       data_len;     /**< and its length */
-} toku_point;
+};
+#if !defined(__TOKU_POINT)
+#define __TOKU_POINT
+typedef struct __toku_point toku_point;
+#endif
 
 /**
    Create a lock tree.  Should be called only inside DB->open.

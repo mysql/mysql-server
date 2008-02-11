@@ -20,9 +20,9 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
-    range.left = &nums[1];
-    range.right = &nums[5];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[5];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_close(tree);            CKERR(r);
@@ -37,9 +37,9 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
     CKERR(r);
 
-    range.left = &nums[1];
-    range.right = &nums[5];
-    range.data = &letters[0];
+    range.left = (toku_point*)&nums[1];
+    range.right = (toku_point*)&nums[5];
+    range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_close(tree);            CKERR(r);

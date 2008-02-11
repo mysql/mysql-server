@@ -25,10 +25,10 @@ struct __toku_range_tree {
     //Shared fields:
     /** A comparison function, as in bsearch(3), to compare the end-points of 
         a range. It is assumed to be commutative. */
-    int         (*end_cmp)(void*,void*);  
+    int         (*end_cmp)(toku_point*,toku_point*);  
     /** A comparison function, as in bsearch(3), to compare the data associated
         with a range */
-    int         (*data_cmp)(void*,void*);
+    int         (*data_cmp)(DB_TXN*,DB_TXN*);
     /** Whether this tree allows ranges to overlap */
     BOOL        allow_overlaps;
     /** The number of ranges in the range tree */
@@ -54,7 +54,7 @@ static const u_int32_t minlen = 64;
  *      > 0:    Point strictly greater than the range.
  */
 static int __toku_rt_p_cmp(toku_range_tree* tree,
-                           void* point, toku_range* range) {
+                           toku_point* point, toku_range* range) {
     if (tree->end_cmp(point, range->left) < 0) return -1;
     if (tree->end_cmp(point, range->right) > 0) return 1;
     return 0;
@@ -129,7 +129,8 @@ static BOOL __toku_rt_exact(toku_range_tree* tree,
 }
 
 int toku_rt_create(toku_range_tree** ptree,
-                   int (*end_cmp)(void*,void*), int (*data_cmp)(void*,void*),
+                   int (*end_cmp)(toku_point*,toku_point*),
+                   int (*data_cmp)(DB_TXN*,DB_TXN*),
 		           BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
@@ -237,8 +238,8 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     return 0;
 }
 
-int toku_rt_predecessor (toku_range_tree* tree, void* point, toku_range* pred,
-                         BOOL* wasfound) {
+int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
+                         toku_range* pred, BOOL* wasfound) {
     if (!tree || !point || !pred || !wasfound)           return EINVAL;
     if (tree->allow_overlaps)                            return EINVAL;
     toku_range* best = NULL;
@@ -255,8 +256,8 @@ int toku_rt_predecessor (toku_range_tree* tree, void* point, toku_range* pred,
     return 0;
 }
 
-int toku_rt_successor (toku_range_tree* tree, void* point, toku_range* succ,
-                       BOOL* wasfound) {
+int toku_rt_successor (toku_range_tree* tree, toku_point* point,
+                       toku_range* succ, BOOL* wasfound) {
     if (!tree || !point || !succ || !wasfound)           return EINVAL;
     if (tree->allow_overlaps)                            return EINVAL;
     toku_range* best = NULL;

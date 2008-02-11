@@ -75,18 +75,16 @@ inline static DBT* __toku_recreate_DBT(DBT* dbt, void* payload, u_int32_t length
     return dbt;
 }
 
-inline static int __toku_lt_txn_cmp(void* a, void* b) {
+inline static int __toku_lt_txn_cmp(DB_TXN* a, DB_TXN* b) {
     return a < b ? -1 : (a != b);
 }
 
-int __toku_lt_point_cmp(void* a, void* b) {
+int __toku_lt_point_cmp(toku_point* x, toku_point* y) {
     int partial_result;
     DBT point_1;
     DBT point_2;
 
-    assert(a && b);
-    toku_point* x = (toku_point*)a;
-    toku_point* y = (toku_point*)b;
+    assert(x && y);
     assert(x->lt);
     assert(x->lt == y->lt);
 
@@ -171,9 +169,9 @@ inline static int __toku_payload_copy(toku_lock_tree* tree,
     return 0;
 }
 
-inline static int __toku_p_makecopy(toku_lock_tree* tree, void** ppoint) {
+inline static int __toku_p_makecopy(toku_lock_tree* tree, toku_point** ppoint) {
     assert(ppoint);
-    toku_point*     point      = *(toku_point**)ppoint;
+    toku_point*     point      = *ppoint;
     toku_point*     temp_point = NULL;
     int r;
 
@@ -1088,9 +1086,8 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     toku_point right;
     toku_range query;
 
-    assert(tree);
     if (key_left == key_right &&
-        (data_left == data_right || !tree->duplicates)) {
+        (data_left == data_right || (tree && !tree->duplicates))) {
         return toku_lt_acquire_write_lock(tree, txn, key_left, data_left);
     }
 

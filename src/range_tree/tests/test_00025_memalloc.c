@@ -36,18 +36,18 @@ int main(int argc, const char *argv[]) {
     /* Insert lots of ranges */
     for (i = 0; i < 512; i++) {
       j = i + i;
-      range.left  = &nums[j];
-      range.right = &nums[j+1];
-      range.data  = &letters[0];
+      range.left  = (toku_point*)&nums[j];
+      range.right = (toku_point*)&nums[j+1];
+      range.data  = (DB_TXN*)&letters[0];
       r = toku_rt_insert(tree, &range);   CKERR(r);
     }
 
     /* Decrease lots of ranges */
     for (i = 0; i < 512; i++) {
       j = i + i;
-      range.left  = &nums[j];
-      range.right = &nums[j+1];
-      range.data  = &letters[0];
+      range.left  = (toku_point*)&nums[j];
+      range.right = (toku_point*)&nums[j+1];
+      range.data  = (DB_TXN*)&letters[0];
       r = toku_rt_delete(tree, &range);   CKERR(r);
     }
 
