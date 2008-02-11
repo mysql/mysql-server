@@ -813,8 +813,8 @@ AC_CHECK_HEADERS(fcntl.h float.h floatingpoint.h ieeefp.h limits.h \
  sys/timeb.h sys/types.h sys/un.h sys/vadvise.h sys/wait.h term.h \
  unistd.h utime.h sys/utime.h termio.h termios.h sched.h crypt.h alloca.h \
  sys/ioctl.h malloc.h sys/malloc.h sys/ipc.h sys/shm.h linux/config.h \
- sys/prctl.h \
- sys/resource.h sys/param.h port.h ieeefp.h)
+ sys/prctl.h sys/resource.h sys/param.h port.h ieeefp.h \
+ execinfo.h)
 
 AC_CHECK_HEADERS([xfs/xfs.h])
 
@@ -2041,7 +2041,7 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   sighold sigset sigthreadmask port_create sleep \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  posix_fallocate)
+  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
 
 #
 #
@@ -2330,6 +2330,21 @@ then
   AC_DEFINE([HAVE_BROKEN_NETINET_INCLUDES], [1], [Can netinet be included])
 fi
 AC_MSG_RESULT("$netinet_inc")
+
+AC_LANG_SAVE
+AC_LANG_CPLUSPLUS
+AC_CHECK_HEADERS(cxxabi.h)
+AC_CACHE_CHECK([checking for abi::__cxa_demangle], mysql_cv_cxa_demangle,
+[AC_TRY_LINK([#include <cxxabi.h>], [
+  char *foo= 0; int bar= 0;
+  foo= abi::__cxa_demangle(foo, foo, 0, &bar);
+], [mysql_cv_cxa_demangle=yes], [mysql_cv_cxa_demangle=no])])
+AC_LANG_RESTORE
+
+if test "x$mysql_cv_cxa_demangle" = xyes; then
+  AC_DEFINE(HAVE_ABI_CXA_DEMANGLE, 1,
+            [Define to 1 if you have the `abi::__cxa_demangle' function.])
+fi
 
 #--------------------------------------------------------------------
 # Check for requested features
