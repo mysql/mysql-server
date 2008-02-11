@@ -23,6 +23,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <Bitmask.hpp>
 #include <RefConvert.hpp>
+#include <NdbEnv.h>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -121,15 +122,57 @@ int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
+  int multiop = ctx->getProperty("MULTI_OP", 1);
+  Ndb* pNdb = GETNDB(step);
   int i = 0;
-  HugoTransactions hugoTrans(*ctx->getTab());
-  while (ctx->isTestStopped() == false) {
+
+  HugoOperations hugoOps(*ctx->getTab());
+  while (ctx->isTestStopped() == false)
+  {
     g_info << i << ": ";
-    int rows = (rand()%records)+1;
-    int batch = (rand()%rows)+1;
-    if (hugoTrans.pkUpdateRecords(GETNDB(step), rows, batch) != 0){
-      return NDBT_FAILED;
+    int batch = (rand()%records)+1;
+    int row = rand() % records;
+
+    if (batch > 25)
+      batch = 25;
+
+    if(row + batch > records)
+      batch = records - row;
+
+    if(hugoOps.startTransaction(pNdb) != 0)
+      goto err;
+
+    if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
+      goto err;
+
+    for (int j = 1; j<multiop; j++)
+    {
+      if(hugoOps.execute_NoCommit(pNdb) != 0)
+	goto err;
+
+      if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
+        goto err;
     }
+
+    if(hugoOps.execute_Commit(pNdb) != 0)
+      goto err;
+
+    hugoOps.closeTransaction(pNdb);
+
+    continue;
+
+err:
+    NdbConnection* pCon = hugoOps.getTransaction();
+    if(pCon == 0)
+      continue;
+    NdbError error = pCon->getNdbError();
+    hugoOps.closeTransaction(pNdb);
+    if (error.status == NdbError::TemporaryError){
+      NdbSleep_MilliSleep(50);
+      continue;
+    }
+    return NDBT_FAILED;
+
     i++;
   }
   return result;
@@ -230,7 +273,7 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_OK;
   }
 
-  if(restarter.waitClusterStarted(60) != 0){
+  if(restarter.waitClusterStarted() != 0){
     g_err << "Cluster failed to start" << endl;
     return NDBT_FAILED;
   }
@@ -241,13 +284,27 @@ int runRestarter(NDBT_Context* ctx, NDBT_Step* step){
     int id = lastId % restarter.getNumDbNodes();
     int nodeId = restarter.getDbNodeId(id);
     ndbout << "Restart node " << nodeId << endl; 
-    if(restarter.restartOneDbNode(nodeId, false, false, true) != 0){
+    if(restarter.restartOneDbNode(nodeId, false, true, true) != 0){
       g_err << "Failed to restartNextDbNode" << endl;
       result = NDBT_FAILED;
       break;
     }    
 
-    if(restarter.waitClusterStarted(60) != 0){
+    if (restarter.waitNodesNoStart(&nodeId, 1))
+    {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.startNodes(&nodeId, 1))
+    {
+      g_err << "Failed to start node" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if(restarter.waitClusterStarted() != 0){
       g_err << "Cluster failed to start" << endl;
       result = NDBT_FAILED;
       break;
@@ -2066,6 +2123,177 @@ runBug32922(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug34216(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter restarter;
+  int i = 0;
+  int lastId = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if(restarter.waitClusterStarted() != 0){
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  char buf[100];
+  const char * off = NdbEnv_GetEnv("NDB_ERR_OFFSET", buf, sizeof(buf));
+  int offset = off ? atoi(off) : 0;
+
+  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
+  {
+    int id = lastId % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(id);
+    int err = 5048 + ((i+offset) % 2);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+
+    if(hugoOps.startTransaction(pNdb) != 0)
+      goto err;
+
+    nodeId = hugoOps.getTransaction()->getConnectedNodeId();
+    ndbout << "Restart node " << nodeId << " " << err <<endl;
+
+    if (restarter.dumpStateOneNode(nodeId, val2, 2))
+      return NDBT_FAILED;
+
+    if(restarter.insertErrorInNode(nodeId, err) != 0){
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.insertErrorInNode(nodeId, 8057) != 0)
+    {
+      g_err << "Failed to insert error 8057" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    int rows = 10;
+    int batch = 1;
+    int row = (records - rows) ? rand() % (records - rows) : 0;
+
+    if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
+      goto err;
+
+    for (int l = 1; l<5; l++)
+    {
+      if (hugoOps.execute_NoCommit(pNdb) != 0)
+        goto err;
+
+      if(hugoOps.pkUpdateRecord(pNdb, row, batch, rand()) != 0)
+        goto err;
+    }
+
+    hugoOps.execute_Commit(pNdb);
+    hugoOps.closeTransaction(pNdb);
+
+    if (restarter.waitNodesNoStart(&nodeId, 1))
+    {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.startNodes(&nodeId, 1))
+    {
+      g_err << "Failed to startNodes" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if(restarter.waitClusterStarted() != 0){
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    lastId++;
+    i++;
+  }
+
+  ctx->stopTest();
+
+  return result;
+err:
+  return NDBT_FAILED;
+}
+
+
+int
+runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() < 2)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+
+  if(restarter.waitClusterStarted() != 0){
+    g_err << "Cluster failed to start" << endl;
+    return NDBT_FAILED;
+  }
+
+  int i = 0;
+  while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
+  {
+    int nodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
+    int err = 5048;
+
+    ndbout << "Restart node " << nodeId << " " << err <<endl;
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (restarter.dumpStateOneNode(nodeId, val2, 2))
+      return NDBT_FAILED;
+
+    if(restarter.insertErrorInNode(nodeId, err) != 0){
+      g_err << "Failed to restartNextDbNode" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.waitNodesNoStart(&nodeId, 1))
+    {
+      g_err << "Failed to waitNodesNoStart" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if (restarter.startNodes(&nodeId, 1))
+    {
+      g_err << "Failed to startNodes" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    if(restarter.waitClusterStarted() != 0){
+      g_err << "Cluster failed to start" << endl;
+      result = NDBT_FAILED;
+      break;
+    }
+
+    i++;
+  }
+
+  ctx->stopTest();
+
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2449,6 +2677,21 @@ TESTCASE("Bug32160", ""){
 }
 TESTCASE("Bug32922", ""){
   INITIALIZER(runBug32922);
+}
+TESTCASE("Bug34216", ""){
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runBug34216);
+  FINALIZER(runClearTable);
+}
+TESTCASE("mixedmultiop", ""){
+  TC_PROPERTY("MULTI_OP", 5);
+  INITIALIZER(runCheckAllNodesStarted);
+  INITIALIZER(runLoadTable);
+  STEP(runNF_commit);
+  STEP(runPkUpdateUntilStopped);
+  STEP(runPkUpdateUntilStopped);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 
