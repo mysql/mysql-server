@@ -23,8 +23,11 @@
 #include <signaldata/ArbitSignalData.hpp>
 #include <NodeState.hpp>
 #include <version.h>
+#include <ndb_version.h>
 
 #include <ndbd_exit_codes.h>
+
+#define make_uint64(a,b) (((Uint64)(a)) + (((Uint64)(b)) << 32))
 
 //
 // PUBLIC
@@ -34,7 +37,7 @@ EventLoggerBase::~EventLoggerBase()
   
 }
 
-#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData
+#define QQQQ char *m_text, size_t m_text_len, const Uint32* theData, Uint32 len
 
 void getTextConnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -42,13 +45,17 @@ void getTextConnected(QQQQ) {
 		       theData[1]);
 }
 void getTextConnectedApiVersion(QQQQ) {
+  char tmp[100];
+  Uint32 mysql_version = theData[3];
+  if (theData[2] < NDBD_SPLIT_VERSION)
+  mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Node %u: API version %d.%d.%d",
+		       "Node %u: API %s",
 		       theData[1],
-		       getMajor(theData[2]),
-		       getMinor(theData[2]),
-		       getBuild(theData[2]));
+		       ndbGetVersionString(theData[2], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
+
 void getTextDisconnected(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Node %u Disconnected", 
@@ -74,11 +81,15 @@ void getTextNDBStartStarted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been initiated.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Start initiated (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Start initiated (%s)", 
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
 void getTextNDBStopStarted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
@@ -114,7 +125,8 @@ void getTextNDBStopForced(QQQQ) {
   int error         = theData[3];
   int sphase        = theData[4];
   int extra         = theData[5];
-  getRestartAction(theData[1],action_str);
+  if (signum)
+    getRestartAction(theData[1],action_str);
   if (signum)
     reason_str.appfmt(" Initiated by signal %d.", signum);
   if (error)
@@ -144,12 +156,17 @@ void getTextNDBStartCompleted(QQQQ) {
   //-----------------------------------------------------------------------
   // Start of NDB has been completed.
   //-----------------------------------------------------------------------
+
+  char tmp[100];
+  Uint32 mysql_version = theData[2];
+  if (theData[1] < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
   BaseString::snprintf(m_text, m_text_len, 
-		       "Started (version %d.%d.%d)", 
-		       getMajor(theData[1]),
-		       getMinor(theData[1]),
-		       getBuild(theData[1]));
+		       "Started (%s)", 
+		       ndbGetVersionString(theData[1], mysql_version, 0,
+                                           tmp, sizeof(tmp)));
 }
+
 void getTextSTTORRYRecieved(QQQQ) {
   //-----------------------------------------------------------------------
   // STTORRY recevied after restart finished.
@@ -625,7 +642,7 @@ void getTextTransporterError(QQQQ) {
                          theData[2]);
 }
 void getTextTransporterWarning(QQQQ) {
-  getTextTransporterError(m_text, m_text_len, theData);
+  getTextTransporterError(m_text, m_text_len, theData, len);
 }
 void getTextMissedHeartbeat(QQQQ) {
   //-----------------------------------------------------------------------
@@ -805,12 +822,67 @@ void getTextBackupCompleted(QQQQ) {
 		       theData[3], theData[4], theData[6], theData[8],
 		       theData[5], theData[7]);
 }
+void getTextBackupStatus(QQQQ) {
+  if (theData[1])
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Local backup status: backup %u started from node %u\n" 
+                         " #Records: %llu #LogRecords: %llu\n"
+                         " Data: %llu bytes Log: %llu bytes",
+                         theData[2], refToNode(theData[1]),
+                         make_uint64(theData[5], theData[6]),
+                         make_uint64(theData[9], theData[10]),
+                         make_uint64(theData[3], theData[4]),
+                         make_uint64(theData[7], theData[8]));
+  else
+    BaseString::snprintf(m_text, m_text_len, 
+                         "Backup not started");
+}
 void getTextBackupAborted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Backup %d started from %d has been aborted. Error: %d",
 		       theData[2], 
 		       refToNode(theData[1]), 
 		       theData[3]);
+}
+void getTextRestoreStarted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore started: backup %u from node %u",
+                       theData[1], theData[2]);
+}
+void getTextRestoreMetaData(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore meta data: backup %u from node %u "
+                       "#Tables: %u\n"
+                       " #Tablespaces: %u #Logfilegroups: %u "
+                       "#datafiles: %u #undofiles: %u",
+                       theData[1], theData[2], theData[3],
+                       theData[4], theData[5], theData[6], theData[7]);
+}
+void getTextRestoreData(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore data: backup %u from node %u "
+                       "#Records: %llu Data: %llu bytes",
+                       theData[1], theData[2],
+                       make_uint64(theData[3], theData[4]),
+                       make_uint64(theData[5], theData[6]));
+}
+void getTextRestoreLog(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore log: backup %u from node %u "
+                       "#Records: %llu Data: %llu bytes",
+                       theData[1], theData[2],
+                       make_uint64(theData[3], theData[4]),
+                       make_uint64(theData[5], theData[6]));
+}
+void getTextRestoreCompleted(QQQQ)
+{
+  BaseString::snprintf(m_text, m_text_len,
+                       "Restore completed: backup %u from node %u",
+                       theData[1], theData[2]);
 }
 
 void getTextSingleUser(QQQQ) {
@@ -1010,9 +1082,15 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
 
   // Backup
   ROW(BackupStarted,           LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(BackupStatus,            LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupCompleted,         LogLevel::llBackup, 7, Logger::LL_INFO ),
   ROW(BackupFailedToStart,     LogLevel::llBackup, 7, Logger::LL_ALERT),
-  ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT )
+  ROW(BackupAborted,           LogLevel::llBackup, 7, Logger::LL_ALERT),
+  ROW(RestoreStarted,          LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreMetaData,         LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreData,             LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreLog,              LogLevel::llBackup, 7, Logger::LL_INFO ),
+  ROW(RestoreCompleted,        LogLevel::llBackup, 7, Logger::LL_INFO )
 };
 
 const Uint32 EventLoggerBase::matrixSize=
@@ -1077,7 +1155,7 @@ EventLoggerBase::event_lookup(int eventType,
 const char*
 EventLogger::getText(char * dst, size_t dst_len,
 		     EventTextFunction textF,
-		     const Uint32* theData, NodeId nodeId )
+		     const Uint32* theData, Uint32 len, NodeId nodeId )
 {
   int pos= 0;
   if (nodeId != 0)
@@ -1086,13 +1164,13 @@ EventLogger::getText(char * dst, size_t dst_len,
     pos= strlen(dst);
   }
   if (dst_len-pos > 0)
-    textF(dst+pos,dst_len-pos,theData);
+    textF(dst+pos, dst_len-pos, theData, len);
   return dst;
 }
 
 void 
-EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
-		 const LogLevel* ll)
+EventLogger::log(int eventType, const Uint32* theData, Uint32 len,
+		 NodeId nodeId, const LogLevel* ll)
 {
   Uint32 threshold = 0;
   Logger::LoggerLevel severity = Logger::LL_WARNING;
@@ -1112,7 +1190,7 @@ EventLogger::log(int eventType, const Uint32* theData, NodeId nodeId,
     DBUG_PRINT("info",("m_logLevel.getLogLevel=%d", m_logLevel.getLogLevel(cat)));
 
   if (threshold <= set){
-    getText(log_text,sizeof(log_text),textF,theData,nodeId);
+    getText(log_text, sizeof(log_text), textF, theData, len, nodeId);
 
     switch (severity){
     case Logger::LL_ALERT:

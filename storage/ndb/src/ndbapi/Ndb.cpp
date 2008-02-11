@@ -482,6 +482,51 @@ enomem:
 
 NdbTransaction* 
 Ndb::startTransaction(const NdbDictionary::Table *table,
+		      const struct Key_part_ptr * keyData, 
+		      void* buf, Uint32 bufLen)
+{
+  int ret;
+  Uint32 hash;
+  if ((ret = computeHash(&hash, table, keyData, buf, bufLen)) == 0)
+  {
+    return startTransaction(table, table->getPartitionId(hash));
+  }
+
+  theError.code = ret;
+  return 0;
+}
+
+NdbTransaction*
+Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("table: %s partitionId: %u", table->getName(), partitionId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    Uint32 nodeId;
+    const Uint16 *nodes;
+    Uint32 cnt = NdbTableImpl::getImpl(* table).get_nodes(partitionId, 
+                                                          &nodes);
+    if(cnt)
+      nodeId= nodes[0];
+    else
+      nodeId= 0;
+    
+    NdbTransaction *trans= startTransactionLocal(0, nodeId);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
+}
+
+NdbTransaction* 
+Ndb::startTransaction(const NdbDictionary::Table *table,
 		      const char * keyData, Uint32 keyLen)
 {
   DBUG_ENTER("Ndb::startTransaction");
@@ -494,35 +539,44 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
      * We will make a qualified quess to which node is the primary for the
      * the fragment and contact that node
      */
-    Uint32 nodeId;
-    NdbTableImpl* impl;
-    if(table != 0 && keyData != 0 && (impl= &NdbTableImpl::getImpl(*table))) 
+    Uint32 nodeId = 0;
+    
+    /**
+     * Make this unlikely...assume new interface(s) are prefered
+     */
+    if(unlikely(table != 0 && keyData != 0))
     {
+      NdbTableImpl* impl = &NdbTableImpl::getImpl(*table);
       Uint32 hashValue;
       {
 	Uint32 buf[4];
+        Uint64 tmp[1000];
+
+        if (keyLen >= sizeof(tmp))
+        {
+          theError.code = 4207;
+          DBUG_RETURN(NULL);
+        }
 	if((UintPtr(keyData) & 7) == 0 && (keyLen & 3) == 0)
 	{
 	  md5_hash(buf, (const Uint64*)keyData, keyLen >> 2);
 	}
 	else
 	{
-	  Uint64 tmp[1000];
-	  tmp[keyLen/8] = 0;
+          tmp[keyLen/8] = 0;    // Zero out any 64-bit padding
 	  memcpy(tmp, keyData, keyLen);
 	  md5_hash(buf, tmp, (keyLen+3) >> 2);	  
 	}
 	hashValue= buf[1];
       }
+      
       const Uint16 *nodes;
-      Uint32 cnt= impl->get_nodes(hashValue, &nodes);
+      Uint32 cnt= impl->get_nodes(table->getPartitionId(hashValue),  &nodes);
       if(cnt)
-	nodeId= nodes[0];
-      else
-	nodeId= 0;
-    } else {
-      nodeId = 0;
-    }//if
+      {
+        nodeId= nodes[0];
+      }
+    }
 
     {
       NdbTransaction *trans= startTransactionLocal(0, nodeId);
@@ -1752,7 +1806,10 @@ Ndb::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 int
 Ndb::flushIncompleteEvents(Uint64 gci)
 {
-  return theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->lock();
+  int ret = theEventBuffer->flushIncompleteEvents(gci);
+  theEventBuffer->unlock();
+  return ret;
 }
 
 NdbEventOperation *Ndb::nextEvent()

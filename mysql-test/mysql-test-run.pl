@@ -3949,9 +3949,13 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
+      mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
+      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
     else
@@ -4022,10 +4026,13 @@ sub mysqld_arguments ($$$$) {
       mtr_add_arg($args, "%s--ndbcluster", $prefix);
       mtr_add_arg($args, "%s--ndb-connectstring=%s", $prefix,
 		  $cluster->{'connect_string'});
-
+      mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
+      mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
+      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
+	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
       }
     }
     else

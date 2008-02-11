@@ -29,7 +29,7 @@ printPACKED_SIGNAL(FILE * output, const Uint32 * theData, Uint32 len, Uint16 rec
   for (i = 0; i < len;) {
     switch (PackedSignal::getSignalType(theData[i])) {
     case ZCOMMIT: {
-      Uint32 signalLength = 4;
+      Uint32 signalLength = 5;
       fprintf(output, "--------------- Signal ----------------\n");
       fprintf(output, "r.bn: %u \"%s\", length: %u \"COMMIT\"\n", 
 	      receiverBlockNo, getBlockName(receiverBlockNo,""), signalLength);

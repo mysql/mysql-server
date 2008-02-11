@@ -67,7 +67,7 @@
 
    If the operation is of type <var>Commit</var>, then the transaction is
    immediately committed. The transaction <em>must</em> be closed after it has been 
-   commited (event if commit fails), and no further addition or definition of 
+   commited (even if commit fails), and no further addition or definition of 
    operations for this transaction is allowed.
 
    @section secSync                     Synchronous Transactions
@@ -85,7 +85,7 @@
        - NdbTransaction::getNdbIndexOperation()
        - NdbTransaction::getNdbIndexScanOperation()
        along with the appropriate methods of the respective NdbOperation class 
-       (or one possiblt one or more of its subclasses).
+       (or possibly one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
     -# Execute the transaction, using the NdbTransaction::execute() method.
     -# Close the transaction (call Ndb::closeTransaction()).
@@ -318,7 +318,8 @@
       either NdbScanOperation::updateCurrentTuple() or 
       NdbScanOperation::deleteCurrentTuple()
    -# (If performing NdbScanOperation::updateCurrentTuple():) 
-      Setting new values for records simply by using @ref NdbOperation::setValue().
+      Setting new values for records simply by using @ref NdbOperation::setValue()
+      (on the new NdbOperation object retured from updateCurrentTuple()).
       NdbOperation::equal() should <em>not</em> be called in such cases, as the primary 
       key is retrieved from the scan.
 
@@ -345,7 +346,7 @@
 
    @subsection secScanLocks Lock handling with scans
 
-   Performing scans on either a tables or an index has the potential 
+   Performing scans on either a table or an index has the potential  to
    return a great many records; however, Ndb will lock only a predetermined 
    number of rows per fragment at a time.
    How many rows will be locked per fragment is controlled by the 
@@ -845,7 +846,6 @@
    The interface is used to send many transactions 
    at the same time to the NDB kernel.  
    This is often much more efficient than using synchronous transactions.
-   The main reason for using this method is to ensure that 
    Sending many transactions at the same time ensures that bigger 
    chunks of data are sent when actually sending and thus decreasing 
    the operating system overhead.
@@ -1055,6 +1055,8 @@ class Ndb
   friend class NdbDictInterface;
   friend class NdbBlob;
   friend class NdbImpl;
+  friend class Ndb_cluster_connection;
+  friend class Ndb_cluster_connection_impl;
   friend class Ndb_internal;
   friend class NdbScanFilterImpl;
 #endif
@@ -1282,16 +1284,6 @@ public:
    */
 
   /**
-   * Structure for passing in pointers to startTransaction
-   *
-   */
-  struct Key_part_ptr
-  {
-    const void * ptr;
-    unsigned len;
-  };
-
-  /**
    * Start a transaction
    *
    * @note When the transaction is completed it must be closed using
@@ -1310,6 +1302,52 @@ public:
   NdbTransaction* startTransaction(const NdbDictionary::Table *table= 0,
 				   const char  *keyData = 0, 
 				   Uint32       keyLen = 0);
+
+
+  /**
+   * Structure for passing in pointers to startTransaction
+   * 
+   */
+  struct Key_part_ptr
+  {
+    const void * ptr;
+    unsigned len;
+  };
+
+  /**
+   * Start a transaction
+   *
+   * @note When the transaction is completed it must be closed using
+   *       Ndb::closeTransaction or NdbTransaction::close. 
+   *       The transaction must be closed independent of its outcome, i.e.
+   *       even if there is an error.
+   *
+   * @param  table    Pointer to table object used for deciding 
+   *                  which node to run the Transaction Coordinator on
+   * @param  keyData  Null-terminated array of pointers to keyParts that is 
+   *                  part of distribution key.
+   *                  Length of resp. keyPart will be read from
+   *                  metadata and checked against passed value
+   * @param  xfrmbuf  Pointer to temporary buffer that will be used
+   *                  to calculate hashvalue
+   * @param  xfrmbuflen Lengh of buffer
+   *
+   * @note if xfrmbuf is null (default) malloc/free will be made
+   *       if xfrmbuf is not null but length is too short, method will fail
+   *
+   * @return NdbTransaction object, or NULL on failure.
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table *table,
+				   const struct Key_part_ptr * keyData,
+				   void* xfrmbuf = 0, Uint32 xfrmbuflen = 0);
+
+  /**
+   * Start a transaction, specifying table+partition as hint for
+   *  TC-selection
+   *
+   */
+  NdbTransaction* startTransaction(const NdbDictionary::Table* table,
+                                   Uint32 partitionId);
 
   /**
    * Compute hash value given table/keys
@@ -1546,6 +1584,16 @@ public:
   int setAutoIncrementValue(const NdbDictionary::Table * aTable,
                             TupleIdRange & range, Uint64 tupleId,
                             bool increase);
+#ifdef NDBAPI_50_COMPAT
+  Uint64 getAutoIncrementValue(const NdbDictionary::Table * aTable, 
+			       Uint32 cacheSize = 1)
+    {
+      Uint64 val;
+      if (getAutoIncrementValue(aTable, val, cacheSize, 1, 1) == -1)
+        return ~(Uint64)0;
+      return val;
+    }
+#endif
 private:
   int getTupleIdFromNdb(const NdbTableImpl* table,
                         TupleIdRange & range, Uint64 & tupleId,
@@ -1615,6 +1663,7 @@ private:
   NdbBlob*              getNdbBlob();// Get a blob handle etc
 
   void			releaseSignal(NdbApiSignal* anApiSignal);
+  void                  releaseSignals(Uint32, NdbApiSignal*, NdbApiSignal*);
   void                  releaseSignalsInList(NdbApiSignal** pList);
   void			releaseNdbScanRec(NdbReceiver* aNdbScanRec);
   void			releaseNdbLabel(NdbLabel* anNdbLabel);

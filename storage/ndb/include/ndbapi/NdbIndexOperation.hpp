@@ -179,7 +179,8 @@ private:
   // Overloaded methods from NdbCursorOperation
   int indxInit(const class NdbIndexImpl* anIndex,
 	       const class NdbTableImpl* aTable, 
-	       NdbTransaction*);
+	       NdbTransaction*,
+               bool useRec);
 
   // Private attributes
   const NdbIndexImpl* m_theIndex;

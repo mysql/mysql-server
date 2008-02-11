@@ -281,7 +281,9 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
   if(theTransporters[config->remoteNodeId] != NULL)
     return false;
    
-  TCP_Transporter * t = new TCP_Transporter(*this,
+  TCP_Transporter * t = new TCP_Transporter(*this, config);
+
+#if 0
 					    config->tcp.sendBufferSize,
 					    config->tcp.maxReceiveSize,
 					    config->localHostName,
@@ -293,6 +295,8 @@ TransporterRegistry::createTCPTransporter(TransporterConfiguration *config) {
 					    config->serverNodeId,
 					    config->checksum,
 					    config->signalId);
+#endif
+
   if (t == NULL) 
     return false;
   else if (!t->initTransporter()) {

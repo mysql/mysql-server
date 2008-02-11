@@ -69,13 +69,13 @@ Dbtup::reportMemoryUsage(Signal* signal, int incDec){
   signal->theData[1] = incDec;
   signal->theData[2] = sizeof(Page);
   signal->theData[3] = cnoOfAllocatedPages;
-  signal->theData[4] = c_page_pool.getSize();
+  signal->theData[4] = c_no_of_pages;
   signal->theData[5] = DBTUP;
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 6, JBB);
 }
 
 #ifdef VM_TRACE
-extern Uint32 fc_left, fc_right, fc_remove;
+static Uint32 fc_left = 0, fc_right = 0, fc_remove = 0;
 #endif
 
 void
@@ -177,7 +177,7 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 
       // Case
       Uint32 c = (rand() % 3);
-      const Uint32 free = c_page_pool.getSize() - cnoOfAllocatedPages;
+      const Uint32 free = c_no_of_pages - cnoOfAllocatedPages;
       
       Uint32 alloc = 0;
       if(free <= 1){
@@ -240,7 +240,6 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	  PagePtr pagePtr;
 	  pagePtr.i = chunk.pageId + i;
 	  c_page_pool.getPtr(pagePtr);
-	  pagePtr.p->page_state = ~ZFREE_COMMON;
 	}
 
 	if(alloc == 1 && free > 0)

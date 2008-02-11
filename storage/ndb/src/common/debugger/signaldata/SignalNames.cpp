@@ -644,5 +644,7 @@ const GsnName SignalNames [] = {
   ,{ GSN_PREPARE_COPY_FRAG_REQ,   "PREPARE_COPY_FRAG_REQ" }
   ,{ GSN_PREPARE_COPY_FRAG_REF,   "PREPARE_COPY_FRAG_REF" }
   ,{ GSN_PREPARE_COPY_FRAG_CONF,  "PREPARE_COPY_FRAG_CONF" }
+
+  ,{ GSN_UPGRADE_PROTOCOL_ORD, "UPGRADE_PROTOCOL_ORD" }
 };
 const unsigned short NO_OF_SIGNAL_NAMES = sizeof(SignalNames)/sizeof(GsnName);

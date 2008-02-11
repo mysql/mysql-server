@@ -23,6 +23,11 @@
 //  USE ONLY UPPERLETTERS IN TAB AND COLUMN NAMES
 /* ******************************************************* */
 
+static const NdbDictionary::Column::StorageType MM=
+    NdbDictionary::Column::StorageTypeMemory;
+static const NdbDictionary::Column::StorageType DD=
+    NdbDictionary::Column::StorageTypeDisk;
+
 /*
  * These are our "official" test tables
  *
@@ -283,13 +288,95 @@ NDBT_Attribute T14Attribs[] = {
   NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("KOL30", NdbDictionary::Column::Int),
   NDBT_Attribute("KOL40", NdbDictionary::Column::Float),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200)
+  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200, false, false, 0, MM, true)
 };
 
 
 static
 const
 NDBT_Table T14("T14", sizeof(T14Attribs)/sizeof(NDBT_Attribute), T14Attribs);
+
+/*
+  T15 - Dynamic attributes.
+  Test many different combinations of attribute types, sizes, and NULLability.
+  Also exersize >32bit dynattr bitmap.
+*/
+static
+const
+NDBT_Attribute T15Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true, false, 0, MM, true),
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Varbinary, 100, false, true, 0, MM, true),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned, 1, false, true, 0, MM, true),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Int, 1, false, false, 0, MM, true),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Float, 1, false, true, 0, MM, true),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL8", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL9", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL19", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL21", NdbDictionary::Column::Varbinary, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL23", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL25", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL27", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Char, 4, false, false),
+  NDBT_Attribute("KOL29", NdbDictionary::Column::Varbinary, 4, false, false),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Char, 4, false, true, 0, DD),
+  NDBT_Attribute("KOL31", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL32", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("BIT1", NdbDictionary::Column::Bit, 27, false, true, 0, MM, true),
+  NDBT_Attribute("BIT2", NdbDictionary::Column::Bit, 1, false, false, 0, MM, true),
+  NDBT_Attribute("BIT3", NdbDictionary::Column::Bit, 1, false, true, 0, MM, true),
+  NDBT_Attribute("BIT4", NdbDictionary::Column::Bit, 8, false, false, 0, MM, true),
+  NDBT_Attribute("KOL33", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL34", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL35", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL36", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL37", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL38", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL39", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL40", NdbDictionary::Column::Varbinary, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL41", NdbDictionary::Column::Char, 64, false, true, 0, MM, true),
+  NDBT_Attribute("KOL42", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("KOL43", NdbDictionary::Column::Char, 8, false, true, 0, MM, true),
+  NDBT_Attribute("KOL44", NdbDictionary::Column::Char, 27, false, true, 0, MM, true),
+  NDBT_Attribute("KOL45", NdbDictionary::Column::Char, 64, false, false, 0, MM, true),
+  NDBT_Attribute("KOL46", NdbDictionary::Column::Char, 4, false, false, 0, MM, true),
+  NDBT_Attribute("KOL47", NdbDictionary::Column::Char, 8, false, false, 0, MM, true),
+  NDBT_Attribute("KOL48", NdbDictionary::Column::Char, 27, false, false, 0, MM, true),
+  NDBT_Attribute("KOL49", NdbDictionary::Column::Varbinary, 255, false, false, 0, MM, true),
+  /* This one is for update count, needed by hugoScanUpdate. */
+  NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
+};
+
+static
+const
+NDBT_Table T15("T15", sizeof(T15Attribs)/sizeof(NDBT_Attribute), T15Attribs);
+
+/* Test dynamic bit types when no other varsize/dynamic. */
+static
+const
+NDBT_Attribute T16Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true, false),
+  NDBT_Attribute("Kol2", NdbDictionary::Column::Bit, 27, false, true, 0, MM, true),
+  NDBT_Attribute("KOL99", NdbDictionary::Column::Unsigned, 1, false, false),
+};
+
+static
+const
+NDBT_Table T16("T16", sizeof(T16Attribs)/sizeof(NDBT_Attribute), T16Attribs);
 
 /*
   C2 DHCP TABLES, MAYBE THESE SHOULD BE MOVED TO THE UTIL_TABLES?
@@ -430,6 +517,8 @@ NDBT_Table *test_tables[]=
   &T12,
   &T13,
   &T14,
+  &T15,
+  &T16,
   &I1,
   &I2,
   &I3,

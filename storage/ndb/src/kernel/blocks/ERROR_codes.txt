@@ -3,10 +3,10 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5047
+Next DBLQH 5048
 Next DBDICT 6008
-Next DBDIH 7195
-Next DBTC 8054
+Next DBDIH 7202
+Next DBTC 8057
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
@@ -50,6 +50,21 @@ all nodes in the cluster.
 7004:
 Insert system error in master after completing global checkpoint with
 all nodes in the cluster.
+
+7186:
+Master: Dont send GCP_PREPARE to all node(s)...and die after 1s
+
+7187:
+Master: Dont send GCP_COMMIT to all node(s)...and die after 1s
+
+7188:
+Master: Dont send GCP_SAVE_REQ to all node(s)...and die after 1s
+
+7189:
+Master: Dont send COPY_GCIREQ (GCP) to all node(s)...and die after 1s
+
+7190:
+Master Dont send SUB_GCP_COMPLETE_REP to all node(s) and dies after 1s
 
 7005:
 Insert system error in GCP participant when receiving GCP_PREPARE.
@@ -238,6 +253,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT
 
+5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 8040:
@@ -318,6 +335,9 @@ ABORT OF TCKEYREQ
 ------
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
+
+8055 : Crash in sendApiCommit, disconnect API, and set 8056
+8056 : return directly in API_FAILREQ
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 

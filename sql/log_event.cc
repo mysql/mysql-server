@@ -6529,6 +6529,28 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
     thd->set_time((time_t)when);
+    /*
+      There are a few flags that are replicated with each row event.
+      Make sure to set/clear them before executing the main body of
+      the event.
+    */
+    if (get_flags(NO_FOREIGN_KEY_CHECKS_F))
+        thd->options|= OPTION_NO_FOREIGN_KEY_CHECKS;
+    else
+        thd->options&= ~OPTION_NO_FOREIGN_KEY_CHECKS;
+
+    if (get_flags(RELAXED_UNIQUE_CHECKS_F))
+        thd->options|= OPTION_RELAXED_UNIQUE_CHECKS;
+    else
+        thd->options&= ~OPTION_RELAXED_UNIQUE_CHECKS;
+    
+    if (slave_allow_batching)
+      thd->options|= OPTION_ALLOW_BATCH;
+    else
+      thd->options&= ~OPTION_ALLOW_BATCH;
+    
+    /* A small test to verify that objects have consistent types */
+    DBUG_ASSERT(sizeof(thd->options) == sizeof(OPTION_RELAXED_UNIQUE_CHECKS));
 
     /*
       Now we are in a statement and will stay in a statement until we
@@ -6660,6 +6682,8 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
   */
   if (rli->tables_to_lock && get_flags(STMT_END_F))
     const_cast<Relay_log_info*>(rli)->clear_tables_to_lock();
+  /* reset OPTION_ALLOW_BATCH as not affect later events */
+  thd->options&= ~OPTION_ALLOW_BATCH;
   
   if (error)
   {                     /* error has occured during the transaction */
@@ -7998,6 +8022,22 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
                                  table->s->reclength) == 0);
 
     */
+
+    /*
+      Ndb does not need read before delete/update (and no updates are sent)
+      if primary key specified
+      
+      (Actually uniquekey will also do, but pk will be in each
+      row if table has pk)
+
+      Also set ignore no key, as we don't really know if row exists...
+    */
+    if (table->file->ht->db_type == DB_TYPE_NDBCLUSTER)
+    {
+      table->file->extra(HA_EXTRA_IGNORE_NO_KEY);
+      DBUG_RETURN(0);
+    }
+    
     DBUG_PRINT("info",("locating record using primary key (position)"));
     int error= table->file->rnd_pos_by_record(table->record[0]);
     if (error)

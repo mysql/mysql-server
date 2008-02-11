@@ -663,7 +663,7 @@ public:
     UintR nextApiConnect;
     BlockReference ndbapiBlockref;
     UintR apiCopyRecord;
-    UintR globalcheckpointid;
+    Uint64 globalcheckpointid;
     
     //---------------------------------------------------
     // Second 64 byte cache line starts. First 16 byte
@@ -1245,13 +1245,13 @@ public:
   /*       GCP RECORD ALIGNED TO BE 32 BYTES                                 */
   /*************************************************************************>*/
   struct GcpRecord {
+    Uint16 gcpUnused0;
+    Uint16 gcpNomoretransRec;
     UintR gcpUnused1[2];	/* p2c: Not used */
     UintR firstApiConnect;
     UintR lastApiConnect;
-    UintR gcpId;
     UintR nextGcp;
-    UintR gcpUnused2;	/* p2c: Not used */
-    Uint16 gcpNomoretransRec;
+    Uint64 gcpId;
   }; /* p2c: size = 32 bytes */
   
   typedef Ptr<GcpRecord> GcpRecordPtr;
@@ -1395,6 +1395,9 @@ private:
                        TcConnectRecord * const regTcPtr);
   void sendTCKEY_FAILREF(Signal* signal, const ApiConnectRecord *);
   void sendTCKEY_FAILCONF(Signal* signal, ApiConnectRecord *);
+  void routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord *, 
+			      Uint32 gsn, Uint32 len);
+  void execTCKEY_FAILREFCONF_R(Signal* signal);
   void checkStartTimeout(Signal* signal);
   void checkStartFragTimeout(Signal* signal);
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
@@ -1427,9 +1430,9 @@ private:
   void close_scan_req_send_conf(Signal*, ScanRecordPtr);
   
   void checkGcp(Signal* signal);
-  void commitGciHandling(Signal* signal, UintR Tgci);
+  void commitGciHandling(Signal* signal, Uint64 Tgci);
   void copyApi(Signal* signal);
-  void DIVER_node_fail_handling(Signal* signal, UintR Tgci);
+  void DIVER_node_fail_handling(Signal* signal, Uint64 Tgci);
   void gcpTcfinished(Signal* signal);
   void handleGcp(Signal* signal);
   void hash(Signal* signal);
@@ -1675,7 +1678,7 @@ private:
   UintR cDbHbInterval;
 
   ApiConnectRecordPtr tmpApiConnectptr;
-  UintR tcheckGcpId;
+  Uint64 tcheckGcpId;
 
   struct TransCounters {
     TransCounters() {}
@@ -1792,7 +1795,7 @@ private:
   Uint8 tcurrentReplicaNo;
   Uint8 tpad1;
 
-  UintR tgci;
+  Uint64 tgci;
   UintR tapplRef;
   UintR tapplOprec;
 
@@ -1870,6 +1873,9 @@ private:
     Uint32 oldTimeOutValue;
   };
   AbortAllRecord c_abortRec;
+
+  bool validate_filter(Signal*);
+  bool match_and_print(Signal*, ApiConnectRecordPtr);
 
   /************************** API CONNECT RECORD ***********************/
   /* *******************************************************************/

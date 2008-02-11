@@ -11,6 +11,8 @@ select @max_epoch:=max(epoch)-1 from mysql.ndb_binlog_index;
 #
 delete from t1;
 alter table t1 add (b int);
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 insert into t1 values (3,3),(4,4);
 alter table t1 rename t2;
 begin;

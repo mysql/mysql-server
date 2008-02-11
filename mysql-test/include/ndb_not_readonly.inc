@@ -17,7 +17,7 @@ while ($mysql_errno)
   {
     if (!$counter)
     {
-      die("Failed while waiting for mysqld to come out of readonly mode");
+      die Failed while waiting for mysqld to come out of readonly mode;
     }
     dec $counter;
     --sleep 0.1

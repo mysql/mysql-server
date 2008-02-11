@@ -353,7 +353,8 @@ main(int argc, const char** argv){
       } while ((pOp= MyNdb.nextEvent()) && gci == pOp->getGCI());
       if (ndb2)
         do_commit(trans_arg);
-      ndbout_c("GCI: %lld events: %lld(I) %lld(U) %lld(D)", gci, cnt_i, cnt_u, cnt_d);
+      ndbout_c("GCI: %u/%u events: %lld(I) %lld(U) %lld(D)",
+               Uint32(gci >> 32), Uint32(gci), cnt_i, cnt_u, cnt_d);
     }
   }
 end:

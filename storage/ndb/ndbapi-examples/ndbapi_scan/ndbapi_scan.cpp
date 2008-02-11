@@ -86,7 +86,7 @@ milliSleep(int milliseconds){
 
 
 /**
- * Helper sleep function
+ * Helper debugging macros
  */
 #define PRINT_ERROR(code,msg) \
   std::cout << "Error in " << __FILE__ << ", line: " << __LINE__ \

@@ -87,6 +87,15 @@ public:
   int getRandomNotMasterNodeId(int randomNumber);
   
   NdbMgmHandle handle;  
+
+  enum NodeSelector
+  {
+    NS_RANDOM     = 0, // Any node
+    NS_MASTER     = 1, // Master node
+    NS_NON_MASTER = 2
+  };
+
+  int getNode(NodeSelector);
   
 protected:
 

@@ -99,7 +99,7 @@ public:
   /**
    * Length in 32-bit words
    */
-  STATIC_CONST( DataLength = 8 + NdbNodeBitmask::Size );
+  STATIC_CONST( DataLength = 8 + NodeBitmask::Size );
   
   /**
    * Constructor(s)
@@ -147,7 +147,7 @@ public:
   Uint32 singleUserMode;
   Uint32 singleUserApi;          //the single user node
 
-  BitmaskPOD<NdbNodeBitmask::Size> m_connected_nodes;
+  BitmaskPOD<NodeBitmask::Size> m_connected_nodes;
 
   void setDynamicId(Uint32 dynamic);
   void setNodeGroup(Uint32 group);

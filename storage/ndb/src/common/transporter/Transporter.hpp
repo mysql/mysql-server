@@ -86,6 +86,10 @@ public:
   };
 
   virtual Uint32 get_free_buffer() const = 0;
+
+  void set_status_overloaded(bool val) {
+    m_transporter_registry.set_status_overloaded(remoteNodeId, val);
+  }
   
 protected:
   Transporter(TransporterRegistry &,
@@ -108,6 +112,7 @@ protected:
    */
   virtual bool connect_server_impl(NDB_SOCKET_TYPE sockfd) = 0;
   virtual bool connect_client_impl(NDB_SOCKET_TYPE sockfd) = 0;
+  virtual int pre_connect_options(NDB_SOCKET_TYPE sockfd) { return 0;}
   
   /**
    * Blocking

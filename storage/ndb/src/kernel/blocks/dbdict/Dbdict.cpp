@@ -471,7 +471,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
 
   if(signal)
   {
-    /* Denna branch körs vid GET_TABINFOREQ */
+    /* This branch is run at GET_TABINFOREQ */
 
     Uint32 * theData = signal->getDataPtrSend();
     CreateFragmentationReq * const req = (CreateFragmentationReq*)theData;
@@ -492,7 +492,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
   }
   else
   {
-    /* Denna del körs vid CREATE_TABLEREQ, ALTER_TABLEREQ */
+    /* This part is run at CREATE_TABLEREQ, ALTER_TABLEREQ */
     ;
   }
   
@@ -562,6 +562,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     const Uint32 nullable = AttributeDescriptor::getNullable(desc);
     const Uint32 DKey = AttributeDescriptor::getDKey(desc);
     const Uint32 disk= AttributeDescriptor::getDiskBased(desc);
+    const Uint32 dynamic= AttributeDescriptor::getDynamic(desc);
     
 
     // AttributeType deprecated
@@ -569,6 +570,7 @@ Dbdict::packTableIntoPages(SimpleProperties::Writer & w,
     w.add(DictTabInfo::AttributeArraySize, arraySize);
     w.add(DictTabInfo::AttributeArrayType, arrayType);
     w.add(DictTabInfo::AttributeNullableFlag, nullable);
+    w.add(DictTabInfo::AttributeDynamic, dynamic);
     w.add(DictTabInfo::AttributeDKey, DKey);
     w.add(DictTabInfo::AttributeExtType, attrType);
     w.add(DictTabInfo::AttributeExtPrecision, attrPtr.p->extPrecision);
@@ -1846,7 +1848,7 @@ void Dbdict::initRestartRecord()
 void Dbdict::initNodeRecords() 
 {
   jam();
-  for (unsigned i = 1; i < MAX_NODES; i++) {
+  for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
     nodePtr.p->hotSpare = false;
@@ -2094,7 +2096,7 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   c_attributeRecordPool.setSize(attributesize);
   c_attributeRecordHash.setSize(64);
   c_fsConnectRecordPool.setSize(ZFS_CONNECT_SIZE);
-  c_nodes.setSize(MAX_NODES);
+  c_nodes.setSize(MAX_NDB_NODES);
   c_pageRecordArray.setSize(ZNUMBER_OF_PAGES);
   c_schemaPageRecordArray.setSize(2 * NDB_SF_MAX_PAGES);
   c_tableRecordPool.setSize(tablerecSize);
@@ -2279,10 +2281,10 @@ void Dbdict::execREAD_NODESCONF(Signal* signal)
     NodeRecordPtr nodePtr;
     c_nodes.getPtr(nodePtr, i);
 
-    if (NodeBitmask::get(readNodes->allNodes, i)) {
+    if (NdbNodeBitmask::get(readNodes->allNodes, i)) {
       jam();
       nodePtr.p->nodeState = NodeRecord::NDB_NODE_ALIVE;
-      if (NodeBitmask::get(readNodes->inactiveNodes, i)) {
+      if (NdbNodeBitmask::get(readNodes->inactiveNodes, i)) {
 	jam();
 	/**-------------------------------------------------------------------
 	 *
@@ -2311,7 +2313,7 @@ void Dbdict::execHOT_SPAREREP(Signal* signal)
   jamEntry();
   HotSpareRep * const hotSpare = (HotSpareRep*)&signal->theData[0];
   for (unsigned i = 1; i < MAX_NDB_NODES; i++) {
-    if (NodeBitmask::get(hotSpare->theHotSpareNodes, i)) {
+    if (NdbNodeBitmask::get(hotSpare->theHotSpareNodes, i)) {
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
       nodePtr.p->hotSpare = true;
@@ -3729,7 +3731,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   c_masterNodeId = nodeFail->masterNodeId;
 
   c_noNodesFailed += numberOfFailedNodes;
-  Uint32 theFailedNodes[NodeBitmask::Size];
+  Uint32 theFailedNodes[NdbNodeBitmask::Size];
   memcpy(theFailedNodes, nodeFail->theNodes, sizeof(theFailedNodes));
 
   c_counterMgr.execNODE_FAILREP(signal);
@@ -3769,7 +3771,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
   
   for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(theFailedNodes, i)) {
+    if(NdbNodeBitmask::get(theFailedNodes, i)) {
       jam();
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
@@ -4153,6 +4155,7 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
   alterTabPtr.p->m_tablePtrI = parseRecord.tablePtr.i;
   alterTabPtr.p->m_alterTableFailed = false;
   alterTabPtr.p->m_coordinatorRef = reference();
+  alterTabPtr.p->m_tupAlterTabPtr= RNIL;
   alterTabPtr.p->m_fragmentsPtrI = RNIL;
   alterTabPtr.p->m_dihAddFragPtr = RNIL;
   alterTabPtr.p->m_alterTableId = tablePtr.p->tableId;
@@ -4390,16 +4393,20 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
       alterTabPtr.p->m_senderRef = senderRef;
       alterTabPtr.p->m_senderData = senderData;
       alterTabPtr.p->m_tablePtrI = parseRecord.tablePtr.i;
+      alterTabPtr.p->m_tupAlterTabPtr= RNIL;
       alterTabPtr.p->m_fragmentsPtrI = RNIL;
       alterTabPtr.p->m_dihAddFragPtr = RNIL;
       newTablePtr = parseRecord.tablePtr;
       newTablePtr.p->tableVersion = tableVersion;
+      ndbrequire(newTablePtr.p->noOfAttributes >= tablePtr.p->noOfAttributes);
     }
     else { // (req->senderRef  == reference())
       jam();
       c_tableRecordPool.getPtr(newTablePtr, alterTabPtr.p->m_tablePtrI);
       newTablePtr.p->tableVersion = tableVersion;
     }
+    Uint32 oldNoOfAttributes= tablePtr.p->noOfAttributes;
+    alterTabPtr.p->m_new_cols= newTablePtr.p->noOfAttributes-oldNoOfAttributes;
     if (handleAlterTab(req, alterTabPtr.p, tablePtr, newTablePtr) == -1) {
       jam();
       c_opCreateTable.release(alterTabPtr);
@@ -4407,69 +4414,96 @@ Dbdict::execALTER_TAB_REQ(Signal * signal)
       return;
     }
     releaseSections(signal);
+
     // Propagate alter table to other local blocks
-    AlterTabReq * req = (AlterTabReq*)signal->getDataPtrSend();
-    req->senderRef = reference();
-    req->senderData = senderData;
-    req->changeMask = changeMask;
+    // First to TUP, which is the only one that needs info about added attrs
+
+    /* Copy out descriptor and charset for any new attributes. */
+    Uint32 *attrData= &(signal->theData[0])+25;
+    Uint32 *p= attrData;
+    LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool, 
+                                          tablePtr.p->m_attributes);
+    AttributeRecordPtr attrPtr;
+    list.first(attrPtr);
+    for(Uint32 i= 0; i<tablePtr.p->noOfAttributes; i++)
+    {
+      if (i >= oldNoOfAttributes)
+      {
+        *p++= attrPtr.p->attributeDescriptor;
+        *p++= attrPtr.p->extPrecision & ~0xFFFF;
+      }
+      list.next(attrPtr);
+    }
+
+    AlterTabReq *req= (AlterTabReq *)signal->getDataPtrSend();
+    req->senderRef= reference();
+    req->changeMask= changeMask;
+    req->senderData= senderData;
     req->tableId = tableId;
     req->tableVersion = tableVersion;
     req->gci = gci;
     req->requestType = requestType;
-    sendSignal(DBLQH_REF, GSN_ALTER_TAB_REQ, signal, 
-	       AlterTabReq::SignalLength, JBB);	
+    req->noOfNewAttr= alterTabPtr.p->m_new_cols;
+    req->newNoOfCharsets= newTablePtr.p->noOfCharsets;
+    req->newNoOfKeyAttrs= newTablePtr.p->noOfPrimkey;
+
+    if (req->noOfNewAttr>0)
+    {
+      ndbrequire(AlterTableReq::getAddAttrFlag(changeMask));
+      /* Send long signal with info for all attributes to TUP. */
+      LinearSectionPtr ptr[3];
+      ptr[0].p= attrData;
+      ptr[0].sz= 2*req->noOfNewAttr;
+      sendSignal(DBTUP_REF, GSN_ALTER_TAB_REQ, signal,
+                 AlterTabReq::SignalLength, JBB, ptr, 1);
+    }
+    else
+    {
+      ndbrequire(!AlterTableReq::getAddAttrFlag(changeMask));
+      /* No linear section since no attributes to send. */
+      sendSignal(DBTUP_REF, GSN_ALTER_TAB_REQ, signal,
+                 AlterTabReq::SignalLength, JBB);
+    }
     return;
   }
   case(AlterTabReq::AlterTableCommit): {
     jam();
-    // Write schema for altered table to disk
+
     SegmentedSectionPtr tabInfoPtr;
     signal->getSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
     alterTabPtr.p->m_tabInfoPtrI = tabInfoPtr.i;
-    bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
-    
     signal->header.m_noOfSections = 0;
 
-    // Update table record
-    tablePtr.p->packedSize = tabInfoPtr.sz;
-    tablePtr.p->tableVersion = tableVersion;
-    tablePtr.p->gciTableCreated = gci;
+    /* Send alter table commit to TUP. */
+    AlterTabReq *req= (AlterTabReq *)signal->getDataPtrSend();
+    req->senderRef= reference();
+    req->changeMask= changeMask;
+    req->senderData= senderData;
+    req->clientData= alterTabPtr.p->m_tupAlterTabPtr;
+    req->tableId = tableId;
+    req->tableVersion = tableVersion;
+    req->gci = gci;
+    req->requestType = requestType;
+    sendSignal(DBTUP_REF, GSN_ALTER_TAB_REQ, signal,
+               AlterTabReq::SignalLength, JBB);
+    return;
 
-    SchemaFile::TableEntry tabEntry;
-    tabEntry.m_tableVersion = tableVersion;
-    tabEntry.m_tableType    = tablePtr.p->tableType;
-    if (savetodisk)
-      tabEntry.m_tableState   = SchemaFile::ALTER_TABLE_COMMITTED;
-    else
-      tabEntry.m_tableState   = SchemaFile::TEMPORARY_TABLE_COMMITTED;
-    tabEntry.m_gcp          = gci;
-    tabEntry.m_info_words   = tabInfoPtr.sz;
-    memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
-    
-    Callback callback;
-    callback.m_callbackData = senderData;
-    callback.m_callbackFunction = 
-      safe_cast(&Dbdict::alterTab_writeSchemaConf);
-    
-    updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
-    break;
   }
   case(AlterTabReq::AlterTableRevert): {
     jam();
-    // Revert failed alter table
-    revertAlterTable(signal, changeMask, tableId, alterTabPtr.p);
-    // Acknowledge the reverted alter table
-    AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
-    conf->senderRef = reference();
-    conf->senderData = senderData;
-    conf->changeMask = changeMask;
-    conf->tableId = tableId;
-    conf->tableVersion = tableVersion;
-    conf->gci = gci;
-    conf->requestType = requestType;
-    sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
-	       AlterTabConf::SignalLength, JBB);
-    break;
+    /* Send alter table abort to TUP. */
+    AlterTabReq *req= (AlterTabReq *)signal->getDataPtrSend();
+    req->senderRef= reference();
+    req->changeMask= changeMask;
+    req->senderData= senderData;
+    req->clientData= alterTabPtr.p->m_tupAlterTabPtr;
+    req->tableId = tableId;
+    req->tableVersion = tableVersion;
+    req->gci = gci;
+    req->requestType = requestType;
+    sendSignal(DBTUP_REF, GSN_ALTER_TAB_REQ, signal,
+               AlterTabReq::SignalLength, JBB);
+    return;
   }
   default: ndbrequire(false);
   }
@@ -4521,6 +4555,28 @@ void Dbdict::execALTER_TAB_REF(Signal * signal){
     (AlterTabReq::RequestType) ref->requestType;
   CreateTableRecordPtr alterTabPtr;  
   ndbrequire(c_opCreateTable.find(alterTabPtr, senderData));
+
+  if(refToBlock(signal->getSendersBlockRef())==DBTUP)
+  {
+    /* Error from TUP causes abort of alter table. */
+    jam();
+
+    ref= (AlterTabRef*)signal->getDataPtrSend();
+    ref->senderData = senderData;
+    ref->senderRef = reference();
+    ref->errorCode = errorCode;
+    ref->errorLine = 0;
+    ref->errorKey = 0;
+    ref->errorStatus = 0;
+    sendSignal(alterTabPtr.p->m_coordinatorRef, GSN_ALTER_TAB_REF, signal, 
+               AlterTabRef::SignalLength, JBB);
+  
+    c_blockState = BS_IDLE;
+
+    return;
+  }
+
+  /* Else it is coordinator receiving abort from local DICT alter table. */
   Uint32 changeMask = alterTabPtr.p->m_changeMask;
   SafeCounter safeCounter(c_counterMgr, alterTabPtr.p->m_coordinatorData.m_counter);
   safeCounter.clearWaitingFor(refToNode(senderRef));
@@ -4611,6 +4667,24 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
   switch (requestType) {
   case(AlterTabReq::AlterTablePrepare): {
     switch(refToBlock(signal->getSendersBlockRef())) {
+    case DBTUP: {
+      jam();
+
+      /* Need to store TUP's operation record reference for commit/revert. */
+      alterTabPtr.p->m_tupAlterTabPtr= conf->clientData;
+
+      AlterTabReq * req = (AlterTabReq*)signal->getDataPtrSend();
+      req->senderRef = reference();
+      req->senderData = senderData;
+      req->changeMask = changeMask;
+      req->tableId = tableId;
+      req->tableVersion = tableVersion;
+      req->gci = gci;
+      req->requestType = requestType;
+      sendSignal(DBLQH_REF, GSN_ALTER_TAB_REQ, signal, 
+                 AlterTabReq::SignalLength, JBB);	
+      return;
+    }
     case DBLQH: {
       jam();
       AlterTabReq * req = (AlterTabReq*)signal->getDataPtrSend();
@@ -4732,7 +4806,66 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
   }
   case(AlterTabReq::AlterTableRevert):
     jam();
+    if(refToBlock(signal->getSendersBlockRef())==DBTUP)
+    {
+      jam();
+      // Revert failed alter table
+      revertAlterTable(signal, changeMask, tableId, alterTabPtr.p);
+      // Acknowledge the reverted alter table
+      AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+      conf->senderRef = reference();
+      conf->senderData = senderData;
+      conf->changeMask = changeMask;
+      conf->tableId = tableId;
+      conf->tableVersion = tableVersion;
+      conf->gci = gci;
+      conf->requestType = requestType;
+      sendSignal(alterTabPtr.p->m_coordinatorRef, GSN_ALTER_TAB_CONF, signal, 
+                 AlterTabConf::SignalLength, JBB);
+      return;
+    }
+    /* Else fall through to commit case... */
+
   case(AlterTabReq::AlterTableCommit): {
+    jam();
+    if(refToBlock(signal->getSendersBlockRef())==DBTUP)
+    {
+      jam();
+      // TUP alter tab commit done. Write schema for altered table to disk
+      SegmentedSectionPtr tabInfoPtr;
+      getSection(tabInfoPtr, alterTabPtr.p->m_tabInfoPtrI);
+      TableRecordPtr tablePtr;
+      c_tableRecordPool.getPtr(tablePtr, tableId, false);
+      ndbrequire(!tablePtr.isNull());
+
+      bool savetodisk = !(tablePtr.p->m_bits & TableRecord::TR_Temporary);
+
+      // Update table record
+      tablePtr.p->packedSize = tabInfoPtr.sz;
+      tablePtr.p->tableVersion = tableVersion;
+      tablePtr.p->gciTableCreated = gci;
+
+      SchemaFile::TableEntry tabEntry;
+      tabEntry.m_tableVersion = tableVersion;
+      tabEntry.m_tableType    = tablePtr.p->tableType;
+      if (savetodisk)
+        tabEntry.m_tableState   = SchemaFile::ALTER_TABLE_COMMITTED;
+      else
+        tabEntry.m_tableState   = SchemaFile::TEMPORARY_TABLE_COMMITTED;
+      tabEntry.m_gcp          = gci;
+      tabEntry.m_info_words   = tabInfoPtr.sz;
+      memset(tabEntry.m_unused, 0, sizeof(tabEntry.m_unused));
+    
+      Callback callback;
+      callback.m_callbackData = senderData;
+      callback.m_callbackFunction = 
+        safe_cast(&Dbdict::alterTab_writeSchemaConf);
+    
+      updateSchemaState(signal, tableId, &tabEntry, &callback, savetodisk);
+      return;
+    }
+
+    /* A confirm signal from local DICT nodes to coordinator DICT. */
     SafeCounter safeCounter(c_counterMgr, alterTabPtr.p->m_coordinatorData.m_counter);
     safeCounter.clearWaitingFor(refToNode(senderRef));
     if (safeCounter.done()) {
@@ -4843,8 +4976,37 @@ int Dbdict::handleAlterTab(AlterTabReq * req,
     ndbrequire(org.assign(tmp, src.size()));
   }
 
+  if (AlterTableReq::getAddAttrFlag(changeMask))
+  {
+    /* Attribute(s) added. */
+    supportedAlteration= true;
+
+    /* Move the column definitions to the real table definitions. */
+    LocalDLFifoList<AttributeRecord> origlist(c_attributeRecordPool, 
+                                              origTablePtr.p->m_attributes);
+    LocalDLFifoList<AttributeRecord> newlist(c_attributeRecordPool, 
+                                             newTablePtr.p->m_attributes);
+
+    /* Move back to find the first column to move. */
+    AttributeRecordPtr p;
+    ndbrequire(alterTabPtrP->m_new_cols>0);
+    ndbrequire(newlist.last(p));
+    for (Uint32 i= 1; i<alterTabPtrP->m_new_cols; i++)
+      ndbrequire(newlist.prev(p));
+
+    /* Move columns. */
+    for (Uint32 i= 0; i<alterTabPtrP->m_new_cols; i++)
+    {
+      AttributeRecordPtr q= p;
+      newlist.next(p);
+      newlist.remove(q);
+      origlist.addLast(q);
+    }
+    origTablePtr.p->noOfAttributes+= alterTabPtrP->m_new_cols;
+  }
+
 /*
-  TODO RONM: Lite ny kod för FragmentData och RangeOrListData
+  TODO RONM: Some new code for FragmentData and RangeOrListData
 */
   if (supportedAlteration)
   {
@@ -4901,6 +5063,23 @@ void Dbdict::revertAlterTable(Signal * signal,
     
   }
   
+  if (AlterTableReq::getAddAttrFlag(changeMask))
+  {
+    /* Attribute(s) added. */
+    supportedAlteration= true;
+
+    /* Release the extra columns, not to be used anyway. */
+    LocalDLFifoList<AttributeRecord> list(c_attributeRecordPool, 
+                                          tablePtr.p->m_attributes);
+
+    ndbrequire(alterTabPtrP->m_new_cols>0);
+    for (Uint32 i= 0; i<alterTabPtrP->m_new_cols; i++)
+    {
+      AttributeRecordPtr p;
+      ndbrequire(list.last(p));
+      list.release(p);
+    }
+  }
 
   if (supportedAlteration)
   {
@@ -5455,7 +5634,7 @@ Dbdict::createTab_dih(Signal* signal,
   req->temporaryTable = !!(tabPtr.p->m_bits & TableRecord::TR_Temporary);
 
 /*
-  Behöver fiska upp fragDataPtr från table object istället
+  Need to fetch fragDataPtr from table object instead
 */
   if(!fragDataPtr.isNull()){
     signal->setSection(fragDataPtr, DiAddTabReq::FRAGMENTATION);
@@ -6213,8 +6392,8 @@ void Dbdict::handleTabInfoInit(SimpleProperties::Reader & it,
     c_obj_hash.add(obj_ptr);
     tablePtr.p->m_obj_ptr_i = obj_ptr.i;
 
-#ifdef VM_TRACE
-    ndbout_c("Dbdict: name=%s,id=%u,obj_ptr_i=%d", 
+#if defined VM_TRACE || defined ERROR_INSERT
+    ndbout_c("Dbdict: create name=%s,id=%u,obj_ptr_i=%d", 
 	     c_tableDesc.TableName, tablePtr.i, tablePtr.p->m_obj_ptr_i);
 #endif
   }
@@ -6466,6 +6645,7 @@ void Dbdict::handleTabInfo(SimpleProperties::Reader & it,
     AttributeDescriptor::setDKey(desc, attrDesc.AttributeDKey);
     AttributeDescriptor::setPrimaryKey(desc, attrDesc.AttributeKeyFlag);
     AttributeDescriptor::setDiskBased(desc, attrDesc.AttributeStorageType == NDB_STORAGETYPE_DISK);
+    AttributeDescriptor::setDynamic(desc, attrDesc.AttributeDynamic);
     attrPtr.p->attributeDescriptor = desc;
     attrPtr.p->autoIncrement = attrDesc.AttributeAutoIncrement;
     {
@@ -7119,6 +7299,16 @@ Dbdict::execDROP_TAB_REQ(Signal* signal){
     ndbrequire(c_filegroup_hash.find(ptr, tablePtr.p->m_tablespace_id));
     decrease_ref_count(ptr.p->m_obj_ptr_i);
   }
+  
+#if defined VM_TRACE || defined ERROR_INSERT
+  {
+    char buf[1024];
+    Rope name(c_rope_pool, tablePtr.p->tableName);
+    name.copy(buf);
+    ndbout_c("Dbdict: drop name=%s,id=%u,obj_id=%u", buf, tablePtr.i, 
+             tablePtr.p->m_obj_ptr_i);
+  }
+#endif
 }
 
 #include <DebuggerNames.hpp>
@@ -10234,6 +10424,7 @@ busy:
     
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
+
     RequestTracker & p = subbPtr.p->m_reqTracker;
     if (!p.init<SubStartRef>(c_counterMgr, rg, GSN_SUB_START_REF, subbPtr.i))
     {
@@ -10251,7 +10442,24 @@ busy:
     ndbout_c("DBDICT(Coordinator) sending GSN_SUB_START_REQ to DBDICT participants subbPtr.i = (%d)", subbPtr.i);
 #endif
 
-    sendSignal(rg, GSN_SUB_START_REQ, signal, SubStartReq::SignalLength2, JBB);
+    if (ERROR_INSERTED(6011))
+    {
+      ndbout_c("sending delayed to self...");
+      if (ERROR_INSERTED(6011))
+      {
+        rg.m_nodes.clear(getOwnNodeId());
+      }
+      sendSignal(rg, GSN_SUB_START_REQ, signal,
+                 SubStartReq::SignalLength2, JBB);
+      sendSignalWithDelay(reference(),
+                          GSN_SUB_START_REQ,
+                          signal, 5000, SubStartReq::SignalLength2);
+    }
+    else
+    {
+      sendSignal(rg, GSN_SUB_START_REQ, signal,
+                 SubStartReq::SignalLength2, JBB);
+    }
     return;
   }
   /*

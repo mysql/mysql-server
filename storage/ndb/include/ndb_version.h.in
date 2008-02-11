@@ -18,21 +18,20 @@
 
 #include <ndb_types.h>
 
-/* NDB build version */
-#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
-
-/* NDB major version */
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
-
-/* NDB minor version */
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
+#define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
 
 /* NDB status version */
 #define NDB_VERSION_STATUS "@NDB_VERSION_STATUS@"
 
+#define NDB_MYSQL_VERSION_MAJOR @NDB_MYSQL_VERSION_MAJOR@
+#define NDB_MYSQL_VERSION_MINOR @NDB_MYSQL_VERSION_MINOR@
+#define NDB_MYSQL_VERSION_BUILD @NDB_MYSQL_VERSION_BUILD@
 
 #define NDB_MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
+#define NDB_MYSQL_VERSION_D NDB_MAKE_VERSION(NDB_MYSQL_VERSION_MAJOR, NDB_MYSQL_VERSION_MINOR, NDB_MYSQL_VERSION_BUILD)
 #define NDB_VERSION_D NDB_MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
 #define NDB_VERSION_STRING_BUF_SZ 100
 #ifdef __cplusplus
@@ -49,7 +48,7 @@ Uint32 ndbGetMinor(Uint32 version);
   
 Uint32 ndbGetBuild(Uint32 version);
 
-const char* ndbGetVersionString(Uint32 version, const char * status,
+const char* ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
                                 char *buf, unsigned sz);
 const char* ndbGetOwnVersionString();
 
@@ -86,7 +85,33 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_QMGR_SINGLEUSER_VERSION_5 NDB_MAKE_VERSION(5,0,25)
 
+#define NDBD_SPLIT_VERSION NDB_MAKE_VERSION(6,1,0)
 #define NDBD_NODE_VERSION_REP NDB_MAKE_VERSION(6,1,1)
+
+#define NDBD_255_NODES_VERSION NDB_MAKE_VERSION(5,1,4)
+
+#define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
+#define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
+
+static
+inline
+int
+ndb_check_micro_gcp(Uint32 version)
+{	
+  if (version == NDB_VERSION_D)
+    return 1;
+  {
+    const Uint32 major = (version >> 16) & 0xFF;
+    const Uint32 minor = (version >>  8) & 0xFF;
+    if (major >= 6)
+    {
+      if (minor == 2)
+        return version >= NDBD_MICRO_GCP_62;
+      return version >= NDBD_MICRO_GCP_63;
+    }
+  }
+  return 0;
+}
 
 #define NDBD_PREPARE_COPY_FRAG_VERSION NDB_MAKE_VERSION(6,2,1)
 #define NDBD_PREPARE_COPY_FRAG_V2_51 NDB_MAKE_VERSION(5,1,23)

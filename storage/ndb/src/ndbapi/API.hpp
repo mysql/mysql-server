@@ -21,5 +21,6 @@
 #include <RefConvert.hpp>
 #include "NdbImpl.hpp"
 #include "NdbDictionaryImpl.hpp"
+#include "NdbRecord.hpp"
 
 #endif

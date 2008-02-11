@@ -291,6 +291,28 @@ NdbDictionary::Column::getStorageType() const
   return (StorageType)m_impl.m_storageType;
 }
 
+int
+NdbDictionary::Column::getBlobVersion() const
+{
+  return m_impl.getBlobVersion();
+}
+
+void
+NdbDictionary::Column::setBlobVersion(int blobVersion)
+{
+  m_impl.setBlobVersion(blobVersion);
+}
+
+void 
+NdbDictionary::Column::setDynamic(bool val){
+  m_impl.m_dynamic = val;
+}
+
+bool 
+NdbDictionary::Column::getDynamic() const {
+  return m_impl.m_dynamic;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -749,6 +771,30 @@ NdbDictionary::Table::validate(NdbError& error)
   return m_impl.validate(error);
 }
 
+Uint32
+NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
+{
+  switch (m_impl.m_fragmentType){
+  case NdbDictionary::Object::FragAllSmall:
+  case NdbDictionary::Object::FragAllMedium:
+  case NdbDictionary::Object::FragAllLarge:
+  case NdbDictionary::Object::FragSingle:
+  case NdbDictionary::Object::DistrKeyLin:
+  {
+    Uint32 fragmentId = hashValue & m_impl.m_hashValueMask;
+    if(fragmentId < m_impl.m_hashpointerValue) 
+      fragmentId = hashValue & ((m_impl.m_hashValueMask << 1) + 1);
+    return fragmentId;
+  }
+  case NdbDictionary::Object::DistrKeyHash:
+  {
+    Uint32 cnt = m_impl.m_fragmentCount;
+    return hashValue % (cnt ? cnt : 1);
+  }
+  default:
+    return 0;
+  }
+}
 
 /*****************************************************************
  * Index facade
@@ -1481,9 +1527,18 @@ NdbDictionary::Dictionary::dropTable(const char * name){
   return m_impl.dropTable(name);
 }
 
+bool
+NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
+					       const Table & t)
+{
+  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                                    NdbTableImpl::getImpl(t));
+}
+
 int
-NdbDictionary::Dictionary::alterTable(const Table & t){
-  return m_impl.alterTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
+{
+  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
 }
 
 int
@@ -1535,6 +1590,60 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
                                              int invalidate) const
 {
   return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  const NdbDictionary::Table *table= getTable(index->getTable());
+  if (!table)
+    return NULL;
+  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
+                             &NdbTableImpl::getImpl(*table),
+                             recSpec,
+                             length,
+                             elemSize,
+                             flags);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
+{
+  m_impl.releaseRecord_impl(rec);
 }
 
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
@@ -1705,9 +1814,9 @@ NdbDictionary::Dictionary::createEvent(const Event & ev)
 }
 
 int 
-NdbDictionary::Dictionary::dropEvent(const char * eventName)
+NdbDictionary::Dictionary::dropEvent(const char * eventName, int force)
 {
-  return m_impl.dropEvent(eventName);
+  return m_impl.dropEvent(eventName, force);
 }
 
 const NdbDictionary::Event *
@@ -1717,6 +1826,18 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
   if(t)
     return t->m_facade;
   return 0;
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list)
+{
+  return m_impl.listEvents(list);
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list) const
+{
+  return m_impl.listEvents(list);
 }
 
 int
@@ -1844,11 +1965,11 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << "," << col.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ";" << csname << ")";
+        << "," << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Time:
     out << "Time";
@@ -1930,6 +2051,21 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " ST=" << (int)col.getStorageType() << "?";
     break;
   }
+
+  if (col.getAutoIncrement())
+    out << " AUTO_INCR";
+
+  switch (col.getType()) {
+  case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Text:
+    out << " BV=" << col.getBlobVersion();
+    break;
+  default:
+    break;
+  }
+
+  if(col.getDynamic())
+    out << " DYNAMIC";
 
   return out;
 }

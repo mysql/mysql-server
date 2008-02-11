@@ -20,7 +20,6 @@
 #include <NdbTick.h>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/StartOrd.hpp>
-#include <signaldata/CmInit.hpp>
 #include <signaldata/CloseComReqConf.hpp>
 #include <signaldata/PrepFailReqRef.hpp>
 #include <signaldata/NodeFailRep.hpp>
@@ -34,6 +33,7 @@
 #include <signaldata/FailRep.hpp>
 #include <signaldata/DisconnectRep.hpp>
 #include <signaldata/ApiBroadcast.hpp>
+#include <signaldata/Upgrade.hpp>
 
 #include <ndb_version.h>
 
@@ -302,7 +302,18 @@ void Qmgr::execSTTOR(Signal* signal)
      * we have all nodes (or a winning majority).
      */
     if (cpresident == getOwnNodeId())
-      handleArbitStart(signal);
+    {
+      if (arbitRec.m_disabled == false)
+      {
+	jam();
+	handleArbitStart(signal);
+      }
+      else
+      {
+	jam();
+	infoEvent("Arbitration disabled");
+      }
+    }
     break;
   }
   
@@ -391,9 +402,13 @@ void Qmgr::execCONNECT_REP(Signal* signal)
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
+  NodeInfo nodeInfo = getNodeInfo(nodeId);
   switch(nodePtr.p->phase){
   case ZRUNNING:
-    ndbrequire(!c_clusterNodes.get(nodeId));
+    if (nodeInfo.getType() == NodeInfo::DB)
+    {
+      ndbrequire(!c_clusterNodes.get(nodeId));
+    }
   case ZSTARTING:
     jam();
     break;
@@ -411,7 +426,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     ndbrequire(false);
   }
 
-  if (getNodeInfo(nodeId).getType() != NodeInfo::DB)
+  if (nodeInfo.getType() != NodeInfo::DB)
   {
     jam();
     return;
@@ -431,7 +446,7 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     return;
   case GSN_CM_NODEINFOREQ:
     jam();
-
+    
     if (c_start.m_nodes.isWaitingFor(nodeId))
     {
       jam();
@@ -570,6 +585,7 @@ Qmgr::sendCmRegReq(Signal * signal, Uint32 nodeId){
   req->blockRef = reference();
   req->nodeId = getOwnNodeId();
   req->version = NDB_VERSION;
+  req->mysql_version = NDB_MYSQL_VERSION_D;
   req->latest_gci = c_start.m_latest_gci;
   req->start_type = c_start.m_start_type;
   c_start.m_skip_nodes.copyto(NdbNodeBitmask::Size, req->skip_nodes);
@@ -639,6 +655,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   CmRegReq * const cmRegReq = (CmRegReq *)&signal->theData[0];
   const BlockReference Tblockref = cmRegReq->blockRef;
   const Uint32 startingVersion = cmRegReq->version;
+  Uint32 startingMysqlVersion = cmRegReq->mysql_version;
   addNodePtr.i = cmRegReq->nodeId;
   Uint32 gci = 1;
   Uint32 start_type = ~0;
@@ -652,6 +669,11 @@ void Qmgr::execCM_REGREQ(Signal* signal)
     skip_nodes.assign(NdbNodeBitmask::Size, cmRegReq->skip_nodes);
   }
   
+  if (startingVersion < NDBD_SPLIT_VERSION)
+  {
+    startingMysqlVersion = 0;
+  }
+  
   if (creadyDistCom == ZFALSE) {
     jam();
     /* NOT READY FOR DISTRIBUTED COMMUNICATION.*/
@@ -660,6 +682,15 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   
   if (!ndbCompatible_ndb_ndb(NDB_VERSION, startingVersion)) {
     jam();
+    sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
+    return;
+  }
+
+  if (!ndb_check_micro_gcp(startingVersion))
+  {
+    jam();
+    infoEvent("Connection from node %u refused as it's not micro GCP enabled",
+              addNodePtr.i);
     sendCmRegrefLab(signal, Tblockref, CmRegRef::ZINCOMPATIBLE_VERSION);
     return;
   }
@@ -800,6 +831,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
    */
   UintR TdynId = ++c_maxDynamicId;
   setNodeInfo(addNodePtr.i).m_version = startingVersion;
+  setNodeInfo(addNodePtr.i).m_mysql_version = startingMysqlVersion;
   recompute_version_info(NodeInfo::DB, startingVersion);
   addNodePtr.p->ndynamicId = TdynId;
   
@@ -810,6 +842,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   cmRegConf->presidentBlockRef = reference();
   cmRegConf->presidentNodeId   = getOwnNodeId();
   cmRegConf->presidentVersion  = getNodeInfo(getOwnNodeId()).m_version;
+  cmRegConf->presidentMysqlVersion = getNodeInfo(getOwnNodeId()).m_mysql_version;
   cmRegConf->dynamicId         = TdynId;
   c_clusterNodes.copyto(NdbNodeBitmask::Size, cmRegConf->allNdbNodes);
   sendSignal(Tblockref, GSN_CM_REGCONF, signal, 
@@ -828,6 +861,7 @@ void Qmgr::execCM_REGREQ(Signal* signal)
   cmAdd->requestType = CmAdd::Prepare;
   cmAdd->startingNodeId = addNodePtr.i; 
   cmAdd->startingVersion = startingVersion;
+  cmAdd->startingMysqlVersion = startingMysqlVersion;
   sendSignal(rg, GSN_CM_ADD, signal, CmAdd::SignalLength, JBA);
   DEBUG_START2(GSN_CM_ADD, rg, "Prepare");
   
@@ -1024,6 +1058,7 @@ Qmgr::sendCmNodeInfoReq(Signal* signal, Uint32 nodeId, const NodeRec * self){
   req->nodeId = getOwnNodeId();
   req->dynamicId = self->ndynamicId;
   req->version = getNodeInfo(getOwnNodeId()).m_version;
+  req->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   const Uint32 ref = calcQmgrBlockRef(nodeId);
   sendSignal(ref,GSN_CM_NODEINFOREQ, signal, CmNodeInfoReq::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOREQ, nodeId, "");
@@ -1575,6 +1610,12 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   const Uint32 nodeId = conf->nodeId;
   const Uint32 dynamicId = conf->dynamicId;
   const Uint32 version = conf->version;
+  Uint32 mysql_version = conf->mysql_version;
+  if (version < NDBD_SPLIT_VERSION)
+  {
+    jam();
+    mysql_version = 0;
+  }
 
   NodeRecPtr nodePtr;  
   nodePtr.i = getOwnNodeId();
@@ -1592,6 +1633,8 @@ void Qmgr::execCM_NODEINFOCONF(Signal* signal)
   replyNodePtr.p->ndynamicId = dynamicId;
   replyNodePtr.p->blockRef = signal->getSendersBlockRef();
   setNodeInfo(replyNodePtr.i).m_version = version;
+  setNodeInfo(replyNodePtr.i).m_mysql_version = mysql_version;
+
   recompute_version_info(NodeInfo::DB, version);
   
   if(!c_start.m_nodes.done()){
@@ -1644,6 +1687,12 @@ void Qmgr::execCM_NODEINFOREQ(Signal* signal)
   addNodePtr.p->ndynamicId = req->dynamicId;
   addNodePtr.p->blockRef = signal->getSendersBlockRef();
   setNodeInfo(addNodePtr.i).m_version = req->version;
+
+  Uint32 mysql_version = req->mysql_version;
+  if (req->version < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
+  
+  setNodeInfo(addNodePtr.i).m_mysql_version = mysql_version;
   c_maxDynamicId = req->dynamicId;
 
   cmAddPrepare(signal, addNodePtr, nodePtr.p);
@@ -1699,6 +1748,7 @@ Qmgr::cmAddPrepare(Signal* signal, NodeRecPtr nodePtr, const NodeRec * self){
   conf->nodeId = getOwnNodeId();
   conf->dynamicId = self->ndynamicId;
   conf->version = getNodeInfo(getOwnNodeId()).m_version;
+  conf->mysql_version = getNodeInfo(getOwnNodeId()).m_mysql_version;
   sendSignal(nodePtr.p->blockRef, GSN_CM_NODEINFOCONF, signal,
 	     CmNodeInfoConf::SignalLength, JBB);
   DEBUG_START(GSN_CM_NODEINFOCONF, refToNode(nodePtr.p->blockRef), "");
@@ -1944,6 +1994,7 @@ void Qmgr::execCM_ACKADD(Signal* signal)
     cmAdd->requestType = CmAdd::AddCommit;
     cmAdd->startingNodeId = addNodePtr.i; 
     cmAdd->startingVersion = getNodeInfo(addNodePtr.i).m_version;
+    cmAdd->startingMysqlVersion = getNodeInfo(addNodePtr.i).m_mysql_version;
     NodeReceiverGroup rg(QMGR, c_clusterNodes);
     sendSignal(rg, GSN_CM_ADD, signal, CmAdd::SignalLength, JBA);
     DEBUG_START2(GSN_CM_ADD, rg, "AddCommit");
@@ -1964,7 +2015,7 @@ void Qmgr::execCM_ACKADD(Signal* signal)
     cmAdd->requestType = CmAdd::CommitNew;
     cmAdd->startingNodeId = addNodePtr.i; 
     cmAdd->startingVersion = getNodeInfo(addNodePtr.i).m_version;
-    
+    cmAdd->startingMysqlVersion = getNodeInfo(addNodePtr.i).m_mysql_version;
     sendSignal(calcQmgrBlockRef(addNodePtr.i), GSN_CM_ADD, signal, 
 	       CmAdd::SignalLength, JBA);
     DEBUG_START(GSN_CM_ADD, addNodePtr.i, "CommitNew");
@@ -2179,9 +2230,11 @@ void Qmgr::initData(Signal* signal)
   setHbDelay(hbDBDB);
   setArbitTimeout(arbitTimeout);
   
+  arbitRec.m_disabled = false;
   arbitRec.state = ARBIT_NULL;          // start state for all nodes
   arbitRec.apiMask[0].clear();          // prepare for ARBIT_CFG
 
+  Uint32 sum = 0;
   ArbitSignalData* const sd = (ArbitSignalData*)&signal->theData[0];
   for (unsigned rank = 1; rank <= 2; rank++) {
     sd->sender = getOwnNodeId();
@@ -2200,9 +2253,20 @@ void Qmgr::initData(Signal* signal)
 	sd->mask.set(nodeId);
       }
     }
-    
+    sum += sd->mask.count();
     execARBIT_CFG(signal);
   }
+
+  if (sum == 0)
+  {
+    jam();
+    /**
+     * Disabled arbitration
+     */
+    arbitRec.m_disabled = true;
+  }
+
+  setNodeInfo(getOwnNodeId()).m_mysql_version = NDB_MYSQL_VERSION_D;
 }//Qmgr::initData()
 
 
@@ -2550,7 +2614,7 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     return;
   }
   
-  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+  ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRec);
   if (failedNodePtr.p->failState == WAITING_FOR_NDB_FAILCONF){
     failedNodePtr.p->failState = NORMAL;
   } else {
@@ -2601,15 +2665,20 @@ void Qmgr::execDISCONNECT_REP(Signal* signal)
   const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
   const Uint32 nodeId = rep->nodeId;
   const Uint32 err = rep->err;
+  const NodeInfo nodeInfo = getNodeInfo(nodeId);
   c_connectedNodes.clear(nodeId);
-  c_readnodes_nodes.clear(nodeId);
+
+  if (nodeInfo.getType() == NodeInfo::DB)
+  {
+    c_readnodes_nodes.clear(nodeId);
+  }
   
   NodeRecPtr nodePtr;
   nodePtr.i = getOwnNodeId();
   ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
-
+  
   char buf[100];
-  if (getNodeInfo(nodeId).getType() == NodeInfo::DB &&
+  if (nodeInfo.getType() == NodeInfo::DB &&
       getNodeState().startLevel < NodeState::SL_STARTED)
   {
     jam();
@@ -2704,6 +2773,18 @@ void Qmgr::node_failed(Signal* signal, Uint16 aFailedNode)
 }
 
 void
+Qmgr::execUPGRADE_PROTOCOL_ORD(Signal* signal)
+{
+  const UpgradeProtocolOrd* ord = (UpgradeProtocolOrd*)signal->getDataPtr();
+  switch(ord->type){
+  case UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP:
+    jam();
+    m_micro_gcp_enabled = true;
+    return;
+  }
+}
+
+void
 Qmgr::api_failed(Signal* signal, Uint32 nodeId)
 {
   NodeRecPtr failedNodePtr;
@@ -2781,6 +2862,10 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   const Uint32 version = req->version;
   const BlockReference ref = req->ref;
   
+  Uint32 mysql_version = req->mysql_version;
+  if (version < NDBD_SPLIT_VERSION)
+    mysql_version = 0;
+
   NodeRecPtr apiNodePtr;
   apiNodePtr.i = refToNode(ref);
   ptrCheckGuard(apiNodePtr, MAX_NODES, nodeRec);
@@ -2790,10 +2875,21 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
 #endif
 
   bool compatability_check;
+  const char * extra = 0;
   NodeInfo::NodeType type= getNodeInfo(apiNodePtr.i).getType();
   switch(type){
   case NodeInfo::API:
-    compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    if (m_micro_gcp_enabled && !ndb_check_micro_gcp(version))
+    {
+      jam();
+      compatability_check = false;
+      extra = ": micro gcp enabled";
+    }
+    else
+    {
+      jam();
+      compatability_check = ndbCompatible_ndb_api(NDB_VERSION, version);
+    }
     break;
   case NodeInfo::MGM:
     compatability_check = ndbCompatible_ndb_mgmt(NDB_VERSION, version);
@@ -2805,28 +2901,33 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
     infoEvent("Invalid connection attempt with type %d", type);
     return;
   }
-
+  
   if (!compatability_check) {
     jam();
     char buf[NDB_VERSION_STRING_BUF_SZ];
     infoEvent("Connection attempt from %s id=%d with %s "
-	      "incompatible with %s",
+	      "incompatible with %s%s",
 	      type == NodeInfo::API ? "api or mysqld" : "management server",
 	      apiNodePtr.i,
-	      ndbGetVersionString(version,"",buf,sizeof(buf)),
-	      NDB_VERSION_STRING);
+	      ndbGetVersionString(version, mysql_version, 0,
+                                  buf, 
+                                  sizeof(buf)),
+	      NDB_VERSION_STRING,
+              extra ? extra : 0);
     apiNodePtr.p->phase = ZAPI_INACTIVE;
     sendApiRegRef(signal, ref, ApiRegRef::UnsupportedVersion);
     return;
   }
 
   setNodeInfo(apiNodePtr.i).m_version = version;
+  setNodeInfo(apiNodePtr.i).m_mysql_version = mysql_version;
   setNodeInfo(apiNodePtr.i).m_heartbeat_cnt= 0;
 
   ApiRegConf * const apiRegConf = (ApiRegConf *)&signal->theData[0];
   apiRegConf->qmgrRef = reference();
   apiRegConf->apiHeartbeatFrequency = (chbApiDelay / 10);
   apiRegConf->version = NDB_VERSION;
+  apiRegConf->mysql_version = NDB_MYSQL_VERSION_D;
   NodeState state= apiRegConf->nodeState = getNodeState();
   {
     NodeRecPtr nodePtr;
@@ -2922,7 +3023,8 @@ Qmgr::execAPI_VERSION_REQ(Signal * signal) {
   ApiVersionConf * conf = (ApiVersionConf *)req;
   if(getNodeInfo(nodeId).m_connected)
   {
-    conf->version =  getNodeInfo(nodeId).m_version;
+    conf->version = getNodeInfo(nodeId).m_version;
+    conf->mysql_version = getNodeInfo(nodeId).m_mysql_version;
     struct in_addr in= globalTransporterRegistry.get_connect_address(nodeId);
     conf->inet_addr= in.s_addr;
   }
@@ -3042,6 +3144,7 @@ Qmgr::sendApiRegRef(Signal* signal, Uint32 Tref, ApiRegRef::ErrorCode err){
   ApiRegRef* ref = (ApiRegRef*)signal->getDataPtrSend();
   ref->ref = reference();
   ref->version = NDB_VERSION;
+  ref->mysql_version = NDB_MYSQL_VERSION_D;
   ref->errorCode = err;
   sendSignal(Tref, GSN_API_REGREF, signal, ApiRegRef::SignalLength, JBB);
 }
@@ -3060,7 +3163,7 @@ void Qmgr::failReportLab(Signal* signal, Uint16 aFailedNode,
   UintR TnoFailedNodes;
 
   failedNodePtr.i = aFailedNode;
-  ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
+  ptrCheckGuard(failedNodePtr, MAX_NDB_NODES, nodeRec);
   FailRep* rep = (FailRep*)signal->getDataPtr();
 
   if (check_multi_node_shutdown(signal))
@@ -3220,7 +3323,7 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   UintR arrayIndex = 0;
   Uint32 Tindex;
   for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
-    if (NodeBitmask::get(prepFail->theNodes, Tindex)){
+    if (NdbNodeBitmask::get(prepFail->theNodes, Tindex)){
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
     }//if
@@ -3292,7 +3395,7 @@ void Qmgr::execCLOSE_COMCONF(Signal* signal)
   UintR arrayIndex = 0;
   UintR Tindex = 0;
   for(Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++){
-    if(NodeBitmask::get(closeCom->theNodes, Tindex)){
+    if(NdbNodeBitmask::get(closeCom->theNodes, Tindex)){
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
     }
@@ -3408,7 +3511,17 @@ void Qmgr::execPREP_FAILCONF(Signal* signal)
      */
     return;
   }
-  handleArbitCheck(signal);
+
+  if (arbitRec.m_disabled == false)
+  {
+    jam();
+    handleArbitCheck(signal);
+  }
+  else
+  {
+    jam();
+    sendCommitFailReq(signal);
+  }
   return;
 }//Qmgr::execPREP_FAILCONF()
 
@@ -3478,7 +3591,7 @@ void Qmgr::execPREP_FAILREF(Signal* signal)
   UintR Tindex = 0;
   for(Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
     jam();
-    if(NodeBitmask::get(prepFail->theNodes, Tindex)){
+    if(NdbNodeBitmask::get(prepFail->theNodes, Tindex)){
       jam();
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
@@ -3583,10 +3696,10 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
     nodeFail->failNo    = ccommitFailureNr;
     nodeFail->noOfNodes = cnoCommitFailedNodes;
     nodeFail->masterNodeId = cpresident;
-    NodeBitmask::clear(nodeFail->theNodes);
+    NdbNodeBitmask::clear(nodeFail->theNodes);
     for(unsigned i = 0; i < cnoCommitFailedNodes; i++) {
       jam();
-      NodeBitmask::set(nodeFail->theNodes, ccommitFailedNodes[i]);
+      NdbNodeBitmask::set(nodeFail->theNodes, ccommitFailedNodes[i]);
     }//if	
     sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
 	       NodeFailRep::SignalLength, JBB);
@@ -3621,10 +3734,10 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
 
 	nodeFail->failNo    = ccommitFailureNr;
 	nodeFail->noOfNodes = cnoCommitFailedNodes;
-	NodeBitmask::clear(nodeFail->theNodes);
+	NdbNodeBitmask::clear(nodeFail->theNodes);
 	for(unsigned i = 0; i < cnoCommitFailedNodes; i++) {
           jam();
-	  NodeBitmask::set(nodeFail->theNodes, ccommitFailedNodes[i]);
+	  NdbNodeBitmask::set(nodeFail->theNodes, ccommitFailedNodes[i]);
         }//for	
         sendSignal(nodePtr.p->blockRef, GSN_NODE_FAILREP, signal, 
 		   NodeFailRep::SignalLength, JBB);
@@ -4031,11 +4144,11 @@ Qmgr::sendPrepFailReqRef(Signal* signal,
   prepFail->failNo = failNo;
   prepFail->noOfNodes = noOfNodes;
 
-  NodeBitmask::clear(prepFail->theNodes);
+  NdbNodeBitmask::clear(prepFail->theNodes);
   
   for(Uint32 i = 0; i<noOfNodes; i++){
     const NodeId nodeId = theNodes[i];
-    NodeBitmask::set(prepFail->theNodes, nodeId);
+    NdbNodeBitmask::set(prepFail->theNodes, nodeId);
   }
 
   sendSignal(dstBlockRef, gsn, signal, PrepFailReqRef::SignalLength, JBA);  
@@ -4281,7 +4394,7 @@ Qmgr::handleArbitCheck(Signal* signal)
 {
   jam();
   ndbrequire(cpresident == getOwnNodeId());
-  NodeBitmask ndbMask;
+  NdbNodeBitmask ndbMask;
   computeArbitNdbMask(ndbMask);
   if (g_ndb_arbit_one_half_rule &&
       2 * ndbMask.count() < cnoOfNodes) {
@@ -4398,7 +4511,7 @@ void
 Qmgr::runArbitThread(Signal* signal)
 {
 #ifdef DEBUG_ARBIT
-  NodeBitmask ndbMask;
+  NdbNodeBitmask ndbMask;
   computeArbitNdbMask(ndbMask);
   ndbout << "arbit thread:";
   ndbout << " state=" << arbitRec.state;
@@ -4938,6 +5051,21 @@ Qmgr::execARBIT_STOPREP(Signal* signal)
 
 void
 Qmgr::computeArbitNdbMask(NodeBitmask& aMask)
+{
+  NodeRecPtr aPtr;
+  aMask.clear();
+  for (aPtr.i = 1; aPtr.i < MAX_NDB_NODES; aPtr.i++) {
+    jam();
+    ptrAss(aPtr, nodeRec);
+    if (getNodeInfo(aPtr.i).getType() == NodeInfo::DB && aPtr.p->phase == ZRUNNING){
+      jam();
+      aMask.set(aPtr.i);
+    }
+  }
+}
+
+void
+Qmgr::computeArbitNdbMask(NdbNodeBitmask& aMask)
 {
   NodeRecPtr aPtr;
   aMask.clear();
