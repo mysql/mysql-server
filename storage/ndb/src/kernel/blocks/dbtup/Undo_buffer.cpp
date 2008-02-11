@@ -54,7 +54,9 @@ Undo_buffer::alloc_copy_tuple(Local_key* dst, Uint32 words)
   if(m_first_free == RNIL)
   {
     Uint32 count;
-    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, &m_first_free);
+    page= (UndoPage*)m_mm->alloc_page(RG_DATAMEM, 
+                                      &m_first_free,
+                                      Ndbd_mem_manager::NDB_ZONE_ANY);
     if(page == 0)
       return 0;
     page->m_words_used= 0;
