@@ -2078,7 +2078,7 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
 
   /* fill table->record[0] with default values */
 
-  if ((error= prepare_record(rli, table, m_width,
+  if ((error= prepare_record(table, m_width,
                              TRUE /* check if columns have def. values */)))
     DBUG_RETURN(error);
   
@@ -2289,7 +2289,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
   /* unpack row - missing fields get default values */
 
   // TODO: shall we check and report errors here?
-  prepare_record(NULL,table,m_width,FALSE /* don't check errors */); 
+  prepare_record(table, m_width, FALSE /* don't check errors */); 
   error= unpack_current_row(rli); 
 
 #ifndef DBUG_OFF

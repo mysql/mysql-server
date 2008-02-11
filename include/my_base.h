@@ -434,13 +434,15 @@ enum ha_base_keytype {
 #define HA_ERR_RECORD_IS_THE_SAME 169
 /* It is not possible to log this statement */
 #define HA_ERR_LOGGING_IMPOSSIBLE 170
-#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to
-                                            illegal data being read */
+#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to */
+                                         /* illegal data being read */
 #define HA_ERR_NEW_FILE	          172	 /* New file format */
 #define HA_ERR_INITIALIZATION     173    /* Error during initialization */
 #define HA_ERR_FILE_TOO_SHORT	  174	 /* File too short */
 #define HA_ERR_WRONG_CRC	  175	 /* Wrong CRC on page */
-#define HA_ERR_LAST               175    /* Copy of last error nr */
+#define HA_ERR_ROWS_EVENT_APPLY   176    /* The event could not be processed */
+                                         /* no other hanlder error happened  */
+#define HA_ERR_LAST               176    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
