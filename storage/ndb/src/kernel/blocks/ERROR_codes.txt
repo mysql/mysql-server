@@ -11,7 +11,7 @@ Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
-Next SUMA 13034
+Next SUMA 13037
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -567,3 +567,8 @@ NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
+
+SUMA:
+13034: Simulate report MISSING_DATA at node failure
+13035: Simulate disconnect lagging subscribers
+13036: Simulate out of event buffer

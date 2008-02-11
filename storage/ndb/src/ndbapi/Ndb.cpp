@@ -1817,6 +1817,18 @@ NdbEventOperation *Ndb::nextEvent()
   return theEventBuffer->nextEvent();
 }
 
+bool
+Ndb::isConsistent(Uint64& gci)
+{
+  return theEventBuffer->isConsistent(gci);
+}
+
+bool
+Ndb::isConsistentGCI(Uint64 gci)
+{
+  return theEventBuffer->isConsistentGCI(gci);
+}
+
 const NdbEventOperation*
 Ndb::getGCIEventOperations(Uint32* iter, Uint32* event_types)
 {

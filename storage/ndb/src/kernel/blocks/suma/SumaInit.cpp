@@ -127,6 +127,7 @@ Suma::Suma(Block_context& ctx) :
 #ifdef VM_TRACE
   m_gcp_monitor = 0;
 #endif
+  m_missing_data = false;
 }
 
 Suma::~Suma()

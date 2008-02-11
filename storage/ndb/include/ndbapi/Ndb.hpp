@@ -1256,6 +1256,31 @@ public:
   NdbEventOperation *nextEvent();
 
   /**
+   * Check if all events are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+   * @param OUT aGCI
+   *        any inconsistent GCI found
+   *
+   * @return true if all received events are consistent, false if possible
+   * inconsistency
+   */
+  bool isConsistent(Uint64& gci);
+
+  /**
+   * Check if all events in a GCI are consistent
+   * If node failure occurs during resource exaustion events
+   * may be lost and the delivered event data might thus be incomplete.
+   *
+  * @param aGCI
+   *        the GCI to check
+   *
+   * @return true if GCI is consistent, false if possible inconsistency
+   */
+  bool isConsistentGCI(Uint64 gci);
+
+  /**
    * Iterate over distinct event operations which are part of current
    * GCI.  Valid after nextEvent.  Used to get summary information for
    * the epoch (e.g. list of all tables) before processing event data.
