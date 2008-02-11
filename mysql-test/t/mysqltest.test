@@ -2101,5 +2101,28 @@ drop table t1;
 --change_user root,,
 --change_user root,,test
 
+# ----------------------------------------------------------------------------
+# Test mkdir and rmdir command
+# ----------------------------------------------------------------------------
+
+mkdir $MYSQLTEST_VARDIR/tmp/testdir;
+rmdir $MYSQLTEST_VARDIR/tmp/testdir;
+
+# Directory already exist
+mkdir $MYSQLTEST_VARDIR/tmp/testdir;
+--error 1
+mkdir $MYSQLTEST_VARDIR/tmp/testdir;
+
+# Remove dir with file inside
+write_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
+hello
+EOF
+--error 1
+rmdir $MYSQLTEST_VARDIR/tmp/testdir;
+
+remove_file $MYSQLTEST_VARDIR/tmp/testdir/file1.txt;
+rmdir $MYSQLTEST_VARDIR/tmp/testdir;
+
+
 --echo End of tests
 
