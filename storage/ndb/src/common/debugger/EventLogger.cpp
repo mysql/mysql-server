@@ -999,6 +999,26 @@ void getTextStartReport(QQQQ) {
   }
 }
 
+void getTextSubscriptionStatus(QQQQ)
+{
+  switch(theData[1]) {
+  case(1): // SubscriptionStatus::DISCONNECTED
+    BaseString::snprintf(m_text, m_text_len,
+                         "Disconnecting node %u because it has "
+                         "exceeded MaxBufferedEpochs, gci %lld",
+                         theData[2],
+                         make_uint64(theData[3], theData[4]));
+    break;
+  case(2): // SubscriptionStatus::INCONSISTENT
+    BaseString::snprintf(m_text, m_text_len,
+                         "Nodefailure while out of event buffer: "
+                         "informing subscribers of possibly missing event data"
+                         ", gci %lld",
+                         make_uint64(theData[3], theData[4]));
+    break;
+  }
+}
+
 #if 0
 BaseString::snprintf(m_text, 
 		     m_text_len, 
@@ -1081,6 +1101,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(MissedHeartbeat,         LogLevel::llError,  8, Logger::LL_WARNING ),
   ROW(DeadDueToHeartbeat,      LogLevel::llError,  8, Logger::LL_ALERT   ),
   ROW(WarningEvent,            LogLevel::llError,  2, Logger::LL_WARNING ),
+  ROW(SubscriptionStatus,      LogLevel::llError,  4, Logger::LL_WARNING ),
   // INFO
   ROW(SentHeartbeat,           LogLevel::llInfo,  12, Logger::LL_INFO ),
   ROW(CreateLogBytes,          LogLevel::llInfo,  11, Logger::LL_INFO ),
