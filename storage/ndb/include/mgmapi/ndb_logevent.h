@@ -185,12 +185,16 @@ extern "C" {
     /* 59 used */
 
     /** NDB_MGM_EVENT_CATEGORY_STARTUP */
-    NDB_LE_StartReport = 60
+    NDB_LE_StartReport = 60,
 
     /* 61 (used in upcoming patch) */
     /* 62-67 used */
-    /* 68 unused */
+    /* 68 (used in upcoming patch) */
 
+    /** NDB_MGM_EVENT_SEVERITY_WARNING */
+    NDB_LE_SubscriptionStatus = 69
+
+    /* 70 unused */
   };
 
   /**
@@ -720,6 +724,11 @@ extern "C" {
 	unsigned bitmask_size;
 	unsigned bitmask_data[1];
       } StartReport;
+      /** Log event data @ref NDB_LE_SubscriptionStatus */
+      struct {
+        unsigned report_type;
+	unsigned node_id;
+      } SubscriptionStatus;
 #ifndef DOXYGEN_FIX
     };
 #else
