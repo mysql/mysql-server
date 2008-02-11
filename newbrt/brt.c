@@ -1999,7 +1999,7 @@ static inline void brt_cursor_cleanup(BRT_CURSOR cursor) {
     dbt_cleanup(&cursor->val);
 }
 
-static inline int brt_cursor_not_set(BRT_CURSOR cursor) {
+inline int brt_cursor_not_set(BRT_CURSOR cursor) {
     return cursor->key.data == 0 || cursor->val.data == 0;
 }
 
