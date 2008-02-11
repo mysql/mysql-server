@@ -11,6 +11,7 @@
 -- source include/master-slave.inc
 
 -- connection slave
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,
                    epoch BIGINT UNSIGNED NOT NULL,
