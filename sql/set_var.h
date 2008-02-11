@@ -30,7 +30,8 @@ class sys_var_pluginvar; /* opaque */
 typedef struct system_variables SV;
 typedef struct my_locale_st MY_LOCALE;
 
-extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib;
+extern TYPELIB bool_typelib, delay_key_write_typelib, sql_mode_typelib,
+  slave_exec_mode_typelib;
 
 typedef int (*sys_check_func)(THD *,  set_var *);
 typedef bool (*sys_update_func)(THD *, set_var *);
@@ -804,6 +805,42 @@ public:
 };
 
 
+class sys_var_set :public sys_var
+{
+protected:
+  ulong *value;
+  TYPELIB *enum_names;
+public:
+  sys_var_set(sys_var_chain *chain, const char *name_arg, ulong *value_arg,
+              TYPELIB *typelib, sys_after_update_func func)
+    :sys_var(name_arg, func), value(value_arg), enum_names(typelib)
+  { chain_sys_var(chain); }
+  virtual bool check(THD *thd, set_var *var)
+  {
+    return check_set(thd, var, enum_names);
+  }
+  virtual void set_default(THD *thd, enum_var_type type)
+  {  
+    *value= 0;
+  }
+  bool update(THD *thd, set_var *var);
+  uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
+  bool check_update_type(Item_result type) { return 0; }
+  SHOW_TYPE show_type() { return SHOW_CHAR; }
+};
+
+class sys_var_set_slave_mode :public sys_var_set
+{
+public:
+  sys_var_set_slave_mode(sys_var_chain *chain, const char *name_arg,
+                         ulong *value_arg,
+                         TYPELIB *typelib, sys_after_update_func func) :
+    sys_var_set(chain, name_arg, value_arg, typelib, func) {}
+  void set_default(THD *thd, enum_var_type type);
+  bool check(THD *thd, set_var *var);
+  bool update(THD *thd, set_var *var);
+};
+
 class sys_var_log_output :public sys_var
 {
   ulong *value;
@@ -1222,6 +1259,7 @@ sys_var *find_sys_var(THD *thd, const char *str, uint length=0);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 bool not_all_support_one_shot(List<set_var_base> *var_list);
 void fix_delay_key_write(THD *thd, enum_var_type type);
+void fix_slave_exec_mode(enum_var_type type);
 ulong fix_sql_mode(ulong sql_mode);
 extern sys_var_const_str sys_charset_system;
 extern sys_var_str sys_init_connect;

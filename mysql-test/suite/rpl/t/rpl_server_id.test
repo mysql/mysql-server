@@ -1,0 +1,29 @@
+# Test for BUG#28908 Replication: set global server_id is not setting the session server_id
+
+-- source include/have_log_bin.inc
+
+let $saved_server_id=`select @@server_id`;
+set global server_id=1;
+reset master;
+
+-- disable_warnings
+drop table if exists t1,t2,t3;
+-- enable_warnings
+
+create table t1 (a int);
+select @@server_id;
+source include/show_binlog_events2.inc;
+
+set global server_id=2;
+create table t2 (b int);
+select @@server_id;
+source include/show_binlog_events2.inc;
+
+set global server_id=3;
+create table t3 (c int);
+select @@server_id;
+source include/show_binlog_events2.inc;
+
+# cleanup
+eval set global server_id=$saved_server_id;
+drop table t1,t2,t3;

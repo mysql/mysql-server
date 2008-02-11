@@ -39,7 +39,7 @@ CREATE TABLE test.t3 (n MEDIUMINT NOT NULL AUTO_INCREMENT, d DATETIME, PRIMARY K
 INSERT INTO test.t1 VALUES (1,NOW());
 
 delimiter //;
-CREATE TRIGGER test.t2_ai AFTER INSERT ON test.t2 FOR EACH ROW UPDATE test.t1 SET d=NOW() where n = 1;//
+CREATE TRIGGER test.t2_ai AFTER INSERT ON test.t2 FOR EACH ROW UPDATE test.t1 SET d=NOW() where n = 1//
 CREATE PROCEDURE test.p3()
 BEGIN
  INSERT INTO test.t3 (d) VALUES (NOW());
@@ -51,17 +51,32 @@ BEGIN
 END//
 delimiter ;//
 
+# Make sure that all definition have propagated to the slave
+sync_slave_with_master;
+
+connection master;
 -- disable_query_log
 -- disable_result_log
+SET @wait_count = 1;
 let $1=10;
 while ($1)
 {
   CALL test.p2();
-  sleep 1;
+  let $wait_condition= SELECT COUNT(*) = @wait_count FROM test.t3;
+  --source include/wait_condition.inc
+  --disable_query_log
+  SET @wait_count = @wait_count + 1;
   dec $1;
 }
 -- enable_result_log
 -- enable_query_log
+
+# Just a precaution to make sure all changes have made it over to the
+# slave
+connection master;
+let $count = `select count(*) from t1`;
+eval INSERT INTO test.t1 VALUES ($count+1, NOW());
+sync_slave_with_master;
 
 #show binlog events; 
 #select * from test.t2;
