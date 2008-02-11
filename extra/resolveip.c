@@ -118,13 +118,21 @@ int main(int argc, char **argv)
 
   while (argc--)
   {
+#ifndef WIN32
     struct in_addr addr;
+#endif
     ip = *argv++;    
 
     /* Not compatible with IPv6!  Probably should use getnameinfo(). */
+#ifdef WIN32
+    taddr = inet_addr(ip);
+    if(taddr != INADDR_NONE)
+    {
+#else
     if (inet_aton(ip, &addr) != 0)
     {
       taddr= addr.s_addr;
+#endif
       if (taddr == htonl(INADDR_BROADCAST))
       {	
 	puts("Broadcast");
