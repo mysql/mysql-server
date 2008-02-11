@@ -2245,3 +2245,36 @@ n	c
 301	c
 302	d
 drop table t1;
+create table t1 (n int not null, c char(1)) engine=maria;
+alter table t1 engine=myisam;
+alter table t1 engine=maria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=maria transactional=1;
+alter table t1 engine=myisam;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+alter table t1 engine=maria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
+Warnings:
+Error	1478	Table storage engine 'MyISAM' does not support the create option 'TRANSACTIONAL=1'
+alter table t1 engine=maria;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `n` int(11) NOT NULL,
+  `c` char(1) DEFAULT NULL
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
+drop table t1;

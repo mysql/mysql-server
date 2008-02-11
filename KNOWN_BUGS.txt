@@ -20,8 +20,8 @@ http://bugs.mysql.com/ so that we can either fix it for next release
 or in the worst case add it here for others to know!
 
 
-Known bugs that are planned to be fixed before next minor release
-=================================================================
+Known bugs that we are working on and will be fixed shortly
+===========================================================
 
 - If the log files are damaged or inconsistent, Maria may fail to start.
   We should fix that if this happens and mysqld is restarted (thanks to
@@ -31,9 +31,15 @@ Known bugs that are planned to be fixed before next minor release
   Temporary fix is to remove or maria_log.???????? files from the data
   directory, restart mysqld and run CHECK TABLE / REPAIR TABLE or 
   mysqlcheck on your Maria tables
+- We have some instabilities in log writing that is under investigatation
+  This causes mainly assert to triggers in the code and sometimes
+  the log handler doesn't start up after restart.
 - LOAD INDEX commands are for the moment ignored for Maria tables
   (The code needs to be rewritten to do all reads through page cache to
   avoid half-block reads)
+- Freeing maria tmp table after fetching rows using prepared statements causes
+  a crash.
+
 
 Known bugs that are planned to be fixed before Beta
 ===================================================

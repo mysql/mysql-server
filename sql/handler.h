@@ -709,6 +709,12 @@ struct handlerton
 };
 
 
+inline LEX_STRING *hton_name(const handlerton *hton)
+{
+  return &(hton2plugin[hton->slot]->name);
+}
+
+
 /* Possible flags of a handlerton (there can be 32 of them) */
 #define HTON_NO_FLAGS                 0
 #define HTON_CLOSE_CURSORS_AT_COMMIT (1 << 0)
@@ -1629,6 +1635,8 @@ public:
   */
   virtual void use_hidden_primary_key();
 
+  LEX_STRING *engine_name() { return hton_name(ht); }
+
 protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulong SSV::*offset) const;
@@ -1644,6 +1652,7 @@ protected:
   */
   virtual int rename_table(const char *from, const char *to);
   virtual int delete_table(const char *name);
+
 private:
   /*
     Low-level primitives for storage engines.  These should be
@@ -1848,7 +1857,7 @@ static inline enum legacy_db_type ha_legacy_type(const handlerton *db_type)
 
 static inline const char *ha_resolve_storage_engine_name(const handlerton *db_type)
 {
-  return db_type == NULL ? "UNKNOWN" : hton2plugin[db_type->slot]->name.str;
+  return db_type == NULL ? "UNKNOWN" : hton_name(db_type)->str;
 }
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)

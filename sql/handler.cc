@@ -373,8 +373,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin)
   handlerton *hton= (handlerton *)plugin->data;
   DBUG_ENTER("ha_finalize_handlerton");
 
-  switch (hton->state)
-  {
+  switch (hton->state) {
   case SHOW_OPTION_NO:
   case SHOW_OPTION_DISABLED:
     break;
@@ -647,7 +646,7 @@ int ha_prepare(THD *thd)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                            ha_resolve_storage_engine_name(*ht));
+                            hton_name(*ht)->str);
       }
     }
   }
@@ -1041,7 +1040,7 @@ static my_bool xarecover_handlerton(THD *unused, plugin_ref plugin,
     while ((got= hton->recover(hton, info->list, info->len)) > 0 )
     {
       sql_print_information("Found %d prepared transaction(s) in %s",
-                            got, ha_resolve_storage_engine_name(hton));
+                            got, hton_name(hton)->str);
       for (int i=0; i < got; i ++)
       {
         my_xid x=info->list[i].get_my_xid();
@@ -3814,7 +3813,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   {
     if (db_type->state != SHOW_OPTION_YES)
     {
-      const LEX_STRING *name=&hton2plugin[db_type->slot]->name;
+      const LEX_STRING *name= hton_name(db_type);
       result= stat_print(thd, name->str, name->length,
                          "", 0, "DISABLED", 8) ? 1 : 0;
     }

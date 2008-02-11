@@ -3418,6 +3418,14 @@ bool mysql_create_table_no_lock(THD *thd,
     goto err;
   }
 
+  /* Give warnings for not supported table options */
+  if (create_info->transactional && !file->ht->commit)
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                        ER_ILLEGAL_HA_CREATE_OPTION,
+                        ER(ER_ILLEGAL_HA_CREATE_OPTION),
+                        file->engine_name()->str,
+                        "TRANSACTIONAL=1");
+
   VOID(pthread_mutex_lock(&LOCK_open));
   if (!internal_tmp_table && !(create_info->options & HA_LEX_CREATE_TMP_TABLE))
   {
@@ -5414,6 +5422,7 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
     Sets create_info->varchar if the table has a VARCHAR column.
     Prepares alter_info->create_list and alter_info->key_list with
     columns and keys of the new table.
+
   @retval TRUE   error, out of memory or a semantical error in ALTER
                  TABLE instructions
   @retval FALSE  success
@@ -5440,7 +5449,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
-
+  Create_field *def;
+  Field **f_ptr,*field;
   DBUG_ENTER("mysql_prepare_alter_table");
 
   create_info->varchar= FALSE;
@@ -5476,18 +5486,16 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       create_info->tablespace= tablespace;
   }
   restore_record(table, s->default_values);     // Empty record for DEFAULT
-  Create_field *def;
 
   /*
     First collect all fields from table which isn't in drop_list
   */
-  Field **f_ptr,*field;
   for (f_ptr=table->field ; (field= *f_ptr) ; f_ptr++)
   {
+    Alter_drop *drop;
     if (field->type() == MYSQL_TYPE_STRING)
       create_info->varchar= TRUE;
     /* Check if field should be dropped */
-    Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
     {
@@ -5561,7 +5569,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   {
     if (def->change && ! def->field)
     {
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change, table->s->table_name.str);
+      my_error(ER_BAD_FIELD_ERROR, MYF(0), def->change,
+               table->s->table_name.str);
       goto err;
     }
     /*
@@ -5596,7 +5605,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (!find)
       {
-	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after, table->s->table_name.str);
+	my_error(ER_BAD_FIELD_ERROR, MYF(0), def->after,
+                 table->s->table_name.str);
         goto err;
       }
       find_it.after(def);			// Put element after this
@@ -5646,6 +5656,8 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 	continue;				// Wrong field (from UNIREG)
       const char *key_part_name=key_part->field->field_name;
       Create_field *cfield;
+      uint key_part_length;
+
       field_it.rewind();
       while ((cfield=field_it++))
       {
@@ -5661,7 +5673,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (!cfield)
 	continue;				// Field is removed
-      uint key_part_length=key_part->length;
+      key_part_length= key_part->length;
       if (cfield->field)			// Not new field
       {
         /*
@@ -7312,7 +7324,7 @@ static bool check_engine(THD *thd, const char *table_name,
     if (create_info->used_fields & HA_CREATE_USED_ENGINE)
     {
       my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-               ha_resolve_storage_engine_name(*new_engine), "TEMPORARY");
+               hton_name(*new_engine)->str, "TEMPORARY");
       *new_engine= 0;
       return TRUE;
     }

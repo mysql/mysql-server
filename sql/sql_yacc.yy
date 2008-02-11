@@ -1650,7 +1650,7 @@ create:
               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
                                   ER_WARN_USING_OTHER_HANDLER,
                                   ER(ER_WARN_USING_OTHER_HANDLER),
-                                  ha_resolve_storage_engine_name(lex->create_info.db_type),
+                                  hton_name(lex->create_info.db_type)->str,
                                   $5->table.str);
             }
           }
