@@ -939,6 +939,41 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+utf8_general_ci
+delete from t1;
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	61
+ä	C3A4
+ae	6165
+o	6F
+ö	C3B6
+oe	6F65
+s	73
+ß	C39F
+ss	7373
+u	75
+ü	C3BC
+ue	7565
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a,ä
+ae
+o,ö
+oe
+s,ß
+ss
+u,ü
+ue
+drop table t1;
 SET collation_connection='utf8_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
