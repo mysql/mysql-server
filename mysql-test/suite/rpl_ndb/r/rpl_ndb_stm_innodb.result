@@ -22,11 +22,11 @@ from mysql.ndb_apply_status;
 
 show binlog events from <start_pos> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	use `test`; insert into t1 values (1,2)
+master-bin.000001	<start_pos>	Query	1	#	use `test`; BEGIN
 
 show binlog events from <start_pos> limit 1,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	445	COMMIT /* XID */
+master-bin.000001	#	Query	1	486	use `test`; insert into t1 values (1,2)
 
 begin;
 insert into t1 values (2,3);
