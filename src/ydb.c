@@ -2321,9 +2321,16 @@ static int locked_db_close(DB * db, u_int32_t flags) {
     ydb_lock(); int r = toku_db_close(db, flags); ydb_unlock(); return r;
 }
 
-//TODO: Something about the cursor with no txn.. EINVAL maybe?
+inline static int autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
+    if (!txn && (db->dbenv->i->open_flags & DB_INIT_TXN)) {
+        return do_error(db->dbenv, EINVAL,
+              "Cursors in a transaction environment must have transactions.\n");
+    }
+    return toku_db_cursor(db, txn, c, flags);
+}
+
 static int locked_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_cursor(db, txn, c, flags); ydb_unlock(); return r;
+    ydb_lock(); int r = autotxn_db_cursor(db, txn, c, flags); ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key,
