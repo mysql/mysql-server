@@ -1278,5 +1278,12 @@ DELETE FROM t1 WHERE c1 >= 10;
 CHECK TABLE t1;
 DROP TABLE t1;
 
+#
+# Test warnings with transactional=1 with MyISAM
+#
+create table t1 (n int not null, c char(1)) transactional=1;
+show create table t1;
+drop table t1;
+
 --echo End of 5.1 tests
 

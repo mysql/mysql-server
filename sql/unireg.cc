@@ -159,8 +159,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   reclength=uint2korr(forminfo+266);
 
   /* Calculate extra data segment length */
-  str_db_type.str= (char *) ha_resolve_storage_engine_name(create_info->db_type);
-  str_db_type.length= strlen(str_db_type.str);
+  str_db_type= *hton_name(create_info->db_type);
   /* str_db_type */
   create_info->extra_size= (2 + str_db_type.length +
                             2 + create_info->connect_string.length);

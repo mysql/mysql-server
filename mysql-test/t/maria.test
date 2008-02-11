@@ -1454,8 +1454,26 @@ insert into t1 values(null, "d");
 select * from t1;
 drop table t1;
 
+#
+# Test warnings with transactional=1 with MyISAM
+#
 
-# End of 5.2 tests
+create table t1 (n int not null, c char(1)) engine=maria;
+alter table t1 engine=myisam;
+alter table t1 engine=maria;
+show create table t1;
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=maria transactional=1;
+alter table t1 engine=myisam;
+alter table t1 engine=maria;
+show create table t1;
+drop table t1;
+create table t1 (n int not null, c char(1)) engine=myisam transactional=1;
+alter table t1 engine=maria;
+show create table t1;
+drop table t1;
+
+# End of 5.1 tests
 
 --disable_result_log
 --disable_query_log
