@@ -13,8 +13,10 @@ source include/master-slave.inc;
 # it back to get the non-transactional change into the table.
 
 --echo **** On Master ****
-CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=INNODB;
-CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MYISAM;
+CREATE TABLE t1 (a INT, b SET('master','slave')) ENGINE=InnoDB;
+CREATE TABLE t2 (a INT, b SET('master','slave')) ENGINE=MyISAM;
+CREATE TABLE t3 (a CHAR(20), b SET('master','slave')) ENGINE=InnoDB;
+CREATE TABLE t4 (a CHAR(20), b SET('master','slave')) ENGINE=MyISAM;
 
 --echo ==== Skipping normal transactions ==== 
 
@@ -195,9 +197,170 @@ sync_with_master;
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 
+--echo ==== Skipping first event of a LOAD DATA for a transactional table ==== 
+
+--echo **** On Slave ****
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+SET AUTOCOMMIT=1;
+
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t3(a) SET b = 'master';
+INSERT INTO t3 VALUES ('Go Rin No Sho', 'master,slave');
+
+save_master_pos;
+
+SELECT COUNT(*) FROM t3;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+--echo -- Should only contain records marked 'master,slave'
+SELECT * FROM t3 ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t3;
+sync_slave_with_master;
+
+--echo ==== Skipping first event of a LOAD DATA for a non-transactional table ==== 
+
+--echo **** On Slave ****
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+SET AUTOCOMMIT=1;
+
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 VALUES ('Go Rin No Sho', 'master,slave');
+
+save_master_pos;
+
+SELECT COUNT(*) FROM t4;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+--echo -- Should only contain records marked 'master,slave'
+SELECT * FROM t4 ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t4;
+sync_slave_with_master;
+
+--echo ==== Try with a big file so that we get an append_block event as well
+
+--echo **** On Slave ****
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+SET AUTOCOMMIT=1;
+
+# This contain about 70 words, so we double it a few times to get more than 128 KiB
+SET SQL_LOG_BIN=0;
+LOAD DATA INFILE '../std_data_ln/words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+INSERT INTO t4 SELECT * FROM t4;
+SELECT a FROM t4 INTO OUTFILE 'rpl_slave_skip_words.dat';
+SET SQL_LOG_BIN=1;
+
+# Start the real job
+LOAD DATA INFILE 'rpl_slave_skip_words.dat' INTO TABLE t4(a) SET b = 'master';
+INSERT INTO t4 VALUES ('Go Rin No Sho', 'master,slave');
+
+#SHOW BINLOG EVENTS;
+
+save_master_pos;
+
+SELECT COUNT(*) FROM t4;
+
+# This will skip a begin event and the first INSERT of the
+# transaction, and it should keep skipping until it has reached the
+# transaction terminator.
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+sync_with_master;
+--echo -- Should only contain records marked 'master,slave'
+SELECT * FROM t4 ORDER BY a;
+
+--echo **** On Master ****
+connection master;
+DELETE FROM t4;
+sync_slave_with_master;
+
+# Test to generate a Delete_file log event, and see that it works as well.
+--echo **** On Master ****
+connection master;
+CREATE TABLE t5 (a int, b int, c SET('master','slave'), PRIMARY KEY (a,b)) ENGINE=MyISAM;
+LOAD DATA INFILE '../std_data_ln/loaddata5.dat' INTO TABLE t5 FIELDS TERMINATED BY '' ENCLOSED BY '' (a,b) SET c='master,slave';
+
+--echo **** On Slave ****
+sync_slave_with_master;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+
+--echo **** On Master ****
+connection master;
+error ER_DUP_ENTRY;
+LOAD DATA INFILE '../std_data_ln/loaddata5.dat' INTO TABLE t5 FIELDS TERMINATED BY '' ENCLOSED BY '' (a,b) SET c='';
+INSERT INTO t5 VALUES (42, 42, 'master,slave');
+save_master_pos;
+
+#SHOW BINLOG EVENTS;
+
+SELECT * FROM t5;
+
+--echo **** On Slave ****
+connection slave;
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+sync_with_master;
+SELECT * FROM t5;
+
+connection slave;
+
 --echo ==== Cleanup ==== 
 
 --echo **** On Master ****
 connection master;
-DROP TABLE t1, t2;
+DROP TABLE t1, t2, t3, t4, t5;
 sync_slave_with_master;
