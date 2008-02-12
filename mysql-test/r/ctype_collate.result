@@ -519,7 +519,7 @@ explain extended SELECT charset('a'),collation('a'),coercibility('a'),'a'='A';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select charset(_latin1'a') AS `charset('a')`,collation(_latin1'a') AS `collation('a')`,coercibility(_latin1'a') AS `coercibility('a')`,(_latin1'a' = _latin1'A') AS `'a'='A'`
+Note	1003	select charset('a') AS `charset('a')`,collation('a') AS `collation('a')`,coercibility('a') AS `coercibility('a')`,('a' = 'A') AS `'a'='A'`
 SET CHARACTER SET koi8r;
 SHOW VARIABLES LIKE 'collation_client';
 Variable_name	Value

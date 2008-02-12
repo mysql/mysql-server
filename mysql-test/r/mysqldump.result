@@ -2011,7 +2011,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like 'a%') */
 /*!50002 WITH CASCADED CHECK OPTION */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -2182,7 +2182,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like 'a%') */
 /*!50002 WITH CASCADED CHECK OPTION */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
