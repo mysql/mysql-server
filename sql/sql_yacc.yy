@@ -9823,8 +9823,11 @@ text_literal:
           }
         | UNDERSCORE_CHARSET TEXT_STRING
           {
-            $$= new Item_string($2.str, $2.length, $1);
-            ((Item_string*) $$)->set_repertoire_from_value();
+            Item_string *str= new Item_string($2.str, $2.length, $1);
+            str->set_repertoire_from_value();
+            str->set_cs_specified(TRUE);
+
+            $$= str;
           }
         | text_literal TEXT_STRING_literal
           {
@@ -9927,15 +9930,22 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(NULL, /* name will be set in select_item */
-                                str ? str->ptr() : "",
-                                str ? str->length() : 0,
-                                $1);
-            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+
+            Item_string *item_str=
+              new Item_string(NULL, /* name will be set in select_item */
+                              str ? str->ptr() : "",
+                              str ? str->length() : 0,
+                              $1);
+            if (!item_str ||
+                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
             {
               MYSQL_YYABORT;
             }
-            ((Item_string *) $$)->set_repertoire_from_value();
+
+            item_str->set_repertoire_from_value();
+            item_str->set_cs_specified(TRUE);
+
+            $$= item_str;
           }
         | UNDERSCORE_CHARSET BIN_NUM
           {
@@ -9947,14 +9957,21 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(NULL, /* name will be set in select_item */
-                                str ? str->ptr() : "",
-                                str ? str->length() : 0,
-                                $1);
-            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+
+            Item_string *item_str=
+              new Item_string(NULL, /* name will be set in select_item */
+                              str ? str->ptr() : "",
+                              str ? str->length() : 0,
+                              $1);
+            if (!item_str ||
+                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
             {
               MYSQL_YYABORT;
             }
+
+            item_str->set_cs_specified(TRUE);
+
+            $$= item_str;
           }
         | DATE_SYM text_literal { $$ = $2; }
         | TIME_SYM text_literal { $$ = $2; }
