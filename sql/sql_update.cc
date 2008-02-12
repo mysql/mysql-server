@@ -643,14 +643,6 @@ int mysql_update(THD *thd,
             updated++;
           else
             error= 0;
-
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_AFTER, TRUE))
-          {
-            error= 1;
-            break;
-          }
 	}
  	else if (!ignore ||
                  table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
@@ -667,6 +659,14 @@ int mysql_update(THD *thd,
 	  error= 1;
 	  break;
 	}
+      }
+
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+      {
+        error= 1;
+        break;
       }
 
       if (!--limit && using_limit)
@@ -1644,12 +1644,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
             trans_safe= 0;
             thd->transaction.stmt.modified_non_trans_table= TRUE;
           }
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_AFTER, TRUE))
-            DBUG_RETURN(1);
         }
       }
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+        DBUG_RETURN(1);
     }
     else
     {
@@ -1881,12 +1881,12 @@ int multi_update::do_updates()
           updated++;
         else
           local_error= 0;
-
-        if (table->triggers &&
-            table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                              TRG_ACTION_AFTER, TRUE))
-          goto err2;
       }
+
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+        goto err2;
     }
 
     if (updated != org_updated)
