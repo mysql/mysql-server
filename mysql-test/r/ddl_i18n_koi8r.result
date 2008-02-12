@@ -20,7 +20,7 @@ CREATE VIEW v2 AS SELECT _utf8'я┌п╣я│я┌' as c1|
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _koi8r'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
@@ -60,7 +60,7 @@ set names koi8r|
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _koi8r'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
@@ -105,7 +105,7 @@ set names koi8r|
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _koi8r'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	koi8r	koi8r_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
