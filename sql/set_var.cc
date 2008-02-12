@@ -1025,7 +1025,7 @@ bool sys_var_set::update(THD *thd, set_var *var)
 {
   *value= var->save_result.ulong_value;
   return 0;
-};
+}
 
 uchar *sys_var_set::value_ptr(THD *thd, enum_var_type type,
                               LEX_STRING *base)

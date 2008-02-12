@@ -56,6 +56,9 @@ void mysql_client_binlog_statement(THD* thd)
   if (!thd->rli_fake)
   {
     thd->rli_fake= new Relay_log_info;
+#ifdef HAVE_purify
+    thd->rli_fake->is_fake= TRUE;
+#endif
     have_fd_event= FALSE;
   }
   if (thd->rli_fake && !thd->rli_fake->relay_log.description_event_for_exec)
@@ -152,14 +155,13 @@ void mysql_client_binlog_statement(THD* thd)
       */
       if (!have_fd_event)
       {
-        if (bufptr[EVENT_TYPE_OFFSET] == FORMAT_DESCRIPTION_EVENT)
+        int type = bufptr[EVENT_TYPE_OFFSET];
+        if (type == FORMAT_DESCRIPTION_EVENT || type == START_EVENT_V3)
           have_fd_event= TRUE;
         else
         {
           my_error(ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT,
-                   MYF(0),
-                   Log_event::get_type_str(
-                     (Log_event_type)bufptr[EVENT_TYPE_OFFSET]));
+                   MYF(0), Log_event::get_type_str((Log_event_type)type));
           goto end;
         }
       }

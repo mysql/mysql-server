@@ -99,27 +99,51 @@ static const char *HA_ERR(int i)
   case HA_ERR_RECORD_IS_THE_SAME: return "HA_ERR_RECORD_IS_THE_SAME";
   case HA_ERR_LOGGING_IMPOSSIBLE: return "HA_ERR_LOGGING_IMPOSSIBLE";
   case HA_ERR_CORRUPT_EVENT: return "HA_ERR_CORRUPT_EVENT";
+  case HA_ERR_ROWS_EVENT_APPLY : return "HA_ERR_ROWS_EVENT_APPLY";
   }
   return 0;
 }
 
 /**
-   macro to call from different branches of Rows_log_event::do_apply_event
+   Error reporting facility for Rows_log_event::do_apply_event
+
+   @param level     error, warning or info
+   @param ha_error  HA_ERR_ code
+   @param rli       pointer to the active Relay_log_info instance
+   @param thd       pointer to the slave thread's thd
+   @param table     pointer to the event's table object
+   @param type      the type of the event
+   @param log_name  the master binlog file name
+   @param pos       the master binlog file pos (the next after the event)
+
 */
 static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                                            Relay_log_info const *rli, THD *thd,
                                            TABLE *table, const char * type,
                                            const char *log_name, ulong pos)
 {
-  const char *handler_error=  HA_ERR(ha_error);
+  const char *handler_error= HA_ERR(ha_error);
+  char buff[MAX_SLAVE_ERRMSG], *slider;
+  const char *buff_end= buff + sizeof(buff);
+  uint len;
+  List_iterator_fast<MYSQL_ERROR> it(thd->warn_list);
+  MYSQL_ERROR *err;
+  buff[0]= 0;
+
+  for (err= it++, slider= buff; err && slider < buff_end - 1;
+       slider += len, err= it++)
+  {
+    len= my_snprintf(slider, buff_end - slider,
+                     " %s, Error_code: %d;", err->msg, err->code);
+  }
+  
   rli->report(level, thd->net.client_last_errno,
               "Could not execute %s event on table %s.%s;"
-              "%s%s handler error %s; "
+              "%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
               type, table->s->db.str,
               table->s->table_name.str,
-              thd->net.client_last_error[0] != 0 ? thd->net.client_last_error : "",
-              thd->net.client_last_error[0] != 0 ? ";" : "",
+              buff,
               handler_error == NULL? "<unknown>" : handler_error,
               log_name, pos);
 }
@@ -212,9 +236,9 @@ uint debug_not_change_ts_if_art_event= 1; // bug#29309 simulation
 */
 
 #ifdef MYSQL_CLIENT
-static void pretty_print_str(IO_CACHE* cache, char* str, int len)
+static void pretty_print_str(IO_CACHE* cache, const char* str, int len)
 {
-  char* end = str + len;
+  const char* end = str + len;
   my_b_printf(cache, "\'");
   while (str < end)
   {
@@ -277,9 +301,9 @@ inline int ignored_error_code(int err_code)
 */
 
 #if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
-static char *pretty_print_str(char *packet, char *str, int len)
+static char *pretty_print_str(char *packet, const char *str, int len)
 {
-  char *end= str + len;
+  const char *end= str + len;
   char *pos= packet;
   *pos++= '\'';
   while (str < end)
@@ -385,7 +409,7 @@ static void cleanup_load_tmpdir()
   write_str()
 */
 
-static bool write_str(IO_CACHE *file, char *str, uint length)
+static bool write_str(IO_CACHE *file, const char *str, uint length)
 {
   uchar tmp[1];
   tmp[0]= (uchar) length;
@@ -2957,18 +2981,63 @@ Format_description_log_event(const char* buf,
     If post_header_len is null, it means malloc failed, and is_valid
     will fail, so there is no need to do anything.
 
-    The trees which have wrong event id's are:
-    mysql-5.1-wl2325-5.0-drop6p13-alpha, mysql-5.1-wl2325-5.0-drop6,
-    mysql-5.1-wl2325-5.0, mysql-5.1-wl2325-no-dd (`grep -C2
-    BEGIN_LOAD_QUERY_EVENT /home/bk/ * /sql/log_event.h`). The
-    corresponding version (`grep mysql, configure.in` in those trees)
-    strings are 5.2.2-a_drop6p13-alpha, 5.2.2-a_drop6p13c,
-    5.1.5-a_drop5p20, 5.1.2-a_drop5p5.
+    The trees in which events have wrong id's are:
+
+    mysql-5.1-wl1012.old mysql-5.1-wl2325-5.0-drop6p13-alpha
+    mysql-5.1-wl2325-5.0-drop6 mysql-5.1-wl2325-5.0
+    mysql-5.1-wl2325-no-dd
+
+    (this was found by grepping for two lines in sequence where the
+    first matches "FORMAT_DESCRIPTION_EVENT," and the second matches
+    "TABLE_MAP_EVENT," in log_event.h in all trees)
+
+    In these trees, the following server_versions existed since
+    TABLE_MAP_EVENT was introduced:
+
+    5.1.1-a_drop5p3   5.1.1-a_drop5p4        5.1.1-alpha
+    5.1.2-a_drop5p10  5.1.2-a_drop5p11       5.1.2-a_drop5p12
+    5.1.2-a_drop5p13  5.1.2-a_drop5p14       5.1.2-a_drop5p15
+    5.1.2-a_drop5p16  5.1.2-a_drop5p16b      5.1.2-a_drop5p16c
+    5.1.2-a_drop5p17  5.1.2-a_drop5p4        5.1.2-a_drop5p5
+    5.1.2-a_drop5p6   5.1.2-a_drop5p7        5.1.2-a_drop5p8
+    5.1.2-a_drop5p9   5.1.3-a_drop5p17       5.1.3-a_drop5p17b
+    5.1.3-a_drop5p17c 5.1.4-a_drop5p18       5.1.4-a_drop5p19
+    5.1.4-a_drop5p20  5.1.4-a_drop6p0        5.1.4-a_drop6p1
+    5.1.4-a_drop6p2   5.1.5-a_drop5p20       5.2.0-a_drop6p3
+    5.2.0-a_drop6p4   5.2.0-a_drop6p5        5.2.0-a_drop6p6
+    5.2.1-a_drop6p10  5.2.1-a_drop6p11       5.2.1-a_drop6p12
+    5.2.1-a_drop6p6   5.2.1-a_drop6p7        5.2.1-a_drop6p8
+    5.2.2-a_drop6p13  5.2.2-a_drop6p13-alpha 5.2.2-a_drop6p13b
+    5.2.2-a_drop6p13c
+
+    (this was found by grepping for "mysql," in all historical
+    versions of configure.in in the trees listed above).
+
+    There are 5.1.1-alpha versions that use the new event id's, so we
+    do not test that version string.  So replication from 5.1.1-alpha
+    with the other event id's to a new version does not work.
+    Moreover, we can safely ignore the part after drop[56].  This
+    allows us to simplify the big list above to the following regexes:
+
+    5\.1\.[1-5]-a_drop5.*
+    5\.1\.4-a_drop6.*
+    5\.2\.[0-2]-a_drop6.*
+
+    This is what we test for in the 'if' below.
   */
   if (post_header_len &&
-      (strncmp(server_version, "5.1.2-a_drop5", 13) == 0 ||
-       strncmp(server_version, "5.1.5-a_drop5", 13) == 0 ||
-       strncmp(server_version, "5.2.2-a_drop6", 13) == 0))
+      server_version[0] == '5' && server_version[1] == '.' &&
+      server_version[3] == '.' &&
+      strncmp(server_version + 5, "-a_drop", 7) == 0 &&
+      ((server_version[2] == '1' &&
+        server_version[4] >= '1' && server_version[4] <= '5' &&
+        server_version[12] == '5') ||
+       (server_version[2] == '1' &&
+        server_version[4] == '4' &&
+        server_version[12] == '6') ||
+       (server_version[2] == '2' &&
+        server_version[4] >= '0' && server_version[4] <= '2' &&
+        server_version[12] == '6')))
   {
     if (number_of_event_types != 22)
     {
@@ -6026,7 +6095,8 @@ bool sql_ex_info::write_data(IO_CACHE* file)
   sql_ex_info::init()
 */
 
-char *sql_ex_info::init(char *buf, char *buf_end, bool use_new_format)
+const char *sql_ex_info::init(const char *buf, const char *buf_end,
+                              bool use_new_format)
 {
   cached_new_format = use_new_format;
   if (use_new_format)
@@ -6039,12 +6109,11 @@ char *sql_ex_info::init(char *buf, char *buf_end, bool use_new_format)
       the case when we have old format because we will be reusing net buffer
       to read the actual file before we write out the Create_file event.
     */
-    const char *ptr= buf;
-    if (read_str(&ptr, buf_end, (const char **) &field_term, &field_term_len) ||
-	read_str(&ptr, buf_end, (const char **) &enclosed,   &enclosed_len) ||
-	read_str(&ptr, buf_end, (const char **) &line_term,  &line_term_len) ||
-	read_str(&ptr, buf_end, (const char **) &line_start, &line_start_len) ||
-	read_str(&ptr, buf_end, (const char **) &escaped,    &escaped_len))
+    if (read_str(&buf, buf_end, &field_term, &field_term_len) ||
+        read_str(&buf, buf_end, &enclosed,   &enclosed_len) ||
+        read_str(&buf, buf_end, &line_term,  &line_term_len) ||
+        read_str(&buf, buf_end, &line_start, &line_start_len) ||
+        read_str(&buf, buf_end, &escaped,    &escaped_len))
       return 0;
     opt_flags = *buf++;
   }
@@ -7670,7 +7739,7 @@ Rows_log_event::write_row(const Relay_log_info *const rli,
 
   /* fill table->record[0] with default values */
 
-  if ((error= prepare_record(rli, table, m_width,
+  if ((error= prepare_record(table, m_width,
                              TRUE /* check if columns have def. values */)))
     DBUG_RETURN(error);
   
@@ -7988,13 +8057,17 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
   DBUG_ASSERT(m_table && m_table->in_use != NULL);
 
   TABLE *table= m_table;
-  int error;
+  int error= 0;
 
-  /* unpack row - missing fields get default values */
-
-  // TODO: shall we check and report errors here?
-  prepare_record(NULL,table,m_width,FALSE /* don't check errors */); 
-  error= unpack_current_row(rli); 
+  /*
+    rpl_row_tabledefs.test specifies that
+    if the extra field on the slave does not have a default value
+    and this is okay with Delete or Update events.
+    Todo: fix wl3228 hld that requires defauls for all types of events
+  */
+  
+  prepare_record(table, m_width, FALSE);
+  error= unpack_current_row(rli);
 
 #ifndef DBUG_OFF
   DBUG_PRINT("info",("looking for the following record"));
