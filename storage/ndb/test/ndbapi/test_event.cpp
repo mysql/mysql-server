@@ -2220,6 +2220,7 @@ TESTCASE("StallingSubscriber",
          "NOTE! No errors are allowed!" ){
   INITIALIZER(runCreateEvent);
   STEP(errorInjectStalling);
+}
 TESTCASE("Bug33793", ""){
   INITIALIZER(runCreateEvent);
   STEP(runEventListenerUntilStopped);
