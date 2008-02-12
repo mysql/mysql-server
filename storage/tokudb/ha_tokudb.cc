@@ -1,3 +1,9 @@
+/* QQQ open questions
+   how to parallelize handlers on the same table?
+   what does bdb_return_if_eq do?
+   
+ */
+
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation          // gcc: Class implementation
 #endif
@@ -46,11 +52,6 @@ typedef struct st_tokudb_trx_data {
 #define STATUS_ROW_COUNT_INIT   2
 #define STATUS_TOKUDB_ANALYZE      4
 
-const u_int32_t tokudb_DB_TXN_NOSYNC = DB_TXN_NOSYNC;
-const u_int32_t tokudb_DB_RECOVER = DB_RECOVER;
-const u_int32_t tokudb_DB_PRIVATE = DB_PRIVATE;
-// const u_int32_t tokudb_DB_DIRECT_DB= DB_DIRECT_DB;
-// const u_int32_t tokudb_DB_DIRECT_LOG= DB_DIRECT_LOG;
 const char *ha_tokudb_ext = ".tokudb";
 
 static my_bool tokudb_shared_data = FALSE;
@@ -74,20 +75,20 @@ static DB_ENV *db_env;
 static const char tokudb_hton_name[] = "TokuDB";
 static const int tokudb_hton_name_length = sizeof(tokudb_hton_name) - 1;
 
+#if 0 // QQQ do we need this
 const char *tokudb_lock_names[] = { "DEFAULT", "OLDEST", "RANDOM", "YOUNGEST", "EXPIRE", "MAXLOCKS",
     "MAXWRITE", "MINLOCKS", "MINWRITE", 0
 };
 
-#if 0 // QQQ
 u_int32_t tokudb_lock_types[] = { DB_LOCK_DEFAULT, DB_LOCK_OLDEST, DB_LOCK_RANDOM, DB_LOCK_YOUNGEST,
     DB_LOCK_EXPIRE, DB_LOCK_MAXLOCKS, DB_LOCK_MAXWRITE, DB_LOCK_MINLOCKS,
     DB_LOCK_MINWRITE
 };
-#endif
 
 TYPELIB tokudb_lock_typelib = { array_elements(tokudb_lock_names) - 1, "",
     tokudb_lock_names, NULL
 };
+#endif
 
 static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, const char *buffer);
 static void tokudb_cleanup_log_files(void);
@@ -182,70 +183,87 @@ static int tokudb_init_func(void *p) {
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
 
-    /*
-       If we don't set set_lg_bsize() we will get into trouble when
-       trying to use many open BDB tables.
-       If log buffer is not set, assume that the we will need 512 byte per
-       open table.  This is a number that we have reached by testing.
-     */
-    if (!tokudb_log_buffer_size) {
+    if (!tokudb_log_buffer_size) { // QQQ
         tokudb_log_buffer_size = max(table_cache_size * 512, 32 * 1024);
         DBUG_PRINT("info", ("computing tokudb_log_buffer_size %ld\n", tokudb_log_buffer_size));
     }
-    /*
-       Tokudb DB require that
-       tokudb_log_file_size >= tokudb_log_buffer_size*4
-     */
     tokudb_log_file_size = tokudb_log_buffer_size * 4;
     tokudb_log_file_size = MY_ALIGN(tokudb_log_file_size, 1024 * 1024L);
     tokudb_log_file_size = max(tokudb_log_file_size, 10 * 1024 * 1024L);
     DBUG_PRINT("info", ("computing tokudb_log_file_size: %ld\n", tokudb_log_file_size));
 
-    if (db_env_create(&db_env, 0))
+    int r;
+    if ((r = db_env_create(&db_env, 0))) {
+        DBUG_PRINT("info", ("db_env_create %d\n", r));
         goto error;
+    }
+
+    DBUG_PRINT("info", ("tokudb_env_flags: 0x%lx\n", tokudb_env_flags));
+    r = db_env->set_flags(db_env, tokudb_env_flags, 1);
+    if (r) // QQQ
+        printf("WARNING: flags %x r %d\n", tokudb_env_flags, r); // goto error;
+
+    // config error handling
     db_env->set_errcall(db_env, tokudb_print_error);
-    db_env->set_errpfx(db_env, "tokudb");
+    db_env->set_errpfx(db_env, "TokuDB");
+
+    // config directories
     DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tokudb_tmpdir));
     db_env->set_tmp_dir(db_env, tokudb_tmpdir);
     DBUG_PRINT("info", ("mysql_data_home: %s\n", mysql_data_home));
     db_env->set_data_dir(db_env, mysql_data_home);
-    DBUG_PRINT("info", ("tokudb_env_flags: 0x%lx\n", tokudb_env_flags));
-    db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (tokudb_logdir) {
-        db_env->set_lg_dir(db_env, tokudb_logdir);
         DBUG_PRINT("info", ("tokudb_logdir: %s\n", tokudb_logdir));
+        db_env->set_lg_dir(db_env, tokudb_logdir);
     }
 
-    DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
-    DBUG_PRINT("info", ("tokudb_cache_parts: %ld\n", tokudb_cache_parts));
-    if (tokudb_cache_size > (uint) ~ 0)
-        db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), tokudb_cache_parts);
-    else
-        db_env->set_cachesize(db_env, 0, tokudb_cache_size, tokudb_cache_parts);
+    // config the cache table
+    if (tokudb_cache_size) {
+        DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
+        DBUG_PRINT("info", ("tokudb_cache_parts: %ld\n", tokudb_cache_parts));
+        r = db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), tokudb_cache_parts);
+        if (r) goto error; 
+    }
+    u_int32_t gbytes, bytes; int parts;
+    r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
+    if (r == 0) 
+        printf("tokudb_cache_size %lld\n", (unsigned long long) gbytes << 30 + bytes);
 
-
+#if 0
+    // QQQ config the logs
     DBUG_PRINT("info", ("tokudb_log_file_size: %ld\n", tokudb_log_file_size));
     db_env->set_lg_max(db_env, tokudb_log_file_size);
     DBUG_PRINT("info", ("tokudb_log_buffer_size: %ld\n", tokudb_log_buffer_size));
     db_env->set_lg_bsize(db_env, tokudb_log_buffer_size);
-    DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
-    db_env->set_lk_detect(db_env, tokudb_lock_type);
     // DBUG_PRINT("info",("tokudb_region_size: %ld\n", tokudb_region_size));
     // db_env->set_lg_regionmax(db_env, tokudb_region_size);
+
+    // QQQ config the locks
+    DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
+    db_env->set_lk_detect(db_env, tokudb_lock_type);
     // set_lk_max deprecated, use set_lk_max_locks
     // if (tokudb_max_lock) {
     //  DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
     //  db_env->set_lk_max_locks(db_env, tokudb_max_lock);
     // }
+    u_int32_t n;
+    r = db_env->get_lk_max_locks(db_env, &n);
+    printf("tokudb_max_locks %d %d\n", r, n);
+#endif
 
-    if (db_env->open(db_env, tokudb_home, tokudb_init_flags | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_THREAD, 0666)) {
-        db_env->close(db_env, 0);
-        db_env = 0;
+    if ((r = db_env->open(db_env, tokudb_home, 
+                          tokudb_init_flags | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_THREAD, 
+                          0666))) {
+        DBUG_PRINT("info", ("env->open %d\n", r));
         goto error;
     }
-
     DBUG_RETURN(FALSE);
-  error:
+
+error:
+    if (db_env) {
+        db_env->close(db_env, 0);
+        db_env = 0;
+    }
     DBUG_RETURN(TRUE);
 }
 
@@ -283,9 +301,13 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
         uint keys = table->s->keys;
 
         if (!(share = (TOKUDB_SHARE *)
-              my_multi_malloc(MYF(MY_WME | MY_ZEROFILL),
+              my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
                               &share, sizeof(*share),
-                              &tmp_name, length + 1, &rec_per_key, keys * sizeof(ha_rows), &key_file, (keys + 1) * sizeof(*key_file), &key_type, (keys + 1) * sizeof(u_int32_t), NullS))) {
+                              &tmp_name, length + 1, 
+                              &rec_per_key, keys * sizeof(ha_rows), 
+                              &key_file, (keys + 1) * sizeof(*key_file), 
+                              &key_type, (keys + 1) * sizeof(u_int32_t), 
+                              NullS))) {
             pthread_mutex_unlock(&tokudb_mutex);
             return NULL;
         }
@@ -565,7 +587,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
         case HA_KEYTYPE_TEXT:
         case HA_KEYTYPE_VARTEXT1:
         case HA_KEYTYPE_VARTEXT2:
-            /*
+            /* QQQ
                As BDB stores only one copy of equal strings, we can't use key read
                on these. Binary collations do support key read though.
              */
@@ -670,7 +692,10 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     max_key_length = table_share->max_key_length + MAX_REF_PARTS * 3;
     if (!(alloc_ptr =
           my_multi_malloc(MYF(MY_WME),
-                          &key_buff, max_key_length, &key_buff2, max_key_length, &primary_key_buff, (hidden_primary_key ? 0 : table_share->key_info[table_share->primary_key].key_length), NullS)))
+                          &key_buff, max_key_length, 
+                          &key_buff2, max_key_length, 
+                          &primary_key_buff, (hidden_primary_key ? 0 : table_share->key_info[table_share->primary_key].key_length), 
+                          NullS)))
         DBUG_RETURN(1);
     if (!(rec_buff = (uchar *) my_malloc((alloced_rec_buff_length = table_share->rec_buff_length), MYF(MY_WME)))) {
         my_free(alloc_ptr, MYF(0));
@@ -691,7 +716,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
     file = share->file;
-    printf("%s:%d:bdbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
+    printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
@@ -775,7 +800,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     transaction = 0;
     cursor = 0;
     key_read = 0;
-    stats.block_size = 8192;    // QQQ Tokudb DB block size
+    stats.block_size = 1<<20;    // QQQ Tokudb DB block size
     share->fixed_length_row = !(table_share->db_create_options & HA_OPTION_PACK_RECORD);
 
     get_status();
@@ -1413,7 +1438,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
         DBUG_ASSERT(keynr == primary_key || prim_key->data != key_buff2);
         error = key_file[keynr]->del(key_file[keynr], trans, keynr == primary_key ? prim_key : create_key(&key, keynr, key_buff2, record), 0);
     } else {
-        /*
+        /* QQQ use toku_db_delboth(key_file[keynr], key, val, trans);
            To delete the not duplicated key, we need to open an cursor on the
            row to find the key to be delete and delete it.
            We will never come here with keynr = primary_key
@@ -1854,7 +1879,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
             transaction = 0;    // Safety
             /* First table lock, start transaction */
             if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && !trx->all) {
-                /* We have to start a master transaction */
+                /* QQQ We have to start a master transaction */
                 DBUG_PRINT("trans", ("starting transaction all:  options: 0x%lx", (ulong) thd->options));
                 if ((error = db_env->txn_begin(db_env, NULL, &trx->all, 0))) {
                     trx->tokudb_lock_count--;      // We didn't get the lock
@@ -1888,8 +1913,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 error = trx->stmt->commit(trx->stmt, 0);
                 trx->stmt = transaction = 0;
-            }
-        }
+            }        }
     }
     DBUG_RETURN(error);
 }
@@ -1988,6 +2012,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     int error;
     char newname[strlen(name) + 32];
 
+    // a table is a directory of dictionaries
     sprintf(newname, "%s%s", name, ha_tokudb_ext);
     error = mkdir(newname, 0777);
     if (error != 0) {
@@ -2017,7 +2042,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     }
 
     /* Create the status block to save information from last status command */
-    /* Is DB_BTREE the best option here ? (QUEUE can't be used in sub tables) */
+    /* QQQ Is DB_BTREE the best option here ? (QUEUE can't be used in sub tables) */
+    // QQQ what is the status DB used for?
 
     DB *status_block;
     if (!(error = (db_create(&status_block, db_env, 0)))) {
@@ -2050,7 +2076,7 @@ static int rmall(const char *dname) {
             if (dirent->d_type == DT_DIR) {
                 error = rmall(fname);
             } else
-                error = remove(fname);
+                error = unlink(fname);
             if (error != 0) {
                 error = errno;
                 break;
@@ -2058,7 +2084,7 @@ static int rmall(const char *dname) {
         }
         closedir(d);
         if (error == 0) {
-            error = remove(dname);
+            error = rmdir(dname);
             if (error != 0)
                 error = errno;
         }
@@ -2092,6 +2118,7 @@ int ha_tokudb::delete_table(const char *name) {
     file = 0;                   // Safety
     my_errno = error;
 #else
+    // remove all of the dictionaries in the table directory 
     char newname[strlen(name) + 32];
     sprintf(newname, "%s%s", name, ha_tokudb_ext);
     error = rmall(newname);
@@ -2239,8 +2266,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         }
     }
     if (!error)
-        nr = (ulonglong)
-            table->next_number_field->val_int_offset(0) + 1;
+        nr = (ulonglong) table->next_number_field->val_int_offset(0) + 1;
     ha_tokudb::index_end();
     (void) ha_tokudb::extra(HA_EXTRA_NO_KEYREAD);
     *first_value = nr;
@@ -2319,9 +2345,13 @@ struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INT
 //   PLUGIN_VAR_OPCMDARG  Argument optional for cmd line
 //   PLUGIN_VAR_MEMALLOC  String needs memory allocated
 
-static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets bdb set_cachesize ncache", NULL, NULL, 0, 0, ~0L, 0);
+#if 0
 
-static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "Sets bdb set_cachesize gbytes & bytes", NULL, NULL, 8 * 1024 * 1024, 0, ~0LL, 0);
+static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 8 * 1024 * 1024, 0, ~0LL, 0);
+static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
+static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
+
+static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets bdb set_cachesize ncache", NULL, NULL, 0, 0, ~0L, 0);
 
 // this is really a u_int32_t
 // ? use MYSQL_SYSVAR_SET
@@ -2342,42 +2372,41 @@ static MYSQL_SYSVAR_UINT(lock_type, tokudb_lock_type, PLUGIN_VAR_READONLY, "Sets
 
 static MYSQL_SYSVAR_ULONG(log_buffer_size, tokudb_log_buffer_size, PLUGIN_VAR_READONLY, "Tokudb Log Buffer Size", NULL, NULL, 0, 0, ~0L, 0);
 
-static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "Tokudb Log Dir", NULL, NULL, NULL);
-
-static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "Tokudb Max Lock", NULL, NULL, 8 * 1024, 0, ~0L, 0);
-
 static MYSQL_SYSVAR_ULONG(region_size, tokudb_region_size, PLUGIN_VAR_READONLY, "Tokudb Region Size", NULL, NULL, 128 * 1024, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "Tokudb Shared Data", NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
+#endif
 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
-    MYSQL_SYSVAR(cache_parts),
+#if 0
     MYSQL_SYSVAR(cache_size),
+    MYSQL_SYSVAR(logdir),
+    MYSQL_SYSVAR(max_lock),
+    MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
     MYSQL_SYSVAR(home),
     MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(lock_scan_time),
     MYSQL_SYSVAR(lock_type),
     MYSQL_SYSVAR(log_buffer_size),
-    MYSQL_SYSVAR(logdir),
-    MYSQL_SYSVAR(max_lock),
     MYSQL_SYSVAR(region_size),
     MYSQL_SYSVAR(shared_data),
     MYSQL_SYSVAR(tmpdir),
+#endif
     NULL
 };
 
 mysql_declare_plugin(tokudb) {
     MYSQL_STORAGE_ENGINE_PLUGIN, &storage_engine_structure, "TokuDB", "Tokutek Inc", "Supports transactions and page-level locking", 
-    PLUGIN_LICENSE_BSD, 
-    tokudb_init_func, /* plugin init */
+    PLUGIN_LICENSE_BSD,        /* QQQ license? */
+    tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
-    0x0200,                 /* 2.0 */
-    NULL,                   /* status variables */
+    0x0200,                    /* QQQ 2.0 */
+    NULL,                      /* status variables */
     tokudb_system_variables,   /* system variables */
-    NULL                    /* config options */
+    NULL                       /* config options */
 }
 
 mysql_declare_plugin_end;
