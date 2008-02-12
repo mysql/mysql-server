@@ -49,16 +49,29 @@ void test_env_exceptions (void) {
     }
     {
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),                  0);
+	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),    0);
+	DbTxn *txn;
+	TC(env.txn_begin(0, &txn, 0),                                                    EINVAL); // not configured for transactions
+    }
+    {
+	DbEnv env(0);
+	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(0),                                                               0); 
         delete txn;
     }
-
     {
 	DbEnv env(0);
-	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG, 0777),    0);
+	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN, 0777),    0);
+	DbTxn *txn;
+	TC(env.txn_begin(0, &txn, 0),                                                    0);
+	TC(txn->commit(0),                                                               0); 
+        delete txn;
+    }
+    {
+	DbEnv env(0);
+	TC(env.open(".", DB_INIT_MPOOL | DB_CREATE | DB_PRIVATE | DB_INIT_LOG | DB_INIT_TXN, 0777),    0);
 	DbTxn *txn;
 	TC(env.txn_begin(0, &txn, 0),                                                    0);
 	TC(txn->commit(-1),                                                              EINVAL);

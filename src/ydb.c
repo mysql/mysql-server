@@ -889,6 +889,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         toku_free(result);
         return ENOMEM;
     }
+    memset(result->i, 0, sizeof *result->i);
     result->i->parent = stxn;
 
     int r;
