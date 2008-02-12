@@ -59,3 +59,14 @@ static inline uint32_t myrandom (void) {
     rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
     return rstate;
 }
+
+int int_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
+  assert(db && a && b);
+  assert(a->size == sizeof(int));
+  assert(b->size == sizeof(int));
+
+  int x = *(int *) a->data;
+  int y = *(int *) b->data;
+
+  return x - y;
+}
