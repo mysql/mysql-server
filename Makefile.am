@@ -175,18 +175,15 @@ libinnobase_a_SOURCES =	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c	\
 			handler/i_s.cc					\
 			handler/mysql_addons.cc
 
-libinnobase_a_CXXFLAGS=	$(AM_CFLAGS)
-libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
+libinnobase_a_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_CFLAGS)
+libinnobase_a_CFLAGS  =	$(AM_CFLAGS) $(INNODB_CFLAGS)
 
 EXTRA_LTLIBRARIES =	ha_innodb.la
 pkglib_LTLIBRARIES =	@plugin_innobase_shared_target@
 
-# To avoid symbol clashes between the InnoDB plugin and a built-in InnoDB,
-# we must rename class ha_innobase to something else.  Also global symbols
-# will have to be redefined, but that can be done by objcopy --redefine-syms.
 ha_innodb_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
-ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) -prefer-non-pic -DMYSQL_DYNAMIC_PLUGIN
-ha_innodb_la_CFLAGS  =	$(AM_CFLAGS) -prefer-non-pic -DMYSQL_DYNAMIC_PLUGIN
+ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) $(INNODB_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
+ha_innodb_la_CFLAGS  =	$(AM_CFLAGS) $(INNODB_CFLAGS) $(INNODB_DYNAMIC_CFLAGS)
 ha_innodb_la_SOURCES =	$(libinnobase_a_SOURCES)
 
 EXTRA_DIST =		CMakeLists.txt plug.in \
