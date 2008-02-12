@@ -1337,14 +1337,15 @@ bool show_master_info(THD* thd, Master_info* mi)
     protocol->prepare_for_resend();
 
     /*
-      TODO: we read slave_running without run_lock, whereas these variables
-      are updated under run_lock and not data_lock. In 5.0 we should lock
-      run_lock on top of data_lock (with good order).
+      slave_running can be accessed without run_lock but not other
+      non-volotile members like mi->io_thd, which is guarded by the mutex.
     */
+    pthread_mutex_lock(&mi->run_lock);
+    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
+    pthread_mutex_unlock(&mi->run_lock);
+
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-
-    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
@@ -1892,14 +1893,21 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
   if (exec_res == 0)
   {
     int error= ev->update_pos(rli);
-    char buf[22];
-    DBUG_PRINT("info", ("update_pos error = %d", error));
-    DBUG_PRINT("info", ("group %s %s",
-                        llstr(rli->group_relay_log_pos, buf),
-                        rli->group_relay_log_name));
-    DBUG_PRINT("info", ("event %s %s",
-                        llstr(rli->event_relay_log_pos, buf),
-                        rli->event_relay_log_name));
+#ifdef HAVE_purify
+    if (!rli->is_fake)
+#endif
+    {
+#ifndef DBUG_OFF
+      char buf[22];
+#endif
+      DBUG_PRINT("info", ("update_pos error = %d", error));
+      DBUG_PRINT("info", ("group %s %s",
+                          llstr(rli->group_relay_log_pos, buf),
+                          rli->group_relay_log_name));
+      DBUG_PRINT("info", ("event %s %s",
+                          llstr(rli->event_relay_log_pos, buf),
+                          rli->event_relay_log_name));
+    }
     /*
       The update should not fail, so print an error message and
       return an error code.
@@ -1909,6 +1917,7 @@ int apply_event_and_update_pos(Log_event* ev, THD* thd, Relay_log_info* rli,
     */
     if (error)
     {
+      char buf[22];
       rli->report(ERROR_LEVEL, ER_UNKNOWN_ERROR,
                   "It was not possible to update the positions"
                   " of the relay log information: the slave may"
