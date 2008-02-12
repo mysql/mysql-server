@@ -477,6 +477,19 @@ inline static void __toku_init_query(toku_range* query,
     query->data  = NULL;
 }
 
+/*
+    Memory ownership: 
+     - to_insert we own (it's static)
+     - to_insert.left, .right are toku_point's, and we own them.
+       If we have consolidated, we own them because we had allocated
+       them earlier, but
+       if we have not consolidated we need to gain ownership now: 
+       we will gain ownership by copying all payloads and 
+       allocating the points. 
+     - to_insert.{left,right}.{key_payload, data_payload} are owned by lt,
+       we made copies from the DB at consolidation time 
+*/
+
 inline static void __toku_init_insert(toku_range* to_insert,
                                toku_point* left, toku_point* right,
                                DB_TXN* txn) {
