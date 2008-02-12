@@ -31,7 +31,7 @@ DROP TABLE IF EXISTS t1, t2, t3;
 --echo ==== Read modern binlog (version 5.1.23) ====
 
 # Read binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_23.000001 | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1_23.001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -43,13 +43,28 @@ DROP TABLE t1, t2, t3;
 --echo ==== Read binlog from version 5.1.17 ====
 
 # Read binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1_17.000001 | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1_17.001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
 SELECT COUNT(*) FROM t3;
 # Reset.
 DROP TABLE t1, t2, t3;
+
+
+--echo ==== Read binlog from version 4.1 ====
+
+# In this version, neither row-based binlogging nor Xid events
+# existed, so the binlog was generated without the "row-based tests"
+# part and the "get xid event" part, and it does not create table t2.
+
+# Read binlog.
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_4_1.000001 | $MYSQL --local-infile=1
+# Show result.
+SELECT * FROM t1 ORDER BY a;
+SELECT COUNT(*) FROM t3;
+# Reset.
+DROP TABLE t1, t3;
 
 
 --echo ==== Read binlog from alcatel tree (mysql-5.1-wl2325-5.0-drop6) ====
@@ -60,9 +75,9 @@ DROP TABLE t1, t2, t3;
 # replication.
 
 # Read rbr binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_row.000001 | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1-wl2325_r.001 | $MYSQL --local-infile=1
 # Read stm binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-wl2325_stm.000001 | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1-wl2325_s.001 | $MYSQL --local-infile=1
 # Show result.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
@@ -74,7 +89,7 @@ DROP TABLE t1, t2, t3;
 --echo ==== Read binlog from ndb tree (mysql-5.1-telco-6.1) ====
 
 # Read binlog.
---exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/binlog_old_version_5_1-telco.000001 | $MYSQL --local-infile=1
+--exec $MYSQL_BINLOG --local-load=$MYSQLTEST_VARDIR/tmp/ suite/binlog/std_data/ver_5_1-telco.001 | $MYSQL --local-infile=1
 # Show resulting tablea.
 SELECT * FROM t1 ORDER BY a;
 SELECT * FROM t2 ORDER BY a;
