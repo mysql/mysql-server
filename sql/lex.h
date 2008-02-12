@@ -389,7 +389,6 @@ static SYMBOL symbols[] = {
   { "PAGE",	        SYM(PAGE_SYM)},
   { "PAGE_CHECKSUM",        SYM(PAGE_CHECKSUM_SYM)},
   { "PARTIAL",		SYM(PARTIAL)},
-  { "PAGE",		SYM(PAGE_SYM)},
   { "PARTITION",        SYM(PARTITION_SYM)},
   { "PARTITIONING",     SYM(PARTITIONING_SYM)},
   { "PARTITIONS",       SYM(PARTITIONS_SYM)},
