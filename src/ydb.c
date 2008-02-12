@@ -563,18 +563,6 @@ static int toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
     return do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
 }
 
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
-static int toku_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
-    HANDLE_PANICKED_ENV(env);
-    lk_max=lk_max;
-    return 0;
-}
-
-static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
-    ydb_lock(); int r = toku_env_set_lk_max(env, lk_max); ydb_unlock(); return r;
-}
-#endif
-
 static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     HANDLE_PANICKED_ENV(dbenv);
     if (env_opened(dbenv))  return EINVAL;
@@ -582,6 +570,16 @@ static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     dbenv->i->max_locks = max;
     return 0;
 }
+
+#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
+static int toku_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
+    return toku_env_set_lk_max_locks(env, lk_max);
+}
+
+static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
+    ydb_lock(); int r = toku_env_set_lk_max(env, lk_max); ydb_unlock(); return r;
+}
+#endif
 
 static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
     HANDLE_PANICKED_ENV(dbenv);
