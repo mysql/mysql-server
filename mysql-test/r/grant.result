@@ -1218,6 +1218,28 @@ DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
+drop table if exists test;
+Warnings:
+Note	1051	Unknown table 'test'
+drop function if exists test_function;
+Warnings:
+Note	1305	FUNCTION test_function does not exist
+drop view if exists v1;
+Warnings:
+Note	1051	Unknown table 'test.v1'
+create table test (col1 varchar(30));
+create function test_function() returns varchar(30)
+begin
+declare tmp varchar(30);
+select col1 from test limit 1 into tmp;
+return '1';
+end|
+create view v1 as select test.* from test where test.col1=test_function();
+grant update (col1) on v1 to 'greg'@'localhost';
+drop user 'greg'@'localhost';
+drop view v1;
+drop table test;
+drop function test_function;
 End of 5.0 tests
 set names utf8;
 grant select on test.* to юзер_юзер@localhost;
@@ -1282,5 +1304,6 @@ CALL mysqltest1.test();
 1
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
 End of 5.1 tests

@@ -88,7 +88,8 @@ mysqlslap_LDADD =		$(CXXLDFLAGS) $(CLIENT_THREAD_LIBS) \
 
 mysqltest_SOURCES=		mysqltest.c \
 				$(top_srcdir)/mysys/my_getsystime.c \
-				$(top_srcdir)/mysys/my_copy.c
+				$(top_srcdir)/mysys/my_copy.c \
+                                $(top_srcdir)/mysys/my_mkdir.c
 mysqltest_LDADD =		$(top_builddir)/regex/libregex.a $(LDADD)
 
 mysql_upgrade_SOURCES=          mysql_upgrade.c \

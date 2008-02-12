@@ -1,0 +1,53 @@
+# Bug#12691: Exec_master_log_pos corrupted with SQL_SLAVE_SKIP_COUNTER
+# Date: 01/31/2008
+# Added: Serge Kozlov <skozlov@mysql.com>
+
+--source include/master-slave.inc
+--connection master
+--source include/have_binlog_format_mixed_or_statement.inc
+
+--echo
+--echo **** On Master ****
+CREATE TABLE t1 (b CHAR(10));
+--echo
+--echo **** On Slave ****
+--sync_slave_with_master
+STOP SLAVE;
+--source include/wait_for_slave_to_stop.inc
+
+--connection master
+
+--echo
+--echo **** On Master ****
+--exec cp $MYSQL_TEST_DIR/suite/bugs/data/rpl_bug12691.dat $MYSQLTEST_VARDIR/tmp/
+--echo LOAD DATA INFILE FILENAME
+--disable_query_log
+--eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/rpl_bug12691.dat' INTO TABLE t1 FIELDS TERMINATED BY '|'
+--enable_query_log
+--remove_file $MYSQLTEST_VARDIR/tmp/rpl_bug12691.dat
+
+SELECT COUNT(*) FROM t1;
+
+--replace_column 2 # 5 #
+--replace_regex /Server ver: .+/Server ver: #/ /table_id: [0-9]+/table_id: #/ /COMMIT.+xid=[0-9]+.+/#/ /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/ /'.+'/FILENAME/
+SHOW BINLOG EVENTS;
+
+--save_master_pos
+
+--connection slave
+--echo
+--echo **** On Slave ****
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+START SLAVE;
+--source include/wait_for_slave_to_start.inc
+--sync_with_master
+
+SELECT COUNT(*) FROM t1;
+
+# Clean up
+--connection master
+--echo
+--echo **** On Master ****
+DROP TABLE t1;
+--sync_slave_with_master
+
