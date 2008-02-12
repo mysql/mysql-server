@@ -154,6 +154,10 @@ public:
   ulonglong event_relay_log_pos;
   ulonglong future_event_relay_log_pos;
 
+#ifdef HAVE_purify
+  bool is_fake; /* Mark that this is a fake relay log info structure */
+#endif
+
   /* 
      Original log name and position of the group we're currently executing
      (whose coordinates are group_relay_log_name/pos in the relay log)

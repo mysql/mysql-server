@@ -17,6 +17,14 @@
 extern "C" {
 #endif
 
+#if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE
+#define BACKTRACE_DEMANGLE 1
+#endif
+
+#if BACKTRACE_DEMANGLE
+char *my_demangle(const char *mangled_name, int *status);
+#endif
+
 #ifdef TARGET_OS_LINUX
 #if defined(HAVE_STACKTRACE) || (defined (__x86_64__) || defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
 #undef HAVE_STACKTRACE

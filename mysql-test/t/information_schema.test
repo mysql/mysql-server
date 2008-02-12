@@ -1248,4 +1248,26 @@ show events from information_schema;
 show events where Db= 'information_schema';
 use test;
 
+--echo #
+--echo # Bug#34166: Server crash in SHOW OPEN TABLES and prelocking
+--echo #
+--disable_warnings
+drop table if exists t1;
+drop function if exists f1;
+--enable_warnings
+create table t1 (a int);
+delimiter |;
+create function f1() returns int
+begin
+  insert into t1 (a) values (1);
+  return 0;
+end|
+delimiter ;|
+--disable_result_log
+show open tables where f1()=0;
+show open tables where f1()=0;
+--enable_result_log
+drop table t1;
+drop function f1;
+
 --echo End of 5.1 tests.
