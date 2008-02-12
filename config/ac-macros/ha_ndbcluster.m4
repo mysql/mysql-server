@@ -2,15 +2,10 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl ---------------------------------------------------------------------------
 
-NDB_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
-NDB_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
-NDB_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
-NDB_VERSION_STATUS=`echo $VERSION | cut -d- -f2`
-# if there was now -suffix, $NDB_VERSION_STATUS will be the same as $VERSION
-if test "$NDB_VERSION_STATUS" = "$VERSION"
-then
-  NDB_VERSION_STATUS=""
-fi
+NDB_VERSION_MAJOR=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f1`
+NDB_VERSION_MINOR=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f2`
+NDB_VERSION_BUILD=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f3`
+NDB_VERSION_STATUS=`echo $VERSION | sed 's/^[[-.0-9]]*//'`
 TEST_NDBCLUSTER=""
 
 dnl for build ndb docs
