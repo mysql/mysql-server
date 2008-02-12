@@ -33,3 +33,31 @@ SELECT IS_USED_LOCK('bug31418') = CONNECTION_ID();
 --change_user
 SELECT IS_FREE_LOCK('bug31418');
 SELECT IS_USED_LOCK('bug31418');
+
+#
+# Bug#31222: com_% global status counters behave randomly with
+# mysql_change_user.
+#
+
+FLUSH STATUS;
+
+--disable_result_log
+--disable_query_log
+
+let $i = 100;
+
+while ($i)
+{
+  dec $i;
+
+  SELECT 1;
+}
+
+--enable_query_log
+--enable_result_log
+
+SHOW GLOBAL STATUS LIKE 'com_select';
+
+--change_user
+
+SHOW GLOBAL STATUS LIKE 'com_select';
