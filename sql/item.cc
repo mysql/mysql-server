@@ -3903,6 +3903,18 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     else if (!from_field)
       goto error;
 
+    if (!outer_fixed && cached_table && cached_table->select_lex &&
+          context->select_lex &&
+          cached_table->select_lex != context->select_lex)
+    {
+      int ret;
+      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
+        goto error;
+      else if (!ret)
+        return FALSE;
+      outer_fixed= 1;
+    }
+
     /*
       if it is not expression from merged VIEW we will set this field.
 
@@ -3917,18 +3929,6 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     */
     if (from_field == view_ref_found)
       return FALSE;
-
-    if (!outer_fixed && cached_table && cached_table->select_lex &&
-          context->select_lex &&
-          cached_table->select_lex != context->select_lex)
-    {
-      int ret;
-      if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
-        goto error;
-      else if (!ret)
-        return FALSE;
-      outer_fixed= 1;
-    }
 
     set_field(from_field);
     if (thd->lex->in_sum_func &&
