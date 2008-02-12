@@ -13,37 +13,9 @@
    Lock trees are toku-struct's for granting long-lived locks to transactions.
    See more details on the design document.
 
-    
-    This is so important that it should go into doxygen at some point,
-    either here or in the .h file
-       
-    Memory ownership: 
-     - tree->buf is an array of toku_range's, which the lt owns
-       The contents of tree->buf are volatile (this is a buffer space
-       that we pass around to various functions, and every time we
-       invoke a new function, its previous contents may become 
-       meaningless)
-     - tree->buf[i].left, .right are toku_points (ultimately a struct), 
-       also owned by lt. We gave a pointer only to this memory to the 
-       range tree earlier when we inserted a range, but the range tree
-       does not own it!
-     - tree->buf[i].{left,right}.{key_payload,data_payload} is owned by
-       the lt, we made copies from the DB at some point
-     - to_insert we own (it's static)
-     - to_insert.left, .right are toku_point's, and we own them.
-       If we have consolidated, we own them because we had allocated
-       them earlier, but
-       if we have not consolidated we need to gain ownership now: 
-       we will gain ownership by copying all payloads and 
-       allocating the points. 
-     - to_insert.{left,right}.{key_payload, data_payload} are owned by lt,
-       we made copies from the DB at consolidation time 
-   
-
    TODO: If the various range trees are inconsistent with
    each other, due to some system error like failed malloc,
-   we defer to the db panic handler
-   TODO: Pass in another parameter to do this.
+   we defer to the db panic handler. Pass in another parameter to do this.
 */
 
 #include <assert.h>
@@ -52,11 +24,15 @@
 #include <rangetree.h>
 #include <rth.h>
 
+/** Errors returned by lock trees */
 typedef enum {
-    TOKU_LT_INCONSISTENT=-1,
+    TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent 
+                                   state */
 } TOKU_LT_ERROR;
 
-char* toku_lt_strerror(TOKU_LT_ERROR r) __attribute__((const,pure));
+/** Convert error codes into a human-readable error message */
+char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
+                       __attribute__((const,pure));
 
 typedef struct __toku_lock_tree toku_lock_tree;
 /** \brief The lock tree structure */
@@ -71,7 +47,21 @@ struct __toku_lock_tree {
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;
     /** A temporary area where we store the results of various find on 
-        the range trees that this lock tree owns */
+        the range trees that this lock tree owns 
+
+    Memory ownership: 
+     - tree->buf is an array of toku_range's, which the lt owns
+       The contents of tree->buf are volatile (this is a buffer space
+       that we pass around to various functions, and every time we
+       invoke a new function, its previous contents may become 
+       meaningless)
+     - tree->buf[i].left, .right are toku_points (ultimately a struct), 
+       also owned by lt. We gave a pointer only to this memory to the 
+       range tree earlier when we inserted a range, but the range tree
+       does not own it!
+     - tree->buf[i].{left,right}.{key_payload,data_payload} is owned by
+       the lt, we made copies from the DB at some point
+    */
     toku_range*         buf;      
     u_int32_t           buflen;      /**< The length of buf */
     /** The maximum number of ranges allowed. */
@@ -133,7 +123,8 @@ typedef struct __toku_point toku_point;
    \param duplicates     Whether the db supports duplicates.
    \param compare_fun    The key compare function.
    \param dup_compare    The data compare function.
-   \param panic          The function to cause the db to panic.  i.e. godzilla_rampage()
+   \param panic          The function to cause the db to panic.  
+                         i.e., godzilla_rampage()
    \param payload_capacity The maximum amount of memory to use for dbt payloads.
    \param user_malloc    A user provided malloc(3) function.
    \param user_free      A user provided free(3) function.
@@ -271,33 +262,35 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                                    const DBT* key_left,  const DBT* data_left,
                                    const DBT* key_right, const DBT* data_right);
 
-/*
- * Acquires a write lock on a single key (or key/data).
- * Params:
- *      tree    The lock tree for the db.
- *      txn     The TOKU Transaction this lock is for.
- *      key     The key this lock is for.
- *      data   The data this lock is for.
- * Returns:
- *      0:                  Success.
- *      DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
- *                          This can only happen if some other transaction has
- *                          a write (or read) lock that overlaps this point.
- *      EINVAL:             If (tree == NULL || txn == NULL || key == NULL) or
- *                             (tree->db is dupsort && data == NULL) or
- *                             (tree->db is dupsort && key != data &&
- *                                  (key == toku_lt_infinity ||
- *                                   key == toku_lt_neg_infinity))
- *      ENOMEM:             If adding the lock would exceed the maximum
- *                          memory allowed for payloads.
- * Asserts:
- *      The EINVAL cases described will use assert to abort instead of returning errors.
- *      If this library is ever exported to users, we will use error datas instead.
- * Memory:
- *      It is safe to free keys and datas after this call.
- *      If the lock tree needs to hold onto the key or data, it will make copies
- *      to its local memory.
- * *** Note that txn == NULL is not supported at this time.
+/**
+   Acquires a write lock on a single key (or key/data).
+
+   \param tree   The lock tree for the db.
+   \param txn    The TOKU Transaction this lock is for.
+                 Note that txn == NULL is not supported at this time.
+   \param key    The key this lock is for.
+   \param data   The data this lock is for.
+
+    \return
+    - 0:                  Success.
+    - DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
+                            This can only happen if some other transaction has
+                            a write (or read) lock that overlaps this point.
+    - ENOMEM:             If adding the lock would exceed the maximum
+                            memory allowed for payloads.
+
+    The following is asserted, but if this library is ever exported to users,
+    EINVAL should be used instead:
+    If (tree == NULL || txn == NULL || key == NULL) or
+       (tree->db is dupsort && data == NULL) or
+       (tree->db is dupsort && key != data &&
+       (key == toku_lt_infinity || key == toku_lt_neg_infinity))
+
+   Memory:
+        It is safe to free keys and datas after this call.
+        If the lock tree needs to hold onto the key or data, it will make copies
+        to its local memory.
+
  */
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                const DBT* key, const DBT* data);
