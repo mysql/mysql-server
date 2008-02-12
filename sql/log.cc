@@ -73,23 +73,28 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all);
 */
 class Silence_log_table_errors : public Internal_error_handler
 {
+  char m_message[MYSQL_ERRMSG_SIZE];
 public:
   Silence_log_table_errors()
-  {}
+  {
+    m_message[0]= '\0';
+  }
 
   virtual ~Silence_log_table_errors() {}
 
   virtual bool handle_error(uint sql_errno, const char *message,
                             MYSQL_ERROR::enum_warning_level level,
                             THD *thd);
+  const char *message() const { return m_message; }
 };
 
 bool
 Silence_log_table_errors::handle_error(uint /* sql_errno */,
-                                       const char * /* message */,
+                                       const char *message_arg,
                                        MYSQL_ERROR::enum_warning_level /* level */,
                                        THD * /* thd */)
 {
+  strmake(m_message, message_arg, sizeof(m_message)-1);
   return TRUE;
 }
 
@@ -436,8 +441,9 @@ bool Log_to_csv_event_handler::
   result= FALSE;
 
 err:
-  if (result)
-    sql_print_error("Failed to write to mysql.general_log");
+  if (result && !thd->killed)
+    sql_print_error("Failed to write to mysql.general_log: %s",
+                    error_handler.message());
 
   if (need_rnd_end)
   {
@@ -495,11 +501,13 @@ bool Log_to_csv_event_handler::
   bool result= TRUE;
   bool need_close= FALSE;
   bool need_rnd_end= FALSE;
+  Silence_log_table_errors error_handler;
   Open_tables_state open_tables_backup;
   CHARSET_INFO *client_cs= thd->variables.character_set_client;
   bool save_time_zone_used;
   DBUG_ENTER("Log_to_csv_event_handler::log_slow");
 
+  thd->push_internal_handler(& error_handler);
   /*
     CSV uses TIME_to_timestamp() internally if table needs to be repaired
     which will set thd->time_zone_used
@@ -629,8 +637,11 @@ bool Log_to_csv_event_handler::
   result= FALSE;
 
 err:
-  if (result)
-    sql_print_error("Failed to write to mysql.slow_log");
+  thd->pop_internal_handler();
+
+  if (result && !thd->killed)
+    sql_print_error("Failed to write to mysql.slow_log: %s",
+                    error_handler.message());
 
   if (need_rnd_end)
   {
