@@ -406,7 +406,7 @@ Diagnostics_area::set_ok_status(THD *thd, ha_rows affected_rows_arg,
   m_affected_rows= affected_rows_arg;
   m_last_insert_id= last_insert_id_arg;
   if (message_arg)
-    strmake(m_message, message_arg, sizeof(m_message));
+    strmake(m_message, message_arg, sizeof(m_message) - 1);
   else
     m_message[0]= '\0';
   m_status= DA_OK;
@@ -456,7 +456,7 @@ Diagnostics_area::set_error_status(THD *thd, uint sql_errno_arg,
   DBUG_ASSERT(! is_set() || can_overwrite_status);
 
   m_sql_errno= sql_errno_arg;
-  strmake(m_message, message_arg, sizeof(m_message));
+  strmake(m_message, message_arg, sizeof(m_message) - 1);
 
   m_status= DA_ERROR;
 }

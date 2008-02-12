@@ -4077,7 +4077,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, COND *cond)
   proc_tables.table_name= proc_tables.alias= (char*) "proc";
   proc_tables.table_name_length= 4;
   proc_tables.lock_type= TL_READ;
-  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1);
+  full_access= !check_table_access(thd, SELECT_ACL, &proc_tables, 1, TRUE);
   if (!(proc_table= open_proc_table_for_read(thd, &open_tables_state_backup)))
   {
     DBUG_RETURN(1);
@@ -4465,10 +4465,8 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
     Table_triggers_list *triggers= tables->table->triggers;
     int event, timing;
 
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
-    if (check_table_access(thd, TRIGGER_ACL, tables, 1))
+    if (check_table_access(thd, TRIGGER_ACL, tables, 1, TRUE))
       goto ret;
-#endif
 
     for (event= 0; event < (int)TRG_EVENT_MAX; event++)
     {
@@ -4506,9 +4504,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
       }
     }
   }
-#ifndef NO_EMBEDDED_ACCESS_CHECKS
 ret:
-#endif
   DBUG_RETURN(0);
 }
 
