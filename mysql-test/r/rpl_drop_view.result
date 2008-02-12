@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+drop table if exists t1, t2;
+drop view if exists v1, v2, v3, not_exist_view;
+create table t1 (a int);
+create table t2 (b int);
+create table t3 (c int);
+create view v1 as select * from t1;
+create view v2 as select * from t2;
+create view v3 as select * from t3;
+drop view not_exist_view;
+ERROR 42S02: Unknown table 'not_exist_view'
+drop view v1, not_exist_view;
+ERROR 42S02: Unknown table 'not_exist_view'
+select * from v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+drop view v2, v3;
+select * from v1;
+ERROR 42S02: Table 'test.v1' doesn't exist
+select * from v2;
+ERROR 42S02: Table 'test.v2' doesn't exist
+select * from v3;
+ERROR 42S02: Table 'test.v3' doesn't exist
