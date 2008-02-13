@@ -3478,7 +3478,6 @@ bool mysql_create_table_no_lock(THD *thd,
           goto warn;
         my_error(ER_TABLE_EXISTS_ERROR,MYF(0),table_name);
         goto unlock_and_end;
-        break;
       default:
         DBUG_PRINT("info", ("error: %u from storage engine", retcode));
         my_error(retcode, MYF(0),table_name);
@@ -5865,7 +5864,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   uint *index_drop_buffer;
   uint index_add_count;
   uint *index_add_buffer;
-  bool committed= 0;
   DBUG_ENTER("mysql_alter_table");
 
   LINT_INIT(index_add_count);
@@ -6631,7 +6629,6 @@ view_err:
     DBUG_PRINT("info", ("Committing before unlocking table"));
     if (ha_commit_stmt(thd) || ha_commit(thd))
       goto err1;
-    committed= 1;
   }
   /*end of if (! new_table) for add/drop index*/
 

@@ -313,17 +313,13 @@ int main()
 
 
 #ifdef MY_ATOMIC_MODE_RWLOCKS
-#ifdef HPUX11 /* showed to be very slow (scheduler-related) */
+#if defined(HPUX11) || defined(__POWERPC__) /* showed to be very slow (scheduler-related) */
 #define CYCLES 300
 #else
 #define CYCLES 3000
 #endif
 #else
-#ifdef HPUX11
-#define CYCLES 30000
-#else
 #define CYCLES 300000
-#endif
 #endif
 #define THREADS 100
 

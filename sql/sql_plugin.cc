@@ -2597,7 +2597,7 @@ TYPELIB* sys_var_pluginvar::plugin_var_typelib(void)
   default:
     return NULL;
   }
-  return NULL;
+  return NULL;	/* Keep compiler happy */
 }
 
 

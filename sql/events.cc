@@ -319,7 +319,6 @@ common_1_lev_code:
   case INTERVAL_MICROSECOND:
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "MICROSECOND");
     return 1;
-    break;
   case INTERVAL_QUARTER:
     expr/= 3;
     close_quote= FALSE;

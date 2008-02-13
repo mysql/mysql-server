@@ -4602,8 +4602,9 @@ void User_var_log_event::pack_info(Protocol* protocol)
       }
       break;
     case ROW_RESULT:
+    case IMPOSSIBLE_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
       return;
     }
   }
@@ -4690,8 +4691,9 @@ bool User_var_log_event::write(IO_CACHE* file)
       pos= (uchar*) val;
       break;
     case ROW_RESULT:
+    case IMPOSSIBLE_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
       return 0;
     }
     int4store(buf1 + 2 + UV_CHARSET_NUMBER_SIZE, val_len);
@@ -4809,7 +4811,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       break;
     case ROW_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
       return;
     }
   }
@@ -4871,8 +4873,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       it= new Item_string(val, val_len, charset);
       break;
     case ROW_RESULT:
+    case IMPOSSIBLE_RESULT:
     default:
-      DBUG_ASSERT(1);
+      DBUG_ASSERT(0);
       return 0;
     }
   }
@@ -8566,7 +8569,6 @@ Incident_log_event::description() const
 
   DBUG_PRINT("info", ("m_incident: %d", m_incident));
 
-  DBUG_ASSERT(0 <= m_incident);
   DBUG_ASSERT((size_t) m_incident <= sizeof(description)/sizeof(*description));
 
   return description[m_incident];

@@ -2024,8 +2024,8 @@ static int my_xpath_parse_OrExpr(MY_XPATH *xpath)
     Item *prev= xpath->item;
     if (!my_xpath_parse_AndExpr(xpath))
     {
-      return 0;
       xpath->error= 1;
+      return 0;
     }
     xpath->item= new Item_cond_or(nodeset2bool(xpath, prev),
                                   nodeset2bool(xpath, xpath->item));

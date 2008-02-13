@@ -211,7 +211,7 @@ static enum lockman_getlock_result getlock_result[10][10]=
 #undef A
 #undef x
 
-LF_REQUIRE_PINS(4);
+LF_REQUIRE_PINS(4)
 
 typedef struct lockman_lock {
   uint64 resource;

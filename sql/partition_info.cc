@@ -987,13 +987,11 @@ bool partition_info::set_up_charset_field_preps()
     i= 0;
     while ((field= *(ptr++)))
     {
-      CHARSET_INFO *cs;
       uchar *field_buf;
       LINT_INIT(field_buf);
 
       if (!field_is_partition_charset(field))
         continue;
-      cs= ((Field_str*)field)->charset();
       size= field->pack_length();
       if (!(field_buf= (uchar*) sql_calloc(size)))
         goto error;

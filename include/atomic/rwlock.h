@@ -14,6 +14,7 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 typedef struct {pthread_mutex_t rw;} my_atomic_rwlock_t;
+#define MY_ATOMIC_MODE_RWLOCKS 1
 
 #ifdef MY_ATOMIC_MODE_DUMMY
 /*

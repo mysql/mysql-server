@@ -5,6 +5,8 @@
 #  from the end of file to invoke tests.c, which does the real dbug work.
 #
 
+use Test::More;
+
 $exe=$0;
 
 die unless $exe =~ s/(tests)-t(\.exe)?$/$1$2 /;
@@ -21,9 +23,9 @@ while (<DATA>) {
   }
 }
 
-# require/import instead of use - we know the plan only when tests are loaded
-require Test::More;
-import Test::More tests => scalar(@tests);
+plan skip_all => "because dbug is disabled" if system $exe;
+
+plan tests => scalar(@tests);
 
 for (@tests) {
   $t=$exe . shift @$_;

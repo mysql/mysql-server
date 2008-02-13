@@ -4375,7 +4375,6 @@ static my_bool setup_one_fetch_function(MYSQL_BIND *param, MYSQL_FIELD *field)
     field->max_length= 10;                    /* 2003-11-11 */
     param->skip_result= skip_result_with_length;
     break;
-    break;
   case MYSQL_TYPE_DATETIME:
   case MYSQL_TYPE_TIMESTAMP:
     param->skip_result= skip_result_with_length;

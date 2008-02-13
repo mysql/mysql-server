@@ -40,7 +40,9 @@
 #define MAX_SERVER_ARGS 64
 
 /* set default options */
+#ifdef NOT_USED
 static int   opt_testcase = 0;
+#endif
 static char *opt_db= 0;
 static char *opt_user= 0;
 static char *opt_password= 0;
@@ -12643,7 +12645,7 @@ static void test_conversion()
   const char *stmt_text;
   int rc;
   MYSQL_BIND my_bind[1];
-  char buff[4];
+  uchar buff[4];
   ulong length;
 
   myheader("test_conversion");
@@ -12666,7 +12668,7 @@ static void test_conversion()
   check_execute(stmt, rc);
 
   bzero((char*) my_bind, sizeof(my_bind));
-  my_bind[0].buffer= buff;
+  my_bind[0].buffer= (char*) buff;
   my_bind[0].length= &length;
   my_bind[0].buffer_type= MYSQL_TYPE_STRING;
 
@@ -12691,7 +12693,7 @@ static void test_conversion()
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == 0);
   DIE_UNLESS(length == 1);
-  DIE_UNLESS((uchar) buff[0] == 0xE0);
+  DIE_UNLESS(buff[0] == 0xE0);
   rc= mysql_stmt_fetch(stmt);
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
@@ -15865,11 +15867,10 @@ static void test_bug21206()
 
 static void test_status()
 {
-  const char *status;
   DBUG_ENTER("test_status");
   myheader("test_status");
 
-  if (!(status= mysql_stat(mysql)))
+  if (!mysql_stat(mysql))
   {
     myerror("mysql_stat failed");                 /* purecov: inspected */
     die(__FILE__, __LINE__, "mysql_stat failed"); /* purecov: inspected */
@@ -17548,7 +17549,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_PUSH(argument ? argument : default_dbug_option);
     break;
   case 'c':
+#ifdef NOT_USED
     opt_testcase = 1;
+#endif
     break;
   case 'p':
     if (argument)

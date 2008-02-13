@@ -60,6 +60,7 @@
 
 #define CTRL_CHAR(c) ((c) < control_character_threshold && (((c) & 0x80) == 0))
 #define META_CHAR(c) ((c) > meta_character_threshold && (c) <= largest_char)
+#define META_CHAR_FOR_UCHAR(c) ((c) > meta_character_threshold)
 
 #define CTRL(c) ((c) & control_character_mask)
 #define META(c) ((c) | meta_character_bit)

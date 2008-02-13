@@ -3920,7 +3920,7 @@ sub mysqld_arguments ($$$$) {
   mtr_add_arg($args, "%s--datadir=%s", $prefix,
 	      $mysqld->{'path_myddir'});
 
-  mtr_add_arg($args, "--disable-sync-frm");  # Faster test
+  mtr_add_arg($args, "%s--disable-sync-frm", $prefix);  # Faster test
 
   if ( $mysql_version_id >= 50106 )
   {
