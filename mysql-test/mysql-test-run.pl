@@ -136,9 +136,12 @@ our $opt_suites;
 our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
 our @extra_suites=
 (
- ["mysql-5.1-new-ndb",   "ndb_team"],
- ["mysql-5.1-telco-6.2", "ndb_team"],
- ["mysql-5.1-telco-6.3", "ndb_team"],
+ ["mysql-5.1-new-ndb",         "ndb_team"],
+ ["mysql-5.1-new-ndb-merge",   "ndb_team"],
+ ["mysql-5.1-telco-6.2",       "ndb_team"],
+ ["mysql-5.1-telco-6.2-merge", "ndb_team"],
+ ["mysql-5.1-telco-6.3",       "ndb_team"],
+ ["mysql-6.0-ndb",             "ndb_team"],
 );
 
 
