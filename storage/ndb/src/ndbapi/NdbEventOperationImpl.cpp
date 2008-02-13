@@ -1270,7 +1270,7 @@ NdbEventBuffer::nextEvent()
 #endif
 
   EventBufData *data;
-  Uint64 gci;
+  Uint64 gci= 0;
   while ((data= m_available_data.m_head))
   {
     NdbEventOperationImpl *op= data->m_event_op;
@@ -1280,7 +1280,10 @@ NdbEventBuffer::nextEvent()
      * possibly a dummy event list marking missing data
      */
     if (!op && !isConsistent(gci))
+    {
+      DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u", gci));
       DBUG_RETURN_EVENT(0);
+    }
 
     DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
 
@@ -1879,7 +1882,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
 
   if (rep->flags & SubGcpCompleteRep::MISSING_DATA)
   {
-    bucket->m_state |= Gci_container::GC_INCONSISTENT;
+    bucket->m_state = Gci_container::GC_INCONSISTENT;
   }
 
   Uint32 old_cnt = bucket->m_gcp_complete_rep_count;
@@ -1931,7 +1934,7 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
                          Uint32(gci >> 32), Uint32(gci),
                          Uint32(minGCI >> 32), Uint32(minGCI),
                          Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
-      bucket->m_state |= Gci_container::GC_COMPLETE;
+      bucket->m_state = Gci_container::GC_COMPLETE;
       bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;
     }

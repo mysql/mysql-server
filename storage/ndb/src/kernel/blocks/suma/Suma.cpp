@@ -3596,8 +3596,9 @@ Suma::checkMaxBufferedGCP(Signal *signal)
     // Disconnect lagging subscribers
     for(; !gcp.isNull(); c_gcp_list.next(gcp))
     {
+      Uint64 lag = m_max_seen_gci - gcp.p->m_gci;
       jam();
-      if (m_max_seen_gci - gcp.p->m_gci >= (Uint64) c_maxBufferedGcp)
+      if (lag >= (Uint64) c_maxBufferedGcp)
       {
         jam();
         for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
@@ -3612,10 +3613,10 @@ Suma::checkMaxBufferedGCP(Signal *signal)
            signal->theData[2] = nodeId;
            signal->theData[3] = (Uint32) gcp.p->m_gci;
            signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
-           sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
-           infoEvent("MaxBufferedEpochs %llu exceeded %u",
-                     m_max_seen_gci - gcp.p->m_gci,
-                     c_maxBufferedGcp);
+           signal->theData[5] = (Uint32) lag;
+           signal->theData[6] = (Uint32) (lag >> 32); 
+           signal->theData[7] = c_maxBufferedGcp;
+           sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
 
             /**
              * Force API_FAILREQ
@@ -5078,9 +5079,10 @@ Suma::start_resend(Signal* signal, Uint32 buck)
     c_gcp_list.last(gcp);
     signal->theData[0] = NDB_LE_SubscriptionStatus;
     signal->theData[1] = 2; // INCONSISTENT;
+    signal->theData[2] = 0; // Not used
     signal->theData[3] = (Uint32) pos.m_max_gci;
     signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 5, JBB);
     m_missing_data = true;
     return;
   }
