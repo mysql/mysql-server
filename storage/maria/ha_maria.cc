@@ -1475,12 +1475,8 @@ int ha_maria::assign_to_keycache(THD * thd, HA_CHECK_OPT *check_opt)
 
 int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
 {
-  int error;
-  const char *errmsg;
   ulonglong map;
   TABLE_LIST *table_list= table->pos_in_table_list;
-  my_bool ignore_leaves= table_list->ignore_leaves;
-  char buf[ERRMSGSIZE+20];
 
   DBUG_ENTER("ha_maria::preload_keys");
 
@@ -1499,8 +1495,13 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
               (void*) &thd->variables.preload_buff_size);
 
 #ifdef NOT_YET
-  if ((error= maria_preload(file, map, ignore_leaves)))
+  int error;
+
+  if ((error= maria_preload(file, map, table_list->ignore_leaves)))
   {
+    char buf[ERRMSGSIZE+20];
+    const char *errmsg;
+
     switch (error) {
     case HA_ERR_NON_UNIQUE_BLOCK_SIZE:
       errmsg= "Indexes use different block sizes";
@@ -1513,14 +1514,7 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
                   "Failed to read from index file (errno: %d)", my_errno);
       errmsg= buf;
     }
-    error= HA_ADMIN_FAILED;
-    goto err;
-  }
-#endif
-  DBUG_RETURN(HA_ADMIN_OK);
 
-err:
-  {
     HA_CHECK param;
     maria_chk_init(&param);
     param.thd= thd;
@@ -1529,8 +1523,10 @@ err:
     param.table_name= table->s->table_name.str;
     param.testflag= 0;
     _ma_check_print_error(&param, errmsg);
-    DBUG_RETURN(error);
+    DBUG_RETURN(HA_ADMIN_FAILED);
   }
+#endif
+  DBUG_RETURN(HA_ADMIN_OK);
 }
 
 
