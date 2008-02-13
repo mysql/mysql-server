@@ -1081,6 +1081,18 @@ static inline int toku_uninitialized_swap(DBC* c, DBT* key, DBT* data,
     return 0;
 }
 
+/*
+    Used for partial implementation of nested transactions.
+    Work is done by children as normal, but all locking is done by the
+    root of the nested txn tree.
+    This may hold extra locks, and will not work as expected when
+    a node has two non-completed txns at any time.
+*/
+inline static DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
+    while (txn && txn->i->parent) txn = txn->i->parent;
+    return txn;
+}
+
 static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
                                DBT* saved_key, DBT* saved_data) {
     assert(saved_key && saved_data && flag);
@@ -1106,7 +1118,8 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
         }
         case (DB_GET_BOTH): {
             get_both:
-            r = toku_lt_acquire_read_lock(db->i->lt, txn, key, data);
+            r = toku_lt_acquire_read_lock(db->i->lt, toku_txn_ancestor(txn),
+                                          key, data);
             break;
         }
         case (DB_SET_RANGE): {
@@ -1255,7 +1268,8 @@ static int toku_c_get_post_lock(DBC* c, DBT* key, DBT* data, u_int32_t flag,
             break;
         }
     }
-    if (lock) r = toku_lt_acquire_range_read_lock(db->i->lt, txn,
+    if (lock) r = toku_lt_acquire_range_read_lock(db->i->lt,
+                                                  toku_txn_ancestor(txn),
                                                   key_l, data_l,
                                                   key_r, data_r);
 cleanup:
@@ -1291,7 +1305,7 @@ static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
         DBT saved_data;
         r = toku_c_get_current_unconditional(c, &saved_key, &saved_data);
         if (r!=0) return r;
-        r = toku_lt_acquire_write_lock(db->i->lt, c->i->txn,
+        r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(c->i->txn),
                                        &saved_key, &saved_data);
         if (saved_key.data)  toku_free(saved_key.data);
         if (saved_data.data) toku_free(saved_data.data);
@@ -1513,7 +1527,7 @@ static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t f
     } 
     //Do the actual deleting.
     if (db->i->lt) {
-        r = toku_lt_acquire_range_write_lock(db->i->lt, txn,
+        r = toku_lt_acquire_range_write_lock(db->i->lt, toku_txn_ancestor(txn),
                                              key, toku_lt_neg_infinity,
                                              key, toku_lt_infinity);
         if (r!=0) return r;
@@ -2115,7 +2129,8 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         }
     }
     if (db->i->lt) {
-        r = toku_lt_acquire_write_lock(db->i->lt, txn, key, data);
+        r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
+                                       key, data);
         if (r!=0) return r;
     }
     r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
