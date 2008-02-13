@@ -1270,9 +1270,21 @@ NdbEventBuffer::nextEvent()
 #endif
 
   EventBufData *data;
+  Uint64 gci= 0;
   while ((data= m_available_data.m_head))
   {
     NdbEventOperationImpl *op= data->m_event_op;
+
+    /*
+     * The data was not associated with an event operation,
+     * possibly a dummy event list marking missing data
+     */
+    if (!op && !isConsistent(gci))
+    {
+      DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u", gci));
+      DBUG_RETURN_EVENT(0);
+    }
+
     DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
 
     /*
@@ -1315,8 +1327,10 @@ NdbEventBuffer::nextEvent()
            // moved to next gci, check if any references have been
            // released when completing the last gci
            deleteUsedEventOperations();
-           gci_ops = m_available_data.next_gci_ops();
+           gci_ops = m_available_data.delete_next_gci_ops();
          }
+         if (!gci_ops->m_consistent)
+           DBUG_RETURN_EVENT(0);
          assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
@@ -1347,10 +1361,44 @@ NdbEventBuffer::nextEvent()
   while (gci_ops)
   {
     deleteUsedEventOperations();
-    gci_ops = m_available_data.next_gci_ops();
+    gci_ops = m_available_data.delete_next_gci_ops();
   }
   DBUG_RETURN_EVENT(0);
 }
+
+bool
+NdbEventBuffer::isConsistent(Uint64& gci)
+{
+  DBUG_ENTER("NdbEventBuffer::isConsistent");
+  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+  while (gci_ops)
+  {
+    if (!gci_ops->m_consistent)
+    {
+      gci = gci_ops->m_gci;
+      DBUG_RETURN(false);
+    }
+    gci_ops = gci_ops->m_next;
+  }
+
+  DBUG_RETURN(true);
+}
+
+bool
+NdbEventBuffer::isConsistentGCI(Uint64 gci)
+{
+  DBUG_ENTER("NdbEventBuffer::isConsistentGCI");
+  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+  while (gci_ops)
+  {
+    if (gci_ops->m_gci == gci && !gci_ops->m_consistent)
+      DBUG_RETURN(false);
+    gci_ops = gci_ops->m_next;
+  }
+
+  DBUG_RETURN(true);
+}
+
 
 NdbEventOperationImpl*
 NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
@@ -1738,6 +1786,35 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
     assert(bucket->m_data.m_count);
 #endif
     m_complete_data.m_data.append_list(&bucket->m_data, gci);
+    if (bucket->m_state & Gci_container::GC_INCONSISTENT)
+    {
+      /*
+       * Bucket marked as possibly missing data, probably due to
+       * kernel running out of event_buffer during node failure.
+       * Mark newly appended event list as inconsistent.
+       */
+      assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
+      m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+    }
+  }
+  else // if (bucket->m_data.is_empty())
+  {
+    if (bucket->m_state & Gci_container::GC_INCONSISTENT)
+    {
+      /*
+       * Bucket marked as possibly missing data, probably due to
+       * kernel running out of event_buffer during node failure
+       * Bucket contained no data so we must add a dummy event list
+       * as inconsistency marker.
+       */
+      EventBufData *dummy_data= alloc_data();
+      EventBufData_list *dummy_event_list = new EventBufData_list;
+      dummy_event_list->append_used_data(dummy_data);
+      dummy_event_list->m_is_not_multi_list = true;
+      m_complete_data.m_data.append_list(dummy_event_list, gci);
+      assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
+      m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+    }
   }
 
   Uint32 minpos = m_min_gci_index;
@@ -1801,6 +1878,11 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
     }
 #endif
     DBUG_VOID_RETURN_EVENT;
+  }
+
+  if (rep->flags & SubGcpCompleteRep::MISSING_DATA)
+  {
+    bucket->m_state = Gci_container::GC_INCONSISTENT;
   }
 
   Uint32 old_cnt = bucket->m_gcp_complete_rep_count;
@@ -1886,7 +1968,7 @@ NdbEventBuffer::complete_outof_order_gcis()
     Gci_container* bucket = find_bucket(start_gci);
     assert(bucket);
     assert(maxpos == m_max_gci_index);
-    if (bucket->m_state != Gci_container::GC_COMPLETE)
+    if (!(bucket->m_state & Gci_container::GC_COMPLETE)) // Not complete
     {
 #ifdef VM_TRACE
       verify_known_gci(false);
@@ -1984,7 +2066,7 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
 			     NdbDictionary::Event::_TE_ACTIVE);
   SubTableData::setReqNodeId(data.requestInfo, node_id);
   SubTableData::setNdbdNodeId(data.requestInfo, node_id);
-  data.logType = SubTableData::LOG;
+  data.flags = SubTableData::LOG;
 
   Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   find_max_known_gci(&gci);
@@ -2019,7 +2101,7 @@ NdbEventBuffer::report_node_failure(Uint32 node_id)
 			     NdbDictionary::Event::_TE_NODE_FAILURE);
   SubTableData::setReqNodeId(data.requestInfo, node_id);
   SubTableData::setNdbdNodeId(data.requestInfo, node_id);
-  data.logType = SubTableData::LOG;
+  data.flags = SubTableData::LOG;
 
   Uint64 gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   find_max_known_gci(&gci);
@@ -2090,7 +2172,7 @@ NdbEventBuffer::completeClusterFailed()
   data.requestInfo = 0;
   SubTableData::setOperation(data.requestInfo,
 			     NdbDictionary::Event::_TE_CLUSTER_FAILURE);
-  data.logType = SubTableData::LOG;
+  data.flags = SubTableData::LOG;
   data.gci_hi = Uint32(gci >> 32);
   data.gci_lo = Uint32(gci);
 
@@ -3163,7 +3245,7 @@ NdbEventBuffer::reportStatus()
   Uint64 apply_gci, latest_gci= m_latestGCI;
   if (apply_buf == 0)
     apply_buf= m_complete_data.m_data.m_head;
-  if (apply_buf)
+  if (apply_buf && apply_buf->sdata)
   {
     Uint32 gci_hi = apply_buf->sdata->gci_hi;
     Uint32 gci_lo = apply_buf->sdata->gci_lo;
