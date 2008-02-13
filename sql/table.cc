@@ -892,26 +892,31 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             ha_legacy_type(share->db_type())));
       }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      else
+      else if (str_db_type_length == 9 &&
+               !strncmp((char *) next_chunk + 2, "partition", 9))
       {
-        LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
-        if (str_db_type_length == pname.length &&
-            !strncmp((char *) next_chunk + 2, pname.str, pname.length))
-        {
-          /*
-            Use partition handler
-            tmp_plugin is locked with a local lock.
-            we unlock the old value of share->db_plugin before
-            replacing it with a globally locked version of tmp_plugin
-          */
-          plugin_unlock(NULL, share->db_plugin);
-          share->db_plugin= ha_lock_engine(NULL, partition_hton);
-          DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
-                              str_db_type_length, next_chunk + 2,
-                              ha_legacy_type(share->db_type())));
-        }
+        /*
+          Use partition handler
+          tmp_plugin is locked with a local lock.
+          we unlock the old value of share->db_plugin before
+          replacing it with a globally locked version of tmp_plugin
+        */
+        plugin_unlock(NULL, share->db_plugin);
+        share->db_plugin= ha_lock_engine(NULL, partition_hton);
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            ha_legacy_type(share->db_type())));
       }
 #endif
+      else if (!tmp_plugin)
+      {
+        /* purecov: begin inspected */
+        error= 8;
+        my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
+        my_free(buff, MYF(0));
+        goto err;
+        /* purecov: end */
+      }
       next_chunk+= str_db_type_length + 2;
     }
     if (next_chunk + 5 < buff_end)
@@ -2199,6 +2204,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
                     "Table '%-.64s' was created with a different version "
                     "of MySQL and cannot be read", 
                     MYF(0), buff);
+    break;
+  case 8:
     break;
   default:				/* Better wrong error than none */
   case 4:
