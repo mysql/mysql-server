@@ -1167,3 +1167,16 @@ explain select * from t2 where a=1000 and b<11;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	5	const	502	Using where
 drop table t1, t2;
+CREATE TABLE t1 (
+a varchar(32), index (a)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+INSERT INTO t1 VALUES
+('B'), ('A'), ('A'), ('C'), ('B'), ('A'), ('A');
+SELECT a FROM t1 WHERE a='b' OR a='B';
+a
+B
+B
+EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	a	a	35	NULL	3	Using where; Using index
+DROP TABLE t1;

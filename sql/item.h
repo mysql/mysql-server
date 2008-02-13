@@ -1004,6 +1004,7 @@ public:
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
+  bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
 

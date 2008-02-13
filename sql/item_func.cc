@@ -5500,6 +5500,8 @@ Item_func_sp::make_field(Send_field *tmp_field)
   DBUG_ENTER("Item_func_sp::make_field");
   DBUG_ASSERT(sp_result_field);
   sp_result_field->make_field(tmp_field);
+  if (name)
+    tmp_field->col_name= name;
   DBUG_VOID_RETURN;
 }
 

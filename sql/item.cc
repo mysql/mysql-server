@@ -4370,6 +4370,49 @@ String *Item::check_well_formed_result(String *str, bool send_error)
   return str;
 }
 
+/*
+  Compare two items using a given collation
+  
+  SYNOPSIS
+    eq_by_collation()
+    item               item to compare with
+    binary_cmp         TRUE <-> compare as binaries
+    cs                 collation to use when comparing strings
+
+  DESCRIPTION
+    This method works exactly as Item::eq if the collation cs coincides with
+    the collation of the compared objects. Otherwise, first the collations that
+    differ from cs are replaced for cs and then the items are compared by
+    Item::eq. After the comparison the original collations of items are
+    restored.
+
+  RETURN
+    1    compared items has been detected as equal   
+    0    otherwise
+*/
+
+bool Item::eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs)
+{
+  CHARSET_INFO *save_cs= 0;
+  CHARSET_INFO *save_item_cs= 0;
+  if (collation.collation != cs)
+  {
+    save_cs= collation.collation;
+    collation.collation= cs;
+  }
+  if (item->collation.collation != cs)
+  {
+    save_item_cs= item->collation.collation;
+    item->collation.collation= cs;
+  }
+  bool res= eq(item, binary_cmp);
+  if (save_cs)
+    collation.collation= save_cs;
+  if (save_item_cs)
+    item->collation.collation= save_item_cs;
+  return res;
+}  
+
 
 /*
   Create a field to hold a string value from an item
