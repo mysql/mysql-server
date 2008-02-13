@@ -2,10 +2,6 @@
   A program to test DBUG features. Used by tests-t.pl
 */
 
-#ifdef DBUG_OFF                         /* We are testing dbug */
-#undef DBUG_OFF
-#endif
-
 char *push1=0;
 
 #include <my_global.h>  /* This includes dbug.h */
@@ -42,6 +38,12 @@ int func1()
 int main (int argc, char *argv[])
 {
   int i;
+#ifdef DBUG_OFF
+  return 1;
+#endif
+  if (argc == 1)
+    return 0;
+
 #if defined(HAVE_PTHREAD_INIT) && defined(THREAD)
   pthread_init();                       /* Must be called before DBUG_ENTER */
 #endif
@@ -75,7 +77,7 @@ int main (int argc, char *argv[])
             DBUG_EVALUATE_IF("evaluate_if", "ON", "OFF"));
     DBUG_EXECUTE_IF("pop",  DBUG_POP(); );
     {
-      char s[1000];
+      char s[1000] __attribute__((unused));
       DBUG_EXPLAIN(s, sizeof(s)-1);
       DBUG_PRINT("explain", ("dbug explained: %s", s));
     }
