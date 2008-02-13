@@ -193,6 +193,7 @@ our $opt_debug;
 our $opt_do_test;
 our @opt_cases;                  # The test cases names in argv
 our $opt_embedded_server;
+our $opt_ndb_embedded_server;
 
 our $opt_extern= 0;
 our $opt_socket;
@@ -553,6 +554,7 @@ sub command_line_setup () {
   GetOptions(
              # Control what engine/variation to run
              'embedded-server'          => \$opt_embedded_server,
+             'ndb-embedded-server'      => \$opt_ndb_embedded_server,
              'ps-protocol'              => \$opt_ps_protocol,
              'sp-protocol'              => \$opt_sp_protocol,
              'view-protocol'            => \$opt_view_protocol,
@@ -753,6 +755,7 @@ sub command_line_setup () {
   # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
+    $opt_ndb_embedded_server= 1;
     $glob_use_embedded_server= 1;
     # Add the location for libmysqld.dll to the path.
     if ( $glob_win32 )
@@ -767,7 +770,10 @@ sub command_line_setup () {
 
     push(@glob_test_mode, "embedded");
     $opt_skip_rpl= 1;              # We never run replication with embedded
-    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
+    if ( ! $opt_ndb_embedded_server )
+    {
+      $opt_skip_ndbcluster= 1;     # Turn off use of NDB cluster
+    }
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
     # Turn off use of bin log
@@ -3943,11 +3949,17 @@ sub mysqld_arguments ($$$$) {
 		  $cluster->{'connect_string'});
       mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
       mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
-      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
+      if ( ! $glob_use_embedded_server )
+      {
+        mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
+      }
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
-	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
+        if ( ! $glob_use_embedded_server )
+        {
+          mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
+        }
       }
     }
     else
@@ -4020,11 +4032,17 @@ sub mysqld_arguments ($$$$) {
 		  $cluster->{'connect_string'});
       mtr_add_arg($args, "%s--ndb-wait-connected=20", $prefix);
       mtr_add_arg($args, "%s--ndb-cluster-connection-pool=3", $prefix);
-      mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
+      if ( ! $glob_use_embedded_server )
+      {
+        mtr_add_arg($args, "%s--slave-allow-batching", $prefix);
+      }
       if ( $mysql_version_id >= 50100 )
       {
 	mtr_add_arg($args, "%s--ndb-extra-logging", $prefix);
-	mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
+        if ( ! $glob_use_embedded_server )
+        {
+          mtr_add_arg($args, "%s--ndb-log-orig", $prefix);
+        }
       }
     }
     else
@@ -4121,7 +4139,7 @@ sub mysqld_start ($$$) {
   my $idx= $mysqld->{'idx'};
 
   mtr_error("Internal error: mysqld should never be started for embedded")
-    if $glob_use_embedded_server;
+    if $glob_use_embedded_server and $opt_skip_ndbcluster;
 
   if ( $type eq 'master' )
   {
@@ -4295,7 +4313,9 @@ sub run_testcase_need_master_restart($)
   # We try to find out if we are to restart the master(s)
   my $do_restart= 0;          # Assumes we don't have to
 
-  if ( $glob_use_embedded_server )
+  if ( $opt_skip_ndbcluster and
+       ! $tinfo->{'ndb_test'} and
+       $glob_use_embedded_server )
   {
     mtr_verbose("Never start or restart for embedded server");
     return $do_restart;
@@ -4589,7 +4609,8 @@ sub run_testcase_start_servers($) {
       ndbcluster_start($clusters->[0], "");
     }
 
-    if ( !$master->[0]->{'pid'} )
+    if ( ! $glob_use_embedded_server and
+         ! $master->[0]->{'pid'} )
     {
       # Master mysqld is not started
       do_before_start_master($tinfo);
@@ -4599,12 +4620,13 @@ sub run_testcase_start_servers($) {
     }
 
     if ( $clusters->[0]->{'pid'} || $clusters->[0]->{'use_running'}
-	 and ! $master->[1]->{'pid'} and
+         and ! $glob_use_embedded_server
+         and ! $master->[1]->{'pid'} and
 	 $tinfo->{'master_num'} > 1 )
     {
       # Test needs cluster, start an extra mysqld connected to cluster
 
-      if ( $mysql_version_id >= 50100 )
+      if ( $master->[0]->{'pid'} && $mysql_version_id >= 50100 )
       {
 	# First wait for first mysql server to have created ndb system
 	# tables ok FIXME This is a workaround so that only one mysqld

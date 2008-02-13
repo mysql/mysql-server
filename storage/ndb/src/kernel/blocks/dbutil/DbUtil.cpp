@@ -207,7 +207,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
   }
 
   c_lockQueuePool.setSize(5);
-  c_lockElementPool.setSize(5);
+  c_lockElementPool.setSize(4*MAX_NDB_NODES);
   c_lockQueues.setSize(8);
 
   ReadConfigConf * conf = (ReadConfigConf*)signal->getDataPtrSend();
@@ -622,7 +622,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     ptr.p->m_mutexId = signal->theData[1];
     Callback c = { safe_cast(&DbUtil::mutex_locked), ptr.i };
     ptr.p->m_callback = c;
-    c_mutexMgr.lock(signal, ptr);
+    c_mutexMgr.lock(signal, ptr, true);
     ndbout_c("c_mutexMgr.lock ptrI=%d mutexId=%d", ptr.i, ptr.p->m_mutexId);
   }
 
@@ -640,12 +640,41 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
     MutexManager::ActiveMutexPtr ptr;
     ndbrequire(c_mutexMgr.seize(ptr));
     ptr.p->m_mutexId = signal->theData[1];
-    ptr.p->m_mutexKey = signal->theData[2];
     Callback c = { safe_cast(&DbUtil::mutex_destroyed), ptr.i };
     ptr.p->m_callback = c;
     c_mutexMgr.destroy(signal, ptr);
-    ndbout_c("c_mutexMgr.destroy ptrI=%d mutexId=%d key=%d", 
-	     ptr.i, ptr.p->m_mutexId, ptr.p->m_mutexKey);
+    ndbout_c("c_mutexMgr.destroy ptrI=%d mutexId=%d", 
+	     ptr.i, ptr.p->m_mutexId);
+  }
+
+  if (tCase == 244)
+  {
+    jam();
+    DLHashTable<LockQueueInstance>::Iterator iter;
+    Uint32 bucket = signal->theData[1];
+    if (signal->getLength() == 1)
+    {
+      bucket = 0;
+      infoEvent("Starting dumping of DbUtil::Locks");
+    }
+    c_lockQueues.next(bucket, iter);
+
+    for (Uint32 i = 0; i<32 || iter.bucket == bucket; i++)
+    {
+      if (iter.curr.isNull())
+      {
+        infoEvent("Dumping of DbUtil::Locks - done");
+        return;
+      }
+      
+      infoEvent("LockQueue %u", iter.curr.p->m_lockId);
+      iter.curr.p->m_queue.dump_queue(c_lockElementPool, this);
+      c_lockQueues.next(iter);
+    }
+    signal->theData[0] = 244;
+    signal->theData[1] = iter.bucket;
+    sendSignal(reference(),  GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    return;
   }
 }
 
@@ -671,8 +700,8 @@ void
 DbUtil::mutex_locked(Signal* signal, Uint32 ptrI, Uint32 retVal){
   MutexManager::ActiveMutexPtr ptr; ptr.i = ptrI;
   c_mutexMgr.getPtr(ptr);
-  ndbout_c("mutex_locked - mutexId=%d, retVal=%d key=%d ptrI=%d", 
-	   ptr.p->m_mutexId, retVal, ptr.p->m_mutexKey, ptrI);
+  ndbout_c("mutex_locked - mutexId=%d, retVal=%d ptrI=%d", 
+	   ptr.p->m_mutexId, retVal, ptrI);
   if(retVal)
     c_mutexMgr.release(ptrI);
 }
@@ -791,7 +820,6 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::MISSING_PROPERTIES_SECTION,
 		       senderRef, senderData);
     return;
@@ -799,21 +827,22 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
 
   PreparePtr prepPtr;
   SegmentedSectionPtr ptr;
+  SectionHandle handle(this, signal);
   
   jam();
   if(!c_runningPrepares.seize(prepPtr)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_SEIZE_ERROR,
 		       senderRef, senderData);
     return;
   };
-  signal->getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
+  handle.getSection(ptr, UtilPrepareReq::PROPERTIES_SECTION);
   const Uint32 noPages  = (ptr.sz + sizeof(Page32)) / sizeof(Page32);
   ndbassert(noPages > 0);
   if (!prepPtr.p->preparePages.seize(noPages)) {
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR,
 		       senderRef, senderData);
     c_preparePool.release(prepPtr);
@@ -824,13 +853,12 @@ DbUtil::execUTIL_PREPARE_REQ(Signal* signal)
   copy(target, ptr);
   prepPtr.p->prepDataLen = ptr.sz;
   // Release long signal sections
-  releaseSections(signal);
+  releaseSections(handle);
   // Check table properties with DICT
   SimplePropertiesSectionReader reader(ptr, getSectionSegmentPool());
   prepPtr.p->clientRef = senderRef;
   prepPtr.p->clientData = senderData;
   // Release long signal sections
-  releaseSections(signal);
   readPrepareProps(signal, &reader, prepPtr.i);
 }
 
@@ -917,13 +945,15 @@ DbUtil::execGET_TABINFO_CONF(Signal* signal){
   const Uint32  prepI    = conf->senderData;
   const Uint32  totalLen = conf->totalLen;
   
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == totalLen);
   
   PreparePtr prepPtr;
   c_runningPrepares.getPtr(prepPtr, prepI);
-  prepareOperation(signal, prepPtr);
+  prepareOperation(signal, prepPtr, dictTabInfoPtr);
+  releaseSections(handle);
 }
 
 void
@@ -980,7 +1010,9 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
  *    - if (isPK) then assign offset
  ******************************************************************************/
 void
-DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr) 
+DbUtil::prepareOperation(Signal* signal,
+			 PreparePtr prepPtr,
+			 SegmentedSectionPtr ptr)
 {
   jam();
   
@@ -990,7 +1022,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   PreparedOperationPtr prepOpPtr;  
   if(!c_preparedOperationPool.seize(prepOpPtr)) {
     jam();
-    releaseSections(signal);
     sendUtilPrepareRef(signal, UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
     releasePrepare(prepPtr);
@@ -1090,10 +1121,7 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      * Copy DictTabInfo into tableDesc struct
      *****************************************/
       
-    SegmentedSectionPtr ptr;
-    signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
     SimplePropertiesSectionReader dictInfoReader(ptr, getSectionSegmentPool());
-
     SimpleProperties::UnpackStatus unpackStatus;
     unpackStatus = SimpleProperties::unpack(dictInfoReader, &tableDesc, 
 					    DictTabInfo::TableMapping, 
@@ -1155,7 +1183,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
      **********************/
     if (!attributeFound) {
       jam(); 
-      releaseSections(signal);
       sendUtilPrepareRef(signal, 
 			 UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			 prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1186,7 +1213,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
        ***********************************************************/
       if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
 	jam(); 
-	releaseSections(signal);
 	sendUtilPrepareRef(signal, 
 			   UtilPrepareRef::DICT_TAB_INFO_ERROR,
 			   prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1247,7 +1273,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
    ***************************/
   if (noOfPKAttribsStored != tableDesc.NoOfKeyAttr) {
     jam(); 
-    releaseSections(signal);
     sendUtilPrepareRef(signal, 
 		       UtilPrepareRef::DICT_TAB_INFO_ERROR,
 		       prepPtr.p->clientRef, prepPtr.p->clientData);
@@ -1334,7 +1359,6 @@ DbUtil::prepareOperation(Signal* signal, PreparePtr prepPtr)
   conf->senderData = prepPtr.p->clientData;
   conf->prepareId = prepPtr.p->prepOpPtr.i;
 
-  releaseSections(signal);
   sendSignal(prepPtr.p->clientRef, GSN_UTIL_PREPARE_CONF, signal, 
 	     UtilPrepareConf::SignalLength, JBB);
 
@@ -1728,7 +1752,6 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if(signal->getNoOfSections() == 0) {
     // Missing prepare data
     jam();
-    releaseSections(signal);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingDataSection, 
 		       0, clientRef, clientData);
     return;
@@ -1743,11 +1766,12 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
   TransactionPtr  transPtr;
   OperationPtr    opPtr;
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
 
-  signal->getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
+  handle.getSection(headerPtr, UtilExecuteReq::HEADER_SECTION);
   SectionReader headerReader(headerPtr, getSectionSegmentPool());
-  signal->getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
+  handle.getSection(dataPtr, UtilExecuteReq::DATA_SECTION);
   SectionReader dataReader(dataPtr, getSectionSegmentPool());
 
 #if 0 //def EVENT_DEBUG
@@ -1835,7 +1859,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
     if (!res) {
       // Failed to allocate buffer data
       jam();
-      releaseSections(signal);
+      releaseSections(handle);
       sendUtilExecuteRef(signal, UtilExecuteRef::AllocationError, 
 			 0, clientRef, clientData);
       releaseTransaction(transPtr);    
@@ -1845,7 +1869,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   if (!dataComplete) {
     // Missing data in data section
     jam();
-    releaseSections(signal);
+    releaseSections(handle);
     sendUtilExecuteRef(signal, UtilExecuteRef::MissingData, 
 		       0, clientRef, clientData);
     releaseTransaction(transPtr);    
@@ -1871,7 +1895,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   }
 #endif
 
-  releaseSections(signal);
+  releaseSections(handle);
   transPtr.p->noOfRetries = 3;
   runTransaction(signal, transPtr);
 }
@@ -2335,120 +2359,153 @@ DbUtil::finishTransaction(Signal* signal, TransactionPtr transPtr){
 void
 DbUtil::execUTIL_LOCK_REQ(Signal * signal){
   jamEntry();
-  UtilLockReq * req = (UtilLockReq*)signal->getDataPtr();
-  const Uint32 lockId = req->lockId;
+
+  UtilLockReq req = *(UtilLockReq*)signal->getDataPtr();
 
   LockQueuePtr lockQPtr;
-  if(!c_lockQueues.find(lockQPtr, lockId)){
+  if(!c_lockQueues.find(lockQPtr, req.lockId))
+  {
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::NoSuchLock);
+    sendLOCK_REF(signal, &req, UtilLockRef::NoSuchLock);
     return;
   }
 
-//  const Uint32 requestInfo = req->requestInfo;
-  const Uint32 senderNode = refToNode(req->senderRef);
-  if(senderNode != getOwnNodeId() && senderNode != 0){
+  const Uint32 senderNode = refToNode(req.senderRef);
+  if(senderNode != getOwnNodeId() && senderNode != 0)
+  {
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::DistributedLockNotSupported);    
-    return;
-  }
-
-  LocalDLFifoList<LockQueueElement> queue(c_lockElementPool,
-					  lockQPtr.p->m_queue);
-  if(req->requestInfo & UtilLockReq::TryLock && !queue.isEmpty()){
-    jam();
-    sendLOCK_REF(signal, req, UtilLockRef::LockAlreadyHeld);
+    sendLOCK_REF(signal, &req, UtilLockRef::DistributedLockNotSupported);    
     return;
   }
   
-  LockQueueElementPtr lockEPtr;
-  if(!c_lockElementPool.seize(lockEPtr)){
+  Uint32 res = lockQPtr.p->m_queue.lock(c_lockElementPool, &req);
+  switch(res){
+  case UtilLockRef::OK:
     jam();
-    sendLOCK_REF(signal, req, UtilLockRef::OutOfLockRecords);
+    sendLOCK_CONF(signal, &req);
+    return;
+  case UtilLockRef::OutOfLockRecords:
+    jam();
+    sendLOCK_REF(signal, &req, UtilLockRef::OutOfLockRecords);
+    return;
+  case UtilLockRef::InLockQueue:
+    jam();
+    if (req.requestInfo & UtilLockReq::Notify)
+    {
+      jam();
+      sendLOCK_REF(signal, &req, UtilLockRef::InLockQueue);
+    }
+    return;
+  case UtilLockRef::LockAlreadyHeld:
+    jam();
+    ndbassert(req.requestInfo & UtilLockReq::TryLock);
+    sendLOCK_REF(signal, &req, UtilLockRef::LockAlreadyHeld);
+    return;
+  default:
+    jam();
+    ndbassert(false);
+    sendLOCK_REF(signal, &req, (UtilLockRef::ErrorCode)res);
     return;
   }
-  
-  lockEPtr.p->m_senderRef = req->senderRef;
-  lockEPtr.p->m_senderData = req->senderData;
-  
-  if(queue.isEmpty()){
-    jam();
-    sendLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-  }
-  
-  queue.add(lockEPtr);
 }
 
 void
-DbUtil::execUTIL_UNLOCK_REQ(Signal* signal){
+DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
+{
   jamEntry();
   
-  UtilUnlockReq * req = (UtilUnlockReq*)signal->getDataPtr();
-  const Uint32 lockId = req->lockId;
+  UtilUnlockReq req = *(UtilUnlockReq*)signal->getDataPtr();
   
   LockQueuePtr lockQPtr;
-  if(!c_lockQueues.find(lockQPtr, lockId)){
+  if(!c_lockQueues.find(lockQPtr, req.lockId))
+  {
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NoSuchLock);
+    sendUNLOCK_REF(signal, &req, UtilUnlockRef::NoSuchLock);
     return;
   }
 
-  LocalDLFifoList<LockQueueElement> queue(c_lockElementPool, 
-					  lockQPtr.p->m_queue);
-  LockQueueElementPtr lockEPtr;
-  if(!queue.first(lockEPtr)){
+  Uint32 res = lockQPtr.p->m_queue.unlock(c_lockElementPool, &req);
+  switch(res){
+  case UtilUnlockRef::OK:
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NotLockOwner);
-    return;
-  }
-
-  if(lockQPtr.p->m_lockKey != req->lockKey){
+  case UtilUnlockRef::NotLockOwner: {
     jam();
-    sendUNLOCK_REF(signal, req, UtilUnlockRef::NotLockOwner);
-    return;
+    UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
+    conf->senderData = req.senderData;
+    conf->senderRef = reference();
+    conf->lockId = req.lockId;
+    sendSignal(req.senderRef, GSN_UTIL_UNLOCK_CONF, signal,
+               UtilUnlockConf::SignalLength, JBB);
+    break;
   }
-
-  sendUNLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-  queue.release(lockEPtr);
+  case UtilUnlockRef::NotInLockQueue:
+    jam();
+  default:
+    jam();
+    ndbassert(false);
+    sendUNLOCK_REF(signal, &req, (UtilUnlockRef::ErrorCode)res);
+    break;
+  }
   
-  if(queue.first(lockEPtr)){
-    jam();
-    sendLOCK_CONF(signal, lockQPtr.p, lockEPtr.p);
-    return;
+  /**
+   * Unlock can make other(s) acquie lock
+   */
+  UtilLockReq lockReq;
+  LockQueue::Iterator iter;
+  if (lockQPtr.p->m_queue.first(c_lockElementPool, iter))
+  {
+    int res;
+    while ((res = lockQPtr.p->m_queue.checkLockGrant(iter, &lockReq)) > 0)
+    {
+      jam();
+      /**
+       *
+       */
+      if (res == 2)
+      {
+        jam();
+        sendLOCK_CONF(signal, &lockReq);
+      }        
+      
+      if (!lockQPtr.p->m_queue.next(iter))
+        break;
+    }
   }
 }
 
 void
 DbUtil::sendLOCK_REF(Signal* signal, 
-		     const UtilLockReq * req, UtilLockRef::ErrorCode err){
+                     const UtilLockReq * req, UtilLockRef::ErrorCode err)
+{
   const Uint32 senderData = req->senderData;
   const Uint32 senderRef = req->senderRef;
   const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockRef * ref = (UtilLockRef*)signal->getDataPtrSend();
   ref->senderData = senderData;
   ref->senderRef = reference();
   ref->lockId = lockId;
   ref->errorCode = err;
+  ref->extra = extra;
   sendSignal(senderRef, GSN_UTIL_LOCK_REF, signal, 
 	     UtilLockRef::SignalLength, JBB);
 }
 
 void
-DbUtil::sendLOCK_CONF(Signal* signal, 
-		      LockQueue * lockQP, 
-		      LockQueueElement * lockEP){
-  const Uint32 senderData = lockEP->m_senderData;
-  const Uint32 senderRef = lockEP->m_senderRef;
-  const Uint32 lockId = lockQP->m_lockId;
-  const Uint32 lockKey = ++lockQP->m_lockKey;
+DbUtil::sendLOCK_CONF(Signal* signal, const UtilLockReq * req)
+{
+  const Uint32 senderData = req->senderData;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 lockId = req->lockId;
+  const Uint32 extra = req->extra;
 
   UtilLockConf * conf = (UtilLockConf*)signal->getDataPtrSend();
   conf->senderData = senderData;
   conf->senderRef = reference();
   conf->lockId = lockId;
-  conf->lockKey = lockKey;
-  sendSignal(senderRef, GSN_UTIL_LOCK_CONF, signal,
+  conf->extra = extra;
+  sendSignal(senderRef, GSN_UTIL_LOCK_CONF, signal, 
 	     UtilLockConf::SignalLength, JBB);
 }
 
@@ -2467,23 +2524,6 @@ DbUtil::sendUNLOCK_REF(Signal* signal,
   ref->errorCode = err;
   sendSignal(senderRef, GSN_UTIL_UNLOCK_REF, signal, 
 	     UtilUnlockRef::SignalLength, JBB);
-}
-
-void 
-DbUtil::sendUNLOCK_CONF(Signal* signal, 
-			LockQueue * lockQP, 
-			LockQueueElement * lockEP){
-  const Uint32 senderData = lockEP->m_senderData;
-  const Uint32 senderRef = lockEP->m_senderRef;
-  const Uint32 lockId = lockQP->m_lockId;
-  ++lockQP->m_lockKey;
-  
-  UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
-  conf->senderData = senderData;
-  conf->senderRef = reference();
-  conf->lockId = lockId;
-  sendSignal(senderRef, GSN_UTIL_UNLOCK_CONF, signal,
-	     UtilUnlockConf::SignalLength, JBB);
 }
 
 void
@@ -2513,7 +2553,7 @@ DbUtil::execUTIL_CREATE_LOCK_REQ(Signal* signal){
       break;
     }      
 
-    new (lockQPtr.p) LockQueue(req.lockId);
+    new (lockQPtr.p) LockQueueInstance(req.lockId);
     c_lockQueues.add(lockQPtr);
 
     UtilCreateLockConf * conf = (UtilCreateLockConf*)signal->getDataPtrSend();
@@ -2544,22 +2584,26 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
   UtilDestroyLockRef::ErrorCode err = UtilDestroyLockRef::OK;
   do {
     LockQueuePtr lockQPtr;
-    if(!c_lockQueues.find(lockQPtr, req.lockId)){
+    if(!c_lockQueues.find(lockQPtr, req.lockId))
+    {
       jam();
       err = UtilDestroyLockRef::NoSuchLock;
       break;
     }
     
-    LocalDLFifoList<LockQueueElement> queue(c_lockElementPool, 
-					    lockQPtr.p->m_queue);
-    LockQueueElementPtr lockEPtr;
-    if(!queue.first(lockEPtr)){
+    LockQueue::Iterator iter;
+    if (lockQPtr.p->m_queue.first(c_lockElementPool, iter) == false)
+    {
       jam();
       err = UtilDestroyLockRef::NotLockOwner;
       break;
     }
     
-    if(lockQPtr.p->m_lockKey != req.lockKey){
+    if (! (iter.m_curr.p->m_req.senderData == req.senderData &&
+           iter.m_curr.p->m_req.senderRef == req.senderRef &&
+           (! (iter.m_curr.p->m_req.requestInfo & UtilLockReq::SharedLock)) &&
+           iter.m_curr.p->m_req.requestInfo & UtilLockReq::Granted))
+    {
       jam();
       err = UtilDestroyLockRef::NotLockOwner;
       break;
@@ -2568,21 +2612,14 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
     /**
      * OK
      */
-    
-    // Inform all in lock queue that queue has been destroyed
-    UtilLockRef * ref = (UtilLockRef*)signal->getDataPtrSend();
-    ref->lockId = req.lockId;
-    ref->errorCode = UtilLockRef::NoSuchLock;
-    ref->senderRef = reference();
-    LockQueueElementPtr loopPtr = lockEPtr;      
-    for(queue.next(loopPtr); !loopPtr.isNull(); queue.next(loopPtr)){
+
+    while (lockQPtr.p->m_queue.next(iter))
+    {
       jam();
-      ref->senderData = loopPtr.p->m_senderData;
-      const Uint32 senderRef = loopPtr.p->m_senderRef;
-      sendSignal(senderRef, GSN_UTIL_LOCK_REF, signal, 
-		 UtilLockRef::SignalLength, JBB);
+      sendLOCK_REF(signal, &iter.m_curr.p->m_req, UtilLockRef::NoSuchLock);
     }
-    queue.release();
+
+    lockQPtr.p->m_queue.clear(c_lockElementPool);
     c_lockQueues.release(lockQPtr);
     
     // Send Destroy conf
@@ -2594,7 +2631,7 @@ DbUtil::execUTIL_DESTORY_LOCK_REQ(Signal* signal){
 	       UtilDestroyLockConf::SignalLength, JBB);
     return;
   } while(false);
-
+  
   UtilDestroyLockRef * ref = (UtilDestroyLockRef*)signal->getDataPtrSend();
   ref->senderData = req.senderData;
   ref->senderRef = reference();

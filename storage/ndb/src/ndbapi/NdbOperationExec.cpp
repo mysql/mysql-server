@@ -890,8 +890,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
     /* ToDo: This only handles update currently. */
     Uint32 update_word_length= theTotalCurrAI_Len - interpreted_code_end;
     *update_len_addr = update_word_length;
-for (Uint32 i= 0; i < 5; i++) {fprintf(stderr, "%2d %p 0x%08x    %u  %p 0x%08x\n", i, tcKeyReq->attrInfo, tcKeyReq->attrInfo[i], update_word_length, update_len_addr-2, update_len_addr[(int)i - 2]);}
-assert(update_word_length > 0);
+    assert(update_word_length > 0);
   }
 
   Uint32 signalLength= hdrSize +

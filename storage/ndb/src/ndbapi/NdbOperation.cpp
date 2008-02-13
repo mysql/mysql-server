@@ -81,6 +81,7 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
 {
   theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
   theError.code = 0;
+  m_customData = NULL;
 }
 /*****************************************************************************
  * ~NdbOperation();
@@ -190,6 +191,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
     // theReceiver sets the error code of its owner
     return -1;
   }
+  m_customData = NULL;
   return 0;
 }
 

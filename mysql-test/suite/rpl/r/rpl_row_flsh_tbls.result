@@ -12,13 +12,13 @@ create table t4 (a int);
 insert into t4 select * from t3;
 rename table t1 to t5, t2 to t1;
 flush no_write_to_binlog tables;
-SHOW BINLOG EVENTS FROM 623 ;
+SHOW BINLOG EVENTS FROM 624 ;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; rename table t1 to t5, t2 to t1
 select * from t3;
 a
 flush tables;
-SHOW BINLOG EVENTS FROM 623 ;
+SHOW BINLOG EVENTS FROM 624 ;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	use `test`; rename table t1 to t5, t2 to t1
 master-bin.000001	#	Query	1	#	use `test`; flush tables

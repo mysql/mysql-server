@@ -177,7 +177,7 @@ private:
   friend class Ndb_cluster_connection_impl;
   friend class NdbTransaction;
   
-  int sendSignalUnCond(NdbApiSignal *, NodeId nodeId);
+  int sendSignalUnCond(NdbApiSignal *, NodeId nodeId, Uint32 prio = 0);
 
   bool isConnected(NodeId aNodeId);
   void doStop();

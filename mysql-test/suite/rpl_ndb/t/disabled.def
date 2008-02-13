@@ -13,3 +13,6 @@
 
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
+
+rpl_ndb_myisam2ndb       : Bug#33605
+rpl_ndb_innodb2ndb       : Bug#33605

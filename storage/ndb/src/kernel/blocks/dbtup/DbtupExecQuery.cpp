@@ -1059,6 +1059,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   
   tup_version= (tup_version + 1) & ZTUP_VERSION_MASK;
   operPtrP->tupVersion= tup_version;
+
+  req_struct->optimize_options = 0;
   
   if (!req_struct->interpreted_exec) {
     jam();
@@ -1073,6 +1075,23 @@ int Dbtup::handleUpdateReq(Signal* signal,
       return -1;
   }
   
+  switch (req_struct->optimize_options) {
+    case AttributeHeader::OPTIMIZE_MOVE_VARPART:
+      /**
+       * optimize varpart of tuple,  move varpart of tuple from
+       * big-free-size page list into small-free-size page list
+       */
+      if(base->m_header_bits & Tuple_header::VAR_PART)
+        optimize_var_part(req_struct, base, operPtrP,
+                          regFragPtr, regTabPtr);
+      break;
+    case AttributeHeader::OPTIMIZE_MOVE_FIXPART:
+      //TODO: move fix part of tuple
+      break;
+    default:
+      break;
+  }
+
   if (regTabPtr->need_shrink())
   {  
     shrink_tuple(req_struct, sizes+2, regTabPtr, disk);
@@ -3431,6 +3450,50 @@ Dbtup::handle_size_change_after_update(KeyReqStruct* req_struct,
 }
 
 int
+Dbtup::optimize_var_part(KeyReqStruct* req_struct,
+                         Tuple_header* org,
+                         Operationrec* regOperPtr,
+                         Fragrecord* regFragPtr,
+                         Tablerec* regTabPtr)
+{
+  jam();
+  Var_part_ref* refptr = org->get_var_part_ref_ptr(regTabPtr);
+
+  Local_key ref;
+  refptr->copyout(&ref);
+  Uint32 idx = ref.m_page_idx;
+
+  Ptr<Page> pagePtr;
+  c_page_pool.getPtr(pagePtr, ref.m_page_no);
+
+  Var_page* pageP = (Var_page*)pagePtr.p;
+  Uint32 var_part_size = pageP->get_entry_len(idx);
+
+  /**
+   * if the size of page list_index is MAX_FREE_LIST,
+   * we think it as full page, then need not optimize
+   */
+  if(pageP->list_index != MAX_FREE_LIST)
+  {
+    jam();
+    /*
+     * optimize var part of tuple by moving varpart, 
+     * then we possibly reclaim free pages
+     */
+    move_var_part(regFragPtr, regTabPtr, pagePtr,
+                  refptr, var_part_size);
+
+    if (regTabPtr->m_bits & Tablerec::TR_Checksum)
+    {
+      jam();
+      setChecksum(org, regTabPtr);
+    }
+  }
+
+  return 0;
+}
+
+int
 Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
 {
   FragrecordPtr fragPtr;
@@ -3443,15 +3506,17 @@ Dbtup::nr_update_gci(Uint32 fragPtrI, const Local_key* key, Uint32 gci)
   if (tablePtr.p->m_bits & Tablerec::TR_RowGCI)
   {
     Local_key tmp = *key;
-    PagePtr page_ptr;
+    PagePtr pagePtr;
 
-    int ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-
-    if (ret)
+    pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+    if (unlikely(pagePtr.i == RNIL))
+    {
       return -1;
+    }
+    c_page_pool.getPtr(pagePtr);
     
     Tuple_header* ptr = (Tuple_header*)
-      ((Fix_page*)page_ptr.p)->get_ptr(tmp.m_page_idx, 0);
+      ((Fix_page*)pagePtr.p)->get_ptr(tmp.m_page_idx, 0);
     
     ndbrequire(ptr->m_header_bits & Tuple_header::FREE);
     *ptr->get_mm_gci(tablePtr.p) = gci;
@@ -3474,19 +3539,20 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
   Local_key tmp = *key;
   
   
-  PagePtr page_ptr;
-  int ret = alloc_page(tablePtr.p, fragPtr.p, &page_ptr, tmp.m_page_no);
-  if (ret)
+  PagePtr pagePtr;
+  pagePtr.i = allocFragPage(tablePtr.p, fragPtr.p, tmp.m_page_no);
+  if (unlikely(pagePtr.i == RNIL))
     return -1;
   
+  c_page_pool.getPtr(pagePtr);
   KeyReqStruct req_struct;
-  Uint32* ptr= ((Fix_page*)page_ptr.p)->get_ptr(key->m_page_idx, 0);
+  Uint32* ptr= ((Fix_page*)pagePtr.p)->get_ptr(key->m_page_idx, 0);
   
-  req_struct.m_page_ptr = page_ptr;
+  req_struct.m_page_ptr = pagePtr;
   req_struct.m_tuple_ptr = (Tuple_header*)ptr;
   Uint32 bits = req_struct.m_tuple_ptr->m_header_bits;
 
-  ret = 0;
+  int ret = 0;
   copy = false;
   if (! (bits & Tuple_header::FREE))
   {

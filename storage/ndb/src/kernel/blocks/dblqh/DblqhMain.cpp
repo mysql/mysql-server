@@ -446,10 +446,11 @@ void Dblqh::execCONTINUEB(Signal* signal)
     else
     {
       jam();
-      cstartRecReq = 2;
+      cstartRecReq = SRR_REDO_COMPLETE;
       ndbrequire(c_lcp_complete_fragments.isEmpty());
       StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
       conf->startingNodeId = getOwnNodeId();
+      conf->senderData = cstartRecReqData;
       sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 		 StartRecConf::SignalLength, JBB);
       return;
@@ -3526,30 +3527,44 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->applOprec = sig4;
 
   regTcPtr->commitAckMarker = RNIL;
-  if(LqhKeyReq::getMarkerFlag(Treqinfo)){
-    jam();
-    
+  if (LqhKeyReq::getMarkerFlag(Treqinfo))
+  {
+    struct CommitAckMarker check;
     CommitAckMarkerPtr markerPtr;
-    m_commitAckMarkerHash.seize(markerPtr);
-    if(markerPtr.i == RNIL){
-      noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
-      return;
+    jam();
+    check.transid1 = regTcPtr->transid[0];
+    check.transid2 = regTcPtr->transid[1];
+
+    if (m_commitAckMarkerHash.find(markerPtr, check))
+    {
+      /*
+        A commit ack marker was already placed here for this transaction.
+        We increase the reference count to ensure we don't remove the
+        commit ack marker prematurely.
+      */
+      markerPtr.p->reference_count++;
     }
-    markerPtr.p->transid1 = sig1;
-    markerPtr.p->transid2 = sig2;
-    markerPtr.p->apiRef   = sig3;
-    markerPtr.p->apiOprec = sig4;
-    const NodeId tcNodeId  = refToNode(sig5);
-    markerPtr.p->tcNodeId = tcNodeId;
+    else
+    {
+      m_commitAckMarkerHash.seize(markerPtr);
+      if (markerPtr.i == RNIL)
+      {
+        noFreeRecordLab(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        return;
+      }
+      markerPtr.p->transid1 = sig1;
+      markerPtr.p->transid2 = sig2;
+      markerPtr.p->apiRef   = sig3;
+      markerPtr.p->apiOprec = sig4;
+      const NodeId tcNodeId  = refToNode(sig5);
+      markerPtr.p->tcNodeId = tcNodeId;
+      markerPtr.p->reference_count = 1;
+      m_commitAckMarkerHash.add(markerPtr);
+    }
     
-    CommitAckMarkerPtr tmp;
-#if defined VM_TRACE || defined ERROR_INSERT
 #ifdef MARKER_TRACE
     ndbout_c("Add marker[%.8x %.8x]", markerPtr.p->transid1, markerPtr.p->transid2);
 #endif
-    ndbrequire(!m_commitAckMarkerHash.find(tmp, * markerPtr.p));
-#endif
-    m_commitAckMarkerHash.add(markerPtr);
     regTcPtr->commitAckMarker = markerPtr.i;
   } 
   
@@ -5331,7 +5346,8 @@ void Dblqh::packLqhkeyreqLab(Signal* signal)
   }
   else
   {
-    ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
+    if (fragptr.p->m_copy_started_state != Fragrecord::AC_IGNORED)
+      ndbassert(LqhKeyReq::getOperation(Treqinfo) != ZINSERT);
   }
   
   UintR TreadLenAiInd = (regTcPtr->readlenAi == 0 ? 0 : 1);
@@ -6830,6 +6846,28 @@ void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 /*                                                                           */
 /*THIS PART IS USED AT ERRORS THAT CAUSE ABORT OF TRANSACTION.               */
 /* ------------------------------------------------------------------------- */
+void
+Dblqh::remove_commit_marker(TcConnectionrec * const regTcPtr)
+{
+  CommitAckMarker *tmp;
+  Uint32 commitAckMarker = regTcPtr->commitAckMarker;
+  regTcPtr->commitAckMarker = RNIL;
+  if (commitAckMarker == RNIL)
+    return;
+  jam();
+  tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
+#ifdef MARKER_TRACE
+  ndbout_c("Ab2 marker[%.8x %.8x]", tmp->transid1, tmp->transid2);
+#endif
+  ndbrequire(tmp->reference_count > 0);
+  tmp->reference_count--;
+  if (tmp->reference_count == 0)
+  {
+    jam();
+    m_commitAckMarkerHash.release(commitAckMarker);
+  }
+}
+
 /* ***************************************************>> */
 /*  ABORT: Abort transaction in connection. Sender TC.   */
 /*  This is the normal protocol (See COMMIT)             */
@@ -6906,21 +6944,7 @@ void Dblqh::execABORT(Signal* signal)
   }//if
   regTcPtr->abortState = TcConnectionrec::ABORT_FROM_TC;
 
-  const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
-  if(commitAckMarker != RNIL)
-  {
-    jam();
-#ifdef MARKER_TRACE
-    {
-      CommitAckMarkerPtr tmp;
-      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
-      ndbout_c("Ab2 marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
-    }
-#endif
-    m_commitAckMarkerHash.release(commitAckMarker);
-    regTcPtr->commitAckMarker = RNIL;
-  }
-
+  remove_commit_marker(regTcPtr);
   TRACE_OP(regTcPtr, "ABORT");
 
   abortStateHandlerLab(signal);
@@ -7252,24 +7276,9 @@ void Dblqh::abortErrorLab(Signal* signal)
 void Dblqh::abortCommonLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
-  const Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   const Uint32 activeCreat = regTcPtr->activeCreat;
-  if (commitAckMarker != RNIL)
-  {
-    /**
-     * There is no NR ongoing and we have a marker
-     */
-    jam();
-#ifdef MARKER_TRACE
-    {
-      CommitAckMarkerPtr tmp;
-      m_commitAckMarkerHash.getPtr(tmp, commitAckMarker);
-      ndbout_c("Abo marker[%.8x %.8x]", tmp.p->transid1, tmp.p->transid2);
-    }
-#endif
-    m_commitAckMarkerHash.release(commitAckMarker);
-    regTcPtr->commitAckMarker = RNIL;
-  }
+
+  remove_commit_marker(regTcPtr);
 
   if (unlikely(activeCreat == Fragrecord::AC_NR_COPY))
   {
@@ -10580,6 +10589,8 @@ void Dblqh::nextScanConfCopyLab(Signal* signal)
   
   tcConP->m_use_rowid = true;
   tcConP->m_row_id = scanptr.p->m_row_id;
+
+  scanptr.p->m_curr_batch_size_rows++;
   
   if (signal->getLength() == 7)
   {
@@ -10713,8 +10724,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
   c_scanRecordPool.getPtr(scanptr);
   ScanRecord* scanP = scanptr.p;
 
-  Uint32 rows = scanP->m_curr_batch_size_rows;
-  Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, rows, false);
+  Uint32 accOpPtr= get_acc_ptr_from_scan_record(scanP, 0, false);
   ndbassert(accOpPtr != (Uint32)-1);
   c_acc->execACCKEY_ORD(signal, accOpPtr);
   
@@ -10768,6 +10778,7 @@ void Dblqh::copyTupkeyConfLab(Signal* signal)
 // scanning.
 /*---------------------------------------------------------------------------*/
   UintR TnoOfWords = readLength + len;
+  scanP->m_curr_batch_size_bytes += 4 * TnoOfWords;
   TnoOfWords = TnoOfWords + MAGIC_CONSTANT;
   TnoOfWords = TnoOfWords + (TnoOfWords >> 2);
 
@@ -11097,6 +11108,8 @@ void Dblqh::tupCopyCloseConfLab(Signal* signal)
       conf->startingNodeId = scanptr.p->scanNodeId;
       conf->tableId = tcConnectptr.p->tableref;
       conf->fragId = tcConnectptr.p->fragmentid;
+      conf->rows_lo = scanptr.p->m_curr_batch_size_rows;
+      conf->bytes_lo = scanptr.p->m_curr_batch_size_bytes;
       sendSignal(tcConnectptr.p->clientBlockref, GSN_COPY_FRAGCONF, signal,
 		 CopyFragConf::SignalLength, JBB);
     }//if
@@ -12000,11 +12013,11 @@ void Dblqh::sendLCP_COMPLETE_REP(Signal* signal, Uint32 lcpId)
     sendEMPTY_LCP_CONF(signal, true);
   }
 
-  if (getNodeState().getNodeRestartInProgress() && cstartRecReq != 3)
+  if (cstartRecReq < SRR_FIRST_LCP_DONE)
   {
     jam();
-    ndbrequire(cstartRecReq == 2);
-    cstartRecReq = 3;
+    ndbrequire(cstartRecReq == SRR_REDO_COMPLETE);
+    cstartRecReq = SRR_FIRST_LCP_DONE;
   }
   return;
   
@@ -12249,8 +12262,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     return;
   }
 
-  if (getNodeState().getNodeRestartInProgress() && cstartRecReq < 2)
+  if (cstartRecReq < SRR_REDO_COMPLETE)
   {
+    /**
+     * REDO running is not complete
+     */
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -12302,8 +12318,11 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
     cnewestGci = gci;
   }//if
 
-  if(getNodeState().getNodeRestartInProgress() && cstartRecReq < 3)
+  if(cstartRecReq < SRR_FIRST_LCP_DONE)
   {
+    /**
+     * First LCP has not been done
+     */
     GCPSaveRef * const saveRef = (GCPSaveRef*)&signal->theData[0];
     saveRef->dihPtr = dihPtr;
     saveRef->nodeId = getOwnNodeId();
@@ -14257,7 +14276,13 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
   Uint32 noOfLogNodes = startFragReq->noOfLogNodes;
   Uint32 lcpId = startFragReq->lcpId;
 
-  ndbrequire(noOfLogNodes <= 4);
+  if (noOfLogNodes > 1)
+  {
+    printSTART_FRAG_REQ(stdout, signal->getDataPtr(), signal->getLength(),
+                        number());
+  }
+
+  ndbrequire(noOfLogNodes <= MAX_LOG_EXEC);
   fragptr.p->fragStatus = Fragrecord::CRASH_RECOVERING;
   fragptr.p->srBlockref = startFragReq->userRef;
   fragptr.p->srUserptr = startFragReq->userPtr;
@@ -14388,7 +14413,8 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
     return;
   }
 
-  if (c_lcp_restoring_fragments.isEmpty() && cstartRecReq == 1)
+  if (c_lcp_restoring_fragments.isEmpty() && 
+      cstartRecReq == SRR_START_REC_REQ_ARRIVED)
   {
     jam();
     /* ----------------------------------------------------------------
@@ -14425,11 +14451,34 @@ void Dblqh::execSTART_RECREQ(Signal* signal)
   crestartOldestGci = req->keepGci;
   crestartNewestGci = req->lastCompletedGci;
   cnewestGci = req->newestGci;
+  cstartRecReqData = req->senderData;
 
   ndbrequire(req->receivingNodeId == cownNodeid);
 
   cnewestCompletedGci = cnewestGci;
-  cstartRecReq = 1;
+  cstartRecReq = SRR_START_REC_REQ_ARRIVED; // StartRecReq has arrived
+  
+  if (signal->getLength() == StartRecReq::SignalLength)
+  {
+    jam();
+    NdbNodeBitmask tmp;
+    tmp.assign(NdbNodeBitmask::Size, req->sr_nodes);
+    if (!tmp.equal(m_sr_nodes))
+    {
+      char buf0[100], buf1[100];
+      ndbout_c("execSTART_RECREQ chaning srnodes from %s to %s",
+               m_sr_nodes.getText(buf0),
+               tmp.getText(buf1));
+      
+    }
+    m_sr_nodes.assign(NdbNodeBitmask::Size, req->sr_nodes);
+  }
+  else
+  {
+    jam();
+    cstartRecReqData = RNIL;
+  }
+  
   for (logPartPtr.i = 0; logPartPtr.i < 4; logPartPtr.i++) {
     ptrAss(logPartPtr, logPartRecord);
     logPartPtr.p->logPartNewestCompletedGCI = cnewestCompletedGci;
@@ -14497,10 +14546,11 @@ void Dblqh::execSTART_RECCONF(Signal* signal)
   if(cstartType == NodeState::ST_INITIAL_NODE_RESTART)
   {
     jam();
-    cstartRecReq = 2;
+    cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
 
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 	       StartRecConf::SignalLength, JBB);
     return;
@@ -14595,7 +14645,7 @@ void Dblqh::execEXEC_FRAGREQ(Signal* signal)
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
   ndbrequire(getFragmentrec(signal, fragId));
 
-  ndbrequire(fragptr.p->execSrNoReplicas < 4);
+  ndbrequire(fragptr.p->execSrNoReplicas < MAX_REPLICAS);
   fragptr.p->execSrBlockref[fragptr.p->execSrNoReplicas] = execFragReq->userRef;
   fragptr.p->execSrUserptr[fragptr.p->execSrNoReplicas] = execFragReq->userPtr;
   fragptr.p->execSrStartGci[fragptr.p->execSrNoReplicas] = execFragReq->startGci;
@@ -14699,7 +14749,7 @@ void Dblqh::execSrCompletedLab(Signal* signal)
    *  ALL FRAGMENTS WERE COMPLETED. THIS PHASE IS COMPLETED. IT IS NOW TIME TO
    *  START THE NEXT PHASE.
    * ----------------------------------------------------------------------- */
-  if (csrPhasesCompleted >= 4) {
+  if (csrPhasesCompleted >= MAX_LOG_EXEC) {
     jam();
     /* ----------------------------------------------------------------------
      *  THIS WAS THE LAST PHASE. WE HAVE NOW COMPLETED THE EXECUTION THE 
@@ -14867,7 +14917,7 @@ void Dblqh::srGciLimits(Signal* signal)
   while (fragptr.i != RNIL){
     jam();
     c_lcp_complete_fragments.getPtr(fragptr);
-    ndbrequire(fragptr.p->execSrNoReplicas - 1 < 4);
+    ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
     for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
       jam();
       if (fragptr.p->execSrStartGci[i] < logPartPtr.p->logStartGci) {
@@ -15612,7 +15662,7 @@ void Dblqh::execLogRecord(Signal* signal)
   readKey(signal);
   readAttrinfo(signal);
   initReqinfoExecSr(signal);
-  arrGuard(logPartPtr.p->execSrExecuteIndex, 4);
+  arrGuard(logPartPtr.p->execSrExecuteIndex, MAX_REPLICAS);
   BlockReference ref = fragptr.p->execSrBlockref[logPartPtr.p->execSrExecuteIndex];
   tcConnectptr.p->nextReplica = refToNode(ref);
   tcConnectptr.p->connectState = TcConnectionrec::LOG_CONNECTED;
@@ -15989,7 +16039,7 @@ void Dblqh::sendExecConf(Signal* signal)
     Uint32 next = fragptr.p->nextList;
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       jam();
-      ndbrequire(fragptr.p->execSrNoReplicas - 1 < 4);
+      ndbrequire(fragptr.p->execSrNoReplicas - 1 < MAX_REPLICAS);
       for (Uint32 i = 0; i < fragptr.p->execSrNoReplicas; i++) {
         jam();
         signal->theData[0] = fragptr.p->execSrUserptr[i];
@@ -16258,7 +16308,7 @@ void Dblqh::srFourthComp(Signal* signal)
     
     ndbrequire(cinitialStartOngoing == ZTRUE);
     cinitialStartOngoing = ZFALSE;
-
+    cstartRecReq = SRR_REDO_COMPLETE;
     checkStartCompletedLab(signal);
     return;
   } else if ((cstartType == NodeState::ST_NODE_RESTART) ||
@@ -16277,9 +16327,10 @@ void Dblqh::srFourthComp(Signal* signal)
 	return;
       }
     }
-    cstartRecReq = 2;
+    cstartRecReq = SRR_REDO_COMPLETE; // REDO complete
     StartRecConf * conf = (StartRecConf*)signal->getDataPtrSend();
     conf->startingNodeId = getOwnNodeId();
+    conf->senderData = cstartRecReqData;
     sendSignal(cmasterDihBlockref, GSN_START_RECCONF, signal, 
 		 StartRecConf::SignalLength, JBB);
   } else {
@@ -16553,7 +16604,7 @@ Uint32 Dblqh::checkIfExecLog(Signal* signal)
       (table_version_major(tabptr.p->schemaVersion) == table_version_major(tcConnectptr.p->schemaVersion))) {
     if (fragptr.p->execSrStatus != Fragrecord::IDLE) {
       if (fragptr.p->execSrNoReplicas > logPartPtr.p->execSrExecuteIndex) {
-        ndbrequire((fragptr.p->execSrNoReplicas - 1) < 4);
+        ndbrequire((fragptr.p->execSrNoReplicas - 1) < MAX_REPLICAS);
         for (Uint32 i = logPartPtr.p->execSrExecuteIndex; 
 	     i < fragptr.p->execSrNoReplicas; 
 	     i++) {
@@ -17170,7 +17221,7 @@ void Dblqh::initialiseRecordsLab(Signal* signal, Uint32 data,
     cnoActiveCopy = 0;
     ccurrentGcprec = RNIL;
     caddNodeState = ZFALSE;
-    cstartRecReq = 0;
+    cstartRecReq = SRR_INITIAL; // Initial
     cnewestGci = 0;
     cnewestCompletedGci = 0;
     crestartOldestGci = 0;
@@ -19080,13 +19131,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
 	m_commitAckMarkerHash.next(iter)){
       infoEvent("CommitAckMarker: i = %d (0x%x, 0x%x)"
-		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d",
+		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, ref_count: %d",
 		iter.curr.i,
 		iter.curr.p->transid1,
 		iter.curr.p->transid2,
 		iter.curr.p->apiRef,
 		iter.curr.p->apiOprec,
-		iter.curr.p->tcNodeId);
+		iter.curr.p->tcNodeId,
+                iter.curr.p->reference_count);
     }
   }
 

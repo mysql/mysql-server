@@ -60,14 +60,6 @@
 #define ZSTART_PHASE_8 8
 #define ZSTART_PHASE_9 9
 #define ZSTART_PHASE_END 255
-#define ZWAITPOINT_4_1 1
-#define ZWAITPOINT_4_2 2
-#define ZWAITPOINT_5_1 3
-#define ZWAITPOINT_5_2 4
-#define ZWAITPOINT_6_1 5
-#define ZWAITPOINT_6_2 6
-#define ZWAITPOINT_7_1 7
-#define ZWAITPOINT_7_2 8
 #define ZSYSTAB_VERSION 1
 #endif
 
@@ -87,9 +79,10 @@ public:
     
     void reset();
     NdbNodeBitmask m_starting;
-    NdbNodeBitmask m_waiting; // == (m_withLog | m_withoutLog)
+    NdbNodeBitmask m_waiting; // == (m_withLog | m_withoutLog | m_waitTO)
     NdbNodeBitmask m_withLog;
     NdbNodeBitmask m_withoutLog;
+    NdbNodeBitmask m_waitTO;
     Uint32 m_lastGci;
     Uint32 m_lastGciNodeId;
 
@@ -171,6 +164,8 @@ private:
   void execCNTR_WAITREP(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
   void execSYSTEM_ERROR(Signal* signal);
+
+  void execSTART_PERMREP(Signal*);
 
   // Received signals
   void execDUMP_STATE_ORD(Signal* signal);
@@ -256,12 +251,15 @@ private:
   void ph7ALab(Signal* signal);
   void ph8ALab(Signal* signal);
 
-
   void waitpoint41Lab(Signal* signal);
   void waitpoint51Lab(Signal* signal);
   void waitpoint52Lab(Signal* signal);
   void waitpoint61Lab(Signal* signal);
   void waitpoint71Lab(Signal* signal);
+  void waitpoint42To(Signal* signal);
+
+  void execSTART_COPYREF(Signal*);
+  void execSTART_COPYCONF(Signal*);
 
   void updateNodeState(Signal* signal, const NodeState & newState) const ;
   void getNodeGroup(Signal* signal);
@@ -306,6 +304,7 @@ private:
   Uint16 cnoStartNodes;
   UintR cnoWaitrep;
   NodeState::StartType ctypeOfStart;
+  NodeState::StartType cdihStartType;
   Uint16 cdynamicNodeId;
 
   Uint32 c_fsRemoveCount;

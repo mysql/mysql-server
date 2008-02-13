@@ -399,6 +399,7 @@ private:
   const char* tsname;
   bool createAllTables;
   bool temporaryTables;
+  bool nologging;
 };
 
 

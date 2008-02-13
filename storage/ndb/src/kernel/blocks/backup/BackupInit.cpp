@@ -161,6 +161,10 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 			    &c_defaults.m_disk_write_speed);
   ndb_mgm_get_int_parameter(p, CFG_DB_DISK_SYNCH_SIZE,
 			    &c_defaults.m_disk_synch_size);
+  ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_BACKUP,
+			    &c_defaults.m_compressed_backup);
+  ndb_mgm_get_int_parameter(p, CFG_DB_COMPRESSED_LCP,
+			    &c_defaults.m_compressed_lcp);
 
   m_backup_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_REPORT_FREQUENCY, 

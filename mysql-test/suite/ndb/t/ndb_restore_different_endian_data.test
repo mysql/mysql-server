@@ -1,6 +1,5 @@
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
--- source include/not_embedded.inc
 
 #
 # Bug #27543 restore of backup from different endian does not work for blob column

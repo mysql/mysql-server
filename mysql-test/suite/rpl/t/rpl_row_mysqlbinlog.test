@@ -169,7 +169,7 @@ connection master;
 select "--- Test 2 position test --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=416 $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=417 $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -265,7 +265,7 @@ select "--- Test 6 reading stdin --" as "";
 select "--- Test 7 reading stdin w/position --" as "";
 --enable_query_log
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form --position=416 - < $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --position=417 - < $MYSQLTEST_VARDIR/log/master-bin.000001
 
 # Bug#16217 (mysql client did not know how not switch its internal charset)
 --disable_query_log

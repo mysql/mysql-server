@@ -6121,3 +6121,15 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
+
+ER_SLAVE_HEARTBEAT_FAILURE
+  eng "Unexpected master's heartbeat data: %s"
+ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE
+  eng "The requested value for the heartbeat period %s %s"
+
+ER_NDB_REPLICATION_SCHEMA_ERROR
+        eng "Bad schema for mysql.ndb_replication table. Message: %-.64s"
+ER_CONFLICT_FN_PARSE_ERROR
+        eng "Error in parsing conflict function. Message: %-.64s"
+ER_EXCEPTIONS_WRITE_ERROR
+        eng "Write to exceptions table failed. Message: %-.128s""

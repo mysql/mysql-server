@@ -75,7 +75,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
 // No prepared tuple header page with free entries exists.
 /* ---------------------------------------------------------------- */
-    pagePtr.i = getEmptyPage(regFragPtr);
+    pagePtr.i = allocFragPage(regFragPtr);
     if (pagePtr.i != RNIL) {
       jam();
 /* ---------------------------------------------------------------- */
@@ -84,10 +84,7 @@ Dbtup::alloc_fix_rec(Fragrecord* const regFragPtr,
 /* ---------------------------------------------------------------- */
       c_page_pool.getPtr(pagePtr);
 
-      ndbassert(pagePtr.p->page_state == ZEMPTY_MM);
-      
       convertThPage((Fix_page*)pagePtr.p, regTabPtr, MM);
-      
       pagePtr.p->page_state = ZTH_MM_FREE;
       
       LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
@@ -188,79 +185,26 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
 			 Fix_page* regPagePtr)
 {
   Uint32 free= regPagePtr->free_record(key->m_page_idx);
+  PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
   
   if(free == 1)
   {
     jam();
-    PagePtr pagePtr = { (Page*)regPagePtr, key->m_page_no };
     LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
     ndbrequire(regPagePtr->page_state == ZTH_MM_FULL);
     regPagePtr->page_state = ZTH_MM_FREE;
     free_pages.addLast(pagePtr);
   } 
+  else if (free == 
+           (Fix_page::DATA_WORDS / regTabPtr->m_offsets[MM].m_fix_header_size))
+  {
+    jam();
+    Uint32 page_no = pagePtr.p->frag_page_id;
+    LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);    
+    free_pages.remove(pagePtr);
+    releaseFragPage(regFragPtr, page_no, pagePtr);
+  }
 }//Dbtup::freeTh()
-
-
-int
-Dbtup::alloc_page(Tablerec* tabPtrP, Fragrecord* fragPtrP, 
-		  PagePtr * ret, Uint32 page_no)
-{
-  Uint32 pages = fragPtrP->noOfPages;
-  
-  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
-  Uint32 * ptr = map.set(page_no);
-  if (unlikely(ptr == 0))
-  {
-    jam();
-    terrorCode = ZMEM_NOMEM_ERROR;
-    return 1;
-  }
-  
-  PagePtr pagePtr;
-  LocalDLList<Page> alloc_pages(c_page_pool, fragPtrP->emptyPrimPage);
-  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
-  
-  pagePtr.i = * ptr;
-  if (likely(pagePtr.i != RNIL))
-  {
-    jam();
-    c_page_pool.getPtr(pagePtr);
-  }
-  else
-  {
-    jam();
-    Uint32 noOfPagesAllocated = 0;
-    allocConsPages(1, noOfPagesAllocated, pagePtr.i);
-    if (unlikely(noOfPagesAllocated == 0))
-    {
-      jam();
-      terrorCode = ZMEM_NOMEM_ERROR;
-      return 1;
-    }
-    * ptr = pagePtr.i; // Save in map
-    c_page_pool.getPtr(pagePtr);
-    init_page(fragPtrP, pagePtr, page_no);
-    
-    if (page_no >= pages)
-    {
-      jam();
-      fragPtrP->noOfPages = page_no + 1;
-    }
-    alloc_pages.add(pagePtr);
-  }
-  
-  
-  if (pagePtr.p->page_state == ZEMPTY_MM)
-  {
-    convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
-    pagePtr.p->page_state = ZTH_MM_FREE;
-    alloc_pages.remove(pagePtr);
-    free_pages.addFirst(pagePtr);
-  }
-  
-  *ret = pagePtr;
-  return 0;
-}
 
 Uint32*
 Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
@@ -272,12 +216,13 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   Uint32 idx= key->m_page_idx;
   
   PagePtr pagePtr;
-  if (alloc_page(regTabPtr, regFragPtr, &pagePtr, page_no))
+  if ((pagePtr.i = allocFragPage(regTabPtr, regFragPtr, page_no)) == RNIL)
   {
-    terrorCode = ZMEM_NOMEM_ERROR;
+    // error code set in allocFragPage
     return 0;
   }
 
+  c_page_pool.getPtr(pagePtr);
   Uint32 state = pagePtr.p->page_state;
   LocalDLFifoList<Page> free_pages(c_page_pool, regFragPtr->thFreeFirst);
   switch(state){
@@ -302,7 +247,7 @@ Dbtup::alloc_fix_rowid(Fragrecord* regFragPtr,
   case ZTH_MM_FULL:
     terrorCode = ZROWID_ALLOCATED;
     return 0;
-  case ZEMPTY_MM:
+  default:
     ndbrequire(false);
   }
   return 0;                                     /* purify: deadcode */

@@ -2261,6 +2261,24 @@ CommandInterpreter::executeReport(int processId, const char* parameters,
 
   if (found >= 0)
   {
+    struct ndb_mgm_cluster_state *cl = ndb_mgm_get_status(m_mgmsrv);
+    if (cl == NULL)
+    {
+      ndbout_c("Cannot get status of node %d.", processId);
+      printError();
+      return -1;
+    }
+    NdbAutoPtr<char> ap1((char*)cl);
+    int i = 0;
+    while ((i < cl->no_of_nodes) && cl->node_states[i].node_id != processId)
+      i++;
+    if (processId &&
+        cl->node_states[i].node_type != NDB_MGM_NODE_TYPE_NDB)
+    {
+      ndbout_c("Node %d: is not a data node.", processId);
+      return -1;
+    }
+
     struct st_report_cmd &cmd = report_cmds[found];
     if (cmd.dump_cmd)
     {

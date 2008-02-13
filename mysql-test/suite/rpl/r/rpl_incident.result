@@ -64,6 +64,7 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	1590
 Last_SQL_Error	The incident LOST_EVENTS occured on the master. Message: <none>
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 START SLAVE;
 SELECT * FROM t1;
@@ -111,4 +112,5 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 DROP TABLE t1;

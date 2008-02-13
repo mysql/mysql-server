@@ -81,4 +81,23 @@ private:
   Uint32 startingNodes[NdbNodeBitmask::Size];
 };
 
+struct CntrWaitRep
+{
+  Uint32 nodeId;
+  Uint32 waitPoint;
+
+  enum WaitPos
+  {
+    ZWAITPOINT_4_1  = 1
+    ,ZWAITPOINT_4_2 = 2
+    ,ZWAITPOINT_5_1 = 3
+    ,ZWAITPOINT_5_2 = 4
+    ,ZWAITPOINT_6_1 = 5
+    ,ZWAITPOINT_6_2 = 6
+    ,ZWAITPOINT_7_1 = 7
+    ,ZWAITPOINT_7_2 = 8
+    ,ZWAITPOINT_4_2_TO = 9 // We are forced to TO (during SR)
+  };
+};
+
 #endif

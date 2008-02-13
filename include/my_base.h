@@ -363,7 +363,11 @@ enum ha_base_keytype {
   update handler::auto_increment_value
 */
 #define HA_STATUS_AUTO          64
-
+/*
+  update the number of rows updated and deleted since last reset call.
+  handler::rows_updated, rows_deleted
+*/
+#define HA_STATUS_WRITTEN_ROWS  128
 	/* Errorcodes given by functions */
 
 /* opt_sum_query() assumes these codes are > 1 */
@@ -508,6 +512,7 @@ enum data_file_type {
 #define NULL_RANGE	64
 #define GEOM_FLAG      128
 #define SKIP_RANGE     256
+#define READ_KEY_FROM_RANGE 512
 
 typedef struct st_key_range
 {

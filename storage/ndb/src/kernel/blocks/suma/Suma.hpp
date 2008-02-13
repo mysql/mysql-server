@@ -283,7 +283,6 @@ public:
      * Create triggers
      */
     int setupTrigger(Signal* signal, Suma &suma);
-    void completeTrigger(Signal* signal);
     void createAttributeMask(AttributeMask&, Suma &suma);
     
     /**
@@ -643,6 +642,8 @@ private:
   Uint64 m_gcp_monitor;
 #endif
 
+  Uint32 m_startphase;
+  Uint32 m_typeOfStart;
 };
 
 #endif

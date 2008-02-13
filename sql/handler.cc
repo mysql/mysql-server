@@ -1972,7 +1972,7 @@ int handler::update_auto_increment()
     rnd_init() call is made as after this, MySQL will not use the bitmap
     for any program logic checking.
 */
-void handler::column_bitmaps_signal()
+void handler::column_bitmaps_signal(uint sig_type)
 {
   DBUG_ENTER("column_bitmaps_signal");
   DBUG_PRINT("info", ("read_set: 0x%lx  write_set: 0x%lx", (long) table->read_set,
@@ -2009,7 +2009,7 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   (void) extra(HA_EXTRA_KEYREAD);
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
-  column_bitmaps_signal();
+  column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   index_init(table->s->next_number_index, 1);
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
@@ -2410,6 +2410,8 @@ err:
 uint handler::get_dup_key(int error)
 {
   DBUG_ENTER("handler::get_dup_key");
+  if (!table || !table->file)
+    DBUG_RETURN((uint) -1);
   table->file->errkey  = (uint) -1;
   if (error == HA_ERR_FOUND_DUPP_KEY || error == HA_ERR_FOREIGN_DUPLICATE_KEY ||
       error == HA_ERR_FOUND_DUPP_UNIQUE || error == HA_ERR_NULL_IN_SPATIAL ||
@@ -4080,10 +4082,15 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   return 0;
 }
 
-int handler::ha_delete_row(const uchar *buf)
+int handler::ha_delete_row(const uchar *buf, bool will_batch)
 {
   int error;
-  if (unlikely(error= delete_row(buf)))
+  if (will_batch)
+  {
+    if (unlikely(error= bulk_delete_row(buf)))
+      return error;
+  }
+  else if (unlikely(error= delete_row(buf)))
     return error;
   if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
     return error;

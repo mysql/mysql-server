@@ -23,6 +23,7 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 #include <ErrorHandlingMacros.hpp>
+#include <Configuration.hpp>
 #include <EventLogger.hpp>
 
 #include <NdbTick.h>
@@ -55,13 +56,23 @@ WatchDog::setCheckInterval(Uint32 interval){
 }
 
 void
-WatchDog::doStart(){
+WatchDog::doStart()
+{
+  struct ThreadContainer container;
   theStop = false;
-  theThreadPtr = NdbThread_Create(runWatchDog, 
+  container.conf = globalEmulatorData.theConfiguration;
+  container.type = WatchDogThread;
+  theThreadPtr = NdbThread_CreateWithFunc(runWatchDog, 
 				  (void**)this, 
 				  32768,
 				  "ndb_watchdog",
-                                  NDB_THREAD_PRIO_HIGH);
+                                  NDB_THREAD_PRIO_HIGH,
+                                  ndb_thread_add_thread_id,
+                                  &container,
+                                  sizeof(container),
+                                  ndb_thread_remove_thread_id,
+                                  &container,
+                                  sizeof(container));
 }
 
 void

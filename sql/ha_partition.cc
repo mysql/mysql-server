@@ -3318,10 +3318,10 @@ void ha_partition::position(const uchar *record)
 }
 
 
-void ha_partition::column_bitmaps_signal()
+void ha_partition::column_bitmaps_signal(uint sig_type)
 {
-    handler::column_bitmaps_signal();
-    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  handler::column_bitmaps_signal(sig_type);
+  bitmap_union(table->read_set, &m_part_info->full_part_field_set);
 }
  
 

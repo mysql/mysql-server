@@ -342,6 +342,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_END_LCP_REQ                 244
 #define GSN_END_TOCONF                  245
 #define GSN_END_TOREQ                   246
+#define GSN_END_TOREF                   286
 #define GSN_EVENT_REP                   247
 #define GSN_EXEC_FRAGCONF               248
 #define GSN_EXEC_FRAGREF                249
@@ -383,7 +384,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 
 #define GSN_UPGRADE_PROTOCOL_ORD        285
 
-/* 286 unused */
+/* 286 not unused */
 /* 287 unused */
 #define GSN_GETGCICONF                  288
 #define GSN_GETGCIREQ                   289
@@ -494,11 +495,15 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_START_PERMCONF              381
 #define GSN_START_PERMREF               382
 #define GSN_START_PERMREQ               383
+#define GSN_START_PERMREP               422
 #define GSN_START_RECCONF               384
 #define GSN_START_RECREF                385
 #define GSN_START_RECREQ                386
+
 #define GSN_START_TOCONF                387
 #define GSN_START_TOREQ                 388
+#define GSN_START_TOREF                 421
+
 #define GSN_STORED_PROCCONF             389
 #define GSN_STORED_PROCREF              390
 #define GSN_STORED_PROCREQ              391
@@ -527,8 +532,8 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUP_ATTRINFO                418
 #define GSN_TUP_COMMITREQ               419
 
-/* 421 unused */
-/* 422 unused */
+/* 421 not unused */
+/* 422 not unused */
 /* 423 unused */
 
 /* 424 unused */

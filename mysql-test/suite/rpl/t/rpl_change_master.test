@@ -31,3 +31,52 @@ connection slave;
 sync_with_master;
 
 # End of 4.1 tests
+--echo master_bind tests
+connection slave;
+stop slave;
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 #
+--replace_result $MASTER_MYPORT MASTER_PORT
+--query_vertical show slave status;
+change master to master_bind='127.0.0.1';
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 1 # 7 # 8 # 9 # 22 # 23 #
+--query_vertical show slave status;
+start slave;
+connection master;
+create table t1(n int);
+insert into t1 values(1);
+insert into t1 values(2);
+save_master_pos;
+connection slave;
+sync_with_master;
+select * from t1;
+
+connection slave;
+stop slave;
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 7 # 8 # 9 # 22 # 23 #
+--query_vertical show slave status;
+change master to master_bind='1.1.1.1';
+connection master;
+insert into t1 values (3);
+save_master_pos;
+connection slave;
+start slave;
+--real_sleep 1 # wait for I/O thread to try connection
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 7 # 8 # 9 # 22 # 23 #
+--query_vertical show slave status;
+select * from t1;
+
+connection slave;
+stop slave;
+change master to master_bind='127.0.0.1';
+start slave;
+sync_with_master;
+select * from t1;
+
+connection master;
+drop table t1;
+save_master_pos;
+connection slave;
+sync_with_master;

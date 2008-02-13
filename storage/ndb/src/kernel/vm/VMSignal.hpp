@@ -26,6 +26,24 @@
 #include <RefConvert.hpp>
 #include <TransporterDefinitions.hpp>
 
+extern void getSections(Uint32 secCount, SegmentedSectionPtr ptr[3]);
+
+struct SectionHandle
+{
+  SectionHandle (class SimulatedBlock*);
+  SectionHandle (class SimulatedBlock*, Uint32 ptrI);
+  SectionHandle (class SimulatedBlock*, class Signal*);
+  ~SectionHandle ();
+
+  Uint32 m_cnt;
+  SegmentedSectionPtr m_ptr[3];
+
+  bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
+  void clear() { m_cnt = 0;}
+
+  SimulatedBlock* m_block;
+};
+
 /**
  * Struct used when sending to multiple blocks
  */
@@ -44,8 +62,8 @@ struct NodeReceiverGroup {
 
 template <unsigned T> struct SignalT
 {
+  Uint32 m_sectionPtrI[3];
   SignalHeader header;
-  SegmentedSectionPtr m_sectionPtr[3]; 
   union {
     Uint32 theData[T];
     Uint64 dummyAlign;
@@ -72,8 +90,6 @@ public:
   void setTrace(Uint32);
 
   Uint32 getNoOfSections() const;
-  bool getSection(SegmentedSectionPtr & ptr, Uint32 sectionNo);
-  void setSection(SegmentedSectionPtr ptr, Uint32 sectionNo);
 
   /**
    * Old depricated methods...
@@ -92,8 +108,8 @@ public:
 #error "VMSignal buffer is too small"
 #endif
   
+  Uint32 m_sectionPtrI[3];
   SignalHeader header; // 28 bytes
-  SegmentedSectionPtr m_sectionPtr[3]; 
   union {
     Uint32 theData[8192];  // 8192 32-bit words -> 32K Bytes
     Uint64 dummyAlign;
@@ -150,27 +166,6 @@ Signal::getNoOfSections() const {
 }
 
 inline
-bool 
-Signal::getSection(SegmentedSectionPtr & ptr, Uint32 section){
-  if(section < header.m_noOfSections){
-    ptr = m_sectionPtr[section];
-    return true;
-  }
-  ptr.p = 0;
-  return false;
-}
-
-inline
-void
-Signal::setSection(SegmentedSectionPtr ptr, Uint32 sectionNo){
-  if(sectionNo != header.m_noOfSections || sectionNo > 2){
-    abort();
-  }
-  m_sectionPtr[sectionNo] = ptr;
-  header.m_noOfSections++;
-}
-
-inline
 NodeReceiverGroup::NodeReceiverGroup() : m_block(0){
   m_nodes.clear();
 }
@@ -214,6 +209,53 @@ NodeReceiverGroup::operator=(BlockReference blockRef){
   m_block = refToBlock(blockRef);
   m_nodes.set(refToNode(blockRef));
   return * this;
+}
+
+inline
+SectionHandle::SectionHandle(SimulatedBlock* b)
+  : m_block(b)
+{
+}
+
+inline
+SectionHandle::SectionHandle(SimulatedBlock* b, Signal* s)
+  : m_cnt(s->header.m_noOfSections),
+    m_block(b)
+{
+  Uint32 * ptr = s->m_sectionPtrI;
+  Uint32 ptr0 = * ptr++;
+  Uint32 ptr1 = * ptr++;
+  Uint32 ptr2 = * ptr++;
+
+  m_ptr[0].i = ptr0;
+  m_ptr[1].i = ptr1;
+  m_ptr[2].i = ptr2;
+
+  getSections(m_cnt, m_ptr);
+
+  s->header.m_noOfSections = 0;
+}
+
+inline
+SectionHandle::SectionHandle(SimulatedBlock* b, Uint32 ptr)
+  : m_cnt(1),
+    m_block(b)
+{
+  m_ptr[0].i = ptr;
+  getSections(1, m_ptr);
+}
+
+inline
+bool
+SectionHandle::getSection(SegmentedSectionPtr& ptr, Uint32 no)
+{
+  if (likely(no < m_cnt))
+  {
+    ptr = m_ptr[no];
+    return true;
+  }
+
+  return false;
 }
 
 #endif

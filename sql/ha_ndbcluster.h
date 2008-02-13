@@ -43,16 +43,15 @@ class NdbIndexScanOperation;
 class NdbBlob;
 class NdbIndexStat;
 class NdbEventOperation;
+class NdbInterpretedCode;
 class ha_ndbcluster_cond;
 class Ndb_event_data;
 
 // connectstring to cluster if given by mysqld
 extern const char *ndbcluster_connectstring;
 extern ulong ndb_cache_check_time;
-#ifdef HAVE_NDB_BINLOG
 extern ulong ndb_report_thresh_binlog_epoch_slip;
 extern ulong ndb_report_thresh_binlog_mem_usage;
-#endif
 
 typedef enum ndb_index_type {
   UNDEFINED_INDEX = 0,
@@ -128,6 +127,35 @@ typedef enum {
   NSS_ALTERED 
 } NDB_SHARE_STATE;
 
+#ifdef HAVE_NDB_BINLOG
+enum enum_conflict_fn_type
+{
+  CFT_NDB_UNDEF = 0
+  ,CFT_NDB_MAX
+  ,CFT_NDB_OLD
+};
+
+/* NdbOperation custom data which points out handler and record. */
+struct Ndb_exceptions_data {
+  struct st_ndbcluster_share *share;
+  const uchar* row;
+};
+
+typedef struct st_ndbcluster_conflict_fn_share {
+  enum_conflict_fn_type m_resolve_cft;
+
+  /* info about original table */
+  uint8 m_pk_cols;
+  uint8 m_resolve_column;
+  uint8 m_resolve_size;
+  uint8 unused;
+  uint16 m_offset[16];
+
+  const NdbDictionary::Table *m_ex_tab;
+  uint32 m_count;
+} NDB_CONFLICT_FN_SHARE;
+#endif
+
 /*
   Stats that can be retrieved from ndb
 */
@@ -153,15 +181,16 @@ typedef struct st_ndbcluster_share {
   char *table_name;
   Ndb::TupleIdRange tuple_id_range;
   struct Ndb_statistics stat;
-#ifdef HAVE_NDB_BINLOG
   uint32 connect_count;
   uint32 flags;
+#ifdef HAVE_NDB_BINLOG
+  NDB_CONFLICT_FN_SHARE *m_cfn_share;
+#endif
   Ndb_event_data *event_data; // Place holder before NdbEventOperation is created
   NdbEventOperation *op;
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   NdbEventOperation *new_op;
-#endif
 } NDB_SHARE;
 
 inline
@@ -197,7 +226,6 @@ struct Ndb_tuple_id_range_guard {
   Ndb::TupleIdRange& range;
 };
 
-#ifdef HAVE_NDB_BINLOG
 /* NDB_SHARE.flags */
 #define NSF_HIDDEN_PK   1u /* table has hidden primary key */
 #define NSF_BLOB_FLAG   2u /* table has blob attributes */
@@ -223,7 +251,6 @@ inline void set_binlog_use_update(NDB_SHARE *share)
 { share->flags|= NSF_BINLOG_USE_UPDATE; }
 inline my_bool get_binlog_use_update(NDB_SHARE *share)
 { return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
-#endif
 
 typedef enum ndb_query_state_bits {
   NDB_QUERY_NORMAL = 0,
@@ -262,12 +289,16 @@ class Thd_ndb
 
   Ndb_cluster_connection *connection;
   Ndb *ndb;
+  /* this */
+  class ha_ndbcluster *m_handler;
   ulong count;
   uint lock_count;
   uint start_stmt_count;
   NdbTransaction *trans;
   bool m_error;
   bool m_slow_path;
+  bool m_force_send;
+  bool m_transaction_on;
   int m_error_code;
   uint32 m_query_id; /* query id whn m_error_code was set */
   uint32 options;
@@ -285,8 +316,15 @@ class Thd_ndb
     we execute() to flush the rows buffered in m_batch_mem_root.
   */
   uint m_unsent_bytes;
+  uint m_batch_size;
+
+  uint m_execute_count;
+  uint m_max_violation_count;
+  uint m_old_violation_count;
+  uint m_conflict_fn_usage_count;
 };
 
+int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
 class ha_ndbcluster: public handler
 {
  public:
@@ -294,9 +332,10 @@ class ha_ndbcluster: public handler
   ~ha_ndbcluster();
 
   int ha_initialise();
-  void column_bitmaps_signal();
+  void column_bitmaps_signal(uint sig_type);
   int open(const char *name, int mode, uint test_if_locked);
   int close(void);
+  void local_close(THD *thd, bool release_metadata);
 
   int optimize(THD* thd, HA_CHECK_OPT* check_opt);
   int analyze(THD* thd, HA_CHECK_OPT* check_opt);
@@ -346,6 +385,8 @@ class ha_ndbcluster: public handler
   int info(uint);
   void get_dynamic_partition_info(PARTITION_INFO *stat_info, uint part_id);
   uint32 calculate_key_hash_value(Field **field_array);
+  bool read_before_write_removal_possible(List<Item> *fields,
+                                          List<Item> *values);
   int extra(enum ha_extra_function operation);
   int extra_opt(enum ha_extra_function operation, ulong cache_size);
   int reset();
@@ -396,11 +437,25 @@ class ha_ndbcluster: public handler
   void start_bulk_insert(ha_rows rows);
   int end_bulk_insert();
 
+  bool start_bulk_update();
+  int bulk_update_row(const uchar *old_data, uchar *new_data,
+                      uint *dup_key_found);
+  int exec_bulk_update(uint *dup_key_found);
+  void end_bulk_update();
+  int ndb_update_row(const uchar *old_data, uchar *new_data,
+                     int is_bulk_update);
+
   static Thd_ndb* seize_thd_ndb();
   static void release_thd_ndb(Thd_ndb* thd_ndb);
  
 static void set_dbname(const char *pathname, char *dbname);
 static void set_tabname(const char *pathname, char *tabname);
+
+  /*
+    static member function as it needs to access private
+    NdbTransaction methods
+  */
+  static void release_completed_operations(Thd_ndb*, NdbTransaction*, bool);
 
   /*
     Condition pushdown
@@ -473,11 +528,28 @@ static void set_tabname(const char *pathname, char *tabname);
   int alter_table_phase3(THD *thd, TABLE *table);
 
 private:
+#ifdef HAVE_NDB_BINLOG
+  int update_row_conflict_fn(enum_conflict_fn_type cft,
+                             const uchar *old_data,
+                             uchar *new_data,
+                             NdbInterpretedCode *);
+  int update_row_conflict_fn_max(const uchar *old_data,
+                                 uchar *new_data,
+                                 NdbInterpretedCode *);
+  int update_row_conflict_fn_old(const uchar *old_data,
+                                 uchar *new_data,
+                                 NdbInterpretedCode *);
+#endif
+  uint setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
+                                    const uchar **key_row,
+                                    const uchar *record,
+                                    bool use_active_index);
   friend int ndbcluster_drop_database_impl(THD *thd, const char *path);
   friend int ndb_handle_schema_change(THD *thd, 
                                       Ndb *ndb, NdbEventOperation *pOp,
                                       NDB_SHARE *share);
 
+  void check_read_before_write_removal();
   static int delete_table(THD *thd, ha_ndbcluster *h, Ndb *ndb,
 			  const char *path,
 			  const char *db,
@@ -528,10 +600,17 @@ private:
                       const uchar *key, 
                       uint key_len,
                       uchar *buf);
-  int flush_bulk_insert();
+  int flush_bulk_insert(bool allow_batch= FALSE);
   int ndb_write_row(uchar *record, bool primary_key_update,
                     bool batched_update);
-  int ndb_delete_row(const uchar *record, bool primary_key_update);
+
+  bool start_bulk_delete();
+  int bulk_delete_row(const uchar *record);
+  int end_bulk_delete();
+  int ndb_delete_row(const uchar *record, bool primary_key_update,
+                     bool is_bulk_delete= FALSE);
+
+  int ndb_optimize_table(THD* thd, uint delay);
 
   int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
 
@@ -582,6 +661,7 @@ private:
                                   uint op_batch_size, bool & batch_full);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
   uchar *get_row_buffer();
+  uchar *get_buffer(uint size);
   void clear_extended_column_set(uchar *mask);
   uchar *copy_column_set(MY_BITMAP *bitmap);
 
@@ -620,16 +700,29 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
-  void release_completed_operations(NdbTransaction*, bool);
+  NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
+  inline NdbTransaction *get_transaction_part_id(uint32 part_id, int &error)
+  {
+    if (m_thd_ndb->trans)
+      return m_thd_ndb->trans;
+    return start_transaction_part_id(part_id, error);
+  }
 
-  friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
+  NdbTransaction *start_transaction(int &error);
+  inline NdbTransaction *get_transaction(int &error)
+  {
+    if (m_thd_ndb->trans)
+      return m_thd_ndb->trans;
+    return start_transaction(error);
+  }
 
-  void transaction_checks(THD *thd);
-  int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
-  int init_handler_for_statement(THD *thd, Thd_ndb *thd_ndb);
+  friend int check_completed_operations_pre_commit(Thd_ndb*,
+                                                   NdbTransaction*,
+                                                   const NdbOperation*,
+                                                   uint *ignore_count);
+  friend int ndbcluster_commit(handlerton *hton, THD *thd, bool all);
+  int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
+  int init_handler_for_statement(THD *thd);
 
   Thd_ndb *m_thd_ndb;
   NdbScanOperation *m_active_cursor;
@@ -655,7 +748,7 @@ private:
                               8*sizeof(my_bitmap_map) - 1) /
                              (8*sizeof(my_bitmap_map))]; // Buffer for m_bitmap
   /* Bitmap with bit set for all primary key columns. */
-  MY_BITMAP m_pk_bitmap;
+  MY_BITMAP *m_pk_bitmap_p;
   my_bitmap_map m_pk_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
                                  8*sizeof(my_bitmap_map) - 1) /
                                 (8*sizeof(my_bitmap_map))]; // Buffer for m_pk_bitmap
@@ -690,6 +783,9 @@ private:
   char *m_row_buffer_current;
   /* Extra bytes needed in row for hidden fields. */
   uint m_extra_reclength;
+
+  MY_BITMAP **m_key_fields;
+  MY_BITMAP m_save_read_set;
   // NdbRecAttr has no reference to blob
   NdbValue m_value[NDB_MAX_ATTRIBUTES_IN_TABLE];
   Uint64 m_ref;
@@ -702,6 +798,10 @@ private:
   bool m_ignore_dup_key;
   bool m_has_unique_index;
   bool m_ignore_no_key;
+  bool m_read_before_write_removal_possible;
+  bool m_read_before_write_removal_used;
+  ha_rows m_rows_updated;
+  ha_rows m_rows_deleted;
   ha_rows m_rows_to_insert; // TODO: merge it with handler::estimation_rows_to_insert?
   ha_rows m_rows_inserted;
   ha_rows m_rows_changed;
@@ -723,7 +823,6 @@ private:
   uint32 m_blobs_buffer_size;
   uint m_dupkey;
   // set from thread variables at external lock
-  bool m_force_send;
   ha_rows m_autoincrement_prefetch;
 
   ha_ndbcluster_cond *m_cond;

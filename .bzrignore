@@ -67,6 +67,7 @@
 .libs
 .o
 .out
+.pc/*
 .snprj/*
 .vimrc
 50
@@ -1804,6 +1805,7 @@ netware/init_db.sql
 netware/libmysql.imp
 netware/test_db.sql
 pack_isam/*.ds?
+patches/*
 perror/*.ds?
 perror/*.vcproj
 plugin/fulltext/.deps/mypluglib_la-plugin_example.Plo

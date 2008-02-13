@@ -2881,6 +2881,7 @@ Format_description_log_event(uint8 binlog_ver, const char* server_ver)
       post_header_len[BEGIN_LOAD_QUERY_EVENT-1]= post_header_len[APPEND_BLOCK_EVENT-1];
       post_header_len[EXECUTE_LOAD_QUERY_EVENT-1]= EXECUTE_LOAD_QUERY_HEADER_LEN;
       post_header_len[INCIDENT_EVENT-1]= INCIDENT_HEADER_LEN;
+      post_header_len[HEARTBEAT_LOG_EVENT-1]= 0;
     }
     break;
 
@@ -8475,6 +8476,18 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
 {
   if (m_table->s->keys > 0)
   {
+    /*
+      primary key columns should not be set in write_set
+    */
+    if (m_table->s->primary_key != MAX_KEY)
+    {
+      KEY *key= m_table->key_info + m_table->s->primary_key;
+      KEY_PART_INFO *key_part= key->key_part;
+      KEY_PART_INFO *end= key_part + key->key_parts;
+      for (; key_part != end; key_part++)
+        bitmap_clear_bit(m_table->write_set, key_part->fieldnr - 1);
+    }
+
     // Allocate buffer for key searches
     m_key= (uchar*)my_malloc(m_table->key_info->key_length, MYF(MY_WME));
     if (!m_key)
@@ -8670,3 +8683,15 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   DBUG_ENTER("Incident_log_event::write_data_body");
   DBUG_RETURN(write_str(file, m_message.str, m_message.length));
 }
+
+#if defined(HAVE_REPLICATION) && !defined(MYSQL_CLIENT)
+Heartbeat_log_event::Heartbeat_log_event(const char* buf, uint event_len,
+                    const Format_description_log_event* description_event)
+  :Log_event(buf, description_event)
+{
+  uint8 header_size= description_event->common_header_len;
+  ident_len = event_len - header_size;
+  set_if_smaller(ident_len,FN_REFLEN-1);
+  log_ident= buf + header_size;
+}
+#endif

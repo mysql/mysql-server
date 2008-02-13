@@ -25,7 +25,11 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.c basestring_vsnprintf.c \
             Bitmask.cpp \
-	    ndb_rand.c
+	    ndb_rand.c azio.c
+
+INCLUDES_LOC = @ZLIB_INCLUDES@
+
+libgeneral_la_LIBADD = @ZLIB_LIBS@
 
 EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp

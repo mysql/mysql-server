@@ -796,6 +796,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  LT                            /* OPERATOR */
 %token  MASTER_CONNECT_RETRY_SYM
 %token  MASTER_HOST_SYM
+%token  MASTER_BIND_SYM
 %token  MASTER_LOG_FILE_SYM
 %token  MASTER_LOG_POS_SYM
 %token  MASTER_PASSWORD_SYM
@@ -810,6 +811,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  MASTER_SSL_VERIFY_SERVER_CERT_SYM
 %token  MASTER_SYM
 %token  MASTER_USER_SYM
+%token  MASTER_HEARTBEAT_PERIOD_SYM
 %token  MATCH                         /* SQL-2003-R */
 %token  MAX_CONNECTIONS_PER_HOUR
 %token  MAX_QUERIES_PER_HOUR
@@ -1540,6 +1542,10 @@ master_def:
           {
             Lex->mi.host = $3.str;
           }
+        | MASTER_BIND_SYM EQ TEXT_STRING_sys
+          {
+            Lex->mi.bind_addr = $3.str;
+          }
         | MASTER_USER_SYM EQ TEXT_STRING_sys
           {
             Lex->mi.user = $3.str;
@@ -1559,7 +1565,7 @@ master_def:
         | MASTER_SSL_SYM EQ ulong_num
           {
             Lex->mi.ssl= $3 ? 
-              LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+              LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
         | MASTER_SSL_CA_SYM EQ TEXT_STRING_sys
           {
@@ -1584,8 +1590,47 @@ master_def:
         | MASTER_SSL_VERIFY_SERVER_CERT_SYM EQ ulong_num
           {
             Lex->mi.ssl_verify_server_cert= $3 ?
-              LEX_MASTER_INFO::SSL_ENABLE : LEX_MASTER_INFO::SSL_DISABLE;
+              LEX_MASTER_INFO::LEX_MI_ENABLE : LEX_MASTER_INFO::LEX_MI_DISABLE;
           }
+       | MASTER_HEARTBEAT_PERIOD_SYM EQ NUM_literal
+         {
+           Lex->mi.heartbeat_period= (float) $3->val_real();
+           if (Lex->mi.heartbeat_period > SLAVE_MAX_HEARTBEAT_PERIOD ||
+               Lex->mi.heartbeat_period < 0.0)
+           {
+             char buf[sizeof(SLAVE_MAX_HEARTBEAT_PERIOD*4)];
+             my_sprintf(buf, (buf, "%d seconds", SLAVE_MAX_HEARTBEAT_PERIOD));
+             my_error(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
+                      MYF(0),
+                      " is negative or exceeds the maximum ",
+                      buf);
+             MYSQL_YYABORT;
+           }
+           if (Lex->mi.heartbeat_period > slave_net_timeout)
+           {
+             push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
+                                 ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
+                                 " exceeds the value of `slave_net_timeout' sec.",
+                                 " A sensible value for the period should be"
+                                 " less than the timeout.");
+           }
+           if (Lex->mi.heartbeat_period < 0.001)
+           {
+             if (Lex->mi.heartbeat_period != 0.0)
+             {
+               push_warning_printf(YYTHD, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                   ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE,
+                                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE),
+                                   " is less than 1 msec.",
+                                   " The period is reset to zero which means"
+                                   " no heartbeats will be sending");
+               Lex->mi.heartbeat_period= 0.0;
+             }
+             Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_DISABLE;
+           }
+           Lex->mi.heartbeat_opt=  LEX_MASTER_INFO::LEX_MI_ENABLE;
+         }
         | master_file_def
         ;
 

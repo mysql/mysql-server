@@ -16,6 +16,8 @@
 #define DBTUX_GEN_CPP
 #include "Dbtux.hpp"
 
+#include <signaldata/NodeStateSignalData.hpp>
+
 Dbtux::Dbtux(Block_context& ctx) :
   SimulatedBlock(DBTUX, ctx),
   c_tup(0),
@@ -72,6 +74,8 @@ Dbtux::Dbtux(Block_context& ctx) :
    * DbtuxDebug.cpp
    */
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
+
+  addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
 }
 
 Dbtux::~Dbtux()
@@ -146,6 +150,21 @@ Dbtux::execSTTOR(Signal* signal)
   signal->theData[5] = 7;       // for c_internalStartPhase
   signal->theData[6] = 255;
   sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 7, JBB);
+}
+
+void
+Dbtux::execNODE_STATE_REP(Signal* signal)
+{
+  /**
+   * This is to handle TO during SR
+   *   and STUPID tux looks at c_typeOfStart in TUX_MAINT_REQ
+   */
+  NodeStateRep* rep = (NodeStateRep*)signal->getDataPtr();
+  if (rep->nodeState.startLevel == NodeState::SL_STARTING)
+  {
+    c_typeOfStart = rep->nodeState.starting.restartType;
+  }
+  SimulatedBlock::execNODE_STATE_REP(signal);
 }
 
 void

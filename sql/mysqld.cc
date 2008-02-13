@@ -406,19 +406,17 @@ const char *opt_ndbcluster_connectstring= 0;
 const char *opt_ndb_connectstring= 0;
 char opt_ndb_constrbuf[1024]= {0};
 unsigned opt_ndb_constrbuf_len= 0;
-my_bool	opt_ndb_shm, opt_ndb_optimized_node_selection;
+my_bool	opt_ndb_shm;
 ulong opt_ndb_cache_check_time, opt_ndb_wait_connected;
 ulong opt_ndb_cluster_connection_pool;
 const char *opt_ndb_mgmd;
 ulong opt_ndb_nodeid;
 ulong ndb_extra_logging;
-#ifdef HAVE_NDB_BINLOG
-ulong ndb_report_thresh_binlog_epoch_slip;
-ulong ndb_report_thresh_binlog_mem_usage;
-my_bool opt_ndb_log_update_as_write;
-my_bool opt_ndb_log_updated_only;
-my_bool opt_ndb_log_orig;
-#endif
+ulong ndb_report_thresh_binlog_epoch_slip= 0;
+ulong ndb_report_thresh_binlog_mem_usage= 0;
+my_bool opt_ndb_log_update_as_write= FALSE;
+my_bool opt_ndb_log_updated_only= FALSE;
+my_bool opt_ndb_log_orig= FALSE;
 
 extern const char *ndb_distribution_names[];
 extern TYPELIB ndb_distribution_typelib;
@@ -5224,6 +5222,8 @@ enum options_mysqld
   OPT_NDB_USE_EXACT_COUNT, OPT_NDB_USE_TRANSACTIONS,
   OPT_NDB_FORCE_SEND, OPT_NDB_AUTOINCREMENT_PREFETCH_SZ,
   OPT_NDB_SHM, OPT_NDB_OPTIMIZED_NODE_SELECTION, OPT_NDB_CACHE_CHECK_TIME,
+  OPT_NDB_BATCH_SIZE,
+  OPT_NDB_OPTIMIZATION_DELAY,
   OPT_NDB_WAIT_CONNECTED,
   OPT_NDB_CLUSTER_CONNECTION_POOL,
   OPT_NDB_MGMD, OPT_NDB_NODEID,
@@ -5824,12 +5824,7 @@ master-ssl",
    "select count(*), disable for faster queries.",
    (uchar**) &global_system_variables.ndb_use_exact_count,
    (uchar**) &global_system_variables.ndb_use_exact_count,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  {"ndb_use_exact_count", OPT_NDB_USE_EXACT_COUNT,
-   "same as --ndb-use-exact-count.",
-   (uchar**) &global_system_variables.ndb_use_exact_count,
-   (uchar**) &global_system_variables.ndb_use_exact_count,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"ndb-use-transactions", OPT_NDB_USE_TRANSACTIONS,
    "Use transactions for large inserts, if enabled then large "
    "inserts will be split into several smaller transactions",
@@ -5848,13 +5843,23 @@ master-ssl",
    0, GET_BOOL, OPT_ARG, OPT_NDB_SHM_DEFAULT, 0, 0, 0, 0, 0},
   {"ndb-optimized-node-selection", OPT_NDB_OPTIMIZED_NODE_SELECTION,
    "Select nodes for transactions in a more optimal way.",
-   (uchar**) &opt_ndb_optimized_node_selection,
-   (uchar**) &opt_ndb_optimized_node_selection,
-   0, GET_BOOL, OPT_ARG, 1, 0, 0, 0, 0, 0},
-  { "ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
-    "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
-    (uchar**) &opt_ndb_cache_check_time, (uchar**) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
+   (uchar**) &global_system_variables.ndb_optimized_node_selection,
+   (uchar**) &global_system_variables.ndb_optimized_node_selection,
+   0, GET_ULONG, OPT_ARG, 3, 0, 3, 0, 0, 0},
+  {"ndb-cache-check-time", OPT_NDB_CACHE_CHECK_TIME,
+   "A dedicated thread is created to, at the given millisecons interval, invalidate the query cache if another MySQL server in the cluster has changed the data in the database.",
+   (uchar**) &opt_ndb_cache_check_time, (uchar**) &opt_ndb_cache_check_time, 0, GET_ULONG, REQUIRED_ARG,
     0, 0, LONG_TIMEOUT, 0, 1, 0},
+  {"ndb-batch-size", OPT_NDB_BATCH_SIZE,
+   "Batch size in bytes.",
+   (uchar**) &global_system_variables.ndb_batch_size,
+   (uchar**) &global_system_variables.ndb_batch_size,
+    0, GET_ULONG, REQUIRED_ARG, 32768, 0, LONG_TIMEOUT, 0, 1, 0},
+  {"ndb-optimization-delay", OPT_NDB_OPTIMIZATION_DELAY,
+   "For optimize table, specifies the delay in milliseconds for each batch of rows sent",
+   (uchar**) &global_system_variables.ndb_optimization_delay,
+   (uchar**) &max_system_variables.ndb_optimization_delay,
+   0, GET_ULONG, REQUIRED_ARG, 10, 0, 100000, 0, 0, 0},
   {"ndb-index-stat-enable", OPT_NDB_INDEX_STAT_ENABLE,
    "Use ndb index statistics in query optimization.",
    (uchar**) &global_system_variables.ndb_index_stat_enable,
@@ -6751,6 +6756,40 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   pthread_mutex_unlock(&LOCK_active_mi);
   return 0;
 }
+
+static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_LONGLONG;
+    var->value= buff;
+    pthread_mutex_lock(&active_mi->rli.data_lock);
+    *((longlong *)buff)= active_mi->received_heartbeats;
+    pthread_mutex_unlock(&active_mi->rli.data_lock);
+  }
+  else
+    var->type= SHOW_UNDEF;
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
+{
+  pthread_mutex_lock(&LOCK_active_mi);
+  if (active_mi)
+  {
+    var->type= SHOW_CHAR;
+    var->value= buff;
+    my_sprintf(buff, (buff, "%.3f",active_mi->heartbeat_period));
+  }
+  else
+    var->type= SHOW_UNDEF;
+  pthread_mutex_unlock(&LOCK_active_mi);
+  return 0;
+}
+
+
 #endif /* HAVE_REPLICATION */
 
 static int show_open_tables(THD *thd, SHOW_VAR *var, char *buff)
@@ -7113,6 +7152,8 @@ SHOW_VAR status_vars[]= {
   {"Slave_open_temp_tables",   (char*) &slave_open_temp_tables, SHOW_LONG},
 #ifdef HAVE_REPLICATION
   {"Slave_retried_transactions",(char*) &show_slave_retried_trans, SHOW_FUNC},
+  {"Slave_heartbeat_period",   (char*) &show_heartbeat_period, SHOW_FUNC},
+  {"Slave_received_heartbeats",(char*) &show_slave_received_heartbeats, SHOW_FUNC},
   {"Slave_running",            (char*) &show_slave_running,     SHOW_FUNC},
 #endif
   {"Slow_launch_threads",      (char*) &slow_launch_threads,    SHOW_LONG},

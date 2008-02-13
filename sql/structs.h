@@ -133,7 +133,7 @@ typedef struct st_read_record {			/* Parameter to read_record */
   uchar *rec_buf;                /* to read field values  after filesort */
   uchar	*cache,*cache_pos,*cache_end,*read_positions;
   IO_CACHE *io_cache;
-  bool print_error, ignore_not_found_rows;
+  bool print_error, ignore_not_found_rows, using_quick;
 } READ_RECORD;
 
 
