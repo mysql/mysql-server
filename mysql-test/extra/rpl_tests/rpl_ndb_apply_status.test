@@ -50,17 +50,30 @@ insert into t1 values (1,2);
 --echo
 
 connection master;
-# here is actually a bug, since there is no begin statement, the
-# query is autocommitted, and end_pos shows end of the insert and not
-# end of the commit
+--echo # Now check that that is in the apply_status table is consistant
+--echo # with what is in the binlog
+--echo
+--echo # since insert is done with transactional engine, expect a BEGIN
+--echo # at <start_pos>
+--echo
 --replace_result $start_pos <start_pos>
 --replace_column 5 #
 --eval show binlog events from $start_pos limit 1
+
+--echo
+--echo # Now the insert, one step after
+--echo
+--replace_result $start_pos <start_pos>
+--replace_column 5 #
+--eval show binlog events from $start_pos limit 1,1
+
+--echo
+--echo # and the COMMIT should be at <end_pos>
 --echo
 --replace_result $start_pos <start_pos> $end_pos <end_pos>
 --replace_column 2 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
---eval show binlog events from $start_pos limit 1,1
+--eval show binlog events from $start_pos limit 2,1
 
 --echo
 
