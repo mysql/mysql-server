@@ -1181,9 +1181,8 @@ int plugin_init(int *argc, char **argv, int flags)
   /* Register all dynamic plugins */
   if (!(flags & PLUGIN_INIT_SKIP_DYNAMIC_LOADING))
   {
-    if (opt_plugin_load &&
-        plugin_load_list(&tmp_root, argc, argv, opt_plugin_load))
-      goto err;
+    if (opt_plugin_load)
+      plugin_load_list(&tmp_root, argc, argv, opt_plugin_load);
     if (!(flags & PLUGIN_INIT_SKIP_PLUGIN_TABLE))
       plugin_load(&tmp_root, argc, argv);
   }
@@ -1412,7 +1411,11 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   while (list)
   {
     if (p == buffer + sizeof(buffer) - 1)
-      break;
+    {
+      sql_print_error("plugin-load parameter too long");
+      DBUG_RETURN(TRUE);
+    }
+
     switch ((*(p++)= *(list++))) {
     case '\0':
       list= NULL; /* terminate the loop */
@@ -1421,10 +1424,17 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     case ':':     /* can't use this as delimiter as it may be drive letter */
 #endif
     case ';':
-      name.str[name.length]= '\0';
-      if (str != &dl)  // load all plugins in named module
+      str->str[str->length]= '\0';
+      if (str == &name)  // load all plugins in named module
       {
+        if (!name.length)
+        {
+          p--;    /* reset pointer */
+          continue;
+        }
+
         dl= name;
+        pthread_mutex_lock(&LOCK_plugin);
         if ((plugin_dl= plugin_dl_add(&dl, REPORT_TO_LOG)))
         {
           for (plugin= plugin_dl->plugins; plugin->info; plugin++)
@@ -1434,7 +1444,10 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 
             free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
             if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+            {
+              pthread_mutex_unlock(&LOCK_plugin);
               goto error;
+            }
           }
           plugin_dl_del(&dl); // reduce ref count
         }
@@ -1442,9 +1455,14 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
       else
       {
         free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
+        pthread_mutex_lock(&LOCK_plugin);
         if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
+        {
+          pthread_mutex_unlock(&LOCK_plugin);
           goto error;
+        }
       }
+      pthread_mutex_unlock(&LOCK_plugin);
       name.length= dl.length= 0;
       dl.str= NULL; name.str= p= buffer;
       str= &name;
@@ -1453,6 +1471,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     case '#':
       if (str == &name)
       {
+        name.str[name.length]= '\0';
         str= &dl;
         str->str= p;
         continue;
@@ -2999,7 +3018,8 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       DBUG_RETURN(-1);
     }
 
-    if (opt->flags & PLUGIN_VAR_NOCMDOPT)
+    if ((opt->flags & (PLUGIN_VAR_NOCMDOPT | PLUGIN_VAR_THDLOCAL))
+                    == PLUGIN_VAR_NOCMDOPT)
       continue;
 
     if (!opt->name)
@@ -3009,7 +3029,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       DBUG_RETURN(-1);
     }
 
-    if (!(v= find_bookmark(name, opt->name, opt->flags)))
+    if (!(opt->flags & PLUGIN_VAR_THDLOCAL))
     {
       optnamelen= strlen(opt->name);
       optname= (char*) alloc_root(mem_root, namelen + optnamelen + 2);
@@ -3017,7 +3037,23 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
       optnamelen= namelen + optnamelen + 1;
     }
     else
-      optname= (char*) memdup_root(mem_root, v->key + 1, (optnamelen= v->name_len) + 1);
+    {
+      /* this should not fail because register_var should create entry */
+      if (!(v= find_bookmark(name, opt->name, opt->flags)))
+      {
+        sql_print_error("Thread local variable '%s' not allocated "
+                        "in plugin '%s'.", opt->name, plugin_name);
+        DBUG_RETURN(-1);
+      }
+
+      *(int*)(opt + 1)= offset= v->offset;
+
+      if (opt->flags & PLUGIN_VAR_NOCMDOPT)
+        continue;
+
+      optname= (char*) memdup_root(mem_root, v->key + 1, 
+                                   (optnamelen= v->name_len) + 1);
+    }
 
     /* convert '_' to '-' */
     for (p= optname; *p; p++)
@@ -3029,20 +3065,13 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     options->app_type= opt;
     options->id= (options-1)->id + 1;
 
-    if (opt->flags & PLUGIN_VAR_THDLOCAL)
-      *(int*)(opt + 1)= offset= v->offset;
-
     plugin_opt_set_limits(options, opt);
 
-    if ((opt->flags & PLUGIN_VAR_TYPEMASK) != PLUGIN_VAR_ENUM &&
-        (opt->flags & PLUGIN_VAR_TYPEMASK) != PLUGIN_VAR_SET)
-    {
-      if (opt->flags & PLUGIN_VAR_THDLOCAL)
-        options->value= options->u_max_value= (uchar**)
-          (global_system_variables.dynamic_variables_ptr + offset);
-      else
-        options->value= options->u_max_value= *(uchar***) (opt + 1);
-    }
+    if (opt->flags & PLUGIN_VAR_THDLOCAL)
+      options->value= options->u_max_value= (uchar**)
+        (global_system_variables.dynamic_variables_ptr + offset);
+    else
+      options->value= options->u_max_value= *(uchar***) (opt + 1);
 
     options[1]= options[0];
     options[1].name= p= (char*) alloc_root(mem_root, optnamelen + 8);
