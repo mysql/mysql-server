@@ -590,10 +590,10 @@ deallocate prepare stmt;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	227	Query	1	351	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
-master-bin.000001	351	Query	1	427	use `test`; drop table t1
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	228	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
+master-bin.000001	228	Query	1	352	use `test`; insert into t1 values (9999999999999999,14632475938453979136)
+master-bin.000001	352	Query	1	428	use `test`; drop table t1
 End of 5.0 tests
 reset master;
 create table t1 (id tinyint auto_increment primary key);
