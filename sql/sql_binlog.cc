@@ -234,6 +234,7 @@ void mysql_client_binlog_statement(THD* thd)
   send_ok(thd);
 
 end:
+  thd->rli_fake->clear_tables_to_lock();
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }
