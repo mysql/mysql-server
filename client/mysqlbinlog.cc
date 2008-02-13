@@ -1313,7 +1313,7 @@ static Exit_status safe_connect()
     mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
   if (opt_bind_addr)
   {
-    mysql_options(local_mysql, MYSQL_OPT_BIND, opt_bind_addr);
+    mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
   }
   if (!mysql_real_connect(mysql, host, user, pass, 0, port, sock, 0))
   {
