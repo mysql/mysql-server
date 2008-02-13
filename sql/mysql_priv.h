@@ -1084,6 +1084,9 @@ void set_field_ptr(Field **ptr, const uchar *new_buf, const uchar *old_buf);
 void set_key_field_ptr(KEY *key_info, const uchar *new_buf,
                        const uchar *old_buf);
 
+void include_partition_fields_in_used_fields(Field **ptr,
+                                             MY_BITMAP *read_set);
+
 bool mysql_backup_table(THD* thd, TABLE_LIST* table_list);
 bool mysql_restore_table(THD* thd, TABLE_LIST* table_list);
 
@@ -1675,6 +1678,7 @@ bool close_cached_connection_tables(THD *thd, bool wait_for_refresh,
                                     LEX_STRING *connect_string,
                                     bool have_lock = FALSE);
 void copy_field_from_tmp_record(Field *field,int offset);
+bool check_constant_expressions(List<Item> *values);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
                  bool ignore_errors);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
@@ -1738,7 +1742,7 @@ void mysql_print_status();
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart);
 void key_copy(uchar *to_key, uchar *from_record, KEY *key_info, uint key_length);
-void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
+void key_restore(uchar *to_record, uchar *from_key, const KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);

@@ -3026,7 +3026,7 @@ int MgmtSrvr::connect_to_self(const char * bindaddress)
   return 0;
 }
 
-template class MutexVector<unsigned short>;
+template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;

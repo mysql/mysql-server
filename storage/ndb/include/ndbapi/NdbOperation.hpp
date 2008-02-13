@@ -419,6 +419,7 @@ public:
   int  setValue(const char* anAttrName, double aValue);
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   int  setAnyValue(Uint32 aValue);
+  int  setOptimize(Uint32 options);
 #endif
 
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
@@ -861,6 +862,11 @@ public:
   NdbTransaction* getNdbTransaction();
   const NdbOperation* next() const;
   const NdbRecAttr* getFirstRecAttr() const;
+
+  void* getCustomData() const { return m_customData; }
+  void setCustomData(void* p) { m_customData = p; }
+protected:
+  void* m_customData;
 #endif
 protected:
 

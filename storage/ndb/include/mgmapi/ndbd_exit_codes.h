@@ -117,6 +117,7 @@ typedef ndbd_exit_classification_enum ndbd_exit_classification;
 #define NDBD_EXIT_MASTER_FAILURE_DURING_NR    6301
 #define NDBD_EXIT_LOST_NODE_GROUP             6302
 #define NDBD_EXIT_NO_RESTORABLE_REPLICA       6303
+#define NDBD_EXIT_UNSUPPORTED_VERSION         6304
 
 /* ACC 6600-> */
 #define NDBD_EXIT_SR_OUT_OF_INDEXMEMORY       6600

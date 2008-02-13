@@ -178,8 +178,8 @@ err:
   return result;
 }
 
-int runPkReadPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+int runPkReadPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
+{
   int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
   int i = 0;
@@ -232,11 +232,39 @@ err:
   return NDBT_OK;
 }
 
+int runDeleteInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  int i = 0;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  UtilTransactions utilTrans(*ctx->getTab());
+  while (ctx->isTestStopped() == false) 
+  {
+    g_info << i << ": ";    
+    if (utilTrans.clearTable(GETNDB(step),  records) != 0){
+      result = NDBT_FAILED;
+      break;
+    }
+    if (hugoTrans.loadTable(GETNDB(step), records, 1) != 0){
+      result = NDBT_FAILED;
+      break;
+    }
+    i++;
+  }
+
+  return result;
+}
+
 int runScanUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int result = NDBT_OK;
   int records = ctx->getNumRecords();
   int parallelism = ctx->getProperty("Parallelism", 1);
   int abort = ctx->getProperty("AbortProb", (Uint32)0);
+  int check = ctx->getProperty("ScanUpdateNoRowCountCheck", (Uint32)0);
+  
+  if (check)
+    records = 0;
+  
   int i = 0;
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped() == false) {
@@ -403,10 +431,10 @@ err:
   return NDBT_FAILED;
 }
 
-int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
+int runLateCommit(NDBT_Context* ctx, NDBT_Step* step)
+{
   int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter restarter;
   HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
@@ -427,7 +455,7 @@ int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
     Uint32 transNode= hugoOps.getTransaction()->getConnectedNodeId();
     int id = i % restarter.getNumDbNodes();
     int nodeId;
-    while((nodeId = restarter.getDbNodeId(id)) == transNode)
+    while((nodeId = restarter.getDbNodeId(id)) == (int)transNode)
       id = (id + 1) % restarter.getNumDbNodes();
 
     ndbout << "Restart node " << nodeId << endl; 
@@ -468,10 +496,8 @@ int runLateCommit(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+int runBug15587(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
   
   Uint32 tableId = ctx->getTab()->getTableId();
@@ -520,10 +546,8 @@ int runBug15587(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug15632(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+int runBug15632(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
   
   int nodeId = restarter.getDbNodeId(1);
@@ -699,7 +723,7 @@ runBug18414(NDBT_Context* ctx, NDBT_Step* step){
     if (restarter.insertErrorInNode(node2, 5003))
       goto err;
     
-    int res= hugoOps.execute_Rollback(pNdb);
+    /** int res= */ hugoOps.execute_Rollback(pNdb);
   
     if (restarter.waitNodesNoStart(&node2, 1) != 0)
       goto err;
@@ -929,10 +953,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+int runBug20185(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
   HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
@@ -945,7 +967,7 @@ int runBug20185(NDBT_Context* ctx, NDBT_Step* step){
   
   NdbSleep_MilliSleep(3000);
   Vector<int> nodes;
-  for (Uint32 i = 0; i<restarter.getNumDbNodes(); i++)
+  for (int i = 0; i<restarter.getNumDbNodes(); i++)
     nodes.push_back(restarter.getDbNodeId(i));
   
 retry:
@@ -996,10 +1018,9 @@ retry:
   return NDBT_OK;
 }
 
-int runBug24717(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+int runBug24717(NDBT_Context* ctx, NDBT_Step* step)
+{
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter restarter;
   Ndb* pNdb = GETNDB(step);
   
@@ -1032,10 +1053,9 @@ int runBug24717(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int 
-runBug29364(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+runBug29364(NDBT_Context* ctx, NDBT_Step* step)
+{
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter restarter;
   Ndb* pNdb = GETNDB(step);
   
@@ -1081,10 +1101,9 @@ runBug29364(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug25364(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
+int runBug25364(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
-  Ndb* pNdb = GETNDB(step);
   int loops = ctx->getNumLoops();
   
   if (restarter.getNumDbNodes() < 4)
@@ -1122,13 +1141,10 @@ int runBug25364(NDBT_Context* ctx, NDBT_Step* step){
 }
   
 int 
-runBug21271(NDBT_Context* ctx, NDBT_Step* step){
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+runBug21271(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
   HugoOperations hugoOps(*ctx->getTab());
-  Ndb* pNdb = GETNDB(step);
   
   const int masterNode = restarter.getMasterNodeId();
   const int nodeId = restarter.getRandomNodeSameNodeGroup(masterNode, rand());
@@ -1186,11 +1202,9 @@ runBug24543(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug25468(NDBT_Context* ctx, NDBT_Step* step){
-  
-  int result = NDBT_OK;
+int runBug25468(NDBT_Context* ctx, NDBT_Step* step)
+{
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter restarter;
   
   for (int i = 0; i<loops; i++)
@@ -1243,11 +1257,9 @@ int runBug25468(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug25554(NDBT_Context* ctx, NDBT_Step* step){
-  
-  int result = NDBT_OK;
+int runBug25554(NDBT_Context* ctx, NDBT_Step* step)
+{
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter restarter;
   
   if (restarter.getNumDbNodes() < 4)
@@ -1293,11 +1305,8 @@ int runBug25554(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
-  
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
+int runBug25984(NDBT_Context* ctx, NDBT_Step* step)
+{
   NdbRestarter restarter;
 
   if (restarter.getNumDbNodes() < 2)
@@ -1323,7 +1332,35 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
 
   restarter.restartOneDbNode(victim, false, true, true);
 
-  for (Uint32 i = 0; i<6; i++)
+  for (Uint32 i = 0; i<10; i++)
+  {
+    ndbout_c("Loop: %d", i);
+    if (restarter.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+    
+    if (restarter.dumpStateOneNode(victim, val2, 2))
+      return NDBT_FAILED;
+    
+    if (restarter.insertErrorInNode(victim, 7191))
+      return NDBT_FAILED;
+    
+    if (restarter.startNodes(&victim, 1))
+      return NDBT_FAILED;
+
+    NdbSleep_SecSleep(3);
+  }
+
+  if (restarter.waitNodesNoStart(&victim, 1))
+    return NDBT_FAILED;
+  
+  if (restarter.restartAll(false, false, true))
+    return NDBT_FAILED;
+
+  if (restarter.waitClusterStarted())
+    return NDBT_FAILED;
+
+  restarter.restartOneDbNode(victim, false, true, true);
+  for (Uint32 i = 0; i<1; i++)
   {
     ndbout_c("Loop: %d", i);
     if (restarter.waitNodesNoStart(&victim, 1))
@@ -1343,44 +1380,10 @@ int runBug25984(NDBT_Context* ctx, NDBT_Step* step){
 
   if (restarter.waitNodesNoStart(&victim, 1))
     return NDBT_FAILED;
-
-  if (restarter.dumpStateOneNode(victim, val2, 2))
-    return NDBT_FAILED;
   
-  if (restarter.insertErrorInNode(victim, 7170))
-    return NDBT_FAILED;
-
   if (restarter.startNodes(&victim, 1))
     return NDBT_FAILED;
-
-  if (restarter.waitNodesNoStart(&victim, 1))
-    return NDBT_FAILED;
   
-  if (restarter.restartAll(false, true, true))
-    return NDBT_FAILED;
-
-  if (restarter.insertErrorInAllNodes(932))
-    return NDBT_FAILED;
-
-  if (restarter.insertErrorInNode(master, 7170))
-    return NDBT_FAILED;
-
-  if (restarter.dumpStateAllNodes(val2, 2))
-    return NDBT_FAILED;
-  
-  restarter.startNodes(&master, 1);
-  NdbSleep_MilliSleep(3000);
-  restarter.startAll();
-
-  if (restarter.waitClusterNoStart())
-    return NDBT_FAILED;
-
-  if (restarter.restartOneDbNode(victim, true, true, true))
-    return NDBT_FAILED;
-
-  if (restarter.startAll())
-    return NDBT_FAILED;
-
   if (restarter.waitClusterStarted())
     return NDBT_FAILED;
 
@@ -1430,10 +1433,6 @@ retry:
 int 
 runBug26481(NDBT_Context* ctx, NDBT_Step* step)
 {
-  
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter res;
   
   int node = res.getRandomNotMasterNodeId(rand());
@@ -1471,15 +1470,12 @@ int
 runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 {
   Uint32 i;
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter res;
   Ndb* pNdb = GETNDB(step);
   
   int node = res.getRandomNotMasterNodeId(rand());
   Vector<int> nodes;
-  for (unsigned i = 0; i<res.getNumDbNodes(); i++)
+  for (int i = 0; i<res.getNumDbNodes(); i++)
   {
     if (res.getDbNodeId(i) != node)
       nodes.push_back(res.getDbNodeId(i));
@@ -1532,9 +1528,7 @@ runBug26450(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug27003(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter res;
   
   static const int errnos[] = { 4025, 4026, 4027, 4028, 0 };
@@ -1545,7 +1539,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
 
   Uint32 pos = 0;
-  for (Uint32 i = 0; i<loops; i++)
+  for (int i = 0; i<loops; i++)
   {
     while (errnos[pos] != 0)
     {
@@ -1585,9 +1579,7 @@ runBug27003(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug27283(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -1598,15 +1590,15 @@ runBug27283(NDBT_Context* ctx, NDBT_Step* step)
   static const int errnos[] = { 7181, 7182, 0 };
   
   Uint32 pos = 0;
-  for (Uint32 i = 0; i<loops; i++)
+  for (Uint32 i = 0; i<(Uint32)loops; i++)
   {
     while (errnos[pos] != 0)
     {
       int master = res.getMasterNodeId();
       int next = res.getNextMasterNodeId(master);
-      int next2 = res.getNextMasterNodeId(next);
+      //int next2 = res.getNextMasterNodeId(next);
       
-      int node = (i & 1) ? next : next2;
+      //int node = (i & 1) ? next : next2;
       ndbout_c("Tesing err: %d", errnos[pos]);
       if (res.insertErrorInNode(next, errnos[pos]))
 	return NDBT_FAILED;
@@ -1627,9 +1619,7 @@ runBug27283(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug27466(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 2)
@@ -1637,8 +1627,7 @@ runBug27466(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_OK;
   }
 
-  Uint32 pos = 0;
-  for (Uint32 i = 0; i<loops; i++)
+  for (Uint32 i = 0; i<(Uint32)loops; i++)
   {
     int node1 = res.getDbNodeId(rand() % res.getNumDbNodes());
     int node2 = node1;
@@ -1679,7 +1668,6 @@ runBug27466(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug28023(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   Ndb* pNdb = GETNDB(step);
@@ -1701,7 +1689,7 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  for (Uint32 i = 0; i<loops; i++)
+  for (Uint32 i = 0; i<(Uint32)loops; i++)
   {
     int node1 = res.getDbNodeId(rand() % res.getNumDbNodes());
     
@@ -1746,10 +1734,6 @@ runBug28023(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBug28717(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb* pNdb = GETNDB(step);
   NdbRestarter res;
 
   if (res.getNumDbNodes() < 4)
@@ -1827,11 +1811,13 @@ f_master_failure [] = {
   7000, 7001, 7002, 7003, 7004, 7186, 7187, 7188, 7189, 7190, 0
 };
 
+#ifdef NOT_USED
 static
 int
 f_participant_failure [] = {
   7005, 7006, 7007, 7008, 5000, 0
 };
+#endif
 
 int
 runerrors(NdbRestarter& res, NdbRestarter::NodeSelector sel, const int* errors)
@@ -1862,7 +1848,6 @@ runerrors(NdbRestarter& res, NdbRestarter::NodeSelector sel, const int* errors)
 int
 runGCP(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int result = NDBT_OK;
   NdbRestarter res;
   int loops = ctx->getNumLoops();
 
@@ -1903,6 +1888,307 @@ runGCP(NDBT_Context* ctx, NDBT_Step* step)
     }
   }
   ctx->stopTest();
+  return NDBT_OK;
+}
+
+int 
+runCommitAck(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+
+  if (records < 2)
+    return NDBT_OK;
+  if (restarter.getNumDbNodes() < 2)
+    return NDBT_OK;
+
+  int trans_type= -1;
+  NdbConnection *pCon;
+  int node;
+  while (loops--)
+  {
+    trans_type++;
+    if (trans_type > 2)
+      trans_type= 0;
+    HugoTransactions hugoTrans(*ctx->getTab());
+    switch (trans_type) {
+    case 0:
+      /*
+        - load records less 1
+      */
+      g_info << "case 0\n";
+      if (hugoTrans.loadTable(GETNDB(step), records - 1))
+      {
+        return NDBT_FAILED;
+      }
+      break;
+    case 1:
+      /*
+        - load 1 record
+      */
+      g_info << "case 1\n";
+      if (hugoTrans.loadTable(GETNDB(step), 1))
+      {
+        return NDBT_FAILED;
+      }
+      break;
+    case 2:
+      /*
+        - load 1 record in the end
+      */
+      g_info << "case 2\n";
+      {
+        HugoOperations hugoOps(*ctx->getTab());
+        if (hugoOps.startTransaction(pNdb))
+          abort();
+        if (hugoOps.pkInsertRecord(pNdb, records-1))
+          abort();
+        if (hugoOps.execute_Commit(pNdb))
+          abort();
+        if (hugoOps.closeTransaction(pNdb))
+          abort();
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /* run transaction that should be tested */
+    HugoOperations hugoOps(*ctx->getTab());
+    if (hugoOps.startTransaction(pNdb))
+      return NDBT_FAILED;
+    pCon= hugoOps.getTransaction();
+    node= pCon->getConnectedNodeId();
+    switch (trans_type) {
+    case 0:
+    case 1:
+      /*
+        insert records with ignore error
+        - insert rows, some exist already
+      */
+      for (int i= 0; i < records; i++)
+      {
+        if (hugoOps.pkInsertRecord(pNdb, i))
+          goto err;
+      }
+      break;
+    case 2:
+      /*
+        insert records with ignore error
+        - insert rows, some exist already
+      */
+      for (int i= 0; i < records; i++)
+      {
+        if (hugoOps.pkInsertRecord(pNdb, i))
+          goto err;
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /*
+      insert error in ndb kernel (TC) that throws away acknowledge of commit
+      and then die 5 seconds later
+    */
+    {
+      if (restarter.insertErrorInNode(node, 8054))
+        goto err;
+    }
+    {
+      int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+      if (restarter.dumpStateOneNode(node, val2, 2))
+        goto err;
+    }
+
+    /* execute transaction and verify return code */
+    g_info << "  execute... hangs for 5 seconds\n";
+    {
+      const NdbOperation *first= pCon->getFirstDefinedOperation();
+      int check= pCon->execute(Commit, AO_IgnoreError);
+      const NdbError err = pCon->getNdbError();
+
+      while (first)
+      {
+        const NdbError &err= first->getNdbError();
+        g_info << "         error " << err.code << endl;
+        first= pCon->getNextCompletedOperation(first);
+      }
+
+      int expected_commit_res[3]= { 630, 630, 630 };
+      if (check == -1 ||
+          err.code != expected_commit_res[trans_type])
+      {
+        g_err << "check == " << check << endl;
+        g_err << "got error: "
+              << err.code
+              << " expected: "
+              << expected_commit_res[trans_type]
+              << endl;
+        goto err;
+      }
+    }
+
+    g_info << "  wait node nostart\n";
+    if (restarter.waitNodesNoStart(&node, 1))
+    {
+      g_err << "  wait node nostart failed\n";
+      goto err;
+    }
+
+    /* close transaction */
+    if (hugoOps.closeTransaction(pNdb))
+      return NDBT_FAILED;
+
+    /* commit ack marker pools should be empty */
+    g_info << "  dump pool status\n";
+    {
+      int dump[255];
+      dump[0] = 2552;
+      if (restarter.dumpStateAllNodes(dump, 1))
+        return NDBT_FAILED;
+    }
+
+    /* wait for cluster to come up again */
+    g_info << "  wait cluster started\n";
+    if (restarter.startNodes(&node, 1) ||
+        restarter.waitNodesStarted(&node, 1))
+    {
+      g_err << "Cluster failed to start\n";
+      return NDBT_FAILED;
+    }
+
+    /* verify data */
+    g_info << "  verifying\n";
+    switch (trans_type) {
+    case 0:
+    case 1:
+    case 2:
+      /*
+        insert records with ignore error
+        - should have all records
+      */
+      if (hugoTrans.scanReadRecords(GETNDB(step), records, 0, 64) != 0){
+        return NDBT_FAILED;
+      }
+      break;
+    default:
+      abort();
+    }
+
+    /* cleanup for next round in loop */
+    g_info << "  cleaning\n";
+    if (hugoTrans.clearTable(GETNDB(step), records))
+    {
+      return NDBT_FAILED;
+    }
+    continue;
+err:
+    hugoOps.closeTransaction(pNdb);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
+runPnr(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int loops = ctx->getNumLoops();
+  NdbRestarter res;
+  bool lcp = ctx->getProperty("LCP", (unsigned)0);
+  
+  if (res.getNumDbNodes() < 4)
+  {
+    ctx->stopTest();
+    return NDBT_OK;
+  }
+  
+  for (int i = 0; i<loops && ctx->isTestStopped() == false; i++)
+  {
+    if (lcp)
+    {
+      int lcpdump = DumpStateOrd::DihMinTimeBetweenLCP;
+      res.dumpStateAllNodes(&lcpdump, 1);
+    }
+
+     int nodes[2];
+    nodes[0] = res.getNode(NdbRestarter::NS_RANDOM);
+    nodes[1] = res.getRandomNodeOtherNodeGroup(nodes[0], rand());
+    
+    ndbout_c("restarting %u %u", nodes[0], nodes[1]);
+    
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    res.dumpStateOneNode(nodes[0], val2, 2);
+    res.dumpStateOneNode(nodes[1], val2, 2);
+    
+    int kill[] = { 9999, 1000, 3000 };
+    res.dumpStateOneNode(nodes[0], kill, 3);
+    res.dumpStateOneNode(nodes[1], kill, 3);
+    
+    if (res.waitNodesNoStart(nodes, 2))
+      return NDBT_FAILED;
+    
+    if (res.startNodes(nodes, 2))
+      return NDBT_FAILED;
+
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
+int
+runCreateBigTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = *ctx->getTab();
+  BaseString tmp;
+  tmp.assfmt("_%s", tab.getName());
+  tab.setName(tmp.c_str());
+  
+  NdbDictionary::Dictionary* pDict = GETNDB(step)->getDictionary();
+  int res = pDict->createTable(tab);
+  if (res)
+  {
+    return NDBT_FAILED;
+  }
+
+  const NdbDictionary::Table* pTab = pDict->getTable(tmp.c_str());
+  if (pTab == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  int bytes = tab.getRowSizeInBytes();
+  int size = 50*1024*1024; // 50Mb
+  int rows = size / bytes;
+
+  if (rows > 1000000)
+    rows = 1000000;
+
+  ndbout_c("Loading %u rows into %s", rows, tmp.c_str());
+  Uint64 now = NdbTick_CurrentMillisecond();
+  HugoTransactions hugoTrans(*pTab);
+  int cnt = 0;
+  do {
+    hugoTrans.loadTableStartFrom(GETNDB(step), cnt, 10000);
+    cnt += 10000;
+  } while (cnt < rows && (NdbTick_CurrentMillisecond() - now) < 60000); //1min
+  ndbout_c("Loaded %u rows", cnt);
+
+  return NDBT_OK;
+}
+
+int
+runDropBigTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = *ctx->getTab();
+  BaseString tmp;
+  tmp.assfmt("_%s", tab.getName());
+  GETNDB(step)->getDictionary()->dropTable(tmp.c_str());
   return NDBT_OK;
 }
 
@@ -2326,7 +2612,7 @@ TESTCASE("PkReadCommitted",
 TESTCASE("MixedPkRead", 
 	 "Test that one node at a time can be stopped and then restarted "\
 	 "perform pk read while restarting. Do this loop number of times"){ 
-  TC_PROPERTY("ReadLockMode", -1);
+  TC_PROPERTY("ReadLockMode", Uint32(-1));
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarter);
@@ -2351,7 +2637,7 @@ TESTCASE("PkReadPkUpdate",
 TESTCASE("MixedPkReadPkUpdate", 
 	 "Test that one node at a time can be stopped and then restarted "\
 	 "perform pk read and pk update while restarting. Do this loop number of times"){ 
-  TC_PROPERTY("ReadLockMode", -1);
+  TC_PROPERTY("ReadLockMode", Uint32(-1));
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarter);
@@ -2379,7 +2665,7 @@ TESTCASE("ReadUpdateScan",
 TESTCASE("MixedReadUpdateScan", 
 	 "Test that one node at a time can be stopped and then restarted "\
 	 "perform pk read, pk update and scan reads while restarting. Do this loop number of times"){ 
-  TC_PROPERTY("ReadLockMode", -1);
+  TC_PROPERTY("ReadLockMode", Uint32(-1));
   INITIALIZER(runCheckAllNodesStarted);
   INITIALIZER(runLoadTable);
   STEP(runRestarter);
@@ -2617,9 +2903,6 @@ TESTCASE("Bug21271",
   STEP(runPkUpdateUntilStopped);
   FINALIZER(runClearTable);
 }
-TESTCASE("Bug31525", ""){
-  INITIALIZER(runBug31525);
-}
 TESTCASE("Bug24717", ""){
   INITIALIZER(runBug24717);
 }
@@ -2672,8 +2955,35 @@ TESTCASE("GCP", ""){
   STEP(runScanUpdateUntilStopped);
   FINALIZER(runClearTable);
 }
+TESTCASE("CommitAck", ""){
+  INITIALIZER(runCommitAck);
+  FINALIZER(runClearTable);
+}
 TESTCASE("Bug32160", ""){
   INITIALIZER(runBug32160);
+}
+TESTCASE("pnr", "Parallel node restart")
+{
+  TC_PROPERTY("ScanUpdateNoRowCountCheck", 1);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runCreateBigTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runDeleteInsertUntilStopped);
+  STEP(runPnr);
+  FINALIZER(runClearTable);
+  FINALIZER(runDropBigTable);
+}
+TESTCASE("pnr_lcp", "Parallel node restart")
+{
+  TC_PROPERTY("LCP", 1);
+  TC_PROPERTY("ScanUpdateNoRowCountCheck", 1);
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runCreateBigTable);
+  STEP(runScanUpdateUntilStopped);
+  STEP(runDeleteInsertUntilStopped);
+  STEP(runPnr);
+  FINALIZER(runClearTable);
+  FINALIZER(runDropBigTable);
 }
 TESTCASE("Bug32922", ""){
   INITIALIZER(runBug32922);

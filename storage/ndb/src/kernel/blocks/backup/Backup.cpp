@@ -54,6 +54,7 @@
 
 #include <signaldata/WaitGCP.hpp>
 #include <signaldata/LCP.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #include <signaldata/DumpStateOrd.hpp>
 
@@ -551,6 +552,25 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
 		 c_pagePool.getNoOfFree() + 
 		 lcp_file.p->pages.getSize());
     }
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackup)
+  {
+    /* Display a bunch of stuff about Backup defaults */
+    infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
+    infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackupSetCompressed)
+  {
+    c_defaults.m_compressed_backup= signal->theData[1];
+    infoEvent("Compressed Backup: %d", c_defaults.m_compressed_backup);
+  }
+
+  if(signal->theData[0] == DumpStateOrd::DumpBackupSetCompressedLCP)
+  {
+    c_defaults.m_compressed_lcp= signal->theData[1];
+    infoEvent("Compressed LCP: %d", c_defaults.m_compressed_lcp);
   }
 }
 
@@ -2889,6 +2909,10 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_CREATE | 
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
+
+  if (c_defaults.m_compressed_backup)
+    req->fileFlags |= FsOpenReq::OM_GZ;
+
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);
   req->auto_sync_size = c_defaults.m_disk_synch_size;
   /**
@@ -3176,9 +3200,10 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
 
   BackupRecordPtr ptr LINT_SET_PTR;
   c_backupPool.getPtr(ptr, senderData);
-  
+
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr dictTabInfoPtr;
-  signal->getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(dictTabInfoPtr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(dictTabInfoPtr.sz == len);
 
   TablePtr tabPtr ;
@@ -3194,7 +3219,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
       jam();
       ndbrequire(false);
       ptr.p->setErrorCode(DefineBackupRef::FailedAllocateTableMem);
-      releaseSections(signal);
+      releaseSections(handle);
       defineBackupRef(signal, ptr);
       return;
     }//if
@@ -3213,7 +3238,7 @@ Backup::execGET_TABINFO_CONF(Signal* signal)
     }//if
   }
 
-  releaseSections(signal);
+  releaseSections(handle);
 
   if(ptr.p->checkError()) {
     jam();
@@ -5180,6 +5205,10 @@ Backup::lcp_open_file(Signal* signal, BackupRecordPtr ptr)
     FsOpenReq::OM_CREATE | 
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
+
+  if (c_defaults.m_compressed_lcp)
+    req->fileFlags |= FsOpenReq::OM_GZ;
+
   if (c_defaults.m_o_direct)
     req->fileFlags |= FsOpenReq::OM_DIRECT;
   FsOpenReq::v2_setCount(req->fileNumber, 0xFFFFFFFF);

@@ -17,6 +17,7 @@
 
 #include "Ndbfs.hpp"
 #include "AsyncFile.hpp"
+#include "PosixAsyncFile.hpp"
 #include "Filename.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
@@ -80,7 +81,8 @@ Ndbfs::~Ndbfs()
   // the thread it has created
   for (unsigned i = 0; i < theFiles.size(); i++){
     AsyncFile* file = theFiles[i];
-    delete file; 
+    file->shutdown();
+    delete file;
     theFiles[i] = NULL;
   }//for
   theFiles.clear();
@@ -211,10 +213,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
     file->theFileName.set(spec, userRef, fsOpenReq->fileNumber);
   } else {
     jam();
+    SectionHandle handle(this, signal);
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, FsOpenReq::FILENAME);
+    handle.getSection(ptr, FsOpenReq::FILENAME);
     file->theFileName.set(spec, ptr, g_sectionSegmentPool);
-    releaseSections(signal);
+    releaseSections(handle);
   }
   file->reportTo(&theFromThreads);
   if (getenv("NDB_TRACE_OPEN"))
@@ -661,7 +664,7 @@ Ndbfs::createAsyncFile(){
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
 
-  AsyncFile* file = new AsyncFile(* this);
+  AsyncFile* file = new PosixAsyncFile(* this);
   file->doStart();
 
   // Put the file in list of all files

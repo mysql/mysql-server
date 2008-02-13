@@ -166,7 +166,8 @@ RestoreMetaData::readMetaTableDesc() {
   
   // Read section header 
   Uint32 sz = sizeof(sectionInfo) >> 2;
-  if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION)
+  if (m_fileHeader.NdbVersion < NDBD_ROWID_VERSION ||
+      m_fileHeader.NdbVersion == DROP6_VERSION)
   {
     sz = 2;
     sectionInfo[2] = htonl(DictTabInfo::UserTable);
@@ -491,7 +492,11 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
 TableS::~TableS()
 {
   for (Uint32 i= 0; i < allAttributesDesc.size(); i++)
+  {
+    if (allAttributesDesc[i]->parameter)
+      free(allAttributesDesc[i]->parameter);
     delete allAttributesDesc[i];
+  }
 }
 
 
@@ -500,8 +505,10 @@ bool
 RestoreMetaData::parseTableDescriptor(const Uint32 * data, Uint32 len)
 {
   NdbTableImpl* tableImpl = 0;
-  int ret = NdbDictInterface::parseTableInfo(&tableImpl, data, len, false,
-                                             m_fileHeader.NdbVersion);
+  int ret = NdbDictInterface::parseTableInfo
+    (&tableImpl, data, len, false,
+     m_fileHeader.NdbVersion == DROP6_VERSION ? MAKE_VERSION(5,1,2) :
+     m_fileHeader.NdbVersion);
   
   if (ret != 0) {
     err << "parseTableInfo " << " failed" << endl;
@@ -666,6 +673,57 @@ RestoreDataIterator::readTupleData(Uint32 *buf_ptr, Uint32 *ptr,
   return 0;
 }
 
+
+int
+RestoreDataIterator::readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
+                                         Uint32 dataLength)
+{
+  Uint32 i;
+  for (i = 0; i < m_currentTable->m_variableAttribs.size(); i++)
+  {
+    const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
+
+    if(attr_desc->m_column->getNullable())
+    {
+      const Uint32 ind = attr_desc->m_nullBitIndex;
+      if(BitmaskImpl::get(m_currentTable->m_nullBitmaskSize, 
+                          buf_ptr,ind))
+      {
+        attr_data->null = true;
+        attr_data->void_value = NULL;
+        continue;
+      }
+    }
+
+    assert(ptr < buf_ptr + dataLength);
+
+    typedef BackupFormat::DataFile::VariableData VarData;
+    VarData * data = (VarData *)ptr;
+    Uint32 sz = ntohl(data->Sz);
+    Uint32 id = ntohl(data->Id);
+    assert(id == attrId);
+
+    attr_data->null = false;
+    attr_data->void_value = &data->Data[0];
+
+    /**
+     * Compute array size
+     */
+    const Uint32 arraySize = (4 * sz) / (attr_desc->size / 8);
+    assert(arraySize >= attr_desc->arraySize);
+    if (!Twiddle(attr_desc, attr_data, attr_desc->arraySize))
+    {
+      return -1;
+    }
+    ptr += (sz + 2);
+  }
+  assert(ptr == buf_ptr + dataLength);
+  return 0;
+}
+
 const TupleS *
 RestoreDataIterator::getNextTuple(int  & res)
 {
@@ -762,8 +820,16 @@ RestoreDataIterator::getNextTuple(int  & res)
     attr_data->void_value = NULL;
   }
 
-  if ((res = readTupleData(buf_ptr, ptr, dataLength)))
-    return NULL;
+  if (m_currentTable->backupVersion != DROP6_VERSION)
+  {
+    if ((res = readTupleData(buf_ptr, ptr, dataLength)))
+      return NULL;
+  }
+  else
+  {
+    if ((res = readTupleData_drop6(buf_ptr, ptr, dataLength)))
+      return NULL;
+  }
 
   m_count ++;  
   res = 0;
@@ -773,7 +839,8 @@ RestoreDataIterator::getNextTuple(int  & res)
 BackupFile::BackupFile(void (* _free_data_callback)()) 
   : free_data_callback(_free_data_callback)
 {
-  m_file = 0;
+  memset(&m_file,0,sizeof(m_file));
+  m_file.file = -1;
   m_path[0] = 0;
   m_fileName[0] = 0;
 
@@ -787,29 +854,32 @@ BackupFile::BackupFile(void (* _free_data_callback)())
 }
 
 BackupFile::~BackupFile(){
-  if(m_file != 0)
-    fclose(m_file);
+  if(m_file.file > 1)
+  {
+    azclose(&m_file);
+    memset(&m_file,0,sizeof(m_file));
+  }
   if(m_buffer != 0)
     free(m_buffer);
 }
 
 bool
 BackupFile::openFile(){
-  if(m_file != NULL){
-    fclose(m_file);
-    m_file = 0;
+  if(m_file.file > 1){
+    azclose(&m_file);
+    m_file.file = 0;
     m_file_size = 0;
     m_file_pos = 0;
   }
-  
+
   info.setLevel(254);
   info << "Opening file '" << m_fileName << "'\n";
-  m_file = fopen(m_fileName, "r");
+  int r= azopen(&m_file,m_fileName, O_RDONLY);
 
-  if (m_file)
+  if (r==0)
   {
     struct stat buf;
-    if (fstat(fileno(m_file), &buf) == 0)
+    if (fstat(m_file.file, &buf) == 0)
     {
       m_file_size = (Uint64)buf.st_size;
       info << "File size " << m_file_size << " bytes\n";
@@ -822,7 +892,7 @@ BackupFile::openFile(){
     }
   }
 
-  return m_file != 0;
+  return r != 0;
 }
 
 Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nmemb)
@@ -835,7 +905,10 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
 
     memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
-    size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, m_file);
+    int error;
+    size_t r = azread(&m_file,
+                      ((char *)m_buffer) + m_buffer_data_left,
+                      m_buffer_sz - m_buffer_data_left, &error);
     m_file_pos += r;
     m_buffer_data_left += r;
     m_buffer_ptr = m_buffer;
@@ -1086,6 +1159,8 @@ void TableS::createAttr(NdbDictionary::Column *column)
     abort();
   }
   d->attrId = allAttributesDesc.size();
+  d->convertFunc = NULL;
+  d->parameter = NULL;
   allAttributesDesc.push_back(d);
 
   if (d->m_column->getAutoIncrement())
@@ -1105,7 +1180,7 @@ void TableS::createAttr(NdbDictionary::Column *column)
   }
 
   // just a reminder - does not solve backwards compat
-  if (backupVersion < MAKE_VERSION(5,1,3))
+  if (backupVersion < MAKE_VERSION(5,1,3) || backupVersion == DROP6_VERSION)
   {
     d->m_nullBitIndex = m_noOfNullable; 
     m_noOfNullable++;
@@ -1193,7 +1268,8 @@ RestoreLogIterator::getNextLogEntry(int & res) {
       return 0;
     }
 
-    if (unlikely(m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION))
+    if (unlikely(m_metaData.getFileHeader().NdbVersion < NDBD_FRAGID_VERSION ||
+                 m_metaData.getFileHeader().NdbVersion == DROP6_VERSION))
     {
       /*
         FragId was introduced in LogEntry in version

@@ -29,6 +29,7 @@ class FsOpenReq {
    */
   friend class Ndbfs;         // Reciver
   friend class AsyncFile;     // Uses FsOpenReq to decode file open flags
+  friend class PosixAsyncFile; // FIXME
   friend class Filename;
   friend class VoidFs;
 
@@ -87,6 +88,7 @@ private:
   STATIC_CONST( OM_INIT           = 0x1000 ); // 
   STATIC_CONST( OM_CHECK_SIZE     = 0x2000 );
   STATIC_CONST( OM_DIRECT         = 0x4000 );
+  STATIC_CONST( OM_GZ             = 0x8000 );
   
   enum Suffixes {
     S_DATA = 0,

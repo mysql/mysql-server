@@ -2004,6 +2004,50 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
                                ER(CR_IPSOCK_ERROR), socket_errno);
       goto error;
     }
+    if (mysql->options.bind_name) {
+      /* TODOs for client bind:
+         - check error codes
+         - don't use socket for localhost if this option is given
+       */
+      in_addr_t bind_addr;
+      bind_addr = inet_addr(mysql->options.bind_name);
+      if (bind_addr == INADDR_NONE)
+      {
+        int tmp_errno;
+        struct hostent tmp_hostent,*hp;
+        char buff2[GETHOSTBYNAME_BUFF_SIZE];
+        hp = my_gethostbyname_r(mysql->options.bind_name, &tmp_hostent,
+                                buff2, sizeof(buff2), &tmp_errno);
+        if (!hp)
+        {
+          my_gethostbyname_r_free();
+          net->client_last_errno=CR_UNKNOWN_HOST;
+          strmov(net->sqlstate, unknown_sqlstate);
+          my_snprintf(net->client_last_error, sizeof(net->client_last_error)-1,
+                      ER(CR_UNKNOWN_HOST), mysql->options.bind_name, tmp_errno);
+          goto error;
+        }
+        bzero(&bind_addr,sizeof(bind_addr));
+        memcpy(&bind_addr, hp->h_addr,
+               min(sizeof(sock_addr.sin_addr), (size_t) hp->h_length));
+        my_gethostbyname_r_free();
+      }
+      if (bind_addr != INADDR_NONE) {
+        struct sockaddr_in  IPaddr;
+        bzero((char*) &IPaddr, sizeof(IPaddr));
+        IPaddr.sin_family = AF_INET;
+        IPaddr.sin_addr.s_addr = bind_addr;
+        IPaddr.sin_port = 0;
+        if (bind(sock, (struct sockaddr *) &IPaddr, sizeof(IPaddr))) {
+          net->client_last_errno=CR_IPSOCK_ERROR;
+          strmov(net->sqlstate, unknown_sqlstate);
+          my_snprintf(net->client_last_error, sizeof(net->client_last_error)-1,
+                      ER(CR_IPSOCK_ERROR), mysql->options.bind_name, errno);
+          goto error;
+        }
+      }
+    }
+
     net->vio= vio_new(sock, VIO_TYPE_TCPIP, VIO_BUFFERED_READ);
     bzero((char*) &sock_addr,sizeof(sock_addr));
     sock_addr.sin_family = AF_INET;
@@ -2568,6 +2612,7 @@ static void mysql_close_free_options(MYSQL *mysql)
   my_free(mysql->options.charset_dir,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.charset_name,MYF(MY_ALLOW_ZERO_PTR));
   my_free(mysql->options.client_ip,MYF(MY_ALLOW_ZERO_PTR));
+  my_free(mysql->options.bind_name,MYF(MY_ALLOW_ZERO_PTR));
   if (mysql->options.init_commands)
   {
     DYNAMIC_ARRAY *init_commands= mysql->options.init_commands;
@@ -3047,6 +3092,10 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     break;
   case MYSQL_OPT_RECONNECT:
     mysql->reconnect= *(my_bool *) arg;
+    break;
+  case MYSQL_OPT_BIND:
+    my_free(mysql->options.bind_name, MYF(MY_ALLOW_ZERO_PTR));
+    mysql->options.bind_name= my_strdup(arg, MYF(MY_WME));
     break;
   case MYSQL_OPT_SSL_VERIFY_SERVER_CERT:
     if (*(my_bool*) arg)

@@ -140,7 +140,7 @@ static void prepare_record_for_error_message(int error, TABLE *table)
   /* Add all fields used by unique index to read_set. */
   bitmap_union(table->read_set, &unique_map);
   /* Tell the engine about the new set. */
-  table->file->column_bitmaps_signal();
+  table->file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   /* Read record that is identified by table->file->ref. */
   (void) table->file->rnd_pos(table->record[1], table->file->ref);
   /* Copy the newly read columns into the new record. */
@@ -186,6 +186,7 @@ int mysql_update(THD *thd,
   bool		safe_update= test(thd->options & OPTION_SAFE_UPDATES);
   bool		used_key_is_modified, transactional_table, will_batch;
   bool		can_compare_record;
+  bool          might_use_read_removal= FALSE;
   int           res;
   int		error, loc_error;
   uint		used_index= MAX_KEY, dup_key_found;
@@ -201,6 +202,7 @@ int mysql_update(THD *thd,
   READ_RECORD	info;
   SELECT_LEX    *select_lex= &thd->lex->select_lex;
   bool          need_reopen;
+  bool          direct_update_loop;
   ulonglong     id;
   List<Item> all_fields;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -356,7 +358,7 @@ int mysql_update(THD *thd,
     }
   }
   init_ftfuncs(thd, select_lex, 1);
-
+  table->file->column_bitmaps_signal(HA_COMPLETE_TABLE_BOTH_BITMAPS);
   table->mark_columns_needed_for_update();
 
   /* Check if we are modifying a key that we are used to search with */
@@ -515,7 +517,10 @@ int mysql_update(THD *thd,
     }
     if (table->key_read)
       table->restore_column_maps_after_mark_index();
+    direct_update_loop= FALSE;
   }
+  else
+    direct_update_loop= TRUE;
 
   if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
@@ -525,6 +530,22 @@ int mysql_update(THD *thd,
   table->file->try_semi_consistent_read(1);
   init_read_record(&info,thd,table,select,0,1);
 
+  if (!table->triggers &&
+      info.using_quick &&
+      !ignore &&
+      !using_limit &&
+      direct_update_loop)
+  {
+    /*
+      In certain cases the handler can avoid doing a real read before
+      the update. It should still maintain the semantics of the
+      handler interface but can generate reads instead of performing
+      them for real. This extra call tells the handler that this
+      is possible for this handler until next reset of handler.
+    */
+    might_use_read_removal=
+      table->file->read_before_write_removal_possible(&fields, &values);
+  }
   updated= found= 0;
   /* Generate an error when trying to set a NOT NULL field to NULL. */
   thd->count_cuted_fields= ignore ? CHECK_FIELD_WARN
@@ -807,6 +828,26 @@ int mysql_update(THD *thd,
   {
     if (ha_autocommit_or_rollback(thd, error >= 0))
       error=1;
+  }
+
+  if (might_use_read_removal)
+  {
+    /*
+      updated counter is not valid when using read before write removal
+      optimisatisation so we read it from handler in info call.
+      More sophisticated handling of this would be required if it is
+      necessary to also support this optimisation in conjunction with
+      using LIMIT. Now the optimisation is disabled for IGNORE, LIMIT and
+      also when using BEFORE UPDATE triggers on table and also quite
+      hard checks on UPDATE statement. Still it is used very often with
+      all those limitations.
+
+      Moreover, since there is no read before update, found == updated,
+      as there is no optimization to remove the update if the new data
+      should equal the old.
+    */
+    table->file->info(HA_STATUS_WRITTEN_ROWS);
+    found= updated= table->file->stats.rows_updated;
   }
 
   if (thd->lock)

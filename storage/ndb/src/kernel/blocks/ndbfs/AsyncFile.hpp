@@ -16,51 +16,13 @@
 #ifndef AsyncFile_H
 #define AsyncFile_H
 
-//===========================================================================
-//
-// .DESCRIPTION
-//    Asynchronous file, All actions are executed concurrently with other 
-//    activity of the process. 
-//    Because all action are performed in a seperated thread the result of 
-//    of a action is send back tru a memory channel. 
-//    For the asyncronise notivication of a finished request all the calls
-//    have a request as paramater, the user can use the userData pointer
-//    to add information it needs when the request is send back.
-//      
-//
-// .TYPICAL USE:
-//      Writing or reading data to/from disk concurrently to other activities.
-//
-//===========================================================================
-//=============================================================================
-//
-// .PUBLIC
-//
-//=============================================================================
-///////////////////////////////////////////////////////////////////////////////
-//
-// AsyncFile( );
-// Description:
-//   Initialisation of the class. 
-// Parameters:
-//      -
-///////////////////////////////////////////////////////////////////////////////
-//
-// ~AsyncFile( );
-// Description:
-//   Tell the thread to stop and wait for it to return
-// Parameters:
-//      -
-///////////////////////////////////////////////////////////////////////////////
-// 
-// doStart( );
-// Description: 
-//   Spawns the new  thread.
-// Parameters:
-//  Base path of filesystem
-//
-///////////////////////////////////////////////////////////////////////////////
-//
+/**
+   AsyncFile
+
+   All file operations executed in thread-per-file, away from the DB threads.
+ */
+
+
 // void execute(Request *request);
 // Description:
 //   performens the requered action.
@@ -79,9 +41,9 @@
 //    return values are stored in the request error field:
 //       error= return state of the action, UNIX error see man open/errno
 //       userData= is untouched can be used be user.
-//      
-///////////////////////////////////////////////////////////////////////////////
-//
+
+
+
 // void reportTo( MemoryChannel<Request> *reportTo );
 // Description:
 //   set the channel where the file must report the result of the 
@@ -90,12 +52,26 @@
 //    reportTo: the memory channel to use use MemoryChannelMultipleWriter 
 //              if more 
 //              than one file uses this channel to report back.
-//      
-///////////////////////////////////////////////////////////////////////////////
 
 #include <kernel_types.h>
 #include "MemoryChannel.hpp"
 #include "Filename.hpp"
+
+// Use this define if you want printouts from AsyncFile class
+//#define DEBUG_ASYNCFILE
+
+#ifdef DEBUG_ASYNCFILE
+#include <NdbOut.hpp>
+#define DEBUG(x) x
+#define PRINT_ERRORANDFLAGS(f) printErrorAndFlags(f)
+void printErrorAndFlags(Uint32 used_flags);
+#else
+#define DEBUG(x)
+#define PRINT_ERRORANDFLAGS(f)
+#endif
+
+// Define the size of the write buffer (for each thread)
+#define WRITEBUFFERSIZE 262144
 
 const int ERR_ReadUnderflow = 1000;
 
@@ -183,66 +159,102 @@ class AsyncFile
   friend class Ndbfs;
 public:
   AsyncFile(SimulatedBlock& fs);
-  ~AsyncFile();
-  
-  void reportTo( MemoryChannel<Request> *reportTo );
-  
-  void execute( Request* request );
-  
-  void doStart();
-  // its a thread so its always running
-  void run();   
+  virtual ~AsyncFile() {};
 
-  bool isOpen();
+  void reportTo( MemoryChannel<Request> *reportTo );
+
+  void execute( Request* request );
+
+  virtual void doStart();
+
+  virtual void shutdown();
+
+  // its a thread so its always running
+  virtual void run();
+
+  virtual bool isOpen() = 0;
 
   Filename theFileName;
   Request *m_current_request, *m_last_request;
 private:
-  
-  void openReq(Request *request);
-  void readReq(Request *request);
-  void readvReq(Request *request);
-  void writeReq(Request *request);
-  void writevReq(Request *request);
-  
-  void closeReq(Request *request);
-  void syncReq(Request *request);
-  void removeReq(Request *request);
-  void appendReq(Request *request);
-  void rmrfReq(Request *request, char * path, bool removePath);
-  void endReq();
-  
-  int readBuffer(Request*, char * buf, size_t size, off_t offset);
-  int writeBuffer(const char * buf, size_t size, off_t offset,
-		  size_t chunk_size = WRITECHUNK);
-  
-  int extendfile(Request* request);
-  void createDirectories();
-    
-#ifdef NDB_WIN32
-  HANDLE hFile;
-#else
-  int theFd;
-#endif
 
-  Uint32 m_open_flags; // OM_ flags from request to open file
-  
+  /**
+   * Implementers of AsyncFile interface
+   * should implement the following
+   */
+
+  /**
+   * init()
+   *
+   * Initialise buffers etc. After init(), ready to execute()
+   * Called with theStartMutexPtr held.
+   */
+  virtual int init();
+
+  /**
+   * openReq() - open a file.
+   */
+  virtual void openReq(Request *request) = 0;
+
+  /**
+   * readBuffer - read into buffer
+   */
+  virtual int readBuffer(Request*, char * buf, size_t size, off_t offset)=0;
+
+  /**
+   * writeBuffer() - write into file
+   */
+  virtual int writeBuffer(const char * buf, size_t size, off_t offset,
+		  size_t chunk_size = WRITECHUNK)=0;
+
+
+  virtual void closeReq(Request *request)=0;
+  virtual void syncReq(Request *request)=0;
+  virtual void removeReq(Request *request)=0;
+  virtual void appendReq(Request *request)=0;
+  virtual void rmrfReq(Request *request, char * path, bool removePath)=0;
+  virtual void createDirectories()=0;
+
+  /**
+   * Unlikely to need to implement these. readvReq for iovec
+   */
+  virtual void readReq(Request *request);
+  virtual void readvReq(Request *request);
+
+  /**
+   * Unlikely to need to implement these, writeBuffer likely sufficient.
+   * writevReq for iovec (not yet used)
+   */
+  virtual void writeReq(Request *request);
+  virtual void writevReq(Request *request);
+
+  /**
+   * endReq()
+   *
+   * Inverse to ::init(). Cleans up thread before it exits.
+   */
+  virtual void endReq();
+
+private:
+  /**
+   * (end of what implementors need)
+   */
+
   MemoryChannel<Request> *theReportTo;
   MemoryChannel<Request>* theMemoryChannelPtr;
-  
+
   struct NdbThread* theThreadPtr;
   NdbMutex* theStartMutexPtr;
   NdbCondition* theStartConditionPtr;
   bool   theStartFlag;
+
+protected:
   int theWriteBufferSize;
   char* theWriteBuffer;
-  void* theWriteBufferUnaligned;
-  
+
   size_t m_write_wo_sync;  // Writes wo/ sync
   size_t m_auto_sync_freq; // Auto sync freq in bytes
 
-  int check_odirect_read(Uint32 flags, int&new_flags, int mode);
-  int check_odirect_write(Uint32 flags, int&new_flags, int mode);
 public:
   SimulatedBlock& m_fs;
   Ptr<GlobalPage> m_page_ptr;

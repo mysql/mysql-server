@@ -565,6 +565,7 @@ public:
     static const Column * ROW_GCI;
     static const Column * ANY_VALUE;
     static const Column * COPY_ROWID;
+    static const Column * OPTIMIZE;
     
     int getSizeInBytes() const;
 
@@ -1229,6 +1230,73 @@ public:
   };
 
   /**
+   * @brief Represents a Table Optimization Handle
+   * Passed as argument to optimizeTable
+   */
+  class OptimizeTableHandle {
+  public:
+    /**
+     * Supported operations for OptimizeTableHandle
+     */
+    OptimizeTableHandle();
+    ~OptimizeTableHandle();
+    /**
+     * Optimize one more batch of records
+     * @return 1 for more records left to optimize,
+     *         0 when completed
+     *         -1 encountered some error 
+     */
+    int next();
+    /**
+     * Close the handle object
+     * @return 0 when completed
+     *         -1 encountered some error      
+     */
+    int close();
+  private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbOptimizeTableHandleImpl;
+    friend class NdbOptimizeIndexHandleImpl;
+    friend class NdbDicitionaryImpl;
+#endif
+    class NdbOptimizeTableHandleImpl & m_impl;
+    OptimizeTableHandle(NdbOptimizeTableHandleImpl &);
+  };
+
+  /**
+   * @brief Represents a Index Optimization Handle
+   * passed as argument to optimizeIndex
+   */
+  class OptimizeIndexHandle {
+  public:
+    /**
+     * Supported operations for OptimizeIndexHandle
+     */
+    OptimizeIndexHandle();
+    ~OptimizeIndexHandle();
+    /**
+     * Optimize one more batch of records
+     * @return 1 for more records left to optimize,
+     *         0 when completed
+     *         -1 encountered some error 
+     */
+    int next();
+    /**
+     * Close the handle object
+     * @return 0 when completed
+     *         -1 encountered some error      
+     */
+    int close();
+  private:
+#ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
+    friend class NdbOptimizeIndexHandleImpl;
+    friend class NdbDicitionaryImpl;
+#endif
+    class NdbOptimizeIndexHandleImpl & m_impl;
+    OptimizeIndexHandle(NdbOptimizeIndexHandleImpl &);
+  };
+
+  /**
    * @brief Represents an Event in NDB Cluster
    *
    */
@@ -1880,6 +1948,24 @@ public:
     int createTable(const Table &table);
 
     /**
+     * Start table optimization given defined table object
+     * @param t Object of table to optimize
+     * @param Pre-allocated OptimizeTableHandle
+     * @return 0 if successful otherwise -1.
+     */
+    int
+    optimizeTable(const Table &t, OptimizeTableHandle &h);
+
+    /**
+     * Start index optimization given defined index object
+     * @param ind Object of index to optimize
+     * @param Pre-allocated OptimizeIndexHandle
+     * @return 0 if successful otherwise -1.
+     */
+    int
+    optimizeIndex(const Index &ind, OptimizeIndexHandle &h);
+
+    /**
      * Drop table given retrieved Table instance
      * @param table Table to drop
      * @return 0 if successful otherwise -1.
@@ -2022,6 +2108,8 @@ public:
 
     const Index * getIndexGlobal(const char * indexName,
                                  const Table &ndbtab) const;
+    const Index * getIndexGlobal(const char * indexName,
+                                 const char * tableName) const;
     const Table * getTableGlobal(const char * tableName) const;
     int alterTableGlobal(const Table &f, const Table &t);
     int dropTableGlobal(const Table &ndbtab);

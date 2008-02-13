@@ -4339,7 +4339,7 @@ void st_table::prepare_for_position()
   {
     mark_columns_used_by_index_no_reset(s->primary_key, read_set);
     /* signal change */
-    file->column_bitmaps_signal();
+    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   }
   DBUG_VOID_RETURN;
 }
@@ -4386,7 +4386,7 @@ void st_table::restore_column_maps_after_mark_index()
   key_read= 0;
   (void) file->extra(HA_EXTRA_NO_KEYREAD);
   default_column_bitmaps();
-  file->column_bitmaps_signal();
+  file->column_bitmaps_signal(HA_CHANGE_TABLE_BOTH_BITMAPS);
   DBUG_VOID_RETURN;
 }
 
@@ -4425,7 +4425,7 @@ void st_table::mark_auto_increment_column()
   bitmap_set_bit(write_set, found_next_number_field->field_index);
   if (s->next_number_keypart)
     mark_columns_used_by_index_no_reset(s->next_number_index, read_set);
-  file->column_bitmaps_signal();
+  file->column_bitmaps_signal(HA_CHANGE_TABLE_BOTH_BITMAPS);
 }
 
 
@@ -4459,7 +4459,7 @@ void st_table::mark_columns_needed_for_delete()
       if ((*reg_field)->flags & PART_KEY_FLAG)
         bitmap_set_bit(read_set, (*reg_field)->field_index);
     }
-    file->column_bitmaps_signal();
+    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   }
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
@@ -4473,7 +4473,7 @@ void st_table::mark_columns_needed_for_delete()
     else
     {
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-      file->column_bitmaps_signal();
+      file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
     }
   }
 }
@@ -4512,7 +4512,7 @@ void st_table::mark_columns_needed_for_update()
       if (merge_keys.is_overlapping((*reg_field)->part_of_key))
         bitmap_set_bit(read_set, (*reg_field)->field_index);
     }
-    file->column_bitmaps_signal();
+    file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
   }
   if (file->ha_table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_DELETE)
   {
@@ -4526,7 +4526,7 @@ void st_table::mark_columns_needed_for_update()
     else
     {
       mark_columns_used_by_index_no_reset(s->primary_key, read_set);
-      file->column_bitmaps_signal();
+      file->column_bitmaps_signal(HA_CHANGE_TABLE_READ_BITMAP);
     }
   }
   DBUG_VOID_RETURN;

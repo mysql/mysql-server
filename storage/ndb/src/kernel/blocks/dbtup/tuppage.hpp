@@ -107,14 +107,8 @@ struct Tup_varsize_page
   Uint32 page_state;
   Uint32 next_page;
   Uint32 prev_page;
-  union {
-    Uint32 first_cluster_page;
-    Uint32 chunk_size;
-  };
-  union {
-    Uint32 last_cluster_page;
-    Uint32 next_chunk;
-  };
+  Uint32 first_cluster_page;
+  Uint32 last_cluster_page;
   Uint32 next_cluster_page;
   Uint32 prev_cluster_page;
   Uint32 frag_page_id;

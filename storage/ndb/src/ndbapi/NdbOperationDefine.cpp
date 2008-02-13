@@ -471,8 +471,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::setValue");
   DBUG_PRINT("enter", ("col: %s  op:%d  val: 0x%lx",
-                       tAttrInfo->m_name.c_str(), theOperationType,
-                       (long) aValuePassed));
+                       tAttrInfo ? tAttrInfo->m_name.c_str() : "NULL",
+                       theOperationType, (long) aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;
@@ -665,6 +665,12 @@ NdbOperation::setAnyValue(Uint32 any_value)
   return -1;
 }
 
+int
+NdbOperation::setOptimize(Uint32 options)
+{
+  return setValue(&NdbColumnImpl::getImpl(*NdbDictionary::Column::OPTIMIZE),
+                  (const char*)&options);
+}
 
 NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)

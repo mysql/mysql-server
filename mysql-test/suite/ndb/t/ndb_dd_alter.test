@@ -41,7 +41,6 @@
 
 -- source include/have_ndb.inc
 -- source include/have_innodb.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 DROP TABLE IF EXISTS test.t1;

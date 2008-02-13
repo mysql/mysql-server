@@ -20,6 +20,9 @@
 #include <RefConvert.hpp>
 #include <ndb_limits.h>
 #include <pc.hpp>
+#include <signaldata/RestoreImpl.hpp>
+
+#define DBUG_PAGE_MAP 0
 
 //
 // PageMap is a service used by Dbtup to map logical page id's to physical
@@ -86,29 +89,10 @@
 //
 // The full page range struct
 
-Uint32 Dbtup::getEmptyPage(Fragrecord* regFragPtr)
-{
-  Uint32 pageId = regFragPtr->emptyPrimPage.firstItem;
-  if (pageId == RNIL) {
-    jam();
-    allocFragPage(regFragPtr);
-    pageId = regFragPtr->emptyPrimPage.firstItem;
-    if (pageId == RNIL) {
-      jam();
-      return RNIL;
-    }//if
-  }//if
-  PagePtr pagePtr;
-  LocalDLList<Page> alloc_pages(c_page_pool, regFragPtr->emptyPrimPage);    
-  alloc_pages.getPtr(pagePtr, pageId);
-  alloc_pages.remove(pagePtr);
-  return pageId;
-}//Dbtup::getEmptyPage()
-
 Uint32 Dbtup::getRealpid(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  Uint32 * ptr = map.get(logicalPageId);
+  Uint32 * ptr = map.get(2 * logicalPageId);
   if (likely(ptr != 0))
   {
     return * ptr;
@@ -121,10 +105,14 @@ Uint32
 Dbtup::getRealpidCheck(Fragrecord* regFragPtr, Uint32 logicalPageId) 
 {
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  Uint32 * ptr = map.get(logicalPageId);
+  Uint32 * ptr = map.get(2 * logicalPageId);
   if (likely(ptr != 0))
   {
-    return * ptr;
+    Uint32 val = * ptr;
+    if ((val & FREE_PAGE_BIT) != 0)
+      return RNIL;
+    else
+      return val;
   }
   return RNIL;
 }
@@ -137,48 +125,309 @@ Uint32 Dbtup::getNoOfPages(Fragrecord* const regFragPtr)
 void
 Dbtup::init_page(Fragrecord* regFragPtr, PagePtr pagePtr, Uint32 pageId)
 {
-  pagePtr.p->page_state = ZEMPTY_MM;
+  pagePtr.p->page_state = ~0;
   pagePtr.p->frag_page_id = pageId;
   pagePtr.p->physical_page_id = pagePtr.i;
   pagePtr.p->nextList = RNIL;
   pagePtr.p->prevList = RNIL;
 }
 
+#ifdef VM_TRACE
+#define do_check_page_map(x) check_page_map(x)
+#if DBUG_PAGE_MAP
+bool
+Dbtup::find_page_id_in_list(Fragrecord* fragPtrP, Uint32 pageId)
+{
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);  
+
+  Uint32 prev = FREE_PAGE_RNIL;
+  Uint32 curr = fragPtrP->m_free_page_id_list | FREE_PAGE_BIT;
+  
+  while (curr != FREE_PAGE_RNIL)
+  {
+    ndbrequire((curr & FREE_PAGE_BIT) != 0);
+    curr &= ~(Uint32)FREE_PAGE_BIT;
+    const Uint32 * prevPtr = map.get(2 * curr + 1);
+    ndbrequire(prevPtr != 0);
+    ndbrequire(prev == *prevPtr);
+    
+    if (curr == pageId)
+      return true;
+    
+    Uint32 * nextPtr = map.get(2 * curr);
+    ndbrequire(nextPtr != 0);
+    prev = curr | FREE_PAGE_BIT;
+    curr = (* nextPtr);
+  }
+  
+  return false;
+}
+
+void
+Dbtup::check_page_map(Fragrecord* fragPtrP)
+{
+  Uint32 max = fragPtrP->m_max_page_no;
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+
+  for (Uint32 i = 0; i<max; i++)
+  {
+    const Uint32 * ptr = map.get(2*i);
+    if (ptr == 0)
+    {
+      ndbrequire(find_page_id_in_list(fragPtrP, i) == false);
+    }
+    else
+    {
+      Uint32 realpid = *ptr;
+      if (realpid == RNIL)
+      {
+        ndbrequire(find_page_id_in_list(fragPtrP, i) == false);      
+      }
+      else if (realpid & FREE_PAGE_BIT)
+      {
+        ndbrequire(find_page_id_in_list(fragPtrP, i) == true);
+      }
+      else
+      {
+        PagePtr pagePtr;
+        c_page_pool.getPtr(pagePtr, realpid);
+        ndbrequire(pagePtr.p->frag_page_id == i);
+        ndbrequire(pagePtr.p->physical_page_id == realpid);
+      }
+    }
+  }
+}
+#else
+void Dbtup::check_page_map(Fragrecord*) {}
+#endif
+#else
+#define do_check_page_map(x)
+#endif
+
 Uint32 
 Dbtup::allocFragPage(Fragrecord* regFragPtr) 
 {
+  PagePtr pagePtr;
   Uint32 noOfPagesAllocated = 0;
-  Uint32 retPageRef = RNIL;
-  allocConsPages(1, noOfPagesAllocated, retPageRef);
+  Uint32 list = regFragPtr->m_free_page_id_list;
+  Uint32 max = regFragPtr->m_max_page_no;
+  Uint32 cnt = regFragPtr->noOfPages;
+
+  allocConsPages(1, noOfPagesAllocated, pagePtr.i);
   if (noOfPagesAllocated == 0) 
   {
     jam();
-    return 0;
+    return RNIL;
   }//if
   
-  Uint32 pageId = regFragPtr->noOfPages;
+  Uint32 pageId;
   DynArr256 map(c_page_map_pool, regFragPtr->m_page_map);
-  
-  Uint32 * ptr = map.set(pageId);
-  if (likely(ptr != 0))
+  if (list == FREE_PAGE_RNIL)
   {
     jam();
-    * ptr = retPageRef;
-    regFragPtr->noOfPages = pageId + 1;
-
-    Ptr<Page> pagePtr;
-    pagePtr.i = retPageRef;
-    c_page_pool.getPtr(pagePtr);
-    init_page(regFragPtr, pagePtr, pageId);
-    LocalDLList<Page> alloc(c_page_pool, regFragPtr->emptyPrimPage);
-    alloc.add(pagePtr);
-    return 1;
+    pageId = max;
+    Uint32 * ptr = map.set(2 * pageId);
+    if (unlikely(ptr == 0))
+    {
+      jam();
+      returnCommonArea(pagePtr.i, noOfPagesAllocated);
+      return RNIL;
+    }
+    ndbrequire(* ptr == RNIL);
+    * ptr = pagePtr.i;
+    regFragPtr->m_max_page_no = max + 1;
+  }
+  else
+  {
+    jam();
+    pageId = list;
+    Uint32 * ptr = map.set(2 * pageId);
+    ndbrequire(ptr != 0);
+    Uint32 next = * ptr;
+    * ptr = pagePtr.i;
+    
+    if (next != FREE_PAGE_RNIL)
+    {
+      jam();
+      ndbrequire((next & FREE_PAGE_BIT) != 0);
+      next &= ~FREE_PAGE_BIT;
+      Uint32 * nextPrevPtr = map.set(2 * next + 1);
+      ndbrequire(nextPrevPtr != 0);
+      * nextPrevPtr = FREE_PAGE_RNIL;
+    }
+    regFragPtr->m_free_page_id_list = next; 
   }
   
-  jam();
-  returnCommonArea(retPageRef, noOfPagesAllocated);
-  return 0;
+  regFragPtr->noOfPages = cnt + 1;
+  
+  c_page_pool.getPtr(pagePtr);
+  init_page(regFragPtr, pagePtr, pageId);
+  
+  if (DBUG_PAGE_MAP)
+    ndbout_c("alloc -> (%u %u max: %u)", pageId, pagePtr.i, 
+             regFragPtr->m_max_page_no);
+  
+  do_check_page_map(regFragPtr);
+  return pagePtr.i;
 }//Dbtup::allocFragPage()
+
+Uint32
+Dbtup::allocFragPage(Tablerec* tabPtrP, Fragrecord* fragPtrP, Uint32 page_no)
+{
+  PagePtr pagePtr;
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  Uint32 * ptr = map.set(2 * page_no);
+  if (unlikely(ptr == 0))
+  {
+    jam();
+    terrorCode = ZMEM_NOMEM_ERROR;
+    return RNIL;
+  }
+  const Uint32 * prevPtr = map.set(2 * page_no + 1);
+  
+  pagePtr.i = * ptr;
+  if (likely(pagePtr.i != RNIL && (pagePtr.i & FREE_PAGE_BIT) == 0))
+  {
+    jam();
+    return pagePtr.i;
+  }
+  
+  LocalDLFifoList<Page> free_pages(c_page_pool, fragPtrP->thFreeFirst);
+  Uint32 cnt = fragPtrP->noOfPages;
+  Uint32 max = fragPtrP->m_max_page_no;
+  Uint32 list = fragPtrP->m_free_page_id_list;
+  Uint32 noOfPagesAllocated = 0;
+  Uint32 next = pagePtr.i;
+
+  allocConsPages(1, noOfPagesAllocated, pagePtr.i);
+  if (unlikely(noOfPagesAllocated == 0))
+  {
+    jam();
+    terrorCode = ZMEM_NOMEM_ERROR;
+    return RNIL;
+  }
+
+  if (DBUG_PAGE_MAP)
+    ndbout_c("alloc(%u %u max: %u)", page_no, pagePtr.i, max);
+  
+  * ptr = pagePtr.i;
+  if (next == RNIL)
+  {
+    jam();
+  }
+  else
+  {
+    jam();
+    ndbrequire(prevPtr != 0);
+    Uint32 prev = * prevPtr;
+
+    if (next == FREE_PAGE_RNIL)
+    {
+      jam();
+      // This should be end of list...
+      if (prev == FREE_PAGE_RNIL)
+      {
+        jam();
+        ndbrequire(list == page_no); // page_no is both head and tail...
+        fragPtrP->m_free_page_id_list = FREE_PAGE_RNIL;
+      }
+      else
+      {
+        jam();
+        Uint32 * prevNextPtr = map.set(2 * (prev & ~(Uint32)FREE_PAGE_BIT));
+        ndbrequire(prevNextPtr != 0);
+        Uint32 prevNext = * prevNextPtr;
+        ndbrequire(prevNext == (page_no | FREE_PAGE_BIT));
+        * prevNextPtr = FREE_PAGE_RNIL;
+      }
+    }
+    else
+    {
+      jam();
+      next &= ~(Uint32)FREE_PAGE_BIT;
+      Uint32 * nextPrevPtr = map.set(2 * next + 1);
+      ndbrequire(nextPrevPtr != 0);
+      ndbrequire(* nextPrevPtr == (page_no | FREE_PAGE_BIT));
+      * nextPrevPtr = prev;
+      if (prev == FREE_PAGE_RNIL)
+      {
+        jam();
+        ndbrequire(list == page_no); // page_no is head
+        fragPtrP->m_free_page_id_list = next;
+      }
+      else
+      {
+        jam();
+        Uint32 * prevNextPtr = map.get(2 * (prev & ~(Uint32)FREE_PAGE_BIT));
+        ndbrequire(prevNextPtr != 0);
+        ndbrequire(* prevNextPtr == (page_no | FREE_PAGE_BIT));
+        * prevNextPtr = next | FREE_PAGE_BIT;
+      }
+    }
+  }
+  
+  fragPtrP->noOfPages = cnt + 1;
+  if (page_no + 1 > max)
+  {
+    jam();
+    fragPtrP->m_max_page_no = page_no + 1;
+    if (DBUG_PAGE_MAP)
+      ndbout_c("new max: %u", fragPtrP->m_max_page_no);
+  }
+  
+  c_page_pool.getPtr(pagePtr);
+  init_page(fragPtrP, pagePtr, page_no);
+  convertThPage((Fix_page*)pagePtr.p, tabPtrP, MM);
+  pagePtr.p->page_state = ZTH_MM_FREE;
+  free_pages.addFirst(pagePtr);
+
+  do_check_page_map(fragPtrP);
+  
+  return pagePtr.i;
+}
+
+void
+Dbtup::releaseFragPage(Fragrecord* fragPtrP, 
+                       Uint32 logicalPageId, PagePtr pagePtr)
+{
+  Uint32 list = fragPtrP->m_free_page_id_list;
+  Uint32 cnt = fragPtrP->noOfPages;
+  DynArr256 map(c_page_map_pool, fragPtrP->m_page_map);
+  Uint32 * next = map.set(2 * logicalPageId);
+  Uint32 * prev = map.set(2 * logicalPageId + 1);
+  ndbrequire(next != 0 && prev != 0);
+  
+  returnCommonArea(pagePtr.i, 1);
+
+  /**
+   * Add to head or tail of list...
+   */
+  const char * where = 0;
+  if (list == FREE_PAGE_RNIL)
+  {
+    jam();
+    * next = * prev = FREE_PAGE_RNIL;
+    fragPtrP->m_free_page_id_list = logicalPageId;
+    where = "empty";
+  }
+  else
+  {
+    jam();
+    * next = list | FREE_PAGE_BIT;
+    * prev = FREE_PAGE_RNIL;
+    fragPtrP->m_free_page_id_list = logicalPageId;
+    Uint32 * nextPrevPtr = map.set(2 * list + 1);
+    ndbrequire(nextPrevPtr != 0);
+    ndbrequire(*nextPrevPtr == FREE_PAGE_RNIL);
+    * nextPrevPtr = logicalPageId | FREE_PAGE_BIT;
+    where = "head";
+  }
+
+  fragPtrP->noOfPages = cnt - 1;
+  if (DBUG_PAGE_MAP)
+    ndbout_c("release(%u %u)@%s", logicalPageId, pagePtr.i, where);
+  do_check_page_map(fragPtrP);
+}
 
 void Dbtup::errorHandler(Uint32 errorCode)
 {
@@ -197,3 +446,86 @@ void Dbtup::errorHandler(Uint32 errorCode)
   }
   ndbrequire(false);
 }//Dbtup::errorHandler()
+
+void
+Dbtup::rebuild_page_free_list(Signal* signal)
+{
+  Ptr<Fragoperrec> fragOpPtr;
+  fragOpPtr.i = signal->theData[1];
+  Uint32 pageId = signal->theData[2];
+  Uint32 tail = signal->theData[3];
+  ptrCheckGuard(fragOpPtr, cnoOfFragoprec, fragoperrec);
+  
+  Ptr<Fragrecord> fragPtr;
+  fragPtr.i= fragOpPtr.p->fragPointer;
+  ptrCheckGuard(fragPtr, cnoOfFragrec, fragrecord);
+  
+  if (pageId == fragPtr.p->m_max_page_no)
+  {
+    RestoreLcpConf* conf = (RestoreLcpConf*)signal->getDataPtrSend();
+    conf->senderRef = reference();
+    conf->senderData = fragOpPtr.p->m_senderData;
+    sendSignal(fragOpPtr.p->m_senderRef,
+	       GSN_RESTORE_LCP_CONF, signal, 
+	       RestoreLcpConf::SignalLength, JBB);
+    
+    releaseFragoperrec(fragOpPtr);    
+    return;
+  }
+
+  DynArr256 map(c_page_map_pool, fragPtr.p->m_page_map);
+  Uint32* nextPtr = map.set(2 * pageId);
+  Uint32* prevPtr = map.set(2 * pageId + 1);
+
+  // Out of memory ?? Should nto be possible here/now
+  ndbrequire(nextPtr != 0 && prevPtr != 0);
+  
+  if (* nextPtr == RNIL)
+  {
+    jam();
+    /**
+     * An unallocated page id...put in free list
+     */
+#if DBUG_PAGE_MAP
+    char * where;
+#endif
+    if (tail == RNIL)
+    {
+      jam();
+      ndbrequire(fragPtr.p->m_free_page_id_list == FREE_PAGE_RNIL);
+      fragPtr.p->m_free_page_id_list = pageId;
+      *nextPtr = FREE_PAGE_RNIL;
+      *prevPtr = FREE_PAGE_RNIL;
+#if DBUG_PAGE_MAP
+      where = "head";
+#endif
+    }
+    else
+    {
+      jam();
+      ndbrequire(fragPtr.p->m_free_page_id_list != FREE_PAGE_RNIL);
+
+      *nextPtr = FREE_PAGE_RNIL;
+      *prevPtr = tail | FREE_PAGE_BIT;
+
+      Uint32 * prevNextPtr = map.set(2 * tail);
+      ndbrequire(prevNextPtr != 0);
+      ndbrequire(* prevNextPtr == FREE_PAGE_RNIL);
+      * prevNextPtr = pageId | FREE_PAGE_BIT;
+#if DBUG_PAGE_MAP
+      where = "tail";
+#endif
+    }
+    tail = pageId;
+#if DBUG_PAGE_MAP
+    ndbout_c("adding page %u to free list @ %s", pageId, where);
+#endif
+  } 
+  
+  signal->theData[0] = ZREBUILD_FREE_PAGE_LIST;
+  signal->theData[1] = fragOpPtr.i;
+  signal->theData[2] = pageId + 1;
+  signal->theData[3] = tail;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 4, JBB);
+}
+

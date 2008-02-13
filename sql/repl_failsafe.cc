@@ -705,6 +705,12 @@ int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
 
+  if (mi->bind_addr && !strcmp(mi->bind_addr,"0.0.0.0"))
+  {
+    DBUG_PRINT("info",("rpl failsafe BIND ADDR: %s",mi->bind_addr));
+    mysql_options(mysql, MYSQL_OPT_BIND, mi->bind_addr);
+  }
+
 #ifdef HAVE_OPENSSL
   if (mi->ssl)
   {

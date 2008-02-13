@@ -10,12 +10,12 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.23-ndb-6.2.12)
+AM_INIT_AUTOMAKE(mysql, 5.1.23-ndb-6.3.9)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 NDB_VERSION_MAJOR=6
-NDB_VERSION_MINOR=2
-NDB_VERSION_BUILD=12
+NDB_VERSION_MINOR=3
+NDB_VERSION_BUILD=9
 NDB_VERSION_STATUS="-RC"
 
 PROTOCOL_VERSION=10
@@ -2040,13 +2040,16 @@ AC_CHECK_FUNCS(alarm bcmp bfill bmove bsearch bzero \
   pthread_attr_getstacksize pthread_attr_setprio pthread_attr_setschedparam \
   pthread_attr_setstacksize pthread_condattr_create pthread_getsequence_np \
   pthread_key_delete pthread_rwlock_rdlock pthread_setprio \
+  pthread_self sched_get_priority_min sched_get_priority_max \
+  sched_setaffinity processor_bind sched_setscheduler \
   pthread_setprio_np pthread_setschedparam pthread_sigmask readlink \
   realpath rename rint rwlock_init setupterm \
   shmget shmat shmdt shmctl sigaction sigemptyset sigaddset \
   sighold sigset sigthreadmask port_create sleep \
   snprintf socket stpcpy strcasecmp strerror strsignal strnlen strpbrk strstr \
   strtol strtoll strtoul strtoull tell tempnam thr_setconcurrency vidattr \
-  posix_fallocate backtrace backtrace_symbols backtrace_symbols_fd)
+  backtrace backtrace_symbols backtrace_symbols_fd \
+  posix_fallocate posix_memalign memalign)
 
 #
 #
@@ -2061,6 +2064,42 @@ case "$target" in
  *) AC_CHECK_FUNCS(clock_gettime)
     ;;
 esac
+
+#checking for Linux Scheduling and Locking Support
+AC_MSG_CHECKING(for Linux scheduling and locking support)
+AC_TRY_LINK(
+  [#ifndef _GNU_SOURCE
+   #define _GNU_SOURCE
+   #endif
+   #include <sys/types.h>
+   #include <unistd.h>
+   #include <sched.h>
+   #include <sys/syscall.h>],
+  [const cpu_set_t *p= (const cpu_set_t*)0;
+   struct sched_param loc_sched_param;
+   int policy = 0;
+   pid_t tid = (unsigned)syscall(SYS_gettid);
+   tid = getpid();
+   int ret = sched_setaffinity(tid, sizeof(unsigned long),
+                               (const cpu_set_t*)p);
+   ret = sched_setscheduler(tid, policy, &loc_sched_param);],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_LINUX_SCHEDULING, [1], [Linux scheduling/locking function]),
+  AC_MSG_RESULT(no))
+
+AC_MSG_CHECKING(for Solaris affinity support)
+AC_TRY_LINK(
+  [#include <sys/types.h>
+   #include <sys/lwp.h>
+   #include <sys/processor.h>
+   #include <sys/procset.h>],
+  [processor_id_t *pid = (processor_id_t *)0;
+   processor_id_t cpu_id = (processor_id_t)0;
+   id_t tid = _lw_self();
+   int ret = processor_bind(P_LWPID, tid, cpu_id, bind);],
+  AC_MSG_RESULT(yes)
+  AC_DEFINE(HAVE_SOLARIS_AFFINITY, [1], [Solaris affinity function]),
+  AC_MSG_RESULT(no))
 
 # Check that isinf() is available in math.h and can be used in both C and C++ 
 # code

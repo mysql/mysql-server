@@ -113,8 +113,8 @@ void Dbtc::initRecords()
 						  sizeof(TcConnectRecord),
 						  ctcConnectFilesize);
   
-  m_commitAckMarkerPool.setSize(capiConnectFilesize);
-  m_commitAckMarkerHash.setSize(512);
+  m_commitAckMarkerPool.setSize(2 * capiConnectFilesize);
+  m_commitAckMarkerHash.setSize(1024);
 
   hostRecord = (HostRecord*)allocRecord("HostRecord",
 					sizeof(HostRecord),

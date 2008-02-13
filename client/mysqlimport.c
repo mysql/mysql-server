@@ -57,6 +57,7 @@ static char	*opt_password=0, *current_user=0,
 		*escaped=0, *opt_columns=0, 
 		*default_charset= (char*) MYSQL_DEFAULT_CHARSET_NAME;
 static uint     opt_mysql_port= 0, opt_protocol= 0;
+static char *opt_bind_addr = NULL;
 static char * opt_mysql_unix_port=0;
 static longlong opt_ignore_lines= -1;
 static CHARSET_INFO *charset_info= &my_charset_latin1;
@@ -72,6 +73,9 @@ static struct my_option my_long_options[] =
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -423,6 +427,8 @@ static MYSQL *db_connect(char *host, char *database,
 #endif
   if (opt_protocol)
     mysql_options(mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+    mysql_options(mysql,MYSQL_OPT_BIND,opt_bind_addr);
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

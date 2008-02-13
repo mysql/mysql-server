@@ -466,6 +466,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
   
   Ptr<Tablespace> ptr;
   CreateFileImplRef::ErrorCode err = CreateFileImplRef::NoError;
+  SectionHandle handle(this, signal);
   do {
     if (!m_tablespace_hash.find(ptr, req->filegroup_id))
     {
@@ -528,6 +529,11 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
       // Prepare
       break;
     }
+
+    if (!handle.m_cnt == 1)
+    {
+      ndbrequire(false);
+    }
     
     if (!m_file_pool.seize(file_ptr))
     {
@@ -540,8 +546,7 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
        (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
     {
       jam();
-      if(signal->getNoOfSections())
-        releaseSections(signal);
+      releaseSections(handle);
 
       CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
       ref->senderData = senderData;
@@ -560,12 +565,14 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
     file_ptr.p->m_tablespace_ptr_i = ptr.i;
     file_ptr.p->m_extent_size = ptr.p->m_extent_size;
 
-    err = (CreateFileImplRef::ErrorCode)open_file(signal, ptr, file_ptr, req);
+    err = (CreateFileImplRef::ErrorCode)open_file(signal, ptr, file_ptr, req,
+                                                  &handle);
     if(err)
       break;
     return;
   } while(0);
   
+  releaseSections(handle);
   CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
   ref->senderData = senderData;
   ref->senderRef = reference();
@@ -688,7 +695,9 @@ Tsman::execFSCLOSECONF(Signal* signal)
 int
 Tsman::open_file(Signal* signal, 
 		 Ptr<Tablespace> ts_ptr, 
-		 Ptr<Datafile> ptr, CreateFileImplReq* org)
+		 Ptr<Datafile> ptr,
+		 CreateFileImplReq* org,
+		 SectionHandle* handle)
 {
   Uint32 requestInfo = org->requestInfo;
   Uint32 hi = org->file_size_hi;
@@ -748,7 +757,6 @@ Tsman::open_file(Signal* signal,
   
   ptr.p->m_create.m_extent_pages = extent_pages;
   ptr.p->m_create.m_data_pages = data_pages;
-  // Forward filename
 
   /**
    * Update file size
@@ -760,7 +768,8 @@ Tsman::open_file(Signal* signal,
   req->file_size_hi = hi;
   req->file_size_lo = lo;
 
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB);
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
+	     handle);
 
   return 0;
 }
@@ -2175,9 +2184,11 @@ void Tsman::execGET_TABINFOREQ(Signal* signal)
   BlockReference retRef= req->senderRef;
   Uint32 senderData= req->senderData;
 
-  if(reqType == GetTabInfoReq::RequestByName){
+  if(reqType == GetTabInfoReq::RequestByName)
+  {
     jam();
-    releaseSections(signal);
+    SectionHandle handle(this, signal);
+    releaseSections(handle);
 
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::NoFetchByName);
     return;

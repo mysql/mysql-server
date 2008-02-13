@@ -51,15 +51,15 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=609 $MYSQLTEST_VARDIR/log/master-bin.000001 
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --stop-position=609 $MYSQLTEST_VARDIR/log/master-bin.000001 
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 $MYSQLTEST_VARDIR/log/master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=609 --stop-position 726 $MYSQLTEST_VARDIR/log/master-bin.000001 
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -85,11 +85,11 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --start-position=609 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=134 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --stop-position=135 $MYSQLTEST_VARDIR/log/master-bin.000001 $MYSQLTEST_VARDIR/log/master-bin.000002
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -112,15 +112,15 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --start-position=609 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=608 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
+--exec $MYSQL_BINLOG --short-form --stop-position=609 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001 
 --disable_query_log
 select "--- start and stop positions ---" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 --stop-position 725 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
+--exec $MYSQL_BINLOG --short-form --start-position=609 --stop-position 726 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log
@@ -143,11 +143,11 @@ select "--- offset --" as "";
 --disable_query_log
 select "--- start-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --start-position=608 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
+--exec $MYSQL_BINLOG --short-form --start-position=609 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log
 select "--- stop-position --" as "";
 --enable_query_log
---exec $MYSQL_BINLOG --short-form --stop-position=134 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
+--exec $MYSQL_BINLOG --short-form --stop-position=135 --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT master-bin.000001  master-bin.000002
 --disable_query_log
 select "--- start-datetime --" as "";
 --enable_query_log

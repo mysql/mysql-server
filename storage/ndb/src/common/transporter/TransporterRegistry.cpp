@@ -709,7 +709,8 @@ TransporterRegistry::poll_SCI(Uint32 timeOutMillis)
 {
   for (int i=0; i<nSCITransporters; i++) {
     SCI_Transporter * t = theSCITransporters[i];
-    if (t->isConnected()) {
+    Uint32 node_id= t->getRemoteNodeId();
+    if (t->isConnected() && is_connected(node_id)) {
       if(t->hasDataToRead())
 	return 1;
     }
@@ -728,7 +729,8 @@ TransporterRegistry::poll_SHM(Uint32 timeOutMillis)
   {
     for (int i=0; i<nSHMTransporters; i++) {
       SHM_Transporter * t = theSHMTransporters[i];
-      if (t->isConnected()) {
+      Uint32 node_id= t->getRemoteNodeId();
+      if (t->isConnected() && is_connected(node_id)) {
 	if(t->hasDataToRead()) {
 	  return 1;
 	}
@@ -760,10 +762,10 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   // Prepare for sending and receiving
   for (int i = 0; i < nTCPTransporters; i++) {
     TCP_Transporter * t = theTCPTransporters[i];
+    Uint32 node_id= t->getRemoteNodeId();
     
     // If the transporter is connected
-    NodeId nodeId = t->getRemoteNodeId();
-    if (is_connected(nodeId) && t->isConnected()) {
+    if (is_connected(node_id) && t->isConnected()) {
       
       const NDB_SOCKET_TYPE socket = t->getSocket();
       // Find the highest socket value. It will be used by select
@@ -1170,12 +1172,22 @@ TransporterRegistry::start_clients_thread()
 bool
 TransporterRegistry::start_clients()
 {
+  char thread_object[THREAD_CONTAINER_SIZE];
+  uint len;
+
   m_run_start_clients_thread= true;
-  m_start_clients_thread= NdbThread_Create(run_start_clients_C,
+  ndb_thread_fill_thread_object((void*)thread_object, &len, FALSE);
+  m_start_clients_thread= NdbThread_CreateWithFunc(run_start_clients_C,
 					   (void**)this,
 					   32768,
 					   "ndb_start_clients",
-					   NDB_THREAD_PRIO_LOW);
+					   NDB_THREAD_PRIO_LOW,
+                                           ndb_thread_add_thread_id,
+                                           thread_object,
+                                           len,
+                                           ndb_thread_remove_thread_id,
+                                           thread_object,
+                                           len);
   if (m_start_clients_thread == 0) {
     m_run_start_clients_thread= false;
     return false;

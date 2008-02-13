@@ -962,6 +962,69 @@ NdbDictionary::Index::getObjectId() const {
   return m_impl.m_table->m_id;
 }
 
+/*****************************************************************
+ * OptimizeTableHandle facade
+ */
+NdbDictionary::OptimizeTableHandle::OptimizeTableHandle()
+  : m_impl(* new NdbOptimizeTableHandleImpl(* this))
+{}
+
+NdbDictionary::OptimizeTableHandle::OptimizeTableHandle(NdbOptimizeTableHandleImpl & impl)
+  : m_impl(impl)
+{}
+
+NdbDictionary::OptimizeTableHandle::~OptimizeTableHandle()
+{
+  NdbOptimizeTableHandleImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+int
+NdbDictionary::OptimizeTableHandle::next()
+{
+  return m_impl.next();
+}
+
+int
+NdbDictionary::OptimizeTableHandle::close()
+{
+  int result = m_impl.close();
+  return result;
+}
+
+/*****************************************************************
+ * OptimizeIndexHandle facade
+ */
+NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle()
+  : m_impl(* new NdbOptimizeIndexHandleImpl(* this))
+{}
+
+NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle(NdbOptimizeIndexHandleImpl & impl)
+  : m_impl(impl)
+{}
+
+NdbDictionary::OptimizeIndexHandle::~OptimizeIndexHandle()
+{
+  NdbOptimizeIndexHandleImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+int
+NdbDictionary::OptimizeIndexHandle::next()
+{
+  return m_impl.next();
+}
+
+int
+NdbDictionary::OptimizeIndexHandle::close()
+{
+  int result = m_impl.close();
+  return result;
+}
 
 /*****************************************************************
  * Event facade
@@ -1513,6 +1576,23 @@ NdbDictionary::Dictionary::createTable(const Table & t)
 }
 
 int
+NdbDictionary::Dictionary::optimizeTable(const Table &t,
+                                         OptimizeTableHandle &h){
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeTable");
+  DBUG_RETURN(m_impl.optimizeTable(NdbTableImpl::getImpl(t), 
+                                   NdbOptimizeTableHandleImpl::getImpl(h)));
+}
+
+int
+NdbDictionary::Dictionary::optimizeIndex(const Index &ind,
+                                         NdbDictionary::OptimizeIndexHandle &h)
+{
+  DBUG_ENTER("NdbDictionary::Dictionary::optimzeIndex");
+  DBUG_RETURN(m_impl.optimizeIndex(NdbIndexImpl::getImpl(ind),
+                                   NdbOptimizeIndexHandleImpl::getImpl(h)));
+}
+
+int
 NdbDictionary::Dictionary::dropTable(Table & t){
   return m_impl.dropTable(NdbTableImpl::getImpl(t));
 }
@@ -1564,6 +1644,17 @@ NdbDictionary::Dictionary::getIndexGlobal(const char * indexName,
 {
   NdbIndexImpl * i = m_impl.getIndexGlobal(indexName,
                                            NdbTableImpl::getImpl(ndbtab));
+  if(i)
+    return i->m_facade;
+  return 0;
+}
+
+const NdbDictionary::Index *
+NdbDictionary::Dictionary::getIndexGlobal(const char * indexName,
+                                          const char * tableName) const
+{
+  NdbIndexImpl * i = m_impl.getIndexGlobal(indexName,
+                                           tableName);
   if(i)
     return i->m_facade;
   return 0;

@@ -54,8 +54,6 @@ private:
     ZCHECK_GCP_STOP         = 26,
     ZREMOVE_NODE_FROM_TABLE      = 27,
     ZCOPY_NODE                   = 28,
-    ZSTART_TAKE_OVER             = 29,
-    ZCHECK_START_TAKE_OVER       = 30,
     ZTO_START_COPY_FRAG          = 31,
     ZINITIALISE_RECORDS          = 33,    
     ZINVALIDATE_NODE_LCP         = 34,
@@ -63,13 +61,12 @@ private:
     SwitchReplica                = 36,
     ZSEND_START_TO               = 37,
     ZSEND_ADD_FRAG               = 38,
-    ZSEND_CREATE_FRAG            = 39,
     ZSEND_UPDATE_TO              = 40,
-    ZSEND_END_TO                 = 41,
 
     WAIT_DROP_TAB_WRITING_TO_FILE = 42,
     CHECK_WAIT_DROP_TAB_FAILED_LQH = 43,
     ZTO_START_FRAGMENTS = 44
+    ,ZCOPY_NODE_WAIT_CREATE_FRAG = 45
   };
 };
 

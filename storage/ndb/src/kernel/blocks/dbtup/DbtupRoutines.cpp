@@ -1547,6 +1547,20 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       inBufIndex += 1 + sz;
       req_struct->in_buf_index = inBufIndex;
     }
+    else if(attributeId == AttributeHeader::OPTIMIZE)
+    {
+      jam();
+      Uint32 sz= ahIn.getDataSize();
+      ndbrequire(sz == 1);
+      /**
+       * get optimize options
+       */
+      req_struct->optimize_options = * (inBuffer + inBufIndex + 1);
+      req_struct->optimize_options &=
+        AttributeHeader::OPTIMIZE_OPTIONS_MASK;
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
     else
     {
       jam();
@@ -2171,8 +2185,9 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   Uint32* outBuffer = outBuf + ((outPos - 1) >> 2);
   
   Uint32 sz;
-  Uint32 tmp[sizeof(SignalHeader)+25];
-  Signal * signal = (Signal*)&tmp;
+  SignalT<4> signalT;
+  Signal * signal = (Signal*)&signalT;
+  bzero(signal, sizeof(signalT));
   switch(attrId){
   case AttributeHeader::READ_PACKED:
   case AttributeHeader::READ_ALL:

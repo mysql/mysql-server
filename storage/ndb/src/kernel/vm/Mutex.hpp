@@ -18,6 +18,7 @@
 
 #include "Callback.hpp"
 #include "SimulatedBlock.hpp"
+#include <signaldata/UtilLock.hpp>
 
 class Mutex;
 
@@ -69,11 +70,11 @@ public:
   void release();
   bool isNull() const ;
   
-  bool lock(SimulatedBlock::Callback & callback);
-  bool trylock(SimulatedBlock::Callback & callback);
+  bool lock(SimulatedBlock::Callback & callback, bool exclusive = true, bool notify = false);
+  bool trylock(SimulatedBlock::Callback & callback, bool exclusive = true);
   void unlock(SimulatedBlock::Callback & callback);
   void unlock(); // Ignore callback
-  
+
   bool create(SimulatedBlock::Callback & callback);
   bool destroy(SimulatedBlock::Callback & callback);
 
@@ -181,12 +182,14 @@ Mutex::isNull() const {
 
 inline
 bool
-Mutex::lock(SimulatedBlock::Callback & callback){
+Mutex::lock(SimulatedBlock::Callback & callback, bool exclusive, bool notify){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
       m_ptr.p->m_callback = callback;
-      m_mgr.lock(m_signal, m_ptr);
+      m_mgr.lock(m_signal, m_ptr, 
+                 ((exclusive == false) ? UtilLockReq::SharedLock : 0) |
+                 ((notify == true) ? UtilLockReq::Notify : 0));
       return true;
     }
     return false;
@@ -198,12 +201,14 @@ Mutex::lock(SimulatedBlock::Callback & callback){
 
 inline
 bool
-Mutex::trylock(SimulatedBlock::Callback & callback){
+Mutex::trylock(SimulatedBlock::Callback & callback, bool exclusive){
   if(m_ptr.isNull()){
     if(m_mgr.seize(m_ptr)){
       m_ptr.p->m_mutexId = m_mutexId;
       m_ptr.p->m_callback = callback;
-      m_mgr.lock(m_signal, m_ptr);
+      m_mgr.lock(m_signal, m_ptr, 
+                 UtilLockReq::TryLock |
+                 ((exclusive == false) ? UtilLockReq::SharedLock : 0));
       return true;
     }
     return false;

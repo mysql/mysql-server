@@ -115,7 +115,10 @@ public:
   void insertTimeQueue(Signal* aSignal, BlockNumber bnr,
 		       GlobalSignalNumber gsn, Uint32 aIndex);
   void scheduleTimeQueue(Uint32 aIndex);
-  
+  void reportThreadConfigLoop(Uint32 expired_time, Uint32 extra_constant,
+                              Uint32 *no_exec_loops, Uint32 *tot_exec_time,
+                              Uint32 *no_extra_loops, Uint32 *tot_extra_time);
+
 private:
   void highestAvailablePrio(Priority prio);
   void reportJob(Priority aPriority);
@@ -276,14 +279,10 @@ APZJobBuffer::retrieve(Signal* signal, Uint32 myRptr)
   
   Uint32 *from = (Uint32*) &buf.theDataRegister[0];
   Uint32 *to   = (Uint32*) &signal->theData[0];
-  Uint32 noOfWords = buf.header.theLength;
+  Uint32 noOfWords = buf.header.theLength + buf.header.m_noOfSections;
   for(; noOfWords; noOfWords--)
     *to++ = *from++;
   // Copy sections references (copy all without if-statements)
-  SegmentedSectionPtr * tSecPtr = &signal->m_sectionPtr[0];
-  tSecPtr[0].i = from[0];
-  tSecPtr[1].i = from[1];
-  tSecPtr[2].i = from[2];
   return;
 }
 

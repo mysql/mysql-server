@@ -451,13 +451,14 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
   // Seize a subscription record
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
-  
+  SectionHandle handle(this, signal);
+
   if (!c_theSubscriptions.seizeId(subRecPtr, buildIndxReq->getBuildId())) {
     // Failed to allocate subscription record
     BuildIndxRef * buildIndxRef = (BuildIndxRef *)signal->getDataPtrSend();
 
     buildIndxRef->setErrorCode(BuildIndxRef::AllocationFailure);
-    releaseSections(signal);
+    releaseSections(handle);
     sendSignal(buildIndxReq->getUserRef(), 
 	       GSN_BUILDINDXREF, signal, BuildIndxRef::SignalLength, JBB);
     DBUG_VOID_RETURN;
@@ -478,16 +479,16 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
   subRec->prepareId = RNIL;
 
   // Get column order segments
-  Uint32 noOfSections = signal->getNoOfSections();
+  Uint32 noOfSections = handle.m_cnt;
   if(noOfSections > 0) {
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, BuildIndxReq::INDEX_COLUMNS);
+    handle.getSection(ptr, BuildIndxReq::INDEX_COLUMNS);
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
   if(noOfSections > 1) {
     SegmentedSectionPtr ptr;
-    signal->getSection(ptr, BuildIndxReq::KEY_COLUMNS);
+    handle.getSection(ptr, BuildIndxReq::KEY_COLUMNS);
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfKeyColumns = ptr.sz;
   }
@@ -496,7 +497,7 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
   printf("Trix:: execBUILDINDXREQ: Attribute order:\n");
   subRec->attributeOrder.print(stdout);
 #endif
-  releaseSections(signal);
+  releaseSections(handle);
   prepareInsertTransactions(signal, subRecPtr);
   DBUG_VOID_RETURN;
 }
@@ -699,14 +700,14 @@ void Trix::execSUB_TABLE_DATA(Signal* signal)
     DBUG_VOID_RETURN;
   }
   subRecPtr.p = subRec;
+  SectionHandle handle(this, signal);
   SegmentedSectionPtr headerPtr, dataPtr;
-  if (!signal->getSection(headerPtr, 0)) {
-    printf("Trix::execSUB_TABLE_DATA: Failed to get header section\n");
-  }
-  if (!signal->getSection(dataPtr, 1)) {
-    printf("Trix::execSUB_TABLE_DATA: Failed to get data section\n");
-  }
+
+  handle.getSection(headerPtr, 0);
+  handle.getSection(dataPtr, 1);
   executeInsertTransaction(signal, subRecPtr, headerPtr, dataPtr);
+
+  releaseSections(handle);
   DBUG_VOID_RETURN;
 }
 
