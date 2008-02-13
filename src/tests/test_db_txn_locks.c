@@ -34,6 +34,7 @@ void put(BOOL success, char txn, int _key, int _data) {
                     dbt_init(&key, &_key, sizeof(int)),
                     dbt_init(&data, &_data, sizeof(int)),
                     DB_YESOVERWRITE);
+
     if (success)    CKERR(r);
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
@@ -469,7 +470,14 @@ void test(u_int32_t dup_flags) {
 }
 
 
-int main() {
+int main(int argc, const char* argv[]) {
+    parse_args(argc, argv);
+#if defined(USE_BDB)
+    if (verbose) {
+	printf("Warning: " __FILE__" does not work in BDB.\n");
+    }
+    return 0;
+#endif
     test(0);
     test(DB_DUP | DB_DUPSORT);
     /*
