@@ -39,6 +39,8 @@ then
 fi
 
 # Make sure to enable all features that affect "make dist"
+# Remember that configure restricts the man pages to the configured features !
 ./configure \
+  --with-embedded-server \
   --with-ndbcluster
 make
