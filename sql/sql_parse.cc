@@ -302,7 +302,7 @@ void init_update_queries(void)
 
 bool is_update_query(enum enum_sql_command command)
 {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  DBUG_ASSERT(command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_CHANGES_DATA) != 0;
 }
 
@@ -313,7 +313,7 @@ bool is_update_query(enum enum_sql_command command)
 */
 bool is_log_table_write_query(enum enum_sql_command command)
 {
-  DBUG_ASSERT(command >= 0 && command <= SQLCOM_END);
+  DBUG_ASSERT(command <= SQLCOM_END);
   return (sql_command_flags[command] & CF_WRITE_LOGS_COMMAND) != 0;
 }
 
@@ -1367,7 +1367,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
+#if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
     uint length;
+#endif
     ulonglong queries_per_second1000;
     char buff[250];
     uint buff_len= sizeof(buff);
@@ -1380,22 +1382,21 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     else
       queries_per_second1000= thd->query_id * LL(1000) / uptime;
 
-    length= my_snprintf((char*) buff, buff_len - 1,
-                        "Uptime: %lu  Threads: %d  Questions: %lu  "
-                        "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
-                        "Open tables: %u  Queries per second avg: %u.%u",
-                        uptime,
-                        (int) thread_count, (ulong) thd->query_id,
-                        current_global_status_var.long_query_count,
-                        current_global_status_var.opened_tables,
-                        refresh_version,
-                        cached_open_tables(),
-                        (uint) (queries_per_second1000 / 1000),
-                        (uint) (queries_per_second1000 % 1000));
-#ifdef EMBEDDED_LIBRARY
-    /* Store the buffer in permanent memory */
-    send_ok(thd, 0, 0, buff);
+#if defined(SAFEMALLOC) || !defined(EMBEDDED_LIBRARY)
+    length=
 #endif
+      my_snprintf((char*) buff, buff_len - 1,
+                  "Uptime: %lu  Threads: %d  Questions: %lu  "
+                  "Slow queries: %lu  Opens: %lu  Flush tables: %lu  "
+                  "Open tables: %u  Queries per second avg: %u.%u",
+                  uptime,
+                  (int) thread_count, (ulong) thd->query_id,
+                  current_global_status_var.long_query_count,
+                  current_global_status_var.opened_tables,
+                  refresh_version,
+                  cached_open_tables(),
+                  (uint) (queries_per_second1000 / 1000),
+                  (uint) (queries_per_second1000 % 1000));
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
     {
@@ -1406,7 +1407,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                            (sf_malloc_max_memory+1023L)/1024L);
     }
 #endif
-#ifndef EMBEDDED_LIBRARY
+#ifdef EMBEDDED_LIBRARY
+    /* Store the buffer in permanent memory */
+    send_ok(thd, 0, 0, buff);
+#else
     VOID(my_net_write(net, (uchar*) buff, length));
     VOID(net_flush(net));
     thd->main_da.disable_status();
@@ -2153,7 +2157,6 @@ mysql_execute_command(THD *thd)
     my_error(ER_FEATURE_DISABLED, MYF(0), "SHOW PROFILES", "enable-profiling");
     goto error;
 #endif
-    break;
   }
   case SQLCOM_SHOW_NEW_MASTER:
   {

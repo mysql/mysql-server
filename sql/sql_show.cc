@@ -2113,20 +2113,20 @@ static bool show_status_array(THD *thd, const char *wild,
         */
         switch (show_type) {
         case SHOW_DOUBLE_STATUS:
-          value= ((char *) status_var + (ulong) value);
+          value= ((char *) status_var + (intptr) value);
           /* fall through */
         case SHOW_DOUBLE:
           end= buff + my_sprintf(buff, (buff, "%f", *(double*) value));
           break;
         case SHOW_LONG_STATUS:
-          value= ((char *) status_var + (ulong) value);
+          value= ((char *) status_var + (intptr) value);
           /* fall through */
         case SHOW_LONG:
         case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
           end= int10_to_str(*(long*) value, buff, 10);
           break;
         case SHOW_LONGLONG_STATUS:
-          value= ((char *) status_var + (ulonglong) value);
+          value= ((char *) status_var + (intptr) value);
           /* fall through */
         case SHOW_LONGLONG:
           end= longlong10_to_str(*(longlong*) value, buff, 10);

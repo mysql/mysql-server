@@ -254,11 +254,9 @@ my_decimal *Item::val_decimal_from_int(my_decimal *decimal_value)
 my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
 {
   String *res;
-  char *end_ptr;
   if (!(res= val_str(&str_value)))
     return 0;                                   // NULL or EOM
 
-  end_ptr= (char*) res->ptr()+ res->length();
   if (str2my_decimal(E_DEC_FATAL_ERROR & ~E_DEC_BAD_NUM,
                      res->ptr(), res->length(), res->charset(),
                      decimal_value) & E_DEC_BAD_NUM)
@@ -382,7 +380,7 @@ Item::Item():
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
   with_subselect= 0;
-  cmp_context= (Item_result)-1;
+  cmp_context= IMPOSSIBLE_RESULT;
 
   /* Put item in free list so that we can free all items at end */
   THD *thd= current_thd;
@@ -4188,7 +4186,7 @@ Item *Item_field::equal_fields_propagator(uchar *arg)
     DATE/TIME represented as an int and as a string.
   */
   if (!item ||
-      (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
+      (cmp_context != IMPOSSIBLE_RESULT && item->cmp_context != cmp_context))
     item= this;
   return item;
 }
@@ -4240,7 +4238,7 @@ Item *Item_field::replace_equal_field(uchar *arg)
     Item *const_item= item_equal->get_const();
     if (const_item)
     {
-      if (cmp_context != (Item_result)-1 &&
+      if (cmp_context != IMPOSSIBLE_RESULT &&
           const_item->cmp_context != cmp_context)
         return this;
       return const_item;

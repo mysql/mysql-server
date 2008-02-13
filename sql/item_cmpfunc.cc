@@ -845,12 +845,11 @@ int Arg_comparator::set_cmp_func(Item_bool_func2 *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  enum enum_date_cmp_type cmp_type;
   ulonglong const_value= (ulonglong)-1;
   a= a1;
   b= a2;
 
-  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
+  if (can_compare_as_dates(*a, *b, &const_value))
   {
     thd= current_thd;
     owner= owner_arg;

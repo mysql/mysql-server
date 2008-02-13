@@ -4476,10 +4476,12 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer)
 int vprint_msg_to_log(enum loglevel level, const char *format, va_list args)
 {
   char   buff[1024];
-  size_t length;
   DBUG_ENTER("vprint_msg_to_log");
 
-  length= my_vsnprintf(buff, sizeof(buff), format, args);
+#ifdef __NT__
+  size_t length=
+#endif
+    my_vsnprintf(buff, sizeof(buff), format, args);
   print_buffer_to_file(level, buff);
 
 #ifdef __NT__

@@ -450,7 +450,6 @@ Field *Item_func::tmp_table_field(TABLE *table)
     break;
   case STRING_RESULT:
     return make_string_field(table);
-    break;
   case DECIMAL_RESULT:
     field= new Field_new_decimal(my_decimal_precision_to_length(decimal_precision(),
                                                                 decimals,
@@ -2710,8 +2709,7 @@ longlong Item_func_find_in_set::val_int()
   }
   null_value=0;
 
-  int diff;
-  if ((diff=buffer->length() - find->length()) >= 0)
+  if ((int) (buffer->length() - find->length()) >= 0)
   {
     my_wc_t wc;
     CHARSET_INFO *cs= cmp_collation.collation;
@@ -3973,7 +3971,8 @@ double user_var_entry::val_real(my_bool *null_value)
   case STRING_RESULT:
     return my_atof(value);                      // This is null terminated
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return 0.0;					// Impossible
@@ -4004,7 +4003,8 @@ longlong user_var_entry::val_int(my_bool *null_value)
     return my_strtoll10(value, (char**) 0, &error);// String is null terminated
   }
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return LL(0);					// Impossible
@@ -4035,8 +4035,10 @@ String *user_var_entry::val_str(my_bool *null_value, String *str,
   case STRING_RESULT:
     if (str->copy(value, length, collation.collation))
       str= 0;					// EOM error
+    break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(str);
@@ -4063,7 +4065,8 @@ my_decimal *user_var_entry::val_decimal(my_bool *null_value, my_decimal *val)
     str2my_decimal(E_DEC_FATAL_ERROR, value, length, collation.collation, val);
     break;
   case ROW_RESULT:
-    DBUG_ASSERT(1);				// Impossible
+  case IMPOSSIBLE_RESULT:
+    DBUG_ASSERT(0);				// Impossible
     break;
   }
   return(val);

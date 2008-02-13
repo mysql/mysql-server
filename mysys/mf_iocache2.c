@@ -420,9 +420,9 @@ process_flags:
       /* minimum width padding */
       if (minimum_width > length2) 
       {
-        char *buffz;
+        uchar *buffz;
                     
-        buffz= my_alloca(minimum_width - length2);
+        buffz= (uchar*) my_alloca(minimum_width - length2);
         if (is_zero_padded)
           memset(buffz, '0', minimum_width - length2);
         else

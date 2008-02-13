@@ -210,10 +210,10 @@ struct link {
  */
 
 struct settings {
-  int flags;                    /* Current settings flags               */
-  int maxdepth;                 /* Current maximum trace depth          */
+  uint flags;                   /* Current settings flags               */
+  uint maxdepth;                /* Current maximum trace depth          */
   uint delay;                   /* Delay after each output line         */
-  int sub_level;                /* Sub this from code_state->level      */
+  uint sub_level;               /* Sub this from code_state->level      */
   FILE *out_file;               /* Current output stream                */
   FILE *prof_file;              /* Current profiling stream             */
   char name[FN_REFLEN];         /* Name of output file                  */
@@ -245,7 +245,7 @@ typedef struct _db_code_state_ {
   const char *jmpfunc;          /* Remember current function for setjmp     */
   const char *jmpfile;          /* Remember current file for setjmp         */
   int lineno;                   /* Current debugger output line number      */
-  int level;                    /* Current function nesting level           */
+  uint level;                   /* Current function nesting level           */
   int jmplevel;                 /* Remember nesting level at setjmp()       */
 
 /*
@@ -1204,7 +1204,7 @@ void _db_enter_(const char *_func_, const char *_file_,
 void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
 {
   int save_errno=errno;
-  int _slevel_=_stack_frame_->level & ~TRACE_ON;
+  uint _slevel_= _stack_frame_->level & ~TRACE_ON;
   CODE_STATE *cs;
   get_code_state_or_return;
 

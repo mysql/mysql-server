@@ -9,7 +9,7 @@
 #include "test_file.h"
 #include <tap.h>
 
-#define PCACHE_SIZE (PAGE_SIZE*1024*8)
+#define PCACHE_SIZE (TEST_PAGE_SIZE*1024*8)
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
@@ -26,7 +26,7 @@ static PAGECACHE pagecache;
 static uint number_of_readers= 10;
 static uint number_of_writers= 20;
 static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
+static uint record_length_limit= TEST_PAGE_SIZE/200;
 static uint number_of_pages= 20;
 static uint flush_divider= 1000;
 #else /*TEST_HIGH_CONCURENCY*/
@@ -34,7 +34,7 @@ static uint flush_divider= 1000;
 static uint number_of_readers= 10;
 static uint number_of_writers= 1;
 static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
+static uint record_length_limit= TEST_PAGE_SIZE/200;
 static uint number_of_pages= 20;
 static uint flush_divider= 1000;
 #undef SKIP_BIG_TESTS
@@ -44,7 +44,7 @@ static uint flush_divider= 1000;
 static uint number_of_readers= 0;
 static uint number_of_writers= 10;
 static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
+static uint record_length_limit= TEST_PAGE_SIZE/200;
 static uint number_of_pages= 20;
 static uint flush_divider= 1000;
 #undef SKIP_BIG_TESTS
@@ -53,7 +53,7 @@ static uint flush_divider= 1000;
 static uint number_of_readers= 10;
 static uint number_of_writers= 10;
 static uint number_of_tests= 50000;
-static uint record_length_limit= PAGE_SIZE/200;
+static uint record_length_limit= TEST_PAGE_SIZE/200;
 static uint number_of_pages= 20000;
 static uint flush_divider= 1000;
 #endif /*TEST_WRITERS*/
@@ -116,7 +116,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
     uint len= *((uint *)(buff + end));
     uint j;
     end+= sizeof(uint) + sizeof(uint);
-    if (len + end > PAGE_SIZE)
+    if (len + end > TEST_PAGE_SIZE)
     {
       diag("incorrect field header #%u by offset %lu\n", i, offset + end);
       goto err;
@@ -131,7 +131,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
     }
     end+= len;
   }
-  for(i= end; i < PAGE_SIZE; i++)
+  for(i= end; i < TEST_PAGE_SIZE; i++)
   {
     if (buff[i] != 0)
     {
@@ -146,7 +146,7 @@ uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
            (page_locked ? "locked" : "unlocked"),
            end, num, tag);
       h= my_open("wrong_page", O_CREAT | O_TRUNC | O_RDWR, MYF(0));
-      my_pwrite(h, (uchar*) buff, PAGE_SIZE, 0, MYF(0));
+      my_pwrite(h, (uchar*) buff, TEST_PAGE_SIZE, 0, MYF(0));
       my_close(h, MYF(0));
       goto err;
     }
@@ -172,7 +172,7 @@ void put_rec(uchar *buff, uint end, uint len, uint tag)
   uint num= *((uint *)buff);
   if (!len)
     len= 1;
-  if (end + sizeof(uint)*2 + len > PAGE_SIZE)
+  if (end + sizeof(uint)*2 + len > TEST_PAGE_SIZE)
     return;
   *((uint *)(buff + end))= len;
   end+=  sizeof(uint);
@@ -217,7 +217,7 @@ void reset_file(PAGECACHE_FILE file, char *file_name)
 
 void reader(int num)
 {
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   uint i;
 
   for (i= 0; i < number_of_tests; i++)
@@ -227,7 +227,7 @@ void reader(int num)
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                    0);
-    check_page(buffr, page * PAGE_SIZE, 0, page, -num);
+    check_page(buffr, page * TEST_PAGE_SIZE, 0, page, -num);
 
   }
   free(buffr);
@@ -236,7 +236,7 @@ void reader(int num)
 
 void writer(int num)
 {
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   uint i;
 
   for (i= 0; i < number_of_tests; i++)
@@ -247,7 +247,7 @@ void writer(int num)
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_WRITE,
                    0);
-    end= check_page(buffr, page * PAGE_SIZE, 1, page, num);
+    end= check_page(buffr, page * TEST_PAGE_SIZE, 1, page, num);
     put_rec(buffr, end, get_len(record_length_limit), num);
     pagecache_write(&pagecache, &file1, page, 3, buffr,
                     PAGECACHE_PLAIN_PAGE,
@@ -381,7 +381,7 @@ int main(int argc __attribute__((unused)),
 #endif
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE, 0)) == 0)
+                             TEST_PAGE_SIZE, 0)) == 0)
   {
     diag("Got error: init_pagecache() (errno: %d)\n",
             errno);
@@ -389,9 +389,9 @@ int main(int argc __attribute__((unused)),
   }
   DBUG_PRINT("info", ("Page cache %d pages", pagen));
   {
-    unsigned char *buffr= malloc(PAGE_SIZE);
+    unsigned char *buffr= malloc(TEST_PAGE_SIZE);
     uint i;
-    memset(buffr, '\0', PAGE_SIZE);
+    memset(buffr, '\0', TEST_PAGE_SIZE);
     for (i= 0; i < number_of_pages; i++)
     {
       pagecache_write(&pagecache, &file1, i, 3, buffr,
