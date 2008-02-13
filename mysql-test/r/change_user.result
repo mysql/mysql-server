@@ -44,10 +44,3 @@ IS_FREE_LOCK('bug31418')
 SELECT IS_USED_LOCK('bug31418');
 IS_USED_LOCK('bug31418')
 NULL
-FLUSH STATUS;
-SHOW GLOBAL STATUS LIKE 'com_select';
-Variable_name	Value
-Com_select	112
-SHOW GLOBAL STATUS LIKE 'com_select';
-Variable_name	Value
-Com_select	112

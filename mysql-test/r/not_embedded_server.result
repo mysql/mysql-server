@@ -3,3 +3,10 @@ execute stmt1;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 number	root	localhost	test	Query	time	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!='Daemon'
 deallocate prepare stmt1;
+FLUSH STATUS;
+SHOW GLOBAL STATUS LIKE 'com_select';
+Variable_name	Value
+Com_select	102
+SHOW GLOBAL STATUS LIKE 'com_select';
+Variable_name	Value
+Com_select	102

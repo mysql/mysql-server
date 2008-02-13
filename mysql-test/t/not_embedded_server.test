@@ -20,4 +20,38 @@ prepare stmt1 from ' SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST WHERE COMMAND!
 execute stmt1;
 deallocate prepare stmt1;
 
+
+#
+# Bug#31222: com_% global status counters behave randomly with
+# mysql_change_user.
+#
+# Moved from change_user.test due to Bug#34517: SHOW GLOBAL STATUS does not
+# work properly in embedded server.
+#
+# TODO: move it back when Bug#34517 is fixed.
+#
+
+FLUSH STATUS;
+
+--disable_result_log
+--disable_query_log
+
+let $i = 100;
+
+while ($i)
+{
+  dec $i;
+
+  SELECT 1;
+}
+
+--enable_query_log
+--enable_result_log
+
+SHOW GLOBAL STATUS LIKE 'com_select';
+
+--change_user
+
+SHOW GLOBAL STATUS LIKE 'com_select';
+
 # End of 5.1 tests
