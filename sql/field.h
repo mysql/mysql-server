@@ -1904,6 +1904,7 @@ public:
     Field::move_field_offset(ptr_diff);
     bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
   }
+  void hash(ulong *nr, ulong *nr2);
 
 private:
   virtual size_t do_last_null_byte() const;

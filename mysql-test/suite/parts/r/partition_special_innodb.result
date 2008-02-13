@@ -1,17 +1,9 @@
 create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w'), primary key(a,b,c,d)) engine='InnoDB' 
 partition by key (a,b,c,d) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -20,7 +12,7 @@ t1	CREATE TABLE `t1` (
   `c` varchar(50) NOT NULL,
   `d` enum('m','w') NOT NULL DEFAULT 'm',
   PRIMARY KEY (`a`,`b`,`c`,`d`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w'), 
@@ -40,18 +32,10 @@ a	b	c	d
 drop table t1;
 create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h)) engine='InnoDB' 
 partition by key(a,b,c,d,e,f,g,h) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -65,7 +49,7 @@ t1	CREATE TABLE `t1` (
   `h` tinyint(4) NOT NULL,
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
@@ -85,18 +69,10 @@ a	b	c	d	e	f	g	h	i
 drop table t1;
 create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, a1 date not null, b1 varchar(50) not null, c1 varchar(50) not null, d1 enum('m', 'w') not null, e1 int not null, f1 decimal (18,2) not null, g1 bigint not null, h1 tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1)) engine='InnoDB' 
 partition by key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -118,7 +94,7 @@ t1	CREATE TABLE `t1` (
   `h1` tinyint(4) NOT NULL,
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`,`a1`,`b1`,`c1`,`d1`,`e1`,`f1`,`g1`,`h1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127,'1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
@@ -138,33 +114,17 @@ a	b	c	d	e	f	g	h	a1	b1	c1	d1	e1	f1	g1	h1	i
 drop table t1;
 create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, a1 date not null, b1 varchar(50) not null, c1 varchar(50) not null, d1 enum('m', 'w') not null, e1 int not null, f1 decimal (18,2) not null, g1 bigint not null, h1 tinyint not null, a2 date not null, b2 varchar(50) not null, c2 varchar(50) not null, d2 enum('m', 'w') not null, e2 int not null, f2 decimal (18,2) not null, g2 bigint not null, h2 tinyint not null, a3 date not null, b3 varchar(50) not null, c3 varchar(50) not null, d3 enum('m', 'w') not null, e3 int not null, f3 decimal (18,2) not null, g3 bigint not null, h3 tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1,a2,b2,c2,d2,e2,f2,g2,h2,a3,b3,c3,d3,e3,f3,g3,h3)) engine='InnoDB' 
 partition by key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1,a2,b2,c2,d2,e2,f2,g2,h2,a3,b3,c3,d3,e3,f3,g3,h3) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 ERROR 42000: Too many key parts specified; max 16 parts allowed
 create table t1 (a date not null, b varchar(50) not null, c varchar(50) not null, d enum('m', 'w') not null, e int not null, f decimal (18,2) not null, g bigint not null, h tinyint not null, a1 date not null, b1 varchar(50) not null, c1 varchar(50) not null, d1 enum('m', 'w') not null, e1 int not null, f1 decimal (18,2) not null, g1 bigint not null, h1 tinyint not null, a2 date not null, b2 varchar(50) not null, c2 varchar(50) not null, d2 enum('m', 'w') not null, e2 int not null, f2 decimal (18,2) not null, g2 bigint not null, h2 tinyint not null, a3 date not null, b3 varchar(50) not null, c3 varchar(50) not null, d3 enum('m', 'w') not null, e3 int not null, f3 decimal (18,2) not null, g3 bigint not null, h3 tinyint not null, i char(255), primary key(a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1)) engine='InnoDB' 
 partition by key(a,b,c,d,e,f,g,h) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -202,7 +162,7 @@ t1	CREATE TABLE `t1` (
   `h3` tinyint(4) NOT NULL,
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`,`a1`,`b1`,`c1`,`d1`,`e1`,`f1`,`g1`,`h1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = InnoDB) */
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = InnoDB) */
 insert into t1 values 
 ('1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113,'1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, '1975-01-01', 'abcde', 'abcde','m', 1234, 123.45, 32412341234, 113, 'tbhth nrzh ztfghgfh fzh ftzhj fztjh'), 
 ('1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127,'1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, '1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, '1983-12-31', 'cdef', 'srtbvsr', 'w', 45634, 13452.56, 3452346456, 127, 'liuugbzvdmrlti b itiortudirtfgtibm dfi'), 
