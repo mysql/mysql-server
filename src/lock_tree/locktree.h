@@ -131,9 +131,9 @@ typedef struct __toku_point toku_point;
    \param user_realloc   A user provided realloc(3) function.
    
    \return
-   - 0:      Success
-   - EINVAL: If any pointer or function argument is NULL.
-   - EINVAL: If payload_capacity is 0.
+   - 0       Success
+   - EINVAL  If any pointer or function argument is NULL.
+   - EINVAL  If payload_capacity is 0.
    - May return other errors due to system calls.
 
    A pre-condition is that no pointer parameter can be NULL;
@@ -156,9 +156,11 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     Set whether duplicates are allowed.
     This can be called after create, but NOT after any locks or unlocks have
     occurred.
-    Return: 0 on success.
-    Return: EINVAL if tree is NULL
-    Return: EDOM   if it is too late to change. 
+
+    \return
+    - 0 on success.
+    - EINVAL if tree is NULL
+    - EDOM   if it is too late to change. 
 */
 int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates);
 
@@ -174,7 +176,7 @@ int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates);
    \param tree    The tree to free.
    
    \return 
-   - 0:      Success.
+   - 0       Success.
 
    It asserts that the tree != NULL. 
    If this library is ever exported to users, we will use error datas instead.
@@ -191,11 +193,11 @@ int toku_lt_close(toku_lock_tree* tree);
    \param data   The data this lock is for.
 
    \return
-   - 0:                  Success.
-   - DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
+   - 0                   Success.
+   - DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
                          This can only happen if some other transaction has
                          a write lock that overlaps this point.
-   - ENOMEM:             If adding the lock would exceed the maximum
+   - ENOMEM              If adding the lock would exceed the maximum
                          memory allowed for payloads.
 
    The following is asserted: 
@@ -218,21 +220,22 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
 
    \param tree            The lock tree for the db.
    \param txn             The TOKU Transaction this lock is for.
+                          Note that txn == NULL is not supported at this time.
    \param key_left        The left end key of the range.
    \param data_left       The left end data of the range.
    \param key_right       The right end key of the range.
    \param data_right      The right end data of the range.
 
    \return
-   - 0:                  Success.
-   - DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
+   - 0                   Success.
+   - DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
                          This can only happen if some other transaction has
                          a write lock that overlaps this range.
-   - EDOM:               In a DB_DUPSORT db:
+   - EDOM                In a DB_DUPSORT db:
                          If (key_left, data_left) >  (key_right, data_right) or
                          In a nodup db:      if (key_left) >  (key_right)
                          (According to the db's comparison functions.)
-   - ENOMEM:             If adding the lock would exceed the maximum
+   - ENOMEM              If adding the lock would exceed the maximum
                          memory allowed for payloads.
 
     The following is asserted, but if this library is ever exported to users,
@@ -252,8 +255,6 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     If the lock tree needs to hold onto the key or data, it will make copies
     to its local memory.
 
-    Note that txn == NULL is not supported at this time.
-
     In BDB, txn can actually be NULL (mixed operations with transactions and 
     no transactions). This can cause conflicts, nobody was able (so far) 
     to verify that MySQL does or does not use this.
@@ -272,12 +273,12 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
    \param data   The data this lock is for.
 
     \return
-    - 0:                  Success.
-    - DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
-                            This can only happen if some other transaction has
-                            a write (or read) lock that overlaps this point.
-    - ENOMEM:             If adding the lock would exceed the maximum
-                            memory allowed for payloads.
+    - 0                   Success.
+    - DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
+                          This can only happen if some other transaction has
+                          a write (or read) lock that overlaps this point.
+    - ENOMEM              If adding the lock would exceed the maximum
+                           memory allowed for payloads.
 
     The following is asserted, but if this library is ever exported to users,
     EINVAL should be used instead:
@@ -290,8 +291,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         It is safe to free keys and datas after this call.
         If the lock tree needs to hold onto the key or data, it will make copies
         to its local memory.
-
- */
+*/
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                const DBT* key, const DBT* data);
 
@@ -305,18 +305,18 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  * ***************      DB->del on DB_DUPSORT dbs.
  * Acquires a write lock on a key range (or key/data range).  (Closed range).
  * Params:
- *      tree:           The lock tree for the db.
- *      txn:            The TOKU Transaction this lock is for.
- *      key_left:       The left end key of the range.
- *      key_right:      The right end key of the range.
- *      data_left:     The left end data of the range.
- *      data_right:    The right end data of the range.
+ *      tree            The lock tree for the db.
+ *      txn             The TOKU Transaction this lock is for.
+ *      key_left        The left end key of the range.
+ *      key_right       The right end key of the range.
+ *      data_left      The left end data of the range.
+ *      data_right     The right end data of the range.
  * Returns:
- *      0:                  Success.
- *      DB_LOCK_NOTGRANTED: If there is a conflict in getting the lock.
+ *      0                   Success.
+ *      DB_LOCK_NOTGRANTED  If there is a conflict in getting the lock.
  *                          This can only happen if some other transaction has
  *                          a write (or read) lock that overlaps this range.
- *      EINVAL:             If (tree == NULL || txn == NULL ||
+ *      EINVAL              If (tree == NULL || txn == NULL ||
  *                              key_left == NULL || key_right == NULL) or
  *                             (tree->db is dupsort &&
  *                               (data_left == NULL || data_right == NULL)) or
@@ -327,13 +327,13 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *                             (tree->db is dupsort && key_right != data_right &&
  *                                  (key_right == toku_lt_infinity ||
  *                                   key_right == toku_lt_neg_infinity))
- *      ERANGE:             In a DB_DUPSORT db:
+ *      ERANGE              In a DB_DUPSORT db:
  *                            If (key_left, data_left) >  (key_right, data_right) or
  *                          In a nodup db:      if (key_left) >  (key_right)
  *                          (According to the db's comparison functions.
- *      ENOSYS:             THis is not yet implemented.  Till it is, it will return ENOSYS,
+ *      ENOSYS              THis is not yet implemented.  Till it is, it will return ENOSYS,
  *                            if other errors do not occur first.
- *      ENOMEM:             If adding the lock would exceed the maximum
+ *      ENOMEM              If adding the lock would exceed the maximum
  *                          memory allowed for payloads.
  * Asserts:
  *      The EINVAL and ERANGE cases described will use assert to abort instead of returning errors.
@@ -351,17 +351,18 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
  //This can cause conflicts, I was unable (so far) to verify that MySQL does or does not use
  //this.
-/*
- * Releases all the locks owned by a transaction.
- * This is used when a transaction aborts/rolls back/commits.
- * Params:
- *      tree:       The lock tree for the db.
- *      txn:        The transaction to release all locks for.
- * Returns:
- *      0:          Success.
- *      EINVAL:     If (tree == NULL || txn == NULL).
- *      EINVAL:     If panicking.
- * *** Note that txn == NULL is not supported at this time.
+/**
+   Releases all the locks owned by a transaction.
+   This is used when a transaction aborts/rolls back/commits.
+
+   \param tree        The lock tree for the db.
+   \param txn         The transaction to release all locks for.
+                      Note that txn == NULL is not supported at this time.
+
+   \return
+   - 0           Success.
+   - EINVAL      If (tree == NULL || txn == NULL).
+   - EINVAL      If panicking.
  */
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
 
@@ -370,9 +371,14 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
     any locks.
     This can be called after create, but NOT after any locks or unlocks have
     occurred.
-    Return: 0 on success.
-    Return: EINVAL if tree is NULL
-    Return: EDOM   if it is too late to change. 
+
+    \param tree     The tree on whick to set the callback function
+    \param callback The callback function
+
+    \return
+    - 0 on success.
+    - EINVAL if tree is NULL
+    - EDOM   if it is too late to change. 
 */
 int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
                                     int (*callback)(DB_TXN*, toku_lock_tree*));
