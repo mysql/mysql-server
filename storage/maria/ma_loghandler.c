@@ -719,7 +719,7 @@ void translog_table_init()
 #ifndef DBUG_OFF
   check_translog_description_table(LOGREC_FIRST_FREE -1);
 #endif
-};
+}
 
 
 /* all possible flags page overheads */

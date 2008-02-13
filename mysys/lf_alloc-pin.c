@@ -403,7 +403,7 @@ found:
 
 /* lock-free memory allocator for fixed-size objects */
 
-LF_REQUIRE_PINS(1);
+LF_REQUIRE_PINS(1)
 
 /*
   callback for _lf_pinbox_real_free to free a list of unpinned objects -
