@@ -5846,21 +5846,31 @@ static void release_log_entries(partition_info *part_info)
   RETURN VALUES
     NONE
 */
-void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
+static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   int err;
   if (lpt->thd->locked_tables)
   {
+    /*
+      When we have the table locked, it is necessary to reopen the table
+      since all table objects were closed and removed as part of the
+      ALTER TABLE of partitioning structure.
+    */
     pthread_mutex_lock(&LOCK_open);
     lpt->thd->in_lock_tables= 1;
     err= reopen_tables(lpt->thd, 1, 1);
     lpt->thd->in_lock_tables= 0;
-    pthread_mutex_unlock(&LOCK_open);
     if (err)
     {
-      /* Issue a warning since we weren't able to regain the lock again. */
+      /*
+       Issue a warning since we weren't able to regain the lock again.
+       We also need to unlink table from thread's open list and from
+       table_cache
+     */
+      unlink_open_table(lpt->thd, lpt->table, FALSE);
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
     }
+    pthread_mutex_unlock(&LOCK_open);
   }
 }
 
