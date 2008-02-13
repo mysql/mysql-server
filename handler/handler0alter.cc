@@ -1,7 +1,7 @@
 /******************************************************
 Smart ALTER TABLE
 
-(c) 2005-2007 Innobase Oy
+(c) 2005-2008 Innobase Oy
 *******************************************************/
 
 #include <mysql_priv.h>
@@ -212,44 +212,30 @@ int
 innobase_check_index_keys(
 /*======================*/
 					/* out: 0 or error number */
-	TABLE*		table,		/* in: MySQL table */
-	dict_table_t* 	innodb_table,	/* in: InnoDB table */
-	trx_t*		trx,		/* in: transaction */
-	KEY*		key_info,	/* in: Indexes to be created */
+	const KEY*	key_info,	/* in: Indexes to be created */
 	ulint		num_of_keys)	/* in: Number of indexes to
 					be created */
 {
-	Field*		field;
 	ulint		key_num;
-	int		error = 0;
-	ibool		is_unsigned;
 
-	ut_ad(table && innodb_table && trx && key_info && num_of_keys);
+	ut_ad(key_info);
+	ut_ad(num_of_keys);
 
 	for (key_num = 0; key_num < num_of_keys; key_num++) {
-		KEY*		key;
-
-		key = &(key_info[key_num]);
+		const KEY&	key = key_info[key_num];
 
 		/* Check that the same index name does not appear
 		twice in indexes to be created. */
 
 		for (ulint i = 0; i < key_num; i++) {
-			KEY*		key2;
+			const KEY&	key2 = key_info[i];
 
-			key2 = &key_info[i];
+			if (0 == strcmp(key.name, key2.name)) {
+				sql_print_error("InnoDB: key name `%s` appears"
+						" twice in CREATE INDEX\n",
+						key.name);
 
-			if (0 == strcmp(key->name, key2->name)) {
-				ut_print_timestamp(stderr);
-
-				fputs("  InnoDB: Error: index ", stderr);
-				ut_print_name(stderr, trx, FALSE, key->name);
-				fputs(" appears twice in create index\n",
-								stderr);
-
-				error = ER_WRONG_NAME_FOR_INDEX;
-
-				return(error);
+				return(ER_WRONG_NAME_FOR_INDEX);
 			}
 		}
 
@@ -257,73 +243,66 @@ innobase_check_index_keys(
 		prefix index field on an inappropriate data type and
 		that the same colum does not appear twice in the index. */
 
-		for (ulint i = 0; i < key->key_parts; i++) {
-			KEY_PART_INFO*	key_part1;
-			ulint		col_type;	/* Column type */
+		for (ulint i = 0; i < key.key_parts; i++) {
+			const KEY_PART_INFO&	key_part1
+				= key.key_part[i];
+			const Field*		field
+				= key_part1.field;
+			ibool			is_unsigned;
 
-			key_part1 = key->key_part + i;
-
-			field = key_part1->field;
-
-			col_type = get_innobase_type_from_mysql_type(
-					&is_unsigned, field);
-
-			if (DATA_BLOB == col_type
-			|| (key_part1->length < field->pack_length()
-				&& field->type() != MYSQL_TYPE_VARCHAR)
-			|| (field->type() == MYSQL_TYPE_VARCHAR
-				&& key_part1->length < field->pack_length()
-			          - ((Field_varstring*)field)->length_bytes)) {
-
-				if (col_type == DATA_INT
-				    || col_type == DATA_FLOAT
-				    || col_type == DATA_DOUBLE
-				    || col_type == DATA_DECIMAL) {
-					fprintf(stderr,
-"InnoDB: error: MySQL is trying to create a column prefix index field\n"
-"InnoDB: on an inappropriate data type. Table name %s, column name %s.\n",
-						innodb_table->name,
-						field->field_name);
-
-					error = ER_WRONG_KEY_COLUMN;
+			switch (get_innobase_type_from_mysql_type(
+					&is_unsigned, field)) {
+			default:
+				break;
+			case DATA_INT:
+			case DATA_FLOAT:
+			case DATA_DOUBLE:
+			case DATA_DECIMAL:
+				if (field->type() == MYSQL_TYPE_VARCHAR) {
+					if (key_part1.length
+					    >= field->pack_length()
+					    - ((Field_varstring*) field)
+					    ->length_bytes) {
+						break;
+					}
+				} else {
+					if (key_part1.length
+					    >= field->pack_length()) {
+						break;
+					}
 				}
+
+				sql_print_error("InnoDB: MySQL is trying to"
+						" create a column prefix"
+						" index field on an"
+						" inappropriate data type."
+						" column `%s`,"
+						" index `%s`.\n",
+						field->field_name,
+						key.name);
+				return(ER_WRONG_KEY_COLUMN);
 			}
 
 			for (ulint j = 0; j < i; j++) {
-				KEY_PART_INFO*	key_part2;
+				const KEY_PART_INFO&	key_part2
+					= key.key_part[j];
 
-				key_part2 = key->key_part + j;
-
-				if (0 == strcmp(
-					key_part1->field->field_name,
-					key_part2->field->field_name)) {
-
-					ut_print_timestamp(stderr);
-
-					fputs("  InnoDB: Error: column ",
-								stderr);
-
-					ut_print_name(stderr, trx, FALSE,
-					key_part1->field->field_name);
-
-					fputs(" appears twice in ", stderr);
-
-					ut_print_name(stderr, trx, FALSE,
-								key->name);
-					fputs("\n"
-"  InnoDB: This is not allowed in InnoDB.\n",
-						stderr);
-
-					error = ER_WRONG_KEY_COLUMN;
-
-					return(error);
+				if (strcmp(key_part1.field->field_name,
+					   key_part2.field->field_name)) {
+					continue;
 				}
+
+				sql_print_error("InnoDB: column `%s`"
+						" is not allowed to occur"
+						" twice in index `%s`.\n",
+						key_part1.field->field_name,
+						key.name);
+				return(ER_WRONG_KEY_COLUMN);
 			}
 		}
-
 	}
 
-	return(error);
+	return(0);
 }
 
 /***********************************************************************
@@ -667,8 +646,7 @@ ha_innobase::add_index(
 
 	/* Check that index keys are sensible */
 
-	error = innobase_check_index_keys(
-		table, innodb_table, trx, key_info, num_of_keys);
+	error = innobase_check_index_keys(key_info, num_of_keys);
 
 	if (UNIV_UNLIKELY(error)) {
 err_exit:
@@ -860,8 +838,7 @@ error_handling:
 				error = HA_ERR_TABLE_EXIST;
 				break;
 			default:
-				error = convert_error_code_to_mysql(
-					trx->error_state, user_thd);
+				goto convert_error;
 			}
 			break;
 		}
