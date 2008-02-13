@@ -1083,11 +1083,11 @@ deallocate prepare stmt;
 drop table t1;
 show binlog events from 0;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	4	Format_desc	1	106	Server version, Binlog ver: 4
-master-bin.000001	106	Query	1	227	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
-master-bin.000001	227	Table_map	1	269	table_id: # (test.t1)
-master-bin.000001	269	Write_rows	1	315	table_id: # flags: STMT_END_F
-master-bin.000001	315	Query	1	391	use `test`; drop table t1
+master-bin.000001	4	Format_desc	1	107	Server version, Binlog ver: 4
+master-bin.000001	107	Query	1	228	use `test`; create table t1 (a bigint unsigned, b bigint(20) unsigned)
+master-bin.000001	228	Table_map	1	270	table_id: # (test.t1)
+master-bin.000001	270	Write_rows	1	316	table_id: # flags: STMT_END_F
+master-bin.000001	316	Query	1	392	use `test`; drop table t1
 End of 5.0 tests
 reset master;
 create table t1 (id tinyint auto_increment primary key);
