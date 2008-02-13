@@ -3053,7 +3053,10 @@ void in_string::set(uint pos,Item *item)
   {
     if (res->uses_buffer_owned_by(str))
       res->copy();
-    *str= *res;
+    if (item->type() == Item::FUNC_ITEM)
+      str->copy(*res);
+    else
+      *str= *res;
   }
   if (!str->charset())
   {
