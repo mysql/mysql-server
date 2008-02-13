@@ -20,13 +20,27 @@ from mysql.ndb_apply_status;
 @log_name:=log_name	@start_pos:=start_pos	@end_pos:=end_pos
 <log_name>	<start_pos>	<end_pos>
 
+# Now check that that is in the apply_status table is consistant
+# with what is in the binlog
+
+# since insert is done with transactional engine, expect a BEGIN
+# at <start_pos>
+
 show binlog events from <start_pos> limit 1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	<start_pos>	Query	1	#	use `test`; insert into t1 values (1,2)
+master-bin.000001	<start_pos>	Query	1	#	use `test`; BEGIN
+
+# Now the insert, one step after
 
 show binlog events from <start_pos> limit 1,1;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Xid	1	445	COMMIT /* XID */
+master-bin.000001	397	Query	1	#	use `test`; insert into t1 values (1,2)
+
+# and the COMMIT should be at <end_pos>
+
+show binlog events from <start_pos> limit 2,1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Xid	1	<end_pos>	COMMIT /* XID */
 
 begin;
 insert into t1 values (2,3);
