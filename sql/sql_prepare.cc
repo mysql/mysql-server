@@ -2273,7 +2273,6 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   uchar *packet_end= packet + packet_length;
 #endif
   Prepared_statement *stmt;
-  bool error;
   DBUG_ENTER("mysql_stmt_execute");
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
@@ -2321,7 +2320,7 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   */
   DBUG_ASSERT(thd->free_list == NULL);
 
-  error= stmt->execute(&expanded_query,
+  (void) stmt->execute(&expanded_query,
                        test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
   if (!(specialflag & SPECIAL_NO_PRIOR))
     my_pthread_setprio(pthread_self(), WAIT_PRIOR);

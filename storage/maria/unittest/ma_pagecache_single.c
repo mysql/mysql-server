@@ -9,7 +9,7 @@
 #include "test_file.h"
 #include <tap.h>
 
-#define PCACHE_SIZE (PAGE_SIZE*1024*10)
+#define PCACHE_SIZE (TEST_PAGE_SIZE*1024*10)
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
@@ -33,50 +33,50 @@ static PAGECACHE pagecache;
 */
 static struct file_desc simple_read_write_test_file[]=
 {
-  {PAGE_SIZE, '\1'},
+  { TEST_PAGE_SIZE, '\1'},
   {0, 0}
 };
 static struct file_desc simple_read_change_write_read_test_file[]=
 {
-  {PAGE_SIZE/2, '\65'},
-  {PAGE_SIZE/2, '\1'},
+  { TEST_PAGE_SIZE/2, '\65'},
+  { TEST_PAGE_SIZE/2, '\1'},
   {0, 0}
 };
 static struct file_desc simple_pin_test_file1[]=
 {
-  {PAGE_SIZE*2, '\1'},
+  { TEST_PAGE_SIZE*2, '\1'},
   {0, 0}
 };
 static struct file_desc simple_pin_test_file2[]=
 {
-  {PAGE_SIZE/2, '\1'},
-  {PAGE_SIZE/2, (unsigned char)129},
-  {PAGE_SIZE, '\1'},
+  { TEST_PAGE_SIZE/2, '\1'},
+  { TEST_PAGE_SIZE/2, (unsigned char)129},
+  { TEST_PAGE_SIZE, '\1'},
   {0, 0}
 };
 static struct file_desc simple_pin_no_lock_test_file1[]=
 {
-  {PAGE_SIZE, '\4'},
+  { TEST_PAGE_SIZE, '\4'},
   {0, 0}
 };
 static struct file_desc simple_pin_no_lock_test_file2[]=
 {
-  {PAGE_SIZE, '\5'},
+  { TEST_PAGE_SIZE, '\5'},
   {0, 0}
 };
 static struct file_desc simple_pin_no_lock_test_file3[]=
 {
-  {PAGE_SIZE, '\6'},
+  { TEST_PAGE_SIZE, '\6'},
   {0, 0}
 };
 static struct file_desc simple_delete_forget_test_file[]=
 {
-  {PAGE_SIZE, '\1'},
+  { TEST_PAGE_SIZE, '\1'},
   {0, 0}
 };
 static struct file_desc simple_delete_flush_test_file[]=
 {
-  {PAGE_SIZE, '\2'},
+  { TEST_PAGE_SIZE, '\2'},
   {0, 0}
 };
 
@@ -135,11 +135,11 @@ void reset_file(PAGECACHE_FILE *file, const char *file_name)
 
 int simple_read_write_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   int res;
   DBUG_ENTER("simple_read_write_test");
-  bfill(buffw, PAGE_SIZE, '\1');
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -150,14 +150,14 @@ int simple_read_write_test()
                  PAGECACHE_PLAIN_PAGE,
                  PAGECACHE_LOCK_LEFT_UNLOCKED,
                  0);
-  ok((res= test(memcmp(buffr, buffw, PAGE_SIZE) == 0)),
+  ok((res= test(memcmp(buffr, buffw, TEST_PAGE_SIZE) == 0)),
      "Simple write-read page ");
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
   {
     diag("Got error during flushing pagecache\n");
     exit(1);
   }
-  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_read_write_test_file))),
      "Simple write-read page file");
   if (res)
@@ -174,13 +174,13 @@ int simple_read_write_test()
 */
 int simple_read_change_write_read_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   int res, res2;
   DBUG_ENTER("simple_read_change_write_read_test");
 
   /* prepare the file */
-  bfill(buffw, PAGE_SIZE, '\1');
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -197,7 +197,7 @@ int simple_read_change_write_read_test()
                  PAGECACHE_PLAIN_PAGE,
                  PAGECACHE_LOCK_WRITE,
                  0);
-  bfill(buffw, PAGE_SIZE/2, '\65');
+  bfill(buffw, TEST_PAGE_SIZE/2, '\65');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE_UNLOCK,
@@ -209,7 +209,7 @@ int simple_read_change_write_read_test()
                  PAGECACHE_PLAIN_PAGE,
                  PAGECACHE_LOCK_LEFT_UNLOCKED,
                  0);
-  ok((res= test(memcmp(buffr, buffw, PAGE_SIZE) == 0)),
+  ok((res= test(memcmp(buffr, buffw, TEST_PAGE_SIZE) == 0)),
      "Simple read-change-write-read page ");
   DBUG_ASSERT(pagecache.blocks_changed == 1);
   if (flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE))
@@ -218,7 +218,7 @@ int simple_read_change_write_read_test()
     exit(1);
   }
   DBUG_ASSERT(pagecache.blocks_changed == 0);
-  ok((res2= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res2= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_read_change_write_read_test_file))),
      "Simple read-change-write-read page file");
   if (res && res2)
@@ -239,11 +239,11 @@ int simple_read_change_write_read_test()
 */
 int simple_pin_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
   int res;
   DBUG_ENTER("simple_pin_test");
   /* prepare the file */
-  bfill(buffw, PAGE_SIZE, '\1');
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -266,7 +266,7 @@ int simple_pin_test()
                   PAGECACHE_PIN_LEFT_UNPINNED,
                   PAGECACHE_WRITE_DELAY,
                   0, LSN_IMPOSSIBLE);
-  bfill(buffw + PAGE_SIZE/2, PAGE_SIZE/2, ((unsigned char) 129));
+  bfill(buffw + TEST_PAGE_SIZE/2, TEST_PAGE_SIZE/2, ((unsigned char) 129));
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE_TO_READ,
@@ -283,7 +283,7 @@ int simple_pin_test()
     res= 0;
     goto err;
   }
-  ok((res= test(test_file(file1, file1_name, PAGE_SIZE*2, PAGE_SIZE*2,
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE*2, TEST_PAGE_SIZE*2,
                            simple_pin_test_file1))),
      "Simple pin page file with pin");
   pagecache_unlock(&pagecache,
@@ -298,7 +298,7 @@ int simple_pin_test()
     res= 0;
     goto err;
   }
-  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE*2, PAGE_SIZE,
+  ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE*2, TEST_PAGE_SIZE,
                            simple_pin_test_file2))),
      "Simple pin page result file");
   if (res)
@@ -313,12 +313,12 @@ err:
 */
 int simple_pin_no_lock_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
   PAGECACHE_BLOCK_LINK *link;
   int res;
   DBUG_ENTER("simple_pin_no_lock_test");
   /* prepare the file */
-  bfill(buffw, PAGE_SIZE, '\4');
+  bfill(buffw, TEST_PAGE_SIZE, '\4');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -331,7 +331,7 @@ int simple_pin_no_lock_test()
     diag("Got error during flushing pagecache 2\n");
     exit(1);
   }
-  bfill(buffw, PAGE_SIZE, '\5');
+  bfill(buffw, TEST_PAGE_SIZE, '\5');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -348,7 +348,7 @@ int simple_pin_no_lock_test()
     res= 0;
     goto err;
   }
-  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_pin_no_lock_test_file1))),
      "Simple pin (no lock) page file with pin 2");
   pagecache_unlock(&pagecache,
@@ -363,11 +363,11 @@ int simple_pin_no_lock_test()
     res= 0;
     goto err;
   }
-  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_pin_no_lock_test_file2))),
      "Simple pin (no lock) page result file 2");
 
-  bfill(buffw, PAGE_SIZE, '\6');
+  bfill(buffw, TEST_PAGE_SIZE, '\6');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE,
@@ -383,7 +383,7 @@ int simple_pin_no_lock_test()
     res= 0;
     goto err;
   }
-  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_pin_no_lock_test_file2))),
      "Simple pin (no lock) page file with pin 3");
   pagecache_unpin_by_link(&pagecache, link, 0);
@@ -393,7 +393,7 @@ int simple_pin_no_lock_test()
     res= 0;
     goto err;
   }
-  ok((res&= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res&= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                            simple_pin_no_lock_test_file3))),
      "Simple pin (no lock) page result file 3");
   if (res)
@@ -409,12 +409,12 @@ err:
 
 int simple_delete_forget_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   int res;
   DBUG_ENTER("simple_delete_forget_test");
   /* prepare the file */
-  bfill(buffw, PAGE_SIZE, '\1');
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -423,7 +423,7 @@ int simple_delete_forget_test()
                   0, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
-  bfill(buffw, PAGE_SIZE, '\2');
+  bfill(buffw, TEST_PAGE_SIZE, '\2');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_UNLOCKED,
@@ -433,7 +433,7 @@ int simple_delete_forget_test()
   pagecache_delete(&pagecache, &file1, 0,
                    PAGECACHE_LOCK_WRITE, 0);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
-  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                           simple_delete_forget_test_file))),
      "Simple delete-forget page file");
   if (res)
@@ -451,13 +451,13 @@ int simple_delete_forget_test()
 
 int simple_delete_flush_test()
 {
-  unsigned char *buffw= malloc(PAGE_SIZE);
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buffw= malloc(TEST_PAGE_SIZE);
+  unsigned char *buffr= malloc(TEST_PAGE_SIZE);
   PAGECACHE_BLOCK_LINK *link;
   int res;
   DBUG_ENTER("simple_delete_flush_test");
   /* prepare the file */
-  bfill(buffw, PAGE_SIZE, '\1');
+  bfill(buffw, TEST_PAGE_SIZE, '\1');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_WRITE,
@@ -466,7 +466,7 @@ int simple_delete_flush_test()
                   &link, LSN_IMPOSSIBLE);
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
   /* test */
-  bfill(buffw, PAGE_SIZE, '\2');
+  bfill(buffw, TEST_PAGE_SIZE, '\2');
   pagecache_write(&pagecache, &file1, 0, 3, buffw,
                   PAGECACHE_PLAIN_PAGE,
                   PAGECACHE_LOCK_LEFT_WRITELOCKED,
@@ -480,7 +480,7 @@ int simple_delete_flush_test()
     exit(1);
   }
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
-  ok((res= test(test_file(file1, file1_name, PAGE_SIZE, PAGE_SIZE,
+  ok((res= test(test_file(file1, file1_name, TEST_PAGE_SIZE, TEST_PAGE_SIZE,
                           simple_delete_flush_test_file))),
      "Simple delete flush (link) page file");
   if (res)
@@ -497,19 +497,19 @@ int simple_delete_flush_test()
 
 int simple_big_test()
 {
-  unsigned char *buffw= (unsigned char *) my_malloc(PAGE_SIZE, MYF(MY_WME));
-  unsigned char *buffr= (unsigned char *) my_malloc(PAGE_SIZE, MYF(MY_WME));
+  unsigned char *buffw= (unsigned char *) my_malloc(TEST_PAGE_SIZE, MYF(MY_WME));
+  unsigned char *buffr= (unsigned char *) my_malloc(TEST_PAGE_SIZE, MYF(MY_WME));
   struct file_desc *desc= ((struct file_desc *)
-                           my_malloc((PCACHE_SIZE/(PAGE_SIZE/2) + 1) *
+                           my_malloc((PCACHE_SIZE/(TEST_PAGE_SIZE/2) + 1) *
                                      sizeof(struct file_desc), MYF(MY_WME)));
   int res, i;
   DBUG_ENTER("simple_big_test");
 
   /* prepare the file twice larger then cache */
-  for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)
+  for (i= 0; i < PCACHE_SIZE/(TEST_PAGE_SIZE/2); i++)
   {
-    bfill(buffw, PAGE_SIZE, (unsigned char) (i & 0xff));
-    desc[i].length= PAGE_SIZE;
+    bfill(buffw, TEST_PAGE_SIZE, (unsigned char) (i & 0xff));
+    desc[i].length= TEST_PAGE_SIZE;
     desc[i].content= (i & 0xff);
     pagecache_write(&pagecache, &file1, i, 3, buffw,
                     PAGECACHE_PLAIN_PAGE,
@@ -522,14 +522,14 @@ int simple_big_test()
   desc[i].content= '\0';
   ok(1, "Simple big file write");
   /* check written pages sequentally read */
-  for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE/2); i++)
+  for (i= 0; i < PCACHE_SIZE/(TEST_PAGE_SIZE/2); i++)
   {
     int j;
     pagecache_read(&pagecache, &file1, i, 3, buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                    0);
-    for(j= 0; j < PAGE_SIZE; j++)
+    for(j= 0; j < TEST_PAGE_SIZE; j++)
     {
       if (buffr[j] != (i & 0xff))
       {
@@ -541,15 +541,15 @@ int simple_big_test()
   }
   ok(1, "Simple big file sequential read");
   /* chack random reads */
-  for (i= 0; i < PCACHE_SIZE/(PAGE_SIZE); i++)
+  for (i= 0; i < PCACHE_SIZE/(TEST_PAGE_SIZE); i++)
   {
     int j, page;
-    page= rand() % (PCACHE_SIZE/(PAGE_SIZE/2));
+    page= rand() % (PCACHE_SIZE/(TEST_PAGE_SIZE/2));
     pagecache_read(&pagecache, &file1, page, 3, buffr,
                    PAGECACHE_PLAIN_PAGE,
                    PAGECACHE_LOCK_LEFT_UNLOCKED,
                    0);
-    for(j= 0; j < PAGE_SIZE; j++)
+    for(j= 0; j < TEST_PAGE_SIZE; j++)
     {
       if (buffr[j] != (page & 0xff))
       {
@@ -562,7 +562,7 @@ int simple_big_test()
   ok(1, "Simple big file random read");
   flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
 
-  ok((res= test(test_file(file1, file1_name, PCACHE_SIZE*2, PAGE_SIZE,
+  ok((res= test(test_file(file1, file1_name, PCACHE_SIZE*2, TEST_PAGE_SIZE,
                           desc))),
      "Simple big file");
   if (res)
@@ -699,7 +699,7 @@ int main(int argc __attribute__((unused)),
 #endif
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE, MYF(MY_WME))) == 0)
+                             TEST_PAGE_SIZE, MYF(MY_WME))) == 0)
   {
     fprintf(stderr,"Got error: init_pagecache() (errno: %d)\n",
             errno);

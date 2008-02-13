@@ -1177,7 +1177,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 {
   ulonglong engine_data;
   Query_cache_query *query;
-  Query_cache_block *first_result_block, *result_block;
+#ifndef EMBEDDED_LIBRARY
+  Query_cache_block *first_result_block;
+#endif
+  Query_cache_block *result_block;
   Query_cache_block_table *block_table, *block_table_end;
   ulong tot_length;
   Query_cache_query_flags flags;
@@ -1322,7 +1325,10 @@ def_week_frmt: %lu",
   BLOCK_LOCK_RD(query_block);
 
   query = query_block->query();
-  result_block= first_result_block= query->result();
+  result_block= query->result();
+#ifndef EMBEDDED_LIBRARY
+  first_result_block= result_block;
+#endif
 
   if (result_block == 0 || result_block->type != Query_cache_block::RESULT)
   {

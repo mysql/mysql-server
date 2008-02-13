@@ -2951,18 +2951,18 @@ int Field_tiny::store(double nr)
     }
     else if (nr > 255.0)
     {
-      *ptr=(char) 255;
+      *ptr= (uchar) 255;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
     else
-      *ptr=(char) nr;
+      *ptr= (uchar) nr;
   }
   else
   {
     if (nr < -128.0)
     {
-      *ptr= (char) -128;
+      *ptr= (uchar) -128;
       set_warning(MYSQL_ERROR::WARN_LEVEL_WARN, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error= 1;
     }
@@ -2973,7 +2973,7 @@ int Field_tiny::store(double nr)
       error= 1;
     }
     else
-      *ptr=(char) (int) nr;
+      *ptr=(uchar) (int) nr;
   }
   return error;
 }
@@ -5514,7 +5514,6 @@ int Field_date::store(const char *from, uint len,CHARSET_INFO *cs)
 int Field_date::store(double nr)
 {
   longlong tmp;
-  int error= 0;
   if (nr >= 19000000000000.0 && nr <= 99991231235959.0)
     nr=floor(nr/1000000.0);			// Timestamp to date
   if (nr < 0.0 || nr > 99991231.0)
@@ -5523,7 +5522,6 @@ int Field_date::store(double nr)
     set_datetime_warning(MYSQL_ERROR::WARN_LEVEL_WARN,
                          ER_WARN_DATA_OUT_OF_RANGE,
                          nr, MYSQL_TIMESTAMP_DATE);
-    error= 1;
   }
   else
     tmp= (longlong) rint(nr);

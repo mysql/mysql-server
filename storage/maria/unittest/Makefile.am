@@ -71,29 +71,29 @@ ma_pagecache_common_cppflags =	-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN
 ma_pagecache_single_1k_t_SOURCES =	$(ma_pagecache_single_src)
 ma_pagecache_single_8k_t_SOURCES =	$(ma_pagecache_single_src)
 ma_pagecache_single_64k_t_SOURCES =	$(ma_pagecache_single_src)
-ma_pagecache_single_1k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
-ma_pagecache_single_8k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=8192
-ma_pagecache_single_64k_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DBIG
+ma_pagecache_single_1k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=1024
+ma_pagecache_single_8k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=8192
+ma_pagecache_single_64k_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=65536 -DBIG
 
 ma_pagecache_consist_1k_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1k_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024
+ma_pagecache_consist_1k_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=1024
 ma_pagecache_consist_64k_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536
+ma_pagecache_consist_64k_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=65536
 
 ma_pagecache_consist_1kHC_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kHC_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_1kHC_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY
 ma_pagecache_consist_64kHC_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kHC_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
+ma_pagecache_consist_64kHC_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY
 
 ma_pagecache_consist_1kRD_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kRD_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_READERS
+ma_pagecache_consist_1kRD_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=1024 -DTEST_READERS
 ma_pagecache_consist_64kRD_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kRD_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_READERS
+ma_pagecache_consist_64kRD_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=65536 -DTEST_READERS
 
 ma_pagecache_consist_1kWR_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_1kWR_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
+ma_pagecache_consist_1kWR_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=1024 -DTEST_WRITERS
 ma_pagecache_consist_64kWR_t_SOURCES =	$(ma_pagecache_consist_src)
-ma_pagecache_consist_64kWR_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
+ma_pagecache_consist_64kWR_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DTEST_PAGE_SIZE=65536 -DTEST_WRITERS
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # so we don't build lockman-t and lockman1-t 

@@ -306,7 +306,7 @@ add_history (string)
 	}
     }
 
-  temp = alloc_history_entry (string, hist_inittime ());
+  temp = alloc_history_entry ((char*) string, hist_inittime ());
 
   the_history[history_length] = (HIST_ENTRY *)NULL;
   the_history[history_length - 1] = temp;
