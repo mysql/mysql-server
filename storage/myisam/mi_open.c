@@ -281,6 +281,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (share->options & HA_OPTION_COMPRESS_RECORD)
       share->base.max_key_length+=2;	/* For safety */
 
+    /* Add space for node pointer */
+    share->base.max_key_length+= share->base.key_reflength;
+
     if (!my_multi_malloc(MY_WME,
 			 &share,sizeof(*share),
 			 &share->state.rec_per_key_part,sizeof(long)*key_parts,
