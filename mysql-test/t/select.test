@@ -3661,6 +3661,17 @@ DROP TABLE t1;
 
 --echo
 
+###########################################################################
+
+#
+# Bug #33764: Wrong result with IN(), CONCAT() and implicit type conversion
+#
+
+CREATE TABLE t1 (a VARCHAR(10) NOT NULL PRIMARY KEY);
+INSERT INTO t1 (a) VALUES ('foo0'), ('bar0'), ('baz0');
+SELECT * FROM t1 WHERE a IN (CONCAT('foo', 0), 'bar');
+DROP TABLE t1;
+
 --echo End of 5.0 tests
 
 #
