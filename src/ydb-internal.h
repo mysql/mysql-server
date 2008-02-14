@@ -77,4 +77,46 @@ struct __toku_dbc_internal {
     DB_TXN *txn;
 };
 
+
+/* *********************************************************
+
+   Ephemeral locking
+
+   ********************************************************* */
+void toku_ydb_lock();
+void toku_ydb_unlock();
+
+/* *********************************************************
+
+   Error handling
+
+   ********************************************************* */
+
+/* Exception handling */
+/** Raise a C-like exception: currently returns an status code */
+#define RAISE_EXCEPTION(status) {return status;}
+/** Raise a C-like conditional exception: currently returns an status code 
+    if condition is true */
+#define RAISE_COND_EXCEPTION(cond, status) {if (cond) return status;}
+/** Propagate the exception to the caller: if the status is non-zero,
+    returns it to the caller */
+#define PROPAGATE_EXCEPTION(status) ({if (status != 0) return status;})
+
+/** Handle a panicked environment: return EINVAL if the env is panicked */
+#define HANDLE_PANICKED_ENV(env) \
+        RAISE_COND_EXCEPTION(toku_env_is_panicked(env), EINVAL)
+/** Handle a panicked database: return EINVAL if the database env is panicked */
+#define HANDLE_PANICKED_DB(db) HANDLE_PANICKED_ENV(db->dbenv)
+
+/* */
+int toku_ydb_do_error (const DB_ENV *, int, const char *, ...);
+
+/* Location specific debug print-outs */
+void toku_ydb_barf();
+void toku_ydb_notef(const char *, ...);
+
+/* Environment related errors */
+int toku_env_is_panicked(DB_ENV *dbenv);
+void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...);
+
 #endif

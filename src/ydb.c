@@ -28,25 +28,9 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 
+
+/** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
-
-/* the ydb big lock serializes access to the tokudb
-   every call (including methods) into the tokudb library gets the lock 
-   no internal function should invoke a method through an object */
-
-#ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
-#else
-static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
-#endif
-
-static inline void ydb_lock() {
-    int r = pthread_mutex_lock(&ydb_big_lock); assert(r == 0);
-}
-
-static inline void ydb_unlock() {
-    int r = pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
-}
 
 /* the ydb reference is used to cleanup the library when there are no more references to it */
 static int toku_ydb_refs = 0;
@@ -83,14 +67,6 @@ static inline int env_opened(DB_ENV *env) {
     return env->i->cachetable != 0;
 }
 
-static int env_is_panicked(DB_ENV *dbenv) {
-    if (dbenv==0) return 0;
-    return dbenv->i->is_panicked || toku_logger_panicked(dbenv->i->logger);
-}
-
-#define HANDLE_PANICKED_ENV(env) ({ if (env_is_panicked(env)) return EINVAL; })
-#define HANDLE_PANICKED_DB(db) HANDLE_PANICKED_ENV(db->dbenv)
-
 
 /* db methods */
 static inline int db_opened(DB *db) {
@@ -117,77 +93,6 @@ static int toku_save_original_data(DBT* dst, DBT* src);
 static char *construct_full_name(const char *dir, const char *fname);
 static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondary);
     
-
-// If errcall is set, call it with the format string and optionally the stderrstring (if include_stderrstring).  The prefix is passed as a separate argument.
-// If errfile is set, print to the errfile: prefix, fmt string, maybe include the stderr string.
-// Both errcall and errfile may be called.
-// If errfile is not set and errcall is not set, the use stderr as the errfile.
-void toku_do_error_all_cases(const DB_ENV * env, int error, int include_stderrstring, int use_stderr_if_nothing_else, const char *fmt, va_list ap) {
-    if (env->i->errcall) {
-	// errcall gets prefix sent separately
-	// the error message is the printf message, maybe followed by ": " and the dbstrerror (if include_stderrstring is set)
-	char buf [4000];
-	int count=0;
-	if (fmt) {
-	    count=vsnprintf(buf, sizeof(buf), fmt, ap);
-	}
-	if (include_stderrstring) {
-	    count+=snprintf(&buf[count], sizeof(buf)-count, ": %s", db_strerror(error));
-	}
-	env->i->errcall(env, env->i->errpfx, buf);
-    }
-    {
-	FILE *efile=env->i->errfile;
-	if (efile==0 && env->i->errcall==0 && use_stderr_if_nothing_else) {
-	    efile = stderr;
-	}
-	if (efile) {
-	    if (env->i->errpfx) fprintf(efile, "%s: ", env->i->errpfx);
-	    vfprintf(efile, fmt, ap);
-	    if (include_stderrstring) {
-		fprintf(efile, ": %s", db_strerror(error));
-	    }
-	}
-    }
-}
-
-static int do_error (DB_ENV *dbenv, int error, const char *string, ...)
-                     __attribute__((__format__(__printf__, 3, 4)));
-
-// Handle all the error cases (but don't do the default thing.)
-static int do_error (DB_ENV *dbenv, int error, const char *string, ...) {
-    if (toku_logger_panicked(dbenv->i->logger)) dbenv->i->is_panicked=1;
-    va_list ap;
-    va_start(ap, string);
-    toku_do_error_all_cases(dbenv, error, 1, 0, string, ap);
-    va_end(ap);
-    return error;
-}
-
-#define barf() ({ fprintf(stderr, "YDB: BARF %s:%d in %s\n", __FILE__, __LINE__, __func__); })
-#define barff(fmt,...) ({ fprintf(stderr, "YDB: BARF %s:%d in %s, ", __FILE__, __LINE__, __func__); fprintf(stderr, fmt, __VA_ARGS__); })
-#define note() ({ fprintf(svtderr, "YDB: Note %s:%d in %s\n", __FILE__, __LINE__, __func__); })
-#define notef(fmt,...) ({ fprintf(stderr, "YDB: Note %s:%d in %s, ", __FILE__, __LINE__, __func__); fprintf(stderr, fmt, __VA_ARGS__); })
-
-#if 0
-static void print_flags(u_int32_t flags) {
-    u_int32_t gotit = 0;
-    int doneone = 0;
-#define doit(flag) if (flag & flags) { if (doneone) fprintf(stderr, " | "); fprintf(stderr, "%s", #flag);  doneone=1; gotit|=flag; }
-    doit(DB_INIT_LOCK);
-    doit(DB_INIT_LOG);
-    doit(DB_INIT_MPOOL);
-    doit(DB_INIT_TXN);
-    doit(DB_CREATE);
-    doit(DB_THREAD);
-    doit(DB_RECOVER);
-    doit(DB_PRIVATE);
-    if (gotit != flags)
-        fprintf(stderr, "  flags 0x%x not accounted for", flags & ~gotit);
-    fprintf(stderr, "\n");
-}
-#endif
-
 static int env_parse_config_line(DB_ENV* dbenv, char *command, char *value) {
     int r;
     
@@ -300,11 +205,11 @@ static int env_read_config(DB_ENV *env) {
     }
     if (0) {
 readerror:
-        do_error(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
+        toku_ydb_do_error(env, r, "Error reading from DB_CONFIG:%d.\n", linenumber);
     }
     if (0) {
 parseerror:
-        do_error(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
+        toku_ydb_do_error(env, r, "Error parsing DB_CONFIG:%d.\n", linenumber);
     }
 cleanup:
     if (full_name) toku_free(full_name);
@@ -318,16 +223,16 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     int r;
 
     if (env_opened(env)) {
-	return do_error(env, EINVAL, "The environment is already open\n");
+	return toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
     }
 
     if ((flags & DB_USE_ENVIRON) && (flags & DB_USE_ENVIRON_ROOT)) {
-	return do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible flags\n");
+	return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible flags\n");
     }
 
     if (home) {
         if ((flags & DB_USE_ENVIRON) || (flags & DB_USE_ENVIRON_ROOT)) {
-	    return do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
+	    return toku_ydb_do_error(env, EINVAL, "DB_USE_ENVIRON and DB_USE_ENVIRON_ROOT are incompatible with specifying a home\n");
 	}
     }
     else if ((flags & DB_USE_ENVIRON) ||
@@ -340,19 +245,19 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	struct stat buf;
 	r = stat(home, &buf);
 	if (r!=0) {
-	    return do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
+	    return toku_ydb_do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
 	}
     }
 
     if (!(flags & DB_PRIVATE)) {
-	return do_error(env, EINVAL, "TokuDB requires DB_PRIVATE when opening an env\n");
+	return toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_PRIVATE when opening an env\n");
     }
 
     if (env->i->dir)
         toku_free(env->i->dir);
     env->i->dir = toku_strdup(home);
     if (env->i->dir == 0) {
-	return do_error(env, ENOMEM, "Out of memory\n");
+	return toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
     }
     if (0) {
         died1:
@@ -374,7 +279,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
         r = toku_logger_open(full_dir ? full_dir : env->i->dir, env->i->logger);
         if (full_dir) toku_free(full_dir);
 	if (r!=0) {
-	    do_error(env, r, "Could not open logger\n");
+	    toku_ydb_do_error(env, r, "Could not open logger\n");
 	died2:
 	    toku_logger_close(&env->i->logger);
 	    goto died1;
@@ -391,7 +296,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
 static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     // Even if the env is panicedk, try to close as much as we can.
-    int is_panicked = env_is_panicked(env);
+    int is_panicked = toku_env_is_panicked(env);
     int r0=0,r1=0;
     if (env->i->cachetable)
         r0=toku_cachetable_close(&env->i->cachetable);
@@ -429,7 +334,7 @@ static int toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
 static int toku_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
     HANDLE_PANICKED_ENV(env);
     env=env; lsn=lsn;
-    barf();
+    toku_ydb_barf();
     return 1;
 }
 
@@ -456,7 +361,7 @@ static int toku_env_get_cachesize(DB_ENV * env, u_int32_t *gbytes, u_int32_t *by
 }
 
 static int locked_env_get_cachesize(DB_ENV *env, u_int32_t *gbytes, u_int32_t *bytes, int *ncache) {
-    ydb_lock(); int r = toku_env_get_cachesize(env, gbytes, bytes, ncache); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_get_cachesize(env, gbytes, bytes, ncache); toku_ydb_unlock(); return r;
 }
 
 #endif
@@ -469,7 +374,7 @@ static int toku_env_set_data_dir(DB_ENV * env, const char *dir) {
     char* new_dir;
     
     if (env_opened(env) || !dir) {
-	return do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
+	return toku_ydb_do_error(env, EINVAL, "You cannot set the data dir after opening the env\n");
     }
     
     if (env->i->data_dirs) {
@@ -490,7 +395,7 @@ static int toku_env_set_data_dir(DB_ENV * env, const char *dir) {
     }
     if (new_dir==NULL) {
 	assert(errno == ENOMEM);
-	return do_error(env, errno, "Out of memory\n");
+	return toku_ydb_do_error(env, errno, "Out of memory\n");
     }
     temp = (char**) toku_realloc(env->i->data_dirs, (1 + env->i->n_data_dirs) * sizeof(char*));
     if (temp==NULL) {assert(errno == ENOMEM); r = ENOMEM; goto died1;}
@@ -521,7 +426,7 @@ static int toku_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
         flags  &= ~DB_AUTO_COMMIT;
     }
     if (flags != 0 && onoff) {
-	return do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
+	return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support any nonzero ENV flags other than DB_AUTO_COMMIT\n");
     }
     if   (onoff) env->i->open_flags |=  change;
     else         env->i->open_flags &= ~change;
@@ -531,20 +436,20 @@ static int toku_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
 static int toku_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
     HANDLE_PANICKED_ENV(env);
     bsize=bsize;
-    return do_error(env, EINVAL, "TokuDB does not (yet) support ENV->set_lg_bsize\n");
+    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support ENV->set_lg_bsize\n");
 }
 
 static int toku_env_set_lg_dir(DB_ENV * env, const char *dir) {
     HANDLE_PANICKED_ENV(env);
     if (env_opened(env)) {
-	return do_error(env, EINVAL, "Cannot set log dir after opening the env\n");
+	return toku_ydb_do_error(env, EINVAL, "Cannot set log dir after opening the env\n");
     }
 
     if (env->i->lg_dir) toku_free(env->i->lg_dir);
     if (dir) {
         env->i->lg_dir = toku_strdup(dir);
         if (!env->i->lg_dir) {
-	    return do_error(env, ENOMEM, "Out of memory\n");
+	    return toku_ydb_do_error(env, ENOMEM, "Out of memory\n");
 	}
     }
     else env->i->lg_dir = NULL;
@@ -554,13 +459,13 @@ static int toku_env_set_lg_dir(DB_ENV * env, const char *dir) {
 static int toku_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
     HANDLE_PANICKED_ENV(env);
     lg_max=lg_max;
-    return do_error(env, EINVAL, "TokuDB does not (yet) support set_lg_max\n");
+    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lg_max\n");
 }
 
 static int toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
     HANDLE_PANICKED_ENV(env);
     detect=detect;
-    return do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
+    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lk_detect\n");
 }
 
 static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
@@ -577,7 +482,7 @@ static int toku_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 }
 
 static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
-    ydb_lock(); int r = toku_env_set_lk_max(env, lk_max); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lk_max(env, lk_max); toku_ydb_unlock(); return r;
 }
 #endif
 
@@ -589,11 +494,11 @@ static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
 }
 
 static int locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
-    ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lk_max_locks(dbenv, max); toku_ydb_unlock(); return r;
 }
 
 static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
-    ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); toku_ydb_unlock(); return r;
 }
 
 //void __toku_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
@@ -603,10 +508,10 @@ static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_
 static int toku_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
     HANDLE_PANICKED_ENV(env);
     if (env_opened(env)) {
-	return do_error(env, EINVAL, "Cannot set the tmp dir after opening an env\n");
+	return toku_ydb_do_error(env, EINVAL, "Cannot set the tmp dir after opening an env\n");
     }
     if (!tmp_dir) {
-	return do_error(env, EINVAL, "Tmp dir bust be non-null\n");
+	return toku_ydb_do_error(env, EINVAL, "Tmp dir bust be non-null\n");
     }
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
@@ -642,76 +547,64 @@ void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg
 
 #if _THREAD_SAFE
 
-static void locked_env_err(const DB_ENV * env, int error, const char *fmt, ...)
-                           __attribute__((__format__(__printf__, 3, 4)));
-
-static void locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
-    ydb_lock();
-    va_list ap;
-    va_start(ap, fmt);
-    toku_do_error_all_cases(env, error, 1, 1, fmt, ap);
-    va_end(ap);
-    ydb_unlock();
-}
-
 static int locked_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
-    ydb_lock(); int r = toku_env_open(env, home, flags, mode); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_open(env, home, flags, mode); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_close(DB_ENV * env, u_int32_t flags) {
-    ydb_lock(); int r = toku_env_close(env, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_close(env, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
-    ydb_lock(); int r = toku_env_log_archive(env, list, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_log_archive(env, list, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
-    ydb_lock(); int r = toku_env_log_flush(env, lsn); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_log_flush(env, lsn); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_cachesize(DB_ENV *env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
-    ydb_lock(); int r = toku_env_set_cachesize(env, gbytes, bytes, ncache); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_cachesize(env, gbytes, bytes, ncache); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_data_dir(DB_ENV * env, const char *dir) {
-    ydb_lock(); int r = toku_env_set_data_dir(env, dir); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_data_dir(env, dir); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_flags(DB_ENV * env, u_int32_t flags, int onoff) {
-    ydb_lock(); int r = toku_env_set_flags(env, flags, onoff); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_flags(env, flags, onoff); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_lg_bsize(DB_ENV * env, u_int32_t bsize) {
-    ydb_lock(); int r = toku_env_set_lg_bsize(env, bsize); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lg_bsize(env, bsize); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_lg_dir(DB_ENV * env, const char *dir) {
-    ydb_lock(); int r = toku_env_set_lg_dir(env, dir); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lg_dir(env, dir); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
-    ydb_lock(); int r = toku_env_set_lg_max(env, lg_max); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lg_max(env, lg_max); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
-    ydb_lock(); int r = toku_env_set_lk_detect(env, detect); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_lk_detect(env, detect); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_tmp_dir(DB_ENV * env, const char *tmp_dir) {
-    ydb_lock(); int r = toku_env_set_tmp_dir(env, tmp_dir); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_tmp_dir(env, tmp_dir); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
-    ydb_lock(); int r = toku_env_set_verbose(env, which, onoff); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_set_verbose(env, which, onoff); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
-    ydb_lock(); int r = toku_env_txn_checkpoint(env, kbyte, min, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_txn_checkpoint(env, kbyte, min, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {
-    ydb_lock(); int r = toku_env_txn_stat(env, statp, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_txn_stat(env, statp, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
@@ -724,7 +617,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
-    result->err = locked_env_err;
+    result->err = toku_locked_env_err;
     result->open = locked_env_open;
     result->close = locked_env_close;
     result->txn_checkpoint = locked_env_txn_checkpoint;
@@ -782,7 +675,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
 }
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
-    ydb_lock(); int r = toku_env_create(envp, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_env_create(envp, flags); toku_ydb_unlock(); return r;
 }
 
 static int toku_txn_release_locks(DB_TXN* txn) {
@@ -807,7 +700,7 @@ static int toku_txn_release_locks(DB_TXN* txn) {
 
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    //notef("flags=%d\n", flags);
+    //toku_ydb_notef("flags=%d\n", flags);
     int r;
     int nosync = (flags & DB_TXN_NOSYNC)!=0;
     flags &= ~DB_TXN_NOSYNC;
@@ -829,7 +722,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
 
 static u_int32_t toku_txn_id(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
-    barf();
+    toku_ydb_barf();
     abort();
     return -1;
 }
@@ -851,33 +744,33 @@ static int toku_txn_abort(DB_TXN * txn) {
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int locked_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
-    ydb_lock(); int r = toku_txn_begin(env, stxn, txn, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_txn_begin(env, stxn, txn, flags); toku_ydb_unlock(); return r;
 }
 
 static u_int32_t locked_txn_id(DB_TXN *txn) {
-    ydb_lock(); u_int32_t r = toku_txn_id(txn); ydb_unlock(); return r;
+    toku_ydb_lock(); u_int32_t r = toku_txn_id(txn); toku_ydb_unlock(); return r;
 }
 
 static int locked_txn_commit(DB_TXN *txn, u_int32_t flags) {
-    ydb_lock(); int r = toku_txn_commit(txn, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_txn_commit(txn, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_txn_abort(DB_TXN *txn) {
-    ydb_lock(); int r = toku_txn_abort(txn); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_txn_abort(txn); toku_ydb_unlock(); return r;
 }
 
 #endif
 
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags) {
     HANDLE_PANICKED_ENV(env);
-    if (!toku_logger_is_open(env->i->logger)) return do_error(env, EINVAL, "Environment does not have logging enabled\n");
-    if (!(env->i->open_flags & DB_INIT_TXN))  return do_error(env, EINVAL, "Environment does not have transactions enabled\n");
+    if (!toku_logger_is_open(env->i->logger)) return toku_ydb_do_error(env, EINVAL, "Environment does not have logging enabled\n");
+    if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
     flags=flags;
     DB_TXN *MALLOC(result);
     if (result == 0)
         return ENOMEM;
     memset(result, 0, sizeof *result);
-    //notef("parent=%p flags=0x%x\n", stxn, flags);
+    //toku_ydb_notef("parent=%p flags=0x%x\n", stxn, flags);
     result->mgrp = env;
     result->abort = locked_txn_abort;
     result->commit = locked_txn_commit;
@@ -916,10 +809,10 @@ int txn_commit(DB_TXN * txn, u_int32_t flags) {
 #endif
 
 int log_compare(const DB_LSN * a, const DB_LSN * b) {
-    ydb_lock();
+    toku_ydb_lock();
     fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);
     abort();
-    ydb_unlock();
+    toku_ydb_unlock();
 }
 
 static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {
@@ -1005,7 +898,8 @@ static int toku_db_close(DB * db, u_int32_t flags) {
         if (r!=0) return r;
     }
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
-    int is_panicked = env_is_panicked(db->dbenv); // Even if panicked, let's close as much as we can.
+    // Even if panicked, let's close as much as we can.
+    int is_panicked = toku_env_is_panicked(db->dbenv); 
     env_unref(db->dbenv);
     toku_free(db->i->database_name);
     toku_free(db->i->full_fname);
@@ -1150,6 +1044,7 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
         case (DB_NEXT_DUP): {
             if (!duplicates || toku_c_uninitialized(c)) r = EINVAL;
             else r = toku_c_get_current_unconditional(c, saved_key, saved_data);
+            break;
         }
         default: {
             //TODO: Output an error.
@@ -1679,27 +1574,27 @@ finish:
 #if _THREAD_SAFE
 
 static int locked_c_pget(DBC * c, DBT *key, DBT *pkey, DBT *data, u_int32_t flag) {
-    ydb_lock(); int r = toku_c_pget(c, key, pkey, data, flag); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_pget(c, key, pkey, data, flag); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_get(DBC * c, DBT * key, DBT * data, u_int32_t flag) {
-    ydb_lock(); int r = toku_c_get(c, key, data, flag); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_get(c, key, data, flag); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_close(DBC * c) {
-    ydb_lock(); int r = toku_c_close(c); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_close(c); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
-    ydb_lock(); int r = toku_c_count(cursor, count, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_count(cursor, count, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_del(DBC * c, u_int32_t flags) {
-    ydb_lock(); int r = toku_c_del(c, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_del(c, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
-    ydb_lock(); int r = toku_c_put(dbc, key, data, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_c_put(dbc, key, data, flags); toku_ydb_unlock(); return r;
 }
 
 #endif
@@ -1869,7 +1764,7 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
 static int toku_db_key_range(DB * db, DB_TXN * txn, DBT * dbt, DB_KEY_RANGE * kr, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     txn=txn; dbt=dbt; kr=kr; flags=flags;
-    barf();
+    toku_ydb_barf();
     abort();
 }
 #endif
@@ -1949,8 +1844,8 @@ static int toku_db_lt_panic(DB* db, int r) {
     assert(db && db->i && db->dbenv && db->dbenv->i);
     DB_ENV* env = db->dbenv;
     env->i->is_panicked = 1;
-    if (r < 0) do_error(env, 0, toku_lt_strerror(r));
-    else       do_error(env, r, "Error in locktree.\n");
+    if (r < 0) toku_ydb_do_error(env, 0, toku_lt_strerror(r));
+    else       toku_ydb_do_error(env, r, "Error in locktree.\n");
     return EINVAL;
 }
 
@@ -2099,7 +1994,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     } else {
         unsigned int limit = nodesize / (3*BRT_FANOUT-1);
         if (key->size >= limit || data->size >= limit)
-            return do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %d bytes", limit);
+            return toku_ydb_do_error(db->dbenv, EINVAL, "The largest key or data item allowed is %d bytes", limit);
     }
 
     if (flags == DB_YESOVERWRITE) {
@@ -2124,7 +2019,7 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
                 return DB_KEYEXIST;
             if (r != DB_NOTFOUND) return r;
 #else
-	    return do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
+	    return toku_ydb_do_error(db->dbenv, EINVAL, "Tokudb requires that db->put specify DB_YESOVERWRITE or DB_NOOVERWRITE on DB_DUPSORT databases");
 #endif
         }
     }
@@ -2278,7 +2173,7 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 static int toku_db_stat(DB * db, void *v, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     v=v; flags=flags;
-    barf();
+    toku_ydb_barf();
     abort();
 }
 #endif
@@ -2328,23 +2223,23 @@ inline static int autotxn_db_associate(DB *primary, DB_TXN *txn, DB *secondary,
 
 static int locked_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
                                 int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_associate(primary, txn, secondary, callback, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_associate(primary, txn, secondary, callback, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_close(DB * db, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_close(db, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_close(db, flags); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
     if (!txn && (db->dbenv->i->open_flags & DB_INIT_TXN)) {
-        return do_error(db->dbenv, EINVAL,
+        return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
     }
     return toku_db_cursor(db, txn, c, flags);
 }
 
 static int locked_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_cursor(db, txn, c, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_cursor(db, txn, c, flags); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key,
@@ -2357,7 +2252,7 @@ inline static int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key,
 }
 
 static int locked_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_del(db, txn, key, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_del(db, txn, key, flags); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data,
@@ -2370,7 +2265,7 @@ inline static int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data,
 }
 
 static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
@@ -2383,7 +2278,7 @@ inline static int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
 }
 
 static int locked_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_pget(db, txn, key, pkey, data, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_pget(db, txn, key, pkey, data, flags); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
@@ -2395,7 +2290,7 @@ inline static int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const 
 }
 
 static int locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
-    ydb_lock(); int r = toku_db_open(db, txn, fname, dbname, dbtype, flags, mode); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock(); return r;
 }
 
 inline static int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
@@ -2408,23 +2303,23 @@ inline static int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
 }
 
 static int locked_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags) {
-    ydb_lock(); int r = autotxn_db_put(db, txn, key, data, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = autotxn_db_put(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_remove(db, fname, dbname, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_remove(db, fname, dbname, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_rename(db, namea, nameb, namec, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_rename(db, namea, nameb, namec, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_set_bt_compare(DB * db, int (*bt_compare) (DB *, const DBT *, const DBT *)) {
-    ydb_lock(); int r = toku_db_set_bt_compare(db, bt_compare); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_set_bt_compare(db, bt_compare); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_set_dup_compare(DB * db, int (*dup_compare) (DB *, const DBT *, const DBT *)) {
-    ydb_lock(); int r = toku_db_set_dup_compare(db, dup_compare); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_set_dup_compare(db, dup_compare); toku_ydb_unlock(); return r;
 }
 
 static void locked_db_set_errfile (DB *db, FILE *errfile) {
@@ -2432,19 +2327,19 @@ static void locked_db_set_errfile (DB *db, FILE *errfile) {
 }
 
 static int locked_db_set_flags(DB *db, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_set_flags(db, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_set_flags(db, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_get_flags(DB *db, u_int32_t *flags) {
-    ydb_lock(); int r = toku_db_get_flags(db, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_get_flags(db, flags); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_set_pagesize(DB *db, u_int32_t pagesize) {
-    ydb_lock(); int r = toku_db_set_pagesize(db, pagesize); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_set_pagesize(db, pagesize); toku_ydb_unlock(); return r;
 }
 
 static int locked_db_fd(DB *db, int *fdp) {
-    ydb_lock(); int r = toku_db_fd(db, fdp); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_fd(db, fdp); toku_ydb_unlock(); return r;
 }
 
 #endif
@@ -2530,7 +2425,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
 }
 
 int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
-    ydb_lock(); int r = toku_db_create(db, env, flags); ydb_unlock(); return r;
+    toku_ydb_lock(); int r = toku_db_create(db, env, flags); toku_ydb_unlock(); return r;
 }
 
 /* need db_strerror_r for multiple threads */
