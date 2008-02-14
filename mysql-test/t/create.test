@@ -1341,4 +1341,48 @@ create table t1 like information_schema.character_sets;
 show create table t1;
 drop table t1;
 
+--echo
+--echo # --
+--echo # -- Bug#21380: DEFAULT definition not always transfered by CREATE
+--echo # -- TABLE/SELECT to the new table.
+--echo # --
+--echo
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(
+  c1 INT DEFAULT 12 COMMENT 'column1',
+  c2 INT NULL COMMENT 'column2',
+  c3 INT NOT NULL COMMENT 'column3',
+  c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
+  c6 VARCHAR(255))
+  COLLATE latin1_bin;
+
+--echo
+
+SHOW CREATE TABLE t1;
+
+--echo
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+--echo
+
+SHOW CREATE TABLE t2;
+
+--echo
+
+DROP TABLE t2;
+
+--echo
+--echo # -- End of test case for Bug#21380.
+--echo
+
 --echo End of 5.1 tests
