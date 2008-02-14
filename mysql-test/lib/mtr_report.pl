@@ -363,7 +363,10 @@ sub mtr_report_stats ($) {
 		# master
 		/Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
 		/Slave: Can't DROP 'c7'.* 1091/ or
-		/Slave: Key column 'c6'.* 1072/
+		/Slave: Key column 'c6'.* 1072/ or
+
+                # Test case for Bug#31590 produces the following error:
+                /Out of sort memory; increase server sort buffer size/
 	       )
             {
               next;                       # Skip these lines
