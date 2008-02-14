@@ -1743,4 +1743,50 @@ t1	CREATE TABLE `t1` (
   `MAXLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 drop table t1;
+
+# --
+# -- Bug#21380: DEFAULT definition not always transfered by CREATE
+# -- TABLE/SELECT to the new table.
+# --
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t1(
+c1 INT DEFAULT 12 COMMENT 'column1',
+c2 INT NULL COMMENT 'column2',
+c3 INT NOT NULL COMMENT 'column3',
+c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
+c6 VARCHAR(255))
+COLLATE latin1_bin;
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT '12' COMMENT 'column1',
+  `c2` int(11) DEFAULT NULL COMMENT 'column2',
+  `c3` int(11) NOT NULL COMMENT 'column3',
+  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
+  `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_bin
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int(11) DEFAULT '12' COMMENT 'column1',
+  `c2` int(11) DEFAULT NULL COMMENT 'column2',
+  `c3` int(11) NOT NULL COMMENT 'column3',
+  `c4` varchar(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8 COLLATE utf8_unicode_ci DEFAULT 'b',
+  `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+DROP TABLE t2;
+
+# -- End of test case for Bug#21380.
+
 End of 5.1 tests

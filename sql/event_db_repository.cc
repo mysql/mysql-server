@@ -111,7 +111,7 @@ const TABLE_FIELD_W_TYPE event_table_fields[ET_FIELD_COUNT] =
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
     "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
     "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
-    "'HIGH_NOT_PRECEDENCE')") },
+    "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
     {NULL, 0}
   },
   {
@@ -172,11 +172,13 @@ mysql_event_fill_row(THD *thd,
                      TABLE *table,
                      Event_parse_data *et,
                      sp_head *sp,
+                     ulong sql_mode,
                      my_bool is_update)
 {
   CHARSET_INFO *scs= system_charset_info;
   enum enum_events_table_field f_num;
   Field **fields= table->field;
+  int rs= FALSE;
 
   DBUG_ENTER("mysql_event_fill_row");
 
@@ -205,12 +207,9 @@ mysql_event_fill_row(THD *thd,
     goto err_truncate;
 
   /* both ON_COMPLETION and STATUS are NOT NULL thus not calling set_notnull()*/
-  fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
-
-  fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
-
-  fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
-
+  rs|= fields[ET_FIELD_ON_COMPLETION]->store((longlong)et->on_completion, TRUE);
+  rs|= fields[ET_FIELD_STATUS]->store((longlong)et->status, TRUE);
+  rs|= fields[ET_FIELD_ORIGINATOR]->store((longlong)et->originator, TRUE);
 
   /*
     Change the SQL_MODE only if body was present in an ALTER EVENT and of course
@@ -220,7 +219,7 @@ mysql_event_fill_row(THD *thd,
   {
     DBUG_ASSERT(sp->m_body.str);
 
-    fields[ET_FIELD_SQL_MODE]->store((longlong)thd->variables.sql_mode, TRUE);
+    rs|= fields[ET_FIELD_SQL_MODE]->store((longlong)sql_mode, TRUE);
 
     if (fields[f_num= ET_FIELD_BODY]->store(sp->m_body.str,
                                             sp->m_body.length,
@@ -236,16 +235,16 @@ mysql_event_fill_row(THD *thd,
     if (!is_update || !et->starts_null)
     {
       fields[ET_FIELD_TIME_ZONE]->set_notnull();
-      fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
-                                        tz_name->charset());
+      rs|= fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
+                                             tz_name->charset());
     }
 
     fields[ET_FIELD_INTERVAL_EXPR]->set_notnull();
-    fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
+    rs|= fields[ET_FIELD_INTERVAL_EXPR]->store((longlong)et->expression, TRUE);
 
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_notnull();
 
-    fields[ET_FIELD_TRANSIENT_INTERVAL]->
+    rs|= fields[ET_FIELD_TRANSIENT_INTERVAL]->
                             store(interval_type_to_name[et->interval].str,
                                   interval_type_to_name[et->interval].length,
                                   scs);
@@ -274,8 +273,8 @@ mysql_event_fill_row(THD *thd,
   {
     const String *tz_name= thd->variables.time_zone->get_name();
     fields[ET_FIELD_TIME_ZONE]->set_notnull();
-    fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
-                                      tz_name->charset());
+    rs|= fields[ET_FIELD_TIME_ZONE]->store(tz_name->ptr(), tz_name->length(),
+                                           tz_name->charset());
 
     fields[ET_FIELD_INTERVAL_EXPR]->set_null();
     fields[ET_FIELD_TRANSIENT_INTERVAL]->set_null();
@@ -308,13 +307,13 @@ mysql_event_fill_row(THD *thd,
   }
 
   fields[ET_FIELD_CHARACTER_SET_CLIENT]->set_notnull();
-  fields[ET_FIELD_CHARACTER_SET_CLIENT]->store(
+  rs|= fields[ET_FIELD_CHARACTER_SET_CLIENT]->store(
     thd->variables.character_set_client->csname,
     strlen(thd->variables.character_set_client->csname),
     system_charset_info);
 
   fields[ET_FIELD_COLLATION_CONNECTION]->set_notnull();
-  fields[ET_FIELD_COLLATION_CONNECTION]->store(
+  rs|= fields[ET_FIELD_COLLATION_CONNECTION]->store(
     thd->variables.collation_connection->name,
     strlen(thd->variables.collation_connection->name),
     system_charset_info);
@@ -323,15 +322,23 @@ mysql_event_fill_row(THD *thd,
     CHARSET_INFO *db_cl= get_default_db_collation(thd, et->dbname.str);
 
     fields[ET_FIELD_DB_COLLATION]->set_notnull();
-    fields[ET_FIELD_DB_COLLATION]->store(
-      db_cl->name, strlen(db_cl->name), system_charset_info);
+    rs|= fields[ET_FIELD_DB_COLLATION]->store(db_cl->name,
+                                              strlen(db_cl->name),
+                                              system_charset_info);
   }
 
   if (et->body_changed)
   {
     fields[ET_FIELD_BODY_UTF8]->set_notnull();
-    fields[ET_FIELD_BODY_UTF8]->store(
-      sp->m_body_utf8.str, sp->m_body_utf8.length, system_charset_info);
+    rs|= fields[ET_FIELD_BODY_UTF8]->store(sp->m_body_utf8.str,
+                                           sp->m_body_utf8.length,
+                                           system_charset_info);
+  }
+
+  if (rs)
+  {
+    my_error(ER_EVENT_STORE_FAILED, MYF(0), fields[f_num]->field_name, rs);
+    DBUG_RETURN(TRUE);
   }
 
   DBUG_RETURN(FALSE);
@@ -585,11 +592,15 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
   int ret= 1;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
+  ulong saved_mode= thd->variables.sql_mode;
 
   DBUG_ENTER("Event_db_repository::create_event");
 
   DBUG_PRINT("info", ("open mysql.event for update"));
   DBUG_ASSERT(sp);
+
+  /* Reset sql_mode during data dictionary operations. */
+  thd->variables.sql_mode= 0;
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
@@ -646,7 +657,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if (mysql_event_fill_row(thd, table, parse_data, sp, FALSE))
+  if (mysql_event_fill_row(thd, table, parse_data, sp, saved_mode, FALSE))
     goto end;
 
   table->field[ET_FIELD_STATUS]->store((longlong)parse_data->status, TRUE);
@@ -661,6 +672,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
 end:
   if (table)
     close_thread_tables(thd);
+  thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
 }
 
@@ -691,12 +703,16 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
   CHARSET_INFO *scs= system_charset_info;
   TABLE *table= NULL;
   sp_head *sp= thd->lex->sphead;
+  ulong saved_mode= thd->variables.sql_mode;
   int ret= 1;
 
   DBUG_ENTER("Event_db_repository::update_event");
 
   /* None or both must be set */
   DBUG_ASSERT(new_dbname && new_name || new_dbname == new_name);
+
+  /* Reset sql_mode during data dictionary operations. */
+  thd->variables.sql_mode= 0;
 
   if (open_event_table(thd, TL_WRITE, &table))
     goto end;
@@ -736,7 +752,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
     mysql_event_fill_row() calls my_error() in case of error so no need to
     handle it here
   */
-  if (mysql_event_fill_row(thd, table, parse_data, sp, TRUE))
+  if (mysql_event_fill_row(thd, table, parse_data, sp, saved_mode, TRUE))
     goto end;
 
   if (new_dbname)
@@ -755,6 +771,7 @@ Event_db_repository::update_event(THD *thd, Event_parse_data *parse_data,
 end:
   if (table)
     close_thread_tables(thd);
+  thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(test(ret));
 }
 
@@ -950,12 +967,16 @@ bool
 Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
                                       LEX_STRING name, Event_basic *etn)
 {
-  TABLE *table= NULL;
   bool ret;
+  TABLE *table= NULL;
+  ulong saved_mode= thd->variables.sql_mode;
 
   DBUG_ENTER("Event_db_repository::load_named_event");
   DBUG_PRINT("enter",("thd: 0x%lx  name: %*s", (long) thd,
                       (int) name.length, name.str));
+
+  /* Reset sql_mode during data dictionary operations. */
+  thd->variables.sql_mode= 0;
 
   if (!(ret= open_event_table(thd, TL_READ, &table)))
   {
@@ -967,7 +988,7 @@ Event_db_repository::load_named_event(THD *thd, LEX_STRING dbname,
     close_thread_tables(thd);
   }
 
-
+  thd->variables.sql_mode= saved_mode;
   DBUG_RETURN(ret);
 }
 

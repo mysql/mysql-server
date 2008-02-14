@@ -1717,6 +1717,22 @@ t1	CREATE TABLE `t1` (
   `?` decimal(2,1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
+drop table if exists t1;
+create table t1 (a bigint unsigned, b bigint(20) unsigned);
+prepare stmt from "insert into t1 values (?,?)";
+set @a= 9999999999999999;
+set @b= 14632475938453979136;
+insert into t1 values (@a, @b);
+select * from t1 where a = @a and b = @b;
+a	b
+9999999999999999	14632475938453979136
+execute stmt using @a, @b;
+select * from t1 where a = @a and b = @b;
+a	b
+9999999999999999	14632475938453979136
+9999999999999999	14632475938453979136
+deallocate prepare stmt;
+drop table t1;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
 call proc_1();
