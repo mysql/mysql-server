@@ -43,7 +43,8 @@ insert into t3 values(connection_id());
 send update t2 set a = a + 1 + get_lock('crash_lock%20C', 10);
 
 connection master1;
-real_sleep 2;
+let $wait_condition= SELECT a > 1 FROM t2;
+source include/wait_condition.inc;
 select (@id := id) - id from t3;
 kill @id;
 drop table t2,t3;

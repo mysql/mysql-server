@@ -1,7 +1,3 @@
-#
-# Differs slightly from show_binlog events in showing server_id
-# which is important for some tests
-#
 --let $binlog_start=106
 --replace_result $binlog_start <binlog_start>
 --replace_column 2 # 5 #
