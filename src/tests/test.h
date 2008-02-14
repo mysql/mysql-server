@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <db.h>
 #include "../../newbrt/brttypes.h"
+#include <assert.h>
 
 #ifndef DB_YESOVERWRITE
 #define DB_YESOVERWRITE 0

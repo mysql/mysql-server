@@ -57,9 +57,35 @@ void cget(BOOL success, BOOL find, char txn, int _key, int _data,
             assert(*(int *)key.data  == _key_expect);
             assert(*(int *)data.data == _data_expect);
         }
-        else        CKERR2(r, DB_NOTFOUND);
+        else        CKERR2s(r,  DB_NOTFOUND, DB_KEYEMPTY);
     }
     else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
+}
+
+void cdel(BOOL success, BOOL find, char txn) {
+    int r;
+
+    r = cursors[(int)txn]->c_del(cursors[(int)txn], 0);
+    if (success) {
+        if (find) CKERR(r);
+        else      CKERR2(r, DB_KEYEMPTY);
+    }
+    else            CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
+}
+
+void dbdel(BOOL success, BOOL find, char txn, int _key) {
+    int r;
+    DBT key;
+
+    /* If DB_DELETE_ANY changes to 0, then find is meaningful and 
+       has to be fixed in test_dbdel*/
+    r = db->del(db, txns[(int)txn], dbt_init(&key,&_key, sizeof(int)), 
+                DB_DELETE_ANY);
+    if (success) {
+        if (find) CKERR(r);
+        else      CKERR2( r, DB_NOTFOUND);
+    }
+    else          CKERR2s(r, DB_LOCK_DEADLOCK, DB_LOCK_NOTGRANTED);
 }
 
 void init_txn(char name) {
@@ -418,10 +444,9 @@ void test_next(u_int32_t dup_flags, u_int32_t next_type) {
     put(FALSE, 'b', -1, 1);
     cget(FALSE, TRUE, 'a', 0, 0, 4, 1, next_type);
     early_commit('b');
-/* We need to keep going from here
+    cget(TRUE,  TRUE, 'a', 2, 1, 2, 1, DB_GET_BOTH);
     cget(TRUE,  TRUE, 'a', 0, 0, 4, 1, next_type);
     cget(TRUE,  TRUE, 'a', 0, 0, 5, 1, next_type);
-*/
     close_dbs();
     /* ****************************************** */
     setup_dbs(dup_flags);
@@ -434,6 +459,137 @@ void test_next(u_int32_t dup_flags, u_int32_t next_type) {
     put(TRUE,  'b', 4, 1);
     put(TRUE,  'b', 7, 1);
     put(FALSE, 'b', -1, 1);
+    close_dbs();
+}
+
+void test_prev(u_int32_t dup_flags, u_int32_t next_type) {
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE,  'a', -2, -1);
+    put(TRUE,  'a', -5, -1);
+    cget(TRUE, TRUE, 'a', 0, 0, -2, -1, next_type);
+    put(FALSE, 'b', -2, -1);
+    put(TRUE,  'b', -4, -1);
+    put(FALSE, 'b', 1, -1);
+    cget(FALSE, TRUE, 'a', 0, 0, -4, -1, next_type);
+    early_commit('b');
+    cget(TRUE,  TRUE, 'a', -2, -1, -2, -1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'a', 0, 0, -4, -1, next_type);
+    cget(TRUE,  TRUE, 'a', 0, 0, -5, -1, next_type);
+    close_dbs();
+    /* ****************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'a', -1, -1);
+    put(TRUE, 'a', -3, -1);
+    put(TRUE, 'a', -6, -1);
+    cget(TRUE, TRUE, 'a', 0, 0, -1, -1, next_type);
+    cget(TRUE, TRUE, 'a', 0, 0, -3, -1, next_type);
+    put(FALSE, 'b', -2, -1);
+    put(TRUE,  'b', -4, -1);
+    put(TRUE,  'b', -7, -1);
+    put(FALSE, 'b', 1, -1);
+    close_dbs();
+}
+
+void test_nextdup(u_int32_t dup_flags, u_int32_t next_type, int i) {
+    /* ****************************************** */
+    if (dup_flags == 0) return;
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', i*1, i*1);
+    early_commit('c');
+    cget(TRUE, TRUE,  'a', i*1, i*1, i*1, i*1, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'a', 0, 0, i*1, i*1, next_type);
+    put(TRUE,  'b', i*2, i*1);
+    put(FALSE, 'b', i*1, i*1);
+    put(FALSE, 'b', i*1, i*2);
+    put(TRUE,  'b', i*1, 0);
+    close_dbs();
+    /* ****************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', i*1, i*1);
+    put(TRUE, 'c', i*1, i*3);
+    early_commit('c');
+    cget(TRUE, TRUE, 'a', i*1, i*1, i*1, i*1, DB_GET_BOTH);
+    cget(TRUE, TRUE, 'a', 0, 0, i*1, i*3, next_type);
+    put(TRUE,  'b', i*2, i*1);
+    put(TRUE,  'b', i*1, i*4);
+    put(FALSE, 'b', i*1, i*1);
+    put(FALSE, 'b', i*1, i*2);
+    put(FALSE, 'b', i*1, i*3);
+    put(TRUE,  'b', i*1, 0);
+    close_dbs();
+}
+
+void test_cdel(u_int32_t dup_flags) {
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', 1, 1);
+    early_commit('c');
+    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_GET_BOTH);
+    cdel(TRUE, TRUE, 'a');
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(dup_flags != 0, FALSE, 'b', 1, 2, 1, 2, DB_GET_BOTH);
+    cget(dup_flags != 0, FALSE, 'b', 1, 0, 1, 0, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    close_dbs();
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', 1, 1);
+    early_commit('c');
+    cget(TRUE,  TRUE, 'a', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cdel(FALSE, TRUE, 'a');
+    close_dbs();
+}
+
+void test_dbdel(u_int32_t dup_flags) {
+    if (dup_flags != 0) {
+        if (verbose) printf("Pinhead! Can't dbdel now with duplicates!\n");
+        return;
+    }
+    /* If DB_DELETE_ANY changes to 0, then find is meaningful and 
+       has to be fixed in test_dbdel*/
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', 1, 1);
+    early_commit('c');
+    dbdel(TRUE, TRUE, 'a', 1);
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    close_dbs();
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    dbdel(TRUE, TRUE, 'a', 1);
+    cget(FALSE, TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 4, 1, 4, DB_GET_BOTH);
+    cget(FALSE, TRUE, 'b', 1, 0, 1, 4, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 0, 0, 0, 0, DB_GET_BOTH);
+    cget(TRUE, FALSE, 'b', 2, 10, 2, 10, DB_GET_BOTH);
+    close_dbs();
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'c', 1, 1);
+    early_commit('c');
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    dbdel(FALSE, TRUE, 'a', 1);
+    dbdel(TRUE, TRUE, 'a', 2);
+    dbdel(TRUE, TRUE, 'a', 0);
+    close_dbs();
+}
+
+void test_current(u_int32_t dup_flags) {
+    /* ********************************************************************** */
+    setup_dbs(dup_flags);
+    put(TRUE, 'a', 1, 1);
+    early_commit('a');
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_GET_BOTH);
+    cget(TRUE,  TRUE, 'b', 1, 1, 1, 1, DB_CURRENT);
+    cdel(TRUE, TRUE, 'b');
+    cget(TRUE, FALSE, 'b', 1, 1, 1, 1, DB_CURRENT);
     close_dbs();
 }
 
@@ -467,6 +623,20 @@ void test(u_int32_t dup_flags) {
     /* ********************************************************************** */
     test_next(dup_flags, DB_NEXT);
     test_next(dup_flags, DB_NEXT_NODUP);
+    /* ********************************************************************** */
+    test_prev(dup_flags, DB_PREV);
+    test_prev(dup_flags, DB_PREV_NODUP);
+    /* ********************************************************************** */
+    test_nextdup(dup_flags, DB_NEXT_DUP, 1);
+    #ifdef DB_PREV_DUP
+        test_nextdup(dup_flags, DB_PREV_DUP, -1);
+    #endif
+    /* ********************************************************************** */
+    test_cdel(dup_flags);
+    /* ********************************************************************** */
+    test_dbdel(dup_flags);
+    /* ********************************************************************** */
+    test_current(dup_flags);
 }
 
 
