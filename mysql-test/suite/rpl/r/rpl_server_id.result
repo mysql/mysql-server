@@ -1,0 +1,34 @@
+set global server_id=1;
+reset master;
+drop table if exists t1,t2,t3;
+create table t1 (a int);
+select @@server_id;
+@@server_id
+1
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; drop table if exists t1,t2,t3
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
+set global server_id=2;
+create table t2 (b int);
+select @@server_id;
+@@server_id
+2
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; drop table if exists t1,t2,t3
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	2	#	use `test`; create table t2 (b int)
+set global server_id=3;
+create table t3 (c int);
+select @@server_id;
+@@server_id
+3
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; drop table if exists t1,t2,t3
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int)
+master-bin.000001	#	Query	2	#	use `test`; create table t2 (b int)
+master-bin.000001	#	Query	3	#	use `test`; create table t3 (c int)
+set global server_id=1;
+drop table t1,t2,t3;

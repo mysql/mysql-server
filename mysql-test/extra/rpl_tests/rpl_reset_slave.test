@@ -13,18 +13,18 @@ connection master;
 save_master_pos;
 connection slave;
 sync_with_master;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 stop slave;
 change master to master_user='test';
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 reset slave;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 start slave;
 sync_with_master;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 
 # test of crash with temp tables & RESET SLAVE
 # (test to see if RESET SLAVE clears temp tables in memory and disk)

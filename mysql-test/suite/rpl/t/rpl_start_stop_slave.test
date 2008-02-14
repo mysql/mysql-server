@@ -3,12 +3,12 @@ source include/master-slave.inc;
 #
 # Bug#6148 ()
 #
-connection slave;
-stop slave;
-
 # Let the master do lots of insertions
 connection master;
 create table t1(n int);
+sync_slave_with_master;
+stop slave;
+connection master;
 let $1=5000;
 disable_query_log;
 while ($1)
@@ -21,7 +21,8 @@ save_master_pos;
 
 connection slave;
 start slave;
-sleep 1;
+let $wait_condition= SELECT COUNT(*) > 0 FROM t1;
+source include/wait_condition.inc;
 stop slave io_thread;
 start slave io_thread;
 sync_with_master;
