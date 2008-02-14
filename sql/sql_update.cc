@@ -1482,7 +1482,7 @@ void multi_update::send_error(uint errcode,const char *err)
 
   if (trans_safe)
   {
-    DBUG_ASSERT(transactional_tables);
+    DBUG_ASSERT(!updated || transactional_tables);
     (void) ha_autocommit_or_rollback(thd, 1);
   }
   else
