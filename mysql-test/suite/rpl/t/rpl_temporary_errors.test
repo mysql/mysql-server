@@ -8,6 +8,9 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 --echo **** On Slave ****
 sync_slave_with_master;
 SHOW STATUS LIKE 'Slave_retried_transactions';
+# since bug#31552/31609 idempotency is not default any longer. In order
+# the following UPDATE t1 to pass the mode is switched temprorarily
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1;
 --echo **** On Master ****
@@ -17,9 +20,10 @@ SELECT * FROM t1;
 #SHOW BINLOG EVENTS;
 --echo **** On Slave ****
 sync_slave_with_master;
+set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 SELECT * FROM t1;
-source include/show_slave_status.inc;
+source include/show_slave_status2.inc;
 DROP TABLE t1;
 
 --echo **** On Master ****

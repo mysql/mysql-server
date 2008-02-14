@@ -567,6 +567,15 @@ class Format_description_log_event;
 class Relay_log_info;
 
 #ifdef MYSQL_CLIENT
+enum enum_base64_output_mode {
+  BASE64_OUTPUT_NEVER= 0,
+  BASE64_OUTPUT_AUTO= 1,
+  BASE64_OUTPUT_ALWAYS= 2,
+  BASE64_OUTPUT_UNSPEC= 3,
+  /* insert new output modes here */
+  BASE64_OUTPUT_MODE_COUNT
+};
+
 /*
   A structure for mysqlbinlog to know how to print events
 
@@ -600,7 +609,8 @@ typedef struct st_print_event_info
   st_print_event_info()
     :flags2_inited(0), sql_mode_inited(0),
      auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
-     lc_time_names_number(0), charset_database_number(0)
+     lc_time_names_number(0), charset_database_number(0),
+     base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
     {
       /*
         Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
@@ -627,7 +637,14 @@ typedef struct st_print_event_info
 
   /* Settings on how to print the events */
   bool short_form;
-  bool base64_output;
+  enum_base64_output_mode base64_output_mode;
+  /*
+    This is set whenever a Format_description_event is printed.
+    Later, when an event is printed in base64, this flag is tested: if
+    no Format_description_event has been seen, it is unsafe to print
+    the base64 event, so an error message is generated.
+  */
+  bool printed_fd_event;
   my_off_t hexdump_from;
   uint8 common_header_len;
   char delimiter[16];
@@ -809,6 +826,12 @@ public:
 
   bool cache_stmt;
 
+  /**
+    A storage to cache the global system variable's value.
+    Handling of a separate event will be governed its member.
+  */
+  ulong slave_exec_mode;
+
 #ifndef MYSQL_CLIENT
   THD* thd;
 
@@ -930,7 +953,13 @@ public:
 				   const char **error,
                                    const Format_description_log_event
                                    *description_event);
-  /* returns the human readable name of the event's type */
+  /**
+    Returns the human readable name of the given event type.
+  */
+  static const char* get_type_str(Log_event_type type);
+  /**
+    Returns the human readable name of this event's type.
+  */
   const char* get_type_str();
 
   /* Return start of query time or current time */
@@ -2077,12 +2106,16 @@ public:
   /* The list of post-headers' lengthes */
   uint8 *post_header_len;
   uchar server_version_split[3];
+  const uint8 *event_type_permutation;
 
   Format_description_log_event(uint8 binlog_ver, const char* server_ver=0);
   Format_description_log_event(const char* buf, uint event_len,
                                const Format_description_log_event
                                *description_event);
-  ~Format_description_log_event() { my_free((uchar*)post_header_len, MYF(0)); }
+  ~Format_description_log_event()
+  {
+    my_free((uchar*)post_header_len, MYF(MY_ALLOW_ZERO_PTR));
+  }
   Log_event_type get_type_code() { return FORMAT_DESCRIPTION_EVENT;}
 #ifndef MYSQL_CLIENT
   bool write(IO_CACHE* file);
@@ -2486,7 +2519,7 @@ protected:
   */
   bool fake_base;
 public:
-  char* block;
+  uchar* block;
   const char *event_buf;
   uint block_len;
   uint file_id;
@@ -2497,7 +2530,7 @@ public:
 			const char* table_name_arg,
 			List<Item>& fields_arg,
 			enum enum_duplicates handle_dup, bool ignore,
-			char* block_arg, uint block_len_arg,
+			uchar* block_arg, uint block_len_arg,
 			bool using_trans);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -2552,7 +2585,7 @@ private:
 class Append_block_log_event: public Log_event
 {
 public:
-  char* block;
+  uchar* block;
   uint block_len;
   uint file_id;
   /*
@@ -2569,7 +2602,7 @@ public:
   const char* db;
 
 #ifndef MYSQL_CLIENT
-  Append_block_log_event(THD* thd, const char* db_arg, char* block_arg,
+  Append_block_log_event(THD* thd, const char* db_arg, uchar* block_arg,
 			 uint block_len_arg, bool using_trans);
 #ifdef HAVE_REPLICATION
   void pack_info(Protocol* protocol);
@@ -2693,7 +2726,7 @@ class Begin_load_query_log_event: public Append_block_log_event
 public:
 #ifndef MYSQL_CLIENT
   Begin_load_query_log_event(THD* thd_arg, const char *db_arg,
-                             char* block_arg, uint block_len_arg,
+                             uchar* block_arg, uint block_len_arg,
                              bool using_trans);
 #ifdef HAVE_REPLICATION
   Begin_load_query_log_event(THD* thd);

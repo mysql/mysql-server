@@ -1,0 +1,110 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+CREATE TABLE tmyisam (a int) ENGINE = MYISAM;
+CREATE TABLE tinnodb (a int) ENGINE = INNODB;
+CREATE TABLE tndb (a int) ENGINE = NDB;
+SHOW CREATE TABLE tmyisam;
+Table	Create Table
+tmyisam	CREATE TABLE `tmyisam` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tinnodb;
+Table	Create Table
+tinnodb	CREATE TABLE `tinnodb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tndb;
+Table	Create Table
+tndb	CREATE TABLE `tndb` (
+  `a` int(11) DEFAULT NULL
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+==== Test 1: Non-XA Engines ====
+--- on master ---
+SET AUTOCOMMIT = 1;
+INSERT INTO tndb VALUES (1);
+INSERT INTO tmyisam VALUES (1);
+BEGIN;
+INSERT INTO tndb VALUES (2);
+INSERT INTO tndb VALUES (3);
+COMMIT;
+BEGIN;
+INSERT INTO tmyisam VALUES (2);
+INSERT INTO tmyisam VALUES (3);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (4);
+INSERT INTO tmyisam VALUES (4);
+COMMIT;
+BEGIN;
+INSERT INTO tndb VALUES (5);
+INSERT INTO tndb VALUES (6);
+ROLLBACK;
+BEGIN;
+INSERT INTO tmyisam VALUES (5);
+INSERT INTO tmyisam VALUES (6);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+BEGIN;
+INSERT INTO tndb VALUES (7);
+INSERT INTO tmyisam VALUES (7);
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * FROM tndb ORDER BY a;
+a
+1
+2
+3
+4
+SELECT * FROM tmyisam ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+--- on slave ---
+SELECT * FROM tndb ORDER BY a;
+a
+1
+2
+3
+4
+SELECT * FROM tmyisam ORDER BY a;
+a
+1
+2
+3
+4
+5
+6
+7
+==== Test 2: Master crash before writing XID event on XA engine ====
+--- on master ---
+INSERT INTO tinnodb VALUES (1);
+SELECT * FROM tinnodb ORDER BY a;
+a
+1
+--- on slave ---
+STOP SLAVE;
+SELECT "" AS Slave_IO_State;
+Slave_IO_State
+
+SELECT "" AS Last_SQL_Error;
+Last_SQL_Error
+
+SELECT "" AS Last_IO_Error;
+Last_IO_Error
+
+SELECT * FROM tinnodb ORDER BY a;
+a
+--- on master ---
+DROP TABLE tmyisam, tinnodb, tndb;
+DROP TABLE tmyisam, tinnodb, tndb;
