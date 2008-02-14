@@ -1115,5 +1115,24 @@ DROP EVENT ev1;
 SHOW TABLE TYPES;
 --enable_result_log
 
+#
+# Bug #32710: SHOW INNODB STATUS requires SUPER
+#
+
+
+CREATE USER test_u@localhost;
+GRANT PROCESS ON *.* TO test_u@localhost;
+
+connect (conn1, localhost, test_u,,);
+
+--disable_result_log
+SHOW ENGINE MYISAM MUTEX;
+SHOW ENGINE MYISAM STATUS;
+--enable_result_log
+
+disconnect conn1;
+connection default;
+DROP USER test_u@localhost;
+
 
 --echo End of 5.1 tests
