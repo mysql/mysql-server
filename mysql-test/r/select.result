@@ -4313,6 +4313,12 @@ SELECT * FROM t1 WHERE c1 > NULL + 1;
 c1
 DROP TABLE t1;
 
+CREATE TABLE t1 (a VARCHAR(10) NOT NULL PRIMARY KEY);
+INSERT INTO t1 (a) VALUES ('foo0'), ('bar0'), ('baz0');
+SELECT * FROM t1 WHERE a IN (CONCAT('foo', 0), 'bar');
+a
+foo0
+DROP TABLE t1;
 End of 5.0 tests
 create table t1(a INT, KEY (a));
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5);
