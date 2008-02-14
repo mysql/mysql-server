@@ -69,7 +69,7 @@ static inline void list_move(struct list *newhead, struct list *oldhead) {
     list_init(oldhead);
 }
 
-// Note: Need an extra level of parens in these macros so that 
+// Note: Need the extra level of parens in these macros so that 
 //   list_struct(h, foo, b)->zot
 // will work right.  Otherwise the type cast will try to include ->zot, and it will be all messed up.
 #if defined(__GNUC__) && __GNUC__ >= 4

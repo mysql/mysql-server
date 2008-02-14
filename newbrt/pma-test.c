@@ -4,7 +4,6 @@
 #include "brt-internal.h"
 #include "key.h"
 #include "kv-pair.h"
-#include "list.h"
 #include "pma-internal.h"
 #include "test.h"
 #include "toku_assert.h"

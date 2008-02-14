@@ -218,6 +218,7 @@ void toku_memory_check_all_free (void) {
 	printf("n_items_malloced=%lld\n", n_items_malloced);
 	if (toku_memory_check)
 	    printf(" one item is %p size=%ld\n", items[0], sizes[0]);
+	exit(1);
     }
     assert(n_items_malloced==0);
 }
