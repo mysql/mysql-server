@@ -1298,9 +1298,9 @@ bool ha_federated::create_where_from_key(String *to,
             "IS NULL", flag is set to HA_READ_KEY_EXACT.
           */
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(ranges[i]->flag == HA_READ_KEY_EXACT ?
-                         STRING_WITH_LEN(" IS NULL ") :
-                         STRING_WITH_LEN(" IS NOT NULL ")))
+              (ranges[i]->flag == HA_READ_KEY_EXACT ?
+               tmp.append(STRING_WITH_LEN(" IS NULL ")) :
+               tmp.append(STRING_WITH_LEN(" IS NOT NULL "))))
             goto err;
           /*
             We need to adjust pointer and length to be prepared for next
