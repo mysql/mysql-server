@@ -801,7 +801,9 @@ static ulong get_sort(uint count,...)
     {
       for (; *str ; str++)
       {
-	if (*str == wild_many || *str == wild_one || *str == wild_prefix)
+        if (*str == wild_prefix && str[1])
+          str++;
+        else if (*str == wild_many || *str == wild_one)
         {
           wild_pos= (uint) (str - start) + 1;
           break;
