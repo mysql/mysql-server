@@ -2,11 +2,11 @@
 // I want fmemopen
 #define _GNU_SOURCE
 
-#include "test.h"
 #include <assert.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdio.h>
+#include "test.h"
 
 const char *expect_errpfx=0;
 int n_handle_error=0;
