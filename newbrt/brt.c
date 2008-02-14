@@ -500,7 +500,9 @@ static int push_brt_cmd_down_only_if_it_wont_push_more_else_put_here (BRT t, BRT
     assert(node->height>0); /* Not a leaf. */
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
-    int to_child=toku_serialize_brtnode_size(child)+k->size+v->size+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD <= child->nodesize;
+    unsigned int newsize = toku_serialize_brtnode_size(child) + k->size + v->size + KEY_VALUE_OVERHEAD;
+    newsize += (child->height > 0) ? BRT_CMD_OVERHEAD : PMA_ITEM_OVERHEAD;
+    int to_child = newsize <= child->nodesize;
     if (toku_brt_debug_mode) {
 	printf("%s:%d pushing %s to %s %d", __FILE__, __LINE__, (char*)k->data, to_child? "child" : "hash", childnum_of_node);
 	if (childnum_of_node+1<node->u.n.n_children) {
