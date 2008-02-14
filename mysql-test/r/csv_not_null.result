@@ -38,9 +38,6 @@ DROP TABLE t1;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a int NOT NULL, b char(10) NOT NULL) ENGINE = CSV;
 INSERT INTO t1 VALUES();
-Warnings:
-Warning	1364	Field 'a' doesn't have a default value
-Warning	1364	Field 'b' doesn't have a default value
 SELECT * FROM t1;
 a	b
 0	
@@ -49,9 +46,8 @@ SELECT * FROM t1;
 a	b
 0	new_value
 UPDATE t1 set b = NULL where b = 'new_value';
-Warnings:
-Warning	1048	Column 'b' cannot be null
+ERROR 23000: Column 'b' cannot be null
 SELECT * FROM t1;
 a	b
-0	
+0	new_value
 DROP TABLE t1;

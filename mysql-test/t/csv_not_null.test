@@ -77,12 +77,6 @@ DROP TABLE t1;
 ##############################################################################
 # Testcase csv_not_null.3:  UPDATE tests -- examining behavior of UPDATE
 #                           statements for CSV
-# NOTE:  Should not allow UPDATE <table> set <NOT_NULL_COLUMN> = NULL
-#                         WHERE <condition>;
-#        However, this is currently allowed -- <NOT_NULL_COLUMN> is
-#        set to the default value for the given datatype
-#        Might have to change this test depending on the action taken for 
-#        Bug#33699 (addressing this behavior)
 ##############################################################################
 -- echo # ===== csv_not_null.3 =====
 -- disable_warnings
@@ -91,13 +85,15 @@ DROP TABLE IF EXISTS t1;
 
 
 CREATE TABLE t1 (a int NOT NULL, b char(10) NOT NULL) ENGINE = CSV;
+--disable_warnings
 INSERT INTO t1 VALUES();
+--enable_warnings
 SELECT * FROM t1;
+--disable_warnings
 UPDATE t1 set b = 'new_value' where a = 0;
+--enable_warnings
 SELECT * FROM t1;
-# Might need to change this depending on Bug#33699 -UPDATE allows NULL 
-#          as new value on NOT NULL columns (= default datatype value)
-# Currently sets to datatype default -- might throw error
+--error ER_BAD_NULL_ERROR
 UPDATE t1 set b = NULL where b = 'new_value';
 SELECT * FROM t1;
 
