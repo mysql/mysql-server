@@ -3041,6 +3041,12 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   }
 #endif
 
+  /* 
+    The lock api is depending on the thd->lex variable which needs to be
+    re-initialized.
+  */
+  Query_tables_list backup;
+  thd->lex->reset_n_backup_query_tables_list(&backup);
   if (simple_open_n_lock_tables(thd,tables))
   {						// Should never happen
     close_thread_tables(thd);			/* purecov: deadcode */
@@ -3173,6 +3179,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     send_ok(thd);
 
   /* Tables are automatically closed */
+  thd->lex->restore_backup_query_tables_list(&backup);
   DBUG_RETURN(result);
 }
 
@@ -3862,7 +3869,7 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
     of other queries). For simple queries first_not_own_table is 0.
   */
   for (i= 0, table= tables;
-       table != first_not_own_table && i < number;
+       i < number  && table != first_not_own_table;
        table= table->next_global, i++)
   {
     /* Remove SHOW_VIEW_ACL, because it will be checked during making view */
@@ -5579,6 +5586,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_created= FALSE;
   DBUG_ENTER("mysql_create_user");
 
   /*
@@ -5614,6 +5622,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    some_users_created= TRUE;
     sql_mode= thd->variables.sql_mode;
     if (replace_user_table(thd, tables[0].table, *user_name, 0, 0, 1, 0))
     {
@@ -5624,12 +5633,14 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
+
+  if (some_users_created)
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "CREATE USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 
@@ -5654,6 +5665,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_name, *tmp_user_name;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_deleted= FALSE;
   DBUG_ENTER("mysql_drop_user");
 
   /*
@@ -5682,7 +5694,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     {
       append_user(&wrong_users, user_name);
       result= TRUE;
+      continue;
     }
+    some_users_deleted= TRUE;
   }
 
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -5693,7 +5707,8 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   if (result)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (some_users_deleted)
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
@@ -5722,6 +5737,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   LEX_USER *user_to, *tmp_user_to;
   List_iterator <LEX_USER> user_list(list);
   TABLE_LIST tables[GRANT_TABLES];
+  bool some_users_renamed= FALSE;
   DBUG_ENTER("mysql_rename_user");
 
   /*
@@ -5762,7 +5778,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     {
       append_user(&wrong_users, user_from);
       result= TRUE;
+      continue;
     }
+    some_users_renamed= TRUE;
   }
   
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
@@ -5770,12 +5788,14 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
   VOID(pthread_mutex_unlock(&acl_cache->lock));
 
-  write_bin_log(thd, FALSE, thd->query, thd->query_length);
+  if (result)
+    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
+  
+  if (some_users_renamed && mysql_bin_log.is_open())
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
 
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
-  if (result)
-    my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   DBUG_RETURN(result);
 }
 

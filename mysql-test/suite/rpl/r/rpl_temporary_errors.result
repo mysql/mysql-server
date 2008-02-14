@@ -12,6 +12,7 @@ INSERT INTO t1 VALUES (1,1), (2,2), (3,3), (4,4);
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
+set @@global.slave_exec_mode= 'IDEMPOTENT';
 UPDATE t1 SET a = 5, b = 47 WHERE a = 1;
 SELECT * FROM t1;
 a	b
@@ -28,6 +29,7 @@ a	b
 3	3
 4	4
 **** On Slave ****
+set @@global.slave_exec_mode= default;
 SHOW STATUS LIKE 'Slave_retried_transactions';
 Variable_name	Value
 Slave_retried_transactions	0
@@ -44,7 +46,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	408
+Read_Master_Log_Pos	#
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -59,7 +61,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	408
+Exec_Master_Log_Pos	#
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	

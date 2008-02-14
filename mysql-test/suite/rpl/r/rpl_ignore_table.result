@@ -115,6 +115,7 @@ GRANT INSERT, INSERT (a), UPDATE (a), REFERENCES (a) ON `test`.`t4` TO 'mysqltes
 show grants for mysqltest4@localhost;
 Grants for mysqltest4@localhost
 GRANT USAGE ON *.* TO 'mysqltest4'@'localhost' IDENTIFIED BY PASSWORD '*196BDEDE2AE4F84CA44C47D54D78478C7E2BD7B7'
+set global slave_exec_mode='IDEMPOTENT';
 drop table t1, t4, mysqltest2.t2;
 drop database mysqltest2;
 delete from mysql.user where user like "mysqltest%";
@@ -132,6 +133,7 @@ INSERT INTO t5 (word)  VALUES ('TEST’');
 SELECT HEX(word) FROM t5;
 HEX(word)
 54455354E28099
+set @@global.slave_exec_mode= default;
 SELECT HEX(word) FROM t5;
 HEX(word)
 54455354E28099

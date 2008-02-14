@@ -1034,7 +1034,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors);
+			uint number, bool no_errors);
 bool check_global_access(THD *thd, ulong want_access);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
@@ -1046,7 +1046,7 @@ inline bool check_access(THD *thd, ulong access, const char *db,
   return false;
 }
 inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors)
+			uint number, bool no_errors)
 { return false; }
 inline bool check_global_access(THD *thd, ulong want_access)
 { return false; }
@@ -1883,6 +1883,7 @@ extern uint volatile thread_count, thread_running, global_read_lock;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
+extern ulong slave_exec_mode_options;
 extern my_bool opt_readonly, lower_case_file_system;
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
