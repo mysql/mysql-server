@@ -627,7 +627,7 @@ a	b
 4	4
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	268		
+master-bin.000001	336		
 delete from t1;
 delete from t2;
 insert into t1 values (1,2),(3,4),(4,4);
@@ -637,7 +637,7 @@ UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
 ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
 show master status /* there must be the UPDATE query event */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	283		
+master-bin.000001	351		
 drop table t1, t2;
 set @@session.binlog_format= @sav_binlog_format;
 drop table if exists t1, t2, t3;

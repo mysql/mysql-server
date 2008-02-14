@@ -18,8 +18,12 @@ TRUNCATE t1n;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2)
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1n SET m = 2, e = 3 WHERE n = f
@@ -49,8 +53,12 @@ TRUNCATE t1n;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2)
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1m
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
 master-bin.000001	#	Query	#	#	BEGIN
