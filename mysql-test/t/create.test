@@ -1385,4 +1385,68 @@ DROP TABLE t2;
 --echo # -- End of test case for Bug#21380.
 --echo
 
+--echo # --
+--echo # -- Bug#18834: ALTER TABLE ADD INDEX on table with two timestamp fields
+--echo # --
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
+
+--echo
+
+SET sql_mode = NO_ZERO_DATE;
+
+--echo
+--error ER_INVALID_DEFAULT
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
+
+--echo
+--error ER_INVALID_DEFAULT
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
+
+--echo
+--echo # -- Check that NULL column still can be created.
+CREATE TABLE t2(c1 TIMESTAMP NULL);
+
+--echo
+--echo # -- Check ALTER TABLE.
+--error ER_INVALID_DEFAULT
+ALTER TABLE t1 ADD INDEX(c1);
+
+--echo
+--echo # -- Check DATETIME.
+SET sql_mode = '';
+
+--echo
+
+CREATE TABLE t3(c1 DATETIME NOT NULL);
+INSERT INTO t3 VALUES (0);
+
+--echo
+SET sql_mode = TRADITIONAL;
+
+--echo
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE t3 ADD INDEX(c1);
+
+--echo
+--echo # -- Cleanup.
+
+SET sql_mode = '';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+--echo
+--echo # -- End of Bug#18834.
+--echo
+
 --echo End of 5.1 tests

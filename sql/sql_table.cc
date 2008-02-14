@@ -3001,6 +3001,37 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
+  /* Check fields. */
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
+
+    if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
+        !sql_field->def &&
+        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        (sql_field->flags & NOT_NULL_FLAG) &&
+        (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
+    {
+      /*
+        An error should be reported if:
+          - NO_ZERO_DATE SQL mode is active;
+          - there is no explicit DEFAULT clause (default column value);
+          - this is a TIMESTAMP column;
+          - the column is not NULL;
+          - this is not the DEFAULT CURRENT_TIMESTAMP column.
+
+        In other words, an error should be reported if
+          - NO_ZERO_DATE SQL mode is active;
+          - the column definition is equivalent to
+            'column_name TIMESTAMP DEFAULT 0'.
+      */
+
+      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   DBUG_RETURN(FALSE);
 }
 
