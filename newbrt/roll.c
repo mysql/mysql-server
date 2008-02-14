@@ -111,8 +111,11 @@ void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32
     toku_free_BYTESTRING(fname);
 }
 
-int toku_rollback_fcreate (struct logtype_fcreate *le, TOKUTXN txn __attribute__((__unused__))) {
-    char *fname = fixup_fname(&le->fname);
+int toku_rollback_fcreate (TXNID      txnid     __attribute__((__unused__)),
+			   BYTESTRING bs_fname,
+			   u_int32_t  mode      __attribute__((__unused__)),
+			   TOKUTXN    txn       __attribute__((__unused__))) {
+    char *fname = fixup_fname(&bs_fname);
     char *directory = txn->logger->directory;
     int  full_len=strlen(fname)+strlen(directory)+2;
     char full_fname[full_len];
@@ -120,7 +123,7 @@ int toku_rollback_fcreate (struct logtype_fcreate *le, TOKUTXN txn __attribute__
     assert(l<=full_len);
     int r = unlink(full_fname);
     assert(r==0);
-    toku_free(fname);
+    free(fname);
     return 0;
 }
 
@@ -395,22 +398,23 @@ void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
-int toku_rollback_insertinleaf (struct logtype_insertinleaf *c, TOKUTXN txn)  {
+int toku_rollback_insertinleaf (TXNID txnid __attribute__((__unused__)), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING key, BYTESTRING data, TOKUTXN txn)  {
     CACHEFILE cf;
     BRT brt;
     void *node_v;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, c->filenum, &cf, &brt);
+    printf("Rollback insertinleaf\n");
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
     assert(r==0);
-    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+    r = toku_cachetable_get_and_pin(cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node = node_v;
-    r = toku_pma_clear_at_index(node->u.l.buffer, c->pmaidx);
+    r = toku_pma_clear_at_index(node->u.l.buffer, pmaidx);
     if (r!=0) return r;
-    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
-    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
+    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(key.data, key.len, data.data, data.len);
+    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + key.len + data.len; 
     VERIFY_COUNTS(node);
-    node->log_lsn = c->lsn;
-    r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    //node->log_lsn = c->lsn;
+    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
     return r;
 }
 

@@ -135,4 +135,9 @@ int toku_recover_init(void);
 void toku_recover_cleanup(void);
 int toku_logger_abort(TOKUTXN);
 
+// Find the txn that belongs to a txnid.
+// Return nonzero if no such txn is live (either didn't exist ever, or it is committed or aborted.)
+// Return 0 if there is a live txn with that txnid.
+int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
+
 #endif

@@ -69,6 +69,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     if (result==0) return errno;
     result->is_open=0;
     result->is_panicked=0;
+    list_init(&result->live_txns);
     *resultp=result;
     return 0;
 }
@@ -223,18 +224,25 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	}
 	goto free_and_return;
     } else {
-	if (txn->parent->oldest_logentry) txn->parent->newest_logentry->next = txn->oldest_logentry;
-	else                              txn->parent->oldest_logentry       = txn->oldest_logentry;
-	if (txn->newest_logentry) txn->parent->newest_logentry = txn->newest_logentry;
+	// Append the list to the front.
+	if (txn->oldest_logentry) {
+	    // There are some entries, so link them in.
+	    txn->oldest_logentry->prev = txn->parent->newest_logentry;
+	    txn->parent->newest_logentry = txn->newest_logentry;
+	}
+	if (txn->parent->oldest_logentry==0) {
+	    txn->parent->oldest_logentry = txn->oldest_logentry;
+	}
 	txn->newest_logentry = txn->oldest_logentry = 0;
     }
  free_and_return: /*nothing*/;
     struct log_entry *item;
-    while ((item=txn->oldest_logentry)) {
-	txn->oldest_logentry = item->next;
+    while ((item=txn->newest_logentry)) {
+	txn->newest_logentry = item->prev;
 	logtype_dispatch(item, toku_free_logtype_);
 	toku_free(item);
     }
+    list_remove(&txn->live_txns_link);
     toku_free(txn);
     return r;
 }
@@ -261,6 +269,7 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
+    list_push(&logger->live_txns, &result->live_txns_link);
     *tokutxn = result;
     return 0;
 }
@@ -268,10 +277,11 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid
 int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
-    BYTESTRING bs;
-    bs.len = strlen(fname);
-    bs.data = (char*)fname;
-    return toku_log_fcreate (txn->logger, toku_txn_get_txnid(txn), bs, mode);
+    BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
+    int r = toku_log_fcreate (txn->logger, toku_txn_get_txnid(txn), bs, mode);
+    if (r!=0) return r;
+    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs, mode);
+    return r;
 }
 
 /* fopen isn't really an action.  It's just for bookkeeping.  We need to know the filename that goes with a filenum. */
@@ -598,23 +608,30 @@ int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unuse
 int toku_logger_abort(TOKUTXN txn) {
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
-    struct log_entry *prev=0;
     struct log_entry *item=txn->oldest_logentry;
-    while (item) {
-	item->tmp=prev;
-	prev=item;
-	item=item->next;
-    }
-    for (item=txn->newest_logentry; item; item=item->tmp) {
-	int r;
-	logtype_dispatch_assign(item, toku_rollback_, r, txn);
-	if (r!=0) return r;
-    }
     while ((item=txn->newest_logentry)) {
-	txn->newest_logentry=item->tmp;
+	txn->newest_logentry = item->prev;
+	int r;
+	logtype_dispatch_assign_rollback(item, toku_rollback_, r, txn);
+	if (r!=0) return r;
 	logtype_dispatch(item, toku_free_logtype_);
 	toku_free(item);
     }
     toku_free(txn);
     return 0;
+}
+
+int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
+    if (logger==0) return -1;
+    struct list *h = list_head(&logger->live_txns);
+    while (h) {
+	TOKUTXN txn = list_struct(h, struct tokutxn, live_txns_link);
+	assert(txn->tag==TYP_TOKUTXN);
+	if (txn->txnid64==txnid) {
+	    *result = txn;
+	    return 0;
+	}
+	h=list_tail(h);
+    }
+    return -1;
 }

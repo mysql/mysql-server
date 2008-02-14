@@ -1376,7 +1376,8 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		t->database_name=0;
 		goto died0a;
 	    }
-	    toku_logger_log_fcreate(txn, fname_in_env, 0777);
+	    r = toku_logger_log_fcreate(txn, fname_in_env, 0777);
+	    if (r!=0) goto died0a;
 	}
 	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
 	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));

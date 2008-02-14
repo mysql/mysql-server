@@ -2,6 +2,7 @@
 
 #include "log.h"
 #include "toku_assert.h"
+#include "list.h"
 #include "yerror.h"
 #include <stdio.h>
 #include <sys/types.h>
@@ -20,6 +21,7 @@ struct tokulogger {
     char buf[LOGGER_BUF_SIZE];
     int  n_in_buf;
     CACHETABLE ct;
+    struct list live_txns; // just a linked list.  Should be a hashtable.
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
@@ -39,11 +41,13 @@ enum lt_command {
 };
 
 struct tokutxn {
+    enum typ_tag tag;
     u_int64_t txnid64;
     TOKULOGGER logger;
     TOKUTXN    parent;
     LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
-    struct log_entry *oldest_logentry,*newest_logentry;
+    struct log_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
+    struct list live_txns_link;
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf);
@@ -80,3 +84,4 @@ static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
 static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
     return 4+(4+4)*pa.size;
 }
+

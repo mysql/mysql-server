@@ -30,9 +30,11 @@ typedef struct field {
 
 struct logtype {
     char *name;
-    char command;
+    unsigned int command_and_flags;
     struct field *fields;
 };
+
+#define GEN_ROLLBACK (1<<9)
 
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
@@ -45,14 +47,14 @@ const struct logtype logtypes[] = {
 		       {"BYTESTRING", "key", 0},
 		       {"BYTESTRING", "data", 0},
 		       NULLFIELD}},
-    {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
-			{"BYTESTRING", "fname", 0},
-			{"u_int32_t",  "mode",  "0%o"},
-			NULLFIELD}},
-    {"fheader", 'H',    FA{{"TXNID",      "txnid", 0},
-			   {"FILENUM",    "filenum", 0},
-			   {"LOGGEDBRTHEADER",  "header", 0},
-			   NULLFIELD}},
+    {"fcreate", 'F'+GEN_ROLLBACK, FA{{"TXNID",      "txnid", 0},
+				     {"BYTESTRING", "fname", 0},
+				     {"u_int32_t",  "mode",  "0%o"},
+				     NULLFIELD}},
+    {"fheader", 'H',  FA{{"TXNID",      "txnid", 0},
+			 {"FILENUM",    "filenum", 0},
+			 {"LOGGEDBRTHEADER",  "header", 0},
+			 NULLFIELD}},
     {"newbrtnode", 'N', FA{{"FILENUM", "filenum", 0},
 			   {"DISKOFF", "diskoff", 0},
 			   {"u_int32_t", "height", 0},
@@ -127,13 +129,13 @@ const struct logtype logtypes[] = {
 			     {"u_int32_t",  "oldfingerprint", "%08x"},
 			     {"u_int32_t",  "newfingerprint", "%08x"},
 			     NULLFIELD}},
-    {"insertinleaf", 'I', FA{{"TXNID",      "txnid", 0},
-			     {"FILENUM",    "filenum", 0},
-			     {"DISKOFF",    "diskoff", 0},
-			     {"u_int32_t",  "pmaidx", 0},
-			     {"BYTESTRING", "key", 0},
-			     {"BYTESTRING", "data", 0},
-                             NULLFIELD}},
+    {"insertinleaf", 'I'+GEN_ROLLBACK, FA{{"TXNID",      "txnid", 0},
+					  {"FILENUM",    "filenum", 0},
+					  {"DISKOFF",    "diskoff", 0},
+					  {"u_int32_t",  "pmaidx", 0},
+					  {"BYTESTRING", "key", 0},
+					  {"BYTESTRING", "data", 0},
+					  NULLFIELD}},
     {"deleteinleaf", 'd', FA{{"TXNID",      "txnid", 0},
 			     {"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
@@ -186,12 +188,13 @@ void generate_lt_enum (void) {
     fprintf(hf, "enum lt_cmd {");
     DO_LOGTYPES(lt,
 		({
+		    unsigned char cmd = lt->command_and_flags&0xff;
 		    if (count!=0) fprintf(hf, ",");
 		    count++;
 		    fprintf(hf, "\n");
-		    fprintf(hf,"    LT_%-16s = '%c'", lt->name, lt->command);
-		    if (used_cmds[(unsigned char)lt->command]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice\n", __FILE__, __LINE__, lt->command, lt->command); abort(); }
-		    used_cmds[(unsigned char)lt->command]=1;
+		    fprintf(hf,"    LT_%-16s = '%c'", lt->name, cmd);
+		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice\n", __FILE__, __LINE__, cmd, cmd); abort(); }
+		    used_cmds[cmd]=1;
 		}));
     fprintf(hf, "\n};\n\n");
 }
@@ -208,15 +211,18 @@ void generate_log_struct (void) {
 		    fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf(hf, ", %s %s", ft->type, ft->name));
 		    fprintf(hf, ");\n");
-		    fprintf(hf, "int toku_rollback_%s (struct logtype_%s *, TOKUTXN);\n", lt->name, lt->name);
+		    if (lt->command_and_flags & GEN_ROLLBACK) {
+			fprintf(hf, "int toku_rollback_%s (", lt->name);
+			DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
+			fprintf(hf, "TOKUTXN txn);\n");
+		    }
 		}));
     fprintf(hf, "struct log_entry {\n");
     fprintf(hf, "  enum lt_cmd cmd;\n");
     fprintf(hf, "  union {\n");
     DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
-    fprintf(hf, "  struct log_entry *next; /* for in-memory list of log entries */\n");
-    fprintf(hf, "  struct log_entry *tmp;  /* This will be a back pointer, but it is only created if needed (e.g., when abort is called. */\n");
+    fprintf(hf, "  struct log_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
     fprintf(hf, "};\n");
 }
 
@@ -228,6 +234,21 @@ void generate_dispatch (void) {
     fprintf(hf, "#define logtype_dispatch_assign(s, funprefix, var, args...) ({ switch((s)->cmd) {\\\n");
     DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, ## args); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
+
+    fprintf(hf, "#define logtype_dispatch_assign_rollback(s, funprefix, var, args...) ({ \\\n");
+    fprintf(hf, "  switch((s)->cmd) {\\\n");
+    DO_LOGTYPES(lt, ({
+		if (lt->command_and_flags & GEN_ROLLBACK) {
+		    fprintf(hf, "  case LT_%s: var = funprefix ## %s (", lt->name, lt->name);
+		    int fieldcount=0;
+		    DO_FIELDS(ft, lt, ({
+				if (fieldcount>0) fprintf(hf, ",");
+				fprintf(hf, "(s)->u.%s.%s", lt->name, ft->name);
+				fieldcount++;
+			    }));
+		    fprintf(hf, ",## args); break;\\\n");
+		}}));
+    fprintf(hf, "  default: assert(0);} })\n");
 
     fprintf(hf, "#define logtype_dispatch_args(s, funprefix) ({ switch((s)->cmd) {\\\n");
     DO_LOGTYPES(lt,
@@ -252,8 +273,7 @@ void generate_log_free(void) {
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
 			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger", lt->name);
-			DO_FIELDS(ft, lt,
-				  fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
+			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
 			fprintf(cf, "  if (logger==0) return 0;\n");
@@ -269,7 +289,7 @@ void generate_log_writer (void) {
 			fprintf(cf, "  if (buf==0) return errno;\n");
 			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
-			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", lt->command);
+			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", 0xff&lt->command_and_flags);
 			fprintf(cf, "  wbuf_LSN(&wbuf, logger->lsn);\n");
 			fprintf(cf, "  logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
@@ -339,34 +359,54 @@ void generate_logprint (void) {
     fprintf(cf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, ({ if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); }));
     DO_LOGTYPES(lt, ({
-			fprintf(cf, "    case LT_%s: \n", lt->name);
-			// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
-			fprintf(cf, "        fprintf(outf, \"%%-%ds \", \"%s\");\n", maxnamelen, lt->name);
-			if (isprint(lt->command)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", lt->command);
-			else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", lt->command);
-			fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len, 0);     if (r!=0) return r;\n", "LSN");
-			DO_FIELDS(ft, lt,
-				  ({
-				      fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len,", ft->type, ft->name);
-				      if (ft->format) fprintf(cf, "\"%s\"", ft->format);
-				      else            fprintf(cf, "0");
-				      fprintf(cf, "); if (r!=0) return r;\n");
-				  }));
-			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
-			fprintf(cf, "        fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
-			fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%08x\", crc);\n");
-			fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
-			fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
-			fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
-			fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
-			fprintf(cf, "        fprintf(outf, \"\\n\");\n");
-			fprintf(cf, "        return 0;;\n\n");
-		    }));
+		unsigned char cmd = 0xff&lt->command_and_flags;
+		fprintf(cf, "    case LT_%s: \n", lt->name);
+		// We aren't using the log reader here because we want better diagnostics as soon as things go wrong.
+		fprintf(cf, "        fprintf(outf, \"%%-%ds \", \"%s\");\n", maxnamelen, lt->name);
+		if (isprint(cmd)) fprintf(cf,"        fprintf(outf, \" '%c':\");\n", cmd);
+		else                      fprintf(cf,"        fprintf(outf, \"0%03o:\");\n", cmd);
+		fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"lsn\", &crc, &len, 0);     if (r!=0) return r;\n", "LSN");
+		DO_FIELDS(ft, lt, ({
+			    fprintf(cf, "        r = toku_logprint_%-16s(outf, f, \"%s\", &crc, &len,", ft->type, ft->name);
+			    if (ft->format) fprintf(cf, "\"%s\"", ft->format);
+			    else            fprintf(cf, "0");
+			    fprintf(cf, "); if (r!=0) return r;\n");
+			}));
+		fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(cf, "        fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
+		fprintf(cf, "        if (crc_in_file!=crc) fprintf(outf, \" actual_crc=%%08x\", crc);\n");
+		fprintf(cf, "        r = toku_fread_u_int32_t_nocrclen (f, &len_in_file); len+=4; if (r!=0) return r;\n");
+		fprintf(cf, "        fprintf(outf, \" len=%%d\", len_in_file);\n");
+		fprintf(cf, "        if (len_in_file!=len) fprintf(outf, \" actual_len=%%d\", len);\n");
+		fprintf(cf, "        if (len_in_file!=len || crc_in_file!=crc) return DB_BADFORMAT;\n");
+		fprintf(cf, "        fprintf(outf, \"\\n\");\n");
+		fprintf(cf, "        return 0;;\n\n");
+	    }));
     fprintf(cf, "    }\n");
     fprintf(cf, "    fprintf(outf, \"Unknown command %%d ('%%c')\", cmd, cmd);\n");
     fprintf(cf, "    return DB_BADFORMAT;\n");
     fprintf(cf, "}\n\n");
 }
+
+void generate_rollbacks (void) {
+    DO_LOGTYPES(lt, ({
+		if (lt->command_and_flags & GEN_ROLLBACK) {
+		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
+		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
+		    fprintf(hf, ");\n");
+		    fprintf(cf, ") {\n");
+		    fprintf(cf, "  struct log_entry *v = toku_malloc(sizeof(*v));\n");
+		    fprintf(cf, "  if (v==0) return errno;\n");
+		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
+		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
+		    fprintf(cf, "  v->prev = txn->newest_logentry;\n");
+		    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry=v;\n");
+		    fprintf(cf, "  txn->newest_logentry = v;\n");
+		    fprintf(cf, "  return 0;\n}\n");
+		}
+	    }));
+}
+
 
 const char *codepath = "log_code.c";
 const char *headerpath = "log_header.h";
@@ -389,6 +429,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     generate_log_free();
     generate_log_reader();
     generate_logprint();
+    generate_rollbacks();
     {
 	int r=fclose(hf);
 	assert(r==0);
