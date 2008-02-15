@@ -1172,24 +1172,6 @@ alter table t1 row_format=DYNAMIC;
 show create table t1;
 drop table t1;
 
-# Verify that INSERT DELAYED is disabled only for transactional tables
-create table t1 (a int) row_format=page;
---error ER_ILLEGAL_HA
-insert delayed into t1 values(1);
-drop table t1;
-create table t1 (a int) row_format=page transactional=0;
-insert delayed into t1 values(1);
-flush table t1;
-select * from t1;
-select count(*) from t1;
-drop table t1;
-create table t1 (a int) row_format=dynamic;
-insert delayed into t1 values(1);
-flush table t1;
-select * from t1;
-select count(*) from t1;
-drop table t1;
-
 # CHECK TABLE was reporting
 # "Size of datafile is: 0         Should be: 16384"
 #
