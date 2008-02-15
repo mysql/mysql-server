@@ -107,7 +107,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     struct fileid fileid;
     memset(&fileid, 0, sizeof(fileid));
     r=fstat(fd, &statbuf);
-    assert(r==0);
+    if (r != 0) return errno;
     fileid.st_dev = statbuf.st_dev;
     fileid.st_ino = statbuf.st_ino;
     for (extant = t->cachefiles; extant; extant=extant->next) {

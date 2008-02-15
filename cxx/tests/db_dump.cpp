@@ -23,7 +23,7 @@ int dbdump(char *dbfile, char *dbname) {
 #endif
     r = db.open(0, dbfile, dbname, DB_UNKNOWN, 0, 0777); 
     if (r != 0) {
-        printf("cant open %s:%s\n", dbfile, dbname);
+        printf("cant open %s:%s %d:%s\n", dbfile, dbname, r, db_strerror(r));
 #if USE_ENV
         r = env.close(0); assert(r == 0);
 #endif

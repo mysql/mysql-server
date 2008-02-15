@@ -1365,21 +1365,25 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     {
 	int fd = open(fname, O_RDWR, 0777);
 	r = errno;
-	if (fd==-1 && errno==ENOENT) {
-	    if (!is_create) {
-		t->database_name=0;
-		goto died0a;
-	    }
-	    fd = open(fname, O_RDWR | O_CREAT, 0777);
-	    r = errno;
-	    if (fd==-1) {
-		t->database_name=0;
-		goto died0a;
-	    }
-	    r = toku_logger_log_fcreate(txn, fname_in_env, 0777);
-	    if (r!=0) goto died0a;
+	if (fd==-1) {
+            if (errno==ENOENT) {
+                if (!is_create) {
+                    t->database_name=0;
+                    goto died0a;
+                }
+                fd = open(fname, O_RDWR | O_CREAT, 0777);
+                r = errno;
+                if (fd==-1) {
+                    t->database_name=0;
+                    goto died0a;
+                }
+                r = toku_logger_log_fcreate(txn, fname_in_env, 0777);
+                if (r!=0) goto died0a;
+            } else
+                goto died0a;
 	}
 	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
+        if (r != 0) goto died0a;
 	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
     if (r!=0) {
