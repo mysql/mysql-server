@@ -1,9 +1,6 @@
 # Replication of character sets.
 # This test will fail if the server/client does not support enough charsets.
 
-# Requires statement logging
--- source include/have_binlog_format_mixed_or_statement.inc
-
 source include/master-slave.inc;
 --disable_warnings
 set timestamp=1000000000;
@@ -52,14 +49,10 @@ insert into t1 (b) values(@@character_set_client);
 # collation_client does not exist
 insert into t1 (b) values(@@character_set_connection);
 insert into t1 (b) values(@@collation_connection);
---disable_query_log
-select "--- --master--" as "";
---enable_query_log
+--echo --- --master--
 select * from t1 order by a;
 sync_slave_with_master;
---disable_query_log
-select "--- --slave--" as "";
---enable_query_log
+--echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
 connection master;
@@ -70,14 +63,10 @@ insert into t1 (b) values(LEAST("Müller","Muffler"));
 set collation_connection=latin1_german2_ci;
 insert into t1 (b) values(@@collation_connection);
 insert into t1 (b) values(LEAST("Müller","Muffler"));
---disable_query_log
-select "--- --master--" as "";
---enable_query_log
+--echo --- --master--
 select * from t1 order by a;
 sync_slave_with_master;
---disable_query_log
-select "--- --slave--" as "";
---enable_query_log
+--echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
 # Presently charset info is not logged with LOAD DATA but it will
@@ -96,20 +85,15 @@ connection master;
 set @a= _cp850 'Müller' collate cp850_general_ci;
 truncate table t1;
 insert into t1 (b) values(collation(@a));
---disable_query_log
-select "--- --master--" as "";
---enable_query_log
+--echo --- --master--
 select * from t1 order by a;
 sync_slave_with_master;
---disable_query_log
-select "--- --slave--" as "";
---enable_query_log
+--echo --- --slave--
 select * from mysqltest2.t1 order by a;
 
 connection master;
 drop database mysqltest2;
 drop database mysqltest3;
-source include/show_binlog_events.inc;
 sync_slave_with_master;
 
 # Check that we can change global.collation_server (since 5.0.3)
@@ -153,10 +137,6 @@ sync_slave_with_master;
 select hex(c1), hex(c2) from t1;
 
 connection master;
-# Let's have a look at generated SETs.
-flush logs;
---replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000001 
 drop table t1;
 sync_slave_with_master;
 

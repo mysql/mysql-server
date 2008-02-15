@@ -30,8 +30,7 @@ int unpack_row(Relay_log_info const *rli,
                uchar const **const row_end, ulong *const master_reclength);
 
 // Fill table's record[0] with default values.
-int prepare_record(const Slave_reporting_capability *const, TABLE *const, 
-                   const uint =0, const bool =FALSE);
+int prepare_record(TABLE *const, const uint =0, const bool =FALSE);
 #endif
 
 #endif

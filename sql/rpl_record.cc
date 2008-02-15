@@ -307,17 +307,15 @@ unpack_row(Relay_log_info const *rli,
   If @c check is true, fields are explicitly initialized only if they have
   default value or can be NULL. Otherwise error is reported.
  
-  @param log    Used to report errors.
   @param table  Table whose record[0] buffer is prepared. 
   @param skip   Number of columns for which default value initialization 
                 should be skipped.
   @param check  Indicates if errors should be checked when setting default
                 values.
                 
-  @returns 0 on success. 
+  @returns 0 on success or a handler level error code
  */ 
-int prepare_record(const Slave_reporting_capability *const log, 
-                   TABLE *const table, 
+int prepare_record(TABLE *const table, 
                    const uint skip, const bool check)
 {
   DBUG_ENTER("prepare_record");
@@ -337,14 +335,8 @@ int prepare_record(const Slave_reporting_capability *const log,
 
     if (check && ((f->flags & mask) == mask))
     {
-      DBUG_ASSERT(log);
-      error= ER_NO_DEFAULT_FOR_FIELD;
-      log->report(ERROR_LEVEL, error,
-                  "Field `%s` of table `%s`.`%s` "
-                  "has no default value and cannot be NULL",
-                  f->field_name, table->s->db.str,
-                  table->s->table_name.str);
-      my_error(error, MYF(0), f->field_name);
+      my_error(ER_NO_DEFAULT_FOR_FIELD, MYF(0), f->field_name);
+      error = HA_ERR_ROWS_EVENT_APPLY;
     }
     else
       f->set_default();
