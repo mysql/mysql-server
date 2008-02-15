@@ -13,6 +13,21 @@
 #include <ydb-internal.h>
 #include <brt-internal.h>
 
+/* TODO: Yoni should check that all asserts make sense instead of panic,
+         and all early returns make sense instead of panic,
+         and vice versa. */
+/* TODO: During integration, create a db panic function to take care of this.
+         The panic function will go in ydb.c.
+         We may have to return the panic return code something.
+         We know the DB will always return EINVAL afterwards, but
+         what is the INITIAL panic return?
+         ALSO maybe make ticket, maybe it should be doing DB_RUNRECOVERY after
+         instead of EINVAL.
+*/
+/* TODO: During integration, make sure we first verify the NULL CONSISTENCY,
+         (return EINVAL if necessary) before making lock tree calls. */
+
+
 inline static int __toku_lt_panic(toku_lock_tree *tree, int r) {
     return tree->panic(tree->db, r);
 }
