@@ -910,24 +910,40 @@ static int toku_db_close(DB * db, u_int32_t flags) {
     return r;
 }
 
+/* Verify that an element from the secondary database is still consistent
+   with the primary.
+   \param secondary Secondary database
+   \param pkey Primary key
+   \param data Primary data
+   \param skey Secondary key to test
+   
+   \return 
+*/
 static int verify_secondary_key(DB *secondary, DBT *pkey, DBT *data, DBT *skey) {
     int r = 0;
     DBT idx;
 
     assert(secondary->i->primary != 0);
     memset(&idx, 0, sizeof(idx));
-    secondary->i->associate_callback(secondary, pkey, data, &idx);
-    if (r==DB_DONOTINDEX) return DB_SECONDARY_BAD;
+    r = secondary->i->associate_callback(secondary, pkey, data, &idx);
+    if (r==DB_DONOTINDEX) { r = DB_SECONDARY_BAD; goto clean_up; }
+    if (r!=0) goto clean_up;
 #ifdef DB_DBT_MULTIPLE
     if (idx.flags & DB_DBT_MULTIPLE) {
-        return EINVAL; // We aren't ready for this
+        r = EINVAL; // We aren't ready for this
+        goto clean_up;
     }
 #endif
-	if (skey->size != idx.size || memcmp(skey->data, idx.data, idx.size) != 0) r = DB_SECONDARY_BAD;
-    if (idx.flags & DB_DBT_APPMALLOC) {
-    	toku_free(idx.data);
+    if (secondary->i->brt->compare_fun(secondary, skey, &idx) != 0) {
+        r = DB_SECONDARY_BAD;
+        goto clean_up;
     }
-    return r;
+    clean_up:
+    if (idx.flags & DB_DBT_APPMALLOC) {
+        /* This should be free because idx.data is allocated by the user */
+    	free(idx.data);
+    }
+    return r; 
 }
 
 //Get the main portion of a cursor flag (excluding the bitwise or'd components).
@@ -1299,7 +1315,8 @@ delete_silently_and_retry:
     if (r == DB_NOTFOUND)   goto delete_silently_and_retry;
     if (r != 0) goto died3;
     r = verify_secondary_key(db, pkey, data, key);
-    if (r != 0)             goto delete_silently_and_retry;
+    if (r == DB_SECONDARY_BAD) goto delete_silently_and_retry;
+    if (r != 0) goto died3;
 
     //Copy everything and return.
     assert(r==0);
@@ -1435,12 +1452,14 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
     u_int32_t brtflags;
     DBT idx;
     memset(&idx, 0, sizeof(idx));
-    int r = secondary->i->associate_callback(secondary, key, data, &idx);
     int r2 = 0;
-    if (r==DB_DONOTINDEX) return 0;
+    int r = secondary->i->associate_callback(secondary, key, data, &idx);
+    if (r==DB_DONOTINDEX) { r = 0; goto clean_up; }
+    if (r!=0) goto clean_up;
 #ifdef DB_DBT_MULTIPLE
     if (idx.flags & DB_DBT_MULTIPLE) {
-        return EINVAL; // We aren't ready for this
+        r = EINVAL; // We aren't ready for this
+        goto clean_up;
     }
 #endif
     toku_brt_get_flags(secondary->i->brt, &brtflags);
@@ -1448,16 +1467,18 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
         //If the secondary has duplicates we need to use cursor deletes.
         DBC *dbc;
         r = toku_db_cursor(secondary, txn, &dbc, 0);
-        if (r!=0) goto cleanup;
+        if (r!=0) goto cursor_cleanup;
         r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
-        if (r!=0) goto cleanup;
+        if (r!=0) goto cursor_cleanup;
         r = toku_c_del_noassociate(dbc, 0);
-    cleanup:
+    cursor_cleanup:
         r2 = toku_c_close(dbc);
     } else 
         r = toku_db_del_noassociate(secondary, txn, &idx, DB_DELETE_ANY);
+    clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
-    	toku_free(idx.data);
+        /* This should be free because idx.data is allocated by the user */
+    	free(idx.data);
     }
     if (r!=0) return r;
     return r2;
@@ -2037,15 +2058,18 @@ static int do_associated_inserts (DB_TXN *txn, DBT *key, DBT *data, DB *secondar
     DBT idx;
     memset(&idx, 0, sizeof(idx));
     int r = secondary->i->associate_callback(secondary, key, data, &idx);
-    if (r==DB_DONOTINDEX) return 0;
+    if (r==DB_DONOTINDEX) { r = 0; goto clean_up; }
+    if (r != 0) goto clean_up;
 #ifdef DB_DBT_MULTIPLE
     if (idx.flags & DB_DBT_MULTIPLE) {
 	return EINVAL; // We aren't ready for this
     }
 #endif
     r = toku_db_put_noassociate(secondary, txn, &idx, key, DB_YESOVERWRITE);
+    clean_up:
     if (idx.flags & DB_DBT_APPMALLOC) {
-        toku_free(idx.data);
+        /* This should be free because idx.data is allocated by the user */
+        free(idx.data);
     }
     return r;
 }

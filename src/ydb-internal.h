@@ -109,6 +109,11 @@ void toku_ydb_unlock();
 #define HANDLE_PANICKED_DB(db) HANDLE_PANICKED_ENV(db->dbenv)
 
 /* */
+void toku_ydb_error_all_cases(const DB_ENV * env, 
+                              int error, 
+                              BOOL include_stderrstring, 
+                              BOOL use_stderr_if_nothing_else, 
+                              const char *fmt, va_list ap);
 int toku_ydb_do_error (const DB_ENV *, int, const char *, ...);
 
 /* Location specific debug print-outs */
