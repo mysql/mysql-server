@@ -4083,6 +4083,30 @@ bool Item_field::subst_argument_checker(byte **arg)
 }
 
 
+/**
+  Convert a numeric value to a zero-filled string
+
+  @param[in,out]  item   the item to operate on
+  @param          field  The field that this value is equated to
+
+  This function converts a numeric value to a string. In this conversion
+  the zero-fill flag of the field is taken into account.
+  This is required so the resulting string value can be used instead of
+  the field reference when propagating equalities.
+*/
+
+static void convert_zerofill_number_to_string(Item **item, Field_num *field)
+{
+  char buff[MAX_FIELD_WIDTH],*pos;
+  String tmp(buff,sizeof(buff), field->charset()), *res;
+
+  res= (*item)->val_str(&tmp);
+  field->prepend_zeros(res);
+  pos= (char *) sql_strmake (res->ptr(), res->length());
+  *item= new Item_string(pos, res->length(), field->charset());
+}
+
+
 /*
   Set a pointer to the multiple equality the field reference belongs to
   (if any)
@@ -4131,6 +4155,13 @@ Item *Item_field::equal_fields_propagator(byte *arg)
   if (!item ||
       (cmp_context != (Item_result)-1 && item->cmp_context != cmp_context))
     item= this;
+  else if (field && (field->flags & ZEROFILL_FLAG) && IS_NUM(field->type()))
+  {
+    if (item && cmp_context != INT_RESULT)
+      convert_zerofill_number_to_string(&item, (Field_num *)field);
+    else
+      item= this;
+  }
   return item;
 }
 
