@@ -31,6 +31,7 @@ set @my_query_cache_limit         =@@global.query_cache_limit;
 set @my_query_cache_type          =@@global.query_cache_type;
 set @my_rpl_recovery_rank         =@@global.rpl_recovery_rank;
 set @my_server_id                 =@@global.server_id;
+set @my_slave_net_timeout         =@@global.slave_net_timeout;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.storage_engine;
 set @my_thread_cache_size         =@@global.thread_cache_size;
@@ -737,6 +738,20 @@ show variables like 'hostname';
 
 --echo End of 5.0 tests
 
+#
+# BUG #7800: SHOW VARIABLES does not show slave-related configuration
+#
+set global slave_net_timeout=100;
+set global sql_slave_skip_counter=100;
+
+show variables like 'slave_compressed_protocol';
+--replace_column 2 SLAVE_LOAD_TMPDIR
+show variables like 'slave_load_tmpdir';
+# We just set some arbitrary values in variables-master.opt so we can test
+# that a list of values is printed correctly.
+show variables like 'slave_skip_errors';
+
+#
 # This is at the very after the versioned tests, since it involves doing
 # cleanup
 #
@@ -768,7 +783,11 @@ set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
 set global rpl_recovery_rank         =@my_rpl_recovery_rank;
 set global server_id                 =@my_server_id;
+set global slave_net_timeout         =@my_slave_net_timeout;
 set global slow_launch_time          =@my_slow_launch_time;
+# sql_slave_skip_counter is write-only, so we can't save previous
+# value and restore it here.  That's ok, because it's normally 0.
+set global sql_slave_skip_counter    =0;
 set global storage_engine            =@my_storage_engine;
 set global thread_cache_size         =@my_thread_cache_size;
 
