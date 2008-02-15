@@ -34,22 +34,16 @@ extern "C" {
 #include <mysql/plugin.h>
 
 /*
-  There is a hard limit for the maximum number of keys as there are only
-  8 bits in the index file header for the number of keys in a table.
-  This means that 0..255 keys can exist for a table. The idea of
-  MI_MAX_POSSIBLE_KEY is to ensure that one can use myisamchk & tools on
-  a MyISAM table for which one has more keys than MyISAM is normally
-  compiled for. If you don't have this, you will get a core dump when
-  running myisamchk compiled for 128 keys on a table with 255 keys.
+  Limit max keys according to HA_MAX_POSSIBLE_KEY
 */
-#define MI_MAX_POSSIBLE_KEY         255             /* For myisam_chk */
-#if MAX_INDEXES > MI_MAX_POSSIBLE_KEY
-#define MI_MAX_KEY                  MI_MAX_POSSIBLE_KEY /* Max allowed keys */
+
+#if MAX_INDEXES > HA_MAX_POSSIBLE_KEY
+#define MI_MAX_KEY                  HA_MAX_POSSIBLE_KEY /* Max allowed keys */
 #else
 #define MI_MAX_KEY                  MAX_INDEXES         /* Max allowed keys */
 #endif
 
-#define MI_MAX_POSSIBLE_KEY_BUFF    (1024+6+6)      /* For myisam_chk */
+#define MI_MAX_POSSIBLE_KEY_BUFF    HA_MAX_POSSIBLE_KEY_BUFF
 /*
   The following defines can be increased if necessary.
   But beware the dependency of MI_MAX_POSSIBLE_KEY_BUFF and MI_MAX_KEY_LENGTH.
@@ -68,8 +62,6 @@ extern "C" {
 #define MI_KEY_BLOCK_LENGTH	1024	/* default key block length */
 #define MI_MIN_KEY_BLOCK_LENGTH	1024	/* Min key block length */
 #define MI_MAX_KEY_BLOCK_LENGTH	16384
-
-#define mi_portable_sizeof_char_ptr 8
 
 /*
   In the following macros '_keyno_' is 0 .. keys-1.
@@ -256,8 +248,6 @@ typedef struct st_columndef		/* column information */
 #endif
 } MI_COLUMNDEF;
 
-/* invalidator function reference for Query Cache */
-typedef void (* invalidator_by_filename)(const char * filename);
 
 extern char * myisam_log_filename;		/* Name of logfile */
 extern ulong myisam_block_size;
@@ -310,7 +300,7 @@ extern int mi_delete_all_rows(struct st_myisam_info *info);
 extern ulong _mi_calc_blob_length(uint length , const uchar *pos);
 extern uint mi_get_pointer_length(ulonglong file_length, uint def);
 
-/* this is used to pass to mysql_myisamchk_table -- by Sasha Pachev */
+/* this is used to pass to mysql_myisamchk_table */
 
 #define   MYISAMCHK_REPAIR 1  /* equivalent to myisamchk -r */
 #define   MYISAMCHK_VERIFY 2  /* Verify, run repair if failure */
@@ -431,8 +421,8 @@ typedef struct st_mi_check_param
   ulonglong unique_count[MI_MAX_KEY_SEG+1];
   ulonglong notnull_count[MI_MAX_KEY_SEG+1];
   
-  ha_checksum key_crc[MI_MAX_POSSIBLE_KEY];
-  ulong rec_per_key_part[MI_MAX_KEY_SEG*MI_MAX_POSSIBLE_KEY];
+  ha_checksum key_crc[HA_MAX_POSSIBLE_KEY];
+  ulong rec_per_key_part[MI_MAX_KEY_SEG*HA_MAX_POSSIBLE_KEY];
   void *thd;
   const char *db_name, *table_name;
   const char *op_name;

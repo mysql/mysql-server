@@ -569,13 +569,13 @@ static struct my_option my_long_options[] =
     OPT_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
-    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     (uchar**) &default_dbug_option, (uchar**) &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
-  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
+  {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    (uchar**) &debug_check_flag, (uchar**) &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", (uchar**) &debug_info_flag,
