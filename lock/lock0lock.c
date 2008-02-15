@@ -1228,14 +1228,11 @@ lock_rec_get_first(
 
 	ut_ad(mutex_own(&kernel_mutex));
 
-	lock = lock_rec_get_first_on_page(block);
-	if (UNIV_LIKELY_NULL(lock)) {
-		do {
-			if (lock_rec_get_nth_bit(lock, heap_no)) {
-				break;
-			}
-			lock = lock_rec_get_next_on_page(lock);
-		} while (lock);
+	for (lock = lock_rec_get_first_on_page(block); lock;
+	     lock = lock_rec_get_next_on_page(lock)) {
+		if (lock_rec_get_nth_bit(lock, heap_no)) {
+			break;
+		}
 	}
 
 	return(lock);
@@ -1281,7 +1278,7 @@ lock_rec_copy(
 
 	size = sizeof(lock_t) + lock_rec_get_n_bits(lock) / 8;
 
-	return(memcpy(mem_heap_alloc(heap, size), lock, size));
+	return(mem_heap_dup(heap, lock, size));
 }
 
 /*************************************************************************
@@ -1525,11 +1522,11 @@ UNIV_INLINE
 lock_t*
 lock_rec_find_similar_on_page(
 /*==========================*/
-				/* out: lock or NULL */
-	ulint	type_mode,	/* in: lock type_mode field */
-	ulint	heap_no,	/* in: heap number of the record */
-	lock_t*	lock,		/* in: lock_rec_get_first_on_page() */
-	trx_t*	trx)		/* in: transaction */
+					/* out: lock or NULL */
+	ulint		type_mode,	/* in: lock type_mode field */
+	ulint		heap_no,	/* in: heap number of the record */
+	lock_t*		lock,		/* in: lock_rec_get_first_on_page() */
+	const trx_t*	trx)		/* in: transaction */
 {
 	ut_ad(mutex_own(&kernel_mutex));
 
@@ -1887,7 +1884,7 @@ lock_rec_add_to_queue(
 		lock = lock_rec_get_next_on_page(lock);
 	}
 
-	if (!UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
+	if (UNIV_LIKELY(!(type_mode & LOCK_WAIT))) {
 
 		/* Look for a similar record lock on the same page:
 		if one is found and there are no waiting lock requests,
@@ -2694,17 +2691,16 @@ lock_move_rec_list_end(
 		while (!page_cur_is_after_last(&cur1)) {
 			ulint	heap_no;
 
-			ut_ad(comp
-			      || !memcmp(page_cur_get_rec(&cur1),
-					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old(
-						 page_cur_get_rec(&cur2))));
 			if (comp) {
 				heap_no = rec_get_heap_no_new(
 					page_cur_get_rec(&cur1));
 			} else {
 				heap_no = rec_get_heap_no_old(
 					page_cur_get_rec(&cur1));
+				ut_ad(!memcmp(page_cur_get_rec(&cur1),
+					 page_cur_get_rec(&cur2),
+					 rec_get_data_size_old(
+						 page_cur_get_rec(&cur2))));
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
@@ -2786,17 +2782,17 @@ lock_move_rec_list_start(
 		while (page_cur_get_rec(&cur1) != rec) {
 			ulint	heap_no;
 
-			ut_ad(comp
-			      || !memcmp(page_cur_get_rec(&cur1),
-					 page_cur_get_rec(&cur2),
-					 rec_get_data_size_old(
-						 page_cur_get_rec(&cur2))));
 			if (comp) {
 				heap_no = rec_get_heap_no_new(
 					page_cur_get_rec(&cur1));
 			} else {
 				heap_no = rec_get_heap_no_old(
 					page_cur_get_rec(&cur1));
+				ut_ad(!memcmp(page_cur_get_rec(&cur1),
+					      page_cur_get_rec(&cur2),
+					      rec_get_data_size_old(
+						      page_cur_get_rec(
+							      &cur2))));
 			}
 
 			if (lock_rec_get_nth_bit(lock, heap_no)) {
