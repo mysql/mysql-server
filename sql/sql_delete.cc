@@ -780,8 +780,6 @@ void multi_delete::abort()
     }
     thd->transaction.all.modified_non_trans_table= true;
   }
-  DBUG_ASSERT(!normal_tables || !deleted ||
-              thd->transaction.stmt.modified_non_trans_table);
   DBUG_VOID_RETURN;
 }
 
@@ -899,8 +897,6 @@ bool multi_delete::send_eof()
   {
     query_cache_invalidate3(thd, delete_tables, 1);
   }
-  DBUG_ASSERT(!normal_tables || !deleted ||
-              thd->transaction.stmt.modified_non_trans_table);
   if ((local_error == 0) || thd->transaction.stmt.modified_non_trans_table)
   {
     if (mysql_bin_log.is_open())
