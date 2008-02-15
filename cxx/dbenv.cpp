@@ -1,6 +1,7 @@
 #include <stdarg.h>
 #include <assert.h>
 #include <errno.h>
+#include "../newbrt/brttypes.h"
 #include <db_cxx.h>
 
 DbEnv::DbEnv (u_int32_t flags)
@@ -100,13 +101,17 @@ int DbEnv::maybe_throw_error(int err) throw (DbException) {
 }
 
 extern "C" {
-    void toku_do_error_all_cases(const DB_ENV * env, int error, int, int, const char *fmt, va_list ap);
+void toku_ydb_error_all_cases(const DB_ENV * env, 
+                              int error, 
+                              BOOL include_stderrstring, 
+                              BOOL use_stderr_if_nothing_else, 
+                              const char *fmt, va_list ap);
 };
 
 void DbEnv::err(int error, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    toku_do_error_all_cases(the_env, error, 1, 1, fmt, ap);
+    toku_ydb_error_all_cases(the_env, error, TRUE, TRUE, fmt, ap);
     va_end(ap);
 }
 
