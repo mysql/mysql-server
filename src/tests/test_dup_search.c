@@ -338,7 +338,7 @@ int main(int argc, const char *argv[]) {
 
     /* dup search */
 #if USE_TDB
-    printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+    if (verbose) printf("%s:%d:WARNING:tokudb does not support DB_DUP\n", __FILE__, __LINE__);
 #else
     for (i = 1; i <= limit; i *= 2) {
          test_ici_search(i, DB_DUP);

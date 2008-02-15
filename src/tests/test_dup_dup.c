@@ -29,7 +29,7 @@ void db_put(DB *db, int k, int v, u_int32_t put_flags, int rexpect) {
         if (r == EINVAL && put_flags == DB_NODUPDATA) {
 	    static int did_warn = 0;
 	    if (!did_warn) {
-		printf("%s:%d:WARNING:tokdub does not support DB_NODUPDATA yet\n", __FILE__, __LINE__);
+		if (verbose) printf("%s:%d:WARNING:tokdub does not support DB_NODUPDATA yet\n", __FILE__, __LINE__);
 		did_warn=1;
 	    }
             return;
@@ -46,7 +46,7 @@ int maybe_do_db_dup_warning (int r, int dup_mode) {
     if (r != 0 && dup_mode == DB_DUP) {
 	if (did_warn==0) {
 	    did_warn=1;
-	    printf("%s:%d:WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
+	    if (verbose) printf("%s:%d:WARNING: tokudb does not support DB_DUP\n", __FILE__, __LINE__);
 	}
         return 1;
     }

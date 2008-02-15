@@ -66,11 +66,15 @@ foo:
 
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
-	@ echo ok
+	@ echo ok $@
 tests.bdb: make_libs $(BDB_TESTS)
+	@ echo ok $@
 check.bdb: make_libs $(RUN_BDB_TESTS)
+	@ echo ok $@
 tests.tdb: make_libs $(TDB_TESTS)
+	@ echo ok $@
 check.tdb: make_libs $(RUN_TDB_TESTS)
+	@ echo ok $@
 
 # Need these rule so that Make knows about all the file names
 .PHONY: %.bdbrun %.tdbrun %.run
@@ -171,13 +175,13 @@ libs:
 all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
 %.recover: %.tdb
 	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover;make $(VERBQUIET)
-	$(MAYBEATSIGN) cd ..;make $(VERBQUIET)
-	$(MAYBEATSIGN) $(VGRIND) ./$<
-	$(MAYBEATSIGN) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
-	$(MAYBEATSIGN) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	$(MAYBEATSIGN) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	$(MAYBEATSIGN) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover;$(VGRIND) ../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
-	$(MAYBEATSIGN) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
+	$(MAYBEATSIGN) $(SETTOKUENV) cd ..;make $(VERBQUIET)
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
+	$(MAYBEATSIGN) $(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	$(MAYBEATSIGN) $(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
+	$(MAYBEATSIGN) $(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
+	$(MAYBEATSIGN) $(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
 make_libs:
 	cd ..;make
@@ -193,22 +197,22 @@ test_db_assoc3.tdb test_db_assoc3.bdb: test.h
 
 # This one failed in both BDB and TokuDB, in the same way.  It was a program error.  Now it works
 test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
-	$(MAYBEATSIGN) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
-	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(MAYBEATSIGN) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
 # Give up on VGRIND for bdbrun
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
-	$(MAYBEATSIGN) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
-	$(MAYBEATSIGN) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_db_assoc3.bdb --seed=2 --count=100000 --more $(VERBVERBOSE)
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
