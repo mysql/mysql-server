@@ -1432,9 +1432,10 @@ lock_rec_other_has_expl_req(
 	ulint			wait,	/* in: LOCK_WAIT if also
 					waiting locks are taken into
 					account, or 0 if not */
-	const buf_block_t*	block,	/* in: buffer block containing the record */
+	const buf_block_t*	block,	/* in: buffer block containing
+					the record */
 	ulint			heap_no,/* in: heap number of the record */
-	trx_t*			trx)	/* in: transaction, or NULL if
+	const trx_t*		trx)	/* in: transaction, or NULL if
 					requests by all transactions
 					are taken into account */
 {
