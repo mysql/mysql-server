@@ -62,11 +62,11 @@ static void __toku_ydb_error_file(const DB_ENV *env, BOOL use_stderr,
                   if the prefix is empty)
      \param ap    Optional prefix
 */
-static void __toku_ydb_error_all_cases(const DB_ENV * env, 
-                                       int error, 
-                                       BOOL include_stderrstring, 
-                                       BOOL use_stderr_if_nothing_else, 
-                                       const char *fmt, va_list ap) {
+void toku_ydb_error_all_cases(const DB_ENV * env, 
+                              int error, 
+                              BOOL include_stderrstring, 
+                              BOOL use_stderr_if_nothing_else, 
+                              const char *fmt, va_list ap) {
     /* Construct the error message */
     char buf [4000];
     int count=0;
@@ -96,7 +96,7 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
     if (toku_logger_panicked(dbenv->i->logger)) dbenv->i->is_panicked=1;
     va_list ap;
     va_start(ap, fmt);
-    __toku_ydb_error_all_cases(dbenv, error, TRUE, FALSE, fmt, ap);
+    toku_ydb_error_all_cases(dbenv, error, TRUE, FALSE, fmt, ap);
     va_end(ap);
     return error;
 }
@@ -114,7 +114,7 @@ void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     toku_ydb_lock();
     va_list ap;
     va_start(ap, fmt);
-    __toku_ydb_error_all_cases(env, error, TRUE, TRUE, fmt, ap);
+    toku_ydb_error_all_cases(env, error, TRUE, TRUE, fmt, ap);
     va_end(ap);
     toku_ydb_unlock();
 }

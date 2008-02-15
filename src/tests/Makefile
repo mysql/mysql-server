@@ -17,7 +17,7 @@ ifneq ($(OSX),)
  LIBEXT=dylib
  VGRIND=
  BDB_SUPPRESSIONS=
- TDB_LOADLIBES = -L../ -ltokudb
+ TDB_LOADLIBES = -L../ -ltokudb 
  SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
  UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
 else
@@ -77,7 +77,7 @@ check.tdb: make_libs $(RUN_TDB_TESTS)
 	@ echo ok $@
 
 # Need these rule so that Make knows about all the file names
-.PHONY: %.bdbrun %.tdbrun %.run
+.PHONY: %.run
 $(RUN_ALL_TESTS):
 $(ALL_TESTS):
 
@@ -106,10 +106,11 @@ endif
 #%.bdbrun: %.bdb
 #	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
 # Now thiss:
-%.bdbrun: %.bdb
+%.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
-%.tdbrun: %.tdb
+%.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
+	@ touch $@
 
 # For BDB, VGRIND isn't happy
 NO_VGRIND = \
@@ -186,9 +187,14 @@ all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.rec
 make_libs:
 	cd ..;make
 
+.PHONY: clean cleanall
+
 clean:
-	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov
+	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov 
 	rm -rf dir.*.tdb dir.*.bdb
+
+cleanall: clean
+	rm -f *.tdbrun
 
 test_db_curs4.tdb: trace.h
 test_db_curs4.bdb: trace.h
@@ -204,10 +210,12 @@ test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
+	@ touch $@
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 --more $(VERBVERBOSE)
+	@ touch $@
 
 # Give up on VGRIND for bdbrun
 test_db_assoc3.bdbrun: test_db_assoc3.bdb
