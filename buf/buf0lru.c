@@ -733,24 +733,22 @@ buf_LRU_remove_block(
 	/* If the LRU_old pointer is defined and points to just this block,
 	move it backward one step */
 
-	if (bpage == buf_pool->LRU_old) {
+	if (UNIV_UNLIKELY(bpage == buf_pool->LRU_old)) {
 
 		/* Below: the previous block is guaranteed to exist, because
 		the LRU_old pointer is only allowed to differ by the
 		tolerance value from strict 3/8 of the LRU list length. */
 
 		buf_pool->LRU_old = UT_LIST_GET_PREV(LRU, bpage);
+		ut_a(buf_pool->LRU_old);
 		buf_page_set_old(buf_pool->LRU_old, TRUE);
 
 		buf_pool->LRU_old_len++;
-		ut_a(buf_pool->LRU_old);
 	}
 
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
-#ifdef UNIV_DEBUG
-	bpage->in_LRU_list = FALSE;
-#endif /* UNIV_DEBUG */
+	ut_d(bpage->in_LRU_list = FALSE);
 
 	/* If the LRU list is so short that LRU_old not defined, return */
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
@@ -800,9 +798,7 @@ buf_LRU_add_block_to_end_low(
 
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
-#ifdef UNIV_DEBUG
-	bpage->in_LRU_list = TRUE;
-#endif /* UNIV_DEBUG */
+	ut_d(bpage->in_LRU_list = TRUE);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
 
@@ -864,9 +860,7 @@ buf_LRU_add_block_low(
 		bpage->LRU_position = (buf_pool->LRU_old)->LRU_position;
 	}
 
-#ifdef UNIV_DEBUG
-	bpage->in_LRU_list = TRUE;
-#endif /* UNIV_DEBUG */
+	ut_d(bpage->in_LRU_list = TRUE);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
