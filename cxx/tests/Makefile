@@ -23,7 +23,7 @@ clean:
 	rm -rf $(TARGETS) *.gcno *.gcda *.gcov *.db
 
 check: $(TARGETS) \
-	check_db_create_1 check_db_create_2 check_db_create_3 check_db_create_4
+	check_db_create_1 check_db_create_2 check_db_create_3 check_db_create_4 check_permissions
 	$(VGRIND) ./test1
 	$(VGRIND) ./test1e
 	rm -f foo.db
@@ -56,3 +56,9 @@ check_db_create_3:
 	$(VGRIND) ./db_create --help; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
 check_db_create_4:
 	$(VGRIND) ./db_create -s; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
+
+check_permissions:
+	rm -f test.db
+	./db_create test.db 1 1
+	chmod -w test.db
+	./db_create test.db 2 2; let exitcode=$$?; if [ $$exitcode -ne 0 ] ; then exit 0; else exit 1; fi
