@@ -3843,11 +3843,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - table is not mysql.event
 */
 
-/* The Sun compiler cannot instantiate the template below if this is
-   declared static, but it works by putting it into an anonymous
-   namespace. */
-namespace {
-  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+  static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   {
     if (table->s->cached_row_logging_check == -1)
     {
@@ -3864,7 +3860,6 @@ namespace {
             (thd->options & OPTION_BIN_LOG) &&
             mysql_bin_log.is_open());
   }
-}
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
@@ -3888,9 +3883,8 @@ namespace {
        THD::lock
        THD::locked_tables
 */
-namespace
-{
-  int write_locked_table_maps(THD *thd)
+
+  static int write_locked_table_maps(THD *thd)
   {
     DBUG_ENTER("write_locked_table_maps");
     DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
@@ -3935,10 +3929,14 @@ namespace
     DBUG_RETURN(0);
   }
 
-  template<class RowsEventT> int
-  binlog_log_row(TABLE* table,
-                 const uchar *before_record,
-                 const uchar *after_record)
+
+typedef bool Log_func(THD*, TABLE*, bool, MY_BITMAP*,
+                      uint, const uchar*, const uchar*);
+
+  static int binlog_log_row(TABLE* table,
+                            const uchar *before_record,
+                            const uchar *after_record,
+                            Log_func *log_func)
   {
     if (table->no_replicate)
       return 0;
@@ -3965,37 +3963,16 @@ namespace
       {
         bitmap_set_all(&cols);
         if (likely(!(error= write_locked_table_maps(thd))))
-        {
-          error=
-            RowsEventT::binlog_row_logging_function(thd, table,
-                                                    table->file->
-                                                    has_transactions(),
-                                                    &cols, table->s->fields,
-                                                    before_record,
-                                                    after_record);
-        }
+          error= (*log_func)(thd, table, table->file->has_transactions(),
+                             &cols, table->s->fields,
+                             before_record, after_record);
+
         if (!use_bitbuf)
           bitmap_free(&cols);
       }
     }
     return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
   }
-
-  /*
-    Instantiate the versions we need for the above template function,
-    because we have -fno-implicit-template as compiling option.
-  */
-
-  template int
-  binlog_log_row<Write_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Delete_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Update_rows_log_event>(TABLE *, const uchar *, const uchar *);
-}
-
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
@@ -4041,10 +4018,11 @@ int handler::ha_reset()
 int handler::ha_write_row(uchar *buf)
 {
   int error;
+  Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
-  if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
+  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4053,6 +4031,7 @@ int handler::ha_write_row(uchar *buf)
 int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {
   int error;
+  Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -4062,7 +4041,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
-  if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
+  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
   return 0;
 }
@@ -4070,9 +4049,10 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 int handler::ha_delete_row(const uchar *buf)
 {
   int error;
+  Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
   if (unlikely(error= delete_row(buf)))
     return error;
-  if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
+  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
   return 0;
 }
