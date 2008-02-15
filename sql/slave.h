@@ -80,8 +80,8 @@ class Master_info;
   mi->rli does not either.
 
   In Master_info: run_lock, data_lock
-  run_lock protects all information about the run state: slave_running, and the
-  existence of the I/O thread (to stop/start it, you need this mutex).
+  run_lock protects all information about the run state: slave_running, thd
+  and the existence of the I/O thread to stop/start it, you need this mutex).
   data_lock protects some moving members of the struct: counters (log name,
   position) and relay log (MYSQL_BIN_LOG object).
 
