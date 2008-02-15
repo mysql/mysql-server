@@ -55,41 +55,41 @@ SET(ma_pagecache_common_cppflags "-DEXTRA_DEBUG -DPAGECACHE_DEBUG -DMAIN")
 
 ADD_EXECUTABLE(ma_pagecache_single_1k-t ${ma_pagecache_single_src})
 SET_TARGET_PROPERTIES(ma_pagecache_single_1k-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=1024")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=1024")
 
 ADD_EXECUTABLE(ma_pagecache_single_8k-t ${ma_pagecache_single_src})
 SET_TARGET_PROPERTIES(ma_pagecache_single_8k-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=8192")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=8192")
 
 ADD_EXECUTABLE(ma_pagecache_single_64k-t ${ma_pagecache_single_src})
 SET_TARGET_PROPERTIES(ma_pagecache_single_64k-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=65536")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536")
 
 ADD_EXECUTABLE(ma_pagecache_consist_1k-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_1k-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=1024")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=1024")
 
 ADD_EXECUTABLE(ma_pagecache_consist_64k-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_64k-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=65536")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536")
 
 ADD_EXECUTABLE(ma_pagecache_consist_1kHC-t
 	${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_1kHC-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=1024 -DTEST_HIGH_CONCURENCY")
 ADD_EXECUTABLE(ma_pagecache_consist_64kHC-t
 	${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_64kHC-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536 -DTEST_HIGH_CONCURENCY")
 ADD_EXECUTABLE(ma_pagecache_consist_1kRD-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_1kRD-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=1024 -DTEST_READERS")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=1024 -DTEST_READERS")
 ADD_EXECUTABLE(ma_pagecache_consist_64kRD-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_64kRD-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=65536 -DTEST_READERS")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536 -DTEST_READERS")
 ADD_EXECUTABLE(ma_pagecache_consist_1kWR-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_1kWR-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=1024 -DTEST_WRITERS")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=1024 -DTEST_WRITERS")
 ADD_EXECUTABLE(ma_pagecache_consist_64kWR-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_64kWR-t
-	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DPAGE_SIZE=65536 -DTEST_WRITERS")
+	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536 -DTEST_WRITERS")
