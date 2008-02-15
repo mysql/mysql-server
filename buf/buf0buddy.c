@@ -243,7 +243,7 @@ buf_buddy_alloc_from(
 {
 	ulint	offs	= BUF_BUDDY_LOW << j;
 	ut_ad(j <= BUF_BUDDY_SIZES);
-	ut_ad(j > i);
+	ut_ad(j >= i);
 	ut_ad(!ut_align_offset(buf, offs));
 
 	/* Add the unused parts of the block to the free lists. */
