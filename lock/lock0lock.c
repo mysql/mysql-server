@@ -1836,16 +1836,27 @@ lock_rec_add_to_queue(
 	lock_t*	lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
-	ut_ad((type_mode & (LOCK_WAIT | LOCK_GAP))
-	      || ((type_mode & LOCK_MODE_MASK) != LOCK_S)
-	      || !lock_rec_other_has_expl_req(LOCK_X, 0, LOCK_WAIT,
-					      block, heap_no, trx));
-	ut_ad((type_mode & (LOCK_WAIT | LOCK_GAP))
-	      || ((type_mode & LOCK_MODE_MASK) != LOCK_X)
-	      || !lock_rec_other_has_expl_req(LOCK_S, 0, LOCK_WAIT,
-					      block, heap_no, trx));
+#ifdef UNIV_DEBUG
+	switch (type_mode & LOCK_MODE_MASK) {
+	case LOCK_X:
+	case LOCK_S:
+		break;
+	default:
+		ut_error;
+	}
 
-	type_mode = type_mode | LOCK_REC;
+	if (!(type_mode & (LOCK_WAIT | LOCK_GAP))) {
+		enum lock_mode	mode = (type_mode & LOCK_MODE_MASK) == LOCK_S
+			? LOCK_X
+			: LOCK_S;
+		lock_t*		other_lock
+			= lock_rec_other_has_expl_req(mode, 0, LOCK_WAIT,
+						      block, heap_no, trx);
+		ut_a(!other_lock);
+	}
+#endif /* UNIV_DEBUG */
+
+	type_mode |= LOCK_REC;
 
 	/* If rec is the supremum record, then we can reset the gap bit, as
 	all locks on the supremum are automatically of the gap type, and we
