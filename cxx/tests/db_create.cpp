@@ -17,7 +17,12 @@ int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
 
     Db *db = new Db(env, DB_CXX_NO_EXCEPTIONS);
     r = db->set_flags(dbflags); assert(r == 0);
-    r = db->open(0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777); assert(r == 0);
+    r = db->open(0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777);
+    if (r != 0) {
+        printf("db->open %s(%s) %d %s\n", dbfile, dbname, r, db_strerror(r));
+        env->close(0); delete env;
+        return 1;
+    }
 
     int i = 0;
     while (i < argc) {
