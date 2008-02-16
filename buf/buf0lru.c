@@ -984,6 +984,8 @@ alloc:
 		if (UNIV_UNLIKELY(!b)) {
 			return(FALSE);
 		}
+
+		memcpy(b, bpage, sizeof *b);
 	}
 
 #ifdef UNIV_DEBUG
@@ -999,25 +1001,77 @@ alloc:
 		ut_a(bpage->buf_fix_count == 0);
 
 		if (b) {
+			buf_page_t*	prev_b	= UT_LIST_GET_PREV(LRU, b);
 			const ulint	fold	= buf_page_address_fold(
 				bpage->space, bpage->offset);
 
 			ut_a(!buf_page_hash_get(bpage->space, bpage->offset));
 
-			memcpy(b, bpage, sizeof *b);
 			b->state = b->oldest_modification
 				? BUF_BLOCK_ZIP_DIRTY
 				: BUF_BLOCK_ZIP_PAGE;
 			UNIV_MEM_DESC(b->zip.data,
 				      page_zip_get_size(&b->zip), b);
 
+			/* The fields in_page_hash and in_LRU_list of
+			the to-be-freed block descriptor should have
+			been cleared in
+			buf_LRU_block_remove_hashed_page(), which
+			invokes buf_LRU_remove_block(). */
+			ut_ad(!bpage->in_page_hash);
+			ut_ad(!bpage->in_LRU_list);
+
+			/* The fields of bpage were copied to b before
+			buf_LRU_block_remove_hashed_page() was invoked. */
 			ut_ad(!b->in_zip_hash);
-			ut_ad(!b->in_page_hash);
-			ut_d(b->in_page_hash = TRUE);
+			ut_ad(b->in_page_hash);
+			ut_ad(b->in_LRU_list);
+
 			HASH_INSERT(buf_page_t, hash,
 				    buf_pool->page_hash, fold, b);
 
-			buf_LRU_add_block_low(b, FALSE);
+			/* Insert b where bpage was in the LRU list. */
+			if (UNIV_LIKELY(prev_b != NULL)) {
+				ut_ad(prev_b->in_LRU_list);
+				ut_ad(buf_page_in_file(prev_b));
+				UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
+
+				UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
+						     prev_b, b);
+
+				if (UNIV_UNLIKELY
+				    (buf_pool->LRU_old == prev_b)) {
+					ut_a(buf_page_is_old(b));
+					ut_a(buf_page_is_old(prev_b));
+					buf_page_set_old(prev_b, FALSE);
+					buf_pool->LRU_old = b;
+				} else {
+					ulint	lru_len = UT_LIST_GET_LEN(
+						buf_pool->LRU);
+
+					if (buf_page_is_old(b)) {
+						buf_pool->LRU_old_len++;
+					}
+
+					if (lru_len > BUF_LRU_OLD_MIN_LEN) {
+						ut_ad(buf_pool->LRU_old);
+						/* Adjust the length
+						of the old block list
+						if necessary */
+						buf_LRU_old_adjust_len();
+					} else if (lru_len
+						   == BUF_LRU_OLD_MIN_LEN) {
+						/* The LRU list is now
+						long enough for
+						LRU_old to become
+						defined: init it */
+						buf_LRU_old_init();
+					}
+				}
+			} else {
+				ut_d(b->in_LRU_list = FALSE);
+				buf_LRU_add_block_low(b, buf_page_is_old(b));
+			}
 
 			if (b->state == BUF_BLOCK_ZIP_PAGE) {
 				buf_LRU_insert_zip_clean(b);
