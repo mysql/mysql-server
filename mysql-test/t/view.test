@@ -3470,5 +3470,27 @@ insert into v1 values(1);
 set @@sql_mode=@old_mode;
 drop view v1;
 drop table t1;
+
+#
+# Bug #33389: Selecting from a view into a table from within SP or trigger 
+#             crashes server
+#
+
+create table t1 (a int, key(a));
+create table t2 (c int);
+                   
+create view v1 as select a b from t1;
+create view v2 as select 1 a from t2, v1 where c in 
+                  (select 1 from t1 where b = a);
+                   
+insert into t1 values (1), (1);
+insert into t2 values (1), (1);
+                   
+prepare stmt from "select * from v2 where a = 1";
+execute stmt; 
+
+drop view v1, v2;
+drop table t1, t2;
+
 --echo End of 5.0 tests.
 
