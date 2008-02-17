@@ -262,6 +262,12 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( MemoryUsage, "pages_total",  4, pages_total),
   ROW( MemoryUsage, "block",        5, block),
 
+  ROW( MTSignalStatistics, "mt_deliver_thread", 1, thr_no),
+  ROW( MTSignalStatistics, "mt_prioa_count", 2, prioa_count),
+  ROW( MTSignalStatistics, "mt_prioa_size", 3, prioa_size),
+  ROW( MTSignalStatistics, "mt_priob_count", 4, priob_count),
+  ROW( MTSignalStatistics, "mt_priob_size", 5, priob_size),
+
       /* ERROR */
   ROW( TransporterError, "to_node", 1, to_node),
   ROW( TransporterError, "code",    2, code),

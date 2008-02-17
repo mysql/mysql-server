@@ -349,53 +349,6 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
   pages += page_buffer / GLOBAL_PAGE_SIZE; // in pages
   pages += LCP_RESTORE_BUFFER;
   m_global_page_pool.setSize(pages + 64, true);
-  
-  Uint64 shared_mem = 8*1024*1024;
-  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
-  shared_mem /= GLOBAL_PAGE_SIZE;
-
-  Uint32 tupmem = 0;
-  ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem));
-  if (tupmem)
-  {
-    Resource_limit rl;
-    rl.m_min = tupmem;
-    rl.m_max = tupmem;
-    rl.m_resource_id = 3;
-    m_ctx.m_mm.set_resource_limit(rl);
-  }
-
-  if (shared_mem+tupmem)
-  {
-    Resource_limit rl;
-    rl.m_min = 0;
-    rl.m_max = shared_mem + tupmem;
-    rl.m_resource_id = 0;
-    m_ctx.m_mm.set_resource_limit(rl);
-  }
-  
-  if (!m_ctx.m_mm.init())
-  {
-    char buf[255];
-
-    struct ndb_mgm_param_info dm;
-    struct ndb_mgm_param_info sga;
-    size_t size = sizeof(ndb_mgm_param_info);
-    
-    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
-    size = sizeof(ndb_mgm_param_info);
-    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
-
-    BaseString::snprintf(buf, sizeof(buf), 
-			 "Malloc (%lld bytes) for %s and %s failed", 
-			 Uint64(shared_mem + tupmem) * 32768,
-			 dm.m_name, sga.m_name);
-    
-    ErrorReporter::handleAssert(buf,
-				__FILE__, __LINE__, NDBD_EXIT_MEMALLOC);
-    
-    ndbrequire(false);
-  }
 
   {
     void* ptr = m_ctx.m_mm.get_memroot();
@@ -445,6 +398,9 @@ void Cmvmi::execSTTOR(Signal* signal)
   }
 }
 
+/* For locking the receiver/transporter in multi-threaded ndbd. */
+extern void mt_receive_lock(), mt_receive_unlock();
+
 void Cmvmi::execCLOSE_COMREQ(Signal* signal)
 {
   // Close communication with the node and halt input/output from 
@@ -457,6 +413,7 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
 //  Uint32 noOfNodes = closeCom->noOfNodes;
   
   jamEntry();
+  mt_receive_lock();
   for (unsigned i = 0; i < MAX_NODES; i++)
   {
     if(NodeBitmask::get(closeCom->theNodes, i))
@@ -474,13 +431,22 @@ void Cmvmi::execCLOSE_COMREQ(Signal* signal)
       globalTransporterRegistry.do_disconnect(i);
     }
   }
-
+  mt_receive_unlock();
   if (failNo != 0) 
   {
     jam();
     signal->theData[0] = userRef;
     signal->theData[1] = failNo;
-    sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
+    /*
+     * We use sendSignalFromReceiver() to deliver the
+     * GSN_CLOSE_COMCONF signal through the job queue of the receiver
+     * thread (in multi-threaded ndbd).
+     *
+     * This way, we avoid executing the signal early, before signals from the
+     * closed node that were received before setting the IO state and
+     * disconnected state of the node.
+     */
+    sendSignalFromReceiver(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
   }
 }
 
@@ -495,6 +461,7 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
   jamEntry();
 
   const Uint32 len = signal->getLength();
+  mt_receive_lock();
   if(len == 2)
   {
 #ifdef ERROR_INSERT
@@ -550,8 +517,9 @@ done:
     jam(); 
     signal->theData[0] = tStartingNode;
     signal->theData[1] = tData2;
-    sendSignal(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
+    sendSignalFromReceiver(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
   }
+  mt_receive_unlock();
 }
 
 void Cmvmi::execENABLE_COMORD(Signal* signal)
@@ -559,6 +527,7 @@ void Cmvmi::execENABLE_COMORD(Signal* signal)
   // Enable communication with all our NDB blocks to this node
   
   Uint32 tStartingNode = signal->theData[0];
+  mt_receive_lock();
   globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
   setNodeInfo(tStartingNode).m_connected = true;
     //-----------------------------------------------------
@@ -570,6 +539,7 @@ void Cmvmi::execENABLE_COMORD(Signal* signal)
   signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
   
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
+  mt_receive_unlock();
   //-----------------------------------------------------
   
   jamEntry();
@@ -607,6 +577,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   globalData.m_nodeInfo[hostId].m_version = 0;
   globalData.m_nodeInfo[hostId].m_mysql_version = 0;
   
+  mt_receive_lock();
   if(type == NodeInfo::DB || globalData.theStartLevel >= NodeState::SL_STARTED){
     jam();
     
@@ -642,6 +613,7 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
     jam();
     globalTransporterRegistry.setIOState(hostId, NoHalt);
   }
+  mt_receive_unlock();
 
   //------------------------------------------
   // Also report this event to the Event handler
@@ -810,7 +782,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   }
 
   if(globalData.theRestartFlag == system_started){
-    jam()
+    jam();
     /**
      * START_ORD received when already started(ignored)
      */
@@ -819,7 +791,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
   }
   
   if(globalData.theRestartFlag == perform_stop){
-    jam()
+    jam();
     /**
      * START_ORD received when stopping(ignored)
      */
@@ -833,6 +805,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     /**
      * Open connections to management servers
      */
+    mt_receive_lock();
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (getNodeInfo(i).m_type == NodeInfo::MGM){ 
         if(!globalTransporterRegistry.is_connected(i)){
@@ -841,7 +814,7 @@ Cmvmi::execSTART_ORD(Signal* signal) {
         }
       }
     }
-
+    mt_receive_unlock();
     EXECUTE_DIRECT(QMGR, GSN_START_ORD, signal, 1);
     return ;
   }
@@ -874,12 +847,14 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
+    mt_receive_lock();
     for(unsigned int i = 1; i < MAX_NODES; i++ ){
       if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM){
         globalTransporterRegistry.do_disconnect(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
     }
+    mt_receive_unlock();
     
     /**
      * Start running startphases

@@ -131,10 +131,12 @@ protected:
    */
   void setupBuffers();
 
+  bool hasDataToSend() const { return TRUE; }
+
   /**
    * doSend (i.e signal receiver)
    */
-  void doSend();
+  bool doSend();
   int m_remote_pid;
   Uint32 m_last_signal;
   Uint32 m_signal_threshold;

@@ -46,6 +46,7 @@ void Dbtup::initData()
 
   // Records with constant sizes
   init_list_sizes();
+  cpackedListIndex = 0;  
 }//Dbtup::initData()
 
 Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
@@ -81,8 +82,8 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_READ_CONFIG_REQ, &Dbtup::execREAD_CONFIG_REQ, true);
 
   // Trigger Signals
-  addRecSignal(GSN_CREATE_TRIG_REQ, &Dbtup::execCREATE_TRIG_REQ);
-  addRecSignal(GSN_DROP_TRIG_REQ,  &Dbtup::execDROP_TRIG_REQ);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REQ, &Dbtup::execCREATE_TRIG_IMPL_REQ);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REQ,  &Dbtup::execDROP_TRIG_IMPL_REQ);
 
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtup::execDROP_TAB_REQ);
 
@@ -90,7 +91,7 @@ Dbtup::Dbtup(Block_context& ctx, Pgman* pgman)
   addRecSignal(GSN_TUP_WRITELOG_REQ, &Dbtup::execTUP_WRITELOG_REQ);
 
   // Ordered index related
-  addRecSignal(GSN_BUILDINDXREQ, &Dbtup::execBUILDINDXREQ);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Dbtup::execBUILD_INDX_IMPL_REQ);
 
   // Tup scan
   addRecSignal(GSN_ACC_SCANREQ, &Dbtup::execACC_SCANREQ);

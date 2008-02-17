@@ -50,7 +50,7 @@ Dbtux::Dbtux(Block_context& ctx) :
    */
   addRecSignal(GSN_TUXFRAGREQ, &Dbtux::execTUXFRAGREQ);
   addRecSignal(GSN_TUX_ADD_ATTRREQ, &Dbtux::execTUX_ADD_ATTRREQ);
-  addRecSignal(GSN_ALTER_INDX_REQ, &Dbtux::execALTER_INDX_REQ);
+  addRecSignal(GSN_ALTER_INDX_IMPL_REQ, &Dbtux::execALTER_INDX_IMPL_REQ);
   addRecSignal(GSN_DROP_TAB_REQ, &Dbtux::execDROP_TAB_REQ);
   /*
    * DbtuxMaint.cpp

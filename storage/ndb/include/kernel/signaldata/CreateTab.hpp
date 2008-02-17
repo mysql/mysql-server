@@ -18,64 +18,32 @@
 
 #include "SignalData.hpp"
 
-/**
- * CreateTab
- *
- * Implemenatation of CreateTable
- */
-class CreateTabReq {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
-
-  /**
-   * For printing
-   */
-  friend bool printCREATE_TAB_REQ(FILE*, const Uint32*, Uint32, Uint16);
-  
-public:
-  STATIC_CONST( SignalLength = 8 );
+struct CreateTabReq {
+  STATIC_CONST( SignalLength = 6 );
   
   enum RequestType {
-    CreateTablePrepare = 0, // Prepare create table
-    CreateTableCommit = 1,  // Commit create table
-    CreateTableDrop = 2     // Prepare failed, drop instead
   };
-private:
+
   Uint32 senderRef;
   Uint32 senderData;
-  Uint32 clientRef;
-  Uint32 clientData;
-
+  Uint32 requestType;
   Uint32 tableId;
   Uint32 tableVersion;
   Uint32 gci;
-  Uint32 requestType;
 
   SECTION( DICT_TAB_INFO = 0 );
   SECTION( FRAGMENTATION = 1 );
 };
 
+struct CreateTabConf {
+  STATIC_CONST( SignalLength = 2 );
+
+  Uint32 senderRef;
+  Uint32 senderData;
+};
+
 struct CreateTabRef {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
-  friend class SafeCounter;
-  
-  /**
-   * For printing
-   */
-  friend bool printCREATE_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
-  
   STATIC_CONST( SignalLength = 6 );
-  STATIC_CONST( GSN = GSN_CREATE_TAB_REF );
-
-  enum ErrorCode {
-    NF_FakeErrorREF = 255
-  };
-
 
   Uint32 senderRef;
   Uint32 senderData;
@@ -83,26 +51,6 @@ struct CreateTabRef {
   Uint32 errorLine; 
   Uint32 errorKey;
   Uint32 errorStatus;
-};
-
-class CreateTabConf {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
-  friend class Suma;
-  
-  /**
-   * For printing
-   */
-  friend bool printCREATE_TAB_CONF(FILE *, const Uint32 *, Uint32, Uint16);
-  
-public:
-  STATIC_CONST( SignalLength = 2 );
-
-private:
-  Uint32 senderRef;
-  Uint32 senderData;
 };
 
 #endif

@@ -18,10 +18,31 @@
 
 #include <kernel_types.h>
 #include <NdbThread.h>
+#include <NdbMutex.h>
+#include <NdbTick.h>
 
 extern "C" void* runWatchDog(void* w);
 
 class WatchDog{
+  enum { MAX_WATCHED_THREADS = 64 };
+
+  struct WatchedThread {
+    Uint32 *m_watchCounter;
+    Uint32 m_threadId;
+    /* This is the time that activity was last registered from thread. */
+    MicroSecondTimer m_startTime;
+    /*
+      During slow operation (memory allocation), warnings are output less
+      frequently, and this is the point when the next warning should be given.
+     */
+    Uint32 m_slowWarnDelay;
+    /*
+      This is the last counter value update seen, telling us what the thread
+      was doing when it got stuck.
+    */
+    Uint32 m_lastCounterValue;
+  };
+
 public:
   WatchDog(Uint32 interval = 3000);
   ~WatchDog();
@@ -30,7 +51,15 @@ public:
   void doStop();
 
   Uint32 setCheckInterval(Uint32 interval);
-  
+
+  /*
+    Register a thread for being watched.
+    Returns true if ok, false if out of slots.
+  */
+  bool registerWatchedThread(Uint32 *counter, Uint32 threadId);
+  /* Remove a thread from registration, identified by thread id. */
+  void unregisterWatchedThread(Uint32 threadId);
+
 protected:
   /**
    * Thread function
@@ -44,8 +73,17 @@ protected:
   
 private:
   Uint32 theInterval;
-  const Uint32 * theIPValue;
-  
+  /*
+    List of watched threads.
+    Threads are identified by the m_threadId.
+    Active entries are kept at the start of the entries.
+    Access to the list is protected by m_mutex.
+  */
+  WatchedThread m_watchedList[MAX_WATCHED_THREADS];
+  /* Number of active entries in m_watchedList. */
+  Uint32 m_watchedCount;
+  NdbMutex *m_mutex;
+
   bool theStop;
   
   void run();

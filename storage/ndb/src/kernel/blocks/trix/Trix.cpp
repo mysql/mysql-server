@@ -24,7 +24,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 #include <signaldata/GetTabInfo.hpp>
 #include <signaldata/DictTabInfo.hpp>
-#include <signaldata/BuildIndx.hpp>
+#include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/UtilPrepare.hpp>
 #include <signaldata/UtilExecute.hpp>
@@ -61,10 +61,10 @@ Trix::Trix(Block_context& ctx) :
   addRecSignal(GSN_DUMP_STATE_ORD, &Trix::execDUMP_STATE_ORD);
 
   // Index build
-  addRecSignal(GSN_BUILDINDXREQ, &Trix::execBUILDINDXREQ);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REQ, &Trix::execBUILD_INDX_IMPL_REQ);
   // Dump testing
-  addRecSignal(GSN_BUILDINDXCONF, &Trix::execBUILDINDXCONF);
-  addRecSignal(GSN_BUILDINDXREF, &Trix::execBUILDINDXREF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_CONF, &Trix::execBUILD_INDX_IMPL_CONF);
+  addRecSignal(GSN_BUILD_INDX_IMPL_REF, &Trix::execBUILD_INDX_IMPL_REF);
 
 
   addRecSignal(GSN_UTIL_PREPARE_CONF, &Trix::execUTIL_PREPARE_CONF);
@@ -291,144 +291,150 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
     // index2 -T; index2 -I -n10000; index2 -c
     // all dump 300 0 0 0 0 0 4 2
     // select_count INDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[1] = {1};
     Uint32 keyColumns[1] = {0};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 1, keyColumns, 1, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 1;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 1;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   case(301): { // ok
     // index2 -T; index2 -I -n10000; index2 -c -p
     // all dump 301 0 0 0 0 0 4 2
     // select_count INDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[2] = {0, 1};
     Uint32 keyColumns[1] = {0};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 2, keyColumns, 1, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 2;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 1;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   case(302): { // ok
     // index -T; index -I -n1000; index -c -p
     // all dump 302 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
     Uint32 keyColumns[1] = {0};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 3, keyColumns, 1, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 3;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 1;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   case(303): { // ok
     // index -T -2; index -I -2 -n1000; index -c -p
     // all dump 303 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
     Uint32 keyColumns[2] = {0, 1};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 3, keyColumns, 2, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 3;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 2;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   case(304): { // ok
     // index -T -L; index -I -L -n1000; index -c -p
     // all dump 304 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
     Uint32 keyColumns[1] = {0};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 3, keyColumns, 1, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 3;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 1;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   case(305): { // ok
     // index -T -2 -L; index -I -2 -L -n1000; index -c -p
     // all dump 305 0 0 0 0 0 4 2
     // select_count PNUMINDEX0000
-    BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtrSend();
+    BuildIndxImplReq * buildIndxReq = (BuildIndxImplReq *)signal->getDataPtrSend();
     
     MEMCOPY_NO_WORDS(buildIndxReq, 
 		     signal->theData + 1, 
-		     BuildIndxReq::SignalLength);
-    buildIndxReq->setUserRef(reference()); // return to me
-    buildIndxReq->setParallelism(10);
+		     BuildIndxImplReq::SignalLength);
+    buildIndxReq->senderRef = reference(); // return to me
+    buildIndxReq->parallelism = 10;
     Uint32 indexColumns[3] = {0, 3, 5};
     Uint32 keyColumns[2] = {0, 1};
-    struct LinearSectionPtr orderPtr[2];
-    buildIndxReq->setColumnOrder(indexColumns, 3, keyColumns, 2, orderPtr);
+    struct LinearSectionPtr ls_ptr[3];
+    ls_ptr[0].p = indexColumns;
+    ls_ptr[0].sz = 3;
+    ls_ptr[1].p = keyColumns;
+    ls_ptr[1].sz = 2;
     sendSignal(reference(),
-	       GSN_BUILDINDXREQ,
+	       GSN_BUILD_INDX_IMPL_REQ,
 	       signal,
-	       BuildIndxReq::SignalLength,
-	       JBB,
-	       orderPtr,
-	       BuildIndxReq::NoOfSections);
+	       BuildIndxImplReq::SignalLength,
+	       JBB, ls_ptr, 2);
     break;
   }
   default: {
@@ -438,41 +444,43 @@ Trix::execDUMP_STATE_ORD(Signal* signal)
 }
 
 // Build index
-/**
- *
- */
-void Trix:: execBUILDINDXREQ(Signal* signal)
+void Trix:: execBUILD_INDX_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  DBUG_ENTER("Trix:: execBUILDINDXREQ");
+  DBUG_ENTER("Trix:: execBUILD_INDX_IMPL_REQ");
 
-  BuildIndxReq * buildIndxReq = (BuildIndxReq *)signal->getDataPtr();
+  const BuildIndxImplReq
+    buildIndxReqData = *(const BuildIndxImplReq*)signal->getDataPtr(),
+    *buildIndxReq = &buildIndxReqData;
 
   // Seize a subscription record
   SubscriptionRecPtr subRecPtr;
   SubscriptionRecord* subRec;
   SectionHandle handle(this, signal);
 
-  if (!c_theSubscriptions.seizeId(subRecPtr, buildIndxReq->getBuildId())) {
+  if (!c_theSubscriptions.seizeId(subRecPtr, buildIndxReq->buildId)) {
+    jam();
     // Failed to allocate subscription record
-    BuildIndxRef * buildIndxRef = (BuildIndxRef *)signal->getDataPtrSend();
+    BuildIndxRef* buildIndxRef = (BuildIndxRef*)signal->getDataPtrSend();
 
-    buildIndxRef->setErrorCode(BuildIndxRef::AllocationFailure);
+    buildIndxRef->errorCode = BuildIndxRef::AllocationFailure;
     releaseSections(handle);
-    sendSignal(buildIndxReq->getUserRef(), 
-	       GSN_BUILDINDXREF, signal, BuildIndxRef::SignalLength, JBB);
+    sendSignal(buildIndxReq->senderRef, GSN_BUILD_INDX_IMPL_REF, signal,
+               BuildIndxRef::SignalLength, JBB);
     DBUG_VOID_RETURN;
   }
+
   subRec = subRecPtr.p;
   subRec->errorCode = BuildIndxRef::NoError;
-  subRec->userReference = buildIndxReq->getUserRef();
-  subRec->connectionPtr = buildIndxReq->getConnectionPtr();
-  subRec->subscriptionId = buildIndxReq->getBuildId();
-  subRec->subscriptionKey = buildIndxReq->getBuildKey();
-  subRec->indexType = buildIndxReq->getIndexType();
-  subRec->sourceTableId = buildIndxReq->getTableId();
-  subRec->targetTableId = buildIndxReq->getIndexId();
-  subRec->parallelism = buildIndxReq->getParallelism();
+  subRec->userReference = buildIndxReq->senderRef;
+  subRec->connectionPtr = buildIndxReq->senderData;
+  subRec->schemaTransId = buildIndxReq->transId;
+  subRec->subscriptionId = buildIndxReq->buildId;
+  subRec->subscriptionKey = buildIndxReq->buildKey;
+  subRec->indexType = buildIndxReq->indexType;
+  subRec->sourceTableId = buildIndxReq->tableId;
+  subRec->targetTableId = buildIndxReq->indexId;
+  subRec->parallelism = buildIndxReq->parallelism;
   subRec->expectedConf = 0;
   subRec->subscriptionCreated = false;
   subRec->pendingSubSyncContinueConf = false;
@@ -480,36 +488,40 @@ void Trix:: execBUILDINDXREQ(Signal* signal)
 
   // Get column order segments
   Uint32 noOfSections = handle.m_cnt;
-  if(noOfSections > 0) {
+  if (noOfSections > 0) {
+    jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, BuildIndxReq::INDEX_COLUMNS);
+    handle.getSection(ptr, BuildIndxImplReq::INDEX_COLUMNS);
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfIndexColumns = ptr.sz;
   }
-  if(noOfSections > 1) {
+  if (noOfSections > 1) {
+    jam();
     SegmentedSectionPtr ptr;
-    handle.getSection(ptr, BuildIndxReq::KEY_COLUMNS);
+    handle.getSection(ptr, BuildIndxImplReq::KEY_COLUMNS);
     append(subRec->attributeOrder, ptr, getSectionSegmentPool());
     subRec->noOfKeyColumns = ptr.sz;
   }
+
 #if 0
   // Debugging
-  printf("Trix:: execBUILDINDXREQ: Attribute order:\n");
+  printf("Trix:: execBUILD_INDX_IMPL_REQ: Attribute order:\n");
   subRec->attributeOrder.print(stdout);
 #endif
+
   releaseSections(handle);
   prepareInsertTransactions(signal, subRecPtr);
   DBUG_VOID_RETURN;
 }
 
-void Trix:: execBUILDINDXCONF(Signal* signal)
+void Trix:: execBUILD_INDX_IMPL_CONF(Signal* signal)
 {
-  printf("Trix:: execBUILDINDXCONF\n");
+  printf("Trix:: execBUILD_INDX_IMPL_CONF\n");
 }
 
-void Trix:: execBUILDINDXREF(Signal* signal)
+void Trix:: execBUILD_INDX_IMPL_REF(Signal* signal)
 {
-  printf("Trix:: execBUILDINDXREF\n");
+  printf("Trix:: execBUILD_INDX_IMPL_REF\n");
 }
 
 void Trix::execUTIL_PREPARE_CONF(Signal* signal)
@@ -543,6 +555,7 @@ void Trix::execUTIL_PREPARE_REF(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->errorCode = BuildIndxRef::InternalError;
+  ndbrequire(false);
 }
 
 void Trix::execUTIL_EXECUTE_CONF(Signal* signal)
@@ -724,6 +737,7 @@ void Trix::setupSubscription(Signal* signal, SubscriptionRecPtr subRecPtr)
   subCreateReq->subscriptionKey = subRec->subscriptionKey;
   subCreateReq->tableId = subRec->sourceTableId;
   subCreateReq->subscriptionType = SubCreateReq::SingleTableScan;
+  subCreateReq->schemaTransId = subRec->schemaTransId;
   
   DBUG_PRINT("info",("i: %u subscriptionId: %u, subscriptionKey: %u",
 		     subRecPtr.i, subCreateReq->subscriptionId,
@@ -780,6 +794,7 @@ void Trix::prepareInsertTransactions(Signal* signal,
   jam();
   utilPrepareReq->senderRef = reference();
   utilPrepareReq->senderData = subRecPtr.i;
+  utilPrepareReq->schemaTransId = subRec->schemaTransId;
 
   const Uint32 pageSizeInWords = 128;
   Uint32 propPage[pageSizeInWords];
@@ -946,30 +961,26 @@ Trix::execUTIL_RELEASE_CONF(Signal* signal){
   SubscriptionRecPtr subRecPtr;
   c_theSubscriptions.getPtr(subRecPtr, conf->senderData);
   
-  if(subRecPtr.p->errorCode == BuildIndxRef::NoError){
+  if (subRecPtr.p->errorCode == BuildIndxRef::NoError) {
+    jam();
     // Build is complete, reply to original sender
-    BuildIndxConf * buildIndxConf = (BuildIndxConf *)signal->getDataPtrSend();
-    buildIndxConf->setUserRef(subRecPtr.p->userReference);
-    buildIndxConf->setConnectionPtr(subRecPtr.p->connectionPtr);
-    buildIndxConf->setRequestType(BuildIndxReq::RT_TRIX);
-    buildIndxConf->setIndexType(subRecPtr.p->indexType);
-    buildIndxConf->setTableId(subRecPtr.p->sourceTableId);
-    buildIndxConf->setIndexId(subRecPtr.p->targetTableId);
-    
-    sendSignal(subRecPtr.p->userReference, GSN_BUILDINDXCONF, signal, 
+    BuildIndxImplConf* buildIndxConf =
+      (BuildIndxImplConf*)signal->getDataPtrSend();
+    buildIndxConf->senderRef = reference(); //wl3600_todo ok?
+    buildIndxConf->senderData = subRecPtr.p->connectionPtr;
+
+    sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_CONF, signal, 
 	       BuildIndxConf::SignalLength , JBB);  
   } else {
+    jam();
     // Build failed, reply to original sender
-    BuildIndxRef * buildIndxRef = (BuildIndxRef *)signal->getDataPtrSend();
-    buildIndxRef->setUserRef(subRecPtr.p->userReference);
-    buildIndxRef->setConnectionPtr(subRecPtr.p->connectionPtr);
-    buildIndxRef->setRequestType(BuildIndxReq::RT_TRIX);
-    buildIndxRef->setIndexType(subRecPtr.p->indexType);
-    buildIndxRef->setTableId(subRecPtr.p->sourceTableId);
-    buildIndxRef->setIndexId(subRecPtr.p->targetTableId);
-    buildIndxRef->setErrorCode(subRecPtr.p->errorCode);
-    
-    sendSignal(subRecPtr.p->userReference, GSN_BUILDINDXREF, signal, 
+    BuildIndxImplRef* buildIndxRef =
+      (BuildIndxImplRef*)signal->getDataPtrSend();
+    buildIndxRef->senderRef = reference();
+    buildIndxRef->senderData = subRecPtr.p->connectionPtr;
+    buildIndxRef->errorCode = subRecPtr.p->errorCode;
+
+    sendSignal(subRecPtr.p->userReference, GSN_BUILD_INDX_IMPL_REF, signal, 
 	       BuildIndxRef::SignalLength , JBB);  
   }
 

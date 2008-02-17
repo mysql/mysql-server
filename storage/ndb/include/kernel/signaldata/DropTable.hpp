@@ -18,36 +18,39 @@
 
 #include "SignalData.hpp"
 
-class DropTableReq {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
+struct DropTableReq {
+  STATIC_CONST( SignalLength = 7 );
+
+  union { Uint32 clientRef, senderRef; };
+  union { Uint32 clientData, senderData; };
+  Uint32 requestInfo;
+  Uint32 transId;
+  Uint32 transKey;
+  Uint32 tableId;
+  Uint32 tableVersion;
+};
+
+struct DropTableConf {
+  STATIC_CONST( SignalLength = 5 );
   
-public:
-  STATIC_CONST( SignalLength = 4 );
-public:
-  Uint32 senderData; 
   Uint32 senderRef;
+  union { Uint32 clientData, senderData; };
+  Uint32 transId;
   Uint32 tableId; 
   Uint32 tableVersion;
 };
 
-class DropTableRef {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
+struct DropTableRef {
+  STATIC_CONST( SignalLength = 9 );
   
-public:
-  STATIC_CONST( SignalLength = 6 );
-  
-public:
-  Uint32 senderData; 
   Uint32 senderRef;
+  union { Uint32 clientData, senderData; };
+  Uint32 transId;
   Uint32 tableId; 
   Uint32 tableVersion;
   Uint32 errorCode; 
+  Uint32 errorLine;
+  Uint32 errorNodeId;
   Uint32 masterNodeId;
   
   enum ErrorCode {
@@ -59,24 +62,9 @@ public:
     DropInProgress      = 283,
     NoDropTableRecordAvailable = 1229,
     BackupInProgress = 761,
-    SingleUser = 299
+    SingleUser = 299,
+    ActiveSchemaTrans = 785
   };
-};
-
-class DropTableConf {
-  /**
-   * Sender(s) / Reciver(s)
-   */
-  friend class Dbdict;
-  
-public:
-  STATIC_CONST( SignalLength = 4 );
-  
-public:
-  Uint32 senderData; 
-  Uint32 senderRef;
-  Uint32 tableId; 
-  Uint32 tableVersion;
 };
 
 #endif

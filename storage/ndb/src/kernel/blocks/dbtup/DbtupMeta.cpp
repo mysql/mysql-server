@@ -640,14 +640,14 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   releaseSections(handle);
 
   AlterTabOperationPtr regAlterTabOpPtr;
-  if (req->clientData==RNIL)
+  if (req->connectPtr==RNIL)
   {
     jam();
     /* This means that we failed in prepare, or never got there. */
     sendAlterTabConf(signal, req);
     return;
   }
-  regAlterTabOpPtr.i= req->clientData;
+  regAlterTabOpPtr.i= req->connectPtr;
   ptrCheckGuard(regAlterTabOpPtr, cnoOfAlterTabOps, alterTabOperRec);
 
   if(alterType==AlterTabReq::AlterTableCommit)
@@ -826,7 +826,6 @@ Dbtup::sendAlterTabRef(Signal *signal, AlterTabReq *req, Uint32 errorCode)
   AlterTabAll *const src= (AlterTabAll *)req;
   Uint32 senderRef= src->req.senderRef;
   Uint32 senderData= src->req.senderData;
-  Uint32 requestType= src->req.requestType;
 
   AlterTabAll *const dst= (AlterTabAll *)signal->getDataPtrSend();
   dst->ref.senderRef= reference();
@@ -835,35 +834,24 @@ Dbtup::sendAlterTabRef(Signal *signal, AlterTabReq *req, Uint32 errorCode)
   dst->ref.errorLine= 0;
   dst->ref.errorKey= 0;
   dst->ref.errorStatus= 0;
-  dst->ref.requestType= requestType;
 
   sendSignal(senderRef, GSN_ALTER_TAB_REF, signal,
              AlterTabRef::SignalLength, JBB);
 }
 
 void
-Dbtup::sendAlterTabConf(Signal *signal, AlterTabReq *req, Uint32 clientData)
+Dbtup::sendAlterTabConf(Signal *signal, AlterTabReq *req, Uint32 connectPtr)
 {
   signal->header.m_noOfSections = 0;
 
   AlterTabAll *const src= (AlterTabAll *)req;
   Uint32 senderRef= src->req.senderRef;
   Uint32 senderData= src->req.senderData;
-  Uint32 changeMask= src->req.changeMask;
-  Uint32 tableId= src->req.tableId;
-  Uint32 tableVersion= src->req.tableVersion;
-  Uint32 gci= src->req.gci;
-  Uint32 requestType= src->req.requestType;
 
   AlterTabAll *const dst= (AlterTabAll *)signal->getDataPtrSend();
   dst->conf.senderRef= reference();
   dst->conf.senderData= senderData;
-  dst->conf.changeMask= changeMask;
-  dst->conf.tableId= tableId;
-  dst->conf.tableVersion= tableVersion;
-  dst->conf.gci= gci;
-  dst->conf.requestType= requestType;
-  dst->conf.clientData= clientData;
+  dst->conf.connectPtr= connectPtr;
 
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
              AlterTabConf::SignalLength, JBB);

@@ -507,6 +507,9 @@ public:
     Uint8 noPages;
     Uint16 tableType;
     Uint16 primaryTableId;
+
+    // set in local protocol during prepare until commit
+    Uint32 schemaTransId;
   };
   typedef Ptr<TabRecord> TabRecordPtr;
 
@@ -752,8 +755,6 @@ private:
   void execWAIT_GCP_CONF(Signal* signal);
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REF(Signal* signal);
-  void execWAIT_DROP_TAB_CONF(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
 
   void execALTER_TAB_REQ(Signal* signal);
@@ -762,7 +763,6 @@ private:
   
   void waitDropTabWritingToFile(Signal *, TabRecordPtr tabPtr);
   void checkPrepDropTabComplete(Signal *, TabRecordPtr tabPtr);
-  void checkWaitDropTabFailedLqh(Signal *, Uint32 nodeId, Uint32 tableId);
 
   void execDICT_LOCK_CONF(Signal* signal);
   void execDICT_LOCK_REF(Signal* signal);
