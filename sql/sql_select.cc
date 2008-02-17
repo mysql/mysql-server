@@ -2983,7 +2983,9 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 old->val->eq(new_fields->val, old->field->binary()))
+                 old->val->eq_by_collation(new_fields->val, 
+                                           old->field->binary(),
+                                           old->field->charset()))
 
 	{
 	  old->level= and_level;
