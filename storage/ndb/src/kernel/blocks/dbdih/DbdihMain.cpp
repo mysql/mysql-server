@@ -11321,6 +11321,15 @@ Dbdih::sendLCP_FRAG_ORD(Signal* signal,
     return;
   }
   
+  if (replicaPtr.p->nextLcp >= MAX_LCP_USED)
+  {
+    jam();
+    infoEvent("Updating nextLcp from %u to %u tab: %u", 
+              replicaPtr.p->nextLcp, 0,
+              info.tableId);
+    replicaPtr.p->nextLcp = 0;
+  }
+  
   LcpFragOrd * const lcpFragOrd = (LcpFragOrd *)&signal->theData[0];
   lcpFragOrd->tableId    = info.tableId;
   lcpFragOrd->fragmentId = info.fragId;
@@ -12557,23 +12566,42 @@ bool Dbdih::findStartGci(ConstPtr<ReplicaRecord> replicaPtr,
                          Uint32& startGci,
                          Uint32& lcpNo) 
 {
-  lcpNo = replicaPtr.p->nextLcp;
-  const Uint32 startLcpNo = lcpNo;
-  do {
-    lcpNo = oldPrevLcpNo(lcpNo);
-    ndbrequire(lcpNo < MAX_LCP_STORED);
-    if (replicaPtr.p->lcpStatus[lcpNo] == ZVALID) {
-      if (replicaPtr.p->maxGciStarted[lcpNo] < stopGci) {
-        jam();
-	/* ----------------------------------------------------------------- */
-	/*   WE HAVE FOUND A USEFUL LOCAL CHECKPOINT THAT CAN BE USED FOR    */
-	/*   RESTARTING THIS FRAGMENT REPLICA.                               */
-	/* ----------------------------------------------------------------- */
-        startGci = replicaPtr.p->maxGciCompleted[lcpNo] + 1;
-        return true;
-      } 
+  Uint32 cnt = 0;
+  Uint32 tmp[MAX_LCP_STORED];
+  for (Uint32 i = 0; i<MAX_LCP_STORED; i++)
+  {
+    jam();
+    if (replicaPtr.p->lcpStatus[i] == ZVALID &&
+        replicaPtr.p->maxGciStarted[i] < stopGci)
+    {
+      jam();
+      tmp[cnt] = i;
+      cnt++;
     }
-  } while (lcpNo != startLcpNo);
+  }
+  
+  if (cnt)
+  {
+    jam();
+    /**
+     * We found atleast one...get the highest
+     */
+    lcpNo = tmp[0];
+    Uint32 lcpId = replicaPtr.p->lcpId[lcpNo];
+    for (Uint32 i = 1; i<cnt; i++)
+    {
+      jam();
+      if (replicaPtr.p->lcpId[tmp[i]] > lcpId)
+      {
+        jam();
+        lcpNo = tmp[i];
+        lcpId = replicaPtr.p->lcpId[lcpNo];
+      }
+    }
+    startGci = replicaPtr.p->maxGciCompleted[lcpNo] + 1;
+    return true;
+  }
+
   /* --------------------------------------------------------------------- */
   /*       NO VALID LOCAL CHECKPOINT WAS AVAILABLE. WE WILL ADD THE        */
   /*       FRAGMENT. THUS THE NEXT LCP MUST BE SET TO ZERO.                */
@@ -13588,13 +13616,6 @@ void Dbdih::readReplica(RWFragment* rf, ReplicaRecordPtr readReplicaPtr)
     jam();
     readReplicaPtr.p->lcpStatus[trraLcp] = ZINVALID;
   }//if
-
-  if (readReplicaPtr.p->nextLcp >= MAX_LCP_USED)
-  {
-    jam();
-    infoEvent("Updating nextLcp from %u to %u", readReplicaPtr.p->nextLcp, 0);
-    readReplicaPtr.p->nextLcp = 0;
-  }
 
   /* ---------------------------------------------------------------------- */
   /*       WE ALSO HAVE TO INVALIDATE ANY LOCAL CHECKPOINTS THAT HAVE BEEN  */
