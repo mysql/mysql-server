@@ -32,9 +32,8 @@
 #include <signaldata/SumaImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include <signaldata/TransIdAI.hpp>
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/AlterTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/FireTrigOrd.hpp>
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/CheckNodeGroups.hpp>
@@ -44,6 +43,7 @@
 #include <signaldata/AlterTab.hpp>
 #include <signaldata/DihFragCount.hpp>
 #include <signaldata/SystemError.hpp>
+#include <signaldata/GCP.hpp>
 
 #include <ndbapi/NdbDictionary.hpp>
 
@@ -89,66 +89,6 @@ static const Uint32 MAX_CONCURRENT_GCP = 2;
  */
 
 #define PRINT_ONLY 0
-
-void
-Suma::getNodeGroupMembers(Signal* signal)
-{
-  jam();
-  DBUG_ENTER("Suma::getNodeGroupMembers");
-  /**
-   * Ask DIH for nodeGroupMembers
-   */
-  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
-  sd->blockRef = reference();
-  sd->requestType =
-    CheckNodeGroups::Direct |
-    CheckNodeGroups::GetNodeGroupMembers;
-  sd->nodeId = getOwnNodeId();
-  EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
-  jamEntry();
-  
-  c_nodeGroup = sd->output;
-  c_nodes_in_nodegroup_mask.assign(sd->mask);
-  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
-  Uint32 i, pos= 0;
-  
-  for (i = 0; i < MAX_NDB_NODES; i++) {
-    if (sd->mask.get(i)) 
-    {
-      c_nodesInGroup[pos++] = i;
-    }
-  }
-  
-  const Uint32 replicas= c_noNodesInGroup;
-
-  Uint32 buckets= 1;
-  for(i = 1; i <= replicas; i++)
-    buckets *= i;
-  
-  for(i = 0; i<buckets; i++)
-  {
-    Bucket* ptr= c_buckets+i;
-    for(Uint32 j= 0; j< replicas; j++)
-    {
-      ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
-    }
-  }
-  
-  c_no_of_buckets= buckets;
-  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
-
-#ifndef DBUG_OFF
-  for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
-    DBUG_PRINT("exit",("Suma: NodeGroup %u, me %u, "
-		       "member[%u] %u",
-		       c_nodeGroup, getOwnNodeId(), 
-		       i, c_nodesInGroup[i]));
-  }
-#endif
-
-  DBUG_VOID_RETURN;
-}
 
 void 
 Suma::execREAD_CONFIG_REQ(Signal* signal)
@@ -318,7 +258,7 @@ Suma::execSTTOR(Signal* signal) {
     if (ERROR_INSERTED(13030))
     {
       ndbout_c("Dont start handover");
-      return;
+      DBUG_VOID_RETURN;
     }
   }//if
   
@@ -328,7 +268,7 @@ Suma::execSTTOR(Signal* signal) {
      * Allow API's to connect
      */
     sendSTTORRY(signal);
-    return;
+    DBUG_VOID_RETURN;
   }
 
   if(m_startphase == 101)
@@ -341,7 +281,7 @@ Suma::execSTTOR(Signal* signal) {
        */
       c_startup.m_wait_handover= true;
       check_start_handover(signal);
-      return;
+      DBUG_VOID_RETURN;
     }
   }
   sendSTTORRY(signal);
@@ -460,8 +400,73 @@ Suma::execREAD_NODESCONF(Signal* signal){
   
   c_masterNodeId = conf->masterNodeId;
   
-  c_startup.m_restart_server_node_id = 0;    
   getNodeGroupMembers(signal);
+}
+
+void
+Suma::getNodeGroupMembers(Signal* signal)
+{
+  jam();
+  DBUG_ENTER("Suma::getNodeGroupMembers");
+  /**
+   * Ask DIH for nodeGroupMembers
+   */
+  CheckNodeGroups * sd = (CheckNodeGroups*)signal->getDataPtrSend();
+  sd->blockRef = reference();
+  sd->requestType = CheckNodeGroups::GetNodeGroupMembers;
+  sd->nodeId = getOwnNodeId();
+  sd->senderData = RNIL;
+  sendSignal(DBDIH_REF, GSN_CHECKNODEGROUPSREQ, signal,
+             CheckNodeGroups::SignalLength, JBB);
+  DBUG_VOID_RETURN;
+}
+
+void
+Suma::execCHECKNODEGROUPSCONF(Signal *signal)
+{
+  const CheckNodeGroups *sd = (const CheckNodeGroups *)signal->getDataPtrSend();
+  DBUG_ENTER("Suma::execCHECKNODEGROUPSCONF");
+  jamEntry();
+  c_nodeGroup = sd->output;
+  c_nodes_in_nodegroup_mask.assign(sd->mask);
+  c_noNodesInGroup = c_nodes_in_nodegroup_mask.count();
+  Uint32 i, pos= 0;
+  
+  for (i = 0; i < MAX_NDB_NODES; i++) {
+    if (sd->mask.get(i)) 
+    {
+      c_nodesInGroup[pos++] = i;
+    }
+  }
+  
+  const Uint32 replicas= c_noNodesInGroup;
+
+  Uint32 buckets= 1;
+  for(i = 1; i <= replicas; i++)
+    buckets *= i;
+  
+  for(i = 0; i<buckets; i++)
+  {
+    Bucket* ptr= c_buckets+i;
+    for(Uint32 j= 0; j< replicas; j++)
+    {
+      ptr->m_nodes[j] = c_nodesInGroup[(i + j) % replicas];
+    }
+  }
+  
+  c_no_of_buckets= buckets;
+  ndbrequire(c_noNodesInGroup > 0); // at least 1 node in the nodegroup
+
+#ifndef DBUG_OFF
+  for (Uint32 i = 0; i < c_noNodesInGroup; i++) {
+    DBUG_PRINT("exit",("Suma: NodeGroup %u, me %u, "
+		       "member[%u] %u",
+		       c_nodeGroup, getOwnNodeId(), 
+		       i, c_nodesInGroup[i]));
+  }
+#endif
+
+  c_startup.m_restart_server_node_id = 0;    
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
@@ -472,6 +477,8 @@ Suma::execREAD_NODESCONF(Signal* signal){
   }
 
   sendSTTORRY(signal);
+
+  DBUG_VOID_RETURN;
 }
 
 void
@@ -786,7 +793,7 @@ Suma::execNODE_FAILREP(Signal* signal){
     {
       ndbout_c("Inserting API_FAILREQ node: %u", node);
       signal->theData[0] = node;
-      EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     }
   }
   
@@ -1209,6 +1216,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
   const Uint32 reportSubscribe = (flags & SubCreateReq::ReportSubscribe) ?
     Subscription::REPORT_SUBSCRIBE : 0;
   const Uint32 tableId = req.tableId;
+  const Uint32 schemaTransId = req.schemaTransId;
   Subscription::State state = (Subscription::State) req.state;
   if (signal->getLength() != SubCreateReq::SignalLength2)
   {
@@ -1237,6 +1245,10 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
       DBUG_VOID_RETURN;
     }
     jam();
+
+    // leave meaning of schemaTransId open in this branch
+    ndbrequire(subPtr.p->m_schemaTransId == 0 && schemaTransId == 0);
+
     if (restartFlag)
     {
       ndbrequire(type != SubCreateReq::SingleTableScan);
@@ -1279,6 +1291,7 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     subPtr.p->m_options          = reportSubscribe | reportAll;
     subPtr.p->m_tableId          = tableId;
     subPtr.p->m_table_ptrI       = RNIL;
+    subPtr.p->m_schemaTransId    = schemaTransId;
     subPtr.p->m_state            = state;
     subPtr.p->n_subscribers      = 0;
     subPtr.p->m_current_sync_ptrI = RNIL;
@@ -1522,7 +1535,10 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
   DBUG_ENTER("Suma::initTable SubscriberPtr");
   DBUG_PRINT("enter",("tableId: %d", tableId));
 
-  int r= initTable(signal,tableId,tabPtr);
+  SubscriptionPtr subPtr;
+  c_subscriptions.getPtr(subPtr, subbPtr.p->m_subPtrI);
+
+  int r= initTable(signal,tableId,tabPtr,subPtr.p->m_schemaTransId);
 
   {
     LocalDLList<Subscriber> subscribers(c_subscriberPool,
@@ -1566,7 +1582,10 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
   DBUG_ENTER("Suma::initTable Ptr<SyncRecord>");
   DBUG_PRINT("enter",("tableId: %d", tableId));
 
-  int r= initTable(signal,tableId,tabPtr);
+  SubscriptionPtr subPtr;
+  c_subscriptions.getPtr(subPtr, syncPtr.p->m_subscriptionPtrI);
+
+  int r= initTable(signal,tableId,tabPtr,subPtr.p->m_schemaTransId);
 
   {
     LocalDLList<SyncRecord> syncRecords(c_syncPool,tabPtr.p->c_syncRecords);
@@ -1583,7 +1602,8 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
 }
 
 int
-Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
+Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr,
+                Uint32 schemaTransId)
 {
   jam();
   DBUG_ENTER("Suma::initTable");
@@ -1618,6 +1638,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
       tabPtr.p->m_hasOutstandingTriggerReq[j] = 0;
       tabPtr.p->m_triggerIds[j] = ILLEGAL_TRIGGER_ID;
     }
+    tabPtr.p->m_schemaTransId = schemaTransId;
 
     c_tables.add(tabPtr);
 
@@ -1627,6 +1648,7 @@ Suma::initTable(Signal *signal, Uint32 tableId, TablePtr &tabPtr)
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
+    req->schemaTransId = schemaTransId;
 
     DBUG_PRINT("info",("GET_TABINFOREQ id %d", req->tableId));
 
@@ -1761,6 +1783,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
   GetTabInfoRef* ref = (GetTabInfoRef*)signal->getDataPtr();
   Uint32 tableId = ref->tableId;
   Uint32 senderData = ref->senderData;
+  Uint32 schemaTransId = ref->schemaTransId;
   GetTabInfoRef::ErrorCode errorCode =
     (GetTabInfoRef::ErrorCode) ref->errorCode;
   int do_resend_request = 0;
@@ -1791,6 +1814,7 @@ Suma::execGET_TABINFOREF(Signal* signal){
     req->requestType = 
       GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
     req->tableId = tableId;
+    req->schemaTransId = schemaTransId;
     sendSignalWithDelay(DBDICT_REF, GSN_GET_TABINFOREQ, signal,
                         30, GetTabInfoReq::SignalLength);
     return;
@@ -1829,6 +1853,7 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   req->m_connectionData = RNIL;
   req->m_tableRef = tableId;
   req->m_senderData = tabPtr.i;
+  req->m_schemaTransId = tabPtr.p->m_schemaTransId;
   sendSignal(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
              DihFragCountReq::SignalLength, JBB);
 }
@@ -1848,14 +1873,14 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
 			       DictTabInfo::TableMappingSize, 
 			       true, true);
 
-  jam();
+  jamBlock(&suma);
   suma.suma_ndbrequire(s == SimpleProperties::Break);
 
 #if 0
   //ToDo handle this
   if(table_version_major(m_schemaVersion) !=
      table_version_major(tableDesc.TableVersion)){
-    jam();
+    jamBlock(&suma);
 
     release(* this);
 
@@ -1872,25 +1897,25 @@ Suma::Table::parseTable(SegmentedSectionPtr ptr,
     c_subscriptions.first(i_subPtr);
     SubscriptionPtr subPtr;
     for(;!i_subPtr.isNull();c_subscriptions.next(i_subPtr)){
-      jam();
+      jamBlock(&suma);
       c_subscriptions.getPtr(subPtr, i_subPtr.curr.i);
       SyncRecord* tmp = c_syncPool.getPtr(subPtr.p->m_syncPtrI);
       if (tmp == syncPtr_p) {
-	jam();
+	jamBlock(&suma);
 	continue;
       }
       if (subPtr.p->m_tables.get(tableId)) {
-	jam();
+	jamBlock(&suma);
 	subPtr.p->m_tables.clear(tableId); // remove this old table reference
 	TableList::DataBufferIterator it;
 	for(tmp->m_tableList.first(it);!it.isNull();tmp->m_tableList.next(it)) {
-	  jam();
+	  jamBlock(&suma);
 	  if (*it.data == tableId){
-	    jam();
+	    jamBlock(&suma);
 	    Uint32 *pdata = it.data;
 	    tmp->m_tableList.next(it);
 	    for(;!it.isNull();tmp->m_tableList.next(it)) {
-	      jam();
+	      jamBlock(&suma);
 	      *pdata = *it.data;
 	      pdata = it.data;
 	    }
@@ -1921,11 +1946,13 @@ Suma::execDI_FCOUNTREF(Signal* signal)
     {
       const Uint32 tableId = ref->m_senderData;
       const Uint32 tabPtr_i = ref->m_tableRef;      
+      const Uint32 schemaTransId = ref->m_schemaTransId;
       DihFragCountReq * const req = (DihFragCountReq*)signal->getDataPtrSend();
 
       req->m_connectionData = RNIL;
       req->m_tableRef = tabPtr_i;
       req->m_senderData = tableId;
+      req->m_schemaTransId = schemaTransId;
       sendSignalWithDelay(DBDIH_REF, GSN_DI_FCOUNTREQ, signal, 
                           DihFragCountReq::SignalLength, 
                           DihFragCountReq::RetryInterval);
@@ -1966,7 +1993,8 @@ Suma::execDI_FCOUNTCONF(Signal* signal)
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = tableId;
   signal->theData[3] = 0; // Frag no
-  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 4, JBB);
+  signal->theData[4] = tabPtr.p->m_schemaTransId;
+  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 5, JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -2023,7 +2051,8 @@ Suma::execDIGETPRIMCONF(Signal* signal){
   signal->theData[1] = tabPtr.i;
   signal->theData[2] = tableId;
   signal->theData[3] = nextFrag; // Frag no
-  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 4, JBB);
+  signal->theData[4] = tabPtr.p->m_schemaTransId;
+  sendSignal(DBDIH_REF, GSN_DIGETPRIMREQ, signal, 5, JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -2778,7 +2807,7 @@ Suma::sendSubStopComplete(Signal* signal, SubscriberPtr subbPtr)
 
   // let subscriber know that subscrber is stopped
   {
-    const Uint64 gci = get_current_gci(signal);
+    const Uint64 gci = m_current_gci;
     SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
     data->gci_hi         = Uint32(gci >> 32);
     data->gci_lo         = Uint32(gci);
@@ -2819,7 +2848,7 @@ Suma::reportAllSubscribers(Signal *signal,
                            SubscriptionPtr subPtr,
                            SubscriberPtr subbPtr)
 {
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data  = (SubTableData*)signal->getDataPtrSend();
 
   if (table_event == NdbDictionary::Event::_TE_SUBSCRIBE &&
@@ -2932,7 +2961,7 @@ int
 Suma::Table::setupTrigger(Signal* signal,
 			  Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::Table::setupTrigger");
 
   int ret= 0;
@@ -2947,22 +2976,32 @@ Suma::Table::setupTrigger(Signal* signal,
     {
       suma.suma_ndbrequire(m_triggerIds[j] == ILLEGAL_TRIGGER_ID);
       DBUG_PRINT("info",("DEFINING trigger on table %u[%u]", m_tableId, j));
-      CreateTrigReq * const req = (CreateTrigReq*)signal->getDataPtrSend();
-      req->setUserRef(SUMA_REF);
-      req->setConnectionPtr(m_ptrI);
-      req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
-      req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-      req->setMonitorReplicas(true);
-      //req->setMonitorAllAttributes(j == TriggerEvent::TE_DELETE);
-      req->setMonitorAllAttributes(true);
-      req->setReceiverRef(SUMA_REF);
-      req->setTriggerId(triggerId);
-      req->setTriggerEvent((TriggerEvent::Value)j);
-      req->setTableId(m_tableId);
-      req->setAttributeMask(attrMask);
-      req->setReportAllMonitoredAttributes(m_reportAll);
-      suma.sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, 
-		      signal, CreateTrigReq::SignalLength, JBB);
+      CreateTrigImplReq * const req =
+        (CreateTrigImplReq*)signal->getDataPtrSend();
+      req->senderRef = SUMA_REF;
+      req->senderData = m_ptrI;
+      req->requestType = 0;
+
+      Uint32 ti = 0;
+      TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+      TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+      TriggerInfo::setTriggerEvent(ti, (TriggerEvent::Value)j);
+      TriggerInfo::setMonitorReplicas(ti, true);
+      //TriggerInfo::setMonitorAllAttributes(ti, j == TriggerEvent::TE_DELETE);
+      TriggerInfo::setMonitorAllAttributes(ti, true);
+      TriggerInfo::setReportAllMonitoredAttributes(ti, m_reportAll);
+      req->triggerInfo = ti;
+
+      req->receiverRef = SUMA_REF;
+      req->triggerId = triggerId;
+      req->tableId = m_tableId;
+      req->tableVersion = 0; // not used
+      req->indexId = ~(Uint32)0;
+      req->indexVersion = 0;
+      req->attributeMask = attrMask;
+
+      suma.sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, 
+		      signal, CreateTrigImplReq::SignalLength, JBB);
       ret= 1;
     }
     else
@@ -2979,28 +3018,29 @@ void
 Suma::Table::createAttributeMask(AttributeMask& mask,
                                             Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   mask.clear();
   for(Uint32 i = 0; i<m_noOfAttributes; i++)
     mask.set(i);
 }
 
 void
-Suma::execCREATE_TRIG_CONF(Signal* signal){
+Suma::execCREATE_TRIG_IMPL_CONF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execCREATE_TRIG_CONF");
+  DBUG_ENTER("Suma::execCREATE_IMPL_TRIG_CONF");
   ndbassert(signal->getNoOfSections() == 0);
-  CreateTrigConf * const conf = (CreateTrigConf*)signal->getDataPtr();
-  const Uint32 triggerId = conf->getTriggerId();
+  const CreateTrigImplConf * const conf =
+    (const CreateTrigImplConf*)signal->getDataPtr();
+  const Uint32 triggerId = conf->triggerId;
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = conf->getTableId();
+  Uint32 tableId = conf->tableId;
 
 
   DBUG_PRINT("enter", ("type: %u tableId: %u[i=%u==%u]",
-		       type, tableId,conf->getConnectionPtr(),triggerId & 0xFFFF));
+		       type, tableId,conf->senderData,triggerId & 0xFFFF));
  
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, conf->getConnectionPtr());
+  c_tables.getPtr(tabPtr, conf->senderData);
   ndbrequire(tabPtr.p->m_tableId == tableId);
   ndbrequire(tabPtr.p->m_state == Table::DEFINING);
 
@@ -3019,24 +3059,25 @@ Suma::execCREATE_TRIG_CONF(Signal* signal){
 }
 
 void
-Suma::execCREATE_TRIG_REF(Signal* signal){
+Suma::execCREATE_TRIG_IMPL_REF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execCREATE_TRIG_REF");
+  DBUG_ENTER("Suma::execCREATE_TRIG_IMPL_REF");
   ndbassert(signal->getNoOfSections() == 0);  
-  CreateTrigRef * const ref = (CreateTrigRef*)signal->getDataPtr();
-  const Uint32 triggerId = ref->getTriggerId();
+  const CreateTrigImplRef * const ref =
+    (const CreateTrigImplRef*)signal->getDataPtr();
+  const Uint32 triggerId = ref->triggerId;
   Uint32 type = (triggerId >> 16) & 0x3;
-  Uint32 tableId = ref->getTableId();
+  Uint32 tableId = ref->tableId;
   
   DBUG_PRINT("enter", ("type: %u tableId: %u[i=%u==%u]",
-		       type, tableId,ref->getConnectionPtr(),triggerId & 0xFFFF));
+		       type, tableId,ref->senderData,triggerId & 0xFFFF));
  
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, ref->getConnectionPtr());
+  c_tables.getPtr(tabPtr, ref->senderData);
   ndbrequire(tabPtr.p->m_tableId == tableId);
   ndbrequire(tabPtr.p->m_state == Table::DEFINING);
 
-  tabPtr.p->m_error= ref->getErrorCode();
+  tabPtr.p->m_error= ref->errorCode;
 
   ndbrequire(type < 3);
 
@@ -3053,29 +3094,40 @@ Suma::execCREATE_TRIG_REF(Signal* signal){
 void
 Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::dropTrigger");
   
   m_hasOutstandingTriggerReq[0] =
     m_hasOutstandingTriggerReq[1] =
     m_hasOutstandingTriggerReq[2] = 1;
   for(Uint32 j = 0; j<3; j++){
-    jam();
+    jamBlock(&suma);
     suma.suma_ndbrequire(m_triggerIds[j] != ILLEGAL_TRIGGER_ID);
     if(m_hasTriggerDefined[j] == 1) {
-      jam();
+      jamBlock(&suma);
 
-      DropTrigReq * const req = (DropTrigReq*)signal->getDataPtrSend();
-      req->setConnectionPtr(m_ptrI);
-      req->setUserRef(SUMA_REF); // Sending to myself
-      req->setRequestType(DropTrigReq::RT_USER);
-      req->setTriggerType(TriggerType::SUBSCRIPTION_BEFORE);
-      req->setTriggerActionTime(TriggerActionTime::TA_DETACHED);
-      req->setIndexId(RNIL);
+      DropTrigImplReq * const req =
+        (DropTrigImplReq*)signal->getDataPtrSend();
+      req->senderRef = SUMA_REF; // Sending to myself
+      req->senderData = m_ptrI;
+      req->requestType = 0;
 
-      req->setTableId(m_tableId);
-      req->setTriggerId(m_triggerIds[j]);
-      req->setTriggerEvent((TriggerEvent::Value)j);
+      // TUP needs some triggerInfo to find right list
+      Uint32 ti = 0;
+      TriggerInfo::setTriggerType(ti, TriggerType::SUBSCRIPTION_BEFORE);
+      TriggerInfo::setTriggerActionTime(ti, TriggerActionTime::TA_DETACHED);
+      TriggerInfo::setTriggerEvent(ti, (TriggerEvent::Value)j);
+      TriggerInfo::setMonitorReplicas(ti, true);
+      //TriggerInfo::setMonitorAllAttributes(ti, j == TriggerEvent::TE_DELETE);
+      TriggerInfo::setMonitorAllAttributes(ti, true);
+      TriggerInfo::setReportAllMonitoredAttributes(ti, m_reportAll);
+      req->triggerInfo = ti;
+
+      req->tableId = m_tableId;
+      req->tableVersion = 0; // not used
+      req->indexId = RNIL;
+      req->indexVersion = 0;
+      req->triggerId = m_triggerIds[j];
 
       DBUG_PRINT("info",("DROPPING trigger %u = %u %u %u on table %u[%u]",
 			 m_triggerIds[j],
@@ -3083,10 +3135,10 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 			 TriggerActionTime::TA_DETACHED,
 			 j,
 			 m_tableId, j));
-      suma.sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ,
-		      signal, DropTrigReq::SignalLength, JBB);
+      suma.sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ,
+		      signal, DropTrigImplReq::SignalLength, JBB);
     } else {
-      jam();
+      jamBlock(&suma);
       suma.suma_ndbrequire(m_hasTriggerDefined[j] > 1);
       runDropTrigger(signal,m_triggerIds[j],suma);
     }
@@ -3095,35 +3147,37 @@ Suma::Table::dropTrigger(Signal* signal,Suma& suma)
 }
 
 void
-Suma::execDROP_TRIG_REF(Signal* signal){
+Suma::execDROP_TRIG_IMPL_REF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execDROP_TRIG_REF");
+  DBUG_ENTER("Suma::execDROP_TRIG_IMPL_REF");
   ndbassert(signal->getNoOfSections() == 0);
-  DropTrigRef * const ref = (DropTrigRef*)signal->getDataPtr();
-  if (ref->getErrorCode() != DropTrigRef::TriggerNotFound)
+  const DropTrigImplRef * const ref =
+    (const DropTrigImplRef*)signal->getDataPtr();
+  if (ref->errorCode != DropTrigRef::TriggerNotFound)
   {
     ndbrequire(false);
   }
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, ref->getConnectionPtr());
-  ndbrequire(ref->getTableId() == tabPtr.p->m_tableId);
+  c_tables.getPtr(tabPtr, ref->senderData);
+  ndbrequire(ref->tableId == tabPtr.p->m_tableId);
 
-  tabPtr.p->runDropTrigger(signal, ref->getTriggerId(), *this);
+  tabPtr.p->runDropTrigger(signal, ref->triggerId, *this);
   DBUG_VOID_RETURN;
 }
 
 void
-Suma::execDROP_TRIG_CONF(Signal* signal){
+Suma::execDROP_TRIG_IMPL_CONF(Signal* signal){
   jamEntry();
-  DBUG_ENTER("Suma::execDROP_TRIG_CONF");
+  DBUG_ENTER("Suma::execDROP_TRIG_IMPL_CONF");
   ndbassert(signal->getNoOfSections() == 0);
 
-  DropTrigConf * const conf = (DropTrigConf*)signal->getDataPtr();
+  const DropTrigImplConf * const conf =
+    (const DropTrigImplConf*)signal->getDataPtr();
   TablePtr tabPtr;
-  c_tables.getPtr(tabPtr, conf->getConnectionPtr());
-  ndbrequire(conf->getTableId() == tabPtr.p->m_tableId);
+  c_tables.getPtr(tabPtr, conf->senderData);
+  ndbrequire(conf->tableId == tabPtr.p->m_tableId);
 
-  tabPtr.p->runDropTrigger(signal, conf->getTriggerId(),*this);
+  tabPtr.p->runDropTrigger(signal, conf->triggerId, *this);
   DBUG_VOID_RETURN;
 }
 
@@ -3132,7 +3186,7 @@ Suma::Table::runDropTrigger(Signal* signal,
 				       Uint32 triggerId,
 				       Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   Uint32 type = (triggerId >> 16) & 0x3;
 
   suma.suma_ndbrequire(type < 3);
@@ -3143,7 +3197,7 @@ Suma::Table::runDropTrigger(Signal* signal,
   m_hasOutstandingTriggerReq[type] = 0;
   if (m_hasTriggerDefined[type] == 0)
   {
-    jam();
+    jamBlock(&suma);
     m_triggerIds[type] = ILLEGAL_TRIGGER_ID;
   }
   if( m_hasOutstandingTriggerReq[0] ||
@@ -3151,7 +3205,7 @@ Suma::Table::runDropTrigger(Signal* signal,
       m_hasOutstandingTriggerReq[2])
   {
     // more to come
-    jam();
+    jamBlock(&suma);
     return;
   }
 
@@ -3174,11 +3228,11 @@ void Suma::suma_ndbrequire(bool v) { ndbrequire(v); }
 void
 Suma::Table::checkRelease(Suma &suma)
 {
-  jam();
+  jamBlock(&suma);
   DBUG_ENTER("Suma::Table::checkRelease");
   if (n_subscribers == 0)
   {
-    jam();
+    jamBlock(&suma);
     suma.suma_ndbrequire(m_hasTriggerDefined[0] == 0);
     suma.suma_ndbrequire(m_hasTriggerDefined[1] == 0);
     suma.suma_ndbrequire(m_hasTriggerDefined[2] == 0);
@@ -3190,7 +3244,7 @@ Suma::Table::checkRelease(Suma &suma)
       for (subscribers.first(subbPtr);!subbPtr.isNull();
 	   subscribers.next(subbPtr))
       {
-	jam();
+	jamBlock(&suma);
 	DBUG_PRINT("info",("subscriber: %u", subbPtr.i));
       }
       suma.suma_ndbrequire(false);
@@ -3203,7 +3257,7 @@ Suma::Table::checkRelease(Suma &suma)
       for (syncRecords.first(syncPtr);!syncPtr.isNull();
 	   syncRecords.next(syncPtr))
       {
-	jam();
+	jamBlock(&suma);
 	DBUG_PRINT("info",("syncRecord: %u", syncPtr.i));
       }
       suma.suma_ndbrequire(false);
@@ -3448,7 +3502,6 @@ reformat(Signal* signal, LinearSectionPtr ptr[3],
   ptr[1].p  = dst;
   
   while(sz_1 > 0){
-    jam();
     Uint32 tmp = * src_1 ++;
     * headers ++ = tmp;
     Uint32 len = AttributeHeader::getDataSize(tmp);
@@ -3871,7 +3924,7 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   }
   // dict coordinator sends info to API
   
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci_hi         = Uint32(gci >> 32);
   data->gci_lo         = Uint32(gci);
@@ -3906,8 +3959,10 @@ Suma::execDROP_TAB_CONF(Signal *signal)
   DBUG_VOID_RETURN;
 }
 
-static Uint32 b_dti_buf[MAX_WORDS_META_FILE];
-
+/**
+ * This receives DICT_TAB_INFO in long signal section 1, and releases the data
+ * after use.
+ */
 void
 Suma::execALTER_TAB_REQ(Signal *signal)
 {
@@ -3919,10 +3974,17 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   Uint32 tableId= req->tableId;
   Uint32 changeMask= req->changeMask;
   TablePtr tabPtr;
+
+  // Copy DICT_TAB_INFO to local linear buffer
+  SectionHandle handle(this, signal);
+  SegmentedSectionPtr tabInfoPtr;
+  handle.getSection(tabInfoPtr, 0);
+
   if (!c_tables.find(tabPtr, tableId) ||
       tabPtr.p->m_state == Table::DROPPED ||
       tabPtr.p->m_state == Table::ALTERED)
   {
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
 
@@ -3934,15 +3996,11 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   if (senderRef == 0)
   {
     tabPtr.p->m_state = old_state;
+    releaseSections(handle);
     DBUG_VOID_RETURN;
   }
   // dict coordinator sends info to API
 
-  // Copy DICT_TAB_INFO to local buffer
-  SectionHandle handle(this, signal->theData[AlterTabReq::SignalLength]);
-  SegmentedSectionPtr tabInfoPtr;
-  handle.getSection(tabInfoPtr, 0);
-  handle.clear();
 #ifndef DBUG_OFF
   ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
   SimplePropertiesSectionReader reader(handle.m_ptr[0],
@@ -3950,11 +4008,12 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   reader.printAll(ndbout);
 #endif
   copy(b_dti_buf, tabInfoPtr);
+  releaseSections(handle);
   LinearSectionPtr ptr[3];
   ptr[0].p = b_dti_buf;
   ptr[0].sz = tabInfoPtr.sz;
 
-  const Uint64 gci = get_current_gci(signal);
+  const Uint64 gci = m_current_gci;
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
   data->gci_hi         = Uint32(gci >> 32);
   data->gci_lo         = Uint32(gci);
@@ -4240,7 +4299,7 @@ Suma::sendSubRemoveRef(Signal* signal, const SubRemoveReq& req,
 
 void
 Suma::Table::release(Suma & suma){
-  jam();
+  jamBlock(&suma);
 
   LocalDataBuffer<15> fragBuf(suma.c_dataBufferPool, m_fragments);
   fragBuf.release();
@@ -4435,6 +4494,7 @@ Suma::Restart::nextSubscription(Signal* signal, Uint32 sumaRef)
   req->subscriptionKey  = subPtr.p->m_subscriptionKey;
   req->subscriptionType = subPtr.p->m_subscriptionType |
     SubCreateReq::RestartFlag;
+  req->schemaTransId    = 0;
 
   switch (subPtr.p->m_subscriptionType) {
   case SubCreateReq::TableEvent:
@@ -4486,6 +4546,7 @@ Suma::Restart::runSUB_CREATE_CONF(Signal* signal)
       req->subscriptionType = subPtr.p->m_subscriptionType |
 	SubCreateReq::RestartFlag |
 	SubCreateReq::AddTableFlag;
+      req->schemaTransId    = 0;
 
       req->tableId = 0;
 
@@ -5337,20 +5398,12 @@ next:
     sendSignalWithDelay(SUMA_REF, GSN_CONTINUEB, signal, 10, 7);
 }
 
-Uint64
-Suma::get_current_gci(Signal* signal)
+void
+Suma::execGCP_PREPARE(Signal *signal)
 {
-  signal->theData[0] = 0; // user ptr
-  signal->theData[1] = 0; // Execute direct
-  signal->theData[2] = 1; // Current
-  EXECUTE_DIRECT(DBDIH, GSN_GETGCIREQ, signal, 3);
-
   jamEntry();
-  Uint32 gci_hi = signal->theData[1];
-  Uint32 gci_lo = signal->theData[2];
-
-  Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
-  return gci;
+  const GCPPrepare *prep = (const GCPPrepare *)signal->getDataPtr();
+  m_current_gci = prep->gci_lo | (Uint64(prep->gci_hi) << 32);
 }
 
 template void append(DataBuffer<11>&,SegmentedSectionPtr,SectionSegmentPool&);

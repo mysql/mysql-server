@@ -226,6 +226,65 @@ do_next:
   return 0;
 }
 
+static int
+init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
+{
+  const ndb_mgm_configuration_iterator * p =
+    ed.theConfiguration->getOwnConfigIterator();
+  if (p == 0)
+  {
+    abort();
+  }
+
+  Uint64 shared_mem = 8*1024*1024;
+  ndb_mgm_get_int64_parameter(p, CFG_DB_SGA, &shared_mem);
+  shared_mem /= GLOBAL_PAGE_SIZE;
+
+  Uint32 tupmem = 0;
+  if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
+  {
+    g_eventLogger.alert("Failed to get CFG_TUP_PAGE parameter from "
+                        "config, exiting.");
+    return -1;
+  }
+  if (tupmem)
+  {
+    Resource_limit rl;
+    rl.m_min = tupmem;
+    rl.m_max = tupmem;
+    rl.m_resource_id = 3;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (shared_mem+tupmem)
+  {
+    Resource_limit rl;
+    rl.m_min = 0;
+    rl.m_max = shared_mem + tupmem;
+    rl.m_resource_id = 0;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
+  if (!ed.m_mem_manager->init(watchCounter))
+  {
+    struct ndb_mgm_param_info dm;
+    struct ndb_mgm_param_info sga;
+    size_t size;
+
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_DATA_MEM, &dm, &size);
+    size = sizeof(ndb_mgm_param_info);
+    ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
+
+    g_eventLogger.alert("Malloc (%lld bytes) for %s and %s failed, exiting",
+                        Uint64(shared_mem + tupmem) * 32768,
+                        dm.m_name, sga.m_name);
+    return -1;
+  }
+
+  return 0;                     // Success
+}
+
 int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
@@ -239,6 +298,7 @@ int main(int argc, char** argv)
 
   g_eventLogger.m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
+  NdbThread_Init();
   globalEmulatorData.create();
 
   // Parse command line options
@@ -404,6 +464,24 @@ int main(int argc, char** argv)
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
   
+  globalEmulatorData.theWatchDog->doStart();
+
+  {
+    /*
+     * Memory allocation can take a long time for large memory.
+     *
+     * So we want the watchdog to monitor the process of initial allocation.
+     */
+    Uint32 watchCounter;
+    watchCounter = 9;           //  Means "doing allocation"
+    globalEmulatorData.theWatchDog->registerWatchedThread(&watchCounter, 0);
+    if (init_global_memory_manager(globalEmulatorData, &watchCounter))
+      return 1;
+    globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
+  }
+
+  globalEmulatorData.theThreadConfig->init(&globalEmulatorData);
+
     // Load blocks
   globalEmulatorData.theSimBlockList->load(globalEmulatorData);
     
@@ -463,9 +541,6 @@ int main(int argc, char** argv)
     ndbout_c("globalTransporterRegistry.start_clients() failed");
     exit(-1);
   }
-
-  globalEmulatorData.theWatchDog->doStart();
-  
   globalEmulatorData.m_socket_server->startServer();
 
   //  theConfig->closeConfiguration();

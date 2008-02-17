@@ -615,13 +615,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
     waitDropTabWritingToFile(signal, tabPtr);
     return;
   }
-  case DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:{
-    jam();
-    Uint32 nodeId = signal->theData[1];
-    Uint32 tableId = signal->theData[2];
-    checkWaitDropTabFailedLqh(signal, nodeId, tableId);
-    return;
-  }
   case DihContinueB::ZTO_START_FRAGMENTS:
   {
     TakeOverRecordPtr takeOverPtr;
@@ -1275,6 +1268,7 @@ void Dbdih::execTAB_COMMITREQ(Signal* signal)
 
   ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING);
   tabPtr.p->tabStatus = TabRecord::TS_ACTIVE;
+  tabPtr.p->schemaTransId = 0;
   signal->theData[0] = tdictPtr;
   signal->theData[1] = cownNodeId;
   signal->theData[2] = tabPtr.i;
@@ -1939,6 +1933,17 @@ void Dbdih::execSTART_PERMCONF(Signal* signal)
     UpgradeProtocolOrd * ord = (UpgradeProtocolOrd*)signal->getDataPtrSend();
     ord->type = UpgradeProtocolOrd::UPO_ENABLE_MICRO_GCP;
     EXECUTE_DIRECT(QMGR,GSN_UPGRADE_PROTOCOL_ORD,signal,signal->getLength());
+  }
+  else if(isMultiThreaded())
+  {
+    /**
+     * Prevent this start, as there is some non-thread-safe upgrade code for
+     * this case in LQH.
+     */
+    progError(__LINE__, NDBD_EXIT_SR_RESTARTCONFLICT,
+              "Cluster requires that all old data nodes are upgraded "
+              "while running single-threaded ndbd before starting "
+              "multi-threaded ndbmtd data nodes.");
   }
 }//Dbdih::execSTART_PERMCONF()
 
@@ -4486,7 +4491,6 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
     /*--------------------------------------------------*/
     checkStopMe(signal, failedNodePtr);
     failedNodeLcpHandling(signal, failedNodePtr);
-    checkWaitDropTabFailedLqh(signal, failedNodePtr.i, 0); // 0 = start w/ tab 0
     startRemoveFailedNode(signal, failedNodePtr);
 
     /**
@@ -6909,6 +6913,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   fragType= req->fragType;
   tabPtr.p->schemaVersion = req->schemaVersion;
   tabPtr.p->primaryTableId = req->primaryTableId;
+  tabPtr.p->schemaTransId = req->schemaTransId;
 
   if(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE){
     jam();
@@ -7367,30 +7372,36 @@ void Dbdih::releaseFile(Uint32 fileIndex)
 
 void Dbdih::execALTER_TAB_REQ(Signal * signal)
 {
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
   const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType = 
     (AlterTabReq::RequestType) req->requestType;
 
   TabRecordPtr tabPtr;
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  tabPtr.p->schemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tabPtr.p->schemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tabPtr.p->schemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully 
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -7629,23 +7640,32 @@ void Dbdih::execDI_FCOUNTREQ(Signal* signal)
 
   if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
   {
-    DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
-    //connectPtr.i == RNIL -> question without connect record
-    if(connectPtr.i == RNIL)
-      ref->m_connectionData = RNIL;
-    else
-    {
+    if (tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+        tabPtr.p->schemaTransId == req->m_schemaTransId) {
       jam();
-      ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
-      ref->m_connectionData = connectPtr.p->userpointer;
     }
-    ref->m_tableRef = tabPtr.i;
-    ref->m_senderData = senderData;
-    ref->m_error = DihFragCountRef::ErroneousTableState;
-    ref->m_tableStatus = tabPtr.p->tabStatus;
-    sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
-               DihFragCountRef::SignalLength, JBB);
-    return;
+    else {
+      jam();
+      const Uint32 schemaTransId = req->m_schemaTransId;
+      DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
+      //connectPtr.i == RNIL -> question without connect record
+      if(connectPtr.i == RNIL)
+        ref->m_connectionData = RNIL;
+      else
+      {
+        jam();
+        ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
+        ref->m_connectionData = connectPtr.p->userpointer;
+      }
+      ref->m_tableRef = tabPtr.i;
+      ref->m_senderData = senderData;
+      ref->m_error = DihFragCountRef::ErroneousTableState;
+      ref->m_tableStatus = tabPtr.p->tabStatus;
+      ref->m_schemaTransId = schemaTransId;
+      sendSignal(senderRef, GSN_DI_FCOUNTREF, signal, 
+                 DihFragCountRef::SignalLength, JBB);
+      return;
+    }
   }
 
   if(connectPtr.i != RNIL){
@@ -7662,12 +7682,14 @@ void Dbdih::execDI_FCOUNTREQ(Signal* signal)
                  DihFragCountConf::SignalLength, JBB);
       return;
     }//if
+    const Uint32 schemaTransId = req->m_schemaTransId;
     DihFragCountRef* ref = (DihFragCountRef*)signal->getDataPtrSend();
     ref->m_connectionData = connectPtr.p->userpointer;
     ref->m_tableRef = tabPtr.i;
     ref->m_senderData = senderData;
     ref->m_error = DihFragCountRef::ErroneousTableState;
     ref->m_tableStatus = tabPtr.p->tabStatus;
+    ref->m_schemaTransId = schemaTransId;
     sendSignal(connectPtr.p->userblockref, GSN_DI_FCOUNTREF, signal, 
                DihFragCountRef::SignalLength, JBB);
     return;
@@ -7699,7 +7721,11 @@ void Dbdih::execDIGETPRIMREQ(Signal* signal)
   }
   Uint32 fragId = signal->theData[3];
   
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_ACTIVE);
+  if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE) {
+    jam();
+    ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_CREATING &&
+               tabPtr.p->schemaTransId == signal->theData[4]);
+  }
   connectPtr.i = signal->theData[0];
   if(connectPtr.i != RNIL)
   {
@@ -8301,6 +8327,16 @@ void Dbdih::execGCP_PREPARE(Signal* signal)
 #endif
 
 reply:
+  /**
+   * Send the new gci to Suma.
+   *
+   * To get correct signal order and avoid races, this signal is sent on the
+   * same prio as the SUB_GCP_COMPLETE_REP signal sent to SUMA in
+   * execSUB_GCP_COMPLETE_REP().
+   */
+  sendSignal(SUMA_REF, GSN_GCP_PREPARE, signal, signal->length(), JBB);
+
+  /* Send reply. */
   conf->nodeId = cownNodeId;
   conf->gci_hi = gci_hi;
   conf->gci_lo = gci_lo;
@@ -8446,7 +8482,12 @@ Dbdih::execSUB_GCP_COMPLETE_REP(Signal* signal)
 
   ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
   m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
-  EXECUTE_DIRECT(SUMA, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length());
+  /**
+   * To get correct signal order and avoid races, this signal to SUMA is sent
+   * on the same prio as the GCP_PREPARE signal sent to SUMA in
+   * execGPC_PREPARE
+   */
+  sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, signal->length(), JBB);
 }
 
 /*****************************************************************************/
@@ -8883,16 +8924,16 @@ void Dbdih::writingCopyGciLab(Signal* signal, FileRecordPtr filePtr)
     rep->gci_lo = 0;
     rep->flags = SubGcpCompleteRep::ON_DISK;
 
-    EXECUTE_DIRECT(LGMAN, GSN_SUB_GCP_COMPLETE_REP, signal, 
-		   SubGcpCompleteRep::SignalLength);
+    sendSignal(LGMAN_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+               SubGcpCompleteRep::SignalLength, JBB);
     
     jamEntry();
 
     if (m_micro_gcp.m_enabled == false)
     {
       jam();
-      EXECUTE_DIRECT(SUMA, GSN_SUB_GCP_COMPLETE_REP, signal, 
-                     SubGcpCompleteRep::SignalLength);
+      sendSignal(SUMA_REF, GSN_SUB_GCP_COMPLETE_REP, signal, 
+                     SubGcpCompleteRep::SignalLength, JBB);
       jamEntry();
       ndbrequire(m_micro_gcp.m_state == MicroGcp::M_GCP_COMMITTED);
       m_micro_gcp.m_state = MicroGcp::M_GCP_IDLE;
@@ -12887,6 +12928,7 @@ void Dbdih::initTable(TabRecordPtr tabPtr)
     tabPtr.p->pageRef[i] = RNIL;
   }//for
   tabPtr.p->tableType = DictTabInfo::UndefTableType;
+  tabPtr.p->schemaTransId = 0;
 }//Dbdih::initTable()
 
 /*************************************************************************/
@@ -14883,8 +14925,8 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     g_eventLogger.info("Dbdih:: delay write of datapages for table = %d", 
                        dumpState->args[1]);
     // Send this dump to ACC and TUP
-    EXECUTE_DIRECT(DBACC, GSN_DUMP_STATE_ORD, signal, 2);
-    EXECUTE_DIRECT(DBTUP, GSN_DUMP_STATE_ORD, signal, 2);
+    sendSignal(DBACC_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
+    sendSignal(DBTUP_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
     
     // Start immediate LCP
     add_lcp_counter(&c_lcpState.ctimer, (1 << c_lcpState.clcpDelay));
@@ -15171,28 +15213,6 @@ Dbdih::execPREP_DROP_TAB_REQ(Signal* signal){
     ndbrequire(ok);
   }  
   
-  { /**
-     * Send WaitDropTabReq to all LQH
-     */
-    WaitDropTabReq * req = (WaitDropTabReq*)signal->getDataPtrSend();
-    req->tableId = tabPtr.i;
-    req->senderRef = reference();
-    
-    NodeRecordPtr nodePtr;
-    nodePtr.i = cfirstAliveNode;
-    tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor();
-    while(nodePtr.i != RNIL){
-      jam();
-      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRecord);
-      
-      tabPtr.p->m_prepDropTab.waitDropTabCount.setWaitingFor(nodePtr.i);
-      sendSignal(calcLqhBlockRef(nodePtr.i), GSN_WAIT_DROP_TAB_REQ,
-		 signal, WaitDropTabReq::SignalLength, JBB);
-      
-      nodePtr.i = nodePtr.p->nextNode;
-    }
-  }
-  
   waitDropTabWritingToFile(signal, tabPtr);
 }
 
@@ -15225,7 +15245,8 @@ Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
   }
   
   const Uint32 ref = tabPtr.p->m_prepDropTab.senderRef;
-  if(ref != 0){
+  if(ref != 0)
+  {
     PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
     conf->tableId = tabPtr.i;
     conf->senderRef = reference();
@@ -15235,77 +15256,6 @@ Dbdih::checkPrepDropTabComplete(Signal* signal, TabRecordPtr tabPtr){
     tabPtr.p->m_prepDropTab.senderRef = 0;
   }
 }
-			
-void
-Dbdih::execWAIT_DROP_TAB_REF(Signal* signal){
-  jamEntry();
-  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtr();
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = ref->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
-  Uint32 nodeId = refToNode(ref->senderRef);
- 
-  ndbrequire(ref->errorCode == WaitDropTabRef::NoSuchTable ||
-	     ref->errorCode == WaitDropTabRef::NF_FakeErrorREF);
-
-  tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor(nodeId);
-  checkPrepDropTabComplete(signal, tabPtr);
-}
-
-void
-Dbdih::execWAIT_DROP_TAB_CONF(Signal* signal){
-  jamEntry();
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = conf->tableId;
-  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-  
-  ndbrequire(tabPtr.p->tabStatus == TabRecord::TS_DROPPING);
-  Uint32 nodeId = refToNode(conf->senderRef);
-  tabPtr.p->m_prepDropTab.waitDropTabCount.clearWaitingFor(nodeId);
-  checkPrepDropTabComplete(signal, tabPtr);
-}
-
-void
-Dbdih::checkWaitDropTabFailedLqh(Signal* signal, Uint32 nodeId, Uint32 tableId){
-  
-  TabRecordPtr tabPtr;
-  tabPtr.i = tableId;
-
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtr();
-  conf->tableId = tableId;
-
-  const Uint32 RT_BREAK = 16;
-  for(Uint32 i = 0; i<RT_BREAK && tabPtr.i < ctabFileSize; i++, tabPtr.i++){
-    ptrAss(tabPtr, tabRecord);
-    if(tabPtr.p->tabStatus == TabRecord::TS_DROPPING){
-      if(tabPtr.p->m_prepDropTab.waitDropTabCount.isWaitingFor(nodeId)){
-	conf->senderRef = calcLqhBlockRef(nodeId);
-	execWAIT_DROP_TAB_CONF(signal);
-	tabPtr.i++;
-	break;
-      }
-    }
-  }
-  
-  if(tabPtr.i == ctabFileSize){
-    /**
-     * Finished
-     */
-    jam();
-    return;
-  }
-  
-  signal->theData[0] = DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH;
-  signal->theData[1] = nodeId;
-  signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
-}
-
 
 void
 Dbdih::execNDB_TAMPER(Signal* signal)
@@ -15918,8 +15868,8 @@ void Dbdih::checkWaitGCPMaster(Signal* signal, NodeId failedNodeId)
     
     c_waitGCPMasterList.next(ptr);
     if (nodeId == failedNodeId) {
-      jam()     
-	c_waitGCPMasterList.release(i);
+      jam();
+      c_waitGCPMasterList.release(i);
     }//if
   }//while
 }//Dbdih::checkWaitGCPMaster()

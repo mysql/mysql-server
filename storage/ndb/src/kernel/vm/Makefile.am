@@ -18,15 +18,15 @@
 #DIRS += testLongSig
 #endif
 
-noinst_LIBRARIES = libkernel.a
+noinst_LIBRARIES = libkernel.a libsched.a
+EXTRA_LIBRARIES= libsched_mt.a
+
+if BUILD_NDBMTD
+noinst_LIBRARIES += libsched_mt.a
+endif
 
 libkernel_a_SOURCES = \
-	SimulatedBlock.cpp	\
-	FastScheduler.cpp		\
-	TimeQueue.cpp		\
 	VMSignal.cpp		\
-	ThreadConfig.cpp          \
-	TransporterCallback.cpp \
 	Emulator.cpp		\
 	Configuration.cpp		\
 	WatchDog.cpp \
@@ -34,9 +34,22 @@ libkernel_a_SOURCES = \
         SectionReader.cpp \
         Mutex.cpp SafeCounter.cpp \
         Rope.cpp \
-	ndbd_malloc.cpp ndbd_malloc_impl.cpp \
-        Pool.cpp WOPool.cpp RWPool.cpp \
-        DynArr256.cpp LockQueue.cpp
+        ndbd_malloc.cpp \
+	ndbd_malloc_impl.cpp \
+	Pool.cpp WOPool.cpp RWPool.cpp DynArr256.cpp LockQueue.cpp
+
+libsched_a_SOURCES = TimeQueue.cpp		\
+                     ThreadConfig.cpp \
+                     FastScheduler.cpp \
+                     TransporterCallback_nonmt.cpp \
+                     SimulatedBlock_nonmt.cpp
+
+libsched_mt_a_SOURCES = SimulatedBlock_mt.cpp \
+                        TransporterCallback_mt.cpp \
+                        mt.cpp \
+                        dummy_mt.cpp
+
+EXTRA_DIST=SimulatedBlock.cpp TransporterCallback.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/src/mgmapi
 

@@ -29,11 +29,8 @@ public:
     NoLock = 0
     ,NodeRestartLock = 1 // S-lock
     ,NodeFailureLock = 2 // S-lock
-    ,CreateTableLock = 3
-    ,AlterTableLock  = 4
-    ,DropTableLock   = 5
-    ,CreateIndexLock = 6
-    ,DropIndexLock   = 7
+    ,SchemaTransLock = 3
+    // non-trans op locks
     ,CreateFileLock  = 8
     ,CreateFilegroupLock = 9
     ,DropFileLock    = 10

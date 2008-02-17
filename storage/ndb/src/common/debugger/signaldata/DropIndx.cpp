@@ -15,23 +15,52 @@
 
 #include <signaldata/DropIndx.hpp>
 
-bool printDROP_INDX_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_INDX_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const DropIndxReq * const sig = (DropIndxReq *) theData;
-  
-  return false;
+  const DropIndxReq* sig = (const DropIndxReq*)theData;
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, "\n");
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printDROP_INDX_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_INDX_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const DropIndxConf * const sig = (DropIndxConf *) theData;
-  
-  return false;
+  const DropIndxConf* sig = (const DropIndxConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printDROP_INDX_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printDROP_INDX_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const DropIndxRef * const sig = (DropIndxRef *) theData;
-
-  return false;
+  const DropIndxRef* sig = (const DropIndxRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " indexId: %u", sig->indexId);
+  fprintf(output, " indexVersion: 0x%x", sig->indexVersion);
+  fprintf(output, "\n");
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig->errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");
+  return true;
 }

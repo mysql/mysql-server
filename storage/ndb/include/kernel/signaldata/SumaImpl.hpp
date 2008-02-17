@@ -28,8 +28,8 @@ struct SubCreateReq {
   friend struct SumaParticipant;
   
   friend bool printSUB_CREATE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
-  STATIC_CONST( SignalLength = 6 );
-  STATIC_CONST( SignalLength2 = 7 );
+  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength2 = 8 );
   
   enum SubscriptionType {
     SingleTableScan  = 1,  // 
@@ -50,6 +50,7 @@ struct SubCreateReq {
   Uint32 subscriptionKey;
   Uint32 subscriptionType;
   Uint32 tableId;
+  Uint32 schemaTransId;
   Uint32 state;
 };
 

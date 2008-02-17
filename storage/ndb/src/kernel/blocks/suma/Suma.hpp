@@ -95,14 +95,16 @@ public:
   void execDI_FCOUNTCONF(Signal* signal);
   void execDIGETPRIMREF(Signal* signal);
   void execDIGETPRIMCONF(Signal* signal);
+  void execCHECKNODEGROUPSCONF(Signal *signal);
+  void execGCP_PREPARE(Signal *signal);
 
   /**
    * Trigger administration
    */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
   
   /**
    * continueb
@@ -190,6 +192,9 @@ public:
     Uint32 m_tableId;
     Uint32 m_table_ptrI;
     Uint32 m_current_sync_ptrI;
+
+    // for hash index build (one subscriber, one table)
+    Uint32 m_schemaTransId;
   };
   typedef Ptr<Subscription> SubscriptionPtr;
 
@@ -236,6 +241,7 @@ public:
     UintR &cerrorInsert;
 #endif
     BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       suma.progError(line, cause, extra); 
     }
@@ -249,7 +255,8 @@ public:
 		Ptr<SyncRecord> syncPtr);
   int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
 		SubscriberPtr subbPtr);
-  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr);
+  int initTable(Signal *signal,Uint32 tableId, TablePtr &tabPtr,
+                Uint32 schemaTransId);
   
   int completeOneSubscriber(Signal* signal, TablePtr tabPtr, SubscriberPtr subbPtr);
   void completeAllSubscribers(Signal* signal, TablePtr tabPtr);
@@ -325,6 +332,9 @@ public:
     bool equal(const Table& rec) const {
       return m_tableId == rec.m_tableId;
     }
+
+    // copy from Subscription
+    Uint32 m_schemaTransId;
   };
 
   /**
@@ -406,7 +416,6 @@ public:
    */
 
   void getNodeGroupMembers(Signal* signal);
-
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execSTTOR(Signal* signal);
@@ -463,6 +472,8 @@ public:
     Restart(Suma& s);
 
     Suma & suma;
+    BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     Uint32 nodeId;
 
     DLHashTable<Subscription>::Iterator c_subIt;
@@ -641,6 +652,10 @@ private:
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;
 #endif
+
+  /* Buffer used in Suma::execALTER_TAB_REQ(). */
+  Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint64 m_current_gci;
 
   Uint32 m_startphase;
   Uint32 m_typeOfStart;

@@ -38,21 +38,67 @@ runWatchDog(void* w){
 }
 
 WatchDog::WatchDog(Uint32 interval) : 
-  theIPValue(globalData.getWatchDogPtr())
+  m_watchedCount(0)
 {
   setCheckInterval(interval);
+  m_mutex = NdbMutex_Create();
   theStop = false;
   theThreadPtr = 0;
 }
 
 WatchDog::~WatchDog(){
   doStop();
+  NdbMutex_Destroy(m_mutex);
 }
 
 Uint32
 WatchDog::setCheckInterval(Uint32 interval){
   // An interval of less than 70ms is not acceptable
   return theInterval = (interval < 70 ? 70 : interval);
+}
+
+bool
+WatchDog::registerWatchedThread(Uint32 *counter, Uint32 threadId)
+{
+  bool ret;
+
+  NdbMutex_Lock(m_mutex);
+
+  if (m_watchedCount >= MAX_WATCHED_THREADS)
+  {
+    ret = false;
+  }
+  else
+  {
+    m_watchedList[m_watchedCount].m_watchCounter = counter;
+    m_watchedList[m_watchedCount].m_threadId = threadId;
+    NdbTick_getMicroTimer(&(m_watchedList[m_watchedCount].m_startTime));
+    m_watchedList[m_watchedCount].m_slowWarnDelay = theInterval;
+    m_watchedList[m_watchedCount].m_lastCounterValue = 0;
+    ++m_watchedCount;
+    ret = true;
+  }
+
+  NdbMutex_Unlock(m_mutex);
+  return ret;
+}
+
+void
+WatchDog::unregisterWatchedThread(Uint32 threadId)
+{
+  Uint32 i;
+  NdbMutex_Lock(m_mutex);
+
+  for (i = 0; i < m_watchedCount; i++)
+  {
+    if (threadId == m_watchedList[i].m_threadId)
+      break;
+  }
+  assert(i < m_watchedCount);
+  m_watchedList[i] = m_watchedList[m_watchedCount - 1];
+  --m_watchedCount;
+
+  NdbMutex_Unlock(m_mutex);
 }
 
 void
@@ -126,12 +172,17 @@ const char *get_action(Uint32 IPValue)
 void 
 WatchDog::run()
 {
-  unsigned int anIPValue, sleep_time;
-  unsigned int oldIPValue = 0;
-  unsigned int theIntervalCheck = theInterval;
-  struct MicroSecondTimer start_time, last_time, now;
-  NdbTick_getMicroTimer(&start_time);
-  last_time = start_time;
+  unsigned int sleep_time;
+  struct MicroSecondTimer last_time, now;
+  Uint32 numThreads;
+  Uint32 counterValue[MAX_WATCHED_THREADS];
+  Uint32 oldCounterValue[MAX_WATCHED_THREADS];
+  Uint32 threadId[MAX_WATCHED_THREADS];
+  struct MicroSecondTimer start_time[MAX_WATCHED_THREADS];
+  Uint32 theIntervalCheck[MAX_WATCHED_THREADS];
+  Uint32 elapsed[MAX_WATCHED_THREADS];
+
+  NdbTick_getMicroTimer(&last_time);
 
   // WatchDog for the single threaded NDB
   while (!theStop)
@@ -156,33 +207,66 @@ WatchDog::run()
     }
     last_time = now;
 
-    // Verify that the IP thread is not stuck in a loop
-    anIPValue = *theIPValue;
-    if (anIPValue != 0)
+    /*
+      Copy out all active counters under locked mutex, then check them
+      afterwards without holding the mutex.
+    */
+    NdbMutex_Lock(m_mutex);
+    numThreads = m_watchedCount;
+    for (Uint32 i = 0; i < numThreads; i++)
     {
-      oldIPValue = anIPValue;
-      globalData.incrementWatchDogCounter(0);
-      NdbTick_getMicroTimer(&start_time);
-      theIntervalCheck = theInterval;
+      counterValue[i] = *(m_watchedList[i].m_watchCounter);
+      if (counterValue[i] != 0)
+      {
+        /*
+          The thread responded since last check, so just update state until
+          next check.
+
+          There is a small race here. If the thread changes the counter
+          in-between the read and setting to zero here in the watchdog
+          thread, then gets stuck immediately after, we may report the
+          wrong action that it got stuck on.
+          But there will be no reporting of non-stuck thread because of
+          this race, nor will there be missed reporting.
+        */
+        *(m_watchedList[i].m_watchCounter) = 0;
+        m_watchedList[i].m_startTime = now;
+        m_watchedList[i].m_slowWarnDelay = theInterval;
+        m_watchedList[i].m_lastCounterValue = counterValue[i];
+      }
+      else
+      {
+        start_time[i] = m_watchedList[i].m_startTime;
+        threadId[i] = m_watchedList[i].m_threadId;
+        oldCounterValue[i] = m_watchedList[i].m_lastCounterValue;
+        theIntervalCheck[i] = m_watchedList[i].m_slowWarnDelay;
+        elapsed[i] = NdbTick_getMicrosPassed(start_time[i], now)/1000;
+        if (oldCounterValue[i] == 9 && elapsed[i] >= theIntervalCheck[i])
+          m_watchedList[i].m_slowWarnDelay += theInterval;
+      }
     }
-    else
+    NdbMutex_Unlock(m_mutex);
+
+    /*
+      Now check each watched thread if it has reported progress since previous
+      check. Warn about any stuck threads, and eventually force shutdown the
+      server.
+    */
+    for (Uint32 i = 0; i < numThreads; i++)
     {
-      int warn = 1;
-      Uint32 elapsed = NdbTick_getMicrosPassed(start_time, now)/1000;
+      if (counterValue[i] != 0)
+        continue;
+
       /*
-        oldIPValue == 9 indicates malloc going on, this can take some time
+        Counter value == 9 indicates malloc going on, this can take some time
         so only warn if we pass the watchdog interval
       */
-      if (oldIPValue == 9)
-        if (elapsed < theIntervalCheck)
-          warn = 0;
-        else
-          theIntervalCheck += theInterval;
-
-      if (warn)
+      if (oldCounterValue[i] != 9 || elapsed[i] >= theIntervalCheck[i])
       {
-        const char *last_stuck_action = get_action(oldIPValue);
-        g_eventLogger.warning("Ndb kernel is stuck in: %s", last_stuck_action);
+        const char *last_stuck_action = get_action(oldCounterValue[i]);
+        g_eventLogger.warning("Ndb kernel thread %u is stuck in: %s "
+                              "elapsed=%u",
+                              threadId[i], last_stuck_action, elapsed[i]);
         {
           struct tms my_tms;
           times(&my_tms);
@@ -190,7 +274,7 @@ WatchDog::run()
                              (Uint64)my_tms.tms_utime,
                              (Uint64)my_tms.tms_stime);
         }
-        if (elapsed > 3 * theInterval)
+        if (elapsed[i] > 3 * theInterval)
         {
           shutdownSystem(last_stuck_action);
         }

@@ -19,9 +19,10 @@ bool
 printUTIL_PREPARE_REQ(FILE* out, const Uint32 * data, Uint32 len, Uint16 rec)
 {
   UtilPrepareReq* sig = (UtilPrepareReq*)data;
-  fprintf(out, " senderRef: H'%.8x senderData: H'%.8x\n",
+  fprintf(out, " senderRef: H'%.8x senderData: H'%.8x schemaTransId: H'%.8x\n",
 	  sig->senderRef,
-	  sig->senderData);
+	  sig->senderData,
+          sig->schemaTransId);
 
   return true;
 }

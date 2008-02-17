@@ -27,6 +27,7 @@
 #include <NdbSleep.h>
 #include <NdbTick.h>
 #include <NdbOut.hpp>
+#include <WatchDog.hpp>
 
 #include <signaldata/StartOrd.hpp>
 
@@ -35,6 +36,11 @@ ThreadConfig::ThreadConfig()
 }
 
 ThreadConfig::~ThreadConfig()
+{
+}
+
+void
+ThreadConfig::init(EmulatorData *emulatorData)
 {
 }
 
@@ -123,6 +129,10 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
 // initialise the counter that keeps track of the current millisecond
 //--------------------------------------------------------------------
   globalData.internalMillisecCounter = NdbTick_CurrentMillisecond();
+
+  Uint32 *watchCounter = globalData.getWatchDogPtr();
+  globalEmulatorData.theWatchDog->registerWatchedThread(watchCounter, 0);
+
   res1 = NdbTick_getMicroTimer(&start_micro);
   yield_micro = statistics_start_micro = end_micro = start_micro;
   while (1)
@@ -293,6 +303,9 @@ void ThreadConfig::ipControlLoop(Uint32 thread_index)
 out:
   globalData.incrementWatchDogCounter(6);
   globalTransporterRegistry.performSend();
+
+  globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
+
 }//ThreadConfig::ipControlLoop()
 
 int

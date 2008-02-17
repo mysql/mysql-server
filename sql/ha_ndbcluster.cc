@@ -6596,6 +6596,8 @@ int ha_ndbcluster::create(const char *name,
   bool use_disk= FALSE;
   NdbDictionary::Table::SingleUserMode single_user_mode= NdbDictionary::Table::SingleUserModeLocked;
   bool ndb_sys_table= FALSE;
+  partition_info *part_info;
+  int result= 0;
 
   DBUG_ENTER("ha_ndbcluster::create");
   DBUG_PRINT("enter", ("name: %s", name));
@@ -6609,12 +6611,13 @@ int ha_ndbcluster::create(const char *name,
   
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
+  Ndb_table_guard ndbtab_g(dict);
 
   DBUG_PRINT("info", ("Tablespace %s,%s", form->s->tablespace, create_info->tablespace));
   if (is_truncate)
   {
     {
-      Ndb_table_guard ndbtab_g(dict, m_tabname);
+      ndbtab_g.init(m_tabname);
       if (!(m_table= ndbtab_g.get_table()))
 	ERR_RETURN(dict->getNdbError());
       m_table= NULL;
@@ -6654,6 +6657,14 @@ int ha_ndbcluster::create(const char *name,
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
     ndb_sys_table= TRUE;
   }
+
+  if ((dict->beginSchemaTrans() == -1))
+  {
+    DBUG_PRINT("info", ("Failed to start schema transaction"));
+    goto err_return;
+  }
+  DBUG_PRINT("info", ("Started schema transaction"));
+
   if (!ndb_apply_status_share)
   {
     if ((strcmp(m_dbname, NDB_REP_DB) == 0 &&
@@ -6666,7 +6677,8 @@ int ha_ndbcluster::create(const char *name,
   DBUG_PRINT("table", ("name: %s", m_tabname));  
   if (tab.setName(m_tabname))
   {
-    DBUG_RETURN(my_errno= errno);
+    my_errno= errno;
+    goto abort;
   }
   if (!ndb_sys_table)
   {
@@ -6684,11 +6696,15 @@ int ha_ndbcluster::create(const char *name,
 
   // Save frm data for this table
   if (readfrm(name, &data, &length))
-    DBUG_RETURN(1);
+  {
+    result= 1;
+    goto abort_return;
+  }
   if (packfrm(data, length, &pack_data, &pack_length))
   {
     my_free((char*)data, MYF(0));
-    DBUG_RETURN(2);
+    result= 2;
+    goto abort_return;
   }
   DBUG_PRINT("info",
              ("setFrm data: 0x%lx  len: %lu", (long) pack_data,
@@ -6732,7 +6748,7 @@ int ha_ndbcluster::create(const char *name,
                         field->column_format(),
                         field->pack_length()));
     if ((my_errno= create_ndb_column(thd, col, field, create_info)))
-      DBUG_RETURN(my_errno);
+      goto abort;
 
     if (!use_disk &&
         col.getStorageType() == NDBCOL::StorageTypeDisk)
@@ -6740,7 +6756,8 @@ int ha_ndbcluster::create(const char *name,
 
     if (tab.addColumn(col))
     {
-      DBUG_RETURN(my_errno= errno);
+      my_errno= errno;
+      goto abort;
     }
     if (col.getPrimaryKey())
       pk_length += (field->pack_length() + 3) / 4;
@@ -6764,7 +6781,8 @@ int ha_ndbcluster::create(const char *name,
                         ndbcluster_hton_name,
                         "TABLESPACE currently only supported for "
                         "STORAGE DISK"); 
-    DBUG_RETURN(HA_ERR_UNSUPPORTED);
+    result= HA_ERR_UNSUPPORTED;
+    goto abort_return;
   }
 
   DBUG_PRINT("info", ("Table %s is %s stored with tablespace %s",
@@ -6788,7 +6806,8 @@ int ha_ndbcluster::create(const char *name,
                             "Index on field "
                             "declared with "
                             "STORAGE DISK is not supported");
-        DBUG_RETURN(HA_ERR_UNSUPPORTED);
+        result= HA_ERR_UNSUPPORTED;
+        goto abort_return;
       }
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
@@ -6801,7 +6820,8 @@ int ha_ndbcluster::create(const char *name,
     DBUG_PRINT("info", ("Generating shadow key"));
     if (col.setName("$PK"))
     {
-      DBUG_RETURN(my_errno= errno);
+      my_errno= errno;
+      goto abort;
     }
     col.setType(NdbDictionary::Column::Bigunsigned);
     col.setLength(1);
@@ -6810,7 +6830,8 @@ int ha_ndbcluster::create(const char *name,
     col.setAutoIncrement(TRUE);
     if (tab.addColumn(col))
     {
-      DBUG_RETURN(my_errno= errno);
+      my_errno= errno;
+      goto abort;
     }
     pk_length += 2;
   }
@@ -6849,11 +6870,9 @@ int ha_ndbcluster::create(const char *name,
   }
 
   // Check partition info
-  partition_info *part_info= form->part_info;
+  part_info= form->part_info;
   if ((my_errno= set_up_partition_info(part_info, form, (void*)&tab)))
-  {
-    DBUG_RETURN(my_errno);
-  }
+    goto abort;
 
   // Create the table in NDB     
   if (dict->createTable(tab) != 0) 
@@ -6861,10 +6880,10 @@ int ha_ndbcluster::create(const char *name,
     const NdbError err= dict->getNdbError();
     set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
-    DBUG_RETURN(my_errno);
+    goto abort;
   }
 
-  Ndb_table_guard ndbtab_g(dict, m_tabname);
+  ndbtab_g.init(m_tabname);
   // temporary set m_table during create
   // reset at return
   m_table= ndbtab_g.get_table();
@@ -6875,7 +6894,7 @@ int ha_ndbcluster::create(const char *name,
     const NdbError err= dict->getNdbError();
     set_ndb_err(thd, err);
     my_errno= ndb_to_mysql_error(&err);
-    DBUG_RETURN(my_errno);
+    goto abort;
     /* purecov: end */
   }
 
@@ -6886,31 +6905,80 @@ int ha_ndbcluster::create(const char *name,
   my_errno= create_indexes(thd, ndb, form);
 
   if (!my_errno)
+  {
+    /*
+     * All steps have succeeded, try and commit schema transaction
+     */
+    if (dict->endSchemaTrans() == -1)
+      goto err_return;
     my_errno= write_ndb_file(name);
+  }
   else
+  {
+abort:
+/*
+ *  Some step during table creation failed, abort schema transaction
+ */
+    DBUG_PRINT("info", ("Aborting schema transaction due to error %i",
+                        my_errno));
+    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+        == -1)
+      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
+                          dict->getNdbError().code));
+    m_table= 0;
+    DBUG_RETURN(my_errno);
+abort_return:
+    DBUG_PRINT("info", ("Aborting schema transaction"));
+    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+        == -1)
+      DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
+                          dict->getNdbError().code));
+    DBUG_RETURN(result);
+err_return:
+    m_table= 0;
+    ERR_RETURN(dict->getNdbError());
+  }
+  if (my_errno)
   {
     /*
       Failed to create an index,
       drop the table (and all it's indexes)
     */
-    while (dict->dropTableGlobal(*m_table))
+    while (!thd->killed)
     {
-      switch (dict->getNdbError().status)
+      if (dict->beginSchemaTrans() == -1)
+        goto cleanup_failed;
+      if (dict->dropTableGlobal(*m_table))
       {
+        switch (dict->getNdbError().status)
+        {
         case NdbError::TemporaryError:
           if (!thd->killed) 
-            continue; // retry indefinitly
+          {
+            if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+                == -1)
+              DBUG_PRINT("info", ("Failed to abort schema transaction, %i",
+                                  dict->getNdbError().code));
+            goto cleanup_failed;
+          }
           break;
         default:
           break;
+        }
+      }
+      if (dict->endSchemaTrans() == -1)
+      {
+cleanup_failed:
+        DBUG_PRINT("info", ("Could not cleanup failed create %i",
+                          dict->getNdbError().code));
+        continue; // retry indefinitly
       }
       break;
     }
     m_table = 0;
     DBUG_RETURN(my_errno);
   }
-
-  if (!my_errno)
+  else // if (!my_errno)
   {
     NDB_SHARE *share= 0;
     pthread_mutex_lock(&ndbcluster_mutex);
@@ -11932,6 +12000,14 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 
   prepare_for_alter();
 
+  if (dict->beginSchemaTrans() == -1)
+  {
+    DBUG_PRINT("info", ("Failed to start schema transaction"));
+    ERR_PRINT(dict->getNdbError());
+    error= ndb_to_mysql_error(&dict->getNdbError());
+    goto err;
+  }
+
   if ((*alter_flags & adding).is_set())
   {
     KEY           *key_info;
@@ -11966,7 +12042,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
       table->key_info= key_info;
       table->file->print_error(error, MYF(0));
       table->key_info= save_key_info;
-      goto err;
+      goto abort;
     }
   }
 
@@ -11994,7 +12070,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
 				   alter_info->index_drop_count)))
     {
       table->file->print_error(error, MYF(0));
-      goto err;
+      goto abort;
     }
   }
 
@@ -12011,7 +12087,7 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
                                         COLUMN_FORMAT_TYPE_DYNAMIC)))
        {
          error= my_errno;
-         goto err;
+         goto abort;
        }
        /*
 	 If the user has not specified the field format
@@ -12032,7 +12108,15 @@ int ha_ndbcluster::alter_table_phase1(THD *thd,
   }
 
   DBUG_RETURN(0);
- err:
+abort:
+  if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+        == -1)
+  {
+    DBUG_PRINT("info", ("Failed to abort schema transaction"));
+    ERR_PRINT(dict->getNdbError());
+    error= ndb_to_mysql_error(&dict->getNdbError());
+  }
+err:
   set_ndb_share_state(m_share, NSS_INITIAL);
   /* ndb_share reference schema free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
@@ -12101,6 +12185,7 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 {
   int error= 0;
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) alter_info->data;
+  NDBDICT *dict= alter_data->dictionary;
   HA_ALTER_FLAGS dropping;
 
   DBUG_ENTER("alter_table_phase2");
@@ -12112,7 +12197,7 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
     if ((error= final_drop_index(table)))
     {
       print_error(error, MYF(0));
-      goto err;
+      goto abort;
     }
   }
 
@@ -12120,9 +12205,30 @@ int ha_ndbcluster::alter_table_phase2(THD *thd,
 
   DBUG_ASSERT(alter_data);
   error= alter_frm(thd, altered_table->s->path.str, alter_data);
- err:
-  if (error)
+  if (!error)
   {
+    /*
+     * Alter succesful, commit schema transaction
+     */
+    if (dict->endSchemaTrans() == -1)
+    {
+      error= ndb_to_mysql_error(&dict->getNdbError());
+      DBUG_PRINT("info", ("Failed to commit schema transaction, error %u",
+                          error));
+      table->file->print_error(error, MYF(0));
+      goto err;
+    }
+  }
+  else // if (error)
+  {
+abort:
+    if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
+        == -1)
+{
+      DBUG_PRINT("info", ("Failed to abort schema transaction"));
+      ERR_PRINT(dict->getNdbError());
+}
+err:
     set_ndb_share_state(m_share, NSS_INITIAL);
     /* ndb_share reference schema free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog schema free  use_count: %u",
