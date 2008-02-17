@@ -7900,6 +7900,25 @@ DROP DATABASE db28318_a;
 DROP DATABASE db28318_b;
 use test;
 
+--echo #
+--echo # Bug#30787: Stored function ignores user defined alias.
+--echo #
+use test;
+--disable_warnings
+drop function if exists func30787;
+--enable_warnings
+create table t1(f1 int);
+insert into t1 values(1),(2);
+delimiter |;
+create function func30787(p1 int) returns int
+begin
+  return p1;
+end |
+delimiter ;|
+select (select func30787(f1)) as ttt from t1;
+drop function func30787;
+drop table t1;
+
 ###########################################################################
 
 #
