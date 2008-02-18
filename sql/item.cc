@@ -2312,8 +2312,12 @@ my_decimal *Item_float::val_decimal(my_decimal *decimal_value)
 
 void Item_string::print(String *str)
 {
-  str->append('_');
-  str->append(collation.collation->csname);
+  if (is_cs_specified())
+  {
+    str->append('_');
+    str->append(collation.collation->csname);
+  }
+
   str->append('\'');
   str_value.print(str);
   str->append('\'');

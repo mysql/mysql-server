@@ -817,57 +817,57 @@ explain extended select md5('hello');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select md5(_latin1'hello') AS `md5('hello')`
+Note	1003	select md5('hello') AS `md5('hello')`
 explain extended select sha('abc');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sha(_latin1'abc') AS `sha('abc')`
+Note	1003	select sha('abc') AS `sha('abc')`
 explain extended select sha1('abc');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select sha(_latin1'abc') AS `sha1('abc')`
+Note	1003	select sha('abc') AS `sha1('abc')`
 explain extended select soundex('');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select soundex(_latin1'') AS `soundex('')`
+Note	1003	select soundex('') AS `soundex('')`
 explain extended select 'mood' sounds like 'mud';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select (soundex(_latin1'mood') = soundex(_latin1'mud')) AS `'mood' sounds like 'mud'`
+Note	1003	select (soundex('mood') = soundex('mud')) AS `'mood' sounds like 'mud'`
 explain extended select aes_decrypt(aes_encrypt('abc','1'),'1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select aes_decrypt(aes_encrypt(_latin1'abc',_latin1'1'),_latin1'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`
+Note	1003	select aes_decrypt(aes_encrypt('abc','1'),'1') AS `aes_decrypt(aes_encrypt('abc','1'),'1')`
 explain extended select concat('*',space(5),'*');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select concat(_latin1'*',repeat(_latin1' ',5),_latin1'*') AS `concat('*',space(5),'*')`
+Note	1003	select concat('*',repeat(' ',5),'*') AS `concat('*',space(5),'*')`
 explain extended select reverse('abc');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select reverse(_latin1'abc') AS `reverse('abc')`
+Note	1003	select reverse('abc') AS `reverse('abc')`
 explain extended select rpad('a',4,'1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select rpad(_latin1'a',4,_latin1'1') AS `rpad('a',4,'1')`
+Note	1003	select rpad('a',4,'1') AS `rpad('a',4,'1')`
 explain extended select lpad('a',4,'1');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select lpad(_latin1'a',4,_latin1'1') AS `lpad('a',4,'1')`
+Note	1003	select lpad('a',4,'1') AS `lpad('a',4,'1')`
 explain extended select concat_ws(',','',NULL,'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select concat_ws(_latin1',',_latin1'',NULL,_latin1'a') AS `concat_ws(',','',NULL,'a')`
+Note	1003	select concat_ws(',','',NULL,'a') AS `concat_ws(',','',NULL,'a')`
 explain extended select make_set(255,_latin2'a', _latin2'b', _latin2'c');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -882,7 +882,7 @@ explain extended select locate("a","b",2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select locate(_latin1'a',_latin1'b',2) AS `locate("a","b",2)`
+Note	1003	select locate('a','b',2) AS `locate("a","b",2)`
 explain extended select format(130,10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -907,7 +907,7 @@ explain extended select binary 'HE';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select cast(_latin1'HE' as char charset binary) AS `binary 'HE'`
+Note	1003	select cast('HE' as char charset binary) AS `binary 'HE'`
 explain extended select export_set(255,_latin2'y', _latin2'n', _latin2' ');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -917,7 +917,7 @@ explain extended select FIELD('b' COLLATE latin1_bin,'A','B');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select field((_latin1'b' collate latin1_bin),_latin1'A',_latin1'B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`
+Note	1003	select field(('b' collate latin1_bin),'A','B') AS `FIELD('b' COLLATE latin1_bin,'A','B')`
 explain extended select FIND_IN_SET(_latin1'B', _latin1'a,b,c,d');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -937,37 +937,37 @@ explain extended select length('\n\t\r\b\0\_\%\\');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select length(_latin1'\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`
+Note	1003	select length('\n	\r\0\\_\\%\\') AS `length('\n\t\r\b\0\_\%\\')`
 explain extended select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
+Note	1003	select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
 explain extended select bit_length('\n\t\r\b\0\_\%\\');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select bit_length(_latin1'\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
+Note	1003	select bit_length('\n	\r\0\\_\\%\\') AS `bit_length('\n\t\r\b\0\_\%\\')`
 explain extended select concat('monty',' was here ','again');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select concat(_latin1'monty',_latin1' was here ',_latin1'again') AS `concat('monty',' was here ','again')`
+Note	1003	select concat('monty',' was here ','again') AS `concat('monty',' was here ','again')`
 explain extended select length('hello');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select length(_latin1'hello') AS `length('hello')`
+Note	1003	select length('hello') AS `length('hello')`
 explain extended select char(ascii('h'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select char(ascii(_latin1'h')) AS `char(ascii('h'))`
+Note	1003	select char(ascii('h')) AS `char(ascii('h'))`
 explain extended select ord('h');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select ord(_latin1'h') AS `ord('h')`
+Note	1003	select ord('h') AS `ord('h')`
 explain extended select quote(1/0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -977,17 +977,17 @@ explain extended select crc32("123");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select crc32(_latin1'123') AS `crc32("123")`
+Note	1003	select crc32('123') AS `crc32("123")`
 explain extended select replace('aaaa','a','b');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select replace(_latin1'aaaa',_latin1'a',_latin1'b') AS `replace('aaaa','a','b')`
+Note	1003	select replace('aaaa','a','b') AS `replace('aaaa','a','b')`
 explain extended select insert('txs',2,1,'hi');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select insert(_latin1'txs',2,1,_latin1'hi') AS `insert('txs',2,1,'hi')`
+Note	1003	select insert('txs',2,1,'hi') AS `insert('txs',2,1,'hi')`
 explain extended select left(_latin2'a',1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1012,12 +1012,12 @@ explain extended select SUBSTR('abcdefg',3,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select substr(_latin1'abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`
+Note	1003	select substr('abcdefg',3,2) AS `SUBSTR('abcdefg',3,2)`
 explain extended select substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select substring_index(_latin1'1abcd;2abcd;3abcd;4abcd',_latin1';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`
+Note	1003	select substring_index('1abcd;2abcd;3abcd;4abcd',';',2) AS `substring_index("1abcd;2abcd;3abcd;4abcd", ';', 2)`
 explain extended select trim(_latin2' a ');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -1037,7 +1037,7 @@ explain extended select decode(encode(repeat("a",100000),"monty"),"monty");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select decode(encode(repeat(_latin1'a',100000),_latin1'monty'),_latin1'monty') AS `decode(encode(repeat("a",100000),"monty"),"monty")`
+Note	1003	select decode(encode(repeat('a',100000),'monty'),'monty') AS `decode(encode(repeat("a",100000),"monty"),"monty")`
 SELECT lpad(12345, 5, "#");
 lpad(12345, 5, "#")
 12345
@@ -1282,39 +1282,39 @@ EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(s) > 'ab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > _latin1'ab')
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(`test`.`t1`.`s`) > 'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM('y' FROM s) > 'ab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both 'y' from `test`.`t1`.`s`) > 'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(LEADING 'y' FROM s) > 'ab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(leading 'y' from `test`.`t1`.`s`) > 'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(TRAILING 'y' FROM s) > 'ab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(trailing 'y' from `test`.`t1`.`s`) > 'ab')
 EXPLAIN EXTENDED SELECT s FROM t1 WHERE TRIM(BOTH 'y' FROM s) > 'ab';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both _latin1'y' from `test`.`t1`.`s`) > _latin1'ab')
+Note	1003	select `test`.`t1`.`s` AS `s` from `test`.`t1` where (trim(both 'y' from `test`.`t1`.`s`) > 'ab')
 DROP TABLE t1;
 create table t1(f1 varchar(4));
 explain extended select encode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select encode('',_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select encode('','zxcv') AS `enc` from `test`.`t1`
 explain extended select decode(f1,'zxcv') as 'enc' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	select decode('',_latin1'zxcv') AS `enc` from `test`.`t1`
+Note	1003	select decode('','zxcv') AS `enc` from `test`.`t1`
 drop table t1;
 create table t1 (a bigint not null)engine=myisam;
 insert into t1 set a = 1024*1024*1024*4;
@@ -1390,7 +1390,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	12	const	1	100.00	Using index
 1	SIMPLE	t1	ref	code	code	13	const	3	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = _latin1'a12') and (length(`test`.`t1`.`code`) = 5))
+Note	1003	select `test`.`t1`.`code` AS `code`,'a12' AS `id` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`code` = 'a12') and (length(`test`.`t1`.`code`) = 5))
 DROP TABLE t1,t2;
 select encode(NULL, NULL);
 encode(NULL, NULL)
