@@ -13,3 +13,4 @@ a	b
 SELECT * FROM t1 ORDER BY a;
 a	b
 3	-3
+DROP TABLE t1;
