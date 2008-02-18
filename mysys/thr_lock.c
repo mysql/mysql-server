@@ -121,7 +121,7 @@ thr_lock_owner_equal(THR_LOCK_OWNER *rhs, THR_LOCK_OWNER *lhs)
 static uint found_errors=0;
 
 static int check_lock(struct st_lock_list *list, const char* lock_type,
-		      const char *where, my_bool same_owner, bool no_cond)
+		      const char *where, my_bool same_owner, my_bool no_cond)
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
@@ -709,7 +709,7 @@ end:
 
 
 static inline void free_all_read_locks(THR_LOCK *lock,
-				       bool using_concurrent_insert)
+				       my_bool using_concurrent_insert)
 {
   THR_LOCK_DATA *data=lock->read_wait.data;
 
@@ -1063,7 +1063,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data,uint count)
   TL_WRITE_ONLY to abort any new accesses to the lock
 */
 
-void thr_abort_locks(THR_LOCK *lock, bool upgrade_lock)
+void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock)
 {
   THR_LOCK_DATA *data;
   DBUG_ENTER("thr_abort_locks");

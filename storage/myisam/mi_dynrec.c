@@ -430,7 +430,7 @@ static int _mi_find_writepos(MI_INFO *info,
   a big block.
 */
 
-static bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
+static my_bool unlink_deleted_block(MI_INFO *info, MI_BLOCK_INFO *block_info)
 {
   DBUG_ENTER("unlink_deleted_block");
   if (block_info->filepos == info->s->state.dellink)

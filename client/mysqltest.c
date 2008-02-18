@@ -4260,7 +4260,7 @@ void do_connect(struct st_command *command)
 {
   int con_port= opt_port;
   char *con_options;
-  bool con_ssl= 0, con_compress= 0;
+  my_bool con_ssl= 0, con_compress= 0;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5552,7 +5552,7 @@ void fix_win_paths(const char *val, int len)
 */
 
 void append_field(DYNAMIC_STRING *ds, uint col_idx, MYSQL_FIELD* field,
-                  const char* val, ulonglong len, bool is_null)
+                  const char* val, ulonglong len, my_bool is_null)
 {
   if (col_idx < max_replace_column && replace_column[col_idx])
   {
@@ -7478,12 +7478,12 @@ void free_replace()
 
 
 typedef struct st_replace {
-  bool	 found;
+  my_bool found;
   struct st_replace *next[256];
 } REPLACE;
 
 typedef struct st_replace_found {
-  bool found;
+  my_bool found;
   char *replace_string;
   uint to_offset;
   int from_offset;
