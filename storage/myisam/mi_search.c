@@ -1469,7 +1469,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
   uchar *start,*end,*key_end,*sort_order;
-  bool same_length;
+  my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;
   same_length=0; keyseg=keyinfo->seg;

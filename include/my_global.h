@@ -1522,4 +1522,8 @@ inline void  operator delete[](void*, void*) { /* Do nothing */ }
 #define NEED_EXPLICIT_SYNC_DIR 1
 #endif
 
+#if !defined(__cplusplus) && !defined(bool)
+#define bool In_C_you_should_use_my_bool_instead()
+#endif
+
 #endif /* my_global_h */

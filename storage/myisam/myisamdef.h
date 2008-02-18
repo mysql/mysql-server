@@ -432,7 +432,7 @@ typedef struct st_mi_s_param
     n_ref_length,
     n_length, totlength, part_of_prev_key, prev_length, pack_marker;
   uchar *key, *prev_key, *next_key_pos;
-  bool store_not_null;
+  my_bool store_not_null;
 } MI_KEY_PARAM;
 
 /* Prototypes for intern functions */

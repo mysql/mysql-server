@@ -1876,7 +1876,7 @@ err:
 static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  bool fixed;
+  my_bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);
@@ -1904,7 +1904,7 @@ static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
 static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
                           void *save, st_mysql_value *value)
 {
-  bool fixed;
+  my_bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);
@@ -1932,7 +1932,7 @@ static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
 static int check_func_longlong(THD *thd, struct st_mysql_sys_var *var,
                                void *save, st_mysql_value *value)
 {
-  bool fixed;
+  my_bool fixed;
   long long tmp;
   struct my_option options;
   value->val_int(value, &tmp);

@@ -3368,7 +3368,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
 	}
 	if (b_type & BLOCK_DELETED)
 	{
-	  bool error=0;
+	  my_bool error=0;
 	  if (block_info.block_len+ (uint) (block_info.filepos-pos) <
 	      share->base.min_block_length)
 	  {

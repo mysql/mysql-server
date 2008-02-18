@@ -67,7 +67,7 @@ typedef struct st_replace {
 } REPLACE;
 
 typedef struct st_replace_found {
-  bool found;
+  my_bool found;
   char *replace_string;
   uint to_offset;
   int from_offset;
