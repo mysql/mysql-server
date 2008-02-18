@@ -157,7 +157,7 @@ ulonglong my_micro_time_and_time(time_t *time_arg)
 #if defined(__WIN__)
   ulonglong newtime;
   GetSystemTimeAsFileTime((FILETIME*)&newtime);
-  *time_arg= (newtime-OFFSET_TO_EPOCH)/10000000;
+  *time_arg= (time_t) (newtime - OFFSET_TO_EPOCH) / 10000000;
   return (newtime/10);
 #elif defined(HAVE_GETHRTIME)
   /*
