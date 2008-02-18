@@ -241,10 +241,7 @@ lock_rec_restore_from_page_infimum(
 /*===============================*/
 	const buf_block_t*	block,	/* in: buffer block containing rec */
 	const rec_t*		rec,	/* in: record whose lock state
-					is stored on the infimum
-					record of the same page; lock
-					bits are reset on the
-					record */
+					is restored */
 	const buf_block_t*	donator);/* in: page (rec is not
 					necessarily on this page)
 					whose infimum stored the lock
