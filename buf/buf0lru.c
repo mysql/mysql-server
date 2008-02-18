@@ -652,7 +652,9 @@ buf_LRU_old_adjust_len(void)
 
 	ut_a(buf_pool->LRU_old);
 	ut_ad(buf_pool_mutex_own());
-	ut_ad(3 * (BUF_LRU_OLD_MIN_LEN / 8) > BUF_LRU_OLD_TOLERANCE + 5);
+#if 3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5
+# error "3 * (BUF_LRU_OLD_MIN_LEN / 8) <= BUF_LRU_OLD_TOLERANCE + 5"
+#endif
 
 	for (;;) {
 		old_len = buf_pool->LRU_old_len;
@@ -1032,6 +1034,8 @@ alloc:
 
 			/* Insert b where bpage was in the LRU list. */
 			if (UNIV_LIKELY(prev_b != NULL)) {
+				ulint	lru_len;
+
 				ut_ad(prev_b->in_LRU_list);
 				ut_ad(buf_page_in_file(prev_b));
 				UNIV_MEM_ASSERT_RW(prev_b, sizeof *prev_b);
@@ -1039,34 +1043,22 @@ alloc:
 				UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
 						     prev_b, b);
 
-				if (UNIV_UNLIKELY
-				    (buf_pool->LRU_old == prev_b)) {
-					ut_a(buf_page_is_old(b));
-					ut_a(buf_page_is_old(prev_b));
-					buf_page_set_old(prev_b, FALSE);
-					buf_pool->LRU_old = b;
-				} else {
-					ulint	lru_len = UT_LIST_GET_LEN(
-						buf_pool->LRU);
+				if (buf_page_is_old(b)) {
+					buf_pool->LRU_old_len++;
+				}
 
-					if (buf_page_is_old(b)) {
-						buf_pool->LRU_old_len++;
-					}
+				lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
 
-					if (lru_len > BUF_LRU_OLD_MIN_LEN) {
-						ut_ad(buf_pool->LRU_old);
-						/* Adjust the length
-						of the old block list
-						if necessary */
-						buf_LRU_old_adjust_len();
-					} else if (lru_len
-						   == BUF_LRU_OLD_MIN_LEN) {
-						/* The LRU list is now
-						long enough for
-						LRU_old to become
-						defined: init it */
-						buf_LRU_old_init();
-					}
+				if (lru_len > BUF_LRU_OLD_MIN_LEN) {
+					ut_ad(buf_pool->LRU_old);
+					/* Adjust the length of the
+					old block list if necessary */
+					buf_LRU_old_adjust_len();
+				} else if (lru_len == BUF_LRU_OLD_MIN_LEN) {
+					/* The LRU list is now long
+					enough for LRU_old to become
+					defined: init it */
+					buf_LRU_old_init();
 				}
 			} else {
 				ut_d(b->in_LRU_list = FALSE);
