@@ -1564,7 +1564,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
        length_pack,new_key_length,diff_flag,pack_marker;
   const uchar *start,*end,*key_end;
   uchar *sort_order;
-  bool same_length;
+  my_bool same_length;
 
   length_pack=s_temp->ref_length=s_temp->n_ref_length=s_temp->n_length=0;
   same_length=0; keyseg=keyinfo->seg;

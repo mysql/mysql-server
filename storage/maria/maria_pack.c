@@ -123,7 +123,7 @@ typedef struct st_isam_mrg {
 extern int main(int argc,char * *argv);
 static void get_options(int *argc,char ***argv);
 static MARIA_HA *open_maria_file(char *name,int mode);
-static bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count);
+static my_bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count);
 static int compress(PACK_MRG_INFO *file,char *join_name);
 static HUFF_COUNTS *init_huff_count(MARIA_HA *info,my_off_t records);
 static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees,
@@ -439,7 +439,7 @@ static MARIA_HA *open_maria_file(char *name,int mode)
 }
 
 
-static bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count)
+static my_bool open_maria_files(PACK_MRG_INFO *mrg,char **names,uint count)
 {
   uint i,j;
   mrg->count=0;

@@ -744,7 +744,7 @@ typedef struct st_maria_s_param
   uint n_length, totlength, part_of_prev_key, prev_length, pack_marker;
   uint changed_length;
   int move_length;                              /* For balance_page */
-  bool store_not_null;
+  my_bool store_not_null;
 } MARIA_KEY_PARAM;
 
 

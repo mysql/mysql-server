@@ -411,7 +411,8 @@ static int _ma_find_writepos(MARIA_HA *info,
   a big block.
 */
 
-static bool unlink_deleted_block(MARIA_HA *info, MARIA_BLOCK_INFO *block_info)
+static my_bool unlink_deleted_block(MARIA_HA *info,
+                                    MARIA_BLOCK_INFO *block_info)
 {
   DBUG_ENTER("unlink_deleted_block");
   if (block_info->filepos == info->s->state.dellink)

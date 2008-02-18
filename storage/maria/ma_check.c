@@ -1362,7 +1362,7 @@ static int check_compressed_record(HA_CHECK *param, MARIA_HA *info, int extend,
   MARIA_SHARE *share= info->s;
   my_off_t start_recpos, pos;
   char llbuff[22];
-  bool got_error= 0;
+  my_bool got_error= 0;
   DBUG_ENTER("check_compressed_record");
 
   pos= share->pack.header_length;             /* Skip header */
@@ -4500,7 +4500,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
 	}
 	if (b_type & BLOCK_DELETED)
 	{
-	  bool error=0;
+	  my_bool error=0;
 	  if (block_info.block_len+ (uint) (block_info.filepos-pos) <
 	      share->base.min_block_length)
 	  {
