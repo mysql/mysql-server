@@ -1466,6 +1466,7 @@ trx_undo_prev_version_build(
 	cannot have purged the BLOBs referenced by that version
 	yet). */
 
+#if 0 /* This may cause a failure in row_vers_impl_x_locked_off_kernel(). */
 	if ((info_bits & REC_INFO_DELETED_FLAG)
 	     && !trx_purge_update_undo_must_exist(trx_id)) {
 
@@ -1476,6 +1477,7 @@ trx_undo_prev_version_build(
 
 		return(DB_SUCCESS);
 	}
+#endif
 
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
