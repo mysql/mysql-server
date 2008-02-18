@@ -37,7 +37,7 @@ Outputs the sum of sizes of buffers given to the user (only in
 the debug version), the physical size of the heap and the number of
 blocks in the heap. In case of error returns 0 as sizes and number
 of blocks. */
-
+UNIV_INTERN
 void
 mem_heap_validate_or_print(
 /*=======================*/
@@ -62,7 +62,7 @@ mem_heap_validate_or_print(
 				argument, it is ignored */
 /******************************************************************
 Validates the contents of a memory heap. */
-
+UNIV_INTERN
 ibool
 mem_heap_validate(
 /*==============*/
@@ -72,7 +72,7 @@ mem_heap_validate(
 #ifdef UNIV_DEBUG
 /******************************************************************
 Checks that an object is a memory heap (or a block of it) */
-
+UNIV_INTERN
 ibool
 mem_heap_check(
 /*===========*/
@@ -82,21 +82,21 @@ mem_heap_check(
 #ifdef UNIV_MEM_DEBUG
 /*********************************************************************
 TRUE if no memory is currently allocated. */
-
+UNIV_INTERN
 ibool
 mem_all_freed(void);
 /*===============*/
 			/* out: TRUE if no heaps exist */
 /*********************************************************************
 Validates the dynamic memory */
-
+UNIV_INTERN
 ibool
 mem_validate_no_assert(void);
 /*=========================*/
 			/* out: TRUE if error */
 /****************************************************************
 Validates the dynamic memory */
-
+UNIV_INTERN
 ibool
 mem_validate(void);
 /*===============*/
@@ -105,7 +105,7 @@ mem_validate(void);
 /****************************************************************
 Tries to find neigboring memory allocation blocks and dumps to stderr
 the neighborhood of a given pointer. */
-
+UNIV_INTERN
 void
 mem_analyze_corruption(
 /*===================*/
@@ -113,14 +113,14 @@ mem_analyze_corruption(
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers. Can only be used in the debug version. */
-
+UNIV_INTERN
 void
 mem_print_info(void);
 /*================*/
 /*********************************************************************
 Prints information of dynamic memory usage and currently allocated memory
 heaps or buffers since the last ..._print_info or..._print_new_info. */
-
+UNIV_INTERN
 void
 mem_print_new_info(void);
 /*====================*/

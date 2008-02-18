@@ -21,7 +21,7 @@ taken out of the buffer pool, and their inserts redirected to the insert
 buffer. Otherwise, the flushed blocks could get modified again before read
 operations need new buffer blocks, and the i/o work done in flushing would be
 wasted. */
-
+UNIV_INTERN
 void
 buf_LRU_try_free_flushed_blocks(void);
 /*==================================*/
@@ -29,7 +29,7 @@ buf_LRU_try_free_flushed_blocks(void);
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
 used in heuristics to prevent huge transactions eating up the whole buffer
 pool for their locks. */
-
+UNIV_INTERN
 ibool
 buf_LRU_buf_pool_running_out(void);
 /*==============================*/
@@ -51,7 +51,7 @@ Invalidates all pages belonging to a given tablespace when we are deleting
 the data file(s) of that tablespace. A PROBLEM: if readahead is being started,
 what guarantees that it will not try to read in pages after this operation has
 completed? */
-
+UNIV_INTERN
 void
 buf_LRU_invalidate_tablespace(
 /*==========================*/
@@ -60,21 +60,21 @@ buf_LRU_invalidate_tablespace(
 Gets the minimum LRU_position field for the blocks in an initial segment
 (determined by BUF_LRU_INITIAL_RATIO) of the LRU list. The limit is not
 guaranteed to be precise, because the ulint_clock may wrap around. */
-
+UNIV_INTERN
 ulint
 buf_LRU_get_recent_limit(void);
 /*==========================*/
 			/* out: the limit; zero if could not determine it */
 /************************************************************************
 Insert a compressed block into buf_pool->zip_clean in the LRU order. */
-
+UNIV_INTERN
 void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/* in: pointer to the block in question */
 /**********************************************************************
 Try to free a block. */
-
+UNIV_INTERN
 ibool
 buf_LRU_free_block(
 /*===============*/
@@ -94,7 +94,7 @@ buf_LRU_free_block(
 /**********************************************************************
 Look for a replaceable block from the end of the LRU list and put it to
 the free list if found. */
-
+UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
@@ -108,7 +108,7 @@ buf_LRU_search_and_free_block(
 /**********************************************************************
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL. */
-
+UNIV_INTERN
 buf_block_t*
 buf_LRU_get_free_only(void);
 /*=======================*/
@@ -118,7 +118,7 @@ buf_LRU_get_free_only(void);
 Returns a free block from the buf_pool. The block is taken off the
 free list. If it is empty, blocks are moved from the end of the
 LRU list to the free list. */
-
+UNIV_INTERN
 buf_block_t*
 buf_LRU_get_free_block(
 /*===================*/
@@ -129,14 +129,14 @@ buf_LRU_get_free_block(
 
 /**********************************************************************
 Puts a block back to the free list. */
-
+UNIV_INTERN
 void
 buf_LRU_block_free_non_file_page(
 /*=============================*/
 	buf_block_t*	block);	/* in: block, must not contain a file page */
 /**********************************************************************
 Adds a block to the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_add_block(
 /*==============*/
@@ -147,14 +147,14 @@ buf_LRU_add_block(
 				the start regardless of this parameter */
 /**********************************************************************
 Moves a block to the start of the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_make_block_young(
 /*=====================*/
 	buf_page_t*	bpage);	/* in: control block */
 /**********************************************************************
 Moves a block to the end of the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_make_block_old(
 /*===================*/
@@ -162,7 +162,7 @@ buf_LRU_make_block_old(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
-
+UNIV_INTERN
 ibool
 buf_LRU_validate(void);
 /*==================*/
@@ -170,7 +170,7 @@ buf_LRU_validate(void);
 #if defined UNIV_DEBUG_PRINT || defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Prints the LRU list. */
-
+UNIV_INTERN
 void
 buf_LRU_print(void);
 /*===============*/

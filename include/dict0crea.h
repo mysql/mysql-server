@@ -18,7 +18,7 @@ Created 1/8/1996 Heikki Tuuri
 
 /*************************************************************************
 Creates a table create graph. */
-
+UNIV_INTERN
 tab_node_t*
 tab_create_graph_create(
 /*====================*/
@@ -28,7 +28,7 @@ tab_create_graph_create(
 	mem_heap_t*	heap);	/* in: heap where created */
 /*************************************************************************
 Creates an index create graph. */
-
+UNIV_INTERN
 ind_node_t*
 ind_create_graph_create(
 /*====================*/
@@ -38,7 +38,7 @@ ind_create_graph_create(
 	mem_heap_t*	heap);	/* in: heap where created */
 /***************************************************************
 Creates a table. This is a high-level function used in SQL execution graphs. */
-
+UNIV_INTERN
 que_thr_t*
 dict_create_table_step(
 /*===================*/
@@ -47,7 +47,7 @@ dict_create_table_step(
 /***************************************************************
 Creates an index. This is a high-level function used in SQL execution
 graphs. */
-
+UNIV_INTERN
 que_thr_t*
 dict_create_index_step(
 /*===================*/
@@ -55,7 +55,7 @@ dict_create_index_step(
 	que_thr_t*	thr);	/* in: query thread */
 /***********************************************************************
 Truncates the index tree associated with a row in SYS_INDEXES table. */
-
+UNIV_INTERN
 ulint
 dict_truncate_index_tree(
 /*=====================*/
@@ -74,7 +74,7 @@ dict_truncate_index_tree(
 				committed and restarted in this call. */
 /***********************************************************************
 Drops the index tree associated with a row in SYS_INDEXES table. */
-
+UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
@@ -86,7 +86,7 @@ dict_drop_index_tree(
 Creates the foreign key constraints system tables inside InnoDB
 at database creation or database start if they are not found or are
 not of the right form. */
-
+UNIV_INTERN
 ulint
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
@@ -98,7 +98,7 @@ not named by the user. A generated constraint has a name of the format
 databasename/tablename_ibfk_<number>, where the numbers start from 1, and are
 given locally for this table, that is, the number is not global, as in the
 old format constraints < 4.0.18 it used to be. */
-
+UNIV_INTERN
 ulint
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/

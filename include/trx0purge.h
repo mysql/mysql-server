@@ -38,7 +38,7 @@ trx_purge_get_log_from_hist(
 /*********************************************************************
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system. */
-
+UNIV_INTERN
 ibool
 trx_purge_update_undo_must_exist(
 /*=============================*/
@@ -49,14 +49,14 @@ trx_purge_update_undo_must_exist(
 /************************************************************************
 Creates the global purge system control structure and inits the history
 mutex. */
-
+UNIV_INTERN
 void
 trx_purge_sys_create(void);
 /*======================*/
 /************************************************************************
 Adds the update undo log as the first log in the history list. Removes the
 update undo log segment from the rseg slot if it is too big for reuse. */
-
+UNIV_INTERN
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
@@ -67,7 +67,7 @@ trx_purge_add_update_undo_to_history(
 /************************************************************************
 Fetches the next undo log record from the history list to purge. It must be
 released with the corresponding release function. */
-
+UNIV_INTERN
 trx_undo_rec_t*
 trx_purge_fetch_next_rec(
 /*=====================*/
@@ -81,14 +81,14 @@ trx_purge_fetch_next_rec(
 	mem_heap_t*	heap);	/* in: memory heap where copied */
 /***********************************************************************
 Releases a reserved purge undo record. */
-
+UNIV_INTERN
 void
 trx_purge_rec_release(
 /*==================*/
 	trx_undo_inf_t*	cell);	/* in: storage cell */
 /***********************************************************************
 This function runs a purge batch. */
-
+UNIV_INTERN
 ulint
 trx_purge(void);
 /*===========*/
@@ -96,7 +96,7 @@ trx_purge(void);
 				the batch */
 /**********************************************************************
 Prints information of the purge system to stderr. */
-
+UNIV_INTERN
 void
 trx_purge_sys_print(void);
 /*======================*/

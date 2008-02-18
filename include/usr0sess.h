@@ -21,7 +21,7 @@ Created 6/25/1996 Heikki Tuuri
 
 /*************************************************************************
 Opens a session. */
-
+UNIV_INTERN
 sess_t*
 sess_open(void);
 /*============*/
@@ -29,7 +29,7 @@ sess_open(void);
 /*************************************************************************
 Closes a session, freeing the memory occupied by it, if it is in a state
 where it should be closed. */
-
+UNIV_INTERN
 ibool
 sess_try_close(
 /*===========*/

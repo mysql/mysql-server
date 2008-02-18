@@ -45,7 +45,7 @@ typedef struct merge_index_def_struct merge_index_def_t;
 
 /*************************************************************************
 Sets an exclusive lock on a table, for the duration of creating indexes. */
-
+UNIV_INTERN
 ulint
 row_merge_lock_table(
 /*=================*/
@@ -55,7 +55,7 @@ row_merge_lock_table(
 	enum lock_mode	mode);		/* in: LOCK_X or LOCK_S */
 /*************************************************************************
 Drop an index from the InnoDB system tables. */
-
+UNIV_INTERN
 void
 row_merge_drop_index(
 /*=================*/
@@ -65,7 +65,7 @@ row_merge_drop_index(
 /*************************************************************************
 Drop those indexes which were created before an error occurred
 when building an index. */
-
+UNIV_INTERN
 void
 row_merge_drop_indexes(
 /*===================*/
@@ -75,13 +75,13 @@ row_merge_drop_indexes(
 	ulint		num_created);	/* in: number of elements in index[] */
 /*************************************************************************
 Drop all partially created indexes during crash recovery. */
-
+UNIV_INTERN
 void
 row_merge_drop_temp_indexes(void);
 /*=============================*/
 /*************************************************************************
 Rename the tables in the data dictionary. */
-
+UNIV_INTERN
 ulint
 row_merge_rename_tables(
 /*====================*/
@@ -96,7 +96,7 @@ row_merge_rename_tables(
 /*************************************************************************
 Create a temporary table for creating a primary key, using the definition
 of an existing table. */
-
+UNIV_INTERN
 dict_table_t*
 row_merge_create_temporary_table(
 /*=============================*/
@@ -110,7 +110,7 @@ row_merge_create_temporary_table(
 						(sets error_state) */
 /*************************************************************************
 Rename the temporary indexes in the dictionary to permanent ones. */
-
+UNIV_INTERN
 ulint
 row_merge_rename_indexes(
 /*=====================*/
@@ -119,7 +119,7 @@ row_merge_rename_indexes(
 	dict_table_t*	table);		/* in/out: table with new indexes */
 /*************************************************************************
 Create the index and load in to the dictionary. */
-
+UNIV_INTERN
 dict_index_t*
 row_merge_create_index(
 /*===================*/
@@ -131,7 +131,7 @@ row_merge_create_index(
 #ifdef ROW_MERGE_IS_INDEX_USABLE
 /*************************************************************************
 Check if a transaction can use an index. */
-
+UNIV_INTERN
 ibool
 row_merge_is_index_usable(
 /*======================*/
@@ -143,7 +143,7 @@ row_merge_is_index_usable(
 /*************************************************************************
 If there are views that refer to the old table name then we "attach" to
 the new instance of the table else we drop it immediately. */
-
+UNIV_INTERN
 ulint
 row_merge_drop_table(
 /*=================*/
@@ -155,7 +155,7 @@ row_merge_drop_table(
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
 these index entries and inserting sorted index entries to indexes. */
-
+UNIV_INTERN
 ulint
 row_merge_build_indexes(
 /*====================*/

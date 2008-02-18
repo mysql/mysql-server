@@ -273,7 +273,7 @@ mach_dulint_read_much_compressed(
 	__attribute__((nonnull, pure));
 /*************************************************************
 Reads a ulint in a compressed form if the log record fully contains it. */
-
+UNIV_INTERN
 byte*
 mach_parse_compressed(
 /*==================*/
@@ -284,7 +284,7 @@ mach_parse_compressed(
 	ulint*	val);	/* out: read value */
 /*************************************************************
 Reads a dulint in a compressed form if the log record fully contains it. */
-
+UNIV_INTERN
 byte*
 mach_dulint_parse_compressed(
 /*=========================*/

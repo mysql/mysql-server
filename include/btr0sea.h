@@ -19,7 +19,7 @@ Created 2/17/1996 Heikki Tuuri
 
 /*********************************************************************
 Creates and initializes the adaptive search system at a database start. */
-
+UNIV_INTERN
 void
 btr_search_sys_create(
 /*==================*/
@@ -27,13 +27,13 @@ btr_search_sys_create(
 
 /************************************************************************
 Disable the adaptive hash search system and empty the index. */
-
+UNIV_INTERN
 void
 btr_search_disable(void);
 /*====================*/
 /************************************************************************
 Enable the adaptive hash search system. */
-
+UNIV_INTERN
 void
 btr_search_enable(void);
 /*====================*/
@@ -48,7 +48,7 @@ btr_search_get_info(
 	dict_index_t*	index);	/* in: index */
 /*********************************************************************
 Creates and initializes a search info struct. */
-
+UNIV_INTERN
 btr_search_t*
 btr_search_info_create(
 /*===================*/
@@ -67,7 +67,7 @@ Tries to guess the right search position based on the hash search info
 of the index. Note that if mode is PAGE_CUR_LE, which is used in inserts,
 and the function returns TRUE, then cursor->up_match and cursor->low_match
 both have sensible values. */
-
+UNIV_INTERN
 ibool
 btr_search_guess_on_hash(
 /*=====================*/
@@ -87,7 +87,7 @@ Moves or deletes hash entries for moved records. If new_page is already hashed,
 then the hash index for page, if any, is dropped. If new_page is not hashed,
 and page is hashed, then a new hash index is built to new_page with the same
 parameters as page (this often happens when a page is split). */
-
+UNIV_INTERN
 void
 btr_search_move_or_delete_hash_entries(
 /*===================================*/
@@ -100,7 +100,7 @@ btr_search_move_or_delete_hash_entries(
 	dict_index_t*	index);		/* in: record descriptor */
 /************************************************************************
 Drops a page hash index. */
-
+UNIV_INTERN
 void
 btr_search_drop_page_hash_index(
 /*============================*/
@@ -111,7 +111,7 @@ btr_search_drop_page_hash_index(
 /************************************************************************
 Drops a page hash index when a page is freed from a fseg to the file system.
 Drops possible hash index if the page happens to be in the buffer pool. */
-
+UNIV_INTERN
 void
 btr_search_drop_page_hash_when_freed(
 /*=================================*/
@@ -121,7 +121,7 @@ btr_search_drop_page_hash_when_freed(
 	ulint	page_no);	/* in: page number */
 /************************************************************************
 Updates the page hash index when a single record is inserted on a page. */
-
+UNIV_INTERN
 void
 btr_search_update_hash_node_on_insert(
 /*==================================*/
@@ -131,7 +131,7 @@ btr_search_update_hash_node_on_insert(
 				to the cursor */
 /************************************************************************
 Updates the page hash index when a single record is inserted on a page. */
-
+UNIV_INTERN
 void
 btr_search_update_hash_on_insert(
 /*=============================*/
@@ -141,7 +141,7 @@ btr_search_update_hash_on_insert(
 				to the cursor */
 /************************************************************************
 Updates the page hash index when a single record is deleted from a page. */
-
+UNIV_INTERN
 void
 btr_search_update_hash_on_delete(
 /*=============================*/
@@ -150,7 +150,7 @@ btr_search_update_hash_on_delete(
 				the record is not yet deleted */
 /************************************************************************
 Validates the search system. */
-
+UNIV_INTERN
 ibool
 btr_search_validate(void);
 /*======================*/
