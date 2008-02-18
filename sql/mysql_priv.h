@@ -74,7 +74,6 @@ extern const char *primary_key_name;
 #include "mysql_com.h"
 #include <violite.h>
 #include "unireg.h"
-#define IS_NUM(t)	((t) <= FIELD_TYPE_INT24 || (t) == FIELD_TYPE_YEAR || (t) == FIELD_TYPE_NEWDECIMAL)
 
 void init_sql_alloc(MEM_ROOT *root, uint block_size, uint pre_alloc_size);
 void *sql_alloc(size_t);
