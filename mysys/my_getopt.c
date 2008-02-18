@@ -795,10 +795,10 @@ static longlong getopt_ll(char *arg, const struct my_option *optp, int *err)
 */
 
 longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
-                               bool *fix)
+                               my_bool *fix)
 {
   longlong old= num;
-  bool adjusted= FALSE;
+  my_bool adjusted= FALSE;
   char buf1[255], buf2[255];
   ulonglong block_size= (optp->block_size ? (ulonglong) optp->block_size : 1L);
 
@@ -864,9 +864,9 @@ static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 
 
 ulonglong getopt_ull_limit_value(ulonglong num, const struct my_option *optp,
-                                 bool *fix)
+                                 my_bool *fix)
 {
-  bool adjusted= FALSE;
+  my_bool adjusted= FALSE;
   ulonglong old= num;
   char buf1[255], buf2[255];
 

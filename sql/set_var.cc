@@ -1221,7 +1221,7 @@ static void throw_bounds_warning(THD *thd, const char *name, ulonglong num)
 static ulonglong fix_unsigned(THD *thd, ulonglong num,
                               const struct my_option *option_limits)
 {
-  bool fixed= FALSE;
+  my_bool fixed= FALSE;
   ulonglong out= getopt_ull_limit_value(num, option_limits, &fixed);
 
   if (fixed)
@@ -1281,7 +1281,7 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
 
 void sys_var_long_ptr_global::set_default(THD *thd, enum_var_type type)
 {
-  bool not_used;
+  my_bool not_used;
   pthread_mutex_lock(guard);
   *value= (ulong) getopt_ull_limit_value((ulong) option_limits->def_value,
                                          option_limits, &not_used);
@@ -1304,7 +1304,7 @@ bool sys_var_ulonglong_ptr::update(THD *thd, set_var *var)
 
 void sys_var_ulonglong_ptr::set_default(THD *thd, enum_var_type type)
 {
-  bool not_used;
+  my_bool not_used;
   pthread_mutex_lock(&LOCK_global_system_variables);
   *value= getopt_ull_limit_value((ulonglong) option_limits->def_value,
                                  option_limits, &not_used);
@@ -1383,7 +1383,7 @@ void sys_var_thd_ulong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
-    bool not_used;
+    my_bool not_used;
     /* We will not come here if option_limits is not set */
     global_system_variables.*offset=
       (ulong) getopt_ull_limit_value((ulong) option_limits->def_value,
@@ -1430,7 +1430,7 @@ void sys_var_thd_ha_rows::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
-    bool not_used;
+    my_bool not_used;
     /* We will not come here if option_limits is not set */
     pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset=
@@ -1482,7 +1482,7 @@ void sys_var_thd_ulonglong::set_default(THD *thd, enum_var_type type)
 {
   if (type == OPT_GLOBAL)
   {
-    bool not_used;
+    my_bool not_used;
     pthread_mutex_lock(&LOCK_global_system_variables);
     global_system_variables.*offset=
       getopt_ull_limit_value((ulonglong) option_limits->def_value,

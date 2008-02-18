@@ -3388,7 +3388,7 @@ static void read_binary_time(MYSQL_TIME *tm, uchar **pos)
   if (length)
   {
     uchar *to= *pos;
-    tm->neg= (bool) to[0];
+    tm->neg=    to[0];
 
     tm->day=    (ulong) sint4korr(to+1);
     tm->hour=   (uint) to[5];
@@ -4218,7 +4218,7 @@ static my_bool is_binary_compatible(enum enum_field_types type1,
   for (range= range_list; range != range_list_end; ++range)
   {
     /* check that both type1 and type2 are in the same range */
-    bool type1_found= FALSE, type2_found= FALSE;
+    my_bool type1_found= FALSE, type2_found= FALSE;
     for (type= *range; *type != MYSQL_TYPE_NULL; type++)
     {
       type1_found|= type1 == *type;

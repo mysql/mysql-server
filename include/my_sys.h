@@ -963,12 +963,12 @@ extern CHARSET_INFO *get_charset_by_name(const char *cs_name, myf flags);
 extern CHARSET_INFO *get_charset_by_csname(const char *cs_name,
 					   uint cs_flags, myf my_flags);
 
-extern bool resolve_charset(const char *cs_name,
-                            CHARSET_INFO *default_cs,
-                            CHARSET_INFO **cs);
-extern bool resolve_collation(const char *cl_name,
-                              CHARSET_INFO *default_cl,
-                              CHARSET_INFO **cl);
+extern my_bool resolve_charset(const char *cs_name,
+                               CHARSET_INFO *default_cs,
+                               CHARSET_INFO **cs);
+extern my_bool resolve_collation(const char *cl_name,
+                                 CHARSET_INFO *default_cl,
+                                 CHARSET_INFO **cl);
 
 extern void free_charsets(void);
 extern char *get_charsets_dir(char *buf);

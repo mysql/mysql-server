@@ -160,9 +160,9 @@ int maria_write(MARIA_HA *info, uchar *record)
   {
     if (maria_is_key_active(share->state.key_map, i))
     {
-      bool local_lock_tree= (lock_tree &&
-			     !(info->bulk_insert &&
-			       is_tree_inited(&info->bulk_insert[i])));
+      my_bool local_lock_tree= (lock_tree &&
+                                !(info->bulk_insert &&
+                                  is_tree_inited(&info->bulk_insert[i])));
       if (local_lock_tree)
       {
 	rw_wrlock(&share->key_root_lock[i]);
@@ -271,9 +271,9 @@ err:
     {
       if (maria_is_key_active(share->state.key_map, i))
       {
-	bool local_lock_tree= (lock_tree &&
-			       !(info->bulk_insert &&
-				 is_tree_inited(&info->bulk_insert[i])));
+	my_bool local_lock_tree= (lock_tree &&
+                                  !(info->bulk_insert &&
+                                    is_tree_inited(&info->bulk_insert[i])));
 	if (local_lock_tree)
 	  rw_wrlock(&share->key_root_lock[i]);
         /**

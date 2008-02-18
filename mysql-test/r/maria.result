@@ -1923,30 +1923,6 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 drop table t1;
-create table t1 (a int) row_format=page;
-insert delayed into t1 values(1);
-ERROR HY000: Table storage engine for 't1' doesn't have this option
-drop table t1;
-create table t1 (a int) row_format=page transactional=0;
-insert delayed into t1 values(1);
-flush table t1;
-select * from t1;
-a
-1
-select count(*) from t1;
-count(*)
-1
-drop table t1;
-create table t1 (a int) row_format=dynamic;
-insert delayed into t1 values(1);
-flush table t1;
-select * from t1;
-a
-1
-select count(*) from t1;
-count(*)
-1
-drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,
 t1_id int(10) unsigned not null auto_increment,
