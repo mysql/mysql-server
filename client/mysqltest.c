@@ -7330,7 +7330,7 @@ void timer_output(void)
 
 ulonglong timer_now(void)
 {
-  return my_getsystime() / 10000;
+  return my_micro_time() / 1000;
 }
 
 

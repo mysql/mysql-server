@@ -257,8 +257,10 @@ inline double ulonglong2double(ulonglong value)
 #define tell(A) _telli64(A)
 #endif
 
-
 #define STACK_DIRECTION -1
+
+/* Difference between GetSystemTimeAsFileTime() and now() */
+#define OFFSET_TO_EPOCH ULL(116444736000000000)
 
 /* Optimized store functions for Intel x86 */
 
