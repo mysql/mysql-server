@@ -276,7 +276,7 @@ void _downheap(register QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,offset_to_key, next_index;
-  bool first= TRUE;
+  my_bool first= TRUE;
   uint start_idx= idx;
 
   offset_to_key=queue->offset_to_key;
