@@ -12,6 +12,10 @@
 #define MYSQL_SERVER 1
 #include "mysql_priv.h"
 
+unsigned long my_getphyspages() {
+    return sysconf(_SC_PHYS_PAGES);
+}
+
 #undef PACKAGE
 #undef VERSION
 #undef HAVE_DTRACE
@@ -223,6 +227,12 @@ static int tokudb_init_func(void *p) {
     }
 
     // config the cache table
+    if (tokudb_cache_size == 0) {
+        unsigned long pagesize = my_getpagesize();
+        unsigned long long npages = my_getphyspages();
+        unsigned long long physmem = npages * pagesize;
+        tokudb_cache_size = physmem / 8;
+    }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
         DBUG_PRINT("info", ("tokudb_cache_parts: %ld\n", tokudb_cache_parts));
@@ -235,7 +245,7 @@ static int tokudb_init_func(void *p) {
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
-        printf("tokudb_cache_size %lld\n", (unsigned long long) gbytes << 30 + bytes);
+        printf("tokudb_cache_size %lld\n", ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
