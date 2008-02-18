@@ -5,7 +5,7 @@
 #include <m_string.h>
 #include "cclass.h"
 
-static bool regex_inited=0;
+static my_bool regex_inited=0;
 
 void my_regex_init(CHARSET_INFO *cs)
 {
