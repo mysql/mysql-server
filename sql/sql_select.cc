@@ -11107,7 +11107,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        return NESTED_LOOP_OK;
+        return NESTED_LOOP_NO_MORE_ROWS;
     }
     else
       join_tab->read_record.file->unlock_row();
