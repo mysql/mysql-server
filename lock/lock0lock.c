@@ -3167,6 +3167,8 @@ lock_update_delete(
 	ulint		heap_no;
 	ulint		next_heap_no;
 
+	ut_ad(page == page_align(rec));
+
 	if (page_is_comp(page)) {
 		heap_no = rec_get_heap_no_new(rec);
 		next_heap_no = rec_get_heap_no_new(page
@@ -4875,17 +4877,16 @@ lock_rec_insert_check_and_lock(
 
 	trx = thr_get_trx(thr);
 	next_rec = page_rec_get_next(rec);
+	next_rec_heap_no = page_rec_get_heap_no(next_rec);
 
 	lock_mutex_enter_kernel();
 
 	/* When inserting a record into an index, the table must be at
 	least IX-locked or we must be building an index, in which case
-	the table must be at least IS-locked. */
+	the table must be at least S-locked. */
 	ut_ad(lock_table_has(trx, index->table, LOCK_IX)
 	      || (*index->name == TEMP_INDEX_PREFIX
-		  && lock_table_has(trx, index->table, LOCK_IS)));
-
-	next_rec_heap_no = page_rec_get_heap_no(next_rec);
+		  && lock_table_has(trx, index->table, LOCK_S)));
 
 	lock = lock_rec_get_first(block, next_rec_heap_no);
 
