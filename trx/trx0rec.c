@@ -1464,20 +1464,18 @@ trx_undo_prev_version_build(
 	is less than purge_sys->view, and it is not delete-marked,
 	then the BLOBs in that version are known to exist (the purge
 	cannot have purged the BLOBs referenced by that version
-	yet). */
+	yet).
 
-#if 0 /* This may cause a failure in row_vers_impl_x_locked_off_kernel(). */
-	if ((info_bits & REC_INFO_DELETED_FLAG)
-	     && !trx_purge_update_undo_must_exist(trx_id)) {
-
-		/* The purge may have already freed the externally
-		stored fields associated with this update undo log
-		record.  Do not try to fetch them, as our read view
-		would see this row version as delete-marked anyway. */
-
-		return(DB_SUCCESS);
-	}
-#endif
+	This function does not fetch any BLOBs.  The callers might, by
+	possibly invoking row_ext_create() via row_build().  However,
+	they should have all needed information in the *old_vers
+	returned by this function.  This is because *old_vers is based
+	on the transaction undo log records.  The function
+	trx_undo_page_fetch_ext() will write BLOB prefixes to the
+	transaction undo log that are at least as long as the longest
+	possible column prefix in a secondary index.  Thus, secondary
+	index entries for *old_vers can be constructed without
+	dereferencing any BLOB pointers. */
 
 	ptr = trx_undo_rec_skip_row_ref(ptr, index);
 
