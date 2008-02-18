@@ -79,13 +79,6 @@ os_thread_create(
 	os_thread_id_t*		thread_id);	/* out: id of the created
 						thread, or NULL */
 
-#ifdef HAVE_PTHREAD_JOIN
-UNIV_INTERN
-int
-os_thread_join(
-/*===========*/
-  os_thread_id_t  thread_id);	/* in: id of the thread to join */
-#endif
 /*********************************************************************
 Exits the current thread. */
 UNIV_INTERN
