@@ -73,6 +73,10 @@ extern "C" {
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
+
+/* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
+but we need it here */
+bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
@@ -139,7 +143,7 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool innobase_stats_on_metadata		= TRUE;
-static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
+static my_bool	innobase_adaptive_hash_index		= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -1718,7 +1722,7 @@ innobase_init(
 
 	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
 
-	btr_search_disabled = (ibool) !innobase_use_adaptive_hash_indexes;
+	btr_search_disabled = (ibool) !innobase_adaptive_hash_index;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -4869,6 +4873,12 @@ innodb_check_for_record_too_big_error(
 	}
 }
 
+/* limit innodb monitor access to users with PROCESS privilege.
+See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
+#define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
+	(row_is_magic_monitor_table(table_name) \
+	 && check_global_access(thd, PROCESS_ACL))
+
 /*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
@@ -4904,6 +4914,12 @@ create_table_def(
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
+
+	ut_a(trx->mysql_thd != NULL);
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
+						  (THD*) trx->mysql_thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
 
 	n_cols = form->s->fields;
 
@@ -5457,6 +5473,14 @@ ha_innobase::delete_table(
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
+	/* Strangely, MySQL passes the table name without the '.frm'
+	extension, in contrast to ::create */
+	normalize_table_name(norm_name, name);
+
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -5489,11 +5513,6 @@ ha_innobase::delete_table(
 	name_len = strlen(name);
 
 	ut_a(name_len < 1000);
-
-	/* Strangely, MySQL passes the table name without the '.frm'
-	extension, in contrast to ::create */
-
-	normalize_table_name(norm_name, name);
 
 	/* Drop the table in InnoDB */
 
@@ -8324,9 +8343,10 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(use_adaptive_hash_indexes, innobase_use_adaptive_hash_indexes,
+static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Enable the InnoDB adaptive hash indexes (enabled by default)",
+  "Enable InnoDB adaptive hash index (enabled by default).  "
+  "Disable with --skip-innodb-adaptive-hash-index.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
@@ -8464,7 +8484,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
-  MYSQL_SYSVAR(use_adaptive_hash_indexes),
+  MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),

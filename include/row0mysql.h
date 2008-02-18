@@ -329,7 +329,7 @@ row_mysql_unfreeze_data_dictionary(
 	trx_t*	trx);	/* in: transaction */
 #ifndef UNIV_HOTBACKUP
 /*************************************************************************
-Drops a table for MySQL. If the name of the table ends in
+Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
@@ -489,6 +489,16 @@ row_check_table_for_mysql(
 	row_prebuilt_t*	prebuilt);	/* in: prebuilt struct in MySQL
 					handle */
 #endif /* !UNIV_HOTBACKUP */
+
+/*************************************************************************
+Determines if a table is a magic monitor table. */
+UNIV_INTERN
+ibool
+row_is_magic_monitor_table(
+/*=======================*/
+					/* out: TRUE if monitor table */
+	const char*	table_name);	/* in: name of the table, in the
+					form database/table_name */
 
 /* A struct describing a place for an individual column in the MySQL
 row format which is presented to the table handler in ha_innobase.
