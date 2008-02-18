@@ -3232,10 +3232,7 @@ lock_rec_restore_from_page_infimum(
 /*===============================*/
 	const buf_block_t*	block,	/* in: buffer block containing rec */
 	const rec_t*		rec,	/* in: record whose lock state
-					is stored on the infimum
-					record of the same page; lock
-					bits are reset on the
-					record */
+					is restored */
 	const buf_block_t*	donator)/* in: page (rec is not
 					necessarily on this page)
 					whose infimum stored the lock
@@ -5170,6 +5167,7 @@ lock_sec_rec_read_check_and_lock(
 	ut_ad(block->frame == page_align(rec));
 	ut_ad(page_rec_is_user_rec(rec) || page_rec_is_supremum(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
+	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	if (flags & BTR_NO_LOCKING_FLAG) {
 
