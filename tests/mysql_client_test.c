@@ -16861,16 +16861,16 @@ static void bug20023_change_user(MYSQL *con)
                            opt_db ? opt_db : "test"));
 }
 
-static bool query_int_variable(MYSQL *con,
-                               const char *var_name,
-                               int *var_value)
+static my_bool query_int_variable(MYSQL *con,
+                                  const char *var_name,
+                                  int *var_value)
 {
   MYSQL_RES *rs;
   MYSQL_ROW row;
 
   char query_buffer[MAX_TEST_QUERY_LENGTH];
 
-  bool is_null;
+  my_bool is_null;
 
   my_snprintf(query_buffer,
           sizeof (query_buffer),
@@ -17049,7 +17049,7 @@ static void bug31418_impl()
 {
   MYSQL con;
 
-  bool is_null;
+  my_bool is_null;
   int rc;
 
   /* Create a new connection. */
