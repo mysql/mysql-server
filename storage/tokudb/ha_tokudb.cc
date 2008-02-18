@@ -1,7 +1,8 @@
-/* QQQ open questions
+/* QQQ
    how to parallelize handlers on the same table?
    what does bdb_return_if_eq do?
-   
+   HA_END_SPACE_KEY is obsolete. include/my_base.h
+   CFLAGS += -Wall
  */
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
@@ -102,9 +103,11 @@ static bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * pri
 static int tokudb_close_connection(handlerton * hton, THD * thd);
 static int tokudb_commit(handlerton * hton, THD * thd, bool all);
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all);
+#if 0
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
+#endif
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print);
 
 static HASH tokudb_open_tables;
@@ -165,11 +168,13 @@ static int tokudb_init_func(void *p) {
 #endif
 
     tokudb_hton->create = tokudb_create_handler;
-    tokudb_hton->savepoint_offset = sizeof(DB_TXN *);
     tokudb_hton->close_connection = tokudb_close_connection;
+#if 0
+    tokudb_hton->savepoint_offset = sizeof(DB_TXN *);
     tokudb_hton->savepoint_set = tokudb_savepoint;
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
+#endif
     tokudb_hton->commit = tokudb_commit;
     tokudb_hton->rollback = tokudb_rollback;
     tokudb_hton->panic = tokudb_end;
@@ -222,7 +227,10 @@ static int tokudb_init_func(void *p) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
         DBUG_PRINT("info", ("tokudb_cache_parts: %ld\n", tokudb_cache_parts));
         r = db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), tokudb_cache_parts);
-        if (r) goto error; 
+        if (r) {
+            DBUG_PRINT("info", ("set_cachesize %d\n", r));
+            goto error; 
+        }
     }
     u_int32_t gbytes, bytes; int parts;
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
@@ -237,18 +245,22 @@ static int tokudb_init_func(void *p) {
     db_env->set_lg_bsize(db_env, tokudb_log_buffer_size);
     // DBUG_PRINT("info",("tokudb_region_size: %ld\n", tokudb_region_size));
     // db_env->set_lg_regionmax(db_env, tokudb_region_size);
+#endif
 
-    // QQQ config the locks
+    // config the locks
+#if 0 // QQQ no lock types yet
     DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
     db_env->set_lk_detect(db_env, tokudb_lock_type);
-    // set_lk_max deprecated, use set_lk_max_locks
-    // if (tokudb_max_lock) {
-    //  DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
-    //  db_env->set_lk_max_locks(db_env, tokudb_max_lock);
-    // }
-    u_int32_t n;
-    r = db_env->get_lk_max_locks(db_env, &n);
-    printf("tokudb_max_locks %d %d\n", r, n);
+#endif
+#if 0 // QQQ not yet
+    if (tokudb_max_lock) {
+        DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
+        r = db_env->set_lk_max_locks(db_env, tokudb_max_lock);
+        if (r) {
+            DBUG_PRINT("info", ("tokudb_set_max_locks %d\n", r));
+            goto error;
+        }
+    }
 #endif
 
     if ((r = db_env->open(db_env, tokudb_home, 
@@ -429,6 +441,8 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DBUG_RETURN(error);
 }
 
+#if 0
+
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     DBUG_ENTER("tokudb_savepoint");
     int error;
@@ -473,6 +487,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 #endif
     DBUG_RETURN(error);
 }
+#endif
 
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     DBUG_ENTER("tokudb_show_logs");
@@ -560,6 +575,7 @@ void tokudb_cleanup_log_files(void) {
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
 :  
     handler(hton, table_arg), alloc_ptr(0), rec_buff(0), file(0),
+    // QQQ what do these flags do?
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
     changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0) {
@@ -574,6 +590,7 @@ const char **ha_tokudb::bas_ext() const {
     return ha_tokudb_exts;
 }
 
+// QQQ what do these flags do?
 ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
     for (uint i = all_parts ? 0 : part; i <= part; i++) {
@@ -2159,7 +2176,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
   This is to be comparable to the number returned by records_in_range so
   that we can decide if we should scan the table or use keys.
 */
-
+/// QQQ why divide by 3
 double ha_tokudb::scan_time() {
     return rows2double(stats.records / 3);
 }
@@ -2249,7 +2266,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         {
             /* Modify the compare so that we will find the next key */
             key_info->handler.bdb_return_if_eq = 1;
-            /* We lock the next key as the new key will probl. be on the same page */
+            /* QQQ We lock the next key as the new key will probl. be on the same page */
             error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE | DB_RMW);
             key_info->handler.bdb_return_if_eq = 0;
             if (!error || error == DB_NOTFOUND) {
@@ -2278,6 +2295,7 @@ void ha_tokudb::print_error(int error, myf errflag) {
     handler::print_error(error, errflag);
 }
 
+#if 0 // QQQ use default
 int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
 #if 0 // QQQ need stat
     uint i;
@@ -2322,16 +2340,21 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
     return HA_ADMIN_NOT_IMPLEMENTED;
 #endif
 }
+#endif
 
+#if 0 // QQQ use default
 int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     return ha_tokudb::analyze(thd, check_opt);
 }
+#endif
 
+#if 0 // QQQ use default
 int ha_tokudb::check(THD * thd, HA_CHECK_OPT * check_opt) {
     DBUG_ENTER("ha_tokudb::check");
     DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
     // look in old_ha_tokudb.cc for a start of an implementation
 }
+#endif
 
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
@@ -2378,7 +2401,6 @@ static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "
 
 static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 #endif
-
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
 #if 0
     MYSQL_SYSVAR(cache_size),
@@ -2399,7 +2421,11 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
 };
 
 mysql_declare_plugin(tokudb) {
-    MYSQL_STORAGE_ENGINE_PLUGIN, &storage_engine_structure, "TokuDB", "Tokutek Inc", "Supports transactions and page-level locking", 
+    MYSQL_STORAGE_ENGINE_PLUGIN, 
+    &storage_engine_structure, 
+    "TokuDB", 
+    "Tokutek Inc", 
+    "Supports transactions and row locking", 
     PLUGIN_LICENSE_BSD,        /* QQQ license? */
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */

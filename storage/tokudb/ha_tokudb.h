@@ -89,11 +89,11 @@ class ha_tokudb : public handler {
     int create(const char *name, TABLE * form, HA_CREATE_INFO * create_info);
     int delete_table(const char *name);
     int rename_table(const char *from, const char *to);
-
+#if 0
     int analyze(THD * thd, HA_CHECK_OPT * check_opt);
     int optimize(THD * thd, HA_CHECK_OPT * check_opt);
     int check(THD * thd, HA_CHECK_OPT * check_opt);
-
+#endif
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
