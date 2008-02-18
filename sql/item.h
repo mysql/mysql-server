@@ -1842,6 +1842,7 @@ public:
   Item_string(const char *str,uint length,
               CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
+    : m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -1860,6 +1861,7 @@ public:
   }
   /* Just create an item and do not fill string representation */
   Item_string(CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE)
+    : m_cs_specified(FALSE)
   {
     collation.set(cs, dv);
     max_length= 0;
@@ -1870,6 +1872,7 @@ public:
   Item_string(const char *name_par, const char *str, uint length,
               CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
+    : m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(str, length, cs);
     collation.set(cs, dv, repertoire);
@@ -1923,6 +1926,48 @@ public:
   // to prevent drop fixed flag (no need parent cleanup call)
   void cleanup() {}
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
+
+  /**
+    Return TRUE if character-set-introducer was explicitly specified in the
+    original query for this item (text literal).
+
+    This operation is to be called from Item_string::print(). The idea is
+    that when a query is generated (re-constructed) from the Item-tree,
+    character-set-introducers should appear only for those literals, where
+    they were explicitly specified by the user. Otherwise, that may lead to
+    loss collation information (character set introducers implies default
+    collation for the literal).
+
+    Basically, that makes sense only for views and hopefully will be gone
+    one day when we start using original query as a view definition.
+
+    @return This operation returns the value of m_cs_specified attribute.
+      @retval TRUE if character set introducer was explicitly specified in
+      the original query.
+      @retval FALSE otherwise.
+  */
+  inline bool is_cs_specified() const
+  {
+    return m_cs_specified;
+  }
+
+  /**
+    Set the value of m_cs_specified attribute.
+
+    m_cs_specified attribute shows whether character-set-introducer was
+    explicitly specified in the original query for this text literal or
+    not. The attribute makes sense (is used) only for views.
+
+    This operation is to be called from the parser during parsing an input
+    query.
+  */
+  inline void set_cs_specified(bool cs_specified)
+  {
+    m_cs_specified= cs_specified;
+  }
+
+private:
+  bool m_cs_specified;
 };
 
 

@@ -3468,7 +3468,9 @@ set @@sql_mode=@old_mode;
 drop view v1;
 drop table t1;
 
---echo End of 5.0 tests.
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.0 tests.
+--echo # -----------------------------------------------------------------
 
 #
 # Bug#21370 View renaming lacks tablename_to_filename encoding
@@ -3540,4 +3542,67 @@ DROP TABLE t1;
 --echo # End of test case for Bug#26676.
 --echo
 
---echo End of 5.1 tests.
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#32538: View definition picks up character set, but not collation
+--echo # -----------------------------------------------------------------
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+--echo
+
+SET collation_connection = latin1_general_ci;
+CREATE VIEW v1 AS SELECT _latin1 'text1' AS c1, 'text2' AS c2;
+
+--echo
+
+SELECT COLLATION(c1), COLLATION(c2) FROM v1;
+
+--echo
+
+SHOW CREATE VIEW v1;
+
+--echo
+
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM v1 WHERE c1 = 'text1';
+
+--echo
+
+SELECT * FROM v1 WHERE c2 = 'text2';
+
+--echo
+
+use test;
+SET names latin1;
+
+--echo
+
+SELECT COLLATION(c1), COLLATION(c2) FROM v1;
+
+--echo
+
+SELECT * FROM v1 WHERE c1 = 'text1';
+
+--echo
+
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM v1 WHERE c2 = 'text2';
+
+--echo
+
+DROP VIEW v1;
+
+--echo
+--echo # -- End of test case for Bug#32538.
+--echo
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.1 tests.
+--echo # -----------------------------------------------------------------

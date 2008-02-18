@@ -33,3 +33,14 @@ SELECT IS_USED_LOCK('bug31418') = CONNECTION_ID();
 --change_user
 SELECT IS_FREE_LOCK('bug31418');
 SELECT IS_USED_LOCK('bug31418');
+
+#
+# Bug#31222: com_% global status counters behave randomly with
+# mysql_change_user.
+#
+# Moved to not_embedded_server.test due to Bug#34517: SHOW GLOBAL STATUS does
+# not work properly in embedded server.
+#
+# TODO: move it back when Bug#34517 is fixed (don't forget to add
+# --force-restart into change_user-master.opt).
+#
