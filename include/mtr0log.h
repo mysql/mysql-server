@@ -16,7 +16,7 @@ Created 12/7/1995 Heikki Tuuri
 /************************************************************
 Writes 1 - 4 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-
+UNIV_INTERN
 void
 mlog_write_ulint(
 /*=============*/
@@ -27,7 +27,7 @@ mlog_write_ulint(
 /************************************************************
 Writes 8 bytes to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-
+UNIV_INTERN
 void
 mlog_write_dulint(
 /*==============*/
@@ -37,7 +37,7 @@ mlog_write_dulint(
 /************************************************************
 Writes a string to a file page buffered in the buffer pool. Writes the
 corresponding log record to the mini-transaction log. */
-
+UNIV_INTERN
 void
 mlog_write_string(
 /*==============*/
@@ -48,7 +48,7 @@ mlog_write_string(
 /************************************************************
 Logs a write of a string to a file page buffered in the buffer pool.
 Writes the corresponding log record to the mini-transaction log. */
-
+UNIV_INTERN
 void
 mlog_log_string(
 /*============*/
@@ -58,7 +58,7 @@ mlog_log_string(
 /************************************************************
 Writes initial part of a log record consisting of one-byte item
 type and four-byte space and page numbers. */
-
+UNIV_INTERN
 void
 mlog_write_initial_log_record(
 /*==========================*/
@@ -91,7 +91,7 @@ mlog_catenate_ulint(
 	ulint	type);	/* in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 /************************************************************
 Catenates n bytes to the mtr log. */
-
+UNIV_INTERN
 void
 mlog_catenate_string(
 /*=================*/
@@ -150,7 +150,7 @@ mlog_write_initial_log_record_fast(
 	mtr_t*		mtr);	/* in: mtr */
 /************************************************************
 Parses an initial log record written by mlog_write_initial_log_record. */
-
+UNIV_INTERN
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
@@ -163,7 +163,7 @@ mlog_parse_initial_log_record(
 	ulint*	page_no);/* out: page number */
 /************************************************************
 Parses a log record written by mlog_write_ulint or mlog_write_dulint. */
-
+UNIV_INTERN
 byte*
 mlog_parse_nbytes(
 /*==============*/
@@ -176,7 +176,7 @@ mlog_parse_nbytes(
 	void*	page_zip);/* in/out: compressed page, or NULL */
 /************************************************************
 Parses a log record written by mlog_write_string. */
-
+UNIV_INTERN
 byte*
 mlog_parse_string(
 /*==============*/
@@ -193,7 +193,7 @@ Opens a buffer for mlog, writes the initial log record and,
 if needed, the field lengths of an index.  Reserves space
 for further log entries.  The log entry must be closed with
 mtr_close(). */
-
+UNIV_INTERN
 byte*
 mlog_open_and_write_index(
 /*======================*/
@@ -208,7 +208,7 @@ mlog_open_and_write_index(
 
 /************************************************************
 Parses a log record written by mlog_open_and_write_index. */
-
+UNIV_INTERN
 byte*
 mlog_parse_index(
 /*=============*/

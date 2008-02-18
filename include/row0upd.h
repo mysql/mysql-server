@@ -64,7 +64,7 @@ upd_field_set_field_no(
 /*************************************************************************
 Writes into the redo log the values of trx id and roll ptr and enough info
 to determine their positions within a clustered index record. */
-
+UNIV_INTERN
 byte*
 row_upd_write_sys_vals_to_log(
 /*==========================*/
@@ -91,7 +91,7 @@ row_upd_rec_sys_fields(
 	dulint		roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
 Sets the trx id or roll ptr field of a clustered index entry. */
-
+UNIV_INTERN
 void
 row_upd_index_entry_sys_field(
 /*==========================*/
@@ -104,7 +104,7 @@ row_upd_index_entry_sys_field(
 	dulint		val);	/* in: value to write */
 /*************************************************************************
 Creates an update node for a query graph. */
-
+UNIV_INTERN
 upd_node_t*
 upd_node_create(
 /*============*/
@@ -112,7 +112,7 @@ upd_node_create(
 	mem_heap_t*	heap);	/* in: mem heap where created */
 /***************************************************************
 Writes to the redo log the new values of the fields occurring in the index. */
-
+UNIV_INTERN
 void
 row_upd_index_write_log(
 /*====================*/
@@ -125,7 +125,7 @@ row_upd_index_write_log(
 /***************************************************************
 Returns TRUE if row update changes size of some field in index or if some
 field to be updated is stored externally in rec or update. */
-
+UNIV_INTERN
 ibool
 row_upd_changes_field_size_or_external(
 /*===================================*/
@@ -138,7 +138,7 @@ row_upd_changes_field_size_or_external(
 /***************************************************************
 Replaces the new column values stored in the update vector to the record
 given. No field size changes are allowed. */
-
+UNIV_INTERN
 void
 row_upd_rec_in_place(
 /*=================*/
@@ -152,7 +152,7 @@ row_upd_rec_in_place(
 Builds an update vector from those fields which in a secondary index entry
 differ from a record that has the equal ordering fields. NOTE: we compare
 the fields as binary strings! */
-
+UNIV_INTERN
 upd_t*
 row_upd_build_sec_rec_difference_binary(
 /*====================================*/
@@ -167,7 +167,7 @@ row_upd_build_sec_rec_difference_binary(
 Builds an update vector from those fields, excluding the roll ptr and
 trx id fields, which in an index entry differ from a record that has
 the equal ordering fields. NOTE: we compare the fields as binary strings! */
-
+UNIV_INTERN
 upd_t*
 row_upd_build_difference_binary(
 /*============================*/
@@ -181,7 +181,7 @@ row_upd_build_difference_binary(
 /***************************************************************
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
+UNIV_INTERN
 void
 row_upd_index_replace_new_col_vals_index_pos(
 /*=========================================*/
@@ -209,7 +209,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 /***************************************************************
 Replaces the new column values stored in the update vector to the index entry
 given. */
-
+UNIV_INTERN
 void
 row_upd_index_replace_new_col_vals(
 /*===============================*/
@@ -232,7 +232,7 @@ row_upd_index_replace_new_col_vals(
 				stored columns or column prefixes */
 /***************************************************************
 Replaces the new column values stored in the update vector. */
-
+UNIV_INTERN
 void
 row_upd_replace(
 /*============*/
@@ -252,7 +252,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings! */
-
+UNIV_INTERN
 ibool
 row_upd_changes_ord_field_binary(
 /*=============================*/
@@ -273,7 +273,7 @@ Checks if an update vector changes an ordering field of an index record.
 This function is fast if the update vector is short or the number of ordering
 fields in the index is small. Otherwise, this can be quadratic.
 NOTE: we compare the fields as binary strings! */
-
+UNIV_INTERN
 ibool
 row_upd_changes_some_index_ord_field_binary(
 /*========================================*/
@@ -285,7 +285,7 @@ row_upd_changes_some_index_ord_field_binary(
 /***************************************************************
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs. */
-
+UNIV_INTERN
 que_thr_t*
 row_upd_step(
 /*=========*/
@@ -294,7 +294,7 @@ row_upd_step(
 /*************************************************************************
 Performs an in-place update for the current clustered index record in
 select. */
-
+UNIV_INTERN
 void
 row_upd_in_place_in_select(
 /*=======================*/
@@ -303,7 +303,7 @@ row_upd_in_place_in_select(
 	mtr_t*		mtr);		/* in: mtr */
 /*************************************************************************
 Parses the log data of system field values. */
-
+UNIV_INTERN
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
@@ -316,7 +316,7 @@ row_upd_parse_sys_vals(
 /*************************************************************************
 Updates the trx id and roll ptr field in a clustered index record in database
 recovery. */
-
+UNIV_INTERN
 void
 row_upd_rec_sys_fields_in_recovery(
 /*===============================*/
@@ -328,7 +328,7 @@ row_upd_rec_sys_fields_in_recovery(
 	dulint		roll_ptr);/* in: roll ptr of the undo log record */
 /*************************************************************************
 Parses the log data written by row_upd_index_write_log. */
-
+UNIV_INTERN
 byte*
 row_upd_index_parse(
 /*================*/

@@ -183,11 +183,15 @@ Increments a dulint variable by 1. */
 Tests if two dulints are equal. */
 #define UT_DULINT_EQ(D1, D2)	(((D1).low == (D2).low)\
 						&& ((D1).high == (D2).high))
+#ifdef notdefined
 /****************************************************************
 Sort function for dulint arrays. */
+UNIV_INTERN
 void
 ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high);
 /*===============================================================*/
+#endif /* notdefined */
+
 /************************************************************
 The following function calculates the value of an integer n rounded
 to the least product of align_no which is >= n. align_no has to be a

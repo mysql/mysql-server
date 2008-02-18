@@ -39,7 +39,7 @@ do {								\
 Gets the high 32 bits in a ulint. That is makes a shift >> 32,
 but since there seem to be compiler bugs in both gcc and Visual C++,
 we do this by a special conversion. */
-
+UNIV_INTERN
 ulint
 ut_get_high32(
 /*==========*/
@@ -140,7 +140,7 @@ ut_2_exp(
 	ulint	n);	/* in: number */
 /*****************************************************************
 Calculates fast the number rounded up to the nearest power of 2. */
-
+UNIV_INTERN
 ulint
 ut_2_power_up(
 /*==========*/
@@ -155,13 +155,13 @@ store the given number of bits. */
 /**************************************************************
 Returns system time. We do not specify the format of the time returned:
 the only way to manipulate it is to use the function ut_difftime. */
-
+UNIV_INTERN
 ib_time_t
 ut_time(void);
 /*=========*/
 /**************************************************************
 Returns system time. */
-
+UNIV_INTERN
 void
 ut_usectime(
 /*========*/
@@ -172,7 +172,7 @@ ut_usectime(
 Returns the number of microseconds since epoch. Similar to
 time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL. */
-
+UNIV_INTERN
 ullint
 ut_time_us(
 /*=======*/
@@ -181,7 +181,7 @@ ut_time_us(
 
 /**************************************************************
 Returns the difference of two times in seconds. */
-
+UNIV_INTERN
 double
 ut_difftime(
 /*========*/
@@ -190,14 +190,14 @@ ut_difftime(
 	ib_time_t	time1);	/* in: time */
 /**************************************************************
 Prints a timestamp to a file. */
-
+UNIV_INTERN
 void
 ut_print_timestamp(
 /*===============*/
 	FILE*  file); /* in: file where to print */
 /**************************************************************
 Sprintfs a timestamp to a buffer, 13..14 chars plus terminating NUL. */
-
+UNIV_INTERN
 void
 ut_sprintf_timestamp(
 /*=================*/
@@ -205,14 +205,14 @@ ut_sprintf_timestamp(
 /**************************************************************
 Sprintfs a timestamp to a buffer with no spaces and with ':' characters
 replaced by '_'. */
-
+UNIV_INTERN
 void
 ut_sprintf_timestamp_without_extra_chars(
 /*=====================================*/
 	char*	buf); /* in: buffer where to sprintf */
 /**************************************************************
 Returns current year, month, day. */
-
+UNIV_INTERN
 void
 ut_get_year_month_day(
 /*==================*/
@@ -222,7 +222,7 @@ ut_get_year_month_day(
 /*****************************************************************
 Runs an idle loop on CPU. The argument gives the desired delay
 in microseconds on 100 MHz Pentium + Visual C++. */
-
+UNIV_INTERN
 ulint
 ut_delay(
 /*=====*/
@@ -230,7 +230,7 @@ ut_delay(
 	ulint	delay);	/* in: delay in microseconds on 100 MHz Pentium */
 /*****************************************************************
 Prints the contents of a memory buffer in hex and ascii. */
-
+UNIV_INTERN
 void
 ut_print_buf(
 /*=========*/
@@ -240,7 +240,7 @@ ut_print_buf(
 
 /**************************************************************************
 Outputs a NUL-terminated file name, quoted with apostrophes. */
-
+UNIV_INTERN
 void
 ut_print_filename(
 /*==============*/
@@ -255,7 +255,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-
+UNIV_INTERN
 void
 ut_print_name(
 /*==========*/
@@ -270,7 +270,7 @@ Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
 output as two identifiers separated by a period (.),
 as in SQL database_name.identifier. */
-
+UNIV_INTERN
 void
 ut_print_namel(
 /*===========*/
@@ -283,7 +283,7 @@ ut_print_namel(
 
 /**************************************************************************
 Catenate files. */
-
+UNIV_INTERN
 void
 ut_copy_file(
 /*=========*/

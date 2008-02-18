@@ -315,7 +315,7 @@ rec_get_1byte_offs_flag(
 /**********************************************************
 Determine how many of the first n columns in a compact
 physical record are stored externally. */
-
+UNIV_INTERN
 ulint
 rec_get_n_extern_new(
 /*=================*/
@@ -327,7 +327,7 @@ rec_get_n_extern_new(
 /**********************************************************
 The following function determines the offsets to each field
 in the record.	It can reuse a previously allocated array. */
-
+UNIV_INTERN
 ulint*
 rec_get_offsets_func(
 /*=================*/
@@ -352,7 +352,7 @@ rec_get_offsets_func(
 Determine the offset to each field in a leaf-page record
 in ROW_FORMAT=COMPACT.  This is a special case of
 rec_init_offsets() and rec_get_offsets_func(). */
-
+UNIV_INTERN
 void
 rec_init_offsets_comp_ordinary(
 /*===========================*/
@@ -369,7 +369,7 @@ rec_init_offsets_comp_ordinary(
 /**********************************************************
 The following function determines the offsets to each field
 in the record.  It can reuse a previously allocated array. */
-
+UNIV_INTERN
 void
 rec_get_offsets_reverse(
 /*====================*/
@@ -413,7 +413,7 @@ rec_offs_make_valid(
 /****************************************************************
 The following function is used to get the offset to the nth
 data field in an old-style record. */
-
+UNIV_INTERN
 ulint
 rec_get_nth_field_offs_old(
 /*=======================*/
@@ -621,7 +621,7 @@ rec_copy(
 /******************************************************************
 Copies the first n fields of a physical record to a new physical record in
 a buffer. */
-
+UNIV_INTERN
 rec_t*
 rec_copy_prefix_to_buf(
 /*===================*/
@@ -652,7 +652,7 @@ rec_fold(
 	__attribute__((pure));
 /*************************************************************
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
-
+UNIV_INTERN
 void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
@@ -668,7 +668,7 @@ rec_convert_dtuple_to_rec_comp(
 /*************************************************************
 Builds a physical record out of a data tuple and
 stores it into the given buffer. */
-
+UNIV_INTERN
 rec_t*
 rec_convert_dtuple_to_rec(
 /*======================*/
@@ -694,7 +694,7 @@ rec_get_converted_extra_size(
 		__attribute__((const));
 /**************************************************************
 Determines the size of a data tuple in ROW_FORMAT=COMPACT. */
-
+UNIV_INTERN
 ulint
 rec_get_converted_size_comp(
 /*========================*/
@@ -721,7 +721,7 @@ rec_get_converted_size(
 /******************************************************************
 Copies the first n fields of a physical record to a data tuple.
 The fields are copied to the memory heap. */
-
+UNIV_INTERN
 void
 rec_copy_prefix_to_dtuple(
 /*======================*/
@@ -733,7 +733,7 @@ rec_copy_prefix_to_dtuple(
 	mem_heap_t*		heap);		/* in: memory heap */
 /*******************************************************************
 Validates the consistency of a physical record. */
-
+UNIV_INTERN
 ibool
 rec_validate(
 /*=========*/
@@ -742,7 +742,7 @@ rec_validate(
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*******************************************************************
 Prints an old-style physical record. */
-
+UNIV_INTERN
 void
 rec_print_old(
 /*==========*/
@@ -751,7 +751,7 @@ rec_print_old(
 /*******************************************************************
 Prints a physical record in ROW_FORMAT=COMPACT.  Ignores the
 record header. */
-
+UNIV_INTERN
 void
 rec_print_comp(
 /*===========*/
@@ -760,7 +760,7 @@ rec_print_comp(
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*******************************************************************
 Prints a physical record. */
-
+UNIV_INTERN
 void
 rec_print_new(
 /*==========*/
@@ -769,7 +769,7 @@ rec_print_new(
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /*******************************************************************
 Prints a physical record. */
-
+UNIV_INTERN
 void
 rec_print(
 /*======*/

@@ -18,14 +18,14 @@ Checks if there is work to do in the server task queue. If there is, the
 thread starts processing a task. Before leaving, it again checks the task
 queue and picks a new task if any exists. This is called by a SRV_WORKER
 thread. */
-
+UNIV_INTERN
 void
 srv_que_task_queue_check(void);
 /*==========================*/
 /**************************************************************************
 Performs round-robin on the server tasks. This is called by a SRV_WORKER
 thread every second or so. */
-
+UNIV_INTERN
 que_thr_t*
 srv_que_round_robin(
 /*================*/
@@ -35,7 +35,7 @@ srv_que_round_robin(
 /**************************************************************************
 Enqueues a task to server task queue and releases a worker thread, if
 there exists one suspended. */
-
+UNIV_INTERN
 void
 srv_que_task_enqueue(
 /*=================*/
@@ -43,7 +43,7 @@ srv_que_task_enqueue(
 /**************************************************************************
 Enqueues a task to server task queue and releases a worker thread, if
 there exists one suspended. */
-
+UNIV_INTERN
 void
 srv_que_task_enqueue_low(
 /*=====================*/

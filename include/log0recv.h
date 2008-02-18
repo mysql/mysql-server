@@ -21,7 +21,7 @@ extern ibool	recv_replay_file_ops;
 
 /***********************************************************************
 Reads the checkpoint info needed in hot backup. */
-
+UNIV_INTERN
 ibool
 recv_read_cp_info_for_backup(
 /*=========================*/
@@ -40,7 +40,7 @@ recv_read_cp_info_for_backup(
 /***********************************************************************
 Scans the log segment and n_bytes_scanned is set to the length of valid
 log scanned. */
-
+UNIV_INTERN
 void
 recv_scan_log_seg_for_backup(
 /*=========================*/
@@ -71,7 +71,7 @@ recv_recovery_from_backup_is_on(void);
 Applies the hashed log records to the page, if the page lsn is less than the
 lsn of a log record. This can be called when a buffer page has just been
 read in, or also for a page already in the buffer pool. */
-
+UNIV_INTERN
 void
 recv_recover_page(
 /*==============*/
@@ -89,7 +89,7 @@ Recovers from a checkpoint. When this function returns, the database is able
 to start processing of new user transactions, but the function
 recv_recovery_from_checkpoint_finish should be called later to complete
 the recovery and free the resources used in it. */
-
+UNIV_INTERN
 ulint
 recv_recovery_from_checkpoint_start(
 /*================================*/
@@ -103,14 +103,14 @@ recv_recovery_from_checkpoint_start(
 					 data files */
 /************************************************************
 Completes recovery from a checkpoint. */
-
+UNIV_INTERN
 void
 recv_recovery_from_checkpoint_finish(void);
 /*======================================*/
 /***********************************************************
 Scans log from a buffer and stores new log data to the parsing buffer. Parses
 and hashes the log records if new data found. */
-
+UNIV_INTERN
 ibool
 recv_scan_log_recs(
 /*===============*/
@@ -140,7 +140,7 @@ recv_scan_log_recs(
 					this lsn */
 /**********************************************************
 Resets the logs. The contents of log files will be lost! */
-
+UNIV_INTERN
 void
 recv_reset_logs(
 /*============*/
@@ -159,7 +159,7 @@ recv_reset_logs(
 #ifdef UNIV_HOTBACKUP
 /**********************************************************
 Creates new log files after a backup has been restored. */
-
+UNIV_INTERN
 void
 recv_reset_log_files_for_backup(
 /*============================*/
@@ -171,13 +171,13 @@ recv_reset_log_files_for_backup(
 #endif /* UNIV_HOTBACKUP */
 /************************************************************
 Creates the recovery system. */
-
+UNIV_INTERN
 void
 recv_sys_create(void);
 /*=================*/
 /************************************************************
 Inits the recovery system for a recovery operation. */
-
+UNIV_INTERN
 void
 recv_sys_init(
 /*==========*/
@@ -187,7 +187,7 @@ recv_sys_init(
 /***********************************************************************
 Empties the hash table of stored log records, applying them to appropriate
 pages. */
-
+UNIV_INTERN
 void
 recv_apply_hashed_log_recs(
 /*=======================*/
@@ -201,7 +201,7 @@ recv_apply_hashed_log_recs(
 #ifdef UNIV_HOTBACKUP
 /***********************************************************************
 Applies log records in the hash table to a backup. */
-
+UNIV_INTERN
 void
 recv_apply_log_recs_for_backup(void);
 /*================================*/
@@ -209,7 +209,7 @@ recv_apply_log_recs_for_backup(void);
 #ifdef UNIV_LOG_ARCHIVE
 /************************************************************
 Recovers from archived log files, and also from log files, if they exist. */
-
+UNIV_INTERN
 ulint
 recv_recovery_from_archive_start(
 /*=============================*/
@@ -225,7 +225,7 @@ recv_recovery_from_archive_start(
 					server config file */
 /************************************************************
 Completes recovery from archive. */
-
+UNIV_INTERN
 void
 recv_recovery_from_archive_finish(void);
 /*===================================*/

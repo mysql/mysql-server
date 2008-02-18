@@ -27,14 +27,14 @@ extern FILE*	lock_latest_err_file;
 
 /*************************************************************************
 Gets the size of a lock struct. */
-
+UNIV_INTERN
 ulint
 lock_get_size(void);
 /*===============*/
 			/* out: size in bytes */
 /*************************************************************************
 Creates the lock system at database start. */
-
+UNIV_INTERN
 void
 lock_sys_create(
 /*============*/
@@ -66,7 +66,7 @@ Updates the lock table when we have reorganized a page. NOTE: we copy
 also the locks set on the infimum of the page; the infimum may carry
 locks if an update of a record is occurring on the page, and its locks
 were temporarily stored on the infimum. */
-
+UNIV_INTERN
 void
 lock_move_reorganize_page(
 /*======================*/
@@ -77,7 +77,7 @@ lock_move_reorganize_page(
 /*****************************************************************
 Moves the explicit locks on user records to another page if a record
 list end is moved to another page. */
-
+UNIV_INTERN
 void
 lock_move_rec_list_end(
 /*===================*/
@@ -88,7 +88,7 @@ lock_move_rec_list_end(
 /*****************************************************************
 Moves the explicit locks on user records to another page if a record
 list start is moved to another page. */
-
+UNIV_INTERN
 void
 lock_move_rec_list_start(
 /*=====================*/
@@ -104,7 +104,7 @@ lock_move_rec_list_start(
 						were copied */
 /*****************************************************************
 Updates the lock table when a page is split to the right. */
-
+UNIV_INTERN
 void
 lock_update_split_right(
 /*====================*/
@@ -112,7 +112,7 @@ lock_update_split_right(
 	const buf_block_t*	left_block);	/* in: left page */
 /*****************************************************************
 Updates the lock table when a page is merged to the right. */
-
+UNIV_INTERN
 void
 lock_update_merge_right(
 /*====================*/
@@ -132,7 +132,7 @@ root page, even though they do not make sense on other than leaf
 pages: the reason is that in a pessimistic update the infimum record
 of the root page will act as a dummy carrier of the locks of the record
 to be updated. */
-
+UNIV_INTERN
 void
 lock_update_root_raise(
 /*===================*/
@@ -141,7 +141,7 @@ lock_update_root_raise(
 /*****************************************************************
 Updates the lock table when a page is copied to another and the original page
 is removed from the chain of leaf pages, except if page is the root! */
-
+UNIV_INTERN
 void
 lock_update_copy_and_discard(
 /*=========================*/
@@ -151,7 +151,7 @@ lock_update_copy_and_discard(
 						NOT the root! */
 /*****************************************************************
 Updates the lock table when a page is split to the left. */
-
+UNIV_INTERN
 void
 lock_update_split_left(
 /*===================*/
@@ -159,7 +159,7 @@ lock_update_split_left(
 	const buf_block_t*	left_block);	/* in: left page */
 /*****************************************************************
 Updates the lock table when a page is merged to the left. */
-
+UNIV_INTERN
 void
 lock_update_merge_left(
 /*===================*/
@@ -173,7 +173,7 @@ lock_update_merge_left(
 /*****************************************************************
 Resets the original locks on heir and replaces them with gap type locks
 inherited from rec. */
-
+UNIV_INTERN
 void
 lock_rec_reset_and_inherit_gap_locks(
 /*=================================*/
@@ -189,7 +189,7 @@ lock_rec_reset_and_inherit_gap_locks(
 						donating record */
 /*****************************************************************
 Updates the lock table when a page is discarded. */
-
+UNIV_INTERN
 void
 lock_update_discard(
 /*================*/
@@ -201,7 +201,7 @@ lock_update_discard(
 						which will be discarded */
 /*****************************************************************
 Updates the lock table when a new user record is inserted. */
-
+UNIV_INTERN
 void
 lock_update_insert(
 /*===============*/
@@ -209,7 +209,7 @@ lock_update_insert(
 	const rec_t*		rec);	/* in: the inserted record */
 /*****************************************************************
 Updates the lock table when a record is removed. */
-
+UNIV_INTERN
 void
 lock_update_delete(
 /*===============*/
@@ -222,7 +222,7 @@ updated and the size of the record changes in the update. The record
 is in such an update moved, perhaps to another page. The infimum record
 acts as a dummy carrier record, taking care of lock releases while the
 actual record is being moved. */
-
+UNIV_INTERN
 void
 lock_rec_store_on_page_infimum(
 /*===========================*/
@@ -235,7 +235,7 @@ lock_rec_store_on_page_infimum(
 /*************************************************************************
 Restores the state of explicit lock requests on a single record, where the
 state was stored on the infimum of the page. */
-
+UNIV_INTERN
 void
 lock_rec_restore_from_page_infimum(
 /*===============================*/
@@ -249,7 +249,7 @@ lock_rec_restore_from_page_infimum(
 					the infimum */
 /*************************************************************************
 Returns TRUE if there are explicit record locks on a page. */
-
+UNIV_INTERN
 ibool
 lock_rec_expl_exist_on_page(
 /*========================*/
@@ -263,7 +263,7 @@ a record. If they do, first tests if the query thread should anyway
 be suspended for some reason; if not, then puts the transaction and
 the query thread to the lock wait state and inserts a waiting request
 for a gap x-lock to the lock queue. */
-
+UNIV_INTERN
 ulint
 lock_rec_insert_check_and_lock(
 /*===========================*/
@@ -286,7 +286,7 @@ first tests if the query thread should anyway be suspended for some
 reason; if not, then puts the transaction and the query thread to the
 lock wait state and inserts a waiting request for a record x-lock to the
 lock queue. */
-
+UNIV_INTERN
 ulint
 lock_clust_rec_modify_check_and_lock(
 /*=================================*/
@@ -304,7 +304,7 @@ lock_clust_rec_modify_check_and_lock(
 /*************************************************************************
 Checks if locks of other transactions prevent an immediate modify
 (delete mark or delete unmark) of a secondary index record. */
-
+UNIV_INTERN
 ulint
 lock_sec_rec_modify_check_and_lock(
 /*===============================*/
@@ -323,7 +323,7 @@ lock_sec_rec_modify_check_and_lock(
 /*************************************************************************
 Like the counterpart for a clustered index below, but now we read a
 secondary index record. */
-
+UNIV_INTERN
 ulint
 lock_sec_rec_read_check_and_lock(
 /*=============================*/
@@ -354,7 +354,7 @@ if the query thread should anyway be suspended for some reason; if not, then
 puts the transaction and the query thread to the lock wait state and inserts a
 waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record. */
-
+UNIV_INTERN
 ulint
 lock_clust_rec_read_check_and_lock(
 /*===============================*/
@@ -387,7 +387,7 @@ waiting request for a record lock to the lock queue. Sets the requested mode
 lock on the record. This is an alternative version of
 lock_clust_rec_read_check_and_lock() that does not require the parameter
 "offsets". */
-
+UNIV_INTERN
 ulint
 lock_clust_rec_read_check_and_lock_alt(
 /*===================================*/
@@ -412,7 +412,7 @@ lock_clust_rec_read_check_and_lock_alt(
 	que_thr_t*		thr);	/* in: query thread */
 /*************************************************************************
 Checks that a record is seen in a consistent read. */
-
+UNIV_INTERN
 ibool
 lock_clust_rec_cons_read_sees(
 /*==========================*/
@@ -425,7 +425,7 @@ lock_clust_rec_cons_read_sees(
 	read_view_t*	view);	/* in: consistent read view */
 /*************************************************************************
 Checks that a non-clustered index record is seen in a consistent read. */
-
+UNIV_INTERN
 ulint
 lock_sec_rec_cons_read_sees(
 /*========================*/
@@ -449,7 +449,7 @@ lock_sec_rec_cons_read_sees(
 /*************************************************************************
 Locks the specified database table in the mode given. If the lock cannot
 be granted immediately, the query thread is put to wait. */
-
+UNIV_INTERN
 ulint
 lock_table(
 /*=======*/
@@ -462,7 +462,7 @@ lock_table(
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 Checks if there are any locks set on the table. */
-
+UNIV_INTERN
 ibool
 lock_is_on_table(
 /*=============*/
@@ -472,7 +472,7 @@ lock_is_on_table(
 Removes a granted record lock of a transaction from the queue and grants
 locks to other transactions waiting in the queue if they now are entitled
 to a lock. */
-
+UNIV_INTERN
 void
 lock_rec_unlock(
 /*============*/
@@ -484,7 +484,7 @@ lock_rec_unlock(
 /*************************************************************************
 Releases a table lock.
 Releases possible other transactions waiting for this lock. */
-
+UNIV_INTERN
 void
 lock_table_unlock(
 /*==============*/
@@ -492,7 +492,7 @@ lock_table_unlock(
 /*************************************************************************
 Releases an auto-inc lock a transaction possibly has on a table.
 Releases possible other transactions waiting for this lock. */
-
+UNIV_INTERN
 void
 lock_table_unlock_auto_inc(
 /*=======================*/
@@ -500,7 +500,7 @@ lock_table_unlock_auto_inc(
 /*************************************************************************
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
-
+UNIV_INTERN
 void
 lock_release_off_kernel(
 /*====================*/
@@ -508,7 +508,7 @@ lock_release_off_kernel(
 /*************************************************************************
 Cancels a waiting lock request and releases possible other transactions
 waiting behind it. */
-
+UNIV_INTERN
 void
 lock_cancel_waiting_and_release(
 /*============================*/
@@ -516,7 +516,7 @@ lock_cancel_waiting_and_release(
 /*************************************************************************
 Resets all locks, both table and record locks, on a table to be dropped.
 No lock is allowed to be a wait lock. */
-
+UNIV_INTERN
 void
 lock_reset_all_on_table(
 /*====================*/
@@ -546,7 +546,7 @@ lock_rec_hash(
 /**************************************************************************
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
 if none found. */
-
+UNIV_INTERN
 ulint
 lock_rec_find_set_bit(
 /*==================*/
@@ -557,7 +557,7 @@ lock_rec_find_set_bit(
 /*************************************************************************
 Gets the source table of an ALTER TABLE transaction.  The table must be
 covered by an IX or IS table lock. */
-
+UNIV_INTERN
 dict_table_t*
 lock_get_src_table(
 /*===============*/
@@ -573,7 +573,7 @@ lock_get_src_table(
 Determine if the given table is exclusively "owned" by the given
 transaction, i.e., transaction holds LOCK_IX and possibly LOCK_AUTO_INC
 on the table. */
-
+UNIV_INTERN
 ibool
 lock_is_table_exclusive(
 /*====================*/
@@ -583,7 +583,7 @@ lock_is_table_exclusive(
 	trx_t*		trx);	/* in: transaction */
 /*************************************************************************
 Checks if a lock request lock1 has to wait for request lock2. */
-
+UNIV_INTERN
 ibool
 lock_has_to_wait(
 /*=============*/
@@ -596,7 +596,7 @@ lock_has_to_wait(
 				locks are record locks */
 /*************************************************************************
 Checks that a transaction id is sensible, i.e., not in the future. */
-
+UNIV_INTERN
 ibool
 lock_check_trx_id_sanity(
 /*=====================*/
@@ -609,7 +609,7 @@ lock_check_trx_id_sanity(
 					kernel mutex */
 /*************************************************************************
 Prints info of a table lock. */
-
+UNIV_INTERN
 void
 lock_table_print(
 /*=============*/
@@ -617,7 +617,7 @@ lock_table_print(
 	const lock_t*	lock);	/* in: table type lock */
 /*************************************************************************
 Prints info of a record lock. */
-
+UNIV_INTERN
 void
 lock_rec_print(
 /*===========*/
@@ -625,14 +625,14 @@ lock_rec_print(
 	const lock_t*	lock);	/* in: record type lock */
 /*************************************************************************
 Prints info of locks for all transactions. */
-
+UNIV_INTERN
 void
 lock_print_info_summary(
 /*====================*/
 	FILE*	file);	/* in: file where to print */
 /*************************************************************************
 Prints info of locks for each transaction. */
-
+UNIV_INTERN
 void
 lock_print_info_all_transactions(
 /*=============================*/
@@ -641,7 +641,7 @@ lock_print_info_all_transactions(
 Return approximate number or record locks (bits set in the bitmap) for
 this transaction. Since delete-marked records may be removed, the
 record count will not be precise. */
-
+UNIV_INTERN
 ulint
 lock_number_of_rows_locked(
 /*=======================*/
@@ -650,7 +650,7 @@ lock_number_of_rows_locked(
 /***********************************************************************
 Gets the type of a lock. Non-inline version for using outside of the
 lock module. */
-
+UNIV_INTERN
 ulint
 lock_get_type(
 /*==========*/
@@ -659,7 +659,7 @@ lock_get_type(
 
 /***********************************************************************
 Gets the id of the transaction owning a lock. */
-
+UNIV_INTERN
 ullint
 lock_get_trx_id(
 /*============*/
@@ -688,7 +688,7 @@ lock_get_type_str(
 
 /***********************************************************************
 Gets the id of the table on which the lock is. */
-
+UNIV_INTERN
 ullint
 lock_get_table_id(
 /*==============*/
@@ -726,7 +726,7 @@ lock_rec_get_index_name(
 
 /***********************************************************************
 For a record lock, gets the tablespace number on which the lock is. */
-
+UNIV_INTERN
 ulint
 lock_rec_get_space_id(
 /*==================*/
@@ -735,7 +735,7 @@ lock_rec_get_space_id(
 
 /***********************************************************************
 For a record lock, gets the page number on which the lock is. */
-
+UNIV_INTERN
 ulint
 lock_rec_get_page_no(
 /*=================*/

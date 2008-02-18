@@ -52,7 +52,7 @@ extern ibool			trx_sys_multiple_tablespace_format;
 /********************************************************************
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
 doublewrite buffer is placed on the trx system header page. */
-
+UNIV_INTERN
 void
 trx_sys_create_doublewrite_buf(void);
 /*================================*/
@@ -63,7 +63,7 @@ upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
 recovery, this function uses a possible doublewrite buffer to restore
 half-written pages in the data files. */
-
+UNIV_INTERN
 void
 trx_sys_doublewrite_init_or_restore_pages(
 /*======================================*/
@@ -71,13 +71,13 @@ trx_sys_doublewrite_init_or_restore_pages(
 /********************************************************************
 Marks the trx sys header when we have successfully upgraded to the >= 4.1.x
 multiple tablespace format. */
-
+UNIV_INTERN
 void
 trx_sys_mark_upgraded_to_multiple_tablespaces(void);
 /*===============================================*/
 /********************************************************************
 Determines if a page number is located inside the doublewrite buffer. */
-
+UNIV_INTERN
 ibool
 trx_doublewrite_page_inside(
 /*========================*/
@@ -96,19 +96,19 @@ trx_sys_hdr_page(
 /*********************************************************************
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started. */
-
+UNIV_INTERN
 void
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*********************************************************************
 Creates and initializes the transaction system at the database creation. */
-
+UNIV_INTERN
 void
 trx_sys_create(void);
 /*================*/
 /********************************************************************
 Looks for a free slot for a rollback segment in the trx system file copy. */
-
+UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
@@ -252,7 +252,7 @@ trx_is_active(
 	dulint	trx_id);/* in: trx id of the transaction */
 /********************************************************************
 Checks that trx is in the trx list. */
-
+UNIV_INTERN
 ibool
 trx_in_trx_list(
 /*============*/
@@ -263,7 +263,7 @@ Updates the offset information about the end of the MySQL binlog entry
 which corresponds to the transaction just being committed. In a MySQL
 replication slave updates the latest master binlog position up to which
 replication has proceeded. */
-
+UNIV_INTERN
 void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
@@ -275,7 +275,7 @@ trx_sys_update_mysql_binlog_offset(
 /*********************************************************************
 Prints to stderr the MySQL binlog offset info in the trx system header if
 the magic number shows it valid. */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
@@ -283,7 +283,7 @@ trx_sys_print_mysql_binlog_offset(void);
 /*********************************************************************
 Prints to stderr the MySQL binlog info in the system header if the
 magic number shows it valid. */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_binlog_offset_from_page(
 /*========================================*/
@@ -294,7 +294,7 @@ trx_sys_print_mysql_binlog_offset_from_page(
 /*********************************************************************
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
-
+UNIV_INTERN
 void
 trx_sys_print_mysql_master_log_pos(void);
 /*====================================*/

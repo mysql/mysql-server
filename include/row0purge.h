@@ -20,7 +20,7 @@ Created 3/14/1997 Heikki Tuuri
 
 /************************************************************************
 Creates a purge node to a query graph. */
-
+UNIV_INTERN
 purge_node_t*
 row_purge_node_create(
 /*==================*/
@@ -30,7 +30,7 @@ row_purge_node_create(
 /***************************************************************
 Does the purge operation for a single undo log record. This is a high-level
 function used in an SQL execution graph. */
-
+UNIV_INTERN
 que_thr_t*
 row_purge_step(
 /*===========*/

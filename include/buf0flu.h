@@ -16,21 +16,21 @@ Created 11/5/1995 Heikki Tuuri
 
 /************************************************************************
 Inserts a modified block into the flush list. */
-
+UNIV_INTERN
 void
 buf_flush_insert_into_flush_list(
 /*=============================*/
 	buf_page_t*	bpage);	/* in: block which is modified */
 /************************************************************************
 Remove a block from the flush list of modified blocks. */
-
+UNIV_INTERN
 void
 buf_flush_remove(
 /*=============*/
 	buf_page_t*	bpage);	/* in: pointer to the block in question */
 /************************************************************************
 Updates the flush system data structures when a write is completed. */
-
+UNIV_INTERN
 void
 buf_flush_write_complete(
 /*=====================*/
@@ -38,13 +38,13 @@ buf_flush_write_complete(
 /*************************************************************************
 Flushes pages from the end of the LRU list if there is too small
 a margin of replaceable pages there. */
-
+UNIV_INTERN
 void
 buf_flush_free_margin(void);
 /*=======================*/
 /************************************************************************
 Initializes a page for writing to the tablespace. */
-
+UNIV_INTERN
 void
 buf_flush_init_for_writing(
 /*=======================*/
@@ -58,7 +58,7 @@ NOTE 1: in the case of an LRU flush the calling thread may own latches to
 pages: to avoid deadlocks, this function must be written so that it cannot
 end up waiting for these latches! NOTE 2: in the case of a flush list flush,
 the calling thread is not allowed to own any latches on pages! */
-
+UNIV_INTERN
 ulint
 buf_flush_batch(
 /*============*/
@@ -80,7 +80,7 @@ buf_flush_batch(
 					min_n), otherwise ignored */
 /**********************************************************************
 Waits until a flush batch of the given type ends */
-
+UNIV_INTERN
 void
 buf_flush_wait_batch_end(
 /*=====================*/
@@ -109,7 +109,7 @@ buf_flush_recv_note_modification(
 /************************************************************************
 Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., transition FILE_PAGE => NOT_USED allowed. */
-
+UNIV_INTERN
 ibool
 buf_flush_ready_for_replace(
 /*========================*/
@@ -119,7 +119,7 @@ buf_flush_ready_for_replace(
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**********************************************************************
 Validates the flush list. */
-
+UNIV_INTERN
 ibool
 buf_flush_validate(void);
 /*====================*/

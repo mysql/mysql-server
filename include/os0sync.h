@@ -69,13 +69,13 @@ extern ulint		os_fast_mutex_count;
 
 /*************************************************************
 Initializes global event and OS 'slow' mutex lists. */
-
+UNIV_INTERN
 void
 os_sync_init(void);
 /*==============*/
 /*************************************************************
 Frees created events and OS 'slow' mutexes. */
-
+UNIV_INTERN
 void
 os_sync_free(void);
 /*==============*/
@@ -83,7 +83,7 @@ os_sync_free(void);
 Creates an event semaphore, i.e., a semaphore which may just have two states:
 signaled and nonsignaled. The created event is manual reset: it must be reset
 explicitly by calling sync_os_reset_event. */
-
+UNIV_INTERN
 os_event_t
 os_event_create(
 /*============*/
@@ -94,7 +94,7 @@ os_event_create(
 /*************************************************************
 Creates an auto-reset event semaphore, i.e., an event which is automatically
 reset when a single thread is released. Works only in Windows. */
-
+UNIV_INTERN
 os_event_t
 os_event_create_auto(
 /*=================*/
@@ -105,7 +105,7 @@ os_event_create_auto(
 /**************************************************************
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */
-
+UNIV_INTERN
 void
 os_event_set(
 /*=========*/
@@ -113,14 +113,14 @@ os_event_set(
 /**************************************************************
 Resets an event semaphore to the nonsignaled state. Waiting threads will
 stop to wait for the event. */
-
+UNIV_INTERN
 void
 os_event_reset(
 /*===========*/
 	os_event_t	event);	/* in: event to reset */
 /**************************************************************
 Frees an event object. */
-
+UNIV_INTERN
 void
 os_event_free(
 /*==========*/
@@ -130,7 +130,7 @@ Waits for an event object until it is in the signaled state. If
 srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
 waiting thread when the event becomes signaled (or immediately if the
 event is already in the signaled state). */
-
+UNIV_INTERN
 void
 os_event_wait(
 /*==========*/
@@ -138,7 +138,7 @@ os_event_wait(
 /**************************************************************
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite. */
-
+UNIV_INTERN
 ulint
 os_event_wait_time(
 /*===============*/
@@ -152,7 +152,7 @@ os_event_wait_time(
 /**************************************************************
 Waits for any event in an OS native event array. Returns if even a single
 one is signaled or becomes signaled. */
-
+UNIV_INTERN
 ulint
 os_event_wait_multiple(
 /*===================*/
@@ -167,7 +167,7 @@ os_event_wait_multiple(
 /*************************************************************
 Creates an operating system mutex semaphore. Because these are slow, the
 mutex semaphore of InnoDB itself (mutex_t) should be used where possible. */
-
+UNIV_INTERN
 os_mutex_t
 os_mutex_create(
 /*============*/
@@ -176,21 +176,21 @@ os_mutex_create(
 				the mutex is created without a name */
 /**************************************************************
 Acquires ownership of a mutex semaphore. */
-
+UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
 	os_mutex_t	mutex);	/* in: mutex to acquire */
 /**************************************************************
 Releases ownership of a mutex. */
-
+UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
 	os_mutex_t	mutex);	/* in: mutex to release */
 /**************************************************************
 Frees an mutex object. */
-
+UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
@@ -208,28 +208,28 @@ os_fast_mutex_trylock(
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
 /**************************************************************
 Releases ownership of a fast mutex. */
-
+UNIV_INTERN
 void
 os_fast_mutex_unlock(
 /*=================*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to release */
 /*************************************************************
 Initializes an operating system fast mutex semaphore. */
-
+UNIV_INTERN
 void
 os_fast_mutex_init(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: fast mutex */
 /**************************************************************
 Acquires ownership of a fast mutex. */
-
+UNIV_INTERN
 void
 os_fast_mutex_lock(
 /*===============*/
 	os_fast_mutex_t*	fast_mutex);	/* in: mutex to acquire */
 /**************************************************************
 Frees an mutex object. */
-
+UNIV_INTERN
 void
 os_fast_mutex_free(
 /*===============*/
