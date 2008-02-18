@@ -606,9 +606,9 @@ CHARSET_INFO *get_charset_by_csname(const char *cs_name,
   is no character set with given name.
 */
 
-bool resolve_charset(const char *cs_name,
-                     CHARSET_INFO *default_cs,
-                     CHARSET_INFO **cs)
+my_bool resolve_charset(const char *cs_name,
+                        CHARSET_INFO *default_cs,
+                        CHARSET_INFO **cs)
 {
   *cs= get_charset_by_csname(cs_name, MY_CS_PRIMARY, MYF(0));
 
@@ -638,9 +638,9 @@ bool resolve_charset(const char *cs_name,
   collation with given name.
 */
 
-bool resolve_collation(const char *cl_name,
-                       CHARSET_INFO *default_cl,
-                       CHARSET_INFO **cl)
+my_bool resolve_collation(const char *cl_name,
+                          CHARSET_INFO *default_cl,
+                          CHARSET_INFO **cl)
 {
   *cl= get_charset_by_name(cl_name, MYF(0));
 
