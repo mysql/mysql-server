@@ -36,7 +36,7 @@ struct mem_area_struct{
 
 /************************************************************************
 Creates a memory pool. */
-
+UNIV_INTERN
 mem_pool_t*
 mem_pool_create(
 /*============*/
@@ -45,7 +45,7 @@ mem_pool_create(
 /************************************************************************
 Allocates memory from a pool. NOTE: This low-level function should only be
 used in mem0mem.*! */
-
+UNIV_INTERN
 void*
 mem_area_alloc(
 /*===========*/
@@ -58,7 +58,7 @@ mem_area_alloc(
 	mem_pool_t*	pool);	/* in: memory pool */
 /************************************************************************
 Frees memory to a pool. */
-
+UNIV_INTERN
 void
 mem_area_free(
 /*==========*/
@@ -67,7 +67,7 @@ mem_area_free(
 	mem_pool_t*	pool);	/* in: memory pool */
 /************************************************************************
 Returns the amount of reserved memory. */
-
+UNIV_INTERN
 ulint
 mem_pool_get_reserved(
 /*==================*/
@@ -75,19 +75,19 @@ mem_pool_get_reserved(
 	mem_pool_t*	pool);	/* in: memory pool */
 /************************************************************************
 Reserves the mem pool mutex. */
-
+UNIV_INTERN
 void
 mem_pool_mutex_enter(void);
 /*======================*/
 /************************************************************************
 Releases the mem pool mutex. */
-
+UNIV_INTERN
 void
 mem_pool_mutex_exit(void);
 /*=====================*/
 /************************************************************************
 Validates a memory pool. */
-
+UNIV_INTERN
 ibool
 mem_pool_validate(
 /*==============*/
@@ -95,7 +95,7 @@ mem_pool_validate(
 	mem_pool_t*	pool);	/* in: memory pool */
 /************************************************************************
 Prints info of a memory pool. */
-
+UNIV_INTERN
 void
 mem_pool_print_info(
 /*================*/

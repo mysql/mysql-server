@@ -56,13 +56,14 @@ trx_new_rec_locks_contain(
 	dict_index_t*	index);	/* in: index */
 /************************************************************************
 Releases the search latch if trx has reserved it. */
-
+UNIV_INTERN
 void
 trx_search_latch_release_if_reserved(
 /*=================================*/
 	trx_t*	   trx); /* in: transaction */
 /**********************************************************************
 Set detailed error message for the transaction. */
+UNIV_INTERN
 void
 trx_set_detailed_error(
 /*===================*/
@@ -71,7 +72,7 @@ trx_set_detailed_error(
 /*****************************************************************
 Set detailed error message for the transaction from a file. Note that the
 file is rewinded before reading from it. */
-
+UNIV_INTERN
 void
 trx_set_detailed_error_from_file(
 /*=============================*/
@@ -87,7 +88,7 @@ trx_get_error_info(
 	const trx_t*	trx);	/* in: trx object */
 /********************************************************************
 Creates and initializes a transaction object. */
-
+UNIV_INTERN
 trx_t*
 trx_create(
 /*=======*/
@@ -96,35 +97,35 @@ trx_create(
 	__attribute__((nonnull));
 /************************************************************************
 Creates a transaction object for MySQL. */
-
+UNIV_INTERN
 trx_t*
 trx_allocate_for_mysql(void);
 /*========================*/
 				/* out, own: transaction object */
 /************************************************************************
 Creates a transaction object for background operations by the master thread. */
-
+UNIV_INTERN
 trx_t*
 trx_allocate_for_background(void);
 /*=============================*/
 				/* out, own: transaction object */
 /************************************************************************
 Frees a transaction object. */
-
+UNIV_INTERN
 void
 trx_free(
 /*=====*/
 	trx_t*	trx);	/* in, own: trx object */
 /************************************************************************
 Frees a transaction object for MySQL. */
-
+UNIV_INTERN
 void
 trx_free_for_mysql(
 /*===============*/
 	trx_t*	trx);	/* in, own: trx object */
 /************************************************************************
 Frees a transaction object of a background operation of the master thread. */
-
+UNIV_INTERN
 void
 trx_free_for_background(
 /*====================*/
@@ -135,13 +136,13 @@ trx_sys at database start. Rollback segment and undo log lists must
 already exist when this function is called, because the lists of
 transactions to be rolled back or cleaned up are built based on the
 undo log lists. */
-
+UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
 /********************************************************************
 Starts a new transaction. */
-
+UNIV_INTERN
 ibool
 trx_start(
 /*======*/
@@ -153,7 +154,7 @@ trx_start(
 			automatically in a round-robin fashion */
 /********************************************************************
 Starts a new transaction. */
-
+UNIV_INTERN
 ibool
 trx_start_low(
 /*==========*/
@@ -179,7 +180,7 @@ trx_start_if_not_started_low(
 	trx_t*	trx);	/* in: transaction */
 /********************************************************************
 Commits a transaction. */
-
+UNIV_INTERN
 void
 trx_commit_off_kernel(
 /*==================*/
@@ -188,14 +189,14 @@ trx_commit_off_kernel(
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
 crashed, andf we cannot roll it back. */
-
+UNIV_INTERN
 void
 trx_cleanup_at_db_startup(
 /*======================*/
 	trx_t*	trx);	/* in: transaction */
 /**************************************************************************
 Does the transaction commit for MySQL. */
-
+UNIV_INTERN
 ulint
 trx_commit_for_mysql(
 /*=================*/
@@ -203,7 +204,7 @@ trx_commit_for_mysql(
 	trx_t*	trx);	/* in: trx handle */
 /**************************************************************************
 Does the transaction prepare for MySQL. */
-
+UNIV_INTERN
 ulint
 trx_prepare_for_mysql(
 /*==================*/
@@ -212,7 +213,7 @@ trx_prepare_for_mysql(
 /**************************************************************************
 This function is used to find number of prepared transactions and
 their transaction objects for a recovery. */
-
+UNIV_INTERN
 int
 trx_recover_for_mysql(
 /*==================*/
@@ -222,6 +223,7 @@ trx_recover_for_mysql(
 /***********************************************************************
 This function is used to find one X/Open XA distributed transaction
 which is in the prepared state */
+UNIV_INTERN
 trx_t *
 trx_get_trx_by_xid(
 /*===============*/
@@ -230,7 +232,7 @@ trx_get_trx_by_xid(
 /**************************************************************************
 If required, flushes the log to disk if we called trx_commit_for_mysql()
 with trx->flush_log_later == TRUE. */
-
+UNIV_INTERN
 ulint
 trx_commit_complete_for_mysql(
 /*==========================*/
@@ -238,7 +240,7 @@ trx_commit_complete_for_mysql(
 	trx_t*	trx);	/* in: trx handle */
 /**************************************************************************
 Marks the latest SQL statement ended. */
-
+UNIV_INTERN
 void
 trx_mark_sql_stat_end(
 /*==================*/
@@ -247,7 +249,7 @@ trx_mark_sql_stat_end(
 Assigns a read view for a consistent read query. All the consistent reads
 within the same transaction will get the same read view, which is created
 when this function is first called for a new started transaction. */
-
+UNIV_INTERN
 read_view_t*
 trx_assign_read_view(
 /*=================*/
@@ -257,14 +259,14 @@ trx_assign_read_view(
 The transaction must be in the TRX_QUE_LOCK_WAIT state. Puts it to
 the TRX_QUE_RUNNING state and releases query threads which were
 waiting for a lock in the wait_thrs list. */
-
+UNIV_INTERN
 void
 trx_end_lock_wait(
 /*==============*/
 	trx_t*	trx);	/* in: transaction */
 /********************************************************************
 Sends a signal to a trx object. */
-
+UNIV_INTERN
 void
 trx_sig_send(
 /*=========*/
@@ -286,7 +288,7 @@ trx_sig_send(
 /********************************************************************
 Send the reply message when a signal in the queue of the trx has
 been handled. */
-
+UNIV_INTERN
 void
 trx_sig_reply(
 /*==========*/
@@ -298,7 +300,7 @@ trx_sig_reply(
 					a new query thread */
 /********************************************************************
 Removes the signal object from a trx signal queue. */
-
+UNIV_INTERN
 void
 trx_sig_remove(
 /*===========*/
@@ -306,7 +308,7 @@ trx_sig_remove(
 	trx_sig_t*	sig);	/* in, own: signal */
 /********************************************************************
 Starts handling of a trx signal. */
-
+UNIV_INTERN
 void
 trx_sig_start_handle(
 /*=================*/
@@ -321,14 +323,14 @@ Ends signal handling. If the session is in the error state, and
 trx->graph_before_signal_handling != NULL, returns control to the error
 handling routine of the graph (currently only returns the control to the
 graph root which then sends an error message to the client). */
-
+UNIV_INTERN
 void
 trx_end_signal_handling(
 /*====================*/
 	trx_t*	trx);	/* in: trx */
 /*************************************************************************
 Creates a commit command node struct. */
-
+UNIV_INTERN
 commit_node_t*
 commit_node_create(
 /*===============*/
@@ -336,7 +338,7 @@ commit_node_create(
 	mem_heap_t*	heap);	/* in: mem heap where created */
 /***************************************************************
 Performs an execution step for a commit type node in a query graph. */
-
+UNIV_INTERN
 que_thr_t*
 trx_commit_step(
 /*============*/
@@ -348,7 +350,7 @@ Prints info about a transaction to the given file. The caller must own the
 kernel mutex and must have called
 innobase_mysql_prepare_print_arbitrary_thd(), unless he knows that MySQL
 or InnoDB cannot meanwhile change the info printed here. */
-
+UNIV_INTERN
 void
 trx_print(
 /*======*/
@@ -394,7 +396,7 @@ trx_set_dict_operation(
 #ifndef UNIV_HOTBACKUP
 /**************************************************************************
 Determines if the currently running transaction has been interrupted. */
-
+UNIV_INTERN
 ibool
 trx_is_interrupted(
 /*===============*/
@@ -416,7 +418,7 @@ is estimated as the number of altered rows + the number of locked rows.
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not. */
-
+UNIV_INTERN
 int
 trx_weight_cmp(
 /*===========*/

@@ -175,7 +175,7 @@ page_cur_rec_insert(
 Inserts a record next to page cursor on an uncompressed page.
 Returns pointer to inserted record if succeed, i.e., enough
 space available, NULL otherwise. The cursor stays at the same position. */
-
+UNIV_INTERN
 rec_t*
 page_cur_insert_rec_low(
 /*====================*/
@@ -192,7 +192,7 @@ Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
 enough space available, NULL otherwise.
 The cursor stays at the same position. */
-
+UNIV_INTERN
 rec_t*
 page_cur_insert_rec_zip(
 /*====================*/
@@ -208,7 +208,7 @@ page_cur_insert_rec_zip(
 /*****************************************************************
 Copies records from page to a newly created page, from a given record onward,
 including that record. Infimum and supremum records are not copied. */
-
+UNIV_INTERN
 void
 page_copy_rec_list_end_to_created_page(
 /*===================================*/
@@ -219,7 +219,7 @@ page_copy_rec_list_end_to_created_page(
 /***************************************************************
 Deletes a record at the page cursor. The cursor is moved to the
 next record after the deleted one. */
-
+UNIV_INTERN
 void
 page_cur_delete_rec(
 /*================*/
@@ -244,7 +244,7 @@ page_cur_search(
 	page_cur_t*		cursor);/* out: page cursor */
 /********************************************************************
 Searches the right position for a page cursor. */
-
+UNIV_INTERN
 void
 page_cur_search_with_match(
 /*=======================*/
@@ -272,7 +272,7 @@ page_cur_search_with_match(
 /***************************************************************
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
-
+UNIV_INTERN
 void
 page_cur_open_on_rnd_user_rec(
 /*==========================*/
@@ -280,7 +280,7 @@ page_cur_open_on_rnd_user_rec(
 	page_cur_t*	cursor);/* out: page cursor */
 /***************************************************************
 Parses a log record of a record insert on a page. */
-
+UNIV_INTERN
 byte*
 page_cur_parse_insert_rec(
 /*======================*/
@@ -293,7 +293,7 @@ page_cur_parse_insert_rec(
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /**************************************************************
 Parses a log record of copying a record list end to a new created page. */
-
+UNIV_INTERN
 byte*
 page_parse_copy_rec_list_to_created_page(
 /*=====================================*/
@@ -305,7 +305,7 @@ page_parse_copy_rec_list_to_created_page(
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses log record of a record delete on a page. */
-
+UNIV_INTERN
 byte*
 page_cur_parse_delete_rec(
 /*======================*/

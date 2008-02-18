@@ -17,7 +17,7 @@ Created 7/1/1994 Heikki Tuuri
 
 /*****************************************************************
 Returns TRUE if two columns are equal for comparison purposes. */
-
+UNIV_INTERN
 ibool
 cmp_cols_are_equal(
 /*===============*/
@@ -47,7 +47,7 @@ cmp_data_data(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. */
-
+UNIV_INTERN
 int
 cmp_data_data_slow(
 /*===============*/
@@ -80,7 +80,7 @@ have either m >= n fields, or it must differ from dtuple in some of
 the m fields rec has. If rec has an externally stored field we do not
 compare it but return with value 0 if such a comparison should be
 made. */
-
+UNIV_INTERN
 int
 cmp_dtuple_rec_with_match(
 /*======================*/
@@ -104,7 +104,7 @@ cmp_dtuple_rec_with_match(
 				value for current comparison */
 /******************************************************************
 Compares a data tuple to a physical record. */
-
+UNIV_INTERN
 int
 cmp_dtuple_rec(
 /*===========*/
@@ -117,7 +117,7 @@ cmp_dtuple_rec(
 /******************************************************************
 Checks if a dtuple is a prefix of a record. The last field in dtuple
 is allowed to be a prefix of the corresponding field in the record. */
-
+UNIV_INTERN
 ibool
 cmp_dtuple_is_prefix_of_rec(
 /*========================*/
@@ -129,7 +129,7 @@ cmp_dtuple_is_prefix_of_rec(
 /*****************************************************************
 Compare two physical records that contain the same number of columns,
 none of which are stored externally. */
-
+UNIV_INTERN
 int
 cmp_rec_rec_simple(
 /*===============*/
@@ -145,7 +145,7 @@ cmp_rec_rec_simple(
 This function is used to compare two physical records. Only the common
 first fields are compared, and if an externally stored field is
 encountered, then 0 is returned. */
-
+UNIV_INTERN
 int
 cmp_rec_rec_with_match(
 /*===================*/

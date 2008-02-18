@@ -59,7 +59,7 @@ is the maximum size for a single allocated buffer: */
 
 /**********************************************************************
 Initializes the memory system. */
-
+UNIV_INTERN
 void
 mem_init(
 /*=====*/
@@ -258,7 +258,7 @@ mem_strdupl(
 
 /**************************************************************************
 Duplicates a NUL-terminated string, allocated from a memory heap. */
-
+UNIV_INTERN
 char*
 mem_heap_strdup(
 /*============*/
@@ -279,7 +279,7 @@ mem_heap_strdupl(
 
 /**************************************************************************
 Concatenate two strings and return the result, using a memory heap. */
-
+UNIV_INTERN
 char*
 mem_heap_strcat(
 /*============*/
@@ -290,7 +290,7 @@ mem_heap_strcat(
 
 /**************************************************************************
 Duplicate a block of data, allocated from a memory heap. */
-
+UNIV_INTERN
 void*
 mem_heap_dup(
 /*=========*/
@@ -301,7 +301,7 @@ mem_heap_dup(
 
 /**************************************************************************
 Concatenate two memory blocks and return the result, using a memory heap. */
-
+UNIV_INTERN
 void*
 mem_heap_cat(
 /*=========*/
@@ -317,7 +317,7 @@ A simple (s)printf replacement that dynamically allocates the space for the
 formatted string from the given heap. This supports a very limited set of
 the printf syntax: types 's' and 'u' and length modifier 'l' (which is
 required for the 'u' type). */
-
+UNIV_INTERN
 char*
 mem_heap_printf(
 /*============*/
@@ -330,7 +330,7 @@ mem_heap_printf(
 /**********************************************************************
 Goes through the list of all allocated mem blocks, checks their magic
 numbers, and reports possible corruption. */
-
+UNIV_INTERN
 void
 mem_validate_all_blocks(void);
 /*=========================*/

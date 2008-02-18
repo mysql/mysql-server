@@ -23,6 +23,7 @@ UNIV_INTERN const dulint	ut_dulint_max	= {0xFFFFFFFFUL, 0xFFFFFFFFUL};
 
 /****************************************************************
 Sort function for dulint arrays. */
+UNIV_INTERN
 void
 ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high)
 /*===============================================================*/

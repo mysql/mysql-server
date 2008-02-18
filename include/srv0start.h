@@ -15,7 +15,7 @@ Created 10/10/1995 Heikki Tuuri
 
 /*************************************************************************
 Normalizes a directory path for Windows: converts slashes to backslashes. */
-
+UNIV_INTERN
 void
 srv_normalize_path_for_win(
 /*=======================*/
@@ -23,7 +23,7 @@ srv_normalize_path_for_win(
 /*************************************************************************
 Reads the data files and their sizes from a character string given in
 the .cnf file. */
-
+UNIV_INTERN
 ibool
 srv_parse_data_file_paths_and_sizes(
 /*================================*/
@@ -45,7 +45,7 @@ srv_parse_data_file_paths_and_sizes(
 /*************************************************************************
 Reads log group home directories from a character string given in
 the .cnf file. */
-
+UNIV_INTERN
 ibool
 srv_parse_log_group_home_dirs(
 /*==========================*/
@@ -56,7 +56,7 @@ srv_parse_log_group_home_dirs(
 /*************************************************************************
 Adds a slash or a backslash to the end of a string if it is missing
 and the string is not empty. */
-
+UNIV_INTERN
 char*
 srv_add_path_separator_if_needed(
 /*=============================*/
@@ -67,13 +67,14 @@ srv_add_path_separator_if_needed(
 Starts Innobase and creates a new database if database files
 are not found and the user wants. Server parameters are
 read from a file of name "srv_init" in the ib_home directory. */
-
+UNIV_INTERN
 int
 innobase_start_or_create_for_mysql(void);
 /*====================================*/
 				/* out: DB_SUCCESS or error code */
 /********************************************************************
 Shuts down the Innobase database. */
+UNIV_INTERN
 int
 innobase_shutdown_for_mysql(void);
 /*=============================*/

@@ -24,7 +24,7 @@ proc_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of an if-statement node. */
-
+UNIV_INTERN
 que_thr_t*
 if_step(
 /*====*/
@@ -32,7 +32,7 @@ if_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of a while-statement node. */
-
+UNIV_INTERN
 que_thr_t*
 while_step(
 /*=======*/
@@ -40,7 +40,7 @@ while_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of a for-loop node. */
-
+UNIV_INTERN
 que_thr_t*
 for_step(
 /*=====*/
@@ -48,7 +48,7 @@ for_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of an assignment statement node. */
-
+UNIV_INTERN
 que_thr_t*
 assign_step(
 /*========*/
@@ -64,7 +64,7 @@ proc_eval_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of an exit statement node. */
-
+UNIV_INTERN
 que_thr_t*
 exit_step(
 /*======*/
@@ -72,7 +72,7 @@ exit_step(
 	que_thr_t*	thr);	/* in: query thread */
 /**************************************************************************
 Performs an execution step of a return-statement node. */
-
+UNIV_INTERN
 que_thr_t*
 return_step(
 /*========*/

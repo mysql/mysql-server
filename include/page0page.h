@@ -167,7 +167,7 @@ page_get_max_trx_id(
 	const page_t*	page);	/* in: page */
 /*****************************************************************
 Sets the max trx id field value. */
-
+UNIV_INTERN
 void
 page_set_max_trx_id(
 /*================*/
@@ -262,7 +262,7 @@ page_get_supremum_rec(
 /****************************************************************
 Returns the middle record of record list. If there are an even number
 of records in the list, returns the first record of upper half-list. */
-
+UNIV_INTERN
 rec_t*
 page_get_middle_rec(
 /*================*/
@@ -322,7 +322,7 @@ page_get_n_recs(
 /*******************************************************************
 Returns the number of records before the given record in chain.
 The number includes infimum and supremum records. */
-
+UNIV_INTERN
 ulint
 page_rec_get_n_recs_before(
 /*=======================*/
@@ -435,7 +435,7 @@ page_dir_calc_reserved_space(
 	ulint	n_recs);	/* in: number of records */
 /*******************************************************************
 Looks for the directory slot which owns the given record. */
-
+UNIV_INTERN
 ulint
 page_dir_find_owner_slot(
 /*=====================*/
@@ -596,7 +596,7 @@ page_rec_find_owner_rec(
 This is a low-level operation which is used in a database index creation
 to update the page number of a created B-tree to a data dictionary
 record. */
-
+UNIV_INTERN
 void
 page_rec_write_index_page_no(
 /*=========================*/
@@ -670,7 +670,7 @@ page_mem_alloc_free(
 	ulint		need);	/* in: number of bytes allocated */
 /****************************************************************
 Allocates a block of memory from the heap of an index page. */
-
+UNIV_INTERN
 byte*
 page_mem_alloc_heap(
 /*================*/
@@ -698,7 +698,7 @@ page_mem_free(
 	const ulint*	offsets);/* in: array returned by rec_get_offsets() */
 /**************************************************************
 Create an uncompressed B-tree index page. */
-
+UNIV_INTERN
 page_t*
 page_create(
 /*========*/
@@ -709,7 +709,7 @@ page_create(
 	ulint		comp);		/* in: nonzero=compact page format */
 /**************************************************************
 Create a compressed B-tree index page. */
-
+UNIV_INTERN
 page_t*
 page_create_zip(
 /*============*/
@@ -723,7 +723,7 @@ page_create_zip(
 /*****************************************************************
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page or compress the page. */
-
+UNIV_INTERN
 void
 page_copy_rec_list_end_no_locks(
 /*============================*/
@@ -736,7 +736,7 @@ page_copy_rec_list_end_no_locks(
 Copies records from page to new_page, from the given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page. */
-
+UNIV_INTERN
 rec_t*
 page_copy_rec_list_end(
 /*===================*/
@@ -754,7 +754,7 @@ page_copy_rec_list_end(
 Copies records from page to new_page, up to the given record, NOT
 including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page. */
-
+UNIV_INTERN
 rec_t*
 page_copy_rec_list_start(
 /*=====================*/
@@ -771,7 +771,7 @@ page_copy_rec_list_start(
 /*****************************************************************
 Deletes records from a page from a given record onward, including that record.
 The infimum and supremum records are not deleted. */
-
+UNIV_INTERN
 void
 page_delete_rec_list_end(
 /*=====================*/
@@ -788,7 +788,7 @@ page_delete_rec_list_end(
 /*****************************************************************
 Deletes records from page, up to the given record, NOT including
 that record. Infimum and supremum records are not deleted. */
-
+UNIV_INTERN
 void
 page_delete_rec_list_start(
 /*=======================*/
@@ -800,7 +800,7 @@ page_delete_rec_list_start(
 /*****************************************************************
 Moves record list end to another page. Moved records include
 split_rec. */
-
+UNIV_INTERN
 ibool
 page_move_rec_list_end(
 /*===================*/
@@ -816,7 +816,7 @@ page_move_rec_list_end(
 /*****************************************************************
 Moves record list start to another page. Moved records do not include
 split_rec. */
-
+UNIV_INTERN
 ibool
 page_move_rec_list_start(
 /*=====================*/
@@ -830,7 +830,7 @@ page_move_rec_list_start(
 	__attribute__((nonnull(1, 2, 4, 5)));
 /********************************************************************
 Splits a directory slot which owns too many records. */
-
+UNIV_INTERN
 void
 page_dir_split_slot(
 /*================*/
@@ -844,7 +844,7 @@ Tries to balance the given directory slot with too few records
 with the upper neighbor, so that there are at least the minimum number
 of records owned by the slot; this may result in the merging of
 two slots. */
-
+UNIV_INTERN
 void
 page_dir_balance_slot(
 /*==================*/
@@ -854,7 +854,7 @@ page_dir_balance_slot(
 	__attribute__((nonnull(1)));
 /**************************************************************
 Parses a log record of a record list end or start deletion. */
-
+UNIV_INTERN
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
@@ -870,7 +870,7 @@ page_parse_delete_rec_list(
 	mtr_t*		mtr);	/* in: mtr or NULL */
 /***************************************************************
 Parses a redo log record of creating a page. */
-
+UNIV_INTERN
 byte*
 page_parse_create(
 /*==============*/
@@ -883,7 +883,7 @@ page_parse_create(
 /****************************************************************
 Prints record contents including the data relevant only in
 the index page context. */
-
+UNIV_INTERN
 void
 page_rec_print(
 /*===========*/
@@ -892,7 +892,7 @@ page_rec_print(
 /*******************************************************************
 This is used to print the contents of the directory for
 debugging purposes. */
-
+UNIV_INTERN
 void
 page_dir_print(
 /*===========*/
@@ -901,7 +901,7 @@ page_dir_print(
 /*******************************************************************
 This is used to print the contents of the page record list for
 debugging purposes. */
-
+UNIV_INTERN
 void
 page_print_list(
 /*============*/
@@ -910,7 +910,7 @@ page_print_list(
 	ulint		pr_n);	/* in: print n first and n last entries */
 /*******************************************************************
 Prints the info in a page header. */
-
+UNIV_INTERN
 void
 page_header_print(
 /*==============*/
@@ -918,7 +918,7 @@ page_header_print(
 /*******************************************************************
 This is used to print the contents of the page for
 debugging purposes. */
-
+UNIV_INTERN
 void
 page_print(
 /*=======*/
@@ -932,7 +932,7 @@ page_print(
 The following is used to validate a record on a page. This function
 differs from rec_validate as it can also check the n_owned field and
 the heap_no field. */
-
+UNIV_INTERN
 ibool
 page_rec_validate(
 /*==============*/
@@ -943,7 +943,7 @@ page_rec_validate(
 Checks that the first directory slot points to the infimum record and
 the last to the supremum. This function is intended to track if the
 bug fixed in 4.0.14 has caused corruption to users' databases. */
-
+UNIV_INTERN
 void
 page_check_dir(
 /*===========*/
@@ -952,7 +952,7 @@ page_check_dir(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage. */
-
+UNIV_INTERN
 ibool
 page_simple_validate_old(
 /*=====================*/
@@ -962,7 +962,7 @@ page_simple_validate_old(
 This function checks the consistency of an index page when we do not
 know the index. This is also resilient so that this should never crash
 even if the page is total garbage. */
-
+UNIV_INTERN
 ibool
 page_simple_validate_new(
 /*=====================*/
@@ -970,7 +970,7 @@ page_simple_validate_new(
 	page_t*	block);	/* in: new-style index page */
 /*******************************************************************
 This function checks the consistency of an index page. */
-
+UNIV_INTERN
 ibool
 page_validate(
 /*==========*/
