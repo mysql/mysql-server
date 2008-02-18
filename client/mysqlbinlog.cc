@@ -475,6 +475,31 @@ Create_file event for file_id: %u\n",ae->file_id);
 Load_log_processor load_processor;
 
 
+/**
+  Replace windows-style backslashes by forward slashes so it can be
+  consumed by the mysql client, which requires Unix path.
+
+  @todo This is only useful under windows, so may be ifdef'ed out on
+  other systems.  /Sven
+
+  @todo If a Create_file_log_event contains a filename with a
+  backslash (valid under unix), then we have problems under windows.
+  /Sven
+
+  @param[in,out] fname Filename to modify. The filename is modified
+  in-place.
+*/
+static void convert_path_to_forward_slashes(char *fname)
+{
+  while (*fname)
+  {
+    if (*fname == '\\')
+      *fname= '/';
+    fname++;
+  }
+}
+
+
 static bool check_database(const char *log_dbname)
 {
   return one_database &&
@@ -627,6 +652,11 @@ int process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       */
       if (ce)
       {
+        /*
+          We must not convert earlier, since the file is used by
+          my_open() in Load_log_processor::append().
+        */
+        convert_path_to_forward_slashes((char*) ce->fname);
 	ce->print(result_file, print_event_info, TRUE);
 	my_free((char*)ce->fname,MYF(MY_WME));
 	delete ce;
@@ -675,13 +705,7 @@ Create_file event for file_id: %u\n",exv->file_id);
 
       if (fname)
       {
-        /*
-          Fix the path so it can be consumed by mysql client (requires Unix path).
-        */
-        int stop= strlen(fname);
-        for (int i= 0; i < stop; i++)
-          if (fname[i] == '\\')
-            fname[i]= '/';
+        convert_path_to_forward_slashes(fname);
 	exlq->print(result_file, print_event_info, fname);
 	my_free(fname, MYF(MY_WME));
       }
