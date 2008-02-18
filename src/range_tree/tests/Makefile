@@ -26,7 +26,7 @@ LIBNAME=librt.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
-CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute -Wunreachable-code
+CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
 CPPFLAGS += -L../ -I../ -I../../../newbrt -I../../../include -lpthread
 
 
