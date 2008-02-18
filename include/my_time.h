@@ -111,7 +111,7 @@ void init_time(void);
     TRUE    The MYSQL_TIME value is definitely out of range
 */
 
-static inline bool validate_timestamp_range(const MYSQL_TIME *t)
+static inline my_bool validate_timestamp_range(const MYSQL_TIME *t)
 {
   if ((t->year > TIMESTAMP_MAX_YEAR || t->year < TIMESTAMP_MIN_YEAR) ||
       (t->year == TIMESTAMP_MAX_YEAR && (t->month > 1 || t->day > 19)) ||
