@@ -18,6 +18,7 @@
 #pragma implementation				// gcc: Class implementation
 #endif
 #include "mysql_priv.h"
+#include <mysql.h>
 #include <m_ctype.h>
 #include "my_dir.h"
 #include "sp_rcontext.h"
