@@ -156,10 +156,7 @@ int toku_rt_create(toku_range_tree** ptree,
     temptree->ranges_len     = minlen;
     temptree->ranges         = (toku_range*)
                          user_malloc(temptree->ranges_len * sizeof(toku_range));
-    if (!temptree->ranges) {
-        r = errno;
-        goto died1;
-    }
+    if (!temptree->ranges) { r = errno; goto died1; }
     temptree->malloc  = user_malloc;
     temptree->free    = user_free;
     temptree->realloc = user_realloc;
