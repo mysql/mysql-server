@@ -217,15 +217,6 @@ os_thread_exit(
 #endif
 }
 
-#ifdef HAVE_PTHREAD_JOIN
-int
-os_thread_join(
-/*===========*/
-  os_thread_id_t  thread_id)	/* in: id of the thread to join */
-{
-	return(pthread_join(thread_id, NULL));
-}
-#endif
 /*********************************************************************
 Returns handle to the current thread. */
 UNIV_INTERN
