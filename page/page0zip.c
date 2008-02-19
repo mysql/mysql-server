@@ -658,10 +658,19 @@ page_zip_set_alloc(
 	strm->opaque = heap;
 }
 
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#if 0 || defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+# define PAGE_ZIP_COMPRESS_DBG
+#endif
+
+#ifdef PAGE_ZIP_COMPRESS_DBG
 /* Set this variable in a debugger to enable
 excessive logging in page_zip_compress(). */
 UNIV_INTERN ibool	page_zip_compress_dbg;
+/* Set this variable in a debugger to enable
+binary logging of the data passed to deflate().
+When this variable is nonzero, it will act
+as a log file name generator. */
+UNIV_INTERN unsigned	page_zip_compress_log = 1;
 
 /**************************************************************************
 Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
@@ -669,12 +678,16 @@ static
 ibool
 page_zip_compress_deflate(
 /*======================*/
+	FILE*		logfile,/* in: log file, or NULL */
 	z_streamp	strm,	/* in/out: compressed stream for deflate() */
 	int		flush)	/* in: deflate() flushing method */
 {
 	int	status;
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
 		ut_print_buf(stderr, strm->next_in, strm->avail_in);
+	}
+	if (UNIV_LIKELY_NULL(logfile)) {
+		fwrite(strm->next_in, 1, strm->avail_in, logfile);
 	}
 	status = deflate(strm, flush);
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
@@ -685,8 +698,13 @@ page_zip_compress_deflate(
 
 /* Redefine deflate(). */
 # undef deflate
-# define deflate page_zip_compress_deflate
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+# define deflate(strm, flush) page_zip_compress_deflate(logfile, strm, flush)
+# define FILE_LOGFILE FILE* logfile,
+# define LOGFILE logfile,
+#else /* PAGE_ZIP_COMPRESS_DBG */
+# define FILE_LOGFILE
+# define LOGFILE
+#endif /* PAGE_ZIP_COMPRESS_DBG */
 
 /**************************************************************************
 Compress the records of a node pointer page. */
@@ -695,6 +713,7 @@ int
 page_zip_compress_node_ptrs(
 /*========================*/
 					/* out: Z_OK, or a zlib error code */
+	FILE_LOGFILE
 	z_stream*	c_stream,	/* in/out: compressed page stream */
 	const rec_t**	recs,		/* in: dense page directory
 					sorted by address */
@@ -759,6 +778,7 @@ int
 page_zip_compress_sec(
 /*==================*/
 					/* out: Z_OK, or a zlib error code */
+	FILE_LOGFILE
 	z_stream*	c_stream,	/* in/out: compressed page stream */
 	const rec_t**	recs,		/* in: dense page directory
 					sorted by address */
@@ -803,6 +823,7 @@ int
 page_zip_compress_clust_ext(
 /*========================*/
 					/* out: Z_OK, or a zlib error code */
+	FILE_LOGFILE
 	z_stream*	c_stream,	/* in/out: compressed page stream */
 	const rec_t*	rec,		/* in: record */
 	const ulint*	offsets,	/* in: rec_get_offsets(rec) */
@@ -929,6 +950,7 @@ int
 page_zip_compress_clust(
 /*====================*/
 					/* out: Z_OK, or a zlib error code */
+	FILE_LOGFILE
 	z_stream*	c_stream,	/* in/out: compressed page stream */
 	const rec_t**	recs,		/* in: dense page directory
 					sorted by address */
@@ -986,6 +1008,7 @@ page_zip_compress_clust(
 			ut_ad(dict_index_is_clust(index));
 
 			err = page_zip_compress_clust_ext(
+				LOGFILE
 				c_stream, rec, offsets, trx_id_col,
 				deleted, storage, &externs, n_blobs);
 
@@ -1081,6 +1104,9 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+#ifdef PAGE_ZIP_COMPRESS_DBG
+	FILE*		logfile = NULL;
+#endif
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -1113,18 +1139,41 @@ page_zip_compress(
 
 	/* The dense directory excludes the infimum and supremum records. */
 	n_dense = page_dir_get_n_heap(page) - PAGE_HEAP_NO_USER_LOW;
-#if defined UNIV_DEBUG || defined UNIV_ZIP_DEBUG
+#ifdef PAGE_ZIP_COMPRESS_DBG
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
 		fprintf(stderr, "compress %p %p %lu %lu %lu\n",
 			(void*) page_zip, (void*) page,
 			page_is_leaf(page),
 			n_fields, n_dense);
 	}
-#endif /* UNIV_DEBUG || UNIV_ZIP_DEBUG */
+	if (UNIV_UNLIKELY(page_zip_compress_log)) {
+		/* Create a log file for every compression attempt. */
+		char	logfilename[9];
+		ut_snprintf(logfilename, sizeof logfilename,
+			    "%08x", page_zip_compress_log++);
+		logfile = fopen(logfilename, "wb");
+
+		if (logfile) {
+			/* Write the uncompressed page to the log. */
+			fwrite(page, 1, UNIV_PAGE_SIZE, logfile);
+			/* Record the compressed size as zero.
+			This will be overwritten at successful exit. */
+			putc(0, logfile);
+			putc(0, logfile);
+			putc(0, logfile);
+			putc(0, logfile);
+		}
+	}
+#endif /* PAGE_ZIP_COMPRESS_DBG */
 	page_zip_compress_count[page_zip->ssize]++;
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
+#ifdef PAGE_ZIP_COMPRESS_DBG
+		if (logfile) {
+			fclose(logfile);
+		}
+#endif /* PAGE_ZIP_COMPRESS_DBG */
 		return(FALSE);
 	}
 
@@ -1208,20 +1257,23 @@ page_zip_compress(
 	if (UNIV_UNLIKELY(!n_dense)) {
 	} else if (!page_is_leaf(page)) {
 		/* This is a node pointer page. */
-		err = page_zip_compress_node_ptrs(&c_stream, recs, n_dense,
+		err = page_zip_compress_node_ptrs(LOGFILE
+						  &c_stream, recs, n_dense,
 						  index, storage, heap);
 		if (UNIV_UNLIKELY(err != Z_OK)) {
 			goto zlib_error;
 		}
 	} else if (UNIV_LIKELY(trx_id_col == ULINT_UNDEFINED)) {
 		/* This is a leaf page in a secondary index. */
-		err = page_zip_compress_sec(&c_stream, recs, n_dense);
+		err = page_zip_compress_sec(LOGFILE
+					    &c_stream, recs, n_dense);
 		if (UNIV_UNLIKELY(err != Z_OK)) {
 			goto zlib_error;
 		}
 	} else {
 		/* This is a leaf page in a clustered index. */
-		err = page_zip_compress_clust(&c_stream, recs, n_dense,
+		err = page_zip_compress_clust(LOGFILE
+					      &c_stream, recs, n_dense,
 					      index, &n_blobs, trx_id_col,
 					      buf_end - PAGE_ZIP_DIR_SLOT_SIZE
 					      * page_get_n_recs(page),
@@ -1248,6 +1300,11 @@ page_zip_compress(
 zlib_error:
 		deflateEnd(&c_stream);
 		mem_heap_free(heap);
+#ifdef PAGE_ZIP_COMPRESS_DBG
+		if (logfile) {
+			fclose(logfile);
+		}
+#endif /* PAGE_ZIP_COMPRESS_DBG */
 		return(FALSE);
 	}
 
@@ -1295,6 +1352,16 @@ zlib_error:
 
 	UNIV_MEM_ASSERT_RW(page_zip->data, page_zip_get_size(page_zip));
 
+#ifdef PAGE_ZIP_COMPRESS_DBG
+	if (logfile) {
+		/* Record the compressed size of the block. */
+		byte sz[4];
+		mach_write_to_4(sz, c_stream.total_out);
+		fseek(logfile, UNIV_PAGE_SIZE, SEEK_SET);
+		fwrite(sz, 1, sizeof sz, logfile);
+		fclose(logfile);
+	}
+#endif /* PAGE_ZIP_COMPRESS_DBG */
 	return(TRUE);
 }
 
