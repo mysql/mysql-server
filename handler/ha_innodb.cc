@@ -8420,6 +8420,12 @@ static MYSQL_SYSVAR_LONG(open_files, innobase_open_files,
   "How many files at the maximum InnoDB keeps open at the same time.",
   NULL, NULL, 300L, 10L, ~0L, 0);
 
+static MYSQL_SYSVAR_ULONG(stats_sample, srv_stats_sample,
+  PLUGIN_VAR_OPCMDARG,
+  "When estimating number of different key values in an index, sample "
+  "this many index pages",
+  NULL, NULL, SRV_STATS_SAMPLE_DEFAULT, 1, 1000, 0);
+
 static MYSQL_SYSVAR_ULONG(sync_spin_loops, srv_n_spin_wait_rounds,
   PLUGIN_VAR_RQCMDARG,
   "Count of spin-loop rounds in InnoDB mutexes",
@@ -8486,6 +8492,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_on_metadata),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
+  MYSQL_SYSVAR(stats_sample),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
