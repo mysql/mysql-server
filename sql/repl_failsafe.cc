@@ -1011,7 +1011,7 @@ err:
 
   mysql_close(&mysql); // safe to call since we always do mysql_init()
   if (!error)
-    send_ok(thd);
+    my_ok(thd);
 
   return error;
 }

@@ -2111,7 +2111,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     thd->stmt_map.erase(stmt);
   }
   else
-    send_ok(thd, 0L, 0L, "Statement prepared");
+    my_ok(thd, 0L, 0L, "Statement prepared");
 
   DBUG_VOID_RETURN;
 }
@@ -2494,7 +2494,7 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  send_ok(thd);
+  my_ok(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -2557,7 +2557,7 @@ void mysql_sql_stmt_close(THD *thd)
   }
 
   if (stmt->deallocate() == 0)
-    send_ok(thd);
+    my_ok(thd);
 }
 
 /**

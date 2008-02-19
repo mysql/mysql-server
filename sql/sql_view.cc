@@ -599,7 +599,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   if (res)
     goto err;
 
-  send_ok(thd);
+  my_ok(thd);
   lex->link_first_table_back(view, link_to_local);
   DBUG_RETURN(0);
 
@@ -1552,7 +1552,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
   {
     DBUG_RETURN(TRUE);
   }
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 

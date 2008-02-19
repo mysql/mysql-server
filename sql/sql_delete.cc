@@ -158,7 +158,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   {
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
-    send_ok(thd, (ha_rows) thd->row_count_func);  // No matching records
+    my_ok(thd, (ha_rows) thd->row_count_func);  // No matching records
     DBUG_RETURN(0);
   }
 #endif
@@ -175,7 +175,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     delete select;
     free_underlaid_joins(thd, select_lex);
     thd->row_count_func= 0;
-    send_ok(thd, (ha_rows) thd->row_count_func);
+    my_ok(thd, (ha_rows) thd->row_count_func);
     /*
       We don't need to call reset_auto_increment in this case, because
       mysql_truncate always gives a NULL conds argument, hence we never
@@ -391,7 +391,7 @@ cleanup:
   if (error < 0 || (thd->lex->ignore && !thd->is_fatal_error))
   {
     thd->row_count_func= deleted;
-    send_ok(thd, (ha_rows) thd->row_count_func);
+    my_ok(thd, (ha_rows) thd->row_count_func);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
   }
   DBUG_RETURN(error >= 0 || thd->is_error());
@@ -919,7 +919,7 @@ bool multi_delete::send_eof()
   if (!local_error)
   {
     thd->row_count_func= deleted;
-    ::send_ok(thd, (ha_rows) thd->row_count_func);
+    ::my_ok(thd, (ha_rows) thd->row_count_func);
   }
   return 0;
 }
@@ -973,7 +973,7 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     my_free((char*) table,MYF(0));
     /*
       If we return here we will not have logged the truncation to the bin log
-      and we will not send_ok() to the client.
+      and we will not my_ok() to the client.
     */
     goto end;
   }
@@ -1019,7 +1019,7 @@ end:
         we don't test current_stmt_binlog_row_based.
       */
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
-      send_ok(thd);		// This should return record count
+      my_ok(thd);		// This should return record count
     }
     VOID(pthread_mutex_lock(&LOCK_open));
     unlock_table_name(thd, table_list);

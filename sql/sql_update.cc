@@ -319,7 +319,7 @@ int mysql_update(THD *thd,
   if (prune_partitions(thd, table, conds))
   {
     free_underlaid_joins(thd, select_lex);
-    send_ok(thd);				// No matching records
+    my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
 #endif
@@ -336,7 +336,7 @@ int mysql_update(THD *thd,
     {
       DBUG_RETURN(1);				// Error in where
     }
-    send_ok(thd);				// No matching records
+    my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
   if (!select && limit != HA_POS_ERROR)
@@ -815,7 +815,7 @@ int mysql_update(THD *thd,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    send_ok(thd, (ulong) thd->row_count_func, id, buff);
+    my_ok(thd, (ulong) thd->row_count_func, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -1989,6 +1989,6 @@ bool multi_update::send_eof()
 	  (ulong) thd->cuted_fields);
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(FALSE);
 }
