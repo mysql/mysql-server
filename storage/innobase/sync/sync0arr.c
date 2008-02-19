@@ -40,24 +40,23 @@ because we can do with a very small number of OS events,
 say 200. In NT 3.51, allocating events seems to be a quadratic
 algorithm, because 10 000 events are created fast, but
 100 000 events takes a couple of minutes to create.
-*/
+
+As of 5.0.30 the above mentioned design is changed. Since now
+OS can handle millions of wait events efficiently, we no longer
+have this concept of each cell of wait array having one event.
+Instead, now the event that a thread wants to wait on is embedded
+in the wait object (mutex or rw_lock). We still keep the global
+wait array for the sake of diagnostics and also to avoid infinite
+wait The error_monitor thread scans the global wait array to signal
+any waiting threads who have missed the signal. */
 
 /* A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
 using an operating system event semaphore. */
 struct sync_cell_struct {
-	/* State of the cell. SC_WAKING_UP means
-	sync_array_struct->n_reserved has been decremented, but the thread
-	in this cell has not waken up yet. When it does, it will set the
-	state to SC_FREE. Note that this is done without the protection of
-	any mutex. */
-	enum { SC_FREE, SC_RESERVED, SC_WAKING_UP } state;
-
 	void*		wait_object;	/* pointer to the object the
-					thread is waiting for; this is not
-					reseted to NULL when a cell is
-					freed. */
-
+					thread is waiting for; if NULL
+					the cell is free for use */
 	mutex_t*	old_wait_mutex;	/* the latest wait mutex in cell */
 	rw_lock_t*	old_wait_rw_lock;/* the latest wait rw-lock in cell */
 	ulint		request_type;	/* lock type requested on the
@@ -71,13 +70,23 @@ struct sync_cell_struct {
 	ibool		waiting;	/* TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
-	ibool		event_set;	/* TRUE if the event is set */
-	os_event_t	event;		/* operating system event
-					semaphore handle */
+	ib_longlong	signal_count;	/* We capture the signal_count
+					of the wait_object when we
+					reset the event. This value is
+					then passed on to os_event_wait
+					and we wait only if the event
+					has not been signalled in the
+					period between the reset and
+					wait call. */
 	time_t		reservation_time;/* time when the thread reserved
 					the wait cell */
 };
 
+/* NOTE: It is allowed for a thread to wait
+for an event allocated for the array without owning the
+protecting mutex (depending on the case: OS or database mutex), but
+all changes (set or reset) to the state of the event must be made
+while owning the mutex. */
 struct sync_array_struct {
 	ulint		n_reserved;	/* number of currently reserved
 					cells in the wait array */
@@ -220,12 +229,9 @@ sync_array_create(
 
 	for (i = 0; i < n_cells; i++) {
 		cell = sync_array_get_nth_cell(arr, i);
-		cell->state = SC_FREE;
-		cell->wait_object = NULL;
-
-		/* Create an operating system event semaphore with no name */
-		cell->event = os_event_create(NULL);
-		cell->event_set = FALSE; /* it is created in reset state */
+	cell->wait_object = NULL;
+		cell->waiting = FALSE;
+		cell->signal_count = 0;
 	}
 
 	return(arr);
@@ -239,18 +245,11 @@ sync_array_free(
 /*============*/
 	sync_array_t*	arr)	/* in, own: sync wait array */
 {
-	ulint		i;
-	sync_cell_t*	cell;
 	ulint		protection;
 
 	ut_a(arr->n_reserved == 0);
 
 	sync_array_validate(arr);
-
-	for (i = 0; i < arr->n_cells; i++) {
-		cell = sync_array_get_nth_cell(arr, i);
-		os_event_free(cell->event);
-	}
 
 	protection = arr->protection;
 
@@ -285,8 +284,7 @@ sync_array_validate(
 
 	for (i = 0; i < arr->n_cells; i++) {
 		cell = sync_array_get_nth_cell(arr, i);
-
-		if (cell->state == SC_RESERVED) {
+		if (cell->wait_object != NULL) {
 			count++;
 		}
 	}
@@ -294,6 +292,29 @@ sync_array_validate(
 	ut_a(count == arr->n_reserved);
 
 	sync_array_exit(arr);
+}
+
+/***********************************************************************
+Puts the cell event in reset state. */
+static
+ib_longlong
+sync_cell_event_reset(
+/*==================*/
+				/* out: value of signal_count
+				at the time of reset. */
+	ulint		type,	/* in: lock type mutex/rw_lock */
+	void*		object) /* in: the rw_lock/mutex object */
+{
+	if (type == SYNC_MUTEX) {
+		return(os_event_reset(((mutex_t *) object)->event));
+#ifdef __WIN__
+	} else if (type == RW_LOCK_WAIT_EX) {
+		return(os_event_reset(
+		       ((rw_lock_t *) object)->wait_ex_event));
+#endif
+	} else {
+		return(os_event_reset(((rw_lock_t *) object)->event));
+	}
 }
 
 /**********************************************************************
@@ -324,21 +345,9 @@ sync_array_reserve_cell(
 	for (i = 0; i < arr->n_cells; i++) {
 		cell = sync_array_get_nth_cell(arr, i);
 
-		if (cell->state == SC_FREE) {
+		if (cell->wait_object == NULL) {
 
-			/* We do not check cell->event_set because it is
-			set outside the protection of the sync array mutex
-			and we had a bug regarding it, and since resetting
-			an event when it is not needed does no harm it is
-			safer always to do it. */
-
-			cell->event_set = FALSE;
-			os_event_reset(cell->event);
-
-			cell->state = SC_RESERVED;
-			cell->reservation_time = time(NULL);
-			cell->thread = os_thread_get_curr_id();
-
+			cell->waiting = FALSE;
 			cell->wait_object = object;
 
 			if (type == SYNC_MUTEX) {
@@ -348,7 +357,6 @@ sync_array_reserve_cell(
 			}
 
 			cell->request_type = type;
-			cell->waiting = FALSE;
 
 			cell->file = file;
 			cell->line = line;
@@ -359,6 +367,16 @@ sync_array_reserve_cell(
 
 			sync_array_exit(arr);
 
+			/* Make sure the event is reset and also store
+			the value of signal_count at which the event
+			was reset. */
+			cell->signal_count = sync_cell_event_reset(type,
+								object);
+
+			cell->reservation_time = time(NULL);
+
+			cell->thread = os_thread_get_curr_id();
+
 			return;
 		}
 	}
@@ -366,68 +384,6 @@ sync_array_reserve_cell(
 	ut_error; /* No free cell found */
 
 	return;
-}
-
-/**********************************************************************
-Frees the cell. Note that we don't have any mutex reserved when calling
-this. */
-static
-void
-sync_array_free_cell(
-/*=================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index)	/* in: index of the cell in array */
-{
-	sync_cell_t*	cell;
-
-	cell = sync_array_get_nth_cell(arr, index);
-
-	ut_a(cell->state == SC_WAKING_UP);
-	ut_a(cell->wait_object != NULL);
-
-	cell->state = SC_FREE;
-}
-
-/**********************************************************************
-Frees the cell safely by reserving the sync array mutex and decrementing
-n_reserved if necessary. Should only be called from mutex_spin_wait. */
-
-void
-sync_array_free_cell_protected(
-/*===========================*/
-	sync_array_t*	arr,	/* in: wait array */
-	ulint		index)	/* in: index of the cell in array */
-{
-	sync_cell_t*	cell;
-
-	sync_array_enter(arr);
-
-	cell = sync_array_get_nth_cell(arr, index);
-
-	ut_a(cell->state != SC_FREE);
-	ut_a(cell->wait_object != NULL);
-
-	/* We only need to decrement n_reserved if it has not already been
-	done by sync_array_signal_object. */
-	if (cell->state == SC_RESERVED) {
-		ut_a(arr->n_reserved > 0);
-		arr->n_reserved--;
-	} else if (cell->state == SC_WAKING_UP) {
-		/* This is tricky; if we don't wait for the event to be
-		signaled, signal_object can set the state of a cell to
-		SC_WAKING_UP, mutex_spin_wait can call this and set the
-		state to SC_FREE, and then signal_object gets around to
-		calling os_set_event for the cell but since it's already
-		been freed things break horribly. */
-
-		sync_array_exit(arr);
-		os_event_wait(cell->event);
-		sync_array_enter(arr);
-	}
-
-	cell->state = SC_FREE;
-
-	sync_array_exit(arr);
 }
 
 /**********************************************************************
@@ -447,15 +403,28 @@ sync_array_wait_event(
 
 	ut_a(arr);
 
+	sync_array_enter(arr);
+
 	cell = sync_array_get_nth_cell(arr, index);
 
-	ut_a((cell->state == SC_RESERVED) || (cell->state == SC_WAKING_UP));
 	ut_a(cell->wait_object);
 	ut_a(!cell->waiting);
 	ut_ad(os_thread_get_curr_id() == cell->thread);
 
-	event = cell->event;
-	cell->waiting = TRUE;
+	if (cell->request_type == SYNC_MUTEX) {
+		event = ((mutex_t*) cell->wait_object)->event;
+#ifdef __WIN__
+	/* On windows if the thread about to wait is the one which
+	has set the state of the rw_lock to RW_LOCK_WAIT_EX, then
+	it waits on a special event i.e.: wait_ex_event. */
+	} else if (cell->request_type == RW_LOCK_WAIT_EX) {
+		event = ((rw_lock_t*) cell->wait_object)->wait_ex_event;
+#endif
+	} else {
+		event = ((rw_lock_t*) cell->wait_object)->event;
+	}
+
+		cell->waiting = TRUE;
 
 #ifdef UNIV_SYNC_DEBUG
 
@@ -464,7 +433,6 @@ sync_array_wait_event(
 	recursively sync_array routines, leading to trouble.
 	rw_lock_debug_mutex freezes the debug lists. */
 
-	sync_array_enter(arr);
 	rw_lock_debug_mutex_enter();
 
 	if (TRUE == sync_array_detect_deadlock(arr, cell, cell, 0)) {
@@ -474,16 +442,16 @@ sync_array_wait_event(
 	}
 
 	rw_lock_debug_mutex_exit();
-	sync_array_exit(arr);
 #endif
-	os_event_wait(event);
+	sync_array_exit(arr);
+
+	os_event_wait_low(event, cell->signal_count);
 
 	sync_array_free_cell(arr, index);
 }
 
 /**********************************************************************
-Reports info of a wait array cell. Note: sync_array_print_long_waits()
-calls this without mutex protection. */
+Reports info of a wait array cell. */
 static
 void
 sync_array_cell_print(
@@ -503,17 +471,8 @@ sync_array_cell_print(
 		(ulong) os_thread_pf(cell->thread), cell->file,
 		(ulong) cell->line,
 		difftime(time(NULL), cell->reservation_time));
-	fprintf(file, "Wait array cell state %lu\n", (ulong)cell->state);
 
-	/* If the memory area pointed to by old_wait_mutex /
-	old_wait_rw_lock has been freed, this can crash. */
-
-	if (cell->state != SC_RESERVED) {
-		/* If cell has this state, then even if we are holding the sync
-		array mutex, the wait object may get freed meanwhile. Do not
-		print the wait object then. */
-
-	} else if (type == SYNC_MUTEX) {
+	if (type == SYNC_MUTEX) {
 		/* We use old_wait_mutex in case the cell has already
 		been freed meanwhile */
 		mutex = cell->old_wait_mutex;
@@ -531,7 +490,11 @@ sync_array_cell_print(
 #endif /* UNIV_SYNC_DEBUG */
 			(ulong) mutex->waiters);
 
-	} else if (type == RW_LOCK_EX || type == RW_LOCK_SHARED) {
+	} else if (type == RW_LOCK_EX
+#ifdef __WIN__
+		   || type == RW_LOCK_WAIT_EX
+#endif
+		   || type == RW_LOCK_SHARED) {
 
 		fputs(type == RW_LOCK_EX ? "X-lock on" : "S-lock on", file);
 
@@ -565,8 +528,8 @@ sync_array_cell_print(
 		ut_error;
 	}
 
-	if (cell->event_set) {
-		fputs("wait is ending\n", file);
+	if (!cell->waiting) {
+		fputs("wait has ended\n", file);
 	}
 }
 
@@ -589,7 +552,7 @@ sync_array_find_thread(
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-		if ((cell->state == SC_RESERVED)
+		if (cell->wait_object != NULL
 		    && os_thread_eq(cell->thread, thread)) {
 
 			return(cell);	/* Found */
@@ -679,7 +642,7 @@ sync_array_detect_deadlock(
 
 	depth++;
 
-	if (cell->event_set || !cell->waiting) {
+	if (!cell->waiting) {
 
 		return(FALSE); /* No deadlock here */
 	}
@@ -704,10 +667,8 @@ sync_array_detect_deadlock(
 						       depth);
 			if (ret) {
 				fprintf(stderr,
-					"Mutex %p owned by thread %lu"
-					" file %s line %lu\n",
-					(void*) mutex,
-					(ulong) os_thread_pf(mutex->thread_id),
+			"Mutex %p owned by thread %lu file %s line %lu\n",
+					mutex, (ulong) os_thread_pf(mutex->thread_id),
 					mutex->file_name, (ulong) mutex->line);
 				sync_array_cell_print(stderr, cell);
 
@@ -717,7 +678,8 @@ sync_array_detect_deadlock(
 
 		return(FALSE); /* No deadlock */
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = cell->wait_object;
 
@@ -816,7 +778,8 @@ sync_arr_cell_can_wake_up(
 			return(TRUE);
 		}
 
-	} else if (cell->request_type == RW_LOCK_EX) {
+	} else if (cell->request_type == RW_LOCK_EX
+		   || cell->request_type == RW_LOCK_WAIT_EX) {
 
 		lock = cell->wait_object;
 
@@ -845,101 +808,47 @@ sync_arr_cell_can_wake_up(
 	return(FALSE);
 }
 
-/**************************************************************************
-Looks for the cells in the wait array which refer to the wait object
-specified, and sets their corresponding events to the signaled state. In this
-way releases the threads waiting for the object to contend for the object.
-It is possible that no such cell is found, in which case does nothing. */
+/**********************************************************************
+Frees the cell. NOTE! sync_array_wait_event frees the cell
+automatically! */
 
 void
-sync_array_signal_object(
-/*=====================*/
+sync_array_free_cell(
+/*=================*/
 	sync_array_t*	arr,	/* in: wait array */
-	void*		object)	/* in: wait object */
+	ulint		index)  /* in: index of the cell in array */
 {
 	sync_cell_t*	cell;
-	ulint		count;
-	ulint		i;
-	ulint		res_count;
 
-	/* We store the addresses of cells we need to signal and signal
-	them only after we have released the sync array's mutex (for
-	performance reasons). cell_count is the number of such cells, and
-	cell_ptr points to the first one. If there are less than
-	UT_ARR_SIZE(cells) of them, cell_ptr == &cells[0], otherwise
-	cell_ptr points to malloc'd memory that we must free. */
+	sync_array_enter(arr);
 
-	sync_cell_t*	cells[100];
-	sync_cell_t**	cell_ptr = &cells[0];
-	ulint		cell_count = 0;
-	ulint		cell_max_count = UT_ARR_SIZE(cells);
+	cell = sync_array_get_nth_cell(arr, index);
 
-	ut_a(100 == cell_max_count);
+	ut_a(cell->wait_object != NULL);
 
+	cell->waiting = FALSE;
+	cell->wait_object =  NULL;
+	cell->signal_count = 0;
+
+	ut_a(arr->n_reserved > 0);
+	arr->n_reserved--;
+
+	sync_array_exit(arr);
+}
+
+/**************************************************************************
+Increments the signalled count. */
+
+void
+sync_array_object_signalled(
+/*========================*/
+	sync_array_t*	arr)	/* in: wait array */
+{
 	sync_array_enter(arr);
 
 	arr->sg_count++;
 
-	i = 0;
-	count = 0;
-
-	/* We need to store this to a local variable because it is modified
-	inside the loop */
-	res_count = arr->n_reserved;
-
-	while (count < res_count) {
-
-		cell = sync_array_get_nth_cell(arr, i);
-
-		if (cell->state == SC_RESERVED) {
-
-			count++;
-			if (cell->wait_object == object) {
-				cell->state = SC_WAKING_UP;
-
-				ut_a(arr->n_reserved > 0);
-				arr->n_reserved--;
-
-				if (cell_count == cell_max_count) {
-					sync_cell_t** old_cell_ptr = cell_ptr;
-					size_t old_size, new_size;
-
-					old_size = cell_max_count
-						* sizeof(sync_cell_t*);
-					cell_max_count *= 2;
-					new_size = cell_max_count
-						* sizeof(sync_cell_t*);
-
-					cell_ptr = malloc(new_size);
-					ut_a(cell_ptr);
-					memcpy(cell_ptr, old_cell_ptr,
-					       old_size);
-
-					if (old_cell_ptr != &cells[0]) {
-						free(old_cell_ptr);
-					}
-				}
-
-				cell_ptr[cell_count] = cell;
-				cell_count++;
-			}
-		}
-
-		i++;
-	}
-
 	sync_array_exit(arr);
-
-	for (i = 0; i < cell_count; i++) {
-		cell = cell_ptr[i];
-
-		cell->event_set = TRUE;
-		os_event_set(cell->event);
-	}
-
-	if (cell_ptr != &cells[0]) {
-		free(cell_ptr);
-	}
 }
 
 /**************************************************************************
@@ -959,33 +868,41 @@ sync_arr_wake_threads_if_sema_free(void)
 	sync_cell_t*	cell;
 	ulint		count;
 	ulint		i;
-	ulint		res_count;
 
 	sync_array_enter(arr);
 
 	i = 0;
 	count = 0;
 
-	/* We need to store this to a local variable because it is modified
-	inside the loop */
-
-	res_count = arr->n_reserved;
-
-	while (count < res_count) {
+	while (count < arr->n_reserved) {
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-		if (cell->state == SC_RESERVED) {
+		if (cell->wait_object != NULL) {
 
 			count++;
 
 			if (sync_arr_cell_can_wake_up(cell)) {
-				cell->state = SC_WAKING_UP;
-				cell->event_set = TRUE;
-				os_event_set(cell->event);
 
-				ut_a(arr->n_reserved > 0);
-				arr->n_reserved--;
+				if (cell->request_type == SYNC_MUTEX) {
+					mutex_t*	mutex;
+
+					mutex = cell->wait_object;
+					os_event_set(mutex->event);
+#ifdef __WIN__
+				} else if (cell->request_type
+					   == RW_LOCK_WAIT_EX) {
+					rw_lock_t*	lock;
+
+					lock = cell->wait_object;
+					os_event_set(lock->wait_ex_event);
+#endif
+				} else {
+					rw_lock_t*	lock;
+
+					lock = cell->wait_object;
+					os_event_set(lock->event);
+				}
 			}
 		}
 
@@ -1015,7 +932,7 @@ sync_array_print_long_waits(void)
 
 		cell = sync_array_get_nth_cell(sync_primary_wait_array, i);
 
-		if ((cell->state != SC_FREE)
+		if (cell->wait_object != NULL && cell->waiting
 		    && difftime(time(NULL), cell->reservation_time) > 240) {
 			fputs("InnoDB: Warning: a long semaphore wait:\n",
 			      stderr);
@@ -1023,7 +940,7 @@ sync_array_print_long_waits(void)
 			noticed = TRUE;
 		}
 
-		if ((cell->state != SC_FREE)
+		if (cell->wait_object != NULL && cell->waiting
 		    && difftime(time(NULL), cell->reservation_time)
 		    > fatal_timeout) {
 			fatal = TRUE;
@@ -1072,20 +989,25 @@ sync_array_output_info(
 				mutex */
 {
 	sync_cell_t*	cell;
+	ulint		count;
 	ulint		i;
 
 	fprintf(file,
-		"OS WAIT ARRAY INFO: reservation count %ld,"
-		" signal count %ld\n",
-		(long) arr->res_count,
-		(long) arr->sg_count);
-	for (i = 0; i < arr->n_cells; i++) {
+		"OS WAIT ARRAY INFO: reservation count %ld, signal count %ld\n",
+						(long) arr->res_count, (long) arr->sg_count);
+	i = 0;
+	count = 0;
+
+	while (count < arr->n_reserved) {
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-		if (cell->state != SC_FREE) {
+	if (cell->wait_object != NULL) {
+		count++;
 			sync_array_cell_print(file, cell);
 		}
+
+		i++;
 	}
 }
 
