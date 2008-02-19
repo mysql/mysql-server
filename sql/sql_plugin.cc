@@ -2069,35 +2069,35 @@ err:
 
 
 static void update_func_bool(THD *thd, struct st_mysql_sys_var *var,
-                             void *tgt, void *save)
+                             void *tgt, const void *save)
 {
   *(my_bool *) tgt= *(int *) save ? 1 : 0;
 }
 
 
 static void update_func_int(THD *thd, struct st_mysql_sys_var *var,
-                             void *tgt, void *save)
+                             void *tgt, const void *save)
 {
   *(int *)tgt= *(int *) save;
 }
 
 
 static void update_func_long(THD *thd, struct st_mysql_sys_var *var,
-                             void *tgt, void *save)
+                             void *tgt, const void *save)
 {
   *(long *)tgt= *(long *) save;
 }
 
 
 static void update_func_longlong(THD *thd, struct st_mysql_sys_var *var,
-                             void *tgt, void *save)
+                             void *tgt, const void *save)
 {
   *(longlong *)tgt= *(ulonglong *) save;
 }
 
 
 static void update_func_str(THD *thd, struct st_mysql_sys_var *var,
-                             void *tgt, void *save)
+                             void *tgt, const void *save)
 {
   char *old= *(char **) tgt;
   *(char **)tgt= *(char **) save;
@@ -2654,7 +2654,8 @@ bool sys_var_pluginvar::check(THD *thd, set_var *var)
 
 void sys_var_pluginvar::set_default(THD *thd, enum_var_type type)
 {
-  void *tgt, *src;
+  const void *src;
+  void *tgt;
 
   DBUG_ASSERT(is_readonly() || plugin_var->update);
 
@@ -2667,9 +2668,34 @@ void sys_var_pluginvar::set_default(THD *thd, enum_var_type type)
 
   if (plugin_var->flags & PLUGIN_VAR_THDLOCAL)
   {
-    src= ((int*) (plugin_var + 1) + 1);
     if (type != OPT_GLOBAL)
       src= real_value_ptr(thd, OPT_GLOBAL);
+    else
+    switch (plugin_var->flags & PLUGIN_VAR_TYPEMASK) {
+	case PLUGIN_VAR_INT:
+	  src= &((thdvar_uint_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_LONG:
+	  src= &((thdvar_ulong_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_LONGLONG:
+	  src= &((thdvar_ulonglong_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_ENUM:
+	  src= &((thdvar_enum_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_SET:
+	  src= &((thdvar_set_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_BOOL:
+	  src= &((thdvar_bool_t*) plugin_var)->def_val;
+	  break;
+	case PLUGIN_VAR_STR:
+	  src= &((thdvar_str_t*) plugin_var)->def_val;
+	  break;
+	default:
+	  DBUG_ASSERT(0);
+	}
   }
 
   /* thd must equal current_thd if PLUGIN_VAR_THDLOCAL flag is set */
@@ -2757,25 +2783,25 @@ static void plugin_opt_set_limits(struct my_option *options,
   case PLUGIN_VAR_ENUM:
     options->var_type= GET_ENUM;
     options->typelib= ((sysvar_enum_t*) opt)->typelib;
-    options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
+    options->def_value= ((sysvar_enum_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
     options->max_value= options->typelib->count - 1;
     break;
   case PLUGIN_VAR_SET:
     options->var_type= GET_SET;
     options->typelib= ((sysvar_set_t*) opt)->typelib;
-    options->def_value= *(ulonglong*) ((int*) (opt + 1) + 1);
+    options->def_value= ((sysvar_set_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
     options->max_value= (ULL(1) << options->typelib->count) - 1;
     break;
   case PLUGIN_VAR_BOOL:
     options->var_type= GET_BOOL;
-    options->def_value= *(my_bool*) ((void**)(opt + 1) + 1);
+    options->def_value= ((sysvar_bool_t*) opt)->def_val;
     break;
   case PLUGIN_VAR_STR:
     options->var_type= ((opt->flags & PLUGIN_VAR_MEMALLOC) ?
                         GET_STR_ALLOC : GET_STR);
-    options->def_value= (ulonglong)(intptr) *((char**) ((void**) (opt + 1) + 1));
+    options->def_value= (intptr) ((sysvar_str_t*) opt)->def_val;
     break;
   /* threadlocal variables */
   case PLUGIN_VAR_INT | PLUGIN_VAR_THDLOCAL:
@@ -2799,25 +2825,25 @@ static void plugin_opt_set_limits(struct my_option *options,
   case PLUGIN_VAR_ENUM | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_ENUM;
     options->typelib= ((thdvar_enum_t*) opt)->typelib;
-    options->def_value= *(ulong*) ((int*) (opt + 1) + 1);
+    options->def_value= ((thdvar_enum_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
     options->max_value= options->typelib->count - 1;
     break;
   case PLUGIN_VAR_SET | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_SET;
     options->typelib= ((thdvar_set_t*) opt)->typelib;
-    options->def_value= *(ulonglong*) ((int*) (opt + 1) + 1);
+    options->def_value= ((thdvar_set_t*) opt)->def_val;
     options->min_value= options->block_size= 0;
     options->max_value= (ULL(1) << options->typelib->count) - 1;
     break;
   case PLUGIN_VAR_BOOL | PLUGIN_VAR_THDLOCAL:
     options->var_type= GET_BOOL;
-    options->def_value= *(my_bool*) ((int*) (opt + 1) + 1);
+    options->def_value= ((thdvar_bool_t*) opt)->def_val;
     break;
   case PLUGIN_VAR_STR | PLUGIN_VAR_THDLOCAL:
     options->var_type= ((opt->flags & PLUGIN_VAR_MEMALLOC) ?
                         GET_STR_ALLOC : GET_STR);
-    options->def_value= (intptr) *((char**) ((void**) (opt + 1) + 1));
+    options->def_value= (intptr) ((thdvar_str_t*) opt)->def_val;
     break;
   default:
     DBUG_ASSERT(0);
