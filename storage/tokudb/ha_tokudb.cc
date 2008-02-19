@@ -1088,25 +1088,32 @@ void ha_tokudb::get_status() {
         }
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
             share->org_rows = share->rows = table_share->max_rows ? table_share->max_rows : HA_TOKUDB_MAX_ROWS;
-            if (!share->status_block->cursor(share->status_block, 0, &cursor, 0)) {
-                DBT row;
-                char rec_buff[64];
-                bzero((void *) &row, sizeof(row));
-                bzero((void *) &last_key, sizeof(last_key));
-                row.data = rec_buff;
-                row.ulen = sizeof(rec_buff);
-                row.flags = DB_DBT_USERMEM;
-                if (!cursor->c_get(cursor, &last_key, &row, DB_FIRST)) {
-                    uint i;
-                    uchar *pos = (uchar *) row.data;
-                    share->org_rows = share->rows = uint4korr(pos);
-                    pos += 4;
-                    for (i = 0; i < table_share->keys; i++) {
-                        share->rec_per_key[i] = uint4korr(pos);
+            DB_TXN *transaction = 0;
+            int r = db_env->txn_begin(db_env, 0, &transaction, 0);
+            if (r == 0) {
+                r = share->status_block->cursor(share->status_block, transaction, &cursor, 0);
+                if (r == 0) {
+                    DBT row;
+                    char rec_buff[64];
+                    bzero((void *) &row, sizeof(row));
+                    bzero((void *) &last_key, sizeof(last_key));
+                    row.data = rec_buff;
+                    row.ulen = sizeof(rec_buff);
+                    row.flags = DB_DBT_USERMEM;
+                    if (!cursor->c_get(cursor, &last_key, &row, DB_FIRST)) {
+                        uint i;
+                        uchar *pos = (uchar *) row.data;
+                        share->org_rows = share->rows = uint4korr(pos);
                         pos += 4;
+                        for (i = 0; i < table_share->keys; i++) {
+                            share->rec_per_key[i] = uint4korr(pos);
+                            pos += 4;
+                        }
                     }
+                    cursor->c_close(cursor);
                 }
-                cursor->c_close(cursor);
+                r = transaction->commit(transaction, 0);
+                transaction = 0;
             }
             cursor = 0;
         }
