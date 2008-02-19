@@ -995,7 +995,7 @@ public:
     DA_EMPTY= 0,
     /** Set whenever one calls my_ok(). */
     DA_OK,
-    /** Set whenever one calls send_eof(). */
+    /** Set whenever one calls my_eof(). */
     DA_EOF,
     /** Set whenever one calls my_error() or my_message(). */
     DA_ERROR,
@@ -1063,7 +1063,7 @@ private:
     Copied from thd->server_status when the diagnostics area is assigned.
     We need this member as some places in the code use the following pattern:
     thd->server_status|= ...
-    send_eof(thd);
+    my_eof(thd);
     thd->server_status&= ~...
     Assigned by OK, EOF or ERROR.
   */
@@ -2151,7 +2151,7 @@ my_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
 /** A short cut for thd->main_da.set_eof_status(). */
 
 inline void
-send_eof(THD *thd)
+my_eof(THD *thd)
 {
   thd->main_da.set_eof_status(thd);
 }

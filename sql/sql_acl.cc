@@ -4815,7 +4815,7 @@ end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(error);
 }
 

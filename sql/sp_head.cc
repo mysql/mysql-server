@@ -2419,7 +2419,7 @@ sp_head::show_create_routine(THD *thd, int type)
   err_status= protocol->write();
 
   if (!err_status)
-    send_eof(thd);
+    my_eof(thd);
 
   DBUG_RETURN(err_status);
 }
@@ -2611,7 +2611,7 @@ sp_head::show_routine_code(THD *thd)
   }
 
   if (!res)
-    send_eof(thd);
+    my_eof(thd);
 
   DBUG_RETURN(res);
 }

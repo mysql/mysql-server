@@ -1590,7 +1590,7 @@ bool mysql_xa_recover(THD *thd)
   }
 
   pthread_mutex_unlock(&LOCK_xid_cache);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(0);
 }
 
@@ -4309,7 +4309,7 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   }
 
   if (!result)
-    send_eof(thd);
+    my_eof(thd);
   return result;
 }
 

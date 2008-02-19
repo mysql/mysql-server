@@ -658,7 +658,7 @@ retry:
   }
 ok:
   mysql_unlock_tables(thd,lock);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 

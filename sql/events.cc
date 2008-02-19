@@ -737,7 +737,7 @@ send_show_create_event(THD *thd, Event_timed *et, Protocol *protocol)
   if (protocol->write())
     DBUG_RETURN(TRUE);
 
-  send_eof(thd);
+  my_eof(thd);
 
   DBUG_RETURN(FALSE);
 }
