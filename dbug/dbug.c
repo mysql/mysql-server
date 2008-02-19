@@ -1979,12 +1979,7 @@ static void DBUGOpenFile(CODE_STATE *cs,
       else
       {
         newfile= !EXISTS(name);
-        if (!(fp= fopen(name,
-#if defined(MSDOS) || defined(__WIN__)
-		append ? "a+c" : "wc"
-#else
-                append ? "a+" : "w"
-#endif
+        if (!(fp= fopen(name, append ? "a+" : "w")))
 		)))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);
