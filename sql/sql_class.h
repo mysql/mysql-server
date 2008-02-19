@@ -686,7 +686,8 @@ private:
 struct st_savepoint {
   struct st_savepoint *prev;
   char                *name;
-  uint                 length, nht;
+  uint                 length;
+  Ha_trx_info         *ha_list;
 };
 
 enum xa_states {XA_NOTR=0, XA_ACTIVE, XA_IDLE, XA_PREPARED};
@@ -1093,6 +1094,33 @@ private:
 
 
 /**
+  Storage engine specific thread local data.
+*/
+
+struct Ha_data
+{
+  /**
+    Storage engine specific thread local data.
+    Lifetime: one user connection.
+  */
+  void *ha_ptr;
+  /**
+    0: Life time: one statement within a transaction. If @@autocommit is
+    on, also represents the entire transaction.
+    @sa trans_register_ha()
+
+    1: Life time: one transaction within a connection.
+    If the storage engine does not participate in a transaction,
+    this should not be used.
+    @sa trans_register_ha()
+  */
+  Ha_trx_info ha_info[2];
+
+  Ha_data() :ha_ptr(NULL) {}
+};
+
+
+/**
   @class THD
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
@@ -1231,7 +1259,7 @@ public:
   uint in_sub_stmt;
 
   /* container for handler's private per-connection data */
-  void *ha_data[MAX_HA];
+  Ha_data ha_data[MAX_HA];
 
 #ifndef MYSQL_CLIENT
   int binlog_setup_trx_data();

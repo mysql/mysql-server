@@ -21,3 +21,5 @@ rpl_ndb_mix_innodb       : Bug #32720   Test rpl_ndb_mix_innodb fails on SPARC a
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
 
 #rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly
+rpl_ndb_circular         : Bug#33849 COMMIT event missing in cluster circular replication.
+rpl_ndb_circular_simplex : Bug#33849 COMMIT event missing in cluster circular replication.

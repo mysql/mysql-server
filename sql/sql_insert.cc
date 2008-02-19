@@ -541,6 +541,10 @@ bool open_and_lock_for_insert_delayed(THD *thd, TABLE_LIST *table_list)
 
 /**
   INSERT statement implementation
+
+  @note Like implementations of other DDL/DML in MySQL, this function
+  relies on the caller to close the thread tables. This is done in the
+  end of dispatch_command().
 */
 
 bool mysql_insert(THD *thd,TABLE_LIST *table_list,
@@ -893,12 +897,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     }
     DBUG_ASSERT(transactional_table || !changed || 
                 thd->transaction.stmt.modified_non_trans_table);
-    if (transactional_table)
-      error=ha_autocommit_or_rollback(thd,error);
-    
+
     if (thd->lock)
     {
-      mysql_unlock_tables(thd, thd->lock);
       /*
         Invalidate the table in the query cache if something changed
         after unlocking when changes become fisible.
@@ -909,7 +910,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       {
         query_cache_invalidate3(thd, table_list, 1);
       }
-      thd->lock=0;
     }
   }
   thd_proc_info(thd, "end");
@@ -2445,7 +2445,7 @@ err:
     first call to ha_*_row() instead. Remove code that are used to
     cover for the case outlined above.
    */
-  ha_rollback_stmt(thd);
+  ha_autocommit_or_rollback(thd, 1);
 
 #ifndef __WIN__
 end:
@@ -3139,18 +3139,6 @@ bool select_insert::send_eof()
                       thd->query, thd->query_length,
                       trans_table, FALSE, killed_status);
   }
-  /*
-    We will call ha_autocommit_or_rollback() also for
-    non-transactional tables under row-based replication: there might
-    be events in the binary logs transaction, and we need to write
-    them to the binary log.
-   */
-  if (trans_table || thd->current_stmt_binlog_row_based)
-  {
-    int error2= ha_autocommit_or_rollback(thd, error);
-    if (error2 && !error)
-      error= error2;
-  }
   table->file->ha_release_auto_increment();
 
   if (error)
@@ -3228,7 +3216,6 @@ void select_insert::abort() {
     table->file->ha_release_auto_increment();
   }
 
-  ha_rollback_stmt(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -3667,7 +3654,10 @@ bool select_create::send_eof()
       nevertheless.
     */
     if (!table->s->tmp_table)
-      ha_commit(thd);               // Can fail, but we proceed anyway
+    {
+      ha_autocommit_or_rollback(thd, 0);
+      end_active_trans(thd);
+    }
 
     table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -3691,12 +3681,9 @@ void select_create::abort()
    by removing the table, even for non-transactional tables.
   */
   tmp_disable_binlog(thd);
-  select_insert::abort();
-  reenable_binlog(thd);
-
   /*
-    We roll back the statement, including truncating the transaction
-    cache of the binary log, if the statement failed.
+    In select_insert::abort() we roll back the statement, including
+    truncating the transaction cache of the binary log.
 
     We roll back the statement prior to deleting the table and prior
     to releasing the lock on the table, since there might be potential
@@ -3707,8 +3694,9 @@ void select_create::abort()
     of the table succeeded or not, since we need to reset the binary
     log state.
   */
-  if (thd->current_stmt_binlog_row_based)
-    ha_rollback_stmt(thd);
+  select_insert::abort();
+  reenable_binlog(thd);
+
 
   if (m_plock)
   {
