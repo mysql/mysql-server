@@ -3968,31 +3968,35 @@ static int fast_end_partition(THD *thd, ulonglong copied,
                               bool written_bin_log)
 {
   int error;
+  char tmp_name[80];
   DBUG_ENTER("fast_end_partition");
 
   thd->proc_info="end";
+
   if (!is_empty)
     query_cache_invalidate3(thd, table_list, 0);
-  error= ha_commit_stmt(thd);
-  if (ha_commit(thd))
+
+  error= ha_autocommit_or_rollback(thd, 0);
+  if (end_active_trans(thd))
     error= 1;
-  if (!error || is_empty)
+
+  if (error)
   {
-    char tmp_name[80];
-    if ((!is_empty) && (!written_bin_log) &&
-        (!thd->lex->no_write_to_binlog))
-      write_bin_log(thd, FALSE, thd->query, thd->query_length);
-    close_thread_tables(thd);
-    my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
-                (ulong) (copied + deleted),
-                (ulong) deleted,
-                (ulong) 0);
-    send_ok(thd, (ha_rows) (copied+deleted),0L,tmp_name);
-    DBUG_RETURN(FALSE);
+    /* If error during commit, no need to rollback, it's done. */
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(TRUE);
   }
-  table->file->print_error(error, MYF(0));
-  close_thread_tables(thd);
-  DBUG_RETURN(TRUE);
+
+  if ((!is_empty) && (!written_bin_log) &&
+      (!thd->lex->no_write_to_binlog))
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+
+  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+              (ulong) (copied + deleted),
+              (ulong) deleted,
+              (ulong) 0);
+  send_ok(thd, (ha_rows) (copied+deleted),0L, tmp_name);
+  DBUG_RETURN(FALSE);
 }
 
 
