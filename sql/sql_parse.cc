@@ -1465,21 +1465,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  thd_proc_info(thd, "closing tables");
-  /* Free tables */
-  close_thread_tables(thd);
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
 
-  /*
-    assume handlers auto-commit (if some doesn't - transaction handling
-    in MySQL should be redesigned to support it; it's a big change,
-    and it's not worth it - better to commit explicitly only writing
-    transactions, read-only ones should better take care of themselves.
-    saves some work in 2pc too)
-    see also sql_base.cc - close_thread_tables()
-  */
-  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
-  if (!thd->active_transaction())
-    thd->transaction.xid_state.xid.null();
+  thd->transaction.stmt.reset();
+
 
   /* report error issued during command execution */
   if (thd->killed_errno())
@@ -1495,6 +1487,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   net_end_statement(thd);
   query_cache_end_of_result(thd);
+
+  thd->proc_info= "closing tables";
+  /* Free tables */
+  close_thread_tables(thd);
 
   log_slow_statement(thd);
 
@@ -3011,10 +3007,8 @@ end_with_restore_list:
           /* INSERT ... SELECT should invalidate only the very first table */
           TABLE_LIST *save_table= first_table->next_local;
           first_table->next_local= 0;
-          mysql_unlock_tables(thd, thd->lock);
           query_cache_invalidate3(thd, first_table, 1);
           first_table->next_local= save_table;
-          thd->lock=0;
         }
         delete sel_result;
       }
@@ -3985,7 +3979,6 @@ end_with_restore_list:
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_PROC_AUTO_GRANT_FAIL,
                        ER(ER_PROC_AUTO_GRANT_FAIL));
-        close_thread_tables(thd);
       }
 #endif
     break;

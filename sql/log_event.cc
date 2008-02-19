@@ -2898,7 +2898,7 @@ int Format_description_log_event::do_apply_event(Relay_log_info const *rli)
     original place when it comes to us; we'll know this by checking
     log_pos ("artificial" events have log_pos == 0).
   */
-  if (!artificial_event && created && thd->transaction.all.nht)
+  if (!artificial_event && created && thd->transaction.all.ha_list)
   {
     /* This is not an error (XA is safe), just an information */
     rli->report(INFORMATION_LEVEL, 0,
