@@ -168,6 +168,7 @@ typedef uint rf_SetTimer;
 
 #define Socket_defined
 #define my_socket SOCKET
+#define bool BOOL
 #define SIGPIPE SIGINT
 #define RETQSORTTYPE void
 #define QSORT_TYPE_IS_VOID

@@ -1980,7 +1980,6 @@ static void DBUGOpenFile(CODE_STATE *cs,
       {
         newfile= !EXISTS(name);
         if (!(fp= fopen(name, append ? "a+" : "w")))
-		)))
         {
           (void) fprintf(stderr, ERR_OPEN, cs->process, name);
           perror("");
