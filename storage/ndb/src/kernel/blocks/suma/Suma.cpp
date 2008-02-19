@@ -3730,7 +3730,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 #endif
 
   m_last_complete_gci = gci;
-  checkMaxBufferedGCP(signal);
+  //checkMaxBufferedGCP(signal);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
