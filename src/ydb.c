@@ -634,6 +634,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_lg_dir = locked_env_set_lg_dir;
     result->set_lg_max = locked_env_set_lg_max;
     result->set_lk_max_locks = locked_env_set_lk_max_locks;
+    result->get_lk_max_locks = locked_env_get_lk_max_locks;
     result->set_cachesize = locked_env_set_cachesize;
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
     result->get_cachesize = locked_env_get_cachesize;

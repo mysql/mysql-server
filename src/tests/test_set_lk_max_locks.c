@@ -26,8 +26,15 @@ static void make_db (int n_locks) {
     system("rm -rf " DIR);
     r=mkdir(DIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    if (n_locks>0)
+    if (n_locks>0) {
 	r=env->set_lk_max_locks(env, n_locks); CKERR(r);
+        /* test the get_lk_max_locks method */
+        u_int32_t set_locks;
+        r=env->get_lk_max_locks(env, 0); 
+        assert(r == EINVAL);
+        r=env->get_lk_max_locks(env, &set_locks);
+        assert(r == 0 && set_locks == n_locks);
+    }
     r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
