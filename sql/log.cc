@@ -3332,6 +3332,16 @@ THD::binlog_start_trans_and_stmt()
     if (options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
       trans_register_ha(this, TRUE, binlog_hton);
     trans_register_ha(this, FALSE, binlog_hton);
+    /*
+      Mark statement transaction as read/write. We never start
+      a binary log transaction and keep it read-only,
+      therefore it's best to mark the transaction read/write just
+      at the same time we start it.
+      Not necessary to mark the normal transaction read/write
+      since the statement-level flag will be propagated automatically
+      inside ha_commit_trans.
+    */
+    ha_data[binlog_hton->slot].ha_info[0].set_trx_read_write();
   }
   DBUG_VOID_RETURN;
 }

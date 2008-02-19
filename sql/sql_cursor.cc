@@ -322,9 +322,10 @@ Sensitive_cursor::post_open(THD *thd)
 
   close_at_commit= FALSE; /* reset in case we're reusing the cursor */
   info= &ht_info[0];
-  for (handlerton **pht= thd->transaction.stmt.ht; *pht; pht++)
+  for (Ha_trx_info *ha_trx_info= thd->transaction.stmt.ha_list;
+       ha_trx_info; ha_trx_info= ha_trx_info->next())
   {
-    handlerton *ht= *pht;
+    handlerton *ht= ha_trx_info->ht();
     close_at_commit|= test(ht->flags & HTON_CLOSE_CURSORS_AT_COMMIT);
     if (ht->create_cursor_read_view)
     {

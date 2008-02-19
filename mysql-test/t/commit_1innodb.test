@@ -1,0 +1,6 @@
+-- source include/have_log_bin.inc
+-- source include/have_innodb.inc
+
+let $engine_type = InnoDB;
+
+-- source include/commit.inc
