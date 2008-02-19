@@ -718,7 +718,8 @@ public:
                                 const unsigned char *result_mask= 0,
                                 const NdbOperation::OperationOptions *opts = 0,
                                 Uint32 sizeOfOptions = 0);
-  const NdbOperation *insertTuple(const NdbRecord *rec, const char *row,
+  const NdbOperation *insertTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *attr_rec, const char *attr_row,
                                   const unsigned char *mask= 0,
                                   const NdbOperation::OperationOptions *opts = 0,
                                   Uint32 sizeOfOptions = 0);

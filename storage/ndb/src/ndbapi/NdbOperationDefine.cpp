@@ -1167,11 +1167,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
           return 4295;
         }
 
-        if (pcol->getPrimaryKey())
+        if (type == UpdateRequest && pcol->getPrimaryKey())
         {
-          // For insert, NdbRecord needed the full PK before we got here
-          // So if we get a setValue on a PK column here, it's a problem
-          // Set value on tuple key attribute is not allowed
+          // It is not possible to update a primary key column.
+          // It can be set like this for insert and write (but it
+          // still needs to be included in the key NdbRecord and row).
           return 4202;
         }
 

@@ -1016,6 +1016,8 @@ NdbOperation::prepareSendNdbRecord(AbortOption ao)
   TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
   TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
   TcKeyReq::setStartFlag(tcKeyReq->requestInfo, theStartIndicator);
+  TcKeyReq::setSimpleFlag(tcKeyReq->requestInfo, theSimpleIndicator);
+  TcKeyReq::setDirtyFlag(tcKeyReq->requestInfo, theDirtyIndicator);
 
   theStatus= WaitResponse;
   theReceiver.prepareSend();
@@ -1046,12 +1048,12 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   tcKeyReq->attrLen= attrLen;
 
   UintR reqInfo= 0;
-  TcKeyReq::setSimpleFlag(reqInfo, theSimpleIndicator);
-  // CommitFlag set later in prepareSendNdbRecord()
-  // StartFlag set later in prepareSendNdbRecord()
+  /*
+   * The flags Commit, Start, Simple, and Dirty are set later,
+   * in prepareSendNdbRecord().
+   */
   TcKeyReq::setInterpretedFlag(reqInfo, (m_interpreted_code != NULL));
   /* We will setNoDiskFlag() later when we have checked all columns. */
-  TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
   TcKeyReq::setOperationType(reqInfo, theOperationType);
   // AbortOption set later in prepareSendNdbRecord()
   TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
