@@ -2662,7 +2662,7 @@ bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 
 bool Select_fetch_protocol_binary::send_eof()
 {
-  ::send_eof(thd);
+  ::my_eof(thd);
   return FALSE;
 }
 

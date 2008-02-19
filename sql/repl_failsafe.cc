@@ -475,7 +475,7 @@ bool show_new_master(THD* thd)
     protocol->store((ulonglong) lex_mi->pos);
     if (protocol->write())
       DBUG_RETURN(TRUE);
-    send_eof(thd);
+    my_eof(thd);
     DBUG_RETURN(FALSE);
   }
 }
@@ -688,7 +688,7 @@ bool show_slave_hosts(THD* thd)
     }
   }
   pthread_mutex_unlock(&LOCK_slave_list);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 

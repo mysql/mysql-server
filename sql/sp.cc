@@ -1259,7 +1259,7 @@ sp_show_status_routine(THD *thd, int type, const char *name_pattern)
   }
 
 err_case1:
-  send_eof(thd);
+  my_eof(thd);
 err_case:
   table->file->ha_index_end();
   close_thread_tables(thd);
