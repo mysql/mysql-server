@@ -441,6 +441,9 @@ NdbRecAttr*
 NdbOperation::getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue)
 {
   NdbRecAttr* tRecAttr;
+
+  m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
+
   /*
     For getValue with NdbRecord operations, we just allocate the NdbRecAttr,
     the signal data will be constructed later.
@@ -665,7 +668,9 @@ NdbOperation::setAnyValue(Uint32 any_value)
   return -1;
 }
 
-
+/* Non-const variant of getBlobHandle - can return existing blob
+ * handles, or create new ones for non-NdbRecord operations 
+ */
 NdbBlob*
 NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo)
 {
@@ -679,10 +684,10 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   }
 
   /*
-    For NdbRecord operation, we only fetch existing blob handles here,
-    creation must be done by requesting the blob in the NdbRecord and
-    mask when creating the operation.
-  */
+   * For NdbRecord operation, we only fetch existing blob handles here,
+   * creation must be done by requesting the blob in the NdbRecord and
+   * mask when creating the operation.
+   */
   if (m_attribute_record)
   {
     setErrorCodeAbort(4288);
@@ -703,6 +708,25 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   tBlob->theNext = NULL;
   theNdbCon->theBlobFlag = true;
   return tBlob;
+}
+
+/* const variant of getBlobHandle - only returns existing blob handles */
+NdbBlob*
+NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo) const
+{
+  NdbBlob* tBlob = theBlobList;
+  while (tBlob != NULL) {
+    if (tBlob->theColumn == tAttrInfo)
+      return tBlob;
+    tBlob = tBlob->theNext;
+  }
+
+  /*
+    Const method - cannot create a new BLOB handle, NdbRecord
+    or NdbRecAttr
+  */
+  setErrorCodeAbort(4288);
+  return NULL;
 }
 
 /*
@@ -765,12 +789,12 @@ NdbOperation::linkInBlobHandle(NdbTransaction *aCon,
 }
 
 /*
-  Setup blob handles for an NdbRecord operation.
-
-  Create blob handles for all requested blob columns.
-
-  For read request, store the pointers to blob handles in the row.
-*/
+ * Setup blob handles for an NdbRecord operation.
+ *
+ * Create blob handles for all requested blob columns.
+ *
+ * For read request, store the pointers to blob handles in the row.
+ */
 int
 NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
 {
@@ -797,9 +821,9 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
     if (theOperationType == ReadRequest || theOperationType == ReadExclusive)
     {
       /*
-        For read request, it is safe to cast away const-ness for the
-        m_attribute_row.
-      */
+       * For read request, it is safe to cast away const-ness for the
+       * m_attribute_row.
+       */
       memcpy((char *)&m_attribute_row[col->offset], &bh, sizeof(bh));
     }
   }
@@ -812,7 +836,7 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
   so that we can be sure to delete all blob parts for the row.
 */
 int
-NdbOperation::getBlobHandlesDelete(NdbTransaction* aCon)
+NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon)
 {
   NdbBlob *lastBlob= NULL;
 
@@ -998,4 +1022,218 @@ NdbOperation::setAbortOption(AbortOption ao)
     default:
       return -1;
   }
+}
+
+
+/*
+ * handleOperationOptions
+ * static member for setting operation options
+ * Called when defining operations, from NdbTransaction and
+ * NdbScanOperation
+ */
+int
+NdbOperation::handleOperationOptions (const OperationType type,
+                                      const OperationOptions *opts,
+                                      const Uint32 sizeOfOptions,
+                                      NdbOperation *op)
+{
+  /* Check options size for versioning... */
+  if (unlikely((sizeOfOptions != 0) && 
+               (sizeOfOptions != sizeof(OperationOptions))))
+  {
+    // Handle different sized OperationOptions
+    // Probably smaller is old version, larger is new version.
+    
+    // No other versions currently supported
+    // Invalid or unsupported OperationOptions structure
+    return 4297;
+  }
+
+  bool isScanTakeoverOp = (op->m_key_record == NULL); 
+  
+  if (opts->optionsPresent & OperationOptions::OO_ABORTOPTION)
+  {
+    /* User defined operation abortoption : Allowed for 
+     * any operation 
+     */
+    switch (opts->abortOption)
+    {
+    case AO_IgnoreError:
+    case AbortOnError:
+    {
+      op->m_abortOption=opts->abortOption;
+      break;
+    }
+    default:
+      // Non-specific abortoption
+      // Invalid AbortOption
+      return 4296;
+    }
+  } 
+
+  if ((opts->optionsPresent & OperationOptions::OO_GETVALUE) &&
+      (opts->numExtraGetValues > 0))
+  {
+    if (opts->extraGetValues == NULL)
+    {
+      // Incorrect combination of OperationOptions optionsPresent, 
+      // extraGet/SetValues ptr and numExtraGet/SetValues
+      return 4512;
+    }
+
+    // Only certain operation types allow extra GetValues
+    // Update could be made to support it in future
+    if (type == ReadRequest ||
+        type == ReadExclusive ||
+        type == DeleteRequest)
+    {
+      // Could be readTuple(), or lockCurrentTuple().
+      // We perform old-school NdbRecAttr reads on
+      // these values.
+      for (unsigned int i=0; i < opts->numExtraGetValues; i++)
+      {
+        GetValueSpec *pvalSpec 
+          = &(opts->extraGetValues[i]);
+
+        pvalSpec->recAttr=NULL;
+
+        if (pvalSpec->column == NULL)
+        {
+          // Column is NULL in Get/SetValueSpec structure
+          return 4295;
+        }
+
+        NdbRecAttr *pra=
+          op->getValue_NdbRecord(&NdbColumnImpl::getImpl(*pvalSpec->column),
+                                 (char *) pvalSpec->appStorage);
+        
+        if (pra == NULL)
+        {
+          return -1;
+        }
+
+        pvalSpec->recAttr = pra;
+      }
+    }
+    else
+    {
+      // Bad operation type for GetValue
+      switch (type)
+      {
+      case WriteRequest : 
+      case UpdateRequest :
+      {
+        return 4502;
+        // GetValue not allowed in Update operation
+      }
+      case InsertRequest :
+      {
+        return 4503;
+        // GetValue not allowed in Insert operation
+      }
+      default :
+        return 4118;
+        // Parameter error in API call
+      }
+    }
+  }
+
+  if ((opts->optionsPresent & OperationOptions::OO_SETVALUE) &&
+      (opts->numExtraSetValues > 0))
+  {
+    if (opts->extraSetValues == NULL)
+    {
+      // Incorrect combination of OperationOptions optionsPresent, 
+      // extraGet/SetValues ptr and numExtraGet/SetValues
+      return 4512;
+    }
+
+    if ((type == InsertRequest) ||
+        (type == UpdateRequest) ||
+        (type == WriteRequest))
+    {
+      /* Could be insert/update/writeTuple() or 
+       * updateCurrentTuple()
+       */
+      // Validate SetValuesSpec
+      for (Uint32 i=0; i< opts->numExtraSetValues; i++)
+      {
+        const NdbDictionary::Column *pcol=opts->extraSetValues[i].column;
+        const void *pvalue=opts->extraSetValues[i].value;
+
+        if (pcol == NULL)
+        {
+          // Column is NULL in Get/SetValueSpec structure
+          return 4295;
+        }
+
+        if (pcol->getPrimaryKey())
+        {
+          // For insert, NdbRecord needed the full PK before we got here
+          // So if we get a setValue on a PK column here, it's a problem
+          // Set value on tuple key attribute is not allowed
+          return 4202;
+        }
+
+        if (pvalue == NULL)
+        {
+          if (!pcol->getNullable())
+          {
+            // Trying to set a NOT NULL attribute to NULL
+            return 4203;
+          }
+        }
+          
+        NdbDictionary::Column::Type colType=pcol->getType();
+          
+        if ((colType == NdbDictionary::Column::Blob) ||
+            (colType == NdbDictionary::Column::Text))
+        {
+          // Invalid usage of blob attribute
+          return 4264;
+        }          
+      }
+
+      // Store details of extra set values for later
+      op->m_extraSetValues = opts->extraSetValues;
+      op->m_numExtraSetValues = opts->numExtraSetValues;
+    }
+    else
+    {
+      // Set value and Read/Delete etc is incompatible
+      return 4204;
+    }
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_PARTITION_ID)
+  {
+    /* Should not have any blobs defined at this stage */
+    assert(op->theBlobList == NULL);
+
+    /* Not allowed for scan takeover ops */
+    if (unlikely(isScanTakeoverOp))
+    {
+      return 4510;
+      /* User-specified partition id not allowed for scan 
+       * takeover operation 
+       */
+    }
+    op->theDistributionKey=opts->partitionId;
+    op->theDistrKeyIndicator_= 1;       
+  }
+    
+  if (opts->optionsPresent & OperationOptions::OO_INTERPRETED)
+  {
+    /* Todo : Improve checks on operation type here */
+    op->m_interpreted_code = opts->interpretedCode;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_ANYVALUE)
+  {
+    /* Any operation can have an ANYVALUE set */
+    op->m_any_value = opts->anyValue;
+    op->m_use_any_value = 1;
+  }
+
+  return 0;
 }

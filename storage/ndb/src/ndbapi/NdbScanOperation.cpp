@@ -399,19 +399,18 @@ NdbScanOperation::executeCursor(int nodeId){
   TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
   Guard guard(tp->theMutexPtr);
 
-  Uint32 magic = tCon->theMagicNumber;
   Uint32 seq = tCon->theNodeSequence;
 
   if (tp->get_node_alive(nodeId) &&
       (tp->getNodeSequence(nodeId) == seq)) {
 
-    /**
-     * Only call prepareSendScan first time (incase of restarts)
-     *   - check with theMagicNumber
-     */
     tCon->theMagicNumber = 0x37412619;
-    if(magic != 0x37412619 && 
-       prepareSendScan(tCon->theTCConPtr, tCon->theTransactionId) == -1)
+
+    /**
+     * Call prepareSendScan() for old style scans only
+     */
+    if(theStatus != UseNdbRecord &&
+       (prepareSendScan(tCon->theTCConPtr, tCon->theTransactionId) == -1))
       return -1;
     
     
@@ -468,7 +467,7 @@ int NdbScanOperation::nextResult(bool fetchAllowed, bool forceSend)
 
 /* nextResult() for NdbRecord operation. */
 int
-NdbScanOperation::nextResult(const char * & out_row,
+NdbScanOperation::nextResult(const char ** out_row_ptr,
                              bool fetchAllowed, bool forceSend)
 {
   int res;
@@ -479,7 +478,7 @@ NdbScanOperation::nextResult(const char * & out_row,
     return -1;
   }
 
-  if ((res = nextResultNdbRecord(out_row, fetchAllowed, forceSend)) == 0) {
+  if ((res = nextResultNdbRecord(*out_row_ptr, fetchAllowed, forceSend)) == 0) {
     NdbBlob* tBlob= theBlobList;
     NdbRecAttr *getvalue_recattr= theReceiver.theFirstRecAttr;
     if (unlikely(((UintPtr)tBlob | (UintPtr)getvalue_recattr) != 0))
@@ -883,7 +882,6 @@ NdbScanOperation::send_next_scan(Uint32 cnt, bool stopScanFlag)
 int 
 NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId)
 {
-  printf("NdbScanOperation::prepareSend\n");
   abort();
   return 0;
 }
@@ -891,7 +889,6 @@ NdbScanOperation::prepareSend(Uint32  TC_ConnectPtr, Uint64  TransactionId)
 int 
 NdbScanOperation::doSend(int ProcessorId)
 {
-  printf("NdbScanOperation::doSend\n");
   return 0;
 }
 
@@ -1011,7 +1008,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
 
   theErrorLine = 0;
 
-  // In preapareSendInterpreted we set the sizes (word 4-8) in the
+  // In prepareSendInterpreted we set the sizes (word 4-8) in the
   // first ATTRINFO signal.
   if (prepareSendInterpreted() == -1)
     return -1;
@@ -1097,6 +1094,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
   }
   else
   {
+    // Todo : remove when removing old scan implementation
     for(Uint32 i = 0; i<theParallelism; i++){
       if (m_receivers[i]->do_get_value(&theReceiver, batch_size, 
                                        key_size, 
@@ -1106,6 +1104,7 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
       }
     }
   }
+
   return 0;
 }
 
@@ -1127,7 +1126,7 @@ NdbScanOperation::calcGetValueSize()
 }
 
 /*****************************************************************************
-int doSend()
+int doSendScan()
 
 Return Value:   Return >0 : send was succesful, returns number of signals sent
                 Return -1: In all other case.   
@@ -1154,9 +1153,14 @@ NdbScanOperation::doSendScan(int aProcessorId)
   Uint32 aTC_ConnectPtr = theNdbCon->theTCConPtr;
   Uint64 transId = theNdbCon->theTransactionId;
   
-  // Update the "attribute info length in words" in SCAN_TABREQ before 
-  // sending it. This could not be done in openScan because 
-  // we created the ATTRINFO signals after the SCAN_TABREQ signal.
+  /**
+   * Update the "attribute info length in words" in SCAN_TABREQ before 
+   * sending it. This could not be done in openScan because 
+   * we created the ATTRINFO signals after the SCAN_TABREQ signal.
+   * With NdbRecord defined scans, the length can be modified after
+   * the operation is defined, so the total length is still 
+   * calculated here.
+   */
   ScanTabReq * const req = CAST_PTR(ScanTabReq, tSignal->getDataPtrSend());
   if (unlikely(theTotalCurrAI_Len > ScanTabReq::MaxTotalAttrInfo)) {
     setErrorCode(4257);
@@ -1382,7 +1386,9 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
                                           NdbTransaction* pTrans,
                                           const NdbRecord *record,
                                           char *row,
-                                          const unsigned char *mask)
+                                          const unsigned char *mask,
+                                          const NdbOperation::OperationOptions *opts,
+                                          Uint32 sizeOfOptions)
 {
   int res;
 
@@ -1440,42 +1446,78 @@ NdbScanOperation::takeOverScanOpNdbRecord(OperationType opType,
 
   op->m_attribute_row= row;
   record->copyMask(op->m_read_mask, mask);
+
+  if (opType == ReadRequest)
+  {
+    op->theLockMode= theLockMode;
+    /*
+     * Apart from taking over the row lock, we also support reading again,
+     * though typical usage will probably use an empty mask to read nothing.
+     */
+    op->theReceiver.getValues(record, row);
+  }
+  else if (opType == DeleteRequest && row != NULL)
+  {
+    /* Delete with a 'pre-read' - prepare the Receiver */
+    op->theReceiver.getValues(record, row);
+  }
+
+
+  /* Handle any OperationOptions */
+  if (opts != NULL)
+  {
+    /* Delegate to static method in NdbOperation */
+    Uint32 result = NdbOperation::handleOperationOptions (opType,
+                                                          opts,
+                                                          sizeOfOptions,
+                                                          op);
+    if (result != 0)
+    {
+      setErrorCodeAbort(result);
+      return NULL;
+    }
+  }
+
+
+  /* Setup Blob handles... */
   switch (opType)
   {
-    case ReadRequest:
-      op->theLockMode= theLockMode;
-      /*
-        Apart from taking over the row lock, we also support reading again,
-        though typical usage will probably use an empty mask to read nothing.
-      */
-      op->theReceiver.getValues(record, row);
+  case ReadRequest:
+  case UpdateRequest:
+    if (unlikely(record->flags & NdbRecord::RecHasBlob))
+    {
+      if (op->getBlobHandlesNdbRecord(pTrans) == -1)
+        return NULL;
+    }
+    
+    break;
 
-      if (unlikely(record->flags & NdbRecord::RecHasBlob))
-      {
-        if (op->getBlobHandlesNdbRecord(pTrans) == -1)
-          return NULL;
-      }
+  case DeleteRequest:
+    /* Create blob handles if required, to properly delete all blob parts
+     * Also, blob handles are written into the result record if 
+     * a pre-delete read was requested
+     */
+    if (unlikely(record->flags & NdbRecord::RecTableHasBlob))
+    {
+      if (op->getBlobHandlesNdbRecordDelete(pTrans) == -1)
+        return NULL;
+    }
+    break;
+  default:
+    assert(false);
+    return NULL;
+  }
 
-      break;
-    case UpdateRequest:
-      if (unlikely(record->flags & NdbRecord::RecHasBlob))
-      {
-        if (op->getBlobHandlesNdbRecord(pTrans) == -1)
-          return NULL;
-      }
+  /* Now prepare the signals to be sent...
+   */
+  int returnCode=op->buildSignalsNdbRecord(pTrans->theTCConPtr, 
+                                           pTrans->theTransactionId);
 
-      break;
-    case DeleteRequest:
-      /* Create blob handles if any, to properly delete all blob parts. */
-      if (unlikely(record->flags & NdbRecord::RecTableHasBlob))
-      {
-        if (op->getBlobHandlesDelete(pTrans) == -1)
-          return NULL;
-      }
-      break;
-    default:
-      assert(false);
-      return NULL;
+  if (returnCode)
+  {
+    // buildSignalsNdbRecord should have set the error status
+    // So we can return NULL
+    return NULL;
   }
 
   return op;
@@ -1694,6 +1736,22 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
 }
 
 int
+NdbIndexScanOperation::setBound(const NdbRecord* key_record,
+                                const IndexBound& bound)
+{
+  /* Need to call addIndexScanBound on the transaction that
+   * started this scan, not the transaction for this scan
+   * This is accessed via m_transConnection.
+   */
+  return m_transConnection->addIndexScanBound(this, key_record, bound);
+}
+
+/**
+ * insertBOUNDS
+ * Helper for ndbrecord_insert_bound, copying data into the
+ * signal train and linking in new signals as required.
+ */
+int
 NdbIndexScanOperation::insertBOUNDS(Uint32 * data, Uint32 sz){
   Uint32 len;
   Uint32 remaining = KeyInfo::DataLength - theTotalNrOfKeyWordInSignal;
@@ -1703,6 +1761,7 @@ NdbIndexScanOperation::insertBOUNDS(Uint32 * data, Uint32 sz){
     memcpy(dst, data, 4 * len);
     
     if(sz >= remaining){
+      /* Need to spill data into another signal */
       NdbApiSignal* tCurr = theLastKEYINFO;
       tCurr->setLength(KeyInfo::MaxSignalLength);
       NdbApiSignal* tSignal = tCurr->next();
@@ -1710,6 +1769,7 @@ NdbIndexScanOperation::insertBOUNDS(Uint32 * data, Uint32 sz){
 	;
       else if((tSignal = theNdb->getSignal()) != 0)
       {
+        /* Link new signal into train and set type */
 	tCurr->next(tSignal);
 	tSignal->setSignal(GSN_KEYINFO);
       } else {
@@ -1732,6 +1792,8 @@ error:
   setErrorCodeAbort(4228);    // XXX wrong code
   return -1;
 }
+
+
 
 int
 NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
@@ -1798,6 +1860,8 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
       memcpy(tempData+2, aValue, len);
       insertBOUNDS(tempData, 2+sizeInWords);
     } else {
+      /* No alignment or zeroing required, just
+       * need to spill into another signal */
       Uint32 buf[2] = { bound_type, ahValue };
       insertBOUNDS(buf, 2);
       insertBOUNDS((Uint32*)aValue, sizeInWords);
@@ -1894,7 +1958,9 @@ NdbIndexScanOperation::readTuples(LockMode lm,
   }
   m_this_bound_start = 0;
   m_first_bound_word = theKEYINFOptr;
-  
+  m_num_bounds = 0;
+  m_previous_range_num = 0;
+
   return res;
 }
 
@@ -2519,40 +2585,6 @@ NdbScanOperation::reset_receivers(Uint32 parallell, Uint32 ordered){
   m_current_api_receiver = 0;
   m_sent_receivers_count = 0;
   m_conf_receivers_count = 0;
-}
-
-int
-NdbScanOperation::restart(bool forceSend)
-{
-  
-  TransporterFacade* tp = theNdb->theImpl->m_transporter_facade;
-  /*
-    The PollGuard has an implicit call of unlock_and_signal through the
-    ~PollGuard method. This method is called implicitly by the compiler
-    in all places where the object is out of context due to a return,
-    break, continue or simply end of statement block
-  */
-  PollGuard poll_guard(tp, &theNdb->theImpl->theWaiter,
-                       theNdb->theNdbBlockNumber);
-  Uint32 nodeId = theNdbCon->theDBnode;
-  
-  {
-    int res;
-    if((res= close_impl(tp, forceSend, &poll_guard)))
-    {
-      return res;
-    }
-  }
-  
-  /**
-   * Reset receivers
-   */
-  reset_receivers(theParallelism, m_ordered);
-  
-  theError.code = 0;
-  if (doSendScan(nodeId) == -1)
-    return -1;
-  return 0;
 }
 
 int

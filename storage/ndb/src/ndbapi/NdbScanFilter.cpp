@@ -120,6 +120,16 @@ NdbScanFilter::~NdbScanFilter(){
 int
 NdbScanFilter::begin(Group group){
 
+  // TODO : REMOVE when ScanFilter fixed for NdbRecord //
+  if (m_impl.m_operation->theStatus == NdbOperation::UseNdbRecord)
+  {
+    // Don't currently support ScanFilter definition for
+    // NdbRecord - will be fixed
+    m_impl.m_operation->setErrorCodeAbort(4231); // Temporary error
+    /* Illegal state when calling interpreter routine */
+    return -1;
+  }
+  // /TODO hack
   if (m_impl.m_stack2.push_back(m_impl.m_negative))
   {
     m_impl.m_operation->setErrorCodeAbort(4000);

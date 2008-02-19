@@ -177,15 +177,21 @@ public:
   int nextResult(bool fetchAllowed = true, bool forceSend = false);
 
   /*
-    NdbRecord version of nextResult.
-    This sets a pointer to the next row in out_row (if returning 0). This
-    pointer is valid (only) until the next call to nextResult() with
-    fetchAllowed==true.
-    The NdbRecord object defining the row format was specified in the
-    NdbTransaction::scanTable (or scanIndex) call.
-  */
-  int nextResult(const char * & out_row,
-                 bool fetchAllowed = true, bool forceSend = false);
+   * NdbRecord version of nextResult.
+   * 
+   * When 0 is returned, this method updates out_row_ptr to point 
+   * to the next result row.  The location pointed to is valid 
+   * (only) until the next call to nextResult() with
+   * fetchAllowed==true.
+   * The NdbRecord object defining the row format was specified in the
+   * NdbTransaction::scanTable (or scanIndex) call.
+   * Note that this variant of nextResult has three parameters, and
+   * all must be supplied to avoid invoking the two-parameter
+   * variant.
+   */
+  int nextResult(const char ** out_row_ptr,
+                 bool fetchAllowed, 
+                 bool forceSend);
 
   /**
    * Close scan
@@ -236,43 +242,52 @@ public:
   int deleteCurrentTuple(NdbTransaction* takeOverTransaction);
   
   /*
-    NdbRecord versions of scan lock take-over operations.
-
-    Note that calling NdbRecord scan lock take-over on an NdbRecAttr-style
-    scan is not valid, nor is calling NdbRecAttr-style scan lock take-over
-    on an NdbRecord-style scan.
-  */
-
-  /*
-    Take over the lock without changing the row.
-    Optionally also read from the row (call with default value NULL for row
-    to not read any attributes.).
-    The NdbRecord * is required even when not reading any attributes.
-  */
-  NdbOperation *lockCurrentTuple(NdbTransaction *takeOverTrans,
-                                 const NdbRecord *record,
-                                 char *row= 0,
-                                 const unsigned char *mask= 0);
-
-  /*
-    Update the current tuple, NdbRecord version.
-    Values to update with are contained in the passed-in row.
-  */
-  NdbOperation *updateCurrentTuple(NdbTransaction *takeOverTrans,
-                                   const NdbRecord *record,
-                                   const char *row,
-                                   const unsigned char *mask= 0);
-
-  /* Delete the current tuple. */
-  NdbOperation *deleteCurrentTuple(NdbTransaction *takeOverTrans,
-                                   const NdbRecord *record);
-
-  /**
-   * Restart scan with exactly the same
-   *   getValues and search conditions
+   * NdbRecord versions of scan lock take-over operations.
+   *
+   * Note that calling NdbRecord scan lock take-over on an NdbRecAttr-style
+   * scan is not valid, nor is calling NdbRecAttr-style scan lock take-over
+   * on an NdbRecord-style scan.
    */
-  int restart(bool forceSend = false);
-  
+
+  /*
+   * Take over the lock without changing the row.
+   * Optionally also read from the row (call with default value NULL for 
+   * result_row to not read any attributes.).
+   * The NdbRecord * is required even when not reading any attributes.
+   * Supported OperationOptions : OO_ABORTOPTION, OO_GETVALUE, OO_ANYVALUE
+   */
+  const NdbOperation *lockCurrentTuple(NdbTransaction *takeOverTrans,
+                                       const NdbRecord *result_rec,
+                                       char *result_row= 0,
+                                       const unsigned char *result_mask= 0,
+                                       const NdbOperation::OperationOptions *opts = 0,
+                                       Uint32 sizeOfOptions = 0);
+
+  /*
+   * Update the current tuple, NdbRecord version.
+   * Values to update with are contained in the passed-in row.
+   * Supported OperationOptions : OO_ABORTOPTION, OO_SETVALUE, 
+   *                              OO_INTERPRETED, OO_ANYVALUE
+   */
+  const NdbOperation *updateCurrentTuple(NdbTransaction *takeOverTrans,
+                                         const NdbRecord *attr_rec,
+                                         const char *attr_row,
+                                         const unsigned char *mask= 0,
+                                         const NdbOperation::OperationOptions *opts = 0,
+                                         Uint32 sizeOfOptions = 0);
+
+  /* Delete the current tuple. NdbRecord version.
+   * The tuple can be read before being deleted.  Specify the columns to read
+   * and the result storage as usual with result_rec, result_row and result_mask.
+   * Supported OperationOptions : OO_ABORTOPTION, OO_GETVALUE, OO_ANYVALUE
+   */
+  const NdbOperation *deleteCurrentTuple(NdbTransaction *takeOverTrans,
+                                         const NdbRecord *result_rec,
+                                         char *result_row = 0,
+                                         const unsigned char *result_mask = 0,
+                                         const NdbOperation::OperationOptions *opts = 0,
+                                         Uint32 sizeOfOptions = 0);
+
 protected:
   NdbScanOperation(Ndb* aNdb,
                    NdbOperation::Type aType = NdbOperation::TableScan);
@@ -299,7 +314,11 @@ protected:
 
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
-
+  
+  /* This is the transaction which defined this scan
+   *   The transaction(connection) used for the scan is
+   *   pointed to by NdbOperation::theNdbCon
+   */
   NdbTransaction *m_transConnection;
 
   // Scan related variables
@@ -380,7 +399,9 @@ protected:
                                         NdbTransaction* pTrans,
                                         const NdbRecord *record,
                                         char *row,
-                                        const unsigned char *mask);
+                                        const unsigned char *mask,
+                                        const NdbOperation::OperationOptions *opts,
+                                        Uint32 sizeOfOptions);
   bool m_ordered;
   bool m_descending;
   Uint32 m_read_range_no;
@@ -444,29 +465,34 @@ NdbScanOperation::deleteCurrentTuple(NdbTransaction * takeOverTrans){
 }
 
 inline
-NdbOperation *
+const NdbOperation *
 NdbScanOperation::lockCurrentTuple(NdbTransaction *takeOverTrans,
-                                   const NdbRecord *record,
-                                   char *row,
-                                   const unsigned char *mask)
+                                   const NdbRecord *result_rec,
+                                   char *result_row,
+                                   const unsigned char *result_mask,
+                                   const NdbOperation::OperationOptions *opts,
+                                   Uint32 sizeOfOptions)
 {
   unsigned char empty_mask[NDB_MAX_ATTRIBUTES_IN_TABLE>>3];
   /* Default is to not read any attributes, just take over the lock. */
-  if (!row)
+  if (!result_row)
   {
     bzero(empty_mask, sizeof(empty_mask));
-    mask= &empty_mask[0];
+    result_mask= &empty_mask[0];
   }
   return takeOverScanOpNdbRecord(NdbOperation::ReadRequest, takeOverTrans,
-                                 record, row, mask);
+                                 result_rec, result_row, 
+                                 result_mask, opts, sizeOfOptions);
 }
 
 inline
-NdbOperation *
+const NdbOperation *
 NdbScanOperation::updateCurrentTuple(NdbTransaction *takeOverTrans,
-                                     const NdbRecord *record,
-                                     const char *row,
-                                     const unsigned char *mask)
+                                     const NdbRecord *attr_rec,
+                                     const char *attr_row,
+                                     const unsigned char *mask,
+                                     const NdbOperation::OperationOptions *opts,
+                                     Uint32 sizeOfOptions)
 {
   /*
     We share the code implementing lockCurrentTuple() and updateCurrentTuple().
@@ -475,16 +501,22 @@ NdbScanOperation::updateCurrentTuple(NdbTransaction *takeOverTrans,
     the row since we pass type 'UpdateRequest'.
    */
   return takeOverScanOpNdbRecord(NdbOperation::UpdateRequest, takeOverTrans,
-                                 record, (char *)row, mask);
+                                 attr_rec, (char *)attr_row, mask,
+                                 opts, sizeOfOptions);
 }
 
 inline
-NdbOperation *
+const NdbOperation *
 NdbScanOperation::deleteCurrentTuple(NdbTransaction *takeOverTrans,
-                                     const NdbRecord *record)
+                                     const NdbRecord *result_rec,
+                                     char *result_row,
+                                     const unsigned char *result_mask,
+                                     const NdbOperation::OperationOptions *opts,
+                                     Uint32 sizeOfOptions)
 {
   return takeOverScanOpNdbRecord(NdbOperation::DeleteRequest, takeOverTrans,
-                                 record, 0, 0);
+                                 result_rec, result_row, result_mask,
+                                 opts, sizeOfOptions);
 }
 
 #endif

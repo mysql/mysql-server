@@ -606,23 +606,26 @@ NdbOperation::prepareSendInterpreted()
 
 
 /*
-  Prepares TCKEYREQ and (if needed) KEYINFO and ATTRINFO signals, for
-  operations using NdbRecord.
+ Prepares TCKEYREQ and (if needed) KEYINFO and ATTRINFO signals for
+ operations using the NdbRecord API
+ Executed when the operation is defined.
+ @returns 0 for success
 */
 int
-NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
-                                   AbortOption ao)
+NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
 {
   char buf[256];
   Uint32 *keyInfoPtr, *attrInfoPtr;
   Uint32 remain;
   int res;
   Uint32 no_disk_flag;
-  Uint32 interpreted_code_end;
-  Uint32 *update_len_addr;
+  Uint32 interpreted_code_end=0;
+  Uint32 *update_len_addr=NULL;
 
   assert(theStatus==UseNdbRecord);
-  /* Not yet support for NdbRecord with interpreted operations. */
+  /* Interpreted operations not supported with NdbRecord
+   * use NdbInterpretedCode instead
+   */
   assert(!theInterpretIndicator);
 
   const NdbRecord *key_rec= m_key_record;
@@ -631,7 +634,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   const char *updRow;
 
   TcKeyReq *tcKeyReq= CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
-  Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId, ao);
+  Uint32 hdrSize= fillTcKeyReqHdr(tcKeyReq, aTC_ConnectPtr, aTransId);
   keyInfoPtr= theTCREQ->getDataPtrSend() + hdrSize;
   remain= TcKeyReq::MaxKeyInfo;
 
@@ -639,6 +642,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
   if (!key_rec)
   {
     /* This means that key_row contains the KEYINFO20 data. */
+    /* i.e. lock takeover */
     tcKeyReq->tableId= attr_rec->tableId;
     tcKeyReq->tableSchemaVersion= attr_rec->tableVersion;
     res= insertKEYINFO_NdbRecord(aTC_ConnectPtr, aTransId, key_row,
@@ -667,7 +671,7 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
         return -1;
       }
 
-      Uint32 length;
+      Uint32 length=0;
 
       bool len_ok;
       const char *src;
@@ -790,21 +794,35 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
         }
         else
         {
-          /*
-            Blob column.
-            For insert and write, we need to set the value of the blob head
-            (cannot leave it unset in case the blob is non-nullable).
-            For update, do nothing, as another operation will be injected to
-            update the blob head.
-          */
           NdbBlob *bh= currentBlob;
           currentBlob= currentBlob->theNext;
-          if (tOpType == UpdateRequest)
-            continue;
 
-          bh->getBlobHeadData(data, length);
+          /* 
+           * Blob column
+           * We cannot prepare signals to update the Blob yet, as the 
+           * user has not had a chance to specify the data to write yet.
+           *
+           * Writes to the blob head, inline data and parts are handled
+           * by separate operations, injected before and after this one 
+           * as part of the blob handling code in NdbTransaction::execute().
+           * However, for Insert and Write to non-nullable columns, we must 
+           * write some BLOB data here in case the BLOB is non-nullable.  
+           * For this purpose, we write data of zero length
+           * For nullable columns, we write null data.  This is necessary
+           * as it is valid for users to never call setValue() for nullable
+           * blobs.
+           */
+          if (tOpType == UpdateRequest)
+            continue; // Do nothing in this operation
+
+          /* 
+           * Blob call that sets up a data pointer for blob header data
+           * for an 'empty' blob - length zero or null depending on
+           * Blob's 'nullability'
+           */
+          bh->getNullOrEmptyBlobHeadDataPtr(data, length);
         }
-      }
+      } // if Blob or Bitfield
 
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
                                        attrId, length,
@@ -819,9 +837,67 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
         if(res)
           return res;
       }
-    }
+    } // for noOfColumns
+
+    /* Now handle any extra setValues passed in */
+    if (m_extraSetValues != NULL)
+    {
+      for (Uint32 i=0; i<m_numExtraSetValues; i++)
+      {
+        const NdbDictionary::Column *extraCol=m_extraSetValues[i].column;
+        const void * pvalue=m_extraSetValues[i].value;
+
+        if (extraCol->getStorageType( )== NDB_STORAGETYPE_DISK)
+          no_disk_flag=0;
+
+        Uint32 length;
+        
+        if (pvalue==NULL)
+          length=0;
+        else
+        { 
+          length=extraCol->getSizeInBytes();          
+          if (extraCol->getArrayType() != NdbDictionary::Column::ArrayTypeFixed)
+          {
+            Uint32 lengthInfoBytes;
+            if (!NdbSqlUtil::get_var_length((Uint32) extraCol->getType(),
+                                            pvalue,
+                                            length,
+                                            lengthInfoBytes,
+                                            length))
+            {
+              // Length parameter in equal/setValue is incorrect
+              setErrorCodeAbort(4209);
+              return -1;
+            }
+          }
+        }       
+        
+        // Add ATTRINFO
+        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                         extraCol->getAttrId(), length,
+                                         &attrInfoPtr, &remain);
+        if(res)
+          return res;
+
+        if(length>0)
+        {
+          res=insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                           (char*)pvalue, length,
+                                           &attrInfoPtr, &remain);
+          if(res)
+            return res;
+        }
+      } // for numExtraSetValues
+    }// if m_extraSetValues!=null
+
+    /* Don't need these any more */
+    m_extraSetValues = NULL;
+    m_numExtraSetValues = 0;
   }
-  else if (tOpType == ReadRequest || tOpType == ReadExclusive)
+  else if (tOpType == ReadRequest || tOpType == ReadExclusive ||
+           (tOpType == DeleteRequest && 
+            m_attribute_row != NULL)) // Read as part of delete
   {
     Uint32 column_count= 0;
     for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
@@ -836,7 +912,9 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
                             m_read_mask, attrId))
         continue;
 
-      /* Blob reads are handled with a getValue() in NdbBlob.cpp. */
+      /* Blob head reads were defined as extra GetValues, 
+       * processed below, not here.
+       */
       if (unlikely(col->flags & NdbRecord::IsBlob))
         continue;
 
@@ -845,8 +923,6 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
 
       /*
         Read the column.
-        For blobs, we actually read the blob head, and treat it as a special
-        case in the receiver.
       */
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
                                        attrId, 0,
@@ -857,7 +933,10 @@ NdbOperation::prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
     }
     theReceiver.m_record.m_column_count= column_count;
 
-    /* Handle any additional getValue(). */
+    /* Handle any additional getValue(). 
+     * Note : This includes extra getValue()s to read Blob
+     * header + inline data
+     */
     const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
     while (ra)
     {
@@ -913,6 +992,31 @@ assert(update_word_length > 0);
                             theTotalCurrAI_Len < TcKeyReq::MaxAttrInfo ?
                                 theTotalCurrAI_Len : TcKeyReq::MaxAttrInfo);
 
+  return 0;
+
+}
+
+/*
+  Do final signal preparation before sending.
+*/
+int
+NdbOperation::prepareSendNdbRecord(AbortOption ao)
+{
+  // There are a number of flags in the TCKEYREQ header that
+  // we have to set at this point...they are not correctly 
+  // defined before the call to execute().
+  TcKeyReq *tcKeyReq=CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
+  
+  Uint8 abortOption= (ao == DefaultAbortOption) ?
+    (Uint8) m_abortOption : (Uint8) ao;
+  
+  m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
+    (Uint8) AO_IgnoreError : (Uint8) abortOption;
+
+  TcKeyReq::setAbortOption(tcKeyReq->requestInfo, m_abortOption);
+  TcKeyReq::setCommitFlag(tcKeyReq->requestInfo, theCommitIndicator);
+  TcKeyReq::setStartFlag(tcKeyReq->requestInfo, theStartIndicator);
+
   theStatus= WaitResponse;
   theReceiver.prepareSend();
 
@@ -928,8 +1032,7 @@ assert(update_word_length > 0);
 Uint32
 NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                               Uint32 connectPtr,
-                              Uint64 transId,
-                              AbortOption ao)
+                              Uint64 transId)
 {
   Uint32 hdrLen;
   UintR *hdrPtr;
@@ -944,17 +1047,13 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
 
   UintR reqInfo= 0;
   TcKeyReq::setSimpleFlag(reqInfo, theSimpleIndicator);
-  TcKeyReq::setCommitFlag(reqInfo, theCommitIndicator);
-  TcKeyReq::setStartFlag(reqInfo, theStartIndicator);
+  // CommitFlag set later in prepareSendNdbRecord()
+  // StartFlag set later in prepareSendNdbRecord()
   TcKeyReq::setInterpretedFlag(reqInfo, (m_interpreted_code != NULL));
   /* We will setNoDiskFlag() later when we have checked all columns. */
   TcKeyReq::setDirtyFlag(reqInfo, theDirtyIndicator);
   TcKeyReq::setOperationType(reqInfo, theOperationType);
-  Uint8 abortOption= (ao == DefaultAbortOption) ?
-    (Uint8) m_abortOption : (Uint8) ao;
-  m_abortOption= theSimpleIndicator && theOperationType==ReadRequest ?
-    (Uint8) AO_IgnoreError : (Uint8) abortOption;
-  TcKeyReq::setAbortOption(reqInfo, m_abortOption);
+  // AbortOption set later in prepareSendNdbRecord()
   TcKeyReq::setDistributionKeyFlag(reqInfo, theDistrKeyIndicator_);
   TcKeyReq::setScanIndFlag(reqInfo, theScanInfo & 1);
   /* We will setAIInTcKeyReq() and setKeyLength() later. */

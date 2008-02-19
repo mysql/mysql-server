@@ -599,8 +599,21 @@ public:
    * on the returned NdbOperation object.
    *
    * @return The NdbOperation causing the latest error.
+   * @deprecated Use the const NdbOperation returning variant.
    */
   NdbOperation*	getNdbErrorOperation();
+
+  /**
+   * Get the latest NdbOperation which had an error. 
+   * This method is used on the NdbTransaction object to find the
+   * NdbOperation causing an error.  
+   * To find more information about the
+   * actual error, use method NdbOperation::getNdbError()
+   * on the returned NdbOperation object.
+   *
+   * @return The NdbOperation causing the latest error.
+   */
+  const NdbOperation* getNdbErrorOperation() const;
 
   /** 
    * Get the method number where the latest error occured.
@@ -653,134 +666,214 @@ public:
 #endif
 
   /*
-    NdbRecord primary key and unique key operations.
-
-    If the key_rec passed in is for a table, the operation will be a primary
-    key operation. If it is for an index, it will be a unique key operation
-    using that index.
-
-    The key_row passed in defines the primary or unique key of the affected
-    tuple, and must remain valid until execute() is called. The key_rec must
-    include all columns of the key.
-
-    The mask, if != NULL, defines a subset of attributes to read, update, or
-    insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
-    column affected. The mask is copied by the methods, so need not remain
-    valid after the call returns.
-
-    For unique index operations, the attr_rec must refer to the underlying
-    table of the index.
-  */
-
-  NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
-                          const NdbRecord *result_rec, char *result_row,
-                          NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-                          const unsigned char *result_mask= 0);
-  NdbOperation *insertTuple(const NdbRecord *rec, const char *row,
-                            const unsigned char *mask= 0);
-  NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
-                            const NdbRecord *attr_rec, const char *attr_row,
-                            const unsigned char *mask= 0,
-                            const Uint32 *setPartitionId = 0,
-                            const void *getSetValue = 0,
-                            const NdbInterpretedCode *interpreted_code = 0);
-  NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
-                           const NdbRecord *attr_rec, const char *attr_row,
-                           const unsigned char *mask= 0);
-  NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row);
+   * NdbRecord primary key and unique key operations.
+   *
+   * If the key_rec passed in is for a table, the operation will be a primary
+   * key operation. If it is for an index, it will be a unique key operation
+   * using that index.
+   *
+   * The key_row passed in defines the primary or unique key of the affected
+   * tuple, and must remain valid until execute() is called. The key_rec must
+   * include all columns of the key.
+   *
+   * The mask, if != NULL, defines a subset of attributes to read, update, or
+   * insert. Only if (mask[attrId >> 3] & (1<<(attrId & 7))) is set is the
+   * column affected. The mask is copied by the methods, so need not remain
+   * valid after the call returns.
+   *
+   * For unique index operations, the attr_rec must refer to the underlying
+   * table of the index.
+   *
+   * OperationOptions can be used to give finer-grained control of operation
+   * definition.  An OperationOptions structure is passed with flags
+   * indicating which operation definition options are present.  Not all
+   * operation types support all operation options.  See the definition of
+   * the OperationOptions structure for more information on individual options.
+   *
+   *   Operation type        Supported OperationOptions flags
+   *   --------------        --------------------------------
+   *   readTuple             OO_ABORTOPTION, OO_GETVALUE,
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *   insertTuple           OO_ABORTOPTION, OO_SETVALUE, 
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *   updateTuple           OO_ABORTOPTION, OO_SETVALUE,
+   *                         OO_PARTITION_ID, OO_INTERPRETED,
+   *                         OO_ANYVALUE
+   *   writeTuple            OO_ABORTOPTION, OO_SETVALUE,
+   *                         OO_PARTITION_ID, OO_INTERPRETED,
+   *                         OO_ANYVALUE
+   *   deleteTuple           OO_ABORTOPTION, OO_GETVALUE,
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *
+   * The sizeOfOptions optional parameter is used to allow this interface
+   * to be backwards compatible with previous definitions of the OperationOptions
+   * structure.  If an unusual size is detected by the interface implementation, 
+   * it can use this to determine how to interpret the passed OperationOptions 
+   * structure.  To enable this functionality, the caller should pass 
+   * sizeof(NdbOperation::OperationOptions) for this argument.
+   */
+  const NdbOperation *readTuple(const NdbRecord *key_rec, const char *key_row,
+                                const NdbRecord *result_rec, char *result_row,
+                                NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
+                                const unsigned char *result_mask= 0,
+                                const NdbOperation::OperationOptions *opts = 0,
+                                Uint32 sizeOfOptions = 0);
+  const NdbOperation *insertTuple(const NdbRecord *rec, const char *row,
+                                  const unsigned char *mask= 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+  const NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *attr_rec, const char *attr_row,
+                                  const unsigned char *mask= 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
+  const NdbOperation *writeTuple(const NdbRecord *key_rec, const char *key_row,
+                                 const NdbRecord *attr_rec, const char *attr_row,
+                                 const unsigned char *mask= 0,
+                                 const NdbOperation::OperationOptions *opts = 0,
+                                 Uint32 sizeOfOptions = 0);
+  const NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row,
+                                  const NdbRecord *result_rec = 0, char *result_row = 0,
+                                  const unsigned char *result_mask = 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
 
   /*
-    Scan a table, using NdbRecord to read out column data.
+   * ScanOptions
+   *  These are options passed to the NdbRecord based scanTable and 
+   *  scanIndex methods.
+   *  Each option type is marked as present by setting the corresponding
+   *  bit in the optionsPresent field.  Only the option types marked 
+   *  in the optionsPresent field need have sensible data.
+   *  All data is copied out of the ScanOptions structure (and any
+   *  subtended structures) at operation definition time.
+   *  If no options are required, then NULL may be passed as the 
+   *  ScanOptions pointer.
+   *
+   *  Most methods take a supplementary sizeOfOptions parameter.  This
+   *  is optional, and is intended to allow the interface implementation
+   *  to remain backwards compatible with older un-recompiled clients 
+   *  that may pass an older (smaller) version of the ScanOptions 
+   *  structure.  This effect is achieved by passing
+   *  sizeof(NdbTransaction::ScanOptions) into this parameter.
+   */
+  struct ScanOptions
+  {
+    /* Which options are present - see below for possibilities */
+    Uint64 optionsPresent;
 
-    The result_record pointer must remain valid until after the call to
-    execute().
+    enum Type { SO_SCANFLAGS    = 0x01,
+                SO_PARALLEL     = 0x02,
+                SO_BATCH        = 0x04,
+                SO_GETVALUE     = 0x08,
+                SO_PARTITION_ID = 0x10,
+                SO_INTERPRETED  = 0x20,
+                SO_CUSTOMDATA   = 0x40 };
 
-    The result_mask pointer is optional, if present only columns for
-    which the corresponding bit (by attribute id order) in result_mask
-    is set will be retrieved in the scan. The result_mask is copied
-    internally, so in contrast to result_record need not be valid at
-    execute().
+    /* Flags controlling scan behaviour
+     * See NdbScanOperation::ScanFlag for details
+     */
+    Uint32 scan_flags;
 
-    The parallel argument is the desired parallelism, or 0 for maximum
-    parallelism (receiving rows from all fragments in parallel).
-  */
+    /* Desired scan parallelism.
+     * Default == 0 == Maximum parallelism
+     */
+    Uint32 parallel;
+
+    /* Desired scan batchsize in rows 
+     * for NDBD -> API transfers
+     * Default == 0 == Automatically chosen size
+     */
+    Uint32 batch;
+    
+    /* Extra values to be read for each row meeting
+     * scan criteria
+     */
+    NdbOperation::GetValueSpec *extraGetValues;
+    Uint32                     numExtraGetValues;
+
+    /* Specific partition to limit this scan to */
+    Uint32 partitionId;
+
+    /* Interpreted code to execute as part of the scan */
+    const NdbInterpretedCode *interpretedCode;
+
+    /* CustomData ptr to associate with the scan operation */
+    void * customData;
+  };
+
+  /**
+   * Scan a table, using NdbRecord to read out column data.
+   *
+   * The result_record pointer must remain valid until after the call to
+   * execute().
+   *
+   * The result_mask pointer is optional, if present only columns for
+   * which the corresponding bit (by attribute id order) in result_mask
+   * is set will be retrieved in the scan. The result_mask is copied
+   * internally, so in contrast to result_record need not be valid at
+   * execute().
+   * 
+   * A ScanOptions structure can be passed, specifying extra options.  See
+   * the definition of the ScanOptions structure for more information.
+   *
+   * To enable backwards compatability of this interface, a sizeOfOptions
+   * parameter can be passed.  This parameter indicates the size of the
+   * ScanOptions structure at the time the client was compiled, and enables
+   * detection of the use of an old ScanOptions structure.  If this functionality
+   * is not desired, it can be left set to zero.
+   */
   NdbScanOperation *
   scanTable(const NdbRecord *result_record,
             NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
             const unsigned char *result_mask= 0,
-            Uint32 scan_flags= 0,
-            Uint32 parallel= 0,
-            Uint32 batch= 0);
+            const ScanOptions *options = 0,
+            Uint32 sizeOfOptions = 0);
 
-//private:
-  /*
-    Do an index range scan (optionally ordered) of a table.
-
-    The key_record describes the index to be scanned. It must be a key record
-    for the index, ie. it must specify (at least) all the key columns of the
-    index. And it must be created from the index to be scanned (not from the
-    underlying table).
-
-    The result_record describes the rows to be returned from the scan. For an
-    ordered index scan, result_record must be a key record for the index to
-    be scanned, that is it must include at least all of the column in the
-    index (the reason is that the index key is needed for merge sorting the
-    scans returned from each fragment).
-
-    The call uses a callback function as a flexible way of specifying multiple
-    range bounds. The callback will be called once for each bound to define
-    lower and upper key value etc.
-
-    The callback received a private callback_data void *, and the index of the
-    bound (0 .. num_key_bounds). However, it is guaranteed that it will be
-    called in ordered sequence, so it is permissible to ignore the passed
-    bound_index and just return the values for the next bound (for example
-    if data is kept in a linked list).
-
-    Note that for multi-range, the IndexBound::low_key and IndexBound::high_key
-    pointers must be unique, ie. it is not permissible to re-use the same row
-    buffer for several different range bounds within a single scan. It is
-    however permissible to use the same row pointer as low_key and high_key (to
-    specify an equals bound), and it is also permissible to re-use the rows
-    after the scanIndex() method returns (ie. they need not remain valid until
-    ececute() time, like the NdbRecord pointers do).
-
-    The callback can return 0 to denote success, and -1 to denote error (the
-    latter causing the creation of the NdbIndexScanOperation to fail).
-
-    This multi-range method is only for use in mysqld code.
-  */
+  /**
+   * Do an index range scan (optionally ordered) of a table.
+   *
+   * The key_record describes the index to be scanned. It must be a key record
+   * for the index, ie. it must specify (at least) all the key columns of the
+   * index. And it must be created from the index to be scanned (not from the
+   * underlying table).
+   *
+   * The result_record describes the rows to be returned from the scan. For an
+   * ordered index scan, result_record must be a key record for the index to
+   * be scanned, that is it must include at least all of the column in the
+   * index (the reason is that the full index key is needed for merge sorting 
+   * the scans returned from each fragment).
+   *
+   * Both the key_record and result_record NdbRecord structures must stay
+   * in-place until the scan operation is closed.
+   *
+   * A single IndexBound can either be specified in this call or in a separate
+   * call to NdbIndexScanOperation::setBound().  To perform a multi range read, 
+   * the scan_flags in the ScanOptions structure must include SF_MULTIRANGE.  
+   * Additional bounds can be added using calls to 
+   * NdbIndexScanOperation::setBound().
+   * 
+   * To specify an equals bound, use the same row pointer for the low_key and
+   * high_key.
+   *
+   * A ScanOptions structure can be passed, specifying extra options.  See
+   * the definition of the ScanOptions structure for more information.
+   *
+   * To enable backwards compatability of this interface, a sizeOfOptions
+   * parameter can be passed.  This parameter indicates the size of the
+   * ScanOptions structure at the time the client was compiled, and enables
+   * detection of the use of an old ScanOptions structure.  If this functionality
+   * is not desired, it can be left set to zero.
+   * 
+   */
   NdbIndexScanOperation *
   scanIndex(const NdbRecord *key_record,
-            int (*get_bound_callback)(void *callback_data,
-                                      Uint32 bound_index,
-                                      NdbIndexScanOperation::IndexBound & bound),
-            void *callback_data,
-            Uint32 num_key_bounds,
             const NdbRecord *result_record,
-            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-            const unsigned char *result_mask= 0,
-            Uint32 scan_flags= 0,
-            Uint32 parallel= 0,
-            Uint32 batch= 0);
-
-public:
-
-  /* A convenience wrapper for simpler specification of a single bound. */
-  NdbIndexScanOperation *
-  scanIndex(const NdbRecord *key_record,
-            const char *low_key,
-            Uint32 low_key_count,
-            bool low_inclusive,
-            const char * high_key,
-            Uint32 high_key_count,
-            bool high_inclusive,
-            const NdbRecord *result_record,
-            NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
-            const unsigned char *result_mask= 0,
-            Uint32 scan_flags= 0,
-            Uint32 parallel= 0,
-            Uint32 batch= 0);
+            NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
+            const unsigned char *result_mask = 0,
+            const NdbIndexScanOperation::IndexBound *bound = 0,
+            const ScanOptions *options = 0,
+            Uint32 sizeOfOptions = 0);
 
 private:						
   /**
@@ -903,14 +996,23 @@ private:
   
   NdbOperation *setupRecordOp(NdbOperation::OperationType type,
                               NdbOperation::LockMode lock_mode,
+                              NdbOperation::AbortOption default_ao,
                               const NdbRecord *key_record,
                               const char *key_row,
                               const NdbRecord *attribute_record,
                               const char *attribute_row,
                               const unsigned char *mask,
-                              const Uint32 *setPartitionId = 0,
-                              const void *getSetValue = 0,
-                              const NdbInterpretedCode *interpreted_code = 0);
+                              const NdbOperation::OperationOptions *opts,
+                              Uint32 sizeOfOptions);
+
+  /* Helper for scanTable */
+  int handleScanOptions(NdbScanOperation *op,
+                        const ScanOptions *options);
+
+  /* Adding IndexBound to an NdbRecord-defined IndexScanOperation */
+  int addIndexScanBound(NdbIndexScanOperation *sop,
+                        const NdbRecord *key_record,
+                        const NdbIndexScanOperation::IndexBound& bound);
 
   void		handleExecuteCompletion();
   
@@ -974,7 +1076,11 @@ private:
   } theCompletionStatus;	  // The Completion status of the transaction
   CommitStatusType theCommitStatus;			// The commit status of the transaction
   Uint32	theMagicNumber;				// Magic Number to verify correct object
-
+                                                        // Current meanings :
+                                                        //   0x00FE11DC : NdbTransaction not in use
+                                                        //   0x37412619 : NdbTransaction in use
+                                                        //   0x00FE11DF : NdbTransaction for scan operation
+                                                        //                scan definition not yet complete
   Uint32	thePriority;				// Transaction Priority
 
   enum ReturnType {  ReturnSuccess,  ReturnFailure };

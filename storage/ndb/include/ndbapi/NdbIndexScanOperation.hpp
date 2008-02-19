@@ -76,7 +76,7 @@ public:
     return readTuples(lock_mode, scan_flags, parallel, batch);
   }
 #endif
-
+  
   /**
    * Type of ordered index key bound.  The values (0-4) will not change
    * and can be used explicitly (e.g. they could be computed).
@@ -191,6 +191,29 @@ public:
     Uint32 range_no;
   };
 
+
+  /**
+   * Add a bound to an NdbRecord defined Index scan
+   * 
+   * This method is called to add a bound to an IndexScan operation
+   * which has been defined with a call to NdbTransaction::scanIndex().
+   * To add extra bounds, the index scan operation must have been
+   * defined with the the SF_MultiRange flag set.
+   *
+   * Where multiple numbered ranges are defined with multiple calls to 
+   * setBound, and the scan is ordered, the range number for
+   * each bound must be larger than the range number for the 
+   * previously defined bound.
+   * 
+   * @param key_record NdbRecord structure for the key the bound is 
+   *        to be added to
+   * @param bound The bound to add
+   * @return 0 for Success, other for Failure.
+   */
+  int setBound(const NdbRecord *key_record,
+               const IndexBound& bound);
+
+
   /**
    * Is current scan sorted
    */
@@ -230,6 +253,12 @@ private:
   Uint32 m_sort_columns;
   Uint32 m_this_bound_start;
   Uint32 * m_first_bound_word;
+
+  /* Number of IndexBounds for this scan (NdbRecord only) */
+  Uint32 m_num_bounds;
+  /* Most recently added IndexBound's range number */
+  Uint32 m_previous_range_num;
+
 
   friend struct Ndb_free_list_t<NdbIndexScanOperation>;
 };

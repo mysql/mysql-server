@@ -1009,94 +1009,6 @@ int runCheckInactivityBeforeClose(NDBT_Context* ctx, NDBT_Step* step){
 
 }
 
-int runScanRestart(NDBT_Context* ctx, NDBT_Step* step){
-  int loops = ctx->getNumLoops();
-  int records = ctx->getNumRecords();
-  Ndb * pNdb = GETNDB(step);
-  const NdbDictionary::Table*  pTab = ctx->getTab();
-
-  HugoCalculator calc(* pTab);
-  NDBT_ResultRow tmpRow(* pTab);
-
-  int i = 0;
-  while (i<loops && !ctx->isTestStopped()) {
-    g_info << i++ << ": ";
-    const int record = (rand() % records);
-    g_info << " row=" << record;
-
-    NdbConnection* pCon = pNdb->startTransaction();
-    NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());	
-    if (pOp == NULL) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    if( pOp->readTuples() ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-  
-    int check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-    
-    // Define attributes to read  
-    for(int a = 0; a<pTab->getNoOfColumns(); a++){
-      if((tmpRow.attributeStore(a) = 
-	  pOp->getValue(pTab->getColumn(a)->getName())) == 0) {
-	ERR(pCon->getNdbError());
-	return NDBT_FAILED;
-      }
-    } 
-    
-    check = pCon->execute(NoCommit);
-    if( check == -1 ) {
-      ERR(pCon->getNdbError());
-      return NDBT_FAILED;
-    }
-
-    int res;
-    int row = 0;
-    while(row < record && (res = pOp->nextResult()) == 0) {
-      if(calc.verifyRowValues(&tmpRow) != 0){
-	abort();
-	return NDBT_FAILED;
-      }
-      row++;
-    }
-    if(row != record){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }
-    g_info << " restarting" << endl;
-    if((res = pOp->restart()) != 0){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }      
-
-    row = 0;
-    while((res = pOp->nextResult()) == 0) {
-      if(calc.verifyRowValues(&tmpRow) != 0){
-	abort();
-	return NDBT_FAILED;
-      }
-      row++;
-    }
-    if(res != 1 || row != records){
-      ERR(pCon->getNdbError());
-      abort();
-      return NDBT_FAILED;
-    }
-    pCon->close();
-  }
-  return NDBT_OK;
-}
-
-
 int 
 runScanParallelism(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops() + 3;
@@ -1719,12 +1631,6 @@ TESTCASE("ScanReadWhileNodeIsDown",
   INITIALIZER(runLoadTable);
   STEP(runScanReadUntilStoppedPrintTime);
   STEP(runStopAndStartNode);
-  FINALIZER(runClearTable);
-}
-TESTCASE("ScanRestart", 
-	 "Verify restart functionallity"){
-  INITIALIZER(runLoadTable);
-  STEP(runScanRestart);
   FINALIZER(runClearTable);
 }
 TESTCASE("ScanParallelism", 
