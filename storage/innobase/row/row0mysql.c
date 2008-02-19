@@ -57,6 +57,12 @@ static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
 static const char S_innodb_table_monitor[] = "innodb_table_monitor";
 static const char S_innodb_mem_validate[] = "innodb_mem_validate";
 
+/* Evaluates to true if str1 equals str2_onstack, used for comparing
+the above strings. */
+#define STR_EQ(str1, str1_len, str2_onstack) \
+	((str1_len) == sizeof(str2_onstack) \
+	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
+
 /***********************************************************************
 Determine if the given name is a name reserved for MySQL system tables. */
 static
@@ -1728,7 +1734,7 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*************************************************************************
-Drops a table for MySQL. If the name of the table ends in
+Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
@@ -1809,9 +1815,7 @@ row_create_table_for_mysql(
 	table_name++;
 	table_name_len = strlen(table_name) + 1;
 
-	if (table_name_len == sizeof S_innodb_monitor
-	    && !memcmp(table_name, S_innodb_monitor,
-		       sizeof S_innodb_monitor)) {
+	if (STR_EQ(table_name, table_name_len, S_innodb_monitor)) {
 
 		/* Table equals "innodb_monitor":
 		start monitor prints */
@@ -1822,28 +1826,24 @@ row_create_table_for_mysql(
 		of InnoDB monitor prints */
 
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_lock_monitor
-		   && !memcmp(table_name, S_innodb_lock_monitor,
-			      sizeof S_innodb_lock_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_lock_monitor)) {
 
 		srv_print_innodb_monitor = TRUE;
 		srv_print_innodb_lock_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_tablespace_monitor
-		   && !memcmp(table_name, S_innodb_tablespace_monitor,
-			      sizeof S_innodb_tablespace_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_tablespace_monitor)) {
 
 		srv_print_innodb_tablespace_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_table_monitor
-		   && !memcmp(table_name, S_innodb_table_monitor,
-			      sizeof S_innodb_table_monitor)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_table_monitor)) {
 
 		srv_print_innodb_table_monitor = TRUE;
 		os_event_set(srv_lock_timeout_thread_event);
-	} else if (table_name_len == sizeof S_innodb_mem_validate
-		   && !memcmp(table_name, S_innodb_mem_validate,
-			      sizeof S_innodb_mem_validate)) {
+	} else if (STR_EQ(table_name, table_name_len,
+			  S_innodb_mem_validate)) {
 		/* We define here a debugging feature intended for
 		developers */
 
@@ -4129,4 +4129,34 @@ row_check_table_for_mysql(
 	prebuilt->trx->op_info = "";
 
 	return(ret);
+}
+
+/*************************************************************************
+Determines if a table is a magic monitor table. */
+
+ibool
+row_is_magic_monitor_table(
+/*=======================*/
+					/* out: TRUE if monitor table */
+	const char*	table_name)	/* in: name of the table, in the
+					form database/table_name */
+{
+	const char*	name; /* table_name without database/ */
+	ulint		len;
+
+	name = strchr(table_name, '/');
+	ut_a(name != NULL);
+	name++;
+	len = strlen(name) + 1;
+
+	if (STR_EQ(name, len, S_innodb_monitor)
+	    || STR_EQ(name, len, S_innodb_lock_monitor)
+	    || STR_EQ(name, len, S_innodb_tablespace_monitor)
+	    || STR_EQ(name, len, S_innodb_table_monitor)
+	    || STR_EQ(name, len, S_innodb_mem_validate)) {
+
+		return(TRUE);
+	}
+
+	return(FALSE);
 }

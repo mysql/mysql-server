@@ -1035,7 +1035,6 @@ bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			uint number, bool no_errors);
-bool check_global_access(THD *thd, ulong want_access);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
                          ulong *save_priv, bool no_grant, bool no_errors,
@@ -1048,9 +1047,18 @@ inline bool check_access(THD *thd, ulong access, const char *db,
 inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
 			uint number, bool no_errors)
 { return false; }
+#endif /*NO_EMBEDDED_ACCESS_CHECKS*/
+
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+bool check_global_access(THD *thd, ulong want_access);
+#else
 inline bool check_global_access(THD *thd, ulong want_access)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 
 /*
   Support routine for SQL parser on partitioning syntax
