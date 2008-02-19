@@ -368,7 +368,7 @@ static void my_win_init(void)
     LARGE_INTEGER li, t_cnt;
     DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
     if (QueryPerformanceFrequency((LARGE_INTEGER *)
-                                  &query_performance_frequency) == 0)
+                                  &query_performance_frequency))
       query_performance_frequency= 0;
     else
     {
