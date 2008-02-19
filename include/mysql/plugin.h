@@ -187,7 +187,7 @@ typedef int (*mysql_var_check_func)(MYSQL_THD thd,
 */
 typedef void (*mysql_var_update_func)(MYSQL_THD thd,
                                       struct st_mysql_sys_var *var,
-                                      void *var_ptr, void *save);
+                                      void *var_ptr, const void *save);
 
 
 /* the following declarations are for internal use only */
