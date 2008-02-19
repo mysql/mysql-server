@@ -431,6 +431,7 @@ NdbOperation::prepareSendInterpreted()
 {
   Uint32 tTotalCurrAI_Len = theTotalCurrAI_Len;
   Uint32 tInitReadSize = theInitialReadSize;
+  assert (theStatus != UseNdbRecord); // Should never get here for NdbRecord.
   if (theStatus == ExecInterpretedValue) {
     if (insertATTRINFO(Interpreter::EXIT_OK) != -1) {
 //-------------------------------------------------------------------------
@@ -439,44 +440,32 @@ NdbOperation::prepareSendInterpreted()
 //-------------------------------------------------------------------------
 
       theInterpretedSize = (tTotalCurrAI_Len + 1) -
-       (tInitReadSize + 5);
+        (tInitReadSize + AttrInfo::SectionSizeInfoLength);
 
     } else {
       return -1;
     }//if
-  } else if (theStatus == UseNdbRecord &&
-             (theOperationType == OpenScanRequest ||
-              theOperationType == OpenRangeScanRequest)) {
-    /*
-      With NdbRecord scans, we set up the initial read section when the
-      operation was created, and we only allow the addition of an interpreted
-      program.
-    */
-    if (tTotalCurrAI_Len > tInitReadSize + 5)
-    {
-      if (insertATTRINFO(Interpreter::EXIT_OK) != -1)
-        theInterpretedSize = (tTotalCurrAI_Len + 1) - (tInitReadSize + 5);
-      else
-        return -1;
-    }
   } else if (theStatus == FinalGetValue) {
 
     theFinalReadSize = tTotalCurrAI_Len -
-      (tInitReadSize + theInterpretedSize + theFinalUpdateSize + 5);
+      (tInitReadSize + theInterpretedSize + theFinalUpdateSize 
+       + AttrInfo::SectionSizeInfoLength);
 
   } else if (theStatus == SetValueInterpreted) {
 
     theFinalUpdateSize = tTotalCurrAI_Len -
-       (tInitReadSize + theInterpretedSize + 5);
+       (tInitReadSize + theInterpretedSize 
+        + AttrInfo::SectionSizeInfoLength);
 
   } else if (theStatus == SubroutineEnd) {
 
     theSubroutineSize = tTotalCurrAI_Len -
       (tInitReadSize + theInterpretedSize + 
-         theFinalUpdateSize + theFinalReadSize + 5);
+       theFinalUpdateSize + theFinalReadSize 
+       + AttrInfo::SectionSizeInfoLength);
 
   } else if (theStatus == GetValue) {
-    theInitialReadSize = tTotalCurrAI_Len - 5;
+    theInitialReadSize = tTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
   } else {
     setErrorCodeAbort(4116);
     return -1;
@@ -536,6 +525,7 @@ NdbOperation::prepareSendInterpreted()
        setErrorCodeAbort(4223);
        return -1;
     }//if
+
     NdbApiSignal* tSignal = tNdbBranch->theSignal;
     Uint32 tReadData = tSignal->readData(tNdbBranch->theSignalAddress);
     tSignal->setData((tRelAddress + tReadData), tNdbBranch->theSignalAddress);
@@ -573,7 +563,7 @@ NdbOperation::prepareSendInterpreted()
     NdbApiSignal* tSignal = tNdbCall->theSignal;
     Uint32 tReadData = tSignal->readData(tNdbCall->theSignalAddress);
     tSignal->setData(((tAddress << 16) + tReadData), tNdbCall->theSignalAddress);
-      
+
     theFirstCall = theFirstCall->theNext;
     theNdb->releaseNdbCall(tNdbCall);
   }//while
@@ -604,23 +594,23 @@ NdbOperation::prepareSendInterpreted()
   return 0;
 }//NdbOperation::prepareSendInterpreted()
 
-
 /*
  Prepares TCKEYREQ and (if needed) KEYINFO and ATTRINFO signals for
  operations using the NdbRecord API
- Executed when the operation is defined.
+ Executed when the operation is defined for both PK, Unique index
+ and scan takeover operations.
  @returns 0 for success
 */
 int
-NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
+NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, 
+                                    Uint64 aTransId)
 {
   char buf[256];
   Uint32 *keyInfoPtr, *attrInfoPtr;
   Uint32 remain;
   int res;
   Uint32 no_disk_flag;
-  Uint32 interpreted_code_end=0;
-  Uint32 *update_len_addr=NULL;
+  Uint32 *attrinfo_section_sizes_ptr= NULL;
 
   assert(theStatus==UseNdbRecord);
   /* Interpreted operations not supported with NdbRecord
@@ -706,43 +696,131 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
   */
   TcKeyReq::setKeyLength(tcKeyReq->requestInfo, theTupKeyLen);
 
-  // Fill in attrinfo (in TCKEYREQ signal, spilling into ATTRINFO signals)
+  /* Fill in attrinfo (in TCKEYREQ signal, spilling into ATTRINFO signals)
+   * If ATTRINFO includes interpreted code then the first 5 words are
+   * length information for 5 sections.
+   * If there is no interpreted code then there's only one section, and
+   * no length information
+   */
   remain= TcKeyReq::MaxAttrInfo;
   attrInfoPtr= theTCREQ->getDataPtrSend() + hdrSize +
     (theTupKeyLen > TcKeyReq::MaxKeyInfo ? TcKeyReq::MaxKeyInfo : theTupKeyLen);
 
   no_disk_flag= m_no_disk_flag;
 
-  /* Handle any interpreted program. */
+  /* If we have an interpreted program then we add 5 words
+   * of section length information at the start of the
+   * ATTRINFO
+   */
   const NdbInterpretedCode *code= m_interpreted_code;
   if (code)
   {
     if (code->m_flags & NdbInterpretedCode::UsesDisk)
       no_disk_flag = 0;
-    Uint32 sizes[5];
+
+    /* Need to add section lengths info to the signal */
+    Uint32 sizes[AttrInfo::SectionSizeInfoLength];
     sizes[0] = 0;               // Initial read.
-    sizes[1] = code->m_instructions_length;
-    sizes[2] = 0;               // Update size, filled later
-    update_len_addr= attrInfoPtr + 2;
-    sizes[3] = 0;               // Final read size, ToDo
-    sizes[4] = 0;               // Subroutine size, ToDo
+    sizes[1] = 0;               // Interpreted program
+    sizes[2] = 0;               // Final update size.
+    sizes[3] = 0;               // Final read size
+    sizes[4] = 0;               // Subroutine size
+
+    /* So that we can set the actual sizes later... */
+    attrinfo_section_sizes_ptr= attrInfoPtr;
+
     res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
                                        (const char *)sizes,
                                        sizeof(sizes),
                                        &attrInfoPtr, &remain);
     if (res)
       return res;
-    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       (const char *)(code->m_buffer),
-                                       code->m_instructions_length*4,
-                                       &attrInfoPtr, &remain);
-    if (res)
-      return res;
-    interpreted_code_end= theTotalCurrAI_Len;
   }
 
   OperationType tOpType= theOperationType;
-  if ((tOpType == InsertRequest) || (tOpType == WriteRequest) ||
+
+  /* Initial read signal words */
+  if (tOpType == ReadRequest || tOpType == ReadExclusive ||
+      (tOpType == DeleteRequest && 
+       m_attribute_row != NULL)) // Read as part of delete
+  {
+    Uint32 column_count= 0;
+    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
+    {
+      const NdbRecord::Attr *col;
+
+      col= &attr_rec->columns[i];
+      Uint32 attrId= col->attrId;
+
+      if (!(attrId & AttributeHeader::PSEUDO) &&
+          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                            m_read_mask, attrId))
+        continue;
+
+      /* Blob head reads were defined as extra GetValues, 
+       * processed below, not here.
+       */
+      if (unlikely(col->flags & NdbRecord::IsBlob))
+        continue;
+
+      if (col->flags & NdbRecord::IsDisk)
+        no_disk_flag= 0;
+
+      /*
+        Read the column.
+      */
+      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       attrId, 0,
+                                       &attrInfoPtr, &remain);
+      if(res)
+        return res;
+      column_count++;
+    }
+    theReceiver.m_record.m_column_count= column_count;
+
+    /* Handle any additional getValue(). 
+     * Note : This includes extra getValue()s to read Blob
+     * header + inline data
+     */
+    const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
+    while (ra)
+    {
+      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       ra->attrId(), 0,
+                                       &attrInfoPtr, &remain);
+      if(res)
+        return res;
+      ra= ra->next();
+    }
+  }
+
+  /* Interpreted program main signal words */
+  if (code)
+  {
+    /* Record length of Initial Read section */
+    attrinfo_section_sizes_ptr[0]= theTotalCurrAI_Len - 
+      AttrInfo::SectionSizeInfoLength;
+
+    Uint32 mainProgramWords= code->m_first_sub_instruction_pos ?
+      code->m_first_sub_instruction_pos :
+      code->m_instructions_length;
+
+    res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                       (const char *)code->m_buffer,
+                                       mainProgramWords << 2,
+                                       &attrInfoPtr, &remain);
+
+    if (res)
+      return res;
+    
+    // Record length of Interpreted program section */
+    attrinfo_section_sizes_ptr[1]= mainProgramWords;
+  }
+
+
+  /* Final update signal words */
+  if ((tOpType == InsertRequest) || 
+      (tOpType == WriteRequest) ||
       (tOpType == UpdateRequest))
   {
     updRow= m_attribute_row;
@@ -894,83 +972,61 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId)
     /* Don't need these any more */
     m_extraSetValues = NULL;
     m_numExtraSetValues = 0;
-  }
-  else if (tOpType == ReadRequest || tOpType == ReadExclusive ||
-           (tOpType == DeleteRequest && 
-            m_attribute_row != NULL)) // Read as part of delete
-  {
-    Uint32 column_count= 0;
-    for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
+  
+    /* Handle any setAnyValue(). */
+    if (m_use_any_value)
     {
-      const NdbRecord::Attr *col;
-
-      col= &attr_rec->columns[i];
-      Uint32 attrId= col->attrId;
-
-      if (!(attrId & AttributeHeader::PSEUDO) &&
-          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
-                            m_read_mask, attrId))
-        continue;
-
-      /* Blob head reads were defined as extra GetValues, 
-       * processed below, not here.
-       */
-      if (unlikely(col->flags & NdbRecord::IsBlob))
-        continue;
-
-      if (col->flags & NdbRecord::IsDisk)
-        no_disk_flag= 0;
-
-      /*
-        Read the column.
-      */
       res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       attrId, 0,
+                                       AttributeHeader::ANY_VALUE, 4,
                                        &attrInfoPtr, &remain);
       if(res)
         return res;
-      column_count++;
-    }
-    theReceiver.m_record.m_column_count= column_count;
-
-    /* Handle any additional getValue(). 
-     * Note : This includes extra getValue()s to read Blob
-     * header + inline data
-     */
-    const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
-    while (ra)
-    {
-      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       ra->attrId(), 0,
-                                       &attrInfoPtr, &remain);
+      res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                        (const char *)(&m_any_value), 4,
+                                        &attrInfoPtr, &remain);
       if(res)
         return res;
-      ra= ra->next();
     }
   }
 
-  /* Handle any setAnyValue(). */
-  if (m_use_any_value)
-  {
-    res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                     AttributeHeader::ANY_VALUE, 4,
-                                     &attrInfoPtr, &remain);
-    if(res)
-      return res;
-    res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
-                                      (const char *)(&m_any_value), 4,
-                                      &attrInfoPtr, &remain);
-    if(res)
-      return res;
-  }
+  /* Final read signal words */
+  // Not currently used in NdbRecord
 
+  /* Subroutine section signal words */
   if (code)
   {
-    /* ToDo: This only handles update currently. */
-    Uint32 update_word_length= theTotalCurrAI_Len - interpreted_code_end;
-    *update_len_addr = update_word_length;
-for (Uint32 i= 0; i < 5; i++) {fprintf(stderr, "%2d %p 0x%08x    %u  %p 0x%08x\n", i, tcKeyReq->attrInfo, tcKeyReq->attrInfo[i], update_word_length, update_len_addr-2, update_len_addr[(int)i - 2]);}
-assert(update_word_length > 0);
+    /* Even with no subroutine section signal words, we need to set
+     * the size of the update section
+     */
+    Uint32 updateWords= theTotalCurrAI_Len - (AttrInfo::SectionSizeInfoLength + 
+                                              attrinfo_section_sizes_ptr[0] +
+                                              attrinfo_section_sizes_ptr[1]);
+    attrinfo_section_sizes_ptr[2]= updateWords;
+
+    /* Do we have any subroutines ? */
+    if (code->m_number_of_subs > 0)
+    {
+      assert(code->m_first_sub_instruction_pos);
+
+      Uint32 *subroutineStart= 
+        &code->m_buffer[ code->m_first_sub_instruction_pos ];
+      Uint32 subroutineWords= 
+        code->m_instructions_length -
+        code->m_first_sub_instruction_pos;
+
+      assert(subroutineWords > 0);
+
+      res = insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                         (const char *)subroutineStart,
+                                         subroutineWords << 2,
+                                         &attrInfoPtr, &remain);
+
+      if (res)
+        return res;
+
+      /* Update section length for subroutine section */
+      attrinfo_section_sizes_ptr[4]= subroutineWords;
+    }
   }
 
   Uint32 signalLength= hdrSize +
@@ -1048,9 +1104,8 @@ NdbOperation::fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
   tcKeyReq->attrLen= attrLen;
 
   UintR reqInfo= 0;
-  /*
-   * The flags Commit, Start, Simple, and Dirty are set later,
-   * in prepareSendNdbRecord().
+  /* Dirty flag, Commit flag, Start flag, Simple flag set later
+   * in prepareSendNdbRecord()
    */
   TcKeyReq::setInterpretedFlag(reqInfo, (m_interpreted_code != NULL));
   /* We will setNoDiskFlag() later when we have checked all columns. */

@@ -34,6 +34,7 @@ class NdbScanOperation : public NdbOperation {
   friend class NdbResultSet;
   friend class NdbOperation;
   friend class NdbBlob;
+  friend class NdbScanFilter;
 #endif
 
 public:
@@ -59,7 +60,7 @@ public:
       Enable @ref get_range_no (index scan only).
       When this flag is set, NdbIndexScanOperation::get_range_no() can be
       called to read back the range_no defined in
-      NdbIndexScanOperation::end_of_bound(). See @ref end_of_bound() for
+      NdbIndexScanOperation::setBound(). See @ref setBound() for
       explanation.
     */
     SF_ReadRangeNo = (4 << 24),
@@ -67,7 +68,7 @@ public:
     SF_MultiRange = (8 << 24),
     /*
       Request KeyInfo to be sent back.
-      This enables the option to take over row lock taken by the scan using
+      This enables the option to take over the row lock taken by the scan using
       lockCurrentTuple(), by making sure that the kernel sends back the
       information needed to identify the row and the lock.
       It is enabled by default for scans using LM_Exclusive, but must be
@@ -76,8 +77,75 @@ public:
     SF_KeyInfo = 1
   };
 
+
+  /*
+   * ScanOptions
+   *  These are options passed to the NdbRecord based scanTable and 
+   *  scanIndex methods of the NdbTransaction class.
+   *  Each option type is marked as present by setting the corresponding
+   *  bit in the optionsPresent field.  Only the option types marked 
+   *  in the optionsPresent field need have sensible data.
+   *  All data is copied out of the ScanOptions structure (and any
+   *  subtended structures) at operation definition time.
+   *  If no options are required, then NULL may be passed as the 
+   *  ScanOptions pointer.
+   *
+   *  Most methods take a supplementary sizeOfOptions parameter.  This
+   *  is optional, and is intended to allow the interface implementation
+   *  to remain backwards compatible with older un-recompiled clients 
+   *  that may pass an older (smaller) version of the ScanOptions 
+   *  structure.  This effect is achieved by passing
+   *  sizeof(NdbScanOperation::ScanOptions) into this parameter.
+   */
+  struct ScanOptions
+  {
+    /* Which options are present - see below for possibilities */
+    Uint64 optionsPresent;
+
+    enum Type { SO_SCANFLAGS    = 0x01,
+                SO_PARALLEL     = 0x02,
+                SO_BATCH        = 0x04,
+                SO_GETVALUE     = 0x08,
+                SO_PARTITION_ID = 0x10,
+                SO_INTERPRETED  = 0x20,
+                SO_CUSTOMDATA   = 0x40 };
+
+    /* Flags controlling scan behaviour
+     * See NdbScanOperation::ScanFlag for details
+     */
+    Uint32 scan_flags;
+
+    /* Desired scan parallelism.
+     * Default == 0 == Maximum parallelism
+     */
+    Uint32 parallel;
+
+    /* Desired scan batchsize in rows 
+     * for NDBD -> API transfers
+     * Default == 0 == Automatically chosen size
+     */
+    Uint32 batch;
+    
+    /* Extra values to be read for each row meeting
+     * scan criteria
+     */
+    NdbOperation::GetValueSpec *extraGetValues;
+    Uint32                     numExtraGetValues;
+
+    /* Specific partition to limit this scan to */
+    Uint32 partitionId;
+
+    /* Interpreted code to execute as part of the scan */
+    const NdbInterpretedCode *interpretedCode;
+
+    /* CustomData ptr to associate with the scan operation */
+    void * customData;
+  };
+
+
   /**
    * readTuples
+   * Method used in old scan Api to specify scan operation details
    * 
    * @param lock_mode Lock mode
    * @param scan_flags see @ref ScanFlag
@@ -96,7 +164,7 @@ public:
    * @param lock_mode Lock mode
    * @param batch No of rows to fetch from each fragment at a time
    * @param parallel No of fragments to scan in parallell
-   * @note specifying 0 for batch and parallell means max performance
+   * @note specifying 0 for batch and parallel means max performance
    */ 
 #ifdef ndb_readtuples_impossible_overload
   int readTuples(LockMode lock_mode = LM_Read, 
@@ -116,7 +184,28 @@ public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   NdbBlob* getBlobHandle(const char* anAttrName);
   NdbBlob* getBlobHandle(Uint32 anAttrId);
+  /* Const variants not overloaded - underlying 
+   * const NdbOperation::getBlobHandle implementation
+   * only returns existing Blob operations 
+   */
+
+  /** 
+   * setInterpretedCode
+   *
+   * This method is used to set an interpreted program to be executed
+   * against every row returned by the scan.  This is used to filter
+   * rows out of the returned set.  This method is only supported for
+   * old Api scans.  For NdbRecord scans, pass the interpreted program
+   * via the ScanOptions structure.
+   * 
+   * @param code The interpreted program to be executed for each
+   * candidate result row in this scan.
+   * @return 0 if successful, -1 otherwise
+   */
+  int setInterpretedCode(const NdbInterpretedCode *code);
+
 #endif
+
 
   /**
    * Get the next tuple in a scan transaction. 
@@ -182,12 +271,12 @@ public:
    * When 0 is returned, this method updates out_row_ptr to point 
    * to the next result row.  The location pointed to is valid 
    * (only) until the next call to nextResult() with
-   * fetchAllowed==true.
+   * fetchAllowed == true.
    * The NdbRecord object defining the row format was specified in the
    * NdbTransaction::scanTable (or scanIndex) call.
    * Note that this variant of nextResult has three parameters, and
-   * all must be supplied to avoid invoking the two-parameter
-   * variant.
+   * all must be supplied to avoid invoking the two-parameter, non
+   * NdbRecord variant of nextResult.
    */
   int nextResult(const char ** out_row_ptr,
                  bool fetchAllowed, 
@@ -295,13 +384,32 @@ protected:
 
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
   NdbRecAttr* getValue_NdbRecord_scan(const NdbColumnImpl*, char* aValue);
-  int nextResultImpl(bool fetchAllowed = true, bool forceSend = false);
+  NdbRecAttr* getValue_NdbRecAttr_scan(const NdbColumnImpl*, char* aValue);
+
+  int handleScanGetValuesOldApi();
+  int addInterpretedCode(Uint32 aTC_ConncetPtr,
+                         Uint64 aTransId);
+  int handleScanOptions(const ScanOptions *options);
+  int scanTableImpl(const NdbRecord *result_record,
+                    NdbOperation::LockMode lock_mode,
+                    const unsigned char *result_mask,
+                    const NdbScanOperation::ScanOptions *options,
+                    Uint32 sizeOfOptions);
+
   int nextResultNdbRecord(const char * & out_row,
                           bool fetchAllowed, bool forceSend);
   virtual void release();
   
   int close_impl(class TransporterFacade*, bool forceSend,
                  PollGuard *poll_guard);
+
+  /* Helper for NdbScanFilter to allocate an InterpretedCode
+   * object owned by the Scan operation
+   */
+  NdbInterpretedCode* allocInterpretedCodeOldApi();
+  void freeInterpretedCodeOldApi();
+
+  int doSendSetAISectionSizes();
 
   // Overloaded methods from NdbCursorOperation
   int executeCursor(int ProcessorId);
@@ -334,6 +442,7 @@ protected:
   int getFirstATTRINFOScan();
   Uint32 calcGetValueSize();
   int doSendScan(int ProcessorId);
+  int finaliseScanOldApi();
   int prepareSendScan(Uint32 TC_ConnectPtr, Uint64 TransactionId);
   
   int fix_receivers(Uint32 parallel);
@@ -420,6 +529,26 @@ protected:
 
   /* Buffer for rows received during NdbRecord scans, or NULL. */
   char *m_scan_buffer;
+  
+  /* Initialise scan operation with user provided information */
+  virtual int processTableScanDefs(LockMode lock_mode, 
+                                   Uint32 scan_flags, 
+                                   Uint32 parallel,
+                                   Uint32 batch);
+
+  /* This flag indicates whether a scan operation is using the old API */
+  bool  m_scanUsingOldApi;
+
+  /* Scan definition information saved by RecAttr scan API */
+  LockMode m_savedLockModeOldApi;
+  Uint32 m_savedScanFlagsOldApi;
+  Uint32 m_savedParallelOldApi;
+  Uint32 m_savedBatchOldApi;
+
+  /* NdbInterpretedCode object owned by ScanOperation to support
+   * old NdbScanFilter Api
+   */
+  NdbInterpretedCode* m_interpretedCodeOldApi;
 };
 
 inline

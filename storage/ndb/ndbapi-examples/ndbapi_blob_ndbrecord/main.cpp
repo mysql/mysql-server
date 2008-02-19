@@ -460,7 +460,7 @@ int delete_key(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&row[0], &id, 4);
-  const NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, row);
+  const NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, row, full_record);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
 

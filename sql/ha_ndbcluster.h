@@ -89,7 +89,6 @@ typedef struct ndb_index_data {
     from a key and from a row.
   */
   NdbRecord *ndb_record_key;
-  NdbRecord *ndb_record_row;
   NdbRecord *ndb_unique_record_key;
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
@@ -575,7 +574,7 @@ private:
   Uint32 setup_get_hidden_fields(NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_keyop(NdbOperation::OperationOptions *options,
                                NdbOperation::GetValueSpec gets[2]);
-  void get_hidden_fields_scan(NdbTransaction::ScanOptions *options,
+  void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
   void eventSetAnyValue(THD *thd, NdbOperation::OperationOptions *options);
   bool check_index_fields_in_write_set(uint keyno);
@@ -586,8 +585,6 @@ private:
                                                Uint32 *ppartition_id);
   int read_multi_range_fetch_next();
   
-  int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
-                 const key_range *keys[2], uint= 0);
   int primary_key_cmp(const uchar * old_row, const uchar * new_row);
   void print_results();
 

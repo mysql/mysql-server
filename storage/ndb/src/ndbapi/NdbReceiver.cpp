@@ -194,80 +194,6 @@ NdbReceiver::calculate_batch_size(Uint32 key_size,
   return;
 }
 
-/*
-  Call getValue() on all required attributes in all rows in the batch to be
-  received.
-*/
-int
-NdbReceiver::do_get_value(NdbReceiver * org, 
-			  Uint32 batch_size, 
-			  Uint32 key_size,
-			  Uint32 range_no){
-  assert(!m_using_ndb_record);
-  if(batch_size > m_defined_rows){
-    delete[] m_rows;
-    m_defined_rows = batch_size;
-    if ((m_rows = new NdbRecAttr*[batch_size + 1]) == NULL)
-    {
-      setErrorCode(4000);
-      return -1;
-    }
-  }
-  m_rows[batch_size] = 0;
-  
-  NdbColumnImpl key;
-  if(key_size){
-    key.m_attrId = KEY_ATTR_ID;
-    /*
-      We need to add one extra word to key size due to extra info word at end.
-    */
-    key.m_arraySize = key_size+1;
-    key.m_attrSize = 4;
-    key.m_nullable = true; // So that receive works w.r.t KEYINFO20
-  }
-  m_recattr.m_hidden_count = (key_size ? 1 : 0) + range_no ;
-  
-  for(Uint32 i = 0; i<batch_size; i++){
-    NdbRecAttr * prev = theCurrentRecAttr;
-    assert(prev == 0 || i > 0);
-    
-    // Put key-recAttr fir on each row
-    if(key_size && !getValue(&key, (char*)0)){
-      abort();
-      return -1;
-    }
-    
-    if(range_no && 
-       !getValue(&NdbColumnImpl::getImpl(* NdbDictionary::Column::RANGE_NO),0))
-    {
-      abort();
-    }
-
-    NdbRecAttr* tRecAttr = org->theFirstRecAttr;
-    while(tRecAttr != 0){
-      if(getValue(&NdbColumnImpl::getImpl(*tRecAttr->m_column), (char*)0) != 0)
-	tRecAttr = tRecAttr->next();
-      else
-	break;
-    }
-    
-    if(tRecAttr){
-      abort();
-      return -1;
-    }
-
-    // Store first recAttr for each row in m_rows[i]
-    if(prev){
-      m_rows[i] = prev->next();
-    } else {
-      m_rows[i] = theFirstRecAttr;
-    }
-  } 
-
-  prepareSend();
-  return 0;
-}
-
 void
 NdbReceiver::do_setup_ndbrecord(const NdbRecord *ndb_record, Uint32 batch_size,
                                 Uint32 key_size, Uint32 read_range_no,
@@ -542,7 +468,8 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
 
     if (!ndbrecord_part_done)
     {
-      /* Special case for RANGE_NO, which is stored just after the row. */
+      /* Special case for RANGE_NO, which is received first and is
+       * stored just after the row. */
       if (attrId==AttributeHeader::RANGE_NO)
       {
         assert(m_record.m_read_range_no);

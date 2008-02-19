@@ -469,6 +469,9 @@ public:
    *
    * @note There are four versions of NdbOperation::incValue with
    *       slightly different parameters.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrName     Attribute name.
    * @param aValue         Value to add.
@@ -488,6 +491,9 @@ public:
    *
    * @note There are four versions of NdbOperation::subValue with
    *       slightly different parameters.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrName    Attribute name.
    * @param aValue        Value to subtract.
@@ -507,14 +513,20 @@ public:
    *       match the automatic numbering to make it easier to 
    *       debug the interpreted program.
    * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
+   * 
    * @param labelNumber   Label number.
-   * @return              -1 if unsuccessful.
+   * @return              Label number, -1 if unsuccessful.
    */
   int   def_label(int labelNumber);
 
   /**
    * Interpreted program instruction:
    * Add two registers into a third.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegSource1   First register.
    * @param RegSource2   Second register.
@@ -526,6 +538,9 @@ public:
   /**
    * Interpreted program instruction:
    * Substract RegSource2 from RegSource1 and put the result in RegDest.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegSource1   First register.
    * @param RegSource2   Second register.
@@ -537,6 +552,9 @@ public:
   /**
    * Interpreted program instruction:
    * Load a constant into a register.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegDest      Destination register.
    * @param Constant     Value to load.
@@ -548,6 +566,9 @@ public:
   /**
    * Interpreted program instruction:
    * Load NULL value into a register.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegDest      Destination register.
    * @return             -1 if unsuccessful.
@@ -557,6 +578,9 @@ public:
   /**
    * Interpreted program instruction:
    * Read an attribute into a register.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrName   Attribute name.
    * @param RegDest      Destination register.
@@ -567,6 +591,9 @@ public:
   /**
    * Interpreted program instruction:
    * Write an attribute from a register. 
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrName   Attribute name.
    * @param RegSource    Source register.
@@ -577,6 +604,9 @@ public:
   /**
    * Interpreted program instruction:
    * Read an attribute into a register.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrId the attribute id.
    * @param RegDest the destination register.
@@ -587,6 +617,9 @@ public:
   /**
    * Interpreted program instruction:
    * Write an attribute from a register. 
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param anAttrId the attribute id.
    * @param RegSource the source register.
@@ -607,6 +640,9 @@ public:
    * - lt RegR <  RegL
    * - eq RegR =  RegL
    * - ne RegR <> RegL
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegLvalue left value. 
    * @param RegRvalue right value.
@@ -623,6 +659,9 @@ public:
   /**
    * Interpreted program instruction:
    * Jump to Label if RegLvalue is not NULL.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param RegLvalue the value to check.
    * @param Label the label to jump to.
@@ -633,6 +672,9 @@ public:
   /**
    * Interpreted program instruction:
    * Jump to Label if RegLvalue is equal to NULL.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param  RegLvalue  Value to check.
    * @param  Label      Label to jump to.
@@ -643,6 +685,9 @@ public:
   /**
    * Interpreted program instruction:
    * Jump to Label.
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param  Label  Label to jump to.
    * @return -1 if unsuccessful.
@@ -651,6 +696,10 @@ public:
 
   /**
    * Interpreted program instruction:  branch after memcmp
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
+   *
    * @param  ColId   Column to check
    * @param  Label   Label to jump to
    * @return -1 if unsuccessful
@@ -660,6 +709,10 @@ public:
 
   /**
    * Interpreted program instruction:  branch after memcmp
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
+   *
    * @param  ColId   column to check
    * @param  val     search value
    * @param  len     length of search value   
@@ -682,6 +735,9 @@ public:
   /**
    * The argument is always plain char, even if the field is varchar
    * (changed in 5.0.22).
+   * 
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    */
   int branch_col_like(Uint32 ColId, const void *, Uint32 len, 
 		      bool nopad, Uint32 Label);
@@ -691,11 +747,8 @@ public:
   /**
    * Interpreted program instruction: Exit with Ok
    *
-   * For scanning transactions,
-   * end interpreted operation and return the row to the application.
-   *
-   * For non-scanning transactions,
-   * exit interpreted program.
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @return -1 if unsuccessful.
    */
@@ -704,11 +757,8 @@ public:
   /**
    * Interpreted program instruction: Exit with Not Ok
    *
-   * For scanning transactions, 
-   * continue with the next row without returning the current row.
-   *
-   * For non-scanning transactions,
-   * abort the whole transaction.
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @note A method also exists without the error parameter.
    * 
@@ -722,11 +772,10 @@ public:
   /**
    * Interpreted program instruction:
    *
-   * For scanning transactions, 
-   * return this row, but no more from this fragment
-   *
-   * For non-scanning transactions,
    * abort the whole transaction.
+   *
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @return            -1 if unsuccessful.
    */
@@ -735,6 +784,9 @@ public:
   /**
    * Interpreted program instruction:
    * Define a subroutine in an interpreted operation.
+   *
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @param SubroutineNumber the subroutine number.
    * @return -1 if unsuccessful.
@@ -745,6 +797,9 @@ public:
    * Interpreted program instruction:
    * Call a subroutine.
    *
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
+   *
    * @param Subroutine the subroutine to call.
    * @return -1 if unsuccessful. 
    */
@@ -753,6 +808,9 @@ public:
   /**
    * Interpreted program instruction:
    * End a subroutine.
+   *
+   * @note For Scans and NdbRecord operations, use the 
+   *       NdbInterpretedCode interface.
    *
    * @return -1 if unsuccessful. 
    */
@@ -1099,6 +1157,27 @@ protected:
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
 
+  int initInterpretedInfo(const NdbInterpretedCode *code,
+                          Uint32*& interpretedInfo,
+                          Uint32* stackSpace,
+                          Uint32 stackSpaceEntries,
+                          Uint32*& dynamicSpace);
+
+  void freeInterpretedInfo(Uint32*& dynamicSpace);
+
+
+  /* Method for adding signals for an interpreted program
+   * to the signal train 
+   */
+  int buildInterpretedProgramSignals(Uint32 aTC_ConnectPtr, 
+                                     Uint64 aTransId,
+                                     Uint32 **attrInfoPtr,
+                                     Uint32 *remain,
+                                     const NdbInterpretedCode *code,
+                                     Uint32 *interpretedWorkspace,
+                                     bool mainProgram,
+                                     Uint32 &wordsWritten);
+
   // Method which prepares signals at operation definition time.
   int    buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId);
 
@@ -1161,7 +1240,7 @@ protected:
                             const NdbColumnImpl *column,
                             NdbBlob * & lastPtr);
   int getBlobHandlesNdbRecord(NdbTransaction* aCon);
-  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon);
+  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon, bool checkReadSet);
 
   // Handle ATTRINFO signals   
   int insertATTRINFO(Uint32 aData);

@@ -26,7 +26,7 @@
 #include <NdbBlob.hpp>
 
 #include <Interpreter.hpp>
-
+#include <NdbInterpretedCode.hpp>
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
 
@@ -387,6 +387,7 @@ NdbOperation::getValue_impl(const NdbColumnImpl* tAttrInfo, char* aValue)
     m_no_disk_flag &= (tAttrInfo->m_storageType == NDB_STORAGETYPE_DISK ? 0:1);
     if (theStatus != GetValue) {
       if (theStatus == UseNdbRecord)
+        /* This path for extra GetValues for NdbRecord */
         return getValue_NdbRecord(tAttrInfo, aValue);
       if (theInterpretIndicator == 1) {
 	if (theStatus == FinalGetValue) {
@@ -633,19 +634,10 @@ NdbOperation::setAnyValue(Uint32 any_value)
 
   if (theStatus == UseNdbRecord)
   {
-    switch(tOpType)
-    {
-      case InsertRequest:
-      case WriteRequest:
-      case UpdateRequest:
-      case DeleteRequest:
-        m_any_value= any_value;
-        m_use_any_value= 1;
-        return 0;
-      default:
-        setErrorCodeAbort(4504);
-        return -1;
-    }
+    /* Method not allowed for NdbRecord, use OperationOptions or 
+       ScanOptions structure instead */
+    setErrorCodeAbort(4515);
+    return -1;
   }
 
   const NdbColumnImpl* impl =
@@ -684,9 +676,12 @@ NdbOperation::getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* tAttrInfo
   }
 
   /*
-   * For NdbRecord operation, we only fetch existing blob handles here,
-   * creation must be done by requesting the blob in the NdbRecord and
-   * mask when creating the operation.
+   * For NdbRecord PK, unique index and scan operations, we only fetch existing 
+   * blob handles here, creation must be done by requesting the blob in the 
+   * NdbRecord and mask when creating the operation.
+   * For NdbRecAttr PK, IK and scan operations, we allow Blob handles
+   * to be created here.  Note that NdbRecAttr PK and unique index ops are handled
+   * differently to NdbRecAttr scan operations.
    */
   if (m_attribute_record)
   {
@@ -834,9 +829,12 @@ NdbOperation::getBlobHandlesNdbRecord(NdbTransaction* aCon)
 /*
   For a delete, we need to create blob handles for all table blob columns,
   so that we can be sure to delete all blob parts for the row.
+  If checkReadset is true, we also check that the caller is not asking to 
+  read any blobs as part of the delete.
 */
 int
-NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon)
+NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon,
+                                            bool checkReadSet)
 {
   NdbBlob *lastBlob= NULL;
 
@@ -848,6 +846,15 @@ NdbOperation::getBlobHandlesNdbRecordDelete(NdbTransaction* aCon)
     assert(c != 0);
     if (!c->getBlobType())
       continue;
+
+    if (checkReadSet &&
+        (BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+                          m_read_mask, c->m_attrId)))
+    {
+      /* Blobs are not allowed in NdbRecord delete result record */
+      setErrorCodeAbort(4511);
+      return -1;
+    }
 
     NdbBlob *bh= linkInBlobHandle(aCon, c, lastBlob);
     if (bh == NULL)
@@ -1013,6 +1020,14 @@ NdbOperation::getAbortOption() const
 int
 NdbOperation::setAbortOption(AbortOption ao)
 {
+  if (theStatus == UseNdbRecord)
+  {
+    /* Method not allowed for NdbRecord, use OperationOptions or 
+       ScanOptions structure instead */
+    setErrorCodeAbort(4515);
+    return -1;
+  }
+
   switch(ao)
   {
     case AO_IgnoreError:
@@ -1224,7 +1239,27 @@ NdbOperation::handleOperationOptions (const OperationType type,
     
   if (opts->optionsPresent & OperationOptions::OO_INTERPRETED)
   {
-    /* Todo : Improve checks on operation type here */
+    /* Check the operation type is valid */
+    if (! ((type == ReadRequest)   ||
+           (type == ReadExclusive) ||
+           (type == UpdateRequest) ||
+           (type == DeleteRequest)))
+      /* NdbInterpretedCode not supported for operation type */
+      return 4539;
+    
+    /* Check the program's for the same table as the
+     * operation
+     */
+    const NdbDictionary::Table* codeTable= opts->interpretedCode->getTable();
+    if ((codeTable != NULL) &&
+        (codeTable != op->m_currentTable))
+      return 4524; // NdbInterpretedCode is for different table
+      
+    /* Check the program's finalised */
+    if ((opts->interpretedCode->m_flags & 
+         NdbInterpretedCode::Finalised) == 0)
+      return 4519; // NdbInterpretedCode::finalise() not called.
+
     op->m_interpreted_code = opts->interpretedCode;
   }
 

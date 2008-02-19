@@ -624,8 +624,6 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
   char buf[256];
   DBUG_ENTER("NdbBlob::copyKeyFromRow");
 
-  bool index_flag= isInsertOp();
-
   assert(record->flags & NdbRecord::RecHasAllKeys);
 
   char *packed= packedBuf.data;
@@ -1940,9 +1938,14 @@ NdbBlob::atPrepare(NdbTransaction* aCon, NdbOperation* anOp, const NdbColumnImpl
   DBUG_PRINT("info", ("this=%p op=%p con=%p version=%d fixed data=%d",
                       this, theNdbOp, theNdbCon,
                       theBlobVersion, theFixedDataFlag));
-  theNdbRecordFlag= false;
   if (atPrepareCommon(aCon, anOp, aColumn) == -1)
     DBUG_RETURN(-1);
+
+  /* For scans using the old RecAttr API, we internally use an
+   * NdbRecord.
+   * For PK and Index ops, we do not
+   */
+  theNdbRecordFlag= isScanOp();
 
   // handle different operation types
   bool supportedOp = false;
@@ -2037,11 +2040,32 @@ NdbBlob::atPrepareCommon(NdbTransaction* aCon, NdbOperation* anOp,
     }
   }
   if (isScanOp()) {
-    // upgrade lock mode
-    if (theNdbOp->theLockMode == NdbOperation::LM_CommittedRead)
-      theNdbOp->setReadLockMode(NdbOperation::LM_Read);
+    /* Upgrade lock mode
+     * Unfortunately, this is a bit messy, depending on which
+     * type of underlying scan we have
+     */
+    NdbScanOperation *sop= reinterpret_cast<NdbScanOperation*> (theNdbOp);
+
+    if (sop->m_scanUsingOldApi)
+    {
+      /* Old Api scans only have saved lockmode state at this pre-finalisation
+       * point, so it's easy to change the mode
+       */ 
+      if (sop->m_savedLockModeOldApi == NdbOperation::LM_CommittedRead)
+        sop->m_savedLockModeOldApi= NdbOperation::LM_Read;
+    }
+    else
+    {
+      /* NdbRecord defined scans have had most signals built etc, so we need
+       * to call the setReadLockMode method to do the right thing to change
+       * the lockmode
+       */
+      if (sop->theLockMode == NdbOperation::LM_CommittedRead)
+        sop->setReadLockMode(NdbOperation::LM_Read);
+    }
+
     // add read of head+inline in this op
-    if (getHeadInlineValue(theNdbOp) == -1)
+    if (getHeadInlineValue(sop) == -1)
       return -1;
   }
   setState(Prepared);

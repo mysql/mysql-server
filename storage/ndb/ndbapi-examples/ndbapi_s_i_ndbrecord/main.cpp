@@ -290,7 +290,8 @@ int main(int argc, char** argv)
     int value= 3;
     memcpy(&row[0][4], &value, 4);
     const NdbOperation *myOperation=
-      myTransaction->deleteTuple(key_record, &row[0][0]);
+      myTransaction->deleteTuple(key_record, &row[0][0],
+                                 attr_record);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
 

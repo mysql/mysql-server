@@ -138,6 +138,9 @@ printusage()
     << "  -pk2cs      PK2 charset or collation [" << d.m_pk2chr.m_cs << "]" << endl
     << "  -pk2part    partition primary table by PK2" << endl
     << "  -oneblob    only 1 blob attribute [default 2]" << endl
+    << "disk or memory storage for blobs.  Don't apply to performance test" << endl
+    << "  m           Blob columns stored in memory" << endl
+    << "  h           Blob columns stored on disk" << endl
     << "api styles for test/skip.  Don't apply to performance test" << endl
     << "  a           NdbRecAttr(old) interface" << endl
     << "  b           NdbRecord interface" << endl
@@ -156,8 +159,8 @@ printusage()
     << "  0           getValue / setValue" << endl
     << "  1           setActiveHook" << endl
     << "  2           readData / writeData" << endl
-    << "example: -test akn0 (need all 4 parts)" << endl
-    << "example: -test abkisrunwd012 (Everything except performance tests" << endl
+    << "example: -test makn0 (need all 4 parts)" << endl
+    << "example: -test mhabkisrunwd012 (Everything except performance tests" << endl
     << "bug tests" << endl
     << "  -bug 4088   ndb api hang with mixed ops on index table" << endl
     << "  -bug 27018  middle partial part write clobbers rest of part" << endl
@@ -172,6 +175,7 @@ testcase(char x)
 {
   if (x < 10)
     x += '0';
+
   return
     (g_opt.m_test == 0 || strchr(g_opt.m_test, x) != 0) &&
     (g_opt.m_skip == 0 || strchr(g_opt.m_skip, x) == 0);
@@ -189,17 +193,55 @@ static NdbBlob* g_bh1 = 0;
 static NdbBlob* g_bh2 = 0;
 static bool g_printerror = true;
 static unsigned g_loop = 0;
-static const NdbRecord *g_key_record= 0;
-static const NdbRecord *g_blob_record= 0;
-static const NdbRecord *g_full_record= 0;
-static const NdbRecord *g_idx_record= 0;
-static const NdbRecord *g_ord_record= 0;
+static NdbRecord *g_key_record= 0;
+static NdbRecord *g_blob_record= 0;
+static NdbRecord *g_full_record= 0;
+static NdbRecord *g_idx_record= 0;
+static NdbRecord *g_ord_record= 0;
 static unsigned g_pk1_offset= 0;
 static unsigned g_pk2_offset= 0;
 static unsigned g_pk3_offset= 0;
 static unsigned g_blob1_offset= 0;
 static unsigned g_blob2_offset= 0;
 static unsigned g_rowsize= 0;
+static const char* g_tsName= "DEFAULT-TS";
+static Uint32 g_batchSize= 0;
+static Uint32 g_scanFlags= 0;
+static Uint32 g_parallel= 0;
+static Uint32 g_usingDisk= false;
+
+static const char* stylename[3] = {
+  "style=getValue/setValue",
+  "style=setActiveHook",
+  "style=readData/writeData"
+};
+
+// Blob API variants
+static const char* apiName[2] = {
+  "api=NdbRecAttr",
+  "api=NdbRecord"
+};
+
+static const char apiSymbol[2] = {
+  'a',  // RecAttr
+  'b'   // NdbRecord
+};
+
+static const int API_RECATTR=0;
+static const int API_NDBRECORD=1;
+
+static const char* storageName[2] = {
+  "storage=memory",
+  "storage=disk"
+};
+
+static const char storageSymbol[2] = {
+  'm',  // Memory storage
+  'h'   // Disk storage
+};
+
+static const int STORAGE_MEM=0;
+static const int STORAGE_DISK=1;
 
 static void
 printerror(int line, const char* msg)
@@ -257,7 +299,6 @@ printerror(int line, const char* msg)
     ndbout << "line " << __LINE__ << " " << x << endl; \
   } while (0)
 
-
 struct Bcol {
   int m_type;
   int m_version;
@@ -295,20 +336,163 @@ initblobs()
   }
 }
 
+static void
+initConstants()
+{
+  g_pk1_offset= 0;
+  g_pk2_offset= g_pk1_offset + 4;
+  g_pk3_offset= g_pk2_offset + g_opt.m_pk2chr.m_totlen;
+  g_blob1_offset= g_pk3_offset + 2;
+  g_blob2_offset= g_blob1_offset + sizeof(NdbBlob *);
+  g_rowsize= g_blob2_offset + sizeof(NdbBlob *);
+}
+
+static int
+createDefaultTableSpace()
+{
+  /* 'Inspired' by NDBT_Tables::create_default_tablespace */
+  int res;
+  NdbDictionary::LogfileGroup lg = g_dic->getLogfileGroup("DEFAULT-LG");
+  if (strcmp(lg.getName(), "DEFAULT-LG") != 0)
+  {
+    lg.setName("DEFAULT-LG");
+    lg.setUndoBufferSize(8*1024*1024);
+    res = g_dic->createLogfileGroup(lg);
+    if(res != 0){
+      DBG("Failed to create logfilegroup:"
+          << endl << g_dic->getNdbError() << endl);
+      return -1;
+    }
+  }
+  {
+    NdbDictionary::Undofile uf = g_dic->getUndofile(0, "undofile01.dat");
+    if (strcmp(uf.getPath(), "undofile01.dat") != 0)
+    {
+      uf.setPath("undofile01.dat");
+      uf.setSize(32*1024*1024);
+      uf.setLogfileGroup("DEFAULT-LG");
+      
+      res = g_dic->createUndofile(uf, true);
+      if(res != 0){
+	DBG("Failed to create undofile:"
+            << endl << g_dic->getNdbError() << endl);
+	return -1;
+      }
+    }
+  }
+  {
+    NdbDictionary::Undofile uf = g_dic->getUndofile(0, "undofile02.dat");
+    if (strcmp(uf.getPath(), "undofile02.dat") != 0)
+    {
+      uf.setPath("undofile02.dat");
+      uf.setSize(32*1024*1024);
+      uf.setLogfileGroup("DEFAULT-LG");
+      
+      res = g_dic->createUndofile(uf, true);
+      if(res != 0){
+	DBG("Failed to create undofile:"
+            << endl << g_dic->getNdbError() << endl);
+	return -1;
+      }
+    }
+  }
+  NdbDictionary::Tablespace ts = g_dic->getTablespace(g_tsName);
+  if (strcmp(ts.getName(), g_tsName) != 0)
+  {
+    ts.setName(g_tsName);
+    ts.setExtentSize(1024*1024);
+    ts.setDefaultLogfileGroup("DEFAULT-LG");
+    
+    res = g_dic->createTablespace(ts);
+    if(res != 0){
+      DBG("Failed to create tablespace:"
+          << endl << g_dic->getNdbError() << endl);
+      return -1;
+    }
+  }
+  
+  {
+    NdbDictionary::Datafile df = g_dic->getDatafile(0, "datafile01.dat");
+    if (strcmp(df.getPath(), "datafile01.dat") != 0)
+    {
+      df.setPath("datafile01.dat");
+      df.setSize(64*1024*1024);
+      df.setTablespace(g_tsName);
+      
+      res = g_dic->createDatafile(df, true);
+      if(res != 0){
+	DBG("Failed to create datafile:"
+            << endl << g_dic->getNdbError() << endl);
+	return -1;
+      }
+    }
+  }
+
+  {
+    NdbDictionary::Datafile df = g_dic->getDatafile(0, "datafile02.dat");
+    if (strcmp(df.getPath(), "datafile02.dat") != 0)
+    {
+      df.setPath("datafile02.dat");
+      df.setSize(64*1024*1024);
+      df.setTablespace(g_tsName);
+      
+      res = g_dic->createDatafile(df, true);
+      if(res != 0){
+	DBG("Failed to create datafile:"
+            << endl << g_dic->getNdbError() << endl);
+	return -1;
+      }
+    }
+  }
+  
+  return 0;
+}
+
 static int
 dropTable()
 {
   NdbDictionary::Table tab(g_opt.m_tname);
   if (g_dic->getTable(g_opt.m_tname) != 0)
     CHK(g_dic->dropTable(g_opt.m_tname) == 0);
+
+  if (g_key_record != NULL)
+    g_dic->releaseRecord(g_key_record);
+  if (g_blob_record != NULL)
+    g_dic->releaseRecord(g_blob_record);
+  if (g_full_record != NULL)
+    g_dic->releaseRecord(g_full_record);
+
+  if (g_opt.m_pk2chr.m_len != 0)
+  {
+    if (g_idx_record != NULL)
+      g_dic->releaseRecord(g_idx_record);
+    if (g_ord_record != NULL)
+      g_dic->releaseRecord(g_ord_record);
+  }
+
+  g_key_record= NULL;
+  g_blob_record= NULL;
+  g_full_record= NULL;
+  g_idx_record= NULL;
+  g_ord_record= NULL;
+
   return 0;
 }
 
 static int
-createTable()
+createTable(int storageType)
 {
+  /* No logging for memory tables */
+  bool loggingRequired=(storageType == STORAGE_DISK);
+  NdbDictionary::Column::StorageType blobStorageType= 
+    (storageType == STORAGE_MEM)?
+    NdbDictionary::Column::StorageTypeMemory : 
+    NdbDictionary::Column::StorageTypeDisk;
+
   NdbDictionary::Table tab(g_opt.m_tname);
-  tab.setLogging(false);
+  if (storageType == STORAGE_DISK)
+    tab.setTablespaceName(g_tsName);
+  tab.setLogging(loggingRequired);
   tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
   const Chr& pk2chr = g_opt.m_pk2chr;
   // col PK1 - Uint32
@@ -326,6 +510,7 @@ createTable()
     col.setInlineSize(b.m_inline);
     col.setPartSize(b.m_partsize);
     col.setStripeSize(b.m_stripe);
+    col.setStorageType(blobStorageType);
     tab.addColumn(col);
   }
   // col PK2 - Char or Varchar
@@ -350,6 +535,7 @@ createTable()
     col.setInlineSize(b.m_inline);
     col.setPartSize(b.m_partsize);
     col.setStripeSize(b.m_stripe);
+    col.setStorageType(blobStorageType);
     tab.addColumn(col);
   }
   // col PK3 - puts the Var* key PK2 between PK1 and PK3
@@ -357,6 +543,7 @@ createTable()
   { NdbDictionary::Column col("PK3");
     col.setType(NdbDictionary::Column::Smallunsigned);
     col.setPrimaryKey(true);
+    
     tab.addColumn(col);
   }
   // create table
@@ -365,7 +552,7 @@ createTable()
   if (g_opt.m_pk2chr.m_len != 0)
   { NdbDictionary::Index idx(g_opt.m_x1name);
     idx.setType(NdbDictionary::Index::UniqueHashIndex);
-    idx.setLogging(false);
+    idx.setLogging(loggingRequired);
     idx.setTable(g_opt.m_tname);
     idx.addColumnName("PK2");
     idx.addColumnName("PK3");
@@ -384,12 +571,6 @@ createTable()
   NdbDictionary::RecordSpecification spec[5];
   unsigned numpks= g_opt.m_pk2chr.m_len == 0 ? 1 : 3;
   unsigned numblobs= g_opt.m_oneblob ? 1 : 2;
-  g_pk1_offset= 0;
-  g_pk2_offset= g_pk1_offset + 4;
-  g_pk3_offset= g_pk2_offset + g_opt.m_pk2chr.m_totlen;
-  g_blob1_offset= g_pk3_offset + 2;
-  g_blob2_offset= g_blob1_offset + sizeof(NdbBlob *);
-  g_rowsize= g_blob2_offset + sizeof(NdbBlob *);
 
   const NdbDictionary::Table *dict_table;
   CHK((dict_table= g_dic->getTable(g_opt.m_tname)) != 0);
@@ -421,10 +602,10 @@ createTable()
   {
     const NdbDictionary::Index *dict_index;
     CHK((dict_index= g_dic->getIndex(g_opt.m_x1name, g_opt.m_tname)) != 0);
-    CHK((g_idx_record= g_dic->createRecord(dict_index, dict_table, &spec[1], 2,
+    CHK((g_idx_record= g_dic->createRecord(dict_index, &spec[1], 2,
                                            sizeof(spec[0]))) != 0);
     CHK((dict_index= g_dic->getIndex(g_opt.m_x2name, g_opt.m_tname)) != 0);
-    CHK((g_ord_record= g_dic->createRecord(dict_index, dict_table, &spec[1], 1,
+    CHK((g_ord_record= g_dic->createRecord(dict_index, &spec[1], 1,
                                            sizeof(spec[0]))) != 0);
   }
 
@@ -651,6 +832,7 @@ getBlobHandles(const NdbOperation* opr)
 }
 
 // non-const version for NdbRecAttr defined operations
+// and scans
 static int
 getBlobHandles(NdbOperation* opr)
 {
@@ -1028,7 +1210,10 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
   NdbRecAttr* ra_frag = 0;
   CHK((g_con = g_ndb->startTransaction()) != 0);
   CHK((g_ops = g_con->getNdbScanOperation(b.m_btname)) != 0);
-  CHK(g_ops->readTuples() == 0);
+  CHK(g_ops->readTuples(NdbScanOperation::LM_Read, 
+                        g_scanFlags,
+                        g_batchSize,
+                        g_parallel) == 0);
   if (b.m_version == 1) {
     CHK((ra_pk = g_ops->getValue("PK")) != 0);
     CHK((ra_part = g_ops->getValue("PART")) != 0);
@@ -1042,6 +1227,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
     CHK((ra_part = g_ops->getValue("NDB$PART")) != 0);
     CHK((ra_data = g_ops->getValue("NDB$DATA")) != 0);
   }
+
   CHK((ra_frag = g_ops->getValue(NdbDictionary::Column::FRAGMENT)) != 0);
   CHK(g_con->execute(NoCommit) == 0);
   unsigned partcount;
@@ -1076,17 +1262,25 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
     if (b.m_version == 1)
       ;
     else {
-      unsigned sz = getvarsize(data);
-      DBG("varsize " << sz);
-      CHK(sz <= b.m_partsize);
-      data += 2;
-      if (part + 1 < partcount)
-        CHK(sz == b.m_partsize);
-      else
-        CHK(sz == m);
+      // Blob v2 stored on disk is currently fixed
+      // size, so we skip these tests.
+      if (!g_usingDisk)
+      {
+        unsigned sz = getvarsize(data);
+        DBG("varsize " << sz);
+        DBG("b.m_partsize " << b.m_partsize);
+        CHK(sz <= b.m_partsize);
+        data += 2;
+        if (part + 1 < partcount)
+          CHK(sz == b.m_partsize);
+        else
+          CHK(sz == m);
+      }
     }
     CHK(memcmp(data, v.m_val + n, m) == 0);
-    if (b.m_version == 1) {
+    if (b.m_version == 1 || 
+        g_usingDisk ) { // Blob v2 stored on disk is currently
+                      // fixed size, so we do these tests.
       char fillchr;
       if (b.m_type == NdbDictionary::Column::Text)
         fillchr = 0x20;
@@ -1106,6 +1300,7 @@ verifyBlobTable(const Bval& v, Uint32 pk1, Uint32 frag, bool exists)
   for (unsigned i = 0; i < partcount; i++)
     CHK(seen[i] == 1);
   delete [] seen;
+  g_ops->close();
   g_ndb->closeTransaction(g_con);
   g_ops = 0;
   g_con = 0;
@@ -1134,26 +1329,6 @@ verifyBlob()
 }
 
 // operations
-
-static const char* stylename[3] = {
-  "style=getValue/setValue",
-  "style=setActiveHook",
-  "style=readData/writeData"
-};
-
-// Blob API variants
-static const char* apiName[2] = {
-  "api=NdbRecAttr",
-  "api=NdbRecord"
-};
-
-static const char apiSymbol[2] = {
-  'a',  // RecAttr
-  'b'   // NdbRecord
-};
-
-static const int API_RECATTR=0;
-static const int API_NDBRECORD=1;
 
 // pk ops
 
@@ -1267,7 +1442,7 @@ readPk(int style, int api)
     CHK(g_con->execute(Commit) == 0);
     // verify lock mode upgrade
     CHK((g_opr?g_opr:g_const_opr)->getLockMode() == NdbOperation::LM_Read);
-
+    
     if (style == 0 || style == 1) {
       CHK(verifyBlobValue(tup) == 0);
     }
@@ -1439,7 +1614,8 @@ deletePk(int api)
         memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
         memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
       }
-      CHK((g_const_opr= g_con->deleteTuple(g_key_record, tup.m_key_row)) != 0);
+      CHK((g_const_opr= g_con->deleteTuple(g_key_record, tup.m_key_row,
+                                           g_full_record)) != 0);
     }
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
@@ -1673,7 +1849,8 @@ deleteIdx(int api)
     {
       memcpy(&tup.m_key_row[g_pk2_offset], tup.pk2(), g_opt.m_pk2chr.m_totlen);
       memcpy(&tup.m_key_row[g_pk3_offset], &tup.m_pk3, sizeof(tup.m_pk3));
-      CHK((g_const_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row)) != 0);
+      CHK((g_const_opr= g_con->deleteTuple(g_idx_record, tup.m_key_row,
+                                           g_full_record)) != 0);
     }
     if (++n == g_opt.m_batch) {
       CHK(g_con->execute(Commit) == 0);
@@ -1689,6 +1866,10 @@ deleteIdx(int api)
     CHK(g_con->execute(Commit) == 0);
     n = 0;
   }
+  g_ndb->closeTransaction(g_con);
+  g_con= 0;
+  g_opx= 0;
+  g_const_opr= 0;
   return 0;
 }
 
@@ -1709,9 +1890,15 @@ readScan(int style, int api, bool idx)
       CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
     }
     if (urandom(2) == 0)
-      CHK(g_ops->readTuples(NdbOperation::LM_Read) == 0);
+      CHK(g_ops->readTuples(NdbOperation::LM_Read,
+                            g_scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
     else
-      CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead) == 0);
+      CHK(g_ops->readTuples(NdbOperation::LM_CommittedRead,
+                            g_scanFlags,
+                            g_batchSize,
+                            g_parallel) == 0);
     CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
@@ -1810,7 +1997,10 @@ updateScan(int style, int api, bool idx)
     } else {
       CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
     }
-    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
+    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
+                          g_scanFlags,
+                          g_batchSize,
+                          g_parallel) == 0);
     CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
@@ -1907,7 +2097,10 @@ deleteScan(int api, bool idx)
     } else {
       CHK((g_ops = g_con->getNdbIndexScanOperation(g_opt.m_x2name, g_opt.m_tname)) != 0);
     }
-    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive) == 0);
+    CHK(g_ops->readTuples(NdbOperation::LM_Exclusive,
+                          g_scanFlags,
+                          g_batchSize,
+                          g_parallel) == 0);
     CHK(g_ops->getValue("PK1", (char*)&tup.m_pk1) != 0);
     if (g_opt.m_pk2chr.m_len != 0)
     {
@@ -2022,17 +2215,13 @@ testmain()
   CHK(g_ndb->waitUntilReady() == 0);
   g_dic = g_ndb->getDictionary();
   initblobs();
-  CHK(dropTable() == 0);
-  CHK(createTable() == 0);
+  initConstants();
   g_tups = new Tup [g_opt.m_rows];
-  Bcol& b1 = g_blob1;
-  CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
-  DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
-  if (! g_opt.m_oneblob) {
-    Bcol& b2 = g_blob2;
-    CHK(NdbBlob::getBlobTableName(b2.m_btname, g_ndb, g_opt.m_tname, "BL2") == 0);
-    DBG("BL2: inline=" << b2.m_inline << " part=" << b2.m_partsize << " table=" << b2.m_btname);
-  }
+
+  // Create tablespace if we're going to use disk based data
+  if (testcase('h'))
+    createDefaultTableSpace(); 
+
   if (g_opt.m_seed == -1)
     g_opt.m_seed = getpid();
   if (g_opt.m_seed != 0) {
@@ -2040,136 +2229,181 @@ testmain()
     srandom(g_opt.m_seed);
   }
   for (g_loop = 0; g_opt.m_loop == 0 || g_loop < g_opt.m_loop; g_loop++) {
-    int style;
-    int api;
-    DBG("=== loop " << g_loop << " ===");
-    if (g_opt.m_seed == 0)
-      srandom(g_loop);
-    if (g_opt.m_bugtest != 0) {
-      // test some bug# instead
-      CHK((*g_opt.m_bugtest)() == 0);
-      continue;
-    }
-    /* Loop over API styles */
-    for (api = 0; api <=1; api++) {
-      // pk
-      if (! testcase(apiSymbol[api]))
+        for (int storage= 0; storage < 2; storage++) {
+      if (!testcase(storageSymbol[storage]))
         continue;
-      for (style = 0; style <= 2; style++) {
-        if (! testcase('k') || ! testcase(style) )
-          continue;
-        DBG("--- pk ops " << stylename[style] << " " << apiName[api] << " ---");
-        if (testcase('n')) {
-          calcTups(true);
-          CHK(insertPk(style, api) == 0);
-          CHK(verifyBlob() == 0);
-          CHK(readPk(style, api) == 0);
-          if (testcase('u')) {
-            calcTups(false);
-            CHK(updatePk(style, api) == 0);
-            CHK(verifyBlob() == 0);
-            CHK(readPk(style, api) == 0);
-          }
-          if (testcase('d')) {
-            CHK(deletePk(api) == 0);
-            CHK(deleteNoPk() == 0);
-            CHK(verifyBlob() == 0);
-          }
-        }
-        if (testcase('w')) {
-          calcTups(true);
-          CHK(writePk(style, api) == 0);
-          CHK(verifyBlob() == 0);
-          CHK(readPk(style, api) == 0);
-          if (testcase('u')) {
-            calcTups(false);
-            CHK(writePk(style, api) == 0);
-            CHK(verifyBlob() == 0);
-            CHK(readPk(style, api) == 0);
-          }
-          if (testcase('d')) {
-            CHK(deletePk(api) == 0);
-            CHK(deleteNoPk() == 0);
-            CHK(verifyBlob() == 0);
-          }
+      
+      DBG("Create table " << storageName[storage]);
+      CHK(dropTable() == 0);
+      CHK(createTable(storage) == 0);
+      { /* Dump created table information */
+        Bcol& b1 = g_blob1;
+        CHK(NdbBlob::getBlobTableName(b1.m_btname, g_ndb, g_opt.m_tname, "BL1") == 0);
+        DBG("BL1: inline=" << b1.m_inline << " part=" << b1.m_partsize << " table=" << b1.m_btname);
+        if (! g_opt.m_oneblob) {
+          Bcol& b2 = g_blob2;
+          CHK(NdbBlob::getBlobTableName(b2.m_btname, g_ndb, g_opt.m_tname, "BL2") == 0);
+          DBG("BL2: inline=" << b2.m_inline << " part=" << b2.m_partsize << " table=" << b2.m_btname);
         }
       }
 
-      // hash index
-      for (style = 0; style <= 2; style++) {
-        if (! testcase('i') || ! testcase(style))
+      /* Capability to adjust disk scan parameters to avoid scan
+       * timeouts with disk based Blobs (Error 274)
+       */
+      if (storage == STORAGE_DISK)
+      {
+        g_usingDisk= true;
+        // TODO : Resolve whether we need to adjust these for disk data
+        // Currently the scans are passing ok without this.
+        g_batchSize= 0;
+        g_parallel= 0;
+        g_scanFlags= 0; //NdbScanOperation::SF_DiskScan;
+      }
+      else
+      {
+        g_usingDisk= false;
+        g_batchSize= 0;
+        g_parallel= 0;
+        g_scanFlags= 0;
+      }
+
+      // TODO Remove/resolve
+      DBG("Settings : usingdisk " << g_usingDisk
+          << " batchSize " << g_batchSize
+          << " parallel " << g_parallel
+          << " scanFlags " << g_scanFlags);
+
+      int style;
+      int api;
+      DBG("=== loop " << g_loop << " ===");
+      if (g_opt.m_seed == 0)
+        srandom(g_loop);
+      if (g_opt.m_bugtest != 0) {
+        // test some bug# instead
+        CHK((*g_opt.m_bugtest)() == 0);
+        continue;
+      }    
+      /* Loop over API styles */
+      for (api = 0; api <=1; api++) {
+        // pk
+        if (! testcase(apiSymbol[api]))
           continue;
-        DBG("--- idx ops " << stylename[style] << " " << apiName[api] << " ---");
-        if (testcase('n')) {
+        for (style = 0; style <= 2; style++) {
+          if (! testcase('k') || ! testcase(style) )
+            continue;
+          DBG("--- pk ops " << stylename[style] << " " << apiName[api] << " ---");
+          if (testcase('n')) {
+            calcTups(true);
+            CHK(insertPk(style, api) == 0);
+            CHK(verifyBlob() == 0);
+            CHK(readPk(style, api) == 0);
+            if (testcase('u')) {
+              calcTups(false);
+              CHK(updatePk(style, api) == 0);
+              CHK(verifyBlob() == 0);
+              CHK(readPk(style, api) == 0);
+            }
+            if (testcase('d')) {
+              CHK(deletePk(api) == 0);
+              CHK(deleteNoPk() == 0);
+              CHK(verifyBlob() == 0);
+            }
+          }
+          if (testcase('w')) {
+            calcTups(true);
+            CHK(writePk(style, api) == 0);
+            CHK(verifyBlob() == 0);
+            CHK(readPk(style, api) == 0);
+            if (testcase('u')) {
+              calcTups(false);
+              CHK(writePk(style, api) == 0);
+              CHK(verifyBlob() == 0);
+              CHK(readPk(style, api) == 0);
+            }
+            if (testcase('d')) {
+              CHK(deletePk(api) == 0);
+              CHK(deleteNoPk() == 0);
+              CHK(verifyBlob() == 0);
+            }
+          }
+        }
+        
+        // hash index
+        for (style = 0; style <= 2; style++) {
+          if (! testcase('i') || ! testcase(style))
+            continue;
+          DBG("--- idx ops " << stylename[style] << " " << apiName[api] << " ---");
+          if (testcase('n')) {
+            calcTups(true);
+            CHK(insertPk(style, api) == 0);
+            CHK(verifyBlob() == 0);
+            CHK(readIdx(style, api) == 0);
+            if (testcase('u')) {
+              calcTups(false);
+              CHK(updateIdx(style, api) == 0);
+              CHK(verifyBlob() == 0);
+              CHK(readIdx(style, api) == 0);
+            }
+            if (testcase('d')) {
+              CHK(deleteIdx(api) == 0);
+              CHK(verifyBlob() == 0);
+            }
+          }
+          if (testcase('w')) {
+            calcTups(false);
+            CHK(writePk(style, api) == 0);
+            CHK(verifyBlob() == 0);
+            CHK(readIdx(style, api) == 0);
+            if (testcase('u')) {
+              calcTups(false);
+              CHK(writeIdx(style, api) == 0);
+              CHK(verifyBlob() == 0);
+              CHK(readIdx(style, api) == 0);
+            }
+            if (testcase('d')) {
+              CHK(deleteIdx(api) == 0);
+              CHK(verifyBlob() == 0);
+            }
+          }
+        }
+        // scan table
+        for (style = 0; style <= 2; style++) {
+          if (! testcase('s') || ! testcase(style))
+            continue;
+          DBG("--- table scan " << stylename[style] << " " << apiName[api] << " ---");
           calcTups(true);
           CHK(insertPk(style, api) == 0);
           CHK(verifyBlob() == 0);
-          CHK(readIdx(style, api) == 0);
+          CHK(readScan(style, api, false) == 0);
           if (testcase('u')) {
-            calcTups(false);
-            CHK(updateIdx(style, api) == 0);
+            CHK(updateScan(style, api, false) == 0);
             CHK(verifyBlob() == 0);
-            CHK(readIdx(style, api) == 0);
           }
           if (testcase('d')) {
-            CHK(deleteIdx(api) == 0);
+            CHK(deleteScan(api, false) == 0);
             CHK(verifyBlob() == 0);
           }
         }
-        if (testcase('w')) {
-          calcTups(false);
-          CHK(writePk(style, api) == 0);
+        // scan index
+        for (style = 0; style <= 2; style++) {
+          if (! testcase('r') || ! testcase(style))
+            continue;
+          DBG("--- index scan " << stylename[style] << " " << apiName[api] << " ---");
+          calcTups(true);
+          CHK(insertPk(style, api) == 0);
           CHK(verifyBlob() == 0);
-          CHK(readIdx(style, api) == 0);
+          CHK(readScan(style, api, true) == 0);
           if (testcase('u')) {
-            calcTups(false);
-            CHK(writeIdx(style, api) == 0);
+            CHK(updateScan(style, api, true) == 0);
             CHK(verifyBlob() == 0);
-            CHK(readIdx(style, api) == 0);
           }
           if (testcase('d')) {
-            CHK(deleteIdx(api) == 0);
+            CHK(deleteScan(api, true) == 0);
             CHK(verifyBlob() == 0);
           }
         }
-      }
-      // scan table
-      for (style = 0; style <= 2; style++) {
-        if (! testcase('s') || ! testcase(style))
-          continue;
-        DBG("--- table scan " << stylename[style] << " " << apiName[api] << " ---");
-        calcTups(true);
-        CHK(insertPk(style, api) == 0);
-        CHK(verifyBlob() == 0);
-        CHK(readScan(style, api, false) == 0);
-        if (testcase('u')) {
-          CHK(updateScan(style, api, false) == 0);
-          CHK(verifyBlob() == 0);
-        }
-        if (testcase('d')) {
-          CHK(deleteScan(api, false) == 0);
-          CHK(verifyBlob() == 0);
-        }
-      }
-      // scan index
-      for (style = 0; style <= 2; style++) {
-        if (! testcase('r') || ! testcase(style))
-          continue;
-        DBG("--- index scan " << stylename[style] << " " << apiName[api] << " ---");
-        calcTups(true);
-        CHK(insertPk(style, api) == 0);
-        CHK(verifyBlob() == 0);
-        CHK(readScan(style, api, true) == 0);
-        if (testcase('u')) {
-          CHK(updateScan(style, api, true) == 0);
-          CHK(verifyBlob() == 0);
-        }
-        if (testcase('d')) {
-          CHK(deleteScan(api, true) == 0);
-          CHK(verifyBlob() == 0);
-        }
-      }
-    } // for (api
+      } // for (api
+    } // for (storage
   } // for (loop
   delete g_ndb;
   return 0;
