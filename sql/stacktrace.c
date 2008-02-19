@@ -341,7 +341,7 @@ void set_exception_pointers(EXCEPTION_POINTERS *ep)
 #define SYMOPT_NO_PROMPTS 0
 #endif
 
-void print_stacktrace(gptr unused1, ulong unused2)
+void print_stacktrace(uchar* unused1, ulong unused2)
 {
   HANDLE  hProcess= GetCurrentProcess();
   HANDLE  hThread= GetCurrentThread();
