@@ -195,7 +195,7 @@ int main(int argc, char** argv)
     memcpy(&row[1][0], &value, 4);
     memcpy(&row[1][4], &value, 4);
 
-    NdbOperation *myOperation=
+    const NdbOperation *myOperation=
       myTransaction->insertTuple(attr_record, &row[0][0]);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
@@ -220,20 +220,29 @@ int main(int argc, char** argv)
     if (myTransaction == NULL)
       APIERROR(myNdb->getNdbError());
 
+    /* Demonstrate the posibility to use OperationOptions for 
+     * the odd extra read. 
+     */
+    Uint32 frag;
+    NdbOperation::GetValueSpec getSpec[1];
+    getSpec[0].column=NdbDictionary::Column::FRAGMENT;
+    getSpec[0].appStorage=&frag;
+
+    NdbOperation::OperationOptions options;
+    options.optionsPresent |= NdbOperation::OperationOptions::OO_GETVALUE;
+    options.extraGetValues = &getSpec[0];
+    options.numExtraGetValues = 1;
+
     memcpy(&row[0][4], &i, 4);
     unsigned char mask[1]= { 0x01 };            // Only read ATTR1
-    NdbOperation *myOperation=
+    const NdbOperation *myOperation=
       myTransaction->readTuple(key_record, &row[0][0],
                                attr_record, &row[1][0],
-                               NdbOperation::LM_Read, mask);
+                               NdbOperation::LM_Read, mask,
+                               &options, 
+                               sizeof(NdbOperation::OperationOptions));
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
-
-    /* Demonstrate the posibility to use getValue() for the odd extra read. */
-    Uint32 frag;
-    if (myOperation->getValue(NdbDictionary::Column::FRAGMENT,
-                              (char *)(&frag)) == 0)
-      APIERROR(myOperation->getNdbError());
 
     if (myTransaction->execute( NdbTransaction::Commit,
                                 NdbOperation::AbortOnError ) != -1)
@@ -258,7 +267,7 @@ int main(int argc, char** argv)
     int value= i+10;
     memcpy(&row[1][4], &value, 4);
     unsigned char mask[1]= { 0x02 };            // Only update ATTR2
-    NdbOperation *myOperation=
+    const NdbOperation *myOperation=
       myTransaction->updateTuple(key_record, &row[0][0],
                                  attr_record, &row[1][0], mask);
     if (myOperation == NULL)
@@ -280,7 +289,7 @@ int main(int argc, char** argv)
 
     int value= 3;
     memcpy(&row[0][4], &value, 4);
-    NdbOperation *myOperation=
+    const NdbOperation *myOperation=
       myTransaction->deleteTuple(key_record, &row[0][0]);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
@@ -303,7 +312,7 @@ int main(int argc, char** argv)
         APIERROR(myNdb->getNdbError());
 
       memcpy(&row[0][0], &i, 4);
-      NdbOperation *myOperation=
+      const NdbOperation *myOperation=
         myTransaction->readTuple(pk_record, &row[0][0],
                                  attr_record, &row[1][0]);
       if (myOperation == NULL)

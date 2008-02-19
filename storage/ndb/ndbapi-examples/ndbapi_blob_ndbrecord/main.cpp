@@ -24,7 +24,7 @@
   read/write methods.
  */
 
-
+#include <ndb_global.h>
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
@@ -201,7 +201,7 @@ int populate(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&row[0], &id, 4);
-  NdbOperation *myNdbOperation= myTrans->insertTuple(full_record, row);
+  const NdbOperation *myNdbOperation= myTrans->insertTuple(full_record, row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
   NdbBlob *myBlobHandle= myNdbOperation->getBlobHandle("my_text");
@@ -231,7 +231,7 @@ int update_key(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&row[0], &id, 4);
-  NdbOperation *myNdbOperation=
+  const NdbOperation *myNdbOperation=
     myTrans->updateTuple(key_record, row, blob_record, row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
@@ -323,7 +323,7 @@ int update_scan(Ndb *myNdb)
   int res;
   for (;;)
   {
-    res= myScanOp->nextResult(out_row, true);
+    res= myScanOp->nextResult(&out_row, true, false);
     if (res==1)
       break;                                    // Scan done.
     else if (res)
@@ -337,7 +337,7 @@ int update_scan(Ndb *myNdb)
     for (Uint64 j= 0; j < length; j++)
       buffer[j]= tolower(buffer[j]);
 
-    NdbOperation *myUpdateOp=
+    const NdbOperation *myUpdateOp=
       myScanOp->updateCurrentTuple(myTrans, blob_record, row);
     if (myUpdateOp == NULL)
       APIERROR(myTrans->getNdbError());
@@ -388,7 +388,7 @@ int fetch_key(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&key_row[0], &id, 4);
-  NdbOperation *myNdbOperation=
+  const NdbOperation *myNdbOperation=
     myTrans->readTuple(key_record, key_row, blob_record, out_row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
@@ -429,7 +429,7 @@ int update2_key(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&row[0], &id, 4);
-  NdbOperation *myNdbOperation=
+  const NdbOperation *myNdbOperation=
     myTrans->updateTuple(key_record, row, blob_record, row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
@@ -460,7 +460,7 @@ int delete_key(Ndb *myNdb)
 
   Uint32 id= 1;
   memcpy(&row[0], &id, 4);
-  NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, row);
+  const NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
 

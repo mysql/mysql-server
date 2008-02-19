@@ -876,7 +876,7 @@ int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
   unpack_record().
 */
 int
-ha_ndbcluster::get_blob_values(NdbOperation *ndb_op, uchar *dst_record,
+ha_ndbcluster::get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                                const MY_BITMAP *bitmap)
 {
   uint i;
@@ -912,7 +912,7 @@ ha_ndbcluster::get_blob_values(NdbOperation *ndb_op, uchar *dst_record,
 }
 
 int
-ha_ndbcluster::set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
+ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op, my_ptrdiff_t row_offset,
                                const MY_BITMAP *bitmap, uint *set_count)
 {
   uint field_no;
@@ -2072,7 +2072,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
                            uint32 part_id)
 {
   NdbConnection *trans= m_thd_ndb->trans;
-  NdbOperation *op;
+  const NdbOperation *op;
   uchar *row;
   int res;
   DBUG_ENTER("pk_read");
@@ -2091,11 +2091,13 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  if (!(op= pk_unique_index_read_key(table->s->primary_key, key, row, lm)))
+  
+  if (!(op= pk_unique_index_read_key(table->s->primary_key, key, row, lm,
+                                     (m_user_defined_partitioning?
+                                      &part_id:
+                                      NULL))))
     ERR_RETURN(trans->getNdbError());
   
-  if (m_user_defined_partitioning)
-    op->setPartitionId(part_id);
 
   if ((res = execute_no_commit_ie(this,trans,FALSE)) != 0 ||
       op->getNdbError().code) 
@@ -2127,8 +2129,12 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
   NdbTransaction *trans= m_thd_ndb->trans;
   int read_needed= !bitmap_is_set_all(table->read_set);
   int error;
-  NdbOperation *op;
+  const NdbOperation *op;
   DBUG_ENTER("ndb_pk_update_row");
+
+  NdbOperation::OperationOptions *poptions = NULL;
+  NdbOperation::OperationOptions options;
+  options.optionsPresent=0;
 
   DBUG_PRINT("info", ("primary key update or partition change, "
                       "doing read+delete+insert"));
@@ -2136,6 +2142,14 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
 
   const NdbRecord *key_rec;
   const uchar *key_row;
+
+  if (m_user_defined_partitioning)
+  {
+    options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    options.partitionId=old_part_id;
+    poptions=&options;
+  }
+
   if (table_share->primary_key != MAX_KEY)
   {
     key_rec= m_index[table->s->primary_key].ndb_unique_record_row;
@@ -2166,7 +2180,8 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, &m_bitmap);
     if (!(op= trans->readTuple(key_rec, (const char *)key_row,
                                m_ndb_record, (char *)new_data,
-                               lm, (const unsigned char *)(m_bitmap.bitmap))))
+                             lm, (const unsigned char *)(m_bitmap.bitmap),
+                             poptions, sizeof(NdbOperation::OperationOptions))))
       ERR_RETURN(trans->getNdbError());
   }
 
@@ -2178,9 +2193,6 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
     if (error != 0)
       ERR_RETURN(op->getNdbError());
   }
-
-  if (m_user_defined_partitioning)
-    op->setPartitionId(old_part_id);
 
   if (execute_no_commit(this, trans, FALSE) != 0)
   {
@@ -2331,8 +2343,11 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
                                      NDB_WRITE_OP write_op)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
-  NdbOperation *op;
+  const NdbOperation *op;
   const NdbOperation *first, *last;
+  NdbOperation::OperationOptions options;
+  NdbOperation::OperationOptions *poptions=NULL;
+  options.optionsPresent = 0;
   uint i;
   int res;
   DBUG_ENTER("peek_indexed_rows");
@@ -2347,11 +2362,6 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
      */
     const NdbRecord *key_rec=
       m_index[table->s->primary_key].ndb_unique_record_row;
-    if (!(op= trans->readTuple(key_rec, (const char *)record,
-                               key_rec, dummy_row, lm, empty_mask)))
-      ERR_RETURN(trans->getNdbError());
-    
-    first= op;
 
     if (m_user_defined_partitioning)
     {
@@ -2366,8 +2376,18 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
         m_part_info->err_value= func_value;
         DBUG_RETURN(error);
       }
-      op->setPartitionId(part_id);
-    }
+      options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+      options.partitionId=part_id;
+      poptions=&options;
+    }    
+
+    if (!(op= trans->readTuple(key_rec, (const char *)record,
+                               key_rec, dummy_row, lm, empty_mask,
+                               poptions, 
+                               sizeof(NdbOperation::OperationOptions))))
+      ERR_RETURN(trans->getNdbError());
+    
+    first= op;
   }
   /*
    * Fetch any rows with colliding unique indexes
@@ -2395,7 +2415,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
         continue;
       }
 
-      NdbOperation *iop;
+      const NdbOperation *iop;
       const NdbRecord *key_rec= m_index[i].ndb_unique_record_row;
       if (!(iop= trans->readTuple(key_rec, (const char *)record,
                                   key_rec, dummy_row,
@@ -2437,7 +2457,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
                                      uint key_len, uchar *buf)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
-  NdbOperation *op;
+  const NdbOperation *op;
   uchar *row;
   DBUG_ENTER("ha_ndbcluster::unique_index_read");
   DBUG_PRINT("enter", ("key_len: %u, index: %u", key_len, active_index));
@@ -2454,7 +2474,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  if (!(op= pk_unique_index_read_key(active_index, key, row, lm)))
+  if (!(op= pk_unique_index_read_key(active_index, key, row, lm, NULL)))
     ERR_RETURN(trans->getNdbError());
   
   if (execute_no_commit_ie(this,trans,FALSE) != 0 ||
@@ -2494,7 +2514,7 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
       LOCK WITH SHARE MODE) and row was not explictly unlocked 
       with unlock_row() call
     */
-    NdbOperation *op;
+    const NdbOperation *op;
     // Lock row
     DBUG_PRINT("info", ("Keeping lock on scanned row"));
       
@@ -2535,7 +2555,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
         DBUG_RETURN(ndb_err(trans));
     }
     
-    if ((local_check= cursor->nextResult(_m_next_row,
+    if ((local_check= cursor->nextResult(&_m_next_row,
                                          contact_ndb,
                                          m_force_send)) == 0)
     {
@@ -2627,14 +2647,19 @@ inline int ha_ndbcluster::next_result(uchar *buf)
   Do a primary key or unique key index read operation.
   The key value is taken from a buffer in mysqld key format.
 */
-NdbOperation *
+const NdbOperation *
 ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
-                                        NdbOperation::LockMode lm)
+                                        NdbOperation::LockMode lm,
+                                        Uint32 *ppartition_id)
 {
-  NdbOperation *op;
+  const NdbOperation *op;
   const NdbRecord *ndb_record= m_ndb_record;
   uchar *mask= (uchar *)(table->read_set->bitmap);
   const NdbRecord *key_rec;
+  NdbOperation::OperationOptions options;
+  NdbOperation::OperationOptions *poptions = NULL;
+  options.optionsPresent=0;
+  
   if (idx != MAX_KEY)
     key_rec= m_index[idx].ndb_unique_record_key;
   else
@@ -2657,9 +2682,18 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
       if (m_user_defined_partitioning)
         ndb_record= m_ndb_record_fragment;
     }
+
+    if (ppartition_id !=NULL)
+    {
+      options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+      options.partitionId=*ppartition_id;
+      poptions=&options;
+    }
   }
   op= m_thd_ndb->trans->readTuple(key_rec, (const char *)key,
-                                ndb_record, (char *)buf, lm, mask);
+                                  ndb_record, (char *)buf, lm, mask,
+                                  poptions,
+                                  sizeof(NdbOperation::OperationOptions));
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, buf, table->read_set) != 0)
@@ -2921,24 +2955,6 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
   }
 }
 
-struct ordered_index_scan_data {
-  const KEY *key_info;
-  const key_range *start_key;
-  const key_range *end_key;
-};
-
-/* Callback to set up scan bounds for ordered_index_scan(). */
-static int
-ordered_index_scan_callback(void *arg, Uint32 i,
-                            NdbIndexScanOperation::IndexBound & bound)
-{
-  struct ordered_index_scan_data *data= (struct ordered_index_scan_data *)arg;
-  compute_index_bounds(bound, data->key_info, data->start_key, data->end_key);
-  bound.range_no= 0;
-  return 0;                                     // Success
-}
-
-
 /**
   Start ordered index scan in NDB
 */
@@ -2950,7 +2966,6 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 {  
   NdbTransaction *trans= m_thd_ndb->trans;
   NdbIndexScanOperation *op;
-  struct ordered_index_scan_data data;
   uchar *mask;
   int error;
 
@@ -2976,40 +2991,58 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   NdbOperation::LockMode lm=
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  Uint32 scan_flags= 0;
+
+  NdbTransaction::ScanOptions options;
+  options.optionsPresent=NdbTransaction::ScanOptions::SO_SCANFLAGS;
+  options.scan_flags=0;
+
   if (lm == NdbOperation::LM_Read)
-    scan_flags|= NdbScanOperation::SF_KeyInfo;
+    options.scan_flags|= NdbScanOperation::SF_KeyInfo;
   if (sorted)
-    scan_flags|= NdbScanOperation::SF_OrderBy;
+    options.scan_flags|= NdbScanOperation::SF_OrderBy;
   if (descending)
-    scan_flags|= NdbScanOperation::SF_Descending;
+    options.scan_flags|= NdbScanOperation::SF_Descending;
   const NdbRecord *key_rec= m_index[active_index].ndb_record_key;
   const NdbRecord *row_rec= m_index[active_index].ndb_record_row;
-  Uint32 num_bounds= (start_key != NULL || end_key != NULL);
-  data.key_info= table->key_info + active_index;
-  if (!descending) {
-    data.start_key= start_key;
-    data.end_key= end_key;
-  }
-  else
+
+  NdbIndexScanOperation::IndexBound bound;
+  NdbIndexScanOperation::IndexBound *pbound = NULL;
+
+  if (start_key != NULL || end_key != NULL)
   {
-    data.start_key= end_key;
-    data.end_key= start_key;
+    /* 
+       Compute bounds info, reversing range boundaries
+       if descending
+     */
+    compute_index_bounds(bound, 
+                         table->key_info + active_index,
+                         (descending?
+                          end_key : start_key),
+                         (descending?
+                          start_key : end_key));
+    bound.range_no = 0;
+    pbound = &bound;
   }
 
-  if (!(op= trans->scanIndex(key_rec, ordered_index_scan_callback, &data,
-                             num_bounds, row_rec, lm,
+  /* Partition pruning */
+  if (m_use_partition_pruning && part_spec != NULL &&
+      part_spec->start_part == part_spec->end_part)
+  {
+    options.partitionId = part_spec->start_part;
+    options.optionsPresent |= NdbTransaction::ScanOptions::SO_PARTITION_ID;
+  }
+
+  if (!(op= trans->scanIndex(key_rec, row_rec, lm,
                              mask,
-                             scan_flags, parallelism, 0)))
+                             pbound,
+                             &options,
+                             sizeof(NdbTransaction::ScanOptions))))
     ERR_RETURN(trans->getNdbError());
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, NULL, table->read_set) != 0)
     ERR_RETURN(op->getNdbError());
 
-  if (m_use_partition_pruning && part_spec != NULL &&
-      part_spec->start_part == part_spec->end_part)
-    op->setPartitionId(part_spec->start_part);
   m_active_cursor= op;
 
   if (m_cond && m_cond->generate_scan_filter(op))
@@ -3065,6 +3098,15 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
 
   if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
     mask= copy_column_set(table->read_set);
+
+  NdbOperation::LockMode lm=
+    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
+  NdbTransaction::ScanOptions options;
+  options.optionsPresent = (NdbTransaction::ScanOptions::SO_SCANFLAGS |
+                            NdbTransaction::ScanOptions::SO_PARALLEL);
+  options.scan_flags = guess_scan_flags(lm, m_table, table->read_set);
+  options.parallel = parallelism;
+
   if (m_use_partition_pruning)
   {
     part_spec.start_part= 0;
@@ -3080,6 +3122,16 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     {
       DBUG_RETURN(HA_ERR_END_OF_FILE);
     }
+
+    /*
+      If partition pruning has found exactly one partition in set
+      we can optimize scan to run towards that partition only.
+    */
+    if (part_spec.start_part == part_spec.end_part)
+    {
+      options.optionsPresent|= NdbTransaction::ScanOptions::SO_PARTITION_ID;
+      options.partitionId= part_spec.start_part;
+    }
   }
   if (table_share->primary_key == MAX_KEY)
   {
@@ -3093,33 +3145,14 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
     }
   }
 
-  NdbOperation::LockMode lm=
-    (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
-  int flags= guess_scan_flags(lm, m_table, table->read_set);
-  if (!(op= trans->scanTable(ndb_record, lm, mask, flags, parallelism)))
+  if (!(op= trans->scanTable(ndb_record, lm, mask,
+                             &options, sizeof(NdbTransaction::ScanOptions))))
     ERR_RETURN(trans->getNdbError());
   m_active_cursor= op;
 
   if (uses_blob_value(table->read_set) &&
       get_blob_values(op, NULL, table->read_set) != 0)
     ERR_RETURN(op->getNdbError());
-
-  if (m_use_partition_pruning)
-  {
-    /*
-      If partition pruning has found exactly one partition in set
-      we can optimize scan to run towards that partition only.
-    */
-    if (part_spec.start_part == part_spec.end_part)
-    {
-      /*
-        Only one partition is required to scan, if sorted is required we
-        don't need it any more since output from one ordered partitioned
-        index is always sorted.
-      */
-      m_active_cursor->setPartitionId(part_spec.start_part);
-    }
-  }
 
   if (!key_info)
   {
@@ -3174,7 +3207,8 @@ ha_ndbcluster::set_auto_inc(THD *thd, Field *field)
 }
 
 inline void
-ha_ndbcluster::eventSetAnyValue(THD *thd, NdbOperation *op)
+ha_ndbcluster::eventSetAnyValue(THD *thd, 
+                                NdbOperation::OperationOptions *options)
 {
   if (unlikely(m_slow_path))
   {
@@ -3186,9 +3220,15 @@ ha_ndbcluster::eventSetAnyValue(THD *thd, NdbOperation *op)
     */
     Thd_ndb *thd_ndb= get_thd_ndb(thd);
     if (thd->slave_thread)
-      op->setAnyValue(thd->server_id);
+    {
+      options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+      options->anyValue=thd->server_id;
+    }
     else if (thd_ndb->trans_options & TNTO_NO_LOGGING)
-      op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
+    {
+      options->optionsPresent |= NdbOperation::OperationOptions::OO_ANYVALUE;
+      options->anyValue=NDB_ANYVALUE_FOR_NOLOGGING;
+    }
   }
 }
 
@@ -3207,7 +3247,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 {
   bool has_auto_increment;
   NdbTransaction *trans= m_thd_ndb->trans;
-  NdbOperation *op;
+  const NdbOperation *op;
   THD *thd= table->in_use;
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   uint32 part_id;
@@ -3342,6 +3382,23 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     table->timestamp_field->set_time();
 
   /*
+     Setup OperationOptions
+   */
+  NdbOperation::OperationOptions options;
+  NdbOperation::OperationOptions *poptions = NULL;
+  options.optionsPresent=0;
+  
+  eventSetAnyValue(thd, &options); 
+
+  if (m_user_defined_partitioning)
+  {
+    options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    options.partitionId=part_id;
+  }
+  if (options.optionsPresent != 0)
+    poptions=&options;
+
+  /*
     We do not use the table->write_set here.
     The reason is that for REPLACE INTO t(a), the write_set is passed with
     only column 'a' enabled.
@@ -3389,21 +3446,21 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       key_row= row;
     }
     op= trans->writeTuple(key_rec, (const char *)key_row,
-                          m_ndb_record, (char *)row, mask);
+                          m_ndb_record, (char *)row, mask,
+                          poptions,
+                          sizeof(NdbOperation::OperationOptions));
   }
   else
   {
     /* Using insert, we write all user visible columns */
     user_cols_written_bitmap= NULL;
-    op= trans->insertTuple(m_ndb_record, (char *)row);
+    op= trans->insertTuple(m_ndb_record, (char *)row,
+                           NULL, // No mask
+                           poptions,
+                           sizeof(NdbOperation::OperationOptions));
   }
   if (!(op))
     ERR_RETURN(trans->getNdbError());
-
-  eventSetAnyValue(thd, op);
-
-  if (m_user_defined_partitioning)
-    op->setPartitionId(part_id);
 
   uint blob_count= 0;
   if (table_share->blob_fields > 0)
@@ -3494,7 +3551,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbTransaction *trans= m_thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
-  NdbOperation *op;
+  const NdbOperation *op;
   uint32 old_part_id= 0, new_part_id= 0;
   int error;
   longlong func_value;
@@ -3596,14 +3653,23 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
       row= new_data;
   }
 
+  NdbOperation::OperationOptions *poptions = NULL;
+  NdbOperation::OperationOptions options;
+  options.optionsPresent=0;
+
   if (m_user_defined_partitioning)
   {
     if (func_value >= INT_MAX32)
       func_value= INT_MAX32;
     set_partition_function_value(row, (uint32)func_value);
     request_partition_function_value(mask);
-  }
 
+    options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    options.partitionId = new_part_id;
+  }
+  
+  eventSetAnyValue(thd, &options);
+  
   if (cursor)
   {
     /*
@@ -3615,8 +3681,14 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     */
     DBUG_PRINT("info", ("Calling updateTuple on cursor, write_set=0x%x",
                         table->write_set->bitmap[0]));
+
+    if (options.optionsPresent != 0)
+      poptions = &options;
+
     if (!(op= cursor->updateCurrentTuple(trans, m_ndb_record,
-                                         (const char*)row, mask)))
+                                         (const char*)row, mask,
+                                         poptions,
+                                         sizeof(NdbOperation::OperationOptions))))
       ERR_RETURN(trans->getNdbError());
 
     m_lock_tuple= FALSE;
@@ -3653,13 +3725,13 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
         DBUG_RETURN(ER_OUTOFMEMORY);
     }
 
+    if (options.optionsPresent !=0)
+      poptions= &options;
+
     if (!(op= trans->updateTuple(key_rec, (const char *)key_row,
                                  m_ndb_record, (const char*)row, mask)))
       ERR_RETURN(trans->getNdbError());  
   }
-
-  if (m_user_defined_partitioning)
-    op->setPartitionId(new_part_id);
 
   uint blob_count= 0;
   if (uses_blob_value(table->write_set))
@@ -3668,8 +3740,6 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
     if (set_blob_values(op, row_offset, table->write_set, &blob_count) != 0)
       ERR_RETURN(op->getNdbError());
   }
-
-  eventSetAnyValue(thd, op);
 
   m_rows_changed++;
 
@@ -3703,7 +3773,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
   Thd_ndb *thd_ndb= get_thd_ndb(thd);
   NdbTransaction *trans= m_thd_ndb->trans;
   NdbScanOperation* cursor= m_active_cursor;
-  NdbOperation *op;
+  const NdbOperation *op;
   uint32 part_id;
   int error;
   DBUG_ENTER("ndb_delete_row");
@@ -3718,6 +3788,21 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
     DBUG_RETURN(error);
   }
 
+  NdbOperation::OperationOptions options;
+  NdbOperation::OperationOptions *poptions = NULL;
+  options.optionsPresent=0;
+
+  if (m_user_defined_partitioning)
+  {
+    options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
+    options.partitionId = part_id;
+  }
+
+  eventSetAnyValue(thd, &options);
+
+  if (options.optionsPresent != 0)
+    poptions = &options;
+
   if (cursor)
   {
     /*
@@ -3728,17 +3813,16 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
       the active record in cursor
     */
     DBUG_PRINT("info", ("Calling deleteTuple on cursor"));
-    if ((op= cursor->deleteCurrentTuple(trans, m_ndb_record)) == 0)
+    if ((op = cursor->deleteCurrentTuple(trans, m_ndb_record,
+                                         NULL, // result_row
+                                         NULL, // result_mask
+                                         poptions, 
+                                         sizeof(NdbOperation::OperationOptions))) == 0)
       ERR_RETURN(trans->getNdbError());     
     m_lock_tuple= FALSE;
     thd_ndb->m_unsent_bytes+= 12;
 
-    if (m_user_defined_partitioning)
-      op->setPartitionId(part_id);
-
     no_uncommitted_rows_update(-1);
-
-    eventSetAnyValue(thd, op);
 
     if (!(primary_key_update || m_delete_cannot_batch))
       // If deleting from cursor, NoCommit will be handled in next_result
@@ -3796,15 +3880,15 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record, bool primary_key_update)
     else
       need_execute= TRUE;
 
-    if (!(op=trans->deleteTuple(key_rec, (const char *)key_row)))
+    if (!(op=trans->deleteTuple(key_rec, (const char *)key_row,
+                                NULL, // result_rec
+                                NULL, // result_row
+                                NULL, // result_mask
+                                poptions,
+                                sizeof(NdbOperation::OperationOptions))))
       ERR_RETURN(trans->getNdbError());
-    
-    if (m_user_defined_partitioning)
-      op->setPartitionId(part_id);
 
     no_uncommitted_rows_update(-1);
-
-    eventSetAnyValue(thd, op);
 
     if (!need_execute)
       DBUG_RETURN(0);
@@ -9130,9 +9214,15 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       goto retry;
     }
 
+    NdbTransaction::ScanOptions options;
+    options.optionsPresent=NdbTransaction::ScanOptions::SO_BATCH;
     /* Set batch_size=1, as we need only one row per fragment. */
+    options.batch=1;
+
     if ((pOp= pTrans->scanTable(record, NdbOperation::LM_CommittedRead,
-                                NULL, 0, 0, 1)) == NULL)
+                                NULL, 
+                                &options,
+                                sizeof(NdbTransaction::ScanOptions))) == NULL)
     {
       error= pTrans->getNdbError();
       goto retry;
@@ -9152,7 +9242,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       goto retry;
     }
     
-    while ((check= pOp->nextResult(row, TRUE, TRUE)) == 0)
+    while ((check= pOp->nextResult(&row, TRUE, TRUE)) == 0)
     {
       /* NDB API ensures proper alignment of rows to make the cast valid. */
       const ndb_table_statistics_row *stat=
@@ -9285,6 +9375,7 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans,
   }
   if (!force_release)
   {
+/* ToDo: remove need for this special case (and NDB_QUERY_MULTI_READ_RANGE... and force_release?). */
     if (m_thd_ndb->query_state & NDB_QUERY_MULTI_READ_RANGE)
     {
       /* We are batching reads and have not consumed all fetched
@@ -9346,33 +9437,6 @@ read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
   return FALSE;
 }
 
-struct read_multi_callback_data {
-  const KEY *key_info;
-  const KEY_MULTI_RANGE *first_range;
-  const KEY_MULTI_RANGE *range;
-};
-
-/* Callback to set up scan bounds for read multi range. */
-static int
-read_multi_bounds_callback(void *arg, Uint32 i,
-                           NdbIndexScanOperation::IndexBound & bound)
-{
-  struct read_multi_callback_data *data=
-    (struct read_multi_callback_data *)arg;
-
-  /* Skip any ranges not to be included in the scan. */
-  while (data->range->range_flag & (SKIP_RANGE|UNIQUE_RANGE))
-    data->range++;
-
-  compute_index_bounds(bound, data->key_info,
-                       &data->range->start_key, &data->range->end_key);
-  bound.range_no= data->range - data->first_range;
-
-  data->range++;
-
-  return 0;                                     // Success
-}
-
 int
 ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
                                       KEY_MULTI_RANGE *ranges, 
@@ -9383,9 +9447,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
   KEY* key_info= table->key_info + active_index;
   NDB_INDEX_TYPE cur_index_type= get_index_type(active_index);
   ulong reclength= table_share->reclength;
-  NdbOperation* op;
+  const NdbOperation* op;
   Thd_ndb *thd_ndb= m_thd_ndb;
-  struct read_multi_callback_data data;
 
   DBUG_ENTER("ha_ndbcluster::read_multi_range_first");
   DBUG_PRINT("info", ("blob fields=%d read_set=0x%x", table_share->blob_fields, table->read_set->bitmap[0]));
@@ -9443,6 +9506,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   DBUG_ASSERT(cur_index_type != UNDEFINED_INDEX);
 
+  m_multi_cursor= 0;
   const NdbOperation* lastOp= m_thd_ndb->trans->getLastDefinedOperation();
   NdbOperation::LockMode lm= 
     (NdbOperation::LockMode)get_ndb_lock_type(m_lock.type, table->read_set);
@@ -9486,7 +9550,75 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
       if (i > NdbIndexScanOperation::MaxRangeNo)
         break;
 
+      /* Create the scan operation for the first scan range. */
+      if (!m_multi_cursor)
+      {
+        /* Do a multi-range index scan for ranges not done by primary/unique key. */
+        NdbTransaction::ScanOptions options;
+        uchar *mask;
+
+        options.optionsPresent=
+          NdbTransaction::ScanOptions::SO_SCANFLAGS |
+          NdbTransaction::ScanOptions::SO_PARALLEL;
+
+        options.scan_flags= 
+          NdbScanOperation::SF_ReadRangeNo |
+          NdbScanOperation::SF_MultiRange;
+
+        if (lm == NdbOperation::LM_Read)
+          options.scan_flags|= NdbScanOperation::SF_KeyInfo;
+        if (sorted)
+          options.scan_flags|= NdbScanOperation::SF_OrderBy;
+
+        options.parallel=parallelism;
+
+        if (m_user_defined_partitioning || table_share->primary_key == MAX_KEY)
+        {
+          mask= copy_column_set(table->read_set);
+          if (table_share->primary_key == MAX_KEY)
+            request_hidden_key(mask);
+        }
+        else
+          mask= (uchar *)(table->read_set->bitmap);
+
+        /* Define scan */
+        NdbIndexScanOperation *scanOp= m_thd_ndb->trans->scanIndex
+          (m_index[active_index].ndb_record_key,
+           m_index[active_index].ndb_record_row, 
+           lm,
+           mask,
+           NULL, /* All bounds specified below */
+           &options,
+           sizeof(NdbTransaction::ScanOptions));
+
+        if (!scanOp)
+          ERR_RETURN(m_thd_ndb->trans->getNdbError());
+        m_multi_cursor= scanOp;
+
+        /*
+          We do not get_blob_values() here, as when using blobs we always
+          fallback to non-batched multi range read (see if statement at
+          top of this function).
+        */
+
+        if (m_cond && m_cond->generate_scan_filter(scanOp))
+          ERR_RETURN(scanOp->getNdbError());
+
+        /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
+        m_next_row= 0;
+      }
+
       /* Include this range in the ordered index scan. */
+      NdbIndexScanOperation::IndexBound bound;
+      compute_index_bounds(bound, key_info, &r->start_key, &r->end_key);
+      bound.range_no= i;
+
+      if (m_multi_cursor->setBound(m_index[active_index].ndb_record_key,
+                                   bound))
+      {
+        ERR_RETURN(m_thd_ndb->trans->getNdbError());
+      }
+
       r->range_flag&= ~(uint)UNIQUE_RANGE;
       num_scan_ranges++;
     }
@@ -9503,69 +9635,28 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
       r->range_flag|= UNIQUE_RANGE;
 
-      if (!(op= pk_unique_index_read_key(active_index,
-                                         r->start_key.key,
-                                         row_buf, lm)))
-        ERR_RETURN(m_thd_ndb->trans->getNdbError());
+      Uint32 partitionId;
+      Uint32* ppartitionId = NULL;
 
       if (m_user_defined_partitioning &&
           (cur_index_type == PRIMARY_KEY_ORDERED_INDEX ||
            cur_index_type == PRIMARY_KEY_INDEX))
-        op->setPartitionId(part_spec.start_part);
+      {
+        partitionId=part_spec.start_part;
+        ppartitionId=&partitionId;
+      }
+
+      if (!(op= pk_unique_index_read_key(active_index,
+                                         r->start_key.key,
+                                         row_buf, lm,
+                                         ppartitionId)))
+        ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
       row_buf+= reclength;
     }
   }
   DBUG_ASSERT(i > 0 || i == range_count);       // Require progress
   m_multi_range_defined_end= ranges + i;
-  if (num_scan_ranges > 0)
-  {
-    /* Do a multi-range index scan for ranges not done by primary/unique key. */
-    uchar *mask;
-
-    data.key_info= key_info;
-    data.first_range= ranges;
-    data.range= data.first_range;
-
-    Uint32 flags= NdbScanOperation::SF_ReadRangeNo;
-    if (lm == NdbOperation::LM_Read)
-      flags|= NdbScanOperation::SF_KeyInfo;
-    if (sorted)
-      flags|= NdbScanOperation::SF_OrderBy;
-
-    if (m_user_defined_partitioning || table_share->primary_key == MAX_KEY)
-    {
-      mask= copy_column_set(table->read_set);
-      if (table_share->primary_key == MAX_KEY)
-        request_hidden_key(mask);
-    }
-    else
-      mask= (uchar *)(table->read_set->bitmap);
-
-    NdbIndexScanOperation *scanOp= m_thd_ndb->trans->scanIndex
-      (m_index[active_index].ndb_record_key, read_multi_bounds_callback,
-       &data, num_scan_ranges, m_index[active_index].ndb_record_row, lm,
-       mask, flags, parallelism, 0);
-    if (!scanOp)
-      ERR_RETURN(m_thd_ndb->trans->getNdbError());
-    m_multi_cursor= scanOp;
-
-    /*
-      We do not get_blob_values() here, as when using blobs we always
-      fallback to non-batched multi range read (see if statement at
-      top of this function).
-    */
-
-    if (m_cond && m_cond->generate_scan_filter(scanOp))
-      ERR_RETURN(scanOp->getNdbError());
-
-    /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
-    m_next_row= 0;
-  }
-  else
-  {
-    m_multi_cursor= 0;
-  }
 
   buffer->end_of_used_area= row_buf;
 

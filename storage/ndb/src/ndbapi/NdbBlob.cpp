@@ -679,23 +679,63 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
   DBUG_RETURN(0);
 }
 
+/* 
+ * This method is used to get data ptr and length values for the
+ * header for an 'empty' Blob.  This is a blob with length zero,
+ * or a NULL BLOB.
+ * This header is used to build signals for an insert or write 
+ * operation before the correct blob header information is known.  
+ * Once the blob header information is known, another operation will 
+ * set the header information correctly.
+ */
 void
-NdbBlob::getBlobHeadData(const char * & data, Uint32 & byteSize)
+NdbBlob::getNullOrEmptyBlobHeadDataPtr(const char * & data, 
+                                       Uint32 & byteSize)
 {
+  /* Only for use when preparing signals before a blob value has been set
+   * e.g. NdbRecord
+   */
+  assert(theState==Prepared);
+  assert(theLength==0);
+  assert(theSetBuf==NULL);
+  assert(theGetSetBytes==0);
+  assert(thePos==0);
+  assert(theHeadInlineBuf.data!=NULL);
+
+  DBUG_PRINT("info", ("getNullOrEmptyBlobHeadDataPtr.  Nullable : %d",
+                      theColumn->m_nullable));
+
+  if (theColumn->m_nullable)
+  {
+    /* Null Blob */
+    data = NULL;
+    byteSize = 0;
+    return;
+  }
+
+  /* Set up the buffer ptr to appear to be pointing to some data */
+  theSetBuf=(char*) 1; // Extremely nasty way of being non-null
+                       // If it's ever de-reffed, should show up 
+  
+  /* Pack header etc. */
   prepareSetHeadInlineValue();
-  if (theNullFlag)
-  {
-    data= NULL;
-    byteSize= 0;
-  }
+  
+  data=theHeadInlineBuf.data;
+
+  /* Calculate size */
+  if (unlikely(theBlobVersion == NDB_BLOB_V1))
+    byteSize = theHeadInlineBuf.size;
   else
-  {
-    data= theHeadInlineBuf.data;
-    if (unlikely(theBlobVersion == NDB_BLOB_V1))
-      byteSize = theHeadInlineBuf.size;
-    else
-      byteSize = theHead.varsize + 2;
-  }
+    byteSize = theHead.varsize + 2;
+
+  /* Reset affected members */
+  theSetBuf=NULL;
+  memset(&theHead, 0, sizeof(theHead));
+
+  /* This column is not null anymore - record the fact so that
+   * a setNull() call will modify state
+   */
+  theNullFlag=false;
 }
 
 
@@ -969,8 +1009,14 @@ int
 NdbBlob::getHeadInlineValue(NdbOperation* anOp)
 {
   DBUG_ENTER("NdbBlob::getHeadInlineValue");
+
+  /* Get values using implementation of getValue to avoid NdbRecord
+   * specific checks
+   */
   theHeadInlineRecAttr = anOp->getValue_impl(theColumn, theHeadInlineBuf.data);
-  thePartitionIdRecAttr = anOp->getValue(NdbDictionary::Column::FRAGMENT);
+  thePartitionIdRecAttr = 
+    anOp->getValue_impl(&NdbColumnImpl::getImpl(*NdbDictionary::Column::FRAGMENT));
+  
   if (theHeadInlineRecAttr == NULL ||
       thePartitionIdRecAttr == NULL) {
     setErrorCode(anOp);
@@ -1108,9 +1154,11 @@ NdbBlob::setValue(const void* data, Uint32 bytes)
       theLength = 0;
     }
     /*
-      In NdbRecAttr case, we set the value of the blob head here.
-      In NdbRecord case, this is done in NdbOperation::prepareSendNdbRecord().
-    */
+     * In NdbRecAttr case, we set the value of the blob head here with
+     * an extra setValue()
+     * In NdbRecord case, this is done by adding a separate operation in 
+     * preExecute() as we cannot modify the head-table NdbOperation.
+     */
     if (!theNdbRecordFlag)
     {
       if (setHeadInlineValue(theNdbOp) == -1)
@@ -1247,6 +1295,11 @@ NdbBlob::truncate(Uint64 length)
       Uint32 off = getPartOffset(length);
       if (off != 0) {
         assert(off < thePartSize);
+        /* Ensure all previous writes to this blob are flushed so
+         * that we can read their updates
+         */
+        if (executePendingBlobWrites() == -1)
+          DBUG_RETURN(-1);
         Uint16 len = 0;
         if (readPart(thePartBuf.data, part1, len) == -1)
           DBUG_RETURN(-1);
@@ -2278,30 +2331,74 @@ NdbBlob::prepareColumn()
 }
 
 /*
- * Before execute of prepared operation.  May add new operations before
- * this one.  May ask that this operation and all before it (a "batch")
- * is executed immediately in no-commit mode.  In this case remaining
- * prepared operations are saved in a separate list.  They are added
- * back after postExecute.
+ * Before execute of prepared operation.  
+ * 
+ * This method adds any extra operations required to perform the
+ * requested Blob operations.
+ * This can include : 
+ *   Extra read operations added before the 'main table' operation
+ *     Read Blob head + inline bytes
+ *     Read original table key via access index
+ *   Extra operations added after the 'main table' operation
+ *     Update Blob head + inline bytes
+ *     Insert Blob parts
+ * 
+ * Generally, operations are performed in preExecute() if possible,
+ * and postExecute if not.
+ *
+ * If this method sets the batch parameter to true, then 
+ *  - any remaining Blobs in the current user defined operation
+ *    will have their preExecute() method called.
+ *  - all operations up to the last one added will be executed with
+ *    NoCommit BEFORE the next user-defined operation is executed.
+ *  - NdbBlob::postExecute() will be called for all Blobs in the
+ *    executed batch.
+ *  - Processing will continue with the next user-defined operation
+ *    (if any)
+ * This control flow can be seen in NdbTransaction::execute().
  */
 int
-NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
+NdbBlob::preExecute(NdbTransaction::ExecType anExecType, 
+                    bool& batch)
 {
   DBUG_ENTER("NdbBlob::preExecute");
   DBUG_PRINT("info", ("this=%p op=%p con=%p", this, theNdbOp, theNdbCon));
+  DBUG_PRINT("info", ("optype=%d theGetSetBytes=%d theSetFlag=%d", 
+                      theNdbOp->theOperationType,
+                      theGetSetBytes,
+                      theSetFlag));
   if (theState == Invalid)
     DBUG_RETURN(-1);
   assert(theState == Prepared);
   // handle different operation types
   assert(isKeyOp());
+
+  /* Check that a non-nullable blob handle has had a value set 
+   * before proceeding 
+   */
+  if (!theColumn->m_nullable && 
+      (isInsertOp() || isWriteOp()) &&
+      !theSetFlag)
+  {
+    /* Illegal null attribute */
+    setErrorCode(839);
+    DBUG_RETURN(-1);
+  }
+
   if (isReadOp()) {
     if (theGetFlag && theGetSetBytes > theInlineSize) {
-      // need blob head before proceeding
+      /* Need blob head before proceeding
+       * Not safe to do a speculative read of parts, as we do not
+       * yet hold a lock on the blob head+inline
+       */
       batch = true;
     }
   }
-  if (isInsertOp()) {
-    if (theSetFlag && theGetSetBytes > theInlineSize) {
+  if (isInsertOp() && theSetFlag) {
+    /* Add operations to insert parts and update the
+     * Blob head+inline in the main tables
+     */
+    if (theGetSetBytes > theInlineSize) {
       // add ops to write rest of a setValue
       assert(theSetBuf != NULL);
       const char* buf = theSetBuf + theInlineSize;
@@ -2309,26 +2406,28 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       assert(thePos == theInlineSize);
       if (writeDataPrivate(buf, bytes) == -1)
         DBUG_RETURN(-1);
-      if (theHeadInlineUpdateFlag) {
-          // add an operation to update head+inline
-          NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
-          if (tOp == NULL ||
-              tOp->updateTuple() == -1 ||
-              setTableKeyValue(tOp) == -1 ||
-              setHeadInlineValue(tOp) == -1) {
-            setErrorCode(NdbBlobImpl::ErrAbort);
-            DBUG_RETURN(-1);
-          }
-          if (thePartitionId != noPartitionId()) {
-            tOp->setPartitionId(thePartitionId);
-          }
-          DBUG_PRINT("info", ("added op to update head+inline"));
+    }
+    
+    if (theHeadInlineUpdateFlag)
+    {
+      NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
+      if (tOp == NULL ||
+          tOp->updateTuple() == -1 ||
+          setTableKeyValue(tOp) == -1 ||
+          setHeadInlineValue(tOp) == -1) {
+        setErrorCode(NdbBlobImpl::ErrAbort);
+        DBUG_RETURN(-1);
       }
+      if (thePartitionId != noPartitionId()) {
+        tOp->setPartitionId(thePartitionId);
+      }
+      DBUG_PRINT("info", ("Insert : added op to update head+inline"));
     }
   }
+
   if (isTableOp()) {
     if (isUpdateOp() || isWriteOp() || isDeleteOp()) {
-      // add operation before this one to read head+inline
+      // add operation before main table op to read head+inline
       NdbOperation* tOp = theNdbCon->getNdbOperation(theTable, theNdbOp);
       /*
        * If main op is from take over scan lock, the added read is done
@@ -2355,11 +2454,24 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         tOp->setPartitionId(thePartitionId);
       }
       if (isWriteOp()) {
+        /* There may be no data currently, so ignore tuple not found etc. */
         tOp->m_abortOption = NdbOperation::AO_IgnoreError;
         tOp->m_noErrorPropagation = true;
       }
       theHeadInlineReadOp = tOp;
+      // TODO : Could reuse this op for fetching other blob heads in 
+      //        the request?
+      //        Add their getHeadInlineValue() calls to this, rather
+      //        than having separate ops?  (Similar to Index read below)
       // execute immediately
+      // TODO : Why can't we continue with pre-execute of other user ops?
+      //        Rationales that occur:
+      //          - We're trying to keep user's op order consistent - 
+      //            1 op completes before another starts.  
+      //            - They probably shouldn't rely on this
+      //            - Maybe it makes failure more atomic w.r.t. separate
+      //              operations on Blobs
+      //          - Or perhaps error handling is easier?
       batch = true;
       DBUG_PRINT("info", ("added op before to read head+inline"));
     }
@@ -2389,8 +2501,8 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
           DBUG_RETURN(-1);
         }
       }
+      DBUG_PRINT("info", ("Index op : added op before to read table key"));
     }
-    DBUG_PRINT("info", ("added op before to read table key"));
     if (isUpdateOp() || isDeleteOp()) {
       // add op before this one to read head+inline via index
       NdbIndexOperation* tOp = theNdbCon->getNdbIndexOperation(theAccessTable->m_index, theTable, theNdbOp);
@@ -2401,12 +2513,10 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
         setErrorCode(tOp);
         DBUG_RETURN(-1);
       }
-      if (isWriteOp()) {
-        tOp->m_abortOption = NdbOperation::AO_IgnoreError;
-        tOp->m_noErrorPropagation = true;
-      }
       theHeadInlineReadOp = tOp;
       // execute immediately
+      // TODO : Why execute immediately?  We could continue with other blobs
+      // etc. here
       batch = true;
       DBUG_PRINT("info", ("added index op before to read head+inline"));
     }
@@ -2420,6 +2530,7 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
       // write head+inline now
       theNullFlag = true;
       theLength = 0;
+      /* Copy data into the headinline buffer */
       if (theSetBuf != NULL) {
         Uint32 n = theGetSetBytes;
         if (n > theInlineSize)
@@ -2429,15 +2540,44 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
           DBUG_RETURN(-1);
       }
       /*
-        For NdbRecAttr case, we need to set the value of the blob head here.
-        For NdbRecord case, it is done in NdbOperation::prepareSendNdbRecord().
-      */
+       * We set the value of the blob head and inline data here if possible.
+       * Note that the length is being set to max theInlineSize.  This will
+       * be written with the correct length later if necessary.
+       */
       if (!theNdbRecordFlag)
       {
         if (setHeadInlineValue(theNdbOp) == -1)
           DBUG_RETURN(-1);
       }
-      // the read op before us may overwrite
+      else
+      {
+        /* For table based NdbRecord writes we can set the head+inline 
+         * bytes here.  For index based writes, we need to wait until 
+         * after the execute for the table key data to be available.
+         * TODO : Is it worth doing this at all?
+         */
+        if (isTableOp())
+        {
+          /* NdbRecord - add an update operation after the main op */
+          NdbOperation* tOp = 
+            theNdbCon->getNdbOperation(theTable);
+          if (tOp == NULL ||
+              tOp->updateTuple() == -1 ||
+              setTableKeyValue(tOp) == -1 ||
+              setHeadInlineValue(tOp) == -1) {
+            setErrorCode(NdbBlobImpl::ErrAbort);
+            DBUG_RETURN(-1);
+          }
+          if (thePartitionId != noPartitionId()) {
+            tOp->setPartitionId(thePartitionId);
+          }
+          DBUG_PRINT("info", ("NdbRecord table write : added op to update head+inline"));
+        }
+      }
+      /* Save the contents of the head inline buf for postExecute
+       * It may get overwritten by the read operation injected
+       * above
+       */
       theHeadInlineCopyBuf.copyfrom(theHeadInlineBuf);
     }
   }
@@ -2450,10 +2590,34 @@ NdbBlob::preExecute(NdbTransaction::ExecType anExecType, bool& batch)
 }
 
 /*
- * After execute, for any operation.  If already Active, this routine
- * has been done previously.  Operations which requested a no-commit
- * batch can add new operations after this one.  They are added before
- * any remaining prepared operations.
+ * After execute, for each Blob in an operation.  If already Active, 
+ * this routine has been done previously and is not rerun.  
+ * Operations which requested a no-commit batch can add new operations 
+ * after this one.  They are added before any remaining prepared user 
+ * operations (See NdbTransaction::execute())
+ *
+ * This method has the following duties : 
+ *  - Operation specific duties : 
+ *    - Index based ops : Store main table key retrieved in preExecute
+ *    - Read ops : Store read head+inline and read parts (inline execute)
+ *    - Update ops : Store read head+inline and update parts (inline execute)
+ *    - Table based write : Either store read head+inline and delete then 
+ *                          insert parts and head+inline (inline execute) OR
+ *                          Perform deletePartsUnknown() to avoid lockless
+ *                          race with another transaction, then update head
+ *                          and insert parts (inline execute)
+ *    - Index based write : Always perform deletePartsUnknown based on 
+ *                          fetched main table key then update head+inline
+ *                          and insert parts (inline execute)
+ *                          Rationale: Couldn't read head+inline safely as
+ *                          Index ops don't support IgnoreError so could
+ *                          cause Txn fail for write()?
+ *    - Delete op : Store read head+inline info and use to delete parts
+ *                  (inline execute)
+ *  - Change Blob handle state to Active
+ *  - Execute user's activeHook function if set
+ *  - Add an operation to update the Blob's head+inline bytes if
+ *    necesary 
  */
 int
 NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
@@ -2579,6 +2743,7 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
     if (invokeActiveHook() == -1)
       DBUG_RETURN(-1);
   }
+  /* Cope with any changes to the head */
   if (anExecType == NdbTransaction::NoCommit && theHeadInlineUpdateFlag) {
     NdbOperation* tOp = theNdbCon->getNdbOperation(theTable);
     if (tOp == NULL ||
@@ -2599,7 +2764,8 @@ NdbBlob::postExecute(NdbTransaction::ExecType anExecType)
 
 /*
  * Before commit of completed operation.  For write add operation to
- * update head+inline.
+ * update head+inline if necessary.  This code is the same as the
+ * last part of postExecute()
  */
 int
 NdbBlob::preCommit()
@@ -2801,3 +2967,4 @@ NdbBlob::blobsNextBlob()
 {
   return theNext;
 }
+

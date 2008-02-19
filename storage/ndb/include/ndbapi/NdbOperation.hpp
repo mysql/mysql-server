@@ -451,6 +451,8 @@ public:
    */
   virtual NdbBlob* getBlobHandle(const char* anAttrName);
   virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
+  virtual NdbBlob* getBlobHandle(const char* anAttrName) const;
+  virtual NdbBlob* getBlobHandle(Uint32 anAttrId) const;
  
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   /** @} *********************************************************************/
@@ -834,6 +836,125 @@ public:
   void setPartitionId(Uint32 id);
   Uint32 getPartitionId() const;
 #endif
+
+  /* Specification of an extra value to get
+   * as part of an NdbRecord operation.
+   * Inputs : 
+   *  To specify an extra value to read, the
+   *  caller must provide a column, and a 
+   *  (optionally NULL) appStorage pointer.
+   * Outputs : 
+   *  After the operation is defined, the 
+   *  recAttr member will contain a pointer
+   *  to the NdbRecAttr object for receiving
+   *  the data.
+   * 
+   * appStorage pointer
+   *  If the appStorage pointer is null, then
+   *  the received value will be stored in
+   *  memory managed by the NdbRecAttr object.
+   *
+   *  If the appStorage pointer is non-null then 
+   *  the received value will be stored at the 
+   *  location pointed to (and will still be 
+   *  accessable via the NdbRecAttr object).  
+   *  It is the caller's responsibility to 
+   *  ensure that :
+   *    - appStorage points to sufficient space 
+   *      to store any returned data.
+   *    - Memory pointed to by appStorage is not
+   *      reused/freed until after the execute()
+   *      call returns.
+   *
+   * Limitation : Blob reads cannot be specified 
+   * using GetValueSpec.
+   */
+  struct GetValueSpec
+  {
+    const NdbDictionary::Column *column;
+    void *appStorage;
+    NdbRecAttr *recAttr;
+  };
+  
+  /* Specification of an extra value to set
+   * as part of an NdbRecord operation.
+   * The value ptr must point to the value
+   * to set, or NULL if the attribute is to
+   * be set to NULL.
+   * The pointed to value is copied when the 
+   * operation is defined and need not remain
+   * in place until execution time.
+   *
+   * Limitation : Blobs cannot be set using 
+   * SetValueSpec.
+   */
+  struct SetValueSpec
+  {
+    const NdbDictionary::Column *column;
+    const void * value;
+  };
+
+  /*
+   * OperationOptions
+   *  These are options passed to the NdbRecord primary key and scan 
+   *  takeover operation methods defined in the NdbTransaction and 
+   *  NdbScanOperation classes.
+   *  
+   *  Each option type is marked as present by setting the corresponding
+   *  bit in the optionsPresent field.  Only the option types marked in the
+   *  optionsPresent structure need have sensible data.
+   *  All data is copied out of the OperationOptions structure (and any
+   *  subtended structures) at operation definition time.
+   *  If no options are required, then NULL may be passed as the 
+   *  OperationOptions pointer.
+   *
+   *  Most methods take a supplementary sizeOfOptions parameter.  This
+   *  is optional, and is intended to allow the interface implementation
+   *  to remain backwards compatible with older un-recompiled clients 
+   *  that may pass an older (smaller) version of the OperationOptions 
+   *  structure.  This effect is achieved by passing
+   *  sizeof(OperationOptions) into this parameter.
+   */
+  struct OperationOptions
+  {
+    /*
+     * Which options are present.  See below for option details
+     */
+    Uint64 optionsPresent;
+    enum Flags { OO_ABORTOPTION  = 0x01,
+                 OO_GETVALUE     = 0x02, 
+                 OO_SETVALUE     = 0x04, 
+                 OO_PARTITION_ID = 0x08, 
+                 OO_INTERPRETED  = 0x10,
+                 OO_ANYVALUE     = 0x20 };
+
+    /* An operation-specific abort option.
+     * Only necessary if the default abortoption behaviour
+     * is not satisfactory 
+     */
+    AbortOption abortOption;
+
+    /* Extra column values to be read */
+    GetValueSpec *extraGetValues;
+    Uint32        numExtraGetValues;
+    
+    /* Extra column values to be set  */
+    const SetValueSpec *extraSetValues;
+    Uint32              numExtraSetValues;
+
+    /* Specific partition to execute this operation on */
+    Uint32 partitionId;
+
+    /* Interpreted code to be executed in this operation
+     * Only supported for update operations currently 
+     */
+    const NdbInterpretedCode *interpretedCode;
+
+    /* anyValue to be used for this operation */
+    Uint32 anyValue;
+  };
+
+
 protected:
   int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
 protected:
@@ -952,6 +1073,15 @@ protected:
 					      	// the operations object.      
   void		    setStartIndicator();
 
+  /* Utility method to 'add' operation options to an NdbOperation
+   *
+   * @return 0 for success.  NDBAPI to set error otherwise.
+   */
+  static int        handleOperationOptions (const OperationType type,
+                                            const OperationOptions *opts,
+                                            const Uint32 sizeOfOptions,
+                                            NdbOperation *op);
+
 /******************************************************************************
  * The methods below is the execution part of the NdbOperation
  * class. This is where the NDB signals are sent and received. The
@@ -969,14 +1099,16 @@ protected:
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
 
-  int    prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
-                              AbortOption ao);
+  // Method which prepares signals at operation definition time.
+  int    buildSignalsNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId);
 
-  /* Helper routines for prepareSendNdbRecord(). */
+  // Method which does final preparations at execute time.
+  int    prepareSendNdbRecord(AbortOption ao);
+
+  /* Helper routines for buildSignalsNdbRecord(). */
   Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
                          Uint32 connectPtr,
-                         Uint64 transId,
-                         AbortOption ao);
+                         Uint64 transId);
   int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
                       Uint32 **dstPtr, Uint32 *remain);
   int    allocAttrInfo(Uint32 connectPtr, Uint64 transId,
@@ -1015,6 +1147,7 @@ protected:
   NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
+  NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject) const;
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
   int incValue(const NdbColumnImpl* anAttrObject, Uint64 aValue);
   int subValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -1028,7 +1161,8 @@ protected:
                             const NdbColumnImpl *column,
                             NdbBlob * & lastPtr);
   int getBlobHandlesNdbRecord(NdbTransaction* aCon);
-  int getBlobHandlesDelete(NdbTransaction* aCon);  
+  int getBlobHandlesNdbRecordDelete(NdbTransaction* aCon);
+
   // Handle ATTRINFO signals   
   int insertATTRINFO(Uint32 aData);
   int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
@@ -1038,8 +1172,8 @@ protected:
 		    Uint32 aKeyLenInByte);
   void reorderKEYINFO();
   
-  virtual void setErrorCode(int aErrorCode);
-  virtual void setErrorCodeAbort(int aErrorCode);
+  virtual void setErrorCode(int aErrorCode) const;
+  virtual void setErrorCodeAbort(int aErrorCode) const;
 
   int	      incCheck(const NdbColumnImpl* anAttrObject);
   int	      initial_interpreterCheck();
@@ -1189,6 +1323,10 @@ protected:
   Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
   /* Interpreted program for NdbRecord operations. */
   const NdbInterpretedCode *m_interpreted_code;
+
+  /* Ptr to supplied SetValueSpec for NdbRecord */
+  const SetValueSpec *m_extraSetValues;
+  Uint32 m_numExtraSetValues;
 
   Uint32 m_any_value;                           // Valid if m_use_any_value!=0
 

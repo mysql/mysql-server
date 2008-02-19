@@ -585,16 +585,18 @@ private:
   void clear_extended_column_set(uchar *mask);
   uchar *copy_column_set(MY_BITMAP *bitmap);
 
-  int get_blob_values(NdbOperation *ndb_op, uchar *dst_record,
+  int get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
-  int set_blob_values(NdbOperation *ndb_op, my_ptrdiff_t row_offset,
+  int set_blob_values(const NdbOperation *ndb_op, my_ptrdiff_t row_offset,
                       const MY_BITMAP *bitmap, uint *set_count);
   friend int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg);
-  void eventSetAnyValue(THD *thd, NdbOperation *op);
+  void eventSetAnyValue(THD *thd, NdbOperation::OperationOptions *options);
   bool check_index_fields_in_write_set(uint keyno);
 
-  NdbOperation *pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
-                                         NdbOperation::LockMode lm);
+  const NdbOperation *pk_unique_index_read_key(uint idx, 
+                                               const uchar *key, uchar *buf,
+                                               NdbOperation::LockMode lm,
+                                               Uint32 *ppartition_id);
   int read_multi_range_fetch_next();
   
   int set_bounds(NdbIndexScanOperation*, uint inx, bool rir,
