@@ -1104,7 +1104,7 @@ double Item_func_plus::real_op()
   double value= args[0]->val_real() + args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1186,7 +1186,7 @@ double Item_func_minus::real_op()
   double value= args[0]->val_real() - args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1224,7 +1224,7 @@ double Item_func_mul::real_op()
   double value= args[0]->val_real() * args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1282,7 +1282,7 @@ double Item_func_div::real_op()
     signal_divide_by_null();
     return 0.0;
   }
-  return value/val2;
+  return fix_result(value/val2);
 }
 
 
@@ -1655,7 +1655,7 @@ double Item_func_exp::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0; /* purecov: inspected */
-  return exp(value);
+  return fix_result(exp(value));
 }
 
 double Item_func_sqrt::val_real()
@@ -1674,7 +1674,7 @@ double Item_func_pow::val_real()
   double val2= args[1]->val_real();
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0.0; /* purecov: inspected */
-  return pow(value,val2);
+  return fix_result(pow(value,val2));
 }
 
 // Trigonometric functions
@@ -1686,7 +1686,7 @@ double Item_func_acos::val_real()
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
-  return fix_result(acos(value));
+  return acos(value);
 }
 
 double Item_func_asin::val_real()
@@ -1696,7 +1696,7 @@ double Item_func_asin::val_real()
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
-  return fix_result(asin(value));
+  return asin(value);
 }
 
 double Item_func_atan::val_real()
@@ -1712,7 +1712,7 @@ double Item_func_atan::val_real()
       return 0.0;
     return fix_result(atan2(value,val2));
   }
-  return fix_result(atan(value));
+  return atan(value);
 }
 
 double Item_func_cos::val_real()
@@ -1721,7 +1721,7 @@ double Item_func_cos::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
-  return fix_result(cos(value));
+  return cos(value);
 }
 
 double Item_func_sin::val_real()
@@ -1730,7 +1730,7 @@ double Item_func_sin::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
-  return fix_result(sin(value));
+  return sin(value);
 }
 
 double Item_func_tan::val_real()
