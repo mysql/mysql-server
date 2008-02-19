@@ -1348,7 +1348,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     general_log_print(thd, command, NullS);
-    send_eof(thd);
+    my_eof(thd);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();
     error=TRUE;
@@ -1434,11 +1434,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     switch (opt_command) {
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_ON:
       thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
-      send_eof(thd);
+      my_eof(thd);
       break;
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_OFF:
       thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
-      send_eof(thd);
+      my_eof(thd);
       break;
     default:
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
@@ -1452,7 +1452,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					/* purecov: inspected */
     mysql_print_status();
     general_log_print(thd, command, NullS);
-    send_eof(thd);
+    my_eof(thd);
     break;
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here

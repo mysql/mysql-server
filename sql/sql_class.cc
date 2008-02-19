@@ -1548,7 +1548,7 @@ bool select_send::send_eof()
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  ::send_eof(thd);
+  ::my_eof(thd);
   is_result_set_started= 0;
   return FALSE;
 }

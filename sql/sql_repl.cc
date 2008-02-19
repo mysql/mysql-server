@@ -738,7 +738,7 @@ end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
-  send_eof(thd);
+  my_eof(thd);
   thd_proc_info(thd, "Waiting to finalize termination");
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
@@ -1453,7 +1453,7 @@ err:
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
              "SHOW BINLOG EVENTS", errmsg);
   else
-    send_eof(thd);
+    my_eof(thd);
 
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
@@ -1490,7 +1490,7 @@ bool show_binlog_info(THD* thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1572,7 +1572,7 @@ bool show_binlogs(THD* thd)
       goto err;
   }
   mysql_bin_log.unlock_index();
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
 err:

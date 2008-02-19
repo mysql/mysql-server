@@ -1451,7 +1451,7 @@ bool show_master_info(THD* thd, Master_info* mi)
     if (my_net_write(&thd->net, (uchar*) thd->packet.ptr(), packet->length()))
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
