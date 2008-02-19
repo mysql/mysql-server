@@ -1240,6 +1240,7 @@ bool Item_name_const::fix_fields(THD *thd, Item **ref)
     return TRUE;
   }
   set_name(item_name->ptr(), (uint) item_name->length(), system_charset_info);
+  collation.set(value_item->collation.collation, DERIVATION_IMPLICIT);
   max_length= value_item->max_length;
   decimals= value_item->decimals;
   fixed= 1;
