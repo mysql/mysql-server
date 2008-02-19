@@ -251,7 +251,6 @@ master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engine=myisam
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
@@ -358,11 +357,10 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;

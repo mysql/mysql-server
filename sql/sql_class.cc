@@ -264,7 +264,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
 extern "C"
 void **thd_ha_data(const THD *thd, const struct handlerton *hton)
 {
-  return (void **) thd->ha_data + hton->slot;
+  return (void **) &thd->ha_data[hton->slot].ha_ptr;
 }
 
 extern "C"
@@ -2520,7 +2520,7 @@ bool select_dumpvar::send_data(List<Item> &items)
       suv->update();
     }
   }
-  DBUG_RETURN(0);
+  DBUG_RETURN(thd->is_error());
 }
 
 bool select_dumpvar::send_eof()

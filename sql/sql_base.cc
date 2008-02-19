@@ -1324,29 +1324,45 @@ void close_thread_tables(THD *thd)
     Mark all temporary tables used by this statement as free for reuse.
   */
   mark_temp_tables_as_free_for_reuse(thd);
+  /*
+    Let us commit transaction for statement. Since in 5.0 we only have
+    one statement transaction and don't allow several nested statement
+    transactions this call will do nothing if we are inside of stored
+    function or trigger (i.e. statement transaction is already active and
+    does not belong to statement for which we do close_thread_tables()).
+    TODO: This should be fixed in later releases.
+   */
+  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
+  {
+    thd->main_da.can_overwrite_status= TRUE;
+    ha_autocommit_or_rollback(thd, thd->is_error());
+    thd->main_da.can_overwrite_status= FALSE;
+
+    /*
+      Reset transaction state, but only if we're not inside a
+      sub-statement of a prelocked statement.
+    */
+    if (! prelocked_mode || thd->lex->requires_prelocking())
+      thd->transaction.stmt.reset();
+  }
 
   if (thd->locked_tables || prelocked_mode)
   {
-    /*
-      Let us commit transaction for statement. Since in 5.0 we only have
-      one statement transaction and don't allow several nested statement
-      transactions this call will do nothing if we are inside of stored
-      function or trigger (i.e. statement transaction is already active and
-      does not belong to statement for which we do close_thread_tables()).
-      TODO: This should be fixed in later releases.
-    */
-    ha_commit_stmt(thd);
 
     /* Ensure we are calling ha_reset() for all used tables */
     mark_used_tables_as_free_for_reuse(thd, thd->open_tables);
 
-    /* We are under simple LOCK TABLES so should not do anything else. */
+    /*
+      We are under simple LOCK TABLES or we're inside a sub-statement
+      of a prelocked statement, so should not do anything else.
+    */
     if (!prelocked_mode || !thd->lex->requires_prelocking())
       DBUG_VOID_RETURN;
 
     /*
-      We are in prelocked mode, so we have to leave it now with doing
-      implicit UNLOCK TABLES if need.
+      We are in the top-level statement of a prelocked statement,
+      so we have to leave the prelocked mode now with doing implicit
+      UNLOCK TABLES if needed.
     */
     DBUG_PRINT("info",("thd->prelocked_mode= NON_PRELOCKED"));
     thd->prelocked_mode= NON_PRELOCKED;
@@ -1374,19 +1390,6 @@ void close_thread_tables(THD *thd)
     mysql_unlock_tables(thd, thd->lock);
     thd->lock=0;
   }
-  /*
-    assume handlers auto-commit (if some doesn't - transaction handling
-    in MySQL should be redesigned to support it; it's a big change,
-    and it's not worth it - better to commit explicitly only writing
-    transactions, read-only ones should better take care of themselves.
-    saves some work in 2pc too)
-    see also sql_parse.cc - dispatch_command()
-  */
-  if (!(thd->state_flags & Open_tables_state::BACKUPS_AVAIL))
-    bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
-  if (!thd->active_transaction())
-    thd->transaction.xid_state.xid.null();
-
   /*
     Note that we need to hold LOCK_open while changing the
     open_tables list. Another thread may work on it.
@@ -5059,10 +5062,7 @@ int decide_logging_format(THD *thd, TABLE_LIST *tables)
     DBUG_PRINT("info", ("error: %d", error));
 
     if (error)
-    {
-      ha_rollback_stmt(thd);
       return -1;
-    }
 
     /*
       We switch to row-based format if we are in mixed mode and one of
@@ -5216,7 +5216,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
           table->table->query_id= thd->query_id;
           if (check_lock_and_start_stmt(thd, table->table, table->lock_type))
           {
-            ha_rollback_stmt(thd);
             mysql_unlock_tables(thd, thd->locked_tables);
             thd->locked_tables= 0;
             thd->options&= ~(OPTION_TABLE_LOCK);
@@ -5251,7 +5250,6 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint count, bool *need_reopen)
       if (!table->placeholder() &&
 	  check_lock_and_start_stmt(thd, table->table, table->lock_type))
       {
-	ha_rollback_stmt(thd);
 	DBUG_RETURN(-1);
       }
     }
