@@ -697,8 +697,16 @@ sp_returns_type(THD *thd, String &result, sp_head *sp)
               (TYPE_ENUM_PROCEDURE or TYPE_ENUM_FUNCTION).
   @param sp   Stored routine object to store.
 
-  @return Error code. SP_OK is returned on success. Other SP_ constants are
-  used to indicate about errors.
+  @note Opens and closes the thread tables. Therefore assumes
+  that there are no locked tables in this thread at the time of
+  invocation.
+  Unlike some other DDL statements, *does* close the tables
+  in the end, since the call to this function is normally
+  followed by an implicit grant (sp_grant_privileges())
+  and this subsequent call opens and closes mysql.procs_priv.
+
+  @return Error code. SP_OK is returned on success. Other
+  SP_ constants are used to indicate about errors.
 */
 
 int
@@ -1260,7 +1268,13 @@ done:
 }
 
 
-/* Drop all routines in database 'db' */
+/**
+  Drop all routines in database 'db'
+
+  @note Close the thread tables, the calling code might want to
+  delete from other system tables afterwards.
+*/
+
 int
 sp_drop_db_routines(THD *thd, char *db)
 {

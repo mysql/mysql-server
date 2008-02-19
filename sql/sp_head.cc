@@ -2700,6 +2700,7 @@ sp_lex_keeper::reset_lex_and_exec_core(THD *thd, uint *nextp,
   m_lex->unit.cleanup();
 
   thd_proc_info(thd, "closing tables");
+  /* Here we also commit or rollback the current statement. */
   close_thread_tables(thd);
   thd_proc_info(thd, 0);
 
