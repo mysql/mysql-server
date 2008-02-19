@@ -1008,11 +1008,6 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
 
   theErrorLine = 0;
 
-  // In prepareSendInterpreted we set the sizes (word 4-8) in the
-  // first ATTRINFO signal.
-  if (prepareSendInterpreted() == -1)
-    return -1;
-
   /*
     When using getValue() in ordered scans, we need to request "behind the
     scenes" any part of the primary key that is not request explicitly by the
@@ -1025,8 +1020,6 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
     ((NdbIndexScanOperation*)this)->fix_get_values();
   }
   
-  theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
-
   /**
    * Prepare all receivers
    */
@@ -1149,6 +1142,13 @@ NdbScanOperation::doSendScan(int aProcessorId)
   assert(theSCAN_TABREQ != NULL);
   tSignal = theSCAN_TABREQ;
   
+  // In prepareSendInterpreted we set the sizes (word 4-8) in the
+  // first ATTRINFO signal.
+  if (prepareSendInterpreted() == -1)
+    return -1;
+
+  theCurrentATTRINFO->setLength(theAI_LenInCurrAI);
+
   Uint32 tupKeyLen = theTupKeyLen;
   Uint32 aTC_ConnectPtr = theNdbCon->theTCConPtr;
   Uint64 transId = theNdbCon->theTransactionId;
@@ -1543,22 +1543,24 @@ NdbRecAttr*
 NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
                                           char* aValue)
 {
+  DBUG_ENTER("NdbScanOperation::getValue_NdbRecord_scan");
   int res;
   Uint32 ah;
   NdbRecAttr *ra;
+  DBUG_PRINT("info", ("Column: %u", attrInfo->m_attrId));
   AttributeHeader::init(&ah, attrInfo->m_attrId, 0);
   res= insertATTRINFO(ah);
   if (res==-1)
-    return NULL;
+    DBUG_RETURN(NULL);
   theInitialReadSize= theTotalCurrAI_Len - 5;
   ra= theReceiver.getValue(attrInfo, aValue);
   if (!ra)
   {
     setErrorCodeAbort(4000);
-    return NULL;
+    DBUG_RETURN(NULL);
   }
   theErrorLine++;
-  return ra;
+  DBUG_RETURN(ra);
 }
 
 NdbRecAttr*

@@ -2378,13 +2378,14 @@ NdbTransaction::readTuple(const NdbRecord *key_rec, const char *key_row,
 }
 
 const NdbOperation *
-NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
+NdbTransaction::insertTuple(const NdbRecord *key_rec, const char *key_row,
+                            const NdbRecord *attr_rec, const char *attr_row,
                             const unsigned char *mask,
                             const NdbOperation::OperationOptions *opts,
                             Uint32 sizeOfOptions)
 {
   /* Check that the NdbRecord specifies the full primary key. */
-  if (!(rec->flags & NdbRecord::RecHasAllKeys))
+  if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
@@ -2393,8 +2394,8 @@ NdbTransaction::insertTuple(const NdbRecord *rec, const char *row,
   NdbOperation *op= setupRecordOp(NdbOperation::InsertRequest,
                                   NdbOperation::LM_Exclusive, 
                                   NdbOperation::AbortOnError, 
-                                  rec, row, 
-                                  rec, row, mask, 
+                                  key_rec, key_row,
+                                  attr_rec, attr_row, mask,
                                   opts,
                                   sizeOfOptions);
   if (!op)
@@ -2584,6 +2585,9 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
                           const ScanOptions *options,
                           Uint32 sizeOfOptions)
 {
+  DBUG_ENTER("NdbTransaction::scanTable");
+  DBUG_PRINT("info", ("Options=%p(0x%x)", options,
+                      (options ? (unsigned)(options->optionsPresent) : 0)));
   /*
     Normal scan operations are created as NdbIndexScanOperations.
     The reason for this is that they can then share a pool of allocated
@@ -2604,7 +2608,7 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
   if (op_idx==NULL)
   {
     setOperationErrorCodeAbort(4000);
-    return NULL;
+    DBUG_RETURN(NULL);
   }
   op= op_idx;
 
@@ -2709,12 +2713,12 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
     /* Error code should be set */
     goto giveup_err;
   
-  return op_idx;
+  DBUG_RETURN(op_idx);
 
  giveup_err:
   releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation,
                        op_idx);
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 /*

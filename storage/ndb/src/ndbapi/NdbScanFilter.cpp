@@ -120,6 +120,7 @@ NdbScanFilter::~NdbScanFilter(){
 int
 NdbScanFilter::begin(Group group){
 
+#if 0
   // TODO : REMOVE when ScanFilter fixed for NdbRecord //
   if (m_impl.m_operation->theStatus == NdbOperation::UseNdbRecord)
   {
@@ -130,6 +131,7 @@ NdbScanFilter::begin(Group group){
     return -1;
   }
   // /TODO hack
+#endif
   if (m_impl.m_stack2.push_back(m_impl.m_negative))
   {
     m_impl.m_operation->setErrorCodeAbort(4000);
