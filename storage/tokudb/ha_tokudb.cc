@@ -262,7 +262,7 @@ static int tokudb_init_func(void *p) {
     DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
     db_env->set_lk_detect(db_env, tokudb_lock_type);
 #endif
-#if 0 // QQQ not yet
+#if 1 // QQQ not yet
     if (tokudb_max_lock) {
         DBUG_PRINT("info",("tokudb_max_lock: %ld\n", tokudb_max_lock));
         r = db_env->set_lk_max_locks(db_env, tokudb_max_lock);
@@ -2378,11 +2378,13 @@ struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INT
 //   PLUGIN_VAR_OPCMDARG  Argument optional for cmd line
 //   PLUGIN_VAR_MEMALLOC  String needs memory allocated
 
+static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0, 0, ~0LL, 0);
+
+static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
+
 #if 0
 
-static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 8 * 1024 * 1024, 0, ~0LL, 0);
 static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
-static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets bdb set_cachesize ncache", NULL, NULL, 0, 0, ~0L, 0);
 
@@ -2412,10 +2414,10 @@ static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "
 static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 #endif
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
-#if 0
     MYSQL_SYSVAR(cache_size),
-    MYSQL_SYSVAR(logdir),
     MYSQL_SYSVAR(max_lock),
+#if 0
+    MYSQL_SYSVAR(logdir),
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
     MYSQL_SYSVAR(home),
