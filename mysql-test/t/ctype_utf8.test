@@ -721,6 +721,7 @@ select hex(soundex(_utf8 0xD091D092D093));
 SET collation_connection='utf8_general_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_german.inc
 SET collation_connection='utf8_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
