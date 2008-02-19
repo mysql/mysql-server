@@ -1,0 +1,37 @@
+# Test for 
+# Bug #33931  	assertion at write_ignored_events_info_to_relay_log if init_slave_thread() fails
+# Bug #33932  	assertion at handle_slave_sql if init_slave_thread() fails
+
+source include/have_debug.inc;
+source include/have_log_bin.inc;
+
+connect (master,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect (slave,127.0.0.1,root,,test,$SLAVE_MYPORT,);
+
+
+connection master;
+reset master;
+
+connection slave;
+--disable_warnings
+stop slave;
+--enable_warnings
+reset slave;
+start slave;
+
+connection master;
+save_master_pos;
+connection slave;
+
+#
+# slave is going to stop because of emulated failures
+# but there won't be any crashes nor asserts hit.
+#
+source include/wait_for_slave_to_stop.inc;
+
+--replace_result $MASTER_MYPORT MASTER_PORT                                     
+--replace_column 1 # 8 # 9 # 23 # 33 #                                          
+query_vertical show slave status;
+
+# no clean-up is needed
+
