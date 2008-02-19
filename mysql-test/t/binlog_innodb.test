@@ -37,3 +37,28 @@ show status like "binlog_cache_disk_use";
 drop table t1;
 
 
+#
+# Bug #30604: different flagging of time_zone_used in normal and ps-protocol
+#
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=MyISAM;
+CREATE TABLE t2 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=InnoDB;
+
+DELIMITER |;
+# the function does not deal with time objects
+CREATE FUNCTION bug23333() 
+RETURNS int(11)
+DETERMINISTIC
+BEGIN
+  INSERT INTO t1 VALUES (NULL);
+  SELECT COUNT(*) FROM t1 INTO @a;
+  RETURN @a;
+END|
+
+DELIMITER ;|
+
+INSERT INTO t2 VALUES (2),(10+bug23333());
+--replace_column 1 #
+SHOW MASTER STATUS;
+DROP FUNCTION bug23333;
+DROP TABLE t1, t2;
