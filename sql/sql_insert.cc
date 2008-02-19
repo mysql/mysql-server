@@ -946,7 +946,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->row_count_func= info.copied + info.deleted +
                          ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                           info.touched : info.updated);
-    send_ok(thd, (ulong) thd->row_count_func, id);
+    my_ok(thd, (ulong) thd->row_count_func, id);
   }
   else
   {
@@ -961,7 +961,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       sprintf(buff, ER(ER_INSERT_INFO), (ulong) info.records,
 	      (ulong) (info.deleted + updated), (ulong) thd->cuted_fields);
     thd->row_count_func= info.copied + info.deleted + updated;
-    ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+    ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   }
   thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
@@ -3162,7 +3162,7 @@ bool select_insert::send_eof()
     (thd->arg_of_last_insert_id_function ?
      thd->first_successful_insert_id_in_prev_stmt :
      (info.copied ? autoinc_value_of_last_inserted_row : 0));
-  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(0);
 }
 

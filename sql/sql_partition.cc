@@ -3995,7 +3995,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
               (ulong) (copied + deleted),
               (ulong) deleted,
               (ulong) 0);
-  send_ok(thd, (ha_rows) (copied+deleted),0L, tmp_name);
+  my_ok(thd, (ha_rows) (copied+deleted),0L, tmp_name);
   DBUG_RETURN(FALSE);
 }
 

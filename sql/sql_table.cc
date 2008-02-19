@@ -1497,7 +1497,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (error)
     DBUG_RETURN(TRUE);
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -5042,7 +5042,7 @@ err:
   
   if (error == 0)
   {
-    send_ok(thd);
+    my_ok(thd);
     DBUG_RETURN(0);
   }
 
@@ -6006,7 +6006,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
-      send_ok(thd);
+      my_ok(thd);
     }
 
     unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
@@ -6244,7 +6244,7 @@ view_err:
     if (!error)
     {
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
-      send_ok(thd);
+      my_ok(thd);
     }
     else if (error > 0)
     {
@@ -6880,7 +6880,7 @@ end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->cuted_fields);
-  send_ok(thd, copied + deleted, 0L, tmp_name);
+  my_ok(thd, copied + deleted, 0L, tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 

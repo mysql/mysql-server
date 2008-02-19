@@ -993,7 +993,7 @@ public:
   {
     /** The area is cleared at start of a statement. */
     DA_EMPTY= 0,
-    /** Set whenever one calls send_ok(). */
+    /** Set whenever one calls my_ok(). */
     DA_OK,
     /** Set whenever one calls send_eof(). */
     DA_EOF,
@@ -2141,7 +2141,7 @@ private:
 /** A short cut for thd->main_da.set_ok_status(). */
 
 inline void
-send_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
+my_ok(THD *thd, ha_rows affected_rows= 0, ulonglong id= 0,
         const char *message= NULL)
 {
   thd->main_da.set_ok_status(thd, affected_rows, id, message);
