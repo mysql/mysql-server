@@ -682,6 +682,7 @@ void *thd_memdup(MYSQL_THD thd, const void* str, unsigned int size)
   return thd->memdup(str, size);
 }
 
+extern "C"
 void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 {
   *xid = *(MYSQL_XID *) &thd->transaction.xid_state.xid;
@@ -2759,6 +2760,17 @@ extern "C" int thd_killed(const MYSQL_THD thd)
 {
   return(thd->killed);
 }
+
+/**
+  Return the thread id of a user thread
+  @param thd user thread
+  @return thread id
+*/
+extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
+{
+  return((unsigned long)thd->thread_id);
+}
+
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
 extern "C" struct charset_info_st *thd_charset(MYSQL_THD thd)

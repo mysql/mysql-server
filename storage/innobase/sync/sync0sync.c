@@ -95,17 +95,47 @@ have happened that the thread which was holding the mutex has just released
 it and did not see the waiters byte set to 1, a case which would lead the
 other thread to an infinite wait.
 
-LEMMA 1: After a thread resets the event of the cell it reserves for waiting
-========
-for a mutex, some thread will eventually call sync_array_signal_object with
-the mutex as an argument. Thus no infinite wait is possible.
+LEMMA 1: After a thread resets the event of a mutex (or rw_lock), some
+=======
+thread will eventually call os_event_set() on that particular event.
+Thus no infinite wait is possible in this case.
 
 Proof:	After making the reservation the thread sets the waiters field in the
 mutex to 1. Then it checks that the mutex is still reserved by some thread,
 or it reserves the mutex for itself. In any case, some thread (which may be
 also some earlier thread, not necessarily the one currently holding the mutex)
 will set the waiters field to 0 in mutex_exit, and then call
-sync_array_signal_object with the mutex as an argument.
+os_event_set() with the mutex as an argument.
+Q.E.D.
+
+LEMMA 2: If an os_event_set() call is made after some thread has called
+=======
+the os_event_reset() and before it starts wait on that event, the call
+will not be lost to the second thread. This is true even if there is an
+intervening call to os_event_reset() by another thread.
+Thus no infinite wait is possible in this case.
+
+Proof (non-windows platforms): os_event_reset() returns a monotonically
+increasing value of signal_count. This value is increased at every
+call of os_event_set() If thread A has called os_event_reset() followed
+by thread B calling os_event_set() and then some other thread C calling
+os_event_reset(), the is_set flag of the event will be set to FALSE;
+but now if thread A calls os_event_wait_low() with the signal_count
+value returned from the earlier call of os_event_reset(), it will
+return immediately without waiting.
+Q.E.D.
+
+Proof (windows): If there is a writer thread which is forced to wait for
+the lock, it may be able to set the state of rw_lock to RW_LOCK_WAIT_EX
+The design of rw_lock ensures that there is one and only one thread
+that is able to change the state to RW_LOCK_WAIT_EX and this thread is
+guaranteed to acquire the lock after it is released by the current
+holders and before any other waiter gets the lock.
+On windows this thread waits on a separate event i.e.: wait_ex_event.
+Since only one thread can wait on this event there is no chance
+of this event getting reset before the writer starts wait on it.
+Therefore, this thread is guaranteed to catch the os_set_event()
+signalled unconditionally at the release of the lock.
 Q.E.D. */
 
 /* The number of system calls made in this module. Intended for performance
@@ -217,6 +247,7 @@ mutex_create_func(
 	os_fast_mutex_init(&(mutex->os_fast_mutex));
 	mutex->lock_word = 0;
 #endif
+	mutex->event = os_event_create(NULL);
 	mutex_set_waiters(mutex, 0);
 #ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
@@ -299,6 +330,8 @@ mutex_free(
 
 		mutex_exit(&mutex_list_mutex);
 	}
+
+	os_event_free(mutex->event);
 
 #if !defined(_WIN32) || !defined(UNIV_CAN_USE_X86_ASSEMBLER)
 	os_fast_mutex_free(&(mutex->os_fast_mutex));
@@ -509,8 +542,7 @@ spin_loop:
 		if (mutex_test_and_set(mutex) == 0) {
 			/* Succeeded! Free the reserved wait cell */
 
-			sync_array_free_cell_protected(sync_primary_wait_array,
-						       index);
+			sync_array_free_cell(sync_primary_wait_array, index);
 
 			ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -591,8 +623,8 @@ mutex_signal_object(
 
 	/* The memory order of resetting the waiters field and
 	signaling the object is important. See LEMMA 1 above. */
-
-	sync_array_signal_object(sync_primary_wait_array, mutex);
+	os_event_set(mutex->event);
+	sync_array_object_signalled(sync_primary_wait_array);
 }
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1130,6 +1162,7 @@ sync_thread_add_level(
 		break;
 	case SYNC_TREE_NODE:
 		ut_a(sync_thread_levels_contain(array, SYNC_INDEX_TREE)
+		     || sync_thread_levels_contain(array, SYNC_DICT_OPERATION)
 		     || sync_thread_levels_g(array, SYNC_TREE_NODE - 1));
 		break;
 	case SYNC_TREE_NODE_NEW:
