@@ -623,15 +623,14 @@ int toku_logger_abort(TOKUTXN txn) {
 
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     if (logger==0) return -1;
-    struct list *h = list_head(&logger->live_txns);
-    while (h) {
-	TOKUTXN txn = list_struct(h, struct tokutxn, live_txns_link);
+    struct list *l;
+    for (l = list_head(&logger->live_txns); l != &logger->live_txns; l = l->next) {
+	TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
 	assert(txn->tag==TYP_TOKUTXN);
 	if (txn->txnid64==txnid) {
 	    *result = txn;
 	    return 0;
 	}
-	h=list_tail(h);
     }
     return -1;
 }
