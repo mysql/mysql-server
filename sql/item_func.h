@@ -192,6 +192,13 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
+  inline double fix_result(double value)
+  {
+    if (isfinite(value))
+      return value;
+    null_value=1;
+    return 0.0;
+  }
 };
 
 
@@ -498,18 +505,6 @@ class Item_dec_func :public Item_real_func
   {
     decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
     maybe_null=1;
-  }
-  inline double fix_result(double value)
-  {
-#ifndef HAVE_FINITE
-    return value;
-#else
-    /* The following should be safe, even if we compare doubles */
-    if (finite(value) && value != POSTFIX_ERROR)
-      return value;
-    null_value=1;
-    return 0.0;
-#endif
   }
 };
 

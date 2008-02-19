@@ -2261,13 +2261,11 @@ int Field_decimal::store(double nr)
     return 1;
   }
   
-#ifdef HAVE_FINITE
-  if (!finite(nr)) // Handle infinity as special case
+  if (!isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return 1;
   }
-#endif
 
   reg4 uint i;
   size_t length;
