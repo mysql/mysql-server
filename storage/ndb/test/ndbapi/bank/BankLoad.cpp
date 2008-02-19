@@ -368,13 +368,6 @@ int Bank::getBalanceForAccountType(const Uint32 accountType,
     return NDBT_FAILED;
   }
 
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
     ERR(pScanTrans->getNdbError());

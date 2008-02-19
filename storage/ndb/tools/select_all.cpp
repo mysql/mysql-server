@@ -311,13 +311,6 @@ int scanReadRecords(Ndb* pNdb,
       sf.end();
       sf.end();
 #endif
-    } else {
-      check = pOp->interpret_exit_ok();
-      if( check == -1 ) {
-	ERR(pTrans->getNdbError());
-	pNdb->closeTransaction(pTrans);
-	return -1;
-      }
     }
     
     bool disk= false;

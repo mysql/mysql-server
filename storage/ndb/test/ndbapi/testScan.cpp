@@ -63,7 +63,7 @@ int runDropAllTablesExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
     if (strcmp(tab->getName(), ctx->getTab()->getName()) == 0){
       continue;
     }
-	    
+	
     int res = GETNDB(step)->getDictionary()->dropTable(tab->getName());
     if(res == -1){
       return NDBT_FAILED;
@@ -82,6 +82,7 @@ int runLoadAllTables(NDBT_Context* ctx, NDBT_Step* step){
     if (tab == NULL){ 
       return NDBT_FAILED;
     }
+    
     HugoTransactions hugoTrans(*tab);
     if (hugoTrans.loadTable(GETNDB(step), records) != 0){
       return NDBT_FAILED;
@@ -152,6 +153,40 @@ int runScanReadRandomTable(NDBT_Context* ctx, NDBT_Step* step){
     if (tab == NULL){
       g_info << "tab == NULL" << endl;
       return NDBT_FAILED;
+    }
+    
+    g_info << "Scan reading from table " << tab->getName() << endl;
+    HugoTransactions hugoTrans(*tab);
+    
+    g_info << i << ": ";
+    if (hugoTrans.scanReadRecords(GETNDB(step), records, abort, parallelism) != 0){
+      return NDBT_FAILED;
+    }
+    i++;
+  }
+  return NDBT_OK;
+}
+
+int runScanReadRandomTableExceptTestTable(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  int parallelism = ctx->getProperty("Parallelism", 240);
+  int abort = ctx->getProperty("AbortProb", 5);
+  
+  int i = 0;
+  while (i<loops) {
+    const NdbDictionary::Table* tab= NULL;
+    bool chosenTable=false;
+    while (!chosenTable)
+    {
+      int tabNum = myRandom48(NDBT_Tables::getNumTables());
+      tab = getTable(GETNDB(step), tabNum);
+      if (tab == NULL){
+        g_info << "tab == NULL" << endl;
+        return NDBT_FAILED;
+      }
+      // Skip test table
+      chosenTable= (strcmp(tab->getName(), ctx->getTab()->getName()));
     }
     
     g_info << "Scan reading from table " << tab->getName() << endl;
@@ -1091,12 +1126,6 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 	    return NDBT_FAILED;
 	  }
 	  
-	  int check = pOp->interpret_exit_ok();
-	  if( check == -1 ) {
-	    ERR(pCon->getNdbError());
-	    return NDBT_FAILED;
-	  }
-	  
 	  // Define attributes to read  
 	  bool found_disk = false;
 	  for(int a = 0; a<pTab->getNoOfColumns(); a++){
@@ -1116,7 +1145,7 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 	  
 	  if (! (disk && !found_disk))
 	  {
-	    check = pCon->execute(NoCommit);
+	    int check = pCon->execute(NoCommit);
 	    if( check == -1 ) {
 	      ERR(pCon->getNdbError());
 	      return NDBT_FAILED;
@@ -1368,12 +1397,12 @@ TESTCASE("ScanReadRandomPrepare",
 TESTCASE("ScanRead40RandomNoTableCreate", 
 	 "Verify scan requirement: Scan with 40 simultaneous threads. "\
 	 "Use random table for the scan. Dont create or load the tables."){
-  STEPS(runScanReadRandomTable, 40);
+  STEPS(runScanReadRandomTableExceptTestTable, 40);
 }
 TESTCASE("ScanRead100RandomNoTableCreate", 
 	 "Verify scan requirement: Scan with 100 simultaneous threads. "\
 	 "Use random table for the scan. Dont create or load the tables."){
-  STEPS(runScanReadRandomTable, 100);
+  STEPS(runScanReadRandomTableExceptTestTable, 100);
 }
 TESTCASE("ScanWithLocksAndInserts", 
 	 "TR457: This test is added to verify that an insert of a records "\

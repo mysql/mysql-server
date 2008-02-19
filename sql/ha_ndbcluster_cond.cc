@@ -1332,29 +1332,34 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 }
 
 int
-ha_ndbcluster_cond::generate_scan_filter(NdbScanOperation *op)
+ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
+                                         NdbScanOperation::ScanOptions* options)
 {
   DBUG_ENTER("generate_scan_filter");
 
   if (m_cond_stack)
   {
-    NdbScanFilter filter(op, false); // don't abort on too large
+    NdbScanFilter filter(code);
     
-    int ret=generate_scan_filter_from_cond(filter);
+    int ret= generate_scan_filter_from_cond(filter);
     if (ret != 0)
     {
-      const NdbError& err=filter.getNdbError();
+      const NdbError& err= filter.getNdbError();
       if (err.code == NdbScanFilter::FilterTooLarge)
       {
         // err.message has static storage
         DBUG_PRINT("info", ("%s", err.message));
         push_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                      err.code, err.message);
-        ret=0;
       }
+      else
+        DBUG_RETURN(ret);
     }
-    if (ret != 0)
-      DBUG_RETURN(ret);
+    else
+    {
+      options->interpretedCode= code;
+      options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    }
   }
   else
   {  
@@ -1397,7 +1402,8 @@ ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
 }
 
 
-int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
+int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
+                                                      NdbScanOperation::ScanOptions* options,
                                                       const KEY* key_info, 
                                                       const uchar *key, 
                                                       uint key_len,
@@ -1405,7 +1411,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
 {
   KEY_PART_INFO* key_part= key_info->key_part;
   KEY_PART_INFO* end= key_part+key_info->key_parts;
-  NdbScanFilter filter(op, true); // abort on too large
+  NdbScanFilter filter(code);
   int res;
   DBUG_ENTER("generate_scan_filter_from_key");
 
@@ -1441,6 +1447,9 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
     
   if (filter.end() == -1)
     DBUG_RETURN(1);
+
+  options->interpretedCode= code;
+  options->optionsPresent|= NdbScanOperation::ScanOptions::SO_INTERPRETED;
 
   DBUG_RETURN(0);
 }

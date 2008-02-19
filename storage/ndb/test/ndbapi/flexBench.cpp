@@ -888,7 +888,8 @@ static void* flexBenchThread(void* pArg)
                                                    attr_record, pRowAttr);
 	  break;
 	case stDelete:          // Delete Case
-	  pOps[countTables]= pTrans->deleteTuple(pk_record, pRowPK);
+	  pOps[countTables]= pTrans->deleteTuple(pk_record, pRowPK,
+                                                 attr_record);
 	  break;
 	case stVerify:
 	  pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,

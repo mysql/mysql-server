@@ -693,17 +693,17 @@ public:
    *   Operation type        Supported OperationOptions flags
    *   --------------        --------------------------------
    *   readTuple             OO_ABORTOPTION, OO_GETVALUE,
-   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *                         OO_PARTITION_ID, OO_INTERPRETED
    *   insertTuple           OO_ABORTOPTION, OO_SETVALUE, 
    *                         OO_PARTITION_ID, OO_ANYVALUE
    *   updateTuple           OO_ABORTOPTION, OO_SETVALUE,
    *                         OO_PARTITION_ID, OO_INTERPRETED,
    *                         OO_ANYVALUE
    *   writeTuple            OO_ABORTOPTION, OO_SETVALUE,
+   *                         OO_PARTITION_ID, OO_ANYVALUE
+   *   deleteTuple           OO_ABORTOPTION, OO_GETVALUE,
    *                         OO_PARTITION_ID, OO_INTERPRETED,
    *                         OO_ANYVALUE
-   *   deleteTuple           OO_ABORTOPTION, OO_GETVALUE,
-   *                         OO_PARTITION_ID, OO_ANYVALUE
    *
    * The sizeOfOptions optional parameter is used to allow this interface
    * to be backwards compatible with previous definitions of the OperationOptions
@@ -723,6 +723,10 @@ public:
                                   const unsigned char *mask= 0,
                                   const NdbOperation::OperationOptions *opts = 0,
                                   Uint32 sizeOfOptions = 0);
+  const NdbOperation *insertTuple(const NdbRecord *combined_rec, const char *combined_row,
+                                  const unsigned char *mask = 0,
+                                  const NdbOperation::OperationOptions *opts = 0,
+                                  Uint32 sizeOfOptions = 0);
   const NdbOperation *updateTuple(const NdbRecord *key_rec, const char *key_row,
                                   const NdbRecord *attr_rec, const char *attr_row,
                                   const unsigned char *mask= 0,
@@ -734,80 +738,16 @@ public:
                                  const NdbOperation::OperationOptions *opts = 0,
                                  Uint32 sizeOfOptions = 0);
   const NdbOperation *deleteTuple(const NdbRecord *key_rec, const char *key_row,
-                                  const NdbRecord *result_rec = 0, char *result_row = 0,
+                                  const NdbRecord *result_rec, char *result_row = 0,
                                   const unsigned char *result_mask = 0,
                                   const NdbOperation::OperationOptions *opts = 0,
                                   Uint32 sizeOfOptions = 0);
 
-  /*
-   * ScanOptions
-   *  These are options passed to the NdbRecord based scanTable and 
-   *  scanIndex methods.
-   *  Each option type is marked as present by setting the corresponding
-   *  bit in the optionsPresent field.  Only the option types marked 
-   *  in the optionsPresent field need have sensible data.
-   *  All data is copied out of the ScanOptions structure (and any
-   *  subtended structures) at operation definition time.
-   *  If no options are required, then NULL may be passed as the 
-   *  ScanOptions pointer.
-   *
-   *  Most methods take a supplementary sizeOfOptions parameter.  This
-   *  is optional, and is intended to allow the interface implementation
-   *  to remain backwards compatible with older un-recompiled clients 
-   *  that may pass an older (smaller) version of the ScanOptions 
-   *  structure.  This effect is achieved by passing
-   *  sizeof(NdbTransaction::ScanOptions) into this parameter.
-   */
-  struct ScanOptions
-  {
-    /* Which options are present - see below for possibilities */
-    Uint64 optionsPresent;
-
-    enum Type { SO_SCANFLAGS    = 0x01,
-                SO_PARALLEL     = 0x02,
-                SO_BATCH        = 0x04,
-                SO_GETVALUE     = 0x08,
-                SO_PARTITION_ID = 0x10,
-                SO_INTERPRETED  = 0x20,
-                SO_CUSTOMDATA   = 0x40 };
-
-    /* Flags controlling scan behaviour
-     * See NdbScanOperation::ScanFlag for details
-     */
-    Uint32 scan_flags;
-
-    /* Desired scan parallelism.
-     * Default == 0 == Maximum parallelism
-     */
-    Uint32 parallel;
-
-    /* Desired scan batchsize in rows 
-     * for NDBD -> API transfers
-     * Default == 0 == Automatically chosen size
-     */
-    Uint32 batch;
-    
-    /* Extra values to be read for each row meeting
-     * scan criteria
-     */
-    NdbOperation::GetValueSpec *extraGetValues;
-    Uint32                     numExtraGetValues;
-
-    /* Specific partition to limit this scan to */
-    Uint32 partitionId;
-
-    /* Interpreted code to execute as part of the scan */
-    const NdbInterpretedCode *interpretedCode;
-
-    /* CustomData ptr to associate with the scan operation */
-    void * customData;
-  };
-
   /**
    * Scan a table, using NdbRecord to read out column data.
    *
-   * The result_record pointer must remain valid until after the call to
-   * execute().
+   * The NdbRecord pointed to by result_record must remain valid until 
+   * the scan operation is closed.
    *
    * The result_mask pointer is optional, if present only columns for
    * which the corresponding bit (by attribute id order) in result_mask
@@ -816,19 +756,20 @@ public:
    * execute().
    * 
    * A ScanOptions structure can be passed, specifying extra options.  See
-   * the definition of the ScanOptions structure for more information.
+   * the definition of the NdbScanOperation::ScanOptions structure for 
+   * more information.
    *
    * To enable backwards compatability of this interface, a sizeOfOptions
    * parameter can be passed.  This parameter indicates the size of the
    * ScanOptions structure at the time the client was compiled, and enables
-   * detection of the use of an old ScanOptions structure.  If this functionality
-   * is not desired, it can be left set to zero.
+   * detection of the use of an old ScanOptions structure.  If this 
+   * functionality is not required, it can be left set to zero.
    */
   NdbScanOperation *
   scanTable(const NdbRecord *result_record,
             NdbOperation::LockMode lock_mode= NdbOperation::LM_Read,
             const unsigned char *result_mask= 0,
-            const ScanOptions *options = 0,
+            const NdbScanOperation::ScanOptions *options = 0,
             Uint32 sizeOfOptions = 0);
 
   /**
@@ -841,9 +782,10 @@ public:
    *
    * The result_record describes the rows to be returned from the scan. For an
    * ordered index scan, result_record must be a key record for the index to
-   * be scanned, that is it must include at least all of the column in the
-   * index (the reason is that the full index key is needed for merge sorting 
-   * the scans returned from each fragment).
+   * be scanned, that is it must include at least all of the columns in the
+   * index (the reason is that the full index key is needed by NDBAPI for merge 
+   * sorting the ordered rows returned from each fragment).  The result_record
+   * must be created from the underlying table, not from the index to be scanned.
    *
    * Both the key_record and result_record NdbRecord structures must stay
    * in-place until the scan operation is closed.
@@ -851,11 +793,11 @@ public:
    * A single IndexBound can either be specified in this call or in a separate
    * call to NdbIndexScanOperation::setBound().  To perform a multi range read, 
    * the scan_flags in the ScanOptions structure must include SF_MULTIRANGE.  
-   * Additional bounds can be added using calls to 
+   * Additional bounds can then be added using multiple calls to 
    * NdbIndexScanOperation::setBound().
    * 
    * To specify an equals bound, use the same row pointer for the low_key and
-   * high_key.
+   * high_key with the low and high inclusive bits set.
    *
    * A ScanOptions structure can be passed, specifying extra options.  See
    * the definition of the ScanOptions structure for more information.
@@ -864,7 +806,7 @@ public:
    * parameter can be passed.  This parameter indicates the size of the
    * ScanOptions structure at the time the client was compiled, and enables
    * detection of the use of an old ScanOptions structure.  If this functionality
-   * is not desired, it can be left set to zero.
+   * is not required, it can be left set to zero.
    * 
    */
   NdbIndexScanOperation *
@@ -873,7 +815,7 @@ public:
             NdbOperation::LockMode lock_mode = NdbOperation::LM_Read,
             const unsigned char *result_mask = 0,
             const NdbIndexScanOperation::IndexBound *bound = 0,
-            const ScanOptions *options = 0,
+            const NdbScanOperation::ScanOptions *options = 0,
             Uint32 sizeOfOptions = 0);
 
 private:						
@@ -1005,15 +947,6 @@ private:
                               const unsigned char *mask,
                               const NdbOperation::OperationOptions *opts,
                               Uint32 sizeOfOptions);
-
-  /* Helper for scanTable */
-  int handleScanOptions(NdbScanOperation *op,
-                        const ScanOptions *options);
-
-  /* Adding IndexBound to an NdbRecord-defined IndexScanOperation */
-  int addIndexScanBound(NdbIndexScanOperation *sop,
-                        const NdbRecord *key_record,
-                        const NdbIndexScanOperation::IndexBound& bound);
 
   void		handleExecuteCompletion();
   

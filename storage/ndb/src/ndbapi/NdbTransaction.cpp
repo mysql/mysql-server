@@ -1304,7 +1304,7 @@ NdbTransaction::getNdbIndexScanOperation(const NdbIndexImpl* index,
       if(tOp)
       {
 	tOp->m_currentTable = table;
-        // Mark that this really an NdbIndexScanOperation
+        // Mark that this really is an NdbIndexScanOperation
         tOp->m_type = NdbOperation::OrderedIndexScan;
       }
       return tOp;
@@ -2230,7 +2230,15 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
                               Uint32 sizeOfOptions)
 {
   NdbOperation *op;
-
+  
+  /* Check that we've got a base table record for the attribute record */
+  if (attribute_record->flags & NdbRecord::RecIsIndex)
+  {
+    /* Result or attribute record must be a base 
+       table ndbrecord, not an index ndbrecord */
+    setOperationErrorCodeAbort(4340);
+    return NULL;
+  }
   /*
     We are actually passing the table object for the index here, not the table
     object of the underlying table. But we only need it to keep the existing
@@ -2241,7 +2249,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   if (key_record->flags & NdbRecord::RecIsIndex)
   {
     op= getNdbIndexOperation(key_record->table->m_index,
-                             key_record->base_table, NULL, true);
+                             attribute_record->table, NULL, true);
   }
   else
   {
@@ -2286,16 +2294,12 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   /* Handle delete + blobs */
   if (type == NdbOperation::DeleteRequest)
   {
-    /* Blobs reads not allowed in the delete result record */
-    if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
-    {
-      setOperationErrorCodeAbort(4511);
-      /* Blobs not allowed in NdbRecord delete result record */
-      return NULL;
-    }
-
-    /* Need to link in all the Blob handles for delete */
-    if (op->getBlobHandlesNdbRecordDelete(this) == -1)
+    /* Need to link in all the Blob handles for delete 
+     * If there is a pre-read, check that no Blobs have
+     * been asked for
+     */
+    if (op->getBlobHandlesNdbRecordDelete(this,
+                                          (attribute_row != NULL)) == -1)
       return NULL;
   }
   else if (unlikely(attribute_record->flags & NdbRecord::RecHasBlob))
@@ -2407,6 +2411,19 @@ NdbTransaction::insertTuple(const NdbRecord *key_rec, const char *key_row,
 }
 
 const NdbOperation *
+NdbTransaction::insertTuple(const NdbRecord *combined_rec, const char *combined_row,
+                            const unsigned char *mask,
+                            const NdbOperation::OperationOptions *opts,
+                            Uint32 sizeOfOptions)
+{
+  return insertTuple(combined_rec, combined_row,
+                     combined_rec, combined_row,
+                     mask,
+                     opts,
+                     sizeOfOptions);
+}
+
+const NdbOperation *
 NdbTransaction::updateTuple(const NdbRecord *key_rec, const char *key_row,
                             const NdbRecord *attr_rec, const char *attr_row,
                             const unsigned char *mask,
@@ -2444,23 +2461,18 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec,
                             const NdbOperation::OperationOptions* opts,
                             Uint32 sizeOfOptions)
 {
-  /* Check that the NdbRecord specifies the full primary key. */
+  /* Check that the key NdbRecord specifies the full primary key. */
   if (!(key_rec->flags & NdbRecord::RecHasAllKeys))
   {
     setOperationErrorCodeAbort(4292);
     return NULL;
   }
 
-  bool readBeforeDelete=(result_rec && result_row != NULL);
-
-  /* If no data to read, pass in key_rec as attr_rec*/
-  const NdbRecord* result_record=readBeforeDelete?result_rec:key_rec;
-
   NdbOperation *op= setupRecordOp(NdbOperation::DeleteRequest,
                                   NdbOperation::LM_Exclusive, 
                                   NdbOperation::AbortOnError, 
                                   key_rec, key_row,
-                                  result_record, result_row, result_mask, 
+                                  result_rec, result_row, result_mask, 
                                   opts,
                                   sizeOfOptions);
   if(!op)
@@ -2468,7 +2480,7 @@ NdbTransaction::deleteTuple(const NdbRecord *key_rec,
 
   theSimpleState= 0;
 
-  if (readBeforeDelete)
+  if (result_row != NULL) // readBeforeDelete
   {
     /* Setup the record/row for receiving the results. */
     op->theReceiver.getValues(result_rec, result_row);
@@ -2506,83 +2518,12 @@ NdbTransaction::writeTuple(const NdbRecord *key_rec, const char *key_row,
   return op;
 }
 
-/* Helper for scanTable and scanIndex */
-/* Note that op may be an NdbIndexScanOperation */
-int
-NdbTransaction::handleScanOptions(NdbScanOperation *op,
-                                  const ScanOptions *options)
-{
-  /* Options size has already been checked.
-   * scan_flags, parallel and batch have been handled
-   * already.
-   */
-  if ((options->optionsPresent & ScanOptions::SO_GETVALUE) &&
-      (options->numExtraGetValues > 0))
-  {
-    if (options->extraGetValues == NULL)
-    {
-      setOperationErrorCodeAbort(4299);
-      /* Incorrect combination of ScanOption flags, 
-       * extraGetValues ptr and numExtraGetValues */
-      return -1;
-    }
-
-    /* Add extra getValue()s */
-    for (unsigned int i=0; i < options->numExtraGetValues; i++)
-    {
-      NdbOperation::GetValueSpec *pvalSpec = &(options->extraGetValues[i]);
-
-      pvalSpec->recAttr=NULL;
-
-      if (pvalSpec->column == NULL)
-      {
-        setOperationErrorCodeAbort(4295);
-        // Column is NULL in Get/SetValueSpec structure
-        return -1;
-      }
-
-      /* Call internal NdbRecord specific getValue() method
-       * Same method handles table scans and index scans
-       */
-      NdbRecAttr *pra=
-        op->getValue_NdbRecord_scan(&NdbColumnImpl::getImpl(*pvalSpec->column),
-                                    (char *) pvalSpec->appStorage);
-        
-      if (pra == NULL)
-      {
-        return -1;
-      }
-      
-      pvalSpec->recAttr = pra;
-    }
-  }
-
-  if (options->optionsPresent & ScanOptions::SO_PARTITION_ID)
-  {
-    /* Should not have any blobs defined at this stage */
-    assert(op->theBlobList == NULL);
-    op->theDistributionKey = options->partitionId;
-    op->theDistrKeyIndicator_ = 1;
-    DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",
-                        op->theDistributionKey));
-  }
-
-  if (options->optionsPresent & ScanOptions::SO_INTERPRETED)
-  {
-    /* TODO : Implement or remove */
-    setOperationErrorCodeAbort(4298);
-    /* Invalid or unsupported ScanOptions structure */
-    return -1;
-  }
-
-  return 0;
-}
 
 NdbScanOperation *
 NdbTransaction::scanTable(const NdbRecord *result_record,
                           NdbOperation::LockMode lock_mode,
                           const unsigned char *result_mask,
-                          const ScanOptions *options,
+                          const NdbScanOperation::ScanOptions *options,
                           Uint32 sizeOfOptions)
 {
   DBUG_ENTER("NdbTransaction::scanTable");
@@ -2593,379 +2534,31 @@ NdbTransaction::scanTable(const NdbRecord *result_record,
     The reason for this is that they can then share a pool of allocated
     objects.
   */
-  NdbIndexScanOperation *op_idx;
-  NdbScanOperation *op;
-  NdbTransaction *scanTransaction = NULL;
-  NdbBlob *lastBlob;
-  Uint32 column_count;
-  int res;
-  bool haveBlob= false;
-  Uint32 scan_flags = 0;
-  Uint32 parallel = 0;
-  Uint32 batch = 0;
+  NdbIndexScanOperation *op_idx= 
+    getNdbScanOperation(result_record->table);
 
-  op_idx= getNdbScanOperation(result_record->table);
-  if (op_idx==NULL)
+  if (op_idx == NULL)
   {
+    /* Memory allocation error */
     setOperationErrorCodeAbort(4000);
     DBUG_RETURN(NULL);
   }
-  op= op_idx;
 
-  if (options != NULL)
+  /* The real work is done in NdbScanOperation */
+  if (op_idx->scanTableImpl(result_record,
+                            lock_mode,
+                            result_mask,
+                            options,
+                            sizeOfOptions) == 0)
   {
-    /* Check options size for versioning... */
-    if (unlikely((sizeOfOptions !=0) &&
-                 (sizeOfOptions != sizeof(ScanOptions))))
-    {
-      /* Handle different sized ScanOptions
-       * Probably smaller is old version, larger is new version
-       */
-      
-      /* No other versions supported currently */
-      setOperationErrorCodeAbort(4298);
-      /* Invalid or unsupported ScanOptions structure */
-      goto giveup_err;
-    }
-    
-    /* Process some initial ScanOptions - most are 
-     * handled later
-     */
-    if (options->optionsPresent & ScanOptions::SO_SCANFLAGS)
-      scan_flags = options->scan_flags;
-    if (options->optionsPresent & ScanOptions::SO_PARALLEL)
-      parallel = options->parallel;
-    if (options->optionsPresent & ScanOptions::SO_BATCH)
-      batch = options->batch;
+    DBUG_RETURN(op_idx);
   }
 
-  res= op->readTuples(lock_mode, scan_flags, parallel, batch);
-  if (res==-1)
-    goto giveup_err;
-
-  result_record->copyMask(op->m_read_mask, result_mask);
-
-  lastBlob= NULL;
-  column_count= 0;
-  for (Uint32 i= 0; i<result_record->noOfColumns; i++)
-  {
-    const NdbRecord::Attr *col;
-    Uint32 ah;
-    Uint32 attrId;
-
-    col= &result_record->columns[i];
-
-    /* Skip column if result_mask says so. But cannot mask pseudo columns. */
-    attrId= col->attrId;
-    if (!(attrId & AttributeHeader::PSEUDO) &&
-        !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
-                          op->m_read_mask, attrId))
-      continue;
-
-    /* Blob reads are handled with a getValue() in NdbBlob.cpp. */
-    if (unlikely(col->flags & NdbRecord::IsBlob))
-    {
-      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
-      haveBlob= true;
-      continue;
-    }
-
-    AttributeHeader::init(&ah, attrId, 0);
-    res= op->insertATTRINFO(ah);
-    if (res==-1)
-      goto giveup_err;
-
-    if (col->flags & NdbRecord::IsDisk)
-      op->m_no_disk_flag= false;
-    column_count++;
-  }
-  op->theReceiver.m_record.m_column_count= column_count;
-
-  /*
-    We set theStatus=UseNdbRecord to allow the addition of an interpreted
-    program (NdbScanFilter ...), but nothing else.
-  */
-  op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
-  op->theStatus= NdbOperation::UseNdbRecord;
-  op->m_attribute_record= result_record;
-
-  /* Handle scan options */
-  if (options != NULL)
-  {
-    if (handleScanOptions(op, options) != 0)
-      goto giveup_err;
-  }
-
-  if (unlikely(haveBlob))
-  {
-    if (op->getBlobHandlesNdbRecord(this) == -1)
-      goto giveup_err;
-  }
-
-  /* Scan is now fully defined, so let's start preparing
-   * signals.
-   */
-  /* Get ptr to scan's transaction object */
-  scanTransaction=op->theNdbCon;
-
-  if (op->prepareSendScan(scanTransaction->theTCConPtr, 
-                          scanTransaction->theTransactionId) == -1)
-    /* Error code should be set */
-    goto giveup_err;
-  
-  DBUG_RETURN(op_idx);
-
- giveup_err:
   releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation,
                        op_idx);
   DBUG_RETURN(NULL);
 }
 
-/*
-  Compare two rows on some prefix of the index.
-  This is used to see if we can determine that all rows in an index range scan
-  will come from a single fragment (if the two rows bound a single distribution
-  key).
- */
-static int
-compare_index_row_prefix(const NdbRecord *rec,
-                         const char *row1,
-                         const char *row2,
-                         Uint32 prefix_length)
-{
-  Uint32 i;
-
-  for (i= 0; i<prefix_length; i++)
-  {
-    const NdbRecord::Attr *col= &rec->columns[rec->key_indexes[i]];
-
-    bool is_null1= col->is_null(row1);
-    bool is_null2= col->is_null(row2);
-    if (is_null1)
-    {
-      if (!is_null2)
-        return -1;
-      /* Fall-through to compare next one. */
-    }
-    else
-    {
-      if (is_null2)
-        return 1;
-
-      Uint32 offset= col->offset;
-      Uint32 maxSize= col->maxSize;
-      const char *ptr1= row1 + offset;
-      const char *ptr2= row2 + offset;
-      void *info= col->charset_info;
-      int res=
-        (*col->compare_function)(info, ptr1, maxSize, ptr2, maxSize, true);
-      if (res)
-      {
-        assert(res != NdbSqlUtil::CmpUnknown);
-        return res;
-      }
-    }
-  }
-
-  return 0;
-}
-
-void
-set_distribution_key_from_range(NdbIndexScanOperation *op,
-                                const NdbRecord *record,
-                                const char *row,
-                                Uint32 distkey_max)
-{
-  Uint64 tmp[1000];
-  Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
-  Uint32 i;
-  for (i = 0; i<record->distkey_index_length; i++)
-  {
-    const NdbRecord::Attr *col= &record->columns[record->distkey_indexes[i]];
-    ptrs[i].ptr = row + col->offset;
-    ptrs[i].len = col->maxSize;
-  }
-  ptrs[i].ptr = 0;
-  
-  Uint32 hashValue;
-  int ret = Ndb::computeHash(&hashValue, 
-                             record->base_table, 
-                             ptrs, tmp, sizeof(tmp));
-  if (ret == 0)
-  {
-    op->setPartitionId(record->base_table->getPartitionId(hashValue));
-  }
-#ifdef VM_TRACE
-  else
-  {
-    ndbout << "err: " << ret << endl;
-    assert(false);
-  }
-#endif
-}
-
-
-/** 
- * addIndexScanBound
- *
- * This method is called from NdbTransaction::scanIndex() and
- * NdbIndexScanOperation::setBound().  It adds a bound to an
- * NdbRecord defined operation
- */
-int 
-NdbTransaction::addIndexScanBound(NdbIndexScanOperation *sop,
-                                  const NdbRecord *key_record,
-                                  const NdbIndexScanOperation::IndexBound& bound)
-{
-  /*
-    Set up index range bounds, write into keyinfo.
-    
-    ToDo: We need to compare each attribute lower with upper bound, and use an
-    x=a condition instead of a<=x<=b as appropriate.
-    ToDo : Compare ptrs, or compare actual values?
-    
-    ToDo: We also need to send distribution key, but _only_ if distribution
-    key is scanned equal to the same value for all ranges (see BUG#25821).
-  */
-
-  if (unlikely((sop->theStatus != NdbOperation::UseNdbRecord)))
-  {
-    setOperationErrorCodeAbort(4284);
-    /* Cannot mix NdbRecAttr and NdbRecord operations */
-    return -1;
-  }
-
-  if (unlikely(key_record == NULL))
-  {
-    setOperationErrorCodeAbort(4285);
-    /* NULL NdbRecord pointer */
-    return -1;
-  }
-
-  sop->m_num_bounds++;
-
-  if (unlikely((sop->m_num_bounds > 1) &&
-               (sop->m_multi_range == 0)))
-  {
-    /* > 1 IndexBound, but not MRR */
-    setOperationErrorCodeAbort(4509);
-    /* Non SF_MultiRange scan cannot have more than one bound */
-    return -1;
-  }
-
-  Uint32 j;
-  Uint32 key_count, common_key_count;
-  Uint32 range_no;
-  Uint32 bound_head;
-
-  range_no= bound.range_no;
-  if (unlikely(range_no >= (1 << 12))) /* TODO : Use constant ! */
-  {
-    setOperationErrorCodeAbort(4286);
-    return -1;
-  }
-
-  /* Check valid ordering of supplied range numbers */
-  if ( sop->m_read_range_no && sop->m_ordered )
-  {
-    if (unlikely((sop->m_num_bounds > 1) &&
-                 (range_no <= sop->m_previous_range_num))) 
-    {
-      setOperationErrorCodeAbort(4282);
-      /* range_no not strictly increasing in ordered multi-range index scan */
-      return -1;
-    }
-    
-    sop->m_previous_range_num= range_no;
-  }
-
-  key_count= bound.low_key_count;
-  common_key_count= key_count;
-  if (key_count < bound.high_key_count)
-    key_count= bound.high_key_count;
-  else
-    common_key_count= bound.high_key_count;
-
-  if (unlikely(key_count > key_record->key_index_length))
-  {
-    /* Too many keys specified for key bound. */
-    setOperationErrorCodeAbort(4281);
-    return -1;
-  }
-
-  for (j= 0; j<key_count; j++)
-  {
-    Uint32 bound_type;
-    /* If key is part of lower bound */
-    if (bound.low_key && j<bound.low_key_count)
-    {
-      /* Inclusive if defined, or matching rows can include this value */
-      bound_type= bound.low_inclusive  || j+1 < bound.low_key_count ?
-        NdbIndexScanOperation::BoundLE : NdbIndexScanOperation::BoundLT;
-      sop->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                                  bound.low_key, bound_type);
-    }
-    /* If key is part of upper bound */
-    if (bound.high_key && j<bound.high_key_count)
-    {
-      /* Inclusive if defined, or matching rows can include this value */
-      bound_type= bound.high_inclusive  || j+1 < bound.high_key_count ?
-        NdbIndexScanOperation::BoundGE : NdbIndexScanOperation::BoundGT;
-      sop->ndbrecord_insert_bound(key_record, key_record->key_indexes[j],
-                                  bound.high_key, bound_type);
-    }
-  }
-
-  /* Set the length of this bound
-   * Length = bound end - bound start
-   * Pack into Uint32 with range no and bound type as described 
-   * in KeyInfo.hpp
-   */
-  bound_head= *sop->m_first_bound_word;
-  bound_head|=
-    (sop->theTupKeyLen - sop->m_this_bound_start) << 16 | (range_no << 4);
-  *sop->m_first_bound_word= bound_head;
-  sop->m_first_bound_word= sop->theKEYINFOptr + sop->theTotalNrOfKeyWordInSignal;
-  sop->m_this_bound_start= sop->theTupKeyLen;
-
-  /*
-    ToDo: This does not work, as it does not properly handle collations.
-    Ie. scanning a='aAa' and a='AaA' should use the same distribution key
-    for non-binary collations.
-    Part of WL#3682 should provide the facilities to fix this.
-    Long-term, it should be made possible in the protocol to specify a
-    (potentially different) bitmap of fragments to scan for _each_ individual
-    range in multi-range scan.
-  */
-  // TODO : Re-enable with a) code to avoid CHAR types b) key equality
-  //        check via ptr equals rather than actual comparison.
-#if 0
-  /*
-    Now check if the range bounds a single distribution key. If so, we need
-    scan only a single fragment.
-    
-    ToDo: we do not attempt to identify the case where we have multiple
-    ranges, but they all bound the same single distribution key. It seems
-    not really worth the effort to optimise this case, better to fix the
-    multi-range protocol so that the distribution key could be specified
-    individually for each of the multiple ranges.
-  */
-  if (num_key_bounds==1)
-  {
-    Uint32 distkey_min= key_record->m_min_distkey_prefix_length;
-    if (distkey_min > 0 &&
-        common_key_count >= distkey_min &&
-        bound.low_key &&
-        bound.high_key &&
-        0==compare_index_row_prefix(key_record,
-                                    bound.low_key,
-                                    bound.high_key,
-                                    distkey_min))
-      set_distribution_key_from_range(op, key_record, bound.low_key, distkey_min);
-  } 
-#endif
-  return 0;
-} // ::addIndexScanBound();
 
 
 NdbIndexScanOperation *
@@ -2974,173 +2567,31 @@ NdbTransaction::scanIndex(const NdbRecord *key_record,
                                 NdbOperation::LockMode lock_mode,
                           const unsigned char *result_mask,
                           const NdbIndexScanOperation::IndexBound *bound,
-                          const ScanOptions *options,
+                          const NdbScanOperation::ScanOptions *options,
                           Uint32 sizeOfOptions)
 {
-  NdbIndexScanOperation *op;
-  const NdbTableImpl *index_table_impl; // The index schema object
-  const NdbTableImpl *table_impl;       // The table schema object
-  NdbBlob *lastBlob;
-  int res;
-  Uint32 i;
-  Uint32 column_count;
-  bool haveBlob= false;
-  Uint32 scan_flags = 0;
-  Uint32 parallel = 0;
-  Uint32 batch = 0;
-  NdbTransaction *scanTransaction = NULL;
-
-  if (!(key_record->flags & NdbRecord::RecHasAllKeys))
-  {
-    setOperationErrorCodeAbort(4292);
-    return NULL;
-  }
-  if ((scan_flags & NdbScanOperation::SF_OrderBy) &&
-      ( !(result_record->flags & NdbRecord::RecHasAllKeys) ||
-        key_record->tableId != result_record->tableId))
-  {
-    /* For ordering, we need all keys in the result row. */
-    setOperationErrorCodeAbort(4292);
-    return NULL;
-  }
-  if (!(key_record->flags & NdbRecord::RecIsIndex))
-  {
-    setOperationErrorCodeAbort(4283);
-    return NULL;
-  }
-
-  index_table_impl= key_record->table;
-  table_impl= result_record->base_table;
-
-  op= getNdbScanOperation(index_table_impl);
+  NdbIndexScanOperation *op= getNdbScanOperation(key_record->table);
   if (op==NULL)
   {
+    /* Memory allocation error */
     setOperationErrorCodeAbort(4000);
     return NULL;
   }
-  op->m_type= NdbOperation::OrderedIndexScan;
-  op->m_currentTable= table_impl;
 
-  if (options != NULL)
+  /* Defer the rest of the work to NdbIndexScanOperation */
+  if (op->scanIndexImpl(key_record,
+                        result_record,
+                        lock_mode,
+                        result_mask,
+                        bound,
+                        options,
+                        sizeOfOptions) != 0)
   {
-    /* Check options size for versioning... */
-    if (unlikely((sizeOfOptions !=0) &&
-                 (sizeOfOptions != sizeof(ScanOptions))))
-    {
-      /* Handle different sized ScanOptions
-       * Probably smaller is old version, larger is new version
-       */
-      
-      /* No other versions supported currently */
-      setOperationErrorCodeAbort(4298);
-      /* Invalid or unsupported ScanOptions structure */
-      goto giveup_err;
-    }
-    
-    /* Process some initial ScanOptions here
-     * The rest will be handled later
-     */
-    if (options->optionsPresent & ScanOptions::SO_SCANFLAGS)
-      scan_flags = options->scan_flags;
-    if (options->optionsPresent & ScanOptions::SO_PARALLEL)
-      parallel = options->parallel;
-    if (options->optionsPresent & ScanOptions::SO_BATCH)
-      batch = options->batch;
+    releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation, op);
+    return NULL;
   }
-
-  op->m_attribute_record= result_record; // Mark using NdbRecord for readTuples
-  res= op->readTuples(lock_mode, scan_flags, parallel, batch);
-  if (res==-1)
-    goto giveup_err;
-  result_record->copyMask(op->m_read_mask, result_mask);
-
-  /* Fix theStatus as set in readTuples(). */
-  op->theStatus= NdbOperation::UseNdbRecord;
-
-  lastBlob= NULL;
-  column_count= 0;
-  for (i= 0; i<result_record->noOfColumns; i++)
-  {
-    const NdbRecord::Attr *col;
-    Uint32 ah;
-    Uint32 attrId;
-
-    col= &result_record->columns[i];
-
-    /*
-      Skip column if result_mask says so.
-      But cannot mask pseudo columns, nor key columns in ordered scans.
-    */
-    attrId= col->attrId;
-    if ( result_mask &&
-         !(attrId & AttributeHeader::PSEUDO) &&
-         !( (scan_flags & NdbScanOperation::SF_OrderBy) &&
-            (col->flags & NdbRecord::IsKey) ) &&
-         !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
-    {
-      continue;
-    }
-
-    /* Create blob handle for any blob column. */
-    if (unlikely(col->flags & NdbRecord::IsBlob))
-    {
-      op->m_keyInfo= 1;                         // Need keyinfo for blob scan
-      haveBlob= true;
-      continue;
-    }
-
-    AttributeHeader::init(&ah, attrId, 0);
-    res= op->insertATTRINFO(ah);
-    if (res==-1)
-      goto giveup_err;
-
-    if (col->flags & NdbRecord::IsDisk)
-      op->m_no_disk_flag= false;
-    column_count++;
-  }
-  op->theReceiver.m_record.m_column_count= column_count;
-
-  op->theInitialReadSize= op->theTotalCurrAI_Len - 5;
-
-  /*
-   * Set up first key bound, if present
-   * Extra bounds (MRR) can be added later
-   */
-  if (bound != NULL)
-  {
-    addIndexScanBound(op, key_record, *bound);
-  }
-
-  if (options != NULL)
-  {
-    if (handleScanOptions(op, options) != 0)
-      goto giveup_err;
-  }
-
-  if (unlikely(haveBlob))
-  {
-    if (op->getBlobHandlesNdbRecord(this) == -1)
-      goto giveup_err;
-  }
-
-  /* Scan is now mostly defined, so let's start preparing
-   * the signals and the receiver.
-   * Extra signals can be linked in when :
-   *  - Bounds are added
-   */
-  /* Get ptr to scan's transaction object */
-  scanTransaction=op->theNdbCon;
-
-  if (op->prepareSendScan(scanTransaction->theTCConPtr, 
-                          scanTransaction->theTransactionId) == -1)
-    /* Error code should be set */
-    goto giveup_err;
-
+  
   return op;
-
- giveup_err:
-  releaseScanOperation(&m_theFirstScanOperation, &m_theLastScanOperation, op);
-  return NULL;
 } // ::scanIndex();
 
 
