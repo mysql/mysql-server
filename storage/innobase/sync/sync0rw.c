@@ -151,6 +151,11 @@ rw_lock_create_func(
 	lock->last_x_file_name = "not yet reserved";
 	lock->last_s_line = 0;
 	lock->last_x_line = 0;
+	lock->event = os_event_create(NULL);
+
+#ifdef __WIN__
+	lock->wait_ex_event = os_event_create(NULL);
+#endif
 
 	mutex_enter(&rw_lock_list_mutex);
 
@@ -184,6 +189,11 @@ rw_lock_free(
 	mutex_free(rw_lock_get_mutex(lock));
 
 	mutex_enter(&rw_lock_list_mutex);
+	os_event_free(lock->event);
+
+#ifdef __WIN__
+	os_event_free(lock->wait_ex_event);
+#endif
 
 	if (UT_LIST_GET_PREV(list, lock)) {
 		ut_a(UT_LIST_GET_PREV(list, lock)->magic_n == RW_LOCK_MAGIC_N);
@@ -544,7 +554,15 @@ lock_loop:
 	rw_x_system_call_count++;
 
 	sync_array_reserve_cell(sync_primary_wait_array,
-				lock, RW_LOCK_EX,
+				lock,
+#ifdef __WIN__
+				/* On windows RW_LOCK_WAIT_EX signifies
+				that this thread should wait on the
+				special wait_ex_event. */
+				(state == RW_LOCK_WAIT_EX)
+				 ? RW_LOCK_WAIT_EX :
+#endif
+				RW_LOCK_EX,
 				file_name, line,
 				&index);
 
