@@ -509,7 +509,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 #endif /*!EMBEDDED_LIBRARY*/
 
   /* ok to client sent only after binlog write and engine commit */
-  send_ok(thd, info.copied + info.deleted, 0L, name);
+  my_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
               thd->transaction.stmt.modified_non_trans_table);

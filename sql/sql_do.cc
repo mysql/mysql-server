@@ -39,6 +39,6 @@ bool mysql_do(THD *thd, List<Item> &values)
     ha_autocommit_or_rollback(thd, thd->is_error());
     thd->clear_error(); // DO always is OK
   }
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }

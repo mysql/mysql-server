@@ -516,7 +516,7 @@ end:
     start_waiting_global_read_lock(thd);
 
   if (!result)
-    send_ok(thd);
+    my_ok(thd);
 
   DBUG_RETURN(result);
 }
