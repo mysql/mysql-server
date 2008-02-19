@@ -52,7 +52,7 @@ can be released by page reorganize, then it is reorganized */
 
 #define BTR_CUR_PAGE_REORGANIZE_LIMIT	(UNIV_PAGE_SIZE / 32)
 
-/* When estimating number of different kay values in an index sample
+/* When estimating number of different key values in an index, sample
 this many index pages */
 #define BTR_KEY_VAL_ESTIMATE_N_PAGES	8
 

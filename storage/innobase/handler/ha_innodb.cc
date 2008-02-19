@@ -129,7 +129,7 @@ static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool innobase_stats_on_metadata		= TRUE;
-static my_bool	innobase_use_adaptive_hash_indexes	= TRUE;
+static my_bool	innobase_adaptive_hash_index	= TRUE;
 
 static char*	internal_innobase_data_file_path	= NULL;
 
@@ -1627,7 +1627,7 @@ innobase_init(
 	srv_stats_on_metadata = (ibool) innobase_stats_on_metadata;
 
 	srv_use_adaptive_hash_indexes =
-		(ibool) innobase_use_adaptive_hash_indexes;
+		(ibool) innobase_adaptive_hash_index;
 
 	srv_print_verbose_log = mysqld_embedded ? 0 : 1;
 
@@ -2275,6 +2275,8 @@ ha_innobase::open(
 	dict_table_t*	ib_table;
 	char		norm_name[1000];
 	THD*		thd;
+	ulint		retries = 0;
+	char*		is_part = NULL;
 
 	DBUG_ENTER("ha_innobase::open");
 
@@ -2308,11 +2310,29 @@ ha_innobase::open(
 		DBUG_RETURN(1);
 	}
 
+	/* We look for pattern #P# to see if the table is partitioned
+	MySQL table. The retry logic for partitioned tables is a
+	workaround for http://bugs.mysql.com/bug.php?id=33349. Look
+	at support issue https://support.mysql.com/view.php?id=21080
+	for more details. */
+	is_part = strstr(norm_name, "#P#");
+retry:
 	/* Get pointer to a table object in InnoDB dictionary cache */
-
 	ib_table = dict_table_get(norm_name, TRUE);
-
+	
 	if (NULL == ib_table) {
+		if (is_part && retries < 10) {
+			++retries;
+			os_thread_sleep(100000);
+			goto retry;
+		}
+
+		if (is_part) {
+			sql_print_error("Failed to open table %s after "
+					"%lu attemtps.\n", norm_name,
+					retries);
+		}
+
 		sql_print_error("Cannot find or open table %s from\n"
 				"the internal data dictionary of InnoDB "
 				"though the .frm file for the\n"
@@ -4625,6 +4645,12 @@ innodb_check_for_record_too_big_error(
 	}
 }
 
+/* limit innodb monitor access to users with PROCESS privilege.
+See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
+#define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
+	(row_is_magic_monitor_table(table_name) \
+	 && check_global_access(thd, PROCESS_ACL))
+
 /*********************************************************************
 Creates a table definition to an InnoDB database. */
 static
@@ -4660,6 +4686,12 @@ create_table_def(
 
 	DBUG_ENTER("create_table_def");
 	DBUG_PRINT("enter", ("table_name: %s", table_name));
+
+	ut_a(trx->mysql_thd != NULL);
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name,
+						  (THD*) trx->mysql_thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
 
 	n_cols = form->s->fields;
 
@@ -5201,6 +5233,14 @@ ha_innobase::delete_table(
 
 	DBUG_ENTER("ha_innobase::delete_table");
 
+	/* Strangely, MySQL passes the table name without the '.frm'
+	extension, in contrast to ::create */
+	normalize_table_name(norm_name, name);
+
+	if (IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(norm_name, thd)) {
+		DBUG_RETURN(HA_ERR_GENERIC);
+	}
+
 	/* Get the transaction associated with the current thd, or create one
 	if not yet created */
 
@@ -5233,11 +5273,6 @@ ha_innobase::delete_table(
 	name_len = strlen(name);
 
 	assert(name_len < 1000);
-
-	/* Strangely, MySQL passes the table name without the '.frm'
-	extension, in contrast to ::create */
-
-	normalize_table_name(norm_name, name);
 
 	/* Drop the table in InnoDB */
 
@@ -7988,9 +8023,10 @@ static MYSQL_SYSVAR_BOOL(stats_on_metadata, innobase_stats_on_metadata,
   "Enable statistics gathering for metadata commands such as SHOW TABLE STATUS (on by default)",
   NULL, NULL, TRUE);
 
-static MYSQL_SYSVAR_BOOL(use_adaptive_hash_indexes, innobase_use_adaptive_hash_indexes,
+static MYSQL_SYSVAR_BOOL(adaptive_hash_index, innobase_adaptive_hash_index,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Enable the InnoDB adaptive hash indexes (enabled by default)",
+  "Enable InnoDB adaptive hash index (enabled by default).  "
+  "Disable with --skip-innodb-adaptive-hash-index.",
   NULL, NULL, TRUE);
 
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
@@ -8080,10 +8116,11 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
 
 static MYSQL_SYSVAR_LONG(autoinc_lock_mode, innobase_autoinc_lock_mode,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "The AUTOINC lock modes supported by InnoDB:\n"
-  "  0 => Old style AUTOINC locking (for backward compatibility)\n"
-  "  1 => New style AUTOINC locking\n"
-  "  2 => No AUTOINC locking (unsafe for SBR)",
+  "The AUTOINC lock modes supported by InnoDB:               "
+  "0 => Old style AUTOINC locking (for backward"
+  " compatibility)                                           "
+  "1 => New style AUTOINC locking                            "
+  "2 => No AUTOINC locking (unsafe for SBR)",
   NULL, NULL,
   AUTOINC_NEW_STYLE_LOCKING,	/* Default setting */
   AUTOINC_OLD_STYLE_LOCKING,	/* Minimum value */
@@ -8121,7 +8158,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(open_files),
   MYSQL_SYSVAR(rollback_on_timeout),
   MYSQL_SYSVAR(stats_on_metadata),
-  MYSQL_SYSVAR(use_adaptive_hash_indexes),
+  MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(status_file),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
