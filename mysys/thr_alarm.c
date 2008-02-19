@@ -632,7 +632,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm)
 }
 
 
-bool thr_got_alarm(thr_alarm_t *alrm_ptr)
+my_bool thr_got_alarm(thr_alarm_t *alrm_ptr)
 {
   thr_alarm_t alrm= *alrm_ptr;
   MSG msg;
