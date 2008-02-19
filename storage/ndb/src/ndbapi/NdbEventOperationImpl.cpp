@@ -52,7 +52,7 @@ static Gci_container_pod g_empty_gci_container;
 static void
 print_std(const SubTableData * sdata, LinearSectionPtr ptr[3])
 {
-  printf("addr=%p gci{hi/lo}hi=%d/%d op=%d\n", (void*)sdata,
+  printf("addr=%p gci{hi/lo}hi=%u/%u op=%d\n", (void*)sdata,
          sdata->gci_hi, sdata->gci_lo,
 	 SubTableData::getOperation(sdata->requestInfo));
   for (int i = 0; i <= 2; i++) {
@@ -2468,8 +2468,8 @@ NdbEventBuffer::alloc_data()
     {
 #ifdef VM_TRACE
       printf("m_latest_command: %s\n", m_latest_command);
-      printf("no free data, m_latestGCI %lld\n",
-             m_latestGCI);
+      printf("no free data, m_latestGCI %u/%u\n",
+             (Uint32)(m_latestGCI << 32), (Uint32)m_latestGCI);
       printf("m_free_data_count %d\n", m_free_data_count);
       printf("m_available_data_count %d first gci{hi/lo} %u/%u last gci{hi/lo} %u/%u\n",
              m_available_data.m_count,
@@ -3106,8 +3106,8 @@ void
 EventBufData_list::move_gci_ops(EventBufData_list *list, Uint64 gci)
 {
   DBUG_ENTER_EVENT("EventBufData_list::move_gci_ops");
-  DBUG_PRINT_EVENT("info", ("this: %p  list: %p  gci: %llu",
-                            this, list, gci));
+  DBUG_PRINT_EVENT("info", ("this: %p  list: %p  gci: %u/%u",
+                            this, list, (Uint32)(gci >> 32), (Uint32)gci));
   assert(!m_is_not_multi_list);
   if (!list->m_is_not_multi_list)
   {
