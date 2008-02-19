@@ -237,5 +237,11 @@ insert into t1 values (-1), (-2);
 select min(a) from t1 group by inet_ntoa(a);
 drop table t1;
 
+#
+# BUG#34289 - Incorrect NAME_CONST substitution in stored procedures breaks
+# replication
+#
+SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
+
 --echo End of 5.0 tests
 
