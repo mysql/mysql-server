@@ -151,6 +151,11 @@ int main(int argc __attribute__((unused)), char *argv[])
 
   MY_INIT(argv[0]);
 
+  if (my_set_max_open_files(100) < 100)
+  {
+    fprintf(stderr, "can't allocate 100 file descriptors\n");
+    exit(1);
+  }
   bzero(&pagecache, sizeof(pagecache));
   maria_data_root= (char *)".";
   if (maria_log_remove())

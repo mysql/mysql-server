@@ -25,7 +25,7 @@
 #include <my_sys.h>
 #include <my_pthread.h>
 
-static bool libmysql_inited=0;
+static my_bool libmysql_inited=0;
 
 void libmysql_init(void)
 {
