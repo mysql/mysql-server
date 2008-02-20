@@ -1821,6 +1821,23 @@ execute stmt using @a;
 show create table t1;
 drop table t1;
 
+#
+# Bug#33798: prepared statements improperly handle large unsigned ints
+#
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (a bigint unsigned, b bigint(20) unsigned);
+prepare stmt from "insert into t1 values (?,?)";
+set @a= 9999999999999999;
+set @b= 14632475938453979136;
+insert into t1 values (@a, @b);
+select * from t1 where a = @a and b = @b;
+execute stmt using @a, @b;
+select * from t1 where a = @a and b = @b;
+deallocate prepare stmt;
+drop table t1;
+
 --echo End of 5.0 tests.
 
 #
