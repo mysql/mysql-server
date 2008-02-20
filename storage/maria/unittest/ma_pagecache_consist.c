@@ -102,20 +102,26 @@ static uint get_len(uint limit)
 }
 
 
-/* check page consistency */
+/*
+  Check page's consistency: layout is
+  4 bytes: number 'num' of records in this page, then num occurences of
+  { 4 bytes: record's length 'len'; then 4 bytes unchecked ('tag') then
+  'len' bytes each equal to the record's sequential number in this page,
+  modulo 256 }, then zeroes.
+ */
 uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
                 int tag)
 {
   uint end= sizeof(uint);
-  uint num= *((uint *)buff);
+  uint num= uint4korr(buff);
   uint i;
   DBUG_ENTER("check_page");
 
   for (i= 0; i < num; i++)
   {
-    uint len= *((uint *)(buff + end));
+    uint len= uint4korr(buff + end);
     uint j;
-    end+= sizeof(uint) + sizeof(uint);
+    end+= 4 + 4;
     if (len + end > TEST_PAGE_SIZE)
     {
       diag("incorrect field header #%u by offset %lu\n", i, offset + end);
@@ -169,17 +175,18 @@ err:
 void put_rec(uchar *buff, uint end, uint len, uint tag)
 {
   uint i;
-  uint num= *((uint *)buff);
+  uint num;
+  num= uint4korr(buff);
   if (!len)
     len= 1;
-  if (end + sizeof(uint)*2 + len > TEST_PAGE_SIZE)
+  if (end + 4*2 + len > TEST_PAGE_SIZE)
     return;
-  *((uint *)(buff + end))= len;
-  end+=  sizeof(uint);
-  *((uint *)(buff + end))= tag;
-  end+=  sizeof(uint);
+  int4store(buff + end, len);
+  end+=  4;
+  int4store(buff + end, tag);
+  end+=  4;
   num++;
-  *((uint *)buff)= num;
+  int4store(buff, num);
   for (i= end; i < (len + end); i++)
   {
     buff[i]= (uchar) num % 256;
@@ -276,7 +283,7 @@ static void *test_thread_reader(void *arg)
 
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
-  ok(1, "reader%d: done\n", param);
+  ok(1, "reader%d: done", param);
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -297,7 +304,7 @@ static void *test_thread_writer(void *arg)
 
   DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
   pthread_mutex_lock(&LOCK_thread_count);
-  ok(1, "writer%d: done\n", param);
+  ok(1, "writer%d: done", param);
   thread_count--;
   VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
   pthread_mutex_unlock(&LOCK_thread_count);

@@ -84,6 +84,11 @@ typedef struct st_translog_file
 /* log write buffer descriptor */
 struct st_translog_buffer
 {
+  /*
+    Cache for current log. Comes first to be aligned for bmove512() in
+    pagecache_inject()
+  */
+  uchar buffer[TRANSLOG_WRITE_BUFFER];
   LSN last_lsn;
   /* This buffer offset in the file */
   TRANSLOG_ADDRESS offset;
@@ -148,8 +153,6 @@ struct st_translog_buffer
     With file and offset it allow detect buffer changes
   */
   uint8 ver;
-  /* Cache for current log. */
-  uchar buffer[TRANSLOG_WRITE_BUFFER];
 };
 
 

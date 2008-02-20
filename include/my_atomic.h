@@ -184,19 +184,19 @@ STATIC_INLINE void my_atomic_store ## S(                        \
 #else /* no inline functions */
 
 #define make_atomic_add(S)                                      \
-extern int ## S my_atomic_add ## S(Uv_ ## S, U_ ## S);
+extern int ## S my_atomic_add ## S(Uv_ ## S U_a, U_ ## S U_v);
 
 #define make_atomic_fas(S)                                      \
-extern int ## S my_atomic_fas ## S(Uv_ ## S, U_ ## S);
+extern int ## S my_atomic_fas ## S(Uv_ ## S U_a, U_ ## S U_v);
 
 #define make_atomic_cas(S)                                      \
-extern int my_atomic_cas ## S(Uv_ ## S, Uv_ ## S, U_ ## S);
+extern int my_atomic_cas ## S(Uv_ ## S U_a, Uv_ ## S U_cmp, U_ ## S U_set);
 
 #define make_atomic_load(S)                                     \
-extern int ## S my_atomic_load ## S(Uv_ ## S);
+extern int ## S my_atomic_load ## S(Uv_ ## S U_a);
 
 #define make_atomic_store(S)                                    \
-extern void my_atomic_store ## S(Uv_ ## S, U_ ## S);
+extern void my_atomic_store ## S(Uv_ ## S U_a, U_ ## S U_v);
 
 #endif
 
