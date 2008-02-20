@@ -1507,6 +1507,9 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
+#if !defined(DBUG_OFF)
+  int simulate_error= 0;
+#endif
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
@@ -1526,10 +1529,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_IO););
+  DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_SQL););
+#if !defined(DBUG_OFF)
+  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
+#else
   if (init_thr_lock() || thd->store_globals())
+#endif
   {
     thd->cleanup();
-    delete thd;
     DBUG_RETURN(-1);
   }
   lex_start(thd);
@@ -2229,6 +2239,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  mi->io_thd = thd;
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
@@ -2239,7 +2250,6 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  mi->io_thd = thd;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2530,9 +2540,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->thread_stack = (char*)&thd; // remember where our stack is
-
+  rli->sql_thd= thd;
+  
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
+  rli->slave_running = 1;
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
@@ -2547,7 +2559,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
-  rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -2560,7 +2571,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     start receiving data so we realize we are not caught up and
     Seconds_Behind_Master grows. No big deal.
   */
-  rli->slave_running = 1;
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
   pthread_cond_broadcast(&rli->start_cond);
