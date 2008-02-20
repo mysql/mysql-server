@@ -1871,7 +1871,7 @@ errorInjectBufferOverflow(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if (restarter.insertErrorInAllNodes(13034) != 0)
+  if (restarter.insertErrorInAllNodes(13036) != 0)
   {
     result = NDBT_FAILED;
     goto cleanup;
@@ -1931,7 +1931,7 @@ errorInjectStalling(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
-  if (restarter.insertErrorInAllNodes(13035) != 0)
+  if (restarter.insertErrorInAllNodes(13037) != 0)
   {
     result = NDBT_FAILED;
     goto cleanup;
@@ -2094,14 +2094,14 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
     13013,
     13019,
     13020,
-    13036,
+    13041,
     0,
   };
 
   int nr_codes[] = {
-    13034,
-    13035,
-    13037,
+    13039,
+    13040,
+    13042,
     0
   };
 
@@ -2152,6 +2152,8 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
       
       if (restarter.startNodes(&nodeId, 1))
         return NDBT_FAILED;
+
+      NdbSleep_SecSleep(3);
       
       if (restarter.waitNodesNoStart(&nodeId, 1))
         return NDBT_FAILED;
