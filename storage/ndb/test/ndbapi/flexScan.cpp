@@ -1330,7 +1330,6 @@ static int scanUpdateRows(Ndb* pNdb,
       break;
     } // if
 
-    MyOperation->interpret_exit_ok();
     // Fetch all attributes
     for (int attrCount = 0; attrCount < tNoOfAttributes-1; attrCount++) {
       tTmp = MyOperation->
@@ -1435,7 +1434,6 @@ static int scanDeleteRows(Ndb* pNdb, int* readValue)
       break;
     } // if
 
-    MyOperation->interpret_exit_ok();
     for (int attrCount = 0; attrCount < tNoOfAttributes-1; attrCount++) {
       tTmp = MyOperation->
 	getValue((char*)attrName[attrCount+1],

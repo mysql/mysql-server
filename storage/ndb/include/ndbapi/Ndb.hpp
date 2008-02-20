@@ -32,6 +32,7 @@
    - NdbIndexScanOperation represents an operation performing a scan using
      an ordered index,
    - NdbRecAttr represents an attribute value
+   - NdbRecord represents a memory layout of a row data for a particular table
    - NdbDictionary represents meta information about tables and attributes.
      
    In addition, the NDB API defines a structure NdbError, which contains the 
@@ -84,6 +85,13 @@
        - NdbTransaction::getNdbScanOperation()
        - NdbTransaction::getNdbIndexOperation()
        - NdbTransaction::getNdbIndexScanOperation()
+       - NdbTransaction::readTuple()
+       - NdbTransaction::insertTuple()
+       - NdbTransaction::updateTuple()
+       - NdbTransaction::writeTuple()
+       - NdbTransaction::deleteTuple()
+       - NdbTransaction::scanTable()
+       - NdbTransaction::scanIndex()
        along with the appropriate methods of the respective NdbOperation class 
        (or possibly one or more of its subclasses).
        Note that the transaction has still not yet been sent to the NDB kernel.
@@ -765,7 +773,7 @@
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
 /**
    <h3>Interpreted Programs</h3>
-   Interpretation programs are executed in a
+   Interpreted programs are executed in a
    register-based virtual machine.
    The virtual machine has eight 64 bit registers numbered 0-7.
    Each register contains type information which is used both
@@ -819,7 +827,7 @@
 
    The virtual machine executes subroutines using a stack for
    its operation.
-   The stack allows for up to 24 subroutine calls in succession.
+   The stack allows for up to 32 subroutine calls in succession.
    Deeper subroutine nesting will cause an abort of the transaction.
 
    All subroutines starts with the instruction
