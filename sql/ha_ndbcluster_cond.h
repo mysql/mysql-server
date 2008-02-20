@@ -466,9 +466,11 @@ public:
                         TABLE *table, const NdbDictionary::Table *ndb_table);
   void cond_pop();
   void cond_clear();
-  int generate_scan_filter(NdbScanOperation* op);
+  int generate_scan_filter(NdbInterpretedCode* code, 
+                           NdbScanOperation::ScanOptions* options);
   int generate_scan_filter_from_cond(NdbScanFilter& filter);
-  int generate_scan_filter_from_key(NdbScanOperation* op,
+  int generate_scan_filter_from_key(NdbInterpretedCode* code,
+                                    NdbScanOperation::ScanOptions* options,
                                     const KEY* key_info, 
                                     const uchar *key, 
                                     uint key_len,

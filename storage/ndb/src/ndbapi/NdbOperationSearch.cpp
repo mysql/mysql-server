@@ -562,28 +562,18 @@ NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
 void
 NdbOperation::setPartitionId(Uint32 value)
 {
+  if (theStatus == UseNdbRecord)
+  {
+    /* Method not allowed for NdbRecord, use OperationOptions or 
+       ScanOptions structure instead */
+    setErrorCodeAbort(4515);
+    return; // TODO : Consider adding int rc for error
+  }
+
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
   DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",
                        theDistributionKey));
-  /*
-    NdbBlob needs the distribution key to set it correctly on the injected
-    operations.
-    Unfortunately, NdbBlob currently requires that distribution key be set
-    _before_ calling getBlobHandle() (and not changed afterwards). This is
-    impossible for NdbRecord operations, which do getBlobHandle() before the
-    operation is even returned to the caller.
-
-    This hack allows things to work in a few more cases, however it is still
-    necessary to set the distribution key before doing any blob operations
-    (and not change it after).
-  */
-  NdbBlob *blob = theBlobList;
-  while (blob != NULL)
-  {
-    blob->thePartitionId = value;
-    blob= blob->next();
-  }
 }
 
 Uint32

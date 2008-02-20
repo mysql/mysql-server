@@ -98,11 +98,15 @@ NdbOperation::~NdbOperation( )
  *                 on connection set an error status.
  *****************************************************************************/
 void
-NdbOperation::setErrorCode(int anErrorCode)
+NdbOperation::setErrorCode(int anErrorCode) const
 {
-  theError.code = anErrorCode;
+  /* Setting an error is considered to be a const 
+     operation, hence the nasty cast here */
+  NdbOperation *pnonConstThis=const_cast<NdbOperation *>(this);
+
+  pnonConstThis->theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
-  theNdbCon->theErrorOperation = this;
+  theNdbCon->theErrorOperation = pnonConstThis;
   if (!(m_abortOption == AO_IgnoreError && m_noErrorPropagation))
     theNdbCon->setOperationErrorCode(anErrorCode);
 }
@@ -114,11 +118,15 @@ NdbOperation::setErrorCode(int anErrorCode)
  *                 an error status.
  *****************************************************************************/
 void
-NdbOperation::setErrorCodeAbort(int anErrorCode)
+NdbOperation::setErrorCodeAbort(int anErrorCode) const
 {
-  theError.code = anErrorCode;
+  /* Setting an error is considered to be a const 
+     operation, hence the nasty cast here */
+  NdbOperation *pnonConstThis=const_cast<NdbOperation *>(this);
+
+  pnonConstThis->theError.code = anErrorCode;
   theNdbCon->theErrorLine = theErrorLine;
-  theNdbCon->theErrorOperation = this;
+  theNdbCon->theErrorOperation = pnonConstThis;
   // ignore m_noErrorPropagation
   theNdbCon->setOperationErrorCodeAbort(anErrorCode);
 }
@@ -170,6 +178,8 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
   m_noErrorPropagation = false;
   m_no_disk_flag = 1;
   m_interpreted_code = NULL;
+  m_extraSetValues = NULL;
+  m_numExtraSetValues = 0;
   m_use_any_value = 0;
 
   tSignal = theNdb->getSignal();
@@ -294,7 +304,12 @@ NdbOperation::getValue(Uint32 anAttrId, char* aValue)
 NdbRecAttr*
 NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
 {
-  return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue);
+  if (theStatus != UseNdbRecord)
+    return getValue_impl(&NdbColumnImpl::getImpl(*col), aValue);
+  
+  setErrorCodeAbort(4508);
+  /* GetValue not allowed for NdbRecord defined operation */
+  return NULL;
 }
 
 int
@@ -351,6 +366,37 @@ NdbOperation::getBlobHandle(Uint32 anAttrId)
     return getBlobHandle(theNdbCon, col);
   }
 }
+
+NdbBlob*
+NdbOperation::getBlobHandle(const char* anAttrName) const
+{
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrName);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
+  else
+  {
+    return getBlobHandle(theNdbCon, col);
+  }
+}
+
+NdbBlob*
+NdbOperation::getBlobHandle(Uint32 anAttrId) const
+{
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrId);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return NULL;
+  }
+  else
+  {
+    return getBlobHandle(theNdbCon, col);
+  }
+}
+
 
 int
 NdbOperation::incValue(const char* anAttrName, Uint32 aValue)

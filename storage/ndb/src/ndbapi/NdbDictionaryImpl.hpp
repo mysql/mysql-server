@@ -92,6 +92,12 @@ public:
   bool m_autoIncrement;
   Uint64 m_autoIncrementInitialValue;
   BaseString m_defaultValue;
+  /*
+   * Table holding the blob parts.
+   *
+   * Note that if getPartSize() is 0, there is no parts table, so
+   * m_blobTable==NULL.
+   */
   NdbTableImpl * m_blobTable;
 
   /**
@@ -104,6 +110,9 @@ public:
   Uint32 m_storageType;         // NDB_STORAGETYPE_MEMORY or _DISK
                                 // for blob, storage type of NDB$DATA
   bool m_dynamic;
+
+  bool m_indexSourced;          // Computed when column defined, or when
+                                // table schema read.  Not stored in kernel 
 
   /*
    * NdbTableImpl: if m_pk, 0-based index of key in m_attrId order
@@ -238,6 +247,20 @@ public:
   Uint8 m_noOfBlobs;
   Uint8 m_noOfDiskColumns;
   Uint8 m_replicaCount;
+
+  /**
+   * Default NdbRecord for this table or index
+   * Currently used by old-Api scans to use NdbRecord API internally.
+   */
+  NdbRecord *m_ndbrecord;
+
+  /**
+   * Bitmask describing PK column positions for this table
+   * Empty bitmask for this table
+   * Currently used by old-Api scans to use NdbRecord API internally.
+   */
+  const unsigned char * m_pkMask;
+  const unsigned char * m_emptyMask;
 
   /**
    * Equality/assign
@@ -790,6 +813,11 @@ public:
   static NdbDictionaryImpl & getImpl(NdbDictionary::Dictionary & t);
   static const NdbDictionaryImpl & getImpl(const NdbDictionary::Dictionary &t);
   NdbDictionary::Dictionary * m_facade;
+  int initialiseColumnData(bool isIndex,
+                           Uint32 flags,
+                           const NdbDictionary::RecordSpecification *recSpec,
+                           Uint32 colNum,
+                           NdbRecord *rec);
 
   NdbDictInterface m_receiver;
   Ndb & m_ndb;
@@ -802,14 +830,15 @@ public:
                               const BaseString& internalName);
 
 
+  int createDefaultNdbRecord(NdbTableImpl* tableOrIndex,
+                             const NdbTableImpl* baseTableForIndex);
+
   NdbRecord *createRecord(const NdbTableImpl *table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
                           Uint32 elemSize,
-                          Uint32 flags,
-                          const NdbTableImpl *base_table= 0);
+                          Uint32 flags);
   NdbRecord *createRecord(const NdbIndexImpl *index,
-                          const NdbTableImpl *base_table,
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
                           Uint32 elemSize,
@@ -1082,7 +1111,11 @@ public:
   {}
   int init(NdbTableImpl &tab) const
   {
-    return m_dict->getBlobTables(tab);
+    int res= m_dict->getBlobTables(tab);
+    if (res == 0)
+      res= m_dict->createDefaultNdbRecord(&tab, NULL);
+    
+    return res;
   }
 };
 
@@ -1171,7 +1204,9 @@ public:
           !idx->m_internalName.assign(m_name))
         DBUG_RETURN(4000);
       tab.m_index = idx;
-      DBUG_RETURN(0);
+
+      /* Finally, create default NdbRecord for this index */
+      DBUG_RETURN(m_dict->createDefaultNdbRecord(&tab, &m_prim));
     }
     DBUG_RETURN(1);
   }
