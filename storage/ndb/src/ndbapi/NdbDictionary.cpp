@@ -313,6 +313,11 @@ NdbDictionary::Column::getDynamic() const {
   return m_impl.m_dynamic;
 }
 
+bool
+NdbDictionary::Column::getIndexSourced() const {
+  return m_impl.m_indexSourced;
+}
+
 /*****************************************************************
  * Table facade
  */
@@ -874,6 +879,9 @@ NdbDictionary::Index::addColumn(const Column & c){
     return -1;
   }
   (* col) = NdbColumnImpl::getImpl(c);
+
+  col->m_indexSourced=true;
+
   if (m_impl.m_columns.push_back(col))
   {
     return -1;
@@ -1699,32 +1707,12 @@ NdbDictionary::Dictionary::createRecord(const Table *table,
 
 NdbRecord *
 NdbDictionary::Dictionary::createRecord(const Index *index,
-                                        const Table *table,
                                         const RecordSpecification *recSpec,
                                         Uint32 length,
                                         Uint32 elemSize,
                                         Uint32 flags)
 {
   return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
-                             &NdbTableImpl::getImpl(*table),
-                             recSpec,
-                             length,
-                             elemSize,
-                             flags);
-}
-
-NdbRecord *
-NdbDictionary::Dictionary::createRecord(const Index *index,
-                                        const RecordSpecification *recSpec,
-                                        Uint32 length,
-                                        Uint32 elemSize,
-                                        Uint32 flags)
-{
-  const NdbDictionary::Table *table= getTable(index->getTable());
-  if (!table)
-    return NULL;
-  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
-                             &NdbTableImpl::getImpl(*table),
                              recSpec,
                              length,
                              elemSize,
