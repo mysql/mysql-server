@@ -500,7 +500,7 @@ Suma::execSUMA_START_ME_CONF(Signal* signal)
     ord->senderData = 0;
     ord->senderRef = reference();
     sendSignal(calcDictBlockRef(c_masterNodeId),
-               GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLengthSuma, JBB);
+               GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLength, JBB);
   }
   c_startup.m_restart_server_node_id= 0;
 }
@@ -570,17 +570,18 @@ Suma::execREAD_NODESCONF(Signal* signal){
   
   c_masterNodeId = conf->masterNodeId;
   
-  c_startup.m_restart_server_node_id = 0;    
   getNodeGroupMembers(signal);
   if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
       m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
   {
     jam();
     
-    send_start_me_req(signal);
+    send_dict_lock_req(signal);
+
     return;
   }
 
+  c_startup.m_restart_server_node_id = 0;    
   sendSTTORRY(signal);
 }
 
