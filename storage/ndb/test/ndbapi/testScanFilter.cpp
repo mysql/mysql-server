@@ -683,7 +683,11 @@ NdbScanFilter * call_ndbapi(char *str, NdbTransaction *transaction,
     if(check_end(*p))
     {
       if(scanfilter->end()) 
+      {
+        NdbError err= scanfilter->getNdbError();
+        printf("Problem closing ScanFilter= %d\n", err.code);
         ERR_EXIT(transaction, "filter end() failed");
+      }
     }
   }
   
@@ -820,13 +824,71 @@ int runScanRandomFilterTest(NDBT_Context* ctx, NDBT_Step* step)
 {
   char random_str[MAX_STR_LEN];
   Ndb *myNdb = GETNDB(step);
-  bool res = true;
 
   for(int i = 0; i < TEST_NUM; i++)
   {
     get_rand_op_str_compound(random_str);
     if( !compare_cal_ndb(random_str, myNdb)) 
       return NDBT_FAILED;
+  }
+
+  return NDBT_OK;
+}
+
+int runMaxScanFilterSize(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* This testcase uses the ScanFilter methods to build a large
+   * scanFilter, checking that ScanFilter building fails
+   * at the expected point, with the correct error message
+   */
+  const Uint32 MaxLength= NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
+  
+  const Uint32 InstructionWordsPerEq= 3;
+
+  const Uint32 MaxEqsInScanFilter= MaxLength/InstructionWordsPerEq;
+
+  Ndb *myNdb = GETNDB(step);
+  const NdbDictionary::Dictionary* myDict= myNdb->getDictionary();
+  const NdbDictionary::Table *myTable= myDict->getTable(TABLE_NAME);
+  if(myTable == NULL) 
+    APIERROR(myDict->getNdbError());
+
+  NdbInterpretedCode ic(myTable);
+  
+  NdbScanFilter sf(&ic);
+
+  if (sf.begin()) // And group
+  {
+    ndbout << "Bad rc from begin\n";
+    ndbout << sf.getNdbError() << "\n";
+    return NDBT_FAILED;
+  }
+
+  Uint32 loop=0;
+
+  for (;loop < MaxEqsInScanFilter; loop++)
+  {
+    if (sf.eq(0u, 10u))
+    {
+      ndbout << "Bad rc from eq at loop " << loop << "\n";
+      ndbout << sf.getNdbError() << "\n";
+      return NDBT_FAILED;
+    }
+  }
+
+  if (! sf.eq(0u, 10u))
+  {
+    ndbout << "Expected ScanFilter instruction addition to fail after"
+           << MaxEqsInScanFilter << "iterations, but it didn't\n";
+    return NDBT_FAILED;
+  }
+
+  NdbError err=sf.getNdbError();
+
+  if (err.code != 4294)
+  {
+    ndbout << "Expected to get error code 4294, but instead got " << err.code << "\n";
+    return NDBT_FAILED;
   }
 
   return NDBT_OK;
@@ -840,6 +902,7 @@ TESTCASE(TEST_NAME,
   INITIALIZER(runCreateTables);
   INITIALIZER(runPopulate);
   INITIALIZER(runScanRandomFilterTest);
+  INITIALIZER(runMaxScanFilterSize);
   FINALIZER(runDropTables);
 }
 
