@@ -43,15 +43,12 @@ use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Temp qw / tempdir /;
+use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
 use mtr_cases;
 use mtr_report;
-
-our $is_win32_perl=  ($^O eq "MSWin32"); # ActiveState Win32 Perl
-our $is_cygwin=      ($^O eq "cygwin");  # Cygwin Perl
-our $is_win32=       ($is_win32_perl or $is_cygwin);
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
@@ -400,12 +397,11 @@ sub command_line_setup {
   }
 
   # Find the absolute path to the test directory
-  $glob_mysql_test_dir=  cwd();
-  if ( $is_cygwin )
+  $glob_mysql_test_dir= cwd();
+  if (IS_CYGWIN)
   {
-    # Windows programs like 'mysqld' needs Windows paths
-    $glob_mysql_test_dir= `cygpath -m "$glob_mysql_test_dir"`;
-    chomp($glob_mysql_test_dir);
+    # Use mixed path format i.e c:/path/to/
+    $glob_mysql_test_dir= mixed_path($glob_mysql_test_dir);
   }
 
   # In most cases, the base directory we find everything relative to,
@@ -568,7 +564,7 @@ sub command_line_setup {
     # Version 4.1 and --vardir was specified
     # Only supported as a symlink from var/
     # by setting up $opt_mem that symlink will be created
-    if ( ! $is_win32 )
+    if ( ! IS_WINDOWS )
     {
       # Only platforms that have native symlinks can use the vardir trick
       $opt_mem= $opt_vardir;
@@ -584,7 +580,7 @@ sub command_line_setup {
 
   # We make the path absolute, as the server will do a chdir() before usage
   unless ( $opt_vardir =~ m,^/, or
-           ($is_win32 and $opt_vardir =~ m,^[a-z]:/,i) )
+           (IS_WINDOWS and $opt_vardir =~ m,^[a-z]:/,i) )
   {
     # Make absolute path, relative test dir
     $opt_vardir= "$glob_mysql_test_dir/$opt_vardir";
@@ -620,16 +616,15 @@ sub command_line_setup {
   if ( $opt_embedded_server )
   {
     $opt_embedded_server= 1;
-    if ( $is_win32 )
+    if ( IS_WINDOWS )
     {
       # Add the location for libmysqld.dll to the path.
       my $separator= ";";
       my $lib_mysqld=
         mtr_path_exists(vs_config_dirs('libmysqld',''));
-      if ( $is_cygwin )
+      if ( IS_CYGWIN )
       {
-	$lib_mysqld= `cygpath "$lib_mysqld"`;
-	chomp($lib_mysqld);
+	$lib_mysqld= posix_path($lib_mysqld);
 	$separator= ":";
       }
       $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
@@ -802,7 +797,17 @@ sub collect_mysqld_features {
   #
   # --datadir must exist, mysqld will chdir into it
   #
-  my $list= `$exe_mysqld --no-defaults --datadir=$tmpdir --language=$path_language --skip-grant-tables --verbose --help`;
+  my $args;
+  mtr_init_args(\$args);
+  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--datadir=%s", mixed_path($tmpdir));
+  mtr_add_arg($args, "--language=%s", $path_language);
+  mtr_add_arg($args, "--skip-grant-tables");
+  mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--help");
+
+  my $cmd= join(" ", $exe_mysqld, @$args);
+  my $list= `$cmd`;
 
   foreach my $line (split('\n', $list))
   {
@@ -964,7 +969,7 @@ sub client_debug_arg($$) {
 
 sub mysql_fix_arguments () {
 
-  return "" if ( $is_win32 );
+  return "" if ( IS_WINDOWS );
 
   my $exe=
     mtr_script_exists("$basedir/scripts/mysql_fix_privilege_tables",
@@ -1202,7 +1207,7 @@ sub environment_setup {
   $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_UPGRADE'}=            client_arguments("mysql_upgrade");
-  $ENV{'MYSQLADMIN'}=               mtr_native_path($exe_mysqladmin);
+  $ENV{'MYSQLADMIN'}=               native_path($exe_mysqladmin);
   $ENV{'MYSQL_CLIENT_TEST'}=        mysql_client_test_arguments();
   $ENV{'MYSQL_FIX_SYSTEM_TABLES'}=  mysql_fix_arguments();
   $ENV{'EXE_MYSQL'}=                $exe_mysql;
@@ -1214,7 +1219,7 @@ sub environment_setup {
   my $exe_bug25714=
       mtr_exe_maybe_exists(vs_config_dirs('tests', 'bug25714'),
                            "$basedir/tests/bug25714");
-  $ENV{'MYSQL_BUG25714'}=  mtr_native_path($exe_bug25714);
+  $ENV{'MYSQL_BUG25714'}=  native_path($exe_bug25714);
 
   # ----------------------------------------------------
   # mysql_fix_privilege_tables.sql
@@ -1231,7 +1236,7 @@ sub environment_setup {
     mtr_exe_exists(vs_config_dirs('extra', 'my_print_defaults'),
 		   "$path_client_bindir/my_print_defaults",
 		   "$basedir/extra/my_print_defaults");
-  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= mtr_native_path($exe_my_print_defaults);
+  $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
   # ----------------------------------------------------
   # perror
@@ -1239,7 +1244,7 @@ sub environment_setup {
   my $exe_perror= mtr_exe_exists(vs_config_dirs('extra', 'perror'),
 				 "$basedir/extra/perror",
 				 "$path_client_bindir/perror");
-  $ENV{'MY_PERROR'}= mtr_native_path($exe_perror);
+  $ENV{'MY_PERROR'}= native_path($exe_perror);
 
   # Create an environment variable to make it possible
   # to detect that valgrind is being used from test cases
@@ -1491,7 +1496,7 @@ sub vs_config_dirs ($$) {
   $exe = "" if not defined $exe;
 
   # Don't look in these dirs when not on windows
-  return () unless $is_win32;
+  return () unless IS_WINDOWS;
 
   if ($opt_vs_config)
   {
@@ -2614,7 +2619,7 @@ sub mysqld_arguments ($$$) {
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
-  if (!$is_win32 and $euid == 0 and
+  if (!IS_WINDOWS and $euid == 0 and
       (grep(/^--user/, @$extra_opts)) == 0) {
     mtr_add_arg($args, "%s--user=root", $prefix);
   }
@@ -2672,7 +2677,7 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
-  if ( $is_win32 ){
+  if ( IS_WINDOWS ){
     mtr_add_arg($args, "%s--log-error=%s", $prefix, $mysqld->{"path_myerr"});
   }
 
@@ -3259,8 +3264,7 @@ sub start_mysqltest ($) {
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
   # ----------------------------------------------------------------------
-  $ENV{'MYSQL_TEST'}=
-    mtr_native_path($exe_mysqltest) . " " . join(" ", @$args);
+  $ENV{'MYSQL_TEST'}= mtr_args2str($exe_mysqltest, @$args);
 
   # ----------------------------------------------------------------------
   # Add arguments that should not go into the MYSQL_TEST env var
