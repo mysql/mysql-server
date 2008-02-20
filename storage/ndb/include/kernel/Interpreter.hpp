@@ -69,7 +69,8 @@ public:
   STATIC_CONST( BRANCH_ATTR_OP_ARG    = 23 );
   STATIC_CONST( BRANCH_ATTR_EQ_NULL   = 24 );
   STATIC_CONST( BRANCH_ATTR_NE_NULL   = 25 );
-  
+
+
   /**
    * Macros for creating code
    */
@@ -137,6 +138,24 @@ public:
   static Uint32 getReg1(Uint32 op);
   static Uint32 getReg2(Uint32 op);
   static Uint32 getReg3(Uint32 op);
+  static Uint32 getLabel(Uint32 op);
+
+  /**
+   * Instruction pre-processing required.
+   */
+  enum InstructionPreProcessing
+  {
+    NONE,
+    LABEL_ADDRESS_REPLACEMENT,
+    SUB_ADDRESS_REPLACEMENT
+  };
+
+  /* This method is used to determine what sort of 
+   * instruction processing is required, and the address
+   * of the next instruction in the stream
+   */
+  static Uint32 *getInstructionPreProcessingInfo(Uint32 *op,
+                                                 InstructionPreProcessing& processing);
 };
 
 inline
@@ -284,6 +303,78 @@ inline
 Uint32
 Interpreter::getReg3(Uint32 op){
   return (op >> 16) & 0x7;
+}
+
+inline
+Uint32
+Interpreter::getLabel(Uint32 op){
+  return (op >> 16) & 0xffff;
+}
+
+inline
+Uint32*
+Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
+                                             InstructionPreProcessing& processing )
+{
+  /* Given an instruction, get a pointer to the 
+   * next instruction in the stream.
+   * Returns NULL on error.
+   */
+  processing= NONE;
+  Uint32 opCode= getOpCode(*op);
+  
+  switch( opCode )
+  {
+  case READ_ATTR_INTO_REG:
+  case WRITE_ATTR_FROM_REG:
+  case LOAD_CONST_NULL:
+  case LOAD_CONST16:
+    return op + 1;
+  case LOAD_CONST32:
+    return op + 2;
+  case LOAD_CONST64:
+    return op + 3;
+  case ADD_REG_REG:
+  case SUB_REG_REG:
+    return op + 1;
+  case BRANCH:
+  case BRANCH_REG_EQ_NULL:
+  case BRANCH_REG_NE_NULL:
+  case BRANCH_EQ_REG_REG:
+  case BRANCH_NE_REG_REG:
+  case BRANCH_LT_REG_REG:
+  case BRANCH_LE_REG_REG:
+  case BRANCH_GT_REG_REG:
+  case BRANCH_GE_REG_REG:
+    processing= LABEL_ADDRESS_REPLACEMENT;
+    return op + 1;
+  case BRANCH_ATTR_OP_ARG:
+  {
+    /* We need to take the length from the second word of the
+     * branch instruction so we can skip over the inline const
+     * comparison data.
+     */
+    processing= LABEL_ADDRESS_REPLACEMENT;
+    Uint32 byteLength= getBranchCol_Len(*(op+1));
+    Uint32 wordLength= (byteLength + 3) >> 2;
+    return op+2+wordLength;
+  }
+  case BRANCH_ATTR_EQ_NULL:
+  case BRANCH_ATTR_NE_NULL:
+    processing= LABEL_ADDRESS_REPLACEMENT;
+    return op+2;
+  case EXIT_OK:
+  case EXIT_OK_LAST:
+  case EXIT_REFUSE:
+    return op+1;
+  case CALL:
+    processing= SUB_ADDRESS_REPLACEMENT;
+  case RETURN:
+    return op+1;
+
+  default:
+    return NULL;
+  }
 }
 
 #endif

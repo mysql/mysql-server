@@ -17,71 +17,208 @@
 #include "Interpreter.hpp"
 #include "NdbDictionaryImpl.hpp"
 
+/*
+   ToDo: We should add placeholders to this, so that one can use a single
+   InterpretedCode object to create many operations from different embedded
+   constants. Once we do this, we could add more error checks, as the cost
+   would then not be paid for each operation creation.
+   Suggest that fixed-size constants are replaced inline with latest values
+   using instruction checking prior to send and new 'virtual' instructions
+   which are resolved to real instructions at send time.  This requires a new
+   interface to send parts of code, parts of placeholders and parts of other 
+   words.
+   Var-sized constants can be used via a new branch_attr_op_arg instruction and
+   use of some space in the subroutine section to store the constants.
+   Wait for good use-case for placeholders.  Best currently is conflict detection,
+   but the conflict detection programs are very short, so perhaps it's not
+   worthwhile.
+*/
 
-int NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 Label)
-{
-  /* NOTE: subroutines not supported yet. */
-  /* Store the jump location for backpatching. */
-  if (m_available_length < 2 ||
-      m_instructions_length > 0xffff ||
-      Label > 0xffff)
-    return error();
-  m_number_of_jumps++;
-  m_available_length--;
-  Uint32 pos= m_buffer_length - (m_number_of_labels + m_number_of_jumps);
-  m_buffer[pos]= m_instructions_length | (Label << 16);
-  return add1(instruction);
-}
-
-NdbInterpretedCode::NdbInterpretedCode(Uint32 *buffer, Uint32 buffer_word_size,
-                                       Uint32 num_labels) :
+NdbInterpretedCode::NdbInterpretedCode(const NdbDictionary::Table *table,
+                                       Uint32 *buffer, Uint32 buffer_word_size) :
+  m_table_impl(0),
   m_buffer(buffer),
   m_buffer_length(buffer_word_size),
-  m_number_of_labels(num_labels),
+  m_internal_buffer(0),
+  m_number_of_labels(0),
+  m_number_of_subs(0),
+  m_number_of_calls(0),
+  m_last_meta_pos(m_buffer_length),
   m_instructions_length(0),
+  m_first_sub_instruction_pos(0),
   m_available_length(m_buffer_length),
-  m_number_of_jumps(0),
   m_flags(0)
 {
-  Uint32 i;
-  /*
-    At the end of the buffer we store the address of all labels as they are
-    defined, so that we can back-patch forward jumps later.
-    If the supplied buffer is too small, we cannot fail in the constructor,
-    but all attempts to add instructions will fail due to full buffer.
-  */
-  for (i = 0; i < num_labels && i < buffer_word_size; i++)
+  if (table != NULL)
+    m_table_impl= & NdbTableImpl::getImpl(*table);
+  m_error.code= 0;
+}
+
+NdbInterpretedCode::~NdbInterpretedCode()
+{
+  if (m_internal_buffer != NULL)
   {
-    buffer[buffer_word_size - (i + 1)] = ~(Uint32)0;
-    m_available_length--;
+    delete [] m_internal_buffer;
   }
 }
 
-int
-NdbInterpretedCode::def_label(int tLabelNo)
+
+
+int 
+NdbInterpretedCode::error(Uint32 code)
 {
-  if (tLabelNo < 0 ||
-      (Uint32)tLabelNo >= m_number_of_labels)
-    return error();
-  Uint32 pos= m_buffer_length - (tLabelNo + 1);
-  /* Check label not already defined. */
-  if (m_buffer[pos] != ~(Uint32)0)
-    return error();
-  m_buffer[pos]= m_instructions_length;
+  m_flags|= GotError;
+  m_error.code= code;
+  return -1;
+}
+
+/* Make sure there's space for the number of words
+ * specified between the end of the code and the 
+ * start of the meta information or return false.
+ * This method dynamically doubles the internal buffer
+ * length if the caller did not supply a buffer.
+ */
+bool 
+NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
+{
+  if (likely(m_available_length >= wordsRequired))
+    return true;
+
+  if (m_buffer_length == 0)
+  {
+    /* First dynamic allocation */
+    m_buffer= m_internal_buffer= new Uint32 [ DynamicBufStartWords ];
+    
+    if (m_buffer != NULL)
+    {
+      m_last_meta_pos= m_available_length= m_buffer_length= 
+        DynamicBufStartWords;
+      return true;
+    }
+  }
+  else if (m_internal_buffer != NULL)
+  {
+    /* Dynamically double buffer length */
+    Uint32 newSize= m_buffer_length << 1;
+
+    if (newSize > MaxDynamicBufSize)
+      newSize= MaxDynamicBufSize;
+    
+    if (newSize > m_buffer_length)
+    {
+      Uint32 *newBuf= new Uint32[ newSize ];
+      
+      if (newBuf != NULL)
+      {
+        /* Copy instruction words to start of new buffer */
+        memcpy(newBuf, m_internal_buffer, m_instructions_length << 2);
+        
+        Uint32 metaInfoWords= m_buffer_length - m_last_meta_pos;
+        Uint32 newLastMetaInfoPos= newSize - metaInfoWords;
+        
+        /* Copy metainfo words to end of new buffer */
+        memcpy(&newBuf[ newLastMetaInfoPos ],
+               &m_buffer[ m_last_meta_pos ],
+               metaInfoWords << 2);
+        
+        delete [] m_internal_buffer;
+        
+        m_buffer= m_internal_buffer= newBuf;
+        m_available_length+= (newSize - m_buffer_length);
+        m_buffer_length= newSize;
+        m_last_meta_pos= newLastMetaInfoPos;
+
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+inline int 
+NdbInterpretedCode::add1(Uint32 x1)
+{
+  if (unlikely(! have_space_for(1)))
+    return error(TooManyInstructions);
+  
+  Uint32 current = m_instructions_length;
+  m_buffer[current    ] = x1;
+  m_instructions_length = current + 1;
+  m_available_length--;
+  return 0;
+}
+
+inline int 
+NdbInterpretedCode::add2(Uint32 x1, Uint32 x2)
+{
+  if (unlikely(! have_space_for(2)))
+    return error(TooManyInstructions);
+  Uint32 current = m_instructions_length;
+  m_buffer[current    ] = x1;
+  m_buffer[current + 1] = x2;
+  m_instructions_length = current + 2;
+  m_available_length-= 2;
+  return 0;
+}
+
+inline int 
+NdbInterpretedCode::add3(Uint32 x1, Uint32 x2, Uint32 x3)
+{
+  if (unlikely(! have_space_for(3)))
+    return error(TooManyInstructions);
+  Uint32 current = m_instructions_length;
+  m_buffer[current    ] = x1;
+  m_buffer[current + 1] = x2;
+  m_buffer[current + 2] = x3;
+  m_instructions_length = current + 3;
+  m_available_length-= 3;
+  return 0;
+}
+
+inline int 
+NdbInterpretedCode::addN(Uint32 *data, Uint32 length)
+{
+  if (unlikely(! have_space_for(length)))
+    return error(TooManyInstructions);
+  
+  /* data* may be unaligned, so we do a byte copy
+   * using memcpy
+   */
+  memcpy(&m_buffer[m_instructions_length],
+         data,
+         length << 2);
+
+  m_instructions_length+= length;
+  m_available_length-= length;
+  
+  return 0;
+}
+
+inline int 
+NdbInterpretedCode::addMeta(CodeMetaInfo& info)
+{
+  if (unlikely(! have_space_for(CODEMETAINFO_WORDS)))
+    return error(TooManyInstructions);
+  
+  m_buffer[--m_last_meta_pos]= (Uint32)info.number << 16 | info.type;
+  m_buffer[--m_last_meta_pos]= info.firstInstrPos;
+  
+  m_available_length-= CODEMETAINFO_WORDS;
+  
   return 0;
 }
 
 int
-NdbInterpretedCode::add_reg(Uint32 RegSource1, Uint32 RegSource2,
-                            Uint32 RegDest)
+NdbInterpretedCode::add_reg(Uint32 RegDest, 
+                            Uint32 RegSource1, Uint32 RegSource2)
 {
   return add1(Interpreter::Add(RegDest % MaxReg, RegSource1 % MaxReg,
                                RegSource2 % MaxReg));
 }
 
 int
-NdbInterpretedCode::sub_reg(Uint32 RegSource1, Uint32 RegSource2,
-                            Uint32 RegDest)
+NdbInterpretedCode::sub_reg(Uint32 RegDest,
+                            Uint32 RegSource1, Uint32 RegSource2)
 {
   return add1(Interpreter::Sub(RegDest % MaxReg, RegSource1 % MaxReg,
                                RegSource2 % MaxReg));
@@ -107,6 +244,12 @@ NdbInterpretedCode::load_const_null(Uint32 RegDest)
 }
 
 int
+NdbInterpretedCode::load_const_u16(Uint32 RegDest, Uint32 Constant)
+{
+  return add1(Interpreter::LoadConst16((RegDest % MaxReg), Constant));
+}
+
+int
 NdbInterpretedCode::read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest)
 {
   if (c->m_storageType == NDB_STORAGETYPE_DISK)
@@ -115,20 +258,25 @@ NdbInterpretedCode::read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest)
 }
 
 int
-NdbInterpretedCode::read_attr(const NdbDictionary::Table *table,
-                              Uint32 attrId, Uint32 RegDest)
+NdbInterpretedCode::read_attr(Uint32 RegDest, Uint32 attrId)
 {
-  const NdbTableImpl *t= & NdbTableImpl::getImpl(*table);
-  const NdbColumnImpl *c= t->getColumn(attrId);
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
   if (unlikely(c == NULL))
-    return error();
+    return error(BadAttributeId);
   return read_attr_impl(c, RegDest);
 }
 
 int
-NdbInterpretedCode::read_attr(const NdbDictionary::Column *column,
-                              Uint32 RegDest)
+NdbInterpretedCode::read_attr(Uint32 RegDest, 
+                              const NdbDictionary::Column *column)
 {
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  // TODO : Check column is from the correct table
   return read_attr_impl(&NdbColumnImpl::getImpl(*column), RegDest);
 }
 
@@ -141,13 +289,14 @@ NdbInterpretedCode::write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource)
 }
 
 int
-NdbInterpretedCode::write_attr(const NdbDictionary::Table *table,
-                               Uint32 attrId, Uint32 RegSource)
+NdbInterpretedCode::write_attr(Uint32 attrId, Uint32 RegSource)
 {
-  const NdbTableImpl *t= & NdbTableImpl::getImpl(*table);
-  const NdbColumnImpl *c= t->getColumn(attrId);
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
   if (unlikely(c == NULL))
-    return error();
+    return error(BadAttributeId);
   return write_attr_impl(c, RegSource);
 }
 
@@ -155,15 +304,63 @@ int
 NdbInterpretedCode::write_attr(const NdbDictionary::Column *column,
                                Uint32 RegSource)
 {
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  // TODO : Check column is from the right table
   return write_attr_impl(&NdbColumnImpl::getImpl(*column), RegSource);
 }
 
+int
+NdbInterpretedCode::def_label(int LabelNum)
+{
+  if (LabelNum < 0 ||
+      (Uint32)LabelNum > MaxLabels)
+    return error(BadLabelNum);
+
+  m_number_of_labels++;
+  
+  CodeMetaInfo info;
+
+  info.type= Label;
+  info.number= LabelNum;
+  info.firstInstrPos= m_instructions_length;
+
+  // Note, no check for whether the label's already defined here.
+  return addMeta(info);
+}
+
+int 
+NdbInterpretedCode::add_branch(Uint32 instruction, Uint32 Label)
+{
+  /* We store the instruction with the label as the offset
+   * rather than the correct offset.
+   * This is corrected at finalise() time when we know
+   * the correct offset for the code
+   */
+  if (unlikely(Label > 0xffff))
+    return error(BranchToBadLabel);
+  return add1(instruction | Label << 16);
+}
+
+int
+NdbInterpretedCode::branch_label(Uint32 Label)
+{
+  return add_branch(Interpreter::BRANCH, Label);
+}
+
+/* For the following inequalities, the order of the 
+ * registers passed to Interpreter::Branch is reversed
+ * to correct the reordering done in Interpreter::Branch
+ * This ensures that the comparison is Lvalue <cond> Rvalue,
+ * not Rvalue <cond> Lvalue.
+ */
 int
 NdbInterpretedCode::branch_ge(Uint32 RegLvalue, Uint32 RegRvalue,
                               Uint32 Label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GE_REG_REG,
-                                     RegLvalue, RegRvalue);
+                                     RegRvalue, RegLvalue);
   return add_branch(instr, Label);
 }
 
@@ -172,7 +369,7 @@ NdbInterpretedCode::branch_gt(Uint32 RegLvalue, Uint32 RegRvalue,
                               Uint32 Label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_GT_REG_REG,
-                                     RegLvalue, RegRvalue);
+                                     RegRvalue, RegLvalue);
   return add_branch(instr, Label);
 }
 
@@ -181,7 +378,7 @@ NdbInterpretedCode::branch_le(Uint32 RegLvalue, Uint32 RegRvalue,
                               Uint32 Label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LE_REG_REG,
-                                     RegLvalue, RegRvalue);
+                                     RegRvalue, RegLvalue);
   return add_branch(instr, Label);
 }
 
@@ -190,7 +387,7 @@ NdbInterpretedCode::branch_lt(Uint32 RegLvalue, Uint32 RegRvalue,
                               Uint32 Label)
 {
   Uint32 instr = Interpreter::Branch(Interpreter::BRANCH_LT_REG_REG,
-                                     RegLvalue, RegRvalue);
+                                     RegRvalue, RegLvalue);
   return add_branch(instr, Label);
 }
 
@@ -227,9 +424,196 @@ NdbInterpretedCode::branch_eq_null(Uint32 RegLvalue, Uint32 Label)
 }
 
 int
-NdbInterpretedCode::branch_label(Uint32 Label)
+NdbInterpretedCode::branch_col_eq_null(Uint32 attrId, Uint32 Label)
 {
-  return add_branch(Interpreter::BRANCH, Label);
+  int res= 0;
+
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
+
+  if (unlikely(c == NULL))
+    return error(BadAttributeId);
+
+  if (c->m_storageType == NDB_STORAGETYPE_DISK)
+    m_flags|= UsesDisk;
+  
+  /* Add instruction and branch label */
+  if ((res= add_branch(Interpreter::BRANCH_ATTR_EQ_NULL, Label)) !=0)
+    return res;
+
+  /* Add attrId with no length */
+  return add1(Interpreter::BranchCol_2(attrId));
+}
+
+int
+NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
+{
+  int res= 0;
+
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    return error(4538);
+  const NdbColumnImpl *c= m_table_impl->getColumn(attrId);
+
+  if (unlikely(c == NULL))
+    return error(BadAttributeId);
+
+  if (c->m_storageType == NDB_STORAGETYPE_DISK)
+    m_flags|= UsesDisk;
+
+  /* Add instruction and branch label */
+  if ((res= add_branch(Interpreter::BRANCH_ATTR_NE_NULL, Label)) !=0)
+    return res;
+
+  /* Add attrId with no length */
+  return add1(Interpreter::BranchCol_2(attrId));
+}
+
+int
+NdbInterpretedCode::branch_col(Uint32 branch_type,
+                               Uint32 attrId,
+                               const void * val,
+                               Uint32 len,
+                               Uint32 Label)
+{
+  DBUG_ENTER("NdbInterpretedCode::branch_col");
+  DBUG_PRINT("enter", ("type: %u  col:%u  val: 0x%lx  len: %u  label: %u",
+                       branch_type, attrId, (long) val, len, Label));
+  if (val != NULL)
+    DBUG_DUMP("value", (uchar*)val, len);
+  else
+    DBUG_PRINT("info", ("value == NULL"));
+
+  Interpreter::BinaryCondition c= 
+    (Interpreter::BinaryCondition)branch_type;
+  
+  if (unlikely(m_table_impl == NULL))
+    /* NdbInterpretedCode instruction requires that table is set */
+    DBUG_RETURN(error(4538));
+
+  const NdbColumnImpl * col = 
+    m_table_impl->getColumn(attrId);
+  
+  if(col == NULL){
+    DBUG_RETURN(error(BadAttributeId));
+  }
+
+  if (val == NULL)
+    len = 0;
+  else {
+    if (! col->getStringType()) {
+      // prevent assert in NdbSqlUtil on length error
+      Uint32 sizeInBytes = col->m_attrSize * col->m_arraySize;
+      if (len != 0 && len != sizeInBytes)
+      {
+        DBUG_RETURN(error(BadLength));
+      }
+      len = sizeInBytes;
+    }
+  }
+
+  if (col->m_storageType == NDB_STORAGETYPE_DISK)
+    m_flags|= UsesDisk;
+
+  if (add_branch(Interpreter::BranchCol(c, 0, 0, false), Label) != 0)
+    DBUG_RETURN(-1);
+
+  if (add1(Interpreter::BranchCol_2(attrId, len)) != 0)
+    DBUG_RETURN(-1);
+
+  /* Get value byte length rounded up to nearest 32-bit word */
+  Uint32 len2 = Interpreter::mod4(len);
+  if(len2 == len){
+    /* Whole number of 32-bit words */
+    DBUG_RETURN(addN((Uint32*)val, len2 >> 2));
+  } else {
+    /* Partial last word */
+    len2 -= 4;
+    if (addN((Uint32*)val, len2 >> 2) != 0)
+      DBUG_RETURN(-1);
+
+    /* Zero insignificant bytes in last word */
+    Uint32 tmp = 0;
+    for (Uint32 i = 0; i < len-len2; i++) {
+      char* p = (char*)&tmp;
+      p[i] = ((char*)val)[len2+i];
+    }
+    DBUG_RETURN(add1(tmp));
+  }
+}
+
+int 
+NdbInterpretedCode::branch_col_eq(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::EQ, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_ne(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::NE, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_lt(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::LT, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_le(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::LE, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_gt(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::GT, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_ge(const void * val, 
+                                  Uint32 len,
+                                  Uint32 attrId,
+                                  Uint32 Label)
+{
+  return branch_col(Interpreter::GE, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_like(const void * val, 
+                                    Uint32 len,
+                                    Uint32 attrId,
+                                    Uint32 Label)
+{
+  return branch_col(Interpreter::LIKE, attrId, val, len, Label);
+}
+
+int 
+NdbInterpretedCode::branch_col_notlike(const void * val, 
+                                       Uint32 len,
+                                       Uint32 attrId,
+                                       Uint32 Label)
+{
+  return branch_col(Interpreter::NOT_LIKE, attrId, val, len, Label);
 }
 
 int
@@ -257,30 +641,422 @@ NdbInterpretedCode::interpret_exit_last_row()
 }
 
 int
-NdbInterpretedCode::backpatch()
+NdbInterpretedCode::add_val(Uint32 attrId, Uint32 aValue)
 {
-  Uint32 i;
-  Uint32 jumplist_end = m_buffer_length - m_number_of_labels;
-  Uint32 jumplist_start = jumplist_end - m_number_of_jumps;
+  /* Load attribute into register 6 */
+  int res= 0;
+  if ((res= read_attr(6, attrId) != 0))
+    return res;
+  
+  /* Load constant into register 7 */
+  /* We attempt to use the smallest constant load
+   * instruction
+   */
+  if (aValue < (1 << 16))
+    if ((res= load_const_u16(7, aValue)) != 0)
+      return res;   
+  else
+    if ((res= load_const_u32(7, aValue)) != 0)
+      return res;
 
-  for (i = jumplist_start; i < jumplist_end; i++)
-  {
-    Uint32 value = m_buffer[i];
-    Uint32 instruction_address = value & 0xffff;
-    Uint32 label_idx = value >> 16;
-    assert(label_idx < m_number_of_labels);
-    assert(instruction_address < m_instructions_length);
-    Uint32 label_address = m_buffer[m_buffer_length - (label_idx + 1)];
-    /* Check for jump to undefined label. */
-    if (label_address == ~(Uint32)0)
-      return error();
-    /* Check if backwards or forwards jump. */
-    if (label_address < instruction_address)
-      m_buffer[instruction_address] |=
-        (((instruction_address - label_address) << 16) | ((Uint32)1 << 31));
+  /* Add registers 6 and 7 -> 7*/
+  if ((res= add_reg(7, 6, 7)) != 0)
+    return res;
+
+  /* Write back */
+  return write_attr(attrId, 7);
+}
+
+
+int
+NdbInterpretedCode::add_val(Uint32 attrId, Uint64 aValue)
+{
+  /* Load attribute into register 6 */
+  int res= 0;
+  if ((res= read_attr(6, attrId) != 0))
+    return res;
+  
+  /* Load constant into register 7 */
+  /* We attempt to use the smallest constant load
+   * instruction
+   */
+  if ((aValue >> 32) == 0)
+    if (aValue < (1 << 16))
+    {
+      if ((res= load_const_u16(7, aValue)) != 0)
+        return res;  
+    } 
     else
-      m_buffer[instruction_address] |=
-        ((label_address - instruction_address) << 16);
+    {
+      if ((res= load_const_u32(7, aValue)) != 0)
+        return res;
+    }
+  else
+    if ((res= load_const_u64(7, aValue)) != 0)
+      return res;
+  
+  /* Add registers 6 and 7 -> 7*/
+  if ((res= add_reg(7, 6, 7)) != 0)
+    return res;
+
+  /* Write back */
+  return write_attr(attrId, 7);
+}
+
+
+int
+NdbInterpretedCode::sub_val(Uint32 attrId, Uint32 aValue)
+{
+  /* Load attribute into register 6 */
+  int res= 0;
+  if ((res= read_attr(6, attrId) != 0))
+    return res;
+  
+  /* Load constant into register 7 */
+  /* We attempt to use the smallest constant load
+   * instruction
+   */
+  if (aValue < (1 << 16))
+    if ((res= load_const_u16(7, aValue)) != 0)
+      return res;   
+  else
+    if ((res= load_const_u32(7, aValue)) != 0)
+      return res;
+
+  /* Subtract register (R7=R6-R7)*/
+  if ((res= sub_reg(7, 6, 7)) != 0)
+    return res;
+
+  /* Write back */
+  return write_attr(attrId, 7);
+}
+
+
+int
+NdbInterpretedCode::sub_val(Uint32 attrId, Uint64 aValue)
+{
+  /* Load attribute into register 6 */
+  int res= 0;
+  if ((res= read_attr(6, attrId) != 0))
+    return res;
+  
+  /* Load constant into register 7 */
+  /* We attempt to use the smallest constant load
+   * instruction
+   */
+  if ((aValue >> 32) == 0)
+    if (aValue < (1 << 16))
+    {
+      if ((res= load_const_u16(7, aValue)) != 0)
+        return res;  
+    } 
+    else
+    {
+      if ((res= load_const_u32(7, aValue)) != 0)
+        return res;
+    }
+  else
+    if ((res= load_const_u64(7, aValue)) != 0)
+      return res;
+
+  /* Subtract register (R7=R6-R7)*/
+  if ((res= sub_reg(7, 6, 7)) != 0)
+    return res;
+
+  /* Write back */
+  return write_attr(attrId, 7);
+}
+
+int
+NdbInterpretedCode::def_sub(Uint32 SubroutineNumber)
+{
+  if (SubroutineNumber > MaxSubs)
+    return error(BadSubNumber);
+
+  if (m_flags & InSubroutineDef)
+    return error(BadState);
+  
+  if (m_number_of_calls == 0)
+    return error(BadState);
+
+  /* Record where subroutines start */
+  if (m_number_of_subs == 0)
+    m_first_sub_instruction_pos= m_instructions_length;
+
+  m_number_of_subs++;
+  m_flags|= InSubroutineDef;
+
+  CodeMetaInfo info;
+
+  info.type= Subroutine;
+  info.number= SubroutineNumber;
+  info.firstInstrPos= 
+    m_instructions_length - m_first_sub_instruction_pos;
+
+  // Note, no check for whether the label's already defined here.
+  return addMeta(info);
+}
+
+int
+NdbInterpretedCode::call_sub(Uint32 SubroutineNumber)
+{
+  if (SubroutineNumber > MaxSubs)
+    return error(BadState);
+
+  m_number_of_calls ++;
+
+  return add1(Interpreter::CALL | (SubroutineNumber << 16));
+}
+
+int
+NdbInterpretedCode::ret_sub()
+{
+  if ((m_flags & InSubroutineDef) == 0)
+    return error(BadState);
+
+  m_flags&= ~(InSubroutineDef);
+
+  return add1(Interpreter::RETURN);
+};
+
+/* Get a CodeMetaInfo object given a number
+ * Label numbers start from 0.  Subroutine numbers start from
+ * the highest label number
+ */
+int 
+NdbInterpretedCode::getInfo(Uint32 number, CodeMetaInfo &info) const
+{
+  if (number >= (m_number_of_labels + m_number_of_subs))
+    return -1;
+
+  Uint32 pos= m_buffer_length 
+    - ((number+1) * CODEMETAINFO_WORDS);
+
+  info.number= (m_buffer[pos + 1] >> 16) & 0xffff;
+  info.type= m_buffer[pos + 1] & 0xffff;
+  info.firstInstrPos= m_buffer[pos];
+
+  return 0;
+}
+
+/* Update internal NdbError object based on its code */
+static void
+update(const NdbError & _err){
+  NdbError & error = (NdbError &) _err;
+  ndberror_struct ndberror = (ndberror_struct)error;
+  ndberror_update(&ndberror);
+  error = NdbError(ndberror);
+}
+
+const NdbDictionary::Table * 
+NdbInterpretedCode::getTable() const
+{
+  return (m_table_impl == NULL) ? 
+    NULL : 
+    m_table_impl->m_facade;
+}
+
+
+const NdbError &
+NdbInterpretedCode::getNdbError() const
+{
+  /* Set the correct error info before returning to 
+   * caller
+   */
+  update(m_error);
+  return m_error;
+}
+
+Uint32
+NdbInterpretedCode::getWordsUsed() const
+{
+  return (m_buffer_length - m_available_length);
+
+}
+
+/* CodeMetaInfo comparator for qsort 
+ * Sort order is highest numbered sub to lowest,
+ * then highest numbered label to lowest
+ * *va < *vb  : -1  *va first
+ * *va == *vb : 0
+ * *va > *vb  : 1   *vb first
+ */
+int
+NdbInterpretedCode::compareMetaInfo(const void *va, 
+                                    const void *vb)
+{
+  Uint32 aWord= *(((Uint32 *) va) + 1); // number || type
+  Uint32 bWord= *(((Uint32 *) vb) + 1); // number || type
+  Uint16 aType= aWord & 0xffff;
+  Uint16 bType= bWord & 0xffff;
+  const int AFirst= -1;
+  const int BFirst= 1;
+
+  /* Sort in order (Subs, Labels) */
+  if (aType != bType)
+    return (aType == Subroutine)? AFirst : BFirst;
+
+  Uint16 aNumber= (aWord >> 16) & 0xffff;
+  Uint16 bNumber= (bWord >> 16) & 0xffff;
+
+  /* Sort in reverse order within type, highest number
+   * first.  
+   */
+  if (aNumber != bNumber)
+    return (bNumber > aNumber)? BFirst : AFirst;
+
+  return 0; // Should never happen
+}
+
+
+int
+NdbInterpretedCode::finalise()
+{
+  if (m_instructions_length == 0)
+  {
+    /* We will attempt to add a single EXIT_OK instruction 
+     * rather than returning an error.
+     * This may simplify client code.
+     */
+    int res= 0;
+    if (0 != (res= interpret_exit_ok()))
+        return -1;
   }
+
+  assert (m_buffer != NULL);
+
+  /* Use label and subroutine meta-info at
+   * the end of the code buffer to determine
+   * the correct offsets for label branches and
+   * subroutine calls
+   */
+  Uint32 numOfMetaInfos= m_number_of_labels +
+    m_number_of_subs;
+  Uint32 sizeOfMetaInfo= numOfMetaInfos * CODEMETAINFO_WORDS;
+  Uint32 startOfMetaInfo= m_buffer_length - sizeOfMetaInfo;
+
+  /* Sort different types of meta info into order in place */
+  qsort( &m_buffer[ startOfMetaInfo ],
+         numOfMetaInfos,
+         CODEMETAINFO_WORDS << 2,
+         &compareMetaInfo);
+
+  /* Loop over instructions, patching up branches
+   * and calls
+   */
+  Uint32 *ip= m_buffer;
+  Uint32* nextIp= ip;
+  Uint32 const* firstInstruction= m_buffer;
+  Uint32 const* endOfProgram= m_buffer + m_instructions_length;
+
+  while (ip < endOfProgram)
+  {
+    Interpreter::InstructionPreProcessing action;
+    nextIp= Interpreter::getInstructionPreProcessingInfo(ip,
+                                                         action);
+    if (nextIp == NULL)
+    {
+      m_error.code= 4516; // Illegal instruction in interpreted program
+      return -1;
+    }
+
+    switch (action) {
+    case Interpreter::NONE:
+      /* Normal instruction, skip over */
+      break;
+    case Interpreter::LABEL_ADDRESS_REPLACEMENT:
+    {
+      /* Have a branch needing a relative label address replacement */
+      Uint32 label= Interpreter::getLabel(*ip);
+
+      if (label > m_number_of_labels)
+      {
+        m_error.code= 4517; // Bad label in branch instruction
+        return -1;
+      }
+      
+      CodeMetaInfo info;
+      if (getInfo(label, info) != 0)
+      {
+        m_error.code= 4222; // Label was not found, internal error
+        return -1;
+      }
+
+      assert(info.type == Label);
+      
+      Uint32 currOffset = ip - firstInstruction;
+      Uint32 labelOffset= info.firstInstrPos;
+      
+      if (labelOffset >= m_instructions_length)
+      {
+        m_error.code= 4517; // Bad label in branch instruction
+        return -1;
+      }
+      
+      /* Remove the label info */
+      Uint32 patchedInstruction= (*ip) & 0xffff; 
+
+      if (labelOffset < currOffset)
+        /* Backwards branch */
+        patchedInstruction |= (((currOffset - labelOffset) << 16) |
+                               ((Uint32) 1 << 31));
+      else
+        /* Forwards branch */
+        patchedInstruction |= ((labelOffset - currOffset) <<16);
+
+      *ip= patchedInstruction;
+      break;
+    }
+    case Interpreter::SUB_ADDRESS_REPLACEMENT:
+    {
+      /* Have a call to a subtoutine that needs to become
+       * an offset within the subroutines section
+       */
+      Uint32 subroutine= Interpreter::getLabel(*ip);
+
+      if (subroutine > m_number_of_subs)
+      {
+        m_error.code= 4520; // Call to undefined subroutine
+        return -1;
+      }
+
+      CodeMetaInfo info;
+      if (getInfo(m_number_of_labels + subroutine, info) != 0)
+      {
+        m_error.code= 4521; // Call to undefined subroutine, internal error
+        return -1;
+      }
+
+      assert(info.type == Subroutine);
+      
+      Uint32 subOffset= info.firstInstrPos;
+      
+      if (subOffset > (m_instructions_length - 
+                       m_first_sub_instruction_pos))
+      {
+        m_error.code= 4521; // Call to undefined subroutine, internal error
+        return -1;
+      }
+
+      /* Replace the label in the call with the subroutine
+       * offset
+       */
+      Uint32 patchedInstruction= (*ip) & 0xffff;
+      patchedInstruction |= subOffset << 16;
+      *ip= patchedInstruction;
+
+      break;
+    }
+    default:
+      m_error.code= 4516; // Illegal instruction in interpreted program
+      return -1;
+    }
+
+    ip= nextIp;
+  }
+  
+  /* Code has been patched-up */
+  m_flags |= Finalised;
+
   return 0;
 }

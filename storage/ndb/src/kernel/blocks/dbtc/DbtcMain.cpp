@@ -9515,6 +9515,15 @@ void Dbtc::execDIGETPRIMCONF(Signal* signal)
   tnodeid = signal->theData[2];
   arrGuard(tnodeid, MAX_NDB_NODES);
 
+  if(ERROR_INSERTED(8050) && tnodeid != getOwnNodeId())
+  {
+    /* Asked to scan a fragment which is not on the same node as the
+     * TC - transaction hinting / scan partition pruning has failed
+     * Used by testPartitioning.cpp
+     */
+    ndbassert(false);
+  }
+
   ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
   scanFragptr.p->stopFragTimer();
 
