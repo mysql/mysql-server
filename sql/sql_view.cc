@@ -182,10 +182,33 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
-      !decoy.view)
+
+  /*
+    Let's reset decoy.view before calling open_table(): when we start
+    supporting ALTER VIEW in PS/SP that may save us from a crash.
+  */
+
+  decoy.view= NULL;
+
+  /*
+    open_table() will return NULL if 'decoy' is idenitifying a view *and*
+    there is no TABLE object for that view in the table cache. However,
+    decoy.view will be set to 1.
+
+    If there is a TABLE-instance for the oject identified by 'decoy',
+    open_table() will return that instance no matter if it is a table or
+    a view.
+
+    Thus, there is no need to check for the return value of open_table(),
+    since the return value itself does not mean anything.
+  */
+
+  open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE);
+
+  if (!decoy.view)
   {
-    /* It's a table */
+    /* It's a table. */
+    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
 
