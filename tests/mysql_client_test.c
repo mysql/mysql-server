@@ -16152,6 +16152,87 @@ static void test_bug31669()
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#32265 Server returns different metadata if prepared statement is used
+*/
+
+static void test_bug32265()
+{
+  int rc, i;
+  MYSQL_STMT *stmt;
+  MYSQL_FIELD *field;
+
+  DBUG_ENTER("test_bug32265");
+  myheader("test_bug32265");
+
+  rc= mysql_query(mysql, "DROP TABLE IF EXISTS t1");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE  TABLE t1 (a INTEGER)");
+  myquery(rc);
+  rc= mysql_query(mysql, "INSERT INTO t1 VALUES (1)");
+  myquery(rc);
+  rc= mysql_query(mysql, "CREATE VIEW v1 AS SELECT * FROM t1");
+  myquery(rc);
+
+  stmt= open_cursor("SELECT * FROM t1");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  field= stmt->mysql->fields;
+  DIE_UNLESS(strcmp(field->table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_stmt_close(stmt);
+
+  stmt= open_cursor("SELECT a '' FROM t1 ``");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  field= stmt->mysql->fields;
+  DIE_UNLESS(strcmp(field->table, "") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_stmt_close(stmt);
+
+  stmt= open_cursor("SELECT a '' FROM t1 ``");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  field= stmt->mysql->fields;
+  DIE_UNLESS(strcmp(field->table, "") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_stmt_close(stmt);
+
+  stmt= open_cursor("SELECT * FROM v1");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  field= stmt->mysql->fields;
+  DIE_UNLESS(strcmp(field->table, "v1") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_stmt_close(stmt);
+
+  stmt= open_cursor("SELECT * FROM v1 /* SIC */ GROUP BY 1");
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  field= stmt->mysql->fields;
+  DIE_UNLESS(strcmp(field->table, "v1") == 0);
+  DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
+  DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_stmt_close(stmt);
+
+  rc= mysql_query(mysql, "DROP VIEW v1");
+  myquery(rc);
+  rc= mysql_query(mysql, "DROP TABLE t1");
+  myquery(rc);
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -16446,6 +16527,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug29948", test_bug29948 },
   { "test_bug29306", test_bug29306 },
   { "test_bug31669", test_bug31669 },
+  { "test_bug32265", test_bug32265 },
   { 0, 0 }
 };
 
