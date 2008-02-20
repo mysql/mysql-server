@@ -17,10 +17,15 @@
 #include "stacktrace.h"
 #include <signal.h>
 #include <my_pthread.h>
+#include <m_string.h>
 
 #ifdef HAVE_STACKTRACE
 #include <unistd.h>
 #include <strings.h>
+
+#if HAVE_EXECINFO_H
+#include <execinfo.h>
+#endif
 
 #define PTR_SANE(p) ((p) && (char*)(p) >= heap_start && (char*)(p) <= heap_end)
 
@@ -93,9 +98,68 @@ inline uint32* find_prev_pc(uint32* pc, uchar** fp)
 }
 #endif /* defined(__alpha__) && defined(__GNUC__) */
 
+#if BACKTRACE_DEMANGLE
+static void my_demangle_symbols(char **addrs, int n)
+{
+  int status, i;
+  char *begin, *end, *demangled;
+
+  for (i= 0; i < n; i++)
+  {
+    demangled= NULL;
+    begin= strchr(addrs[i], '(');
+    end= begin ? strchr(begin, '+') : NULL;
+
+    if (begin && end)
+    {
+      *begin++= *end++= '\0';
+      demangled= my_demangle(begin, &status);
+      if (!demangled || status)
+      {
+        demangled= NULL;
+        begin[-1]= '(';
+        end[-1]= '+';
+      }
+    }
+
+    if (demangled)
+      fprintf(stderr, "%s(%s+%s\n", addrs[i], demangled, end);
+    else
+      fprintf(stderr, "%s\n", addrs[i]);
+  }
+}
+#endif
+
+
+#if HAVE_BACKTRACE
+static void backtrace_current_thread(void)
+{
+  void *addrs[128];
+  char **strings= NULL;
+  int n = backtrace(addrs, array_elements(addrs));
+#if BACKTRACE_DEMANGLE
+  if ((strings= backtrace_symbols(addrs, n)))
+  {
+    my_demangle_symbols(strings, n);
+    free(strings);
+  }
+#endif
+#if HAVE_BACKTRACE_SYMBOLS_FD
+  if (!strings)
+  {
+    backtrace_symbols_fd(addrs, n, fileno(stderr));
+  }
+#endif
+}
+#endif
+
 
 void  print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
+#if HAVE_BACKTRACE
+  backtrace_current_thread();
+  return;
+#endif
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
 #if defined(__alpha__) && defined(__GNUC__)
