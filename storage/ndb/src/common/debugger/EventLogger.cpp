@@ -1005,10 +1005,10 @@ void getTextSubscriptionStatus(QQQQ)
   case(1): // SubscriptionStatus::DISCONNECTED
     BaseString::snprintf(m_text, m_text_len,
                          "Disconnecting node %u because it has "
-                         "exceeded MaxBufferedEpochs (%u/%u > %u), epoch %u/%u",
+                         "exceeded MaxBufferedEpochs (%u > %u), epoch %u/%u",
                          theData[2],
-                         theData[6], theData[5],
-                         theData[7],
+                         theData[5],
+                         theData[6],
                          theData[4], theData[3]);
     break;
   case(2): // SubscriptionStatus::INCONSISTENT
