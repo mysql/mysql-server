@@ -16499,7 +16499,7 @@ Dbdih::sendDictUnlockOrd(Signal* signal, Uint32 lockSlavePtrI)
 
   BlockReference dictMasterRef = calcDictBlockRef(cmasterNodeId);
   sendSignal(dictMasterRef, GSN_DICT_UNLOCK_ORD, signal,
-      DictUnlockOrd::SignalLength, JBB);
+      DictUnlockOrd::SignalLengthDih, JBB);
 }
 
 #ifdef ERROR_INSERT

@@ -123,6 +123,11 @@
 #define CFG_DB_MICRO_GCP_INTERVAL     170 /* micro gcp */
 #define CFG_DB_MICRO_GCP_TIMEOUT      171
 
+/* 172 - 178 used in 6.3 */
+
+#define CFG_DB_SUBSCRIPTIONS          179
+#define CFG_DB_SUBSCRIBERS            180
+#define CFG_DB_SUB_OPERATIONS         181
 #define CFG_DB_MAX_BUFFERED_EPOCHS    182 /* subscriptions */
 
 #define CFG_DB_SGA                    198 /* super pool mem */

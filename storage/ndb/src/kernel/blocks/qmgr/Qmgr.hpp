@@ -91,6 +91,7 @@ public:
     NORMAL = 0,
     WAITING_FOR_FAILCONF1 = 1,
     WAITING_FOR_FAILCONF2 = 2,
+    WAITING_FOR_FAILCONF3 = 3,
     WAITING_FOR_NDB_FAILCONF = 3
   };
 
@@ -154,7 +155,6 @@ public:
     QmgrState sendCommitFailReqStatus;
     QmgrState sendPresToStatus;
     FailState failState;
-    BlockReference rcv[2];        // remember which failconf we have received
     BlockReference blockRef;
 
     NodeRec() { }
