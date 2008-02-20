@@ -3720,6 +3720,16 @@ DROP VIEW v1;
 
 # -- End of test case for Bug#32538.
 
+drop view if exists a;
+drop procedure if exists p;
+create procedure p()
+begin
+declare continue handler for sqlexception begin end;
+create view a as select 1;
+end|
+call p();
+call p();
+drop procedure p;
 # -----------------------------------------------------------------
 # -- Bug#34337: Server crash when Altering a view using a table name.
 # -----------------------------------------------------------------
