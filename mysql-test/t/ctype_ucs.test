@@ -374,10 +374,12 @@ SET collation_connection='ucs2_general_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
 -- source include/ctype_german.inc
+-- source include/ctype_like_range_f1f2.inc
 SET NAMES latin1;
 SET collation_connection='ucs2_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
 
 #
 # Bug#10344 Some string functions fail for UCS2
