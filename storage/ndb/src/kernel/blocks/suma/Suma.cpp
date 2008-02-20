@@ -165,13 +165,13 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   ndbrequire(p != 0);
 
   // SumaParticipant
-  Uint32 noTables, noAttrs, maxBufferedGcp;
+  Uint32 noTables, noAttrs, maxBufferedEpochs;
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_TABLES,  
 			    &noTables);
   ndb_mgm_get_int_parameter(p, CFG_DB_NO_ATTRIBUTES,  
 			    &noAttrs);
-  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_GCP,
-                            &maxBufferedGcp);
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_EPOCHS,
+                            &maxBufferedEpochs);
 
   c_tablePool.setSize(noTables);
   c_tables.setSize(noTables);
@@ -183,7 +183,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_syncPool.setSize(2);
   c_dataBufferPool.setSize(noAttrs);
 
-  c_maxBufferedGcp = maxBufferedGcp;
+  c_maxBufferedEpochs = maxBufferedEpochs;
 
   // Calculate needed gcp pool as 10 records + the ones needed
   // during a possible api timeout
@@ -786,7 +786,7 @@ Suma::execNODE_FAILREP(Signal* signal){
     {
       ndbout_c("Inserting API_FAILREQ node: %u", node);
       signal->theData[0] = node;
-      EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     }
   }
   
@@ -3567,73 +3567,56 @@ Suma::execFIRE_TRIG_ORD(Signal* signal)
 }
 
 void
-Suma::checkMaxBufferedGCP(Signal *signal)
+Suma::checkMaxBufferedEpochs(Signal *signal)
 {
   /*
    * Check if any subscribers are exceeding the MaxBufferedEpochs
    */
+  Ptr<Gcp_record> gcp;
   jamEntry();
   if (c_gcp_list.isEmpty())
   {
     jam();
     return;
   }
-  Ptr<Gcp_record> gcp;
   c_gcp_list.first(gcp);
   if (ERROR_INSERTED(13035))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
     ndbout_c("Simulating exceeding the MaxBufferedEpochs %u(%llu,%llu,%llu)",
-            c_maxBufferedGcp, m_max_seen_gci,
+            c_maxBufferedEpochs, m_max_seen_gci,
             m_last_complete_gci, gcp.p->m_gci);
-    c_maxBufferedGcp = 1;
   }
-  if (m_max_seen_gci - gcp.p->m_gci >= (Uint64) c_maxBufferedGcp)
+  else if (c_gcp_list.count() < c_maxBufferedEpochs)
   {
-    NodeBitmask subs = c_subscriber_nodes;
-    jam();
-    // Disconnect lagging subscribers
-    for(; !gcp.isNull(); c_gcp_list.next(gcp))
+    return;
+  }
+  NodeBitmask subs = gcp.p->m_subscribers;
+  jam();
+  // Disconnect lagging subscribers waiting for oldest epoch
+  ndbout_c("Found lagging epoch %llu", gcp.p->m_gci);
+  for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
+  {
+    if (subs.get(nodeId))
     {
-      Uint64 lag = m_max_seen_gci - gcp.p->m_gci;
       jam();
-      if (lag >= (Uint64) c_maxBufferedGcp)
-      {
-        jam();
-        for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
-        {
-          if (subs.get(nodeId))
-          {
-           jam();
-           subs.clear(nodeId);
-           // Disconnecting node
-           signal->theData[0] = NDB_LE_SubscriptionStatus;
-           signal->theData[1] = 1; // DISCONNECTED;
-           signal->theData[2] = nodeId;
-           signal->theData[3] = (Uint32) gcp.p->m_gci;
-           signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
-           signal->theData[5] = (Uint32) lag;
-           signal->theData[6] = (Uint32) (lag >> 32); 
-           signal->theData[7] = c_maxBufferedGcp;
-           sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
-
-            /**
-             * Force API_FAILREQ
-            */
-           signal->theData[0] = nodeId;
-            EXECUTE_DIRECT(QMGR, GSN_API_FAILREQ, signal, 1);
-          }
-        }
-      }
-      else
-      {
-        /*
-         * We have found a newer gci that still is
-         * allowed to be buffered
-         */
-        break;
-      }
+      subs.clear(nodeId);
+      // Disconnecting node
+      signal->theData[0] = NDB_LE_SubscriptionStatus;
+      signal->theData[1] = 1; // DISCONNECTED;
+      signal->theData[2] = nodeId;
+      signal->theData[3] = (Uint32) gcp.p->m_gci;
+      signal->theData[4] = (Uint32) (gcp.p->m_gci >> 32);
+      signal->theData[5] = (Uint32) c_gcp_list.count();
+      signal->theData[6] = c_maxBufferedEpochs;
+      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 8, JBB);
+      
+      /**
+       * Force API_FAILREQ
+       */
+      signal->theData[0] = nodeId;
+      sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBA);
     }
   }
 }
@@ -3677,7 +3660,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
 #endif
 
   m_last_complete_gci = gci;
-  //checkMaxBufferedGCP(signal);
+  checkMaxBufferedEpochs(signal);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
   /**
