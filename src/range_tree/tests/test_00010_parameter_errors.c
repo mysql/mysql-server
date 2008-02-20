@@ -103,7 +103,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_close(tree);                                CKERR(r);
 
     /* Predecessor tests */
-    toku_point* foo;
+    toku_point* foo = (toku_point*)&stuff[0];
     BOOL wasfound;
     r = toku_rt_create(&tree, int_cmp,   ptr_cmp,   FALSE, malloc, free, realloc);
     CKERR(r);
