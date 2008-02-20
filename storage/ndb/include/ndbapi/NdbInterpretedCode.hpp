@@ -574,7 +574,7 @@ private:
                            // subs defs
   };
   
-  static const Uint32 CODEMETAINFO_WORDS= (sizeof(CodeMetaInfo) + 3)/4;
+  static const Uint32 CODEMETAINFO_WORDS = 2;
 
 
   enum Errors 
