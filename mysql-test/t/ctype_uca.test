@@ -458,6 +458,7 @@ drop table t1;
 SET collation_connection='utf8_unicode_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_german.inc
 
 # End of 4.1 tests
 
