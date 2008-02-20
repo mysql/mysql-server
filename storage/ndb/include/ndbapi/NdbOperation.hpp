@@ -985,7 +985,8 @@ public:
                  OO_SETVALUE     = 0x04, 
                  OO_PARTITION_ID = 0x08, 
                  OO_INTERPRETED  = 0x10,
-                 OO_ANYVALUE     = 0x20 };
+                 OO_ANYVALUE     = 0x20,
+                 OO_CUSTOMDATA   = 0x40 };
 
     /* An operation-specific abort option.
      * Only necessary if the default abortoption behaviour
@@ -1011,6 +1012,9 @@ public:
 
     /* anyValue to be used for this operation */
     Uint32 anyValue;
+
+    /* customData ptr for this operation */
+    void * customData;
   };
 
 

@@ -539,7 +539,7 @@ private:
                                  uchar *new_data,
                                  NdbInterpretedCode *);
 #endif
-  uint setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
+  void setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
                                     const uchar **key_row,
                                     const uchar *record,
                                     bool use_active_index);

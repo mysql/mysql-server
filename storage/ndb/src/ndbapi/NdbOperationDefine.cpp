@@ -1277,5 +1277,11 @@ NdbOperation::handleOperationOptions (const OperationType type,
     op->m_use_any_value = 1;
   }
 
+  if (opts->optionsPresent & OperationOptions::OO_CUSTOMDATA)
+  {
+    /* Set the operation's customData ptr */
+    op->m_customData = opts->customData;
+  }
+
   return 0;
 }
