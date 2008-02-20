@@ -1783,7 +1783,10 @@ Suma::execGET_TABINFOREF(Signal* signal){
   case GetTabInfoRef::Busy:
     do_resend_request = 1;
     break;
+  case GetTabInfoRef::NoFetchByName:
+    jam();
   case GetTabInfoRef::TableNameTooLong:
+    jam();
     ndbrequire(false);
   }
   if (do_resend_request)
@@ -2339,6 +2342,9 @@ Suma::execSUB_START_REQ(Signal* signal){
   }
   
   switch(subPtr.p->m_state){
+  case Subscription::UNDEFINED:
+    jam();
+    ndbrequire(false);
   case Subscription::DROPPED:
     jam();
     sendSubStartRef(signal,
@@ -2871,6 +2877,9 @@ Suma::execSUB_STOP_REQ(Signal* signal){
   }
   
   switch(subPtr.p->m_state){
+  case Subscription::UNDEFINED:
+    jam();
+    ndbrequire(false);
   case Subscription::DEFINING:
     jam();
     sendSubStopRef(signal,
@@ -4070,7 +4079,10 @@ Suma::execSUB_REMOVE_REQ(Signal* signal)
   }
 
   switch(subPtr.p->m_state){
+  case Subscription::UNDEFINED:
+    jam();
   case Subscription::DEFINING:
+    jam();
     ndbrequire(false);
   case Subscription::DROPPED:
     /**
