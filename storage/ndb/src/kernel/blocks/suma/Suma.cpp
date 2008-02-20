@@ -428,7 +428,7 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
   jamEntry();
   c_startup.m_restart_server_node_id = 0;
 
-  CRASH_INSERTION(13034);
+  CRASH_INSERTION(13039);
   send_start_me_req(signal);
 }
 
@@ -1493,8 +1493,8 @@ Suma::execSUB_CREATE_REQ(Signal* signal)
     return;
   }
 
-  CRASH_INSERTION2(13035, c_startup.m_restart_server_node_id != RNIL);
-  CRASH_INSERTION(13036);
+  CRASH_INSERTION2(13040, c_startup.m_restart_server_node_id != RNIL);
+  CRASH_INSERTION(13041);
   
   bool allowDup = true; //c_startup.m_restart_server_node_id;
 
@@ -2325,7 +2325,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     return;
   }
 
-  CRASH_INSERTION2(13037, c_startup.m_restart_server_node_id != 0);
+  CRASH_INSERTION2(13042, getNodeState().startLevel == NodeState::SL_STARTING);
   
   bool found = c_subscriptions.find(subPtr, key);
   if (!found)
@@ -3547,7 +3547,7 @@ Suma::checkMaxBufferedGCP(Signal *signal)
   }
   Ptr<Gcp_record> gcp;
   c_gcp_list.first(gcp);
-  if (ERROR_INSERTED(13035))
+  if (ERROR_INSERTED(13037))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -3619,7 +3619,7 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
                  ? rep->flags | SubGcpCompleteRep::MISSING_DATA
                  : rep->flags;
 
-  if (ERROR_INSERTED(13034))
+  if (ERROR_INSERTED(13036))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -3964,7 +3964,7 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   Uint64 gci = gci_lo | (Uint64(gci_hi) << 32);
   m_max_seen_gci = (gci > m_max_seen_gci ? gci : m_max_seen_gci);
 
-  if (ERROR_INSERTED(13035))
+  if (ERROR_INSERTED(13037))
   {
     jam();
     ndbout_c("Simulating exceeding the MaxBufferedEpochs, ignoring ack");
@@ -4808,7 +4808,7 @@ Suma::out_of_buffer_release(Signal* signal, Uint32 buck)
 Uint32
 Suma::seize_page()
 {
-  if (ERROR_INSERTED(13036))
+  if (ERROR_INSERTED(13038))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
@@ -5116,7 +5116,7 @@ Suma::resend_bucket(Signal* signal, Uint32 buck, Uint64 min_gci,
       rep->senderRef  = reference();
       rep->gcp_complete_rep_count = 1;
 
-      if (ERROR_INSERTED(13034))
+      if (ERROR_INSERTED(13036))
       {
         jam();
         CLEAR_ERROR_INSERT_VALUE;
