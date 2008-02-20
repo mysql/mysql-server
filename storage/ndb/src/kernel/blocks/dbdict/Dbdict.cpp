@@ -14149,22 +14149,47 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
   const DictLockReq req = *(DictLockReq*)&signal->theData[0];
 
   UtilLockReq lockReq;
-  lockReq.senderRef = req->userRef;
-  lockReq.senderData = req->userPtr;
+  lockReq.senderRef = req.userRef;
+  lockReq.senderData = req.userPtr;
   lockReq.lockId = 0;
   lockReq.requestInfo = 0;
-  lockReq.extra = req->lockType;
+  lockReq.extra = req.lockType;
 
-  const DictLockType* lt = getDictLockType(req->lockType);
+  const DictLockType* lt = getDictLockType(req.lockType);
 
-  if (req->lockType == DictLockReq::NodeRestartLock)
+  Uint32 err;
+  if (req.lockType == DictLockReq::SumaStartMe)
+  {
+    jam();
+    
+    if (c_outstanding_sub_startstop)
+    {
+      jam();
+      g_eventLogger.info("refing dict lock to %u", refToNode(req.userRef));
+      err = DictLockRef::TooManyRequests;
+      goto ref;
+    }
+    
+    c_sub_startstop_lock.set(refToNode(req.userRef));
+    
+    g_eventLogger.info("granting dict lock to %u", refToNode(req.userRef));
+    DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
+    conf->userPtr = req.userPtr;
+    conf->lockType = req.lockType;
+    conf->lockPtr = 0;
+    sendSignal(req.userRef, GSN_DICT_LOCK_CONF, signal,
+               DictLockConf::SignalLength, JBB);
+    return;
+  }
+
+  if (req.lockType == DictLockReq::NodeRestartLock)
   {
     jam();
     lockReq.requestInfo |= UtilLockReq::SharedLock;
   }
 
   // make sure bad request crashes slave, not master (us)
-  Uint32 err, res;
+  Uint32 res;
   if (getOwnNodeId() != c_masterNodeId) 
   {
     jam();
@@ -14179,15 +14204,15 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     goto ref;
   }
 
-  if (req->userRef != signal->getSendersBlockRef() ||
-      getNodeInfo(refToNode(req->userRef)).m_type != NodeInfo::DB) 
+  if (req.userRef != signal->getSendersBlockRef() ||
+      getNodeInfo(refToNode(req.userRef)).m_type != NodeInfo::DB) 
   {
     jam();
     err = DictLockRef::BadUserRef;
     goto ref;
   }
 
-  if (c_aliveNodes.get(refToNode(req->userRef))) 
+  if (c_aliveNodes.get(refToNode(req.userRef))) 
   {
     jam();
     err = DictLockRef::TooLate;
@@ -14254,6 +14279,14 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
     jam();
     req.userPtr = ord->lockPtr;
     req.userRef = signal->getSendersBlockRef();
+  }
+
+  if (ord->lockType ==  DictLockReq::SumaStartMe)
+  {
+    jam();
+    g_eventLogger.info("clearing dict lock for %u", refToNode(ord->senderRef));
+    c_sub_startstop_lock.clear(refToNode(ord->senderRef));
+    return;
   }
   
   UtilLockReq lockReq;
