@@ -10420,68 +10420,6 @@ void Dbdict::createEvent_sendReply(Signal* signal,
  *
  *******************************************************************/
 
-#if 0
-void
-Dbdict::execDICT_LOCK_REQ(Signal* signal)
-{
-  jamEntry();
-  DictLockReq req = *(DictLockReq*)signal->getDataPtr();
-
-  Uint32 err = 0;
-  do {
-    if (c_masterNodeId != getOwnNodeId())
-    {
-      jam();
-      err = DictLockRef::NotMaster;
-      break;
-    }
-
-    if (req.lockType != DictLockReq::SumaStartMe)
-    {
-      jam();
-      err = DictLockRef::InvalidLockType;
-      break;
-    }
-
-    if (c_outstanding_sub_startstop)
-    {
-      jam();
-      g_eventLogger.info("refing dict lock to %u", refToNode(req.userRef));
-      err = DictLockRef::TooManyRequests;
-      break;
-    }
-
-    c_sub_startstop_lock.set(refToNode(req.userRef));
-
-    g_eventLogger.info("granting dict lock to %u", refToNode(req.userRef));
-    DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
-    conf->userPtr = req.userPtr;
-    conf->lockType = req.lockType;
-    conf->lockPtr = 0;
-    sendSignal(req.userRef, GSN_DICT_LOCK_CONF, signal,
-               DictLockConf::SignalLength, JBB);
-    return;
-  } while(0);
-
-  DictLockRef* ref = (DictLockRef*)signal->getDataPtrSend();
-  ref->userPtr = req.userPtr;
-  ref->lockType = req.lockType;
-  ref->errorCode = err;
-  sendSignal(req.userRef, GSN_DICT_LOCK_REF, signal,
-             DictLockRef::SignalLength, JBB);
-}
-
-void
-Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
-{
-  jamEntry();
-  DictUnlockOrd ord = *(DictUnlockOrd*)signal->getDataPtr();
-
-  g_eventLogger.info("clearing dict lock for %u", refToNode(ord.senderRef));
-  c_sub_startstop_lock.clear(refToNode(ord.senderRef));
-}
-#endif
-
 void Dbdict::execSUB_START_REQ(Signal* signal)
 {
   jamEntry();
