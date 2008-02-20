@@ -3601,6 +3601,26 @@ DROP VIEW v1;
 --echo # -- End of test case for Bug#32538.
 --echo
 
+#
+# Bug#34587 Creating a view inside a stored procedure leads to a server crash
+#
+
+--disable_warnings
+drop view if exists a;
+drop procedure if exists p;
+--enable_warnings
+
+delimiter |;
+create procedure p()
+begin
+  declare continue handler for sqlexception begin end;
+  create view a as select 1;
+end|
+delimiter ;|
+call p();
+call p();
+drop procedure p;
+
 ###########################################################################
 
 --echo # -----------------------------------------------------------------

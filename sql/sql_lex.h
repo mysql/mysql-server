@@ -1513,10 +1513,8 @@ typedef struct st_lex : public Query_tables_list
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
-  /** Start of SELECT of CREATE VIEW statement */
-  const char* create_view_select_start;
-  /** End of SELECT of CREATE VIEW statement */
-  const char* create_view_select_end;
+  /** SELECT of CREATE VIEW statement */
+  LEX_STRING create_view_select;
 
   /** Start of 'ON table', in trigger statements.  */
   const char* raw_trg_on_table_name_begin;
