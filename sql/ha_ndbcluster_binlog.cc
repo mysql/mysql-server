@@ -669,6 +669,18 @@ static void ndbcluster_reset_slave(THD *thd)
 /*
   Initialize the binlog part of the ndb handlerton
 */
+
+/**
+  Upon the sql command flush logs, we need to ensure that all outstanding
+  ndb data to be logged has made it to the binary log to get a deterministic
+  behavior on the rotation of the log.
+ */
+static bool ndbcluster_flush_logs(handlerton *hton)
+{
+  ndbcluster_binlog_wait(current_thd);
+  return FALSE;
+}
+
 static int ndbcluster_binlog_func(handlerton *hton, THD *thd, 
                                   enum_binlog_func fn, 
                                   void *arg)
@@ -697,6 +709,7 @@ static int ndbcluster_binlog_func(handlerton *hton, THD *thd,
 void ndbcluster_binlog_init_handlerton()
 {
   handlerton *h= ndbcluster_hton;
+  h->flush_logs=       ndbcluster_flush_logs;
   h->binlog_func=      ndbcluster_binlog_func;
   h->binlog_log_query= ndbcluster_binlog_log_query;
 }
