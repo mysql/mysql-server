@@ -53,6 +53,7 @@ sub collect_option {
 use File::Basename;
 use IO::File();
 use My::Config;
+use My::Platform;
 
 require "mtr_match.pl";
 require "mtr_misc.pl";
@@ -744,7 +745,7 @@ sub collect_one_test_case {
   my $master_sh= "$testdir/$tname-master.sh";
   if ( -f $master_sh )
   {
-    if ( $main::is_win32_perl )
+    if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
@@ -762,7 +763,7 @@ sub collect_one_test_case {
   my $slave_sh= "$testdir/$tname-slave.sh";
   if ( -f $slave_sh )
   {
-    if ( $main::is_win32_perl )
+    if ( IS_WIN32PERL )
     {
       $tinfo->{'skip'}= 1;
       $tinfo->{'comment'}= "No tests with sh scripts on Windows";
