@@ -3604,5 +3604,33 @@ DROP VIEW v1;
 ###########################################################################
 
 --echo # -----------------------------------------------------------------
+--echo # -- Bug#34337: Server crash when Altering a view using a table name.
+--echo # -----------------------------------------------------------------
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c1 INT);
+
+--echo
+
+--error ER_WRONG_OBJECT
+ALTER ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW t1 (c2) AS SELECT (1);
+
+--echo
+
+DROP TABLE t1;
+
+--echo
+--echo # -- End of test case for Bug#34337.
+--echo
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
 --echo # -- End of 5.1 tests.
 --echo # -----------------------------------------------------------------
