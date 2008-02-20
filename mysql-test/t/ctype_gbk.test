@@ -16,10 +16,12 @@ SET collation_connection='gbk_chinese_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
 SET collation_connection='gbk_bin';
 -- source include/ctype_filesort.inc
 -- source include/ctype_innodb_like.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_like_range_f1f2.inc
 
 #
 # Bug#11987 mysql will truncate the text when

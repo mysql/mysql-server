@@ -1670,7 +1670,7 @@ static MY_COLLATION_HANDLER my_collation_ucs2_bin_handler =
     my_strnncollsp_ucs2_bin,
     my_strnxfrm_ucs2_bin,
     my_strnxfrmlen_simple,
-    my_like_range_simple,
+    my_like_range_ucs2,
     my_wildcmp_ucs2_bin,
     my_strcasecmp_ucs2_bin,
     my_instr_mb,
