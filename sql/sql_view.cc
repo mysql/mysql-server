@@ -237,7 +237,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* This is ensured in the parser. */
   DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
-              !lex->param_list.elements && !lex->derived_tables);
+              !lex->param_list.elements);
 
   if (mode != VIEW_CREATE_NEW)
   {
@@ -718,11 +718,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   /* fill structure */
   view->select_stmt.str= view_query.c_ptr_safe();
   view->select_stmt.length= view_query.length();
-
-  view->source.str= (char*) thd->lex->create_view_select_start;
-  view->source.length= (thd->lex->create_view_select_end
-                        - thd->lex->create_view_select_start);
-  trim_whitespace(thd->charset(), & view->source);
+  view->source= thd->lex->create_view_select;
 
   view->file_version= 1;
   view->calc_md5(md5);

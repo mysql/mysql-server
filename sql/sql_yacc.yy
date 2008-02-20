@@ -12056,18 +12056,22 @@ view_select:
             lex->parsing_options.allows_select_into= FALSE;
             lex->parsing_options.allows_select_procedure= FALSE;
             lex->parsing_options.allows_derived= FALSE;
-            lex->create_view_select_start= lip->get_cpp_ptr();
+            lex->create_view_select.str= (char *) lip->get_cpp_ptr();
           }
           view_select_aux view_check_option
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
             Lex_input_stream *lip= thd->m_lip;
+            uint len= lip->get_cpp_ptr() - lex->create_view_select.str;
+            void *create_view_select= thd->memdup(lex->create_view_select.str, len);
+            lex->create_view_select.length= len;
+            lex->create_view_select.str= (char *) create_view_select;
+            trim_whitespace(thd->charset(), &lex->create_view_select);
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
             lex->parsing_options.allows_select_procedure= TRUE;
             lex->parsing_options.allows_derived= TRUE;
-            lex->create_view_select_end= lip->get_cpp_ptr();
           }
         ;
 
