@@ -322,14 +322,14 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE * table) {
         u_int32_t *key_type;
         uint keys = table->s->keys;
 
-        if (!(share = (TOKUDB_SHARE *)
-              my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
-                              &share, sizeof(*share),
-                              &tmp_name, length + 1, 
-                              &rec_per_key, keys * sizeof(ha_rows), 
-                              &key_file, (keys + 1) * sizeof(*key_file), 
-                              &key_type, (keys + 1) * sizeof(u_int32_t), 
-                              NullS))) {
+        if (!(share = (TOKUDB_SHARE *) 
+            my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
+                            &share, sizeof(*share),
+                            &tmp_name, length + 1, 
+                            &rec_per_key, keys * sizeof(ha_rows), 
+                            &key_file, (keys + 1) * sizeof(*key_file), 
+                            &key_type, (keys + 1) * sizeof(u_int32_t), 
+                            NullS))) {
             pthread_mutex_unlock(&tokudb_mutex);
             return NULL;
         }
@@ -1226,16 +1226,23 @@ int ha_tokudb::write_row(uchar * record) {
     if ((error = pack_row(&row, (const uchar *) record, 1)))
         DBUG_RETURN(error);
 
+    u_int32_t put_flags = key_type[primary_key];
+    THD *thd = ha_thd();
+    printf("%s:%d:unique:%d\n", __FILE__, __LINE__, 
+           thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS));
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))
+        put_flags = DB_YESOVERWRITE;
+
     table->insert_or_update = 1;        // For handling of VARCHAR
     if (table_share->keys + test(hidden_primary_key) == 1) {
-        error = file->put(file, transaction, create_key(&prim_key, primary_key, key_buff, record), &row, key_type[primary_key]);
+        error = file->put(file, transaction, create_key(&prim_key, primary_key, key_buff, record), &row, put_flags);
         last_dup_key = primary_key;
     } else {
         DB_TXN *sub_trans = transaction;
-        /* Don't use sub transactions in temporary tables */
+        /* QQQ Don't use sub transactions in temporary tables */
         for (uint retry = 0; retry < tokudb_trans_retry; retry++) {
             key_map changed_keys(0);
-            if (!(error = file->put(file, sub_trans, create_key(&prim_key, primary_key, key_buff, record), &row, key_type[primary_key]))) {
+            if (!(error = file->put(file, sub_trans, create_key(&prim_key, primary_key, key_buff, record), &row, put_flags))) {
                 changed_keys.set_bit(primary_key);
                 for (uint keynr = 0; keynr < table_share->keys; keynr++) {
                     if (keynr == primary_key)
@@ -2385,17 +2392,17 @@ static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuD
 
 static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
 
-static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets bdb set_cachesize ncache", NULL, NULL, 0, 0, ~0L, 0);
+static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
 
 // this is really a u_int32_t
 // ? use MYSQL_SYSVAR_SET
-static MYSQL_SYSVAR_UINT(env_flags, tokudb_env_flags, PLUGIN_VAR_READONLY, "Sets bdb set_flags", NULL, NULL, DB_LOG_AUTOREMOVE, 0, ~0, 0);
+static MYSQL_SYSVAR_UINT(env_flags, tokudb_env_flags, PLUGIN_VAR_READONLY, "Sets TokuDB env_flags", NULL, NULL, DB_LOG_AUTOREMOVE, 0, ~0, 0);
 
-static MYSQL_SYSVAR_STR(home, tokudb_home, PLUGIN_VAR_READONLY, "Sets bdb DB_ENV->open db_home", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(home, tokudb_home, PLUGIN_VAR_READONLY, "Sets TokuDB env->open home", NULL, NULL, NULL);
 
 // this is really a u_int32_t
 //? use MYSQL_SYSVAR_SET
-static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets bdb DB_ENV->open flags", NULL, NULL, DB_PRIVATE | DB_RECOVER, 0, ~0, 0);
+static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, DB_PRIVATE | DB_RECOVER, 0, ~0, 0);
 
 // this looks to be unused
 static MYSQL_SYSVAR_LONG(lock_scan_time, tokudb_lock_scan_time, PLUGIN_VAR_READONLY, "Tokudb Lock Scan Time (UNUSED)", NULL, NULL, 0, 0, ~0L, 0);
@@ -2412,6 +2419,7 @@ static MYSQL_SYSVAR_BOOL(shared_data, tokudb_shared_data, PLUGIN_VAR_READONLY, "
 
 static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp Dir", NULL, NULL, NULL);
 #endif
+
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock),
