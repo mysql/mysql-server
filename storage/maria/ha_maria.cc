@@ -107,10 +107,10 @@ TYPELIB maria_sync_log_dir_typelib=
 static ulong checkpoint_interval;
 static void update_checkpoint_interval(MYSQL_THD thd,
                                        struct st_mysql_sys_var *var,
-                                       void *var_ptr, void *save);
+                                       void *var_ptr, const void *save);
 static void update_log_file_size(MYSQL_THD thd,
                                  struct st_mysql_sys_var *var,
-                                 void *var_ptr, void *save);
+                                 void *var_ptr, const void *save);
 
 static MYSQL_SYSVAR_ULONG(block_size, maria_block_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -2875,7 +2875,7 @@ static struct st_mysql_sys_var* system_variables[]= {
 
 static void update_checkpoint_interval(MYSQL_THD thd,
                                         struct st_mysql_sys_var *var,
-                                        void *var_ptr, void *save)
+                                        void *var_ptr, const void *save)
 {
   ma_checkpoint_end();
   ma_checkpoint_init(*(ulong *)var_ptr= (ulong)(*(long *)save));
@@ -2887,7 +2887,7 @@ static void update_checkpoint_interval(MYSQL_THD thd,
 
 static void update_log_file_size(MYSQL_THD thd,
                                  struct st_mysql_sys_var *var,
-                                 void *var_ptr, void *save)
+                                 void *var_ptr, const void *save)
 {
   uint32 size= (uint32)((ulong)(*(long *)save));
   translog_set_file_size(size);
