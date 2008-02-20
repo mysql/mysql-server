@@ -508,6 +508,12 @@ ErrorBundle ErrorCodes[] = {
 
   { 1420, DMEC, TR, "Subscriber manager busy with adding/removing a table" },
   { 1421, DMEC, SE, "Partially connected API in NdbOperation::execute()" },
+  { 1422, DMEC, SE, "Out of subscription records" },
+  { 1423, DMEC, SE, "Out of table records in SUMA" },
+  { 1424, DMEC, SE, "Out of MaxNoOfConcurrentSubOperations" },
+  { 1425, DMEC, SE, "Subscription being defined...while trying to stop subscriber" },
+  { 1426, DMEC, SE, "No such subscriber" },
+  { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   

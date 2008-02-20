@@ -2053,8 +2053,10 @@ NdbEventBuffer::report_node_connected(Uint32 node_id)
 {
   NdbEventOperation* op= m_ndb->getEventOperation(0);
   if (op == 0)
+  {
     return;
-
+  }
+  
   DBUG_ENTER("NdbEventBuffer::report_node_connected");
   SubTableData data;
   LinearSectionPtr ptr[3];
@@ -3206,8 +3208,16 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
       tBlobOp->stop();
       tBlobOp = tBlobOp->m_next;
     }
+  }
 
-    // release blob handles now, further access is user error
+  /**
+   * Needs mutex lock as report_node_XXX accesses list...
+   */
+  NdbMutex_Lock(m_mutex);
+
+  // release blob handles now, further access is user error
+  if (op->theMainOp == NULL)
+  {
     while (op->theBlobList != NULL)
     {
       NdbBlob* tBlob = op->theBlobList;
@@ -3216,6 +3226,15 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
     }
   }
 
+  if (op->m_next)
+    op->m_next->m_prev= op->m_prev;
+  if (op->m_prev)
+    op->m_prev->m_next= op->m_next;
+  else
+    m_ndb->theImpl->m_ev_op= op->m_next;
+  
+  assert(m_ndb->theImpl->m_ev_op == 0 || m_ndb->theImpl->m_ev_op->m_prev == 0);
+  
   DBUG_ASSERT(op->m_ref_count > 0);
   // remove user reference
   // added in createEventOperation
@@ -3224,6 +3243,7 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
   if (op->m_ref_count == 0)
   {
+    NdbMutex_Unlock(m_mutex);
     DBUG_PRINT("info", ("deleting op: %p", op));
     DBUG_ASSERT(op->m_node_bit_mask.isclear());
     delete op->m_facade;
@@ -3235,6 +3255,8 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
     if (m_dropped_ev_op)
       m_dropped_ev_op->m_prev= op;
     m_dropped_ev_op= op;
+    
+    NdbMutex_Unlock(m_mutex);
   }
   DBUG_VOID_RETURN;
 }
