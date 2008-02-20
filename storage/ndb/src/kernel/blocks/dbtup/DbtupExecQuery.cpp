@@ -28,6 +28,8 @@
 #include <signaldata/AttrInfo.hpp>
 #include <NdbSqlUtil.hpp>
 
+// #define TRACE_INTERPRETER
+
 /* For debugging */
 static void
 dump_hex(const Uint32 *p, Uint32 len)
@@ -1899,7 +1901,8 @@ int Dbtup::interpreterStartLab(Signal* signal,
       // a register-based virtual machine which can read and write attributes
       // to and from registers.
       /* ---------------------------------------------------------------- */
-      Uint32 RsubPC= RinstructionCounter + RfinalUpdateLen + RfinalRLen;     
+      Uint32 RsubPC= RinstructionCounter + RexecRegionLen 
+        + RfinalUpdateLen + RfinalRLen;     
       TnoDataRW= interpreterNextLab(signal,
                                      req_struct,
 				     &clogMemBuffer[0],
@@ -2075,6 +2078,10 @@ int Dbtup::interpreterNextLab(Signal* signal,
     RnoOfInstructions++;
     theInstruction= TcurrentProgram[TprogramCounter];
     theRegister= Interpreter::getReg1(theInstruction) << 2;
+#ifdef TRACE_INTERPRETER
+    ndbout_c("Interpreter : RnoOfInstructions : %u.  TprogramCounter : %u.  Opcode : %u",
+             RnoOfInstructions, TprogramCounter, Interpreter::getOpCode(theInstruction));
+#endif
     if (TprogramCounter < TcurrentSize) {
       TprogramCounter++;
       switch (Interpreter::getOpCode(theInstruction)) {
@@ -2623,10 +2630,14 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::CALL:
 	jam();
+#ifdef TRACE_INTERPRETER
+        ndbout_c(" - call addr=%u, subroutine len=%u ret addr=%u",
+                 theInstruction >> 16, TsubroutineLen, TprogramCounter);
+#endif
 	RstackPtr++;
 	if (RstackPtr < 32) {
-	  TstackMemBuffer[RstackPtr]= TprogramCounter + 1;
-	  TprogramCounter= theInstruction >> 16;
+          TstackMemBuffer[RstackPtr]= TprogramCounter;
+          TprogramCounter= theInstruction >> 16;
 	  if (TprogramCounter < TsubroutineLen) {
 	    TcurrentProgram= subroutineProg;
 	    TcurrentSize= TsubroutineLen;
@@ -2640,6 +2651,11 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
       case Interpreter::RETURN:
 	jam();
+#ifdef TRACE_INTERPRETER
+        ndbout_c(" - return to %u from stack level %u",
+                 TstackMemBuffer[RstackPtr],
+                 RstackPtr);
+#endif
 	if (RstackPtr > 0) {
 	  TprogramCounter= TstackMemBuffer[RstackPtr];
 	  RstackPtr--;

@@ -44,6 +44,7 @@ public:
   STATIC_CONST( HeaderLength = 3 );
   STATIC_CONST( DataLength = 22 );
   STATIC_CONST( MaxSignalLength = HeaderLength + DataLength );
+  STATIC_CONST( SectionSizeInfoLength = 5 );
 
 private:
   Uint32 connectPtr;
@@ -61,9 +62,10 @@ private:
   signal. For SCAN_TABREQ, all attribute info words are sent in ATTRINFO
   signals).
 
-  For SCAN_TABREQ, the attribute information can have up to five sections. The
-  initial five words of the stream defines the length of the sections,
-  followed by the words of each section in sequence.
+  For SCAN_TABREQ, and TCKEYREQ for read or update with interpreted code, 
+  the attribute information can have up to five sections. The initial 
+  five words of the stream defines the length of the sections, followed 
+  by the words of each section in sequence.
 
   The sections are:
    1. Attributes to read before starting any interpreted program.

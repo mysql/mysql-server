@@ -16,6 +16,13 @@
 #ifndef SCAN_FILTER_HPP
 #define SCAN_FILTER_HPP
 
+/* NOTE - This code is currently broken, as old-style interpreted
+ * code definition is no longer supported for Scans.
+ * Interpreted programs for scans must be defined using the
+ * NdbInterpretedCode class
+ * TODO : Fix or remove this code.
+ */
+
 class ScanFilter {
 public:
 #if 0
