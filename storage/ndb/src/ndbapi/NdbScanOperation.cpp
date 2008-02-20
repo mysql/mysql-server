@@ -309,6 +309,12 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
     m_interpreted_code= options->interpretedCode;
   }
 
+  /* User's operation 'tag' data. */
+  if (options->optionsPresent & ScanOptions::SO_CUSTOMDATA)
+  {
+    m_customData = options->customData;
+  }
+
   return 0;
 }
 

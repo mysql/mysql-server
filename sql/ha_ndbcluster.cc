@@ -3472,13 +3472,13 @@ ha_ndbcluster::update_row_conflict_fn_max(const uchar *old_data,
   else
     r= code->load_const_u64(RegNewValue, new_value_64);
   DBUG_ASSERT(r == 0);
-  r= code->read_attr(m_table, resolve_column, RegCurrentValue);
+  r= code->read_attr(RegCurrentValue, resolve_column);
   DBUG_ASSERT(r == 0);
   /*
    * if RegNewValue > RegCurrentValue goto label_0
    * else raise error for this row
    */
-  r= code->branch_gt(RegCurrentValue, RegNewValue, label_0);
+  r= code->branch_gt(RegNewValue, RegCurrentValue, label_0);
   DBUG_ASSERT(r == 0);
   r= code->interpret_exit_nok(error_conflict_fn_max_violation);
   DBUG_ASSERT(r == 0);
@@ -3486,7 +3486,7 @@ ha_ndbcluster::update_row_conflict_fn_max(const uchar *old_data,
   DBUG_ASSERT(r == 0);
   r= code->interpret_exit_ok();
   DBUG_ASSERT(r == 0);
-  r= code->backpatch();
+  r= code->finalise();
   DBUG_ASSERT(r == 0);
   return r;
 }
@@ -3558,13 +3558,13 @@ ha_ndbcluster::update_row_conflict_fn_old(const uchar *old_data,
   else
     r= code->load_const_u64(RegOldValue, old_value_64);
   DBUG_ASSERT(r == 0);
-  r= code->read_attr(m_table, resolve_column, RegCurrentValue);
+  r= code->read_attr(RegCurrentValue, resolve_column);
   DBUG_ASSERT(r == 0);
   /*
    * if RegOldValue == RegCurrentValue goto label_0
    * else raise error for this row
    */
-  r= code->branch_eq(RegCurrentValue, RegOldValue, label_0);
+  r= code->branch_eq(RegOldValue, RegCurrentValue, label_0);
   DBUG_ASSERT(r == 0);
   r= code->interpret_exit_nok(error_conflict_fn_old_violation);
   DBUG_ASSERT(r == 0);
@@ -3572,7 +3572,7 @@ ha_ndbcluster::update_row_conflict_fn_old(const uchar *old_data,
   DBUG_ASSERT(r == 0);
   r= code->interpret_exit_ok();
   DBUG_ASSERT(r == 0);
-  r= code->backpatch();
+  r= code->finalise();
   DBUG_ASSERT(r == 0);
   return r;
 }
@@ -3837,14 +3837,14 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       /* Conflict resolution in slave thread. */
 
       /*
-        Room for 10 instruction words, two labels, and two jumps.
+        Room for 10 instruction words, two labels (@ 2words/label)
         + 2 extra words for the case of resolve_size == 8
       */
       Uint32 buffer[16];
       NdbInterpretedCode code(m_table, buffer,
                               sizeof(buffer)/sizeof(buffer[0]));
       enum_conflict_fn_type cft= m_share->m_cfn_share->m_resolve_cft;
-      if (update_row_conflict_fn(cft, old_data, new_data, code))
+      if (update_row_conflict_fn(cft, old_data, new_data, &code))
       {
         /* ToDo error handling */
         abort();
