@@ -265,8 +265,6 @@ Qmgr::execSTART_ORD(Signal* signal)
     nodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
     nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
     nodePtr.p->failState = NORMAL;
-    nodePtr.p->rcv[0] = 0;
-    nodePtr.p->rcv[1] = 0;
   }//for
 }
 
@@ -2570,30 +2568,26 @@ void Qmgr::execAPI_FAILCONF(Signal* signal)
   failedNodePtr.i = signal->theData[0];  
   ptrCheckGuard(failedNodePtr, MAX_NODES, nodeRec);
 
-  if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF1){
+  if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF1)
+  {
     jam();
-
-    failedNodePtr.p->rcv[0] = signal->theData[1];
     failedNodePtr.p->failState = WAITING_FOR_FAILCONF2;
-
-  } else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF2) {
-    failedNodePtr.p->rcv[1] = signal->theData[1];
-    failedNodePtr.p->failState = NORMAL;
-
-    if (failedNodePtr.p->rcv[0] == failedNodePtr.p->rcv[1]) {
-      jam();
-      systemErrorLab(signal, __LINE__);
-    } else {
-      jam();
-      failedNodePtr.p->rcv[0] = 0;
-      failedNodePtr.p->rcv[1] = 0;
-    }//if
-  } else {
+  }
+  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF2)
+  {
     jam();
-#ifdef VM_TRACE
+    failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
+  }
+  else if (failedNodePtr.p->failState == WAITING_FOR_FAILCONF3)
+  {
+    jam();
+    failedNodePtr.p->failState = NORMAL;
+  }
+  else
+  {
+    jam();
     ndbout << "failedNodePtr.p->failState = "
 	   << (Uint32)(failedNodePtr.p->failState) << endl;
-#endif   
     systemErrorLab(signal, __LINE__);
   }//if
   return;
@@ -2820,7 +2814,7 @@ Qmgr::api_failed(Signal* signal, Uint32 nodeId)
     signal->theData[0] = nodeId;
     signal->theData[1] = QMGR_REF;
     sendSignal(SUMA_REF, GSN_API_FAILREQ, signal, 2, JBA);
-    failedNodePtr.p->failState = NORMAL;
+    failedNodePtr.p->failState = WAITING_FOR_FAILCONF3;
   }
 
   failedNodePtr.p->phase = ZFAIL_CLOSING;
@@ -5152,6 +5146,12 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
     c_error_insert_extra = signal->theData[1];
   }
 #endif
+
+  if (signal->theData[0] == 900 && signal->getLength() == 2)
+  {
+    ndbout_c("disconnecting %u", signal->theData[1]);
+    api_failed(signal, signal->theData[1]);
+  }
 }//Qmgr::execDUMP_STATE_ORD()
 
 

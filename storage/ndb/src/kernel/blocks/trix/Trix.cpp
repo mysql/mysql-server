@@ -683,6 +683,7 @@ void Trix::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->pendingSubSyncContinueConf = true;
+  subRec->syncPtr = subSyncContinueReq->senderData;
   checkParallelism(signal, subRec);
 }
 
@@ -985,6 +986,7 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
       (SubSyncContinueConf *) signal->getDataPtrSend();
     subSyncContinueConf->subscriptionId = subRec->subscriptionId;
     subSyncContinueConf->subscriptionKey = subRec->subscriptionKey;
+    subSyncContinueConf->senderData = subRec->syncPtr;
     sendSignal(SUMA_REF, GSN_SUB_SYNC_CONTINUE_CONF, signal, 
 	       SubSyncContinueConf::SignalLength , JBB);  
     subRec->pendingSubSyncContinueConf = false;
