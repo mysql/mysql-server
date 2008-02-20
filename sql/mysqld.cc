@@ -221,6 +221,11 @@ extern "C" int gethostname(char *name, int namelen);
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
+/*
+  WARNING: When adding new SQL modes don't forget to update the
+           tables definitions that stores it's value.
+           (ie: mysql.event, mysql.proc)
+*/
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
@@ -1864,9 +1869,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
-  my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Impossible
 }
@@ -2179,6 +2184,16 @@ static void check_data_home(const char *path)
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
 #endif
 
+
+#if BACKTRACE_DEMANGLE
+#include <cxxabi.h>
+extern "C" char *my_demangle(const char *mangled_name, int *status)
+{
+  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
+}
+#endif
+
+
 extern "C" sig_handler handle_segfault(int sig)
 {
   time_t curr_time;
@@ -2250,10 +2265,29 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   }
   if (thd)
   {
+    const char *kreason= "UNKNOWN";
+    switch (thd->killed) {
+    case THD::NOT_KILLED:
+      kreason= "NOT_KILLED";
+      break;
+    case THD::KILL_BAD_DATA:
+      kreason= "KILL_BAD_DATA";
+      break;
+    case THD::KILL_CONNECTION:
+      kreason= "KILL_CONNECTION";
+      break;
+    case THD::KILL_QUERY:
+      kreason= "KILL_QUERY";
+      break;
+    case THD::KILLED_NO_VALUE:
+      kreason= "KILLED_NO_VALUE";
+      break;
+    }
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "thd->killed=%s\n", kreason);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
