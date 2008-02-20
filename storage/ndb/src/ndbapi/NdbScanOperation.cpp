@@ -3169,7 +3169,6 @@ NdbIndexScanOperation::ordered_send_scan_wait_for_all(bool forceSend)
 
     Uint32 new_receivers= m_conf_receivers_count;
     m_conf_receivers_count= 0;
-    assert(new_receivers<=1 || new_receivers==theParallelism);
     return new_receivers;
   } else {
     setErrorCode(4028);
