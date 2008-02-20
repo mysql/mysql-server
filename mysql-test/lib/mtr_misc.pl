@@ -20,7 +20,8 @@
 
 use strict;
 
-sub mtr_native_path($);
+use My::Platform;
+
 sub mtr_init_args ($);
 sub mtr_add_arg ($$@);
 sub mtr_args2str($@);
@@ -29,27 +30,6 @@ sub mtr_script_exists(@);
 sub mtr_file_exists(@);
 sub mtr_exe_exists(@);
 sub mtr_exe_maybe_exists(@);
-
-##############################################################################
-#
-#  Misc
-#
-##############################################################################
-
-# Convert path to OS native format
-sub mtr_native_path($)
-{
-  my $path= shift;
-
-  # MySQL version before 5.0 still use cygwin, no need
-  # to convert path
-  return $path
-    if ($::mysql_version_id < 50000);
-
-  $path=~ s/\//\\/g
-    if ($::is_win32);
-  return $path;
-}
 
 
 ##############################################################################
@@ -70,14 +50,14 @@ sub mtr_add_arg ($$@) {
 
   # Quote args if args contain space
   $format= "\"$format\""
-    if ($::is_win32 and grep(/\s/, @fargs));
+    if (IS_WINDOWS and grep(/\s/, @fargs));
 
   push(@$args, sprintf($format, @fargs));
 }
 
 sub mtr_args2str($@) {
   my $exe=   shift or die;
-  return join(" ", mtr_native_path($exe), @_);
+  return join(" ", native_path($exe), @_);
 }
 
 ##############################################################################
@@ -109,7 +89,7 @@ sub mtr_path_exists (@) {
 sub mtr_script_exists (@) {
   foreach my $path ( @_ )
   {
-    if($::is_win32)
+    if(IS_WINDOWS)
     {
       return $path if -f $path;
     }
@@ -149,10 +129,10 @@ sub mtr_file_exists (@) {
 sub mtr_exe_maybe_exists (@) {
   my @path= @_;
 
-  map {$_.= ".exe"} @path if $::is_win32;
+  map {$_.= ".exe"} @path if IS_WINDOWS;
   foreach my $path ( @path )
   {
-    if($::is_win32)
+    if(IS_WINDOWS)
     {
       return $path if -f $path;
     }

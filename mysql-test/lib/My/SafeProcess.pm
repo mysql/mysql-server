@@ -56,34 +56,9 @@ use My::SafeProcess::Base;
 use base 'My::SafeProcess::Base';
 
 use My::Find;
+use My::Platform;
 
 my %running;
-
-BEGIN {
-  if ($^O eq "MSWin32") {
-    eval 'sub IS_WIN32PERL () { 1 }';
-  }
-  else {
-    eval 'sub IS_WIN32PERL () { 0 }';
-  }
-  if ($^O eq "cygwin") {
-    eval 'sub IS_CYGWIN () { 1 }';
-    # Make sure cygpath works
-    if ((system("cygpath > /dev/null 2>&1") >> 8) != 1){
-      die "Could not execute 'cygpath': $!";
-    }
-    eval 'sub fixpath {
-            my ($path)= @_;
-            return unless defined $path;
-            $path= `cygpath -w $path`;
-            chomp $path;
-            return $path;
-          }';
-  }
-  else {
-    eval 'sub IS_CYGWIN () { 0 }';
-  }
-}
 
 END {
   # Kill any children still running
@@ -163,12 +138,10 @@ sub new {
 #  }
 
   if (IS_CYGWIN){
-    # safe_procss is a windows program and need
-    # windows paths
-    $path= fixpath($path);
-    $input= fixpath($input);
-    $output= fixpath($output);
-    $error= fixpath($error);
+    $path= native_path($path);
+    $input= native_path($input);
+    $output= native_path($output);
+    $error= native_path($error);
   }
 
   my @safe_args;

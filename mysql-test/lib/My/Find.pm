@@ -23,14 +23,14 @@ package My::Find;
 
 use strict;
 use Carp;
+use My::Platform;
 
 use base qw(Exporter);
 our @EXPORT= qw(my_find_bin my_find_dir);
 
 our $vs_config_dir;
 
-my $is_win= ($^O eq "MSWin32" or $^O eq "cygwin");
-my $bin_extension= ".exe" if $is_win;
+my $bin_extension= ".exe" if IS_WINDOWS;
 
 #
 # my_find_bin - find an executable with "name_1...name_n" in
@@ -56,7 +56,7 @@ sub my_find_bin {
   # Find and return the first executable
   # -------------------------------------------------------
   foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
-    return $path if ( -x $path or ($is_win and -f $path) );
+    return $path if ( -x $path or (IS_WINDOWS and -f $path) );
   }
   find_error($base, $paths, $names);
 }
@@ -120,7 +120,7 @@ sub my_find_paths {
   # -------------------------------------------------------
   # Windows specific
   # -------------------------------------------------------
-  if ($is_win) {
+  if (IS_WINDOWS) {
     # Add the default extra build dirs unless a specific one has
     # already been selected
     push(@extra_dirs,
