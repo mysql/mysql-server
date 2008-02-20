@@ -1827,17 +1827,7 @@ int Ndb::dropEventOperation(NdbEventOperation* tOp)
   // remove it from list
   NdbEventOperationImpl *op=
     NdbEventBuffer::getEventOperationImpl(tOp);
-  if (op->m_next)
-    op->m_next->m_prev= op->m_prev;
-  if (op->m_prev)
-    op->m_prev->m_next= op->m_next;
-  else
-    theImpl->m_ev_op= op->m_next;
-
-  DBUG_PRINT("info", ("first: %s",
-                      theImpl->m_ev_op ? theImpl->m_ev_op->getEvent()->getTable()->getName() : "<empty>"));
-  assert(theImpl->m_ev_op == 0 || theImpl->m_ev_op->m_prev == 0);
-
+  
   theEventBuffer->dropEventOperation(tOp);
   DBUG_RETURN(0);
 }
