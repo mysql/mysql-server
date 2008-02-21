@@ -34,6 +34,7 @@ testIndex \
 testMgm \
 testNdbApi \
 testNodeRestart \
+testUpgrade \
 testOIBasic \
 testOperations \
 testRestartGci \
@@ -54,7 +55,8 @@ testSRBank \
 test_event_merge \
 testIndexStat \
 ndbapi_50compat0 \
-ndbapi_50compat1
+ndbapi_50compat1 \
+testNDBT
 
 EXTRA_PROGRAMS = \
  test_event \
@@ -83,6 +85,8 @@ testIndex_SOURCES = testIndex.cpp
 testMgm_SOURCES = testMgm.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
+testUpgrade_SOURCES = testUpgrade.cpp
+testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
@@ -101,6 +105,8 @@ testReadPerf_SOURCES = testReadPerf.cpp
 testLcp_SOURCES = testLcp.cpp
 testPartitioning_SOURCES = testPartitioning.cpp
 testBitfield_SOURCES = testBitfield.cpp
+testNDBT_SOURCES = testNDBT.cpp
+testNDBT_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 DbCreate_SOURCES = bench/mainPopulate.cpp bench/dbPopulate.cpp bench/userInterface.cpp bench/dbPopulate.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 DbAsyncGenerator_SOURCES = bench/mainAsyncGenerator.cpp bench/asyncGenerator.cpp bench/ndb_async2.cpp bench/dbGenerator.h bench/macros.h bench/userInterface.h bench/testData.h bench/testDefinitions.h bench/ndb_schema.hpp bench/ndb_error.hpp
 testSRBank_SOURCES = testSRBank.cpp

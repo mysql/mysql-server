@@ -98,6 +98,7 @@ setup_db(atrt_config& config)
   return true;
 }
 
+static
 const char*
 find(atrt_process* proc, const char * key)
 {
@@ -175,12 +176,11 @@ run_sql(atrt_process * proc, const char * sql)
 }
 
 void
-BINDI(MYSQL_BIND& bind, int * i, unsigned long * len)
+BINDI(MYSQL_BIND& bind, int * i)
 {
   bind.buffer_type= MYSQL_TYPE_LONG;
   bind.buffer= (char*)i;
-  bind.buffer_length= * len = sizeof(int);
-  bind.length= len;
+  bind.is_unsigned= 0;
   bind.is_null= 0;
 }
 
@@ -218,15 +218,15 @@ populate_options(MYSQL* mysql, MYSQL_STMT* stmt, int* option_id,
   {
     int optid = kk;
     int proc_id = process_id;
-    unsigned long l0, l1, l2, l3;
+    unsigned long l0, l1;
     const char * value;
     p->get(name, &value);
     MYSQL_BIND bind2[4];	
     bzero(bind2, sizeof(bind2));
-    BINDI(bind2[0], &optid, &l0);
-    BINDI(bind2[1], &proc_id, &l1);
-    BINDS(bind2[2], name, &l2);
-    BINDS(bind2[3], value, &l3);
+    BINDI(bind2[0], &optid);
+    BINDI(bind2[1], &proc_id);
+    BINDS(bind2[2], name, &l0);
+    BINDS(bind2[3], value, &l1);
     
     if (mysql_stmt_bind_param(stmt, bind2))
     {
@@ -260,14 +260,14 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 
     for (size_t i = 0; i<config.m_hosts.size(); i++)
     {
-      unsigned long l0, l1, l2;
+      unsigned long l0;
       MYSQL_BIND bind[3];
       bzero(bind, sizeof(bind));
       int id = i;
       int port = config.m_hosts[i]->m_cpcd->getPort();
-      BINDI(bind[0], &id, &l0);
-      BINDS(bind[1], config.m_hosts[i]->m_hostname.c_str(), &l1);
-      BINDI(bind[2], &port, &l2);
+      BINDI(bind[0], &id);
+      BINDS(bind[1], config.m_hosts[i]->m_hostname.c_str(), &l0);
+      BINDI(bind[2], &port);
       if (mysql_stmt_bind_param(stmt, bind))
       {
 	g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));
@@ -294,12 +294,13 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 
     for (size_t i = 0; i<config.m_clusters.size(); i++)
     {
-      unsigned long l0, l1;
+      unsigned long l0;
       MYSQL_BIND bind[2];
       bzero(bind, sizeof(bind));
       int id = i;
-      BINDI(bind[0], &id, &l0);
-      BINDS(bind[1], config.m_clusters[i]->m_name.c_str(), &l1);
+      BINDI(bind[0], &id);
+      BINDS(bind[1], config.m_clusters[i]->m_name.c_str(), &l0);
+
       if (mysql_stmt_bind_param(stmt, bind))
       {
 	g_logger.error("Failed to bind: %s", mysql_error(&mysqld->m_mysql));
@@ -317,7 +318,7 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 
   {
     const char * sql = 
-      "INSERT INTO process (id, host_id, cluster_id, type, state) values (?,?,?,?, ?)";
+      "INSERT INTO process (id, host_id, cluster_id, type, state, node_id) values (?,?,?,?,?,?)";
 
     const char * sqlopt =
       "INSERT INTO options (id, process_id, name, value) values (?,?,?,?)";
@@ -339,13 +340,14 @@ populate_db(atrt_config& config, atrt_process* mysqld)
     int option_id = 0;
     for (size_t i = 0; i<config.m_processes.size(); i++)
     {
-      unsigned long l0, l1, l2, l3, l4;
-      MYSQL_BIND bind[5];
+      unsigned long l0, l1;
+      MYSQL_BIND bind[6];
       bzero(bind, sizeof(bind));
       int id = i;
       atrt_process* proc = config.m_processes[i];
       int host_id = find(proc->m_host, config.m_hosts);
       int cluster_id = find(proc->m_cluster, config.m_clusters);
+      int node_id= proc->m_nodeid;
 
       const char * type = 0;
       const char * state = "started";
@@ -359,11 +361,12 @@ populate_db(atrt_config& config, atrt_process* mysqld)
 	abort();
       }
 
-      BINDI(bind[0], &id, &l0);
-      BINDI(bind[1], &host_id, &l1);
-      BINDI(bind[2], &cluster_id, &l2);
-      BINDS(bind[3], type, &l3);
-      BINDS(bind[4], state, &l4);
+      BINDI(bind[0], &id);
+      BINDI(bind[1], &host_id);
+      BINDI(bind[2], &cluster_id);
+      BINDS(bind[3], type, &l0);
+      BINDS(bind[4], state, &l1);
+      BINDI(bind[5], &node_id);
 
       if (mysql_stmt_bind_param(stmt, bind))
       {
