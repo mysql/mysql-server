@@ -32,7 +32,7 @@ void print_item (bytevec val, ITEMLEN len) {
     printf("\"");
     ITEMLEN i;
     for (i=0; i<len; i++) {
-	char ch = ((char*)val)[i];
+	unsigned char ch = ((unsigned char*)val)[i];
 	if (isprint(ch) && ch!='\\' && ch!='"') {
 	    printf("%c", ch);
 	} else {
