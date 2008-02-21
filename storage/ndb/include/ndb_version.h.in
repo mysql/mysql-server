@@ -171,7 +171,7 @@ ndb_pnr(Uint32 version)
     version == NDB_VERSION_D || version >= NDBD_PNR;
 }
 
-#define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,13)
+#define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)
 #define NDBD_SUMA_DICT_LOCK_63 NDB_MAKE_VERSION(6,3,11)
 
 static

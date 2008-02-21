@@ -23,7 +23,7 @@
 
 #include <SLList.hpp>
 #include <DLList.hpp>
-#include <DLFifoList.hpp>
+#include <DLCFifoList.hpp>
 #include <KeyTable.hpp>
 #include <DataBuffer.hpp>
 #include <SignalCounter.hpp>
@@ -356,7 +356,7 @@ public:
   DataBuffer<15>::DataBufferPool c_dataBufferPool;
   ArrayPool<SubOpRecord> c_subOpPool;
 
-  Uint32 c_maxBufferedGcp;
+  Uint32 c_maxBufferedEpochs;
 
   NodeBitmask c_failedApiNodes;
   
@@ -605,7 +605,8 @@ private:
 
   Uint64 get_current_gci(Signal*);
 
-  void checkMaxBufferedGCP(Signal *signal);
+  void checkMaxBufferedEpochs
+(Signal *signal);
 
   Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
@@ -625,7 +626,7 @@ private:
     Uint32 prevList;
   };
   ArrayPool<Gcp_record> c_gcp_pool;
-  DLFifoList<Gcp_record> c_gcp_list;
+  DLCFifoList<Gcp_record> c_gcp_list;
 
   struct Page_chunk
   {
