@@ -25,6 +25,8 @@ NDB_STD_OPTS_VARS;
 static int _loop = 25;
 static int _sleep = 25;
 static int _drop = 1;
+static int _subloop = 5;
+static int _wait_all = 0;
 
 typedef uchar* gptr;
 
@@ -41,6 +43,14 @@ static struct my_option my_long_options[] =
     "Drop event operations before disconnect (0 = no, 1 = yes, else rand",
     (gptr*) &_drop, (gptr*) &_drop, 0,
     GET_INT, REQUIRED_ARG, _drop, 0, 0, 0, 0, 0 }, 
+  { "subscribe-loop", 256, 
+    "Loop in subscribe/unsubscribe",
+    (uchar**) &_subloop, (uchar**) &_subloop, 0,
+    GET_INT, REQUIRED_ARG, _subloop, 0, 0, 0, 0, 0 }, 
+  { "wait-all", 256, 
+    "Wait for all ndb-nodes (i.e not only some)",
+    (uchar**) &_wait_all, (uchar**) &_wait_all, 0,
+    GET_INT, REQUIRED_ARG, _wait_all, 0, 0, 0, 0, 0 }, 
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -73,7 +83,9 @@ int main(int argc, char** argv){
       ndbout << "Unable to connect to management server." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
-    if (con.wait_until_ready(30,30) != 0)
+    
+    int res = con.wait_until_ready(30,30);
+    if (res < 0 || (_wait_all && res != 0))
     {
       ndbout << "Cluster nodes not ready in 30 seconds." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
@@ -85,63 +97,75 @@ int main(int argc, char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    Vector<NdbEventOperation*> ops;
-    const NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
-    for (int j = 0; j < argc; j++) 
+    for (int k = _subloop; k >= 1; k--)
     {
-      const NdbDictionary::Table * pTab = dict->getTable(argv[j]);
-      if (pTab == 0)
+      if (k > 1 && ((k % 25) == 0))
       {
-        ndbout_c("Failed to retreive table: \"%s\"", argv[j]);
+        ndbout_c("subscribe/unsubscribe: %u", _subloop - k);
       }
-
-      BaseString tmp;
-      tmp.appfmt("EV-%s", argv[j]);
-      NdbEventOperation* pOp = MyNdb.createEventOperation(tmp.c_str());
-      if ( pOp == NULL ) 
+      Vector<NdbEventOperation*> ops;
+      const NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
+      for (int j = 0; j < argc; j++) 
       {
-        ndbout << "Event operation creation failed: " << 
-          MyNdb.getNdbError() << endl;
-        return NDBT_ProgramExit(NDBT_FAILED);
-      }
-
-      for (int a = 0; a < pTab->getNoOfColumns(); a++) 
-      {
-        pOp->getValue(pTab->getColumn(a)->getName());
-        pOp->getPreValue(pTab->getColumn(a)->getName());
-      }
-      
-      if (pOp->execute())
-      { 
-        ndbout << "operation execution failed: " << pOp->getNdbError()
-               << endl;
-        return NDBT_ProgramExit(NDBT_FAILED);
-      }
-      ops.push_back(pOp);
-    }
-    
-    if (_sleep)
-    {
-      NdbSleep_MilliSleep(10 + rand() % _sleep);
-    }
-    
-    for (Uint32 i = 0; i<ops.size(); i++)
-    {
-      switch(_drop){
-      case 0:
-        break;
-      do_drop:
-      case 1:
-        if (MyNdb.dropEventOperation(ops[i]))
+        const NdbDictionary::Table * pTab = dict->getTable(argv[j]);
+        if (pTab == 0)
         {
-          ndbout << "drop event operation failed " 
-                 << MyNdb.getNdbError() << endl;
+          ndbout_c("Failed to retreive table: \"%s\"", argv[j]);
+        }
+        
+        BaseString tmp;
+        tmp.appfmt("EV-%s", argv[j]);
+        NdbEventOperation* pOp = MyNdb.createEventOperation(tmp.c_str());
+        if ( pOp == NULL ) 
+        {
+          ndbout << "Event operation creation failed: " << 
+            MyNdb.getNdbError() << endl;
           return NDBT_ProgramExit(NDBT_FAILED);
         }
-        break;
-      default:
-        if ((rand() % 100) > 50)
-          goto do_drop;
+        
+        for (int a = 0; a < pTab->getNoOfColumns(); a++) 
+        {
+          pOp->getValue(pTab->getColumn(a)->getName());
+          pOp->getPreValue(pTab->getColumn(a)->getName());
+        }
+        
+        ops.push_back(pOp);
+        if (pOp->execute())
+        { 
+          ndbout << "operation execution failed: " << pOp->getNdbError()
+                 << endl;
+          k = 1;
+        }
+      }
+      
+      if (_sleep)
+      {
+        NdbSleep_MilliSleep(10 + rand() % _sleep);
+      }
+      else
+      {
+        ndbout_c("NDBT_ProgramExit: SLEEPING OK");
+        while(true) NdbSleep_SecSleep(5);
+      }
+      
+      for (Uint32 i = 0; i<ops.size(); i++)
+      {
+        switch(k == 1 ? _drop : 1){
+        case 0:
+          break;
+        do_drop:
+        case 1:
+          if (MyNdb.dropEventOperation(ops[i]))
+          {
+            ndbout << "drop event operation failed " 
+                   << MyNdb.getNdbError() << endl;
+            return NDBT_ProgramExit(NDBT_FAILED);
+          }
+          break;
+        default:
+          if ((rand() % 100) > 50)
+            goto do_drop;
+        }
       }
     }
   }

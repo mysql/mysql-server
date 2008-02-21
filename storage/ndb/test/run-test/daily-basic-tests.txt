@@ -1110,3 +1110,11 @@ max-time: 1200
 cmd: testNodeRestart
 args: -n mixedmultiop -l 10 T1 I2 I3 D2
 
+max-time: 300
+cmd: test_event
+args: -n SubscribeNR T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug34702 T1
+
