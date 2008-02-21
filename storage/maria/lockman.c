@@ -631,7 +631,7 @@ enum lockman_getlock_result lockman_getlock(LOCKMAN *lm, LOCK_OWNER *lo,
   /* a new value was added to the hash */
   csize= lm->size;
   if ((my_atomic_add32(&lm->count, 1)+1.0) / csize > MAX_LOAD)
-    my_atomic_cas32(&lm->size, &csize, csize*2);
+    my_atomic_cas32(&lm->size, (int*) &csize, csize*2);
   node->lonext= lo->all_locks;
   lo->all_locks= node;
   for ( ; res & NEED_TO_WAIT; res= lockpeek(el, node, pins, &blocker))

@@ -8,6 +8,7 @@ my $silent= "-s";
 my $tmp= "./tmp";
 my $maria_path;       # path to "storage/maria"
 my $maria_exe_path;   # path to executables (ma_test1, maria_chk etc)
+my $md5sum;
 
 $maria_path= dirname($0) . "/..";
 
@@ -29,8 +30,22 @@ if ( ! -f "$maria_exe_path/ma_test1$suffix" )
       }
     }
   }
-}    
+}
 
+# Test if we should use md5sum or digest -a md5
+
+if (defined(my_which("md5sum")))
+{
+  $md5sum="md5sum";
+}
+elsif (defined(my_which("digest")))
+{
+  $md5sum="digest -a md5";
+}
+else
+{
+  die "Can't find either md5sum or digest. Please install one of them"
+}
 
 # test data is always put in the current directory or a tmp subdirectory of it
 
@@ -307,11 +322,11 @@ sub apply_log
     print MY_LOG "bad argument '$shouldchangelog'\n";
     return 1;
   }
-  $log_md5= `md5sum maria_log.*`;
+  $log_md5= `$md5sum maria_log.*`;
 
   print MY_LOG "applying log\n";
   `$maria_exe_path/maria_read_log$suffix -a > $tmp/maria_read_log_$table.txt`;
-  $log_md5_2= `md5sum maria_log.*`;
+  $log_md5_2= `$md5sum maria_log.*`;
   if ("$log_md5" ne "$log_md5_2" )
   {
     if ("$shouldchangelog" eq "shouldnotchangelog")
@@ -325,4 +340,20 @@ sub apply_log
     print MY_LOG "maria_read_log should have modified the log\n";
     return 1;
   }
+}
+
+
+sub my_which
+{
+  my ($command) = @_;
+  my (@paths, $path);
+
+  return $command if (-f $command && -x $command);
+  @paths = split(':', $ENV{'PATH'});
+  foreach $path (@paths)
+  {
+    $path .= "/$command";
+    return $path if (-f $path && -x $path);
+  }
+  return undef();
 }

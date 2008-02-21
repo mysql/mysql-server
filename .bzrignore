@@ -3077,3 +3077,4 @@ maria_log.00000*
 ma_test_recovery.output
 test?.MA?
 dbug/tests
+storage/maria/unittest/tmp/*

@@ -173,13 +173,14 @@ int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
                            MARIA_RECORD_POS pos)
 {
   int error;
+  DBUG_ENTER("_ma_read_static_record");
 
   if (pos != HA_OFFSET_ERROR)
   {
     if (info->opt_flag & WRITE_CACHE_USED &&
 	info->rec_cache.pos_in_file <= pos &&
 	flush_io_cache(&info->rec_cache))
-      return(my_errno);
+      DBUG_RETURN(my_errno);
     info->rec_cache.seek_not_done=1;		/* We have done a seek */
 
     error= (int) info->s->file_read(info, record,info->s->base.reclength,
@@ -190,17 +191,27 @@ int _ma_read_static_record(register MARIA_HA *info, register uchar *record,
       if (!*record)
       {
         /* Record is deleted */
-	return ((my_errno=HA_ERR_RECORD_DELETED));
+        DBUG_PRINT("warning", ("Record is deleted"));
+	DBUG_RETURN((my_errno=HA_ERR_RECORD_DELETED));
       }
       info->update|= HA_STATE_AKTIV;		/* Record is read */
-      return(0);
+      DBUG_RETURN(0);
     }
   }
   fast_ma_writeinfo(info);			/* No such record */
-  return(my_errno);
+  DBUG_RETURN(my_errno);
 }
 
 
+/**
+   @brief  Read record from given position or next record
+
+   @note
+     When scanning, this function will return HA_ERR_RECORD_DELETED
+     for deleted rows even if skip_deleted_blocks is set.
+     The reason for this is to allow the caller to calculate the record
+     position without having to do call maria_position() for each record.
+*/
 
 int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
                                MARIA_RECORD_POS filepos,
@@ -219,7 +230,8 @@ int _ma_read_rnd_static_record(MARIA_HA *info, uchar *buf,
 	(skip_deleted_blocks || !filepos))
     {
       cache_read=1;				/* Read record using cache */
-      cache_length=(uint) (info->rec_cache.read_end - info->rec_cache.read_pos);
+      cache_length= (uint) (info->rec_cache.read_end -
+                            info->rec_cache.read_pos);
     }
     else
       info->rec_cache.seek_not_done=1;		/* Filepos is changed */

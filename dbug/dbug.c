@@ -124,7 +124,7 @@
 #define SANITY_CHECK_ON (1 << 10)  /* Check safemalloc on DBUG_ENTER */
 #define FLUSH_ON_WRITE  (1 << 11)  /* Flush on every write */
 #define OPEN_APPEND     (1 << 12)  /* Open for append      */
-#define TRACE_ON        (1 << 31)  /* Trace enabled. MUST be the highest bit!*/
+#define TRACE_ON        ((uint)1 << 31)  /* Trace enabled. MUST be the highest bit!*/
 
 #define TRACING (cs->stack->flags & TRACE_ON)
 #define DEBUGGING (cs->stack->flags & DEBUG_ON)

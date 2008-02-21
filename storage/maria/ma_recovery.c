@@ -3265,7 +3265,7 @@ static void print_redo_phase_progress(TRANSLOG_ADDRESS addr)
 {
   static uint end_logno= FILENO_IMPOSSIBLE, percentage_printed= 0;
   static ulong end_offset;
-  static ulonglong initial_remainder= -1;
+  static ulonglong initial_remainder= ~(ulonglong) 0;
 
   uint cur_logno;
   ulong cur_offset;

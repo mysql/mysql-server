@@ -169,7 +169,7 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox, void *stack_end)
     if (!(pins= top_ver % LF_PINBOX_MAX_PINS))
     {
       /* the stack of free elements is empty */
-      pins= my_atomic_add32(&pinbox->pins_in_array, 1)+1;
+      pins= my_atomic_add32((int32 volatile*) &pinbox->pins_in_array, 1)+1;
       if (unlikely(pins >= LF_PINBOX_MAX_PINS))
         return 0;
       /*
@@ -183,7 +183,8 @@ LF_PINS *_lf_pinbox_get_pins(LF_PINBOX *pinbox, void *stack_end)
     }
     el= (LF_PINS *)_lf_dynarray_value(&pinbox->pinarray, pins);
     next= el->link;
-  } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
+  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
+                            (int32*) &top_ver,
                             top_ver-pins+next+LF_PINBOX_MAX_PINS));
   /*
     set el->link to the index of el in the dynarray (el->link has two usages:
@@ -237,7 +238,8 @@ void _lf_pinbox_put_pins(LF_PINS *pins)
   do
   {
     pins->link= top_ver % LF_PINBOX_MAX_PINS;
-  } while (!my_atomic_cas32(&pinbox->pinstack_top_ver, &top_ver,
+  } while (!my_atomic_cas32((int32 volatile*) &pinbox->pinstack_top_ver,
+                            (int32*) &top_ver,
                             top_ver-pins->link+nr+LF_PINBOX_MAX_PINS));
   return;
 }
