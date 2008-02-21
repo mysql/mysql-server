@@ -1228,10 +1228,12 @@ int ha_tokudb::write_row(uchar * record) {
 
     u_int32_t put_flags = key_type[primary_key];
     THD *thd = ha_thd();
-    printf("%s:%d:unique:%d\n", __FILE__, __LINE__, 
-           thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS));
-    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))
+    if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
+        if (0) 
+            printf("%s:%d:unique:%d\n", __FILE__, __LINE__, 
+                   thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS));
         put_flags = DB_YESOVERWRITE;
+    }
 
     table->insert_or_update = 1;        // For handling of VARCHAR
     if (table_share->keys + test(hidden_primary_key) == 1) {
