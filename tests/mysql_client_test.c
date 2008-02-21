@@ -16159,7 +16159,7 @@ static void test_bug31669()
 
 static void test_bug32265()
 {
-  int rc, i;
+  int rc;
   MYSQL_STMT *stmt;
   MYSQL_FIELD *field;
 
