@@ -42,7 +42,7 @@ sub main
   }
   usage() if ($opt_help || $flag_exit);
 
-  $suffix= ( $^O =~ /win/i ) ? ".exe" : "";
+  $suffix= ( $^O =~ /win/i  && $^O !~ /darwin/i ) ? ".exe" : "";
   $maria_exe_path= "$maria_path/release";
   # we use -f, sometimes -x is unexpectedly false in Cygwin
   if ( ! -f "$maria_exe_path/ma_test1$suffix" )
@@ -67,6 +67,10 @@ sub main
   if (defined(my_which("md5sum")))
   {
     $md5sum="md5sum";
+  }
+  elsif (defined(my_which("md5")))
+  {
+  $md5sum="md5";
   }
   elsif (defined(my_which("digest")))
   {

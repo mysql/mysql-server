@@ -2949,6 +2949,11 @@ static enum pagecache_page_pin lock_to_pin[2][8]=
   }
 };
 
+
+/**
+  @note 'buff', if not NULL, must be long-aligned.
+*/
+
 uchar *pagecache_read(PAGECACHE *pagecache,
                       PAGECACHE_FILE *file,
                       pgcache_page_no_t pageno,
@@ -3459,6 +3464,11 @@ static struct write_pin_change write_pin_change_table[]=
   {PAGECACHE_PIN_LEFT_PINNED,
    PAGECACHE_UNPIN} /*PAGECACHE_UNPIN*/
 };
+
+
+/**
+  @note 'buff', if not NULL, must be long-aligned.
+*/
 
 my_bool pagecache_write_part(PAGECACHE *pagecache,
                              PAGECACHE_FILE *file,

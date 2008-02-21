@@ -52,7 +52,7 @@ sub run_tests
   }
   $maria_path= dirname($0) . "/..";
 
-  my $suffix= ( $^O =~ /win/i ) ? ".exe" : "";
+  my $suffix= ( $^O =~ /win/i  && $^O !~ /darwin/i ) ? ".exe" : "";
   $maria_exe_path= "$maria_path/release";
   # we use -f, sometimes -x is unexpectedly false in Cygwin
   if ( ! -f "$maria_exe_path/ma_test1$suffix" )

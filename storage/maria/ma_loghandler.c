@@ -57,6 +57,16 @@ typedef struct st_translog_file
 
 /* records buffer size (should be TRANSLOG_PAGE_SIZE * n) */
 #define TRANSLOG_WRITE_BUFFER (1024*1024)
+/*
+  pagecache_read/write/inject() use bmove512() on their buffers so those must
+  be long-aligned, which we guarantee by using the type below:
+*/
+typedef union
+{
+  ulonglong dummy;
+  uchar buffer[TRANSLOG_PAGE_SIZE];
+} TRANSLOG_PAGE_SIZE_BUFF;
+
 /* min chunk length */
 #define TRANSLOG_MIN_CHUNK 3
 /*
@@ -3501,9 +3511,10 @@ my_bool translog_init_with_table(const char *directory,
       do
       {
         TRANSLOG_VALIDATOR_DATA data;
-        uchar buffer[TRANSLOG_PAGE_SIZE], *page;
+        TRANSLOG_PAGE_SIZE_BUFF psize_buff;
+        uchar *page;
         data.addr= &current_page;
-        if ((page= translog_get_page(&data, buffer, NULL)) == NULL)
+        if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL)
           DBUG_RETURN(1);
         if (data.was_recovered)
         {
@@ -3549,13 +3560,14 @@ my_bool translog_init_with_table(const char *directory,
     if (logs_found && !old_log_was_recovered && old_flags == flags)
     {
       TRANSLOG_VALIDATOR_DATA data;
-      uchar buffer[TRANSLOG_PAGE_SIZE], *page;
+      TRANSLOG_PAGE_SIZE_BUFF psize_buff;
+      uchar *page;
       uint16 chunk_offset;
       data.addr= &last_valid_page;
       /* continue old log */
       DBUG_ASSERT(LSN_FILE_NO(last_valid_page)==
                   LSN_FILE_NO(log_descriptor.horizon));
-      if ((page= translog_get_page(&data, buffer, NULL)) == NULL ||
+      if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL ||
           (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
         DBUG_RETURN(1);
 
@@ -6644,7 +6656,8 @@ int translog_read_record_header_from_buffer(uchar *page,
 
 int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
 {
-  uchar buffer[TRANSLOG_PAGE_SIZE], *page;
+  TRANSLOG_PAGE_SIZE_BUFF psize_buff;
+  uchar *page;
   translog_size_t res, page_offset= LSN_OFFSET(lsn) % TRANSLOG_PAGE_SIZE;
   PAGECACHE_BLOCK_LINK *direct_link;
   TRANSLOG_ADDRESS addr;
@@ -6661,7 +6674,7 @@ int translog_read_record_header(LSN lsn, TRANSLOG_HEADER_BUFFER *buff)
   data.was_recovered= 0;
   addr= lsn;
   addr-= page_offset; /* offset decreasing */
-  res= (!(page= translog_get_page(&data, buffer, &direct_link))) ?
+  res= (!(page= translog_get_page(&data, psize_buff.buffer, &direct_link))) ?
     RECHEADER_READ_ERROR :
     translog_read_record_header_from_buffer(page, page_offset, buff, 0);
   translog_free_link(direct_link);
@@ -7697,8 +7710,8 @@ LSN translog_first_lsn_in_log()
   addr= MAKE_LSN(file, TRANSLOG_PAGE_SIZE); /* the first page of the file */
   data.addr= &addr;
   {
-    uchar buffer[TRANSLOG_PAGE_SIZE];
-    if ((page= translog_get_page(&data, buffer, NULL)) == NULL ||
+    TRANSLOG_PAGE_SIZE_BUFF psize_buff;
+    if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL ||
         (chunk_offset= translog_get_first_chunk_offset(page)) == 0)
       DBUG_RETURN(LSN_ERROR);
   }
@@ -7719,7 +7732,8 @@ LSN translog_first_lsn_in_log()
 LSN translog_first_theoretical_lsn()
 {
   TRANSLOG_ADDRESS addr= translog_get_horizon();
-  uchar buffer[TRANSLOG_PAGE_SIZE], *page;
+  TRANSLOG_PAGE_SIZE_BUFF psize_buff;
+  uchar *page;
   TRANSLOG_VALIDATOR_DATA data;
   DBUG_ENTER("translog_first_theoretical_lsn");
   DBUG_PRINT("info", ("Horizon: (%lu,0x%lx)", LSN_IN_PARTS(addr)));
@@ -7737,7 +7751,7 @@ LSN translog_first_theoretical_lsn()
 
   addr= MAKE_LSN(1, TRANSLOG_PAGE_SIZE); /* the first page of the file */
   data.addr= &addr;
-  if ((page= translog_get_page(&data, buffer, NULL)) == NULL)
+  if ((page= translog_get_page(&data, psize_buff.buffer, NULL)) == NULL)
     DBUG_RETURN(LSN_ERROR);
 
   DBUG_RETURN(MAKE_LSN(1, TRANSLOG_PAGE_SIZE +
