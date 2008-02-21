@@ -16109,8 +16109,6 @@ static void test_bug24179()
 }
 
 
-/*
-
 /**
   Bug#32265 Server returns different metadata if prepared statement is used
 */
@@ -16191,6 +16189,7 @@ static void test_bug32265()
   DBUG_VOID_RETURN;
 }
 
+/*
   Bug#28075 "COM_DEBUG crashes mysqld"
 */
 

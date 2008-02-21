@@ -588,7 +588,7 @@ int Materialized_cursor::fill_item_list(THD *thd, List<Item> &send_fields)
 end:
   thd->restore_active_arena(this, &backup_arena);
   /* Check for thd->is_error() in case of OOM */
-  return rc || thd->net.report_error;
+  return rc || thd->is_error();
 }
 
 int Materialized_cursor::open(JOIN *join __attribute__((unused)))
