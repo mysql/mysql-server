@@ -16,8 +16,17 @@ connection master;
 reset master;
 
 connection slave;
-set @@global.slave_net_timeout= 10;
 
+# there can be a warning if mtr set the global init value bigger than
+# the following assignment. The warning is a grace for the user
+# to warn her that the new value of the global var is bigger than
+# the current value of the hb period, i.e the sanity condition
+# 0 < hb < slave_net_timeout does not hold.
+# The warning has to be disabled as mtr can change the init value
+# for slave_net_timeout
+--disable_warnings
+set @@global.slave_net_timeout= 10;
+--enable_warnings
 ###
 ### Checking the range
 ###

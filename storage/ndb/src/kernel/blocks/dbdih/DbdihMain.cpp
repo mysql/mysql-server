@@ -1915,6 +1915,12 @@ void Dbdih::nodeRestartPh2Lab2(Signal* signal)
   req->nodeId    = cownNodeId;
   req->startType = cstarttype;
   sendSignal(cmasterdihref, GSN_START_PERMREQ, signal, 3, JBB);
+
+  if (ERROR_INSERTED(7203))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(CMVMI_REF, GSN_NDB_TAMPER, signal, 200, 1);
+  }
 }
 
 void Dbdih::execSTART_PERMCONF(Signal* signal) 
@@ -1953,6 +1959,8 @@ void Dbdih::execSTART_PERMREF(Signal* signal)
     // The master was busy adding another node. We will wait for a second and
     // try again.
     /*-----------------------------------------------------------------------*/
+    infoEvent("Did not get permission to start (%u) retry in 3s",
+              errorCode);
     signal->theData[0] = DihContinueB::ZSTART_PERMREQ_AGAIN;
     sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3000, 1);
     return;
@@ -2109,10 +2117,22 @@ void Dbdih::execSTART_PERMREQ(Signal* signal)
     sendSignal(retRef, GSN_START_PERMREF, signal, 2, JBB);
     return;
   }//if
-  if (getNodeStatus(nodeId) != NodeRecord::DEAD){
+
+  if (!getAllowNodeStart(nodeId))
+  {
+    jam();
+ref:
+    signal->theData[0] = nodeId;
+    signal->theData[1] = StartPermRef::ZNODE_START_DISALLOWED_ERROR;
+    sendSignal(retRef, GSN_START_PERMREF, signal, 2, JBB);
+    return;
+  }
+  if (getNodeStatus(nodeId) != NodeRecord::DEAD)
+  {
+    jam();
     g_eventLogger.error("nodeStatus in START_PERMREQ = %u",
                         (Uint32) getNodeStatus(nodeId));
-    ndbrequire(false);
+    goto ref;
   }//if
 
   if (SYSFILE->lastCompletedGCI[nodeId] == 0 &&
@@ -5446,6 +5466,10 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, Uint32 tableId)
        * Ready with entire loop
        * Return to master
        */
+      if (ERROR_INSERTED(7204))
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+      }
       setAllowNodeStart(nodeId, true);
       if (getNodeStatus(nodeId) == NodeRecord::STARTING) {
         jam();
@@ -5545,7 +5569,15 @@ Dbdih::invalidateNodeLCP(Signal* signal, Uint32 nodeId, TabRecordPtr tabPtr)
   signal->theData[0] = DihContinueB::ZINVALIDATE_NODE_LCP;
   signal->theData[1] = nodeId;
   signal->theData[2] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+
+  if (ERROR_INSERTED(7204))
+  {
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+  }
+  else
+  {
+    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+  }
   return;
 }//Dbdih::invalidateNodeLCP()
 
@@ -11726,7 +11758,14 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
     signal->theData[0] = DihContinueB::ZINVALIDATE_NODE_LCP;
     signal->theData[1] = tabPtr.p->tabRemoveNode;
     signal->theData[2] = tabPtr.i + 1;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    if (ERROR_INSERTED(7204))
+    {
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 10000, 3);
+    }
+    else
+    {
+      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB);
+    }
     return;
   case TabRecord::US_COPY_TAB_REQ:
     jam();
