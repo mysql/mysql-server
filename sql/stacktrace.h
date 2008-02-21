@@ -29,20 +29,33 @@ extern char* heap_start;
                             heap_start = (char*) &__bss_start; \
                             check_thread_lib();                \
                           } while(0);
+void check_thread_lib(void);
+#endif /* defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
+#elif defined (__WIN__)
+#define HAVE_STACKTRACE
+extern void set_exception_pointers(EXCEPTION_POINTERS *ep);
+#define init_stacktrace() {}
+#endif
+
+#ifdef HAVE_STACKTRACE
 void print_stacktrace(gptr stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
-void check_thread_lib(void);  
-#endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
-#endif /* TARGET_OS_LINUX */
-
+#else
 /* Define empty prototypes for functions that are not implemented */
-#ifndef HAVE_STACKTRACE
 #define init_stacktrace() {}
 #define print_stacktrace(A,B) {}
 #define safe_print_str(A,B,C) {}
 #endif /* HAVE_STACKTRACE */
 
+
+#if !defined(__NETWARE__)
+#define HAVE_WRITE_CORE
+#endif
+
+#ifdef HAVE_WRITE_CORE
 void write_core(int sig);
+#endif
+
 
 #ifdef	__cplusplus
 }
