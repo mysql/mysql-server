@@ -2207,6 +2207,7 @@ NdbEventBuffer::completeClusterFailed()
   rep.gci_hi= gci >> 32;
   rep.gci_lo= gci & 0xFFFFFFFF;
   rep.gcp_complete_rep_count= cnt;
+  rep.flags = 0;
   execSUB_GCP_COMPLETE_REP(&rep, SubGcpCompleteRep::SignalLength);
 
   DBUG_VOID_RETURN;
