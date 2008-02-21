@@ -40,9 +40,10 @@ int maria_scan_init(register MARIA_HA *info)
     record		Read data here
 
   RETURN
-    0  			ok
-    HA_ERR_END_OF_FILE  End of file
-    #			Error code
+    0  			   ok
+    HA_ERR_END_OF_FILE     End of file
+    HA_ERR_RECORD_DELETED  Record was deleted (can only happen for static rec)
+    #			   Error code
 */
 
 int maria_scan(MARIA_HA *info, uchar *record)

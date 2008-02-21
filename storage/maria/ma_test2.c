@@ -660,6 +660,12 @@ int main(int argc, char *argv[])
       printf("Got error %d when scanning table\n", tmp);
       break;
     }
+    if (!tmp)
+    {
+      /* Remember position to last found row */
+      info.recpos= maria_position(file);
+      bmove(read_record2,read_record,reclength);
+    }
   }
   maria_scan_end(file);
   if (i != write_count && i != write_count - opt_delete)
@@ -668,7 +674,14 @@ int main(int argc, char *argv[])
     goto err;
   }
 
-  bmove(read_record2,read_record,reclength);
+  if (maria_rsame_with_pos(file,read_record,0,info.recpos))
+    goto err;
+  if (bcmp(read_record,read_record2,reclength) != 0)
+  {
+    printf("maria_rsame_with_pos didn't find same record\n");
+    goto err;
+  }
+
   for (i=min(2,keys) ; i-- > 0 ;)
   {
     if (maria_rsame(file,read_record2,(int) i)) goto err;
@@ -860,7 +873,7 @@ int main(int argc, char *argv[])
 	ulong blob_length,pos;
 	uchar *ptr;
 	memcpy_fixed(&ptr, read_record+blob_pos+4, sizeof(ptr));
-	longget(blob_length,read_record+blob_pos);
+        blob_length= uint4korr(read_record+blob_pos);
 	for (pos=0 ; pos < blob_length ; pos++)
 	{
 	  if (ptr[pos] != (uchar) (blob_length+pos))

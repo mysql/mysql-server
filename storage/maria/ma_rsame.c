@@ -34,11 +34,13 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
 
   if (inx != -1 && ! maria_is_key_active(info->s->state.key_map, inx))
   {
+    DBUG_PRINT("error", ("wrong index usage"));
     DBUG_RETURN(my_errno=HA_ERR_WRONG_INDEX);
   }
   if (info->cur_row.lastpos == HA_OFFSET_ERROR ||
       info->update & HA_STATE_DELETED)
   {
+    DBUG_PRINT("error", ("no current record"));
     DBUG_RETURN(my_errno=HA_ERR_KEY_NOT_FOUND);	/* No current record */
   }
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
@@ -65,5 +67,6 @@ int maria_rsame(MARIA_HA *info, uchar *record, int inx)
     DBUG_RETURN(0);
   if (my_errno == HA_ERR_RECORD_DELETED)
     my_errno=HA_ERR_KEY_NOT_FOUND;
+  DBUG_PRINT("error", ("my_errno: %d", my_errno));
   DBUG_RETURN(my_errno);
 } /* maria_rsame */
