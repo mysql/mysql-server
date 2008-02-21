@@ -1013,7 +1013,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "32000" },
 
   {
-    CFG_DB_MAX_BUFFERED_GCP,
+    CFG_DB_MAX_BUFFERED_EPOCHS,
     "MaxBufferedEpochs",
     DB_TOKEN,
     "Allowed numbered of epochs that a subscribing node can lag behind (unprocessed epochs).  Exceeding will cause lagging subscribers to be disconnected.",
