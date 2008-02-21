@@ -1528,7 +1528,6 @@ static bool mysql_test_create_view(Prepared_statement *stmt)
   DBUG_ENTER("mysql_test_create_view");
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
-  SELECT_LEX *select_lex= &lex->select_lex;
   bool res= TRUE;
   /* Skip first table, which is the view we are creating */
   bool link_to_local;
