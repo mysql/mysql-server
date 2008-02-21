@@ -617,6 +617,7 @@ int toku_logger_abort(TOKUTXN txn) {
 	logtype_dispatch(item, toku_free_logtype_);
 	toku_free(item);
     }
+    list_remove(&txn->live_txns_link);
     toku_free(txn);
     return 0;
 }
