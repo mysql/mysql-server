@@ -39,22 +39,7 @@
 #endif /* HAVE_OPENSSL */
 
 #ifdef __WIN__
-static void  test_signal(int sig_ptr)
-{
-#if !defined( DBUG_OFF)
-  MessageBox(NULL,"Test signal","DBUG",MB_OK);
-#endif
-#if defined(OS2)
-  fprintf(stderr, "Test signal %d\n", sig_ptr);
-  fflush(stderr);
-#endif
-}
-static void init_signals(void)
-{
-  int signals[7] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGBREAK,SIGABRT } ;
-  for (int i=0 ; i < 7 ; i++)
-    signal( signals[i], test_signal) ;
-}
+extern void win_install_sigabrt_handler();
 #endif
 
 /*
@@ -626,7 +611,7 @@ bool init_new_connection_handler_thread()
 {
   pthread_detach_this_thread();
 #if defined(__WIN__)
-  init_signals();
+  win_install_sigabrt_handler();
 #else
   /* Win32 calls this in pthread_create */
   if (my_thread_init())
