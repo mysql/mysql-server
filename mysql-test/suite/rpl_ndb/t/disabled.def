@@ -12,5 +12,7 @@
 
 
 rpl_ndb_ctype_ucs2_def : bug #34661 rpl_ndb_ctype_ucs2_def fails in cge-6.3
+rpl_ndb.rpl_ndb_innodb2ndb : Bug #34725 failing rpl_ndb.rpl_ndb_myisam/innodb2ndb
+rpl_ndb.rpl_ndb_myisam2ndb : Bug #34725 failing rpl_ndb.rpl_ndb_myisam/innodb2ndb
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
