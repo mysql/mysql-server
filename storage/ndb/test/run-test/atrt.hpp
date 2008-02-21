@@ -30,7 +30,8 @@ enum ErrorCodes
   ERR_OK = 0,
   ERR_NDB_FAILED = 101,
   ERR_SERVERS_FAILED = 102,
-  ERR_MAX_TIME_ELAPSED = 103
+  ERR_MAX_TIME_ELAPSED = 103,
+  ERR_COMMAND_FAILED = 104,
 };
 
 struct atrt_host 
@@ -72,13 +73,20 @@ struct atrt_process
   } m_type;
 
   SimpleCpcClient::Process m_proc;
-  
+
   NdbMgmHandle m_ndb_mgm_handle;   // if type == ndb_mgm
   atrt_process * m_mysqld;         // if type == client
   atrt_process * m_rep_src;        // if type == mysqld
   Vector<atrt_process*> m_rep_dst; // if type == mysqld
   MYSQL m_mysql;                   // if type == mysqld
   atrt_options m_options;
+  uint m_nodeid;                   // if m_fix_nodeid
+
+  struct {
+    bool m_saved;
+    SimpleCpcClient::Process m_proc;
+  } m_save;
+
 };
 
 struct atrt_cluster
@@ -87,6 +95,7 @@ struct atrt_cluster
   BaseString m_dir;
   Vector<atrt_process*> m_processes;
   atrt_options m_options;
+  uint m_next_nodeid;                   // if m_fix_nodeid
 };
 
 struct atrt_config 
@@ -137,31 +146,37 @@ bool setup_test_case(atrt_config&, const atrt_testcase&);
 
 bool setup_hosts(atrt_config&);
 
+bool do_command(atrt_config& config);
+
+bool
+start_process(atrt_process & proc);
+bool
+stop_process(atrt_process & proc);
+
+NdbOut&
+operator<<(NdbOut& out, const atrt_process& proc);
+
 /**
  * SQL
  */
 bool setup_db(atrt_config&);
-const char* find(const atrt_process* proc, const char * name);
 
 /**
  * Global variables...
  */
 extern Logger g_logger;
-extern atrt_config g_config;
 
 extern const char * g_cwd;
 extern const char * g_my_cnf;
 extern const char * g_user;
 extern const char * g_basedir;
 extern const char * g_prefix;
+extern const char * g_prefix1;
 extern int          g_baseport;
 extern int          g_fqpn;
+extern int          g_fix_nodeid;
 extern int          g_default_ports;
 
 extern const char * g_clusters;
-
-extern const char *save_file;
-extern const char *save_group_suffix;
-extern char *save_extra_file;
 
 #endif

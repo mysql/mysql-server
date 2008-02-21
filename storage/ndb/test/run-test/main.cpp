@@ -1,3 +1,4 @@
+
 /* Copyright (C) 2003 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
@@ -56,12 +57,14 @@ atrt_config g_config;
 const char * g_user = 0;
 int          g_baseport = 10000;
 int          g_fqpn = 0;
+int          g_fix_nodeid= 0;
 int          g_default_ports = 0;
 
 const char * g_cwd = 0;
 const char * g_basedir = 0;
 const char * g_my_cnf = 0;
 const char * g_prefix = 0;
+const char * g_prefix1 = 0;
 const char * g_clusters = 0;
 BaseString g_replicate;
 const char *save_file = 0;
@@ -108,6 +111,9 @@ static struct my_option g_options[] =
   { "prefix", 256, "mysql install dir",
     (uchar **) &g_prefix, (uchar **) &g_prefix,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  { "prefix1", 256, "mysql install dir 1",
+    (uchar **) &g_prefix1, (uchar **) &g_prefix1,
+    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "verbose", 'v', "Verbosity",
     (uchar **) &g_verbosity, (uchar **) &g_verbosity,
     0, GET_INT, REQUIRED_ARG, g_verbosity, 0, 0, 0, 0, 0},
@@ -125,6 +131,9 @@ static struct my_option g_options[] =
     0, GET_INT, REQUIRED_ARG, g_do_start, 0, 0, 0, 0, 0 },
   { "fqpn", 256, "Fully qualified path-names ",
     (uchar **) &g_fqpn, (uchar **) &g_fqpn,
+    0, GET_INT, REQUIRED_ARG, g_fqpn, 0, 0, 0, 0, 0 },
+  { "fix-nodeid", 256, "Fix nodeid for each started process ",
+    (uchar **) &g_fix_nodeid, (uchar **) &g_fix_nodeid,
     0, GET_INT, REQUIRED_ARG, g_fqpn, 0, 0, 0, 0, 0 },
   { "default-ports", 256, "Use default ports when possible",
     (uchar **) &g_default_ports, (uchar **) &g_default_ports,
@@ -203,6 +212,9 @@ main(int argc, char ** argv)
     g_logger.info("Done...sleeping");
     while(true)
     {
+      if (!do_command(g_config))
+        goto end;
+
       NdbSleep_SecSleep(1);
     }
     return_code = 0;
@@ -225,6 +237,12 @@ main(int argc, char ** argv)
     g_logger.info("Done...sleeping");
     while(true)
     {
+      if (!do_command(g_config))
+      {
+        g_logger.info("Exiting");
+        goto end;
+      }
+
       NdbSleep_SecSleep(1);
     }
     return_code = 0;
@@ -241,7 +259,7 @@ main(int argc, char ** argv)
      * Do we need to restart ndb
      */
     if(restart){
-      g_logger.info("(Re)starting server processes processes");
+      g_logger.info("(Re)starting server processes");
       if(!stop_processes(g_config, ~0))
 	goto end;
 
@@ -287,22 +305,25 @@ main(int argc, char ** argv)
       if(!update_status(g_config, atrt_process::AP_ALL))
 	goto end;
 
-      int count = 0;
-
-      if((count = is_running(g_config, p_ndb)) != 2){
+      if(is_running(g_config, p_ndb) != 2){
 	result = ERR_NDB_FAILED;
 	break;
       }
 
-      if((count = is_running(g_config, p_servers)) != 2){
+      if(is_running(g_config, p_servers) != 2){
 	result = ERR_SERVERS_FAILED;
 	break;
       }
 
-      if((count = is_running(g_config, p_clients)) == 0){
+      if(is_running(g_config, p_clients) == 0){
 	break;
       }
-      
+
+      if (!do_command(g_config)){
+        result = ERR_COMMAND_FAILED;
+	break;
+      }
+
       now = time(0);
       if(now  > (start + test_case.m_max_time)){
 	result = ERR_MAX_TIME_ELAPSED;
@@ -373,6 +394,7 @@ main(int argc, char ** argv)
     g_test_case_file = 0;
   }
 
+  g_logger.info("Stopping all processes, result: %d", return_code);
   stop_processes(g_config, atrt_process::AP_ALL);
   return return_code;
 }
@@ -473,6 +495,9 @@ parse_args(int argc, char** argv)
       case 'f':
 	g_fqpn = 1;
 	break;
+      case 'z':
+	g_fix_nodeid = 1;
+	break;
       case 'q':
 	g_do_quit = 1;
 	break;
@@ -503,12 +528,16 @@ parse_args(int argc, char** argv)
     g_basedir = g_cwd;
     g_logger.info("basedir not specified, using %s", g_basedir);
   }
+  else
+  {
+    g_logger.info("basedir, %s", g_basedir);
+  }
 
   if (!g_prefix)
   {
     g_prefix = DEFAULT_PREFIX;
   }
-  
+
   /**
    * Add path to atrt-*.sh
    */
@@ -586,6 +615,13 @@ parse_args(int argc, char** argv)
   }
   
   g_logger.info("Using --prefix=\"%s\"", g_prefix);
+
+  if (g_prefix1)
+  {
+    g_logger.info("Using --prefix1=\"%s\"", g_prefix1);
+  }
+
+
   
   if(g_report_filename)
   {

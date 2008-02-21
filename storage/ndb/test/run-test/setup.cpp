@@ -4,7 +4,6 @@
 #include <my_getopt.h>
 #include <NdbOut.hpp>
 
-static NdbOut& operator<<(NdbOut& out, const atrt_process& proc);
 static atrt_host * find(const char * hostname, Vector<atrt_host*>&);
 static bool load_process(atrt_config&, atrt_cluster&, atrt_process::Type, 
 			 size_t idx, const char * hostname);
@@ -76,6 +75,7 @@ setup_config(atrt_config& config, const char* atrt_mysqld)
     {
       cluster->m_dir = "";
     }
+    cluster->m_next_nodeid= 1;
     
     int argc = 1;
     const char * argv[] = { "atrt", 0, 0 };
@@ -212,6 +212,10 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_index = idx;
   proc.m_type = type;
   proc.m_host = host_ptr;
+  if (g_fix_nodeid)
+    proc.m_nodeid= cluster.m_next_nodeid++;
+  else
+    proc.m_nodeid= -1;
   proc.m_cluster = &cluster;
   proc.m_options.m_features = 0;
   proc.m_rep_src = 0;
@@ -290,6 +294,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
     proc.m_proc.m_args.append(" --nodaemon --mycnf");
+    if (g_fix_nodeid)
+      proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndb_mgmd.%d", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
@@ -304,6 +310,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
     proc.m_proc.m_args.append(" --nodaemon -n");
+    if (g_fix_nodeid)
+      proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndbd.%d", dir.c_str(), proc.m_index);
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=%s", 
 			     cluster.m_name.c_str());
@@ -319,6 +327,8 @@ load_process(atrt_config& config, atrt_cluster& cluster,
 			      proc.m_index,
 			      cluster.m_name.c_str());
     proc.m_proc.m_args.append(" --core-file");
+    if (g_fix_nodeid)
+      proc.m_proc.m_args.appfmt(" --ndb-nodeid=%d", proc.m_nodeid);
     proc.m_proc.m_cwd.appfmt("%smysqld.%d", dir.c_str(), proc.m_index);
     proc.m_proc.m_shutdown_options = "SIGKILL"; // not nice
     proc.m_proc.m_env.appfmt(" MYSQL_GROUP_SUFFIX=.%d%s", 
