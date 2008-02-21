@@ -1751,7 +1751,13 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
   for(Uint32 i = 0; i<RETRIES; i++)
   {
     if (i > 0)
-      NdbSleep_MilliSleep(sleep + 10 * (rand() % mod));
+    {
+      Uint32 t = sleep + 10 * (rand() % mod);
+#ifdef VM_TRACE
+      ndbout_c("retry sleep %ums on error %u", t, m_error.code);
+#endif
+      NdbSleep_MilliSleep(t);
+    }
     if (i == RETRIES / 2)
     {
       mod = 10;
@@ -1825,9 +1831,12 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
     {
       const NdbError &error= getNdbError();
       if (error.status ==  NdbError::TemporaryError)
-	continue;
+      {
+        continue;
+      }
     }
-    else if ( (temporaryMask & m_error.code) != 0 ) {
+    else if ( (temporaryMask & m_error.code) != 0 )
+    {
       continue;
     }
     DBUG_PRINT("info", ("dictSignal caught error= %d", m_error.code));
@@ -1841,7 +1850,9 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
 	}
       }
       if(errcodes[j]) // Accepted error code
-	continue;
+      {
+        continue;
+      }
     }
     break;
   }
@@ -3848,7 +3859,7 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
   NdbApiSignal tSignal(m_reference);
   tSignal.theReceiversBlockNumber = DBDICT;
   tSignal.theVerId_signalNumber   = GSN_SUB_START_REQ;
-  tSignal.theLength = SubStartReq::SignalLength2;
+  tSignal.theLength = SubStartReq::SignalLength;
   
   SubStartReq * req = CAST_PTR(SubStartReq, tSignal.getDataPtrSend());
 
@@ -3862,11 +3873,15 @@ NdbDictInterface::executeSubscribeEvent(class Ndb & ndb,
 		     "subscriberData=%d",req->subscriptionId,
 		     req->subscriptionKey,req->subscriberData));
 
+  int errCodes[] = { SubStartRef::Busy,
+                     SubStartRef::BusyWithNR,
+                     SubStartRef::NotMaster,
+                     0 };
   DBUG_RETURN(dictSignal(&tSignal,NULL,0,
 			 0 /*use masternode id*/,
 			 WAIT_CREATE_INDX_REQ /*WAIT_CREATE_EVNT_REQ*/,
 			 -1, 100,
-			 0, -1));
+			 errCodes, -1));
 }
 
 int
@@ -3895,16 +3910,21 @@ NdbDictInterface::stopSubscribeEvent(class Ndb & ndb,
   req->subscriberData  = ev_op.m_oid;
   req->part            = (Uint32) SubscriptionData::TableData;
   req->subscriberRef   = m_reference;
+  req->requestInfo     = 0;
 
   DBUG_PRINT("info",("GSN_SUB_STOP_REQ subscriptionId=%d,subscriptionKey=%d,"
 		     "subscriberData=%d",req->subscriptionId,
 		     req->subscriptionKey,req->subscriberData));
 
+  int errCodes[] = { SubStartRef::Busy,
+                     SubStartRef::BusyWithNR,
+                     SubStartRef::NotMaster,
+                     0 };
   DBUG_RETURN(dictSignal(&tSignal,NULL,0,
 			 0 /*use masternode id*/,
 			 WAIT_CREATE_INDX_REQ /*WAIT_SUB_STOP__REQ*/,
 			 -1, 100,
-			 0, -1));
+			 errCodes, -1));
 }
 
 NdbEventImpl * 
@@ -4113,8 +4133,11 @@ NdbDictInterface::execSUB_STOP_REF(NdbApiSignal * signal,
 
   DBUG_PRINT("error",("subscriptionId=%d,subscriptionKey=%d,subscriberData=%d,error=%d",
 		      subscriptionId,subscriptionKey,subscriberData,m_error.code));
-  if (m_error.code == SubStopRef::NotMaster)
+  if (m_error.code == SubStopRef::NotMaster &&
+      signal->getLength() >= SubStopRef::SL_MasterNode)
+  {
     m_masterNodeId = subStopRef->m_masterNodeId;
+  }
   m_waiter.signal(NO_WAIT);
   DBUG_VOID_RETURN;
 }

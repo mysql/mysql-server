@@ -2294,6 +2294,43 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug34702(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  while (loops--)
+  {
+    int victim = res.getDbNodeId(rand()%res.getNumDbNodes());
+    res.restartOneDbNode(victim,
+                         /** initial */ true, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+
+    if (res.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+
+    res.insertErrorInAllNodes(7204);
+    res.insertErrorInNode(victim, 7203);
+
+    res.startNodes(&victim, 1);
+    
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2692,6 +2729,9 @@ TESTCASE("mixedmultiop", ""){
   STEP(runPkUpdateUntilStopped);
   STEP(runPkUpdateUntilStopped);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug34702", ""){
+  INITIALIZER(runBug34702);  
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

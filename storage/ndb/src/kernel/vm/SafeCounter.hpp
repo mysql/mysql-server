@@ -64,6 +64,7 @@ public:
   
   bool setSize(Uint32 maxNoOfActiveMutexes, bool exit_on_error = true);
   Uint32 getSize() const ;
+  Uint32 getNoOfFree() const;
 
   void execNODE_FAILREP(Signal*); 
   void printNODE_FAILREP(); 
