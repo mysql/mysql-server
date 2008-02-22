@@ -9,8 +9,6 @@ attr3 VARCHAR(10)
 drop table t1;
 SHOW GLOBAL STATUS LIKE 'ndb%';
 Variable_name	Value
-Ndb_conflict_fn_max	#
-Ndb_conflict_fn_old	#
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
@@ -18,6 +16,8 @@ Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_connect_count	#
 Ndb_execute_count	#
+Ndb_conflict_fn_max	#
+Ndb_conflict_fn_old	#
 SHOW GLOBAL VARIABLES LIKE 'ndb%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
