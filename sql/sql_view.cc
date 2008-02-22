@@ -758,7 +758,6 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 			       enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
-  char buff[4096];
 
   /*
     View definition query -- a SELECT statement that fully defines view. It
