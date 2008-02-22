@@ -1010,6 +1010,23 @@ public:
 class sp_head;
 
 
+class Item_basic_constant :public Item
+{
+public:
+  /* to prevent drop fixed flag (no need parent cleanup call) */
+  void cleanup()
+  {
+    /*
+      Restore the original field name as it might not have been allocated
+      in the statement memory. If the name is auto generated, it must be
+      done again between subsequent executions of a prepared statement.
+    */
+    if (orig_name)
+      name= orig_name;
+  }
+};
+
+
 /*****************************************************************************
   The class is a base class for representation of stored routine variables in
   the Item-hierarchy. There are the following kinds of SP-vars:
@@ -1292,7 +1309,7 @@ bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 
 
-class Item_num: public Item
+class Item_num: public Item_basic_constant
 {
 public:
   Item_num() {}                               /* Remove gcc warning */
@@ -1484,7 +1501,7 @@ public:
   friend class st_select_lex_unit;
 };
 
-class Item_null :public Item
+class Item_null :public Item_basic_constant
 {
 public:
   Item_null(char *name_par=0)
@@ -1506,8 +1523,6 @@ public:
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  /* to prevent drop fixed flag (no need parent cleanup call) */
-  void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -1701,8 +1716,6 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(name,value,max_length); }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
@@ -1757,8 +1770,6 @@ public:
   {
     return new Item_decimal(name, &decimal_value, decimals, max_length);
   }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   Item_num *neg()
   {
@@ -1813,8 +1824,6 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool basic_const_item() const { return 1; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
@@ -1836,7 +1845,7 @@ public:
 };
 
 
-class Item_string :public Item
+class Item_string :public Item_basic_constant
 {
 public:
   Item_string(const char *str,uint length,
@@ -1923,8 +1932,6 @@ public:
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   void print(String *str);
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 
   /**
@@ -1968,6 +1975,8 @@ public:
 
 private:
   bool m_cs_specified;
+  // to prevent drop fixed flag (no need parent cleanup call)
+  void cleanup() {}
 };
 
 
@@ -2050,10 +2059,10 @@ public:
 };
 
 
-class Item_hex_string: public Item
+class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string(): Item() {}
+  Item_hex_string() {}
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -2069,8 +2078,6 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
@@ -2662,7 +2669,7 @@ private:
 };
 
 
-class Item_cache: public Item
+class Item_cache: public Item_basic_constant
 {
 protected:
   Item *example;
@@ -2709,8 +2716,6 @@ public:
   static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   bool eq_def(Field *field) 
   { 
