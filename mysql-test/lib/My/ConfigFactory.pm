@@ -295,7 +295,7 @@ my @mysqlbinlog_rules=
 
 
 #
-# Generate a [client.<suffix>] group pointing to be
+# Generate a [client.<suffix>] group to be
 # used for connecting to [mysqld.<suffix>]
 #
 sub post_check_client_group {
@@ -343,6 +343,25 @@ sub post_check_client_groups {
 				  'client'.$mysqld->after('mysqld'),
 				  $mysqld->name())
  }
+
+}
+
+
+#
+# Generate [embedded] by copying the values
+# needed from first [mysqld.<suffix>]
+#
+sub post_check_embedded_group {
+ my ($self, $config)= @_;
+
+ return unless $self->{ARGS}->{embedded};
+
+ my $first_mysqld= $config->first_like('mysqld.') or
+   croak "Can't run with embedded, config has no mysqld";
+
+  foreach my $option ( $first_mysqld->options() ) {
+    $config->insert('embedded', $option->name(), $option->value())
+  }
 
 }
 
@@ -423,6 +442,7 @@ my @post_rules=
  \&post_check_client_groups,
  \&post_fix_mysql_cluster_section,
  \&post_fix_resolve_at_variables,
+ \&post_check_embedded_group,
 );
 
 
@@ -567,13 +587,13 @@ sub new_config {
 			     $config->insert('mysqlbinlog'),
 			     @mysqlbinlog_rules);
 
-  # Additional reuls required for [client]
+  # Additional rules required for [client]
   $self->run_rules_for_group($config,
 			     $config->insert('client'),
 			     @client_rules);
 
 
-  # Additional reuls required for [mysqltest]
+  # Additional rules required for [mysqltest]
   $self->run_rules_for_group($config,
 			     $config->insert('mysqltest'),
 			     @mysqltest_rules);
