@@ -4989,35 +4989,6 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
 }
 
 
-/**
-  check for global access and give descriptive error message if it fails.
-
-  @param thd			Thread handler
-  @param want_access		Use should have any of these global rights
-
-  @warning
-    One gets access right if one has ANY of the rights in want_access.
-    This is useful as one in most cases only need one global right,
-    but in some case we want to check if the user has SUPER or
-    REPL_CLIENT_ACL rights.
-
-  @retval
-    0	ok
-  @retval
-    1	Access denied.  In this case an error is sent to the client
-*/
-
-bool check_global_access(THD *thd, ulong want_access)
-{
-  char command[128];
-  if ((thd->security_ctx->master_access & want_access))
-    return 0;
-  get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
-  return 1;
-}
-
-
 static bool check_show_access(THD *thd, TABLE_LIST *table)
 {
   switch (get_schema_table_idx(table->schema_table)) {
@@ -5259,6 +5230,39 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
 }
 
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
+
+
+/**
+  check for global access and give descriptive error message if it fails.
+
+  @param thd			Thread handler
+  @param want_access		Use should have any of these global rights
+
+  @warning
+    One gets access right if one has ANY of the rights in want_access.
+    This is useful as one in most cases only need one global right,
+    but in some case we want to check if the user has SUPER or
+    REPL_CLIENT_ACL rights.
+
+  @retval
+    0	ok
+  @retval
+    1	Access denied.  In this case an error is sent to the client
+*/
+
+bool check_global_access(THD *thd, ulong want_access)
+{
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+  char command[128];
+  if ((thd->security_ctx->master_access & want_access))
+    return 0;
+  get_privilege_desc(command, sizeof(command), want_access);
+  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
+  return 1;
+#else
+  return 0;
+#endif
+}
 
 /****************************************************************************
 	Check stack size; Send error if there isn't enough stack to continue
