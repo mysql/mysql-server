@@ -4230,6 +4230,40 @@ LOCK TABLES `test` WRITE;
 UNLOCK TABLES;
 drop database `test-database`;
 use test;
+
+# -----------------------------------------------------------------
+# -- Bug#30217: Views: changes in metadata behaviour between 5.0 and 5.1.
+# -----------------------------------------------------------------
+
+DROP DATABASE IF EXISTS mysqldump_test_db;
+CREATE DATABASE mysqldump_test_db;
+use mysqldump_test_db;
+
+CREATE VIEW v1(x, y) AS SELECT 'a', 'a';
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+view_definition
+select 'a' AS `x`,'a' AS `y`
+
+---> Dumping mysqldump_test_db to bug30217.sql
+
+DROP DATABASE mysqldump_test_db;
+use test;
+
+---> Restoring mysqldump_test_db...
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+view_definition
+select 'a' AS `x`,'a' AS `y`
+
+DROP DATABASE mysqldump_test_db;
+
+# -- End of test case for Bug#32538.
+
 #
 # End of 5.1 tests
 #

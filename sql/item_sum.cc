@@ -359,14 +359,14 @@ void Item_sum::make_field(Send_field *tmp_field)
 }
 
 
-void Item_sum::print(String *str)
+void Item_sum::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   for (uint i=0 ; i < arg_count ; i++)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -2716,7 +2716,7 @@ void Item_udf_sum::cleanup()
 }
 
 
-void Item_udf_sum::print(String *str)
+void Item_udf_sum::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -2724,7 +2724,7 @@ void Item_udf_sum::print(String *str)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -3460,7 +3460,7 @@ String* Item_func_group_concat::val_str(String* str)
 }
 
 
-void Item_func_group_concat::print(String *str)
+void Item_func_group_concat::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct)
@@ -3469,7 +3469,7 @@ void Item_func_group_concat::print(String *str)
   {
     if (i)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   if (arg_count_order)
   {
@@ -3478,7 +3478,7 @@ void Item_func_group_concat::print(String *str)
     {
       if (i)
         str->append(',');
-      (*order[i]->item)->print(str);
+      (*order[i]->item)->print(str, query_type);
       if (order[i]->asc)
         str->append(STRING_WITH_LEN(" ASC"));
       else
