@@ -972,7 +972,13 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
     /* Don't need these any more */
     m_extraSetValues = NULL;
     m_numExtraSetValues = 0;
-  
+  }
+
+  if ((tOpType == InsertRequest) ||
+      (tOpType == WriteRequest) ||
+      (tOpType == UpdateRequest) ||
+      (tOpType == DeleteRequest))
+  {
     /* Handle any setAnyValue(). */
     if (m_use_any_value)
     {
