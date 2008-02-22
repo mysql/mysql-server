@@ -48,9 +48,10 @@ public:
 
   bool done() { return m_sc.done(); }
 
+  NdbNodeBitmask m_confs;
+
 private:
   SafeCounterHandle m_sc;
-  NdbNodeBitmask m_confs;
   Uint8 m_nRefs;
 };
 

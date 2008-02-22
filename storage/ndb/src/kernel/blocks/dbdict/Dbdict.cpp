@@ -81,6 +81,10 @@
 #include <signaldata/CreateTab.hpp>
 #include <NdbSleep.h>
 #include <signaldata/ApiBroadcast.hpp>
+#include <signaldata/DictLock.hpp>
+
+#include <EventLogger.hpp>
+extern EventLogger g_eventLogger;
 
 #include <signaldata/DropObj.hpp>
 #include <signaldata/CreateObj.hpp>
@@ -313,6 +317,14 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
     }
   }    
   
+  if (signal->theData[0] == 8004)
+  {
+    infoEvent("DICT: c_counterMgr size: %u free: %u",
+              c_counterMgr.getSize(),
+              c_counterMgr.getNoOfFree());
+    c_counterMgr.printNODE_FAILREP();
+  }
+    
   return;
 }//Dbdict::execDUMP_STATE_ORD()
 
@@ -1889,6 +1901,20 @@ Dbdict::~Dbdict()
 
 BLOCK_FUNCTIONS(Dbdict)
 
+bool
+Dbdict::getParam(const char * name, Uint32 * count)
+{
+  if (name != 0 && count != 0)
+  {
+    if (strcmp(name, "ActiveCounters") == 0)
+    {
+      * count = 25;
+      return true;
+    }
+  }
+  return false;
+}
+
 void Dbdict::initCommonData() 
 {
 /* ---------------------------------------------------------------- */
@@ -1915,6 +1941,9 @@ void Dbdict::initCommonData()
   c_systemRestart = false;
   c_initialNodeRestart = false;
   c_nodeRestart = false;
+
+  c_outstanding_sub_startstop = 0;
+  c_sub_startstop_lock.clear();
 }//Dbdict::initCommonData()
 
 void Dbdict::initRecords() 
@@ -4222,9 +4251,12 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
     }
   }
   
+  NdbNodeBitmask tmp;
+  tmp.assign(NdbNodeBitmask::Size, theFailedNodes);
+
   for(unsigned i = 1; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NdbNodeBitmask::get(theFailedNodes, i)) {
+    if(tmp.get(i)) {
       jam();
       NodeRecordPtr nodePtr;
       c_nodes.getPtr(nodePtr, i);
@@ -4250,6 +4282,7 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
    */
   removeStaleDictLocks(signal, theFailedNodes);
 
+  c_sub_startstop_lock.bitANDC(tmp);
 }//execNODE_FAILREP()
 
 
@@ -11444,7 +11477,7 @@ void Dbdict::execUTIL_EXECUTE_CONF(Signal *signal)
 {
   jamEntry();
   EVENT_TRACE;
-   ndbrequire(recvSignalUtilReq(signal, 0) == 0);
+  ndbrequire(recvSignalUtilReq(signal, 0) == 0);
 }
 
 void Dbdict::execUTIL_EXECUTE_REF(Signal *signal)
@@ -11700,12 +11733,13 @@ Dbdict::execCREATE_EVNT_REQ(Signal* signal)
   }
 #endif
 
+  CreateEvntReq *req = (CreateEvntReq*)signal->getDataPtr();
+
   if (! assembleFragments(signal)) {
     jam();
     return;
   }
 
-  CreateEvntReq *req = (CreateEvntReq*)signal->getDataPtr();
   const CreateEvntReq::RequestType requestType = req->getRequestType();
   const Uint32                     requestFlag = req->getRequestFlag();
   SectionHandle handle(this, signal);
@@ -11966,17 +12000,17 @@ void interpretUtilPrepareErrorCode(UtilPrepareRef::ErrorCode errorCode,
     DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARE_PAGES_SEIZE_ERROR:
     jamBlock(dict);
-    error = 1;
+    error = 748;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::PREPARED_OPERATION_SEIZE_ERROR:
     jamBlock(dict);
-    error = 1;
+    error = 748;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::DICT_TAB_INFO_ERROR:
     jamBlock(dict);
-    error = 1;
+    error = 748;
     line = __LINE__;
     DBUG_VOID_RETURN;
   case UtilPrepareRef::MISSING_PROPERTIES_SECTION:
@@ -12404,6 +12438,7 @@ Dbdict::createEventComplete_RT_USER_GET(Signal* signal,
   }
 
   sendSignal(rg, GSN_CREATE_EVNT_REQ, signal, CreateEvntReq::SignalLength, JBB);
+  return;
 }
 
 void
@@ -12422,7 +12457,6 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
   OpCreateEventPtr evntRecPtr;
 
   evntRecPtr.i = ref->getUserData();
-
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
 
 #ifdef EVENT_PH2_DEBUG
@@ -12434,6 +12468,7 @@ void Dbdict::execCREATE_EVNT_REF(Signal* signal)
     evntRecPtr.p->m_reqTracker.ignoreRef(c_counterMgr, refToNode(ref->senderRef));
   } else {
     jam();
+    evntRecPtr.p->m_errorCode = ref->errorCode;
     evntRecPtr.p->m_reqTracker.reportRef(c_counterMgr, refToNode(ref->senderRef));
   }
   createEvent_sendReply(signal, evntRecPtr);
@@ -12527,12 +12562,6 @@ void Dbdict::execSUB_CREATE_REF(Signal* signal)
 
   evntRecPtr.i = ref->senderData;
   ndbrequire((evntRecPtr.p = c_opCreateEvent.getPtr(evntRecPtr.i)) != NULL);
-
-  if (ref->errorCode == 1415) {
-    jam();
-    createEvent_sendReply(signal, evntRecPtr);
-    DBUG_VOID_RETURN;
-  }
 
   if (ref->errorCode)
   {
@@ -12710,9 +12739,10 @@ busy:
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
     ref->errorCode = errCode;
+    ref->m_masterNodeId = c_masterNodeId;
 
     sendSignal(origSenderRef, GSN_SUB_START_REF, signal,
-	       SubStartRef::SignalLength2, JBB);
+	       SubStartRef::SL_MasterNode, JBB);
     return;
   }
 
@@ -12721,6 +12751,11 @@ busy:
     subbPtr.p->m_senderRef = req->senderRef;
     subbPtr.p->m_senderData = req->senderData;
     subbPtr.p->m_errorCode = 0;
+    subbPtr.p->m_gsn = GSN_SUB_START_REQ;
+    subbPtr.p->m_subscriptionId = req->subscriptionId;
+    subbPtr.p->m_subscriptionKey = req->subscriptionKey;
+    subbPtr.p->m_subscriberRef = req->subscriberRef;
+    subbPtr.p->m_subscriberData = req->subscriberData;
   }
   
   if (refToBlock(origSenderRef) != DBDICT) {
@@ -12728,6 +12763,22 @@ busy:
      * Coordinator
      */
     jam();
+
+    if (c_masterNodeId != getOwnNodeId())
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStartRef::NotMaster;
+      goto busy;
+    }
+
+    if (!c_sub_startstop_lock.isclear())
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStartRef::BusyWithNR;
+      goto busy;
+    }
     
     subbPtr.p->m_senderRef = origSenderRef; // not sure if API sets correctly
     NodeReceiverGroup rg(DBDICT, c_aliveNodes);
@@ -12757,15 +12808,16 @@ busy:
         rg.m_nodes.clear(getOwnNodeId());
       }
       sendSignal(rg, GSN_SUB_START_REQ, signal,
-                 SubStartReq::SignalLength2, JBB);
+                 SubStartReq::SignalLength, JBB);
       sendSignalWithDelay(reference(),
                           GSN_SUB_START_REQ,
-                          signal, 5000, SubStartReq::SignalLength2);
+                          signal, 5000, SubStartReq::SignalLength);
     }
     else
     {
+      c_outstanding_sub_startstop++;
       sendSignal(rg, GSN_SUB_START_REQ, signal,
-                 SubStartReq::SignalLength2, JBB);
+                 SubStartReq::SignalLength, JBB);
     }
     return;
   }
@@ -12785,7 +12837,7 @@ busy:
 #ifdef EVENT_PH3_DEBUG
     ndbout_c("DBDICT(Participant) sending GSN_SUB_START_REQ to SUMA subbPtr.i = (%d)", subbPtr.i);
 #endif
-    sendSignal(SUMA_REF, GSN_SUB_START_REQ, signal, SubStartReq::SignalLength2, JBB);
+    sendSignal(SUMA_REF, GSN_SUB_START_REQ, signal, SubStartReq::SignalLength, JBB);
   }
 }
 
@@ -12898,26 +12950,36 @@ void Dbdict::completeSubStartReq(Signal* signal,
     return;
   }
 
-  if (subbPtr.p->m_reqTracker.hasRef()) {
+  if (subbPtr.p->m_reqTracker.hasRef())
+  {
     jam();
 #ifdef EVENT_DEBUG
     ndbout_c("SUB_START_REF");
 #endif
-    SubStartRef * ref = (SubStartRef *)signal->getDataPtrSend();
-    ref->senderRef = reference();
-    ref->errorCode = subbPtr.p->m_errorCode;
-    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
-	       signal, SubStartRef::SignalLength, JBB);
-    if (subbPtr.p->m_reqTracker.hasConf()) {
-      //  stopStartedNodes(signal);
-    }
-    c_opSubEvent.release(subbPtr);
+
+    NodeReceiverGroup rg(DBDICT, subbPtr.p->m_reqTracker.m_confs);
+    RequestTracker & p = subbPtr.p->m_reqTracker;
+    ndbrequire(p.init<SubStopRef>(c_counterMgr, rg, GSN_SUB_STOP_REF,
+                                  subbPtr.i));
+
+    SubStopReq* req = (SubStopReq*) signal->getDataPtrSend();
+
+    req->senderRef  = reference();
+    req->senderData = subbPtr.i;
+    req->subscriptionId = subbPtr.p->m_subscriptionId;
+    req->subscriptionKey = subbPtr.p->m_subscriptionKey;
+    req->subscriberRef = subbPtr.p->m_subscriberRef;
+    req->subscriberData = subbPtr.p->m_subscriberData;
+    req->requestInfo = SubStopReq::RI_ABORT_START;
+    sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
     return;
   }
 #ifdef EVENT_DEBUG
   ndbout_c("SUB_START_CONF");
 #endif
   
+  ndbrequire(c_outstanding_sub_startstop);
+  c_outstanding_sub_startstop--;
   SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
   * conf = subbPtr.p->m_sub_start_conf;
   sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_CONF,
@@ -12937,20 +12999,6 @@ void Dbdict::execSUB_STOP_REQ(Signal* signal)
 
   Uint32 origSenderRef = signal->senderBlockRef();
 
-  if (refToBlock(origSenderRef) != DBDICT &&
-      getOwnNodeId() != c_masterNodeId)
-  {
-    /*
-     * Coordinator but not master
-     */
-    SubStopRef * ref = (SubStopRef *)signal->getDataPtrSend();
-    ref->senderRef = reference();
-    ref->errorCode = SubStopRef::NotMaster;
-    ref->m_masterNodeId = c_masterNodeId;
-    sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
-	       SubStopRef::SignalLength2, JBB);
-    return;
-  }
   OpSubEventPtr subbPtr;
   Uint32 errCode = 0;
   if (!c_opSubEvent.seize(subbPtr)) {
@@ -12963,17 +13011,29 @@ busy:
     //      ret->setErrorNode(reference());
     ref->senderRef = reference();
     ref->errorCode = errCode;
+    ref->m_masterNodeId = c_masterNodeId;
 
     sendSignal(origSenderRef, GSN_SUB_STOP_REF, signal,
-	       SubStopRef::SignalLength, JBB);
+	       SubStopRef::SL_MasterNode, JBB);
     return;
   }
 
   {
-    const SubStopReq* req = (SubStopReq*) signal->getDataPtr();
+    SubStopReq* req = (SubStopReq*) signal->getDataPtr();
     subbPtr.p->m_senderRef = req->senderRef;
     subbPtr.p->m_senderData = req->senderData;
     subbPtr.p->m_errorCode = 0;
+    subbPtr.p->m_gsn = GSN_SUB_STOP_REQ;
+    subbPtr.p->m_subscriptionId = req->subscriptionId;
+    subbPtr.p->m_subscriptionKey = req->subscriptionKey;
+    subbPtr.p->m_subscriberRef = req->subscriberRef;
+    subbPtr.p->m_subscriberData = req->subscriberData;
+
+    if (signal->getLength() < SubStopReq::SignalLength)
+    {
+      jam();
+      req->requestInfo = 0;
+    }
   }
   
   if (refToBlock(origSenderRef) != DBDICT) {
@@ -12981,6 +13041,23 @@ busy:
      * Coordinator
      */
     jam();
+
+    if (c_masterNodeId != getOwnNodeId())
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStopRef::NotMaster;
+      goto busy;
+    }
+
+    if (!c_sub_startstop_lock.isclear())
+    {
+      jam();
+      c_opSubEvent.release(subbPtr);
+      errCode = SubStopRef::BusyWithNR;
+      goto busy;
+    }
+
 #ifdef EVENT_DEBUG
     ndbout_c("SUB_STOP_REQ 1");
 #endif
@@ -12999,7 +13076,8 @@ busy:
     
     req->senderRef  = reference();
     req->senderData = subbPtr.i;
-    
+
+    c_outstanding_sub_startstop++;
     sendSignal(rg, GSN_SUB_STOP_REQ, signal, SubStopReq::SignalLength, JBB);
     return;
   }
@@ -13110,6 +13188,23 @@ void Dbdict::completeSubStopReq(Signal* signal,
 
   if (!subbPtr.p->m_reqTracker.done()){
     jam();
+    return;
+  }
+
+  ndbrequire(c_outstanding_sub_startstop);
+  c_outstanding_sub_startstop--;
+
+  if (subbPtr.p->m_gsn == GSN_SUB_START_REQ)
+  {
+    jam();
+    SubStartRef* ref = (SubStartRef*)signal->getDataPtrSend();
+    ref->senderRef  = reference();
+    ref->senderData = subbPtr.p->m_senderData;
+    ref->errorCode  = subbPtr.p->m_errorCode;
+
+    sendSignal(subbPtr.p->m_senderRef, GSN_SUB_START_REF,
+	       signal, SubStartRef::SignalLength, JBB);
+    c_opSubEvent.release(subbPtr);
     return;
   }
 
@@ -13341,6 +13436,11 @@ Dbdict::execSUB_REMOVE_REQ(Signal* signal)
     subbPtr.p->m_senderRef = req->senderRef;
     subbPtr.p->m_senderData = req->senderData;
     subbPtr.p->m_errorCode = 0;
+    subbPtr.p->m_gsn = GSN_SUB_REMOVE_REQ;
+    subbPtr.p->m_subscriptionId = req->subscriptionId;
+    subbPtr.p->m_subscriptionKey = req->subscriptionKey;
+    subbPtr.p->m_subscriberRef = RNIL;
+    subbPtr.p->m_subscriberData = RNIL;
   }
 
   CRASH_INSERTION2(6010, getOwnNodeId() != c_masterNodeId);
@@ -15122,25 +15222,50 @@ void
 Dbdict::execDICT_LOCK_REQ(Signal* signal)
 {
   jamEntry();
-  const DictLockReq* req = (const DictLockReq*)&signal->theData[0];
+  const DictLockReq req = *(DictLockReq*)&signal->theData[0];
 
   UtilLockReq lockReq;
-  lockReq.senderRef = req->userRef;
-  lockReq.senderData = req->userPtr;
+  lockReq.senderRef = req.userRef;
+  lockReq.senderData = req.userPtr;
   lockReq.lockId = 0;
   lockReq.requestInfo = 0;
-  lockReq.extra = req->lockType;
+  lockReq.extra = req.lockType;
 
-  const DictLockType* lt = getDictLockType(req->lockType);
+  const DictLockType* lt = getDictLockType(req.lockType);
 
-  if (req->lockType == DictLockReq::NodeRestartLock)
+  Uint32 err;
+  if (req.lockType == DictLockReq::SumaStartMe)
+  {
+    jam();
+    
+    if (c_outstanding_sub_startstop)
+    {
+      jam();
+      g_eventLogger.info("refing dict lock to %u", refToNode(req.userRef));
+      err = DictLockRef::TooManyRequests;
+      goto ref;
+    }
+    
+    c_sub_startstop_lock.set(refToNode(req.userRef));
+    
+    g_eventLogger.info("granting dict lock to %u", refToNode(req.userRef));
+    DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
+    conf->userPtr = req.userPtr;
+    conf->lockType = req.lockType;
+    conf->lockPtr = 0;
+    sendSignal(req.userRef, GSN_DICT_LOCK_CONF, signal,
+               DictLockConf::SignalLength, JBB);
+    return;
+  }
+
+  if (req.lockType == DictLockReq::NodeRestartLock)
   {
     jam();
     lockReq.requestInfo |= UtilLockReq::SharedLock;
   }
 
   // make sure bad request crashes slave, not master (us)
-  Uint32 err, res;
+  Uint32 res;
   if (getOwnNodeId() != c_masterNodeId) 
   {
     jam();
@@ -15155,15 +15280,15 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     goto ref;
   }
 
-  if (req->userRef != signal->getSendersBlockRef() ||
-      getNodeInfo(refToNode(req->userRef)).m_type != NodeInfo::DB) 
+  if (req.userRef != signal->getSendersBlockRef() ||
+      getNodeInfo(refToNode(req.userRef)).m_type != NodeInfo::DB) 
   {
     jam();
     err = DictLockRef::BadUserRef;
     goto ref;
   }
 
-  if (c_aliveNodes.get(refToNode(req->userRef))) 
+  if (c_aliveNodes.get(refToNode(req.userRef))) 
   {
     jam();
     err = DictLockRef::TooLate;
@@ -15230,6 +15355,14 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
     jam();
     req.userPtr = ord->lockPtr;
     req.userRef = signal->getSendersBlockRef();
+  }
+
+  if (ord->lockType ==  DictLockReq::SumaStartMe)
+  {
+    jam();
+    g_eventLogger.info("clearing dict lock for %u", refToNode(ord->senderRef));
+    c_sub_startstop_lock.clear(refToNode(ord->senderRef));
+    return;
   }
   
   UtilLockReq lockReq;
