@@ -2677,10 +2677,6 @@ sub mysqld_arguments ($$$) {
     mtr_add_arg($args, "%s%s", $prefix, "--core-file");
   }
 
-  if ( IS_WINDOWS ){
-    mtr_add_arg($args, "%s--log-error=%s", $prefix, $mysqld->{"path_myerr"});
-  }
-
   return $args;
 }
 
