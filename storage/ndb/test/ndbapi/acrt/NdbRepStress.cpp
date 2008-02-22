@@ -45,6 +45,7 @@ urandom(uint m)
   return r;
 }
 
+
 #define GETNDB(ps) ((NDBT_NdbApiStep*)ps)->getNdb()
 /*
 */
@@ -448,7 +449,8 @@ TESTCASE("PHASE_I_Stress","Basic Replication Stressing")
 }
 NDBT_TESTSUITE_END(NdbRepStress);
 
-int main(int argc, const char** argv){
+int main(int argc, const char** argv)
+{
   ndb_init();
   NdbRepStress.setCreateAllTables(true);
   return NdbRepStress.execute(argc, argv);
