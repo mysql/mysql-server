@@ -1,3 +1,6 @@
+# changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
+# changes 2008-02-22 hhunger replaced all sleep by wait_condition
+#
 # Can't test with embedded server that doesn't support grants
 -- source include/not_embedded.inc
 
@@ -24,7 +27,8 @@ CREATE EVENT e_x2 ON SCHEDULE EVERY 1 SECOND DO DROP TABLE x_table;
 connection default;
 SHOW DATABASES LIKE 'db_x';
 SET GLOBAL event_scheduler=1;
---sleep 1.2
+let $wait_condition= SELECT count(*)= 1 FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME LIKE 'db_x';
+--source include/wait_condition.inc
 SHOW DATABASES LIKE 'db_x';
 SHOW TABLES FROM db_x;
 SET GLOBAL event_scheduler=off;
@@ -90,7 +94,8 @@ begin
 end|
 delimiter ;|
 set global event_scheduler = on;
---sleep 3
+let $wait_condition= SELECT count(*)>0 from mysql.event where name='e_43' and interval_value= 5;
+--source include/wait_condition.inc
 select db, name, body, status, interval_field, interval_value from mysql.event;
 drop event e_43;
 drop table test_nested;
@@ -98,7 +103,8 @@ drop table test_nested;
 --echo "Let's check whether we can use non-qualified names"
 create table non_qualif(a int);
 create event non_qualif_ev on schedule every 10 minute do insert into non_qualif values (800219);
---sleep 1.1
+let $wait_condition=SELECT count(*)= 1 from non_qualif where a=800219;
+--source include/wait_condition.inc
 select * from non_qualif;
 drop event non_qualif_ev;
 drop table non_qualif;
