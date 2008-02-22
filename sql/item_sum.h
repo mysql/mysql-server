@@ -343,7 +343,7 @@ public:
   }
   virtual bool const_item() const { return forced_const; }
   void make_field(Send_field *field);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   void fix_num_length_and_dec();
 
   /*
@@ -984,7 +984,7 @@ public:
   void reset_field() {};
   void update_field() {};
   void cleanup();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -1257,7 +1257,7 @@ public:
   String* val_str(String* str);
   Item *copy_or_same(THD* thd);
   void no_rows_in_result() {}
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   virtual bool change_context_processor(uchar *cntx)
     { context= (Name_resolution_context *)cntx; return FALSE; }
 };
