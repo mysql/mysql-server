@@ -289,6 +289,8 @@ static void client_connect(ulong flag)
     myerror("mysql_init() failed");
     exit(1);
   }
+  /* enable local infile, in non-binary builds often disabled by default */
+  mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
 
   if (!(mysql_real_connect(mysql, opt_host, opt_user,
                            opt_password, opt_db ? opt_db:"test", opt_port,
