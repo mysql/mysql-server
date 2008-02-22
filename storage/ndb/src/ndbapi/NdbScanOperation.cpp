@@ -362,11 +362,13 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
     if (options->optionsPresent & ScanOptions::SO_BATCH)
       batch = options->batch;
   }
+#if 0 // ToDo: this breaks optimize index, but maybe there is a better solution
   if (result_record->flags & NdbRecord::RecIsIndex)
   {
     setErrorCodeAbort(4340);
     return -1;
   }
+#endif
 
   /* Process scan definition info */
   res= processTableScanDefs(lock_mode, scan_flags, parallel, batch);
