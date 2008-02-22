@@ -34,6 +34,7 @@ testIndex \
 testMgm \
 testNdbApi \
 testNodeRestart \
+testUpgrade \
 testOIBasic \
 testOperations \
 testRestartGci \
@@ -85,6 +86,8 @@ testIndex_SOURCES = testIndex.cpp
 testMgm_SOURCES = testMgm.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
+testUpgrade_SOURCES = testUpgrade.cpp
+testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp

@@ -1263,6 +1263,9 @@ bool change_master(THD* thd, Master_info* mi)
     mi->connect_retry = lex_mi->connect_retry;
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
+  else
+    mi->heartbeat_period= (float) min(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                      (slave_net_timeout/2.0));
   mi->received_heartbeats= LL(0); // counter lives until master is CHANGEd
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);

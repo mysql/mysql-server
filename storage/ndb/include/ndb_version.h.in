@@ -171,6 +171,29 @@ ndb_pnr(Uint32 version)
     version == NDB_VERSION_D || version >= NDBD_PNR;
 }
 
+#define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)
+#define NDBD_SUMA_DICT_LOCK_63 NDB_MAKE_VERSION(6,3,11)
+
+static
+inline
+int
+ndbd_suma_dictlock(Uint32 x)
+{
+  if (x >= NDB_VERSION_D)
+    return 1;
+  
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+  
+  if (major >= 6)
+  {
+    if (minor == 2)
+      return x >= NDBD_SUMA_DICT_LOCK_62;
+  }
+  
+  return x >= NDBD_SUMA_DICT_LOCK_63;
+}
+
 #if NOT_YET
 #define NDBD_FIRE_TRIG_ORD_TRANSID_63 NDB_MAKE_VERSION(6,3,9)
 #define NDBD_FIRE_TRIG_ORD_TRANSID_62 NDB_MAKE_VERSION(6,2,12)
@@ -202,4 +225,3 @@ ndb_fire_trig_ord_transid(Uint32 version)
 }
 
 #endif
- 

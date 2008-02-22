@@ -114,6 +114,7 @@ private:
     Uint32 noOfIndexColumns;
     Uint32 noOfKeyColumns;
     Uint32 parallelism;
+    Uint32 syncPtr;
     BuildIndxRef::ErrorCode errorCode;
     bool subscriptionCreated;
     bool pendingSubSyncContinueConf;

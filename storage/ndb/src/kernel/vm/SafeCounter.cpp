@@ -33,6 +33,11 @@ SafeCounterManager::getSize() const {
   return m_counterPool.getSize();
 }
 
+Uint32
+SafeCounterManager::getNoOfFree() const {
+  return m_counterPool.getNoOfFree();
+}
+
 bool
 SafeCounterManager::seize(ActiveCounterPtr& ptr){
   return m_activeCounters.seize(ptr);
