@@ -29,7 +29,7 @@ static const char * fms[] = {
   "%d", "0x%08x",      // Int32
   "%u", "0x%08x",      // Uint32
   "%lld", "0x%016llx", // Int64
-  "%llu", "0x%016llx"  // Uint64
+  "%llu", "0x%016llx", // Uint64
   "%llu", "0x%016llx"  // UintPtr
 };
 

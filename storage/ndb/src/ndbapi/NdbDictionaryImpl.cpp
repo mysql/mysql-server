@@ -43,6 +43,7 @@
 #include <NdbEnv.h>
 #include <NdbMem.h>
 #include <util/version.h>
+#include <NdbSleep.h>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -1777,7 +1778,23 @@ NdbDictInterface::dictSignal(NdbApiSignal* sig,
 {
   DBUG_ENTER("NdbDictInterface::dictSignal");
   DBUG_PRINT("enter", ("useMasterNodeId: %d", node_specification));
-  for(Uint32 i = 0; i<RETRIES; i++){
+
+  int sleep = 50;
+  int mod = 5;
+
+  for(Uint32 i = 0; i<RETRIES; i++)
+  {
+    if (i > 0)
+      NdbSleep_MilliSleep(sleep + 10 * (rand() % mod));
+    if (i == RETRIES / 2)
+    {
+      mod = 10;
+    }
+    if (i == 3*RETRIES/4)
+    {
+      sleep = 100;
+    }
+
     m_buffer.clear();
 
     // Protected area
@@ -2340,6 +2357,22 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 { 
   DBUG_ENTER("NdbDictionaryImpl::createTable");
 
+  
+  bool autoIncrement = false;
+  Uint64 initialValue = 0;
+  for (Uint32 i = 0; i < t.m_columns.size(); i++) {
+    const NdbColumnImpl* c = t.m_columns[i];
+    assert(c != NULL);
+    if (c->m_autoIncrement) {
+      if (autoIncrement) {
+        m_error.code = 4335;
+        DBUG_RETURN(-1);
+      }
+      autoIncrement = true;
+      initialValue = c->m_autoIncrementInitialValue;
+    }
+  }
+ 
   // if the new name has not been set, use the copied name
   if (t.m_newExternalName.empty())
   {
@@ -2377,21 +2410,6 @@ NdbDictionaryImpl::createTable(NdbTableImpl &t)
 
   // auto-increment - use "t" because initial value is not in DICT
   {
-    bool autoIncrement = false;
-    Uint64 initialValue = 0;
-    for (Uint32 i = 0; i < t.m_columns.size(); i++) {
-      const NdbColumnImpl* c = t.m_columns[i];
-      assert(c != NULL);
-      if (c->m_autoIncrement) {
-        if (autoIncrement) {
-          m_error.code = 4335;
-          delete t2;
-          DBUG_RETURN(-1);
-        }
-        autoIncrement = true;
-        initialValue = c->m_autoIncrementInitialValue;
-      }
-    }
     if (autoIncrement) {
       // XXX unlikely race condition - t.m_id may no longer be same table
       // the tuple id range is not used on input

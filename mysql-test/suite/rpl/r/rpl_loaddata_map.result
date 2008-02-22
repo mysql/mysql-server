@@ -12,13 +12,13 @@ load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000
-show binlog events in 'master-bin.000002' from 106;
+show binlog events in 'master-bin.000002' from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000002	106	Query	1	#	use `test`; create table t2 (id int not null primary key auto_increment)
-master-bin.000002	229	Begin_load_query	1	#	;file_id=#;block_len=8192
-master-bin.000002	8444	Append_block	1	#	;file_id=#;block_len=8192
-master-bin.000002	16659	Append_block	1	#	;file_id=#;block_len=7509
-master-bin.000002	24191	Execute_load_query	1	#	use `test`; load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2 ;file_id=#
+master-bin.000002	#	Query	#	#	use `test`; create table t2 (id int not null primary key auto_increment)
+master-bin.000002	#	Begin_load_query	#	#	;file_id=#;block_len=#
+master-bin.000002	#	Append_block	#	#	;file_id=#;block_len=#
+master-bin.000002	#	Append_block	#	#	;file_id=#;block_len=#
+master-bin.000002	#	Execute_load_query	#	#	use `test`; load data infile 'MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2 ;file_id=#
 select count(*) from t2 /* 5 000 */;
 count(*)
 5000

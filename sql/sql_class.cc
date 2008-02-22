@@ -871,7 +871,10 @@ THD::~THD()
 #endif  
 #ifndef EMBEDDED_LIBRARY
   if (rli_fake)
+  {
     delete rli_fake;
+    rli_fake= NULL;
+  }
 #endif
 
   free_root(&main_mem_root, MYF(0));

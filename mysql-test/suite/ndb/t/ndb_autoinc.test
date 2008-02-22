@@ -1,0 +1,45 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+
+USE test;
+
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT,
+  PRIMARY KEY(id)
+) ENGINE=NDBCLUSTER;
+
+# Test For bug#30417
+--error 1005
+
+CREATE TABLE t2 (
+  id INT AUTO_INCREMENT,
+  KEY(id)
+) ENGINE=NDBCLUSTER;
+
+SHOW TABLES;
+
+CREATE TABLE t3 (
+  id INT AUTO_INCREMENT,
+  KEY(id)
+) ENGINE=MYISAM;
+
+--disable_result_log
+--error 1005
+ALTER TABLE t3
+ENGINE NDBCLUSTER;
+--enable_result_log
+
+SHOW CREATE TABLE t3;
+
+ALTER TABLE t3
+ADD PRIMARY KEY (id);
+
+SHOW CREATE TABLE t3;
+
+DROP TABLE t1, t3;
+
+--echo End of 5.1 tests
