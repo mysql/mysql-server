@@ -12005,27 +12005,7 @@ view_tail:
             if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
               MYSQL_YYABORT;
           }
-          view_list_opt AS
-          {
-            THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lip->body_utf8_start(thd, lip->get_cpp_ptr());
-          }
-          view_select
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lip->body_utf8_append(lip->get_cpp_ptr());
-
-            lex->view_body_utf8.str= thd->strmake(lip->get_body_utf8_str(),
-                                                  lip->get_body_utf8_length());
-            lex->view_body_utf8.length= lip->get_body_utf8_length();
-
-            trim_whitespace(&my_charset_utf8_general_ci, &lex->view_body_utf8);
-          }
+          view_list_opt AS view_select
         ;
 
 view_list_opt:

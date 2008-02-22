@@ -2217,23 +2217,23 @@ static const char *interval_names[]=
   "second_microsecond"
 };
 
-void Item_date_add_interval::print(String *str)
+void Item_date_add_interval::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(date_sub_interval?" - interval ":" + interval ");
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(' ');
   str->append(interval_names[int_type]);
   str->append(')');
 }
 
-void Item_extract::print(String *str)
+void Item_extract::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("extract("));
   str->append(interval_names[int_type]);
   str->append(STRING_WITH_LEN(" from "));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
@@ -2374,20 +2374,20 @@ bool Item_char_typecast::eq(const Item *item, bool binary_cmp) const
   return 1;
 }
 
-void Item_typecast::print(String *str)
+void Item_typecast::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
   str->append(')');
 }
 
 
-void Item_char_typecast::print(String *str)
+void Item_char_typecast::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as char"));
   if (cast_length >= 0)
   {
@@ -2822,7 +2822,7 @@ null_date:
 }
 
 
-void Item_func_add_time::print(String *str)
+void Item_func_add_time::print(String *str, enum_query_type query_type)
 {
   if (is_date)
   {
@@ -2836,9 +2836,9 @@ void Item_func_add_time::print(String *str)
     else
       str->append(STRING_WITH_LEN("subtime("));
   }
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(',');
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(')');
 }
 
@@ -3083,7 +3083,7 @@ null_date:
 }
 
 
-void Item_func_timestamp_diff::print(String *str)
+void Item_func_timestamp_diff::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -3123,7 +3123,7 @@ void Item_func_timestamp_diff::print(String *str)
   for (uint i=0 ; i < 2 ; i++)
   {
     str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
   str->append(')');
 }
@@ -3163,7 +3163,7 @@ String *Item_func_get_format::val_str(String *str)
 }
 
 
-void Item_func_get_format::print(String *str)
+void Item_func_get_format::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -3181,7 +3181,7 @@ void Item_func_get_format::print(String *str)
   default:
     DBUG_ASSERT(0);
   }
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 

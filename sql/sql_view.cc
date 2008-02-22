@@ -720,7 +720,42 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
 {
   LEX *lex= thd->lex;
   char buff[4096];
-  String view_query(buff, sizeof (buff), thd->charset());
+
+  /*
+    View definition query -- a SELECT statement that fully defines view. It
+    is generated from the Item-tree built from the original (specified by
+    the user) query. The idea is that generated query should eliminates all
+    ambiguities and fix view structure at CREATE-time (once for all).
+    Item::print() virtual operation is used to generate view definition
+    query.
+
+    INFORMATION_SCHEMA query (IS query) -- a SQL statement describing a
+    view that is shown in INFORMATION_SCHEMA. Basically, it is 'view
+    definition query' with text literals converted to UTF8 and without
+    character set introducers.
+
+    For example:
+      Let's suppose we have:
+        CREATE TABLE t1(a INT, b INT);
+      User specified query:
+        CREATE VIEW v1(x, y) AS SELECT * FROM t1;
+      Generated query:
+        SELECT a AS x, b AS y FROM t1;
+      IS query:
+        SELECT a AS x, b AS y FROM t1;
+
+    View definition query is stored in the client character set.
+  */
+  char view_query_buff[4096];
+  String view_query(view_query_buff,
+                    sizeof (view_query_buff),
+                    thd->charset());
+
+  char is_query_buff[4096];
+  String is_query(is_query_buff,
+                  sizeof (is_query_buff),
+                  system_charset_info);
+
   char md5[MD5_BUFF_LENGTH];
   bool can_be_merged;
   char dir_buff[FN_REFLEN], path_buff[FN_REFLEN];
@@ -728,12 +763,16 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   int error= 0;
   DBUG_ENTER("mysql_register_view");
 
-  /* print query */
+  /* Generate view definition and IS queries. */
   view_query.length(0);
+  is_query.length(0);
   {
     ulong sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
-    lex->unit.print(&view_query);
+
+    lex->unit.print(&view_query, QT_ORDINARY);
+    lex->unit.print(&is_query, QT_IS);
+
     thd->variables.sql_mode|= sql_mode;
   }
   DBUG_PRINT("info", ("View: %s", view_query.ptr()));
@@ -872,7 +911,8 @@ loop_out:
   lex_string_set(&view->view_connection_cl_name,
                  view->view_creation_ctx->get_connection_cl()->name);
 
-  view->view_body_utf8= lex->view_body_utf8;
+  view->view_body_utf8.str= is_query.c_ptr_safe();
+  view->view_body_utf8.length= is_query.length();
 
   /*
     Check that table of main select do not used in subqueries.
