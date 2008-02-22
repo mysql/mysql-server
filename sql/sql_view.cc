@@ -351,7 +351,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
   res= FALSE;
 
 err:
-  DBUG_RETURN(res || thd->net.report_error);
+  DBUG_RETURN(res || thd->is_error());
 }
 
 #else
@@ -397,7 +397,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
 
   /* This is ensured in the parser. */
   DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
-              !lex->param_list.elements && !lex->derived_tables);
+              !lex->param_list.elements);
 
   if (mode != VIEW_CREATE_NEW)
   {
