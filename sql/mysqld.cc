@@ -1873,9 +1873,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
-  my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Impossible
 }
