@@ -123,7 +123,7 @@ public:
   virtual bool val_bool();
   virtual longlong val_int();
   virtual void fix_length_and_dec();
-  virtual void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
 protected:
   Item_func_truth(Item *a, bool a_value, bool a_affirmative)
@@ -338,7 +338,12 @@ public:
   optimize_type select_optimize() const { return OPTIMIZE_OP; }
   virtual enum Functype rev_functype() const { return UNKNOWN_FUNC; }
   bool have_rev_func() const { return rev_functype() != UNKNOWN_FUNC; }
-  void print(String *str) { Item_func::print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    Item_func::print_op(str, query_type);
+  }
+
   bool is_null() { return test(args[0]->is_null() || args[1]->is_null()); }
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp.cmp_collation.collation; }
@@ -368,7 +373,7 @@ public:
   enum Functype functype() const { return NOT_FUNC; }
   const char *func_name() const { return "not"; }
   Item *neg_transformer(THD *thd);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 class Item_maxmin_subselect;
@@ -433,7 +438,7 @@ public:
   longlong val_int();
   enum Functype functype() const { return NOT_ALL_FUNC; }
   const char *func_name() const { return "<not>"; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   void set_sum_test(Item_sum_hybrid *item) { test_sum_item= item; };
   void set_sub_test(Item_maxmin_subselect *item) { test_sub_item= item; };
   bool empty_underlying_subquery();
@@ -594,7 +599,7 @@ public:
   const char *func_name() const { return "between"; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool is_bool_func() { return 1; }
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   uint decimal_precision() const { return 1; }
@@ -608,7 +613,11 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "strcmp"; }
-  void print(String *str) { Item_func::print(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    Item_func::print(str, query_type);
+  }
 };
 
 
@@ -711,7 +720,12 @@ public:
   void fix_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
   const char *func_name() const { return "nullif"; }
-  void print(String *str) { Item_func::print(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    Item_func::print(str, query_type);
+  }
+
   table_map not_null_tables() const { return 0; }
   bool is_null();
 };
@@ -1141,7 +1155,7 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   enum_field_types field_type() const { return cached_field_type; }
   const char *func_name() const { return "case"; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Item *find_item(String *str);
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
   void cleanup();
@@ -1208,7 +1222,7 @@ public:
   }
   optimize_type select_optimize() const
     { return OPTIMIZE_KEY; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   enum Functype functype() const { return IN_FUNC; }
   const char *func_name() const { return " IN "; }
   bool nulls_in_row();
@@ -1330,7 +1344,7 @@ public:
   table_map not_null_tables() const
   { return abort_on_null ? not_null_tables_cache : 0; }
   Item *neg_transformer(THD *thd);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() { return args[0]->collation.collation; }
   void top_level_item() { abort_on_null=1; }
 };
@@ -1395,7 +1409,12 @@ public:
   longlong val_int();
   bool fix_fields(THD *thd, Item **ref);
   const char *func_name() const { return "regexp"; }
-  void print(String *str) { print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    print_op(str, query_type);
+  }
+
   CHARSET_INFO *compare_collation() { return cmp_collation.collation; }
 };
 
@@ -1407,7 +1426,11 @@ public:
   Item_func_regex(Item *a,Item *b) :Item_bool_func(a,b) {}
   longlong val_int() { return 0;}
   const char *func_name() const { return "regex"; }
-  void print(String *str) { print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    print_op(str, query_type);
+  }
 };
 
 #endif /* USE_REGEX */
@@ -1444,7 +1467,7 @@ public:
   List<Item>* argument_list() { return &list; }
   table_map used_tables() const;
   void update_used_tables();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
   friend int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
                          COND **conds);
@@ -1568,7 +1591,7 @@ public:
   void update_used_tables();
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   CHARSET_INFO *compare_collation() 
   { return fields.head()->collation.collation; }
 }; 
