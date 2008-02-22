@@ -388,6 +388,7 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
   uint length;
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
+  bool saved_time_zone_used= thd->time_zone_used;
   ulong sql_mode, saved_mode= thd->variables.sql_mode;
   Open_tables_state open_tables_state_backup;
   Stored_program_creation_ctx *creation_ctx;
@@ -504,6 +505,11 @@ db_find_routine(THD *thd, int type, sp_name *name, sp_head **sphp)
                        sql_mode, params, returns, body, chistics,
                        definer, created, modified, creation_ctx);
  done:
+  /* 
+    Restore the time zone flag as the timezone usage in proc table
+    does not affect replication.
+  */  
+  thd->time_zone_used= saved_time_zone_used;
   if (table)
     close_system_tables(thd, &open_tables_state_backup);
   thd->variables.sql_mode= saved_mode;
