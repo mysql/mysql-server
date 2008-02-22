@@ -3115,6 +3115,11 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
      Check if condition stated in UNTIL clause of START SLAVE is reached.
    SYNOPSYS
      st_relay_log_info::is_until_satisfied()
+     master_beg_pos    position of the beginning of to be executed event
+                       (not log_pos member of the event that points to the
+                        beginning of the following event)
+
+
    DESCRIPTION
      Checks if UNTIL condition is reached. Uses caching result of last 
      comparison of current log file name and target log file name. So cached 
@@ -3139,7 +3144,7 @@ int check_expected_error(THD* thd, RELAY_LOG_INFO* rli, int expected_error)
      false - condition not met
 */
 
-bool st_relay_log_info::is_until_satisfied()
+bool st_relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -3149,7 +3154,7 @@ bool st_relay_log_info::is_until_satisfied()
   if (until_condition == UNTIL_MASTER_POS)
   {
     log_name= group_master_log_name;
-    log_pos= group_master_log_pos;
+    log_pos= master_beg_pos;
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */
@@ -3228,28 +3233,6 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
      wait for something for example inside of next_event().
    */
   pthread_mutex_lock(&rli->data_lock);
-  /*
-    This tests if the position of the end of the last previous executed event
-    hits the UNTIL barrier.
-    We would prefer to test if the position of the start (or possibly) end of
-    the to-be-read event hits the UNTIL barrier, this is different if there
-    was an event ignored by the I/O thread just before (BUG#13861 to be
-    fixed).
-  */
-  if (rli->until_condition!=RELAY_LOG_INFO::UNTIL_NONE &&
-      rli->is_until_satisfied())
-  {
-    char buf[22];
-    sql_print_information("Slave SQL thread stopped because it reached its"
-                    " UNTIL position %s", llstr(rli->until_pos(), buf));
-    /*
-      Setting abort_slave flag because we do not want additional message about
-      error in query execution to be printed.
-    */
-    rli->abort_slave= 1;
-    pthread_mutex_unlock(&rli->data_lock);
-    return 1;
-  }
 
   Log_event * ev = next_event(rli);
 
@@ -3266,6 +3249,27 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
     int type_code = ev->get_type_code();
     int exec_res;
 
+    /*
+      This tests if the position of the beginning of the current event
+      hits the UNTIL barrier.
+    */
+    if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+        rli->is_until_satisfied((thd->options & OPTION_BEGIN || !ev->log_pos) ?
+                                rli->group_master_log_pos :
+                                ev->log_pos - ev->data_written))
+    {
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(rli->until_pos(), buf));
+      /*
+        Setting abort_slave flag because we do not want additional message about
+        error in query execution to be printed.
+      */
+      rli->abort_slave= 1;
+      pthread_mutex_unlock(&rli->data_lock);
+      delete ev;
+      return 1;
+    }
     /*
       Queries originating from this server must be skipped.
       Low-level events (Format_desc, Rotate, Stop) from this server
@@ -3976,6 +3980,22 @@ Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
+
+  /*
+    First check until condition - probably there is nothing to execute. We
+    do not want to wait for next event in this case.
+  */
+  pthread_mutex_lock(&rli->data_lock);
+  if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+      rli->is_until_satisfied(rli->group_master_log_pos))
+  {
+    char buf[22];
+    sql_print_information("Slave SQL thread stopped because it reached its"
+                          " UNTIL position %s", llstr(rli->until_pos(), buf));
+    pthread_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  pthread_mutex_unlock(&rli->data_lock);
 
   /* Read queries from the IO/THREAD until this thread is killed */
 
