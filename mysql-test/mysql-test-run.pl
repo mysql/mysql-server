@@ -417,7 +417,7 @@ sub main () {
       # use default and add any extra_suites as defined
       $opt_suites= $opt_suites_default;
       my $ccc= dirname($glob_mysql_test_dir);
-      my $found= 0;
+      my $found= 1; # BUG#34761 - disable this feature
       while (!$found and !($ccc eq "/") and !($ccc eq ""))
       {
 	my $ddd= basename($ccc);
