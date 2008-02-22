@@ -138,10 +138,10 @@ sub new {
 #  }
 
   if (IS_CYGWIN){
-    $path= native_path($path);
-    $input= native_path($input);
-    $output= native_path($output);
-    $error= native_path($error);
+    $path= mixed_path($path);
+    $input= mixed_path($input);
+    $output= mixed_path($output);
+    $error= mixed_path($error);
   }
 
   my @safe_args;
