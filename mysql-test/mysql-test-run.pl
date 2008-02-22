@@ -615,7 +615,6 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
-    $opt_embedded_server= 1;
     if ( IS_WINDOWS )
     {
       # Add the location for libmysqld.dll to the path.
@@ -2273,6 +2272,7 @@ sub run_testcase ($) {
 	   user            => $opt_user,
 	   password        => '',
 	   ssl             => $opt_ssl_supported,
+	   embedded        => $opt_embedded_server,
 	  }
 	);
 
@@ -2607,52 +2607,39 @@ sub mysqld_arguments ($$$) {
   my $mysqld=            shift;
   my $extra_opts=        shift;
 
-  my $prefix= "";               # If mysqltest server arg
-  if ( $opt_embedded_server )
-  {
-    $prefix= "--server-arg=";
-  }
-
-  mtr_add_arg($args, "%s--defaults-file=%s", $prefix, $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+  mtr_add_arg($args, "--defaults-file=%s",  $path_config_file);
 
   # When mysqld is run by a root user(euid is 0), it will fail
   # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
   if (!IS_WINDOWS and $euid == 0 and
       (grep(/^--user/, @$extra_opts)) == 0) {
-    mtr_add_arg($args, "%s--user=root", $prefix);
+    mtr_add_arg($args, "--user=root");
   }
 
   if ( $opt_valgrind_mysqld )
   {
-    mtr_add_arg($args, "%s--skip-safemalloc", $prefix);
+    mtr_add_arg($args, "--skip-safemalloc");
 
     if ( $mysql_version_id < 50100 )
     {
-      mtr_add_arg($args, "%s--skip-bdb", $prefix);
+      mtr_add_arg($args, "--skip-bdb");
     }
   }
 
   if ( $mysql_version_id >= 50106 )
   {
     # Turn on logging to both tables and file
-    mtr_add_arg($args, "%s--log-output=table,file", $prefix);
+    mtr_add_arg($args, "--log-output=table,file");
   }
 
   # Check if "extra_opt" contains skip-log-bin
   my $skip_binlog= grep(/^(--|--loose-)skip-log-bin/, @$extra_opts);
 
-  if ( $opt_debug )
-  {
-    mtr_add_arg($args, "%s--debug=d:t:i:A,%s/log/%s.trace",
-		$prefix, $path_vardir_trace, $mysqld->name());
-  }
-
   # Indicate to mysqld it will be debugged in debugger
   if ( $glob_debugger )
   {
-    mtr_add_arg($args, "%s--gdb", $prefix);
+    mtr_add_arg($args, "--gdb");
   }
 
   my $found_skip_core= 0;
@@ -2669,12 +2656,12 @@ sub mysqld_arguments ($$$) {
     }
     else
     {
-      mtr_add_arg($args, "%s%s", $prefix, $arg);
+      mtr_add_arg($args, "%s", $arg);
     }
   }
   if ( !$found_skip_core )
   {
-    mtr_add_arg($args, "%s%s", $prefix, "--core-file");
+    mtr_add_arg($args, "%s", "--core-file");
   }
 
   return $args;
@@ -2702,7 +2689,14 @@ sub mysqld_start ($$) {
     valgrind_arguments($args, \$exe);
   }
 
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
   mysqld_arguments($args,$mysqld,$extra_opts);
+
+  if ( $opt_debug )
+  {
+    mtr_add_arg($args, "--debug=d:t:i:A,%s/log/%s.trace",
+		$path_vardir_trace, $mysqld->name());
+  }
 
   if ( $opt_gdb || $opt_manual_gdb )
   {
@@ -3073,11 +3067,15 @@ sub start_servers($) {
       return 1;
     }
 
-    my $extra_opts= get_extra_opts($mysqld, $tinfo);
-    mysqld_start($mysqld,$extra_opts);
+    if (!$opt_embedded_server)
+    {
+      my $extra_opts= get_extra_opts($mysqld, $tinfo);
+      mysqld_start($mysqld,$extra_opts);
 
-    # Save this test case information, so next can examine it
-    $mysqld->{'started_tinfo'}= $tinfo;
+      # Save this test case information, so next can examine it
+      $mysqld->{'started_tinfo'}= $tinfo;
+    }
+
   }
 
   # Wait for clusters to start
@@ -3094,6 +3092,8 @@ sub start_servers($) {
   # Wait for mysqlds to start
   foreach my $mysqld ( mysqlds() )
   {
+    next if !started($mysqld);
+
     if (sleep_until_file_created($mysqld->value('pid-file'),
 				 $opt_start_timeout,
 				 $mysqld->{'proc'}) == 0) {
@@ -3252,10 +3252,22 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "--skip-ssl");
   }
 
-  if ( defined $tinfo->{'include_file'} ) {
-    mtr_add_arg($args, "--include=%s", $tinfo->{'include_file'}); # MASV
-  }
+  if ( $opt_embedded_server )
+  {
 
+    # Get the args needed for the embedded server
+    # and append them to args prefixed
+    # with --sever-arg=
+
+    my $mysqld=  $config->group('embedded')
+      or mtr_error("Could not get [embedded] section");
+
+    my $mysqld_args;
+    mtr_init_args(\$mysqld_args);
+    my $extra_opts= get_extra_opts($mysqld, $tinfo);
+    mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
+    mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
+  }
 
   # ----------------------------------------------------------------------
   # export MYSQL_TEST variable containing <path>/mysqltest <args>
