@@ -196,9 +196,9 @@ drop event e1;
 # Test wrong syntax
 #
 
---error 1102
+--error ER_WRONG_DB_NAME 
 SHOW EVENTS FROM aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
---error 1102
+--error ER_WRONG_DB_NAME
 SHOW EVENTS FROM ``;
 
 SHOW EVENTS FROM `events\\test`;

@@ -124,6 +124,8 @@ drop event existant;
 create table t_event3 (a int, b float);
 drop event if exists event3;
 create event event3 on schedule every 50 + 10 minute starts date_add("20100101", interval 5 minute) ends date_add("20151010", interval 5 day) comment "portokala_comment" DO insert into t_event3 values (unix_timestamp(), rand());
+let $wait_condition=SELECT count(*)=0 from t_event3;
+--source include/wait_condition.inc
 select count(*) from t_event3;
 drop event event3;
 drop table t_event3;
@@ -308,7 +310,6 @@ SELECT event_name FROM INFORMATION_SCHEMA.events;
 SHOW CREATE EVENT intact_check;
 --error ER_EVENT_DOES_NOT_EXIST
 DROP EVENT no_such_event;
-#--error ER_CANNOT_LOAD_FROM_TABLE peplaced by:
 --error ER_EVENT_STORE_FAILED
 CREATE EVENT intact_check_1 ON SCHEDULE EVERY 5 HOUR DO SELECT 5;
 --error ER_EVENT_DOES_NOT_EXIST
