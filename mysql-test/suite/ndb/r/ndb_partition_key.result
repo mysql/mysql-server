@@ -38,6 +38,23 @@ a	b	c
 1	10	3
 1	11	3
 1	12	3
+select max(b) from t1 where a = 1;
+max(b)
+12
+select b from t1 where a = 1 order by b desc;
+b
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
 PRIMARY KEY (a,b,c) USING HASH)
