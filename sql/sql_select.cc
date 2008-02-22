@@ -945,7 +945,8 @@ JOIN::optimize()
           make_cond_for_table(conds, PSEUDO_TABLE_BITS, 0);
         DBUG_EXECUTE("where",
                      print_where(table_independent_conds,
-                                 "where after opt_sum_query()"););
+                                 "where after opt_sum_query()",
+                                 QT_ORDINARY););
         conds= table_independent_conds;
       }
     }
@@ -1025,7 +1026,10 @@ JOIN::optimize()
   {
     conds= substitute_for_best_equal_field(conds, cond_equal, map2table);
     conds->update_used_tables();
-    DBUG_EXECUTE("where", print_where(conds, "after substitute_best_equal"););
+    DBUG_EXECUTE("where",
+                 print_where(conds,
+                             "after substitute_best_equal",
+                             QT_ORDINARY););
   }
 
   /*
@@ -2088,12 +2092,14 @@ JOIN::exec()
 	curr_table->select_cond= curr_table->select->cond;
 	curr_table->select_cond->top_level_item();
 	DBUG_EXECUTE("where",print_where(curr_table->select->cond,
-					 "select and having"););
+					 "select and having",
+                                         QT_ORDINARY););
 	curr_join->tmp_having= make_cond_for_table(curr_join->tmp_having,
 						   ~ (table_map) 0,
 						   ~used_tables);
 	DBUG_EXECUTE("where",print_where(curr_join->tmp_having,
-                                         "having after sort"););
+                                         "having after sort",
+                                         QT_ORDINARY););
       }
     }
     {
@@ -5837,7 +5843,8 @@ static void add_not_null_conds(JOIN *join)
           if (notnull->fix_fields(join->thd, &notnull))
             DBUG_VOID_RETURN;
           DBUG_EXECUTE("where",print_where(notnull,
-                                           referred_tab->table->alias););
+                                           referred_tab->table->alias,
+                                           QT_ORDINARY););
           add_cond_and_fix(&referred_tab->select_cond, notnull);
         }
       }
@@ -5995,7 +6002,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 	  make_cond_for_table(cond,
                               join->const_table_map,
                               (table_map) 0);
-        DBUG_EXECUTE("where",print_where(const_cond,"constants"););
+        DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
         for (JOIN_TAB *tab= join->join_tab+join->const_tables;
              tab < join->join_tab+join->tables ; tab++)
         {
@@ -6096,7 +6103,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
       }
       if (tmp || !cond)
       {
-	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
+        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	SQL_SELECT *sel= tab->select= ((SQL_SELECT*)
                                        thd->memdup((uchar*) select,
                                                    sizeof(*select)));
@@ -6136,7 +6143,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           tab->select_cond= sel->cond= NULL;
 
 	sel->head=tab->table;
-	DBUG_EXECUTE("where",print_where(tmp,tab->table->alias););
+        DBUG_EXECUTE("where",print_where(tmp,tab->table->alias, QT_ORDINARY););
 	if (tab->quick)
 	{
 	  /* Use quick key read if it's a constant and it's not used
@@ -6248,7 +6255,7 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
 					 current_map,
 					 current_map)))
 	    {
-	      DBUG_EXECUTE("where",print_where(tmp,"cache"););
+              DBUG_EXECUTE("where",print_where(tmp,"cache", QT_ORDINARY););
 	      tab->cache.select=(SQL_SELECT*)
 		thd->memdup((uchar*) sel, sizeof(SQL_SELECT));
 	      tab->cache.select->cond=tmp;
@@ -8872,10 +8879,10 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       predicate. Substitute a constant instead of this field if the
       multiple equality contains a constant.
     */ 
-    DBUG_EXECUTE("where", print_where(conds, "original"););
+    DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
     conds= build_equal_items(join->thd, conds, NULL, join_list,
                              &join->cond_equal);
-    DBUG_EXECUTE("where",print_where(conds,"after equal_items"););
+    DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
     propagate_cond_constants(thd, (I_List<COND_CMP> *) 0, conds, conds);
@@ -8883,9 +8890,9 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       Remove all instances of item == item
       Remove all and-levels where CONST item != CONST item
     */
-    DBUG_EXECUTE("where",print_where(conds,"after const change"););
+    DBUG_EXECUTE("where",print_where(conds,"after const change", QT_ORDINARY););
     conds= remove_eq_conds(thd, conds, cond_value) ;
-    DBUG_EXECUTE("info",print_where(conds,"after remove"););
+    DBUG_EXECUTE("info",print_where(conds,"after remove", QT_ORDINARY););
   }
   DBUG_RETURN(conds);
 }
@@ -13357,7 +13364,7 @@ static bool fix_having(JOIN *join, Item **having)
   JOIN_TAB *table=&join->join_tab[join->const_tables];
   table_map used_tables= join->const_table_map | table->table->map;
 
-  DBUG_EXECUTE("where",print_where(*having,"having"););
+  DBUG_EXECUTE("where",print_where(*having,"having", QT_ORDINARY););
   Item* sort_table_cond=make_cond_for_table(*having,used_tables,used_tables);
   if (sort_table_cond)
   {
@@ -13374,9 +13381,11 @@ static bool fix_having(JOIN *join, Item **having)
     table->select_cond=table->select->cond;
     table->select_cond->top_level_item();
     DBUG_EXECUTE("where",print_where(table->select_cond,
-				     "select and having"););
+				     "select and having",
+                                     QT_ORDINARY););
     *having=make_cond_for_table(*having,~ (table_map) 0,~used_tables);
-    DBUG_EXECUTE("where",print_where(*having,"having after make_cond"););
+    DBUG_EXECUTE("where",
+                 print_where(*having,"having after make_cond", QT_ORDINARY););
   }
   return 0;
 }
@@ -15043,7 +15052,7 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  char buff[256];
 	  String str(buff,sizeof(buff),&my_charset_bin);
 	  str.length(0);
-	  item->print(&str);
+	  item->print(&str, QT_ORDINARY);
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}
 #endif
@@ -16084,7 +16093,7 @@ static void select_describe(JOIN *join, bool need_tmp_table, bool need_order,
               if (thd->lex->describe & DESCRIBE_EXTENDED)
               {
                 extra.append(STRING_WITH_LEN(": "));
-                ((COND *)pushed_cond)->print(&extra);
+                ((COND *)pushed_cond)->print(&extra, QT_ORDINARY);
               }
             }
             else
@@ -16233,9 +16242,13 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
   @param thd     thread handler
   @param str     string where table should be printed
   @param tables  list of tables in join
+  @query_type    type of the query is being generated
 */
 
-static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
+static void print_join(THD *thd,
+                       String *str,
+                       List<TABLE_LIST> *tables,
+                       enum_query_type query_type)
 {
   /* List is reversed => we should reverse it before using */
   List_iterator_fast<TABLE_LIST> ti(*tables);
@@ -16248,7 +16261,7 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
     *t= ti++;
 
   DBUG_ASSERT(tables->elements >= 1);
-  (*table)->print(thd, str);
+  (*table)->print(thd, str, query_type);
 
   TABLE_LIST **end= table + tables->elements;
   for (TABLE_LIST **tbl= table + 1; tbl < end; tbl++)
@@ -16263,11 +16276,11 @@ static void print_join(THD *thd, String *str, List<TABLE_LIST> *tables)
       str->append(STRING_WITH_LEN(" straight_join "));
     else
       str->append(STRING_WITH_LEN(" join "));
-    curr->print(thd, str);
+    curr->print(thd, str, query_type);
     if (curr->on_expr)
     {
       str->append(STRING_WITH_LEN(" on("));
-      curr->on_expr->print(str);
+      curr->on_expr->print(str, query_type);
       str->append(')');
     }
   }
@@ -16314,15 +16327,15 @@ Index_hint::print(THD *thd, String *str)
 /**
   Print table as it should be in join list.
 
-  @param str   string where table should bbe printed
+  @param str   string where table should be printed
 */
 
-void TABLE_LIST::print(THD *thd, String *str)
+void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
 {
   if (nested_join)
   {
     str->append('(');
-    print_join(thd, str, &nested_join->join_list);
+    print_join(thd, str, &nested_join->join_list, query_type);
     str->append(')');
   }
   else
@@ -16345,7 +16358,7 @@ void TABLE_LIST::print(THD *thd, String *str)
     {
       // A derived table
       str->append('(');
-      derived->print(str);
+      derived->print(str, query_type);
       str->append(')');
       cmp_name= "";                               // Force printing of alias
     }
@@ -16405,7 +16418,7 @@ void TABLE_LIST::print(THD *thd, String *str)
 }
 
 
-void st_select_lex::print(THD *thd, String *str)
+void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 {
   /* QQ: thd may not be set for sub queries, but this should be fixed */
   if (!thd)
@@ -16453,7 +16466,7 @@ void st_select_lex::print(THD *thd, String *str)
       first= 0;
     else
       str->append(',');
-    item->print_item_w_name(str);
+    item->print_item_w_name(str, query_type);
   }
 
   /*
@@ -16464,7 +16477,7 @@ void st_select_lex::print(THD *thd, String *str)
   {
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
-    print_join(thd, str, &top_join_list);
+    print_join(thd, str, &top_join_list, query_type);
   }
 
   // Where
@@ -16475,7 +16488,7 @@ void st_select_lex::print(THD *thd, String *str)
   {
     str->append(STRING_WITH_LEN(" where "));
     if (cur_where)
-      cur_where->print(str);
+      cur_where->print(str, query_type);
     else
       str->append(cond_value != Item::COND_FALSE ? "1" : "0");
   }
@@ -16484,7 +16497,7 @@ void st_select_lex::print(THD *thd, String *str)
   if (group_list.elements)
   {
     str->append(STRING_WITH_LEN(" group by "));
-    print_order(str, (ORDER *) group_list.first);
+    print_order(str, (ORDER *) group_list.first, query_type);
     switch (olap)
     {
       case CUBE_TYPE:
@@ -16507,7 +16520,7 @@ void st_select_lex::print(THD *thd, String *str)
   {
     str->append(STRING_WITH_LEN(" having "));
     if (cur_having)
-      cur_having->print(str);
+      cur_having->print(str, query_type);
     else
       str->append(having_value != Item::COND_FALSE ? "1" : "0");
   }
@@ -16515,11 +16528,11 @@ void st_select_lex::print(THD *thd, String *str)
   if (order_list.elements)
   {
     str->append(STRING_WITH_LEN(" order by "));
-    print_order(str, (ORDER *) order_list.first);
+    print_order(str, (ORDER *) order_list.first, query_type);
   }
 
   // limit
-  print_limit(thd, str);
+  print_limit(thd, str, query_type);
 
   // PROCEDURE unsupported here
 }

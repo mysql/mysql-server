@@ -85,6 +85,10 @@ CREATE VIEW v2 AS SELECT _utf8'тест' as c1|
 
 --echo
 
+CREATE VIEW v3 AS SELECT _utf8'тест'|
+
+--echo
+
 #
 # First-round checks.
 #
@@ -120,6 +124,7 @@ SET @@collation_connection= cp1251_general_ci|
 --disable_result_log
 SELECT * FROM mysqltest1.v1|
 SELECT * FROM mysqltest1.v2|
+SELECT * FROM mysqltest1.v3|
 --enable_result_log
 
 use mysqltest1|
@@ -168,7 +173,7 @@ DROP DATABASE mysqltest1|
 --echo
 --echo ---> connection: con3
 
-#   - Switch environment variables and trigger loading stored procedures;
+#   - Switch environment variables and trigger loading views;
 
 SET @@character_set_client= cp1251|
 SET @@character_set_results= cp1251|
@@ -177,6 +182,7 @@ SET @@collation_connection= cp1251_general_ci|
 --disable_result_log
 SELECT * FROM mysqltest1.v1|
 SELECT * FROM mysqltest1.v2|
+SELECT * FROM mysqltest1.v3|
 --enable_result_log
 
 use mysqltest1|
