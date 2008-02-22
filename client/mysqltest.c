@@ -6333,6 +6333,8 @@ int util_query(MYSQL* org_mysql, const char* query){
     if (!(mysql= mysql_init(mysql)))
       die("Failed in mysql_init()");
 
+    /* enable local infile, in non-binary builds often disabled by default */
+    mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, 0);
     safe_connect(mysql, "util", org_mysql->host, org_mysql->user,
                  org_mysql->passwd, org_mysql->db, org_mysql->port,
                  org_mysql->unix_socket);
