@@ -396,6 +396,9 @@ unlock tables;
 connection insert;
 --reap
 connection default;
+let $wait_condition=
+  select count(*) = 1 from t1;
+--source include/wait_condition.inc
 select * from t1;
 drop table t1;
 disconnect flush;
