@@ -670,7 +670,7 @@ UNIV_INTERN ibool	page_zip_compress_dbg;
 binary logging of the data passed to deflate().
 When this variable is nonzero, it will act
 as a log file name generator. */
-UNIV_INTERN unsigned	page_zip_compress_log = 1;
+UNIV_INTERN unsigned	page_zip_compress_log;
 
 /**************************************************************************
 Wrapper for deflate().  Log the operation if page_zip_compress_dbg is set. */
