@@ -273,45 +273,48 @@ void writer(int num)
 static void *test_thread_reader(void *arg)
 {
   int param=*((int*) arg);
-  DBUG_ENTER("test_reader");
-
   my_thread_init();
+  {
+    DBUG_ENTER("test_reader");
+    DBUG_PRINT("enter", ("param: %d", param));
 
-  DBUG_PRINT("enter", ("param: %d", param));
+    reader(param);
 
-  reader(param);
-
-  DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
-  pthread_mutex_lock(&LOCK_thread_count);
-  ok(1, "reader%d: done", param);
-  thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
-  pthread_mutex_unlock(&LOCK_thread_count);
-  free((uchar*) arg);
-  my_thread_end();
-  DBUG_RETURN(0);
+    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    pthread_mutex_lock(&LOCK_thread_count);
+    ok(1, "reader%d: done", param);
+    thread_count--;
+    VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+    pthread_mutex_unlock(&LOCK_thread_count);
+    free((uchar*) arg);
+    my_thread_end();
+  }
+  return 0;
 }
+
 
 static void *test_thread_writer(void *arg)
 {
   int param=*((int*) arg);
-  DBUG_ENTER("test_writer");
-
   my_thread_init();
-  DBUG_PRINT("enter", ("param: %d", param));
+  {
+    DBUG_ENTER("test_writer");
+    DBUG_PRINT("enter", ("param: %d", param));
 
-  writer(param);
+    writer(param);
 
-  DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
-  pthread_mutex_lock(&LOCK_thread_count);
-  ok(1, "writer%d: done", param);
-  thread_count--;
-  VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
-  pthread_mutex_unlock(&LOCK_thread_count);
-  free((uchar*) arg);
-  my_thread_end();
-  DBUG_RETURN(0);
+    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    pthread_mutex_lock(&LOCK_thread_count);
+    ok(1, "writer%d: done", param);
+    thread_count--;
+    VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
+    pthread_mutex_unlock(&LOCK_thread_count);
+    free((uchar*) arg);
+    my_thread_end();
+  }
+  return 0;
 }
+
 
 int main(int argc __attribute__((unused)),
          char **argv __attribute__((unused)))

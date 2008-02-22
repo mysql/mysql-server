@@ -674,6 +674,9 @@ extern int pthread_dummy(int);
 #endif
 #endif
 
+#define MY_PTHREAD_LOCK_READ 0
+#define MY_PTHREAD_LOCK_WRITE 1
+
 struct st_my_thread_var
 {
   int thr_errno;
@@ -688,6 +691,7 @@ struct st_my_thread_var
   my_bool init;
   struct st_my_thread_var *next,**prev;
   void *opt_info;
+  uint  lock_type; /* used by conditional release the queue */
 #ifndef DBUG_OFF
   void *dbug;
   char name[THREAD_NAME_SIZE+1];

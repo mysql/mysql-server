@@ -136,6 +136,49 @@ void wqueue_release_queue(WQUEUE *wqueue)
 }
 
 
+/**
+  @brief Removes all threads waiting for read or first one waiting for write.
+
+  @param wqueue          pointer to the queue structure
+  @apram thread          pointer to the thread to be added to the queue
+*/
+
+void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
+{
+  struct st_my_thread_var *last= wqueue->last_thread;
+  struct st_my_thread_var *next= last->next;
+  struct st_my_thread_var **prev= &wqueue->last_thread;
+  struct st_my_thread_var *thread;
+  uint first_type= next->lock_type;
+  if (first_type == MY_PTHREAD_LOCK_WRITE)
+  {
+    /* release first waiting for write lock */
+    thread= next;
+    pthread_cond_signal(&thread->suspend);
+    wqueue->last_thread= next;
+    thread->next= NULL;
+    return;
+  }
+  do
+  {
+    thread= next;
+    next= thread->next;
+    if (thread->lock_type == MY_PTHREAD_LOCK_WRITE)
+    {
+      /* skip waiting for write lock */
+      *prev= thread;
+      prev= &thread->next;
+    }
+    else
+    {
+      /* release waiting for read lock */
+      pthread_cond_signal(&thread->suspend);
+      thread->next= NULL;
+    }
+  } while (thread != last);
+  *prev= NULL;
+}
+
 /*
   Add thread and wait
 
