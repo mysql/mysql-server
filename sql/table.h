@@ -1148,7 +1148,7 @@ struct TABLE_LIST
     return derived || view || schema_table || create && !table->db_stat ||
            !table;
   }
-  void print(THD *thd, String *str);
+  void print(THD *thd, String *str, enum_query_type query_type);
   bool check_single_table(TABLE_LIST **table, table_map map,
                           TABLE_LIST *view);
   bool set_insert_values(MEM_ROOT *mem_root);

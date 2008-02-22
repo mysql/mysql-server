@@ -224,8 +224,13 @@ public:
       DBUG_ASSERT(0);  // Should never happened
       return "sp_unknown"; 
     }
-    }
-  void print(String *str) { Item_func::print(str); }
+  }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    Item_func::print(str, query_type);
+  }
+
   void fix_length_and_dec() { maybe_null= 1; }
   bool is_null() { (void) val_int(); return null_value; }
 };

@@ -49,14 +49,14 @@ static const char *lock_descriptions[] =
 #ifndef DBUG_OFF
 
 void
-print_where(COND *cond,const char *info)
+print_where(COND *cond,const char *info, enum_query_type query_type)
 {
   if (cond)
   {
     char buff[256];
     String str(buff,(uint32) sizeof(buff), system_charset_info);
     str.length(0);
-    cond->print(&str);
+    cond->print(&str, query_type);
     str.append('\0');
     DBUG_LOCK_FILE;
     (void) fprintf(DBUG_FILE,"\nWHERE:(%s) ",info);
@@ -143,7 +143,7 @@ void TEST_filesort(SORT_FIELD *sortorder,uint s_length)
     else
     {
       str.length(0);
-      sortorder->item->print(&str);
+      sortorder->item->print(&str, QT_ORDINARY);
       out.append(str);
     }
   }
