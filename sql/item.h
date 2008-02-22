@@ -1975,8 +1975,6 @@ public:
 
 private:
   bool m_cs_specified;
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
 };
 
 
