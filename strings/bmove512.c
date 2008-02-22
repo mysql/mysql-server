@@ -33,7 +33,7 @@
 #ifdef HAVE_LONG_LONG
 #define LONG ulonglong
 #else
-#define LONG ulonglong
+#define LONG ulong
 #endif
 
 void bmove512(uchar *to, const uchar *from, register size_t length)

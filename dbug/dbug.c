@@ -276,7 +276,7 @@ typedef struct _db_code_state_ {
 static struct link *ListAddDel(struct link *, const char *, const char *, int);
 static struct link *ListCopy(struct link *);
 static int InList(struct link *linkp,const char *cp);
-static int ListFlags(struct link *linkp);
+static uint ListFlags(struct link *linkp);
 static void FreeList(struct link *linkp);
 
         /* OpenClose debug output stream */
@@ -738,10 +738,10 @@ void FixTraceFlags_helper(CODE_STATE *cs, const char *func,
 
 #define fflags(cs) cs->stack->out_file ? ListFlags(cs->stack->functions) : TRACE_ON;
 
-void FixTraceFlags(int old_fflags, CODE_STATE *cs)
+void FixTraceFlags(uint old_fflags, CODE_STATE *cs)
 {
   const char *func;
-  int new_fflags, traceon, level;
+  uint new_fflags, traceon, level;
   struct _db_stack_frame_ *framep;
 
   /*
@@ -831,7 +831,7 @@ yuck:
 void _db_set_(const char *control)
 {
   CODE_STATE *cs;
-  int old_fflags;
+  uint old_fflags;
   get_code_state_or_return;
   old_fflags=fflags(cs);
   if (ParseDbug(cs, control))
@@ -859,7 +859,7 @@ void _db_set_(const char *control)
 void _db_push_(const char *control)
 {
   CODE_STATE *cs;
-  int old_fflags;
+  uint old_fflags;
   get_code_state_or_return;
   old_fflags=fflags(cs);
   PushState(cs);
@@ -910,7 +910,7 @@ void _db_set_init_(const char *control)
 void _db_pop_()
 {
   struct settings *discard;
-  int old_fflags;
+  uint old_fflags;
   CODE_STATE *cs;
 
   get_code_state_or_return;
@@ -1559,9 +1559,9 @@ static int InList(struct link *linkp, const char *cp)
  *
  */
 
-static int ListFlags(struct link *linkp)
+static uint ListFlags(struct link *linkp)
 {
-  int f;
+  uint f;
   for (f=0; linkp != NULL; linkp= linkp->next_link)
     f|= linkp->flags;
   return f;
