@@ -61,7 +61,8 @@ DbUtil::DbUtil(MYSQL* mysql):
 
 
 bool
-DbUtil::isConnected(){
+DbUtil::isConnected()
+{
   if (m_connected == true)
   {
     assert(m_mysql);
@@ -72,7 +73,8 @@ DbUtil::isConnected(){
 
 
 bool
-DbUtil::waitConnected(int timeout) {
+DbUtil::waitConnected(int timeout) 
+{
   timeout*= 10;
   while(!isConnected()){
     if (timeout-- == 0)
@@ -82,10 +84,11 @@ DbUtil::waitConnected(int timeout) {
   return true;
 }
 
-
 void
-DbUtil::disconnect(){
-  if (m_mysql != NULL){
+DbUtil::disconnect()
+{
+  if (m_mysql != NULL)
+  {
     if (m_free_mysql)
       mysql_close(m_mysql);
     m_mysql= NULL;
@@ -98,7 +101,8 @@ DbUtil::disconnect(){
 
 DbUtil::~DbUtil()
 {
-  disconnect();
+  if(isConnected())
+    disconnect();
 }
 
 /* Database Login */
@@ -164,6 +168,8 @@ DbUtil::connect()
       mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
   {
     myerror("DB Connect -> mysql_options failed");
+    mysql_close(m_mysql)
+    m_mysql=NULL;
     return DBU_FAILED;
   }
 
@@ -177,6 +183,7 @@ DbUtil::connect()
   {
     myerror("connection failed");
     mysql_close(m_mysql);
+    m_mysql=NULL;
     return DBU_FAILED;
   }
   selectDb();
