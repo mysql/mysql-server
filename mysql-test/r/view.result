@@ -3634,4 +3634,12 @@ a
 1
 drop view v1, v2;
 drop table t1, t2;
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT p.a AS a FROM t1 p, t1 q;
+INSERT INTO t1 VALUES (1), (1);
+SELECT MAX(a), COUNT(DISTINCT a) FROM v1 GROUP BY a;
+MAX(a)	COUNT(DISTINCT a)
+1	1
+DROP VIEW v1;
+DROP TABLE t1;
 End of 5.0 tests.
