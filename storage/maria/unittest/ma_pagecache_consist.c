@@ -280,7 +280,7 @@ static void *test_thread_reader(void *arg)
 
     reader(param);
 
-    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    DBUG_PRINT("info", ("Thread %s ended", my_thread_name()));
     pthread_mutex_lock(&LOCK_thread_count);
     ok(1, "reader%d: done", param);
     thread_count--;
@@ -303,7 +303,7 @@ static void *test_thread_writer(void *arg)
 
     writer(param);
 
-    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    DBUG_PRINT("info", ("Thread %s ended", my_thread_name()));
     pthread_mutex_lock(&LOCK_thread_count);
     ok(1, "writer%d: done", param);
     thread_count--;

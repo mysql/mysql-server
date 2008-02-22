@@ -9,7 +9,7 @@
 #include "test_file.h"
 #include <tap.h>
 
-#define PCACHE_SIZE (PAGE_SIZE*1024*8)
+#define PCACHE_SIZE (TEST_PAGE_SIZE*1024*8)
 
 #ifndef DBUG_OFF
 static const char* default_dbug_option;
@@ -67,7 +67,7 @@ void check_page(uchar *buff, int task)
   uint i;
   DBUG_ENTER("check_page");
 
-  for (i= 1; i < PAGE_SIZE; i++)
+  for (i= 1; i < TEST_PAGE_SIZE; i++)
   {
     if (buff[0] != buff[i])
       goto err;
@@ -128,9 +128,9 @@ void writer(int num)
                          &link);
 
     check_page(buff, num);
-    bfill(buff, PAGE_SIZE / 2, c);
+    bfill(buff, TEST_PAGE_SIZE / 2, c);
     SLEEP;
-    bfill(buff + PAGE_SIZE/2, PAGE_SIZE / 2, c);
+    bfill(buff + TEST_PAGE_SIZE/2, TEST_PAGE_SIZE / 2, c);
     check_page(buff, num);
     pagecache_unlock_by_link(&pagecache, link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
@@ -151,9 +151,9 @@ static void *test_thread_reader(void *arg)
 
     reader(param);
 
-    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    DBUG_PRINT("info", ("Thread %s ended", my_thread_name()));
     pthread_mutex_lock(&LOCK_thread_count);
-    ok(1, "reader%d: done\n", param);
+    ok(1, "reader%d: done", param);
     thread_count--;
     VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
     pthread_mutex_unlock(&LOCK_thread_count);
@@ -173,9 +173,9 @@ static void *test_thread_writer(void *arg)
 
     writer(param);
 
-    DBUG_PRINT("info", ("Thread %s ended\n", my_thread_name()));
+    DBUG_PRINT("info", ("Thread %s ended", my_thread_name()));
     pthread_mutex_lock(&LOCK_thread_count);
-    ok(1, "writer%d: done\n", param);
+    ok(1, "writer%d: done", param);
     thread_count--;
     VOID(pthread_cond_signal(&COND_thread_count)); /* Tell main we are ready */
     pthread_mutex_unlock(&LOCK_thread_count);
@@ -261,7 +261,7 @@ int main(int argc __attribute__((unused)),
 #endif
 
   if ((pagen= init_pagecache(&pagecache, PCACHE_SIZE, 0, 0,
-                             PAGE_SIZE, 0)) == 0)
+                             TEST_PAGE_SIZE, 0)) == 0)
   {
     diag("Got error: init_pagecache() (errno: %d)\n",
             errno);
@@ -269,8 +269,8 @@ int main(int argc __attribute__((unused)),
   }
   DBUG_PRINT("info", ("Page cache %d pages", pagen));
   {
-    unsigned char *buffr= malloc(PAGE_SIZE);
-    memset(buffr, '\0', PAGE_SIZE);
+    unsigned char *buffr= malloc(TEST_PAGE_SIZE);
+    memset(buffr, '\0', TEST_PAGE_SIZE);
     pagecache_write(&pagecache, &file1, 0, 3, buffr,
                     PAGECACHE_PLAIN_PAGE,
                     PAGECACHE_LOCK_LEFT_UNLOCKED,
