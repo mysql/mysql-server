@@ -600,6 +600,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   result_field=0;
   null_value=1;
   fix_length_and_dec();
+  item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
     hybrid_field_type= ((Item_field*) item)->field->type();
   else
