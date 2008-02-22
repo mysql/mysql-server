@@ -149,11 +149,12 @@ int ndbcluster_connect(int (*connect_callback)(void))
                   g_ndb_cluster_connection_pool[i]->get_connected_port()));
 
       struct timeval now_time;
-      gettimeofday(&now_time, 0);
-      ulong wait_until_ready_time = (end_time.tv_sec > now_time.tv_sec) ?
-        end_time.tv_sec - now_time.tv_sec : 1;
-      res= g_ndb_cluster_connection_pool[i]->
-        wait_until_ready(wait_until_ready_time,3);
+      do
+      {
+        res= g_ndb_cluster_connection_pool[i]->wait_until_ready(1, 1);
+        gettimeofday(&now_time, 0);
+      } while (res != 0 && end_time.tv_sec > now_time.tv_sec);
+
       if (res == 0)
       {
         sql_print_information("NDB[%u]: all storage nodes connected", i);
