@@ -37,6 +37,9 @@
   blocks_unused is the sum of never used blocks in the pool and of currently
   free blocks. blocks_used is the number of blocks fetched from the pool and
   as such gives the maximum number of in-use blocks at any time.
+
+  TODO: Write operation locks whole cache till the end of the operation.
+    Should be fixed.
 */
 
 #include "maria_def.h"
@@ -96,7 +99,7 @@
 #define PCBLOCK_INFO(B) \
   DBUG_PRINT("info", \
              ("block: 0x%lx  fd: %lu  page: %lu  s: %0x  hshL: 0x%lx  req: %u/%u " \
-              "wrlocks: %u  pins: %u", \
+              "wrlocks: %u  rdlocks %u  rdlocks_q: %u  pins: %u", \
               (ulong)(B), \
               (ulong)((B)->hash_link ? \
                       (B)->hash_link->file.file : \
@@ -110,7 +113,7 @@
               (uint)((B)->hash_link ? \
                      (B)->hash_link->requests : \
                        0), \
-              block->wlocks, \
+              block->wlocks, block->rlocks, block->rlocks_queue, \
               (uint)(B)->pins))
 
 /* TODO: put it to my_static.c */
@@ -298,11 +301,7 @@ struct st_pagecache_block_link
 #endif
   KEYCACHE_CONDVAR *condvar; /* condition variable for 'no readers' event    */
   uchar *buffer;           /* buffer for the block page                      */
-#ifdef THREAD
   pthread_t write_locker;
-#else
-  int write_locker;
-#endif
 
   ulonglong last_hit_time; /* timestamp of the last hit                      */
   WQUEUE
@@ -311,7 +310,9 @@ struct st_pagecache_block_link
   uint status;            /* state of the block                              */
   uint pins;              /* pin counter                                     */
   uint wlocks;            /* write locks counter                             */
-  enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot  */
+  uint rlocks;            /* read locks counter                              */
+  uint rlocks_queue;      /* rd. locks waiting wr. lock of this thread       */
+  enum PCBLOCK_TEMPERATURE temperature; /* block temperature: cold, warm, hot*/
   enum pagecache_page_type type; /* type of the block                        */
   uint hits_left;         /* number of hits left until promotion             */
   /** @brief LSN when first became dirty; LSN_MAX means "not yet set"        */
@@ -1938,6 +1939,8 @@ restart:
         }
         pagecache->blocks_unused--;
         DBUG_ASSERT(block->wlocks == 0);
+        DBUG_ASSERT(block->rlocks == 0);
+        DBUG_ASSERT(block->rlocks_queue == 0);
         DBUG_ASSERT(block->pins == 0);
         block->status= 0;
 #ifndef DBUG_OFF
@@ -2003,6 +2006,8 @@ restart:
         }
         PCBLOCK_INFO(block);
         DBUG_ASSERT(block->wlocks == 0);
+        DBUG_ASSERT(block->rlocks == 0);
+        DBUG_ASSERT(block->rlocks_queue == 0);
         DBUG_ASSERT(block->pins == 0);
 
         if (block->hash_link != hash_link &&
@@ -2010,6 +2015,8 @@ restart:
         {
 	  /* this is a primary request for a new page */
           DBUG_ASSERT(block->wlocks == 0);
+          DBUG_ASSERT(block->rlocks == 0);
+          DBUG_ASSERT(block->rlocks_queue == 0);
           DBUG_ASSERT(block->pins == 0);
           block->status|= PCBLOCK_IN_SWITCH;
 
@@ -2196,17 +2203,82 @@ static void info_change_lock(PAGECACHE_BLOCK_LINK *block, my_bool wl)
 #define info_change_lock(B,W)
 #endif
 
-/*
-  Put on the block write lock
 
-  SYNOPSIS
-    get_wrlock()
-    pagecache            pointer to a page cache data structure
-    block                the block to work with
+/**
+  @brief waiting for lock for read and write lock
 
-  RETURN
-    0 - OK
-    1 - Can't lock this block, need retry
+  @parem pagecache       pointer to a page cache data structure
+  @parem block           the block to work with
+  @param file            file of the block when it was locked
+  @param pageno          page number of the block when it was locked
+  @param lock_type       MY_PTHREAD_LOCK_READ or MY_PTHREAD_LOCK_WRITE
+
+  @retval 0 OK
+  @retval 1 Can't lock this block, need retry
+*/
+
+static my_bool translog_wait_lock(PAGECACHE *pagecache,
+                                  PAGECACHE_BLOCK_LINK *block,
+                                  PAGECACHE_FILE file,
+                                  pgcache_page_no_t pageno,
+                                  uint lock_type)
+{
+  /* Lock failed we will wait */
+#ifdef THREAD
+  struct st_my_thread_var *thread= my_thread_var;
+  DBUG_ENTER("translog_wait_lock");
+  DBUG_PRINT("info", ("fail to lock, waiting... 0x%lx", (ulong)block));
+  thread->lock_type= lock_type;
+  wqueue_add_to_queue(&block->wqueue[COND_FOR_WRLOCK], thread);
+  dec_counter_for_resize_op(pagecache);
+  do
+  {
+    KEYCACHE_DBUG_PRINT("get_wrlock: wait",
+                        ("suspend thread %ld", thread->id));
+    pagecache_pthread_cond_wait(&thread->suspend,
+                                &pagecache->cache_lock);
+  }
+  while(thread->next);
+#else
+  DBUG_ASSERT(0);
+#endif
+  PCBLOCK_INFO(block);
+  if ((block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH)) ||
+      file.file != block->hash_link->file.file ||
+      pageno != block->hash_link->pageno)
+  {
+    DBUG_PRINT("info", ("the block 0x%lx changed => need retry "
+                        "status: %x  files %d != %d or pages %lu != %lu",
+                        (ulong)block, block->status,
+                        file.file, block->hash_link->file.file,
+                        (ulong) pageno, (ulong) block->hash_link->pageno));
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+/**
+  @brief Put on the block write lock
+
+  @parem pagecache       pointer to a page cache data structure
+  @parem block           the block to work with
+
+  @note We have loose scheme for locking by the same thread:
+    * Downgrade to read lock if no other locks are taken
+    * Our scheme of locking allow for the same thread
+      - the same kind of lock
+      - taking read lock if write lock present
+      - downgrading to read lock if still other place the same
+        thread keep write lock
+    * But unlock operation number should be the same to lock operation.
+    * If we try to get read lock having active write locks we put read
+      locks to queue, and as soon as write lock(s) gone the read locks
+      from queue came in force.
+    * If read lock is unlocked earlier then it came to force it
+      just removed from the queue
+
+  @retval 0 OK
+  @retval 1 Can't lock this block, need retry
 */
 
 static my_bool get_wrlock(PAGECACHE *pagecache,
@@ -2214,11 +2286,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
 {
   PAGECACHE_FILE file= block->hash_link->file;
   pgcache_page_no_t pageno= block->hash_link->pageno;
-#ifdef THREAD
   pthread_t locker= pthread_self();
-#else
-  int locker= 0;
-#endif
   DBUG_ENTER("get_wrlock");
   DBUG_PRINT("info", ("the block 0x%lx "
                       "files %d(%d)  pages %lu(%lu)",
@@ -2226,37 +2294,17 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
                       file.file, block->hash_link->file.file,
                       (ulong) pageno, (ulong) block->hash_link->pageno));
   PCBLOCK_INFO(block);
-  while (block->wlocks && !pthread_equal(block->write_locker, locker))
+  /*
+    We assume that the same thread will try write lock on block on which it
+    has already read lock.
+  */
+  while ((block->wlocks && !pthread_equal(block->write_locker, locker)) ||
+         block->rlocks)
   {
     /* Lock failed we will wait */
-#ifdef THREAD
-    struct st_my_thread_var *thread= my_thread_var;
-    DBUG_PRINT("info", ("fail to lock, waiting... 0x%lx", (ulong)block));
-    wqueue_add_to_queue(&block->wqueue[COND_FOR_WRLOCK], thread);
-    dec_counter_for_resize_op(pagecache);
-    do
-    {
-      KEYCACHE_DBUG_PRINT("get_wrlock: wait",
-                          ("suspend thread %ld", thread->id));
-      pagecache_pthread_cond_wait(&thread->suspend,
-                                  &pagecache->cache_lock);
-    }
-    while(thread->next);
-#else
-    DBUG_ASSERT(0);
-#endif
-    PCBLOCK_INFO(block);
-    if ((block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH)) ||
-        file.file != block->hash_link->file.file ||
-        pageno != block->hash_link->pageno)
-    {
-      DBUG_PRINT("info", ("the block 0x%lx changed => need retry "
-                          "status: %x  files %d != %d or pages %lu != %lu",
-                          (ulong)block, block->status,
-                          file.file, block->hash_link->file.file,
-                          (ulong) pageno, (ulong) block->hash_link->pageno));
+    if (translog_wait_lock(pagecache, block, file, pageno,
+                           MY_PTHREAD_LOCK_WRITE))
       DBUG_RETURN(1);
-    }
   }
   /* we are doing it by global cache mutex protection, so it is OK */
   block->wlocks++;
@@ -2267,36 +2315,130 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
 
 
 /*
-  Remove write lock from the block
+  @brief Put on the block read lock
 
-  SYNOPSIS
-    release_wrlock()
-    pagecache            pointer to a page cache data structure
-    block                the block to work with
+  @param pagecache       pointer to a page cache data structure
+  @param block           the block to work with
+  @param user_file	 Unique handler per handler file. Used to check if
+			 we request many write locks withing the same
+                         statement
 
-  RETURN
-    0 - OK
+  @note see note for get_wrlock().
+
+  @retvalue 0 OK
+  @retvalue 1 Can't lock this block, need retry
 */
 
-static void release_wrlock(PAGECACHE_BLOCK_LINK *block)
+static my_bool get_rdlock(PAGECACHE *pagecache,
+                          PAGECACHE_BLOCK_LINK *block)
+{
+  PAGECACHE_FILE file= block->hash_link->file;
+  pgcache_page_no_t pageno= block->hash_link->pageno;
+  pthread_t locker= pthread_self();
+  DBUG_ENTER("get_rdlock");
+  DBUG_PRINT("info", ("the block 0x%lx "
+                      "files %d(%d)  pages %lu(%lu)",
+                      (ulong) block,
+                      file.file, block->hash_link->file.file,
+                      (ulong) pageno, (ulong) block->hash_link->pageno));
+  PCBLOCK_INFO(block);
+  while (block->wlocks && !pthread_equal(block->write_locker, locker))
+  {
+    /* Lock failed we will wait */
+    if (translog_wait_lock(pagecache, block, file, pageno,
+                           MY_PTHREAD_LOCK_READ))
+      DBUG_RETURN(1);
+  }
+  /* we are doing it by global cache mutex protection, so it is OK */
+  if (block->wlocks)
+  {
+    DBUG_ASSERT(pthread_equal(block->write_locker, locker));
+    block->rlocks_queue++;
+    DBUG_PRINT("info", ("RD lock put into queue, block 0x%lx", (ulong)block));
+  }
+  else
+  {
+    block->rlocks++;
+    DBUG_PRINT("info", ("RD lock set, block 0x%lx", (ulong)block));
+  }
+  DBUG_RETURN(0);
+}
+
+
+/*
+  @brief Remove write lock from the block
+
+  @param pagecache       pointer to a page cache data structure
+  @param block           the block to work with
+  @param read_lock       downgrade to read lock
+
+  @note see note for get_wrlock().
+*/
+
+static void release_wrlock(PAGECACHE_BLOCK_LINK *block, my_bool read_lock)
 {
   DBUG_ENTER("release_wrlock");
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block->wlocks > 0);
+  DBUG_ASSERT(block->rlocks == 0);
   DBUG_ASSERT(block->pins > 0);
+  if (read_lock)
+    block->rlocks_queue++;
+  if (block->wlocks == 1)
+  {
+    block->rlocks= block->rlocks_queue;
+    block->rlocks_queue= 0;
+  }
   block->wlocks--;
   if (block->wlocks > 0)
     DBUG_VOID_RETURN;                      /* Multiple write locked */
   DBUG_PRINT("info", ("WR lock reset, block 0x%lx", (ulong)block));
 #ifdef THREAD
-  /* release all threads waiting for write lock */
+  /* release all threads waiting for read lock or one waiting for write */
   if (block->wqueue[COND_FOR_WRLOCK].last_thread)
-    wqueue_release_queue(&block->wqueue[COND_FOR_WRLOCK]);
+    wqueue_release_one_locktype_from_queue(&block->wqueue[COND_FOR_WRLOCK]);
 #endif
   PCBLOCK_INFO(block);
   DBUG_VOID_RETURN;
 }
 
+/*
+  @brief Remove read lock from the block
+
+  @param pagecache       pointer to a page cache data structure
+  @param block           the block to work with
+
+  @note see note for get_wrlock().
+*/
+
+static void release_rdlock(PAGECACHE_BLOCK_LINK *block)
+{
+  DBUG_ENTER("release_wrlock");
+  PCBLOCK_INFO(block);
+  if (block->wlocks)
+  {
+    DBUG_ASSERT(pthread_equal(block->write_locker, pthread_self()));
+    DBUG_ASSERT(block->rlocks == 0);
+    DBUG_ASSERT(block->rlocks_queue > 0);
+    block->rlocks_queue--;
+    DBUG_PRINT("info", ("RD lock queue decreased, block 0x%lx", (ulong)block));
+    DBUG_VOID_RETURN;
+  }
+  DBUG_ASSERT(block->rlocks > 0);
+  DBUG_ASSERT(block->rlocks_queue == 0);
+  block->rlocks--;
+  DBUG_PRINT("info", ("RD lock decreased, block 0x%lx", (ulong)block));
+  if (block->rlocks > 0)
+    DBUG_VOID_RETURN;                      /* Multiple write locked */
+  DBUG_PRINT("info", ("RD lock reset, block 0x%lx", (ulong)block));
+#ifdef THREAD
+  /* release all threads waiting for read lock or one waiting for write */
+  if (block->wqueue[COND_FOR_WRLOCK].last_thread)
+    wqueue_release_one_locktype_from_queue(&block->wqueue[COND_FOR_WRLOCK]);
+#endif
+  PCBLOCK_INFO(block);
+  DBUG_VOID_RETURN;
+}
 
 /*
   Try to lock/unlock and pin/unpin the block
@@ -2325,9 +2467,10 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
 #ifndef DBUG_OFF
   if (block)
   {
-    DBUG_PRINT("enter", ("block: 0x%lx (%u)  wrlocks: %u  pins: %u  lock: %s  pin: %s",
+    DBUG_PRINT("enter", ("block: 0x%lx (%u)  wrlocks: %u  rdlocks: %u  "
+                         "rdlocks_q: %u  pins: %u  lock: %s  pin: %s",
                          (ulong)block, PCBLOCK_NUMBER(pagecache, block),
-                         block->wlocks,
+                         block->wlocks, block->rlocks, block->rlocks_queue,
                          block->pins,
                          page_cache_page_lock_str[lock],
                          page_cache_page_pin_str[pin]));
@@ -2340,7 +2483,7 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     /* Writelock and pin the buffer */
     if (get_wrlock(pagecache, block))
     {
-      /* can't lock => need retry */
+      /* Couldn't lock because block changed status => need retry */
       goto retry;
     }
 
@@ -2350,13 +2493,13 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     break;
   case PAGECACHE_LOCK_WRITE_TO_READ:       /* write -> read  */
   case PAGECACHE_LOCK_WRITE_UNLOCK:        /* write -> free  */
-    /*
-      Removes write lock and puts read lock (which is nothing in our
-      implementation)
-    */
-    release_wrlock(block);
+    /* Removes write lock and puts read lock */
+    release_wrlock(block, lock == PAGECACHE_LOCK_WRITE_TO_READ);
     /* fall through */
   case PAGECACHE_LOCK_READ_UNLOCK:         /* read  -> free  */
+    if (lock == PAGECACHE_LOCK_READ_UNLOCK)
+      release_rdlock(block);
+    /* fall through */
   case PAGECACHE_LOCK_LEFT_READLOCKED:     /* read  -> read  */
     if (pin == PAGECACHE_UNPIN)
     {
@@ -2373,6 +2516,12 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     }
     break;
   case PAGECACHE_LOCK_READ:                /* free  -> read  */
+    if (get_rdlock(pagecache, block))
+    {
+      /* Couldn't lock because block changed status => need retry */
+      goto retry;
+    }
+
     if (pin == PAGECACHE_PIN)
     {
       /* The cache is locked so nothing afraid off */
@@ -2385,6 +2534,7 @@ static my_bool make_lock_and_pin(PAGECACHE *pagecache,
     {
       remove_pin(block);
     }
+    /* fall through */
   case PAGECACHE_LOCK_LEFT_WRITELOCKED:    /* write -> write */
     break; /* do nothing */
   default:
@@ -3004,6 +3154,9 @@ restart:
                       test((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
                            (pin == PAGECACHE_PIN)),
                       &page_st);
+    DBUG_PRINT("info", ("Block type: %s current type %s",
+                        page_cache_page_type_str[block->type],
+                        page_cache_page_type_str[type]));
     if (((block->status & PCBLOCK_ERROR) == 0) && (page_st != PAGE_READ))
     {
       DBUG_PRINT("info", ("read block 0x%lx", (ulong)block));
@@ -3741,6 +3894,8 @@ static void free_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
 
   unlink_changed(block);
   DBUG_ASSERT(block->wlocks == 0);
+  DBUG_ASSERT(block->rlocks == 0);
+  DBUG_ASSERT(block->rlocks_queue == 0);
   DBUG_ASSERT(block->pins == 0);
   block->status= 0;
 #ifndef DBUG_OFF
@@ -3847,6 +4002,7 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
     if (make_lock_and_pin(pagecache, block,
                           PAGECACHE_LOCK_WRITE, PAGECACHE_PIN))
       DBUG_ASSERT(0);
+    DBUG_ASSERT(block->pins == 1);
 
     KEYCACHE_DBUG_PRINT("flush_cached_blocks",
                         ("block: %u (0x%lx)  to be flushed",

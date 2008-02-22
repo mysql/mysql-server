@@ -38,6 +38,7 @@ noinst_PROGRAMS =	ma_control_file-t trnman-t lockman2-t \
 			ma_pagecache_consist_64kRD-t \
 			ma_pagecache_consist_1kWR-t \
 			ma_pagecache_consist_64kWR-t \
+                        ma_pagecache_rwconsist_1k-t \
 			ma_test_loghandler-t \
                         ma_test_loghandler_multigroup-t \
 			ma_test_loghandler_multithread-t \
@@ -94,6 +95,9 @@ ma_pagecache_consist_1kWR_t_SOURCES =	$(ma_pagecache_consist_src)
 ma_pagecache_consist_1kWR_t_CPPFLAGS = 	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=1024 -DTEST_WRITERS
 ma_pagecache_consist_64kWR_t_SOURCES =	$(ma_pagecache_consist_src)
 ma_pagecache_consist_64kWR_t_CPPFLAGS =	$(ma_pagecache_common_cppflags) -DPAGE_SIZE=65536 -DTEST_WRITERS
+
+ma_pagecache_rwconsist_1k_t_SOURCES =	ma_pagecache_rwconsist.c
+ma_pagecache_rwconsist_1k_t_CPPFLAGS = -DPAGE_SIZE=1024
 
 # the generic lock manager may not be used in the end and lockman1-t crashes,
 # so we don't build lockman-t and lockman1-t 

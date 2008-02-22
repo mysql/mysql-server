@@ -15,6 +15,9 @@
 static const char* default_dbug_option;
 #endif
 
+
+#define SLEEP usleep(5)
+
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
 static pthread_cond_t COND_thread_count;
@@ -22,44 +25,12 @@ static pthread_mutex_t LOCK_thread_count;
 static uint thread_count;
 static PAGECACHE pagecache;
 
-#ifdef TEST_HIGH_CONCURENCY
-static uint number_of_readers= 10;
-static uint number_of_writers= 20;
-static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
-static uint number_of_pages= 20;
-static uint flush_divider= 1000;
-#else /*TEST_HIGH_CONCURENCY*/
-#ifdef TEST_READERS
-static uint number_of_readers= 10;
-static uint number_of_writers= 1;
-static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
-static uint number_of_pages= 20;
-static uint flush_divider= 1000;
-#undef SKIP_BIG_TESTS
-#define SKIP_BIG_TESTS(X) /* no-op */
-#else /*TEST_READERS*/
-#ifdef TEST_WRITERS
-static uint number_of_readers= 0;
-static uint number_of_writers= 10;
-static uint number_of_tests= 30000;
-static uint record_length_limit= PAGE_SIZE/200;
-static uint number_of_pages= 20;
-static uint flush_divider= 1000;
-#undef SKIP_BIG_TESTS
-#define SKIP_BIG_TESTS(X) /* no-op */
-#else /*TEST_WRITERS*/
-static uint number_of_readers= 10;
-static uint number_of_writers= 10;
-static uint number_of_tests= 50000;
-static uint record_length_limit= PAGE_SIZE/200;
-static uint number_of_pages= 20000;
-static uint flush_divider= 1000;
-#endif /*TEST_WRITERS*/
-#endif /*TEST_READERS*/
-#endif /*TEST_HIGH_CONCURENCY*/
-
+static uint number_of_readers= 5;
+static uint number_of_writers= 5;
+static uint number_of_read_tests= 2000;
+static uint number_of_write_tests= 1000;
+static uint read_sleep_limit= 3;
+static uint report_divisor= 50;
 
 /**
   @brief Dummy pagecache callback.
@@ -85,181 +56,87 @@ dummy_fail_callback(uchar* data_ptr __attribute__((unused)))
 }
 
 
-/*
-  Get pseudo-random length of the field in (0;limit)
+/**
+  @brief Checks page consistency
 
-  SYNOPSYS
-    get_len()
-    limit                limit for generated value
-
-  RETURN
-    length where length >= 0 & length < limit
+  @param buff            pointer to the page content
+  @param task            task ID
 */
-
-static uint get_len(uint limit)
+void check_page(uchar *buff, int task)
 {
-  return (uint)((ulonglong)rand()*(limit-1)/RAND_MAX);
-}
-
-
-/* check page consistency */
-uint check_page(uchar *buff, ulong offset, int page_locked, int page_no,
-                int tag)
-{
-  uint end= sizeof(uint);
-  uint num= *((uint *)buff);
   uint i;
   DBUG_ENTER("check_page");
 
-  for (i= 0; i < num; i++)
+  for (i= 1; i < PAGE_SIZE; i++)
   {
-    uint len= *((uint *)(buff + end));
-    uint j;
-    end+= sizeof(uint) + sizeof(uint);
-    if (len + end > PAGE_SIZE)
-    {
-      diag("incorrect field header #%u by offset %lu\n", i, offset + end);
+    if (buff[0] != buff[i])
       goto err;
-    }
-    for(j= 0; j < len; j++)
-    {
-      if (buff[end + j] != (uchar)((i+1) % 256))
-      {
-        diag("incorrect %lu byte\n", offset + end + j);
-        goto err;
-      }
-    }
-    end+= len;
   }
-  for(i= end; i < PAGE_SIZE; i++)
-  {
-    if (buff[i] != 0)
-    {
-      int h;
-      DBUG_PRINT("err",
-                 ("byte %lu (%lu + %u), page %u (%s, end: %u, recs: %u, tag: %d) should be 0\n",
-                  offset + i, offset, i, page_no,
-                  (page_locked ? "locked" : "unlocked"),
-                  end, num, tag));
-      diag("byte %lu (%lu + %u), page %u (%s, end: %u, recs: %u, tag: %d) should be 0\n",
-           offset + i, offset, i, page_no,
-           (page_locked ? "locked" : "unlocked"),
-           end, num, tag);
-      h= my_open("wrong_page", O_CREAT | O_TRUNC | O_RDWR, MYF(0));
-      my_pwrite(h, (uchar*) buff, PAGE_SIZE, 0, MYF(0));
-      my_close(h, MYF(0));
-      goto err;
-    }
-  }
-  DBUG_RETURN(end);
+  DBUG_VOID_RETURN;
 err:
+  diag("Task %d char #%u '%u' != '%u'", task, i, (uint) buff[0],
+       (uint) buff[i]);
   DBUG_PRINT("err", ("try to flush"));
-  if (page_locked)
-  {
-    pagecache_delete(&pagecache, &file1, page_no,
-                     PAGECACHE_LOCK_LEFT_WRITELOCKED, 1);
-  }
-  else
-  {
-    flush_pagecache_blocks(&pagecache, &file1, FLUSH_RELEASE);
-  }
   exit(1);
 }
 
-void put_rec(uchar *buff, uint end, uint len, uint tag)
-{
-  uint i;
-  uint num= *((uint *)buff);
-  if (!len)
-    len= 1;
-  if (end + sizeof(uint)*2 + len > PAGE_SIZE)
-    return;
-  *((uint *)(buff + end))= len;
-  end+=  sizeof(uint);
-  *((uint *)(buff + end))= tag;
-  end+=  sizeof(uint);
-  num++;
-  *((uint *)buff)= num;
-  for (i= end; i < (len + end); i++)
-  {
-    buff[i]= (uchar) num % 256;
-  }
-}
-
-/*
-  Recreate and reopen a file for test
-
-  SYNOPSIS
-    reset_file()
-    file                 File to reset
-    file_name            Path (and name) of file which should be reset
-*/
-
-void reset_file(PAGECACHE_FILE file, char *file_name)
-{
-  flush_pagecache_blocks(&pagecache, &file1, FLUSH_RELEASE);
-  if (my_close(file1.file, MYF(0)) != 0)
-  {
-    diag("Got error during %s closing from close() (errno: %d)\n",
-         file_name, errno);
-    exit(1);
-  }
-  my_delete(file_name, MYF(0));
-  if ((file.file= my_open(file_name,
-                          O_CREAT | O_TRUNC | O_RDWR, MYF(0))) == -1)
-  {
-    diag("Got error during %s creation from open() (errno: %d)\n",
-         file_name, errno);
-    exit(1);
-  }
-}
 
 
 void reader(int num)
 {
-  unsigned char *buffr= malloc(PAGE_SIZE);
+  unsigned char *buff;
   uint i;
+  PAGECACHE_BLOCK_LINK *link;
 
-  for (i= 0; i < number_of_tests; i++)
+  for (i= 0; i < number_of_read_tests; i++)
   {
-    uint page= get_len(number_of_pages);
-    pagecache_read(&pagecache, &file1, page, 3, buffr,
-                   PAGECACHE_PLAIN_PAGE,
-                   PAGECACHE_LOCK_LEFT_UNLOCKED,
-                   0);
-    check_page(buffr, page * PAGE_SIZE, 0, page, -num);
-
+    if (i % report_divisor == 0)
+      diag("Reader %d - %u", num, i);
+    buff= pagecache_read(&pagecache, &file1, 0, 3, NULL,
+                         PAGECACHE_PLAIN_PAGE,
+                         PAGECACHE_LOCK_READ,
+                         &link);
+    check_page(buff, num);
+    pagecache_unlock_by_link(&pagecache, link,
+                             PAGECACHE_LOCK_READ_UNLOCK,
+                             PAGECACHE_UNPIN, 0, 0, 0);
+    {
+      int lim= rand() % read_sleep_limit;
+      int j;
+      for (j= 0; j < lim; j++)
+        SLEEP;
+    }
   }
-  free(buffr);
 }
 
 
 void writer(int num)
 {
-  unsigned char *buffr= malloc(PAGE_SIZE);
   uint i;
+  uchar *buff;
+  PAGECACHE_BLOCK_LINK *link;
 
-  for (i= 0; i < number_of_tests; i++)
+  for (i= 0; i < number_of_write_tests; i++)
   {
-    uint end;
-    uint page= get_len(number_of_pages);
-    pagecache_read(&pagecache, &file1, page, 3, buffr,
-                   PAGECACHE_PLAIN_PAGE,
-                   PAGECACHE_LOCK_WRITE,
-                   0);
-    end= check_page(buffr, page * PAGE_SIZE, 1, page, num);
-    put_rec(buffr, end, get_len(record_length_limit), num);
-    pagecache_write(&pagecache, &file1, page, 3, buffr,
-                    PAGECACHE_PLAIN_PAGE,
-                    PAGECACHE_LOCK_WRITE_UNLOCK,
-                    PAGECACHE_UNPIN,
-                    PAGECACHE_WRITE_DELAY,
-                    0, LSN_IMPOSSIBLE);
+    uchar c= (uchar) rand() % 256;
 
-    if (i % flush_divider == 0)
-      flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
+    if (i % report_divisor == 0)
+      diag("Writer %d - %u", num, i);
+    buff= pagecache_read(&pagecache, &file1, 0, 3, NULL,
+                         PAGECACHE_PLAIN_PAGE,
+                         PAGECACHE_LOCK_WRITE,
+                         &link);
+
+    check_page(buff, num);
+    bfill(buff, PAGE_SIZE / 2, c);
+    SLEEP;
+    bfill(buff + PAGE_SIZE/2, PAGE_SIZE / 2, c);
+    check_page(buff, num);
+    pagecache_unlock_by_link(&pagecache, link,
+                             PAGECACHE_LOCK_WRITE_UNLOCK,
+                             PAGECACHE_UNPIN, 0, 0, 1);
+    SLEEP;
   }
-  free(buffr);
 }
 
 
@@ -269,6 +146,7 @@ static void *test_thread_reader(void *arg)
   my_thread_init();
   {
     DBUG_ENTER("test_reader");
+
     DBUG_PRINT("enter", ("param: %d", param));
 
     reader(param);
@@ -292,7 +170,6 @@ static void *test_thread_writer(void *arg)
   my_thread_init();
   {
     DBUG_ENTER("test_writer");
-    DBUG_PRINT("enter", ("param: %d", param));
 
     writer(param);
 
@@ -350,7 +227,7 @@ int main(int argc __attribute__((unused)),
   DBUG_PRINT("info", ("file1: %d", file1.file));
   if (my_chmod(file1_name, S_IRWXU | S_IRWXG | S_IRWXO, MYF(MY_WME)))
     exit(1);
-  my_pwrite(file1.file, (const uchar *)"test file", 9, 0, MYF(0));
+  my_pwrite(file1.file, (const uchar*) "test file", 9, 0, MYF(0));
 
   if ((error= pthread_cond_init(&COND_thread_count, NULL)))
   {
@@ -393,27 +270,22 @@ int main(int argc __attribute__((unused)),
   DBUG_PRINT("info", ("Page cache %d pages", pagen));
   {
     unsigned char *buffr= malloc(PAGE_SIZE);
-    uint i;
     memset(buffr, '\0', PAGE_SIZE);
-    for (i= 0; i < number_of_pages; i++)
-    {
-      pagecache_write(&pagecache, &file1, i, 3, buffr,
-                      PAGECACHE_PLAIN_PAGE,
-                      PAGECACHE_LOCK_LEFT_UNLOCKED,
-                      PAGECACHE_PIN_LEFT_UNPINNED,
-                      PAGECACHE_WRITE_DELAY,
-                      0, LSN_IMPOSSIBLE);
-    }
-    flush_pagecache_blocks(&pagecache, &file1, FLUSH_FORCE_WRITE);
-    free(buffr);
+    pagecache_write(&pagecache, &file1, 0, 3, buffr,
+                    PAGECACHE_PLAIN_PAGE,
+                    PAGECACHE_LOCK_LEFT_UNLOCKED,
+                    PAGECACHE_PIN_LEFT_UNPINNED,
+                    PAGECACHE_WRITE_DELAY,
+                    0, LSN_IMPOSSIBLE);
   }
   pthread_mutex_lock(&LOCK_thread_count);
+
   while (number_of_readers != 0 || number_of_writers != 0)
   {
     if (number_of_readers != 0)
     {
       param=(int*) malloc(sizeof(int));
-      *param= number_of_readers;
+      *param= number_of_readers + number_of_writers;
       if ((error= pthread_create(&tid, &thr_attr, test_thread_reader,
                                  (void*) param)))
       {
@@ -427,7 +299,7 @@ int main(int argc __attribute__((unused)),
     if (number_of_writers != 0)
     {
       param=(int*) malloc(sizeof(int));
-      *param= number_of_writers;
+      *param= number_of_writers + number_of_readers;
       if ((error= pthread_create(&tid, &thr_attr, test_thread_writer,
                                  (void*) param)))
       {
