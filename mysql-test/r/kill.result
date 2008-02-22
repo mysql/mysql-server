@@ -1,3 +1,4 @@
+set @@global.concurrent_insert= 0;
 drop table if exists t1, t2, t3;
 create table t1 (kill_id int);
 insert into t1 values(connection_id());
