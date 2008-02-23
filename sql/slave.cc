@@ -2447,14 +2447,15 @@ bool show_master_info(THD* thd, MASTER_INFO* mi)
     protocol->prepare_for_resend();
   
     /*
-      TODO: we read slave_running without run_lock, whereas these variables
-      are updated under run_lock and not data_lock. In 5.0 we should lock
-      run_lock on top of data_lock (with good order).
+      slave_running can be accessed without run_lock but not other
+      non-volotile members like mi->io_thd, which is guarded by the mutex.
     */
+    pthread_mutex_lock(&mi->run_lock);
+    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
+    pthread_mutex_unlock(&mi->run_lock);
+
     pthread_mutex_lock(&mi->data_lock);
     pthread_mutex_lock(&mi->rli.data_lock);
-
-    protocol->store(mi->io_thd ? mi->io_thd->proc_info : "", &my_charset_bin);
     protocol->store(mi->host, &my_charset_bin);
     protocol->store(mi->user, &my_charset_bin);
     protocol->store((uint32) mi->port);
