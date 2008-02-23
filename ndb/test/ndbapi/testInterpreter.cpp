@@ -77,6 +77,11 @@ int runTestIncValue32(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table * pTab = ctx->getTab();
   Ndb* pNdb = GETNDB(step);
 
+  if (strcmp(pTab->getName(), "T1") != 0) {
+    g_err << "runTestBug19537: skip, table != T1" << endl;
+    return NDBT_OK;
+  }
+
 
   NdbConnection* pTrans = pNdb->startTransaction();
   if (pTrans == NULL){
@@ -258,6 +263,84 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 
+int runTestBug34107(NDBT_Context* ctx, NDBT_Step* step){
+  int result = NDBT_OK;
+  const NdbDictionary::Table * pTab = ctx->getTab();
+  Ndb* pNdb = GETNDB(step);
+
+  int i;
+  for (i = 0; i <= 1; i++) {
+    g_info << "bug34107:" << (i == 0 ? " small" : " too big") << endl;
+
+    NdbConnection* pTrans = pNdb->startTransaction();
+    if (pTrans == NULL){
+      ERR(pNdb->getNdbError());
+      return NDBT_FAILED;
+    }
+    
+    NdbScanOperation* pOp = pTrans->getNdbScanOperation(pTab->getName());
+    if (pOp == NULL) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    
+    if (pOp->readTuples() == -1) {
+      ERR(pOp->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    int n = i == 0 ? 10000 : 30000;
+    int k;
+
+    for (k = 0; k < n; k++) {
+
+      // inserts 1 word ATTRINFO
+
+      if (pOp->interpret_exit_ok() == -1) {
+        ERR(pOp->getNdbError());
+        pNdb->closeTransaction(pTrans);
+        return NDBT_FAILED;
+      }
+    }
+      
+    if (pTrans->execute(NoCommit) == -1) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    int ret;
+    while ((ret = pOp->nextResult()) == 0)
+      ;
+    g_info << "ret=" << ret << " err=" << pOp->getNdbError().code << endl;
+
+    if (i == 0 && ret != 1) {
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    if (i == 1 && ret != -1) {
+      g_err << "unexpected big filter success" << endl;
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+    if (i == 1 && pOp->getNdbError().code != 874) {
+      g_err << "unexpected big filter error code, wanted 874" << endl;
+      ERR(pTrans->getNdbError());
+      pNdb->closeTransaction(pTrans);
+      return NDBT_FAILED;
+    }
+
+    pNdb->closeTransaction(pTrans);
+  }
+
+  return NDBT_OK;
+}
+
+
 NDBT_TESTSUITE(testInterpreter);
 TESTCASE("IncValue32", 
 	 "Test incValue for 32 bit integer\n"){ 
@@ -275,6 +358,12 @@ TESTCASE("Bug19537",
          "Test big-endian write_attr of 32 bit integer\n"){
   INITIALIZER(runLoadTable);
   INITIALIZER(runTestBug19537);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug34107",
+         "Test too big scan filter (error 874)\n"){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runTestBug34107);
   FINALIZER(runClearTable);
 }
 #if 0
