@@ -3185,6 +3185,18 @@ end_with_restore_list:
       thd->one_shot_set|= lex->one_shot_set;
       send_ok(thd);
     }
+    else
+    {
+      /*
+        We encountered some sort of error, but no message was sent.
+        Send something semi-generic here since we don't know which
+        assignment in the list caused the error.
+      */
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),"SET");
+      goto error;
+    }
+
     break;
   }
 
