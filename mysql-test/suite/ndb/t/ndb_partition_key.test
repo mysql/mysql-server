@@ -38,6 +38,10 @@ insert into t1 values
 
 select * from t1 order by b;
 
+# BUG#33061: ORDER BY DESC becomes ASC in NDB partition pruning to one partition
+select max(b) from t1 where a = 1;
+select b from t1 where a = 1 order by b desc;
+
 DROP TABLE t1;
 
 #
