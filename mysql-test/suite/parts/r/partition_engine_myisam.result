@@ -1450,6 +1450,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1 STORAGE ENGINE = 'MyISAM',
 PARTITION part2
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1461,6 +1462,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1                         ,
 PARTITION part2 STORAGE ENGINE = 'MyISAM'
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1477,6 +1479,9 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'MyISAM',
 SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+# this should fail with ER_MIX_HANDLER_ERROR
+# after fixing Bug#33722
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1966,6 +1971,9 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'MyISAM',
 SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+# this should work
+# after fixing Bug#33722
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1982,6 +1990,7 @@ PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = 'MyISAM'
 (SUBPARTITION subpart21,
 SUBPARTITION subpart22)
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 #------------------------------------------------------------------------
 # 5 Precedence of storage engine assignments (if there is any)
 #------------------------------------------------------------------------
@@ -2934,6 +2943,7 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'MyISAM',
 SUBPARTITION subpart22 STORAGE ENGINE = 'MyISAM')
 );
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 #------------------------------------------------------------------------
 # 6 Session default engine differs from engine used within create table
 #------------------------------------------------------------------------

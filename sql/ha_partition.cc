@@ -1028,6 +1028,7 @@ int ha_partition::repair_partitions(THD *thd)
     0                         Success
 */
 
+#ifdef WL4176_IS_DONE
 static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
                            handler *file, uint flag)
 {
@@ -1041,7 +1042,6 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
   */
   DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 
-#ifdef WL4176_IS_DONE
   if (flag == OPTIMIZE_PARTS)
     error= file->ha_optimize(thd, check_opt);
   else if (flag == ANALYZE_PARTS)
@@ -1058,8 +1058,8 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
   if (error == HA_ADMIN_ALREADY_DONE)
     error= 0;
   DBUG_RETURN(error);
-#endif
 }
+#endif
 
 
 /*
@@ -1080,11 +1080,13 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                                         uint flag, bool all_parts)
 {
+#ifdef WL4176_IS_DONE
   List_iterator<partition_element> part_it(m_part_info->partitions);
   uint no_parts= m_part_info->no_parts;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   int error;
+#endif
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("all_parts %u, flag= %u", all_parts, flag));
 
