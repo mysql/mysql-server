@@ -585,7 +585,7 @@ ErrorBundle ErrorCodes[] = {
   { 4520, DMEC, AE, "Call to undefined subroutine" },
   { 4521, DMEC, AE, "Call to undefined subroutine, internal error" },
   { 4522, DMEC, AE, "setBound() called twice for same key" },
-  // 4523 available
+  /* 4523 available. */
   { 4524, DMEC, AE, "NdbInterpretedCode is for different table" },
   { 4535, DMEC, AE, "Attempt to set bound on non key column" },
   { 4536, DMEC, AE, "NdbScanFilter constructor taking NdbOperation is not supported for NdbRecord" },
