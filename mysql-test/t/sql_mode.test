@@ -279,3 +279,32 @@ select concat('x',b,'x') from t1;
 drop table t1;
 
 SET @@SQL_MODE=@OLD_SQL_MODE;
+
+
+#
+# Bug #32753: PAD_CHAR_TO_FULL_LENGTH is not documented and interferes
+#             with grant tables
+#
+
+create user mysqltest_32753@localhost;
+
+# try to make the user-table space-padded
+--connection default
+set @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+set session sql_mode='PAD_CHAR_TO_FULL_LENGTH';
+flush privileges;
+
+# if user-table is affected by PAD_CHAR_TO_FULL_LENGTH, our connect will fail
+# --error 1045
+connect (user_32753,localhost,mysqltest_32753,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+select current_user();
+
+# clean up
+--connection default
+set session sql_mode=@OLD_SQL_MODE;
+flush privileges;
+
+--disconnect user_32753
+
+--connection default
+drop user mysqltest_32753@localhost;
