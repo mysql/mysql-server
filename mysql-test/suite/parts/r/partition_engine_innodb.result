@@ -473,16 +473,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -927,16 +927,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1380,16 +1380,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1416,7 +1416,6 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1 STORAGE ENGINE = 'InnoDB',
 PARTITION part2
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1428,7 +1427,6 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1                         ,
 PARTITION part2 STORAGE ENGINE = 'InnoDB'
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1445,9 +1443,6 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'InnoDB',
 SUBPARTITION subpart22 STORAGE ENGINE = 'InnoDB')
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-# this should fail with ER_MIX_HANDLER_ERROR
-# after fixing Bug#33722
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1880,16 +1875,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -1923,9 +1918,6 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'InnoDB',
 SUBPARTITION subpart22 STORAGE ENGINE = 'InnoDB')
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
-# this should work
-# after fixing Bug#33722
 CREATE TABLE t1 (
 f_int1 INTEGER,
 f_int2 INTEGER,
@@ -1942,7 +1934,6 @@ PARTITION part2 VALUES LESS THAN (2147483646) ENGINE = 'InnoDB'
 (SUBPARTITION subpart21,
 SUBPARTITION subpart22)
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 #------------------------------------------------------------------------
 # 5 Precedence of storage engine assignments (if there is any)
 #------------------------------------------------------------------------
@@ -2377,16 +2368,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2830,16 +2821,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -2871,7 +2862,6 @@ PARTITION part2 VALUES LESS THAN (2147483646)
 (SUBPARTITION subpart21 STORAGE ENGINE = 'InnoDB',
 SUBPARTITION subpart22 STORAGE ENGINE = 'InnoDB')
 );
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 #------------------------------------------------------------------------
 # 6 Session default engine differs from engine used within create table
 #------------------------------------------------------------------------
@@ -3302,16 +3292,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
@@ -3751,16 +3741,16 @@ AND f_int2 <> CAST(f_char1 AS SIGNED INT)
 AND f_charbig = '####updated per insert trigger####';
 ANALYZE  TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 CHECK    TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	check	status	OK
+test.t1	check	note	The storage engine for the table doesn't support check
 CHECKSUM TABLE t1 EXTENDED;
 Table	Checksum
 test.t1	<some_value>
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	optimize	status	OK
+test.t1	optimize	note	The storage engine for the table doesn't support optimize
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
