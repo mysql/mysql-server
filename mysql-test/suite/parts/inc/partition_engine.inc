@@ -83,6 +83,7 @@ DROP TABLE t1;
 --echo # 3 Some but not all named partitions or subpartitions get a storage
 --echo #   engine assigned
 --echo #------------------------------------------------------------------------
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -90,10 +91,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1 STORAGE ENGINE = $engine,
   PARTITION part2
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -101,10 +99,7 @@ PARTITION BY HASH(f_int1)
 ( PARTITION part1                         ,
   PARTITION part2 STORAGE ENGINE = $engine
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -117,10 +112,8 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+--echo # this should fail with ER_MIX_HANDLER_ERROR
+--echo # after fixing Bug#33722
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -142,6 +135,9 @@ DROP TABLE t1;
 --echo # 4 Storage engine assignment after partition name + after name of
 --echo #   subpartitions belonging to another partition
 --echo #------------------------------------------------------------------------
+--echo # this should work
+--echo # after fixing Bug#33722
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -154,10 +150,13 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+#--source suite/parts/inc/partition_check.inc
+#DROP TABLE t1;
+--echo # this should work
+--echo # after fixing Bug#33722
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -170,10 +169,10 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21,
       SUBPARTITION subpart22)
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+#--source suite/parts/inc/partition_check.inc
+#DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
 --echo # 5 Precedence of storage engine assignments (if there is any)
@@ -210,6 +209,9 @@ DROP TABLE t1;
 --echo # 6.2 Storage engine assignment after partition name + after
 --echo #     subpartition name
 #     in partition part + in sub partition part
+--echo # this should work
+--echo # after fixing Bug#33722
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -222,10 +224,10 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
-INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
---source suite/parts/inc/partition_check.inc
-DROP TABLE t1;
+#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+#--source suite/parts/inc/partition_check.inc
+#DROP TABLE t1;
 
 --echo #------------------------------------------------------------------------
 --echo # 6 Session default engine differs from engine used within create table
