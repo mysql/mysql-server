@@ -3646,18 +3646,28 @@ longlong Item_func_benchmark::val_int()
   String tmp(buff,sizeof(buff), &my_charset_bin);
   my_decimal tmp_decimal;
   THD *thd=current_thd;
-  ulong loop_count;
+  ulonglong loop_count;
 
-  loop_count= (ulong) args[0]->val_int();
+  loop_count= (ulonglong) args[0]->val_int();
 
-  if (args[0]->null_value)
+  if (args[0]->null_value ||
+      (!args[0]->unsigned_flag && (((longlong) loop_count) < 0)))
   {
+    if (!args[0]->null_value)
+    {
+      char buff[22];
+      llstr(((longlong) loop_count), buff);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                          "count", buff, "benchmark");
+    }
+
     null_value= 1;
     return 0;
   }
 
   null_value=0;
-  for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
+  for (ulonglong loop=0 ; loop < loop_count && !thd->killed; loop++)
   {
     switch (args[1]->result_type()) {
     case REAL_RESULT:
