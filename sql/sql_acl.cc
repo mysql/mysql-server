@@ -192,7 +192,7 @@ static void update_hostname(acl_host_and_ip *host, const char *hostname);
 static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 			     const char *ip);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
-static my_bool grant_load(TABLE_LIST *tables);
+static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -314,7 +314,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   int password_length;
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("acl_load");
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
 
   grant_version++; /* Privileges updated */
 
@@ -622,6 +625,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   return_val=0;
 
 end:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 
@@ -3613,7 +3617,7 @@ end_unlock:
     @retval TRUE Error
 */
 
-static my_bool grant_load(TABLE_LIST *tables)
+static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 {
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
@@ -3621,7 +3625,11 @@ static my_bool grant_load(TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
                                                            THR_MALLOC);
+  ulong old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
+
+  thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
+
   (void) hash_init(&column_priv_hash,system_charset_info,
                    0,0,0, (hash_get_key) get_grant_table,
                    (hash_free_key) free_grant_table,0);
@@ -3673,6 +3681,7 @@ static my_bool grant_load(TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
+  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
   DBUG_RETURN(return_val);
@@ -3786,7 +3795,7 @@ my_bool grant_reload(THD *thd)
   old_mem= memex;
   init_sql_alloc(&memex, ACL_ALLOC_BLOCK_SIZE, 0);
 
-  if ((return_val= grant_load(tables)))
+  if ((return_val= grant_load(thd, tables)))
   {						// Error. Revert to old hash
     DBUG_PRINT("error",("Reverting to old privileges"));
     grant_free();				/* purecov: deadcode */
