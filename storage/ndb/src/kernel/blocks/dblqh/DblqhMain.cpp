@@ -5959,6 +5959,12 @@ void Dblqh::execCOMMIT(Signal* signal)
 
     TcConnectionrec * const regTcPtr = tcConnectptr.p;
     TRACE_OP(regTcPtr, "COMMIT");
+
+    CRASH_INSERTION(5048);
+    if (ERROR_INSERTED(5049))
+    {
+      SET_ERROR_INSERT_VALUE(5048);
+    }
     
     commitReqLab(signal, gci);
     return;

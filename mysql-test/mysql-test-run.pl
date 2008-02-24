@@ -136,9 +136,12 @@ our $opt_suites;
 our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
 our @extra_suites=
 (
- ["mysql-5.1-new-ndb",   "ndb_team"],
- ["mysql-5.1-telco-6.2", "ndb_team"],
- ["mysql-5.1-telco-6.3", "ndb_team"],
+ ["mysql-5.1-new-ndb",         "ndb_team"],
+ ["mysql-5.1-new-ndb-merge",   "ndb_team"],
+ ["mysql-5.1-telco-6.2",       "ndb_team"],
+ ["mysql-5.1-telco-6.2-merge", "ndb_team"],
+ ["mysql-5.1-telco-6.3",       "ndb_team"],
+ ["mysql-6.0-ndb",             "ndb_team"],
 );
 
 
@@ -413,13 +416,20 @@ sub main () {
     {
       # use default and add any extra_suites as defined
       $opt_suites= $opt_suites_default;
-      my $ddd= basename(dirname($glob_mysql_test_dir));
-      foreach my $extra_suite (@extra_suites)
+      my $ccc= dirname($glob_mysql_test_dir);
+      my $found= 0;
+      while (!$found and !($ccc eq "/") and !($ccc eq ""))
       {
-	if ($extra_suite->[0] eq "$ddd")
+	my $ddd= basename($ccc);
+	foreach my $extra_suite (@extra_suites)
 	{
-	  $opt_suites= "$extra_suite->[1],$opt_suites";
+	  if ($extra_suite->[0] eq "$ddd")
+	  {
+	    $opt_suites= "$extra_suite->[1],$opt_suites";
+	    $found= 1;
+	  }
 	}
+	$ccc= dirname($ccc);
       }
     }
 

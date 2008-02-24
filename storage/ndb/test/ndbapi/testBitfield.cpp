@@ -4,6 +4,8 @@
 #include <NDBT.hpp>
 #include <NdbApi.hpp>
 #include <HugoTransactions.hpp>
+#include <Bitmask.hpp>
+#include <Vector.hpp>
 
 static const char* _dbname = "TEST_DB";
 static int g_loops = 7;
@@ -37,6 +39,7 @@ static int unique_indexes(Ndb*, const NdbDictionary::Table* tab);
 static int ordered_indexes(Ndb*, const NdbDictionary::Table* tab);
 static int node_restart(Ndb*, const NdbDictionary::Table* tab);
 static int system_restart(Ndb*, const NdbDictionary::Table* tab);
+static int testBitmask();
 
 int 
 main(int argc, char** argv){
@@ -49,6 +52,15 @@ main(int argc, char** argv){
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
+  int res = NDBT_FAILED;
+
+  /* Run cluster-independent tests */
+  for (int i=0; i<(10*g_loops); i++)
+  {
+    if (NDBT_OK != (res= testBitmask()))
+      return NDBT_ProgramExit(res);
+  }
+  
   Ndb_cluster_connection con(opt_connect_str);
   if(con.connect(12, 5, 1))
   {
@@ -60,7 +72,6 @@ main(int argc, char** argv){
   pNdb = new Ndb(&con, _dbname);  
   pNdb->init();
   while (pNdb->waitUntilReady() != 0);
-  int res = NDBT_FAILED;
 
   NdbDictionary::Dictionary * dict = pNdb->getDictionary();
 
@@ -121,14 +132,12 @@ create_random_table(Ndb* pNdb)
   do {
     NdbDictionary::Table tab;
     Uint32 cols = 1 + (rand() % (NDB_MAX_ATTRIBUTES_IN_TABLE - 1));
-    Uint32 keys = NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY;
     Uint32 length = 4090;
-    Uint32 key_size = NDB_MAX_KEYSIZE_IN_WORDS;
     
     BaseString name; 
     name.assfmt("TAB_%d", rand() & 65535);
     tab.setName(name.c_str());
-    for(int i = 0; i<cols && length > 2; i++)
+    for(Uint32 i = 0; i<cols && length > 2; i++)
     {
       NdbDictionary::Column col;
       name.assfmt("COL_%d", i);
@@ -206,3 +215,394 @@ system_restart(Ndb* pNdb, const NdbDictionary::Table* tab)
 {
   return 0;
 }
+
+/* Note : folowing classes test functionality of storage/ndb/src/common/util/Bitmask.cpp
+ * and were originally defined there.
+ * Set BITMASK_DEBUG to 1 to get more test debugging info.
+ */
+#define BITMASK_DEBUG 0
+
+static
+bool cmp(const Uint32 b1[], const Uint32 b2[], Uint32 len)
+{
+  Uint32 sz32 = (len + 31) >> 5;
+  for(Uint32 i = 0; i<len; i++)
+  {
+    if(BitmaskImpl::get(sz32, b1, i) ^ BitmaskImpl::get(sz32, b2, i))
+      return false;
+  }
+  return true;
+}
+
+static
+void print(const Uint32 src[], Uint32 len, Uint32 pos = 0)
+{
+  printf("b'");
+  for(unsigned i = 0; i<len; i++)
+  {
+    if(BitmaskImpl::get((pos + len + 31) >> 5, src, i+pos))
+      printf("1");
+    else
+      printf("0");
+    if((i & 31) == 31)
+      printf(" ");
+  }
+}
+
+static int lrand()
+{
+  return rand();
+}
+
+static
+void rand(Uint32 dst[], Uint32 len)
+{
+  for(Uint32 i = 0; i<len; i++)
+    BitmaskImpl::set((len + 31) >> 5, dst, i, (lrand() % 1000) > 500);
+}
+
+static
+int checkNoTramplingGetSetField(const Uint32 totalTests)
+{
+  const Uint32 numWords= 67;
+  const Uint32 maxBitsToCopy= (numWords * 32);
+  Uint32 sourceBuf[numWords];
+  Uint32 targetBuf[numWords];
+
+  ndbout << "Testing : Bitmask NoTrampling\n";
+
+  memset(sourceBuf, 0x00, (numWords*4));
+
+  for (Uint32 test=0; test<totalTests; test++)
+  {
+    /* Always copy at least 1 bit */
+    Uint32 srcStart= rand() % (maxBitsToCopy -1);
+    Uint32 length= (rand() % ((maxBitsToCopy -1) - srcStart)) + 1;
+
+    if (BITMASK_DEBUG)
+      ndbout << "Testing start %u, length %u \n"
+             << srcStart
+             << length;
+    // Set target to all ones.
+    memset(targetBuf, 0xff, (numWords*4));
+
+    BitmaskImpl::getField(numWords, sourceBuf, srcStart, length, targetBuf);
+
+    // Check that there is no trampling
+    Uint32 firstUntrampledWord= (length + 31)/32;
+
+    for (Uint32 word=0; word< numWords; word++)
+    {
+      Uint32 targetWord= targetBuf[word];
+      if (BITMASK_DEBUG)
+        ndbout << "word=%d, targetWord=%u, firstUntrampledWord..=%u"
+               << word << targetWord << firstUntrampledWord;
+
+      if (! (word < firstUntrampledWord) ?
+          (targetWord == 0) :
+          (targetWord == 0xffffffff))
+      {
+        ndbout << "Notrampling getField failed for srcStart "
+               << srcStart
+               << " length " << length
+               << " at word " << word << "\n";
+        ndbout << "word=%d, targetWord=%u, firstUntrampledWord..=%u"
+               << word << targetWord << firstUntrampledWord;
+        return -1;
+      }
+
+    }
+
+    /* Set target back to all ones. */
+    memset(targetBuf, 0xff, (numWords*4));
+
+    BitmaskImpl::setField(numWords, targetBuf, srcStart, length, sourceBuf);
+
+    /* Check we've got all ones, with zeros only where expected */
+    for (Uint32 word=0; word< numWords; word++)
+    {
+      Uint32 targetWord= targetBuf[word];
+
+      for (Uint32 bit=0; bit< 32; bit++)
+      {
+        Uint32 bitNum= (word << 5) + bit;
+        bool expectedValue= !((bitNum >= srcStart) &&
+                              (bitNum < (srcStart + length)));
+        bool actualValue= (((targetWord >> bit) & 1) == 1);
+        if (BITMASK_DEBUG)
+          ndbout << "bitNum=%u expectedValue=%u, actual value=%u"
+                 << bitNum << expectedValue << actualValue;
+
+        if (actualValue != expectedValue)
+        {
+          ndbout << "Notrampling setField failed for srcStart "
+                 << srcStart
+                 << " length " << length
+                 << " at word " << word << " bit " << bit <<  "\n";
+          ndbout << "bitNum=%u expectedValue=%u, actual value=%u"
+                 << bitNum << expectedValue << actualValue;
+          return -1;
+        }
+      }
+    }
+
+  }
+
+  return 0;
+}
+
+static
+int simple(int pos, int size)
+{
+  ndbout << "Testing : Bitmask simple pos: " << pos << " size: " << size << "\n";
+  Vector<Uint32> _mask;
+  Vector<Uint32> _src;
+  Vector<Uint32> _dst;
+  Uint32 sz32 = (size + pos + 32) >> 5;
+  const Uint32 sz = 4 * sz32;
+
+  Uint32 zero = 0;
+  _mask.fill(sz32+1, zero);
+  _src.fill(sz32+1, zero);
+  _dst.fill(sz32+1, zero);
+
+  Uint32 * src = _src.getBase();
+  Uint32 * dst = _dst.getBase();
+  Uint32 * mask = _mask.getBase();
+
+  memset(src, 0x0, sz);
+  memset(dst, 0x0, sz);
+  memset(mask, 0xFF, sz);
+  rand(src, size);
+  BitmaskImpl::setField(sz32, mask, pos, size, src);
+  BitmaskImpl::getField(sz32, mask, pos, size, dst);
+  if (BITMASK_DEBUG)
+  {
+    printf("src: "); print(src, size+31); printf("\n");
+    printf("msk: "); print(mask, (sz32 << 5) + 31); printf("\n");
+    printf("dst: "); print(dst, size+31); printf("\n");
+  }
+  return (cmp(src, dst, size+31)?0 : -1);
+};
+
+struct Alloc
+{
+  Uint32 pos;
+  Uint32 size;
+  Vector<Uint32> data;
+};
+
+static
+int
+testRanges(Uint32 bitmask_size)
+{
+  Vector<Alloc> alloc_list;
+  bitmask_size = (bitmask_size + 31) & ~31;
+  Uint32 sz32 = (bitmask_size >> 5);
+  Vector<Uint32> alloc_mask;
+  Vector<Uint32> test_mask;
+
+  ndbout_c("Testing : Bitmask ranges for bitmask of size %d", bitmask_size);
+  Uint32 zero = 0;
+  alloc_mask.fill(sz32, zero);
+  test_mask.fill(sz32, zero);
+
+  /* Loop a number of times, setting and clearing bits in the mask
+   * and tracking the modifications in a separate structure.
+   * Check that both structures remain in sync
+   */
+  for(int i = 0; i<5000; i++)
+  {
+    Vector<Uint32> tmp;
+    tmp.fill(sz32, zero);
+
+    Uint32 pos = lrand() % (bitmask_size - 1);
+    Uint32 free = 0;
+    if(BitmaskImpl::get(sz32, alloc_mask.getBase(), pos))
+    {
+      // Bit was allocated
+      // 1) Look up allocation
+      // 2) Check data
+      // 3) free it
+      size_t j;
+      Uint32 min, max;
+      for(j = 0; j<alloc_list.size(); j++)
+      {
+	min = alloc_list[j].pos;
+	max = min + alloc_list[j].size;
+	if(pos >= min && pos < max)
+	{
+	  break;
+	}
+      }
+      if (! ((pos >= min) && (pos < max)))
+      {
+        printf("Failed with pos %u, min %u, max %u\n",
+               pos, min, max);
+        return -1;
+      }
+      BitmaskImpl::getField(sz32, test_mask.getBase(), min, max-min,
+			    tmp.getBase());
+      if(BITMASK_DEBUG)
+      {
+	printf("freeing [ %d %d ]", min, max);
+	printf("- mask: ");
+	print(tmp.getBase(), max - min);
+
+	printf(" save: ");
+	size_t k;
+	Alloc& a = alloc_list[j];
+	for(k = 0; k<a.data.size(); k++)
+	  printf("%.8x ", a.data[k]);
+	printf("\n");
+      }
+      if(!cmp(tmp.getBase(), alloc_list[j].data.getBase(), max - min))
+      {
+	return -1;
+      }
+      while(min < max)
+	BitmaskImpl::clear(sz32, alloc_mask.getBase(), min++);
+      alloc_list.erase(j);
+    }
+    else
+    {
+      Vector<Uint32> tmp;
+      tmp.fill(sz32, zero);
+
+      // Bit was free
+      // 1) Check how much space is avaiable
+      // 2) Create new allocation of lrandom size
+      // 3) Fill data with lrandom data
+      // 4) Update alloc mask
+      while(pos+free < bitmask_size &&
+	    !BitmaskImpl::get(sz32, alloc_mask.getBase(), pos+free))
+	free++;
+
+      Uint32 sz =
+	(free <= 64 && ((lrand() % 100) > 80)) ? free : (lrand() % free);
+      sz = sz ? sz : 1;
+      sz = pos + sz == bitmask_size ? sz - 1 : sz;
+      Alloc a;
+      a.pos = pos;
+      a.size = sz;
+      a.data.fill(((sz+31)>> 5)-1, zero);
+      if(BITMASK_DEBUG)
+	printf("pos %d -> alloc [ %d %d ]", pos, pos, pos+sz);
+      for(size_t j = 0; j<sz; j++)
+      {
+	BitmaskImpl::set(sz32, alloc_mask.getBase(), pos+j);
+	if((lrand() % 1000) > 500)
+	  BitmaskImpl::set((sz + 31) >> 5, a.data.getBase(), j);
+      }
+      if(BITMASK_DEBUG)
+      {
+	printf("- mask: ");
+	print(a.data.getBase(), sz);
+	printf("\n");
+      }
+      BitmaskImpl::setField(sz32, test_mask.getBase(), pos, sz,
+			    a.data.getBase());
+      alloc_list.push_back(a);
+    }
+  }
+
+#define NDB_BM_SUPPORT_RANGE
+#ifdef NDB_BM_SUPPORT_RANGE
+  for(Uint32 i = 0; i<1000; i++)
+  {
+    Uint32 sz32 = 10+rand() % 100;
+    Uint32 zero = 0;
+    Vector<Uint32> map;
+    map.fill(sz32, zero);
+
+    Uint32 sz = 32 * sz32;
+    Uint32 start = (rand() % sz);
+    Uint32 stop = start + ((rand() % (sz - start)) & 0xFFFFFFFF);
+
+    Vector<Uint32> check;
+    check.fill(sz32, zero);
+
+    /* Verify range setting method works correctly */
+    for(Uint32 j = 0; j<sz; j++)
+    {
+      bool expect = (j >= start && j<stop);
+      if(expect)
+	BitmaskImpl::set(sz32, check.getBase(), j);
+    }
+
+    BitmaskImpl::set_range(sz32, map.getBase(), start, stop);
+    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
+    {
+      ndbout_c(" FAIL 1 sz: %d [ %d %d ]", sz, start, stop);
+      printf("check: ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", check[j]);
+      printf("\n");
+
+      printf("map  : ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", map[j]);
+      printf("\n");
+      return -1;
+    }
+
+    map.clear();
+    check.clear();
+
+    /* Verify range clearing method works correctly */
+    Uint32 one = ~(Uint32)0;
+    map.fill(sz32, one);
+    check.fill(sz32, one);
+
+    for(Uint32 j = 0; j<sz; j++)
+    {
+      bool expect = (j >= start && j<stop);
+      if(expect)
+	BitmaskImpl::clear(sz32, check.getBase(), j);
+    }
+
+    BitmaskImpl::clear_range(sz32, map.getBase(), start, stop);
+    if (!BitmaskImpl::equal(sz32, map.getBase(), check.getBase()))
+    {
+      ndbout_c(" FAIL 2 sz: %d [ %d %d ]", sz, start, stop);
+      printf("check: ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", check[j]);
+      printf("\n");
+
+      printf("map  : ");
+      for(Uint32 j = 0; j<sz32; j++)
+	printf("%.8x ", map[j]);
+      printf("\n");
+      return -1;
+    }
+  }
+#endif
+
+  return 0;
+}
+
+static
+int
+testBitmask()
+{
+  /* Some testcases from storage/ndb/src/common/util/Bitmask.cpp */
+  int res= 0;
+
+  if ((res= checkNoTramplingGetSetField(100 /* totalTests */)) != 0)
+    return res;
+
+  if ((res= simple(rand() % 33, // position
+                   (rand() % 63)+1) // size
+       ) != 0)
+    return res;
+
+  if ((res= testRanges(1+(rand() % 1000) // bitmask size
+                       )) != 0)
+    return res;
+
+  return 0;
+}
+
+template class Vector<Alloc>;
+template class Vector<Uint32>;
