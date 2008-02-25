@@ -47,7 +47,9 @@ DIE_UNLESS(r == 0);\
 }
 
 
-class SqlResultSet : public Properties {
+class SqlResultSet : public Properties 
+{
+
 public:
 
   // Get row with number
@@ -73,6 +75,7 @@ public:
   const char* mysqlSqlstate();
 
 private:
+
   uint get_int(const char* name);
   const char* get_string(const char* name);
 
@@ -86,6 +89,7 @@ private:
 
 class DbUtil
 {
+
 public:
 
   DbUtil(MYSQL* mysql);
