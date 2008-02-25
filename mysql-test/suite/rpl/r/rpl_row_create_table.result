@@ -139,9 +139,9 @@ a	b
 3	6
 SHOW BINLOG EVENTS FROM 1375;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1375	Query	#	1474	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
-#	1475	Table_map	#	1516	table_id: # (test.t7)
-#	1517	Write_rows	#	1572	table_id: # flags: STMT_END_F
+#	1375	Query	#	1475	use `test`; CREATE TABLE t7 (a INT, b INT UNIQUE)
+#	1475	Table_map	#	1517	table_id: # (test.t7)
+#	1517	Write_rows	#	1573	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -156,8 +156,8 @@ Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
 SHOW BINLOG EVENTS FROM 1573;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1573	Table_map	#	1614	table_id: # (test.t7)
-#	1615	Write_rows	#	1670	table_id: # flags: STMT_END_F
+#	1573	Table_map	#	1615	table_id: # (test.t7)
+#	1615	Write_rows	#	1671	table_id: # flags: STMT_END_F
 SELECT * FROM t7 ORDER BY a,b;
 a	b
 1	2
@@ -194,8 +194,8 @@ Create Table	CREATE TABLE `t9` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 SHOW BINLOG EVENTS FROM 1671;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	1671	Query	#	1756	use `test`; CREATE TABLE t8 LIKE t4
-#	1757	Query	#	1895	use `test`; CREATE TABLE `t9` (
+#	1671	Query	#	1757	use `test`; CREATE TABLE t8 LIKE t4
+#	1757	Query	#	1896	use `test`; CREATE TABLE `t9` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 )
@@ -398,15 +398,15 @@ SELECT * FROM t2 ORDER BY a;
 a
 SHOW BINLOG EVENTS FROM 638;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-#	638	Query	#	705	use `test`; BEGIN
-#	706	Query	#	785	use `test`; TRUNCATE TABLE t2
-#	786	Xid	#	812	COMMIT /* XID */
-#	813	Query	#	880	use `test`; BEGIN
-#	881	Table_map	#	921	table_id: # (test.t2)
-#	922	Write_rows	#	965	table_id: # flags: STMT_END_F
-#	966	Table_map	#	1006	table_id: # (test.t2)
-#	1007	Write_rows	#	1045	table_id: # flags: STMT_END_F
-#	1046	Query	#	1116	use `test`; ROLLBACK
+#	638	Query	#	706	use `test`; BEGIN
+#	706	Query	#	786	use `test`; TRUNCATE TABLE t2
+#	786	Xid	#	813	COMMIT /* XID */
+#	813	Query	#	881	use `test`; BEGIN
+#	881	Table_map	#	922	table_id: # (test.t2)
+#	922	Write_rows	#	966	table_id: # flags: STMT_END_F
+#	966	Table_map	#	1007	table_id: # (test.t2)
+#	1007	Write_rows	#	1046	table_id: # flags: STMT_END_F
+#	1046	Query	#	1117	use `test`; ROLLBACK
 SELECT * FROM t2 ORDER BY a;
 a
 DROP TABLE t1,t2;
