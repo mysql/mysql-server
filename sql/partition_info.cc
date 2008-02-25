@@ -464,15 +464,15 @@ static bool check_engine_condition(partition_element *p_elem,
 {
   DBUG_ENTER("check_engine_condition");
 
-  DBUG_PRINT("enter", ("p_eng %u t_eng %u t_eng_set %u first %u state %u",
-                       ha_legacy_type(p_elem->engine_type),
-                       ha_legacy_type(*engine_type),
+  DBUG_PRINT("enter", ("p_eng %s t_eng %s t_eng_set %u first %u state %u",
+                       ha_resolve_storage_engine_name(p_elem->engine_type),
+                       ha_resolve_storage_engine_name(*engine_type),
                        table_engine_set, *first, p_elem->part_state));
   if (*first && !table_engine_set)
   {
     *engine_type= p_elem->engine_type;
-    DBUG_PRINT("info", ("setting table_engine = %u",
-                         ha_legacy_type(*engine_type)));
+    DBUG_PRINT("info", ("setting table_engine = %s",
+                         ha_resolve_storage_engine_name(*engine_type)));
   }
   *first= FALSE;
   if ((table_engine_set &&
@@ -522,8 +522,8 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
   bool first= TRUE;
   uint no_parts= partitions.elements;
   DBUG_ENTER("partition_info::check_engine_mix");
-  DBUG_PRINT("info", ("in: engine_type = %u, table_engine_set = %u",
-                       ha_legacy_type(engine_type),
+  DBUG_PRINT("info", ("in: engine_type = %s, table_engine_set = %u",
+                       ha_resolve_storage_engine_name(engine_type),
                        table_engine_set));
   if (no_parts)
   {
@@ -532,8 +532,8 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
     do
     {
       partition_element *part_elem= part_it++;
-      DBUG_PRINT("info", ("part = %d engine = %d table_engine_set %u",
-                 i, ha_legacy_type(part_elem->engine_type),
+      DBUG_PRINT("info", ("part = %d engine = %s table_engine_set %u",
+                 i, ha_resolve_storage_engine_name(part_elem->engine_type),
                  table_engine_set));
       if (is_sub_partitioned() &&
           part_elem->subpartitions.elements)
@@ -544,8 +544,8 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
         do
         {
           partition_element *sub_elem= sub_it++;
-          DBUG_PRINT("info", ("sub = %d engine = %u table_engie_set %u",
-                     j, ha_legacy_type(sub_elem->engine_type),
+          DBUG_PRINT("info", ("sub = %d engine = %s table_engie_set %u",
+                     j, ha_resolve_storage_engine_name(sub_elem->engine_type),
                      table_engine_set));
           if (check_engine_condition(sub_elem, table_engine_set,
                                      &engine_type, &first))
@@ -561,8 +561,8 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
         goto error;
     } while (++i < no_parts);
   }
-  DBUG_PRINT("info", ("engine_type = %u",
-                       ha_legacy_type(engine_type)));
+  DBUG_PRINT("info", ("engine_type = %s",
+                       ha_resolve_storage_engine_name(engine_type)));
   if (!engine_type)
     engine_type= old_engine_type;
   if (engine_type->flags & HTON_NO_PARTITION)
@@ -570,8 +570,8 @@ bool partition_info::check_engine_mix(handlerton *engine_type,
     my_error(ER_PARTITION_MERGE_ERROR, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  DBUG_PRINT("info", ("out: engine_type = %u",
-                       ha_legacy_type(engine_type)));
+  DBUG_PRINT("info", ("out: engine_type = %s",
+                       ha_resolve_storage_engine_name(engine_type)));
   DBUG_ASSERT(engine_type != partition_hton);
   DBUG_RETURN(FALSE);
 error:
@@ -859,6 +859,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
   DBUG_ENTER("partition_info::check_partition_info");
   DBUG_ASSERT(default_engine_type != partition_hton);
 
+  DBUG_PRINT("info", ("default table_engine = %s",
+                      ha_resolve_storage_engine_name(table_engine)));
   if (check_partition_function)
   {
     int err= 0;
@@ -913,10 +915,16 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       the table and all partitions/subpartitions are set.
       So when ALTER it is already set on table level
   */
-  if (thd->lex->create_info.used_fields & HA_CREATE_USED_ENGINE)
+  if (info && info->used_fields & HA_CREATE_USED_ENGINE)
   {
     table_engine_set= TRUE;
-    table_engine= thd->lex->create_info.db_type;
+    table_engine= info->db_type;
+    /* if partition_hton, use thd->lex->create_info */
+    if (table_engine == partition_hton)
+      table_engine= thd->lex->create_info.db_type;
+    DBUG_ASSERT(table_engine != partition_hton);
+    DBUG_PRINT("info", ("Using table_engine = %s",
+                        ha_resolve_storage_engine_name(table_engine)));
   }
   else
   {
@@ -924,6 +932,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
     {
       table_engine_set= TRUE;
+      DBUG_PRINT("info", ("No create, table_engine = %s",
+                          ha_resolve_storage_engine_name(table_engine)));
       DBUG_ASSERT(table_engine && table_engine != partition_hton);
     }
   }
@@ -941,11 +951,6 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     do
     {
       partition_element *part_elem= part_it++;
-      if (part_elem->engine_type == NULL)
-      {
-        no_parts_not_set++;
-        part_elem->engine_type= default_engine_type;
-      }
 #ifdef HAVE_READLINK
       if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
 #endif
@@ -960,23 +965,29 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
       }
       if (!is_sub_partitioned())
       {
+        if (part_elem->engine_type == NULL)
+        {
+          no_parts_not_set++;
+          part_elem->engine_type= default_engine_type;
+        }
         if (check_table_name(part_elem->partition_name,
                              strlen(part_elem->partition_name)))
         {
           my_error(ER_WRONG_PARTITION_NAME, MYF(0));
           goto end;
         }
-        DBUG_PRINT("info", ("part = %d engine = %d",
-                   i, ha_legacy_type(part_elem->engine_type)));
+        DBUG_PRINT("info", ("part = %d engine = %s",
+                   i, ha_resolve_storage_engine_name(part_elem->engine_type)));
       }
       else
       {
         uint j= 0;
         uint no_subparts_not_set= 0;
         List_iterator<partition_element> sub_it(part_elem->subpartitions);
+        partition_element *sub_elem;
         do
         {
-          partition_element *sub_elem= sub_it++;
+          sub_elem= sub_it++;
           if (check_table_name(sub_elem->partition_name,
                                strlen(sub_elem->partition_name)))
           {
@@ -985,23 +996,40 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
           }
           if (sub_elem->engine_type == NULL)
           {
-            sub_elem->engine_type= default_engine_type;
-            no_subparts_not_set++;
+            if (part_elem->engine_type != NULL)
+              sub_elem->engine_type= part_elem->engine_type;
+            else
+            {
+              sub_elem->engine_type= default_engine_type;
+              no_subparts_not_set++;
+            }
           }
-          DBUG_PRINT("info", ("part = %d sub = %d engine = %u",
-                     i, j, ha_legacy_type(sub_elem->engine_type)));
+          DBUG_PRINT("info", ("part = %d sub = %d engine = %s", i, j,
+                     ha_resolve_storage_engine_name(sub_elem->engine_type)));
         } while (++j < no_subparts);
-        if (prev_no_subparts_not_set == (no_subparts + 1))
+
+        if (prev_no_subparts_not_set == (no_subparts + 1) &&
+            (no_subparts_not_set == 0 || no_subparts_not_set == no_subparts))
           prev_no_subparts_not_set= no_subparts_not_set;
+
         if (!table_engine_set &&
-            prev_no_subparts_not_set == no_subparts_not_set &&
-            no_subparts_not_set != 0 &&
-            no_subparts_not_set != no_subparts)
+            prev_no_subparts_not_set != no_subparts_not_set)
         {
           DBUG_PRINT("info", ("no_subparts_not_set = %u no_subparts = %u",
                      no_subparts_not_set, no_subparts));
           my_error(ER_MIX_HANDLER_ERROR, MYF(0));
           goto end;
+        }
+
+        if (part_elem->engine_type == NULL)
+        {
+          if (no_subparts_not_set == 0)
+            part_elem->engine_type= sub_elem->engine_type;
+          else
+          {
+            no_parts_not_set++;
+            part_elem->engine_type= default_engine_type;
+          }
         }
       }
     } while (++i < no_parts);
@@ -1021,9 +1049,8 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     goto end;
   }
 
-  if (table_engine == partition_hton)
-    DBUG_PRINT("info", ("Table engine set to partition_hton"));
-  DBUG_ASSERT(default_engine_type == table_engine);
+  DBUG_ASSERT(table_engine != partition_hton &&
+              default_engine_type == table_engine);
   if (eng_type)
     *eng_type= table_engine;
 
