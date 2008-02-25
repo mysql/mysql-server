@@ -66,8 +66,9 @@ our $basedir;
 our $path_charsetsdir;
 our $path_client_bindir;
 our $path_language;
-our $path_timefile;
-our $path_current_test_log;
+
+our $path_current_testlog;
+our $path_testlog;
 
 our $default_vardir;
 our $opt_vardir;                # Path to use for var/ dir
@@ -112,7 +113,7 @@ our $opt_view_protocol;
 
 our $opt_debug;
 our @opt_cases;                  # The test cases names in argv
-my $opt_embedded_server;
+our $opt_embedded_server;
 
 # Options used when connecting to an already running server
 my %opts_extern;
@@ -735,8 +736,8 @@ sub command_line_setup {
   # socket path names.
   $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 );
 
-  $path_timefile=  "$opt_vardir/log/mysqltest-time";
-  $path_current_test_log= "$opt_vardir/log/current_test";
+  $path_testlog=         "$opt_vardir/log/mysqltest.log";
+  $path_current_testlog= "$opt_vardir/log/current_test";
   $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
 }
@@ -1753,7 +1754,7 @@ sub run_tests {
       {
 	# Testcase failed, enter retry mode
 	my $retries= 1;
-	while ($retries <= $opt_retry){
+	while ($retries < $opt_retry){
 	  mtr_report("\nRetrying, attempt($retries/$opt_retry)...\n");
 
 	  if (run_testcase($tinfo) <= 0)
@@ -2097,6 +2098,8 @@ sub run_testcase_check_skip_test($)
     }
   }
 
+
+
   return 0;
 }
 
@@ -2183,8 +2186,8 @@ sub find_testcase_skipped_reason($)
   # Set default message
   $tinfo->{'comment'}= "Detected by testcase(no log file)";
 
-  # Open mysqltest-time(the mysqltest log file)
-  my $F= IO::File->new($path_timefile)
+  # Open the test log file
+  my $F= IO::File->new($path_current_testlog)
     or return;
   my $reason;
 
@@ -2199,7 +2202,7 @@ sub find_testcase_skipped_reason($)
 
   if ( ! $reason )
   {
-    mtr_warning("Could not find reason for skipping test in $path_timefile");
+    mtr_warning("Could not find reason for skipping test in $path_current_testlog");
     $reason= "Detected by testcase(reason unknown) ";
   }
   $tinfo->{'comment'}= $reason;
@@ -2297,7 +2300,7 @@ sub run_testcase ($) {
     }
 
     # Write start of testcase to log
-    mark_log($path_current_test_log, $tinfo);
+    mark_log($path_current_testlog, $tinfo);
 
     if (start_servers($tinfo))
     {
@@ -2368,7 +2371,7 @@ sub run_testcase ($) {
       {
 	# Testcase itself tell us to skip this one
 	$tinfo->{skip_detected_by_test}= 1;
-	# Try to get reason from mysqltest.log
+	# Try to get reason from test log file
 	find_testcase_skipped_reason($tinfo);
 	mtr_report_test_skipped($tinfo);
       }
@@ -2393,16 +2396,11 @@ sub run_testcase ($) {
       }
 
       # Save info from this testcase run to mysqltest.log
-      my $path_mysqltest_log= "$opt_vardir/log/mysqltest.log";
-      mtr_appendfile_to_file($path_current_test_log, $path_mysqltest_log)
-	if -f $path_current_test_log;
-      mtr_appendfile_to_file($path_timefile, $path_mysqltest_log)
-	if -f $path_timefile;
-
-      # Remove the file that mysqltest writes info to
-      unlink($path_timefile);
-      # Remove the file that mysql-test-run writes info to
-      unlink($path_current_test_log);
+      if( -f $path_current_testlog)
+      {
+	mtr_appendfile_to_file($path_current_testlog, $path_testlog);
+	unlink($path_current_testlog);
+      }
 
       return ($res == 62) ? 0 : $res;
 
@@ -2548,7 +2546,7 @@ sub after_test_failure ($) {
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
-  mtr_report_test_failed($tinfo, $path_timefile);
+  mtr_report_test_failed($tinfo, $path_current_testlog);
   print "\n";
   if ( $opt_force )
   {
@@ -3321,7 +3319,8 @@ sub start_mysqltest ($) {
      name          => "mysqltest",
      path          => $exe,
      args          => \$args,
-     error         => $path_timefile,
+     append        => 1,
+     error         => $path_current_testlog,
      verbose       => $opt_verbose,
     );
   mtr_verbose("Started $proc");

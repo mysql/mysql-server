@@ -1148,7 +1148,7 @@ dummy
 EOF
 chmod 0000 $MYSQLD_DATADIR/test/t1_ai.TRN~;
 # Normalize the datadir path; the embedded server doesn't chdir to datadir
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error 1
 rename table t1 to t2;
 # 't1' should be still there and triggers should work correctly
