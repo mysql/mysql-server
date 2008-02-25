@@ -1621,7 +1621,6 @@ int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint k
     DBUG_RETURN(read_row(key_file[keynr]->get(key_file[keynr], transaction, pack_key(&last_key, keynr, key_buff, key, key_len), &current_row, 0), buf, keynr, &current_row, &last_key, 0));
 }
 
-
 int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
     DBUG_ENTER("ha_tokudb::index_read");
     DBT row;
@@ -1639,13 +1638,37 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         do_prev = 1;
     }
     if (key_len == key_info->key_length && !(table->key_info[active_index].flags & HA_END_SPACE_KEY)) {
-        if (find_flag == HA_READ_AFTER_KEY) {
+        if (find_flag == HA_READ_KEY_EXACT) {
+            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET);
+            error = read_row(error, buf, active_index, &row, 0, 0);
+        } else if (find_flag == HA_READ_AFTER_KEY) {
+            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET_RANGE);
+            if (error == 0) {
+                DBT curkey; memset(&curkey, 0, sizeof curkey); curkey.flags = DB_DBT_REALLOC;
+                DBT curval; memset(&curval, 0, sizeof curval); curval.flags = DB_DBT_REALLOC;
+                error = cursor->c_get(cursor, &curkey, &curval, DB_CURRENT);
+                if (error == 0 && tokudb_cmp_packed_key(share->key_file[active_index], &curkey, &last_key) == 0) {
+                    error = cursor->c_get(cursor, &curkey, &row, DB_NEXT);
+                }
+                if (curkey.data) free(curkey.data);
+                if (curval.data) free(curval.data);
+            }
+            error = read_row(error, buf, active_index, &row, 0, 0);
+        } else if (find_flag == HA_READ_KEY_OR_NEXT) {
+            error = cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, DB_SET_RANGE);
+            error = read_row(error, buf, active_index, &row, 0, 0);
+        } else {
             assert(0);
-            key_info->handler.bdb_return_if_eq = 1;
+#if 0
+            if (find_flag == HA_READ_AFTER_KEY) {
+                assert(0);
+                key_info->handler.bdb_return_if_eq = 1;
+            }
+            error = read_row(cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, 
+                                           (find_flag == HA_READ_KEY_EXACT ? DB_SET : DB_SET_RANGE)), buf, active_index, &row, (DBT *) 0, 0);
+            key_info->handler.bdb_return_if_eq = 0;
+#endif
         }
-        error = read_row(cursor->c_get(cursor, pack_key(&last_key, active_index, key_buff, key, key_len), &row, 
-                                       (find_flag == HA_READ_KEY_EXACT ? DB_SET : DB_SET_RANGE)), buf, active_index, &row, (DBT *) 0, 0);
-        key_info->handler.bdb_return_if_eq = 0;
     } else {
         /* read of partial key */
         pack_key(&last_key, active_index, key_buff, key, key_len);
@@ -1676,7 +1699,6 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
   Read last key is solved by reading the next key and then reading
   the previous key
 */
-
 int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
     DBUG_ENTER("ha_tokudb::index_read_last");
     DBT row;
