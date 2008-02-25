@@ -4,6 +4,7 @@ create database mysqltest;
 use mysqltest;
 drop database mysqltest;
 use test;
+reset master;
 create table t1 (a int primary key) engine=ndb;
 insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 select @max_epoch:=max(epoch)-1 from mysql.ndb_binlog_index;
