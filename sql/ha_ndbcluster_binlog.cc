@@ -512,13 +512,13 @@ static int ndbcluster_reset_logs(THD *thd)
   DBUG_ENTER("ndbcluster_reset_logs");
 
   /*
-    Wait for all events orifinating from this mysql server has
+    Wait for all events originating from this mysql server has
     reached the binlog before continuing to reset
   */
   ndbcluster_binlog_wait(thd);
 
   char buf[1024];
-  char *end= strmov(buf, "DELETE FROM " NDB_REP_DB "." NDB_REP_TABLE);
+  char *end= strmov(buf, "TRUNCATE " NDB_REP_DB "." NDB_REP_TABLE);
 
   run_query(thd, buf, end, NULL, TRUE);
 
