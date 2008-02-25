@@ -50,6 +50,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
     assert(r==0);
     printf("brtnode\n");
     printf(" nodesize    =%u\n", n->nodesize);
+    printf(" sizeonddisk =%d\n", toku_serialize_brtnode_size(n));
     printf(" flags       =%u\n", n->flags);
     printf(" thisnodename=%lld\n", n->thisnodename);
     printf(" disk_lsn    =%" PRId64 "\n", n->disk_lsn.lsn);
@@ -97,6 +98,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 				 printf(" ");
 				 print_item(data, datalen);
 			     }
+			     printf("\n");
 			 })
 			 );
 	}

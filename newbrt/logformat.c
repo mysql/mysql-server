@@ -129,13 +129,17 @@ const struct logtype logtypes[] = {
 			     {"u_int32_t",  "oldfingerprint", "%08x"},
 			     {"u_int32_t",  "newfingerprint", "%08x"},
 			     NULLFIELD}},
-    {"insertinleaf", 'I'+GEN_ROLLBACK, FA{{"TXNID",      "txnid", 0},
-					  {"FILENUM",    "filenum", 0},
-					  {"DISKOFF",    "diskoff", 0},
-					  {"u_int32_t",  "pmaidx", 0},
-					  {"BYTESTRING", "key", 0},
-					  {"BYTESTRING", "data", 0},
-					  NULLFIELD}},
+    {"insertinleaf", 'I', FA{{"TXNID",      "txnid", 0},
+			     {"FILENUM",    "filenum", 0},
+			     {"DISKOFF",    "diskoff", 0},
+			     {"u_int32_t",  "pmaidx", 0},
+			     {"BYTESTRING", "key", 0},
+			     {"BYTESTRING", "data", 0},
+			     NULLFIELD}},
+    {"tl_delete",    'K'GEN_ROLLBACK, FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+					 {"BYTESTRING", "key", 0},
+					 {"BYTESTRING", "data", 0},
+					 NULLFIELD}},
     {"deleteinleaf", 'd', FA{{"TXNID",      "txnid", 0},
 			     {"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
@@ -301,7 +305,6 @@ void generate_log_writer (void) {
 			fprintf(cf, "  return r;\n");
 			fprintf(cf, "}\n\n");
 		    }));
-
 }
 
 void generate_log_reader (void) {

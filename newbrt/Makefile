@@ -52,11 +52,14 @@ REGRESSION_TESTS = \
         cachetable-test \
         cachetable-test2 \
         fifo-test \
+	test-brt-delete-both \
         brt-test \
 	test_oexcl \
 	test-assert \
 	test-primes \
 	list-test \
+	test-inc-split \
+	test-del-inorder \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 BINS =  $(REGRESSION_TESTS) \
@@ -91,6 +94,7 @@ CHECKS = \
  cachetable-test \
  cachetable-test2 \
  brt-serialize-test \
+ test-brt-delete-both \
  brt-test \
  fifo-test \
  test_toku_malloc_plain_free \
@@ -122,12 +126,15 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-pma-test benchmark-test brt-test brt-serialize-test brtdump: LDFLAGS+=-lz
+pma-test benchmark-test brt-test test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
 key.o: brttypes.h key.h
 list-test: list-test.o toku_assert.o
+test-brt-delete-both: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+test-inc-split: test-inc-split.o brt.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
+test-del-inorder: test-del-inorder.o brt.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
 pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o toku_assert.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h

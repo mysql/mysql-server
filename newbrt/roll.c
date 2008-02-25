@@ -442,23 +442,23 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
-int toku_rollback_deleteinleaf (struct logtype_deleteinleaf *c, TOKUTXN txn) {
+void toku_recover_tl_delete (LSN lsn __attribute__((__unused__)), FILENUM filenum  __attribute__((__unused__)), BYTESTRING key __attribute__((__unused__)), BYTESTRING data  __attribute__((__unused__))) {
+    return; // tl_delete should not appear in the log.
+
+}
+
+
+int toku_rollback_tl_delete (FILENUM filenum,
+			     BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
-    void *node_v;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, c->filenum, &cf, &brt);
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
     assert(r==0);
-    r = toku_cachetable_get_and_pin(cf, c->diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-    if (r!=0) return r;
-    BRTNODE node = node_v;
-    DBT key,data;
-    r = toku_pma_set_at_index(node->u.l.buffer, c->pmaidx, toku_fill_dbt(&key, c->key.data, c->key.len), toku_fill_dbt(&data, c->data.data, c->data.len));
-    if (r!=0) return r;
-    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(c->key.data, c->key.len,c->data.data, c->data.len);
-    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + c->key.len + c->data.len; 
-    VERIFY_COUNTS(node);
-    node->log_lsn = c->lsn;
-    r = toku_cachetable_unpin(cf, c->diskoff, 1, toku_serialize_brtnode_size(node));
+    DBT key_dbt,data_dbt;
+    r = toku_brt_insert(brt,
+			toku_fill_dbt(&key_dbt, key.data, key.len),
+			toku_fill_dbt(&data_dbt, data.data, data.len),
+			txn);
     return r;
 }
 
