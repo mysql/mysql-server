@@ -59,6 +59,7 @@ LIBS= \
               $(top_builddir)/storage/ndb/src/mgmapi/libmgmapi.la \
               $(top_builddir)/storage/ndb/src/common/portlib/libportlib.la      \
               $(top_builddir)/storage/ndb/src/common/util/libgeneral.la  \
+              $(top_builddir)/storage/ndb/src/common/util/libndbazio.la  \
          $(top_builddir)/dbug/libdbug.a \
          $(top_builddir)/mysys/libmysys.a \
          $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
