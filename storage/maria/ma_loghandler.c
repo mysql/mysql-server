@@ -8381,7 +8381,7 @@ int main(int argc, char **argv)
        opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
   {
     if (my_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
-                 MYF(MY_FNABP | MY_WME)))
+                 MYF(MY_NABP)))
     {
       if (my_errno == HA_ERR_FILE_TOO_SHORT)
         goto end;

@@ -2,6 +2,7 @@
 
 use Getopt::Long;
 use File::Copy;
+use File::Compare;
 use File::Basename;
 
 $|= 1;
@@ -140,18 +141,14 @@ sub main
     move("$table.MAI", "$tmp/$table-good.MAI") ||
       die "Can't move $table.MAI to $tmp/$table-good.MAI\n";
     apply_log($table, "shouldnotchangelog");
-    $res= `cmp $table.MAD $tmp/$table-good.MAD`;
-    print MY_LOG $res;
-    $res= `cmp $table.MAI $tmp/$table-good.MAI`;
-    print MY_LOG $res;
     check_table_is_same($table, $checksum);
+    $res= physical_cmp($table, "$tmp/$table-good");
+    print MY_LOG $res;
     print MY_LOG "testing idempotency\n";
     apply_log($table, "shouldnotchangelog");
-    $res= `cmp $table.MAD $tmp/$table-good.MAD`;
-    print MY_LOG $res;
-    $res= `cmp $table.MAI $tmp/$table-good.MAI`;
-    print MY_LOG $res;
     check_table_is_same($table, $checksum);
+    $res= physical_cmp($table, "$tmp/$table-good");
+    print MY_LOG $res;
   }
 
   print MY_LOG "Testing the REDO AND UNDO PHASE\n";
@@ -255,21 +252,16 @@ sub main
           check_table_is_same($table, $checksum);
           print MY_LOG "testing idempotency\n";
           apply_log($table, "shouldnotchangelog");
-          # We can't do a binary compary as there may have been different number
-          # of calls to compact_page. We can enable this if we first call
-          # maria-check to generate identically compacted pages.
-          #    cmp $table.MAD $tmp/$table-after_undo.MAD
-          $res= `cmp $table.MAI $tmp/$table-after_undo.MAI`;
-          print MY_LOG $res;
           check_table_is_same($table, $checksum);
+          $res= physical_cmp($table, "$tmp/$table-after_undo");
+          print MY_LOG $res;
           print MY_LOG "testing applying of CLRs to recreate table\n";
           unlink <$table.MA?>;
           #    cp $tmp/maria_log* $maria_path  #unneeded
           apply_log($table, "shouldnotchangelog");
-          #    cmp $table.MAD $tmp/$table-after_undo.MAD
-          $res= `cmp $table.MAI $tmp/$table-after_undo.MAI`;
-          print MY_LOG $res;
           check_table_is_same($table, $checksum);
+          $res= physical_cmp($table, "$tmp/$table-after_undo");
+          print MY_LOG $res;
         }
         unlink <$table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt>;
       }
@@ -357,7 +349,7 @@ sub apply_log
   {
     print MY_LOG "bad argument '$shouldchangelog'\n";
     return 1;
-  }
+  } 
   $log_md5= `$md5sum maria_log.*`;
 
   print MY_LOG "applying log\n";
@@ -392,6 +384,43 @@ sub my_which
     return $path if (-f $path && -x $path);
   }
   return undef();
+}
+
+
+####
+#### physical_cmp: compares two tables (MAI and MAD) physically;
+#### uses zerofill-keep-lsn to reduce irrelevant differences.
+####
+
+sub physical_cmp
+{
+  my ($table1, $table2)= @_;
+  my ($zerofilled, $ret_text);
+  foreach my $file_suffix ("MAD", "MAI")
+  {
+    my $file1= "$table1.$file_suffix";
+    my $file2= "$table2.$file_suffix";
+    my ($error_text, $differences_text)=
+      ("error in comparison of $file1 and $file2\n",
+      "$file1 and $file2 differ\n");
+    my $res= File::Compare::compare($file1, $file2);
+    return $error_text if ($res == -1);
+    if ($res == 1 # they differ
+        and !$zerofilled)
+    {
+      # let's try with --zerofill-keep-lsn
+      $zerofilled= 1; # but no need to do it twice
+      foreach my $table ($table1, $table2)
+      {
+        $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";
+        $res= `$com`;
+        print MY_LOG $res;
+      }
+      $res= File::Compare::compare($file1, $file2);
+      return $error_text if ($res == -1);
+    }
+    $ret_text.= $differences_text if ($res != 0);
+  }
 }
 
 
