@@ -891,6 +891,16 @@ sub collect_one_test_case {
     }
   }
 
+  if ( $::opt_embedded_server )
+  {
+    if ( $tinfo->{'not_embedded'} )
+    {
+      $tinfo->{'skip'}= 1;
+      $tinfo->{'comment'}= "Not run for embedded server";
+      return $tinfo;
+    }
+  }
+
   # ----------------------------------------------------------------------
   # Find config file to use if not already selected in <testname>.opt file
   # ----------------------------------------------------------------------
@@ -960,6 +970,7 @@ my @tags=
  ["include/master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
  ["include/federated.inc", "federated_test", 1],
+ ["include/not_embedded.inc", "not_embedded", 1],
 );
 
 

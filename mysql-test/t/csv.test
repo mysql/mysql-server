@@ -1588,7 +1588,7 @@ create table bug15205 (val int(11) not null) engine=csv;
 create table bug15205_2 (val int(11) not null) engine=csv;
 --remove_file $MYSQLD_DATADIR/test/bug15205.CSV
 # system error (can't open the datafile)
---replace_result $MYSQLTEST_VARDIR . master-data/ ''
+--replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
 --error 13
 select * from bug15205;
 select * from bug15205_2;
