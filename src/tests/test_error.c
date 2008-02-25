@@ -68,7 +68,6 @@ int main (int argc, const char *argv[]) {
 		    assert(buflen>=0);
 		    buf[buflen]=0;
 		    if (do_errfile) {
-			printf("buf=%s(end of buf)\n", buf);
 			if (do_errpfx) {
 			    assert(strncmp(buf,"whoopi:",6)==0);
 			} else {
