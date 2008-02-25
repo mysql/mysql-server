@@ -103,7 +103,10 @@ drop table t1;
 -- echo # test with null allowed
 create table t1 (a bit) partition by key (a);
 insert into t1 values (b'1');
+insert into t1 values (NULL);
 select hex(a) from t1 where a = b'1';
+select hex(a) from t1 where a is NULL;
+select hex(a) from t1 order by a;
 drop table t1;
 create table t1 (a tinyint) partition by key (a);
 insert into t1 values (2);

@@ -3819,9 +3819,9 @@ bool mysql_unpack_partition(THD *thd,
 
   DBUG_PRINT("info", ("Successful parse"));
   part_info= lex.part_info;
-  DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
-             ha_legacy_type(part_info->default_engine_type),
-             ha_legacy_type(default_db_type)));
+  DBUG_PRINT("info", ("default engine = %s, default_db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(default_db_type)));
   if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
     if (old_lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
@@ -4041,8 +4041,8 @@ static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
       DBUG_ASSERT(engine_type && engine_type != partition_hton);
     }
   }
-  DBUG_PRINT("info", ("engine_type = %u, table_engine_set = %u",
-                       ha_legacy_type(engine_type),
+  DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
+                       ha_resolve_storage_engine_name(engine_type),
                        table_engine_set));
   if (part_info->check_engine_mix(engine_type, table_engine_set))
     goto error;

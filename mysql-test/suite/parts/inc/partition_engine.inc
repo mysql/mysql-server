@@ -112,11 +112,23 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
---echo # this should fail with ER_MIX_HANDLER_ERROR
---echo # after fixing Bug#33722
+--error ER_MIX_HANDLER_ERROR
 eval CREATE TABLE t1 (
 $column_list
 )
+PARTITION BY RANGE(f_int1)
+SUBPARTITION BY HASH(f_int1)
+( PARTITION part1 VALUES LESS THAN ($max_row_div2)
+     (SUBPARTITION subpart11 STORAGE ENGINE = $engine,
+      SUBPARTITION subpart12 STORAGE ENGINE = $engine),
+  PARTITION part2 VALUES LESS THAN $MAX_VALUE
+     (SUBPARTITION subpart21,
+      SUBPARTITION subpart22 )
+);
+eval CREATE TABLE t1 (
+$column_list
+)
+ENGINE = $engine
 PARTITION BY RANGE(f_int1)
 SUBPARTITION BY HASH(f_int1)
 ( PARTITION part1 VALUES LESS THAN ($max_row_div2)
@@ -135,9 +147,33 @@ DROP TABLE t1;
 --echo # 4 Storage engine assignment after partition name + after name of
 --echo #   subpartitions belonging to another partition
 --echo #------------------------------------------------------------------------
---echo # this should work
---echo # after fixing Bug#33722
 --error ER_MIX_HANDLER_ERROR
+eval CREATE TABLE t1 (
+$column_list
+)
+PARTITION BY RANGE(f_int1)
+SUBPARTITION BY HASH(f_int1)
+( PARTITION part1 VALUES LESS THAN ($max_row_div2)
+     (SUBPARTITION subpart11,
+      SUBPARTITION subpart12),
+  PARTITION part2 VALUES LESS THAN $MAX_VALUE
+     (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
+      SUBPARTITION subpart22 STORAGE ENGINE = $engine)
+);
+eval CREATE TABLE t1 (
+$column_list
+)
+ENGINE = $engine
+PARTITION BY RANGE(f_int1)
+SUBPARTITION BY HASH(f_int1)
+( PARTITION part1 VALUES LESS THAN ($max_row_div2) ENGINE = $engine
+     (SUBPARTITION subpart11,
+      SUBPARTITION subpart12),
+  PARTITION part2 VALUES LESS THAN $MAX_VALUE
+     (SUBPARTITION subpart21,
+      SUBPARTITION subpart22 STORAGE ENGINE = $engine)
+);
+DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -150,13 +186,10 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
-#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-#--source suite/parts/inc/partition_check.inc
-#DROP TABLE t1;
---echo # this should work
---echo # after fixing Bug#33722
---error ER_MIX_HANDLER_ERROR
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+--source suite/parts/inc/partition_check.inc
+DROP TABLE t1;
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -166,13 +199,13 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart11 STORAGE ENGINE = $engine,
       SUBPARTITION subpart12 STORAGE ENGINE = $engine),
   PARTITION part2 VALUES LESS THAN $MAX_VALUE ENGINE = $engine
-     (SUBPARTITION subpart21,
+     (SUBPARTITION subpart21 ENGINE = $engine,
       SUBPARTITION subpart22)
 );
-#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-#--source suite/parts/inc/partition_check.inc
-#DROP TABLE t1;
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+--source suite/parts/inc/partition_check.inc
+DROP TABLE t1;
 #
 --echo #------------------------------------------------------------------------
 --echo # 5 Precedence of storage engine assignments (if there is any)
@@ -208,10 +241,7 @@ SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
 DROP TABLE t1;
 --echo # 6.2 Storage engine assignment after partition name + after
 --echo #     subpartition name
-#     in partition part + in sub partition part
---echo # this should work
---echo # after fixing Bug#33722
---error ER_MIX_HANDLER_ERROR
+--echo #     in partition part + in sub partition part
 eval CREATE TABLE t1 (
 $column_list
 )
@@ -224,10 +254,10 @@ SUBPARTITION BY HASH(f_int1)
      (SUBPARTITION subpart21 STORAGE ENGINE = $engine,
       SUBPARTITION subpart22 STORAGE ENGINE = $engine)
 );
-#INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
-#SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
-#--source suite/parts/inc/partition_check.inc
-#DROP TABLE t1;
+INSERT INTO t1(f_int1,f_int2,f_char1,f_char2,f_charbig)
+SELECT f_int1,f_int2,f_char1,f_char2,f_charbig FROM t0_template;
+--source suite/parts/inc/partition_check.inc
+DROP TABLE t1;
 
 --echo #------------------------------------------------------------------------
 --echo # 6 Session default engine differs from engine used within create table

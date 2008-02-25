@@ -3295,8 +3295,9 @@ bool mysql_create_table_no_lock(THD *thd,
         }
       }
     }
-    DBUG_PRINT("info", ("db_type = %d",
-                         ha_legacy_type(part_info->default_engine_type)));
+    DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file,
                                         create_info, TRUE))
       goto err;
@@ -3321,7 +3322,7 @@ bool mysql_create_table_no_lock(THD *thd,
         Assign the partition handler as the handler of the table.
       */
       DBUG_PRINT("info", ("db_type: %d",
-                          ha_legacy_type(create_info->db_type)));
+                        ha_resolve_storage_engine_name(create_info->db_type)));
       delete file;
       create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))

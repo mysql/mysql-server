@@ -1215,13 +1215,15 @@ DROP TABLE t1;
 #
 # Bug 17455 Partitions: Wrong message and error when using Repair/Optimize
 #                       table on partitioned table
-#
+# (added check/analyze for gcov of Bug#20129)
 create table t1 (a int)
 engine=MEMORY
 partition by key (a);
 
 REPAIR TABLE t1;
 OPTIMIZE TABLE t1;
+CHECK TABLE t1;
+ANALYZE TABLE t1;
 
 drop table t1;
 
@@ -1524,7 +1526,7 @@ select c1 from t1 group by (select c0 from t1 limit 1);
 drop table t1;
 
 # Bug #30495: optimize table t1,t2,t3 extended errors
-#
+# (added more maintenace commands for Bug#20129
 CREATE TABLE t1(a int)
 PARTITION BY RANGE (a) (
   PARTITION p1 VALUES LESS THAN (10),
@@ -1534,6 +1536,14 @@ PARTITION BY RANGE (a) (
 ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
 --error ER_PARSE_ERROR
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 ANALYZE PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 CHECK PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 REPAIR PARTITION p1;
+--error ER_CHECK_NOT_IMPLEMENTED
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
 DROP TABLE t1;
 
 #
