@@ -1,11 +1,8 @@
-//NOTE: fmemopen does not exist in OSX
-// I want fmemopen
-#define _GNU_SOURCE
-
 #include <assert.h>
 #include <sys/stat.h>
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "test.h"
 
 char const* expect_errpfx;
@@ -39,43 +36,56 @@ int main (int argc, const char *argv[]) {
     for (do_errpfx=0; do_errpfx<2; do_errpfx++) {
 	for (do_errfile=0; do_errfile<2; do_errfile++) {
 	    for (do_errcall=0; do_errcall<2; do_errcall++) {
-		DB_ENV *env;
-		char buf[10000]="";
-		FILE *write_here = fmemopen(buf, sizeof(buf), "w");
-		n_handle_error=0;
-		r = db_env_create(&env, 0); assert(r==0);
-		if (do_errpfx) {
-		    expect_errpfx="whoopi";
-		    env->set_errpfx(env, expect_errpfx);
-		} else {
-		    expect_errpfx=0;
-		}
-		env->set_errfile(env,0); // Turn off those annoying errors
-		if (do_errfile)
-		    env->set_errfile(env, write_here);
-		if (do_errcall) 
-		    env->set_errcall(env, handle_error);
-		r = env->open(env, DIR, -1, 0644);
-		assert(r==EINVAL);
-		r = env->close(env, 0); assert(r==0);
-		fclose(write_here);
-		if (do_errfile) {
-		    printf("buf=%s(end of buf)\n", buf);
+		char errfname[] = __FILE__ ".errs";
+		unlink(errfname);
+		{
+		    DB_ENV *env;
+		    FILE *write_here = fopen(errfname, "w");
+		    assert(write_here);
+		    n_handle_error=0;
+		    r = db_env_create(&env, 0); assert(r==0);
 		    if (do_errpfx) {
-			assert(strncmp(buf,"whoopi:",6)==0);
+			expect_errpfx="whoopi";
+			env->set_errpfx(env, expect_errpfx);
 		    } else {
-			assert(buf[0]!=0); 
-			assert(buf[0]!=':');
+			expect_errpfx=0;
 		    }
-		    assert(buf[strlen(buf)-1]=='\n');
-		} else {
-		    assert(buf[0]==0);
+		    env->set_errfile(env,0); // Turn off those annoying errors
+		    if (do_errfile)
+			env->set_errfile(env, write_here);
+		    if (do_errcall) 
+			env->set_errcall(env, handle_error);
+		    r = env->open(env, DIR, -1, 0644);
+		    assert(r==EINVAL);
+		    r = env->close(env, 0); assert(r==0);
+		    fclose(write_here);
 		}
-		if (do_errcall) {
-		    assert(n_handle_error==1);
-		} else {
-		    assert(n_handle_error==0);
+		{
+		    FILE *read_here = fopen(errfname, "r");
+		    assert(read_here);
+		    char buf[10000];
+		    int buflen = fread(buf, 1, sizeof(buf)-1, read_here);
+		    assert(buflen>=0);
+		    buf[buflen]=0;
+		    if (do_errfile) {
+			printf("buf=%s(end of buf)\n", buf);
+			if (do_errpfx) {
+			    assert(strncmp(buf,"whoopi:",6)==0);
+			} else {
+			    assert(buf[0]!=0); 
+			    assert(buf[0]!=':');
+			}
+			assert(buf[strlen(buf)-1]=='\n');
+		    } else {
+			assert(buf[0]==0);
+		    }
+		    if (do_errcall) {
+			assert(n_handle_error==1);
+		    } else {
+			assert(n_handle_error==0);
+		    }
 		}
+		unlink(errfname);
 	    }
 	}
     }
