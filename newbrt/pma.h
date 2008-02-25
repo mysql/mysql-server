@@ -53,10 +53,14 @@ enum pma_errors toku_pma_insert (PMA, DBT*, DBT*, TOKULOGGER, TXNID, FILENUM, DI
 /* This returns an error if the key is NOT present. */
 int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen);
 
-/* delete pairs from the pma
-   if val is 0 then delete all pairs from the pma that match the key
-   if val is not 0 then only delete the pair that matches both the key and the val */
- 
+/* Delete pairs from the pma.
+ * If val is 0 then delete all pairs from the pma that match the key.
+ * If val is not 0 then only delete the pair that matches both the key and the val.
+ *   (This even works if there is no such pair (in which case DB_NOTFOUND is returned, and
+ *    no changes are made.)
+ *   The case where val!=0 should work for both DUP and NODUP dictionaries.
+ *    For NODUP dictionaries, the value is deleted only if both the key and the value match.
+ */
 int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
 
 int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,

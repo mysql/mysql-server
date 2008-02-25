@@ -29,12 +29,6 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 			     + TREE_FANOUT * 8 // children
 			     ) };
 
-struct brtnode_nonleaf_pivotinfo {
-    struct kv_pair *pivotkey; /* For DUPSORT keys, the keys are whole key-value pairs.
-			       * For nonduplicate and DUPSORT keys we have
-			       *  Child 0's keys <= pivotkey[0] < Child 1's keys <= pivotkey[1] < ...  pivotkey[N-1] < child N's keys <= pivotkey[N] ...
-			       */
-};
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
     DISKOFF      diskoff;
@@ -202,5 +196,13 @@ struct brt_cursor {
     DBT key;
     DBT val;
 };
+
+/* Stuff for testing */
+int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff);
+int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_children, DISKOFF *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens);
+int toku_testsetup_root(BRT brt, DISKOFF diskoff);
+int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff); // Return the size on disk.
+int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
+int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
 
 #endif

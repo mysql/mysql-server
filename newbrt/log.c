@@ -608,7 +608,7 @@ int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unuse
 int toku_logger_abort(TOKUTXN txn) {
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
-    struct log_entry *item=txn->oldest_logentry;
+    struct log_entry *item;
     while ((item=txn->newest_logentry)) {
 	txn->newest_logentry = item->prev;
 	int r;

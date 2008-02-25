@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 int verbose=0;
 
 void default_parse_args (int argc, const char *argv[]) {

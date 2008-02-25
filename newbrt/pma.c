@@ -725,11 +725,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKULOGGER logger, TXNID xid, FILE
     if (r!=0) goto freeit;
     if (0!=toku_txnid2txn(logger, xid, &txn)) goto freeit;
 
-    /* if no txn then, the txn is completed, so we don't bother with rollback.
-     * In particular, if the txn committed, we don't rollback.
-     * If the txn aborted, then we already inserted a delete command when we rolled it back.
-     */
-    r = toku_logger_save_rollback_insertinleaf(txn, xid, pma->filenum, diskoff, idx, key, data);
+    /* Don't save rollback info, instead we'll reinsert the command at the root, if the insert fails. */
     if (0) { freeit: toku_free(key.data); toku_free(data.data); }
     return r;
 }    
@@ -776,7 +772,6 @@ static int pma_delete_nodup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int3
 }
 
 int toku_pma_delete (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
-    v = v;
     u_int32_t my_deleted_size;
     if (!deleted_size)
         deleted_size = &my_deleted_size;
@@ -864,10 +859,24 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         *replaced_v_size = kv->vallen;
         *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
 	{
-	    const BYTESTRING deletedkey  = { kv->keylen, kv_pair_key(kv) };
-	    const BYTESTRING deleteddata = { kv->vallen, kv_pair_val(kv) };
-	    r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
-	    if (r!=0) return r;
+	    {
+		const BYTESTRING deletedkey  = { kv->keylen, kv_pair_key(kv) };
+		const BYTESTRING deleteddata = { kv->vallen, kv_pair_val(kv) };
+		r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
+		if (r!=0) return r;
+	    }
+	    if (logger) {
+		const BYTESTRING deletedkey  = { kv->keylen, toku_memdup(kv_pair_key(kv), kv->keylen) };
+		const BYTESTRING deleteddata = { kv->vallen, toku_memdup(kv_pair_val(kv), kv->vallen) };
+		TOKUTXN txn;
+		if (0!=toku_txnid2txn(logger, xid, &txn)) return -1;
+		r=toku_logger_save_rollback_tl_delete(txn, pma->filenum, deletedkey, deleteddata);
+		if (r!=0) {
+		    toku_free(deletedkey.data);
+		    toku_free(deleteddata.data);
+		    return r;
+		}
+	    }
 	}
         if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
         if (v->size == (unsigned int) kv_pair_vallen(kv)) {
@@ -895,20 +904,13 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
  logit_and_update_fingerprint:
     {
-	const struct kv_pair *pair = pma->pairs[idx];
-	const BYTESTRING key  = { pair->keylen, toku_memdup(kv_pair_key_const(pair), pair->keylen) };
-	const BYTESTRING data = { pair->vallen, toku_memdup(kv_pair_val_const(pair), pair->vallen) };
+	struct kv_pair *pair = pma->pairs[idx];
+	BYTESTRING key  = { pair->keylen, kv_pair_key(pair) };
+	BYTESTRING data = { pair->vallen, kv_pair_val(pair) };
 	r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
 	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
-	if (r!=0) goto freeit;
-	TOKUTXN txn;
-	if (0!=toku_txnid2txn(logger, xid, &txn)) goto freeit;
-	/* the txn is completed, so we don't bother with rollback.
-	 * In particular, if the txn committed, we don't rollback.
-	 * If the txn aborted, then we already inserted a delete command when we rolled it back.
-	 */
-	r = toku_logger_save_rollback_insertinleaf(txn, xid, pma->filenum, diskoff, idx, key, data);
-	if (0) { freeit: toku_free(key.data); toku_free(data.data); }
+	if (r!=0) return r;
+	/* We don't record the insert here for rollback.  The insert should have been logged at the top-level. */
     }
     *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
     return r;

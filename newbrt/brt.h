@@ -28,7 +28,7 @@ int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
 int toku_brt_lookup (BRT brt, DBT *k, DBT *v);
 int toku_brt_delete (BRT brt, DBT *k, TOKUTXN);
-int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN);
+int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN); // Delete a pair only if both k and v are equal according to the comparison function.
 int toku_close_brt (BRT);
 int toku_dump_brt (BRT brt);
 void brt_fsync (BRT); /* fsync, but don't clear the caches. */
@@ -63,5 +63,7 @@ int toku_brt_dbt_set_key (BRT, DBT*, bytevec val, ITEMLEN vallen);
 int toku_brt_dbt_set_value (BRT, DBT*, bytevec val, ITEMLEN vallen);
 
 int toku_brt_get_fd(BRT, int *);
+
+int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.
 
 #endif
