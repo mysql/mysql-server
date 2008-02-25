@@ -229,8 +229,8 @@ SHOW_VAR ndb_status_variables[]= {
 };
 
 SHOW_VAR ndb_status_conflict_variables[]= {
-  {"conflict_fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
-  {"conflict_fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
+  {"fn_max",     (char*) &g_ndb_status_conflict_fn_max, SHOW_LONG},
+  {"fn_old",     (char*) &g_ndb_status_conflict_fn_old, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -12439,8 +12439,8 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 SHOW_VAR ndb_status_variables_export[]= {
-  {"Ndb", (char*) &show_ndb_vars,                 SHOW_FUNC},
-  {"Ndb", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
+  {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
+  {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
 
