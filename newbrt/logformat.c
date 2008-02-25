@@ -136,10 +136,10 @@ const struct logtype logtypes[] = {
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
 			     NULLFIELD}},
-    {"tl_delete",    'K'GEN_ROLLBACK, FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
-					 {"BYTESTRING", "key", 0},
-					 {"BYTESTRING", "data", 0},
-					 NULLFIELD}},
+    {"tl_delete",    'K'+GEN_ROLLBACK, FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+					  {"BYTESTRING", "key", 0},
+					  {"BYTESTRING", "data", 0},
+					  NULLFIELD}},
     {"deleteinleaf", 'd', FA{{"TXNID",      "txnid", 0},
 			     {"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
