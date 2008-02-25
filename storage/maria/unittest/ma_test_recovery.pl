@@ -18,6 +18,7 @@ my $tmp= "./tmp";
 my $my_progname= $0;
 my $suffix;
 my $md5sum;
+my $zerofilled_tables= 0;
 
 $my_progname=~ s/.*[\/]//;
 $maria_path= dirname($0) . "/..";
@@ -278,12 +279,13 @@ sub main
   # does not put back the "analyzed,optimized keys"(etc) index state.
   `diff -b $maria_path/unittest/ma_test_recovery.expected $tmp/ma_test_recovery.output`;
   if ($? >> 8) {
-    print "UNEXPECTED OUTPUT OF TESTS, FAILED\n";
+    print "UNEXPECTED OUTPUT OF TESTS, FAILED";
+    print " (zerofilled $zerofilled_tables tables)\n";
     print "For more info, do diff -b $maria_path/unittest/ma_test_recovery.expected ";
     print "$tmp/ma_test_recovery.output\n";
     exit(1);
   }
-  print "ALL RECOVERY TESTS OK\n";
+  print "ALL RECOVERY TESTS OK (zerofilled $zerofilled_tables tables)\n";
 }
 
 ####
@@ -395,32 +397,47 @@ sub my_which
 sub physical_cmp
 {
   my ($table1, $table2)= @_;
-  my ($zerofilled, $ret_text);
+  my ($zerofilled, $ret_text)= (0, "");
+  #return `cmp $table1.MAD $table2.MAD`.`cmp $table1.MAI $table2.MAI`;
+  # save original tables to restore them later
   foreach my $file_suffix ("MAD", "MAI")
   {
     my $file1= "$table1.$file_suffix";
     my $file2= "$table2.$file_suffix";
-    my ($error_text, $differences_text)=
-      ("error in comparison of $file1 and $file2\n",
-      "$file1 and $file2 differ\n");
     my $res= File::Compare::compare($file1, $file2);
-    return $error_text if ($res == -1);
+    die() if ($res == -1);
     if ($res == 1 # they differ
         and !$zerofilled)
     {
       # let's try with --zerofill-keep-lsn
       $zerofilled= 1; # but no need to do it twice
+      $zerofilled_tables= $zerofilled_tables + 1;
+      my $table_no= 1;
       foreach my $table ($table1, $table2)
       {
+        copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
+        copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
         $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";
         $res= `$com`;
         print MY_LOG $res;
+        $table_no= $table_no + 1;
       }
       $res= File::Compare::compare($file1, $file2);
-      return $error_text if ($res == -1);
+      die() if ($res == -1);
     }
-    $ret_text.= $differences_text if ($res != 0);
+    $ret_text.= "$file1 and $file2 differ\n" if ($res != 0);
   }
+  if ($zerofilled)
+  {
+    my $table_no= 1;
+    foreach my $table ($table1, $table2)
+    {
+      move("$tmp/before_zerofill$table_no.MAD", "$table.MAD") || die();
+      move("$tmp/before_zerofill$table_no.MAI", "$table.MAI") || die();
+      $table_no= $table_no + 1;
+    }
+  }
+  return $ret_text;
 }
 
 
