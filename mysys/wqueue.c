@@ -147,15 +147,18 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
 {
   struct st_my_thread_var *last= wqueue->last_thread;
   struct st_my_thread_var *next= last->next;
-  struct st_my_thread_var **prev= &wqueue->last_thread;
+  struct st_my_thread_var **prev= &last->next;
   struct st_my_thread_var *thread;
+  struct st_my_thread_var *new_last= NULL;
   uint first_type= next->lock_type;
   if (first_type == MY_PTHREAD_LOCK_WRITE)
   {
     /* release first waiting for write lock */
     thread= next;
     pthread_cond_signal(&thread->suspend);
-    wqueue->last_thread= next;
+    if (thread == last)
+      wqueue->last_thread= NULL;
+    *prev= thread->next;
     thread->next= NULL;
     return;
   }
@@ -168,16 +171,26 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
       /* skip waiting for write lock */
       *prev= thread;
       prev= &thread->next;
+      new_last= NULL;
     }
     else
     {
       /* release waiting for read lock */
       pthread_cond_signal(&thread->suspend);
+      new_last= thread->next;
       thread->next= NULL;
     }
   } while (thread != last);
-  *prev= NULL;
+  if (new_last)
+  {
+    /* last was deleted */
+    if (new_last == last)
+      wqueue->last_thread= NULL; /* empty list */
+    else
+      wqueue->last_thread= new_last;
+  }
 }
+
 
 /*
   Add thread and wait
