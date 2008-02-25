@@ -25,7 +25,7 @@ enum db_err {
 	DB_MISSING_HISTORY,		/* required history data has been
 					deleted due to lack of space in
 					rollback segment */
-	DB_CLUSTER_NOT_FOUND,
+	DB_CLUSTER_NOT_FOUND = 30,
 	DB_TABLE_NOT_FOUND,
 	DB_MUST_GET_MORE_FILE_SPACE,	/* the database has to be stopped
 					and restarted with more file space */
@@ -67,23 +67,23 @@ enum db_err {
 					preconfigured undo slots, this can
 					only happen when there are too many
 					concurrent transactions */
-	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
-					was found to be NULL */
-	DB_TABLE_ZIP_NO_IBD,		/* trying to create a compressed
-					table in the system tablespace */
-
 	DB_UNSUPPORTED,			/* when InnoDB sees any artefact or
 					a feature that it can't recoginize or
 					work with e.g., FT indexes created by
 					a later version of the engine. */
 
+	DB_PRIMARY_KEY_IS_NULL,		/* a column in the PRIMARY KEY
+					was found to be NULL */
+	DB_TABLE_ZIP_NO_IBD,		/* trying to create a compressed
+					table in the system tablespace */
+
 	/* The following are partial failure codes */
-	DB_FAIL,
+	DB_FAIL = 1000,
 	DB_OVERFLOW,
 	DB_UNDERFLOW,
 	DB_STRONG_FAIL,
 	DB_ZIP_OVERFLOW,
-	DB_RECORD_NOT_FOUND,
+	DB_RECORD_NOT_FOUND = 1500,
 	DB_END_OF_INDEX
 };
 
