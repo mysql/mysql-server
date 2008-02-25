@@ -17313,6 +17313,65 @@ static void test_bug31669()
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#28386 the general log is incomplete
+*/
+
+static void test_bug28386()
+{
+  int rc;
+  MYSQL_STMT *stmt;
+  MYSQL_RES *result;
+  MYSQL_BIND bind;
+  const char hello[]= "hello world!";
+
+  DBUG_ENTER("test_bug28386");
+  myheader("test_bug28386");
+
+  rc= mysql_query(mysql, "truncate mysql.general_log");
+  myquery(rc);
+
+  stmt= mysql_simple_prepare(mysql, "SELECT ?");
+  check_stmt(stmt);
+
+  memset(&bind, 0, sizeof(bind));
+
+  bind.buffer_type= MYSQL_TYPE_STRING;
+  bind.buffer= (void *) hello;
+  bind.buffer_length= sizeof(hello);
+
+  mysql_stmt_bind_param(stmt, &bind);
+  mysql_stmt_send_long_data(stmt, 0, hello, sizeof(hello));
+
+  rc= mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  rc= my_process_stmt_result(stmt);
+  DIE_UNLESS(rc == 1);
+
+  rc= mysql_stmt_reset(stmt);
+  check_execute(stmt, rc);
+
+  rc= mysql_stmt_close(stmt);
+  DIE_UNLESS(!rc);
+
+  rc= mysql_query(mysql, "select * from mysql.general_log where "
+                         "command_type='Close stmt' or "
+                         "command_type='Reset stmt' or "
+                         "command_type='Long Data'");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  mytest(result);
+
+  DIE_UNLESS(mysql_num_rows(result) == 3);
+
+  mysql_free_result(result);
+
+  DBUG_VOID_RETURN;
+}
+
 /*
   Read and parse arguments and MySQL options from my.cnf
 */
@@ -17618,6 +17677,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug20023", test_bug20023 },
   { "test_bug31418", test_bug31418 },
   { "test_bug31669", test_bug31669 },
+  { "test_bug28386", test_bug28386 },
   { 0, 0 }
 };
 
