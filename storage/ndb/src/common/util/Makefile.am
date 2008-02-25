@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-noinst_LTLIBRARIES = libgeneral.la
+noinst_LTLIBRARIES = libgeneral.la libndbazio.la
 
 libgeneral_la_SOURCES = \
 	    File.cpp md5_hash.cpp Properties.cpp socket_io.cpp \
@@ -25,11 +25,13 @@ libgeneral_la_SOURCES = \
             strdup.c \
             ConfigValues.cpp ndb_init.c basestring_vsnprintf.c \
             Bitmask.cpp \
-	    ndb_rand.c azio.c
+	    ndb_rand.c
 
 INCLUDES_LOC = @ZLIB_INCLUDES@
 
-libgeneral_la_LIBADD = @ZLIB_LIBS@
+libndbazio_la_SOURCES = azio.c
+
+libndbazio_la_LIBADD = @ZLIB_LIBS@
 
 EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp

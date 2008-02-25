@@ -60,6 +60,9 @@ ndb_config_CXXFLAGS = -I$(top_srcdir)/storage/ndb/src/mgmapi \
                       -I$(top_srcdir)/storage/ndb/include/mgmcommon \
                       -DMYSQLCLUSTERDIR="\"\""
 
+ndb_restore_LDADD = $(top_builddir)/storage/ndb/src/common/util/libndbazio.la \
+                    $(LDADD)
+
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 
