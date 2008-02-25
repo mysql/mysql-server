@@ -955,8 +955,8 @@ UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
 /*======================*/
-	const buf_block_t*	block,	/* in: index page */
-	mtr_t*			mtr)	/* in/out: mtr */
+	buf_block_t*	block,	/* in/out: index page */
+	mtr_t*		mtr)	/* in/out: mtr */
 {
 	page_t*	bitmap_page;
 	ulint	space;
@@ -974,6 +974,16 @@ ibuf_update_free_bits_zip(
 	bitmap_page = ibuf_bitmap_get_map_page(space, page_no, zip_size, mtr);
 
 	after = ibuf_index_page_calc_free_zip(zip_size, block);
+
+	if (after == 0) {
+		/* We move the page to the front of the buffer pool LRU list:
+		the purpose of this is to prevent those pages to which we
+		cannot make inserts using the insert buffer from slipping
+		out of the buffer pool */
+
+		buf_page_make_young(&block->page);
+	}
+
 	ibuf_bitmap_page_set_bits(bitmap_page, page_no, zip_size,
 				  IBUF_BITMAP_FREE, after, mtr);
 }
