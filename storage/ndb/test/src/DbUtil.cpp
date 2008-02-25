@@ -168,7 +168,7 @@ DbUtil::connect()
       mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
   {
     myerror("DB Connect -> mysql_options failed");
-    mysql_close(m_mysql)
+    mysql_close(m_mysql);
     m_mysql=NULL;
     return DBU_FAILED;
   }
