@@ -16120,6 +16120,7 @@ static void test_bug32265()
   int rc;
   MYSQL_STMT *stmt;
   MYSQL_FIELD *field;
+  MYSQL_RES *metadata;
 
   DBUG_ENTER("test_bug32265");
   myheader("test_bug32265");
@@ -16137,50 +16138,61 @@ static void test_bug32265()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
+  DIE_UNLESS(field);
   DIE_UNLESS(strcmp(field->table, "t1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT a '' FROM t1 ``");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT a '' FROM t1 ``");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT * FROM v1");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT * FROM v1 /* SIC */ GROUP BY 1");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "DROP VIEW v1");
