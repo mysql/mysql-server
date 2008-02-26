@@ -308,7 +308,11 @@ TYPELIB thread_handling_typelib=
 
 const char *first_keyword= "first", *binary_keyword= "BINARY";
 const char *my_localhost= "localhost", *delayed_user= "DELAYED";
-#define GET_HA_ROWS (~ (ha_rows) 0)
+#if SIZEOF_OFF_T > 4 && defined(BIG_TABLES)
+#define GET_HA_ROWS GET_ULL
+#else
+#define GET_HA_ROWS GET_ULONG
+#endif
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 
