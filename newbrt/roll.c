@@ -346,10 +346,19 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR, 0);
     assert(fd>=0);
-    int r = toku_cachetable_openfd(&cf, ct, fd);
+    BRT MALLOC(brt);
+    assert(errno==0 && brt!=0);
+    brt->database_name = fixedfname;
+    brt->h=0;
+    list_init(&brt->cursors);
+    brt->compare_fun = 0;
+    brt->dup_compare = 0;
+    brt->db = 0;
+    int r = toku_cachetable_openfd(&cf, ct, fd, brt);
     assert(r==0);
+    brt->skey = brt->sval = 0;
+    brt->cf=cf;
     toku_recover_note_cachefile(filenum, cf);
-    toku_free(fixedfname);
     toku_free_BYTESTRING(fname);
 }
 
@@ -403,7 +412,7 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
 }
 
 int toku_rollback_delete (FILENUM filenum,
-			     BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+			  BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
@@ -413,6 +422,20 @@ int toku_rollback_delete (FILENUM filenum,
 			toku_fill_dbt(&key_dbt, key.data, key.len),
 			toku_fill_dbt(&data_dbt, data.data, data.len),
 			txn);
+    return r;
+}
+
+int toku_rollback_insert (FILENUM filenum,
+			  BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
+    assert(r==0);
+    DBT key_dbt,data_dbt;
+    r = toku_brt_delete_both(brt,
+			     toku_fill_dbt(&key_dbt, key.data, key.len),
+			     toku_fill_dbt(&data_dbt, data.data, data.len),
+			     txn);
     return r;
 }
 

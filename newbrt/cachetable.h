@@ -25,8 +25,8 @@ typedef long long CACHEKEY;
  */
 int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_lsn, TOKULOGGER);
 
-int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode);
-int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/);
+int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode, BRT);
+int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, BRT brt);
 
 typedef void (cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
 typedef cachetable_flush_func_t *CACHETABLE_FLUSH_FUNC_T;

@@ -41,7 +41,11 @@ int logformat_version_number = 0;
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
-    {"delete",    'K', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+    {"delete",    'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+			  {"BYTESTRING", "key", 0},
+			  {"BYTESTRING", "data", 0},
+			  NULLFIELD}},
+    {"insert",    'i', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
 			  {"BYTESTRING", "key", 0},
 			  {"BYTESTRING", "data", 0},
 			  NULLFIELD}},
