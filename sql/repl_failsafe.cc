@@ -475,7 +475,7 @@ bool show_new_master(THD* thd)
     protocol->store((ulonglong) lex_mi->pos);
     if (protocol->write())
       DBUG_RETURN(TRUE);
-    send_eof(thd);
+    my_eof(thd);
     DBUG_RETURN(FALSE);
   }
 }
@@ -688,7 +688,7 @@ bool show_slave_hosts(THD* thd)
     }
   }
   pthread_mutex_unlock(&LOCK_slave_list);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1011,7 +1011,7 @@ err:
 
   mysql_close(&mysql); // safe to call since we always do mysql_init()
   if (!error)
-    send_ok(thd);
+    my_ok(thd);
 
   return error;
 }

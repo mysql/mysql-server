@@ -16,25 +16,34 @@ FROM t1|
 
 CREATE VIEW v2 AS SELECT _koi8r'����' as c1|
 
+CREATE VIEW v3 AS SELECT _koi8r'����'|
+
 
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _utf8'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'����' AS `c1`	utf8	utf8_general_ci
 
+SHOW CREATE VIEW v3|
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'����' AS `тест`	utf8	utf8_general_ci
+
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	mysqltest1	v1	SELECT 'тест' AS c1, кол AS c2
-FROM t1	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
+NULL	mysqltest1	v1	select 'тест' AS `c1`,`mysqltest1`.`t1`.`кол` AS `c2` from `mysqltest1`.`t1`	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v2'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	mysqltest1	v2	SELECT 'тест' as c1	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
+NULL	mysqltest1	v2	select 'тест' AS `c1`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
+
+SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v3'|
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	mysqltest1	v3	select 'тест' AS `тест`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
 
 
 SELECT COLLATION(c1), COLLATION(c2) FROM v1|
@@ -44,6 +53,10 @@ utf8_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 koi8r_general_ci
+
+SELECT * FROM v3|
+тест
+тест
 
 
 ALTER DATABASE mysqltest1 COLLATE cp866_general_ci|
@@ -54,27 +67,35 @@ SET @@character_set_results= cp1251|
 SET @@collation_connection= cp1251_general_ci|
 SELECT * FROM mysqltest1.v1|
 SELECT * FROM mysqltest1.v2|
+SELECT * FROM mysqltest1.v3|
 use mysqltest1|
 set names utf8|
 
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _utf8'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'����' AS `c1`	utf8	utf8_general_ci
 
+SHOW CREATE VIEW v3|
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'����' AS `тест`	utf8	utf8_general_ci
+
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	mysqltest1	v1	SELECT 'тест' AS c1, кол AS c2
-FROM t1	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
+NULL	mysqltest1	v1	select 'тест' AS `c1`,`mysqltest1`.`t1`.`кол` AS `c2` from `mysqltest1`.`t1`	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v2'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	mysqltest1	v2	SELECT 'тест' as c1	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
+NULL	mysqltest1	v2	select 'тест' AS `c1`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
+
+SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v3'|
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	mysqltest1	v3	select 'тест' AS `тест`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
 
 
 SELECT COLLATION(c1), COLLATION(c2) FROM v1|
@@ -84,6 +105,10 @@ utf8_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 koi8r_general_ci
+
+SELECT * FROM v3|
+тест
+тест
 
 ---> Dumping mysqltest1 to ddl_i18n_utf8views.mysqltest1.sql
 
@@ -99,26 +124,35 @@ SET @@character_set_results= cp1251|
 SET @@collation_connection= cp1251_general_ci|
 SELECT * FROM mysqltest1.v1|
 SELECT * FROM mysqltest1.v2|
+SELECT * FROM mysqltest1.v3|
 use mysqltest1|
 set names utf8|
 
 
 SHOW CREATE VIEW v1|
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _utf8'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	utf8	utf8_general_ci
 
 SHOW CREATE VIEW v2|
 View	Create View	character_set_client	collation_connection
 v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select _koi8r'����' AS `c1`	utf8	utf8_general_ci
 
+SHOW CREATE VIEW v3|
+View	Create View	character_set_client	collation_connection
+v3	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v3` AS select _koi8r'����' AS `тест`	utf8	utf8_general_ci
+
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	mysqltest1	v1	select 'тест' AS `c1`,`t1`.`кол` AS `c2` from `t1`	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
+NULL	mysqltest1	v1	select 'тест' AS `c1`,`mysqltest1`.`t1`.`кол` AS `c2` from `mysqltest1`.`t1`	NONE	YES	root@localhost	DEFINER	utf8	utf8_general_ci
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v2'|
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
 NULL	mysqltest1	v2	select 'тест' AS `c1`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
+
+SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v3'|
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
+NULL	mysqltest1	v3	select 'тест' AS `тест`	NONE	NO	root@localhost	DEFINER	utf8	utf8_general_ci
 
 
 SELECT COLLATION(c1), COLLATION(c2) FROM v1|
@@ -128,6 +162,10 @@ utf8_general_ci	binary
 SELECT COLLATION(c1) FROM v2|
 COLLATION(c1)
 koi8r_general_ci
+
+SELECT * FROM v3|
+тест
+тест
 
 ---> connection: default
 use test|

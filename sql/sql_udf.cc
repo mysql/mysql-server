@@ -382,6 +382,14 @@ static udf_func *add_udf(LEX_STRING *name, Item_result ret, char *dl,
 }
 
 
+/**
+  Create a user defined function. 
+
+  @note Like implementations of other DDL/DML in MySQL, this function
+  relies on the caller to close the thread tables. This is done in the
+  end of dispatch_command().
+*/
+
 int mysql_create_function(THD *thd,udf_func *udf)
 {
   int error;
@@ -489,7 +497,6 @@ int mysql_create_function(THD *thd,udf_func *udf)
     table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->ha_write_row(table->record[0]);
 
-  close_thread_tables(thd);
   if (error)
   {
     my_error(ER_ERROR_ON_WRITE, MYF(0), "mysql.func", error);

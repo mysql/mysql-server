@@ -595,7 +595,7 @@ CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
 		In this case the entry should not be logged.
 
   SIDE-EFFECTS
-   1. Report back to client that command succeeded (send_ok)
+   1. Report back to client that command succeeded (my_ok)
    2. Report errors to client
    3. Log event to binary log
    (The 'silent' flags turns off 1 and 3.)
@@ -660,7 +660,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
     if (!silent)
-      send_ok(thd);
+      my_ok(thd);
     error= 0;
     goto exit;
   }
@@ -749,7 +749,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
-    send_ok(thd, result);
+    my_ok(thd, result);
   }
 
 exit:
@@ -826,7 +826,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
     mysql_bin_log.write(&qinfo);
   }
-  send_ok(thd, result);
+  my_ok(thd, result);
 
 exit:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
@@ -960,7 +960,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
-    send_ok(thd, (ulong) deleted);
+    my_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
   else if (mysql_bin_log.is_open())

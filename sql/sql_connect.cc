@@ -319,7 +319,7 @@ check_user(THD *thd, enum enum_server_command command,
     if (mysql_change_db(thd, &db_str, FALSE))
       DBUG_RETURN(1);
   }
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(0);
 #else
 
@@ -468,7 +468,7 @@ check_user(THD *thd, enum enum_server_command command,
           DBUG_RETURN(1);
         }
       }
-      send_ok(thd);
+      my_ok(thd);
       thd->password= test(passwd_len);          // remember for error messages 
       /* Ready to handle queries */
       DBUG_RETURN(0);

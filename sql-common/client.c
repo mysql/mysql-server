@@ -2736,7 +2736,15 @@ get_info:
 #ifdef MYSQL_CLIENT
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
-    int error=handle_local_infile(mysql,(char*) pos);
+    int error;
+
+    if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES))
+    {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }   
+
+    error= handle_local_infile(mysql,(char*) pos);
     if ((length= cli_safe_read(mysql)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */

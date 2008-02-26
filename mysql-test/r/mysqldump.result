@@ -2011,7 +2011,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like 'a%') */
 /*!50002 WITH CASCADED CHECK OPTION */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -2182,7 +2182,7 @@ SET character_set_client = @saved_cs_client;
 /*!50001 SET collation_connection      = latin1_swedish_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`localhost` SQL SECURITY DEFINER */
-/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like _latin1'a%') */
+/*!50001 VIEW `v2` AS select `t2`.`a` AS `a` from `t2` where (`t2`.`a` like 'a%') */
 /*!50002 WITH CASCADED CHECK OPTION */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
@@ -4230,6 +4230,40 @@ LOCK TABLES `test` WRITE;
 UNLOCK TABLES;
 drop database `test-database`;
 use test;
+
+# -----------------------------------------------------------------
+# -- Bug#30217: Views: changes in metadata behaviour between 5.0 and 5.1.
+# -----------------------------------------------------------------
+
+DROP DATABASE IF EXISTS mysqldump_test_db;
+CREATE DATABASE mysqldump_test_db;
+use mysqldump_test_db;
+
+CREATE VIEW v1(x, y) AS SELECT 'a', 'a';
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+view_definition
+select 'a' AS `x`,'a' AS `y`
+
+---> Dumping mysqldump_test_db to bug30217.sql
+
+DROP DATABASE mysqldump_test_db;
+use test;
+
+---> Restoring mysqldump_test_db...
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+view_definition
+select 'a' AS `x`,'a' AS `y`
+
+DROP DATABASE mysqldump_test_db;
+
+# -- End of test case for Bug#32538.
+
 #
 # End of 5.1 tests
 #

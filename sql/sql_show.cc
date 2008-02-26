@@ -224,7 +224,7 @@ bool mysqld_show_authors(THD *thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -258,7 +258,7 @@ bool mysqld_show_contributors(THD *thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -331,7 +331,7 @@ bool mysqld_show_privileges(THD *thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -419,7 +419,7 @@ bool mysqld_show_column_types(THD *thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -666,7 +666,7 @@ mysqld_show_create(THD *thd, TABLE_LIST *table_list)
   if (protocol->write())
     DBUG_RETURN(TRUE);
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -747,7 +747,7 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
 
   if (protocol->write())
     DBUG_RETURN(TRUE);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -789,7 +789,7 @@ mysqld_list_fields(THD *thd, TABLE_LIST *table_list, const char *wild)
   table->use_all_columns();
   if (thd->protocol->send_fields(&field_list, Protocol::SEND_DEFAULTS))
     DBUG_VOID_RETURN;
-  send_eof(thd);
+  my_eof(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -1582,7 +1582,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
   */
-  table->view->unit.print(buff);
+  table->view->unit.print(buff, QT_ORDINARY);
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
@@ -1738,7 +1738,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
     if (protocol->write())
       break; /* purecov: inspected */
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_VOID_RETURN;
 }
 
@@ -6760,7 +6760,7 @@ static bool show_create_trigger_impl(THD *thd,
   ret_code= p->write();
 
   if (!ret_code)
-    send_eof(thd);
+    my_eof(thd);
 
   return ret_code != 0;
 }

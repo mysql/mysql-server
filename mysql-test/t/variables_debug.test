@@ -1,0 +1,12 @@
+--source include/have_debug.inc
+
+#
+# Bug#34678 @@debug variable's incremental mode
+#
+
+set debug= 'T';
+select @@debug;
+set debug= '+P';
+select @@debug;
+set debug= '-P';
+select @@debug;
