@@ -103,7 +103,7 @@ public:
   inline bool get_const_item_cache() { return const_item_cache; }
   Item *get_tmp_table_item(THD *thd);
   void update_used_tables();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   virtual bool have_guarded_conds() { return FALSE; }
   bool change_engine(subselect_engine *eng)
   {
@@ -203,7 +203,7 @@ protected:
 public:
   Item_maxmin_subselect(THD *thd, Item_subselect *parent,
 			st_select_lex *select_lex, bool max);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   void cleanup();
   bool any_value() { return was_values; }
   void register_value() { was_values= TRUE; }
@@ -234,7 +234,7 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool val_bool();
   void fix_length_and_dec();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
   friend class select_exists_subselect;
   friend class subselect_uniquesubquery_engine;
@@ -312,7 +312,7 @@ public:
   void top_level_item() { abort_on_null=1; }
   inline bool is_top_level_item() { return abort_on_null; }
   bool test_limit(st_select_lex_unit *unit);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
 
   friend class Item_ref_null_helper;
@@ -335,7 +335,7 @@ public:
   // only ALL subquery has upper not
   subs_type substype() { return all?ALL_SUBS:ANY_SUBS; }
   trans_res select_transformer(JOIN *join);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -399,7 +399,7 @@ public:
   virtual bool may_be_null() { return maybe_null; };
   virtual table_map upper_select_const_tables()= 0;
   static table_map calc_const_tables(TABLE_LIST *);
-  virtual void print(String *str)= 0;
+  virtual void print(String *str, enum_query_type query_type)= 0;
   virtual bool change_result(Item_subselect *si, select_subselect *result)= 0;
   virtual bool no_tables()= 0;
   virtual bool is_executed() const { return FALSE; }
@@ -430,7 +430,7 @@ public:
   uint8 uncacheable();
   void exclude();
   table_map upper_select_const_tables();
-  void print (String *str);
+  virtual void print (String *str, enum_query_type query_type);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
   bool may_be_null();
@@ -454,7 +454,7 @@ public:
   uint8 uncacheable();
   void exclude();
   table_map upper_select_const_tables();
-  void print (String *str);
+  virtual void print (String *str, enum_query_type query_type);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
   bool is_executed() const;
@@ -511,7 +511,7 @@ public:
   uint8 uncacheable() { return UNCACHEABLE_DEPENDENT; }
   void exclude();
   table_map upper_select_const_tables() { return 0; }
-  void print (String *str);
+  virtual void print (String *str, enum_query_type query_type);
   bool change_result(Item_subselect *si, select_subselect *result);
   bool no_tables();
   int scan_table();
@@ -565,7 +565,7 @@ public:
      having(having_arg)
   {}
   int exec();
-  void print (String *str);
+  virtual void print (String *str, enum_query_type query_type);
 };
 
 

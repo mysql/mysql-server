@@ -319,7 +319,7 @@ int mysql_update(THD *thd,
   if (prune_partitions(thd, table, conds))
   {
     free_underlaid_joins(thd, select_lex);
-    send_ok(thd);				// No matching records
+    my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
 #endif
@@ -336,7 +336,7 @@ int mysql_update(THD *thd,
     {
       DBUG_RETURN(1);				// Error in where
     }
-    send_ok(thd);				// No matching records
+    my_ok(thd);				// No matching records
     DBUG_RETURN(0);
   }
   if (!select && limit != HA_POS_ERROR)
@@ -643,14 +643,6 @@ int mysql_update(THD *thd,
             updated++;
           else
             error= 0;
-
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_AFTER, TRUE))
-          {
-            error= 1;
-            break;
-          }
 	}
  	else if (!ignore ||
                  table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
@@ -667,6 +659,14 @@ int mysql_update(THD *thd,
 	  error= 1;
 	  break;
 	}
+      }
+
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+      {
+        error= 1;
+        break;
       }
 
       if (!--limit && using_limit)
@@ -803,17 +803,6 @@ int mysql_update(THD *thd,
   }
   DBUG_ASSERT(transactional_table || !updated || thd->transaction.stmt.modified_non_trans_table);
   free_underlaid_joins(thd, select_lex);
-  if (transactional_table)
-  {
-    if (ha_autocommit_or_rollback(thd, error >= 0))
-      error=1;
-  }
-
-  if (thd->lock)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
 
   /* If LAST_INSERT_ID(X) was used, report X */
   id= thd->arg_of_last_insert_id_function ?
@@ -826,7 +815,7 @@ int mysql_update(THD *thd,
 	    (ulong) thd->cuted_fields);
     thd->row_count_func=
       (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-    send_ok(thd, (ulong) thd->row_count_func, id, buff);
+    my_ok(thd, (ulong) thd->row_count_func, id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
@@ -1644,12 +1633,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
             trans_safe= 0;
             thd->transaction.stmt.modified_non_trans_table= TRUE;
           }
-          if (table->triggers &&
-              table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                                TRG_ACTION_AFTER, TRUE))
-            DBUG_RETURN(1);
         }
       }
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+        DBUG_RETURN(1);
     }
     else
     {
@@ -1716,13 +1705,8 @@ void multi_update::abort()
     If not attempt to do remaining updates.
   */
 
-  if (trans_safe)
+  if (! trans_safe)
   {
-    DBUG_ASSERT(transactional_tables);
-    (void) ha_autocommit_or_rollback(thd, 1);
-  }
-  else
-  { 
     DBUG_ASSERT(thd->transaction.stmt.modified_non_trans_table);
     if (do_update && table_count > 1)
     {
@@ -1754,11 +1738,6 @@ void multi_update::abort()
     thd->transaction.all.modified_non_trans_table= TRUE;
   }
   DBUG_ASSERT(trans_safe || !updated || thd->transaction.stmt.modified_non_trans_table);
-  
-  if (transactional_tables)
-  {
-    (void) ha_autocommit_or_rollback(thd, 1);
-  }
 }
 
 
@@ -1881,12 +1860,12 @@ int multi_update::do_updates()
           updated++;
         else
           local_error= 0;
-
-        if (table->triggers &&
-            table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
-                                              TRG_ACTION_AFTER, TRUE))
-          goto err2;
       }
+
+      if (table->triggers &&
+          table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
+                                            TRG_ACTION_AFTER, TRUE))
+        goto err2;
     }
 
     if (updated != org_updated)
@@ -1996,12 +1975,6 @@ bool multi_update::send_eof()
   if (local_error != 0)
     error_handled= TRUE; // to force early leave from ::send_error()
 
-  if (transactional_tables)
-  {
-    if (ha_autocommit_or_rollback(thd, local_error != 0))
-      local_error=1;
-  }
-
   if (local_error > 0) // if the above log write did not fail ...
   {
     /* Safety: If we haven't got an error before (can happen in do_updates) */
@@ -2016,6 +1989,6 @@ bool multi_update::send_eof()
 	  (ulong) thd->cuted_fields);
   thd->row_count_func=
     (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated;
-  ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
+  ::my_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(FALSE);
 }

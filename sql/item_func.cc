@@ -374,37 +374,37 @@ table_map Item_func::not_null_tables() const
 }
 
 
-void Item_func::print(String *str)
+void Item_func::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
-  print_args(str, 0);
+  print_args(str, 0, query_type);
   str->append(')');
 }
 
 
-void Item_func::print_args(String *str, uint from)
+void Item_func::print_args(String *str, uint from, enum_query_type query_type)
 {
   for (uint i=from ; i < arg_count ; i++)
   {
     if (i != from)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
 }
 
 
-void Item_func::print_op(String *str)
+void Item_func::print_op(String *str, enum_query_type query_type)
 {
   str->append('(');
   for (uint i=0 ; i < arg_count-1 ; i++)
   {
-    args[i]->print(str);
+    args[i]->print(str, query_type);
     str->append(' ');
     str->append(func_name());
     str->append(' ');
   }
-  args[arg_count-1]->print(str);
+  args[arg_count-1]->print(str, query_type);
   str->append(')');
 }
 
@@ -884,10 +884,10 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 }
 
 
-void Item_func_signed::print(String *str)
+void Item_func_signed::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 
 }
@@ -955,10 +955,10 @@ longlong Item_func_signed::val_int()
 }
 
 
-void Item_func_unsigned::print(String *str)
+void Item_func_unsigned::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as unsigned)"));
 
 }
@@ -1064,7 +1064,7 @@ err:
 }
 
 
-void Item_decimal_typecast::print(String *str)
+void Item_decimal_typecast::print(String *str, enum_query_type query_type)
 {
   char len_buf[20*3 + 1];
   char *end;
@@ -1072,7 +1072,7 @@ void Item_decimal_typecast::print(String *str)
   uint precision= my_decimal_length_to_precision(max_length, decimals,
                                                  unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as decimal("));
 
   end=int10_to_str(precision, len_buf,10);
@@ -2537,16 +2537,16 @@ longlong Item_func_locate::val_int()
 }
 
 
-void Item_func_locate::print(String *str)
+void Item_func_locate::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("locate("));
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(',');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (arg_count == 3)
   {
     str->append(',');
-    args[2]->print(str);
+    args[2]->print(str, query_type);
   }
   str->append(')');
 }
@@ -3095,7 +3095,7 @@ void Item_udf_func::cleanup()
 }
 
 
-void Item_udf_func::print(String *str)
+void Item_udf_func::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -3103,7 +3103,7 @@ void Item_udf_func::print(String *str)
   {
     if (i != 0)
       str->append(',');
-    args[i]->print_item_w_name(str);
+    args[i]->print_item_w_name(str, query_type);
   }
   str->append(')');
 }
@@ -3683,12 +3683,12 @@ longlong Item_func_benchmark::val_int()
 }
 
 
-void Item_func_benchmark::print(String *str)
+void Item_func_benchmark::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("benchmark("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(',');
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(')');
 }
 
@@ -4264,22 +4264,23 @@ my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
 }
 
 
-void Item_func_set_user_var::print(String *str)
+void Item_func_set_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   str->append(name.str, name.length);
   str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
 
-void Item_func_set_user_var::print_as_stmt(String *str)
+void Item_func_set_user_var::print_as_stmt(String *str,
+                                           enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("set @"));
   str->append(name.str, name.length);
   str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
@@ -4652,7 +4653,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 }
 
 
-void Item_func_get_user_var::print(String *str)
+void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   str->append(name.str,name.length);
@@ -4750,7 +4751,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 }
 
 
-void Item_user_var_as_out_param::print(String *str)
+void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
   str->append(name.str,name.length);
@@ -5089,12 +5090,12 @@ double Item_func_match::val_real()
                                                  table->record[0], 0));
 }
 
-void Item_func_match::print(String *str)
+void Item_func_match::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(match "));
-  print_args(str, 1);
+  print_args(str, 1, query_type);
   str->append(STRING_WITH_LEN(" against ("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (flags & FT_BOOL)
     str->append(STRING_WITH_LEN(" in boolean mode"));
   else if (flags & FT_EXPAND)
@@ -5505,7 +5506,7 @@ Item_result
 Item_func_sp::result_type() const
 {
   DBUG_ENTER("Item_func_sp::result_type");
-  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+  DBUG_PRINT("info", ("m_sp = %p", (void *) m_sp));
   DBUG_ASSERT(sp_result_field);
   DBUG_RETURN(sp_result_field->result_type());
 }

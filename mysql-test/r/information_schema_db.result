@@ -210,7 +210,7 @@ v2
 select view_definition from information_schema.views a 
 where a.table_name = 'v2';
 view_definition
-select f1 from testdb_1.v1
+select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
 select view_definition from information_schema.views a 
 where a.table_name = 'testdb_1.v1';
 view_definition
