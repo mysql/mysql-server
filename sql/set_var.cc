@@ -3926,10 +3926,8 @@ bool sys_var_thd_dbug::update(THD *thd, set_var *var)
   if (var->type == OPT_GLOBAL)
     DBUG_SET_INITIAL(var ? var->value->str_value.c_ptr() : "");
   else
-  {
-    DBUG_POP();
-    DBUG_PUSH(var ? var->value->str_value.c_ptr() : "");
-  }
+    DBUG_SET(var ? var->value->str_value.c_ptr() : "");
+
   return 0;
 }
 
