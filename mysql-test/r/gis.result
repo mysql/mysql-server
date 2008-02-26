@@ -439,12 +439,12 @@ explain extended SELECT AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext(_latin1'POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
+Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(GeometryFromText('POINT(1 4)'))))`
 explain extended SELECT AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext(_latin1'POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
+Note	1003	select astext(geometryfromwkb(aswkb(geometryfromtext('POINT(1 4)')))) AS `AsText(GeometryFromWKB(AsWKB(PointFromText('POINT(1 4)'))))`
 SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 SRID(GeomFromText('LineString(1 1,2 2)',101))
 101
@@ -452,7 +452,7 @@ explain extended SELECT SRID(GeomFromText('LineString(1 1,2 2)',101));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select srid(geometryfromtext(_latin1'LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
+Note	1003	select srid(geometryfromtext('LineString(1 1,2 2)',101)) AS `SRID(GeomFromText('LineString(1 1,2 2)',101))`
 explain extended select issimple(MultiPoint(Point(3, 6), Point(4, 10))), issimple(Point(3, 6));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

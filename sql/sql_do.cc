@@ -28,7 +28,17 @@ bool mysql_do(THD *thd, List<Item> &values)
   while ((value = li++))
     value->val_int();
   free_underlaid_joins(thd, &thd->lex->select_lex);
-  thd->clear_error(); // DO always is OK
-  send_ok(thd);
+
+  if (thd->is_error())
+  {
+    /*
+      Rollback the effect of the statement, since next instruction
+      will clear the error and the rollback in the end of
+      dispatch_command() won't work.
+    */
+    ha_autocommit_or_rollback(thd, thd->is_error());
+    thd->clear_error(); // DO always is OK
+  }
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }

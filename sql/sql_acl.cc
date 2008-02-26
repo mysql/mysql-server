@@ -3176,7 +3176,7 @@ bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   rw_unlock(&LOCK_grant);
 
   if (!result) /* success */
-    send_ok(thd);
+    my_ok(thd);
 
   /* Tables are automatically closed */
   thd->lex->restore_backup_query_tables_list(&backup);
@@ -3344,7 +3344,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   rw_unlock(&LOCK_grant);
 
   if (!result && !no_error)
-    send_ok(thd);
+    my_ok(thd);
 
   /* Tables are automatically closed */
   DBUG_RETURN(result);
@@ -3460,7 +3460,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   close_thread_tables(thd);
 
   if (!result)
-    send_ok(thd);
+    my_ok(thd);
 
   DBUG_RETURN(result);
 }
@@ -4815,7 +4815,7 @@ end:
   VOID(pthread_mutex_unlock(&acl_cache->lock));
   rw_unlock(&LOCK_grant);
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(error);
 }
 

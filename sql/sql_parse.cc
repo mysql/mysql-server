@@ -913,7 +913,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
       general_log_write(thd, command, thd->db, thd->db_length);
-      send_ok(thd);
+      my_ok(thd);
     }
     break;
   }
@@ -921,7 +921,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_REGISTER_SLAVE:
   {
     if (!register_slave(thd, (uchar*)packet, packet_length))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
 #endif
@@ -1322,7 +1322,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     general_log_print(thd, command, NullS);
     if (!reload_acl_and_cache(thd, options, (TABLE_LIST*) 0, &not_used))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
 #ifndef EMBEDDED_LIBRARY
@@ -1348,7 +1348,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     }
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
     general_log_print(thd, command, NullS);
-    send_eof(thd);
+    my_eof(thd);
     close_thread_tables(thd);			// Free before kill
     kill_mysql();
     error=TRUE;
@@ -1386,7 +1386,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                         (uint) (queries_per_second1000 % 1000));
 #ifdef EMBEDDED_LIBRARY
     /* Store the buffer in permanent memory */
-    send_ok(thd, 0, 0, buff);
+    my_ok(thd, 0, 0, buff);
 #endif
 #ifdef SAFEMALLOC
     if (sf_malloc_cur_memory)				// Using SAFEMALLOC
@@ -1407,7 +1407,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_PING:
     status_var_increment(thd->status_var.com_other);
-    send_ok(thd);				// Tell client we are alive
+    my_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]);
@@ -1434,11 +1434,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     switch (opt_command) {
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_ON:
       thd->client_capabilities|= CLIENT_MULTI_STATEMENTS;
-      send_eof(thd);
+      my_eof(thd);
       break;
     case (int) MYSQL_OPTION_MULTI_STATEMENTS_OFF:
       thd->client_capabilities&= ~CLIENT_MULTI_STATEMENTS;
-      send_eof(thd);
+      my_eof(thd);
       break;
     default:
       my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
@@ -1452,7 +1452,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;					/* purecov: inspected */
     mysql_print_status();
     general_log_print(thd, command, NullS);
-    send_eof(thd);
+    my_eof(thd);
     break;
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here
@@ -1464,21 +1464,13 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
 
-  thd_proc_info(thd, "closing tables");
-  /* Free tables */
-  close_thread_tables(thd);
+  /* If commit fails, we should be able to reset the OK status. */
+  thd->main_da.can_overwrite_status= TRUE;
+  ha_autocommit_or_rollback(thd, thd->is_error());
+  thd->main_da.can_overwrite_status= FALSE;
 
-  /*
-    assume handlers auto-commit (if some doesn't - transaction handling
-    in MySQL should be redesigned to support it; it's a big change,
-    and it's not worth it - better to commit explicitly only writing
-    transactions, read-only ones should better take care of themselves.
-    saves some work in 2pc too)
-    see also sql_base.cc - close_thread_tables()
-  */
-  bzero(&thd->transaction.stmt, sizeof(thd->transaction.stmt));
-  if (!thd->active_transaction())
-    thd->transaction.xid_state.xid.null();
+  thd->transaction.stmt.reset();
+
 
   /* report error issued during command execution */
   if (thd->killed_errno())
@@ -1494,6 +1486,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   net_end_statement(thd);
   query_cache_end_of_result(thd);
+
+  thd->proc_info= "closing tables";
+  /* Free tables */
+  close_thread_tables(thd);
 
   log_slow_statement(thd);
 
@@ -2079,7 +2075,7 @@ mysql_execute_command(THD *thd)
     break;
 
   case SQLCOM_EMPTY_QUERY:
-    send_ok(thd);
+    my_ok(thd);
     break;
 
   case SQLCOM_HELP:
@@ -2246,7 +2242,7 @@ mysql_execute_command(THD *thd)
     {
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
                    "the master info structure does not exist");
-      send_ok(thd);
+      my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
     break;
@@ -2304,7 +2300,7 @@ mysql_execute_command(THD *thd)
     if (!fetch_master_table(thd, first_table->db, first_table->table_name,
 			    active_mi, 0, 0))
     {
-      send_ok(thd);
+      my_ok(thd);
     }
     pthread_mutex_unlock(&LOCK_active_mi);
     break;
@@ -2515,7 +2511,7 @@ mysql_execute_command(THD *thd)
                                 &alter_info, 0, 0);
       }
       if (!res)
-	send_ok(thd);
+	my_ok(thd);
     }
 
     /* put tables back for PS rexecuting */
@@ -3010,10 +3006,8 @@ end_with_restore_list:
           /* INSERT ... SELECT should invalidate only the very first table */
           TABLE_LIST *save_table= first_table->next_local;
           first_table->next_local= 0;
-          mysql_unlock_tables(thd, thd->lock);
           query_cache_invalidate3(thd, first_table, 1);
           first_table->next_local= save_table;
-          thd->lock=0;
         }
         delete sel_result;
       }
@@ -3200,7 +3194,7 @@ end_with_restore_list:
     LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
 
     if (!mysql_change_db(thd, &db_str, FALSE))
-      send_ok(thd);
+      my_ok(thd);
 
     break;
   }
@@ -3253,7 +3247,7 @@ end_with_restore_list:
         about the ONE_SHOT property of that SET. So we use a |= instead of = .
       */
       thd->one_shot_set|= lex->one_shot_set;
-      send_ok(thd);
+      my_ok(thd);
     }
     break;
   }
@@ -3273,7 +3267,7 @@ end_with_restore_list:
     }
     if (thd->global_read_lock)
       unlock_global_read_lock(thd);
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
     unlock_locked_tables(thd);
@@ -3294,7 +3288,7 @@ end_with_restore_list:
 #endif /*HAVE_QUERY_CACHE*/
       thd->locked_tables=thd->lock;
       thd->lock=0;
-      send_ok(thd);
+      my_ok(thd);
     }
     else
     {
@@ -3431,7 +3425,7 @@ end_with_restore_list:
 
     res= mysql_upgrade_db(thd, db);
     if (!res)
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
   case SQLCOM_ALTER_DB:
@@ -3516,7 +3510,7 @@ end_with_restore_list:
     }
     DBUG_PRINT("info",("DDL error code=%d", res));
     if (!res)
-      send_ok(thd);
+      my_ok(thd);
 
   } while (0);
   /* Don't do it, if we are inside a SP */
@@ -3535,7 +3529,7 @@ end_with_restore_list:
     if (!(res= Events::drop_event(thd,
                                   lex->spname->m_db, lex->spname->m_name,
                                   lex->drop_if_exists)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   case SQLCOM_CREATE_FUNCTION:                  // UDF function
   {
@@ -3543,7 +3537,7 @@ end_with_restore_list:
       break;
 #ifdef HAVE_DLOPEN
     if (!(res = mysql_create_function(thd, &lex->udf)))
-      send_ok(thd);
+      my_ok(thd);
 #else
     my_error(ER_CANT_OPEN_LIBRARY, MYF(0), lex->udf.dl, 0, "feature disabled");
     res= TRUE;
@@ -3560,7 +3554,7 @@ end_with_restore_list:
       goto error;
     /* Conditionally writes to binlog */
     if (!(res= mysql_create_user(thd, lex->users_list)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
   case SQLCOM_DROP_USER:
@@ -3572,7 +3566,7 @@ end_with_restore_list:
       goto error;
     /* Conditionally writes to binlog */
     if (!(res= mysql_drop_user(thd, lex->users_list)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
   case SQLCOM_RENAME_USER:
@@ -3584,7 +3578,7 @@ end_with_restore_list:
       goto error;
     /* Conditionally writes to binlog */
     if (!(res= mysql_rename_user(thd, lex->users_list)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
   case SQLCOM_REVOKE_ALL:
@@ -3596,7 +3590,7 @@ end_with_restore_list:
       break;
     /* Conditionally writes to binlog */
     if (!(res = mysql_revoke_all(thd, lex->users_list)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   }
   case SQLCOM_REVOKE:
@@ -3733,7 +3727,7 @@ end_with_restore_list:
       {
         write_bin_log(thd, FALSE, thd->query, thd->query_length);
       }
-      send_ok(thd);
+      my_ok(thd);
     } 
     
     break;
@@ -3805,19 +3799,19 @@ end_with_restore_list:
     }
     if (begin_trans(thd))
       goto error;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_COMMIT:
     if (end_trans(thd, lex->tx_release ? COMMIT_RELEASE :
                               lex->tx_chain ? COMMIT_AND_CHAIN : COMMIT))
       goto error;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_ROLLBACK:
     if (end_trans(thd, lex->tx_release ? ROLLBACK_RELEASE :
                               lex->tx_chain ? ROLLBACK_AND_CHAIN : ROLLBACK))
       goto error;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_RELEASE_SAVEPOINT:
   {
@@ -3834,7 +3828,7 @@ end_with_restore_list:
       if (ha_release_savepoint(thd, sv))
         res= TRUE; // cannot happen
       else
-        send_ok(thd);
+        my_ok(thd);
       thd->transaction.savepoints=sv->prev;
     }
     else
@@ -3863,7 +3857,7 @@ end_with_restore_list:
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_WARNING_NOT_COMPLETE_ROLLBACK,
                        ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
-        send_ok(thd);
+        my_ok(thd);
       }
       thd->transaction.savepoints=sv;
     }
@@ -3874,7 +3868,7 @@ end_with_restore_list:
   case SQLCOM_SAVEPOINT:
     if (!(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN) ||
           thd->in_sub_stmt) || !opt_using_transactions)
-      send_ok(thd);
+      my_ok(thd);
     else
     {
       SAVEPOINT **sv, *newsv;
@@ -3911,7 +3905,7 @@ end_with_restore_list:
       {
         newsv->prev=thd->transaction.savepoints;
         thd->transaction.savepoints=newsv;
-        send_ok(thd);
+        my_ok(thd);
       }
     }
     break;
@@ -3984,7 +3978,6 @@ end_with_restore_list:
           push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                        ER_PROC_AUTO_GRANT_FAIL,
                        ER(ER_PROC_AUTO_GRANT_FAIL));
-        close_thread_tables(thd);
       }
 #endif
     break;
@@ -4012,7 +4005,7 @@ end_with_restore_list:
 create_sp_error:
     if (sp_result != SP_OK )
       goto error;
-    send_ok(thd);
+    my_ok(thd);
     break; /* break super switch */
   } /* end case group bracket */
   case SQLCOM_CALL:
@@ -4105,8 +4098,8 @@ create_sp_error:
         thd->server_status&= ~bits_to_be_cleared;
 
 	if (!res)
-	  send_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
-                                thd->row_count_func));
+          my_ok(thd, (ulong) (thd->row_count_func < 0 ? 0 :
+                              thd->row_count_func));
 	else
         {
           DBUG_ASSERT(thd->is_error() || thd->killed);
@@ -4183,7 +4176,7 @@ create_sp_error:
       switch (sp_result)
       {
       case SP_OK:
-	send_ok(thd);
+	my_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4248,7 +4241,7 @@ create_sp_error:
 
 	    if (!(res = mysql_drop_function(thd, &lex->spname->m_name)))
 	    {
-	      send_ok(thd);
+	      my_ok(thd);
 	      break;
 	    }
 	  }
@@ -4265,7 +4258,7 @@ create_sp_error:
       res= sp_result;
       switch (sp_result) {
       case SP_OK:
-	send_ok(thd);
+	my_ok(thd);
 	break;
       case SP_KEY_NOT_FOUND:
 	if (lex->drop_if_exists)
@@ -4274,7 +4267,7 @@ create_sp_error:
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
 			      SP_COM_STRING(lex), lex->spname->m_name.str);
 	  res= FALSE;
-	  send_ok(thd);
+	  my_ok(thd);
 	  break;
 	}
 	my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
@@ -4406,7 +4399,7 @@ create_sp_error:
         break;
       }
       thd->transaction.xid_state.xa_state=XA_ACTIVE;
-      send_ok(thd);
+      my_ok(thd);
       break;
     }
     if (thd->lex->xa_opt != XA_NONE)
@@ -4437,7 +4430,7 @@ create_sp_error:
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->options= ((thd->options & ~(OPTION_KEEP_LOG)) | OPTION_BEGIN);
     thd->server_status|= SERVER_STATUS_IN_TRANS;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_XA_END:
     /* fake it */
@@ -4458,7 +4451,7 @@ create_sp_error:
       break;
     }
     thd->transaction.xid_state.xa_state=XA_IDLE;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_XA_PREPARE:
     if (thd->transaction.xid_state.xa_state != XA_IDLE)
@@ -4480,7 +4473,7 @@ create_sp_error:
       break;
     }
     thd->transaction.xid_state.xa_state=XA_PREPARED;
-    send_ok(thd);
+    my_ok(thd);
     break;
   case SQLCOM_XA_COMMIT:
     if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
@@ -4492,7 +4485,7 @@ create_sp_error:
       {
         ha_commit_or_rollback_by_xid(thd->lex->xid, 1);
         xid_cache_delete(xs);
-        send_ok(thd);
+        my_ok(thd);
       }
       break;
     }
@@ -4503,7 +4496,7 @@ create_sp_error:
       if ((r= ha_commit(thd)))
         my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
       else
-        send_ok(thd);
+        my_ok(thd);
     }
     else if (thd->transaction.xid_state.xa_state == XA_PREPARED &&
              thd->lex->xa_opt == XA_NONE)
@@ -4518,7 +4511,7 @@ create_sp_error:
         if (ha_commit_one_phase(thd, 1))
           my_error(ER_XAER_RMERR, MYF(0));
         else
-          send_ok(thd);
+          my_ok(thd);
         start_waiting_global_read_lock(thd);
       }
     }
@@ -4544,7 +4537,7 @@ create_sp_error:
       {
         ha_commit_or_rollback_by_xid(thd->lex->xid, 0);
         xid_cache_delete(xs);
-        send_ok(thd);
+        my_ok(thd);
       }
       break;
     }
@@ -4558,7 +4551,7 @@ create_sp_error:
     if (ha_rollback(thd))
       my_error(ER_XAER_RMERR, MYF(0));
     else
-      send_ok(thd);
+      my_ok(thd);
     thd->options&= ~(OPTION_BEGIN | OPTION_KEEP_LOG);
     thd->transaction.all.modified_non_trans_table= FALSE;
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
@@ -4572,16 +4565,16 @@ create_sp_error:
     if (check_access(thd, ALTER_ACL, thd->db, 0, 1, 0, thd->db ? is_schema_db(thd->db) : 0))
       break;
     if (!(res= mysql_alter_tablespace(thd, lex->alter_tablespace_info)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   case SQLCOM_INSTALL_PLUGIN:
     if (! (res= mysql_install_plugin(thd, &thd->lex->comment,
                                      &thd->lex->ident)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   case SQLCOM_UNINSTALL_PLUGIN:
     if (! (res= mysql_uninstall_plugin(thd, &thd->lex->comment)))
-      send_ok(thd);
+      my_ok(thd);
     break;
   case SQLCOM_BINLOG_BASE64_EVENT:
   {
@@ -4608,7 +4601,7 @@ create_sp_error:
       my_error(error, MYF(0), lex->server_options.server_name);
       break;
     }
-    send_ok(thd, 1);
+    my_ok(thd, 1);
     break;
   }
   case SQLCOM_ALTER_SERVER:
@@ -4627,7 +4620,7 @@ create_sp_error:
       my_error(error, MYF(0), lex->server_options.server_name);
       break;
     }
-    send_ok(thd, 1);
+    my_ok(thd, 1);
     break;
   }
   case SQLCOM_DROP_SERVER:
@@ -4649,18 +4642,18 @@ create_sp_error:
       }
       else
       {
-        send_ok(thd, 0);
+        my_ok(thd, 0);
       }
       break;
     }
-    send_ok(thd, 1);
+    my_ok(thd, 1);
     break;
   }
   default:
 #ifndef EMBEDDED_LIBRARY
     DBUG_ASSERT(0);                             /* Impossible */
 #endif
-    send_ok(thd);
+    my_ok(thd);
     break;
   }
   thd_proc_info(thd, "query end");
@@ -4736,7 +4729,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         char buff[1024];
         String str(buff,(uint32) sizeof(buff), system_charset_info);
         str.length(0);
-        thd->lex->unit.print(&str);
+        thd->lex->unit.print(&str, QT_ORDINARY);
         str.append('\0');
         push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
                      ER_YES, str.ptr());
@@ -6459,6 +6452,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
     {
       thd->thread_stack= (char*) &tmp_thd;
       thd->store_globals();
+      lex_start(thd);
     }
     if (thd)
     {
@@ -6671,7 +6665,7 @@ void sql_kill(THD *thd, ulong id, bool only_kill_query)
 {
   uint error;
   if (!(error= kill_one_thread(thd, id, only_kill_query)))
-    send_ok(thd);
+    my_ok(thd);
   else
     my_error(error, MYF(0), id);
 }

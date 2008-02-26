@@ -225,7 +225,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "trim"; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   virtual const char *mode_name() const { return "both"; }
 };
 
@@ -482,7 +482,7 @@ public:
       Item_str_func::walk(processor, walk_subquery, arg);
   }
   Item *transform(Item_transformer transformer, uchar *arg);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -494,7 +494,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "format"; }
-  void print(String *);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -617,7 +617,7 @@ public:
     collation.set(&my_charset_bin);
     max_length=args[0]->max_length;
   }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "cast_as_binary"; }
 };
 
@@ -719,7 +719,7 @@ public:
   String *val_str(String *);
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 class Item_func_set_collation :public Item_str_func
@@ -731,7 +731,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   const char *func_name() const { return "collate"; }
   enum Functype functype() const { return COLLATE_FUNC; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   Item_field *filed_for_view_update()
   {
     /* this function is transparent for view updating */
