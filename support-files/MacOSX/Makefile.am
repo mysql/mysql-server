@@ -47,7 +47,7 @@ SUFFIXES = .sh
 	@SED@ \
 		-e 's!@''prefix''@!$(prefix)!g' \
 	  -e 's!@''VERSION''@!@VERSION@!' \
-	  -e 's!@''MYSQL_NO_DASH_VERSION''@!@MYSQL_NO_DASH_VERSION@!' \
+	  -e 's!@''MYSQL_NUMERIC_VERSION''@!@MYSQL_NUMERIC_VERSION@!' \
 	  -e 's!@''MYSQL_SERVER_SUFFIX''@!@MYSQL_SERVER_SUFFIX@!' \
 		-e 's!@''MYSQLD_USER''@!@MYSQLD_USER@!' \
 	$< > $@-t
