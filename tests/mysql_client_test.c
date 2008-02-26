@@ -8985,6 +8985,7 @@ static void test_sqlmode()
     fprintf(stdout, "\n  query: %s", query);
   stmt= mysql_simple_prepare(mysql, query);
   check_stmt(stmt);
+  mysql_stmt_close(stmt);
 
   /* ANSI */
   strmov(query, "SET SQL_MODE= \"ANSI\"");
@@ -17334,11 +17335,35 @@ static void test_bug28386()
   int rc;
   MYSQL_STMT *stmt;
   MYSQL_RES *result;
+  MYSQL_ROW row;
   MYSQL_BIND bind;
   const char hello[]= "hello world!";
 
   DBUG_ENTER("test_bug28386");
   myheader("test_bug28386");
+
+  rc= mysql_query(mysql, "select @@global.log_output");
+  myquery(rc);
+
+  result= mysql_store_result(mysql);
+  DIE_UNLESS(result);
+
+  row= mysql_fetch_row(result);
+  if (! strstr(row[0], "TABLE"))
+  {
+    mysql_free_result(result);
+    if (! opt_silent)
+      printf("Skipping the test since logging to tables is not enabled\n");
+    /* Log output is not to tables */
+    return;
+  }
+  mysql_free_result(result);
+
+  rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.general_log=on");
+  myquery(rc);
 
   rc= mysql_query(mysql, "truncate mysql.general_log");
   myquery(rc);
@@ -17379,6 +17404,9 @@ static void test_bug28386()
   DIE_UNLESS(mysql_num_rows(result) == 3);
 
   mysql_free_result(result);
+
+  rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
 
   DBUG_VOID_RETURN;
 }
