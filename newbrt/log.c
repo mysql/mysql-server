@@ -236,10 +236,10 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	txn->newest_logentry = txn->oldest_logentry = 0;
     }
  free_and_return: /*nothing*/;
-    struct log_entry *item;
+    struct roll_entry *item;
     while ((item=txn->newest_logentry)) {
 	txn->newest_logentry = item->prev;
-	logtype_dispatch(item, toku_free_logtype_);
+	rolltype_dispatch(item, toku_free_rolltype_);
 	toku_free(item);
     }
     list_remove(&txn->live_txns_link);
@@ -280,7 +280,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
     int r = toku_log_fcreate (txn->logger, toku_txn_get_txnid(txn), bs, mode);
     if (r!=0) return r;
-    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs, mode);
+    r = toku_logger_save_rollback_fcreate(txn, bs);
     return r;
 }
 
@@ -608,13 +608,13 @@ int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unuse
 int toku_logger_abort(TOKUTXN txn) {
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
-    struct log_entry *item;
+    struct roll_entry *item;
     while ((item=txn->newest_logentry)) {
 	txn->newest_logentry = item->prev;
 	int r;
-	logtype_dispatch_assign_rollback(item, toku_rollback_, r, txn);
+	rolltype_dispatch_assign(item, toku_rollback_, r, txn);
 	if (r!=0) return r;
-	logtype_dispatch(item, toku_free_logtype_);
+	rolltype_dispatch(item, toku_free_rolltype_);
 	toku_free(item);
     }
     list_remove(&txn->live_txns_link);
