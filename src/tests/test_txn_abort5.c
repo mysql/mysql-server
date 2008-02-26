@@ -44,6 +44,16 @@ void test_txn_abort(int n) {
 #else
     if (r != 0) printf("%s:%d:abort:%d\n", __FILE__, __LINE__, r);
 #endif
+    /* walk the db, should be empty */
+    r = env->txn_begin(env, 0, &txn, 0); assert(r == 0);
+    DBC *cursor;
+    r = db->cursor(db, txn, &cursor, 0); assert(r == 0);
+    DBT key; memset(&key, 0, sizeof key);
+    DBT val; memset(&val, 0, sizeof val);
+    r = cursor->c_get(cursor, &key, &val, DB_FIRST); 
+    assert(r == DB_NOTFOUND);
+    r = cursor->c_close(cursor); assert(r == 0);
+    r = txn->commit(txn, 0);
 
     r = db->close(db, 0); assert(r == 0);
     r = env->close(env, 0); assert(r == 0);
