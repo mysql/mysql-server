@@ -8702,8 +8702,8 @@ static void test_sqlmode()
   strmov(c1, "My"); strmov(c2, "SQL");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
-
   mysql_stmt_close(stmt);
+
   verify_col_data("test_piping", "name", "MySQL");
 
   rc= mysql_query(mysql, "DELETE FROM test_piping");
@@ -12993,7 +12993,7 @@ from t2);");
 static void test_bug8378()
 {
 #if defined(HAVE_CHARSET_gbk) && !defined(EMBEDDED_LIBRARY)
-  MYSQL *old_mysql=mysql;
+  MYSQL *lmysql;
   char out[9]; /* strlen(TEST_BUG8378)*2+1 */
   char buf[256];
   int len, rc;
@@ -13002,17 +13002,17 @@ static void test_bug8378()
 
   if (!opt_silent)
     fprintf(stdout, "\n Establishing a test connection ...");
-  if (!(mysql= mysql_init(NULL)))
+  if (!(lmysql= mysql_init(NULL)))
   {
     myerror("mysql_init() failed");
     exit(1);
   }
-  if (mysql_options(mysql, MYSQL_SET_CHARSET_NAME, "gbk"))
+  if (mysql_options(lmysql, MYSQL_SET_CHARSET_NAME, "gbk"))
   {
     myerror("mysql_options() failed");
     exit(1);
   }
-  if (!(mysql_real_connect(mysql, opt_host, opt_user,
+  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
                            opt_password, current_db, opt_port,
                            opt_unix_socket, 0)))
   {
@@ -13022,19 +13022,17 @@ static void test_bug8378()
   if (!opt_silent)
     fprintf(stdout, " OK");
 
-  len= mysql_real_escape_string(mysql, out, TEST_BUG8378_IN, 4);
+  len= mysql_real_escape_string(lmysql, out, TEST_BUG8378_IN, 4);
 
   /* No escaping should have actually happened. */
   DIE_UNLESS(memcmp(out, TEST_BUG8378_OUT, len) == 0);
 
   sprintf(buf, "SELECT '%s'", out);
   
-  rc=mysql_real_query(mysql, buf, strlen(buf));
+  rc=mysql_real_query(lmysql, buf, strlen(buf));
   myquery(rc);
 
-  mysql_close(mysql);
-
-  mysql=old_mysql;
+  mysql_close(lmysql);
 #endif
 }
 
@@ -14869,7 +14867,7 @@ static void test_opt_reconnect()
   if (mysql_options(lmysql, MYSQL_OPT_RECONNECT, &my_true))
   {
     myerror("mysql_options failed: unknown option MYSQL_OPT_RECONNECT\n");
-    exit(1);
+    DIE_UNLESS(0);
   }
 
   /* reconnect should be 1 */
@@ -14882,7 +14880,7 @@ static void test_opt_reconnect()
                            opt_unix_socket, 0)))
   {
     myerror("connection failed");
-    exit(1);
+    DIE_UNLESS(0);
   }
 
   /* reconnect should still be 1 */
@@ -14896,7 +14894,7 @@ static void test_opt_reconnect()
   if (!(lmysql= mysql_init(NULL)))
   {
     myerror("mysql_init() failed");
-    exit(1);
+    DIE_UNLESS(0);
   }
 
   if (!opt_silent)
@@ -14908,7 +14906,7 @@ static void test_opt_reconnect()
                            opt_unix_socket, 0)))
   {
     myerror("connection failed");
-    exit(1);
+    DIE_UNLESS(0);
   }
 
   /* reconnect should still be 0 */
@@ -14926,32 +14924,32 @@ static void test_opt_reconnect()
 static void test_bug12744()
 {
   MYSQL_STMT *prep_stmt = NULL;
+  MYSQL *lmysql;
   int rc;
   myheader("test_bug12744");
 
-  prep_stmt= mysql_stmt_init(mysql);
+  lmysql= mysql_init(NULL);
+  DIE_UNLESS(lmysql);
+
+  if (!mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
+                          current_db, opt_port, opt_unix_socket, 0))
+  {
+    fprintf(stderr, "Failed to connect to the database\n");
+    DIE_UNLESS(0);
+  }
+
+  prep_stmt= mysql_stmt_init(lmysql);
   rc= mysql_stmt_prepare(prep_stmt, "SELECT 1", 8);
-  DIE_UNLESS(rc==0);
+  DIE_UNLESS(rc == 0);
 
-  mysql_close(mysql);
+  mysql_close(lmysql);
 
-  if ((rc= mysql_stmt_execute(prep_stmt)))
-  {
-    if ((rc= mysql_stmt_reset(prep_stmt)))
-      printf("OK!\n");
-    else
-    {
-      printf("Error!");
-      DIE_UNLESS(1==0);
-    }
-  }
-  else
-  {
-    fprintf(stderr, "expected error but no error occured\n");
-    DIE_UNLESS(1==0);
-  }
+  rc= mysql_stmt_execute(prep_stmt);
+  DIE_UNLESS(rc);
+  rc= mysql_stmt_reset(prep_stmt);
+  DIE_UNLESS(rc);
   rc= mysql_stmt_close(prep_stmt);
-  client_connect(0);
+  DIE_UNLESS(rc == 0);
 }
 
 #endif /* EMBEDDED_LIBRARY */
@@ -15759,6 +15757,7 @@ static void test_bug24179()
            mysql_stmt_error(stmt));
   }
   DIE_UNLESS(mysql_stmt_errno(stmt) == 1323);
+  mysql_stmt_close(stmt);
 
   DBUG_VOID_RETURN;
 }
@@ -15801,6 +15800,7 @@ static void test_bug27876()
   myquery(rc);
   result= mysql_store_result(mysql);
   mytest(result);
+  mysql_free_result(result);
 
   sprintf(query, "DROP FUNCTION IF EXISTS %s", utf8_func);
   rc= mysql_query(mysql, query);
@@ -15817,6 +15817,7 @@ static void test_bug27876()
   myquery(rc);
   result= mysql_store_result(mysql);
   mytest(result);
+  mysql_free_result(result);
 
   sprintf(query, "DROP FUNCTION %s", utf8_func);
   rc= mysql_query(mysql, query);
@@ -15965,6 +15966,7 @@ static void test_bug29948()
     exit(1);
   }
 
+  bzero(&bind, sizeof(bind));
   bind.buffer_type= MYSQL_TYPE_LONG;
   bind.buffer= (char *)&buf;
   bind.is_null= &is_null;
@@ -16162,6 +16164,7 @@ static void test_bug32265()
   int rc;
   MYSQL_STMT *stmt;
   MYSQL_FIELD *field;
+  MYSQL_RES *metadata;
 
   DBUG_ENTER("test_bug32265");
   myheader("test_bug32265");
@@ -16179,50 +16182,61 @@ static void test_bug32265()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
+  DIE_UNLESS(field);
   DIE_UNLESS(strcmp(field->table, "t1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT a '' FROM t1 ``");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT a '' FROM t1 ``");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT * FROM v1");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   stmt= open_cursor("SELECT * FROM v1 /* SIC */ GROUP BY 1");
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
-  field= stmt->mysql->fields;
+  metadata= mysql_stmt_result_metadata(stmt);
+  field= mysql_fetch_field(metadata);
   DIE_UNLESS(strcmp(field->table, "v1") == 0);
   DIE_UNLESS(strcmp(field->org_table, "t1") == 0);
   DIE_UNLESS(strcmp(field->db, "client_test_db") == 0);
+  mysql_free_result(metadata);
   mysql_stmt_close(stmt);
 
   rc= mysql_query(mysql, "DROP VIEW v1");
