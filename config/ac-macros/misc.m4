@@ -756,7 +756,7 @@ case $SYSTEM_TYPE in
 esac
 if test "$CXX_VERSION"
 then
-  AC_MSG_CHECKING("C++ compiler version");
+  AC_MSG_CHECKING("C++ compiler version")
   AC_MSG_RESULT("$CXX $CXX_VERSION")
 fi
 AC_SUBST(CXX_VERSION)
