@@ -1391,7 +1391,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             } else
                 goto died0a;
 	}
-	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
+	r=toku_cachetable_openfd(&t->cf, cachetable, fd, t);
         if (r != 0) goto died0a;
 	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
@@ -1715,6 +1715,12 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
     BRT_CMD_S brtcmd = { BRT_INSERT, toku_txn_get_txnid(txn), .u.id={key,val}};
 
+    {
+	const BYTESTRING insertedkey  =  { key->size, toku_memdup(key->data, key->size) };
+	const BYTESTRING inserteddata =  { val->size, toku_memdup(val->data, val->size) };
+	r = toku_logger_save_rollback_insert(txn, toku_cachefile_filenum(brt->cf), insertedkey, inserteddata);
+	if (r!=0) return r;
+    }
     r = brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
     return r;
 }

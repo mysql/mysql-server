@@ -7,6 +7,7 @@
 #include "primes.h"
 #include "toku_assert.h"
 #include "yerror.h"
+#include "brt-internal.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -66,6 +67,7 @@ struct cachefile {
     CACHETABLE cachetable;
     struct fileid fileid;
     FILENUM filenum;
+    BRT brt;
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
@@ -93,13 +95,18 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT *brt) {
     CACHEFILE extant;
     for (extant = t->cachefiles; extant; extant=extant->next) {
-	if (extant->filenum.fileid==filenum.fileid) { *cf = extant; return 0; }
+	if (extant->filenum.fileid==filenum.fileid) {
+	    *cf = extant;
+	    assert(extant->brt);
+	    assert(extant->brt->cf==extant);
+	    *brt = extant->brt;
+	    return 0;
+	}
     }
-    *brt=0; // This is wrong.  But the tests will notice right away. 
     return ENOENT;
 }
 
-int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
+int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, BRT brt) {
     int r;
     CACHEFILE extant;
     FILENUM max_filenum_in_use={0};
@@ -128,16 +135,17 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
 	newcf->fd = fd;
 	newcf->cachetable = t;
 	newcf->fileid = fileid;
+	newcf->brt    = brt;
 	t->cachefiles = newcf;
 	*cf = newcf;
 	return 0;
     }
 }
 
-int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
+int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode, BRT brt) {
     int fd = open(fname, flags, mode);
     if (fd<0) return errno;
-    return toku_cachetable_openfd (cf, t, fd);
+    return toku_cachetable_openfd (cf, t, fd, brt);
 }
 
 static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
