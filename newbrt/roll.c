@@ -94,13 +94,8 @@ static char *fixup_fname(BYTESTRING *f) {
 void toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 }
 
-// Rolling back a commit doesn't make much sense.  It won't happen during an abort.  But it doesn't hurt to ignore it.
-int toku_rollback_commit (struct logtype_commit *le __attribute__((__unused__)), TOKUTXN txn __attribute__((__unused__))) {
-    return 0;
-}
-
 #define ABORTIT { le=le; txn=txn; fprintf(stderr, "%s:%d (%s) not ready to go\n", __FILE__, __LINE__, __func__); abort(); }
-int toku_rollback_delete (struct logtype_delete *le, TOKUTXN txn)               ABORTIT
+
 void toku_recover_delete (LSN UU(lsn), FILENUM UU(filenum),DISKOFF UU(diskoff),BYTESTRING UU(key),BYTESTRING UU(data)) { assert(0); }
 
 void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32_t mode) {
@@ -111,9 +106,7 @@ void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32
     toku_free_BYTESTRING(fname);
 }
 
-int toku_rollback_fcreate (TXNID      txnid     __attribute__((__unused__)),
-			   BYTESTRING bs_fname,
-			   u_int32_t  mode      __attribute__((__unused__)),
+int toku_rollback_fcreate (BYTESTRING bs_fname,
 			   TOKUTXN    txn       __attribute__((__unused__))) {
     char *fname = fixup_fname(&bs_fname);
     char *directory = txn->logger->directory;
@@ -203,14 +196,14 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
     assert(r==0);
 }
 
-int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
-    // All that must be done is to put the node on the freelist.
-    // Since we don't have a freelist right now, we don't have anything to do.
-    // We'll fix this later (See #264)
-    le=le;
-    txn=txn;
-    return 0;
-}
+//int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
+//    // All that must be done is to put the node on the freelist.
+//    // Since we don't have a freelist right now, we don't have anything to do.
+//    // We'll fix this later (See #264)
+//    le=le;
+//    txn=txn;
+//    return 0;
+//}
 
 
 static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf, BRTNODE *resultnode) {
@@ -226,13 +219,10 @@ static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf,
     *cf = pair->cf;
 }
 
-int toku_rollback_brtdeq (struct logtype_brtdeq * le, TOKUTXN txn) ABORTIT
 void toku_recover_brtdeq (LSN UU(lsn), FILENUM UU(filenum), DISKOFF UU(diskoff), u_int32_t UU(childnum), TXNID UU(xid), u_int32_t UU(typ), BYTESTRING UU(key), BYTESTRING UU(data), u_int32_t UU(oldfingerprint), u_int32_t UU(newfingerprint)) { assert(0); }
 
-int toku_rollback_brtenq (struct logtype_brtenq * le, TOKUTXN txn) ABORTIT
 void toku_recover_brtenq (LSN UU(lsn), FILENUM UU(filenum), DISKOFF UU(diskoff), u_int32_t UU(childnum), TXNID UU(xid), u_int32_t UU(typ), BYTESTRING UU(key), BYTESTRING UU(data), u_int32_t UU(oldfingerprint), u_int32_t UU(newfingerprint)) { assert(0); }
 
-int toku_rollback_addchild (struct logtype_addchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF child, u_int32_t childfingerprint) {
     CACHEFILE cf;
     BRTNODE node;
@@ -259,7 +249,6 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(r==0);
 }
 
-int toku_rollback_delchild (struct logtype_delchild * le, TOKUTXN txn) ABORTIT
 void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF child, u_int32_t childfingerprint, BYTESTRING pivotkey) {
     struct cf_pair *pair;
     int r = find_cachefile(filenum, &pair);
@@ -295,7 +284,6 @@ void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     toku_free(pivotkey.data);
 }
 
-int toku_rollback_setchild (struct logtype_setchild *le, TOKUTXN txn) ABORTIT
 void toku_recover_setchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF UU(oldchild), DISKOFF newchild) {
     struct cf_pair *pair;
     int r = find_cachefile(filenum, &pair);
@@ -312,7 +300,6 @@ void toku_recover_setchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
 }
-int toku_rollback_setpivot (struct logtype_setpivot *le, TOKUTXN txn) ABORTIT
 void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, BYTESTRING pivotkey) {
     struct cf_pair *pair;
     int r = find_cachefile(filenum, &pair);
@@ -353,7 +340,6 @@ void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, DISKOFF disk
     assert(r==0);
     
 }
-int toku_rollback_changechildfingerprint (struct logtype_changechildfingerprint *le, TOKUTXN txn) ABORTIT
 
 void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM filenum) {
     char *fixedfname = fixup_fname(&fname);
@@ -365,11 +351,6 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     toku_recover_note_cachefile(filenum, cf);
     toku_free(fixedfname);
     toku_free_BYTESTRING(fname);
-}
-
-int toku_rollback_fopen (struct logtype_fopen *le  __attribute__((__unused__)), TOKUTXN txn  __attribute__((__unused__))) {
-    // Nothing needs to be done to undo an fopen.
-    return 0;
 }
 
 void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
@@ -398,28 +379,6 @@ void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
-int toku_rollback_insertinleaf (TXNID txnid __attribute__((__unused__)), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING key, BYTESTRING data, TOKUTXN txn)  {
-    CACHEFILE cf;
-    BRT brt;
-    void *node_v;
-    printf("Rollback insertinleaf\n");
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
-    assert(r==0);
-    r = toku_cachetable_get_and_pin(cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-    if (r!=0) return r;
-    BRTNODE node = node_v;
-    r = toku_pma_clear_at_index(node->u.l.buffer, pmaidx);
-    if (r == 0) {
-        node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(key.data, key.len, data.data, data.len);
-        node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + key.len + data.len; 
-        VERIFY_COUNTS(node);
-        //node->log_lsn = c->lsn;
-    }
-    int r2 = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
-    return r == 0 ? r2 : r;
-}
-
-
 void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
     struct cf_pair *pair;
     int r = find_cachefile(filenum, &pair);
@@ -443,13 +402,7 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
-void toku_recover_tl_delete (LSN lsn __attribute__((__unused__)), FILENUM filenum  __attribute__((__unused__)), BYTESTRING key __attribute__((__unused__)), BYTESTRING data  __attribute__((__unused__))) {
-    return; // tl_delete should not appear in the log.
-
-}
-
-
-int toku_rollback_tl_delete (FILENUM filenum,
+int toku_rollback_delete (FILENUM filenum,
 			     BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
@@ -524,44 +477,6 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
     toku_free_INTPAIRARRAY(fromto);
 }
 
-int toku_rollback_pmadistribute (struct logtype_pmadistribute *le, TOKUTXN txn) {
-    CACHEFILE cf;
-    BRT brt;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, le->filenum, &cf, &brt);
-    if (r!=0) return r;
-    void *node_va, *node_vb;
-    r = toku_cachetable_get_and_pin(cf, le->old_diskoff, &node_va, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-    if (r!=0) return r;
-    if (0) {
-    died0: toku_cachetable_unpin(cf, le->old_diskoff, 1, 0);
-	return r;
-    }
-    r = toku_cachetable_get_and_pin(cf, le->new_diskoff, &node_vb, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-    if (r!=0) goto died0;
-    if (0) {
-    died1:
-	toku_cachetable_unpin(cf, le->new_diskoff, 1, 0);
-	goto died0;
-    }
-    BRTNODE nodea = node_va;
-    BRTNODE nodeb = node_vb;
-    r = toku_pma_move_indices_back(nodea->u.l.buffer, nodeb->u.l.buffer, le->fromto,
-				   nodeb->rand4fingerprint, &nodeb->local_fingerprint,
-				   nodea->rand4fingerprint, &nodea->local_fingerprint,
-				   &nodeb->u.l.n_bytes_in_buffer, &nodea->u.l.n_bytes_in_buffer
-				   );
-    if (r!=0) goto died1;
-    nodea->log_lsn = le->lsn;
-    nodeb->log_lsn = le->lsn;
-    r = toku_cachetable_unpin(cf, le->old_diskoff, 1, toku_serialize_brtnode_size(nodea));
-    r = toku_cachetable_unpin(cf, le->new_diskoff, 1, toku_serialize_brtnode_size(nodeb));
-
-    return r;
-}
-
-int toku_rollback_fheader (struct logtype_fheader *le, TOKUTXN txn)             ABORTIT
-int toku_rollback_resizepma (struct logtype_resizepma *le, TOKUTXN txn)         ABORTIT
-
 void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(oldroot), DISKOFF newroot) {
     struct cf_pair *pair;
     int r = find_cachefile(filenum, &pair);
@@ -573,8 +488,6 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(ol
     r = toku_unpin_brt_header(pair->brt);
 }
 void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), DISKOFF UU(oldroot), DISKOFF UU(newroot)) { assert(0); }
-int toku_rollback_changeunnamedroot (struct logtype_changeunnamedroot *le, TOKUTXN txn) ABORTIT
-int toku_rollback_changenamedroot (struct logtype_changenamedroot *le, TOKUTXN txn) ABORTIT
 
 void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, DISKOFF UU(oldunused), DISKOFF newunused) {
     struct cf_pair *pair;
@@ -586,5 +499,4 @@ void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, DISKOFF UU(o
     pair->brt->h->unused_memory = newunused;
     r = toku_unpin_brt_header(pair->brt);
 }
-int toku_rollback_changeunusedmemory (struct logtype_changeunusedmemory *le, TOKUTXN txn) ABORTIT
 

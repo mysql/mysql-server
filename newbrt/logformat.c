@@ -34,11 +34,18 @@ struct logtype {
     struct field *fields;
 };
 
-#define GEN_ROLLBACK (1<<9)
-
 // In the fields, don't mention the command, the LSN, the CRC or the trailing LEN.
 
 int logformat_version_number = 0;
+
+const struct logtype rollbacks[] = {
+    {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
+			NULLFIELD}},
+    {"delete",    'K', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+			  {"BYTESTRING", "key", 0},
+			  {"BYTESTRING", "data", 0},
+			  NULLFIELD}},
+};
 
 const struct logtype logtypes[] = {
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
@@ -47,10 +54,10 @@ const struct logtype logtypes[] = {
 		       {"BYTESTRING", "key", 0},
 		       {"BYTESTRING", "data", 0},
 		       NULLFIELD}},
-    {"fcreate", 'F'+GEN_ROLLBACK, FA{{"TXNID",      "txnid", 0},
-				     {"BYTESTRING", "fname", 0},
-				     {"u_int32_t",  "mode",  "0%o"},
-				     NULLFIELD}},
+    {"fcreate", 'F', FA{{"TXNID",      "txnid", 0},
+			{"BYTESTRING", "fname", 0},
+			{"u_int32_t",  "mode",  "0%o"},
+			NULLFIELD}},
     {"fheader", 'H',  FA{{"TXNID",      "txnid", 0},
 			 {"FILENUM",    "filenum", 0},
 			 {"LOGGEDBRTHEADER",  "header", 0},
@@ -136,10 +143,6 @@ const struct logtype logtypes[] = {
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
 			     NULLFIELD}},
-    {"tl_delete",    'K'+GEN_ROLLBACK, FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
-					  {"BYTESTRING", "key", 0},
-					  {"BYTESTRING", "data", 0},
-					  NULLFIELD}},
     {"deleteinleaf", 'd', FA{{"TXNID",      "txnid", 0},
 			     {"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
@@ -159,18 +162,26 @@ const struct logtype logtypes[] = {
 			      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
-    
-#define DO_LOGTYPES(lt, body) ({ \
+
+  
+#define DO_STRUCTS(lt, array, body) ({ \
     const struct logtype *lt;    \
-    for (lt=&logtypes[0]; lt->name; lt++) { \
+    for (lt=&array[0]; lt->name; lt++) {	\
 	body; \
     } })
+
+#define DO_ROLLBACKS(lt, body) DO_STRUCTS(lt, rollbacks, body)
+
+#define DO_LOGTYPES(lt, body) DO_STRUCTS(lt, logtypes, body)
+
+#define DO_LOGTYPES_AND_ROLLBACKS(lt, body) (DO_ROLLBACKS(lt,body), DO_LOGTYPES(lt, body))
 
 #define DO_FIELDS(fld, lt, body) ({ \
     struct field *fld; \
     for (fld=lt->fields; fld->type; fld++) { \
         body; \
     } })
+
 
 void fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
     va_list ap;
@@ -185,22 +196,28 @@ void fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
 
 FILE *hf=0, *cf=0;
 
-void generate_lt_enum (void) {
+void generate_enum_internal (char *enum_name, char *enum_prefix, const struct logtype *lts) {
     char used_cmds[256];
     int count=0;
     memset(used_cmds, 0, 256);
-    fprintf(hf, "enum lt_cmd {");
-    DO_LOGTYPES(lt,
+    fprintf(hf, "enum %s {", enum_name);
+    DO_STRUCTS(lt, lts,
 		({
 		    unsigned char cmd = lt->command_and_flags&0xff;
 		    if (count!=0) fprintf(hf, ",");
 		    count++;
 		    fprintf(hf, "\n");
-		    fprintf(hf,"    LT_%-16s = '%c'", lt->name, cmd);
+		    fprintf(hf,"    %s_%-16s = '%c'", enum_prefix, lt->name, cmd);
 		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice\n", __FILE__, __LINE__, cmd, cmd); abort(); }
 		    used_cmds[cmd]=1;
 		}));
     fprintf(hf, "\n};\n\n");
+   
+}
+
+void generate_enum (void) {
+    generate_enum_internal("lt_cmd", "LT", logtypes);
+    generate_enum_internal("rt_cmd", "RT", rollbacks);
 }
 
 void generate_log_struct (void) {
@@ -215,35 +232,46 @@ void generate_log_struct (void) {
 		    fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf(hf, ", %s %s", ft->type, ft->name));
 		    fprintf(hf, ");\n");
-		    if (lt->command_and_flags & GEN_ROLLBACK) {
-			fprintf(hf, "int toku_rollback_%s (", lt->name);
-			DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
-			fprintf(hf, "TOKUTXN txn);\n");
-		    }
 		}));
+    DO_ROLLBACKS(lt,
+		 ({  fprintf(hf, "struct rolltype_%s {\n", lt->name);
+		     DO_FIELDS(ft, lt,
+			       fprintf(hf, "  %-16s %s;\n", ft->type, ft->name));
+		     fprintf(hf, "};\n");
+		     fprintf(hf, "int toku_rollback_%s (", lt->name);
+		     DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
+		     fprintf(hf, "TOKUTXN txn);\n");
+		 }));
     fprintf(hf, "struct log_entry {\n");
     fprintf(hf, "  enum lt_cmd cmd;\n");
     fprintf(hf, "  union {\n");
     DO_LOGTYPES(lt, fprintf(hf,"    struct logtype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
-    fprintf(hf, "  struct log_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
     fprintf(hf, "};\n");
+    
+    fprintf(hf, "struct roll_entry {\n");
+    fprintf(hf, "  enum rt_cmd cmd;\n");
+    fprintf(hf, "  union {\n");
+    DO_ROLLBACKS(lt, fprintf(hf,"    struct rolltype_%s %s;\n", lt->name, lt->name));
+    fprintf(hf, "  } u;\n");
+    fprintf(hf, "  struct roll_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
+    fprintf(hf, "};\n");
+
 }
 
 void generate_dispatch (void) {
-    fprintf(hf, "#define logtype_dispatch(s, funprefix) ({ switch((s)->cmd) {\\\n");
-    DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: funprefix ## %s (&(s)->u.%s); break;\\\n", lt->name, lt->name, lt->name));
+    fprintf(hf, "#define rolltype_dispatch(s, funprefix) ({ switch((s)->cmd) {\\\n");
+    DO_ROLLBACKS(lt, fprintf(hf, "  case RT_%s: funprefix ## %s (&(s)->u.%s); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
 
     fprintf(hf, "#define logtype_dispatch_assign(s, funprefix, var, args...) ({ switch((s)->cmd) {\\\n");
     DO_LOGTYPES(lt, fprintf(hf, "  case LT_%s: var = funprefix ## %s (&(s)->u.%s, ## args); break;\\\n", lt->name, lt->name, lt->name));
     fprintf(hf, " }})\n");
 
-    fprintf(hf, "#define logtype_dispatch_assign_rollback(s, funprefix, var, args...) ({ \\\n");
+    fprintf(hf, "#define rolltype_dispatch_assign(s, funprefix, var, args...) ({ \\\n");
     fprintf(hf, "  switch((s)->cmd) {\\\n");
-    DO_LOGTYPES(lt, ({
-		if (lt->command_and_flags & GEN_ROLLBACK) {
-		    fprintf(hf, "  case LT_%s: var = funprefix ## %s (", lt->name, lt->name);
+    DO_ROLLBACKS(lt, ({
+		    fprintf(hf, "  case RT_%s: var = funprefix ## %s (", lt->name, lt->name);
 		    int fieldcount=0;
 		    DO_FIELDS(ft, lt, ({
 				if (fieldcount>0) fprintf(hf, ",");
@@ -251,7 +279,7 @@ void generate_dispatch (void) {
 				fieldcount++;
 			    }));
 		    fprintf(hf, ",## args); break;\\\n");
-		}}));
+		}));
     fprintf(hf, "  default: assert(0);} })\n");
 
     fprintf(hf, "#define logtype_dispatch_args(s, funprefix) ({ switch((s)->cmd) {\\\n");
@@ -265,8 +293,8 @@ void generate_dispatch (void) {
 }
 		
 void generate_log_free(void) {
-    DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "void toku_free_logtype_%s(struct logtype_%s *e)", lt->name, lt->name);
+    DO_ROLLBACKS(lt, ({
+			fprintf2(cf, hf, "void toku_free_rolltype_%s(struct rolltype_%s *e)", lt->name, lt->name);
 			fprintf(hf, ";\n");
 			fprintf(cf, " {\n");
 			DO_FIELDS(ft, lt, fprintf(cf, "  toku_free_%s(e->%s);\n", ft->type, ft->name));
@@ -392,13 +420,12 @@ void generate_logprint (void) {
 }
 
 void generate_rollbacks (void) {
-    DO_LOGTYPES(lt, ({
-		if (lt->command_and_flags & GEN_ROLLBACK) {
+    DO_ROLLBACKS(lt, ({
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
-		    fprintf(cf, "  struct log_entry *v = toku_malloc(sizeof(*v));\n");
+		    fprintf(cf, "  struct roll_entry *v = toku_malloc(sizeof(*v));\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
 		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
@@ -406,7 +433,6 @@ void generate_rollbacks (void) {
 		    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry=v;\n");
 		    fprintf(cf, "  txn->newest_logentry = v;\n");
 		    fprintf(cf, "  return 0;\n}\n");
-		}
 	    }));
 }
 
@@ -425,7 +451,7 @@ int main (int argc __attribute__((__unused__)), char *argv[]  __attribute__((__u
     fprintf(cf, "#include \"log_header.h\"\n");
     fprintf(cf, "#include \"wbuf.h\"\n");
     fprintf(cf, "#include \"log-internal.h\"\n");
-    generate_lt_enum();
+    generate_enum();
     generate_log_struct();
     generate_dispatch();
     generate_log_writer();

@@ -46,7 +46,7 @@ struct tokutxn {
     TOKULOGGER logger;
     TOKUTXN    parent;
     LSN        last_lsn; /* Everytime anything is logged, update the LSN.  (We need to atomically record the LSN along with writing into the log.) */
-    struct log_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
+    struct roll_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
     struct list live_txns_link;
 };
 

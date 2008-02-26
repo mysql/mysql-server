@@ -870,7 +870,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 		const BYTESTRING deleteddata = { kv->vallen, toku_memdup(kv_pair_val(kv), kv->vallen) };
 		TOKUTXN txn;
 		if (0!=toku_txnid2txn(logger, xid, &txn)) return -1;
-		r=toku_logger_save_rollback_tl_delete(txn, pma->filenum, deletedkey, deleteddata);
+		r=toku_logger_save_rollback_delete(txn, pma->filenum, deletedkey, deleteddata);
 		if (r!=0) {
 		    toku_free(deletedkey.data);
 		    toku_free(deleteddata.data);
