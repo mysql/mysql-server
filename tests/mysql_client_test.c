@@ -2423,7 +2423,7 @@ static uint query_cache_hits(MYSQL *conn)
 */
 static void test_ps_query_cache()
 {
-  MYSQL      *lmysql;
+  MYSQL      *lmysql= mysql;
   MYSQL_STMT *stmt;
   int        rc;
   MYSQL_BIND p_bind[2],r_bind[2]; /* p: param bind; r: result bind */
@@ -2458,7 +2458,6 @@ static void test_ps_query_cache()
     TEST_QCACHE_ON_OFF
   };
   enum enum_test_ps_query_cache iteration;
-  LINT_INIT(lmysql);
 
   myheader("test_ps_query_cache");
 
@@ -2478,15 +2477,14 @@ static void test_ps_query_cache()
   for (iteration= TEST_QCACHE_ON; iteration <= TEST_QCACHE_ON_OFF; iteration++)
   {
 
-    switch (iteration)
-    {
+    switch (iteration) {
     case TEST_QCACHE_ON:
     case TEST_QCACHE_ON_OFF:
-      rc= mysql_query(mysql, "set global query_cache_size=1000000");
+      rc= mysql_query(lmysql, "set global query_cache_size=1000000");
       myquery(rc);
       break;
     case TEST_QCACHE_OFF_ON:
-      rc= mysql_query(mysql, "set global query_cache_size=0");
+      rc= mysql_query(lmysql, "set global query_cache_size=0");
       myquery(rc);
       break;
     case TEST_QCACHE_ON_WITH_OTHER_CONN:
@@ -2494,37 +2492,35 @@ static void test_ps_query_cache()
         fprintf(stdout, "\n Establishing a test connection ...");
       if (!(lmysql= mysql_init(NULL)))
       {
-        myerror("mysql_init() failed");
-        exit(1);
+        printf("mysql_init() failed");
+        DIE_UNLESS(0);
       }
       if (!(mysql_real_connect(lmysql, opt_host, opt_user,
                                opt_password, current_db, opt_port,
                                opt_unix_socket, 0)))
       {
-        myerror("connection failed");
+        printf("connection failed");
         mysql_close(lmysql);
-        exit(1);
+        DIE_UNLESS(0);
       }
       if (!opt_silent)
         fprintf(stdout, "OK");
-      mysql= lmysql;
     }
 
     strmov(query, "select id1, value1 from t1 where id1= ? or "
            "CONVERT(value1 USING utf8)= ?");
-    stmt= mysql_simple_prepare(mysql, query);
+    stmt= mysql_simple_prepare(lmysql, query);
     check_stmt(stmt);
 
     verify_param_count(stmt, 2);
 
-    switch(iteration)
-    {
+    switch (iteration) {
     case TEST_QCACHE_OFF_ON:
-      rc= mysql_query(mysql, "set global query_cache_size=1000000");
+      rc= mysql_query(lmysql, "set global query_cache_size=1000000");
       myquery(rc);
       break;
     case TEST_QCACHE_ON_OFF:
-      rc= mysql_query(mysql, "set global query_cache_size=0");
+      rc= mysql_query(lmysql, "set global query_cache_size=0");
       myquery(rc);
     default:
       break;
@@ -2562,11 +2558,11 @@ static void test_ps_query_cache()
     test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
 
     /* now retry with the same parameter values and see qcache hits */
-    hits1= query_cache_hits(mysql);
+    hits1= query_cache_hits(lmysql);
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     test_ps_query_cache_result(1, "hh", 2, 2, "hh", 2, 1, "ii", 2);
-    hits2= query_cache_hits(mysql);
+    hits2= query_cache_hits(lmysql);
     switch(iteration) {
     case TEST_QCACHE_ON_WITH_OTHER_CONN:
     case TEST_QCACHE_ON:                 /* should have hit */
@@ -2584,7 +2580,7 @@ static void test_ps_query_cache()
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
     test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
-    hits1= query_cache_hits(mysql);
+    hits1= query_cache_hits(lmysql);
 
     switch(iteration) {
     case TEST_QCACHE_ON:
@@ -2601,7 +2597,7 @@ static void test_ps_query_cache()
     check_execute(stmt, rc);
 
     test_ps_query_cache_result(1, "hh", 2, 1, "ii", 2, 2, "ii", 2);
-    hits2= query_cache_hits(mysql);
+    hits2= query_cache_hits(lmysql);
 
     mysql_stmt_close(stmt);
 
@@ -2620,9 +2616,11 @@ static void test_ps_query_cache()
 
   } /* for(iteration=...) */
 
+  if (lmysql != mysql)
+    mysql_close(lmysql);
+
   rc= mysql_query(mysql, "set global query_cache_size=0");
   myquery(rc);
-
 }
 
 
@@ -16262,6 +16260,7 @@ static void test_bug27876()
   myquery(rc);
   result= mysql_store_result(mysql);
   mytest(result);
+  mysql_free_result(result);
 
   sprintf(query, "DROP FUNCTION IF EXISTS %s", (char*) utf8_func);
   rc= mysql_query(mysql, query);
@@ -16278,6 +16277,7 @@ static void test_bug27876()
   myquery(rc);
   result= mysql_store_result(mysql);
   mytest(result);
+  mysql_free_result(result);
 
   sprintf(query, "DROP FUNCTION %s", (char*) utf8_func);
   rc= mysql_query(mysql, query);
@@ -16915,7 +16915,7 @@ static void test_bug30472()
 
   /* Change connection-default character set in the client. */
 
-  con.options.charset_name= my_strdup("utf8", MYF(MY_FAE));
+  mysql_options(&con, MYSQL_SET_CHARSET_NAME, "utf8");
 
   /*
     Call mysql_change_user() in order to check that new connection will
