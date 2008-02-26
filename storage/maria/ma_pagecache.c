@@ -3416,7 +3416,7 @@ end:
   @return "hits" for promotion
 */
 
-uint pagacache_pagelevel(PAGECACHE_BLOCK_LINK *block)
+uint pagecache_pagelevel(PAGECACHE_BLOCK_LINK *block)
 {
   return block->hits_left;
 }

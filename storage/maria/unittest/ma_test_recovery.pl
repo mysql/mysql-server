@@ -91,18 +91,6 @@ sub main
     mkdir $tmp;
   }
   print "MARIA RECOVERY TESTS\n";
-  $res= `$maria_exe_path/maria_read_log$suffix --help | grep IDENTICAL_PAGES_AFTER_RECOVERY`;
-
-  if (length($res))
-  {
-    print "Recovery tests require compilation with DBUG\n";
-    print "Aborting test\n";
-    # In the future, we will not abort but use maria_chk --zerofill-keep-lsn
-    # for comparisons in non-debug builds.
-    # For now we just skip the test, pretending it passed (nothing is
-    # alarming).
-    exit(0);
-  }
 
   # To not flood the screen, we redirect all the commands below to a text file
   # and just give a final error if their output is not as expected
@@ -399,7 +387,6 @@ sub physical_cmp
   my ($table1, $table2)= @_;
   my ($zerofilled, $ret_text)= (0, "");
   #return `cmp $table1.MAD $table2.MAD`.`cmp $table1.MAI $table2.MAI`;
-  # save original tables to restore them later
   foreach my $file_suffix ("MAD", "MAI")
   {
     my $file1= "$table1.$file_suffix";
@@ -415,6 +402,7 @@ sub physical_cmp
       my $table_no= 1;
       foreach my $table ($table1, $table2)
       {
+        # save original tables to restore them later
         copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
         copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
         $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";

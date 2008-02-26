@@ -6343,12 +6343,13 @@ uint _ma_apply_redo_insert_row_blobs(MARIA_HA *info,
         length= data_size;
         if (i == 0 && sub_ranges == 0)
         {
-          /* Last page may be only partly filled. */
+          /*
+            Last page may be only partly filled. We zero the rest, like
+            write_full_pages() does.
+          */
           length-= empty_space;
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
           bzero(buff + share->block_size - PAGE_SUFFIX_SIZE - empty_space,
                 empty_space);
-#endif
         }
         memcpy(buff+ PAGE_TYPE_OFFSET + 1, data, length);
         data+= length;

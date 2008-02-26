@@ -784,14 +784,12 @@ get_one_option(int optid,
     else
       check_param.testflag|= T_ZEROFILL;
     break;
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   case OPT_ZEROFILL_KEEP_LSN:
     if (argument == disabled_my_option)
       check_param.testflag&= ~(T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
     else
       check_param.testflag|= (T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
     break;
-#endif
   case 'H':
     my_print_help(my_long_options);
     exit(0);
