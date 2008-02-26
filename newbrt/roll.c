@@ -409,13 +409,14 @@ int toku_rollback_insertinleaf (TXNID txnid __attribute__((__unused__)), FILENUM
     if (r!=0) return r;
     BRTNODE node = node_v;
     r = toku_pma_clear_at_index(node->u.l.buffer, pmaidx);
-    if (r!=0) return r;
-    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(key.data, key.len, data.data, data.len);
-    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + key.len + data.len; 
-    VERIFY_COUNTS(node);
-    //node->log_lsn = c->lsn;
-    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
-    return r;
+    if (r == 0) {
+        node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(key.data, key.len, data.data, data.len);
+        node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + key.len + data.len; 
+        VERIFY_COUNTS(node);
+        //node->log_lsn = c->lsn;
+    }
+    int r2 = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    return r == 0 ? r2 : r;
 }
 
 
