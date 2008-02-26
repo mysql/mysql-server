@@ -1678,7 +1678,7 @@ frm_type_enum mysql_frm_type(THD *thd, char *path, enum legacy_db_type *dbt)
 
   if ((file= my_open(path, O_RDONLY | O_SHARE, MYF(0))) < 0)
     DBUG_RETURN(FRMTYPE_ERROR);
-  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_WME | MY_NABP));
+  error= my_read(file, (uchar*) header, sizeof(header), MYF(MY_NABP));
   my_close(file, MYF(MY_WME));
 
   if (error)
