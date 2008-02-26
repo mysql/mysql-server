@@ -3321,7 +3321,7 @@ bool mysql_create_table_no_lock(THD *thd,
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %d",
+      DBUG_PRINT("info", ("db_type: %s",
                         ha_resolve_storage_engine_name(create_info->db_type)));
       delete file;
       create_info->db_type= partition_hton;
