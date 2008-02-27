@@ -420,7 +420,7 @@ int toku_rollback_deleteatleaf (FILENUM filenum, BYTESTRING key, BYTESTRING data
     r = toku_brt_insert(brt,
 			toku_fill_dbt(&key_dbt, key.data, key.len),
 			toku_fill_dbt(&data_dbt, data.data, data.len),
-			txn);
+			0); // Do the insertion unconditionally
     return r;
 }
 

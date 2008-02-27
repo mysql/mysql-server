@@ -921,23 +921,26 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     *replaced_v_size = -1;
     //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
  logit_and_update_fingerprint:
-    {
-	TOKUTXN txn;
-	if ((r=toku_txnid2txn(logger, xid, &txn))) return r;
-	const BYTESTRING key  = { k->size, toku_memdup(k->data, k->size) };
-	const BYTESTRING data = { v->size, toku_memdup(v->data, v->size) };
-	if ((r = toku_logger_save_rollback_insertatleaf(txn, pma->filenum, key, data))) {
-	     toku_free(key.data); toku_free(data.data);
-	     return r;
+    r=0;
+    if (logger) {
+	{
+	    TOKUTXN txn;
+	    if ((r=toku_txnid2txn(logger, xid, &txn))) return r;
+	    const BYTESTRING key  = { k->size, toku_memdup(k->data, k->size) };
+	    const BYTESTRING data = { v->size, toku_memdup(v->data, v->size) };
+	    if ((r = toku_logger_save_rollback_insertatleaf(txn, pma->filenum, key, data))) {
+		toku_free(key.data); toku_free(data.data);
+		return r;
+	    }
 	}
-    }
-    {
-	const BYTESTRING key  = { k->size, k->data };
-	const BYTESTRING data = { v->size, k->data };
-	r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
-	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
-	if (r!=0) return r;
-	/* We don't record the insert here for rollback.  The insert should have been logged at the top-level. */
+	{
+	    const BYTESTRING key  = { k->size, k->data };
+	    const BYTESTRING data = { v->size, k->data };
+	    r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	    if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
+	    if (r!=0) return r;
+	    /* We don't record the insert here for rollback.  The insert should have been logged at the top-level. */
+	}
     }
     *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size);
     return r;
