@@ -7645,48 +7645,50 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       const NdbDictionary::Index *index= m_index[i].index;
       const NdbDictionary::Index *unique_index= m_index[i].unique_index;
       
-      if (index &&
-          (error= dict->optimizeIndex(*index, ih)))
+      if (index)
       {
-        DBUG_PRINT("info",
-                   ("Optimze index %s returned %d", 
-                    index->getName(), error));
-        ERR_RETURN(ndb->getNdbError());
-        
+        if (error= dict->optimizeIndex(*index, ih))
+        {
+          DBUG_PRINT("info",
+                     ("Optimze index %s returned %d", 
+                      index->getName(), error));
+          ERR_RETURN(ndb->getNdbError());
+          
+        }
+        while((result= ih.next()) == 1)
+        {
+          if (thd->killed)
+            DBUG_RETURN(-1);
+          my_sleep(delay);        
+        }
+        if (result == -1 || ih.close() == -1)
+        {
+          DBUG_PRINT("info",
+                     ("Optimize index %s did not complete", index->getName()));
+          ERR_RETURN(ndb->getNdbError());
+        }          
       }
-      while((result= ih.next()) == 1)
+      if (unique_index)
       {
-        if (thd->killed)
-          DBUG_RETURN(-1);
-        my_sleep(delay);        
-      }
-      if (result == -1 || ih.close() == -1)
-      {
-        DBUG_PRINT("info",
-                   ("Optimize index %s did not complete", index->getName()));
-        ERR_RETURN(ndb->getNdbError());
-        
-      }
-      if (unique_index &&
-          (error= dict->optimizeIndex(*unique_index, ih)))
-      {
-        DBUG_PRINT("info",
-                   ("Optimze unique index %s returned %d", 
-                    unique_index->getName(), error));
-        ERR_RETURN(ndb->getNdbError());
-      } 
-      while((result= ih.next()) == 1)
-      {
-        if (thd->killed)
-          DBUG_RETURN(-1);
-        my_sleep(delay);
-      }
-      if (result == -1 || ih.close() == -1)
-      {
-        DBUG_PRINT("info",
-                   ("Optimize index %s did not complete", index->getName()));
-        ERR_RETURN(ndb->getNdbError());
-        
+        if (error= dict->optimizeIndex(*unique_index, ih))
+        {
+          DBUG_PRINT("info",
+                     ("Optimze unique index %s returned %d", 
+                      unique_index->getName(), error));
+          ERR_RETURN(ndb->getNdbError());
+        } 
+        while((result= ih.next()) == 1)
+        {
+          if (thd->killed)
+            DBUG_RETURN(-1);
+          my_sleep(delay);
+        }
+        if (result == -1 || ih.close() == -1)
+        {
+          DBUG_PRINT("info",
+                     ("Optimize index %s did not complete", index->getName()));
+          ERR_RETURN(ndb->getNdbError());
+        }
       }
     }
   }
