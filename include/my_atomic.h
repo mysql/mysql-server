@@ -35,7 +35,7 @@
 #ifdef HAVE_INLINE
 
 #define make_atomic_add(S)					\
-static inline int ## S my_atomic_add ## S(			\
+STATIC_INLINE int ## S my_atomic_add ## S(			\
                         int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_add_body(S);					\
@@ -43,7 +43,7 @@ static inline int ## S my_atomic_add ## S(			\
 }
 
 #define make_atomic_swap(S)					\
-static inline int ## S my_atomic_swap ## S(			\
+STATIC_INLINE int ## S my_atomic_swap ## S(			\
                          int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_swap_body(S);					\
@@ -51,7 +51,7 @@ static inline int ## S my_atomic_swap ## S(			\
 }
 
 #define make_atomic_cas(S)					\
-static inline int my_atomic_cas ## S(int ## S volatile *a,	\
+STATIC_INLINE int my_atomic_cas ## S(int ## S volatile *a,	\
                             int ## S *cmp, int ## S set)	\
 {								\
   int8 ret;							\
@@ -60,7 +60,7 @@ static inline int my_atomic_cas ## S(int ## S volatile *a,	\
 }
 
 #define make_atomic_load(S)					\
-static inline int ## S my_atomic_load ## S(int ## S volatile *a) \
+STATIC_INLINE int ## S my_atomic_load ## S(int ## S volatile *a) \
 {								\
   int ## S ret;						\
   make_atomic_load_body(S);					\
@@ -68,7 +68,7 @@ static inline int ## S my_atomic_load ## S(int ## S volatile *a) \
 }
 
 #define make_atomic_store(S)					\
-static inline void my_atomic_store ## S(			\
+STATIC_INLINE void my_atomic_store ## S(			\
                      int ## S volatile *a, int ## S v)	\
 {								\
   make_atomic_store_body(S);					\
