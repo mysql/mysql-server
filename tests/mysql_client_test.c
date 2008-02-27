@@ -15215,6 +15215,10 @@ static void test_bug14169()
    Test that mysql_insert_id() behaves as documented in our manual
 */
 
+#if 0
+
+  Commented out because of Bug#34889.
+
 static void test_mysql_insert_id()
 {
   my_ulonglong res;
@@ -15390,6 +15394,7 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t1,t2");
   myquery(rc);
 }
+#endif
 
 
 /*
