@@ -1118,10 +1118,11 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 }
 
 
-void vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
                        const char *format, va_list argsi)
 {
   vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
            format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
+  return 0;
 }
