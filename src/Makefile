@@ -13,10 +13,12 @@ CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_S
 ifneq ($(OSX),)
 LIBEXT=dylib
 SHARED=-dynamiclib
+RPATHNAME=-install_name @rpath/$(LIBNAME).$(LIBEXT)
 CFLAGS+=-fno-common
 else
 LIBEXT=so
 SHARED=-shared
+RPATHNAME=
 endif
 
 .PHONY: install logformat
@@ -50,7 +52,7 @@ LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o $(RANGETRE
 
 
 $(LIBNAME).$(LIBEXT): $(DBBINS) $(LOCKTREE_BINS)
-	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz
+	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
 $(LIBNAME).a: $(DBBINS) $(LOCKTREE_BINS)
 	$(AR) rv $@ $^

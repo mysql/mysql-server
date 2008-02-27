@@ -19,7 +19,7 @@ BDB_CPPFLAGS =
 BDB_LDFLAGS = -ldb
 endif
 TDB_CPPFLAGS = -I../include
-TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath=$(PWD)/../lib
+TDB_LDFLAGS = -L../lib -ltokudb -Wl,-rpath,$(PWD)/../lib
 
 TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
