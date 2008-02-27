@@ -613,6 +613,58 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+ucs2_general_ci
+delete from t1;
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	0061
+ä	00E4
+ae	00610065
+o	006F
+ö	00F6
+oe	006F0065
+s	0073
+ß	00DF
+ss	00730073
+u	0075
+ü	00FC
+ue	00750065
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a,ä
+ae
+o,ö
+oe
+s,ß
+ss
+u,ü
+ue
+drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F20025
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 SET NAMES latin1;
 SET collation_connection='ucs2_bin';
 create table t1 select repeat('a',4000) a;
@@ -642,6 +694,23 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F20025
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 select hex(substr(_ucs2 0x00e400e50068,1));
 hex(substr(_ucs2 0x00e400e50068,1))
 00E400E50068

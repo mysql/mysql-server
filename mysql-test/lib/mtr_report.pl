@@ -383,6 +383,11 @@ sub mtr_report_stats ($) {
 		 (/Failed to write to mysql\.\w+_log/
 		 )) or
 
+		# rpl_bug33931 has deliberate failures
+		($testname eq 'rpl.rpl_bug33931' and
+		 (/Failed during slave.*thread initialization/
+		  )) or
+
 		# rpl_temporary has an error on slave that can be ignored
 		($testname eq 'rpl.rpl_temporary' and
 		 (/Slave: Can\'t find record in \'user\' Error_code: 1032/
