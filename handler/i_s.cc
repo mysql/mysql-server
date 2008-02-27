@@ -6,7 +6,6 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
 
-#include <strings.h>
 #include <mysql_priv.h>
 #include <mysqld_error.h>
 
@@ -931,7 +930,7 @@ trx_i_s_common_fill_table(
 
 	trx_i_s_cache_start_read(cache);
 
-	if (strcasecmp(table_name, "innodb_trx") == 0) {
+	if (innobase_strcasecmp(table_name, "innodb_trx") == 0) {
 
 		if (fill_innodb_trx_from_cache(
 			cache, thd, tables->table) != 0) {
@@ -939,7 +938,7 @@ trx_i_s_common_fill_table(
 			ret = 1;
 		}
 
-	} else if (strcasecmp(table_name, "innodb_locks") == 0) {
+	} else if (innobase_strcasecmp(table_name, "innodb_locks") == 0) {
 
 		if (fill_innodb_locks_from_cache(
 			cache, thd, tables->table) != 0) {
@@ -947,7 +946,7 @@ trx_i_s_common_fill_table(
 			ret = 1;
 		}
 
-	} else if (strcasecmp(table_name, "innodb_lock_waits") == 0) {
+	} else if (innobase_strcasecmp(table_name, "innodb_lock_waits") == 0) {
 
 		if (fill_innodb_lock_waits_from_cache(
 			cache, thd, tables->table) != 0) {

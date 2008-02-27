@@ -126,5 +126,15 @@ innobase_get_cset_width(
 	ulint	cset,		/* in: MySQL charset-collation code */
 	ulint*	mbminlen,	/* out: minimum length of a char (in bytes) */
 	ulint*	mbmaxlen);	/* out: maximum length of a char (in bytes) */
+
+/**********************************************************************
+Compares NUL-terminated UTF-8 strings case insensitively. */
+UNIV_INTERN
+int
+innobase_strcasecmp(
+/*================*/
+				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
+	const char*	a,	/* in: first string to compare */
+	const char*	b);	/* in: second string to compare */
 #endif
 #endif
