@@ -813,10 +813,7 @@ innobase_convert_from_id(
 }
 
 /**********************************************************************
-Compares NUL-terminated UTF-8 strings case insensitively.
-
-NOTE that the exact prototype of this function has to be in
-/innobase/dict/dict0dict.c! */
+Compares NUL-terminated UTF-8 strings case insensitively. */
 extern "C" UNIV_INTERN
 int
 innobase_strcasecmp(
