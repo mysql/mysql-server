@@ -421,6 +421,7 @@ int main(int argc,char *argv[])
   if (mysql_server_init(embedded_server_arg_count, embedded_server_args, 
                         (char**) embedded_server_groups))
   {
+    put_error(NULL);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
