@@ -1990,7 +1990,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       This tests if the position of the beginning of the current event
       hits the UNTIL barrier.
     */
-    if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+    if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
         rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
                                 rli->group_master_log_pos :
                                 ev->log_pos - ev->data_written))
@@ -2648,7 +2648,7 @@ Slave SQL thread aborted. Can't execute init_slave query");
     do not want to wait for next event in this case.
   */
   pthread_mutex_lock(&rli->data_lock);
-  if (rli->until_condition != RELAY_LOG_INFO::UNTIL_NONE &&
+  if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
       rli->is_until_satisfied(rli->group_master_log_pos))
   {
     char buf[22];

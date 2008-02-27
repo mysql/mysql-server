@@ -955,6 +955,11 @@ err:
      Check if condition stated in UNTIL clause of START SLAVE is reached.
    SYNOPSYS
      Relay_log_info::is_until_satisfied()
+     master_beg_pos    position of the beginning of to be executed event
+                       (not log_pos member of the event that points to the
+                        beginning of the following event)
+
+
    DESCRIPTION
      Checks if UNTIL condition is reached. Uses caching result of last
      comparison of current log file name and target log file name. So cached
@@ -979,7 +984,7 @@ err:
      false - condition not met
 */
 
-bool Relay_log_info::is_until_satisfied()
+bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -990,7 +995,7 @@ bool Relay_log_info::is_until_satisfied()
   if (until_condition == UNTIL_MASTER_POS)
   {
     log_name= group_master_log_name;
-    log_pos= group_master_log_pos;
+    log_pos= master_beg_pos;
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */
