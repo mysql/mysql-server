@@ -947,7 +947,9 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
     } else if (cmd->type == BRT_DELETE) {
         u_int32_t delta;
-        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, 0, node->rand4fingerprint, &node->local_fingerprint, &delta);
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, (DBT*)0,
+				logger, cmd->xid, node->thisnodename,
+				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
         if (r == BRT_OK) {
             node->u.l.n_bytes_in_buffer -= delta;
             node->dirty = 1;
@@ -957,7 +959,9 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
     } else if (cmd->type == BRT_DELETE_BOTH) {
         u_int32_t delta;
-        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val, node->rand4fingerprint, &node->local_fingerprint, &delta);
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val,
+				logger, cmd->xid, node->thisnodename,
+				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
         if (r == BRT_OK) {
             node->u.l.n_bytes_in_buffer -= delta;
             node->dirty = 1;
@@ -1737,7 +1741,6 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
     DBT val;
-    printf("removing\n");
     BRT_CMD_S brtcmd = { BRT_DELETE, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
     r = brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
     return r;

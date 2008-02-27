@@ -61,7 +61,9 @@ int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen
  *   The case where val!=0 should work for both DUP and NODUP dictionaries.
  *    For NODUP dictionaries, the value is deleted only if both the key and the value match.
  */
-int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/, u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size);
+int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/,
+		     TOKULOGGER, TXNID, DISKOFF,
+		     u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size, LSN*);
 
 int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 				int */*replaced_v_size*/, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */

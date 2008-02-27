@@ -169,14 +169,18 @@ static int toku_pma_cursor_set_range_both(PMA_CURSOR cursor, DBT *key, DBT *val)
     return r;
 }
 
-static int toku_pma_cursor_delete_under(PMA_CURSOR cursor, u_int32_t *kvsize, u_int32_t rand4sem, u_int32_t *fingerprint) {
+static int toku_pma_cursor_delete_under(PMA_CURSOR cursor, u_int32_t *kvsize,
+					TOKULOGGER logger, TXNID xid, DISKOFF diskoff,
+					u_int32_t rand4sem, u_int32_t *fingerprint, LSN*node_lsn) {
     cursor = cursor; kvsize = kvsize; rand4sem = rand4sem; fingerprint = fingerprint;
     DBT key; toku_init_dbt(&key); key.flags = DB_DBT_MALLOC;
     DBT val; toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
     int r = toku_pma_cursor_get_current(cursor, &key, &val, 0);
     if (r == 0) {
         PMA pma = cursor->pma;
-        r = toku_pma_delete(pma, &key, pma->dup_mode & TOKU_DB_DUPSORT ? &val : 0, rand4sem, fingerprint, kvsize);
+        r = toku_pma_delete(pma, &key, pma->dup_mode & TOKU_DB_DUPSORT ? &val : 0,
+			    logger, xid, diskoff,
+			    rand4sem, fingerprint, kvsize, node_lsn);
         assert(r == 0);
     }
     toku_destroy_dbt(&key);
