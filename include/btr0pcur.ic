@@ -507,6 +507,28 @@ btr_pcur_open(
 }
 
 /******************************************************************
+Check if an operation was buffered. */
+UNIV_INLINE
+ibool
+btr_pcur_was_buffered(
+/*==================*/
+				/* out: TRUE if the operation was buffered
+				in the insert/delete buffer */
+	const btr_pcur_t*	cursor)
+				/* in: persistent cursor */
+{
+	const btr_cur_t*	btr_cursor;
+
+	/* Look in the tree cursor */
+
+	btr_cursor = btr_pcur_get_btr_cur(cursor);
+
+	return((btr_cursor->flag == BTR_CUR_DEL_MARK_IBUF)
+	       || (btr_cursor->flag == BTR_CUR_DELETE_IBUF)
+	       || (btr_cursor->flag == BTR_CUR_INSERT_TO_IBUF));
+}
+
+/******************************************************************
 Opens an persistent cursor to an index tree without initializing the
 cursor. */
 UNIV_INLINE

@@ -18,23 +18,21 @@ Created 7/19/1997 Heikki Tuuri
 #include "ibuf0types.h"
 #include "fsp0fsp.h"
 
+/* Possible operations buffered in the insert/whatever buffer. See
+ibuf_insert(). DO NOT CHANGE THE VALUES OF THESE, THEY ARE STORED ON DISK. */
+typedef enum {
+	IBUF_OP_INSERT = 0,
+	IBUF_OP_DELETE_MARK = 1,
+	IBUF_OP_DELETE = 2,
+
+	/* Number of different operation types. */
+	IBUF_OP_COUNT = 3,
+} ibuf_op_t;
+
 extern ibuf_t*	ibuf;
 
 /**********************************************************************
-Creates the insert buffer data struct for a single tablespace. Reads the
-root page of the insert buffer tree in the tablespace. This function can
-be called only after the dictionary system has been initialized, as this
-creates also the insert buffer table and index for this tablespace. */
-UNIV_INTERN
-ibuf_data_t*
-ibuf_data_init_for_space(
-/*=====================*/
-			/* out, own: ibuf data struct, linked to the list
-			in ibuf control structure. */
-	ulint	space);	/* in: space id */
-/**********************************************************************
-Creates the insert buffer data structure at a database startup and
-initializes the data structures for the insert buffer of each tablespace. */
+Creates the insert buffer data structure at a database startup. */
 UNIV_INTERN
 void
 ibuf_init_at_db_start(void);
@@ -165,38 +163,29 @@ ibuf_page(
 			/* out: TRUE if level 2 or level 3 page */
 	ulint	space,	/* in: space id */
 	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
-	ulint	page_no);/* in: page number */
-/***************************************************************************
-Checks if a page is a level 2 or 3 page in the ibuf hierarchy of pages. */
-UNIV_INTERN
-ibool
-ibuf_page_low(
-/*==========*/
-			/* out: TRUE if level 2 or level 3 page */
-	ulint	space,	/* in: space id */
-	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	page_no,/* in: page number */
 	mtr_t*	mtr);	/* in: mtr which will contain an x-latch to the
 			bitmap page if the page is not one of the fixed
-			address ibuf pages */
+			address ibuf pages, or NULL, in which case a new
+			transaction is created. */
 /***************************************************************************
 Frees excess pages from the ibuf free list. This function is called when an OS
 thread calls fsp services to allocate a new file segment, or a new page to a
 file segment, and the thread did not own the fsp latch before this call. */
 UNIV_INTERN
 void
-ibuf_free_excess_pages(
-/*===================*/
-	ulint	space);		/* in: space id */
+ibuf_free_excess_pages(void);
+/*========================*/
 /*************************************************************************
-Makes an index insert to the insert buffer, instead of directly to the disk
-page, if this is possible. Does not do insert if the index is clustered
-or unique. */
+Buffer an operation in the insert/delete buffer, instead of doing it
+directly to the disk page, if this is possible. Does not do it if the index
+is clustered or unique. */
 UNIV_INTERN
 ibool
 ibuf_insert(
 /*========*/
 				/* out: TRUE if success */
+	ibuf_op_t	op,	/* in: operation type */
 	const dtuple_t*	entry,	/* in: index entry to insert */
 	dict_index_t*	index,	/* in: index where to insert */
 	ulint		space,	/* in: space id where to insert */
@@ -205,11 +194,11 @@ ibuf_insert(
 	que_thr_t*	thr);	/* in: query thread */
 /*************************************************************************
 When an index page is read from a disk to the buffer pool, this function
-inserts to the page the possible index entries buffered in the insert buffer.
-The entries are deleted from the insert buffer. If the page is not read, but
-created in the buffer pool, this function deletes its buffered entries from
-the insert buffer; there can exist entries for such a page if the page
-belonged to an index which subsequently was dropped. */
+applies any buffered operations to the page and deletes the entries from the
+insert buffer. If the page is not read, but created in the buffer pool, this
+function deletes its buffered entries from the insert buffer; there can
+exist entries for such a page if the page belonged to an index which
+subsequently was dropped. */
 UNIV_INTERN
 void
 ibuf_merge_or_delete_for_page(
@@ -300,6 +289,16 @@ void
 ibuf_print(
 /*=======*/
 	FILE*	file);	/* in: file where to print */
+/********************************************************************
+Read the first two bytes from a record's fourth field (counter field in new
+records; something else in older records). */
+
+ulint
+ibuf_rec_get_fake_counter(
+/*======================*/
+			/* out: "counter" field, or ULINT_UNDEFINED if for
+			some reason it can't be read*/
+	rec_t*	rec);	/* in: ibuf record */
 
 #define IBUF_HEADER_PAGE_NO	FSP_IBUF_HEADER_PAGE_NO
 #define IBUF_TREE_ROOT_PAGE_NO	FSP_IBUF_TREE_ROOT_PAGE_NO
@@ -308,6 +307,9 @@ ibuf_print(
 for the file segment from which the pages for the ibuf tree are allocated */
 #define IBUF_HEADER		PAGE_DATA
 #define	IBUF_TREE_SEG_HEADER	0	/* fseg header for ibuf tree */
+
+/* The insert buffer tree itself is always located in space 0. */
+#define IBUF_SPACE_ID		0
 
 #ifndef UNIV_NONINL
 #include "ibuf0ibuf.ic"

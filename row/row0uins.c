@@ -136,7 +136,7 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+	found = row_search_index_entry(NULL, index, entry, mode, &pcur, &mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 

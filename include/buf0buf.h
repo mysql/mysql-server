@@ -43,6 +43,10 @@ Created 11/5/1995 Heikki Tuuri
 					it is error-prone programming not to
 					set a latch, and it should be used
 					with care */
+#define BUF_GET_IF_IN_POOL_OR_WATCH	15
+					/* Get the page only if it's in the
+					buffer pool, if not then set a watch
+					on the page. */
 /* Modes for buf_page_get_known_nowait */
 #define BUF_MAKE_YOUNG	51
 #define BUF_KEEP_OLD	52
@@ -165,20 +169,22 @@ read the contents of the page unless you know it is safe. Do not modify
 the contents of the page! We have separated this case, because it is
 error-prone programming not to set a latch, and it should be used
 with care. */
-#define buf_page_get_with_no_latch(SP, ZS, OF, MTR)	   buf_page_get_gen(\
+#define buf_page_get_with_no_latch(SP, ZS, OF, MTR)  buf_page_get_gen(\
 				SP, ZS, OF, RW_NO_LATCH, NULL,\
-				BUF_GET_NO_LATCH, __FILE__, __LINE__, MTR)
+				BUF_GET_NO_LATCH, \
+				__FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of buf_page_get_gen, to
 improve debugging. Only values RW_S_LATCH and RW_X_LATCH are allowed as LA! */
 #define buf_page_get_nowait(SP, ZS, OF, LA, MTR)	buf_page_get_gen(\
 				SP, ZS, OF, LA, NULL,\
-				BUF_GET_NOWAIT, __FILE__, __LINE__, MTR)
+				BUF_GET_NOWAIT, \
+				__FILE__, __LINE__, MTR)
 /******************************************************************
 NOTE! The following macros should be used instead of
 buf_page_optimistic_get_func, to improve debugging. Only values RW_S_LATCH and
 RW_X_LATCH are allowed as LA! */
-#define buf_page_optimistic_get(LA, BL, MC, MTR)			     \
+#define buf_page_optimistic_get(LA, BL, MC, MTR)			\
 	buf_page_optimistic_get_func(LA, BL, MC, __FILE__, __LINE__, MTR)
 /************************************************************************
 This is the general function used to get optimistic access to a database
@@ -258,7 +264,8 @@ buf_page_get_gen(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH */
+				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
+				BUF_GET_IF_IN_POOL_WATCH*/
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr);	/* in: mini-transaction */
@@ -952,8 +959,23 @@ UNIV_INTERN
 ulint
 buf_get_free_list_len(void);
 /*=======================*/
+/********************************************************************
+Stop watching if the marked page is read in. */
 
+void
+buf_pool_remove_watch(void);
+/*=======================*/
+/********************************************************************
+Check if the given page is being watched and has been read to the buffer
+pool. */
 
+ibool
+buf_pool_watch_happened(
+/*====================*/
+				/* out: TRUE if the given page is being
+				watched and it has been read in */
+	ulint	space,		/* in: space id */
+	ulint	page_no);	/* in: page number */
 
 /* The common buffer control block structure
 for compressed and uncompressed frames */
@@ -1186,6 +1208,16 @@ struct buf_pool_struct{
 					buf_block_t file pages,
 					buf_page_in_file() == TRUE,
 					indexed by (space_id, offset) */
+	/*--------------------------*/	/* Delete buffering data */
+	ibool		watch_active;	/* if TRUE, set watch_happened to
+					TRUE when page watch_space/
+					watch_page_no is read in. */
+	ulint		watch_space;	/* space id of watched page */
+	ulint		watch_page_no;	/* page number of watched page */
+	ibool		watch_happened;	/* has watched page been read in */
+	/*--------------------------*/
+
+
 	hash_table_t*	zip_hash;	/* hash table of buf_block_t blocks
 					whose frames are allocated to the
 					zip buddy system,

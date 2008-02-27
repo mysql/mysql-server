@@ -213,6 +213,7 @@ buf_buddy_block_register(
 	buf_block_t*	block)	/* in: buffer frame to allocate */
 {
 	const ulint	fold = BUF_POOL_ZIP_FOLD(block);
+
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 
@@ -224,6 +225,7 @@ buf_buddy_block_register(
 	ut_ad(!block->page.in_page_hash);
 	ut_ad(!block->page.in_zip_hash);
 	ut_d(block->page.in_zip_hash = TRUE);
+
 	HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
 
 	buf_buddy_n_frames++;
@@ -278,23 +280,21 @@ buf_buddy_alloc_clean(
 			TRUE if storage was allocated from the LRU list
 			and buf_pool_mutex was temporarily released */
 {
+	ulint		count;
 	buf_page_t*	bpage;
 
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
 
-	if (buf_buddy_n_frames < buf_buddy_max_n_frames) {
+	if (buf_buddy_n_frames >= buf_buddy_max_n_frames
+	    && ((BUF_BUDDY_LOW << i) >= PAGE_ZIP_MIN_SIZE
+		&& i < BUF_BUDDY_SIZES)) {
 
-		goto free_LRU;
-	}
-
-	if (BUF_BUDDY_LOW << i >= PAGE_ZIP_MIN_SIZE
-	    && i < BUF_BUDDY_SIZES) {
 		/* Try to find a clean compressed-only page
 		of the same size. */
 
-		page_zip_des_t	dummy_zip;
 		ulint		j;
+		page_zip_des_t	dummy_zip;
 
 		page_zip_set_size(&dummy_zip, BUF_BUDDY_LOW << i);
 
@@ -335,9 +335,12 @@ buf_buddy_alloc_clean(
 	/* Free blocks from the end of the LRU list until enough space
 	is available. */
 
+	count = 0;
+
 free_LRU:
-	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU); bpage;
-	     bpage = UT_LIST_GET_PREV(LRU, bpage)) {
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     bpage;
+	     bpage = UT_LIST_GET_PREV(LRU, bpage), ++count) {
 
 		void*		ret;
 		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
@@ -440,19 +443,18 @@ buf_buddy_alloc_low(
 	}
 
 	/* Try replacing a clean page in the buffer pool. */
-
 	block = buf_buddy_alloc_clean(i, lru);
 
 	if (block) {
 
 		goto func_exit;
 	}
-
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit();
 	block = buf_LRU_get_free_block(0);
 	*lru = TRUE;
 	buf_pool_mutex_enter();
+
 
 alloc_big:
 	buf_buddy_block_register(block);

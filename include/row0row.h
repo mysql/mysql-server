@@ -268,6 +268,9 @@ ibool
 row_search_index_entry(
 /*===================*/
 				/* out: TRUE if found */
+	ibool*		was_buffered,
+				/* out: TRUE if the operation was buffered
+				in the insert/delete buffer. Can be NULL. */
 	dict_index_t*	index,	/* in: index */
 	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
