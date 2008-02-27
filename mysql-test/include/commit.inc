@@ -421,15 +421,10 @@ call p_verify_status_increment(2, 2, 2, 2);
 
 --echo # 4. Read-write statement: UPDATE, update 0 rows, 1 row matches WHERE 
 --echo #
---echo # Note the wrong Handler_prepare/Handler_commit count is due to
---echo # Bug#29157 "UPDATE, changed rows incorrect" and
---echo # Bug#Bug #33846   UPDATE word:Wrong 'Changed rows' if InnoDB, unique
---echo # key and no rows qualify WHERE
---echo #
 update t1 set a=2;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 commit;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 
 --echo # 5. Read-write statement: UPDATE, update 0 rows, 0 rows match WHERE 
 --echo #
@@ -483,9 +478,9 @@ call p_verify_status_increment(2, 2, 2, 2);
 --echo # 10. Read-write statement: REPLACE, change 0 rows. 
 --echo #
 replace t1 set a=1;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 commit;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 
 --echo # 11. Read-write statement: IODKU, change 1 row. 
 --echo #
