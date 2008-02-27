@@ -110,8 +110,8 @@ UNIV_INTERN
 void
 ibuf_update_free_bits_zip(
 /*======================*/
-	const buf_block_t*	block,	/* in: index page */
-	mtr_t*			mtr);	/* in/out: mtr */
+	buf_block_t*	block,	/* in/out: index page */
+	mtr_t*		mtr);	/* in/out: mtr */
 /**************************************************************************
 Updates the free bits for the two pages to reflect the present state. Does
 this in the mtr given, which means that the latching order rules virtually
