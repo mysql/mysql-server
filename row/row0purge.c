@@ -197,11 +197,12 @@ retry:
 }
 
 /***************************************************************
-Removes a secondary index entry if possible. */
+Removes a secondary index entry if possible, without trying to use the
+insert/delete buffer. */
 static
 ibool
-row_purge_remove_sec_if_poss_low(
-/*=============================*/
+row_purge_remove_sec_if_poss_low_nonbuffered(
+/*=========================================*/
 				/* out: TRUE if success or if not found */
 	purge_node_t*	node,	/* in: row purge node */
 	dict_index_t*	index,	/* in: index */
@@ -212,7 +213,7 @@ row_purge_remove_sec_if_poss_low(
 	btr_pcur_t	pcur;
 	btr_cur_t*	btr_cur;
 	ibool		success;
-	ibool		old_has = 0; /* remove warning */
+	ibool		old_has = FALSE; /* remove warning */
 	ibool		found;
 	ulint		err;
 	mtr_t		mtr;
@@ -221,13 +222,13 @@ row_purge_remove_sec_if_poss_low(
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+	found = row_search_index_entry(NULL, index, entry, mode, &pcur, &mtr);
 
 	if (!found) {
 		/* Not found */
 
 		/* fputs("PURGE:........sec entry not found\n", stderr); */
-		/* dtuple_print(stderr, entry); */
+		/* dtuple_print(entry); */
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -266,8 +267,13 @@ row_purge_remove_sec_if_poss_low(
 			ut_ad(mode == BTR_MODIFY_TREE);
 			btr_cur_pessimistic_delete(&err, FALSE, btr_cur,
 						   FALSE, &mtr);
-			success = err == DB_SUCCESS;
-			ut_a(success || err == DB_OUT_OF_FILE_SPACE);
+			if (err == DB_SUCCESS) {
+				success = TRUE;
+			} else if (err == DB_OUT_OF_FILE_SPACE) {
+				success = FALSE;
+			} else {
+				ut_error;
+			}
 		}
 	}
 
@@ -275,6 +281,117 @@ row_purge_remove_sec_if_poss_low(
 	mtr_commit(&mtr);
 
 	return(success);
+}
+
+/***************************************************************
+Removes a secondary index entry if possible. */
+static
+ibool
+row_purge_remove_sec_if_poss_low(
+/*=============================*/
+				/* out: TRUE if success or if not found */
+	purge_node_t*	node,	/* in: row purge node */
+	dict_index_t*	index,	/* in: index */
+	dtuple_t*	entry,	/* in: index entry */
+	ulint		mode)	/* in: latch mode BTR_MODIFY_LEAF or
+				BTR_MODIFY_TREE */
+{
+	mtr_t		mtr;
+	btr_pcur_t	pcur;
+	btr_cur_t*	btr_cur;
+	ibool		found;
+	ibool		success;
+	ibool		was_buffered;
+	ibool		old_has = FALSE;
+	ibool		leaf_in_buf_pool;
+
+	ut_a((mode == BTR_MODIFY_TREE) || (mode == BTR_MODIFY_LEAF));
+
+	if (mode == BTR_MODIFY_TREE) {
+		/* Can't use the insert/delete buffer if we potentially
+		need to split pages. */
+
+		return(row_purge_remove_sec_if_poss_low_nonbuffered(
+			       node, index, entry, mode));
+	}
+
+	log_free_check();
+
+	mtr_start(&mtr);
+
+	found = row_search_index_entry(
+		NULL, index, entry,
+		BTR_SEARCH_LEAF | BTR_WATCH_LEAF, &pcur, &mtr);
+
+	btr_cur = btr_pcur_get_btr_cur(&pcur);
+	leaf_in_buf_pool = btr_cur->leaf_in_buf_pool;
+
+	ut_a(!(found && !leaf_in_buf_pool));
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	if (leaf_in_buf_pool) {
+
+		if (found) {
+			/* Index entry exists and is in the buffer pool, no
+			need to use the insert/delete buffer. */
+
+			return(row_purge_remove_sec_if_poss_low_nonbuffered(
+				       node, index, entry, BTR_MODIFY_LEAF));
+		} else {
+			/* Index entry does not exist, nothing to do. */
+
+			return(TRUE);
+		}
+	}
+
+	/* We should remove the index record if no later version of the row,
+	which cannot be purged yet, requires its existence. If some
+	requires, we should do nothing. */
+
+	mtr_start(&mtr);
+
+	success = row_purge_reposition_pcur(BTR_SEARCH_LEAF, node, &mtr);
+
+	if (success) {
+		old_has = row_vers_old_has_index_entry(
+			TRUE, btr_pcur_get_rec(&node->pcur),
+			&mtr, index, entry);
+	}
+
+	btr_pcur_commit_specify_mtr(&node->pcur, &mtr);
+
+	if (success && old_has) {
+		/* Can't remove the index record yet. */
+
+		buf_pool_remove_watch();
+
+		return(TRUE);
+	}
+
+	mtr_start(&mtr);
+
+	btr_cur->thr = que_node_get_parent(node);
+
+	row_search_index_entry(&was_buffered, index, entry,
+			       BTR_MODIFY_LEAF | BTR_DELETE, &pcur,
+			       &mtr);
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	buf_pool_remove_watch();
+
+	if (!was_buffered) {
+		/* Page read into buffer pool or delete-buffering failed. */
+
+		return(row_purge_remove_sec_if_poss_low_nonbuffered(
+			       node, index, entry, BTR_MODIFY_LEAF));
+	}
+
+	return(TRUE);
+
 }
 
 /***************************************************************

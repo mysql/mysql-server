@@ -137,6 +137,9 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						for compressed pages */
 #endif
 
+//#define UNIV_DEBUG
+//#define UNIV_SYNC_DEBUG
+//#define UNIV_IBUF_DEBUG
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
@@ -316,8 +319,11 @@ it is read. */
 /* Minimize cache-miss latency by moving data at addr into a cache before
 it is read or written. */
 # define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
+/* Tell the compiler that variable/function is unused. */
+# define UNIV_UNUSED    __attribute__ ((unused))
 #else
 /* Dummy versions of the macros */
+# define UNIV_UNUSED
 # define UNIV_EXPECT(expr,value) (expr)
 # define UNIV_LIKELY_NULL(expr) (expr)
 # define UNIV_PREFETCH_R(addr) ((void) 0)

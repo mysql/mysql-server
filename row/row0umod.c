@@ -307,7 +307,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	log_free_check();
 	mtr_start(&mtr);
 
-	found = row_search_index_entry(index, entry, mode, &pcur, &mtr);
+	found = row_search_index_entry(NULL, index, entry, mode, &pcur, &mtr);
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
@@ -432,7 +432,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		return(DB_SUCCESS);
 	}
 
-	if (UNIV_UNLIKELY(!row_search_index_entry(index, entry,
+	if (UNIV_UNLIKELY(!row_search_index_entry(NULL, index, entry,
 						  mode, &pcur, &mtr))) {
 		fputs("InnoDB: error in sec index entry del undo in\n"
 		      "InnoDB: ", stderr);

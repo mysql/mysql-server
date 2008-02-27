@@ -79,6 +79,16 @@ btr_pcur_open(
 	btr_pcur_t*	cursor, /* in: memory buffer for persistent cursor */
 	mtr_t*		mtr);	/* in: mtr */
 /******************************************************************
+Check if an operation was buffered. */
+UNIV_INLINE
+ibool
+btr_pcur_was_buffered(
+/*==================*/
+				/* out: TRUE if the operation was buffered
+				in the insert/delete buffer */
+	const btr_pcur_t*	cursor);
+				/* in: persistent cursor */
+/******************************************************************
 Opens an persistent cursor to an index tree without initializing the
 cursor. */
 UNIV_INLINE
