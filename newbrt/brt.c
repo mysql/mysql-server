@@ -1715,12 +1715,6 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     int r;
     BRT_CMD_S brtcmd = { BRT_INSERT, toku_txn_get_txnid(txn), .u.id={key,val}};
 
-    {
-	const BYTESTRING insertedkey  =  { key->size, toku_memdup(key->data, key->size) };
-	const BYTESTRING inserteddata =  { val->size, toku_memdup(val->data, val->size) };
-	r = toku_logger_save_rollback_insert(txn, toku_cachefile_filenum(brt->cf), insertedkey, inserteddata);
-	if (r!=0) return r;
-    }
     r = brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
     return r;
 }
@@ -1745,11 +1739,6 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     DBT val;
     printf("removing\n");
     BRT_CMD_S brtcmd = { BRT_DELETE, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
-    {
-	const BYTESTRING deletedkey  =  { key->size, toku_memdup(key->data, key->size) };
-	r = toku_logger_save_rollback_delete(txn, toku_cachefile_filenum(brt->cf), deletedkey);
-	if (r!=0) return r;
-    }
     r = brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
     return r;
 }
