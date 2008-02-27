@@ -112,6 +112,7 @@ uint		mysql_port=0;
 char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
+const char	*cant_connect_sqlstate= "08001";
 #ifdef HAVE_SMEM
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
@@ -126,6 +127,9 @@ static int wait_for_data(my_socket fd, uint timeout);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
 
+/* Server error code and message */
+unsigned int mysql_server_last_errno;
+char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
@@ -288,11 +292,18 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
   DBUG_ASSERT(mysql != 0);
 
-  net= &mysql->net;
-  net->client_last_errno= errcode;
-  strmov(net->client_last_error, ER(errcode));
-  strmov(net->sqlstate, sqlstate);
-
+  if (mysql)
+  {
+    net= &mysql->net;
+    net->client_last_errno= errcode;
+    strmov(net->client_last_error, ER(errcode));
+    strmov(net->sqlstate, sqlstate);
+  }
+  else
+  {
+    mysql_server_last_errno= errcode;
+    strmov(mysql_server_last_error, ER(errcode));
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -1489,7 +1500,10 @@ mysql_init(MYSQL *mysql)
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
+    {
+      set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 0;
+    }
     mysql->free_me=1;
   }
   else
@@ -3079,13 +3093,13 @@ unsigned int STDCALL mysql_num_fields(MYSQL_RES *res)
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
-  return mysql->net.client_last_errno;
+  return mysql ? mysql->net.client_last_errno : mysql_server_last_errno;
 }
 
 
 const char * STDCALL mysql_error(MYSQL *mysql)
 {
-  return mysql->net.client_last_error;
+  return mysql ? mysql->net.client_last_error : mysql_server_last_error;
 }
 
 
