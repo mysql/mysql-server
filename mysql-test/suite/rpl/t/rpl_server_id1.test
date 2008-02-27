@@ -6,21 +6,20 @@
 
 source include/master-slave.inc;
 connection slave;
-create table t1 (n int);
 reset master;
+
 # replicate ourselves
 stop slave;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval change master to master_port=$SLAVE_MYPORT;
---replace_result $SLAVE_MYPORT SLAVE_PORT
---replace_column 16 # 18 # 35 # 36 #
-query_vertical show slave status;
 start slave;
-insert into t1 values (1);
-# can't MASTER_POS_WAIT(), it does not work in this weird setup
-# (when slave is its own master without --replicate-same-server-id)
-sleep 2; # enough time for the event to be replicated (it should not)
-show status like "slave_running";
-drop table t1;
+
+--echo *** must be having the replicate-same-server-id IO thread error ***
+
+source include/wait_for_slave_io_to_stop.inc;
+
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_column 12 # 16 # 19 # 20 # 18 # 37 # 38 #
+query_vertical show slave status;
 
 # End of 4.1 tests
