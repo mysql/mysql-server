@@ -54,6 +54,10 @@ extern ulint	page_zip_compress_count[8];
 extern ulint	page_zip_compress_ok[8];
 /** Number of page decompressions, indexed by page_zip_des_t::ssize */
 extern ulint	page_zip_decompress_count[8];
+/** Duration of page compressions, indexed by page_zip_des_t::ssize */
+extern ullint	page_zip_compress_duration[8];
+/** Duration of page decompressions, indexed by page_zip_des_t::ssize */
+extern ullint	page_zip_decompress_duration[8];
 
 /**************************************************************************
 Write data to the compressed page.  The data must already be written to

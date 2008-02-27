@@ -28,6 +28,9 @@ UNIV_INTERN ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool_mutex. */
 UNIV_INTERN ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+/** Durations of block relocations.
+Protected by buf_pool_mutex. */
+UNIV_INTERN ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded or the buffer
@@ -531,6 +534,7 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
+	ullint		usec	= ut_time_us(NULL);
 
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
@@ -603,6 +607,8 @@ buf_buddy_relocate(
 success:
 			UNIV_MEM_INVALID(src, size);
 			buf_buddy_relocated[i]++;
+			buf_buddy_relocated_duration[i]
+				+= ut_time_us(NULL) - usec;
 			return(TRUE);
 		}
 
