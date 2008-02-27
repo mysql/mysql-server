@@ -41,17 +41,14 @@ int logformat_version_number = 0;
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
-    {"delete",    'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
-			  {"BYTESTRING", "key", 0},
-			  NULLFIELD}},
-    {"deleteboth", 'D', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
-			   {"BYTESTRING", "key", 0},
-			   {"BYTESTRING", "data", 0},
-			   NULLFIELD}},
-    {"insert",    'i', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
-			  {"BYTESTRING", "key", 0},
-			  {"BYTESTRING", "data", 0},
-			  NULLFIELD}},
+    {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
+			     {"BYTESTRING", "key", 0},
+			     {"BYTESTRING", "data", 0},
+			     NULLFIELD}},
+    {"insertatleaf", 'i', FA{{"FILENUM", "filenum", 0}, // Note an insert for rollback.   The insert takes place in a leaf.
+			     {"BYTESTRING", "key", 0},
+			     {"BYTESTRING", "data", 0},
+			     NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 

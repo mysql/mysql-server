@@ -716,18 +716,27 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKULOGGER logger, TXNID xid, FILE
     pma->n_pairs_present++;
     *fingerprint += rand4fingerprint*toku_calccrc32_kvpair(k->data, k->size, v->data, v->size); 
 
-    const struct kv_pair *pair = pma->pairs[idx];
-    const BYTESTRING key  = { pair->keylen, toku_memdup(kv_pair_key_const(pair), pair->keylen) };
-    const BYTESTRING data = { pair->vallen, toku_memdup(kv_pair_val_const(pair), pair->vallen) };
-    TOKUTXN txn;
-    int r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
-    if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
-    if (r!=0) goto freeit;
-    if (0!=toku_txnid2txn(logger, xid, &txn)) goto freeit;
+    struct kv_pair *pair = pma->pairs[idx];
+    {
+	TOKUTXN txn;
+	int r;
+	if ((r=toku_txnid2txn(logger, xid, &txn))) return r;
+	const BYTESTRING key  = { pair->keylen, toku_memdup(kv_pair_key_const(pair), pair->keylen) };
+	const BYTESTRING data = { pair->vallen, toku_memdup(kv_pair_val_const(pair), pair->vallen) };
+	if ((r = toku_logger_save_rollback_insertatleaf(txn, pma->filenum, key, data))) {
+	     toku_free(key.data); toku_free(data.data);
+	     return r;
+	}
+    }
+    {
+	const BYTESTRING key  = { pair->keylen, kv_pair_key(pair) };
+	const BYTESTRING data = { pair->vallen, kv_pair_val(pair) };
+	int r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	if (r!=0) return r;
+	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
+    }
 
-    /* Don't save rollback info, instead we'll reinsert the command at the root, if the insert fails. */
-    if (0) { freeit: toku_free(key.data); toku_free(data.data); }
-    return r;
+    return 0;
 }    
 
 static int pma_delete_dup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
@@ -866,15 +875,12 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 		if (r!=0) return r;
 	    }
 	    if (logger) {
-		const BYTESTRING deletedkey  = { kv->keylen, toku_memdup(kv_pair_key(kv), kv->keylen) };
-		const BYTESTRING deleteddata = { kv->vallen, toku_memdup(kv_pair_val(kv), kv->vallen) };
 		TOKUTXN txn;
 		if (0!=toku_txnid2txn(logger, xid, &txn)) return -1;
-		r=toku_logger_save_rollback_deleteboth(txn, pma->filenum, deletedkey, deleteddata);
-		if (r!=0) {
-		    toku_free(deletedkey.data);
-		    toku_free(deleteddata.data);
-		    return r;
+		const BYTESTRING deletedkey  = { kv->keylen, toku_memdup(kv_pair_key(kv), kv->keylen) };
+		const BYTESTRING deleteddata = { kv->vallen, toku_memdup(kv_pair_val(kv), kv->vallen) };
+		r=toku_logger_save_rollback_deleteatleaf(txn, pma->filenum, deletedkey, deleteddata);
+		if (r!=0) { toku_free(deletedkey.data); toku_free(deleteddata.data); return r;
 		}
 	    }
 	}
@@ -904,9 +910,18 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
     //printf("%s:%d txn=%p\n", __FILE__, __LINE__, txn);
  logit_and_update_fingerprint:
     {
-	struct kv_pair *pair = pma->pairs[idx];
-	BYTESTRING key  = { pair->keylen, kv_pair_key(pair) };
-	BYTESTRING data = { pair->vallen, kv_pair_val(pair) };
+	TOKUTXN txn;
+	if ((r=toku_txnid2txn(logger, xid, &txn))) return r;
+	const BYTESTRING key  = { k->size, toku_memdup(k->data, k->size) };
+	const BYTESTRING data = { v->size, toku_memdup(v->data, v->size) };
+	if ((r = toku_logger_save_rollback_insertatleaf(txn, pma->filenum, key, data))) {
+	     toku_free(key.data); toku_free(data.data);
+	     return r;
+	}
+    }
+    {
+	const BYTESTRING key  = { k->size, k->data };
+	const BYTESTRING data = { v->size, k->data };
 	r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
 	if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
 	if (r!=0) return r;

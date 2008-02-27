@@ -411,8 +411,7 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
-int toku_rollback_deleteboth (FILENUM filenum,
-			      BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+int toku_rollback_deleteatleaf (FILENUM filenum, BYTESTRING key, BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
@@ -425,22 +424,7 @@ int toku_rollback_deleteboth (FILENUM filenum,
     return r;
 }
 
-int toku_rollback_delete (FILENUM filenum,
-			      BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    CACHEFILE cf;
-    BRT brt;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
-    assert(r==0);
-    DBT key_dbt,data_dbt;
-    r = toku_brt_insert(brt,
-			toku_fill_dbt(&key_dbt, key.data, key.len),
-			toku_fill_dbt(&data_dbt, data.data, data.len),
-			txn);
-    return r;
-}
-
-int toku_rollback_insert (FILENUM filenum,
-			  BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+int toku_rollback_insertatleaf (FILENUM filenum, BYTESTRING key,BYTESTRING data, TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
