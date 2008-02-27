@@ -52,7 +52,7 @@ void toku_recover_cleanup (void) {
     }
 }
 
-int toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf) {
+int toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf, BRT brt) {
     if (max_cf_pairs==0) {
 	n_cf_pairs=1;
 	max_cf_pairs=2;
@@ -67,7 +67,7 @@ int toku_recover_note_cachefile (FILENUM fnum, CACHEFILE cf) {
     }
     cf_pairs[n_cf_pairs-1].filenum = fnum;
     cf_pairs[n_cf_pairs-1].cf      = cf;
-    cf_pairs[n_cf_pairs-1].brt     = 0;
+    cf_pairs[n_cf_pairs-1].brt     = brt;
     return 0;
 }
 
@@ -358,7 +358,7 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     assert(r==0);
     brt->skey = brt->sval = 0;
     brt->cf=cf;
-    toku_recover_note_cachefile(filenum, cf);
+    toku_recover_note_cachefile(filenum, cf, brt);
     toku_free_BYTESTRING(fname);
 }
 
@@ -411,8 +411,22 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(databs);
 }
 
+int toku_rollback_deleteboth (FILENUM filenum,
+			      BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
+    assert(r==0);
+    DBT key_dbt,data_dbt;
+    r = toku_brt_insert(brt,
+			toku_fill_dbt(&key_dbt, key.data, key.len),
+			toku_fill_dbt(&data_dbt, data.data, data.len),
+			txn);
+    return r;
+}
+
 int toku_rollback_delete (FILENUM filenum,
-			  BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+			      BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
@@ -435,7 +449,7 @@ int toku_rollback_insert (FILENUM filenum,
     r = toku_brt_delete_both(brt,
 			     toku_fill_dbt(&key_dbt, key.data, key.len),
 			     toku_fill_dbt(&data_dbt, data.data, data.len),
-			     txn);
+			     0);
     return r;
 }
 

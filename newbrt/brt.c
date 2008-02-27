@@ -1743,7 +1743,13 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
 int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
     DBT val;
+    printf("removing\n");
     BRT_CMD_S brtcmd = { BRT_DELETE, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
+    {
+	const BYTESTRING deletedkey  =  { key->size, toku_memdup(key->data, key->size) };
+	r = toku_logger_save_rollback_delete(txn, toku_cachefile_filenum(brt->cf), deletedkey);
+	if (r!=0) return r;
+    }
     r = brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
     return r;
 }

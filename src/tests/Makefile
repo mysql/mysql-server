@@ -191,7 +191,7 @@ make_libs:
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov 
-	rm -rf dir.*.tdb dir.*.bdb
+	rm -rf dir.*.tdb dir.*.bdb dir.*.tdb.recover
 
 cleanall: clean
 	rm -f *.tdbrun
