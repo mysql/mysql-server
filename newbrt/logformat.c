@@ -43,12 +43,16 @@ const struct logtype rollbacks[] = {
 			NULLFIELD}},
     {"delete",    'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
 			  {"BYTESTRING", "key", 0},
-			  {"BYTESTRING", "data", 0},
 			  NULLFIELD}},
+    {"deleteboth", 'D', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
+			   {"BYTESTRING", "key", 0},
+			   {"BYTESTRING", "data", 0},
+			   NULLFIELD}},
     {"insert",    'i', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.  
 			  {"BYTESTRING", "key", 0},
 			  {"BYTESTRING", "data", 0},
 			  NULLFIELD}},
+    {0,0,FA{NULLFIELD}}
 };
 
 const struct logtype logtypes[] = {
@@ -212,7 +216,7 @@ void generate_enum_internal (char *enum_name, char *enum_prefix, const struct lo
 		    count++;
 		    fprintf(hf, "\n");
 		    fprintf(hf,"    %s_%-16s = '%c'", enum_prefix, lt->name, cmd);
-		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice\n", __FILE__, __LINE__, cmd, cmd); abort(); }
+		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice (second time for %s)\n", __FILE__, __LINE__, cmd, cmd, lt->name); abort(); }
 		    used_cmds[cmd]=1;
 		}));
     fprintf(hf, "\n};\n\n");
