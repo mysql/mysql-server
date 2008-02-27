@@ -312,8 +312,8 @@ btr_cur_del_mark_set_sec_rec(
 	que_thr_t*	thr,	/* in: query thread */
 	mtr_t*		mtr);	/* in: mtr */
 /***************************************************************
-Sets a secondary index record delete mark to FALSE. This function is
-only used by the insert buffer insert merge mechanism. */
+Sets a secondary index record delete mark to the given value. This
+function is only used by the insert buffer insert merge mechanism. */
 UNIV_INTERN
 void
 btr_cur_del_unmark_for_ibuf(
@@ -323,6 +323,7 @@ btr_cur_del_unmark_for_ibuf(
 					corresponding to rec, or NULL
 					when the tablespace is
 					uncompressed */
+	ibool		val,		/* value to set */
 	mtr_t*		mtr);		/* in: mtr */
 /*****************************************************************
 Tries to compress a page of the tree if it seems useful. It is assumed
@@ -572,7 +573,20 @@ btr_push_update_extern_fields(
 	const upd_t*	update,	/* in: update vector */
 	mem_heap_t*	heap)	/* in: memory heap */
 	__attribute__((nonnull));
+/***************************************************************
+Sets a secondary index record's delete mark to the given value. This
+function is only used by the insert buffer merge mechanism. */
 
+void
+btr_cur_set_deleted_flag_for_ibuf(
+/*==============================*/
+	rec_t*		rec,		/* in: record */
+	page_zip_des_t*	page_zip,	/* in/out: compressed page
+					corresponding to rec, or NULL
+					when the tablespace is
+					uncompressed */
+	ibool		val,		/* in: value to set */
+	mtr_t*		mtr);		/* in: mtr */
 /*######################################################################*/
 
 /* In the pessimistic delete, if the page data size drops below this
@@ -657,6 +671,28 @@ struct btr_cur_struct {
 					NULL */
 	ulint		fold;		/* fold value used in the search if
 					flag is BTR_CUR_HASH */
+	/*----- Delete buffering -------*/
+	ulint		ibuf_cnt;	/* in searches done on insert buffer
+					trees, this contains the "counter"
+					value (the first two bytes of the
+					fourth field) extracted from the
+					page above the leaf page, from the
+					father node pointer that pointed to
+					the leaf page. in other words, it
+					contains the minimum counter value
+					for records to be inserted on the
+					chosen leaf page. If for some reason
+					this can't be read, or if the search
+					ended on the leftmost leaf page in
+					the tree (in which case the father
+					node pointer had the 'minimum
+					record' flag set), this is
+					ULINT_UNDEFINED. */
+	ibool		leaf_in_buf_pool;
+					/* in: in searches done with
+					BTR_CHECK_LEAF, this is TRUE if the
+					leaf page is in the buffer pool,
+					FALSE otherwise. */
 	/*------------------------------*/
 	btr_path_t*	path_arr;	/* in estimating the number of
 					rows in range, we store in this array
@@ -675,6 +711,13 @@ struct btr_cur_struct {
 #define BTR_CUR_BINARY		3	/* success using the binary search */
 #define BTR_CUR_INSERT_TO_IBUF	4	/* performed the intended insert to
 					the insert buffer */
+#define BTR_CUR_DEL_MARK_IBUF	5	/* performed the intended delete
+					mark in the insert/delete buffer */
+#define BTR_CUR_DELETE_IBUF	6	/* performed the intended delete in
+					the insert/delete buffer */
+#define BTR_CUR_ABORTED		7	/* search with BTR_CHECK_LEAF
+					aborted due to leaf page not being
+					in buffer pool */
 
 /* If pessimistic delete fails because of lack of file space,
 there is still a good change of success a little later: try this many times,

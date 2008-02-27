@@ -42,6 +42,8 @@ failure. */
 #define	BTR_SEARCH_PREV		35
 #define	BTR_MODIFY_PREV		36
 
+/* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */
+
 /* If this is ORed to the latch mode, it means that the search tuple will be
 inserted to the index, at the searched position */
 #define BTR_INSERT		512
@@ -54,6 +56,19 @@ optimization */
 UNIQUE definition on secondary indexes when we decide if we can use the
 insert buffer to speed up inserts */
 #define BTR_IGNORE_SEC_UNIQUE	2048
+
+/* Try to delete mark the record at the searched position using the
+insert/delete buffer. */
+#define BTR_DELETE_MARK		4096
+
+/* Try to delete the record at the searched position using the insert/delete
+buffer. */
+#define BTR_DELETE		8192
+
+/* If the leaf page is not in the buffer pool: don't read it in, set
+cursor->leaf_in_buf_pool to FALSE, and set buf_pool_t::watch_* that
+watches for the page to get read in. */
+#define BTR_WATCH_LEAF		16384
 
 /******************************************************************
 Gets the root node of a tree and x-latches it. */

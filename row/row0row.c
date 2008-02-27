@@ -789,6 +789,9 @@ ibool
 row_search_index_entry(
 /*===================*/
 				/* out: TRUE if found */
+	ibool*		was_buffered,
+				/* out: TRUE if the operation was buffered
+				in the insert/delete buffer. Can be NULL. */
 	dict_index_t*	index,	/* in: index */
 	const dtuple_t*	entry,	/* in: index entry */
 	ulint		mode,	/* in: BTR_MODIFY_LEAF, ... */
@@ -799,17 +802,48 @@ row_search_index_entry(
 	ulint	n_fields;
 	ulint	low_match;
 	rec_t*	rec;
+	ibool	ret;
 
 	ut_ad(dtuple_check_typed(entry));
 
 	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+
+	ret = btr_pcur_was_buffered(pcur);
+
+	if (was_buffered) {
+		*was_buffered = ret;
+	}
+
+	if (ret) {
+		/* Operation was buffered in the insert/delete buffer;
+		pretend that we found the record. */
+
+		return(TRUE);
+	} else if ((mode & BTR_WATCH_LEAF)
+		   && !btr_pcur_get_btr_cur(pcur)->leaf_in_buf_pool) {
+
+		/* We did not read in the leaf page, thus we can't have
+		found anything. */
+
+		return(FALSE);
+	}
+
 	low_match = btr_pcur_get_low_match(pcur);
 
 	rec = btr_pcur_get_rec(pcur);
 
 	n_fields = dtuple_get_n_fields(entry);
 
-	return(!page_rec_is_infimum(rec) && low_match == n_fields);
+	if (page_rec_is_infimum(rec)) {
+
+		return(FALSE);
+	} else if (low_match != n_fields) {
+		/* Not found */
+
+		return(FALSE);
+	}
+
+	return(TRUE);
 }
 
 #ifndef UNIV_HOTBACKUP

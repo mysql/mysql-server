@@ -558,6 +558,7 @@ btr_page_get_father_node_ptr(
 				its page x-latched */
 	mtr_t*		mtr)	/* in: mtr */
 {
+	page_t*		page;
 	dtuple_t*	tuple;
 	rec_t*		user_rec;
 	rec_t*		node_ptr;
@@ -574,7 +575,19 @@ btr_page_get_father_node_ptr(
 	ut_ad(dict_index_get_page(index) != page_no);
 
 	level = btr_page_get_level(btr_cur_get_page(cursor), mtr);
-	user_rec = btr_cur_get_rec(cursor);
+
+	page = btr_cur_get_page(cursor);
+
+	if (UNIV_UNLIKELY(page_get_n_recs(page) == 0)) {
+		/* Empty pages can result from buffered delete operations.
+		The first record from the free list can be used to find the
+		father node. */
+		user_rec = page_header_get_ptr(page, PAGE_FREE);
+		ut_a(user_rec);
+	} else {
+		user_rec = btr_cur_get_rec(cursor);
+	}
+
 	ut_a(page_rec_is_user_rec(user_rec));
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
 

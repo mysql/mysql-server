@@ -2191,8 +2191,8 @@ fseg_create_general(
 		/* This thread did not own the latch before this call: free
 		excess pages from the insert buffer free list */
 
-		if (space == 0) {
-			ibuf_free_excess_pages(0);
+		if (space == IBUF_SPACE_ID) {
+			ibuf_free_excess_pages();
 		}
 	}
 
@@ -2759,8 +2759,8 @@ fseg_alloc_free_page_general(
 		/* This thread did not own the latch before this call: free
 		excess pages from the insert buffer free list */
 
-		if (space == 0) {
-			ibuf_free_excess_pages(0);
+		if (space == IBUF_SPACE_ID) {
+			ibuf_free_excess_pages();
 		}
 	}
 

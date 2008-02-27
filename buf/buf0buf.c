@@ -1346,6 +1346,69 @@ buf_pool_resize(void)
 	buf_pool_page_hash_rebuild();
 }
 
+/********************************************************************
+Add watch for the given page to be read in. Caller must have the buffer pool
+mutex reserved. */
+static
+void
+buf_pool_add_watch(
+/*===============*/
+	ulint	space,		/* in: space id */
+	ulint	page_no)	/* in: page number */
+{
+	ut_ad(mutex_own(&buf_pool_mutex));
+
+	/* There can't be multiple watches at the same time. */
+	ut_a(!buf_pool->watch_active);
+
+	buf_pool->watch_active = TRUE;
+	buf_pool->watch_space = space;
+	buf_pool->watch_happened = FALSE;
+	buf_pool->watch_page_no = page_no;
+}
+
+/********************************************************************
+Stop watching if the marked page is read in. */
+UNIV_INTERN
+void
+buf_pool_remove_watch(void)
+/*=======================*/
+{
+	buf_pool_mutex_enter();
+
+	ut_ad(buf_pool->watch_active);
+
+	buf_pool->watch_active = FALSE;
+
+	buf_pool_mutex_exit();
+}
+
+/********************************************************************
+Check if the given page is being watched and has been read to the buffer
+pool. */
+UNIV_INTERN
+ibool
+buf_pool_watch_happened(
+/*====================*/
+				/* out: TRUE if the given page is being
+				watched and it has been read in */
+	ulint	space,		/* in: space id */
+	ulint	page_no)	/* in: page number */
+{
+	ulint	ret;
+
+	buf_pool_mutex_enter();
+
+	ret = buf_pool->watch_active
+		&& space == buf_pool->watch_space
+		&& page_no == buf_pool->watch_page_no
+		&& buf_pool->watch_happened;
+
+	buf_pool_mutex_exit();
+
+	return(ret);
+}
+
 /************************************************************************
 Moves to the block to the start of the LRU list if there is a danger
 that the block would drift out of the buffer pool. */
@@ -1763,7 +1826,8 @@ buf_page_get_gen(
 	ulint		rw_latch,/* in: RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
 	buf_block_t*	guess,	/* in: guessed block or NULL */
 	ulint		mode,	/* in: BUF_GET, BUF_GET_IF_IN_POOL,
-				BUF_GET_NO_LATCH, BUF_GET_NOWAIT */
+				BUF_GET_NO_LATCH, BUF_GET_NOWAIT or
+				BUF_GET_IF_IN_POOL_OR_WATCH*/
 	const char*	file,	/* in: file name */
 	ulint		line,	/* in: line where called */
 	mtr_t*		mtr)	/* in: mini-transaction */
@@ -1778,11 +1842,17 @@ buf_page_get_gen(
 	      || (rw_latch == RW_X_LATCH)
 	      || (rw_latch == RW_NO_LATCH));
 	ut_ad((mode != BUF_GET_NO_LATCH) || (rw_latch == RW_NO_LATCH));
-	ut_ad((mode == BUF_GET) || (mode == BUF_GET_IF_IN_POOL)
-	      || (mode == BUF_GET_NO_LATCH) || (mode == BUF_GET_NOWAIT));
+
+	/* Check for acceptable modes. */
+	ut_ad(mode == BUF_GET
+	      || mode == BUF_GET_IF_IN_POOL
+	      || mode == BUF_GET_NO_LATCH
+	      || mode == BUF_GET_NOWAIT
+	      || mode == BUF_GET_IF_IN_POOL_OR_WATCH);
+
 	ut_ad(zip_size == fil_space_get_zip_size(space));
 #ifndef UNIV_LOG_DEBUG
-	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset));
+	ut_ad(!ibuf_inside() || ibuf_page(space, zip_size, offset, mtr));
 #endif
 	buf_pool->n_page_gets++;
 loop:
@@ -1818,9 +1888,14 @@ loop2:
 	if (block == NULL) {
 		/* Page not in buf_pool: needs to be read from file */
 
+		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+			buf_pool_add_watch(space, offset);
+		}
+
 		buf_pool_mutex_exit();
 
-		if (mode == BUF_GET_IF_IN_POOL) {
+		if (mode == BUF_GET_IF_IN_POOL
+		    || mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 
 			return(NULL);
 		}
@@ -1837,7 +1912,18 @@ loop2:
 
 	must_read = buf_block_get_io_fix(block) == BUF_IO_READ;
 
-	if (must_read && mode == BUF_GET_IF_IN_POOL) {
+	if (must_read
+	    && (mode == BUF_GET_IF_IN_POOL
+		|| mode == BUF_GET_IF_IN_POOL_OR_WATCH)) {
+
+		/* The page is being read to bufer pool,
+		but we can't wait around for the read to
+		complete. */
+
+		if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
+			buf_pool_add_watch(space, offset);
+		}
+
 		/* The page is only being read to buffer */
 		buf_pool_mutex_exit();
 
@@ -2140,7 +2226,7 @@ buf_page_optimistic_get_func(
 	ut_ad(!ibuf_inside()
 	      || ibuf_page(buf_block_get_space(block),
 			   buf_block_get_zip_size(block),
-			   buf_block_get_page_no(block)));
+			   buf_block_get_page_no(block), mtr));
 
 	if (rw_latch == RW_S_LATCH) {
 		success = rw_lock_s_lock_func_nowait(&(block->lock),
@@ -2392,6 +2478,25 @@ buf_page_init_low(
 #endif /* UNIV_DEBUG_FILE_ACCESSES */
 }
 
+/************************************************************************
+Set watch happened flag. */
+UNIV_INLINE
+void
+buf_page_notify_watch(
+/*==================*/
+	ulint		space,	/* in: space id of page read in */
+	ulint		offset)	/* in: offset of page read in */
+{
+	ut_ad(buf_pool_mutex_own());
+
+	if (buf_pool->watch_active
+	    && space == buf_pool->watch_space
+	    && offset == buf_pool->watch_page_no) {
+
+		buf_pool->watch_happened = TRUE;
+	}
+}
+
 #ifdef UNIV_HOTBACKUP
 /************************************************************************
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
@@ -2481,6 +2586,7 @@ buf_page_init(
 	}
 
 	buf_page_init_low(&block->page);
+	buf_page_notify_watch(space, offset);
 
 	ut_ad(!block->page.in_zip_hash);
 	ut_ad(!block->page.in_page_hash);
@@ -2531,7 +2637,8 @@ buf_page_init_for_read(
 
 		mtr_start(&mtr);
 
-		if (!ibuf_page_low(space, zip_size, offset, &mtr)) {
+		if (!recv_no_ibuf_operations
+		    && !ibuf_page(space, zip_size, offset, &mtr)) {
 
 			mtr_commit(&mtr);
 
@@ -2583,7 +2690,9 @@ err_exit2:
 	if (block) {
 		bpage = &block->page;
 		mutex_enter(&block->mutex);
+
 		buf_page_init(space, offset, block);
+		buf_page_notify_watch(space, offset);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -2650,10 +2759,14 @@ err_exit2:
 		mutex_enter(&buf_pool_zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
 			      page_zip_get_size(&bpage->zip), bpage);
+
 		buf_page_init_low(bpage);
+		buf_page_notify_watch(space, offset);
+
 		bpage->state	= BUF_BLOCK_ZIP_PAGE;
 		bpage->space	= space;
 		bpage->offset	= offset;
+
 
 #ifdef UNIV_DEBUG
 		bpage->in_page_hash = FALSE;
@@ -2748,6 +2861,7 @@ buf_page_create(
 	mutex_enter(&block->mutex);
 
 	buf_page_init(space, offset, block);
+	buf_page_notify_watch(space, offset);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
@@ -3539,7 +3653,7 @@ buf_print_io(
 
 	fprintf(file,
 		"Buffer pool size   %lu\n"
-		"Free buffers       %lu\n"
+		"Free buffers	   %lu\n"
 		"Database pages     %lu\n"
 		"Modified db pages  %lu\n"
 		"Pending reads %lu\n"
