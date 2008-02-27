@@ -935,7 +935,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 	}
 	{
 	    const BYTESTRING key  = { k->size, k->data };
-	    const BYTESTRING data = { v->size, k->data };
+	    const BYTESTRING data = { v->size, v->data };
 	    r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
 	    if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
 	    if (r!=0) return r;
