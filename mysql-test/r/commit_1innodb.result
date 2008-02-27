@@ -416,17 +416,12 @@ SUCCESS
 
 # 4. Read-write statement: UPDATE, update 0 rows, 1 row matches WHERE 
 #
-# Note the wrong Handler_prepare/Handler_commit count is due to
-# Bug#29157 "UPDATE, changed rows incorrect" and
-# Bug#Bug #33846   UPDATE word:Wrong 'Changed rows' if InnoDB, unique
-# key and no rows qualify WHERE
-#
 update t1 set a=2;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 # 5. Read-write statement: UPDATE, update 0 rows, 0 rows match WHERE 
@@ -496,11 +491,11 @@ SUCCESS
 # 10. Read-write statement: REPLACE, change 0 rows. 
 #
 replace t1 set a=1;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 commit;
-call p_verify_status_increment(2, 2, 2, 2);
+call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 
 # 11. Read-write statement: IODKU, change 1 row. 
