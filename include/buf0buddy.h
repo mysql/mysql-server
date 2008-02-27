@@ -69,6 +69,9 @@ extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool_mutex. */
 extern ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+/** Durations of block relocations.
+Protected by buf_pool_mutex. */
+extern ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"

@@ -992,12 +992,36 @@ static ST_FIELD_INFO	i_s_zip_fields_info[] =
 	 STRUCT_FLD(old_name,		"Block Size"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"used"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently in Use"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"free"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently Available"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"relocated"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Number of Relocations"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"relocated_usec"),
+	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Relocations"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"compressed"),
@@ -1017,6 +1041,14 @@ static ST_FIELD_INFO	i_s_zip_fields_info[] =
 					" Successful Compressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"compressed_usec"),
+	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Compressions"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	{STRUCT_FLD(field_name,		"decompressed"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
@@ -1025,20 +1057,12 @@ static ST_FIELD_INFO	i_s_zip_fields_info[] =
 	 STRUCT_FLD(old_name,		"Total Number of Decompressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"used"),
-	 STRUCT_FLD(field_length,	21),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	{STRUCT_FLD(field_name,		"decompressed_usec"),
+	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Currently in Use"),
-	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
-
-	{STRUCT_FLD(field_name,		"free"),
-	 STRUCT_FLD(field_length,	21),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
-	 STRUCT_FLD(value,		0),
-	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Currently Available"),
+	 STRUCT_FLD(old_name,		"Total Duration of Decompressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
@@ -1076,10 +1100,17 @@ i_s_zip_fill_low(
 
 	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
 		table->field[0]->store(BUF_BUDDY_LOW << x);
-		table->field[1]->store(buf_buddy_relocated[x]);
+		table->field[1]->store(buf_buddy_used[x]);
+		table->field[2]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
+				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
+				       : 0);
+		table->field[3]->store(buf_buddy_relocated[x]);
+		table->field[4]->store(buf_buddy_relocated_duration[x]);
+
 		if (reset) {
 			/* This is protected by buf_pool_mutex. */
 			buf_buddy_relocated[x] = 0;
+			buf_buddy_relocated_duration[x] = 0;
 		}
 
 		if (x > y) {
@@ -1090,23 +1121,25 @@ i_s_zip_fill_low(
 			mutex protection, but it could cause a
 			measureable performance hit in page0zip.c. */
 			const uint i = x - y;
-			table->field[2]->store(page_zip_compress_count[i]);
-			table->field[3]->store(page_zip_compress_ok[i]);
-			table->field[4]->store(page_zip_decompress_count[i]);
+			table->field[5]->store(page_zip_compress_count[i]);
+			table->field[6]->store(page_zip_compress_ok[i]);
+			table->field[7]->store(page_zip_compress_duration[i]);
+			table->field[8]->store(page_zip_decompress_count[i]);
+			table->field[9]->store(page_zip_decompress_duration[i]);
 			if (reset) {
 				page_zip_compress_count[i] = 0;
 				page_zip_compress_ok[i] = 0;
 				page_zip_decompress_count[i] = 0;
+				page_zip_compress_duration[i] = 0;
+				page_zip_decompress_duration[i] = 0;
 			}
 		} else {
-			table->field[2]->store(0);
-			table->field[3]->store(0);
-			table->field[4]->store(0);
+			table->field[5]->store(0);
+			table->field[6]->store(0);
+			table->field[7]->store(0);
+			table->field[8]->store(0);
+			table->field[9]->store(0);
 		}
-		table->field[5]->store(buf_buddy_used[x]);
-		table->field[6]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
-				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
-				       : 0);
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
