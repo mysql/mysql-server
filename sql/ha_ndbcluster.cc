@@ -7647,7 +7647,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       
       if (index)
       {
-        if (error= dict->optimizeIndex(*index, ih))
+        if ((error= dict->optimizeIndex(*index, ih)))
         {
           DBUG_PRINT("info",
                      ("Optimze index %s returned %d", 
@@ -7670,7 +7670,7 @@ int ha_ndbcluster::ndb_optimize_table(THD* thd, uint delay)
       }
       if (unique_index)
       {
-        if (error= dict->optimizeIndex(*unique_index, ih))
+        if ((error= dict->optimizeIndex(*unique_index, ih)))
         {
           DBUG_PRINT("info",
                      ("Optimze unique index %s returned %d", 
