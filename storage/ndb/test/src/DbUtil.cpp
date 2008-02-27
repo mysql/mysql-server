@@ -61,8 +61,7 @@ DbUtil::DbUtil(MYSQL* mysql):
 
 
 bool
-DbUtil::isConnected()
-{
+DbUtil::isConnected(){
   if (m_connected == true)
   {
     assert(m_mysql);
@@ -73,8 +72,7 @@ DbUtil::isConnected()
 
 
 bool
-DbUtil::waitConnected(int timeout) 
-{
+DbUtil::waitConnected(int timeout) {
   timeout*= 10;
   while(!isConnected()){
     if (timeout-- == 0)
@@ -84,11 +82,10 @@ DbUtil::waitConnected(int timeout)
   return true;
 }
 
+
 void
-DbUtil::disconnect()
-{
-  if (m_mysql != NULL)
-  {
+DbUtil::disconnect(){
+  if (m_mysql != NULL){
     if (m_free_mysql)
       mysql_close(m_mysql);
     m_mysql= NULL;
@@ -101,8 +98,7 @@ DbUtil::disconnect()
 
 DbUtil::~DbUtil()
 {
-  if(isConnected())
-    disconnect();
+  disconnect();
 }
 
 /* Database Login */
@@ -154,13 +150,13 @@ DbUtil::databaseLogin(const char* system, const char* usr,
 
 /* Database Connect */
 
-int
+bool
 DbUtil::connect()
 {
   if (!(m_mysql = mysql_init(NULL)))
   {
     myerror("DB connect-> mysql_init() failed");
-    return DBU_FAILED;
+    return false;
   }
 
   /* Load connection parameters file and group */
@@ -168,9 +164,7 @@ DbUtil::connect()
       mysql_options(m_mysql, MYSQL_READ_DEFAULT_GROUP, m_default_group.c_str()))
   {
     myerror("DB Connect -> mysql_options failed");
-    mysql_close(m_mysql)
-    m_mysql=NULL;
-    return DBU_FAILED;
+    return false;
   }
 
   /*
@@ -183,12 +177,11 @@ DbUtil::connect()
   {
     myerror("connection failed");
     mysql_close(m_mysql);
-    m_mysql=NULL;
-    return DBU_FAILED;
+    return false;
   }
   selectDb();
   m_connected = true;
-  return DBU_OK;
+  return true;
 }
 
 
@@ -268,50 +261,52 @@ DbUtil::printStError(MYSQL_STMT *stmt, const char *msg)
 
 /* Select which database to use */
 
-int
+bool
 DbUtil::selectDb()
 {
   if ((getDbName()) != NULL)
   {
     if(mysql_select_db(m_mysql, this->getDbName()))
     {
-      printError("mysql_select_db failed");
-      return DBU_FAILED;
+      //printError("mysql_select_db failed");
+      return false;
     }
-    return DBU_OK;   
+    return true;   
   }
   printError("getDbName() == NULL");
-  return DBU_FAILED;
+  return false;
 }
 
-int
+bool
 DbUtil::selectDb(const char * m_db)
 {
   {
     if(mysql_select_db(m_mysql, m_db))
     {
       printError("mysql_select_db failed");
-      return DBU_FAILED;
+      return false;
     }
-    return DBU_OK;
+    return true;
   }
 }
 
-int
+bool
 DbUtil::createDb(BaseString& m_db)
 {
   BaseString stm;
+  setDbName(m_db.c_str());
+  
   {
-    if(mysql_select_db(m_mysql, m_db.c_str()) == DBU_OK)
+    if(selectDb())
     {
       stm.assfmt("DROP DATABASE %s", m_db.c_str());
-      if(doQuery(m_db.c_str()) == DBU_FAILED)
-        return DBU_FAILED;
+      if(!doQuery(m_db.c_str()))
+        return false;
     }
     stm.assfmt("CREATE DATABASE %s", m_db.c_str());
-    if(doQuery(m_db.c_str()) == DBU_FAILED)
-      return DBU_FAILED;
-    return DBU_OK;
+    if(!doQuery(m_db.c_str()))
+      return false;
+    return true;
   }
 }
 
@@ -329,27 +324,11 @@ DbUtil::selectCountTable(const char * table)
     printError("select count(*) failed");
     return -1;
   }
-   return result.columnAsInt("count");
+   return result.columnAsLong("count");
 }
 
 
 /* Run Simple Queries */
-
-
-static bool is_int_type(enum_field_types type){
-  switch(type){
-  case MYSQL_TYPE_TINY:
-  case MYSQL_TYPE_SHORT:
-  case MYSQL_TYPE_LONGLONG:
-  case MYSQL_TYPE_INT24:
-  case MYSQL_TYPE_LONG:
-  case MYSQL_TYPE_ENUM:
-    return true;
-  default:
-    return false;
-  }
-  return false;
-}
 
 
 bool
@@ -357,7 +336,8 @@ DbUtil::runQuery(const char* sql,
                     const Properties& args,
                     SqlResultSet& rows){
 
-  rows.clear();
+  //rows.clear();
+ //magnus getting a compile error with the above
   if (!isConnected())
     return false;
 
@@ -448,16 +428,17 @@ DbUtil::runQuery(const char* sql,
 
     for (uint i= 0; i < num_fields; i++)
     {
-      if (is_int_type(fields[i].type)){
-        bind_result[i].buffer_type= MYSQL_TYPE_LONG;
-        bind_result[i].buffer= malloc(sizeof(int));
-      }
-      else
-      {
+      switch(fields[i].type){
+      case MYSQL_TYPE_LONG:
         uint max_length= fields[i].max_length + 1;
         bind_result[i].buffer_type= MYSQL_TYPE_STRING;
         bind_result[i].buffer= malloc(max_length);
         bind_result[i].buffer_length= max_length;
+       break;
+      default:
+        bind_result[i].buffer_type= fields[i].type;
+        bind_result[i].buffer= malloc(sizeof(int));
+        break;
       }
     }
 
@@ -471,10 +452,17 @@ DbUtil::runQuery(const char* sql,
     {
       Properties curr(true);
       for (uint i= 0; i < num_fields; i++){
-        if (is_int_type(fields[i].type))
-          curr.put(fields[i].name, *(int*)bind_result[i].buffer);
-        else
-          curr.put(fields[i].name, (char*)bind_result[i].buffer);
+        switch(fields[i].type){
+          case MYSQL_TYPE_STRING:
+            curr.put(fields[i].name, (char*)bind_result[i].buffer);
+            break;
+          case MYSQL_TYPE_LONGLONG:
+            curr.put(fields[i].name, *(unsigned long long*)bind_result[i].buffer);
+          break;
+          default:
+            curr.put(fields[i].name, *(int*)bind_result[i].buffer);
+          break;
+       }
       }
       rows.put("row", row++, &curr);
     }
@@ -636,6 +624,19 @@ uint SqlResultSet::columnAsInt(const char* col_name){
   return value;
 }
 
+unsigned long long SqlResultSet::columnAsLong(const char* col_name){
+  unsigned long long value;
+  if (!m_curr_row){
+    g_err << "ERROR: SqlResultSet::columnAsLong("<< col_name << ")" << endl
+          << "There is no row loaded, call next() before "
+          << "acessing the column values" << endl;
+    assert(m_curr_row);
+  }
+  if (!m_curr_row->get(col_name, &value))
+    return (uint)-1;
+  return value;
+}
+
 
 uint SqlResultSet::insertId(){
   return get_int("insert_id");
@@ -669,6 +670,12 @@ const char* SqlResultSet::mysqlSqlstate(void){
 
 uint SqlResultSet::get_int(const char* name){
   uint value;
+  get(name, &value);
+  return value;
+}
+
+unsigned long long SqlResultSet::get_long(const char* name){
+  unsigned long long value;
   get(name, &value);
   return value;
 }
