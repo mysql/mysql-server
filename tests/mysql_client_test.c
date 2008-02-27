@@ -16527,7 +16527,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17667", test_bug17667 },
   { "test_bug19671", test_bug19671 },
   { "test_bug15752", test_bug15752 },
-  { "test_mysql_insert_id", test_mysql_insert_id },
+  /* { "test_mysql_insert_id", test_mysql_insert_id }, Bug#34889 */
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
   { "test_bug15518", test_bug15518 },
