@@ -49,11 +49,14 @@ RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
 RUN_LIN_TESTS  = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
 RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
+.PHONY: check default all check.lin check.log tests.lin tests.log check.tlog tests.tlog
+
+default: check
 
 all: make_libs $(ALL_TESTS)
 
-.PHONY: check check.lin check.log tests.lin tests.log check.tlog tests.tlog
-check: check.lin check.tlog check.log
+#check: check.lin check.tlog check.log
+check: check.lin #check.tlog check.log
 	@ echo ok
 tests.lin: make_libs $(LIN_TESTS)
 check.lin: make_libs $(RUN_LIN_TESTS)
