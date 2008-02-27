@@ -763,7 +763,30 @@ static int pma_delete_dup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_
     return found ? BRT_OK : DB_NOTFOUND;
 }
 
-static int pma_delete_nodup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+static int pma_log_delete (PMA pma, const char *key, int keylen, const char *val, int vallen,
+			   DISKOFF diskoff, int idx, TOKULOGGER logger, TXNID xid, LSN *node_lsn) {
+    {
+	const BYTESTRING deletedkey  = { keylen, (char*)key };
+	const BYTESTRING deleteddata = { vallen, (char*)val };
+	int r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
+	if (r!=0) return r;
+    }
+    if (logger) {
+	TOKUTXN txn;
+	if (0!=toku_txnid2txn(logger, xid, &txn)) return -1;
+	const BYTESTRING deletedkey  = { keylen, toku_memdup(key, keylen) };
+	const BYTESTRING deleteddata = { vallen, toku_memdup(val, vallen) };
+	int r=toku_logger_save_rollback_deleteatleaf(txn, pma->filenum, deletedkey, deleteddata);
+	if (r!=0) { toku_free(deletedkey.data); toku_free(deleteddata.data); return r;
+	}
+        if (node_lsn) *node_lsn = toku_logger_last_lsn(logger);
+    }
+    return 0;
+}
+
+static int pma_delete_nodup (PMA pma, DBT *k, DBT *v,
+			     TOKULOGGER logger, TXNID xid, DISKOFF diskoff,
+			     u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size, LSN *node_lsn) {
     /* find the left most matching key in the pma */
     int found;
     unsigned int here;
@@ -771,6 +794,9 @@ static int pma_delete_nodup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int3
     struct kv_pair *kv = pma->pairs[here];
     if (!found || !kv_pair_inuse(kv))
         return DB_NOTFOUND;
+    int r=pma_log_delete(pma, kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv),
+			 diskoff, here, logger, xid, node_lsn);
+    if (r!=0) return r;
     *deleted_size = PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + kv_pair_keylen(kv) + kv_pair_vallen(kv); 
     *fingerprint -= rand4sem*toku_calccrc32_kvpair (kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
     pma_mfree_kv_pair(pma, kv);
@@ -780,7 +806,9 @@ static int pma_delete_nodup (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int3
     return BRT_OK;
 }
 
-int toku_pma_delete (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size) {
+int toku_pma_delete (PMA pma, DBT *k, DBT *v,
+		     TOKULOGGER logger, TXNID xid, DISKOFF diskoff,
+		     u_int32_t rand4sem, u_int32_t *fingerprint, u_int32_t *deleted_size, LSN *node_lsn) {
     u_int32_t my_deleted_size;
     if (!deleted_size)
         deleted_size = &my_deleted_size;
@@ -788,7 +816,7 @@ int toku_pma_delete (PMA pma, DBT *k, DBT *v, u_int32_t rand4sem, u_int32_t *fin
     if (pma->dup_mode & TOKU_DB_DUPSORT) 
         return pma_delete_dup(pma, k, v, rand4sem, fingerprint, deleted_size);
     else
-        return pma_delete_nodup(pma, k, v, rand4sem, fingerprint, deleted_size);
+        return pma_delete_nodup(pma, k, v, logger, xid, diskoff, rand4sem, fingerprint, deleted_size, node_lsn);
 }
 
 static void pma_delete_at(PMA pma, int here) {
@@ -867,24 +895,8 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
         struct kv_pair *kv = pma->pairs[idx];
         *replaced_v_size = kv->vallen;
         *fingerprint -= rand4fingerprint*toku_calccrc32_kvpair(kv_pair_key_const(kv), kv_pair_keylen(kv), kv_pair_val_const(kv), kv_pair_vallen(kv));
-	{
-	    {
-		const BYTESTRING deletedkey  = { kv->keylen, kv_pair_key(kv) };
-		const BYTESTRING deleteddata = { kv->vallen, kv_pair_val(kv) };
-		r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
-		if (r!=0) return r;
-	    }
-	    if (logger) {
-		TOKUTXN txn;
-		if (0!=toku_txnid2txn(logger, xid, &txn)) return -1;
-		const BYTESTRING deletedkey  = { kv->keylen, toku_memdup(kv_pair_key(kv), kv->keylen) };
-		const BYTESTRING deleteddata = { kv->vallen, toku_memdup(kv_pair_val(kv), kv->vallen) };
-		r=toku_logger_save_rollback_deleteatleaf(txn, pma->filenum, deletedkey, deleteddata);
-		if (r!=0) { toku_free(deletedkey.data); toku_free(deleteddata.data); return r;
-		}
-	    }
-	}
-        if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
+	r=pma_log_delete(pma, kv_pair_key(kv), kv->keylen, kv_pair_val(kv), kv->vallen, diskoff, idx, logger, xid, node_lsn);
+	if (r!=0) return r;
         if (v->size == (unsigned int) kv_pair_vallen(kv)) {
             memcpy(kv_pair_val(kv), v->data, v->size);
         } else {
