@@ -1033,6 +1033,14 @@ static ST_FIELD_INFO	i_s_zip_fields_info[] =
 	 STRUCT_FLD(old_name,		"Currently in Use"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+	{STRUCT_FLD(field_name,		"free"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently Available"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -1096,6 +1104,9 @@ i_s_zip_fill_low(
 			table->field[4]->store(0);
 		}
 		table->field[5]->store(buf_buddy_used[x]);
+		table->field[6]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
+				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
+				       : 0);
 
 		if (schema_table_store_record(thd, table)) {
 			status = 1;
