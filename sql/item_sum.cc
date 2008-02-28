@@ -3460,6 +3460,6 @@ void Item_func_group_concat::print(String *str)
 
 Item_func_group_concat::~Item_func_group_concat()
 {
-  if (unique_filter) 
+  if (!original && unique_filter)
     delete unique_filter;    
 }
