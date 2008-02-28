@@ -1238,6 +1238,23 @@ sub environment_setup {
 		   "$basedir/extra/my_print_defaults");
   $ENV{'MYSQL_MY_PRINT_DEFAULTS'}= native_path($exe_my_print_defaults);
 
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute myisampack and myisamchk
+  # ----------------------------------------------------
+  $ENV{'MYISAMCHK'}= native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/myisam', 'myisamchk'),
+                       vs_config_dirs('myisam', 'myisamchk'),
+                       "$path_client_bindir/myisamchk",
+                       "$basedir/storage/myisam/myisamchk",
+                       "$basedir/myisam/myisamchk"));
+  $ENV{'MYISAMPACK'}= native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/myisam', 'myisampack'),
+                        vs_config_dirs('myisam', 'myisampack'),
+                        "$path_client_bindir/myisampack",
+                        "$basedir/storage/myisam/myisampack",
+                        "$basedir/myisam/myisampack"));
+
   # ----------------------------------------------------
   # perror
   # ----------------------------------------------------
