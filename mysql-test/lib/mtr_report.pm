@@ -75,7 +75,7 @@ sub mtr_report_test_skipped ($) {
   {
     if ( $tinfo->{skip_detected_by_test} )
     {
-      mtr_report("[ skip.]  $tinfo->{'comment'}");
+      mtr_report("[ skip ].  $tinfo->{'comment'}");
     }
     else
     {

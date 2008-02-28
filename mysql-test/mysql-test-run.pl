@@ -302,7 +302,7 @@ sub command_line_setup {
              'start-from=s'             => \&collect_option,
              'big-test'                 => \$opt_big_test,
 	     'combination=s'            => \@opt_combinations,
-             'skip-combination'         => \&collect_option,
+             'skip-combinations'        => \&collect_option,
 
 	     'skip-im'                  => \&ignore_option,
 
