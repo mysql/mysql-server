@@ -72,7 +72,7 @@ pk	apk	data
 3	3	3
 delete from t1;
 insert into t1 values (1, 1, 1), (4, 4, 4), (6, 6, 6);
-load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+load data infile '../../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;
 pk	apk	data
 1	1	1
@@ -80,7 +80,7 @@ pk	apk	data
 5	6	NULL
 delete from t1;
 insert into t1 values (1, 1, 1), (3, 3, 3), (5, 5, 5);
-load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
+load data infile '../../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (pk, apk);
 select * from t1 order by pk;
 pk	apk	data
 1	1	1

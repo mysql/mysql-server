@@ -123,11 +123,12 @@ drop table t1;
 #
 # BUG#32111 - Security Breach via DATA/INDEX DIRECORY and RENAME TABLE
 #
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
 eval CREATE TABLE t1(a INT)
-DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql'
-INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql';
---replace_result $MYSQLTEST_VARDIR TEST_DIR
+DATA DIRECTORY='$MYSQLD_DATADIR/mysql'
+INDEX DIRECTORY='$MYSQLD_DATADIR/mysql';
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
 --error 1
 RENAME TABLE t1 TO user;
 DROP TABLE t1;
@@ -137,12 +138,12 @@ DROP TABLE t1;
 # have been chosen. (Bug #8707)
 #
 disable_query_log;
-eval create table t1 (i int) data directory = "$MYSQLTEST_VARDIR/master-data/test/";
+eval create table t1 (i int) data directory = "$MYSQLD_DATADIR/test/";
 enable_query_log;
 show create table t1;
 drop table t1;
 disable_query_log;
-eval create table t1 (i int) index directory = "$MYSQLTEST_VARDIR/master-data/test/";
+eval create table t1 (i int) index directory = "$MYSQLD_DATADIR/test/";
 enable_query_log;
 show create table t1;
 drop table t1;
@@ -196,7 +197,7 @@ CREATE DATABASE db2;
 USE db2;
 --disable_query_log
 eval CREATE TABLE t1 (b INT) ENGINE MYISAM
-DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/db1/';
+DATA DIRECTORY = '$MYSQLD_DATADIR/db1/';
 --enable_query_log
 
 INSERT INTO db2.t1 VALUES (1);

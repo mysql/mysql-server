@@ -29,7 +29,8 @@ repair table t1 use_frm;
 
 create table t1 engine=myisam SELECT 1,"table 1";
 flush tables;
-system echo 1 > $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
+let $MYSQLD_DATADIR= `select @@datadir`;
+system echo 1 > $MYSQLD_DATADIR/test/t1.MYI ;
 repair table t1;
 repair table t1 use_frm;
 drop table t1;

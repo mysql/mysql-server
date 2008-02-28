@@ -2,7 +2,8 @@
 # in case of bi-directional replication
 -- source include/master-slave.inc
 
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR/
 show variables like 'relay_log%';
 
 connection slave;

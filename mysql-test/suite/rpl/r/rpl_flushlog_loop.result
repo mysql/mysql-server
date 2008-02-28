@@ -6,7 +6,7 @@ drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 show variables like 'relay_log%';
 Variable_name	Value
-relay_log	MYSQLTEST_VARDIR/master-data/relay-log
+relay_log	MYSQLD_DATADIR/relay-log
 relay_log_index	
 relay_log_info_file	relay-log.info
 relay_log_purge	ON
