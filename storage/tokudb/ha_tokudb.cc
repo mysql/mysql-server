@@ -1,9 +1,3 @@
-/* QQQ
-   how to parallelize handlers on the same table?
-   HA_END_SPACE_KEY is obsolete. include/my_base.h
-   CFLAGS += -Wall
- */
-
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation          // gcc: Class implementation
 #endif
@@ -2387,9 +2381,9 @@ static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY
 
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
-#if 0
-
 static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
+
+#if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
 
@@ -2422,8 +2416,8 @@ static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock),
-#if 0
     MYSQL_SYSVAR(logdir),
+#if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
     MYSQL_SYSVAR(home),
