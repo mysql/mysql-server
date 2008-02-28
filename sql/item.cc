@@ -2385,14 +2385,14 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(unsigned pos_in_query_arg) :
-  limit_clause_param(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
   item_type(PARAM_ITEM),
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
-  set_param_func(default_set_param_func)
+  set_param_func(default_set_param_func),
+  limit_clause_param(FALSE)
 {
   name= (char*) "?";
   /* 
