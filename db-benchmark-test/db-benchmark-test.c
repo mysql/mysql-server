@@ -12,6 +12,10 @@
 #include <unistd.h>
 #include <db.h>
 
+#if !defined(DB_YESOVERWRITE)
+#define DB_YESOVERWRITE 0
+#endif
+
 enum { SERIAL_SPACING = 1<<6 };
 enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
 enum { ITEMS_PER_TRANSACTION = 1<<14 };
@@ -25,6 +29,7 @@ int keysize = sizeof (long long);
 int valsize = sizeof (long long);
 int pagesize = 0;
 long long cachesize = 128*1024*1024;
+int dupflags = 0;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -87,6 +92,10 @@ void setup (void) {
         r = db->set_pagesize(db, pagesize); 
         assert(r == 0);
     }
+    if (dupflags) {
+        r = db->set_flags(db, dupflags);
+        assert(r == 0);
+    }
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, DB_CREATE, 0644);
     assert(r == 0);
     if (do_transactions) {
@@ -124,7 +133,7 @@ void insert (long long v) {
     long_long_to_array(kc, v);
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
-    int r = db->put(db, tid, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
+    int r = db->put(db, tid, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), DB_YESOVERWRITE);
     CKERR(r);
     if (do_transactions) {
 	if (n_insertions_since_txn_began>=ITEMS_PER_TRANSACTION) {
@@ -143,7 +152,7 @@ void serial_insert_from (long long from) {
 	int r = dbenv->txn_begin(dbenv, 0, &tid, 0); assert(r==0);
 	{
 	    DBT k,v;
-	    r=db->put(db, tid, toku_fill_dbt(&k, "a", 1), toku_fill_dbt(&v, "b", 1), 0);
+	    r=db->put(db, tid, toku_fill_dbt(&k, "a", 1), toku_fill_dbt(&v, "b", 1), DB_YESOVERWRITE);
 	    CKERR(r);
 	}
 				      
@@ -201,7 +210,7 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 
 const long long default_n_items = 1LL<<22;
 
-void print_usage (const char *argv0) {
+int print_usage (const char *argv0) {
     fprintf(stderr, "Usage:\n");
     fprintf(stderr, " %s [-x] [--keysize KEYSIZE] [--valsize VALSIZE] [ n_iterations ]\n", argv0);
     fprintf(stderr, "   where\n");
@@ -211,8 +220,9 @@ void print_usage (const char *argv0) {
     fprintf(stderr, "    --cachesize CACHESIZE set the database cache size\n");
     fprintf(stderr, "    --pagesize PAGESIZE sets the database page size\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld iterations of %d items per iteration)\n", default_n_items/ITEMS_TO_INSERT_PER_ITERATION, ITEMS_TO_INSERT_PER_ITERATION);
-}
 
+    return 1;
+}
 
 int main (int argc, const char *argv[]) {
     struct timeval t1,t2,t3;
@@ -227,35 +237,30 @@ int main (int argc, const char *argv[]) {
             continue;
         }
         if (strcmp(arg, "--cachesize") == 0) {
-            if (i+1 < argc) {
-                i++;
-                cachesize = strtoll(argv[i], 0, 10);
-            }
+            if (i+1 >= argc) return print_usage(argv[0]);
+            cachesize = strtoll(argv[++i], 0, 10);
             continue;
         }
         if (strcmp(arg, "--keysize") == 0) {
-            if (i+1 < argc) {
-                i++;
-                keysize = atoi(argv[i]);
-            }
+            if (i+1 >= argc) return print_usage(argv[0]);
+            keysize = atoi(argv[++i]);
             continue;
         }
         if (strcmp(arg, "--valsize") == 0) {
-            if (i+1 < argc) {
-                i++;
-                valsize = atoi(argv[i]);
-            }
+            if (i+1 >= argc) return print_usage(argv[0]);
+            valsize = atoi(argv[++i]);
             continue;
         }
         if (strcmp(arg, "--pagesize") == 0) {
-            if (i+1 < argc) {
-                i++;
-                pagesize = atoi(argv[i]);
-            }
+            if (i+1 >= argc) return print_usage(argv[0]);
+            pagesize = atoi(argv[++i]);
             continue;
         }
-        print_usage(argv[0]);
-        return 1;
+        if (strcmp(arg, "--dupsort") == 0) {
+            dupflags = DB_DUP + DB_DUPSORT;
+            continue;
+        }
+        return print_usage(argv[0]);
     }
     if (i<argc) {
         /* if it looks like a number */
