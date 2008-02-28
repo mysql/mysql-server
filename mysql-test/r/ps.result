@@ -1885,6 +1885,36 @@ prepare stmt from "create view v1 as select * from t1";
 ERROR 42S02: Table 'test.t1' doesn't exist
 prepare stmt from "create view v1 as select * from `t1` `b`";
 ERROR 42S02: Table 'test.t1' doesn't exist
+prepare stmt from "select ?";
+set @arg= 123456789.987654321;
+select @arg;
+@arg
+123456789.987654321
+execute stmt using @arg;
+?
+123456789.987654321
+set @arg= "string";
+select @arg;
+@arg
+string
+execute stmt using @arg;
+?
+string
+set @arg= 123456;
+select @arg;
+@arg
+123456
+execute stmt using @arg;
+?
+123456
+set @arg= cast(-12345.54321 as decimal(20, 10));
+select @arg;
+@arg
+-12345.5432100000
+execute stmt using @arg;
+?
+-12345.5432100000
+deallocate prepare stmt;
 End of 5.0 tests.
 create procedure proc_1() reset query cache;
 call proc_1();
