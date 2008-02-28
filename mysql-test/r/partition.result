@@ -1320,6 +1320,34 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
 DROP TABLE t1;
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY 'TEST_DIR/master-data/test');
+ERROR HY000: Incorrect arguments to DATA DIRECORY
+CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY 'TEST_DIR/master-data/test');
+ERROR HY000: Incorrect arguments to INDEX DIRECORY
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+DATA DIRECTORY = 'TEST_DIR/master-data/test',
+SUBPARTITION s0b
+DATA DIRECTORY = 'TEST_DIR/master-data/test'
+));
+ERROR HY000: Incorrect arguments to DATA DIRECORY
+CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+INDEX DIRECTORY = 'TEST_DIR/master-data/test',
+SUBPARTITION s0b
+INDEX DIRECTORY = 'TEST_DIR/master-data/test'
+));
+ERROR HY000: Incorrect arguments to INDEX DIRECORY
 CREATE TABLE t1 (s1 BIGINT UNSIGNED)
 PARTITION BY RANGE (s1) (
 PARTITION p0 VALUES LESS THAN (0), 

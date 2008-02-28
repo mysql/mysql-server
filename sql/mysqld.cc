@@ -510,6 +510,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+char mysql_unpacked_real_data_home[FN_REFLEN];
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -8147,6 +8148,9 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  (void) fn_format(buff, mysql_real_data_home, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
