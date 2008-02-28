@@ -1407,8 +1407,8 @@ eval create table t2 (i int )
 partition by range (i)
 (
     partition p01 values less than (1000)
-    data directory="$MYSQLTEST_VARDIR/master-data/test/"
-    index directory="$MYSQLTEST_VARDIR/master-data/test/"
+    data directory="$MYSQLTEST_VARDIR/tmp/"
+    index directory="$MYSQLTEST_VARDIR/tmp/"
 );
 enable_query_log;
 
@@ -1573,6 +1573,44 @@ ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
 --error 1064
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
 DROP TABLE t1;
+
+#
+# Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
+#
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
 
 #
 # Bug #29258: Partitions: search fails for maximum unsigned bigint

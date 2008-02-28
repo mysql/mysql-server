@@ -1047,4 +1047,60 @@ error:
   mem_alloc_error(size);
   DBUG_RETURN(TRUE);
 }
+
+
+/*
+  Check if path does not contain mysql data home directory
+  for partition elements with data directory and index directory
+
+  SYNOPSIS
+    check_partition_dirs()
+    part_info               partition_info struct 
+
+  RETURN VALUES
+    0	ok
+    1	error  
+*/
+
+bool check_partition_dirs(partition_info *part_info)
+{
+  if (!part_info)
+    return 0;
+
+  partition_element *part_elem;
+  List_iterator<partition_element> part_it(part_info->partitions);
+  while ((part_elem= part_it++))
+  {
+    if (part_elem->subpartitions.elements)
+    {
+      List_iterator<partition_element> sub_it(part_elem->subpartitions);
+      partition_element *subpart_elem;
+      while ((subpart_elem= sub_it++))
+      {
+        if (test_if_data_home_dir(subpart_elem->data_file_name))
+          goto dd_err;
+        if (test_if_data_home_dir(subpart_elem->index_file_name))
+          goto id_err;
+      }
+    }
+    else
+    {
+      if (test_if_data_home_dir(part_elem->data_file_name))
+        goto dd_err;
+      if (test_if_data_home_dir(part_elem->index_file_name))
+        goto id_err;
+    }
+  }
+  return 0;
+
+dd_err:
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+  return 1;
+
+id_err:
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+  return 1;
+}
+
+
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
