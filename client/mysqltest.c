@@ -1887,6 +1887,18 @@ void var_set_errno(int sql_errno)
   var_set_int("$mysql_errno", sql_errno);
 }
 
+
+/*
+  Update $mysql_get_server_version variable with version
+  of the currently connected server
+*/
+
+void var_set_mysql_get_server_version(MYSQL* mysql)
+{
+  var_set_int("$mysql_get_server_version", mysql_get_server_version(mysql));
+}
+
+
 /*
   Set variable from the result of a query
 
@@ -4016,6 +4028,10 @@ int select_connection_name(const char *name)
 
   if (!(cur_con= find_connection_by_name(name)))
     die("connection '%s' not found in connection pool", name);
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
+
   DBUG_RETURN(0);
 }
 
@@ -4402,6 +4418,9 @@ void do_connect(struct st_command *command)
     if (con_slot == next_con)
       next_con++; /* if we used the next_con slot, advance the pointer */
   }
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
 
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
@@ -6925,6 +6944,9 @@ int main(int argc, char **argv)
     - detect if there was never a command sent to the server
   */
   var_set_errno(-1);
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
 
   if (opt_include)
   {
