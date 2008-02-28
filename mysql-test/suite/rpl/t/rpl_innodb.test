@@ -18,7 +18,7 @@ CREATE TABLE t4 (
 
 --disable_warnings
 LOAD DATA
-     INFILE '../std_data_ln/loaddata_pair.dat'  
+     INFILE '../../std_data/loaddata_pair.dat'  
      REPLACE INTO TABLE t4 
      (name,number);
 --enable_warnings
@@ -30,7 +30,7 @@ SELECT * FROM t4;
 connection master;
 --disable_warnings
 LOAD DATA
-     INFILE '../std_data_ln/loaddata_pair.dat'  
+     INFILE '../../std_data/loaddata_pair.dat'  
      REPLACE INTO TABLE t4
      (name,number);
 --enable_warnings

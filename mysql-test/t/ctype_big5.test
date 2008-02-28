@@ -75,11 +75,12 @@ create table t1 (a blob);
 insert into t1 values (0xEE00);
 select * into outfile 'test/t1.txt' from t1;
 delete from t1;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---eval select hex(load_file('$MYSQLTEST_VARDIR/master-data/test/t1.txt'));
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--eval select hex(load_file('$MYSQLD_DATADIR/test/t1.txt'));
 load data infile 't1.txt' into table t1;
 select hex(a) from t1;
---exec rm $MYSQLTEST_VARDIR/master-data/test/t1.txt
+--remove_file $MYSQLD_DATADIR/test/t1.txt
 drop table t1;
 
 --echo End of 5.0 tests

@@ -1,34 +1,47 @@
+
 #
 # This test is executed twice for each test case if mysql-test-run is passed
-# the flag --check-testcase.
-# Before every testcase it's run with mysqltest in record mode and will
-# thus produce an output file
-# that can be compared to output from after the tescase.
-# In that way it's possible to check that a testcase does not have
+# the flag --check-testcase. Before every testcase it is run with mysqltest
+# in record mode and will thus produce an output file that can be compared
+# to output from after the tescase.
+# In that way its possible to check that a testcase does not have
 # any unwanted side affects.
 #
 
-#
-# Dump all global variables
-#
-show global variables;
+# Dump all global variables except those
+# that are supposed to change
+show global variables where Variable_name != 'timestamp';
 
-#
-# Dump all databases
-#
+# Dump all databases, there should be none
+# except mysql, test and information_schema
 show databases;
 
-#
-# Dump the "test" database, all it's tables and their data
-#
---exec $MYSQL_DUMP --skip-comments --skip-lock-tables test
+# The test database should not contain any tables
+show tables from test;
 
-#
-# Dump the "mysql" database and it's tables
-# Select data separately to add "order by"
-#
---exec $MYSQL_DUMP --skip-comments --skip-lock-tables --no-data mysql
+# Dump the "mysql" database and its tables
 use mysql;
+show tables;
+show create table columns_priv;
+show create table db;
+show create table func;
+show create table help_category;
+show create table help_keyword;
+show create table help_relation;
+show create table help_relation;
+show create table host;
+show create table proc;
+show create table procs_priv;
+show create table tables_priv;
+show create table time_zone;
+show create table time_zone_leap_second;
+show create table time_zone_name;
+show create table time_zone_transition;
+show create table time_zone_transition_type;
+show create table user;
+
+# Select data from system tables to make sure they have been properly
+# restored after test
 select * from columns_priv;
 select * from db order by host, db, user;
 select * from func;

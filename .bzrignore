@@ -58,6 +58,7 @@
 ./mysql.sln
 ./mysql.suo
 ./prepare
+.DS_Store
 .defs.mk
 .depend
 .depend.mk
@@ -1178,6 +1179,7 @@ libmysqld/sql_parse.cc
 libmysqld/sql_partition.cc
 libmysqld/sql_plugin.cc
 libmysqld/sql_prepare.cc
+libmysqld/sql_profile.cc
 libmysqld/sql_rename.cc
 libmysqld/sql_repl.cc
 libmysqld/sql_select.cc
@@ -1279,8 +1281,12 @@ mysql-5.0.2-alpha.tar.gz
 mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/*.ds?
 mysql-test/*.vcproj
+mysql-test/.DS_Store
+mysql-test/funcs_1.log
+mysql-test/funcs_1.tar
 mysql-test/gmon.out
 mysql-test/install_test_db
+mysql-test/lib/My/SafeProcess/my_safe_process
 mysql-test/lib/init_db.sql
 mysql-test/mtr
 mysql-test/mysql-test-run
@@ -1367,9 +1373,12 @@ mysql-test/r/symlink.log
 mysql-test/r/system_mysql_db.log
 mysql-test/r/tmp.result
 mysql-test/r/udf.log
+mysql-test/reg.log
 mysql-test/rpl.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
+mysql-test/suite/funcs_1.tar.gz
+mysql-test/suite/funcs_1.tar.zip
 mysql-test/suite/funcs_1/r/innodb_trig_03e.warnings
 mysql-test/suite/funcs_1/r/innodb_views.warnings
 mysql-test/suite/funcs_1/r/memory_trig_03e.warnings
@@ -3012,11 +3021,3 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
-mysql-test/funcs_1.log
-mysql-test/funcs_1.tar
-mysql-test/suite/funcs_1.tar.gz
-mysql-test/.DS_Store
-.DS_Store
-libmysqld/sql_profile.cc
-mysql-test/suite/funcs_1.tar.zip
-mysql-test/reg.log
