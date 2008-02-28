@@ -23,7 +23,8 @@ update t1 set a=2 /* will be "killed" after work has been done */;
 #todo: introduce a suite private macro that provides numeric values
 #      for some constants like the offset of the first real event
 #      that is different between severs versions.
---exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+let $MYSQLD_DATADIR= `select @@datadir`;
+--exec $MYSQL_BINLOG --force-if-open --start-position=106 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))
@@ -44,14 +45,14 @@ system rm $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog;
 create table t2 (a int, b int) ENGINE=MyISAM;
 reset master;
 --error ER_QUERY_INTERRUPTED
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
+load data infile '../../std_data/rpl_loaddata.dat' into table t2 /* will be "killed" in the middle */;
 
 
 # a proof the query is binlogged with an error
 
 source include/show_binlog_events.inc;
 
---exec $MYSQL_BINLOG --force-if-open --start-position=98 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
+--exec $MYSQL_BINLOG --force-if-open --start-position=98 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval select
 (@a:=load_file("$MYSQLTEST_VARDIR/tmp/binlog_killed_bug27571.binlog"))

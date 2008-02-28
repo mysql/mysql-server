@@ -19,13 +19,14 @@ while ($1)
 }
 set SQL_LOG_BIN=1;
 enable_query_log;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select * into outfile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' from t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval select * into outfile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
 #This will generate a 20KB file, now test LOAD DATA LOCAL
 truncate table t1;
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval load data local infile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
---remove_file $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval load data local infile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
+--remove_file $MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile
 save_master_pos;
 connection slave;
 sync_with_master;
@@ -46,13 +47,13 @@ sync_with_master;
 connection master;
 create table t1(a int);
 insert into t1 values (1), (2), (2), (3);
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval select * into outfile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' from t1;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval select * into outfile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' from t1;
 drop table t1;
 create table t1(a int primary key);
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval load data local infile '$MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile' into table t1;
---remove_file $MYSQLTEST_VARDIR/master-data/rpl_loaddatalocal.select_outfile
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval load data local infile '$MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile' into table t1;
+--remove_file $MYSQLD_DATADIR/rpl_loaddatalocal.select_outfile
 SELECT * FROM t1 ORDER BY a;
 save_master_pos;
 connection slave;

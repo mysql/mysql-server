@@ -92,7 +92,7 @@ insert into t1 values(1);
 insert ignore into t1 values(1);
 replace into t1 values(100);
 create table t2 (a varchar(200)) engine=blackhole;
-load data infile '../std_data_ln/words.dat' into table t2;
+load data infile '../../std_data/words.dat' into table t2;
 alter table t1 add b int;
 alter table t1 drop b;
 create table t3 like t1;
@@ -127,7 +127,7 @@ master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create table t2 (a varchar(200)) engine=blackhole
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=581
-master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../std_data_ln/words.dat' into table t2 ;file_id=#
+master-bin.000001	#	Execute_load_query	#	#	use `test`; load data infile '../../std_data/words.dat' into table t2 ;file_id=#
 master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 add b int
 master-bin.000001	#	Query	#	#	use `test`; alter table t1 drop b

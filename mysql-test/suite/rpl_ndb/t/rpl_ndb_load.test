@@ -62,5 +62,5 @@ CREATE TABLE SERVER
 #
 # start "load" application
 #
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/DbCreate >> $NDB_TOOLS_OUTPUT
---exec NDB_CONNECTSTRING=localhost:$NDBCLUSTER_PORT ../storage/ndb/test/ndbapi/DbAsyncGenerator  >> $NDB_TOOLS_OUTPUT
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/DbCreate >> $NDB_TOOLS_OUTPUT
+--exec NDB_CONNECTSTRING=$NDB_CONNECTSTRING ../storage/ndb/test/ndbapi/DbAsyncGenerator  >> $NDB_TOOLS_OUTPUT

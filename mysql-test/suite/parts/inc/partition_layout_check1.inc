@@ -31,17 +31,17 @@ DELETE FROM t0_definition;
 # - SHOW CREATE TABLE t1 is at least currently most probably more reliable than
 #   the corresponding SELECT on the INFORMATION_SCHEMA
 # - SHOW CREATE TABLE .. cannot write its out put into a file like SELECT
---exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLTEST_VARDIR/master-data/test/tmp1 2>&1 || true
+--exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp1 2>&1 || true
 if ($do_file_tests)
 {
 # List the files belonging to the table t1
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysqld.1/data/test/t1* > $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp2 2>&1 || true
 if ($with_directories)
 {
---exec ls $MYSQLTEST_VARDIR/master-data/test/data/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
---exec ls $MYSQLTEST_VARDIR/master-data/test/index/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysqld.1/data/test/data/t1* >> $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysqld.1/data/test/index/t1* >> $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp2 2>&1 || true
 }
-eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2''
+eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/mysqld.1/data/test/tmp2''
 )');
 let $file_list= `SELECT @aux`;
 }
@@ -52,7 +52,7 @@ let $file_list= '--- not determined ---';
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'old',
-     create_command = load_file('$MYSQLTEST_VARDIR/master-data/test/tmp1'),
+     create_command = load_file('$MYSQLTEST_VARDIR/mysqld.1/data/test/tmp1'),
      file_list      = $file_list;
 
 # Print the create table statement into the protocol

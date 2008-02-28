@@ -6,11 +6,6 @@
 # depends on the presence of the log tables (which are CSV-based).
 --source include/have_csv.inc
 
-# First delete some tables maybe left over from previous tests
---disable_warnings
-drop table if exists t1,t1aa,t2aa;
---enable_warnings
-
 -- disable_query_log
 use mysql;
 -- enable_query_log

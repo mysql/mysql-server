@@ -120,7 +120,7 @@ d	1	2.050000000000000000000000000000
 delete from t1;
 delete from t2;
 insert into t1 values (3, 1, 1.05), (5, 2, 2.05);
-load data infile '../std_data_ln/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (id, a);
+load data infile '../../../std_data/loaddata5.dat' replace into table t1 fields terminated by '' enclosed by '' ignore 1 lines (id, a);
 select * from t1 order by id;
 id	a	b
 3	4	0.000000000000000000000000000000

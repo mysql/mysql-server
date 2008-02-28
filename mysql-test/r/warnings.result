@@ -70,7 +70,7 @@ select @@warning_count;
 1
 drop table t1;
 create table t1(a tinyint, b int not null, c date, d char(5));
-load data infile '../std_data_ln/warnings_loaddata.dat' into table t1 fields terminated by ',';
+load data infile '../../std_data/warnings_loaddata.dat' into table t1 fields terminated by ',';
 Warnings:
 Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 2
 Warning	1265	Data truncated for column 'd' at row 3

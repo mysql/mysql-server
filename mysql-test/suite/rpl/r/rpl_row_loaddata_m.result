@@ -9,7 +9,7 @@ stop slave;
 create database mysqltest;
 use mysqltest;
 create table t1(a int, b int, unique(b));
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 show binlog events from 102;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	#
