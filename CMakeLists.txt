@@ -125,6 +125,14 @@ ENDIF(CMAKE_GENERATOR MATCHES "Visual Studio 7" OR
 
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
 
+# This definition is necessary to work around a bug with Intellisense described
+# here: http://tinyurl.com/2cb428.  Syntax highlighting is important for proper
+# debugger functionality.
+IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+    MESSAGE(STATUS "Detected 64-bit platform.")
+    ADD_DEFINITIONS("-D_WIN64")
+ENDIF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+
 IF(EMBED_MANIFESTS)
     # Search for the tools (mt, makecat, signtool) necessary for embedding
     # manifests and signing executables with the MySQL AB authenticode cert.
