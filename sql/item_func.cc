@@ -3985,7 +3985,7 @@ double user_var_entry::val_real(my_bool *null_value)
 
 /* Get the value of a variable as an integer */
 
-longlong user_var_entry::val_int(my_bool *null_value)
+longlong user_var_entry::val_int(my_bool *null_value) const
 {
   if ((*null_value= (value == 0)))
     return LL(0);
