@@ -1981,7 +1981,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--datadir=%s", $data_dir);
   mtr_add_arg($args, "--loose-skip-innodb");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
-  mtr_add_arg($args, "--tmpdir=.");
+  mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
   mtr_add_arg($args, "--core-file");
 
   if ( $opt_debug )
@@ -2057,6 +2057,7 @@ sub mysql_install_db {
 	output        => $path_bootstrap_log,
 	error         => $path_bootstrap_log,
 	append        => 1,
+	verbose       => $opt_verbose,
        ) != 0)
   {
     mtr_error("Error executing mysqld --bootstrap\n" .
