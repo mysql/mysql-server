@@ -662,53 +662,44 @@ t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
-CREATE TABLE txt1(a int);
-CREATE TABLE tyt2(a int);
-CREATE TABLE urkunde(a int);
+
+# Bug#12183: SHOW OPEN TABLES behavior doesn't match grammar.
+
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
 FLUSH TABLES;
-SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
+
+SELECT 1 FROM t1;
 1
-SHOW OPEN TABLES;
+SELECT 1 FROM t2;
+1
+
+SHOW OPEN TABLES FROM mysqltest1;
 Database	Table	In_use	Name_locked
-mysql	db	0	0
-test	urkunde	0	0
-mysql	time_zone	0	0
-mysql	general_log	0	0
-test	txt1	0	0
-mysql	proc	0	0
-test	tyt2	0	0
-mysql	user	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES FROM mysql;
+mysqltest1	t1	0	0
+mysqltest1	t2	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 'z%';
 Database	Table	In_use	Name_locked
-mysql	db	0	0
-mysql	time_zone	0	0
-mysql	general_log	0	0
-mysql	proc	0	0
-mysql	user	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES FROM mysql LIKE 'u%';
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 't1%';
 Database	Table	In_use	Name_locked
-mysql	user	0	0
-SHOW OPEN TABLES LIKE 't%';
+mysqltest1	t1	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE '%1%';
 Database	Table	In_use	Name_locked
-mysql	time_zone	0	0
-test	txt1	0	0
-test	tyt2	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES LIKE '%o%';
-Database	Table	In_use	Name_locked
-mysql	time_zone	0	0
-mysql	general_log	0	0
-mysql	proc	0	0
-mysql	time_zone_name	0	0
+mysqltest1	t1	0	0
+
 FLUSH TABLES;
-SHOW OPEN TABLES;
-Database	Table	In_use	Name_locked
-mysql	general_log	0	0
-DROP TABLE txt1;
-DROP TABLE tyt2;
-DROP TABLE urkunde;
+
+DROP DATABASE mysqltest1;
+use test;
+
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
 End of 4.1 tests
