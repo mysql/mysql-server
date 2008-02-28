@@ -699,7 +699,7 @@ int connect_to_master(THD *thd, MYSQL* mysql, Master_info* mi)
 
   if (!mi->host || !*mi->host)			/* empty host */
   {
-    strmov(mysql->net.client_last_error, "Master is not configured");
+    strmov(mysql->net.last_error, "Master is not configured");
     DBUG_RETURN(1);
   }
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
