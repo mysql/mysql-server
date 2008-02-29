@@ -1961,6 +1961,25 @@ prepare stmt from "create view v1 as select * from t1";
 --error ER_NO_SUCH_TABLE
 prepare stmt from "create view v1 as select * from `t1` `b`";
 
+#
+# Bug#33851: Passing UNSIGNED param to EXECUTE returns ERROR 1210
+#
+
+prepare stmt from "select ?";
+set @arg= 123456789.987654321;
+select @arg;
+execute stmt using @arg;
+set @arg= "string";
+select @arg;
+execute stmt using @arg;
+set @arg= 123456;
+select @arg;
+execute stmt using @arg;
+set @arg= cast(-12345.54321 as decimal(20, 10));
+select @arg;
+execute stmt using @arg;
+deallocate prepare stmt;
+
 --echo End of 5.0 tests.
 
 #
