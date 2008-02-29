@@ -2468,14 +2468,14 @@ default_set_param_func(Item_param *param,
 
 
 Item_param::Item_param(uint pos_in_query_arg) :
-  strict_type(FALSE),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
   item_type(PARAM_ITEM),
   param_type(MYSQL_TYPE_VARCHAR),
   pos_in_query(pos_in_query_arg),
-  set_param_func(default_set_param_func)
+  set_param_func(default_set_param_func),
+  limit_clause_param(FALSE)
 {
   name= (char*) "?";
   /* 
@@ -2659,8 +2659,13 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
   {
     item_result_type= entry->type;
     unsigned_flag= entry->unsigned_flag;
-    if (strict_type && required_result_type != item_result_type)
-      DBUG_RETURN(1);
+    if (limit_clause_param)
+    {
+      my_bool unused;
+      set_int(entry->val_int(&unused), MY_INT64_NUM_DECIMAL_DIGITS);
+      item_type= Item::INT_ITEM;
+      DBUG_RETURN(!unsigned_flag && value.integer < 0 ? 1 : 0);
+    }
     switch (item_result_type) {
     case REAL_RESULT:
       set_double(*(double*)entry->value);
