@@ -106,6 +106,7 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT
     return ENOENT;
 }
 
+// If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, BRT brt) {
     int r;
     CACHEFILE extant;
@@ -114,7 +115,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, BRT brt) {
     struct fileid fileid;
     memset(&fileid, 0, sizeof(fileid));
     r=fstat(fd, &statbuf);
-    if (r != 0) return errno;
+    if (r != 0) { r=errno; close(fd); }
     fileid.st_dev = statbuf.st_dev;
     fileid.st_ino = statbuf.st_ino;
     for (extant = t->cachefiles; extant; extant=extant->next) {

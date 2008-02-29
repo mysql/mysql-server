@@ -1,3 +1,5 @@
+#ifndef FIFO_H
+#define FIFO_H
 #include "brttypes.h"
 
 struct fifo_entry {
@@ -19,8 +21,10 @@ typedef struct fifo *FIFO;
 int toku_fifo_create(FIFO *);
 void toku_fifo_free(FIFO *);
 int toku_fifo_n_entries(FIFO);
+int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_CMD cmd);
 int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, int type, TXNID xid);
 int toku_fifo_peek (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type, TXNID *xid);
+int toku_fifo_peek_cmdstruct (FIFO, BRT_CMD, DBT*, DBT*); // fill in the BRT_CMD, using the two DBTs for the DBT part.
 int toku_fifo_deq(FIFO);
 int toku_fifo_peek_deq (FIFO, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, int *type);
 void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void*);
@@ -38,3 +42,4 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
             } \
         })
 
+#endif

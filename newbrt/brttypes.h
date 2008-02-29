@@ -9,6 +9,8 @@
 #endif
 #define _FILE_OFFSET_BITS 64
 
+#include "../include/db.h"
+
 typedef struct brt *BRT;
 struct brt_header;
 struct wbuf;
@@ -67,5 +69,27 @@ typedef struct intpairarray {
 
 typedef struct cachetable *CACHETABLE;
 typedef struct cachefile *CACHEFILE;
+
+/* tree command types */
+enum brt_cmd_type {
+    BRT_NONE = 0,
+    BRT_INSERT = 1,
+    BRT_DELETE = 2,
+    BRT_DELETE_BOTH = 3,
+};
+
+/* tree commands */
+struct brt_cmd {
+    enum brt_cmd_type type;
+    TXNID xid;
+    union {
+        /* insert or delete */
+        struct brt_cmd_insert_delete {
+            DBT *key;
+            DBT *val;
+        } id;
+    } u;
+};
+typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
 
 #endif

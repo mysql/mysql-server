@@ -633,5 +633,7 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
 	    return 0;
 	}
     }
-    return -1;
+    // If there is no txn, then we treat it as the null txn.
+    *result = 0;
+    return 0;
 }
