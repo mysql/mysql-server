@@ -1990,6 +1990,35 @@ public:
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
+
+  // Row emulation: forwarding of ROW-related calls to ref
+  uint cols()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
+  }
+  Item* element_index(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
+  }
+  Item** addr(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
+  }
+  bool check_cols(uint c)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c) 
+                                              : Item::check_cols(c);
+  }
+  bool null_inside()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
+  }
+  void bring_value()
+  { 
+    if (ref && result_type() == ROW_RESULT)
+      (*ref)->bring_value();
+  }
+
 };
 
 
