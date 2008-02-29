@@ -1053,7 +1053,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 */
 
 /* Optimized store functions for Intel x86 */
-#if defined(__i386__) || (defined(_WIN32) && !defined(_WIN64))
+#if defined(__i386__) || defined(_WIN32)
 #define sint2korr(A)	(*((int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
@@ -1242,7 +1242,7 @@ do { doubleget_union _tmp; \
 #define float8store(V,M) doublestore((V),(M))
 #endif /* WORDS_BIGENDIAN */
 
-#endif /* __i386__ OR _WIN32 AND !_WIN64 */
+#endif /* __i386__ OR _WIN32 */
 
 /*
   Macro for reading 32-bit integer from network byte order (big-endian)
