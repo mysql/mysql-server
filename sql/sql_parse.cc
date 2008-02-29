@@ -76,8 +76,6 @@ static void remove_escape(char *name);
 static bool append_file_to_dir(THD *thd, const char **filename_ptr,
 			       const char *table_name);
 static bool check_show_create_table_access(THD *thd, TABLE_LIST *table);
-static TABLE_LIST* get_table_by_alias(TABLE_LIST* tl, const char* db,
-  const char* alias);
 static bool test_if_data_home_dir(const char *dir);
 
 const char *any_db="*any*";	// Special symbol for check_access
