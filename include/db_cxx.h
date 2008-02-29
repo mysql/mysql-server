@@ -179,10 +179,6 @@ class DbEnv {
 #endif
     int set_lk_max_locks(u_int32_t);
     int get_lk_max_locks(u_int32_t *);
-    int set_lk_max_lockers(u_int32_t);
-    int get_lk_max_lockers(u_int32_t *);
-    int set_lk_max_objects(u_int32_t);
-    int get_lk_max_objects(u_int32_t *);
 
 // somewhat_private:
     int do_no_exceptions; // This should be private!!!

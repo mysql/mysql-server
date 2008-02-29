@@ -147,17 +147,13 @@ void DbEnv::set_error_stream(std::ostream *new_error_stream) {
     the_env->set_errcall(the_env, toku_db_env_error_stream_c);
 }
 
-// locking not yet implemented
-
 int DbEnv::set_lk_max_locks(u_int32_t max_locks) {
     int ret = the_env->set_lk_max_locks(the_env, max_locks);
     return maybe_throw_error(ret);
 }
 
-int DbEnv::set_lk_max_lockers(u_int32_t max_lockers) {
-    return 0;
+int DbEnv::get_lk_max_locks(u_int32_t *max_locks) {
+    int ret = the_env->get_lk_max_locks(the_env, max_locks);
+    return maybe_throw_error(ret);
 }
 
-int DbEnv::set_lk_max_objects(u_int32_t max_objects) {
-    return 0;
-}
