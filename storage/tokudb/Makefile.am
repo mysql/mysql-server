@@ -3,12 +3,12 @@
 EXTRA_DIST = ha_tokudb.h CMakeFiles.txt plug.in tokudb_probes.d
 
 # this is for regular mysql builds
-# INCLUDES =   $(MYSQL_INC)
+# INCLUDES =   $(MYSQL_INC) $(TOKUDB_INC)
 
 # this is for debug mysql builds
-INCLUDES = -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX $(MYSQL_INC)
+INCLUDES = -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX $(MYSQL_INC) $(TOKUDB_INC)
 
-LIBS=-ldb
+LIBS= -ltokudb
 
 DTRACE =                @DTRACE@
 DTRACEFLAGS =           @DTRACEFLAGS@
