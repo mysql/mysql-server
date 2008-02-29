@@ -27,13 +27,19 @@ TARGETS = $(TARGET_BDB) $(TARGET_TDB)
 
 default: $(TARGETS)
 
-check: check-default
+check: check-default check-x2
 
 check-default: $(TARGET_TDB)
 	$(VALGRIND) ./$(TARGET_TDB)
 
 check-x: $(TARGET_TDB)
 	$(VALGRIND) ./$(TARGET_TDB) -x
+
+
+# A fast transaction test that detects #455.
+check-xfast: $(TARGET_TDB)
+	./$(TARGET_TDB) ./db-benchmark-test-tokudb --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 1
+
 
 clean:
 	rm -rf $(TARGETS) $(BENCHDBS) *.gcno *.gcda *.gcov
