@@ -130,39 +130,38 @@ select * from t1;
 a
 42
 drop table t1;
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+drop table t1;
+execute stmt;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c` char(10) default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQLTEST_VARDIR/tmp/'
+drop table t1;
+deallocate prepare stmt;
 CREATE TABLE t1(a INT)
 DATA DIRECTORY='TEST_DIR/var/master-data/test';
 ERROR HY000: Incorrect arguments to DATA DIRECORY
 CREATE TABLE t1(a INT)
-DATA DIRECTORY='/home/gluh/MySQL/Merge/4.1-opt/mysql-test/var/master-data/';
+DATA DIRECTORY='/home/gluh/MySQL/Merge/5.0-opt/mysql-test/var/master-data/';
 ERROR HY000: Incorrect arguments to DATA DIRECORY
 CREATE TABLE t1(a INT)
-INDEX DIRECTORY='/home/gluh/MySQL/Merge/4.1-opt/mysql-test/var/master-data';
+INDEX DIRECTORY='/home/gluh/MySQL/Merge/5.0-opt/mysql-test/var/master-data';
 ERROR HY000: Incorrect arguments to INDEX DIRECORY
 CREATE TABLE t1(a INT)
-INDEX DIRECTORY='/home/gluh/MySQL/Merge/4.1-opt/mysql-test/var/master-data_var';
-ERROR HY000: Can't create/write to file '/home/gluh/MySQL/Merge/4.1-opt/mysql-test/var/master-data_var/t1.MYI' (Errcode: 2)
+INDEX DIRECTORY='/home/gluh/MySQL/Merge/5.0-opt/mysql-test/var/master-data_var';
+ERROR HY000: Can't create/write to file '/home/gluh/MySQL/Merge/5.0-opt/mysql-test/var/master-data_var/t1.MYI' (Errcode: 2)
 End of 4.1 tests
-CREATE DATABASE db1;
-CREATE DATABASE db2;
-USE db2;
-INSERT INTO db2.t1 VALUES (1);
-SELECT * FROM db2.t1;
-b
-1
-RESET QUERY CACHE;
-USE db1;
 SET SESSION keep_files_on_create = TRUE;
 CREATE TABLE t1 (a INT) ENGINE MYISAM;
-ERROR HY000: Can't create/write to file './db1/t1.MYD' (Errcode: 17)
-CREATE TABLE t3 (a INT) Engine=MyISAM;
-INSERT INTO t3 VALUES (1),(2),(3);
-TRUNCATE TABLE t3;
-SELECT * from t3;
-a
-SET SESSION keep_files_on_create = DEFAULT;
-DROP TABLE db2.t1, db1.t3;
-DROP DATABASE db1;
-DROP DATABASE db2;
-USE test;
+ERROR HY000: Can't create/write to file './test/t1.MYD' (Errcode: 17)
+SET SESSION keep_files_on_create = FALSE;
+CREATE TABLE t1 (a INT) ENGINE MYISAM;
+DROP TABLE t1;
 End of 5.0 tests

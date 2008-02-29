@@ -467,19 +467,13 @@ char log_error_file[FN_REFLEN], glob_hostname[FN_REFLEN];
 char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
+     mysql_unpacked_real_data_home[FN_REFLEN],
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
-
+char *mysql_data_home= mysql_real_data_home;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
 
 const char *opt_date_time_formats[3];
-
-
-char compiled_default_collation_name[]= MYSQL_DEFAULT_COLLATION_NAME;
-char *language_ptr, *default_collation_name, *default_character_set_name;
-char mysql_data_home_buff[2], *mysql_data_home=mysql_real_data_home;
-char mysql_unpacked_real_data_home[FN_REFLEN];
-struct passwd *user_info;
 char server_version[SERVER_VERSION_LENGTH];
 char *mysqld_unix_port, *opt_mysql_tmpdir;
 const char **errmesg;			/* Error messages */
