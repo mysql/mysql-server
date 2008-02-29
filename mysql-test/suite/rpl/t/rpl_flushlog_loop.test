@@ -42,6 +42,8 @@ let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%
 
 --disable_query_log
 CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
+sync_slave_with_master;
+connection master;
 INSERT INTO t1 VALUE(1);
 --enable_query_log
 FLUSH LOGS;
