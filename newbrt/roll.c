@@ -96,8 +96,6 @@ void toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 
 #define ABORTIT { le=le; txn=txn; fprintf(stderr, "%s:%d (%s) not ready to go\n", __FILE__, __LINE__, __func__); abort(); }
 
-void toku_recover_delete (LSN UU(lsn), FILENUM UU(filenum),DISKOFF UU(diskoff),BYTESTRING UU(key),BYTESTRING UU(data)) { assert(0); }
-
 void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32_t mode) {
     char *fixed_fname = fixup_fname(&fname);
     int fd = creat(fixed_fname, mode);

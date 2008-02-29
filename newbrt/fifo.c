@@ -5,6 +5,7 @@
 #include "toku_assert.h"
 #include "memory.h"
 #include "fifo.h"
+#include "ybt.h"
 
 static void fifo_init(struct fifo *fifo) {
     fifo->head = fifo->tail = 0;
@@ -78,6 +79,10 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     return 0;
 }
 
+int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_CMD cmd) {
+    return toku_fifo_enq(fifo, cmd->u.id.key->data, cmd->u.id.key->size, cmd->u.id.val->data, cmd->u.id.val->size, cmd->type, cmd->xid);
+}
+
 /* peek at the head (the oldest entry) of the fifo */
 int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, int *type, TXNID *xid) {
     struct fifo_entry *entry = fifo_peek(fifo);
@@ -90,6 +95,22 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
     *xid  = entry->xid;
     return 0;
 }
+
+// fill in the BRT_CMD, using the two DBTs for the DBT part.
+int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
+    int type;
+    bytevec keyb,datab;
+    unsigned int keylen,datalen;
+    int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xid);
+    if (r!=0) return r;
+    cmd->type=type;
+    toku_fill_dbt(key, keyb, keylen);
+    toku_fill_dbt(data, datab, datalen);
+    cmd->u.id.key=key;
+    cmd->u.id.val=data;
+    return 0;
+}
+
 
 int toku_fifo_deq(FIFO fifo) {
     struct fifo_entry *entry = fifo_deq(fifo);
