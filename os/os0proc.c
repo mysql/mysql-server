@@ -129,7 +129,7 @@ skip:
 	size = *n = ut_2pow_round(*n + system_info.dwPageSize - 1,
 				  system_info.dwPageSize);
 	ptr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE,
-			   PAGE_READWRITE | PAGE_WRITECOMBINE);
+			   PAGE_READWRITE);
 	if (!ptr) {
 		fprintf(stderr, "InnoDB: VirtualAlloc(%lu bytes) failed;"
 			" Windows error %lu\n",
