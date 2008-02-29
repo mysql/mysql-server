@@ -798,7 +798,7 @@ buf_page_get_space(
 /*===============*/
 					/* out: space id */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the space id of a block. */
 UNIV_INLINE
@@ -807,7 +807,7 @@ buf_block_get_space(
 /*================*/
 					/* out: space id */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the page number of a block. */
 UNIV_INLINE
@@ -816,7 +816,7 @@ buf_page_get_page_no(
 /*=================*/
 					/* out: page number */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the page number of a block. */
 UNIV_INLINE
@@ -825,7 +825,7 @@ buf_block_get_page_no(
 /*==================*/
 					/* out: page number */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page size of a block. */
 UNIV_INLINE
@@ -834,7 +834,7 @@ buf_page_get_zip_size(
 /*==================*/
 					/* out: compressed page size, or 0 */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page size of a block. */
 UNIV_INLINE
@@ -843,7 +843,7 @@ buf_block_get_zip_size(
 /*===================*/
 					/* out: compressed page size, or 0 */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
