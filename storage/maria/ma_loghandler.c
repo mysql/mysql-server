@@ -7475,7 +7475,10 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
                                                   1].length),
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL)))
+    {
+      pthread_mutex_unlock(&share->intern_lock);
       return 1;
+    }
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;
