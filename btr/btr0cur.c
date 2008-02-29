@@ -3593,7 +3593,7 @@ btr_push_update_extern_fields(
 				InnoDB writes a longer prefix of externally
 				stored columns, so that column prefixes
 				in secondary indexes can be reconstructed. */
-				dfield_set_data(field, dfield_get_data(field)
+				dfield_set_data(field, (byte*) dfield_get_data(field)
 						+ dfield_get_len(field)
 						- BTR_EXTERN_FIELD_REF_SIZE,
 						BTR_EXTERN_FIELD_REF_SIZE);
@@ -4411,12 +4411,12 @@ btr_copy_zblob_prefix(
 	ulint		page_no,/* in: page number of the first BLOB page */
 	ulint		offset)	/* in: offset on the first BLOB page */
 {
+	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
+
 	ut_ad(ut_is_2pow(zip_size));
 	ut_ad(zip_size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(zip_size <= UNIV_PAGE_SIZE);
 	ut_ad(space_id);
-
-	ulint	page_type = FIL_PAGE_TYPE_ZBLOB;
 
 	for (;;) {
 		buf_page_t*	bpage;
