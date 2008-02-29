@@ -360,10 +360,10 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       }
     }
     new_ref= direct_ref ?
-              new Item_direct_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used) :
-              new Item_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used);
+              new Item_direct_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used) :
+              new Item_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used);
     if (!new_ref)
       return TRUE;
     ref->outer_ref= new_ref;
