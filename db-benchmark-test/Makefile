@@ -38,7 +38,7 @@ check-x: $(TARGET_TDB)
 
 # A fast transaction test that detects #455.
 check-xfast: $(TARGET_TDB)
-	./$(TARGET_TDB) ./db-benchmark-test-tokudb --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 1
+	./$(TARGET_TDB) --noserial -x --valsize 1000  --cachesize 8000000 --xcount 1000 --periter 20000 1
 
 
 clean:
