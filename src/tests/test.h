@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <db.h>
-#include "../../newbrt/brttypes.h"
 #include <assert.h>
 
 #ifndef DB_YESOVERWRITE
@@ -12,6 +11,8 @@
 #ifndef DB_DELETE_ANY
 #define DB_DELETE_ANY 0
 #endif
+
+typedef enum { FALSE = 0, TRUE = 1} BOOL;
 
 int verbose=0;
 
