@@ -24,6 +24,28 @@ innobase_convert_string(
 	CHARSET_INFO*	from_cs,
 	uint*		errors);
 
+/***********************************************************************
+Formats the raw data in "data" (in InnoDB on-disk format) that is of
+type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "charset_coll" and writes
+the result to "buf". The result is converted to "system_charset_info".
+Not more than "buf_size" bytes are written to "buf".
+The result is always '\0'-terminated (provided buf_size > 0) and the
+number of bytes that were written to "buf" is returned (including the
+terminating '\0'). */
+UNIV_INTERN
+ulint
+innobase_raw_format(
+/*================*/
+					/* out: number of bytes
+					that were written */
+	const char*	data,		/* in: raw data */
+	ulint		data_len,	/* in: raw data length
+					in bytes */
+	ulint		charset_coll,	/* in: charset collation */
+	char*		buf,		/* out: output buffer */
+	ulint		buf_size);	/* in: output buffer size
+					in bytes */
+                    
 /*********************************************************************
 Convert a table or index name to the MySQL system_charset_info (UTF-8)
 and quote it if needed. */
