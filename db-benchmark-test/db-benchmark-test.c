@@ -29,6 +29,7 @@ int pagesize = 0;
 long long cachesize = 128*1024*1024;
 int dupflags = 0;
 int noserial = 0; // Don't do the serial stuff
+int norandom = 0; // Don't do the random stuff
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
 
@@ -201,11 +202,13 @@ void biginsert (long long n_elements, struct timeval *starttime) {
 	    printf("serial %9.6fs %8.0f/s    ", tdiff(&t2, &t1), items_per_iteration/tdiff(&t2, &t1));
 	    fflush(stdout);
 	}
+        if (!norandom) {
 	gettimeofday(&t1,0);
 	random_insert_below((i+items_per_iteration)*SERIAL_SPACING);
 	gettimeofday(&t2,0);
 	printf("random %9.6fs %8.0f/s    ", tdiff(&t2, &t1), items_per_iteration/tdiff(&t2, &t1));
-	printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (items_per_iteration*2.0/tdiff(&t2, starttime))*(iteration+1));
+        }
+	printf("cumulative %9.6fs %8.0f/s\n", tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/tdiff(&t2, starttime))*(iteration+1));
     }
 }
 
@@ -244,6 +247,10 @@ int main (int argc, const char *argv[]) {
         }
 	if (strcmp(arg, "--noserial") == 0) {
 	    noserial=1;
+	    continue;
+	}
+	if (strcmp(arg, "--norandom") == 0) {
+	    norandom=1;
 	    continue;
 	}
 	if (strcmp(arg, "--xcount") == 0) {
@@ -293,8 +300,10 @@ int main (int argc, const char *argv[]) {
         }
         total_n_items = items_per_iteration * (long long)n_iterations;
     }
-    if (!noserial) printf("serial and ");
-    printf("random insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
+    if (!noserial) printf("serial ");
+    if (!noserial && !norandom) printf("and ");
+    if (!norandom) printf("random ");
+    printf("insertions of %d per batch%s\n", items_per_iteration, do_transactions ? " (with transactions)" : "");
     setup();
     gettimeofday(&t1,0);
     biginsert(total_n_items, &t1);
@@ -302,7 +311,8 @@ int main (int argc, const char *argv[]) {
     shutdown();
     gettimeofday(&t3,0);
     printf("Shutdown %9.6fs\n", tdiff(&t3, &t2));
-    printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 2*total_n_items, 2*total_n_items/tdiff(&t3, &t1));
+    printf("Total time %9.6fs for %lld insertions = %8.0f/s\n", tdiff(&t3, &t1), 
+           (!noserial+!norandom)*total_n_items, (!noserial+!norandom)*total_n_items/tdiff(&t3, &t1));
     return 0;
 }
 
