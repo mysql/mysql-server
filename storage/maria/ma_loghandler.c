@@ -7475,7 +7475,10 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
                                                   1].length),
                                        sizeof(log_array)/sizeof(log_array[0]),
                                        log_array, log_data, NULL)))
+    {
+      pthread_mutex_unlock(&share->intern_lock);
       return 1;
+    }
   }
   pthread_mutex_unlock(&share->intern_lock);
   return 0;
@@ -8381,7 +8384,7 @@ int main(int argc, char **argv)
        opt_offset+= TRANSLOG_PAGE_SIZE, opt_pages--)
   {
     if (my_pread(handler, buffer, TRANSLOG_PAGE_SIZE, opt_offset,
-                 MYF(MY_FNABP | MY_WME)))
+                 MYF(MY_NABP)))
     {
       if (my_errno == HA_ERR_FILE_TOO_SHORT)
         goto end;

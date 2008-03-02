@@ -375,12 +375,10 @@ static struct my_option my_long_options[] =
   { "zerofill", 'z',
     "Fill empty space in data and index files with zeroes",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   { "zerofill-keep-lsn", OPT_ZEROFILL_KEEP_LSN,
     "Like --zerofill but does not zero out LSN of data/index pages;"
     " used only for testing and debugging",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -511,13 +509,9 @@ static void usage(void)
 		      (It may be VERY slow to do a sort the first time!).\n\
   -b,  --block-search=#\n\
                       Find a record, a block at given offset belongs to.\n\
-  -z,  --zerofill     Fill empty space in data and index files with zeroes"
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
-"\n\
+  -z,  --zerofill     Fill empty space in data and index files with zeroes\n\
   --zerofill-keep-lsn Like --zerofill but does not zero out LSN of\n\
-                      data/index pages; used only for testing and debugging"
-#endif
-       ".");
+                      data/index pages.");
 
   print_defaults("my", load_default_groups);
   my_print_variables(my_long_options);
@@ -790,14 +784,12 @@ get_one_option(int optid,
     else
       check_param.testflag|= T_ZEROFILL;
     break;
-#ifdef IDENTICAL_PAGES_AFTER_RECOVERY
   case OPT_ZEROFILL_KEEP_LSN:
     if (argument == disabled_my_option)
       check_param.testflag&= ~(T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
     else
       check_param.testflag|= (T_ZEROFILL_KEEP_LSN | T_ZEROFILL);
     break;
-#endif
   case 'H':
     my_print_help(my_long_options);
     exit(0);
@@ -1123,13 +1115,23 @@ static int maria_chk(HA_CHECK *param, char *filename)
     if (!error)
     {
       /*
-        Tell the server's Recovery to ignore old REDOs on this table; we don't
+        Unless this was only --zerofill-keep-lsn, old REDOs are not
+        applicable, tell the server's Recovery to ignore them; we don't
         know what the log's end LSN is now, so we just let the server know
         that it will have to find and store it.
         This is the only case where create_rename_lsn can be a horizon and not
         a LSN.
+        If this was only --zerofill-keep-lsn, the table can be used in
+        Recovery and especially in this scenario: do a dirty-copy-based backup
+        (snapshot-like), --zerofill-keep-lsn on the copies to achieve better
+        compression, compress the copies with an external tool, and after a
+        restore, Recovery still works (because pages and state still have
+        their correct LSNs).
       */
-      if (share->base.born_transactional)
+      if (share->base.born_transactional &&
+          ((param->testflag & (T_REP_ANY | T_SORT_RECORDS | T_SORT_INDEX |
+                               T_ZEROFILL | T_ZEROFILL_KEEP_LSN)) !=
+           (T_ZEROFILL | T_ZEROFILL_KEEP_LSN)))
         share->state.create_rename_lsn= share->state.is_of_horizon=
           share->state.skip_redo_lsn= LSN_REPAIRED_BY_MARIA_CHK;
     }

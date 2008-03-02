@@ -2983,11 +2983,9 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
     if (zero_lsn)
       bzero(buff, LSN_SIZE);
     length= _ma_get_page_used(share, buff);
-    /* Skip mailformed blocks */
-    DBUG_ASSERT(length + share->keypage_header <= block_size);
-    if (length + share->keypage_header < block_size)
-      bzero(buff + share->keypage_header + length, block_size - length -
-            share->keypage_header);
+    DBUG_ASSERT(length <= block_size);
+    if (length < block_size)
+      bzero(buff + length, block_size - length);
     pagecache_unlock_by_link(share->pagecache, page_link.link,
                              PAGECACHE_LOCK_WRITE_UNLOCK,
                              PAGECACHE_UNPIN, LSN_IMPOSSIBLE,
@@ -3001,7 +2999,7 @@ static my_bool maria_zerofill_index(HA_CHECK *param, MARIA_HA *info,
 
 
 /**
-   @brief Fill empty space in index file with zeroes
+   @brief Fill empty space in data file with zeroes
 
    @todo
    Zerofill all pages marked in bitmap as empty and change them to

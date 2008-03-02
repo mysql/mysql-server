@@ -104,7 +104,7 @@ int (*default_error_handler_hook)(uint my_err, const char *str,
 
 /* like ma_control_file_create_or_open(), but without error messages */
 
-static CONTROL_FILE_ERROR local_ma_control_file_create_or_open()
+static CONTROL_FILE_ERROR local_ma_control_file_create_or_open(void)
 {
   CONTROL_FILE_ERROR error;
   error_handler_hook= my_ignore_message;
@@ -205,7 +205,7 @@ static int close_file()
 
 static int create_or_open_file()
 {
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() == CONTROL_FILE_OK);
   /* Check that the module reports expected information */
   RET_ERR_UNLESS(verify_module_values_match_expected() == 0);
   return 0;
@@ -362,7 +362,7 @@ static int test_bad_magic_string()
                            MYF(MY_FNABP |  MY_WME)) == 0);
 
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
              CONTROL_FILE_BAD_MAGIC_STRING);
   /* Restore magic string */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
@@ -388,7 +388,7 @@ static int test_bad_checksum()
   buffer[0]+= 3; /* mangle checksum */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 30, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
                  CONTROL_FILE_BAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
@@ -403,7 +403,7 @@ static int test_bad_blocksize()
 {
   maria_block_size<<= 1;
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
                  CONTROL_FILE_WRONG_BLOCKSIZE);
   /* Restore blocksize */
   maria_block_size>>= 1;
@@ -478,7 +478,7 @@ static int test_bad_hchecksum()
   buffer[0]+= 3; /* mangle checksum */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 26, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
                  CONTROL_FILE_BAD_HEAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
@@ -502,14 +502,14 @@ static int test_bad_size()
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_write(fd, buffer, 10, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
                  CONTROL_FILE_TOO_SMALL);
   for (i= 0; i < 8; i++)
   {
     RET_ERR_UNLESS(my_write(fd, buffer, 66, MYF(MY_FNABP |  MY_WME)) == 0);
   }
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open(TRUE) ==
+  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
                  CONTROL_FILE_TOO_BIG);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 

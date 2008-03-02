@@ -2,6 +2,7 @@
 
 use Getopt::Long;
 use File::Copy;
+use File::Compare;
 use File::Basename;
 
 $|= 1;
@@ -17,6 +18,7 @@ my $tmp= "./tmp";
 my $my_progname= $0;
 my $suffix;
 my $md5sum;
+my $zerofilled_tables= 0;
 
 $my_progname=~ s/.*[\/]//;
 $maria_path= dirname($0) . "/..";
@@ -89,18 +91,6 @@ sub main
     mkdir $tmp;
   }
   print "MARIA RECOVERY TESTS\n";
-  $res= `$maria_exe_path/maria_read_log$suffix --help | grep IDENTICAL_PAGES_AFTER_RECOVERY`;
-
-  if (length($res))
-  {
-    print "Recovery tests require compilation with DBUG\n";
-    print "Aborting test\n";
-    # In the future, we will not abort but use maria_chk --zerofill-keep-lsn
-    # for comparisons in non-debug builds.
-    # For now we just skip the test, pretending it passed (nothing is
-    # alarming).
-    exit(0);
-  }
 
   # To not flood the screen, we redirect all the commands below to a text file
   # and just give a final error if their output is not as expected
@@ -140,18 +130,14 @@ sub main
     move("$table.MAI", "$tmp/$table-good.MAI") ||
       die "Can't move $table.MAI to $tmp/$table-good.MAI\n";
     apply_log($table, "shouldnotchangelog");
-    $res= `cmp $table.MAD $tmp/$table-good.MAD`;
-    print MY_LOG $res;
-    $res= `cmp $table.MAI $tmp/$table-good.MAI`;
-    print MY_LOG $res;
     check_table_is_same($table, $checksum);
+    $res= physical_cmp($table, "$tmp/$table-good");
+    print MY_LOG $res;
     print MY_LOG "testing idempotency\n";
     apply_log($table, "shouldnotchangelog");
-    $res= `cmp $table.MAD $tmp/$table-good.MAD`;
-    print MY_LOG $res;
-    $res= `cmp $table.MAI $tmp/$table-good.MAI`;
-    print MY_LOG $res;
     check_table_is_same($table, $checksum);
+    $res= physical_cmp($table, "$tmp/$table-good");
+    print MY_LOG $res;
   }
 
   print MY_LOG "Testing the REDO AND UNDO PHASE\n";
@@ -255,21 +241,16 @@ sub main
           check_table_is_same($table, $checksum);
           print MY_LOG "testing idempotency\n";
           apply_log($table, "shouldnotchangelog");
-          # We can't do a binary compary as there may have been different number
-          # of calls to compact_page. We can enable this if we first call
-          # maria-check to generate identically compacted pages.
-          #    cmp $table.MAD $tmp/$table-after_undo.MAD
-          $res= `cmp $table.MAI $tmp/$table-after_undo.MAI`;
-          print MY_LOG $res;
           check_table_is_same($table, $checksum);
+          $res= physical_cmp($table, "$tmp/$table-after_undo");
+          print MY_LOG $res;
           print MY_LOG "testing applying of CLRs to recreate table\n";
           unlink <$table.MA?>;
           #    cp $tmp/maria_log* $maria_path  #unneeded
           apply_log($table, "shouldnotchangelog");
-          #    cmp $table.MAD $tmp/$table-after_undo.MAD
-          $res= `cmp $table.MAI $tmp/$table-after_undo.MAI`;
-          print MY_LOG $res;
           check_table_is_same($table, $checksum);
+          $res= physical_cmp($table, "$tmp/$table-after_undo");
+          print MY_LOG $res;
         }
         unlink <$table.* $tmp/$table* $tmp/maria_chk_*.txt $tmp/maria_read_log_$table.txt>;
       }
@@ -286,12 +267,13 @@ sub main
   # does not put back the "analyzed,optimized keys"(etc) index state.
   `diff -b $maria_path/unittest/ma_test_recovery.expected $tmp/ma_test_recovery.output`;
   if ($? >> 8) {
-    print "UNEXPECTED OUTPUT OF TESTS, FAILED\n";
+    print "UNEXPECTED OUTPUT OF TESTS, FAILED";
+    print " (zerofilled $zerofilled_tables tables)\n";
     print "For more info, do diff -b $maria_path/unittest/ma_test_recovery.expected ";
     print "$tmp/ma_test_recovery.output\n";
     exit(1);
   }
-  print "ALL RECOVERY TESTS OK\n";
+  print "ALL RECOVERY TESTS OK (zerofilled $zerofilled_tables tables)\n";
 }
 
 ####
@@ -357,7 +339,7 @@ sub apply_log
   {
     print MY_LOG "bad argument '$shouldchangelog'\n";
     return 1;
-  }
+  } 
   $log_md5= `$md5sum maria_log.*`;
 
   print MY_LOG "applying log\n";
@@ -392,6 +374,58 @@ sub my_which
     return $path if (-f $path && -x $path);
   }
   return undef();
+}
+
+
+####
+#### physical_cmp: compares two tables (MAI and MAD) physically;
+#### uses zerofill-keep-lsn to reduce irrelevant differences.
+####
+
+sub physical_cmp
+{
+  my ($table1, $table2)= @_;
+  my ($zerofilled, $ret_text)= (0, "");
+  #return `cmp $table1.MAD $table2.MAD`.`cmp $table1.MAI $table2.MAI`;
+  foreach my $file_suffix ("MAD", "MAI")
+  {
+    my $file1= "$table1.$file_suffix";
+    my $file2= "$table2.$file_suffix";
+    my $res= File::Compare::compare($file1, $file2);
+    die() if ($res == -1);
+    if ($res == 1 # they differ
+        and !$zerofilled)
+    {
+      # let's try with --zerofill-keep-lsn
+      $zerofilled= 1; # but no need to do it twice
+      $zerofilled_tables= $zerofilled_tables + 1;
+      my $table_no= 1;
+      foreach my $table ($table1, $table2)
+      {
+        # save original tables to restore them later
+        copy("$table.MAD", "$tmp/before_zerofill$table_no.MAD") || die();
+        copy("$table.MAI", "$tmp/before_zerofill$table_no.MAI") || die();
+        $com= "$maria_exe_path/maria_chk$suffix -s --zerofill-keep-lsn $table";
+        $res= `$com`;
+        print MY_LOG $res;
+        $table_no= $table_no + 1;
+      }
+      $res= File::Compare::compare($file1, $file2);
+      die() if ($res == -1);
+    }
+    $ret_text.= "$file1 and $file2 differ\n" if ($res != 0);
+  }
+  if ($zerofilled)
+  {
+    my $table_no= 1;
+    foreach my $table ($table1, $table2)
+    {
+      move("$tmp/before_zerofill$table_no.MAD", "$table.MAD") || die();
+      move("$tmp/before_zerofill$table_no.MAI", "$table.MAI") || die();
+      $table_no= $table_no + 1;
+    }
+  }
+  return $ret_text;
 }
 
 
