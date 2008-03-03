@@ -1237,7 +1237,10 @@ int ha_tokudb::write_row(uchar * record) {
                 for (uint keynr = 0; keynr < table_share->keys; keynr++) {
                     if (keynr == primary_key)
                         continue;
-                    if ((error = key_file[keynr]->put(key_file[keynr], sub_trans, create_key(&key, keynr, key_buff2, record), &prim_key, key_type[keynr]))) {
+                    put_flags = key_type[keynr];
+                    if (put_flags == DB_NOOVERWRITE && thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS))
+                        put_flags = DB_YESOVERWRITE;
+                    if ((error = key_file[keynr]->put(key_file[keynr], sub_trans, create_key(&key, keynr, key_buff2, record), &prim_key, put_flags))) {
                         last_dup_key = keynr;
                         break;
                     }
