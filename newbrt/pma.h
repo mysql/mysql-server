@@ -63,13 +63,24 @@ int pma_replace (PMA, bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen
  */
 int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/,
 		     TOKULOGGER, TXNID, DISKOFF,
-		     u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size, LSN*);
+		     u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, LSN*, u_int32_t *n_bytes_in_buffer_including_overheads);
+
+int toku_pma_strong_insert_or_replace (PMA pma, DBT *k, DBT *v,
+				     TOKULOGGER, TXNID, FILENUM, DISKOFF,
+				     u_int32_t rand4fingerprint, u_int32_t *fingerprint,
+				     LSN *node_lsn,
+				     u_int32_t *n_bytes_in_buffer_including_overheads);
+int toku_pma_weak_insert_or_replace (PMA pma, DBT *k, DBT *v,
+				     TOKULOGGER, TXNID, FILENUM, DISKOFF,
+				     u_int32_t rand4fingerprint, u_int32_t *fingerprint,
+				     LSN *node_lsn,
+				     u_int32_t *n_bytes_in_buffer_including_overheads);
 
 int toku_pma_insert_or_replace (PMA /*pma*/, DBT */*k*/, DBT */*v*/,
 				int */*replaced_v_size*/, /* If it is a replacement, set to the size of the old value, otherwise set to -1. */
 				TOKULOGGER, TXNID, FILENUM, DISKOFF,
 				u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/,
-				LSN */*node_lsn*/);
+				LSN */*node_lsn*/)  __attribute__((deprecated));
 
 
 /* Exposes internals of the PMA by returning a pointer to the guts.
