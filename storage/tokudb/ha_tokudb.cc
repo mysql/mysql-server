@@ -588,6 +588,32 @@ void tokudb_cleanup_log_files(void) {
     DBUG_VOID_RETURN;
 }
 
+static int get_name_length(const char *name) {
+    int n = 0;
+    const char *newname = name;
+    if (tokudb_data_dir) {
+        n += strlen(tokudb_data_dir) + 1;
+        if (strncmp("./", name, 2) == 0) 
+            newname = name + 2;
+    }
+    n += strlen(newname);
+    n += strlen(ha_tokudb_ext);
+    return n;
+}
+
+static void make_name(char *newname, const char *tablename, const char *dictname) {
+    const char *newtablename = tablename;
+    char *nn = newname;
+    if (tokudb_data_dir) {
+        nn += sprintf(nn, "%s/", tokudb_data_dir);
+        if (strncmp("./", tablename, 2) == 0)
+            newtablename = tablename + 2;
+    }
+    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
+    if (dictname)
+        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
+}
+
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
 :  
     handler(hton, table_arg), alloc_ptr(0), rec_buff(0), file(0),
@@ -764,8 +790,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         if (!hidden_primary_key)
             file->app_private = (void *) (table_share->key_info + table_share->primary_key);
         char newname[strlen(name) + 32];
-        sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
-        fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+        make_name(newname, name, "main");
+        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
         if ((error = file->open(file, 0, name_buff, "main", DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
             free_share(share, table, hidden_primary_key, 1);
             my_free((char *) rec_buff, MYF(0));
@@ -788,8 +814,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                     DBUG_RETURN(1);
                 }
                 sprintf(part, "key%d", ++used_keys);
-                sprintf(newname, "%s%s/%s", name, ha_tokudb_ext, part);
-                fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+                make_name(newname, name, part);
+                fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
                 key_type[i] = table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
                 (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
                 (*ptr)->app_private = (void *) (table_share->key_info + i);
@@ -826,6 +852,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
     share->fixed_length_row = !(table_share->db_create_options & HA_OPTION_PACK_RECORD);
 
+    // QQQ what happens if get_status fails
     get_status();
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
@@ -1058,19 +1085,30 @@ void ha_tokudb::get_status() {
         pthread_mutex_lock(&share->mutex);
         if (!(share->status & STATUS_PRIMARY_KEY_INIT)) {
             (void) extra(HA_EXTRA_KEYREAD);
+            int do_commit = 0;
+            if (transaction == 0) {
+                int r = db_env->txn_begin(db_env, 0, &transaction, 0);
+                assert(r == 0);
+                do_commit = 1;
+            }
             index_init(primary_key, 0);
             if (!index_last(table->record[1]))
                 share->auto_ident = uint5korr(current_ident);
             index_end();
+            if (do_commit) {
+                int r = transaction->commit(transaction, 0);
+                assert(r == 0);
+                transaction = 0;
+            }
             (void) extra(HA_EXTRA_NO_KEYREAD);
         }
         if (!share->status_block) {
             char name_buff[FN_REFLEN];
-            char newname[strlen(share->table_name) + 32];
-            sprintf(newname, "%s%s/status", share->table_name, ha_tokudb_ext);
+            char newname[get_name_length(share->table_name) + 32];
+            make_name(newname, share->table_name, "status");
+            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             uint open_mode = (((table->db_stat & HA_READ_ONLY) ? DB_RDONLY : 0)
                               | DB_THREAD);
-            fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
             if (!db_create(&share->status_block, db_env, 0)) {
                 if (share->status_block->open(share->status_block, NULL, name_buff, "status", DB_BTREE, open_mode, 0)) {
                     share->status_block->close(share->status_block, 0);
@@ -1141,9 +1179,9 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
              */
 
             char name_buff[FN_REFLEN];
-            char newname[strlen(share->table_name) + 32];
-            sprintf(newname, "%s%s/status", share->table_name, ha_tokudb_ext);
-            fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+            char newname[get_name_length(share->table_name) + 32];
+            make_name(newname, share->table_name, "status");
+            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             if (db_create(&share->status_block, db_env, 0))
                 goto end;
             share->status_block->set_flags(share->status_block, 0);
@@ -2031,31 +2069,6 @@ static int create_sub_table(const char *table_name, const char *sub_name, DBTYPE
     DBUG_RETURN(error);
 }
 
-static int get_name_length(const char *name) {
-    int n = 0;
-    const char *newname = name;
-    if (tokudb_data_dir) {
-        n += strlen(tokudb_data_dir) + 1;
-        if (strncmp("./", name, 2) == 0) 
-            newname = name + 2;
-    }
-    n += strlen(newname);
-    n += strlen(ha_tokudb_ext);
-    return n;
-}
-
-static void make_name(char *newname, const char *tablename, const char *dictname) {
-    const char *newtablename = tablename;
-    char *nn = newname;
-    if (tokudb_data_dir) {
-        nn += sprintf(nn, "%s/", tokudb_data_dir);
-        if (strncmp("./", tablename, 2) == 0)
-            newtablename = tablename + 2;
-    }
-    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
-    if (dictname)
-        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
-}
 
 static int mkdirpath(char *name, mode_t mode) {
     int r = mkdir(name, mode);
@@ -2077,8 +2090,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
     int error;
-    int n = get_name_length(name) + 32;
-    char newname[n];
+    char newname[get_name_length(name) + 32];
 
     // a table is a directory of dictionaries
     make_name(newname, name, 0);
