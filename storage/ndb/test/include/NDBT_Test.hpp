@@ -17,6 +17,7 @@
 #define NDBT_TEST_HPP
 
 #include <ndb_global.h>
+#include <kernel/ndb_limits.h>
 
 #include "NDBT_ReturnCodes.h"
 #include <Properties.hpp>

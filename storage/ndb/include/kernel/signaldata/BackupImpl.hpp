@@ -94,7 +94,8 @@ public:
     FailedInsertTableList = 1346,
     FailedAllocateTableMem = 1347,
     FailedToAllocateFileRecord = 1348,
-    FailedToAllocateAttributeRecord = 1349
+    FailedToAllocateAttributeRecord = 1349,
+    FailedForBackupFilesAleadyExist = 1350
   };
 private:
   Uint32 backupId;
