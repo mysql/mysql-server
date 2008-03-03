@@ -28,6 +28,9 @@ UNIV_INTERN ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool_mutex. */
 UNIV_INTERN ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+/** Durations of block relocations.
+Protected by buf_pool_mutex. */
+UNIV_INTERN ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
 
 /** Preferred minimum number of frames allocated from the buffer pool
 to the buddy system.  Unless this number is exceeded or the buffer
@@ -269,135 +272,6 @@ buf_buddy_alloc_from(
 }
 
 /**************************************************************************
-Try to allocate a block by freeing an unmodified page. */
-static
-void*
-buf_buddy_alloc_clean(
-/*==================*/
-			/* out: allocated block, or NULL */
-	ulint	i,	/* in: index of buf_pool->zip_free[] */
-	ibool*	lru)	/* in: pointer to a variable that will be assigned
-			TRUE if storage was allocated from the LRU list
-			and buf_pool_mutex was temporarily released */
-{
-	ulint		count;
-	buf_page_t*	bpage;
-
-	ut_ad(buf_pool_mutex_own());
-	ut_ad(!mutex_own(&buf_pool_zip_mutex));
-
-	if (buf_buddy_n_frames >= buf_buddy_max_n_frames
-	    && ((BUF_BUDDY_LOW << i) >= PAGE_ZIP_MIN_SIZE
-		&& i < BUF_BUDDY_SIZES)) {
-
-		/* Try to find a clean compressed-only page
-		of the same size. */
-
-		ulint		j;
-		page_zip_des_t	dummy_zip;
-
-		page_zip_set_size(&dummy_zip, BUF_BUDDY_LOW << i);
-
-		j = ut_min(UT_LIST_GET_LEN(buf_pool->zip_clean), 100);
-		bpage = UT_LIST_GET_FIRST(buf_pool->zip_clean);
-
-		mutex_enter(&buf_pool_zip_mutex);
-
-		for (; j--; bpage = UT_LIST_GET_NEXT(list, bpage)) {
-			if (bpage->zip.ssize != dummy_zip.ssize
-			    || !buf_LRU_free_block(bpage, FALSE, lru)) {
-
-				continue;
-			}
-
-			/* Reuse the block. */
-
-			mutex_exit(&buf_pool_zip_mutex);
-			bpage = buf_buddy_alloc_zip(i);
-
-			/* bpage may be NULL if buf_buddy_free()
-			[invoked by buf_LRU_free_block() via
-			buf_LRU_block_remove_hashed_page()]
-			recombines blocks and invokes
-			buf_buddy_block_free().  Because
-			buf_pool_mutex will not be released
-			after buf_buddy_block_free(), there will
-			be at least one block available in the
-			buffer pool, and thus it does not make sense
-			to deallocate any further compressed blocks. */
-
-			return(bpage);
-		}
-
-		mutex_exit(&buf_pool_zip_mutex);
-	}
-
-	/* Free blocks from the end of the LRU list until enough space
-	is available. */
-
-	count = 0;
-
-free_LRU:
-	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-	     bpage;
-	     bpage = UT_LIST_GET_PREV(LRU, bpage), ++count) {
-
-		void*		ret;
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
-
-		if (UNIV_UNLIKELY(!buf_page_in_file(bpage))) {
-
-			/* This is most likely BUF_BLOCK_REMOVE_HASH,
-			that is, the block is already being freed. */
-			continue;
-		}
-
-		mutex_enter(block_mutex);
-
-		/* Keep the compressed pages of uncompressed blocks. */
-		if (!buf_LRU_free_block(bpage, FALSE, lru)) {
-
-			mutex_exit(block_mutex);
-			continue;
-		}
-
-		mutex_exit(block_mutex);
-
-		/* The block was successfully freed.
-		Attempt to allocate memory. */
-
-		if (i < BUF_BUDDY_SIZES) {
-
-			ret = buf_buddy_alloc_zip(i);
-
-			if (ret) {
-
-				return(ret);
-			}
-		} else {
-			buf_block_t*	block = buf_LRU_get_free_only();
-
-			if (block) {
-				buf_buddy_block_register(block);
-				return(block->frame);
-			}
-		}
-
-		/* A successful buf_LRU_free_block() may release and
-		reacquire buf_pool_mutex, and thus bpage->LRU of
-		an uncompressed page may point to garbage.  Furthermore,
-		if bpage were a compressed page descriptor, it would
-		have been deallocated by buf_LRU_free_block().
-
-		Thus, we must restart the traversal of the LRU list. */
-
-		goto free_LRU;
-	}
-
-	return(NULL);
-}
-
-/**************************************************************************
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any block->mutex.
 The buf_pool_mutex may only be released and reacquired if lru != NULL. */
@@ -442,13 +316,6 @@ buf_buddy_alloc_low(
 		return(NULL);
 	}
 
-	/* Try replacing a clean page in the buffer pool. */
-	block = buf_buddy_alloc_clean(i, lru);
-
-	if (block) {
-
-		goto func_exit;
-	}
 	/* Try replacing an uncompressed page in the buffer pool. */
 	buf_pool_mutex_exit();
 	block = buf_LRU_get_free_block(0);
@@ -533,6 +400,7 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
+	ullint		usec	= ut_time_us(NULL);
 
 	ut_ad(buf_pool_mutex_own());
 	ut_ad(!mutex_own(&buf_pool_zip_mutex));
@@ -605,6 +473,8 @@ buf_buddy_relocate(
 success:
 			UNIV_MEM_INVALID(src, size);
 			buf_buddy_relocated[i]++;
+			buf_buddy_relocated_duration[i]
+				+= ut_time_us(NULL) - usec;
 			return(TRUE);
 		}
 

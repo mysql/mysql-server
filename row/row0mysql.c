@@ -1725,7 +1725,7 @@ row_create_table_for_mysql(
 		      " by the user.\n"
 		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
 		      " is replaced with raw.\n", stderr);
-
+err_exit:
 		dict_mem_table_free(table);
 		trx_commit_for_mysql(trx);
 
@@ -1742,11 +1742,7 @@ row_create_table_for_mysql(
 			"InnoDB: MySQL system tables must be"
 			" of the MyISAM type!\n",
 			table->name);
-
-		dict_mem_table_free(table);
-		trx_commit_for_mysql(trx);
-
-		return(DB_ERROR);
+		goto err_exit;
 	}
 
 	/* Check that no reserved column names are used. */
@@ -1754,10 +1750,7 @@ row_create_table_for_mysql(
 		if (dict_col_name_is_reserved(
 			    dict_table_get_col_name(table, i))) {
 
-			dict_mem_table_free(table);
-			trx_commit_for_mysql(trx);
-
-			return(DB_ERROR);
+			goto err_exit;
 		}
 	}
 
@@ -1833,10 +1826,13 @@ row_create_table_for_mysql(
 
 	err = trx->error_state;
 
+	if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		trx->error_state = DB_SUCCESS;
+		trx_general_rollback_for_mysql(trx, FALSE, NULL);
+	}
+
 	switch (err) {
 	case DB_OUT_OF_FILE_SPACE:
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
-
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Warning: cannot create table ",
 		      stderr);
@@ -1850,8 +1846,6 @@ row_create_table_for_mysql(
 		break;
 
 	case DB_DUPLICATE_KEY:
-		trx_general_rollback_for_mysql(trx, FALSE, NULL);
-
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Error: table ", stderr);
 		ut_print_name(stderr, trx, TRUE, table->name);
