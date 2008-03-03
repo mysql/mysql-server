@@ -5109,8 +5109,15 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-	   (create_info->auto_increment_value != 0)) {
+	/* Note: We can't call update_thd() as prebuilt will not be
+	setup at this stage and so we use thd. */
+
+	/* We need to copy the AUTOINC value from the old table if
+	this is an ALTER TABLE. */
+
+	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
+	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+	    && create_info->auto_increment_value != 0) {
 
 		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or
 		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
