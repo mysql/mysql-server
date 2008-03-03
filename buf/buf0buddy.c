@@ -19,9 +19,11 @@ Created December 2006 by Marko Makela
 
 /* Statistic counters */
 
+#ifdef UNIV_DEBUG
 /** Number of frames allocated from the buffer pool to the buddy system.
 Protected by buf_pool_mutex. */
-UNIV_INTERN ulint buf_buddy_n_frames;
+static ulint buf_buddy_n_frames;
+#endif /* UNIV_DEBUG */
 /** Counts of blocks allocated from the buddy system.
 Protected by buf_pool_mutex. */
 UNIV_INTERN ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
@@ -31,17 +33,6 @@ UNIV_INTERN ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
 /** Durations of block relocations.
 Protected by buf_pool_mutex. */
 UNIV_INTERN ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
-
-/** Preferred minimum number of frames allocated from the buffer pool
-to the buddy system.  Unless this number is exceeded or the buffer
-pool is scarce, the LRU algorithm will not free compressed-only pages
-in order to satisfy an allocation request.  Protected by buf_pool_mutex. */
-UNIV_INTERN ulint buf_buddy_min_n_frames = 0;
-/** Preferred maximum number of frames allocated from the buffer pool
-to the buddy system.  Unless this number is exceeded, the buddy allocator
-will not try to free clean compressed-only pages before falling back
-to the LRU algorithm.  Protected by buf_pool_mutex. */
-UNIV_INTERN ulint buf_buddy_max_n_frames = ULINT_UNDEFINED;
 
 /**************************************************************************
 Get the offset of the buddy of a compressed page frame. */
@@ -204,7 +195,7 @@ buf_buddy_block_free(
 	mutex_exit(&block->mutex);
 
 	ut_ad(buf_buddy_n_frames > 0);
-	buf_buddy_n_frames--;
+	ut_d(buf_buddy_n_frames--);
 }
 
 /**************************************************************************
@@ -231,7 +222,7 @@ buf_buddy_block_register(
 
 	HASH_INSERT(buf_page_t, hash, buf_pool->zip_hash, fold, &block->page);
 
-	buf_buddy_n_frames++;
+	ut_d(buf_buddy_n_frames++);
 }
 
 /**************************************************************************

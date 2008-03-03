@@ -23,6 +23,7 @@ Created June 2005 by Marko Makela
 #include "lock0lock.h"
 #include "log0recv.h"
 #include "zlib.h"
+#include "buf0lru.h"
 
 /** Number of page compressions, indexed by page_zip_des_t::ssize */
 UNIV_INTERN ulint	page_zip_compress_count[8];
@@ -2944,6 +2945,9 @@ err_exit:
 	page_zip_decompress_count[page_zip->ssize]++;
 	page_zip_decompress_duration[page_zip->ssize]
 		+= ut_time_us(NULL) - usec;
+
+	/* Update the stat counter for LRU policy. */
+	buf_LRU_stat_inc_unzip();
 
 	return(TRUE);
 }
