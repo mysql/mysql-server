@@ -27,7 +27,7 @@ TARGETS = $(TARGET_BDB) $(TARGET_TDB)
 
 default: $(TARGETS)
 
-check: check-default check-x2
+check: check-default check-xfast
 
 check-default: $(TARGET_TDB)
 	$(VALGRIND) ./$(TARGET_TDB)
