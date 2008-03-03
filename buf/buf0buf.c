@@ -133,7 +133,7 @@ There are several lists of control blocks.
 The free list (buf_pool->free) contains blocks which are currently not
 used.
 
-The LRU-list contains all the blocks holding a file page
+The common LRU list contains all the blocks holding a file page
 except those for which the bufferfix count is non-zero.
 The pages are in the LRU list roughly in the order of the last
 access to the page, so that the oldest pages are at the end of the
@@ -147,6 +147,14 @@ of pages, and it can also be used when there is a scan of a full
 table which cannot fit in the memory. Putting the pages near the
 of the LRU list, we make sure that most of the buf_pool stays in the
 main memory, undisturbed.
+
+The unzip_LRU list contains a subset of the common LRU list.  The
+blocks on the unzip_LRU list hold a compressed file page and the
+corresponding uncompressed page frame.  A block is in unzip_LRU if and
+only if the predicate buf_page_belongs_to_unzip_LRU(&block->page)
+holds.  The blocks in unzip_LRU will be in same order as they are in
+the common LRU list.  That is, each manipulation of the common LRU
+list will result in the same manipulation of the unzip_LRU list.
 
 The chain of modified blocks (buf_pool->flush_list) contains the blocks
 holding file pages that have been modified in the memory
@@ -649,6 +657,7 @@ buf_block_init(
 	block->page.in_flush_list = FALSE;
 	block->page.in_free_list = FALSE;
 	block->page.in_LRU_list = FALSE;
+	block->in_unzip_LRU_list = FALSE;
 	block->n_pointers = 0;
 #endif /* UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
@@ -881,6 +890,7 @@ buf_chunk_free(
 		ut_a(!block->page.zip.data);
 
 		ut_ad(!block->page.in_LRU_list);
+		ut_ad(!block->in_unzip_LRU_list);
 		ut_ad(!block->page.in_flush_list);
 		/* Remove the block from the free list. */
 		ut_ad(block->page.in_free_list);
@@ -1147,8 +1157,8 @@ shrink_again:
 
 				buf_LRU_make_block_old(&block->page);
 				dirty++;
-			} else if (!buf_LRU_free_block(&block->page,
-						       TRUE, NULL)) {
+			} else if (buf_LRU_free_block(&block->page, TRUE, NULL)
+				   != BUF_LRU_FREED) {
 				nonfree++;
 			}
 
@@ -1588,7 +1598,8 @@ lookup:
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE, NULL)) {
+		if (buf_LRU_free_block(bpage, FALSE, NULL)
+		    == BUF_LRU_FREED) {
 
 			mutex_exit(block_mutex);
 			goto lookup;
@@ -1964,8 +1975,13 @@ wait_until_unfixed:
 		}
 
 		/* Buffer-fix, I/O-fix, and X-latch the block
-		for the duration of the decompression. */
+		for the duration of the decompression.
+		Also add the block to the unzip_LRU list. */
 		block->page.state = BUF_BLOCK_FILE_PAGE;
+
+		/* Insert at the front of unzip_LRU list */
+		buf_unzip_LRU_add_block(block, FALSE);
+
 		block->page.buf_fix_count = 1;
 		buf_block_set_io_fix(block, BUF_IO_READ);
 		buf_pool->n_pend_unzip++;
@@ -2631,6 +2647,14 @@ err_exit2:
 			data = buf_buddy_alloc(zip_size, &lru);
 			mutex_enter(&block->mutex);
 			block->page.zip.data = data;
+
+			/* To maintain the invariant
+			block->in_unzip_LRU_list
+			== buf_page_belongs_to_unzip_LRU(&block->page)
+			we have to add this block to unzip_LRU
+			after block->page.zip.data is set. */
+			ut_ad(buf_page_belongs_to_unzip_LRU(&block->page));
+			buf_unzip_LRU_add_block(block, TRUE);
 		}
 
 		mutex_exit(&block->mutex);
@@ -2793,6 +2817,14 @@ buf_page_create(
 		data = buf_buddy_alloc(zip_size, &lru);
 		mutex_enter(&block->mutex);
 		block->page.zip.data = data;
+
+		/* To maintain the invariant
+		block->in_unzip_LRU_list
+		== buf_page_belongs_to_unzip_LRU(&block->page)
+		we have to add this block to unzip_LRU after
+		block->page.zip.data is set. */
+		ut_ad(buf_page_belongs_to_unzip_LRU(&block->page));
+		buf_unzip_LRU_add_block(block, FALSE);
 
 		buf_page_set_io_fix(&block->page, BUF_IO_NONE);
 		rw_lock_x_unlock(&block->lock);
@@ -3073,6 +3105,7 @@ buf_pool_invalidate(void)
 	buf_pool_mutex_enter();
 
 	ut_ad(UT_LIST_GET_LEN(buf_pool->LRU) == 0);
+	ut_ad(UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0);
 
 	buf_pool_mutex_exit();
 }
@@ -3605,6 +3638,16 @@ buf_print_io(
 	buf_pool->n_pages_read_old = buf_pool->n_pages_read;
 	buf_pool->n_pages_created_old = buf_pool->n_pages_created;
 	buf_pool->n_pages_written_old = buf_pool->n_pages_written;
+
+	/* Print some values to help us with visualizing what is
+	happening with LRU eviction. */
+	fprintf(file,
+		"LRU len: %lu, unzip_LRU len: %lu\n"
+		"I/O sum[%lu]:cur[%lu], unzip sum[%lu]:cur[%lu]\n",
+		UT_LIST_GET_LEN(buf_pool->LRU),
+		UT_LIST_GET_LEN(buf_pool->unzip_LRU),
+		buf_LRU_stat_sum.io, buf_LRU_stat_cur.io,
+		buf_LRU_stat_sum.unzip, buf_LRU_stat_cur.unzip);
 
 	buf_pool_mutex_exit();
 }

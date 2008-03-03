@@ -476,6 +476,11 @@ flush:
 			       buf_page_get_zip_size(&block->page),
 			       (void*)block->page.zip.data,
 			       (void*)block);
+
+			/* Increment the counter of I/O operations used
+			for selecting LRU policy. */
+			buf_LRU_stat_inc_io();
+
 			continue;
 		}
 
@@ -505,6 +510,10 @@ flush:
 		       FALSE, buf_block_get_space(block), 0,
 		       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 		       (void*)block->frame, (void*)block);
+
+		/* Increment the counter of I/O operations used
+		for selecting LRU policy. */
+		buf_LRU_stat_inc_io();
 	}
 
 	/* Wake possible simulated aio thread to actually post the

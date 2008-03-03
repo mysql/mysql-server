@@ -13,6 +13,18 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "buf0types.h"
 
+/** The return type of buf_LRU_free_block() */
+enum buf_lru_free_block_status {
+	/** freed */
+	BUF_LRU_FREED = 0,
+	/** not freed because the caller asked to remove the
+	uncompressed frame but the control block cannot be
+	relocated */
+	BUF_LRU_CANNOT_RELOCATE,
+	/** not freed because of some other reason */
+	BUF_LRU_NOT_FREED
+};
+
 /**********************************************************************
 Tries to remove LRU flushed blocks from the end of the LRU list and put them
 to the free list. This is beneficial for the efficiency of the insert buffer
@@ -72,19 +84,20 @@ void
 buf_LRU_insert_zip_clean(
 /*=====================*/
 	buf_page_t*	bpage);	/* in: pointer to the block in question */
+
 /**********************************************************************
-Try to free a block. */
+Try to free a block.  If bpage is a descriptor of a compressed-only
+page, the descriptor object will be freed as well.  If this function
+returns BUF_LRU_FREED, it will not temporarily release
+buf_pool_mutex. */
 UNIV_INTERN
-ibool
+enum buf_lru_free_block_status
 buf_LRU_free_block(
 /*===============*/
-				/* out: TRUE if freed.  If bpage is a
-				descriptor of a compressed-only page,
-				the descriptor object will be freed
-				as well.  If this function returns FALSE,
-				it will not temporarily release
-				buf_pool_mutex. */
-	buf_page_t*	block,	/* in: block to be freed */
+				/* out: BUF_LRU_FREED if freed,
+				BUF_LRU_CANNOT_RELOCATE or
+				BUF_LRU_NOT_FREED otherwise. */
+	buf_page_t*	bpage,	/* in: block to be freed */
 	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 	ibool*		buf_pool_mutex_released);
@@ -92,19 +105,20 @@ buf_LRU_free_block(
 				be assigned TRUE if buf_pool_mutex
 				was temporarily released, or NULL */
 /**********************************************************************
-Look for a replaceable block from the end of the LRU list and put it to
-the free list if found. */
+Try to free a replaceable block. */
 UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
-				/* out: TRUE if freed */
-	ulint	n_iterations);	 /* in: how many times this has been called
+				/* out: TRUE if found and freed */
+	ulint	n_iterations);	/* in: how many times this has been called
 				repeatedly without result: a high value means
-				that we should search farther; if value is
-				k < 10, then we only search k/10 * number
-				of pages in the buffer pool from the end
-				of the LRU list */
+				that we should search farther; if
+				n_iterations < 10, then we search
+				n_iterations / 10 * buf_pool->curr_size
+				pages from the end of the LRU list; if
+				n_iterations < 5, then we will also search
+				n_iterations / 5 of the unzip_LRU list. */
 /**********************************************************************
 Returns a free block from the buf_pool.  The block is taken off the
 free list.  If it is empty, returns NULL. */
@@ -146,6 +160,15 @@ buf_LRU_add_block(
 				start; if the LRU list is very short, added to
 				the start regardless of this parameter */
 /**********************************************************************
+Adds a block to the LRU list of decompressed zip pages. */
+UNIV_INTERN
+void
+buf_unzip_LRU_add_block(
+/*====================*/
+	buf_block_t*	block,	/* in: control block */
+	ibool		old);	/* in: TRUE if should be put to the end
+				of the list, else put to the start */
+/**********************************************************************
 Moves a block to the start of the LRU list. */
 UNIV_INTERN
 void
@@ -159,6 +182,14 @@ void
 buf_LRU_make_block_old(
 /*===================*/
 	buf_page_t*	bpage);	/* in: control block */
+/************************************************************************
+Update the historical stats that we are collecting for LRU eviction
+policy at the end of each interval. */
+UNIV_INTERN
+void
+buf_LRU_stat_update(void);
+/*=====================*/
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
@@ -175,6 +206,35 @@ void
 buf_LRU_print(void);
 /*===============*/
 #endif /* UNIV_DEBUG_PRINT || UNIV_DEBUG || UNIV_BUF_DEBUG */
+
+/**********************************************************************
+These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
+and page_zip_decompress() operations.  Based on the statistics we decide
+if we want to evict from buf_pool->unzip_LRU or buf_pool->LRU. */
+
+/** Statistics for selecting the LRU list for eviction. */
+struct buf_LRU_stat_struct
+{
+	ulint	io;	/**< Counter of buffer pool I/O operations. */
+	ulint	unzip;	/**< Counter of page_zip_decompress operations. */
+};
+
+typedef struct buf_LRU_stat_struct buf_LRU_stat_t;
+
+/** Current operation counters.  Not protected by any mutex.
+Cleared by buf_LRU_stat_update(). */
+extern buf_LRU_stat_t	buf_LRU_stat_cur;
+
+/** Running sum of past values of buf_LRU_stat_cur.
+Updated by buf_LRU_stat_update().  Protected by buf_pool_mutex. */
+extern buf_LRU_stat_t	buf_LRU_stat_sum;
+
+/************************************************************************
+Increments the I/O counter in buf_LRU_stat_cur. */
+#define buf_LRU_stat_inc_io() buf_LRU_stat_cur.io++
+/************************************************************************
+Increments the page_zip_decompress() counter in buf_LRU_stat_cur. */
+#define buf_LRU_stat_inc_unzip() buf_LRU_stat_cur.unzip++
 
 #ifndef UNIV_NONINL
 #include "buf0lru.ic"
