@@ -13,6 +13,12 @@ unsigned long my_getphyspages() {
     return sysconf(_SC_PHYS_PAGES);
 }
 
+#include <syscall.h>
+
+unsigned int my_tid() {
+    return syscall(__NR_gettid);
+}
+
 #undef PACKAGE
 #undef VERSION
 #undef HAVE_DTRACE
@@ -60,15 +66,16 @@ const char *ha_tokudb_ext = ".tokudb";
 static u_int32_t tokudb_init_flags = DB_PRIVATE | DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
-static ulong tokudb_log_buffer_size = 0;
-static ulong tokudb_log_file_size = 0;
+//static ulong tokudb_log_buffer_size = 0;
+//static ulong tokudb_log_file_size = 0;
 static ulonglong tokudb_cache_size = 0;
 static char *tokudb_home;
-static char *tokudb_tmpdir;
-static char *tokudb_logdir;
+//static char *tokudb_tmpdir;
+static char *tokudb_data_dir;
+static char *tokudb_log_dir;
 //static long tokudb_lock_scan_time = 0;
 //static ulong tokudb_region_size = 0;
-static ulong tokudb_cache_parts = 1;
+//static ulong tokudb_cache_parts = 1;
 static ulong tokudb_trans_retry = 1;
 static ulong tokudb_max_lock;
 
@@ -162,10 +169,12 @@ static int tokudb_init_func(void *p) {
     (void) hash_init(&tokudb_open_tables, system_charset_info, 32, 0, 0, (hash_get_key) tokudb_get_key, 0, 0);
 
     tokudb_hton->state = SHOW_OPTION_YES;
-    // tokudb_hton->flags= HTON_CAN_RECREATE;  // this came from skeleton
+    // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
     tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT | HTON_FLUSH_AFTER_RENAME;
 #ifdef DB_TYPE_TOKUDB
-    tokudb_hton->db_type = DB_TYPE_TOKUDB; // QQQ obsolete?
+    tokudb_hton->db_type = DB_TYPE_TOKUDB;
+#else
+    tokudb_hton->db_type = DB_TYPE_UNKNOWN;
 #endif
 
     tokudb_hton->create = tokudb_create_handler;
@@ -182,13 +191,15 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
 
+#if 0
     if (!tokudb_tmpdir)
         tokudb_tmpdir = mysql_tmpdir;
     DBUG_PRINT("info", ("tokudb_tmpdir: %s", tokudb_tmpdir));
+#endif
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
-
+#if 0
     if (!tokudb_log_buffer_size) { // QQQ
         tokudb_log_buffer_size = max(table_cache_size * 512, 32 * 1024);
         DBUG_PRINT("info", ("computing tokudb_log_buffer_size %ld\n", tokudb_log_buffer_size));
@@ -197,7 +208,7 @@ static int tokudb_init_func(void *p) {
     tokudb_log_file_size = MY_ALIGN(tokudb_log_file_size, 1024 * 1024L);
     tokudb_log_file_size = max(tokudb_log_file_size, 10 * 1024 * 1024L);
     DBUG_PRINT("info", ("computing tokudb_log_file_size: %ld\n", tokudb_log_file_size));
-
+#endif
     int r;
     if ((r = db_env_create(&db_env, 0))) {
         DBUG_PRINT("info", ("db_env_create %d\n", r));
@@ -214,13 +225,22 @@ static int tokudb_init_func(void *p) {
     db_env->set_errpfx(db_env, "TokuDB");
 
     // config directories
+#if 0
     DBUG_PRINT("info", ("tokudb_tmpdir: %s\n", tokudb_tmpdir));
     db_env->set_tmp_dir(db_env, tokudb_tmpdir);
-    DBUG_PRINT("info", ("mysql_data_home: %s\n", mysql_data_home));
-    db_env->set_data_dir(db_env, mysql_data_home);
-    if (tokudb_logdir) {
-        DBUG_PRINT("info", ("tokudb_logdir: %s\n", tokudb_logdir));
-        db_env->set_lg_dir(db_env, tokudb_logdir);
+#endif
+
+    {
+    char *data_dir = tokudb_data_dir;
+    if (data_dir == 0) 
+        data_dir = mysql_data_home;
+    DBUG_PRINT("info", ("tokudb_data_dir: %s\n", data_dir));
+    db_env->set_data_dir(db_env, data_dir);
+    }
+
+    if (tokudb_log_dir) {
+        DBUG_PRINT("info", ("tokudb_log_dir: %s\n", tokudb_log_dir));
+        db_env->set_lg_dir(db_env, tokudb_log_dir);
     }
 
     // config the cache table
@@ -232,8 +252,7 @@ static int tokudb_init_func(void *p) {
     }
     if (tokudb_cache_size) {
         DBUG_PRINT("info", ("tokudb_cache_size: %lld\n", tokudb_cache_size));
-        DBUG_PRINT("info", ("tokudb_cache_parts: %ld\n", tokudb_cache_parts));
-        r = db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), tokudb_cache_parts);
+        r = db_env->set_cachesize(db_env, tokudb_cache_size / (1024 * 1024L * 1024L), tokudb_cache_size % (1024L * 1024L * 1024L), 1);
         if (r) {
             DBUG_PRINT("info", ("set_cachesize %d\n", r));
             goto error; 
@@ -460,7 +479,6 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
 
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     DBUG_ENTER("tokudb_rollback_to_savepoint");
-#if 0 // QQQ
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -469,15 +487,11 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
         trx->sp_level = parent;
         error = tokudb_savepoint(hton, thd, savepoint);
     }
-#else
-    int error = EINVAL;
-#endif
     DBUG_RETURN(error);
 }
 
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     DBUG_ENTER("tokudb_release_savepoint");
-#if 0 // QQQ
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -486,11 +500,9 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
         trx->sp_level = parent;
         *save_txn = 0;
     }
-#else
-    int error = EINVAL;
-#endif
     DBUG_RETURN(error);
 }
+
 #endif
 
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
@@ -735,7 +747,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
     file = share->file;
-    printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
+    printf("%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d:tid=%u\n", __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count, my_tid());
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
@@ -829,10 +841,6 @@ int ha_tokudb::close(void) {
 int ha_tokudb::__close(int mutex_is_locked) {
     DBUG_ENTER("ha_tokudb::__close");
     printf("%s:%d:close:%p\n", __FILE__, __LINE__, this);
-    if (0 && file->app_private == table->key_info + table_share->primary_key) {
-        printf("%s:%d:reset app_private\n", __FILE__, __LINE__);
-        file->app_private = 0;
-    }
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
     my_free(alloc_ptr, MYF(MY_ALLOW_ZERO_PTR));
     ha_tokudb::reset();         // current_row buffer
@@ -972,10 +980,6 @@ DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * re
     my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
 
     key->data = buff;
-    // DBTs dont have app_private members anymore, that was a MySQL hack
-    // instead it seems to be called app_data
-    // key->app_private= (void*) key_info;
-    // key->app_data= (void*) key_info;
     for (; key_part != end && key_length > 0; key_part++) {
         if (key_part->null_bit) {
             /* Store 0 if the key part is a NULL part */
@@ -1017,10 +1021,6 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
 
     bzero((void *) key, sizeof(*key));
     key->data = buff;
-    // DBTs dont have app_private members anymore, that was a MySQL hack
-    // instead it seems to be called app_data
-    // key->app_private= (void*) key_info;
-    // key->app_data= (void*) key_info;
 
     for (; key_part != end && (int) key_length > 0; key_part++) {
         uint offset = 0;
@@ -1221,9 +1221,6 @@ int ha_tokudb::write_row(uchar * record) {
     u_int32_t put_flags = key_type[primary_key];
     THD *thd = ha_thd();
     if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS)) {
-        if (0) 
-            printf("%s:%d:unique:%d\n", __FILE__, __LINE__, 
-                   thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) != 0);
         put_flags = DB_YESOVERWRITE;
     }
 
@@ -1584,10 +1581,6 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
         bzero((void *) &key, sizeof(key));
         key.data = key_buff;
         key.size = row->size;
-        // DBTs dont have app_private members anymore, that was a MySQL hack
-        // now it seems to be called app_data
-        // key.app_private= (void*) (table->key_info+primary_key);
-        // key.app_data= (void*) (table->key_info+primary_key);
         memcpy(key_buff, row->data, row->size);
         /* Read the data into current_row */
         current_row.flags = DB_DBT_REALLOC;
@@ -1631,23 +1624,36 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         if (error == 0) {
             DBT orig_key;
             pack_key(&orig_key, active_index, key_buff2, key, key_len);
-            if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) == 0) {
+            if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) == 0)
                 error = cursor->c_get(cursor, &last_key, &row, DB_NEXT_NODUP);
-            }
         }
-        error = read_row(error, buf, active_index, &row, 0, 0);
-        break;
-    case HA_READ_KEY_OR_NEXT:
-        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         error = read_row(error, buf, active_index, &row, 0, 0);
         break;
     case HA_READ_BEFORE_KEY:
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0)
             error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
+        else
+            error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        assert(0);
+        break;
+    case HA_READ_KEY_OR_NEXT:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        error = read_row(error, buf, active_index, &row, 0, 0);
+        break;
+    case HA_READ_KEY_OR_PREV:
+        error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
+        if (error == 0) {
+            DBT orig_key; 
+            pack_key(&orig_key, active_index, key_buff2, key, key_len);
+            if (tokudb_cmp_packed_key(share->key_file[active_index], &orig_key, &last_key) != 0)
+                error = cursor->c_get(cursor, &last_key, &row, DB_PREV_NODUP);
+        } else 
+            error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
+        assert(0);
         break;
     default:
-        assert(0); // QQQ need BEFORE(k), etc.
+        assert(0); // QQQ others?
         break;
     }
 
@@ -2022,21 +2028,64 @@ static int create_sub_table(const char *table_name, const char *sub_name, DBTYPE
     DBUG_RETURN(error);
 }
 
+static int get_name_length(const char *name) {
+    int n = 0;
+    const char *newname = name;
+    if (tokudb_data_dir) {
+        n += strlen(tokudb_data_dir) + 1;
+        if (strncmp("./", name, 2) == 0) 
+            newname = name + 2;
+    }
+    n += strlen(newname);
+    n += strlen(ha_tokudb_ext);
+    return n;
+}
+
+static void make_name(char *newname, const char *tablename, const char *dictname) {
+    const char *newtablename = tablename;
+    char *nn = newname;
+    if (tokudb_data_dir) {
+        nn += sprintf(nn, "%s/", tokudb_data_dir);
+        if (strncmp("./", tablename, 2) == 0)
+            newtablename = tablename + 2;
+    }
+    nn += sprintf(nn, "%s%s", newtablename, ha_tokudb_ext);
+    if (dictname)
+        nn += sprintf(nn, "/%s%s", dictname, ha_tokudb_ext);
+}
+
+static int mkdirpath(char *name, mode_t mode) {
+    int r = mkdir(name, mode);
+    if (r == -1 && errno == ENOENT) {
+        char parent[strlen(name)+1];
+        strcpy(parent, name);
+        char *cp = strrchr(parent, '/');
+        if (cp) {
+            *cp = 0;
+            r = mkdir(parent, 0755);
+            if (r == 0)
+                r = mkdir(name, mode);
+        }
+    }
+    return r;
+}
+
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
     DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
     int error;
-    char newname[strlen(name) + 32];
+    int n = get_name_length(name) + 32;
+    char newname[n];
 
     // a table is a directory of dictionaries
-    sprintf(newname, "%s%s", name, ha_tokudb_ext);
-    error = mkdir(newname, 0777);
+    make_name(newname, name, 0);
+    error = mkdirpath(newname, 0777);
     if (error != 0) {
         DBUG_RETURN(errno);
     }
-
-    sprintf(newname, "%s%s/main", name, ha_tokudb_ext);
-    fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+    
+    make_name(newname, name, "main");
+    fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
     /* Create the main table that will hold the real rows */
     if ((error = create_sub_table(name_buff, "main", DB_BTREE, 0)))
@@ -2050,8 +2099,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     for (uint i = 0; i < form->s->keys; i++) {
         if (i != primary_key) {
             sprintf(part, "key%d", index++);
-            sprintf(newname, "%s%s/%s", name, ha_tokudb_ext, part);
-            fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+            make_name(newname, name, part);
+            fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
             if ((error = create_sub_table(name_buff, part, DB_BTREE, (form->key_info[i].flags & HA_NOSAME) ? 0 : DB_DUP + DB_DUPSORT)))
                 DBUG_RETURN(error);
         }
@@ -2063,8 +2112,8 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     DB *status_block;
     if (!(error = (db_create(&status_block, db_env, 0)))) {
-        sprintf(newname, "%s%s/status", name, ha_tokudb_ext);
-        fn_format(name_buff, newname, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT);
+        make_name(newname, name, "status");
+        fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
 
         if (!(error = (status_block->open(status_block, NULL, name_buff, "status", DB_BTREE, DB_CREATE, 0)))) {
             char rec_buff[4 + MAX_KEY * 4];
@@ -2135,8 +2184,8 @@ int ha_tokudb::delete_table(const char *name) {
     my_errno = error;
 #else
     // remove all of the dictionaries in the table directory 
-    char newname[strlen(name) + 32];
-    sprintf(newname, "%s%s", name, ha_tokudb_ext);
+    char newname[(tokudb_data_dir ? strlen(tokudb_data_dir) : 0) + strlen(name) + 32];
+    make_name(newname, name, 0);
     error = rmall(newname);
     my_errno = error;
 #endif
@@ -2158,10 +2207,12 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
                              fn_format(from_buff, from, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT), NULL, fn_format(to_buff, to, "", ha_tokudb_ext, MY_UNPACK_FILENAME | MY_APPEND_EXT), 0);
     }
 #else
-    char newfrom[strlen(from) + 32];
-    sprintf(newfrom, "%s%s", from, ha_tokudb_ext);
-    char newto[strlen(to) + 32];
-    sprintf(newto, "%s%s", to, ha_tokudb_ext);
+    int n = get_name_length(from) + 32;
+    char newfrom[n];
+    make_name(newfrom, from, 0);
+    n = get_name_length(to) + 32;
+    char newto[n];
+    make_name(newto, to, 0);
     error = rename(newfrom, newto);
     if (error != 0)
         error = my_errno = errno;
@@ -2259,10 +2310,6 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
         ha_tokudb::create_key(&last_key, active_index, key_buff, table->record[0], table_share->next_number_key_offset);
         /* Store for compare */
         memcpy(old_key.data = key_buff2, key_buff, (old_key.size = last_key.size));
-        // DBTs dont have app_private members anymore, that was a MySQL hack
-        // instead it seems to be called app_data
-        // old_key.app_private= (void*)key_info;
-        // old_key.app_data = (void*)key_info;
         error = 1;
         {
             /* Modify the compare so that we will find the next key */
@@ -2299,7 +2346,6 @@ void ha_tokudb::print_error(int error, myf errflag) {
 
 #if 0 // QQQ use default
 int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
-#if 0 // QQQ need stat
     uint i;
     DB_BTREE_STAT *stat = 0;
     DB_TXN_STAT *txn_stat_ptr = 0;
@@ -2338,9 +2384,6 @@ int ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
     if (stat)
         free(stat);
     return HA_ADMIN_FAILED;
-#else
-    return HA_ADMIN_NOT_IMPLEMENTED;
-#endif
 }
 #endif
 
@@ -2374,8 +2417,9 @@ static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size, PLUGIN_VAR_READONLY
 
 static MYSQL_SYSVAR_ULONG(max_lock, tokudb_max_lock, PLUGIN_VAR_READONLY, "TokuDB Max Locks", NULL, NULL, 8 * 1024, 0, ~0L, 0);
 
-static MYSQL_SYSVAR_STR(logdir, tokudb_logdir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
+static MYSQL_SYSVAR_STR(log_dir, tokudb_log_dir, PLUGIN_VAR_READONLY, "TokuDB Log Directory", NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB Data Directory", NULL, NULL, NULL);
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -2409,7 +2453,8 @@ static MYSQL_SYSVAR_STR(tmpdir, tokudb_tmpdir, PLUGIN_VAR_READONLY, "Tokudb Tmp 
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock),
-    MYSQL_SYSVAR(logdir),
+    MYSQL_SYSVAR(data_dir),
+    MYSQL_SYSVAR(log_dir),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
@@ -2439,5 +2484,4 @@ mysql_declare_plugin(tokudb) {
     tokudb_system_variables,   /* system variables */
     NULL                       /* config options */
 }
-
 mysql_declare_plugin_end;
