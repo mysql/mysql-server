@@ -353,6 +353,9 @@ buf_read_page(
 	/* Flush pages from the end of the LRU list if necessary */
 	buf_flush_free_margin();
 
+	/* Increment number of I/O operations used for LRU policy. */
+	buf_LRU_stat_inc_io();
+
 	return(count + count2);
 }
 
@@ -612,6 +615,10 @@ buf_read_ahead_linear(
 			(ulong) space, (ulong) offset, (ulong) count);
 	}
 #endif /* UNIV_DEBUG */
+
+	/* Read ahead is considered one I/O operation for the purpose of
+	LRU policy decision. */
+	buf_LRU_stat_inc_io();
 
 	++srv_read_ahead_seq;
 	return(count);

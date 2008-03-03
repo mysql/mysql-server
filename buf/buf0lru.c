@@ -49,6 +49,38 @@ frames in the buffer pool, we set this to TRUE */
 UNIV_INTERN ibool	buf_lru_switched_on_innodb_mon	= FALSE;
 
 /**********************************************************************
+These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
+and page_zip_decompress() operations.  Based on the statistics,
+buf_LRU_evict_from_unzip_LRU() decides if we want to evict from
+unzip_LRU or the regular LRU.  From unzip_LRU, we will only evict the
+uncompressed frame (meaning we can evict dirty blocks as well).  From
+the regular LRU, we will evict the entire block (i.e.: both the
+uncompressed and compressed data), which must be clean. */
+
+/* Number of intervals for which we keep the history of these stats.
+Each interval is 1 second, defined by the rate at which
+srv_error_monitor_thread() calls buf_LRU_stat_update(). */
+#define BUF_LRU_STAT_N_INTERVAL 50
+
+/* Co-efficient with which we multiply I/O operations to equate them
+with page_zip_decompress() operations. */
+#define BUF_LRU_IO_TO_UNZIP_FACTOR 50
+
+/* Sampled values buf_LRU_stat_cur.
+Protected by buf_pool_mutex.  Updated by buf_LRU_stat_update(). */
+static buf_LRU_stat_t		buf_LRU_stat_arr[BUF_LRU_STAT_N_INTERVAL];
+/* Cursor to buf_LRU_stat_arr[] that is updated in a round-robin fashion. */
+static ulint			buf_LRU_stat_arr_ind;
+
+/* Current operation counters.  Not protected by any mutex.  Cleared
+by buf_LRU_stat_update(). */
+UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_cur;
+
+/* Running sum of past values of buf_LRU_stat_cur.
+Updated by buf_LRU_stat_update().  Protected by buf_pool_mutex. */
+UNIV_INTERN buf_LRU_stat_t	buf_LRU_stat_sum;
+
+/**********************************************************************
 Takes a block out of the LRU list and page hash table.
 If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
 the object will be freed and buf_pool_zip_mutex will be released.
@@ -77,6 +109,53 @@ buf_LRU_block_free_hashed_page(
 /*===========================*/
 	buf_block_t*	block);	/* in: block, must contain a file page and
 				be in a state where it can be freed */
+
+/**********************************************************************
+Determines if the unzip_LRU list should be used for evicting a victim
+instead of the general LRU list. */
+UNIV_INLINE
+ibool
+buf_LRU_evict_from_unzip_LRU(void)
+/*==============================*/
+				/* out: TRUE if should use unzip_LRU */
+{
+	ulint	io_avg;
+	ulint	unzip_avg;
+
+	ut_ad(buf_pool_mutex_own());
+
+	/* If the unzip_LRU list is empty, we can only use the LRU. */
+	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU) == 0) {
+		return(FALSE);
+	}
+
+	/* If unzip_LRU is at most 10% of the size of the LRU list,
+	then use the LRU.  This slack allows us to keep hot
+	decompressed pages in the buffer pool. */
+	if (UT_LIST_GET_LEN(buf_pool->unzip_LRU)
+	    <= UT_LIST_GET_LEN(buf_pool->LRU) / 10) {
+		return(FALSE);
+	}
+
+	/* If eviction hasn't started yet, we assume by default
+	that a workload is disk bound. */
+	if (buf_pool->freed_page_clock == 0) {
+		return(TRUE);
+	}
+
+	/* Calculate the average over past intervals, and add the values
+	of the current interval. */
+	io_avg = buf_LRU_stat_sum.io / BUF_LRU_STAT_N_INTERVAL
+		+ buf_LRU_stat_cur.io;
+	unzip_avg = buf_LRU_stat_sum.unzip / BUF_LRU_STAT_N_INTERVAL
+		+ buf_LRU_stat_cur.unzip;
+
+	/* Decide based on our formula.  If the load is I/O bound
+	(unzip_avg is smaller than the weighted io_avg), evict an
+	uncompressed frame from unzip_LRU.  Otherwise we assume that
+	the load is CPU bound and evict from the regular LRU. */
+	return(unzip_avg <= io_avg * BUF_LRU_IO_TO_UNZIP_FACTOR);
+}
 
 /**********************************************************************
 Invalidates all pages belonging to a given tablespace when we are deleting
@@ -249,112 +328,168 @@ buf_LRU_insert_zip_clean(
 }
 
 /**********************************************************************
-Look for a replaceable block from the end of the LRU list and put it to
-the free list if found. */
+Try to free an uncompressed page of a compressed block from the unzip
+LRU list.  The compressed page is preserved, and it need not be clean. */
+UNIV_INLINE
+ibool
+buf_LRU_free_from_unzip_LRU_list(
+/*=============================*/
+				/* out: TRUE if freed */
+	ulint	n_iterations)	/* in: how many times this has been called
+				repeatedly without result: a high value means
+				that we should search farther; we will search
+				n_iterations / 5 of the unzip_LRU list,
+				or nothing if n_iterations >= 5 */
+{
+	buf_block_t*	block;
+	ulint		distance;
+
+	ut_ad(buf_pool_mutex_own());
+
+	/* Theoratically it should be much easier to find a victim
+	from unzip_LRU as we can choose even a dirty block (as we'll
+	be evicting only the uncompressed frame).  In a very unlikely
+	eventuality that we are unable to find a victim from
+	unzip_LRU, we fall back to the regular LRU list.  We do this
+	if we have done five iterations so far. */
+
+	if (UNIV_UNLIKELY(n_iterations >= 5)
+	    || !buf_LRU_evict_from_unzip_LRU()) {
+
+		return(FALSE);
+	}
+
+	distance = 100 + (n_iterations
+			  * UT_LIST_GET_LEN(buf_pool->unzip_LRU)) / 5;
+
+	for (block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
+	     UNIV_LIKELY(block != NULL) && UNIV_LIKELY(distance > 0);
+	     block = UT_LIST_GET_PREV(unzip_LRU, block), distance--) {
+
+		enum buf_lru_free_block_status	freed;
+
+		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
+		ut_ad(block->in_unzip_LRU_list);
+		ut_ad(block->page.in_LRU_list);
+
+		mutex_enter(&block->mutex);
+		freed = buf_LRU_free_block(&block->page, FALSE, NULL);
+		mutex_exit(&block->mutex);
+
+		switch (freed) {
+		case BUF_LRU_FREED:
+			return(TRUE);
+
+		case BUF_LRU_CANNOT_RELOCATE:
+			/* If we failed to relocate, try
+			regular LRU eviction. */
+			return(FALSE);
+
+		case BUF_LRU_NOT_FREED:
+			/* The block was buffer-fixed or I/O-fixed.
+			Keep looking. */
+			continue;
+		}
+
+		/* inappropriate return value from
+		buf_LRU_free_block() */
+		ut_error;
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************************
+Try to free a clean page from the common LRU list. */
+UNIV_INLINE
+ibool
+buf_LRU_free_from_common_LRU_list(
+/*==============================*/
+				/* out: TRUE if freed */
+	ulint	n_iterations)	/* in: how many times this has been called
+				repeatedly without result: a high value means
+				that we should search farther; if
+				n_iterations < 10, then we search
+				n_iterations / 10 * buf_pool->curr_size
+				pages from the end of the LRU list */
+{
+	buf_page_t*	bpage;
+	ulint		distance;
+
+	ut_ad(buf_pool_mutex_own());
+
+	distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
+
+	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	     UNIV_LIKELY(bpage != NULL) && UNIV_LIKELY(distance > 0);
+	     bpage = UT_LIST_GET_PREV(LRU, bpage), distance--) {
+
+		enum buf_lru_free_block_status	freed;
+		mutex_t*			block_mutex
+			= buf_page_get_mutex(bpage);
+
+		ut_ad(buf_page_in_file(bpage));
+		ut_ad(bpage->in_LRU_list);
+
+		mutex_enter(block_mutex);
+		freed = buf_LRU_free_block(bpage, TRUE, NULL);
+		mutex_exit(block_mutex);
+
+		switch (freed) {
+		case BUF_LRU_FREED:
+			return(TRUE);
+
+		case BUF_LRU_NOT_FREED:
+			/* The block was dirty, buffer-fixed, or I/O-fixed.
+			Keep looking. */
+			continue;
+
+		case BUF_LRU_CANNOT_RELOCATE:
+			/* This should never occur, because we
+			want to discard the compressed page too. */
+			break;
+		}
+
+		/* inappropriate return value from
+		buf_LRU_free_block() */
+		ut_error;
+	}
+
+	return(FALSE);
+}
+
+/**********************************************************************
+Try to free a replaceable block. */
 UNIV_INTERN
 ibool
 buf_LRU_search_and_free_block(
 /*==========================*/
-				/* out: TRUE if freed */
+				/* out: TRUE if found and freed */
 	ulint	n_iterations)	/* in: how many times this has been called
 				repeatedly without result: a high value means
-				that we should search farther; if value is
-				k < 10, then we only search k/10 * [number
-				of pages in the buffer pool] from the end
-				of the LRU list */
+				that we should search farther; if
+				n_iterations < 10, then we search
+				n_iterations / 10 * buf_pool->curr_size
+				pages from the end of the LRU list; if
+				n_iterations < 5, then we will also search
+				n_iterations / 5 of the unzip_LRU list. */
 {
-	buf_page_t*	bpage;
-	ibool		freed;
+	ibool	freed = FALSE;
 
 	buf_pool_mutex_enter();
 
-	freed = FALSE;
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	freed = buf_LRU_free_from_unzip_LRU_list(n_iterations);
 
-	if (UNIV_UNLIKELY(n_iterations > 10)) {
-		/* The buffer pool is scarce.  Search the whole LRU list. */
-
-		while (bpage != NULL) {
-			mutex_t*	block_mutex
-				= buf_page_get_mutex(bpage);
-
-			mutex_enter(block_mutex);
-			freed = buf_LRU_free_block(bpage, TRUE, NULL);
-			mutex_exit(block_mutex);
-
-			if (freed) {
-
-				break;
-			}
-
-			bpage = UT_LIST_GET_PREV(LRU, bpage);
-		}
-	} else if (buf_buddy_n_frames > buf_buddy_min_n_frames) {
-		/* There are enough compressed blocks.  Free the
-		least recently used block, whether or not it
-		comprises an uncompressed page. */
-
-		ulint	distance = 100
-			+ (n_iterations * buf_pool->curr_size) / 10;
-
-		while (bpage != NULL) {
-			mutex_t*	block_mutex
-				= buf_page_get_mutex(bpage);
-
-			mutex_enter(block_mutex);
-			freed = buf_LRU_free_block(bpage, TRUE, NULL);
-			mutex_exit(block_mutex);
-
-			if (freed) {
-
-				break;
-			}
-
-			bpage = UT_LIST_GET_PREV(LRU, bpage);
-
-			if (!--distance) {
-				goto func_exit;
-			}
-		}
-	} else {
-		/* There are few compressed blocks.  Skip compressed-only
-		blocks in the search for the least recently used block
-		that can be freed. */
-
-		ulint	distance = 100
-			+ (n_iterations * buf_pool->curr_size) / 10;
-
-		while (bpage != NULL) {
-			if (buf_page_get_state(bpage)
-			    == BUF_BLOCK_FILE_PAGE) {
-
-				buf_block_t*	block = (buf_block_t*) bpage;
-				mutex_enter(&block->mutex);
-				freed = buf_LRU_free_block(bpage, TRUE, NULL);
-				mutex_exit(&block->mutex);
-
-				if (freed) {
-
-					break;
-				}
-			}
-
-			bpage = UT_LIST_GET_PREV(LRU, bpage);
-
-			if (!--distance) {
-				goto func_exit;
-			}
-		}
+	if (!freed) {
+		freed = buf_LRU_free_from_common_LRU_list(n_iterations);
 	}
 
-	if (buf_pool->LRU_flush_ended > 0) {
+	if (!freed) {
+		buf_pool->LRU_flush_ended = 0;
+	} else if (buf_pool->LRU_flush_ended > 0) {
 		buf_pool->LRU_flush_ended--;
 	}
 
-func_exit:
-	if (!freed) {
-		buf_pool->LRU_flush_ended = 0;
-	}
 	buf_pool_mutex_exit();
 
 	return(freed);
@@ -717,6 +852,29 @@ buf_LRU_old_init(void)
 }
 
 /**********************************************************************
+Remove a block from the unzip_LRU list if it belonged to the list. */
+static
+void
+buf_unzip_LRU_remove_block_if_needed(
+/*=================================*/
+	buf_page_t*	bpage)	/* in/out: control block */
+{
+	ut_ad(buf_pool);
+	ut_ad(bpage);
+	ut_ad(buf_page_in_file(bpage));
+	ut_ad(buf_pool_mutex_own());
+
+	if (buf_page_belongs_to_unzip_LRU(bpage)) {
+		buf_block_t*	block = (buf_block_t*) bpage;
+
+		ut_ad(block->in_unzip_LRU_list);
+		ut_d(block->in_unzip_LRU_list = FALSE);
+
+		UT_LIST_REMOVE(unzip_LRU, buf_pool->unzip_LRU, block);
+	}
+}
+
+/**********************************************************************
 Removes a block from the LRU list. */
 UNIV_INLINE
 void
@@ -752,6 +910,8 @@ buf_LRU_remove_block(
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
 
+	buf_unzip_LRU_remove_block_if_needed(bpage);
+
 	/* If the LRU list is so short that LRU_old not defined, return */
 	if (UT_LIST_GET_LEN(buf_pool->LRU) < BUF_LRU_OLD_MIN_LEN) {
 
@@ -770,6 +930,32 @@ buf_LRU_remove_block(
 
 	/* Adjust the length of the old block list if necessary */
 	buf_LRU_old_adjust_len();
+}
+
+/**********************************************************************
+Adds a block to the LRU list of decompressed zip pages. */
+UNIV_INTERN
+void
+buf_unzip_LRU_add_block(
+/*====================*/
+	buf_block_t*	block,	/* in: control block */
+	ibool		old)	/* in: TRUE if should be put to the end
+				of the list, else put to the start */
+{
+	ut_ad(buf_pool);
+	ut_ad(block);
+	ut_ad(buf_pool_mutex_own());
+
+	ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
+
+	ut_ad(!block->in_unzip_LRU_list);
+	ut_d(block->in_unzip_LRU_list = TRUE);
+
+	if (old) {
+		UT_LIST_ADD_LAST(unzip_LRU, buf_pool->unzip_LRU, block);
+	} else {
+		UT_LIST_ADD_FIRST(unzip_LRU, buf_pool->unzip_LRU, block);
+	}
 }
 
 /**********************************************************************
@@ -821,6 +1007,12 @@ buf_LRU_add_block_to_end_low(
 		defined: init it */
 
 		buf_LRU_old_init();
+	}
+
+	/* If this is a zipped block with decompressed frame as well
+	then put it on the unzip_LRU list */
+	if (buf_page_belongs_to_unzip_LRU(bpage)) {
+		buf_unzip_LRU_add_block((buf_block_t*) bpage, TRUE);
 	}
 }
 
@@ -879,6 +1071,12 @@ buf_LRU_add_block_low(
 
 		buf_LRU_old_init();
 	}
+
+	/* If this is a zipped block with decompressed frame as well
+	then put it on the unzip_LRU list */
+	if (buf_page_belongs_to_unzip_LRU(bpage)) {
+		buf_unzip_LRU_add_block((buf_block_t*) bpage, old);
+	}
 }
 
 /**********************************************************************
@@ -922,17 +1120,17 @@ buf_LRU_make_block_old(
 }
 
 /**********************************************************************
-Try to free a block. */
+Try to free a block.  If bpage is a descriptor of a compressed-only
+page, the descriptor object will be freed as well.  If this function
+returns BUF_LRU_FREED, it will not temporarily release
+buf_pool_mutex. */
 UNIV_INTERN
-ibool
+enum buf_lru_free_block_status
 buf_LRU_free_block(
 /*===============*/
-				/* out: TRUE if freed.  If bpage is a
-				descriptor of a compressed-only page,
-				the descriptor object will be freed
-				as well.  If this function returns FALSE,
-				it will not temporarily release
-				buf_pool_mutex. */
+				/* out: BUF_LRU_FREED if freed,
+				BUF_LRU_CANNOT_RELOCATE or
+				BUF_LRU_NOT_FREED otherwise. */
 	buf_page_t*	bpage,	/* in: block to be freed */
 	ibool		zip,	/* in: TRUE if should remove also the
 				compressed page of an uncompressed page */
@@ -954,7 +1152,7 @@ buf_LRU_free_block(
 	if (!buf_page_can_relocate(bpage)) {
 
 		/* Do not free buffer-fixed or I/O-fixed blocks. */
-		return(FALSE);
+		return(BUF_LRU_NOT_FREED);
 	}
 
 	if (zip || !bpage->zip.data) {
@@ -962,7 +1160,7 @@ buf_LRU_free_block(
 		/* Do not completely free dirty blocks. */
 
 		if (bpage->oldest_modification) {
-			return(FALSE);
+			return(BUF_LRU_NOT_FREED);
 		}
 	} else if (bpage->oldest_modification) {
 		/* Do not completely free dirty blocks. */
@@ -970,7 +1168,7 @@ buf_LRU_free_block(
 		if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE) {
 			ut_ad(buf_page_get_state(bpage)
 			      == BUF_BLOCK_ZIP_DIRTY);
-			return(FALSE);
+			return(BUF_LRU_NOT_FREED);
 		}
 
 		goto alloc;
@@ -984,7 +1182,7 @@ alloc:
 		buf_pool_mutex_exit_allow();
 
 		if (UNIV_UNLIKELY(!b)) {
-			return(FALSE);
+			return(BUF_LRU_CANNOT_RELOCATE);
 		}
 
 		memcpy(b, bpage, sizeof *b);
@@ -1022,6 +1220,9 @@ alloc:
 			invokes buf_LRU_remove_block(). */
 			ut_ad(!bpage->in_page_hash);
 			ut_ad(!bpage->in_LRU_list);
+			/* bpage->state was BUF_BLOCK_FILE_PAGE because
+			b != NULL. The type cast below is thus valid. */
+			ut_ad(!((buf_block_t*) bpage)->in_unzip_LRU_list);
 
 			/* The fields of bpage were copied to b before
 			buf_LRU_block_remove_hashed_page() was invoked. */
@@ -1151,7 +1352,7 @@ alloc:
 		mutex_enter(block_mutex);
 	}
 
-	return(TRUE);
+	return(BUF_LRU_FREED);
 }
 
 /**********************************************************************
@@ -1410,6 +1611,42 @@ buf_LRU_block_free_hashed_page(
 	buf_LRU_block_free_non_file_page(block);
 }
 
+/************************************************************************
+Update the historical stats that we are collecting for LRU eviction
+policy at the end of each interval. */
+UNIV_INTERN
+void
+buf_LRU_stat_update(void)
+/*=====================*/
+{
+	buf_LRU_stat_t*	item;
+
+	/* If we haven't started eviction yet then don't update stats. */
+	if (buf_pool->freed_page_clock == 0) {
+		goto func_exit;
+	}
+
+	buf_pool_mutex_enter();
+
+	/* Update the index. */
+	item = &buf_LRU_stat_arr[buf_LRU_stat_arr_ind];
+	buf_LRU_stat_arr_ind++;
+	buf_LRU_stat_arr_ind %= BUF_LRU_STAT_N_INTERVAL;
+
+	/* Add the current value and subtract the obsolete entry. */
+	buf_LRU_stat_sum.io += buf_LRU_stat_cur.io - item->io;
+	buf_LRU_stat_sum.unzip += buf_LRU_stat_cur.unzip - item->unzip;
+
+	/* Put current entry in the array. */
+	memcpy(item, &buf_LRU_stat_cur, sizeof *item);
+
+	buf_pool_mutex_exit();
+
+func_exit:
+	/* Clear the current entry. */
+	memset(&buf_LRU_stat_cur, 0, sizeof buf_LRU_stat_cur);
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /**************************************************************************
 Validates the LRU list. */
@@ -1419,6 +1656,7 @@ buf_LRU_validate(void)
 /*==================*/
 {
 	buf_page_t*	bpage;
+	buf_block_t*	block;
 	ulint		old_len;
 	ulint		new_len;
 	ulint		LRU_pos;
@@ -1443,7 +1681,21 @@ buf_LRU_validate(void)
 
 	while (bpage != NULL) {
 
-		ut_a(buf_page_in_file(bpage));
+		switch (buf_page_get_state(bpage)) {
+		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_NOT_USED:
+		case BUF_BLOCK_READY_FOR_USE:
+		case BUF_BLOCK_MEMORY:
+		case BUF_BLOCK_REMOVE_HASH:
+			ut_error;
+			break;
+		case BUF_BLOCK_FILE_PAGE:
+			ut_ad(((buf_block_t*) bpage)->in_unzip_LRU_list
+			      == buf_page_belongs_to_unzip_LRU(bpage));
+		case BUF_BLOCK_ZIP_PAGE:
+		case BUF_BLOCK_ZIP_DIRTY:
+			break;
+		}
 
 		if (buf_page_is_old(bpage)) {
 			old_len++;
@@ -1476,6 +1728,17 @@ buf_LRU_validate(void)
 	     bpage = UT_LIST_GET_NEXT(list, bpage)) {
 
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
+	}
+
+	UT_LIST_VALIDATE(unzip_LRU, buf_block_t, buf_pool->unzip_LRU);
+
+	for (block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
+	     block;
+	     block = UT_LIST_GET_NEXT(unzip_LRU, block)) {
+
+		ut_ad(block->in_unzip_LRU_list);
+		ut_ad(block->page.in_LRU_list);
+		ut_a(buf_page_belongs_to_unzip_LRU(&block->page));
 	}
 
 	buf_pool_mutex_exit();

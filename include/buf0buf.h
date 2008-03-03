@@ -652,6 +652,16 @@ buf_page_in_file(
 	const buf_page_t*	bpage)	/* in: pointer to control block */
 	__attribute__((pure));
 /*************************************************************************
+Determines if a block should be on unzip_LRU list. */
+UNIV_INLINE
+ibool
+buf_page_belongs_to_unzip_LRU(
+/*==========================*/
+					/* out: TRUE if block belongs
+					to unzip_LRU */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
+	__attribute__((pure));
+/*************************************************************************
 Determine the approximate LRU list position of a block. */
 UNIV_INLINE
 ulint
@@ -1064,7 +1074,7 @@ struct buf_page_struct{
 	UT_LIST_NODE_T(buf_page_t) LRU;
 					/* node of the LRU list */
 #ifdef UNIV_DEBUG
-	ibool		in_LRU_list;	/* TRUE of the page is in the LRU list;
+	ibool		in_LRU_list;	/* TRUE if the page is in the LRU list;
 					used in debugging */
 #endif /* UNIV_DEBUG */
 	unsigned	old:1;		/* TRUE if the block is in the old
@@ -1101,6 +1111,16 @@ struct buf_block_struct{
 					be the first field, so that
 					buf_pool->page_hash can point
 					to buf_page_t or buf_block_t */
+	UT_LIST_NODE_T(buf_block_t) unzip_LRU;
+					/* node of the decompressed LRU list;
+					a block is in the unzip_LRU list
+					if page.state == BUF_BLOCK_FILE_PAGE
+					and page.zip.data != NULL */
+#ifdef UNIV_DEBUG
+	ibool		in_unzip_LRU_list;/* TRUE if the page is in the
+					decompressed LRU list;
+					used in debugging */
+#endif /* UNIV_DEBUG */
 	byte*		frame;		/* pointer to buffer frame which
 					is of size UNIV_PAGE_SIZE, and
 					aligned to an address divisible by
@@ -1294,6 +1314,9 @@ struct buf_pool_struct{
 					see buf0lru.c for the restrictions
 					on this value; not defined if
 					LRU_old == NULL */
+
+	UT_LIST_BASE_NODE_T(buf_block_t) unzip_LRU;
+					/* base node of the unzip_LRU list */
 
 	/* 4. Fields for the buddy allocator of compressed pages */
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;

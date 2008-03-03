@@ -43,6 +43,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0purge.h"
 #include "ibuf0ibuf.h"
 #include "buf0flu.h"
+#include "buf0lru.h"
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
@@ -2055,6 +2056,10 @@ loop:
 
 		srv_refresh_innodb_monitor_stats();
 	}
+
+	/* Update the statistics collected for deciding LRU
+ 	eviction policy. */
+	buf_LRU_stat_update();
 
 	/* In case mutex_exit is not a memory barrier, it is
 	theoretically possible some threads are left waiting though

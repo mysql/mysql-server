@@ -3822,7 +3822,8 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (!buf_LRU_free_block(&block->page, all, NULL)
+		if (buf_LRU_free_block(&block->page, all, NULL)
+		    != BUF_LRU_FREED
 		    && all && block->page.zip.data) {
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
