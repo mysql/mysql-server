@@ -653,7 +653,7 @@ delete from t1;
 create table t4 (a int default 0, b int primary key) engine=innodb;
 insert into t4 values (0, 17);
 reset master;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
 ERROR 23000: Duplicate entry '17' for key 'PRIMARY'
 select * from t4;
 a	b
