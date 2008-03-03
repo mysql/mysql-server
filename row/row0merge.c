@@ -40,6 +40,11 @@ Completed by Sunny Bains and Marko Makela
 #include "ut0sort.h"
 #include "handler0alter.h"
 
+/* Ignore posix_fadvise() on those platforms where it does not exist */
+#if defined __WIN__
+# define posix_fadvise(fd, offset, len, advice) /* nothing */
+#endif /* __WIN__ */
+
 #ifdef UNIV_DEBUG
 /* Set these in order ot enable debug printout. */
 static ibool	row_merge_print_cmp;
@@ -641,6 +646,9 @@ row_merge_read(
 						 (ulint) (ofs & 0xFFFFFFFF),
 						 (ulint) (ofs >> 32),
 						 sizeof *buf);
+	/* Each block is read exactly once.  Free up the file cache. */
+	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+
 	if (UNIV_UNLIKELY(!success)) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -664,11 +672,18 @@ row_merge_write(
 {
 	ib_uint64_t	ofs = ((ib_uint64_t) offset)
 		* sizeof(row_merge_block_t);
+	ibool		success;
 
-	return(UNIV_LIKELY(os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
-					 (ulint) (ofs & 0xFFFFFFFF),
-					 (ulint) (ofs >> 32),
-					 sizeof(row_merge_block_t))));
+	success = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf,
+				(ulint) (ofs & 0xFFFFFFFF),
+				(ulint) (ofs >> 32),
+				sizeof(row_merge_block_t));
+
+	/* The block will be needed on the next merge pass,
+	but it can be evicted from the file cache meanwhile. */
+	posix_fadvise(fd, ofs, sizeof *buf, POSIX_FADV_DONTNEED);
+
+	return(UNIV_LIKELY(success));
 }
 
 /************************************************************************
@@ -1415,6 +1430,12 @@ row_merge(
 
 	of.fd = *tmpfd;
 	of.offset = 0;
+
+	/* The input file will be read sequentially, starting from the
+	beginning and the middle.  In Linux, the POSIX_FADV_SEQUENTIAL
+	affects the entire file.  Each block will be read exactly once. */
+	posix_fadvise(file->fd, 0, 0,
+		      POSIX_FADV_SEQUENTIAL | POSIX_FADV_NOREUSE);
 
 	/* Merge blocks to the output file. */
 	foffs0 = 0;
