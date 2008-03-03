@@ -30,6 +30,10 @@ UNIV_INTERN ulint	page_zip_compress_count[8];
 UNIV_INTERN ulint	page_zip_compress_ok[8];
 /** Number of page decompressions, indexed by page_zip_des_t::ssize */
 UNIV_INTERN ulint	page_zip_decompress_count[8];
+/** Duration of page compressions, indexed by page_zip_des_t::ssize */
+UNIV_INTERN ullint	page_zip_compress_duration[8];
+/** Duration of page decompressions, indexed by page_zip_des_t::ssize */
+UNIV_INTERN ullint	page_zip_decompress_duration[8];
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -1104,6 +1108,7 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+	ullint		usec = ut_time_us(NULL);
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*		logfile = NULL;
 #endif
@@ -1169,12 +1174,8 @@ page_zip_compress(
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
 			  >= page_zip_get_size(page_zip))) {
-#ifdef PAGE_ZIP_COMPRESS_DBG
-		if (logfile) {
-			fclose(logfile);
-		}
-#endif /* PAGE_ZIP_COMPRESS_DBG */
-		return(FALSE);
+
+		goto err_exit;
 	}
 
 	heap = mem_heap_create(page_zip_get_size(page_zip)
@@ -1300,11 +1301,14 @@ page_zip_compress(
 zlib_error:
 		deflateEnd(&c_stream);
 		mem_heap_free(heap);
+err_exit:
 #ifdef PAGE_ZIP_COMPRESS_DBG
 		if (logfile) {
 			fclose(logfile);
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
+		page_zip_compress_duration[page_zip->ssize]
+			+= ut_time_us(NULL) - usec;
 		return(FALSE);
 	}
 
@@ -1362,6 +1366,8 @@ zlib_error:
 		fclose(logfile);
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
+	page_zip_compress_duration[page_zip->ssize]
+		+= ut_time_us(NULL) - usec;
 	return(TRUE);
 }
 
@@ -2779,6 +2785,7 @@ page_zip_decompress(
 	ulint		trx_id_col = ULINT_UNDEFINED;
 	mem_heap_t*	heap;
 	ulint*		offsets;
+	ullint		usec = ut_time_us(NULL);
 
 	ut_ad(page_zip_simple_validate(page_zip));
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
@@ -2935,6 +2942,8 @@ err_exit:
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
 	page_zip_decompress_count[page_zip->ssize]++;
+	page_zip_decompress_duration[page_zip->ssize]
+		+= ut_time_us(NULL) - usec;
 
 	return(TRUE);
 }

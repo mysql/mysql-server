@@ -905,47 +905,6 @@ row_raw_format_int(
 	return(ut_min(ret, buf_size));
 }
 
-extern CHARSET_INFO*	system_charset_info;
-
-/***********************************************************************
-Formats the raw data in "data" (in InnoDB on-disk format) that is of
-type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "charset_coll" and writes
-the result to "buf". The result is converted to "system_charset_info".
-Not more than "buf_size" bytes are written to "buf".
-The result is always '\0'-terminated (provided buf_size > 0) and the
-number of bytes that were written to "buf" is returned (including the
-terminating '\0'). */
-static
-ulint
-row_raw_format_str_convert(
-/*=======================*/
-					/* out: number of bytes
-					that were written */
-	const char*	data,		/* in: raw data */
-	ulint		data_len,	/* in: raw data length
-					in bytes */
-	ulint		charset_coll,	/* in: charset collation */
-	char*		buf,		/* out: output buffer */
-	ulint		buf_size)	/* in: output buffer size
-					in bytes */
-{
-	/* XXX we use a hard limit instead of allocating
-	but_size bytes from the heap */
-	CHARSET_INFO*	data_cs;
-	char		buf_tmp[8192];
-	ulint		buf_tmp_used;
-	uint		num_errors;
-
-	data_cs = all_charsets[charset_coll];
-
-	buf_tmp_used = innobase_convert_string(buf_tmp, sizeof(buf_tmp),
-					       system_charset_info,
-					       data, data_len, data_cs,
-					       &num_errors);
-
-	return(ut_str_sql_format(buf_tmp, buf_tmp_used, buf, buf_size));
-}
-
 /***********************************************************************
 Formats the raw data in "data" (in InnoDB on-disk format) that is of
 type DATA_(CHAR|VARCHAR|MYSQL|VARMYSQL) using "prtype" and writes the
@@ -997,7 +956,7 @@ row_raw_format_str(
 	}
 	/* else */
 
-	return(row_raw_format_str_convert(data, data_len, charset_coll,
+	return(innobase_raw_format(data, data_len, charset_coll,
 					  buf, buf_size));
 }
 

@@ -29,6 +29,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "row0merge.h"
 #ifndef UNIV_HOTBACKUP
 # include "m_ctype.h" /* my_isspace() */
+# include "ha_prototypes.h" /* innobase_strcasecmp() */
 #endif /* !UNIV_HOTBACKUP */
 
 #include <ctype.h>
@@ -81,19 +82,6 @@ innobase_convert_from_id(
 	const char*	from,	/* in: identifier to convert */
 	ulint		len);	/* in: length of 'to', in bytes;
 				should be at least 3 * strlen(to) + 1 */
-/**********************************************************************
-Compares NUL-terminated UTF-8 strings case insensitively.
-
-NOTE: the prototype of this function is copied from ha_innodb.cc! If you change
-this function, you MUST change also the prototype here! */
-UNIV_INTERN
-int
-innobase_strcasecmp(
-/*================*/
-				/* out: 0 if a=b, <0 if a<b, >1 if a>b */
-	const char*	a,	/* in: first string to compare */
-	const char*	b);	/* in: second string to compare */
-
 /**********************************************************************
 Makes all characters in a NUL-terminated UTF-8 string lower case.
 

@@ -989,13 +989,16 @@ buf_pool_free(void)
 
 /************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
-and in buf_pool->page_hash.  Does not relocate bpage->list. */
+and in buf_pool->page_hash.  Does not relocate bpage->list.
+The caller must take care of relocating bpage->list. */
 UNIV_INTERN
 void
 buf_relocate(
 /*=========*/
-	buf_page_t*	bpage,	/* control block being relocated */
-	buf_page_t*	dpage)	/* destination control block */
+	buf_page_t*	bpage,	/* in/out: control block being relocated;
+				buf_page_get_state(bpage) must be
+				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
+	buf_page_t*	dpage)	/* in/out: destination control block */
 {
 	buf_page_t*	b;
 	ulint		fold;
@@ -1004,11 +1007,24 @@ buf_relocate(
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_a(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
 	ut_a(bpage->buf_fix_count == 0);
-	ut_a(buf_page_in_file(bpage));
 	ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_zip_hash);
 	ut_ad(bpage->in_page_hash);
 	ut_ad(bpage == buf_page_hash_get(bpage->space, bpage->offset));
+#ifdef UNIV_DEBUG
+	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_NOT_USED:
+	case BUF_BLOCK_READY_FOR_USE:
+	case BUF_BLOCK_FILE_PAGE:
+	case BUF_BLOCK_MEMORY:
+	case BUF_BLOCK_REMOVE_HASH:
+		ut_error;
+	case BUF_BLOCK_ZIP_DIRTY:
+	case BUF_BLOCK_ZIP_PAGE:
+		break;
+	}
+#endif /* UNIV_DEBUG */
 
 	memcpy(dpage, bpage, sizeof *dpage);
 

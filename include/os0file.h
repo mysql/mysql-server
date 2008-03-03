@@ -290,6 +290,17 @@ os_file_create_simple_no_error_handling(
 				used by a backup program reading the file */
 	ibool*		success);/* out: TRUE if succeed, FALSE if error */
 /********************************************************************
+Tries to disable OS caching on an opened file descriptor. */
+UNIV_INTERN
+void
+os_file_set_nocache(
+/*================*/
+	int		fd,		/* in: file descriptor to alter */
+	const char*	file_name,	/* in: file name, used in the
+					diagnostic message */
+	const char*	operation_name);/* in: "open" or "create"; used in the
+					diagnostic message */
+/********************************************************************
 Opens an existing file or creates a new. */
 UNIV_INTERN
 os_file_t

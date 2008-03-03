@@ -1109,12 +1109,10 @@ void
 os_file_set_nocache(
 /*================*/
 	int		fd,		/* in: file descriptor to alter */
-	const char*	file_name,	/* in: used in the diagnostic message */
-	const char*	operation_name)	/* in: used in the diagnostic message,
-					we call os_file_set_nocache()
-					immediately after opening or creating
-					a file, so this is either "open" or
-					"create" */
+	const char*	file_name,	/* in: file name, used in the
+					diagnostic message */
+	const char*	operation_name)	/* in: "open" or "create"; used in the
+					diagnostic message */
 {
 	/* some versions of Solaris may not have DIRECTIO_ON */
 #if defined(UNIV_SOLARIS) && defined(DIRECTIO_ON)

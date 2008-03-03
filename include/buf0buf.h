@@ -100,13 +100,16 @@ buf_pool_free(void);
 
 /************************************************************************
 Relocate a buffer control block.  Relocates the block on the LRU list
-and in buf_pool->page_hash.  Does not relocate bpage->list. */
+and in buf_pool->page_hash.  Does not relocate bpage->list.
+The caller must take care of relocating bpage->list. */
 UNIV_INTERN
 void
 buf_relocate(
 /*=========*/
-	buf_page_t*	bpage,	/* control block being relocated */
-	buf_page_t*	dpage)	/* destination control block */
+	buf_page_t*	bpage,	/* in/out: control block being relocated;
+				buf_page_get_state(bpage) must be
+				BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_ZIP_PAGE */
+	buf_page_t*	dpage)	/* in/out: destination control block */
 	__attribute__((nonnull));
 /************************************************************************
 Resizes the buffer pool. */
@@ -805,7 +808,7 @@ buf_page_get_space(
 /*===============*/
 					/* out: space id */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the space id of a block. */
 UNIV_INLINE
@@ -814,7 +817,7 @@ buf_block_get_space(
 /*================*/
 					/* out: space id */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the page number of a block. */
 UNIV_INLINE
@@ -823,7 +826,7 @@ buf_page_get_page_no(
 /*=================*/
 					/* out: page number */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the page number of a block. */
 UNIV_INLINE
@@ -832,7 +835,7 @@ buf_block_get_page_no(
 /*==================*/
 					/* out: page number */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page size of a block. */
 UNIV_INLINE
@@ -841,7 +844,7 @@ buf_page_get_zip_size(
 /*==================*/
 					/* out: compressed page size, or 0 */
 	const buf_page_t*	bpage)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page size of a block. */
 UNIV_INLINE
@@ -850,7 +853,7 @@ buf_block_get_zip_size(
 /*===================*/
 					/* out: compressed page size, or 0 */
 	const buf_block_t*	block)	/* in: pointer to the control block */
-	__attribute((pure));
+	__attribute__((pure));
 /*************************************************************************
 Gets the compressed page descriptor corresponding to an uncompressed page
 if applicable. */
