@@ -2217,7 +2217,7 @@ static void info_change_lock(PAGECACHE_BLOCK_LINK *block, my_bool wl)
   @retval 1 Can't lock this block, need retry
 */
 
-static my_bool translog_wait_lock(PAGECACHE *pagecache,
+static my_bool pagecache_wait_lock(PAGECACHE *pagecache,
                                   PAGECACHE_BLOCK_LINK *block,
                                   PAGECACHE_FILE file,
                                   pgcache_page_no_t pageno,
@@ -2226,7 +2226,7 @@ static my_bool translog_wait_lock(PAGECACHE *pagecache,
   /* Lock failed we will wait */
 #ifdef THREAD
   struct st_my_thread_var *thread= my_thread_var;
-  DBUG_ENTER("translog_wait_lock");
+  DBUG_ENTER("pagecache_wait_lock");
   DBUG_PRINT("info", ("fail to lock, waiting... 0x%lx", (ulong)block));
   thread->lock_type= lock_type;
   wqueue_add_to_queue(&block->wqueue[COND_FOR_WRLOCK], thread);
@@ -2302,7 +2302,7 @@ static my_bool get_wrlock(PAGECACHE *pagecache,
          block->rlocks)
   {
     /* Lock failed we will wait */
-    if (translog_wait_lock(pagecache, block, file, pageno,
+    if (pagecache_wait_lock(pagecache, block, file, pageno,
                            MY_PTHREAD_LOCK_WRITE))
       DBUG_RETURN(1);
   }
@@ -2345,7 +2345,7 @@ static my_bool get_rdlock(PAGECACHE *pagecache,
   while (block->wlocks && !pthread_equal(block->write_locker, locker))
   {
     /* Lock failed we will wait */
-    if (translog_wait_lock(pagecache, block, file, pageno,
+    if (pagecache_wait_lock(pagecache, block, file, pageno,
                            MY_PTHREAD_LOCK_READ))
       DBUG_RETURN(1);
   }
