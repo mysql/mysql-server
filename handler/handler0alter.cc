@@ -653,6 +653,7 @@ err_exit:
 		mem_heap_free(heap);
 		trx_general_rollback_for_mysql(trx, FALSE, NULL);
 		trx_free_for_mysql(trx);
+		trx_commit_for_mysql(prebuilt->trx);
 		DBUG_RETURN(error);
 	}
 

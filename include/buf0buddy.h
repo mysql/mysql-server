@@ -21,10 +21,10 @@ Created December 2006 by Marko Makela
 Allocate a block.  The thread calling this function must hold
 buf_pool_mutex and must not hold buf_pool_zip_mutex or any
 block->mutex.  The buf_pool_mutex may only be released and reacquired
-if lru == BUF_BUDDY_USE_LRU.  This function should only be used for
-allocating compressed page frames or control blocks (buf_page_t).
-Allocated control blocks must be properly initialized immediately
-after buf_buddy_alloc() has returned the memory, before releasing
+if lru != NULL.  This function should only be used for allocating
+compressed page frames or control blocks (buf_page_t).  Allocated
+control blocks must be properly initialized immediately after
+buf_buddy_alloc() has returned the memory, before releasing
 buf_pool_mutex. */
 UNIV_INLINE
 void*
@@ -69,6 +69,9 @@ extern ulint buf_buddy_used[BUF_BUDDY_SIZES + 1];
 /** Counts of blocks relocated by the buddy system.
 Protected by buf_pool_mutex. */
 extern ib_uint64_t buf_buddy_relocated[BUF_BUDDY_SIZES + 1];
+/** Durations of block relocations.
+Protected by buf_pool_mutex. */
+extern ullint buf_buddy_relocated_duration[BUF_BUDDY_SIZES + 1];
 
 #ifndef UNIV_NONINL
 # include "buf0buddy.ic"
