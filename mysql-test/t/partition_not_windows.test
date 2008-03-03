@@ -94,6 +94,44 @@ show create table t2;
 DROP TABLE t1, t2;
 set @@sql_mode=@org_mode;
 
+#
+# Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
+#
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
+
 # End Windows specific test failures.
 
 # These tests contain non-Windows specific directory/file format.
