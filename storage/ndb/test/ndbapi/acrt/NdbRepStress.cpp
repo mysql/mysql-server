@@ -66,7 +66,7 @@ syncSlaveWithMaster()
   int loopCnt = 0;
   
   //Create a DbUtil object for the master
-  DbUtil master("mysql","");
+  DbUtil master("mysql");
 
   //Login to Master
   if (!master.connect())
@@ -91,7 +91,7 @@ syncSlaveWithMaster()
   */
 
   //Create a dbutil object for the slave
-  DbUtil slave("mysql", "root", "", ".1.slave");
+  DbUtil slave("mysql", ".1.slave");
 
   //Login to slave
   if (!slave.connect())
@@ -107,7 +107,6 @@ syncSlaveWithMaster()
       g_err << "Select epoch SQL on slave failed" << endl;
       return false;
     }
-    g_err << "Magnus was here" << endl;
     result.print();
     if (result.numRows() > 0)
       slaveEpoch = result.columnAsLong("epoch");
@@ -154,7 +153,7 @@ verifySlaveLoad(BaseString &table)
   }
 
   //Now that slave is sync we can verify load
-  DbUtil master(db.c_str()," ");
+  DbUtil master(db.c_str());
 
   //Login to Master
   if (!master.connect())
@@ -170,7 +169,7 @@ verifySlaveLoad(BaseString &table)
   }
   
   //Create a DB Object for slave
-  DbUtil slave(db.c_str(), "root", "", ".1.slave");
+  DbUtil slave(db.c_str(), ".1.slave");
 
   //Login to slave
   if (!slave.connect())
@@ -201,7 +200,7 @@ createTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
   cdb.assign("TEST_DB");
 
   //Create a dbutil object
-  DbUtil master("mysql","");
+  DbUtil master("mysql");
 
   if (!master.connect())
   {
@@ -221,7 +220,7 @@ int
 dropTEST_DB(NDBT_Context* ctx, NDBT_Step* step)
 {
   //Create an SQL Object
-  DbUtil master("mysql","");
+  DbUtil master("mysql");
 
   //Login to Master
   if (!master.connect())
@@ -255,8 +254,8 @@ verifySlave(BaseString& sqlStm, BaseString& db, BaseString& column)
   float       slaveSum;
 
   //Create SQL Objects
-  DbUtil     master(db.c_str(),"");
-  DbUtil     slave(db.c_str(), "root", "", ".1.slave");
+  DbUtil     master(db.c_str());
+  DbUtil     slave(db.c_str(), ".1.slave");
 
   if(!syncSlaveWithMaster())
   {
@@ -320,7 +319,7 @@ createTable_rep1(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   //Create an SQL Object
-  DbUtil master(db.c_str(),"");
+  DbUtil master(db.c_str());
 
   //Login to Master
   if (!master.connect())
@@ -405,7 +404,7 @@ stressSQL_rep1(NDBT_Context* ctx, NDBT_Step* step)
 {
   BaseString sqlStm;
 
-  DbUtil master("TEST_DB","");
+  DbUtil master("TEST_DB");
   int loops = ctx->getNumLoops();
   uint record = 0;
 

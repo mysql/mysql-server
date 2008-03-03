@@ -85,17 +85,12 @@ private:
 };
 
 
-#define DBU_FAILED 1
-#define DBU_OK 0
-
 class DbUtil
 {
 public:
 
   DbUtil(MYSQL* mysql);
   DbUtil(const char* dbname = "mysql",
-         const char* user = "root",
-         const char* pass = "",
          const char* suffix = NULL);
   ~DbUtil();
 
@@ -109,9 +104,8 @@ public:
 
   bool waitConnected(int timeout);
 
-  /* Deprecated, see connect() */
-  void  databaseLogin(const char * system,
-                      const char * usr,
+  bool  databaseLogin(const char * host,
+                      const char * user,
                       const char * password,
                       unsigned int portIn,
                       const char * sockIn,
