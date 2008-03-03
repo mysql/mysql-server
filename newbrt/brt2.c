@@ -1,20 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-/* Buffered repository tree.
- * Observation:  The in-memory representation of a node doesn't have to be the same as the on-disk representation.
- *  Goal for the in-memory representation:  fast
- *  Goal for on-disk: small
- * 
- * So to get this running fast, I'll  make a version that doesn't do range queries:
- *   use a hash table for in-memory
- *   simply write the strings on disk.
- * Later I'll do a PMA or a skiplist for the in-memory version.
- * Also, later I'll convert the format to network order fromn host order.
- * Later, for on disk, I'll compress it (perhaps with gzip, perhaps with the bzip2 algorithm.)
- *
- * The collection of nodes forms a data structure like a B-tree.  The complexities of keeping it balanced apply.
- *
+/* 
  * We always write nodes to a new location on disk.
  * The nodes themselves contain the information about the tree structure.
  * Q: During recovery, how do we find the root node without looking at every block on disk?
@@ -65,13 +52,7 @@ void toku_brtnode_free (BRTNODE *nodep) {
 }
 
 static long brtnode_size(BRTNODE node) {
-    long size;
-    assert(node->tag == TYP_BRTNODE);
-    if (node->height > 0)
-        size = node->u.n.n_bytes_in_buffers;
-    else
-        size = node->u.l.n_bytes_in_buffer;
-    return size;
+    return toku_serialize_brtnode_size(node);
 }
 
 static void toku_update_brtnode_loggerlsn(BRTNODE node, TOKULOGGER logger) {
@@ -477,59 +458,84 @@ static unsigned int brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     return node->u.n.n_children-1;
 }
 
-// We return the tree in a possibly overflowed state
-static int brt_leaf_put_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
-    assert(node->height==0);
+// There are two kinds of puts:  
+//  A "weak" put that is guaranteed to trigger no I/O, and will not leaf the node overfull.
+//    A weak put may not actually perform the put, however (in which case it returns EAGAIN instead of 0)
+//  A "strong" put that is guaranteed to do the put.  However, it may trigger I/O and the resulting node may be too big.
+
+static int brt_leaf_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
-    if  (cmd->type == BRT_INSERT) {
-        DBT *k = cmd->u.id.key;
-        DBT *v = cmd->u.id.val;
-        int replaced_v_size;
-        enum pma_errors pma_status = toku_pma_insert_or_replace(node->u.l.buffer,
-								k, v, &replaced_v_size,
-								logger, cmd->xid,
-								filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn);
-        assert(pma_status==BRT_OK);
-        if (replaced_v_size>=0) {
-            node->u.l.n_bytes_in_buffer += v->size - replaced_v_size;
-        } else {
-            node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
-        }
-        node->dirty = 1;
-	
-	return 0;
-    } else if (cmd->type == BRT_DELETE) {
-        u_int32_t delta;
+    switch (cmd->type) {
+    case BRT_INSERT: {
+        int r = toku_pma_weak_insert_or_replace(node->u.l.buffer,
+						cmd->u.id.key, cmd->u.id.val,
+						logger, cmd->xid,
+						filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint,
+						&node->log_lsn, &node->u.l.n_bytes_in_buffer);
+	if (r==EAGAIN) return EAGAIN;
+	assert(r==0);
+	node->dirty=1;
+	return r;
+    }
+    case BRT_DELETE: {
         int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, (DBT*)0,
 				logger, cmd->xid, node->thisnodename,
-				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
-        if (r == BRT_OK) {
-            node->u.l.n_bytes_in_buffer -= delta;
-            node->dirty = 1;
-        }
-        return BRT_OK;
-
-    } else if (cmd->type == BRT_DELETE_BOTH) {
-        u_int32_t delta;
+				node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn, &node->u.l.n_bytes_in_buffer);
+	if (r==0) node->dirty=1;
+	return r;
+    }
+    case BRT_DELETE_BOTH: {
         int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val,
 				logger, cmd->xid, node->thisnodename,
-				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
-        if (r == BRT_OK) {
-            node->u.l.n_bytes_in_buffer -= delta;
-            node->dirty = 1;
-        }
-        return BRT_OK;
-        
-    } else {
-        return EINVAL;
+				node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn, &node->u.l.n_bytes_in_buffer);
+        if (r == 0) node->dirty = 1;
+        return r;
     }
+    case BRT_NONE: return 0;
+    }
+    return EINVAL; //  if none of the cases match, then the command is messed up.
 }
 
-static int brtnode_put_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger);
+static int brt_leaf_strong_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+    FILENUM filenum = toku_cachefile_filenum(t->cf);
+    switch (cmd->type) {
+    case BRT_INSERT: {
+        int r = toku_pma_strong_insert_or_replace(node->u.l.buffer,
+						  cmd->u.id.key, cmd->u.id.val,
+						  logger, cmd->xid,
+						  filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint,
+						  &node->log_lsn, &node->u.l.n_bytes_in_buffer);
+	assert(r==0);
+	node->dirty=1;
+	return 0;
+    }
+    case BRT_DELETE: {
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, (DBT*)0,
+				logger, cmd->xid, node->thisnodename,
+				node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn, &node->u.l.n_bytes_in_buffer);
+	if (r==0) node->dirty=1;
+	if (r==DB_NOTFOUND) r=0;
+	return r;
+    }
+    case BRT_DELETE_BOTH: {
+        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val,
+				logger, cmd->xid, node->thisnodename,
+				node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn,&node->u.l.n_bytes_in_buffer);
+        if (r == 0) node->dirty = 1;
+	if (r == DB_NOTFOUND) r=0;
+        return r;
+    }
+    case BRT_NONE: return 0;
+    }
+    return EINVAL; //  if none of the cases match, then the command is messed up.
+}
 
-// Put an command in a particular child's fifo without doing I/O.  The node could end up overfull.
-// If the child is in main  memory and has space and the queue is empty, then we push into the child.
-static int brt_nonleaf_put_cmd_to_child_no_io (BRT t, BRTNODE node, int childnum, BRT_CMD cmd, TOKULOGGER logger) {
+static int brtnode_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger);
+
+// Put an command in a particular child's fifo without doing I/O or overfilling the child.
+// If the child is in main memory and we can d o a weak put on the child, then push into the child.
+// Otherwise we return EAGAIN.
+static int brt_nonleaf_weak_put_cmd_to_child (BRT t, BRTNODE node, int childnum, BRT_CMD cmd, TOKULOGGER logger) {
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
 
@@ -538,19 +544,17 @@ static int brt_nonleaf_put_cmd_to_child_no_io (BRT t, BRTNODE node, int childnum
 	int r = toku_cachetable_maybe_get_and_pin(t->cf, BNC_DISKOFF(node, childnum), &child_v);
 	if (r==0) {
 	    BRTNODE child=child_v;
-	    if (0) { died: unpin_brtnode(t, child); return r; }
-	    int sizediff = k->size + v->size + KEY_VALUE_OVERHEAD + (child->height>0) ? BRT_CMD_OVERHEAD : PMA_ITEM_OVERHEAD;
-	    if (sizediff+toku_serialize_brtnode_size(child) <= child->nodesize) {
-		// The fifo is empty, the child is in main memory, and it fits.  So push it there.
-		if ((r = brtnode_put_cmd_no_io(t, child, cmd, logger))) goto died;
-		return unpin_brtnode(t, child);
-	    }
-	    if ((r = unpin_brtnode(t, child))) return r;
+	    r = brtnode_weak_put(t, child, cmd, logger);
+	    int r2 = unpin_brtnode(t, child);
+	    if (r==EAGAIN || r==0) return r2;
+	    else return r;
 	}
     }
-    // Fall through to here if the fifo isn't empty or the child isn't in main memory or the stuff wouldn't fit into the child
-    int r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node,childnum), cmd);
+    // The FIFO is nonempty or the child is not in main memory.  Try to put it in the fifo.
     int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+    if (diff+toku_serialize_brtnode_size(node)>node->nodesize) return EAGAIN; // And it doesn't fit here.
+    int r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node,childnum), cmd);
+
     node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmdstruct(cmd);
     node->u.n.n_bytes_in_buffers += diff;
     BNC_NBYTESINBUF(node, childnum) += diff;
@@ -558,63 +562,99 @@ static int brt_nonleaf_put_cmd_to_child_no_io (BRT t, BRTNODE node, int childnum
     return r;
 }
 
-// Put an "insert" command, without doing I/O.  The node could end up overfull.
-// The command could be pushed into a child if the child is in main memory and has enough space.
-static int brt_nonleaf_insert_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
-    return brt_nonleaf_put_cmd_to_child_no_io(t,
-					      node,
-					      brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t),
-					      cmd,
-					      logger);
+static void determine_which_children_to_push_delete (BRT t, BRTNODE node, BRT_CMD cmd, int *n_children_to_push, int *children_to_push) {
+    int i;
+    *n_children_to_push=0;
+    for (i=0; i<node->u.n.n_children-1; i++) {
+	int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
+	if (cmp>0) continue; // the cmd is bigger than the pivot, so it doesn't go here.
+	else if (cmp<0) {
+	    // the cmd is smaller than the pivot, so it goes here, and goes nowhere else to the right
+	    children_to_push[(*n_children_to_push)++] = i;
+	    return;
+	} else if (t->flags & TOKU_DB_DUPSORT) {
+	    // the cmd is equal and we are in a dupsort, so push and and go around to push additional ones.
+	    children_to_push[(*n_children_to_push)++] = i;
+	    continue;
+	} else {
+	    // the cmd is equal but we are not in a dupsort, so we save i, but there is no saving the next one.
+	    children_to_push[(*n_children_to_push)++] = i;
+	    return;
+	}
+    }
+    // if we fell off the bottom, which means we must include the last one.
+    children_to_push[(*n_children_to_push)++] = i;
 }
 
 // Put the cmd into all the subtrees that it belong in.  (Deletes can end up in several subtrees.)
-// Don't do any I/O.   The node could end up overfull.
-// The commands could be pushed into children that are in main memory if such child has space
-static int brt_nonleaf_delete_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+// Don't do any I/O and the node will not be overfull.
+// To guarantee that no I/O will occur, we must make sure we can insert everything before inserting anything.
+static int brt_nonleaf_weak_put_delete (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+    int singlediff = cmd->u.id.key->size + cmd->u.id.val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+    int n_children_to_push = 0;
+    int children_to_push[node->u.n.n_children];
+    determine_which_children_to_push_delete(t, node, cmd, &n_children_to_push, children_to_push);
+    int totaldiff = singlediff * n_children_to_push;
+    if (totaldiff + toku_serialize_brtnode_size(node) > node->nodesize) return EAGAIN;
+    // Now we know it will fit, so do all the weak pushes.  We are being a little bit conservative,
+    // since a soft push might succeed, in getting data to a child without using up the local storage.
     int i;
-    int cmp=0;
-    for (i = 0; i < node->u.n.n_children-1; i++) {
-        cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
-        if (cmp > 0) {
-            continue;
-        } else if (cmp < 0 || ((cmp==0) && t->flags & TOKU_DB_DUPSORT)) {
-	    int r = brt_nonleaf_put_cmd_to_child_no_io(t, node, i, cmd, logger);
-	    if (r!=0) return r; 
-	} else {
-	    return 0;
-	}
-    }
-    // If we fell off the bottom, the last key compare was <=
-    assert(cmp<=0);
-    assert(i<node->u.n.n_children); // i must be a valid child number.  This works even if there is only one child.
-    if (t->flags & TOKU_DB_DUPSORT) {
-	return brt_nonleaf_put_cmd_to_child_no_io(t, node, i, cmd, logger);
+    for (i=0; i<n_children_to_push; i++) {
+	int r=brt_nonleaf_weak_put_cmd_to_child(t, node, children_to_push[i], cmd, logger);
+	assert(r!=EAGAIN);
+	if (r!=0) return r;
     }
     return 0;
 }
 
+static int brt_nonleaf_weak_put_insert (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+    return brt_nonleaf_weak_put_cmd_to_child(t, node,
+					     brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t),
+					     cmd, logger);
+}
+
 // Put the cmd into the node.  Possibly results in the node being overfull.
 // The command could get pushed into the appropriate child if the child is in main memory and has space to hold the command.
-static int brt_nonleaf_put_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+static int brt_nonleaf_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
     if (cmd->type == BRT_INSERT || cmd->type == BRT_DELETE_BOTH) {
-        return brt_nonleaf_insert_cmd_no_io(t, node, cmd, logger);
+        return brt_nonleaf_weak_put_insert(t, node, cmd, logger);
     } else if (cmd->type == BRT_DELETE) {
-        return brt_nonleaf_delete_cmd_no_io(t, node, cmd, logger);
+        return brt_nonleaf_weak_put_delete(t, node, cmd, logger);
     } else
         return EINVAL;
 }
 
-// Pput the command into the node.   For leaf nodes, that means execute the command.
+// Put the command into the node.   For leaf nodes, that means execute the command.
 // For internal nodes, just put it into the fifo, unless the appropriate child is in main memory and has a place to put the command without getting too big.
 // The node could end up overfull (but the children cannot get too big)
 // However, if you precalculate that the node is big enough, then the node will not get too big.
 //  (This implies that none of the children will overflow since we precalculate before calling this function on a child.)
-static int brtnode_put_cmd_no_io (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+static int brtnode_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
     if (node->height==0) {
-	return brt_leaf_put_cmd_no_io(t, node, cmd, logger);
+	return brt_leaf_weak_put(t, node, cmd, logger);
     } else {
-	return brt_nonleaf_put_cmd_no_io(t, node, cmd, logger);
+	return brt_nonleaf_weak_put(t, node, cmd, logger);
+    }
+}
+
+// To avoid too much cascading I/O, we do the following:
+//   a) Do a weak push.  If that succeeds, we are done, so quit.
+//   b) Put the cmd into the appropriate buffer.  Presumably now the buffer is overfull.
+//   c) Find the heaviest child.
+//   d) Weak push to that child until we get an EAGAIN
+//   e) Then do a strong push to that child, which will cause some I/O or overflowing
+//   f) Do weak pushes to the child
+//   g) Check to see if the child must be split, and split if needed
+//   h) Do weak pushes to the two new children.
+static int brtnode_nonleaf_strong_put  (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+}
+
+// For the strong command, the node can become overfull.
+static int brtnode_strong_put  (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+    if (node->height==0) {
+	return brt_leaf_strong_put(t, node, cmd, logger);
+    } else {
+	return brt_nonleaf_strong_put(t, node, cmd, logger);
     }
 }
 
@@ -1340,20 +1380,31 @@ static int brt_search_child(BRT brt, BRTNODE node, int childnum, brt_search_t *s
 static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger) {
     int c;
 
+ restart:
+    {
     /* binary search is overkill for a small array */
-    int child[node->u.n.n_children];
+	int child[node->u.n.n_children];
 
-    /* scan left to right or right to left depending on the search direction */
-    for (c = 0; c < node->u.n.n_children; c++) 
-        child[c] = search->direction & BRT_SEARCH_LEFT ? c : node->u.n.n_children - 1 - c;
+	/* scan left to right or right to left depending on the search direction */
+	for (c = 0; c < node->u.n.n_children; c++) 
+	    child[c] = search->direction & BRT_SEARCH_LEFT ? c : node->u.n.n_children - 1 - c;
+	
+	for (c = 0; c < node->u.n.n_children-1; c++) {
+	    int p = search->direction & BRT_SEARCH_LEFT ? child[c] : child[c] - 1;
+	    struct kv_pair *pivot = node->u.n.childkeys[p];
+	    DBT pivotkey, pivotval;
+	    if (search->compare(search, 
+				toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
+				brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
+		// We know which child we want to search.  First make sure the buffer is empty.
+		r = flush_toward_child(brt, node, child[c], logger, &did_split);
+		if (did_split) goto restart;
+		// If we didn't split, then the buffer is empty, so search that child
+		r=search_that_child();
+		// Now that child may be bent out of shape
+???
+		
 
-    for (c = 0; c < node->u.n.n_children-1; c++) {
-        int p = search->direction & BRT_SEARCH_LEFT ? child[c] : child[c] - 1;
-        struct kv_pair *pivot = node->u.n.childkeys[p];
-        DBT pivotkey, pivotval;
-        if (search->compare(search, 
-                            toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
-                            brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
             int r = brt_search_child(brt, node, child[c], search, newkey, newval, logger);
 	    // searching the child can cause it to get bent out of shape
 	    int rr = maybe_fixup_nonroot(brt, node, child[c], logger);
@@ -1365,6 +1416,7 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
     /* check the first (left) or last (right) node if nothing has been found */
     if (r == DB_NOTFOUND && c == node->u.n.n_children-1)
         r = brt_search_child(brt, node, child[c], search, newkey, newval, split, logger);
+    
 
     return r;
 }
