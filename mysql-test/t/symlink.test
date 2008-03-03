@@ -204,19 +204,19 @@ deallocate prepare stmt;
 # Bug#32167 another privilege bypass with DATA/INDEX DIRECORY
 #
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1210
+--error 1,1210
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQL_TEST_DIR/var/master-data/test';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1210
+--error 1,1210
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQL_TEST_DIR/var/master-data/';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1210
+--error 1,1210
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQL_TEST_DIR/var/master-data';
 --replace_result $MYSQL_TEST_DIR TEST_DIR
---error 1
+--error 1,1210
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQL_TEST_DIR/var/master-data_var';
 
