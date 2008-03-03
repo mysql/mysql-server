@@ -25,6 +25,8 @@ type2string(UtilSequenceReq::RequestType type){
     return "CurrVal";
   case UtilSequenceReq::Create:
     return "Create";
+  case UtilSequenceReq::SetVal:
+    return "SetVal";
   default:
     return "Unknown";
   }
