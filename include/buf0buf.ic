@@ -236,6 +236,22 @@ buf_page_in_file(
 }
 
 /*************************************************************************
+Determines if a block should be on unzip_LRU list. */
+UNIV_INLINE
+ibool
+buf_page_belongs_to_unzip_LRU(
+/*==========================*/
+					/* out: TRUE if block belongs
+					to unzip_LRU */
+	const buf_page_t*	bpage)	/* in: pointer to control block */
+{
+	ut_ad(buf_page_in_file(bpage));
+
+	return(bpage->zip.data
+	       && buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+}
+
+/*************************************************************************
 Determine the approximate LRU list position of a block. */
 UNIV_INLINE
 ulint
