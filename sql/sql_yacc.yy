@@ -10312,12 +10312,6 @@ TEXT_STRING_filesystem:
 
 ident:
           IDENT_sys    { $$=$1; }
-        | READ_ONLY_SYM
-          {
-            THD *thd= YYTHD;
-            $$.str= thd->strmake("read_only",9);
-            $$.length= 9;
-          }
         | keyword
           {
             THD *thd= YYTHD;
@@ -10622,6 +10616,7 @@ keyword_sp:
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
+        | READ_ONLY_SYM            {}
         | REBUILD_SYM              {}
         | RECOVER_SYM              {}
         | REDO_BUFFER_SIZE_SYM     {}
