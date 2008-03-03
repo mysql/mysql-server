@@ -1910,7 +1910,6 @@ restart:
       /* Resubmit the request */
       goto restart;
     }
-    block->status&= ~PCBLOCK_IN_SWITCH;
   }
   else
   {
