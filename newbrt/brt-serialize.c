@@ -380,33 +380,45 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	toku_verify_counts(result);
 #define BRT_USE_PMA_BULK_INSERT 1
 #if BRT_USE_PMA_BULK_INSERT
-{
-        DBT keys[n_in_buf], vals[n_in_buf];
-	int index_limit __attribute__((__unused__))= rbuf_int(&rc);
-	for (i=0; i<n_in_buf; i++) {
-	    bytevec key; ITEMLEN keylen; 
-	    bytevec val; ITEMLEN vallen;
-	    // The counts are wrong here
-	    int idx __attribute__((__unused__)) = rbuf_int(&rc);
-	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
-            toku_fill_dbt(&keys[i], key, keylen);
-	    rbuf_bytes(&rc, &val, &vallen);
-            toku_fill_dbt(&vals[i], val, vallen);
-	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
-        }
+        int index_limit __attribute__((__unused__))= rbuf_int(&rc);
         if (n_in_buf > 0) {
-	    u_int32_t actual_sum = 0;
+#define BRT_BULK_INSERT_MALLOC 1
+#if BRT_BULK_INSERT_MALLOC
+            /* some applications run with small stacks so we malloc the
+               keys and vals structs */
+            size_t n = 2 * n_in_buf * sizeof (DBT);
+            DBT *keys = toku_malloc(n);
+            if (keys == 0) goto died_21;
+            DBT *vals = &keys[n_in_buf];
+#else
+            DBT keys[n_in_buf], vals[n_in_buf];
+#endif
+            for (i=0; i<n_in_buf; i++) {
+                bytevec key; ITEMLEN keylen; 
+                bytevec val; ITEMLEN vallen;
+                // The counts are wrong here
+                int idx __attribute__((__unused__)) = rbuf_int(&rc);
+                rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
+                toku_fill_dbt(&keys[i], key, keylen);
+                rbuf_bytes(&rc, &val, &vallen);
+                toku_fill_dbt(&vals[i], val, vallen);
+                result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
+            }
+            u_int32_t actual_sum = 0;
             r = toku_pma_bulk_insert((TOKULOGGER)0, (FILENUM){0}, (DISKOFF)0, result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum, 0);
+            
+#if BRT_BULK_INSERT_MALLOC
+            toku_free_n(keys, n);
+#endif
             if (r!=0) goto died_21;
-	    if (actual_sum!=result->local_fingerprint) {
-		//fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
-		return DB_BADFORMAT;
-		goto died_21;
-	    } else {
-		//fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
-	    }
+            if (actual_sum!=result->local_fingerprint) {
+                //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
+                return DB_BADFORMAT;
+                goto died_21;
+            } else {
+                //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
+            }
         }
-}
 #else
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
