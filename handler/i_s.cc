@@ -330,7 +330,8 @@ fill_innodb_trx_from_cache(
 		}
 
 		/* trx_weight */
-		OK(fields[IDX_TRX_WEIGHT]->store(row->trx_weight));
+		OK(fields[IDX_TRX_WEIGHT]->store((longlong) row->trx_weight,
+						 true));
 
 		/* trx_mysql_thread_id */
 		OK(fields[IDX_TRX_MYSQL_THREAD_ID]->store(
@@ -1103,8 +1104,10 @@ i_s_zip_fill_low(
 		table->field[2]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
 				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
 				       : 0);
-		table->field[3]->store(buf_buddy_relocated[x]);
-		table->field[4]->store(buf_buddy_relocated_duration[x]);
+		table->field[3]->store((longlong) buf_buddy_relocated[x],
+				       true);
+		table->field[4]->store((longlong)
+				       buf_buddy_relocated_duration[x], true);
 
 		if (reset) {
 			/* This is protected by buf_pool_mutex. */
@@ -1122,9 +1125,13 @@ i_s_zip_fill_low(
 			const uint i = x - y;
 			table->field[5]->store(page_zip_compress_count[i]);
 			table->field[6]->store(page_zip_compress_ok[i]);
-			table->field[7]->store(page_zip_compress_duration[i]);
+			table->field[7]->store((longlong)
+					       page_zip_compress_duration[i],
+					       true);
 			table->field[8]->store(page_zip_decompress_count[i]);
-			table->field[9]->store(page_zip_decompress_duration[i]);
+			table->field[9]->store((longlong)
+					       page_zip_decompress_duration[i],
+					       true);
 			if (reset) {
 				page_zip_compress_count[i] = 0;
 				page_zip_compress_ok[i] = 0;

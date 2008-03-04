@@ -278,7 +278,7 @@ buf_page_get_mutex(
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_FREE:
 		ut_error;
-		break;
+		return(NULL);
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 		return(&buf_pool_zip_mutex);

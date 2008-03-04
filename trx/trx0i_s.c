@@ -108,8 +108,8 @@ typedef struct i_s_mem_chunk_struct {
 
 /* This represents one table's cache. */
 typedef struct i_s_table_cache_struct {
-	ullint		rows_used;	/* number of used rows */
-	ullint		rows_allocd;	/* number of allocated rows */
+	ulint		rows_used;	/* number of used rows */
+	ulint		rows_allocd;	/* number of allocated rows */
 	ulint		row_size;	/* size of a single row */
 	i_s_mem_chunk_t	chunks[MEM_CHUNKS_IN_TABLE_CACHE]; /* array of
 					memory chunks that stores the
@@ -780,6 +780,7 @@ locks_row_eq_lock(
 
 	default:
 		ut_error;
+		return(FALSE);
 	}
 #endif
 }
@@ -1305,7 +1306,7 @@ cache_select_table(
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table. */
 UNIV_INTERN
-ullint
+ulint
 trx_i_s_cache_get_rows_used(
 /*========================*/
 					/* out: number of rows */
