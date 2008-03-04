@@ -14,23 +14,10 @@ connection slave;
 reset slave;
 start slave io_thread;
 # Give the I/O thread time to block.
-let $run= 1;
-let $counter= 300;
-while ($run)
-{
-  let $io_state= query_get_value("SHOW SLAVE STATUS", Slave_IO_State, 1);
-  if (`SELECT '$io_state' = 'Waiting for the slave SQL thread to free enough relay log space'`){
-    let $run= 0;
-  }
-  sleep 0.1;
-  if (!$counter){
-   --echo "Failed while waiting for slave IO thread block"
-   SHOW SLAVE STATUS;
-   exit;
-  }
-  dec $counter;
-}
-sleep 2;
+let $slave_param= Slave_IO_State;
+let $slave_param_value= Waiting for the slave SQL thread to free enough relay log space;
+source include/wait_for_slave_param.inc;
+
 # A bug caused the I/O thread to refuse stopping.
 stop slave io_thread;
 reset slave;

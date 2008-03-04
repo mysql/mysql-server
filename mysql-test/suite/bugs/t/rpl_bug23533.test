@@ -1,0 +1,43 @@
+#############################################################
+# Author: Serge Kozlov <skozlov@mysql.com>
+# Date:   02/26/2008
+# Purpose: testing bug report
+#  Bug#23533: CREATE SELECT max_binlog_cache_size test 
+#  case needed
+#############################################################
+
+--source include/have_innodb.inc
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2;
+--enable_warnings
+
+SET AUTOCOMMIT=0;
+SET GLOBAL max_binlog_cache_size=4096;
+SHOW VARIABLES LIKE 'max_binlog_cache_size';
+
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b TEXT, PRIMARY KEY(a)) ENGINE=InnoDB;
+
+--disable_query_log
+let $i= 1000;
+while ($i)
+{
+  eval INSERT INTO t1 VALUES($i, REPEAT('x', 4096));
+  dec $i;
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+# Copied data from t1 into t2 large than max_binlog_cache_size
+START TRANSACTION;
+--error 1534
+CREATE TABLE t2 SELECT * FROM t1;
+COMMIT;
+SHOW TABLES LIKE 't%';
+
+
+# 5.1 End of Test

@@ -9,4 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-binlog_multi_engine      : Bug#32663 binlog_multi_engine.test fails randomly

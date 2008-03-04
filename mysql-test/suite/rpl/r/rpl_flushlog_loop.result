@@ -23,7 +23,7 @@ start slave;
 let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%0%0%None%' ;
 
 --source include/wait_slave_status.inc
-flush logs;
+FLUSH LOGS;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -31,7 +31,7 @@ Master_User	root
 Master_Port	SLAVE_PORT
 Connect_Retry	60
 Master_Log_File	slave-bin.000001
-Read_Master_Log_Pos	216
+Read_Master_Log_Pos	POSITION
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	slave-bin.000001
@@ -46,7 +46,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	216
+Exec_Master_Log_Pos	POSITION
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
