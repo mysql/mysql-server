@@ -1497,7 +1497,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
   if (error)
     DBUG_RETURN(TRUE);
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -3001,6 +3001,37 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	   (qsort_cmp) sort_keys);
   create_info->null_bits= null_fields;
 
+  /* Check fields. */
+  it.rewind();
+  while ((sql_field=it++))
+  {
+    Field::utype type= (Field::utype) MTYP_TYPENR(sql_field->unireg_check);
+
+    if (thd->variables.sql_mode & MODE_NO_ZERO_DATE &&
+        !sql_field->def &&
+        sql_field->sql_type == MYSQL_TYPE_TIMESTAMP &&
+        (sql_field->flags & NOT_NULL_FLAG) &&
+        (type == Field::NONE || type == Field::TIMESTAMP_UN_FIELD))
+    {
+      /*
+        An error should be reported if:
+          - NO_ZERO_DATE SQL mode is active;
+          - there is no explicit DEFAULT clause (default column value);
+          - this is a TIMESTAMP column;
+          - the column is not NULL;
+          - this is not the DEFAULT CURRENT_TIMESTAMP column.
+
+        In other words, an error should be reported if
+          - NO_ZERO_DATE SQL mode is active;
+          - the column definition is equivalent to
+            'column_name TIMESTAMP DEFAULT 0'.
+      */
+
+      my_error(ER_INVALID_DEFAULT, MYF(0), sql_field->field_name);
+      DBUG_RETURN(TRUE);
+    }
+  }
+
   DBUG_RETURN(FALSE);
 }
 
@@ -4131,6 +4162,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
       switch ((*prepare_func)(thd, table, check_opt)) {
       case  1:           // error, message written to net
         ha_autocommit_or_rollback(thd, 1);
+        end_trans(thd, ROLLBACK);
         close_thread_tables(thd);
         DBUG_PRINT("admin", ("simple error, admin next table"));
         continue;
@@ -4189,6 +4221,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
                           table_name);
       protocol->store(buff, length, system_charset_info);
       ha_autocommit_or_rollback(thd, 0);
+      end_trans(thd, COMMIT);
       close_thread_tables(thd);
       lex->reset_query_tables_list(FALSE);
       table->table=0;				// For query cache
@@ -4461,17 +4494,19 @@ send_result_message:
       }
     }
     ha_autocommit_or_rollback(thd, 0);
+    end_trans(thd, COMMIT);
     close_thread_tables(thd);
     table->table=0;				// For query cache
     if (protocol->write())
       goto err;
   }
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
- err:
+err:
   ha_autocommit_or_rollback(thd, 1);
+  end_trans(thd, ROLLBACK);
   close_thread_tables(thd);			// Shouldn't be needed
   if (table)
     table->table=0;
@@ -4994,8 +5029,8 @@ mysql_discard_or_import_tablespace(THD *thd,
   query_cache_invalidate3(thd, table_list, 0);
 
   /* The ALTER TABLE is always in its own transaction */
-  error = ha_commit_stmt(thd);
-  if (ha_commit(thd))
+  error = ha_autocommit_or_rollback(thd, 0);
+  if (end_active_trans(thd))
     error=1;
   if (error)
     goto err;
@@ -5003,12 +5038,11 @@ mysql_discard_or_import_tablespace(THD *thd,
 
 err:
   ha_autocommit_or_rollback(thd, error);
-  close_thread_tables(thd);
   thd->tablespace_op=FALSE;
   
   if (error == 0)
   {
-    send_ok(thd);
+    my_ok(thd);
     DBUG_RETURN(0);
   }
 
@@ -5972,7 +6006,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Query_log_event qinfo(thd, thd->query, thd->query_length, 0, FALSE);
         mysql_bin_log.write(&qinfo);
       }
-      send_ok(thd);
+      my_ok(thd);
     }
 
     unlock_table_names(thd, table_list, (TABLE_LIST*) 0);
@@ -6210,7 +6244,7 @@ view_err:
     if (!error)
     {
       write_bin_log(thd, TRUE, thd->query, thd->query_length);
-      send_ok(thd);
+      my_ok(thd);
     }
     else if (error > 0)
     {
@@ -6526,8 +6560,8 @@ view_err:
     VOID(pthread_mutex_unlock(&LOCK_open));
     alter_table_manage_keys(table, table->file->indexes_are_disabled(),
                             alter_info->keys_onoff);
-    error= ha_commit_stmt(thd);
-    if (ha_commit(thd))
+    error= ha_autocommit_or_rollback(thd, 0);
+    if (end_active_trans(thd))
       error= 1;
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
@@ -6615,7 +6649,7 @@ view_err:
 
     /* Need to commit before a table is unlocked (NDB requirement). */
     DBUG_PRINT("info", ("Committing before unlocking table"));
-    if (ha_commit_stmt(thd) || ha_commit(thd))
+    if (ha_autocommit_or_rollback(thd, 0) || end_active_trans(thd))
       goto err1;
     committed= 1;
   }
@@ -6846,7 +6880,7 @@ end_temporary:
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
 	      (ulong) thd->cuted_fields);
-  send_ok(thd, copied + deleted, 0L, tmp_name);
+  my_ok(thd, copied + deleted, 0L, tmp_name);
   thd->some_tables_deleted=0;
   DBUG_RETURN(FALSE);
 
@@ -7116,9 +7150,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     Ensure that the new table is saved properly to disk so that we
     can do a rename
   */
-  if (ha_commit_stmt(thd))
+  if (ha_autocommit_or_rollback(thd, 0))
     error=1;
-  if (ha_commit(thd))
+  if (end_active_trans(thd))
     error=1;
 
  err:
@@ -7277,7 +7311,7 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
       goto err;
   }
 
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
  err:

@@ -2734,8 +2734,18 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       /* reenable logs after the options were reloaded */
-      logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_TABLE:LOG_NONE,
-                          opt_log ? LOG_TABLE:LOG_NONE);
+      if (log_output_options & LOG_NONE)
+      {
+        logger.set_handlers(LOG_FILE,
+                            opt_slow_log ? LOG_TABLE : LOG_NONE,
+                            opt_log ? LOG_TABLE : LOG_NONE);
+      }
+      else
+      {
+        logger.set_handlers(LOG_FILE,
+                            opt_slow_log ? log_output_options : LOG_NONE,
+                            opt_log ? log_output_options : LOG_NONE);
+      }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:

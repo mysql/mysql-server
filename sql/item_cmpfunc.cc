@@ -286,10 +286,10 @@ longlong Item_func_not::val_int()
   higher than the precedence of NOT.
 */
 
-void Item_func_not::print(String *str)
+void Item_func_not::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  Item_func::print(str);
+  Item_func::print(str, query_type);
   str->append(')');
 }
 
@@ -321,12 +321,12 @@ bool Item_func_not_all::empty_underlying_subquery()
           (test_sub_item && !test_sub_item->any_value()));
 }
 
-void Item_func_not_all::print(String *str)
+void Item_func_not_all::print(String *str, enum_query_type query_type)
 {
   if (show)
-    Item_func::print(str);
+    Item_func::print(str, query_type);
   else
-    args[0]->print(str);
+    args[0]->print(str, query_type);
 }
 
 
@@ -1422,10 +1422,10 @@ void Item_func_truth::fix_length_and_dec()
 }
 
 
-void Item_func_truth::print(String *str)
+void Item_func_truth::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" is "));
   if (! affirmative)
     str->append(STRING_WITH_LEN("not "));
@@ -2109,16 +2109,16 @@ longlong Item_func_between::val_int()
 }
 
 
-void Item_func_between::print(String *str)
+void Item_func_between::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (negated)
     str->append(STRING_WITH_LEN(" not"));
   str->append(STRING_WITH_LEN(" between "));
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(STRING_WITH_LEN(" and "));
-  args[2]->print(str);
+  args[2]->print(str, query_type);
   str->append(')');
 }
 
@@ -2763,26 +2763,26 @@ uint Item_func_case::decimal_precision() const
     Fix this so that it prints the whole CASE expression
 */
 
-void Item_func_case::print(String *str)
+void Item_func_case::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(case "));
   if (first_expr_num != -1)
   {
-    args[first_expr_num]->print(str);
+    args[first_expr_num]->print(str, query_type);
     str->append(' ');
   }
   for (uint i=0 ; i < ncases ; i+=2)
   {
     str->append(STRING_WITH_LEN("when "));
-    args[i]->print(str);
+    args[i]->print(str, query_type);
     str->append(STRING_WITH_LEN(" then "));
-    args[i+1]->print(str);
+    args[i+1]->print(str, query_type);
     str->append(' ');
   }
   if (else_expr_num != -1)
   {
     str->append(STRING_WITH_LEN("else "));
-    args[else_expr_num]->print(str);
+    args[else_expr_num]->print(str, query_type);
     str->append(' ');
   }
   str->append(STRING_WITH_LEN("end)"));
@@ -3706,14 +3706,14 @@ void Item_func_in::fix_length_and_dec()
 }
 
 
-void Item_func_in::print(String *str)
+void Item_func_in::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (negated)
     str->append(STRING_WITH_LEN(" not"));
   str->append(STRING_WITH_LEN(" in ("));
-  print_args(str, 1);
+  print_args(str, 1, query_type);
   str->append(STRING_WITH_LEN("))"));
 }
 
@@ -4084,19 +4084,19 @@ void Item_cond::update_used_tables()
 }
 
 
-void Item_cond::print(String *str)
+void Item_cond::print(String *str, enum_query_type query_type)
 {
   str->append('(');
   List_iterator_fast<Item> li(list);
   Item *item;
   if ((item=li++))
-    item->print(str);
+    item->print(str, query_type);
   while ((item=li++))
   {
     str->append(' ');
     str->append(func_name());
     str->append(' ');
-    item->print(str);
+    item->print(str, query_type);
   }
   str->append(')');
 }
@@ -4279,10 +4279,10 @@ longlong Item_func_isnotnull::val_int()
 }
 
 
-void Item_func_isnotnull::print(String *str)
+void Item_func_isnotnull::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" is not null)"));
 }
 
@@ -5276,24 +5276,24 @@ Item *Item_equal::transform(Item_transformer transformer, uchar *arg)
   return Item_func::transform(transformer, arg);
 }
 
-void Item_equal::print(String *str)
+void Item_equal::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
   List_iterator_fast<Item_field> it(fields);
   Item *item;
   if (const_item)
-    const_item->print(str);
+    const_item->print(str, query_type);
   else
   {
     item= it++;
-    item->print(str);
+    item->print(str, query_type);
   }
   while ((item= it++))
   {
     str->append(',');
     str->append(' ');
-    item->print(str);
+    item->print(str, query_type);
   }
   str->append(')');
 }
