@@ -36,70 +36,81 @@
     At present pages for all indexes are preloaded.
     In future only pages for indexes specified in the key_map parameter
     of the table will be preloaded.
+    We don't yet use preload_buff_size (we read page after page).
 */
 
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves)
 {
-  ulong length, block_length= 0;
+  ulong block_length= 0;
   uchar *buff= NULL;
   MARIA_SHARE* share= info->s;
-  uint keys= share->state.header.keys;
+  uint keynr;
   my_off_t key_file_length= share->state.state.key_file_length;
-  my_off_t pos= share->base.keystart;
+  pgcache_page_no_t page_no, page_no_max;
+  PAGECACHE_BLOCK_LINK *page_link;
   DBUG_ENTER("maria_preload");
 
-  if (!keys || !maria_is_any_key_active(key_map) || key_file_length == pos)
+  if (!share->state.header.keys || !maria_is_any_key_active(key_map) ||
+      (key_file_length == share->base.keystart))
     DBUG_RETURN(0);
 
   block_length= share->pagecache->block_size;
-  length= info->preload_buff_size/block_length * block_length;
-  set_if_bigger(length, block_length);
 
-  if (!(buff= (uchar *) my_malloc(length, MYF(MY_WME))))
+  if (!(buff= (uchar *) my_malloc(block_length, MYF(MY_WME))))
     DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
 
   if (flush_pagecache_blocks(share->pagecache, &share->kfile, FLUSH_RELEASE))
     goto err;
 
-  do
+  /*
+    Currently when we come here all other open instances of the table have
+    been closed, and we flushed all pages of our own instance, so there
+    cannot be any page of this table in the cache. Thus my_pread() would be
+    safe. But in the future, we will allow more concurrency during
+    preloading, so we use pagecache_read() instead of my_pread() because we
+    observed that on some Linux, concurrent pread() and pwrite() (which
+    could be from a page eviction by another thread) to the same page can
+    make pread() see an half-written page.
+    In this future, we should find a way to read state.key_file_length
+    reliably, handle concurrent shrinks (delete_all_rows()) etc.
+  */
+  for ((page_no= share->base.keystart / block_length),
+         (page_no_max= key_file_length / block_length);
+       page_no < page_no_max; page_no++)
   {
-    uchar *end;
-    /* Read the next block of index file into the preload buffer */
-    if ((my_off_t) length > (key_file_length-pos))
-      length= (ulong) (key_file_length-pos);
-    if (my_pread(share->kfile.file, (uchar*) buff, length, pos,
-                 MYF(MY_FAE|MY_FNABP)))
+    /**
+      @todo instead of reading pages one by one we could have a call
+      pagecache_read_several_pages() which does a single my_pread() for many
+      consecutive pages (like the my_pread() in mi_preload()).
+    */
+    if (pagecache_read(share->pagecache, &share->kfile, page_no,
+                       DFLT_INIT_HITS, (uchar*) buff, share->page_type,
+                       PAGECACHE_LOCK_WRITE, &page_link) == NULL)
       goto err;
-
-    for (end= buff + length ; buff < end ; buff+= block_length)
+    keynr= _ma_get_keynr(share, buff);
+    if (((ignore_leaves && !_ma_test_if_nod(share, buff)) ||
+         keynr == MARIA_DELETE_KEY_NR ||
+         !(key_map & ((ulonglong) 1 << keynr))) &&
+        (pagecache_pagelevel(page_link) == DFLT_INIT_HITS))
     {
-      uint keynr= _ma_get_keynr(share, buff);
-      if ((ignore_leaves && !_ma_test_if_nod(share, buff)) ||
-          keynr == MARIA_DELETE_KEY_NR ||
-          !(key_map & ((ulonglong) 1 << keynr)))
-      {
-        DBUG_ASSERT(share->pagecache->block_size == block_length);
-        if (pagecache_write(share->pagecache,
-                            &share->kfile,
-                            (pgcache_page_no_t) (pos / block_length),
-                            DFLT_INIT_HITS,
-                            (uchar*) buff,
-                            PAGECACHE_PLAIN_PAGE,
-                            PAGECACHE_LOCK_LEFT_UNLOCKED,
-                            PAGECACHE_PIN_LEFT_UNPINNED,
-                            PAGECACHE_WRITE_DONE, 0,
-			    LSN_IMPOSSIBLE))
-          goto err;
-      }
-      pos+= block_length;
+      /*
+        This page is not interesting, and (last condition above) we are the
+        ones who put it in the cache, so nobody else is interested in it.
+      */
+      if (pagecache_delete_by_link(share->pagecache, page_link,
+                                   PAGECACHE_LOCK_LEFT_WRITELOCKED, FALSE))
+        goto err;
     }
+    else /* otherwise it stays in cache: */
+      pagecache_unlock_by_link(share->pagecache, page_link,
+                               PAGECACHE_LOCK_WRITE_UNLOCK, PAGECACHE_UNPIN,
+                               LSN_IMPOSSIBLE, LSN_IMPOSSIBLE, FALSE);
   }
-  while (pos != key_file_length);
 
-  my_free((char*) buff, MYF(0));
+  my_free(buff, MYF(0));
   DBUG_RETURN(0);
 
 err:
-  my_free((char*) buff, MYF(MY_ALLOW_ZERO_PTR));
+  my_free(buff, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_RETURN(my_errno= errno);
 }
