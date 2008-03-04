@@ -1,0 +1,12 @@
+set debug= 'T';
+select @@debug;
+@@debug
+T
+set debug= '+P';
+select @@debug;
+@@debug
+P:T
+set debug= '-P';
+select @@debug;
+@@debug
+T
