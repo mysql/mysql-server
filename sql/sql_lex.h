@@ -543,7 +543,7 @@ public:
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
 
-  void print(String *str);
+  void print(String *str, enum_query_type query_type);
 
   bool add_fake_select_lex(THD *thd);
   void init_prepare_fake_select_lex(THD *thd);
@@ -762,9 +762,11 @@ public:
     init_select();
   }
   bool setup_ref_array(THD *thd, uint order_group_num);
-  void print(THD *thd, String *str);
-  static void print_order(String *str, ORDER *order);
-  void print_limit(THD *thd, String *str);
+  void print(THD *thd, String *str, enum_query_type query_type);
+  static void print_order(String *str,
+                          ORDER *order,
+                          enum_query_type query_type);
+  void print_limit(THD *thd, String *str, enum_query_type query_type);
   void fix_prepare_information(THD *thd, Item **conds, Item **having_conds);
   /*
     Destroy the used execution plan (JOIN) of this subtree (this
@@ -1513,10 +1515,8 @@ typedef struct st_lex : public Query_tables_list
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
-  /** Start of SELECT of CREATE VIEW statement */
-  const char* create_view_select_start;
-  /** End of SELECT of CREATE VIEW statement */
-  const char* create_view_select_end;
+  /** SELECT of CREATE VIEW statement */
+  LEX_STRING create_view_select;
 
   /** Start of 'ON table', in trigger statements.  */
   const char* raw_trg_on_table_name_begin;
@@ -1709,8 +1709,6 @@ typedef struct st_lex : public Query_tables_list
     (see Item_field::fix_fields()). 
   */
   bool use_only_table_context;
-
-  LEX_STRING view_body_utf8;
 
   /*
     Reference to a struct that contains information in various commands

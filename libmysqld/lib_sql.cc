@@ -61,8 +61,8 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 {
   NET *net= &mysql->net;
   struct embedded_query_result *ei= data->embedded_info;
-  net->client_last_errno= ei->last_errno;
-  strmake(net->client_last_error, ei->info, sizeof(net->client_last_error)-1);
+  net->last_errno= ei->last_errno;
+  strmake(net->last_error, ei->info, sizeof(net->last_error)-1);
   memcpy(net->sqlstate, ei->sqlstate, sizeof(net->sqlstate));
   mysql->server_status= ei->server_status;
   my_free(data, MYF(0));
@@ -685,7 +685,7 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
 err:
   {
     NET *net= &mysql->net;
-    strmake(net->client_last_error, thd->main_da.message(), sizeof(net->client_last_error)-1);
+    strmake(net->last_error, thd->main_da.message(), sizeof(net->last_error)-1);
     memcpy(net->sqlstate,
            mysql_errno_to_sqlstate(thd->main_da.sql_errno()),
            sizeof(net->sqlstate)-1);

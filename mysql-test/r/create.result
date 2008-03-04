@@ -1789,4 +1789,48 @@ DROP TABLE t2;
 
 # -- End of test case for Bug#21380.
 
+# --
+# -- Bug#18834: ALTER TABLE ADD INDEX on table with two timestamp fields
+# --
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+
+CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
+
+SET sql_mode = NO_ZERO_DATE;
+
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
+ERROR 42000: Invalid default value for 'c2'
+
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
+ERROR 42000: Invalid default value for 'c2'
+
+# -- Check that NULL column still can be created.
+CREATE TABLE t2(c1 TIMESTAMP NULL);
+
+# -- Check ALTER TABLE.
+ALTER TABLE t1 ADD INDEX(c1);
+ERROR 42000: Invalid default value for 'c2'
+
+# -- Check DATETIME.
+SET sql_mode = '';
+
+CREATE TABLE t3(c1 DATETIME NOT NULL);
+INSERT INTO t3 VALUES (0);
+
+SET sql_mode = TRADITIONAL;
+
+ALTER TABLE t3 ADD INDEX(c1);
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'c1' at row 1
+
+# -- Cleanup.
+SET sql_mode = '';
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+# -- End of Bug#18834.
+
 End of 5.1 tests

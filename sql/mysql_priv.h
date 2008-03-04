@@ -44,6 +44,19 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 
+/**
+  Query type constants.
+
+  QT_ORDINARY -- ordinary SQL query.
+  QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
+  character set introducers).
+*/
+enum enum_query_type
+{
+  QT_ORDINARY,
+  QT_IS
+};
+
 /* TODO convert all these three maps to Bitmap classes */
 typedef ulonglong table_map;          /* Used for table bits in join */
 #if MAX_INDEXES <= 64
@@ -1711,7 +1724,7 @@ bool mysql_manager_submit(void (*action)());
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
-void print_where(COND *cond,const char *info);
+void print_where(COND *cond,const char *info, enum_query_type query_type);
 void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,

@@ -1524,6 +1524,44 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
 
 /**
+  @brief Validate and prepare for execution CREATE VIEW statement
+
+  @param stmt prepared statement
+
+  @note This function handles create view commands.
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
+*/
+
+static bool mysql_test_create_view(Prepared_statement *stmt)
+{
+  DBUG_ENTER("mysql_test_create_view");
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  bool res= TRUE;
+  /* Skip first table, which is the view we are creating */
+  bool link_to_local;
+  TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables= lex->query_tables;
+
+  if (create_view_precheck(thd, tables, view, lex->create_view_mode))
+    goto err;
+
+  if (open_normal_and_derived_tables(thd, tables, 0))
+    goto err;
+
+  lex->view_prepare_mode= 1;
+  res= select_like_stmt_test(stmt, 0, 0);
+
+err:
+  /* put view back for PS rexecuting */
+  lex->link_first_table_back(view, link_to_local);
+  DBUG_RETURN(res);
+}
+
+
+/*
   Validate and prepare for execution a multi update statement.
 
   @param stmt               prepared statement
@@ -1735,6 +1773,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
       my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
       goto error;
     }
+    res= mysql_test_create_view(stmt);
     break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
@@ -2111,7 +2150,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     thd->stmt_map.erase(stmt);
   }
   else
-    send_ok(thd, 0L, 0L, "Statement prepared");
+    my_ok(thd, 0L, 0L, "Statement prepared");
 
   DBUG_VOID_RETURN;
 }
@@ -2494,7 +2533,9 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  send_ok(thd);
+  general_log_print(thd, thd->command, NullS);
+
+  my_ok(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -2523,6 +2564,7 @@ void mysql_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
+  general_log_print(thd, thd->command, NullS);
 
   thd->main_da.disable_status();
 
@@ -2557,7 +2599,7 @@ void mysql_sql_stmt_close(THD *thd)
   }
 
   if (stmt->deallocate() == 0)
-    send_ok(thd);
+    my_ok(thd);
 }
 
 /**
@@ -2630,6 +2672,9 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
+
+  general_log_print(thd, thd->command, NullS);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2662,7 +2707,7 @@ bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 
 bool Select_fetch_protocol_binary::send_eof()
 {
-  ::send_eof(thd);
+  ::my_eof(thd);
   return FALSE;
 }
 

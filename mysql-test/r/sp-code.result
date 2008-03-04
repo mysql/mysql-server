@@ -324,29 +324,29 @@ Pos	Instruction
 0	set str@1 NULL
 1	set_case_expr (12) 0 i@0
 2	jump_if_not 5(12) (case_expr@0 = 1)
-3	set str@1 _latin1'1'
+3	set str@1 '1'
 4	jump 12
 5	jump_if_not 8(12) (case_expr@0 = 2)
-6	set str@1 _latin1'2'
+6	set str@1 '2'
 7	jump 12
 8	jump_if_not 11(12) (case_expr@0 = 3)
-9	set str@1 _latin1'3'
+9	set str@1 '3'
 10	jump 12
-11	set str@1 _latin1'unknown'
+11	set str@1 'unknown'
 12	stmt 0 "SELECT str"
 SHOW PROCEDURE CODE proc_19194_searched;
 Pos	Instruction
 0	set str@1 NULL
 1	jump_if_not 4(11) (i@0 = 1)
-2	set str@1 _latin1'1'
+2	set str@1 '1'
 3	jump 11
 4	jump_if_not 7(11) (i@0 = 2)
-5	set str@1 _latin1'2'
+5	set str@1 '2'
 6	jump 11
 7	jump_if_not 10(11) (i@0 = 3)
-8	set str@1 _latin1'3'
+8	set str@1 '3'
 9	jump 11
-10	set str@1 _latin1'unknown'
+10	set str@1 'unknown'
 11	stmt 0 "SELECT str"
 SHOW PROCEDURE CODE proc_19194_nested_1;
 Pos	Instruction
@@ -354,59 +354,59 @@ Pos	Instruction
 1	set str_j@3 NULL
 2	set_case_expr (27) 0 i@0
 3	jump_if_not 6(27) (case_expr@0 = 10)
-4	set str_i@2 _latin1'10'
+4	set str_i@2 '10'
 5	jump 27
 6	jump_if_not 20(27) (case_expr@0 = 20)
-7	set str_i@2 _latin1'20'
+7	set str_i@2 '20'
 8	jump_if_not 11(18) (j@1 = 1)
-9	set str_j@3 _latin1'1'
+9	set str_j@3 '1'
 10	jump 18
 11	jump_if_not 14(18) (j@1 = 2)
-12	set str_j@3 _latin1'2'
+12	set str_j@3 '2'
 13	jump 18
 14	jump_if_not 17(18) (j@1 = 3)
-15	set str_j@3 _latin1'3'
+15	set str_j@3 '3'
 16	jump 18
-17	set str_j@3 _latin1'unknown'
+17	set str_j@3 'unknown'
 18	stmt 0 "select "i was 20""
 19	jump 27
 20	jump_if_not 23(27) (case_expr@0 = 30)
-21	set str_i@2 _latin1'30'
+21	set str_i@2 '30'
 22	jump 27
 23	jump_if_not 26(27) (case_expr@0 = 40)
-24	set str_i@2 _latin1'40'
+24	set str_i@2 '40'
 25	jump 27
-26	set str_i@2 _latin1'unknown'
+26	set str_i@2 'unknown'
 27	stmt 0 "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_2;
 Pos	Instruction
 0	set str_i@2 NULL
 1	set str_j@3 NULL
 2	jump_if_not 5(27) (i@0 = 10)
-3	set str_i@2 _latin1'10'
+3	set str_i@2 '10'
 4	jump 27
 5	jump_if_not 20(27) (i@0 = 20)
-6	set str_i@2 _latin1'20'
+6	set str_i@2 '20'
 7	set_case_expr (18) 0 j@1
 8	jump_if_not 11(18) (case_expr@0 = 1)
-9	set str_j@3 _latin1'1'
+9	set str_j@3 '1'
 10	jump 18
 11	jump_if_not 14(18) (case_expr@0 = 2)
-12	set str_j@3 _latin1'2'
+12	set str_j@3 '2'
 13	jump 18
 14	jump_if_not 17(18) (case_expr@0 = 3)
-15	set str_j@3 _latin1'3'
+15	set str_j@3 '3'
 16	jump 18
-17	set str_j@3 _latin1'unknown'
+17	set str_j@3 'unknown'
 18	stmt 0 "select "i was 20""
 19	jump 27
 20	jump_if_not 23(27) (i@0 = 30)
-21	set str_i@2 _latin1'30'
+21	set str_i@2 '30'
 22	jump 27
 23	jump_if_not 26(27) (i@0 = 40)
-24	set str_i@2 _latin1'40'
+24	set str_i@2 '40'
 25	jump 27
-26	set str_i@2 _latin1'unknown'
+26	set str_i@2 'unknown'
 27	stmt 0 "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_3;
 Pos	Instruction
@@ -414,59 +414,59 @@ Pos	Instruction
 1	set str_j@3 NULL
 2	set_case_expr (28) 0 i@0
 3	jump_if_not 6(28) (case_expr@0 = 10)
-4	set str_i@2 _latin1'10'
+4	set str_i@2 '10'
 5	jump 28
 6	jump_if_not 21(28) (case_expr@0 = 20)
-7	set str_i@2 _latin1'20'
+7	set str_i@2 '20'
 8	set_case_expr (19) 1 j@1
 9	jump_if_not 12(19) (case_expr@1 = 1)
-10	set str_j@3 _latin1'1'
+10	set str_j@3 '1'
 11	jump 19
 12	jump_if_not 15(19) (case_expr@1 = 2)
-13	set str_j@3 _latin1'2'
+13	set str_j@3 '2'
 14	jump 19
 15	jump_if_not 18(19) (case_expr@1 = 3)
-16	set str_j@3 _latin1'3'
+16	set str_j@3 '3'
 17	jump 19
-18	set str_j@3 _latin1'unknown'
+18	set str_j@3 'unknown'
 19	stmt 0 "select "i was 20""
 20	jump 28
 21	jump_if_not 24(28) (case_expr@0 = 30)
-22	set str_i@2 _latin1'30'
+22	set str_i@2 '30'
 23	jump 28
 24	jump_if_not 27(28) (case_expr@0 = 40)
-25	set str_i@2 _latin1'40'
+25	set str_i@2 '40'
 26	jump 28
-27	set str_i@2 _latin1'unknown'
+27	set str_i@2 'unknown'
 28	stmt 0 "SELECT str_i, str_j"
 SHOW PROCEDURE CODE proc_19194_nested_4;
 Pos	Instruction
 0	set str_i@2 NULL
 1	set str_j@3 NULL
 2	jump_if_not 5(26) (i@0 = 10)
-3	set str_i@2 _latin1'10'
+3	set str_i@2 '10'
 4	jump 26
 5	jump_if_not 19(26) (i@0 = 20)
-6	set str_i@2 _latin1'20'
+6	set str_i@2 '20'
 7	jump_if_not 10(17) (j@1 = 1)
-8	set str_j@3 _latin1'1'
+8	set str_j@3 '1'
 9	jump 17
 10	jump_if_not 13(17) (j@1 = 2)
-11	set str_j@3 _latin1'2'
+11	set str_j@3 '2'
 12	jump 17
 13	jump_if_not 16(17) (j@1 = 3)
-14	set str_j@3 _latin1'3'
+14	set str_j@3 '3'
 15	jump 17
-16	set str_j@3 _latin1'unknown'
+16	set str_j@3 'unknown'
 17	stmt 0 "select "i was 20""
 18	jump 26
 19	jump_if_not 22(26) (i@0 = 30)
-20	set str_i@2 _latin1'30'
+20	set str_i@2 '30'
 21	jump 26
 22	jump_if_not 25(26) (i@0 = 40)
-23	set str_i@2 _latin1'40'
+23	set str_i@2 '40'
 24	jump 26
-25	set str_i@2 _latin1'unknown'
+25	set str_i@2 'unknown'
 26	stmt 0 "SELECT str_i, str_j"
 CALL proc_19194_nested_1(10, 1);
 str_i	str_j
@@ -793,7 +793,7 @@ end while;
 end//
 show procedure code proc_33618_h;
 Pos	Instruction
-0	set count1@1 _latin1'0'
+0	set count1@1 '0'
 1	set vb@2 NULL
 2	set last_row@3 NULL
 3	jump_if_not 24(24) (num@0 >= 1)
@@ -818,7 +818,7 @@ Pos	Instruction
 22	jump 3
 show procedure code proc_33618_c;
 Pos	Instruction
-0	set count1@1 _latin1'0'
+0	set count1@1 '0'
 1	set vb@2 NULL
 2	set last_row@3 NULL
 3	jump_if_not 23(23) (num@0 >= 1)

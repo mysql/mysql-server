@@ -8219,10 +8219,10 @@ limit_options:
         ;
 
 limit_option:
-          param_marker
-          {
-            ((Item_param *) $1)->set_strict_type(INT_RESULT);
-          }
+        param_marker
+        {
+          ((Item_param *) $1)->limit_clause_param= TRUE;
+        }
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM      { $$= new Item_uint($1.str, $1.length); }
         | NUM           { $$= new Item_uint($1.str, $1.length); }
@@ -9823,8 +9823,11 @@ text_literal:
           }
         | UNDERSCORE_CHARSET TEXT_STRING
           {
-            $$= new Item_string($2.str, $2.length, $1);
-            ((Item_string*) $$)->set_repertoire_from_value();
+            Item_string *str= new Item_string($2.str, $2.length, $1);
+            str->set_repertoire_from_value();
+            str->set_cs_specified(TRUE);
+
+            $$= str;
           }
         | text_literal TEXT_STRING_literal
           {
@@ -9927,15 +9930,22 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(NULL, /* name will be set in select_item */
-                                str ? str->ptr() : "",
-                                str ? str->length() : 0,
-                                $1);
-            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+
+            Item_string *item_str=
+              new Item_string(NULL, /* name will be set in select_item */
+                              str ? str->ptr() : "",
+                              str ? str->length() : 0,
+                              $1);
+            if (!item_str ||
+                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
             {
               MYSQL_YYABORT;
             }
-            ((Item_string *) $$)->set_repertoire_from_value();
+
+            item_str->set_repertoire_from_value();
+            item_str->set_cs_specified(TRUE);
+
+            $$= item_str;
           }
         | UNDERSCORE_CHARSET BIN_NUM
           {
@@ -9947,14 +9957,21 @@ literal:
             String *str= tmp ?
               tmp->quick_fix_field(), tmp->val_str((String*) 0) :
               (String*) 0;
-            $$= new Item_string(NULL, /* name will be set in select_item */
-                                str ? str->ptr() : "",
-                                str ? str->length() : 0,
-                                $1);
-            if (!$$ || !$$->check_well_formed_result(&$$->str_value, TRUE))
+
+            Item_string *item_str=
+              new Item_string(NULL, /* name will be set in select_item */
+                              str ? str->ptr() : "",
+                              str ? str->length() : 0,
+                              $1);
+            if (!item_str ||
+                !item_str->check_well_formed_result(&item_str->str_value, TRUE))
             {
               MYSQL_YYABORT;
             }
+
+            item_str->set_cs_specified(TRUE);
+
+            $$= item_str;
           }
         | DATE_SYM text_literal { $$ = $2; }
         | TIME_SYM text_literal { $$ = $2; }
@@ -10295,12 +10312,6 @@ TEXT_STRING_filesystem:
 
 ident:
           IDENT_sys    { $$=$1; }
-        | READ_ONLY_SYM
-          {
-            THD *thd= YYTHD;
-            $$.str= thd->strmake("read_only",9);
-            $$.length= 9;
-          }
         | keyword
           {
             THD *thd= YYTHD;
@@ -10605,6 +10616,7 @@ keyword_sp:
         | QUARTER_SYM              {}
         | QUERY_SYM                {}
         | QUICK                    {}
+        | READ_ONLY_SYM            {}
         | REBUILD_SYM              {}
         | RECOVER_SYM              {}
         | REDO_BUFFER_SIZE_SYM     {}
@@ -11988,27 +12000,7 @@ view_tail:
             if (!lex->select_lex.add_table_to_list(thd, $3, NULL, TL_OPTION_UPDATING))
               MYSQL_YYABORT;
           }
-          view_list_opt AS
-          {
-            THD *thd= YYTHD;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lip->body_utf8_start(thd, lip->get_cpp_ptr());
-          }
-          view_select
-          {
-            THD *thd= YYTHD;
-            LEX *lex= thd->lex;
-            Lex_input_stream *lip= thd->m_lip;
-
-            lip->body_utf8_append(lip->get_cpp_ptr());
-
-            lex->view_body_utf8.str= thd->strmake(lip->get_body_utf8_str(),
-                                                  lip->get_body_utf8_length());
-            lex->view_body_utf8.length= lip->get_body_utf8_length();
-
-            trim_whitespace(&my_charset_utf8_general_ci, &lex->view_body_utf8);
-          }
+          view_list_opt AS view_select
         ;
 
 view_list_opt:
@@ -12039,18 +12031,22 @@ view_select:
             lex->parsing_options.allows_select_into= FALSE;
             lex->parsing_options.allows_select_procedure= FALSE;
             lex->parsing_options.allows_derived= FALSE;
-            lex->create_view_select_start= lip->get_cpp_ptr();
+            lex->create_view_select.str= (char *) lip->get_cpp_ptr();
           }
           view_select_aux view_check_option
           {
             THD *thd= YYTHD;
             LEX *lex= Lex;
             Lex_input_stream *lip= thd->m_lip;
+            uint len= lip->get_cpp_ptr() - lex->create_view_select.str;
+            void *create_view_select= thd->memdup(lex->create_view_select.str, len);
+            lex->create_view_select.length= len;
+            lex->create_view_select.str= (char *) create_view_select;
+            trim_whitespace(thd->charset(), &lex->create_view_select);
             lex->parsing_options.allows_variable= TRUE;
             lex->parsing_options.allows_select_into= TRUE;
             lex->parsing_options.allows_select_procedure= TRUE;
             lex->parsing_options.allows_derived= TRUE;
-            lex->create_view_select_end= lip->get_cpp_ptr();
           }
         ;
 

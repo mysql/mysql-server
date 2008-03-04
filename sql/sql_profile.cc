@@ -456,7 +456,7 @@ bool PROFILING::show_profiles()
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 

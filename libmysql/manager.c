@@ -160,7 +160,7 @@ MYSQL_MANAGER*  STDCALL mysql_manager_connect(MYSQL_MANAGER* con,
   msg_len=strlen(msg_buf);
   if (my_net_write(&con->net,(uchar*) msg_buf,msg_len) || net_flush(&con->net))
   {
-    con->last_errno=con->net.client_last_errno;
+    con->last_errno=con->net.last_errno;
     strmov(con->last_error,"Write error on socket");
     goto err;
   }
