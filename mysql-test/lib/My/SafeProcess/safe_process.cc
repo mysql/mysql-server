@@ -89,7 +89,6 @@ static void die(const char* fmt, ...)
 
 static void kill_child (void)
 {
-  int exit_code= 1;
   int status= 0;
 
   message("Killing child: %d", child_pid);
@@ -99,6 +98,7 @@ static void kill_child (void)
   pid_t ret_pid= waitpid(child_pid, &status, 0);
   if (ret_pid == child_pid)
   {
+    int exit_code= 1;
     if (WIFEXITED(status))
     {
       // Process has exited, collect return status
@@ -113,7 +113,7 @@ static void kill_child (void)
 
     exit(exit_code);
   }
-  exit(exit_code);
+  exit(1);
 }
 
 
@@ -122,13 +122,12 @@ static void handle_signal (int sig)
   message("Got signal %d, child_pid: %d", sig, child_pid);
   terminated= 1;
 
+  if (child_pid > 0)
+    kill_child();
+
   // Ignore further signals
   signal(SIGTERM, SIG_IGN);
   signal(SIGINT,  SIG_IGN);
-  signal(SIGCHLD, SIG_IGN);
-
-  if (child_pid > 0)
-    kill_child();
 
   // Continune execution, allow the child to be started and
   // finally terminated by monitor loop
@@ -237,7 +236,7 @@ int main(int argc, char* const argv[] )
       break;
     }
 
-    // Check if child has exited, normally this wil be
+    // Check if child has exited, normally this will be
     // detected immediately with SIGCHLD handler
     int status= 0;
     pid_t ret_pid= waitpid(child_pid, &status, WNOHANG);
