@@ -7444,6 +7444,7 @@ mysqld_get_one_option(int optid,
                       char *argument)
 {
   switch(optid) {
+#ifndef DBUG_OFF
   case '#':
     if (!argument)
       argument= (char*) default_dbug_option;
@@ -7458,6 +7459,7 @@ mysqld_get_one_option(int optid,
     DBUG_SET_INITIAL(argument);
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
+#endif
   case 'a':
     global_system_variables.sql_mode= fix_sql_mode(MODE_ANSI);
     global_system_variables.tx_isolation= ISO_SERIALIZABLE;
