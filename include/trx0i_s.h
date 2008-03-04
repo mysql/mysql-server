@@ -135,7 +135,7 @@ trx_i_s_cache_end_write(
 Retrieves the number of used rows in the cache for a given
 INFORMATION SCHEMA table. */
 UNIV_INTERN
-ullint
+ulint
 trx_i_s_cache_get_rows_used(
 /*========================*/
 					/* out: number of rows */
