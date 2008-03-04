@@ -441,6 +441,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
 void str_to_file(const char *fname, char *str, int size);
 void str_to_file2(const char *fname, char *str, int size, my_bool append);
 
+void fix_win_paths(const char *val, int len);
+
 #ifdef __WIN__
 void free_tmp_sh_file();
 void free_win_path_patterns();
@@ -594,6 +596,9 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
       break;
     }
   }
+#ifdef __WIN__
+    fix_win_paths(query_eval->str, query_eval->length);
+#endif
   DBUG_VOID_RETURN;
 }
 
