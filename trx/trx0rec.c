@@ -572,7 +572,7 @@ trx_undo_page_report_modify(
 	type_cmpl |= cmpl_info * TRX_UNDO_CMPL_INFO_MULT;
 	type_cmpl_ptr = ptr;
 
-	*ptr++ = type_cmpl;
+	*ptr++ = (byte) type_cmpl;
 	ptr += mach_dulint_write_much_compressed(ptr, trx->undo_no);
 
 	ptr += mach_dulint_write_much_compressed(ptr, table->id);
@@ -580,7 +580,7 @@ trx_undo_page_report_modify(
 	/*----------------------------------------*/
 	/* Store the state of the info bits */
 
-	*ptr++ = rec_get_info_bits(rec, dict_table_is_comp(table));
+	*ptr++ = (byte) rec_get_info_bits(rec, dict_table_is_comp(table));
 
 	/* Store the values of the system columns */
 	field = rec_get_nth_field(rec, offsets,

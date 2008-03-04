@@ -300,7 +300,7 @@ recv_truncate_group(
 		ut_memcpy(log_sys->buf, recv_sys->last_block,
 			  OS_FILE_LOG_BLOCK_SIZE);
 		log_block_set_data_len(log_sys->buf,
-				       recovered_lsn - start_lsn);
+				       (ulint) (recovered_lsn - start_lsn));
 	}
 
 	if (start_lsn >= finish_lsn) {
@@ -316,7 +316,7 @@ recv_truncate_group(
 			end_lsn = finish_lsn;
 		}
 
-		len = end_lsn - start_lsn;
+		len = (ulint) (end_lsn - start_lsn);
 
 		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 		if (end_lsn >= finish_lsn) {
@@ -372,7 +372,7 @@ recv_copy_group(
 		log_group_read_log_seg(LOG_RECOVER, log_sys->buf,
 				       up_to_date_group, start_lsn, end_lsn);
 
-		len = end_lsn - start_lsn;
+		len = (ulint) (end_lsn - start_lsn);
 
 		log_group_write_buf(group, log_sys->buf, len, start_lsn, 0);
 
@@ -1802,9 +1802,10 @@ recv_calc_lsn_on_data_add(
 		- LOG_BLOCK_HDR_SIZE;
 	ut_ad(frag_len < OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE
 	      - LOG_BLOCK_TRL_SIZE);
-	lsn_len = len + ((len + frag_len)
-			 / (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE
-			    - LOG_BLOCK_TRL_SIZE))
+	lsn_len = (ulint) len;
+	lsn_len += (lsn_len + frag_len)
+		/ (OS_FILE_LOG_BLOCK_SIZE - LOG_BLOCK_HDR_SIZE
+		   - LOG_BLOCK_TRL_SIZE)
 		* (LOG_BLOCK_HDR_SIZE + LOG_BLOCK_TRL_SIZE);
 
 	return(lsn + lsn_len);

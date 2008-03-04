@@ -230,7 +230,7 @@ row_mysql_read_blob_ref(
 	ulint		col_len)	/* in: BLOB reference length
 					(not BLOB length) */
 {
-	const byte*	data;
+	byte*	data;
 
 	*len = mach_read_from_n_little_endian(ref, col_len - 8);
 

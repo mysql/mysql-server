@@ -333,7 +333,7 @@ log_close(void)
 	ib_uint64_t	oldest_lsn;
 	ib_uint64_t	lsn;
 	log_t*		log	= log_sys;
-	ulint		checkpoint_age;
+	ib_uint64_t	checkpoint_age;
 
 	ut_ad(mutex_own(&(log->mutex)));
 
@@ -2002,9 +2002,9 @@ log_checkpoint_margin(void)
 /*=======================*/
 {
 	log_t*		log		= log_sys;
-	ulint		age;
-	ulint		checkpoint_age;
-	ulint		advance;
+	ib_uint64_t	age;
+	ib_uint64_t	checkpoint_age;
+	ib_uint64_t	advance;
 	ib_uint64_t	oldest_lsn;
 	ibool		sync;
 	ibool		checkpoint_sync;
