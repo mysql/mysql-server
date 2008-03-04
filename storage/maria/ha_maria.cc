@@ -2759,7 +2759,7 @@ static int ha_maria_init(void *p)
   res= maria_init() || ma_control_file_create_or_open() ||
     !init_pagecache(maria_pagecache,
                     (size_t) pagecache_buffer_size, pagecache_division_limit,
-                    pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH, 0) ||
+                    pagecache_age_threshold, maria_block_size, 0) ||
     !init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE, 0) ||

@@ -24,6 +24,15 @@
 }
 
 {
+   pthread allocate_tls memory loss
+   Memcheck:Leak
+   fun:calloc
+   obj:/lib64/ld*.so
+   fun:_dl_allocate_tls
+   fun:pthread_create*
+}
+
+{
    pthead_exit memory loss 1
    Memcheck:Leak
    fun:malloc
@@ -367,6 +376,41 @@
    fun:_dlerror_run
    fun:dlclose
    fun:_Z8udf_freev
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 64 bit
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/libc-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
+
+}
+
+{
+   dlopen / ptread_cancel_init memory loss on Suse Linux 10.3 64 bit
+   Memcheck:Leak
+   fun:*alloc
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/libc-*.so
+   obj:/lib64/ld-*.so
+   obj:/lib64/libc-*.so
+   fun:__libc_dlopen_mode
+   fun:pthread_cancel_init
+   fun:_Unwind_ForcedUnwind
 }
 
 

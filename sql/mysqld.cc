@@ -800,7 +800,7 @@ static void close_connections(void)
 	break;
     }
 #ifdef EXTRA_DEBUG
-    if (error != 0 && !count++)
+    if (error != 0 && error != ETIMEDOUT && !count++)
       sql_print_error("Got error %d from pthread_cond_timedwait",error);
 #endif
     close_server_sock();
@@ -7445,15 +7445,17 @@ mysqld_get_one_option(int optid,
 {
   switch(optid) {
   case '#':
-    if (*argument == '0')
+    if (!argument)
+      argument= (char*) default_dbug_option;
+    if (argument[0] == '0' && !argument[1])
     {
       DEBUGGER_OFF;
       break;
     }
     DEBUGGER_ON;
-    if (*argument == '1')
+    if (argument[0] == '1' && !argument[1])
       break;
-    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
+    DBUG_SET_INITIAL(argument);
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
   case 'a':
