@@ -1330,6 +1330,7 @@ static void unlink_block(PAGECACHE *pagecache, PAGECACHE_BLOCK_LINK *block)
 {
   DBUG_ENTER("unlink_block");
   DBUG_PRINT("unlink_block", ("unlink 0x%lx", (ulong)block));
+  DBUG_ASSERT(block->next_used != NULL);
   if (block->next_used == block)
   {
     /* The list contains only one member */
@@ -2439,20 +2440,17 @@ static void release_rdlock(PAGECACHE_BLOCK_LINK *block)
   DBUG_VOID_RETURN;
 }
 
-/*
-  Try to lock/unlock and pin/unpin the block
+/**
+  @brief Try to lock/unlock and pin/unpin the block
 
-  SYNOPSIS
-    make_lock_and_pin()
-    pagecache            pointer to a page cache data structure
-    block                the block to work with
-    lock                 lock change mode
-    pin                  pinchange mode
-    file		 File handler requesting pin
+  @param pagecache       pointer to a page cache data structure
+  @param block           the block to work with
+  @param lock            lock change mode
+  @param pin             pinchange mode
+  @param file            File handler requesting pin
 
-  RETURN
-    0 - OK
-    1 - Try to lock the block failed
+  @retval 0 OK
+  @retval 1 Try to lock the block failed
 */
 
 static my_bool make_lock_and_pin(PAGECACHE *pagecache,
@@ -2550,8 +2548,6 @@ retry:
   PCBLOCK_INFO(block);
   DBUG_ASSERT(block->hash_link->requests > 0);
   block->hash_link->requests--;
-  DBUG_ASSERT(block->requests > 0);
-  unreg_request(pagecache, block, 1);
   PCBLOCK_INFO(block);
   DBUG_RETURN(1);
 
@@ -3117,6 +3113,7 @@ uchar *pagecache_read(PAGECACHE *pagecache,
   PAGECACHE_BLOCK_LINK *fake_link;
 #ifndef DBUG_OFF
   char llbuf[22];
+  my_bool reg_request;
   DBUG_ENTER("pagecache_read");
   DBUG_PRINT("enter", ("fd: %u  page: %s  buffer: 0x%lx level: %u  "
                        "t:%s  %s  %s",
@@ -3153,11 +3150,11 @@ restart:
     inc_counter_for_resize_op(pagecache);
     pagecache->global_cache_r_requests++;
     /* See NOTE for pagecache_unlock about registering requests. */
+    reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
+                  (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
                       test(lock == PAGECACHE_LOCK_WRITE),
-                      test((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
-                           (pin == PAGECACHE_PIN)),
-                      &page_st);
+                      reg_request, &page_st);
     DBUG_PRINT("info", ("Block type: %s current type %s",
                         page_cache_page_type_str[block->type],
                         page_cache_page_type_str[type]));
@@ -3196,6 +3193,8 @@ restart:
         We failed to write lock the block, cache is unlocked,
         we will try to get the block again.
       */
+      if (reg_request)
+        unreg_request(pagecache, block, 1);
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_PRINT("info", ("restarting..."));
       goto restart;
@@ -3327,9 +3326,10 @@ static my_bool pagecache_delete_internal(PAGECACHE *pagecache,
     */
   }
   /* Cache is locked, so we can relese page before freeing it */
-  make_lock_and_pin(pagecache, block,
-                    PAGECACHE_LOCK_WRITE_UNLOCK,
-                    PAGECACHE_UNPIN);
+  if (make_lock_and_pin(pagecache, block,
+                        PAGECACHE_LOCK_WRITE_UNLOCK,
+                        PAGECACHE_UNPIN))
+    DBUG_ASSERT(0);
   DBUG_ASSERT(block->hash_link->requests > 0);
   page_link->requests--;
   /* See NOTE for pagecache_unlock about registering requests. */
@@ -3374,24 +3374,24 @@ my_bool pagecache_delete_by_link(PAGECACHE *pagecache,
               lock == PAGECACHE_LOCK_LEFT_WRITELOCKED);
   DBUG_ASSERT(block->pins != 0); /* should be pinned */
 
-restart:
-
   if (pagecache->can_be_used)
   {
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
     if (!pagecache->can_be_used)
       goto end;
 
+    /*
+      This block should be pinned (i.e. has not zero request counter) =>
+      Such block can't be chosen for eviction.
+    */
+    DBUG_ASSERT((block->status &
+                 (PCBLOCK_IN_SWITCH | PCBLOCK_REASSIGNED)) == 0);
+    /*
+      make_lock_and_pin() can't fail here, because we are keeping pin on the
+      block and it can't be evicted (which is cause of lock fail and retry)
+    */
     if (make_lock_and_pin(pagecache, block, lock, pin))
-    {
-      /*
-        We failed to writelock the block, cache is unlocked, and last write
-        lock is released, we will try to get the block again.
-      */
-      pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
-      DBUG_PRINT("info", ("restarting..."));
-      goto restart;
-    }
+      DBUG_ASSERT(0);
 
     /*
       get_present_hash_link() side effect emulation before call
@@ -3494,6 +3494,16 @@ restart:
       DBUG_RETURN(0);
     }
     block= page_link->block;
+    if (block->status & (PCBLOCK_REASSIGNED | PCBLOCK_IN_SWITCH))
+    {
+      DBUG_PRINT("info", ("Block 0x%0lx already is %s",
+                          (ulong) block,
+                          ((block->status & PCBLOCK_REASSIGNED) ?
+                           "reassigned" : "in switch")));
+      PCBLOCK_INFO(block);
+      page_link->requests--;
+      goto end;
+    }
     /* See NOTE for pagecache_unlock about registering requests. */
     if (pin == PAGECACHE_PIN)
       reg_requests(pagecache, block, 1);
@@ -3504,6 +3514,8 @@ restart:
         We failed to writelock the block, cache is unlocked, and last write
         lock is released, we will try to get the block again.
       */
+      if (pin == PAGECACHE_PIN)
+        unreg_request(pagecache, block, 1);
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_PRINT("info", ("restarting..."));
       goto restart;
@@ -3641,6 +3653,7 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
 #ifndef DBUG_OFF
   char llbuf[22];
+  my_bool reg_request;
   DBUG_ENTER("pagecache_write_part");
   DBUG_PRINT("enter", ("fd: %u  page: %s  level: %u  type: %s  lock: %s  "
                        "pin: %s   mode: %s  offset: %u  size %u",
@@ -3683,14 +3696,14 @@ restart:
     inc_counter_for_resize_op(pagecache);
     pagecache->global_cache_w_requests++;
     /* See NOTE for pagecache_unlock about registering requests. */
+    reg_request= ((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
+                  (pin == PAGECACHE_PIN));
     block= find_block(pagecache, file, pageno, level,
                       test(write_mode != PAGECACHE_WRITE_DONE &&
                            lock != PAGECACHE_LOCK_LEFT_WRITELOCKED &&
                            lock != PAGECACHE_LOCK_WRITE_UNLOCK &&
                            lock != PAGECACHE_LOCK_WRITE_TO_READ),
-                      test((pin == PAGECACHE_PIN_LEFT_UNPINNED) ||
-                           (pin == PAGECACHE_PIN)),
-                      &page_st);
+                      reg_request, &page_st);
     if (!block)
     {
       DBUG_ASSERT(write_mode != PAGECACHE_WRITE_DONE);
@@ -3723,6 +3736,8 @@ restart:
         We failed to writelock the block, cache is unlocked, and last write
         lock is released, we will try to get the block again.
       */
+      if (reg_request)
+        unreg_request(pagecache, block, 1);
       pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
       DBUG_PRINT("info", ("restarting..."));
       goto restart;
@@ -4041,9 +4056,10 @@ static int flush_cached_blocks(PAGECACHE *pagecache,
                             pagecache->readwrite_flags);
     pagecache_pthread_mutex_lock(&pagecache->cache_lock);
 
-    make_lock_and_pin(pagecache, block,
-                      PAGECACHE_LOCK_WRITE_UNLOCK,
-                      PAGECACHE_UNPIN);
+    if (make_lock_and_pin(pagecache, block,
+                          PAGECACHE_LOCK_WRITE_UNLOCK,
+                          PAGECACHE_UNPIN))
+      DBUG_ASSERT(0);
 
     pagecache->global_cache_write++;
     if (error)
