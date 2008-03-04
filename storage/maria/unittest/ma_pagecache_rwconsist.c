@@ -31,7 +31,7 @@ static const char* default_dbug_option;
 #endif
 
 
-#define SLEEP usleep(5)
+#define SLEEP my_sleep(5)
 
 static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;

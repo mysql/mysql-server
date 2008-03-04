@@ -93,3 +93,5 @@ SET_TARGET_PROPERTIES(ma_pagecache_consist_1kWR-t
 ADD_EXECUTABLE(ma_pagecache_consist_64kWR-t ${ma_pagecache_consist_src})
 SET_TARGET_PROPERTIES(ma_pagecache_consist_64kWR-t
 	PROPERTIES COMPILE_FLAGS "${ma_pagecache_common_cppflags} -DTEST_PAGE_SIZE=65536 -DTEST_WRITERS")
+ADD_EXECUTABLE(ma_pagecache_rwconsist_1k-t ma_pagecache_rwconsist.c)
+SET_TARGET_PROPERTIES(ma_pagecache_rwconsist_1k-t PROPERTIES COMPILE_FLAGS "-DTEST_PAGE_SIZE=1024")
