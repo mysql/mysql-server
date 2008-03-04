@@ -1,0 +1,108 @@
+#
+# Testing of PRELOAD
+#
+
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1, t2;
+--enable_warnings
+
+
+# we don't use block-format because we want page cache stats
+# about indices and not data pages.
+
+create table t1 (
+  a int not null auto_increment,
+  b char(16) not null,
+  primary key (a),
+  key (b)
+) engine=maria row_format=dynamic;
+
+create table t2(
+  a int not null auto_increment,
+  b char(16) not null,
+  primary key (a),
+  key (b)
+) engine=maria row_format=dynamic;
+
+insert into t1(b) values 
+  ('test0'),
+  ('test1'),
+  ('test2'),
+  ('test3'),
+  ('test4'),
+  ('test5'),
+  ('test6'),
+  ('test7');
+  
+insert into t2(b) select b from t1;
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+insert into t2(b) select b from t1;  
+insert into t1(b) select b from t2;  
+
+select count(*) from t1;
+select count(*) from t2;
+
+flush tables; flush status;
+show status like "maria_pagecache_read%";
+
+select count(*) from t1 where b = 'test1';
+show status like "maria_pagecache_read%";
+select count(*) from t1 where b = 'test1';
+show status like "maria_pagecache_read%";
+
+flush tables; flush status;
+select @@preload_buffer_size;
+load index into cache t1;
+show status like "maria_pagecache_read%";
+select count(*) from t1 where b = 'test1';
+show status like "maria_pagecache_read%";
+
+flush tables; flush status;
+show status like "maria_pagecache_read%";
+set session preload_buffer_size=256*1024;
+select @@preload_buffer_size;
+load index into cache t1 ignore leaves;
+show status like "maria_pagecache_read%";
+select count(*) from t1 where b = 'test1';
+show status like "maria_pagecache_read%";
+
+flush tables; flush status; 
+show status like "maria_pagecache_read%";
+set session preload_buffer_size=1*1024;
+select @@preload_buffer_size;
+load index into cache t1, t2 key (primary,b) ignore leaves;
+show status like "maria_pagecache_read%";
+select count(*) from t1 where b = 'test1';
+select count(*) from t2 where b = 'test1';
+show status like "maria_pagecache_read%";
+
+flush tables; flush status;
+show status like "maria_pagecache_read%";
+load index into cache t3, t2 key (primary,b) ;
+show status like "maria_pagecache_read%";
+
+flush tables; flush status;
+show status like "maria_pagecache_read%";
+load index into cache t3 key (b), t2 key (c) ;
+show status like "maria_pagecache_read%";
+
+drop table t1, t2;
+
+# check that Maria didn't use key cache
+show status like "key_read%";
