@@ -391,8 +391,8 @@ int toku_pmainternal_smooth_region (TOKULOGGER logger, FILENUM filenum, DISKOFF 
     }
     n_present++; // Save one for the blank guy.
     {
-//#define USE_MALLOC_IN_SMOOTH
-#ifdef USE_MALLOC_IN_SMOOTH
+#define USE_MALLOC_IN_SMOOTH 1
+#if USE_MALLOC_IN_SMOOTH
 	struct kv_pair_tag *MALLOC_N(n_present, tmppairs);
 #else
 	struct kv_pair_tag tmppairs[n_present];
@@ -426,7 +426,7 @@ int toku_pmainternal_smooth_region (TOKULOGGER logger, FILENUM filenum, DISKOFF 
 
 	*new_idx = newidx;
     cleanup:
-#ifdef USE_MALLOC_IN_SMOOTH
+#if USE_MALLOC_IN_SMOOTH
 	toku_free(tmppairs);
 #endif
 	return 0;
