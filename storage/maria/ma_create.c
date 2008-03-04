@@ -75,7 +75,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
   DBUG_PRINT("enter", ("keys: %u  columns: %u  uniques: %u  flags: %u",
                       keys, columns, uniques, flags));
 
-  DBUG_ASSERT(maria_block_size && maria_block_size % IO_SIZE == 0);
+  DBUG_ASSERT(maria_block_size && maria_block_size % MARIA_MIN_KEY_BLOCK_LENGTH == 0);
   LINT_INIT(dfile);
   LINT_INIT(file);
 
