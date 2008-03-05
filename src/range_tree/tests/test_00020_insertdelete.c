@@ -28,7 +28,8 @@ int main(int argc, const char *argv[]) {
     range.right = (toku_point*)&nums[1];
     range.data = (DB_TXN*)&letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
-    u_int32_t num_in_range = toku_rt_get_size(tree);
+    u_int32_t num_in_range;
+    r = toku_rt_get_size(tree, &num_in_range); CKERR(r);
     assert(num_in_range == 1);
     r = toku_rt_delete(tree, &range);   CKERR(r);
 

@@ -1,0 +1,14 @@
+{
+ global:
+   toku_rt_get_allow_overlaps;
+   toku_rt_create; 
+   toku_rt_close;
+   toku_rt_find;
+   toku_rt_insert;
+   toku_rt_delete;
+   toku_rt_predecessor;
+   toku_rt_successor;
+   toku_rt_get_size;
+
+ local: *;
+};

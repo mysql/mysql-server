@@ -277,7 +277,8 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
     return 0;
 }
 
-u_int32_t toku_rt_get_size(toku_range_tree *rt) {
-    assert(rt);
-    return rt->numelements;
+int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size) {
+    if (!tree || !size)                                  return EINVAL;
+    *size = tree->numelements;
+    return 0;
 }
