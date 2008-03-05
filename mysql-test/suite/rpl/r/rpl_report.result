@@ -1,0 +1,27 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+select * from Information_schema.GLOBAL_VARIABLES where variable_name regexp 'report_\(host\|port\|user\|password\)';
+VARIABLE_NAME	VARIABLE_VALUE
+REPORT_HOST	127.0.0.1
+REPORT_PORT	9308
+REPORT_PASSWORD	my_password
+REPORT_USER	my_user
+show global variables like 'report_host';
+Variable_name	Value
+report_host	127.0.0.1
+show global variables like 'report_port';
+Variable_name	Value
+report_port	9308
+show global variables like 'report_user';
+Variable_name	Value
+report_user	my_user
+show global variables like 'report_password';
+Variable_name	Value
+report_password	my_password
+set @@global.report_host='my.new.address.net';
+ERROR HY000: Variable 'report_host' is a read only variable
+end of tests
