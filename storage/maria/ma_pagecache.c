@@ -3111,9 +3111,9 @@ uchar *pagecache_read(PAGECACHE *pagecache,
   int error= 0;
   enum pagecache_page_pin pin= lock_to_pin[test(buff==0)][lock];
   PAGECACHE_BLOCK_LINK *fake_link;
+  my_bool reg_request;
 #ifndef DBUG_OFF
   char llbuf[22];
-  my_bool reg_request;
   DBUG_ENTER("pagecache_read");
   DBUG_PRINT("enter", ("fd: %u  page: %s  buffer: 0x%lx level: %u  "
                        "t:%s  %s  %s",
@@ -3651,9 +3651,9 @@ my_bool pagecache_write_part(PAGECACHE *pagecache,
   PAGECACHE_BLOCK_LINK *fake_link;
   int error= 0;
   int need_lock_change= write_lock_change_table[lock].need_lock_change;
+  my_bool reg_request;
 #ifndef DBUG_OFF
   char llbuf[22];
-  my_bool reg_request;
   DBUG_ENTER("pagecache_write_part");
   DBUG_PRINT("enter", ("fd: %u  page: %s  level: %u  type: %s  lock: %s  "
                        "pin: %s   mode: %s  offset: %u  size %u",
