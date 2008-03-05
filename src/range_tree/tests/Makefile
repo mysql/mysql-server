@@ -6,28 +6,17 @@
 # For very verbose output do 
 #   make VERBOSE=2
 
-ifneq ($(OSX),)
-#Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
- LIBEXT=dylib
- VGRIND=
- CPPFLAGS = 
- SETENV=export DYLD_LIBRARY_PATH=.. ;
-else
- SETTOKUENV=
- UNSETTOKUENV=
- LIBEXT=so
- CPPFLAGS = -Wl,-rpath,.. 
+ifeq ($(OSX),)
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
 OPTFLAGS=-O0
 
-LIBNAME=librt.$(LIBEXT)
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
-CPPFLAGS += -L../ -I../ -I../../../newbrt -I../../../include -lpthread
+CPPFLAGS += -I../ -I../../../newbrt -I../../../include
 
 
 SRCS = $(wildcard *.c)
@@ -84,21 +73,22 @@ endif
 
 # The @ sign makes the make quiet.  If there is an error there is enough info to tell what test failed.
 %.linrun: %.lin
-	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 %.logrun: %.log
-	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 %.tlogrun: %.tlog
-	$(MAYBEATSIGN) $(SETENV) $(VGRIND) ./$< $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
-libs:
-	cd .. && make
+LINEAR_BINS = ../linear.o
+TLOG_BINS   = ../tlog.o
+LOG_BINS    = ../log.o
 
 %.lin: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.lin\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -o $@
-%.log: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_log    -o $@
+	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LINEAR_BINS)
 %.tlog: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -lrangetree_tlog   -o $@
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(TLOG_BINS)
+%.log: %.c ../rangetree.h test.h
+	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LOG_BINS)
 
 .PHONY: make_libs
 

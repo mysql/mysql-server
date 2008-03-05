@@ -7,23 +7,10 @@
 #   make VERBOSE=2
 
 OPTFLAGS = -O0
-ifneq ($(OSX),)
-#Note: OSX 10.4 needs DYLD_LIBRARY_PATH.  OSX 10.5 claims to support -rpath.
- LIBEXT=dylib
- VGRIND=
- #CPPFLAGS = -Wl,-rpath,..,-rpath,../../range_tree
- CPPFLAGS =
- #Leopard does not appear to support -rpath fully.
- SETENV=export DYLD_LIBRARY_PATH=..:../../range_tree ;
-else
- SETTOKUENV=
- UNSETTOKUENV=
- LIBEXT=so
- CPPFLAGS = -Wl,-rpath,..,-rpath,../../range_tree
+ifeq ($(OSX),)
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
-LIBNAME=librt.$(LIBEXT)
 ifeq ($(GCOV),GCOV)
  GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 else
@@ -33,7 +20,7 @@ CFLAGS = -W -Wall -Wextra -Werror $(OPTFLAGS) -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute 
 CPPFLAGS += -L../ -L../../range_tree 
-CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include -lpthread
+CPPFLAGS += -I. -I../ -I../../range_tree -I../../../newbrt -I../../../include
 
 
 SRCS = $(wildcard *.c)
@@ -100,12 +87,18 @@ endif
 libs:
 	cd .. && make
 
+RT_LINEAR_BINS = ../../range_tree/linear.o
+RT_TLOG_BINS   = ../../range_tree/tlog.o
+RT_LOG_BINS    = ../../range_tree/log.o
+LT_BINS        = ../locktree.o ../lth.o ../rth.o
+
+
 %.lin: %.c ../locktree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.lin\" -DTOKU_LT_LINEAR $(CPPFLAGS) $(CFLAGS) $< -lrangetree_linear -llocktree_linear -o $@
+	cc  -DDIR=\"dir.$<.lin\" -DTOKU_LT_LINEAR $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_BINS) $(RT_LINEAR_BINS)
 %.tlog: %.c ../locktree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_TLOG   $(CPPFLAGS) $(CFLAGS) $< -lrangetree_tlog   -llocktree_tlog   -o $@
+	cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_TLOG   $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_BINS) $(RT_TLOG_BINS)
 %.log: %.c ../locktree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_LOG    $(CPPFLAGS) $(CFLAGS) $< -lrangetree_log    -llocktree_log    -o $@
+	cc  -DDIR=\"dir.$<.log\" -DTOKU_LT_LOG    $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_BINS) $(RT_LOG_BINS)
 
 .PHONY: make_libs
 
