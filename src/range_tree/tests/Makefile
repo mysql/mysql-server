@@ -84,11 +84,11 @@ TLOG_BINS   = ../log_nooverlap.o
 LOG_BINS    = ../log.o
 
 %.lin: %.c ../rangetree.h test.h
-	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LINEAR_BINS)
+	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
 %.tlog: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(TLOG_BINS)
+	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS)
 %.log: %.c ../rangetree.h test.h
-	$(SETENV) cc  -DDIR=\"dir.$<.log\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LOG_BINS)
+	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
 .PHONY: make_libs
 

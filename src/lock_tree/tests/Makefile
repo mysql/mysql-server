@@ -102,14 +102,14 @@ LT_BINS        = ../lth.o ../rth.o
 LT_OVERLAP     = ../locktree_global_readset.o
 LT_NOOVERLAP   = ../locktree_no_global_readset.o
 LT_LINEAR      = $(LT_OVERLAP)   $(LT_BINS) $(RT_LINEAR_BINS)
-LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS)
-LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)
+LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS) -DTOKU_RT_NOOVERLAPS
+LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)    -DTOKU_RT_NOOVERLAPS
 LT_LOG         = $(LT_OVERLAP)   $(LT_BINS) $(RT_LOG_BINS)
 
 %.lin: %.c ../locktree.h test.h
 	cc  -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)
 %.tlin: %.c ../locktree.h test.h
-	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)
+	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR)
 %.tlog: %.c ../locktree.h test.h
 	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)
 %.log: %.c ../locktree.h test.h
