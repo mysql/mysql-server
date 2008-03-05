@@ -192,28 +192,6 @@ ut_dulint_sort(dulint* arr, dulint* aux_arr, ulint low, ulint high);
 /*===============================================================*/
 #endif /* notdefined */
 
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the least product of align_no which is >= n. align_no has to be a
-power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align(
-/*==========*/
-				/* out: rounded value */
-	ulint	 n,		/* in: number to be rounded */
-	ulint	 align_no);	/* in: align by this number */
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the biggest product of align_no which is <= n. align_no has to be a
-power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align_down(
-/*===============*/
-				/* out: rounded value */
-	ulint	 n,		/* in: number to be rounded */
-	ulint	 align_no);	/* in: align by this number */
 /*************************************************************
 The following function rounds up a pointer to the nearest aligned address. */
 UNIV_INLINE

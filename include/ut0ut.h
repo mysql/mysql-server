@@ -103,9 +103,14 @@ Determines if a number is zero or a power of two. */
 Calculates fast the remainder of n/m when m is a power of two. */
 #define ut_2pow_remainder(n, m) ((n) & ((m) - 1))
 /*****************************************************************
-Calculates n rounded down to the nearest multiple of m
-when m is a power of two. */
+Calculates the biggest multiple of m that is not bigger than n
+when m is a power of two.  In other words, rounds n down to m * k. */
 #define ut_2pow_round(n, m) ((n) & ~((m) - 1))
+#define ut_calc_align_down(n, m) ut_2pow_round(n, m)
+/************************************************************
+Calculates the smallest multiple of m that is not smaller than n
+when m is a power of two.  In other words, rounds n up to m * k. */
+#define ut_calc_align(n, m) (((n) + ((m) - 1)) & ~((m) - 1))
 /*****************************************************************
 Calculates fast the 2-logarithm of a number, rounded upward to an
 integer. */
