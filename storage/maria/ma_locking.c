@@ -488,10 +488,10 @@ int _ma_test_if_changed(register MARIA_HA *info)
 
 
 /*
-  Put a mark in the .MYI file that someone is updating the table
+  Put a mark in the .MAI file that someone is updating the table
 
   DOCUMENTATION
-  state.open_count in the .MYI file is used the following way:
+  state.open_count in the .MAI file is used the following way:
   - For the first change of the .MYI file in this process open_count is
     incremented by _ma_mark_file_changed(). (We have a write lock on the file
     when this happens)
@@ -504,7 +504,6 @@ int _ma_test_if_changed(register MARIA_HA *info)
 
   open_count is not maintained on disk for transactional or temporary tables.
 */
-
 
 int _ma_mark_file_changed(MARIA_HA *info)
 {
@@ -541,7 +540,10 @@ int _ma_mark_file_changed(MARIA_HA *info)
         !(share->state.changed & STATE_NOT_MOVABLE))
     {
       /* Lock table to current installation */
-      if (_ma_set_uuid(info, 0))
+      if (_ma_set_uuid(info, 0) ||
+          (share->state.create_rename_lsn == LSN_REPAIRED_BY_MARIA_CHK &&
+           _ma_update_state_lsns_sub(share, translog_get_horizon(),
+                                     TRUE, TRUE)))
         DBUG_RETURN(1);
       share->state.changed|= STATE_NOT_MOVABLE;
     }

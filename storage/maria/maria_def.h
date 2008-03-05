@@ -29,7 +29,7 @@
 #include "ma_control_file.h"
 
 /* For testing recovery */
-#ifndef DBUG_OFF
+#ifdef TO_BE_REMOVED
 #define IDENTICAL_PAGES_AFTER_RECOVERY 1
 #endif
 /* Do extra sanity checking */

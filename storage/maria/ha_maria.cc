@@ -1494,7 +1494,6 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
   maria_extra(file, HA_EXTRA_PRELOAD_BUFFER_SIZE,
               (void*) &thd->variables.preload_buff_size);
 
-#ifdef NOT_YET
   int error;
 
   if ((error= maria_preload(file, map, table_list->ignore_leaves)))
@@ -1525,7 +1524,6 @@ int ha_maria::preload_keys(THD * thd, HA_CHECK_OPT *check_opt)
     _ma_check_print_error(&param, errmsg);
     DBUG_RETURN(HA_ADMIN_FAILED);
   }
-#endif
   DBUG_RETURN(HA_ADMIN_OK);
 }
 
@@ -2759,7 +2757,7 @@ static int ha_maria_init(void *p)
   res= maria_init() || ma_control_file_create_or_open() ||
     !init_pagecache(maria_pagecache,
                     (size_t) pagecache_buffer_size, pagecache_division_limit,
-                    pagecache_age_threshold, MARIA_KEY_BLOCK_LENGTH, 0) ||
+                    pagecache_age_threshold, maria_block_size, 0) ||
     !init_pagecache(maria_log_pagecache,
                     TRANSLOG_PAGECACHE_SIZE, 0, 0,
                     TRANSLOG_PAGE_SIZE, 0) ||

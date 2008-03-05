@@ -396,8 +396,12 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       goto err;
     }
 
+    /*
+      We can ignore testing uuid if STATE_NOT_MOVABLE is set, as in this
+      case the uuid will be set in _ma_mark_file_changed()
+    */
     if ((share->state.changed & STATE_NOT_MOVABLE) &&
-        share->now_transactional &&
+        share->base.born_transactional &&
         !(open_flags & HA_OPEN_IGNORE_MOVED_STATE) &&
         memcmp(share->base.uuid, maria_uuid, MY_UUID_SIZE))
     {
@@ -654,7 +658,8 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
           import into the server. It starts its existence (from the point of
           view of the server, including server's recovery) now.
         */
-        if ((open_flags & HA_OPEN_FROM_SQL_LAYER) || maria_in_recovery)
+        if (((open_flags & HA_OPEN_FROM_SQL_LAYER) &&
+             (share->state.changed & STATE_NOT_MOVABLE)) || maria_in_recovery)
           _ma_update_state_lsns_sub(share, translog_get_horizon(),
                                     TRUE, TRUE);
       }
