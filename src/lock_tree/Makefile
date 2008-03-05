@@ -1,9 +1,9 @@
 # On OSX do:
 #   make OSX=OSX
 
-LIBNAME_LINEAR  = liblocktree_linear
-LIBNAME_TLOG    = liblocktree_tlog
-LIBNAME_LOG     = liblocktree_log
+LIBNAME_LINEAR = liblocktree_linear
+LIBNAME_TLOG   = liblocktree_tlog
+LIBNAME_LOG    = liblocktree_log
 
 OPTFLAGS = -O2
 
@@ -14,11 +14,11 @@ else
 endif
 
 VISIBILITY = -fvisibility=hidden
+EXPORTMAP = -Wl,--version-script=export.map
 
 CFLAGS = -W -Wall -Wextra -Werror -fPIC $(OPTFLAGS)  -g3 -ggdb3 $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Wconversion -Waggregate-return
 CFLAGS += -Wmissing-noreturn -Wmissing-format-attribute
-CFLAGS += $(VISIBILITY)
 CPPFLAGS = -I. -I.. -I../range_tree -I../../include -I../../newbrt -L../range_tree
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -28,8 +28,9 @@ LIBEXT=dylib
 SHARED=-dynamiclib
 CFLAGS+=-fno-common
 else
+CFLAGS += $(VISIBILITY)
 LIBEXT=so
-SHARED=-shared
+SHARED=-shared $(EXPORTMAP)
 endif
 
 .PHONY: install logformat range_tree

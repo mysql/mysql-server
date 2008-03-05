@@ -204,7 +204,17 @@ int toku_rt_predecessor(toku_range_tree* tree, toku_point* point,
  */
 int toku_rt_successor(toku_range_tree* tree, toku_point* point,
                       toku_range* succ, BOOL* wasfound);
-                      
-u_int32_t toku_rt_get_size(toku_range_tree *);                    
+
+/**
+   Finds the number of elements in the range tree.
+   \param tree          The range tree.
+   \param size          A buffer to return the the number of elements
+                        in the range tree.
+
+   \return              
+    - 0:                Success.
+    - EINVAL:           If any pointer argument is NULL.
+ */
+int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
                       
 #endif  /* #if !defined(TOKU_RANGE_TREE_H) */

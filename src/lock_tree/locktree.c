@@ -1226,13 +1226,19 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
     u_int32_t ranges = 0;
 
     if (selfread) {
-        ranges  = toku_rt_get_size(selfread);
+        u_int32_t size;
+        r = toku_rt_get_size(selfread, &size);
+        assert(r==0);
+        ranges += size;
         r = __toku_lt_free_contents(tree, selfread, tree->mainread);
         if (r!=0) return __toku_lt_panic(tree, r);
     }
 
     if (selfwrite) {
-        ranges += toku_rt_get_size(selfwrite);
+        u_int32_t size;
+        r = toku_rt_get_size(selfwrite, &size);
+        assert(r==0);
+        ranges += size;
         r = __toku_lt_border_delete(tree, selfwrite);
         if (r!=0) return __toku_lt_panic(tree, r);
         r = __toku_lt_free_contents(tree, selfwrite, NULL);
