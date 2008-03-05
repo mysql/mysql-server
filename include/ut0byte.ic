@@ -296,24 +296,6 @@ ut_uint64_align_up(
 	return((n + align_1) & ~align_1);
 }
 
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the least product of align_no which is >= n. align_no
-has to be a power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align(
-/*==========*/
-				/* out: rounded value */
-	ulint	 n,		/* in: number to be rounded */
-	ulint	 align_no)	/* in: align by this number */
-{
-	ut_ad(align_no > 0);
-	ut_ad(ut_is_2pow(align_no));
-
-	return((n + align_no - 1) & ~(align_no - 1));
-}
-
 /*************************************************************
 The following function rounds up a pointer to the nearest aligned address. */
 UNIV_INLINE
@@ -331,24 +313,6 @@ ut_align(
 	ut_ad(sizeof(void*) == sizeof(ulint));
 
 	return((void*)((((ulint)ptr) + align_no - 1) & ~(align_no - 1)));
-}
-
-/************************************************************
-The following function calculates the value of an integer n rounded
-to the biggest product of align_no which is <= n. align_no has to be a
-power of 2. */
-UNIV_INLINE
-ulint
-ut_calc_align_down(
-/*===============*/
-				/* out: rounded value */
-	ulint	 n,		 /* in: number to be rounded */
-	ulint	 align_no)	 /* in: align by this number */
-{
-	ut_ad(align_no > 0);
-	ut_ad(ut_is_2pow(align_no));
-
-	return(n & ~(align_no - 1));
 }
 
 /*************************************************************
