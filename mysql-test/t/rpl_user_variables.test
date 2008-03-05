@@ -337,6 +337,23 @@ select * from t1;
 connection master;
 drop table t1;
 
+#
+# Bug#33851: Passing UNSIGNED param to EXECUTE returns ERROR 1210
+#
+
+connection master;
+create table t1(a int);
+insert into t1 values (1),(2);
+prepare s1 from 'insert into t1 select a from t1 limit ?';
+set @x='1.1';
+execute s1 using @x;
+select * from t1;
+sync_slave_with_master;
+connection slave;
+select * from t1;
+connection master;
+drop table t1;
+
 --echo End of 5.0 tests.
 
 # This test uses a stored function that uses user-defined variables to return data
