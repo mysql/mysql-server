@@ -181,7 +181,7 @@ row_search_max_autoinc(
 					error code */
 	dict_index_t*	index,		/* in: index to search */
 	const char*	col_name,	/* in: autoinc column name */
-	ib_longlong*	value);		/* out: AUTOINC value read */
+	ib_ulonglong*	value);		/* out: AUTOINC value read */
 
 /* A structure for caching column values for prefetched rows */
 struct sel_buf_struct{
