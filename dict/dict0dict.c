@@ -4484,7 +4484,7 @@ dict_table_find_equivalent_index(
 		table, column_names, index->n_fields,
 		index, TRUE, FALSE);
 
-	mem_free(column_names);
+	mem_free((void*) column_names);
 
 	return(equiv_index);
 }
