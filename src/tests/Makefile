@@ -224,3 +224,8 @@ test_db_assoc3.bdbrun: test_db_assoc3.bdb
 
 dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
+
+# test on small stacks
+test_thread_stack.tdbrun: test_thread_stack.tdb
+	./test_thread_stack.tdb -a -thread_stack 16384
+	./test_thread_stack.tdb -a -thread_stack 16384 -resume
