@@ -46,26 +46,25 @@ void
 fsp_init(void);
 /*==========*/
 /**************************************************************************
-Gets the current free limit of a tablespace. The free limit means the
-place of the first page which has never been put to the the free list
-for allocation. The space above that address is initialized to zero.
-Sets also the global variable log_fsp_current_free_limit. */
+Gets the current free limit of the system tablespace.  The free limit
+means the place of the first page which has never been put to the the
+free list for allocation.  The space above that address is initialized
+to zero.  Sets also the global variable log_fsp_current_free_limit. */
 UNIV_INTERN
 ulint
-fsp_header_get_free_limit(
-/*======================*/
-			/* out: free limit in megabytes */
-	ulint	space);	/* in: space id, must be 0 */
-/**************************************************************************
-Gets the size of the tablespace from the tablespace header. If we do not
-have an auto-extending data file, this should be equal to the size of the
-data files. If there is an auto-extending data file, this can be smaller. */
-UNIV_INTERN
-ulint
-fsp_header_get_tablespace_size(
+fsp_header_get_free_limit(void);
 /*===========================*/
+			/* out: free limit in megabytes */
+/**************************************************************************
+Gets the size of the system tablespace from the tablespace header.  If
+we do not have an auto-extending data file, this should be equal to
+the size of the data files.  If there is an auto-extending data file,
+this can be smaller. */
+UNIV_INTERN
+ulint
+fsp_header_get_tablespace_size(void);
+/*================================*/
 			/* out: size in pages */
-	ulint	space);	/* in: space id, must be 0 */
 /**************************************************************************
 Reads the file space size stored in the header page. */
 UNIV_INTERN
