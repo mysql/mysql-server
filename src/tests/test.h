@@ -12,8 +12,6 @@
 #define DB_DELETE_ANY 0
 #endif
 
-typedef enum { FALSE = 0, TRUE = 1} BOOL;
-
 int verbose=0;
 
 #define CKERR(r) ({ if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0); })
@@ -72,3 +70,5 @@ int int_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
 
   return x - y;
 }
+
+typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
