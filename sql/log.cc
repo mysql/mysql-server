@@ -3413,35 +3413,6 @@ void THD::binlog_set_stmt_begin() {
   trx_data->before_stmt_pos= pos;
 }
 
-int THD::binlog_flush_transaction_cache()
-{
-  DBUG_ENTER("binlog_flush_transaction_cache");
-  binlog_trx_data *trx_data= (binlog_trx_data*)
-    thd_get_ha_data(this, binlog_hton);
-  DBUG_PRINT("enter", ("trx_data=0x%lu", (ulong) trx_data));
-  if (trx_data)
-    DBUG_PRINT("enter", ("trx_data->before_stmt_pos=%lu",
-                         (ulong) trx_data->before_stmt_pos));
-
-  /*
-    Write the transaction cache to the binary log.  We don't flush and
-    sync the log file since we don't know if more will be written to
-    it. If the caller want the log file sync:ed, the caller has to do
-    it.
-
-    The transaction data is only reset upon a successful write of the
-    cache to the binary log.
-  */
-
-  if (trx_data && likely(mysql_bin_log.is_open())) {
-    if (int error= mysql_bin_log.write_cache(&trx_data->trans_log, true, true))
-      DBUG_RETURN(error);
-    trx_data->reset();
-  }
-
-  DBUG_RETURN(0);
-}
-
 
 /*
   Write a table map to the binary log.

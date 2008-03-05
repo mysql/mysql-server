@@ -1271,7 +1271,6 @@ public:
     Public interface to write RBR events to the binlog
   */
   void binlog_start_trans_and_stmt();
-  int binlog_flush_transaction_cache();
   void binlog_set_stmt_begin();
   int binlog_write_table_map(TABLE *table, bool is_transactional);
   int binlog_write_row(TABLE* table, bool is_transactional,
