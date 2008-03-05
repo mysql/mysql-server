@@ -30,13 +30,13 @@ the accessed pages when deciding whether to read-ahead */
 
 /* There must be at least this many pages in buf_pool in the area to start
 a random read-ahead */
-#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + BUF_READ_AHEAD_RANDOM_AREA / 8)
+#define BUF_READ_AHEAD_RANDOM_THRESHOLD	(5 + buf_read_ahead_random_area / 8)
 
 /* The linear read-ahead area size */
 #define	BUF_READ_AHEAD_LINEAR_AREA	BUF_READ_AHEAD_AREA
 
 /* The linear read-ahead threshold */
-#define BUF_READ_AHEAD_LINEAR_THRESHOLD	(3 * BUF_READ_AHEAD_LINEAR_AREA / 8)
+#define LINEAR_AREA_THRESHOLD_COEF	5 / 8
 
 /* If there are buf_pool->curr_size per the number below pending reads, then
 read-ahead is not done: this is to prevent flooding the buffer pool with
@@ -185,6 +185,7 @@ buf_read_ahead_random(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
+	ulint		buf_read_ahead_random_area;
 
 	if (srv_startup_is_before_trx_rollback_phase) {
 		/* No read-ahead to avoid thread deadlocks */
@@ -207,10 +208,12 @@ buf_read_ahead_random(
 
 	tablespace_version = fil_space_get_version(space);
 
-	low  = (offset / BUF_READ_AHEAD_RANDOM_AREA)
-		* BUF_READ_AHEAD_RANDOM_AREA;
-	high = (offset / BUF_READ_AHEAD_RANDOM_AREA + 1)
-		* BUF_READ_AHEAD_RANDOM_AREA;
+	buf_read_ahead_random_area = BUF_READ_AHEAD_RANDOM_AREA;
+
+	low  = (offset / buf_read_ahead_random_area)
+		* buf_read_ahead_random_area;
+	high = (offset / buf_read_ahead_random_area + 1)
+		* buf_read_ahead_random_area;
 	if (high > fil_space_get_size(space)) {
 
 		high = fil_space_get_size(space);
@@ -406,16 +409,18 @@ buf_read_ahead_linear(
 	ulint		low, high;
 	ulint		err;
 	ulint		i;
+	const ulint	buf_read_ahead_linear_area
+		= BUF_READ_AHEAD_LINEAR_AREA;
 
 	if (UNIV_UNLIKELY(srv_startup_is_before_trx_rollback_phase)) {
 		/* No read-ahead to avoid thread deadlocks */
 		return(0);
 	}
 
-	low  = (offset / BUF_READ_AHEAD_LINEAR_AREA)
-		* BUF_READ_AHEAD_LINEAR_AREA;
-	high = (offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-		* BUF_READ_AHEAD_LINEAR_AREA;
+	low  = (offset / buf_read_ahead_linear_area)
+		* buf_read_ahead_linear_area;
+	high = (offset / buf_read_ahead_linear_area + 1)
+		* buf_read_ahead_linear_area;
 
 	if ((offset != low) && (offset != high - 1)) {
 		/* This is not a border page of the area: return */
@@ -486,8 +491,8 @@ buf_read_ahead_linear(
 		}
 	}
 
-	if (fail_count > BUF_READ_AHEAD_LINEAR_AREA
-	    - BUF_READ_AHEAD_LINEAR_THRESHOLD) {
+	if (fail_count > buf_read_ahead_linear_area
+	    * LINEAR_AREA_THRESHOLD_COEF) {
 		/* Too many failures: return */
 
 		buf_pool_mutex_exit();
@@ -544,10 +549,10 @@ buf_read_ahead_linear(
 		return(0);
 	}
 
-	low  = (new_offset / BUF_READ_AHEAD_LINEAR_AREA)
-		* BUF_READ_AHEAD_LINEAR_AREA;
-	high = (new_offset / BUF_READ_AHEAD_LINEAR_AREA + 1)
-		* BUF_READ_AHEAD_LINEAR_AREA;
+	low  = (new_offset / buf_read_ahead_linear_area)
+		* buf_read_ahead_linear_area;
+	high = (new_offset / buf_read_ahead_linear_area + 1)
+		* buf_read_ahead_linear_area;
 
 	if ((new_offset != low) && (new_offset != high - 1)) {
 		/* This is not a border page of the area: return */
