@@ -1533,6 +1533,7 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
     DBT* put_data = data;
     DBT* get_key  = key;
     DBT* get_data = data;
+    DB_TXN* txn = dbc->i->txn;
     
     //Cannot c_put in a secondary index.
     if (db->i->primary!=0) return EINVAL;
@@ -1564,6 +1565,15 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
             if (r!=0) {r = EINVAL; goto cleanup;}
         }
         //Remove old pair.
+        if (db->i->lt) {
+            /* Acquire all write locks before  */
+            r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
+                                           &key_local, &data_local);
+            if (r!=0) goto cleanup;
+            r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
+                                           &key_local, data);
+            if (r!=0) goto cleanup;
+        }
         r = toku_c_del(dbc, 0);
         if (r!=0) goto cleanup;
         get_key = put_key  = &key_local;
