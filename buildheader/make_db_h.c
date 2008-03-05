@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <string.h>
 
+#define VISIBLE "__attribute__((__visibility__(\"default\")))"
 
 void print_dbtype(void) {
     /* DBTYPE is mentioned by db_open.html */
@@ -297,11 +298,11 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     print_struct("dbt", 0, dbt_fields32, dbt_fields64, sizeof(dbt_fields32)/sizeof(dbt_fields32[0]));
 
     printf("#ifdef _TOKUDB_WRAP_H\n#define txn_begin txn_begin_tokudb\n#endif\n");
-    printf("int db_env_create(DB_ENV **, u_int32_t);\n");
-    printf("int db_create(DB **, DB_ENV *, u_int32_t);\n");
-    printf("char *db_strerror(int);\n");
-    printf("const char *db_version(int*,int *,int *);\n");
-    printf("int log_compare (const DB_LSN*, const DB_LSN *);\n");
+    printf("int db_env_create(DB_ENV **, u_int32_t) %s;\n", VISIBLE);
+    printf("int db_create(DB **, DB_ENV *, u_int32_t) %s;\n", VISIBLE);
+    printf("char *db_strerror(int) %s;\n", VISIBLE);
+    printf("const char *db_version(int*,int *,int *) %s;\n", VISIBLE);
+    printf("int log_compare (const DB_LSN*, const DB_LSN *) %s;\n", VISIBLE);
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;

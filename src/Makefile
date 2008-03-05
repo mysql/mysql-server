@@ -3,9 +3,12 @@
 
 LIBNAME=libtokudb
 
+EXPORTMAP = -Wl,--version-script=export.map
+VISIBILITY = -fvisibility=hidden
+
 OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS = -W -Wall -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS) $(VISIBILITY)
 CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
@@ -18,6 +21,7 @@ CFLAGS+=-fno-common
 else
 LIBEXT=so
 SHARED=-shared
+SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 

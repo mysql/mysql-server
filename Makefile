@@ -1,5 +1,5 @@
 TAGS: */*.c */*.h
-	etags */*.c */*.h
+	etags */*.c */*.h src/lock_tree/*.c src/lock_tree/*.h src/range_tree/*.c src/range_tree/*.h
 
 SRCDIRS = newbrt src src/tests src/range_tree src/range_tree/tests src/lock_tree src/lock_tree/tests cxx cxx/tests \
 		utils db-benchmark-test db-benchmark-test-cxx
