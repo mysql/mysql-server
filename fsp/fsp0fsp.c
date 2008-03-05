@@ -1048,37 +1048,29 @@ fsp_header_inc_size(
 }
 
 /**************************************************************************
-Gets the current free limit of a tablespace. The free limit means the
-place of the first page which has never been put to the the free list
-for allocation. The space above that address is initialized to zero.
-Sets also the global variable log_fsp_current_free_limit. */
+Gets the current free limit of the system tablespace.  The free limit
+means the place of the first page which has never been put to the the
+free list for allocation.  The space above that address is initialized
+to zero.  Sets also the global variable log_fsp_current_free_limit. */
 UNIV_INTERN
 ulint
-fsp_header_get_free_limit(
-/*======================*/
+fsp_header_get_free_limit(void)
+/*===========================*/
 			/* out: free limit in megabytes */
-	ulint	space)	/* in: space id, must be 0 */
 {
 	fsp_header_t*	header;
 	ulint		limit;
-	ulint		zip_size;
 	mtr_t		mtr;
-
-	ut_a(space == 0); /* We have only one log_fsp_current_... variable */
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(0, NULL), &mtr);
 
-	header = fsp_get_space_header(space, zip_size, &mtr);
+	header = fsp_get_space_header(0, 0, &mtr);
 
 	limit = mtr_read_ulint(header + FSP_FREE_LIMIT, MLOG_4BYTES, &mtr);
 
-	if (!zip_size) {
-		limit /= ((1024 * 1024) / UNIV_PAGE_SIZE);
-	} else {
-		limit /= ((1024 * 1024) / zip_size);
-	}
+	limit /= ((1024 * 1024) / UNIV_PAGE_SIZE);
 
 	log_fsp_current_free_limit_set_and_checkpoint(limit);
 
@@ -1088,28 +1080,25 @@ fsp_header_get_free_limit(
 }
 
 /**************************************************************************
-Gets the size of the tablespace from the tablespace header. If we do not
-have an auto-extending data file, this should be equal to the size of the
-data files. If there is an auto-extending data file, this can be smaller. */
+Gets the size of the system tablespace from the tablespace header.  If
+we do not have an auto-extending data file, this should be equal to
+the size of the data files.  If there is an auto-extending data file,
+this can be smaller. */
 UNIV_INTERN
 ulint
-fsp_header_get_tablespace_size(
-/*===========================*/
+fsp_header_get_tablespace_size(void)
+/*================================*/
 			/* out: size in pages */
-	ulint	space)	/* in: space id, must be 0 */
 {
 	fsp_header_t*	header;
 	ulint		size;
-	ulint		zip_size;
 	mtr_t		mtr;
-
-	ut_a(space == 0); /* We have only one log_fsp_current_... variable */
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(0, NULL), &mtr);
 
-	header = fsp_get_space_header(space, zip_size, &mtr);
+	header = fsp_get_space_header(0, 0, &mtr);
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, &mtr);
 

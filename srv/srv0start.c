@@ -1436,7 +1436,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
-		fsp_header_get_free_limit(0);
+		fsp_header_get_free_limit();
 
 		recv_recovery_from_archive_finish();
 #endif /* UNIV_LOG_ARCHIVE */
@@ -1491,7 +1491,7 @@ innobase_start_or_create_for_mysql(void)
 
 		/* Initialize the fsp free limit global variable in the log
 		system */
-		fsp_header_get_free_limit(0);
+		fsp_header_get_free_limit();
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */
@@ -1576,7 +1576,7 @@ innobase_start_or_create_for_mysql(void)
 		sum_of_data_file_sizes += srv_data_file_sizes[i];
 	}
 
-	tablespace_size_in_header = fsp_header_get_tablespace_size(0);
+	tablespace_size_in_header = fsp_header_get_tablespace_size();
 
 	if (!srv_auto_extend_last_data_file
 	    && sum_of_data_file_sizes != tablespace_size_in_header) {
