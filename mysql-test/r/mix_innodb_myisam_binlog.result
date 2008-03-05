@@ -447,7 +447,7 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 1
 show master status /* the offset must denote there is the query */;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
-master-bin.000001	369		
+master-bin.000001	230		
 select count(*) from t1 /* must be 4 */;
 count(*)
 4
