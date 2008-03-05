@@ -1,0 +1,11 @@
+{
+ global:
+   db_create;
+   db_env_create; 
+   db_strerror;
+   db_version;
+   log_compare;
+   
+ local: *;
+};
+
