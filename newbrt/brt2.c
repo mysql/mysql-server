@@ -24,6 +24,10 @@
 #include "key.h"
 #include "log_header.h"
 
+typedef struct weakstrong { char ignore; } *WS;
+#define WEAK ((WS)1)
+#define STRONG ((WS)0)
+
 extern long long n_items_malloced;
 
 static int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKULOGGER);
@@ -458,20 +462,25 @@ static unsigned int brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     return node->u.n.n_children-1;
 }
 
+static int brtnode_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p);
+static int maybe_fixup_fat_child(BRT t, BRTNODE node, int childnum, BRTNODE child, TOKULOGGER logger); // If the node is too big then deal with it.  Unpin the child (or children if it splits)  NODE may be too big at the end
+
+
 // There are two kinds of puts:  
 //  A "weak" put that is guaranteed to trigger no I/O, and will not leaf the node overfull.
 //    A weak put may not actually perform the put, however (in which case it returns EAGAIN instead of 0)
 //  A "strong" put that is guaranteed to do the put.  However, it may trigger I/O and the resulting node may be too big.
 
-static int brt_leaf_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+static int brt_leaf_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
     switch (cmd->type) {
     case BRT_INSERT: {
-        int r = toku_pma_weak_insert_or_replace(node->u.l.buffer,
-						cmd->u.id.key, cmd->u.id.val,
-						logger, cmd->xid,
-						filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint,
-						&node->log_lsn, &node->u.l.n_bytes_in_buffer);
+        int r = toku_pma_insert_or_replace_ws(node->u.l.buffer,
+					      cmd->u.id.key, cmd->u.id.val,
+					      logger, cmd->xid,
+					      filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint,
+					      &node->log_lsn, &node->u.l.n_bytes_in_buffer,
+					      weak_p==WEAK);
 	if (r==EAGAIN) return EAGAIN;
 	assert(r==0);
 	node->dirty=1;
@@ -530,36 +539,44 @@ static int brt_leaf_strong_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER log
     return EINVAL; //  if none of the cases match, then the command is messed up.
 }
 
-static int brtnode_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger);
-
-// Put an command in a particular child's fifo without doing I/O or overfilling the child.
-// If the child is in main memory and we can d o a weak put on the child, then push into the child.
-// Otherwise we return EAGAIN.
-static int brt_nonleaf_weak_put_cmd_to_child (BRT t, BRTNODE node, int childnum, BRT_CMD cmd, TOKULOGGER logger) {
+// Put an command in a particular child's fifo.
+// If weak_p then do it without doing I/O or overfilling the child.
+//   If the child is in main memory and we can do a weak put on the child, then push into the child.
+//   Otherwise we return EAGAIN.
+// If not weak_p then we are willing to overfill the child.
+static int brt_nonleaf_put_cmd_to_child (BRT t, BRTNODE node, int childnum, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
+    int r;
 
     if (toku_fifo_n_entries(BNC_BUFFER(node,childnum))==0) {
 	void *child_v;
-	int r = toku_cachetable_maybe_get_and_pin(t->cf, BNC_DISKOFF(node, childnum), &child_v);
+	r = toku_cachetable_maybe_get_and_pin(t->cf, BNC_DISKOFF(node, childnum), &child_v);
 	if (r==0) {
 	    BRTNODE child=child_v;
-	    r = brtnode_weak_put(t, child, cmd, logger);
-	    int r2 = unpin_brtnode(t, child);
-	    if (r==EAGAIN || r==0) return r2;
-	    else return r;
+	    r = brtnode_put(t, child, cmd, logger, weak_p);
+	    if (r==EAGAIN) {
+		r = unpin_brtnode(t, child);
+		if (r!=0) return r; // node is still OK
+	    } else if (r==0) {
+		return maybe_fixup_fat_child(t, node, childnum, child, logger); // If the node is too big then deal with it.  Unpin the child.  NODE may be too big
+	    } else {
+		unpin_brtnode(t, child);
+		return r; // node is still OK
+	    }
 	}
     }
-    // The FIFO is nonempty or the child is not in main memory.  Try to put it in the fifo.
+    // For some reason we didn't put it into the child, so we must put it in the fifo.
     int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
     if (diff+toku_serialize_brtnode_size(node)>node->nodesize) return EAGAIN; // And it doesn't fit here.
-    int r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node,childnum), cmd);
+    r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node,childnum), cmd);
+    if (r!=0) return r;
 
     node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmdstruct(cmd);
     node->u.n.n_bytes_in_buffers += diff;
     BNC_NBYTESINBUF(node, childnum) += diff;
     node->dirty = 1;
-    return r;
+    return 0; // node may be too big
 }
 
 static void determine_which_children_to_push_delete (BRT t, BRTNODE node, BRT_CMD cmd, int *n_children_to_push, int *children_to_push) {
@@ -587,39 +604,46 @@ static void determine_which_children_to_push_delete (BRT t, BRTNODE node, BRT_CM
 }
 
 // Put the cmd into all the subtrees that it belong in.  (Deletes can end up in several subtrees.)
-// Don't do any I/O and the node will not be overfull.
-// To guarantee that no I/O will occur, we must make sure we can insert everything before inserting anything.
-static int brt_nonleaf_weak_put_delete (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+// If weak_p then
+//   Don't do any I/O and the node will not be overfull.
+//   To guarantee that no I/O will occur, we must make sure we can insert everything before inserting anything.
+// else put it regardless, possibly overflowing the node.
+static int brt_nonleaf_put_delete (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
     int singlediff = cmd->u.id.key->size + cmd->u.id.val->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
     int n_children_to_push = 0;
     int children_to_push[node->u.n.n_children];
     determine_which_children_to_push_delete(t, node, cmd, &n_children_to_push, children_to_push);
     int totaldiff = singlediff * n_children_to_push;
-    if (totaldiff + toku_serialize_brtnode_size(node) > node->nodesize) return EAGAIN;
+    if (weak_p && (totaldiff + toku_serialize_brtnode_size(node) > node->nodesize)) return EAGAIN;
     // Now we know it will fit, so do all the weak pushes.  We are being a little bit conservative,
     // since a soft push might succeed, in getting data to a child without using up the local storage.
     int i;
     for (i=0; i<n_children_to_push; i++) {
-	int r=brt_nonleaf_weak_put_cmd_to_child(t, node, children_to_push[i], cmd, logger);
-	assert(r!=EAGAIN);
-	if (r!=0) return r;
+	int r=brt_nonleaf_put_cmd_to_child(t, node, children_to_push[i], cmd, logger, WEAK);
+	if (r==EAGAIN) {
+	    r = toku_fifo_enq_cmdstruct(BNC_BUFFER(node, children_to_push[i]), cmd);
+	    if (r!=0) return r;
+	} else if (r!=0) return r;
     }
+    // We did we weak pushes to the children, but if that didn't work we put it in the buffer.  The node could be overfull now.
     return 0;
 }
 
-static int brt_nonleaf_weak_put_insert (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
-    return brt_nonleaf_weak_put_cmd_to_child(t, node,
-					     brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t),
-					     cmd, logger);
+// a DELETE could be replicating in a dupsort database.  Everything else is non replicating.
+static int brt_nonleaf_put_nonreplicating_cmd (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
+    return brt_nonleaf_put_cmd_to_child(t, node,
+					brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t),
+					cmd, logger,
+					weak_p);
 }
 
-// Put the cmd into the node.  Possibly results in the node being overfull.
+// Put the cmd into the node.  Possibly results in the node being overfull.  (But not if weak_p is set, in which case EAGAIN is returned instead)
 // The command could get pushed into the appropriate child if the child is in main memory and has space to hold the command.
-static int brt_nonleaf_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+static int brt_nonleaf_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
     if (cmd->type == BRT_INSERT || cmd->type == BRT_DELETE_BOTH) {
-        return brt_nonleaf_weak_put_insert(t, node, cmd, logger);
+        return brt_nonleaf_put_nonreplicating_cmd(t, node, cmd, logger, weak_p);
     } else if (cmd->type == BRT_DELETE) {
-        return brt_nonleaf_weak_put_delete(t, node, cmd, logger);
+        return brt_nonleaf_put_delete(t, node, cmd, logger, weak_p);
     } else
         return EINVAL;
 }
@@ -629,32 +653,11 @@ static int brt_nonleaf_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER lo
 // The node could end up overfull (but the children cannot get too big)
 // However, if you precalculate that the node is big enough, then the node will not get too big.
 //  (This implies that none of the children will overflow since we precalculate before calling this function on a child.)
-static int brtnode_weak_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
+static int brtnode_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p) {
     if (node->height==0) {
-	return brt_leaf_weak_put(t, node, cmd, logger);
+	return brt_leaf_put(t, node, cmd, logger, weak_p);
     } else {
-	return brt_nonleaf_weak_put(t, node, cmd, logger);
-    }
-}
-
-// To avoid too much cascading I/O, we do the following:
-//   a) Do a weak push.  If that succeeds, we are done, so quit.
-//   b) Put the cmd into the appropriate buffer.  Presumably now the buffer is overfull.
-//   c) Find the heaviest child.
-//   d) Weak push to that child until we get an EAGAIN
-//   e) Then do a strong push to that child, which will cause some I/O or overflowing
-//   f) Do weak pushes to the child
-//   g) Check to see if the child must be split, and split if needed
-//   h) Do weak pushes to the two new children.
-static int brtnode_nonleaf_strong_put  (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
-}
-
-// For the strong command, the node can become overfull.
-static int brtnode_strong_put  (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger) {
-    if (node->height==0) {
-	return brt_leaf_strong_put(t, node, cmd, logger);
-    } else {
-	return brt_nonleaf_strong_put(t, node, cmd, logger);
+	return brt_nonleaf_put(t, node, cmd, logger, weak_p);
     }
 }
 
@@ -1173,7 +1176,7 @@ static int brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
     }
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
-    if ((r = brtnode_put_cmd_no_io(brt, node, cmd, logger))) goto died1;     // put stuff in, possibly causing the buffers to get too big
+    if ((r = brtnode_put(brt, node, cmd, logger, STRONG))) goto died1;     // put stuff in, possibly causing the buffers to get too big
     if ((r = push_down_if_buffers_too_full(brt, node, logger))) goto died1;  // if the buffers are too big, push stuff down
     if ((r = maybe_split_root(brt, node, rootp, logger))) goto died1;        // now the node might have to split (leaf nodes can't push down, and internal nodes have too much fanout)   This will change node.
     // Now the node is OK, 
