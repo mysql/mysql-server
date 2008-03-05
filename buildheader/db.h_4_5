@@ -272,11 +272,11 @@ struct __toku_dbt {
 #ifdef _TOKUDB_WRAP_H
 #define txn_begin txn_begin_tokudb
 #endif
-int db_env_create(DB_ENV **, u_int32_t);
-int db_create(DB **, DB_ENV *, u_int32_t);
-char *db_strerror(int);
-const char *db_version(int*,int *,int *);
-int log_compare (const DB_LSN*, const DB_LSN *);
+int db_env_create(DB_ENV **, u_int32_t) __attribute__((__visibility__("default")));
+int db_create(DB **, DB_ENV *, u_int32_t) __attribute__((__visibility__("default")));
+char *db_strerror(int) __attribute__((__visibility__("default")));
+const char *db_version(int*,int *,int *) __attribute__((__visibility__("default")));
+int log_compare (const DB_LSN*, const DB_LSN *) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif
