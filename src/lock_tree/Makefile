@@ -23,23 +23,38 @@ ifneq ($(OSX),)
 CFLAGS+=-fno-common
 endif
 
-BINS=locktree.o rth.o lth.o
+LT_OVERLAP     = locktree_global_readset.o
+LT_NOOVERLAP   = locktree_no_global_readset.o
+LT_LINEAR      = $(LT_OVERLAP)
+LT_TLINEAR     = $(LT_NOOVERLAP)
+LT_TLOG        = $(LT_NOOVERLAP)
+LT_LOG         = $(LT_OVERLAP)
+
+LT_BINS=$(LT_OVERLAP) $(LT_NOOVERLAP) locktree.o
+BINS=rth.o lth.o
 
 .PHONY: install logformat range_tree
-install: range_tree $(BINS)
+install: range_tree $(BINS) $(LT_BINS)
 
 range_tree:
 	cd ../range_tree && make
 
 clean:
 	cd ../range_tree && make clean
-	rm -rf *.o
+	rm -rf $(BINS) $(LT_BINS)
 	rm -rf *.gcno *.gcda *.gcov
 	cd tests && make clean
 
 BINS = locktree.o rth.o lth.o
 
-locktree.o: locktree.c locktree.h
+locktree.o: $(LT_LINEAR)
+	cp $< $@
+
+locktree_global_readset.o: locktree.c locktree.h
+	cc  $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+
+locktree_no_global_readset.o: locktree.c locktree.h
+	cc  $(CFLAGS) $(CPPFLAGS) $(CFLAGS) -c $< -o $@ -DTOKU_RT_NOOVERLAPS
 
 rth.o: rth.c rth.h
 

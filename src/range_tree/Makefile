@@ -23,18 +23,17 @@ CFLAGS+=-fno-common
 endif
 
 .PHONY: install logformat
-install: linear.o
+install: linear.o rangetree.o #log_nooverlap.o log.o 
 
 clean:
 	rm -rf *.o *.gcno *.gcda *.gcov
 	cd tests && make clean
 
+rangetree.o: linear.o
+	cp $< $@
 
 linear.o: linear.c rangetree.h
 
 log.o: log.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-tlog.o: tlog.c rangetree.h
-	gcc $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
+log_nooverlap.o: log_nooverlap.c rangetree.h

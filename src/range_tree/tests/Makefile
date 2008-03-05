@@ -80,7 +80,7 @@ endif
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
 LINEAR_BINS = ../linear.o
-TLOG_BINS   = ../tlog.o
+TLOG_BINS   = ../log_nooverlap.o
 LOG_BINS    = ../log.o
 
 %.lin: %.c ../rangetree.h test.h
