@@ -2779,6 +2779,10 @@ table_error:
 }
 
 
+/**
+  @retval       0  success
+  @retval      -1  error
+*/
 static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
 			      TABLE *table, const LEX_USER &combo,
 			      const char *db, const char *routine_name,
@@ -2800,14 +2804,11 @@ static int replace_routine_table(THD *thd, GRANT_NAME *grant_name,
           thd->security_ctx->host_or_ip, NullS);
 
   /*
-    The following should always succeed as new users are created before
-    this function is called!
+    New users are created before this function is called.
+
+    There may be some cases where a routine's definer is removed but the
+    routine remains.
   */
-  if (!find_acl_user(combo.host.str, combo.user.str, FALSE))
-  {
-    my_error(ER_PASSWORD_NO_MATCH,MYF(0));
-    DBUG_RETURN(-1);
-  }
 
   table->use_all_columns();
   restore_record(table, s->default_values);		// Get empty record
@@ -3321,7 +3322,8 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
     }
 
     if (replace_routine_table(thd, grant_name, tables[1].table, *Str,
-			   db_name, table_name, is_proc, rights, revoke_grant))
+                              db_name, table_name, is_proc, rights, 
+                              revoke_grant) != 0)
     {
       result= TRUE;
       continue;
@@ -5949,11 +5951,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 	if (!strcmp(lex_user->user.str,user) &&
             !strcmp(lex_user->host.str, host))
 	{
-	  if (!replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
+	  if (replace_routine_table(thd,grant_proc,tables[4].table,*lex_user,
 				  grant_proc->db,
 				  grant_proc->tname,
                                   is_proc,
-				  ~(ulong)0, 1))
+				  ~(ulong)0, 1) == 0)
 	  {
 	    revoked= 1;
 	    continue;
@@ -5979,17 +5981,73 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
 }
 
 
-/*
-  Revoke privileges for all users on a stored procedure
 
-  SYNOPSIS
-    sp_revoke_privileges()
+
+/**
+  If the defining user for a routine does not exist, then the ACL lookup
+  code should raise two errors which we should intercept.  We convert the more
+  descriptive error into a warning, and consume the other.
+
+  If any other errors are raised, then we set a flag that should indicate
+  that there was some failure we should complain at a higher level.
+*/
+class Silence_routine_definer_errors : public Internal_error_handler
+{
+public:
+  Silence_routine_definer_errors()
+    : is_grave(FALSE)
+  {}
+
+  virtual ~Silence_routine_definer_errors()
+  {}
+
+  virtual bool handle_error(uint sql_errno, const char *message,
+                            MYSQL_ERROR::enum_warning_level level,
+                            THD *thd);
+
+  bool has_errors() { return is_grave; }
+
+private:
+  bool is_grave;
+};
+
+bool
+Silence_routine_definer_errors::handle_error(uint sql_errno,
+                                       const char *message,
+                                       MYSQL_ERROR::enum_warning_level level,
+                                       THD *thd)
+{
+  if (level == MYSQL_ERROR::WARN_LEVEL_ERROR)
+  {
+    switch (sql_errno)
+    {
+      case ER_NONEXISTING_PROC_GRANT:
+        /* Convert the error into a warning. */
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, sql_errno, message);
+        return TRUE;
+      default:
+        is_grave= TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Revoke privileges for all users on a stored procedure.  Use an error handler
+  that converts errors about missing grants into warnings.
+
+  @param
     thd                         The current thread.
+  @param
     db				DB of the stored procedure
+  @param
     name			Name of the stored procedure
 
-  RETURN
+  @retval
     0           OK.
+  @retval
     < 0         Error. Error message not yet sent.
 */
 
@@ -6000,10 +6058,14 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   int result;
   TABLE_LIST tables[GRANT_TABLES];
   HASH *hash= is_proc ? &proc_priv_hash : &func_priv_hash;
+  Silence_routine_definer_errors error_handler;
   DBUG_ENTER("sp_revoke_privileges");
 
   if ((result= open_grant_tables(thd, tables)))
     DBUG_RETURN(result != 1);
+
+  /* Be sure to pop this before exiting this scope! */
+  thd->push_internal_handler(&error_handler);
 
   rw_wrlock(&LOCK_grant);
   VOID(pthread_mutex_lock(&acl_cache->lock));
@@ -6031,14 +6093,14 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
 	  grant_proc->host.hostname : (char*)"";
 	lex_user.host.length= grant_proc->host.hostname ?
 	  strlen(grant_proc->host.hostname) : 0;
-	if (!replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
-				   grant_proc->db, grant_proc->tname,
-                                   is_proc, ~(ulong)0, 1))
+
+	if (replace_routine_table(thd,grant_proc,tables[4].table,lex_user,
+				  grant_proc->db, grant_proc->tname,
+                                  is_proc, ~(ulong)0, 1) == 0)
 	{
 	  revoked= 1;
 	  continue;
 	}
-	result= -1;	// Something went wrong
       }
       counter++;
     }
@@ -6048,10 +6110,9 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
   rw_unlock(&LOCK_grant);
   close_thread_tables(thd);
 
-  if (result)
-    my_message(ER_REVOKE_GRANTS, ER(ER_REVOKE_GRANTS), MYF(0));
+  thd->pop_internal_handler();
 
-  DBUG_RETURN(result);
+  DBUG_RETURN(error_handler.has_errors());
 }
 
 
