@@ -70,6 +70,7 @@ hash_get_mutex_no(
 	hash_table_t*	table,	/* in: hash table */
 	ulint		fold)	/* in: fold */
 {
+	ut_ad(ut_is_2pow(table->n_mutexes));
 	return(ut_2pow_remainder(fold, table->n_mutexes));
 }
 

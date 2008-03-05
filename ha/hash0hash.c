@@ -136,7 +136,8 @@ hash_create_mutexes_func(
 {
 	ulint	i;
 
-	ut_a(n_mutexes > 0 && ut_is_2pow(n_mutexes));
+	ut_a(n_mutexes > 0);
+	ut_a(ut_is_2pow(n_mutexes));
 
 	table->mutexes = mem_alloc(n_mutexes * sizeof(mutex_t));
 

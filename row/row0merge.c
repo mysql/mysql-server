@@ -1474,7 +1474,8 @@ row_merge_sort(
 		ulint	half;
 		ulint	error;
 
-		half = ut_2pow_round((file->offset + blksz - 1) / 2, blksz);
+		ut_ad(ut_is_2pow(blksz));
+		half = ut_2pow_round((file->offset + (blksz - 1)) / 2, blksz);
 		error = row_merge(index, file, half, block, tmpfd, table);
 
 		if (error != DB_SUCCESS) {
