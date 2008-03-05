@@ -3618,4 +3618,23 @@ ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default val
 set @@sql_mode=@old_mode;
 drop view v1;
 drop table t1;
-End of 5.0 tests.
+# -----------------------------------------------------------------
+# -- Bug#34337: Server crash when Altering a view using a table name.
+# -----------------------------------------------------------------
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c1 INT);
+
+SELECT * FROM t1;
+c1
+ALTER ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW t1 (c2) AS SELECT (1);
+ERROR HY000: 'test.t1' is not VIEW
+
+DROP TABLE t1;
+
+# -- End of test case for Bug#34337.
+
+# -----------------------------------------------------------------
+# -- End of 5.0 tests.
+# -----------------------------------------------------------------

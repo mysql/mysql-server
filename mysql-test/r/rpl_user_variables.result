@@ -290,6 +290,22 @@ select * from t1;
 a	b
 2	1
 drop table t1;
+create table t1(a int);
+insert into t1 values (1),(2);
+prepare s1 from 'insert into t1 select a from t1 limit ?';
+set @x='1.1';
+execute s1 using @x;
+select * from t1;
+a
+1
+2
+1
+select * from t1;
+a
+1
+2
+1
+drop table t1;
 End of 5.0 tests.
 DROP FUNCTION IF EXISTS f1;
 DROP FUNCTION IF EXISTS f2;
