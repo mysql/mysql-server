@@ -97,30 +97,15 @@ ut_pair_cmp(
 	ulint	b1,	/* in: more significant part of second pair */
 	ulint	b2);	/* in: less significant part of second pair */
 /*****************************************************************
-Determines if a number is zero or a power of two.
-This function is used in assertions or assertion-like tests. */
-UNIV_INLINE
-ibool
-ut_is_2pow(
-/*=======*/		/* out: TRUE if zero or a power of 2 */
-	ulint	n);	/* in: number to be tested */
+Determines if a number is zero or a power of two. */
+#define ut_is_2pow(n) UNIV_LIKELY(!((n) & ((n) - 1)))
 /*****************************************************************
-Calculates fast the remainder when divided by a power of two. */
-UNIV_INLINE
-ulint
-ut_2pow_remainder(
-/*==============*/	/* out: remainder */
-	ulint	n,	/* in: number to be divided */
-	ulint	m);	/* in: divisor; power of 2 */
+Calculates fast the remainder of n/m when m is a power of two. */
+#define ut_2pow_remainder(n, m) ((n) & ((m) - 1))
 /*****************************************************************
-Calculates fast value rounded to a multiple of a power of 2. */
-UNIV_INLINE
-ulint
-ut_2pow_round(
-/*==========*/		/* out: value of n rounded down to nearest
-			multiple of m */
-	ulint	n,	/* in: number to be rounded */
-	ulint	m);	/* in: divisor; power of 2 */
+Calculates n rounded down to the nearest multiple of m
+when m is a power of two. */
+#define ut_2pow_round(n, m) ((n) & ~((m) - 1))
 /*****************************************************************
 Calculates fast the 2-logarithm of a number, rounded upward to an
 integer. */
