@@ -65,9 +65,9 @@ int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/,
 		     TOKULOGGER, TXNID, DISKOFF,
 		     u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, u_int32_t *deleted_size, LSN*);
 
-//??int toku_pma_delete (PMA, DBT */*key*/, DBT */*val*/,
-//		     TOKULOGGER, TXNID, DISKOFF,
-//		     u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, LSN*, u_int32_t *n_bytes_in_buffer_including_overheads);
+int toku_pma_delete_fixupsize (PMA, DBT */*key*/, DBT */*val*/,
+			       TOKULOGGER, TXNID, DISKOFF,
+			       u_int32_t /*random for fingerprint*/, u_int32_t */*fingerprint*/, LSN*, u_int32_t *n_bytes_in_buffer_including_overheads);
 
 int toku_pma_strong_insert_or_replace (PMA pma, DBT *k, DBT *v,
 				     TOKULOGGER, TXNID, FILENUM, DISKOFF,

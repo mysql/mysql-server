@@ -133,8 +133,8 @@ BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttype
 key.o: brttypes.h key.h
 list-test: list-test.o toku_assert.o
 test-brt-delete-both: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
-test-inc-split: test-inc-split.o brt.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
-test-del-inorder: test-del-inorder.o brt.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
+test-inc-split: test-inc-split.o brt.o brt-test-helpers.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
+test-del-inorder: test-del-inorder.o brt.o brt-test-helpers.o toku_assert.o key.o ybt.o cachetable.o memory.o log.o pma.o log_code.o fifo.o fingerprint.o brt-serialize.o brt-verify.o roll.o primes.o mempool.o
 pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h pma.h list.h mempool.h
 pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o toku_assert.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
 pma.o: pma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h

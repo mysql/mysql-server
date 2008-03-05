@@ -175,6 +175,10 @@ struct brt_cursor {
     DBT val;
 };
 
+void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);
+int toku_unpin_brtnode (BRT brt, BRTNODE node) ;
+unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
+
 /* Stuff for testing */
 int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff);
 int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_children, DISKOFF *children, u_int32_t *subtree_fingerprints, char **keys, int *keylens);
