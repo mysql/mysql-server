@@ -87,6 +87,8 @@ pkglibdir='@pkglibdir@'
 pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
 fix_path pkglibdir $pkglibdir_rel lib/mysql lib
 
+plugindir='@pkgplugindir@'
+
 pkgincludedir='@pkgincludedir@'
 fix_path pkgincludedir include/mysql include
 
@@ -158,6 +160,7 @@ Options:
         --include        [$include]
         --libs           [$libs]
         --libs_r         [$libs_r]
+        --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
         --version        [$version]
@@ -174,6 +177,7 @@ while test $# -gt 0; do
         --include) echo "$include" ;;
         --libs)    echo "$libs" ;;
         --libs_r)  echo "$libs_r" ;;
+        --plugindir) echo "$plugindir" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
