@@ -61,7 +61,6 @@ void toku_brtnode_free (BRTNODE *nodep) {
 static long brtnode_size(BRTNODE node) {
     return toku_serialize_brtnode_size(node);
 }
-#ifdef FOO
 
 static void toku_update_brtnode_loggerlsn(BRTNODE node, TOKULOGGER logger) {
     if (logger) {
@@ -85,8 +84,6 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     toku_log_changechildfingerprint(logger, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
     toku_update_brtnode_loggerlsn(node, logger);
 }
-
-#endif
 
 // If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
 static int brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck) {
@@ -551,6 +548,7 @@ static int push_down_if_buffers_too_full(BRT brt, BRTNODE node, TOKULOGGER logge
     return 0;
 }
 
+static int split_nonleaf_node(BRT brt, BRTNODE node_to_split, int *n_new_nodes, BRTNODE **new_nodes, DBT **splitks);
 static int nonleaf_node_is_too_wide (BRT, BRTNODE);
 
 static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE child, TOKULOGGER logger) // If the node is too big then deal with it.  Unpin the child (or children if it splits)  NODE may be too big at the end
@@ -565,7 +563,7 @@ static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE ch
 	    int i;
 	    int old_n_children = node->u.n.n_children;
 	    FIFO old_fifo = BNC_BUFFER(node, childnum);
-	    node->u.n.childinfos = toku_realloc(node->u.n.childinfos, (old_n_children+n_new_nodes-1) * sizeof(struct brt_nonleaf_childinfo));
+	    REALLOC_N(old_n_children+n_new_nodes-1, node->u.n.childinfos);
 	    // slide the children over
 	    for (i=old_n_children-1; i>childnum; i--)
 		node->u.n.childinfos[i+n_new_nodes-1] = node->u.n.childinfos[i];
@@ -578,8 +576,8 @@ static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE ch
 	    }
 	    // slide the keys over
 	    node->u.n.childkeys = toku_realloc(node->u.n.childkeys, (old_n_children+n_new_nodes-2 ) * sizeof(node->u.n.childkeys[0]));
-	    for (i=node->u.n.n_children; cnum>=childnum; cnum--) {
-		node->u.n.childkeys[cnum+n_new_nodes-1] = node->u.n.childkeys[cnum];
+	    for (i=node->u.n.n_children; i>=childnum; i--) {
+		node->u.n.childkeys[i+n_new_nodes-1] = node->u.n.childkeys[i];
 	    }
 	    // fix up fingerprints
 	    for (i=0; i<n_new_nodes; i++) {
@@ -589,20 +587,20 @@ static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE ch
 	    // now everything in the fifos must be put again
 	    BRT_CMD_S cmd;
 	    DBT key,val;
-	    while (0=toku_fifo_peek_deq_cmdstruct(old_fifo, &cmd, &key, &val)) {
+	    while (0==toku_fifo_peek_deq_cmdstruct(old_fifo, &cmd, &key, &val)) {
 		for (i=childnum; i<childnum+n_new_nodes-1; i++) {
-		    int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
+		    int cmp = brt_compare_pivot(brt, cmd.u.id.key, 0, node->u.n.childkeys[i]);
 		    if (cmp<=0) {
-			r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), cmd);
+			r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), &cmd);
 			if (r!=0) return r;
-			if (cmd->type!=DELETE || 0==(t->flags&TOKU_DB_DUPSORT)) goto filled; // we only need to put one in
+			if (cmd.type!=BRT_DELETE || 0==(brt->flags&TOKU_DB_DUPSORT)) goto filled; // we only need to put one in
 		    }
 		}
-		r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), cmd);
+		r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), &cmd);
 		if (r!=0) return r;
 	    filled: /*nothing*/;
 	    }
-	    r=toku_fifo_free(&old_fifo);
+	    toku_fifo_free(&old_fifo);
 	    if (r!=0) return r;
 	}
     } else {
