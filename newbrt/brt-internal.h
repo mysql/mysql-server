@@ -64,14 +64,14 @@ struct brtnode {
 	    unsigned int    totalchildkeylens;
 	    unsigned int    n_bytes_in_buffers;
 
-	    struct brtnode_nonleaf_childinfo childinfos[TREE_FANOUT+1]; /* One extra so we can grow */
+	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
 
 #define BNC_SUBTREE_FINGERPRINT(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
 #define BNC_DISKOFF(node,i) ((node)->u.n.childinfos[i].diskoff)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
 
-	    struct kv_pair *childkeys[TREE_FANOUT];   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
+	    struct kv_pair **childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
 							 Note: It is possible that Child 1's keys are == to child 0's key's, so it is
 							 not necessarily true that child 1's keys are > childkeys[0].
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
@@ -175,7 +175,7 @@ struct brt_cursor {
     DBT val;
 };
 
-void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);
+int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);
 int toku_unpin_brtnode (BRT brt, BRTNODE node) ;
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
 

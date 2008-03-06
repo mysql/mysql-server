@@ -32,6 +32,8 @@ static void test_serialize(void) {
     sn.local_fingerprint = 0;
     sn.u.n.n_children = 2;
     hello_string = toku_strdup("hello");
+    MALLOC_N(2, sn.u.n.childinfos);
+    MALLOC_N(1, sn.u.n.childkeys);
     sn.u.n.childkeys[0] = kv_pair_malloc(hello_string, 6, 0, 0); 
     sn.u.n.totalchildkeylens = 6;
     BNC_DISKOFF(&sn, 0) = sn.nodesize*30;
@@ -45,11 +47,6 @@ static void test_serialize(void) {
     r = toku_fifo_enq(BNC_BUFFER(&sn,1), "x", 2, "xval", 5, BRT_NONE, (TXNID)234); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE, (TXNID)234, "x", 2, "xval", 5);
     BNC_NBYTESINBUF(&sn, 0) = 2*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
-    {
-	int i;
-	for (i=2; i<TREE_FANOUT+1; i++)
-	    BNC_NBYTESINBUF(&sn, i)=0;
-    }
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
     toku_serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);

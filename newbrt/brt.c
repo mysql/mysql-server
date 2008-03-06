@@ -49,13 +49,15 @@ void toku_brtnode_free (BRTNODE *nodep) {
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, node, node->mdicts[0]);
     if (node->height>0) {
 	for (i=0; i<node->u.n.n_children-1; i++) {
-	    toku_free((void*)node->u.n.childkeys[i]);
+	    toku_free(node->u.n.childkeys[i]);
 	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (BNC_BUFFER(node,i)) {
 		toku_fifo_free(&BNC_BUFFER(node,i));
 	    }
 	}
+	toku_free(node->u.n.childkeys);
+	toku_free(node->u.n.childinfos);
     } else {
 	if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
 	    toku_pma_free(&node->u.l.buffer);
@@ -246,7 +248,6 @@ int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKULOGGER logger) {
 }
 
 static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) {
-    int i;
     n->tag = TYP_BRTNODE;
     n->nodesize = t->h->nodesize;
     n->flags = t->h->flags;
@@ -261,18 +262,10 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     assert(height>=0);
     if (height>0) {
 	n->u.n.n_children   = 0;
-	for (i=0; i<TREE_FANOUT; i++) {
-//	    n->u.n.childkeys[i] = 0;
-//	    n->u.n.childkeylens[i] = 0;
-	}
 	n->u.n.totalchildkeylens = 0;
-	for (i=0; i<TREE_FANOUT+1; i++) {
-	    BNC_SUBTREE_FINGERPRINT(n, i) = 0;
-//	    n->u.n.children[i] = 0;
-//	    n->u.n.buffers[i] = 0;
-	    BNC_NBYTESINBUF(n,i) = 0;
-	}
 	n->u.n.n_bytes_in_buffers = 0;
+	n->u.n.childinfos=0;
+	n->u.n.childkeys=0;
     } else {
 	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, t->db, toku_cachefile_filenum(t->cf), n->nodesize);
         assert(r==0);
@@ -285,7 +278,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     }
 }
 
-void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger) {
+int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger) {
     TAGMALLOC(BRTNODE, n);
     int r;
     DISKOFF name;
@@ -305,6 +298,7 @@ void toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER log
     r=toku_log_newbrtnode(logger, toku_cachefile_filenum(t->cf), n->thisnodename, height, n->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, n->rand4fingerprint);
     assert(r==0);
     toku_update_brtnode_loggerlsn(n, logger);
+    return 0;
 }
 
 static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT *v, int type, TXNID xid) {
@@ -360,6 +354,8 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     assert(node->u.n.n_children>=2); // Otherwise, how do we split?  We need at least two children to split. */
     assert(t->h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
     toku_create_new_brtnode(t, &B, node->height, logger);
+    MALLOC_N(n_children_in_b+1, B->u.n.childinfos);
+    MALLOC_N(n_children_in_b, B->u.n.childkeys);
     B->u.n.n_children   =n_children_in_b;
     //printf("%s:%d %p (%lld) becomes %p and %p\n", __FILE__, __LINE__, node, node->thisnodename, A, B);
     //printf("%s:%d A is at %lld\n", __FILE__, __LINE__, A->thisnodename);
@@ -372,6 +368,8 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	for (i=0; i<n_children_in_b; i++) {
 	    int r = toku_fifo_create(&BNC_BUFFER(B,i));
 	    if (r!=0) return r;
+	    BNC_NBYTESINBUF(B,i)=0;
+	    BNC_SUBTREE_FINGERPRINT(B,i)=0;
 	}
 
 	for (i=n_children_in_a; i<old_n_children; i++) {
@@ -453,7 +451,9 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	splitk->data = (void*)(node->u.n.childkeys[n_children_in_a-1]);
 	splitk->size = toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
 	node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
-	node->u.n.childkeys[n_children_in_a-1]=0;
+
+	REALLOC_N(n_children_in_a+1,   node->u.n.childinfos);
+	REALLOC_N(n_children_in_a, node->u.n.childkeys);
 
 	verify_local_fingerprint_nonleaf(node);
 	verify_local_fingerprint_nonleaf(B);
@@ -618,6 +618,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 
     //verify_local_fingerprint_nonleaf(node);
 
+    REALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
+    REALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
 	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
@@ -625,6 +627,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     r = toku_log_addchild(logger, toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
     assert(BNC_DISKOFF(node, childnum)==childa->thisnodename);
     BNC_DISKOFF(node, childnum+1) = childb->thisnodename;
+    BNC_SUBTREE_FINGERPRINT(node, childnum)=0;
+    BNC_SUBTREE_FINGERPRINT(node, childnum+1)=0;
     fixup_child_fingerprint(node, childnum,   childa, t, logger);
     fixup_child_fingerprint(node, childnum+1, childb, t, logger);
     r=toku_fifo_create(&BNC_BUFFER(node,childnum));   assert(r==0); // ??? SHould handle this error case
@@ -1625,6 +1629,8 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     initialize_brtnode (brt, newroot, newroot_diskoff, new_height);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
     newroot->u.n.n_children=2;
+    MALLOC_N(3, newroot->u.n.childinfos);
+    MALLOC_N(2, newroot->u.n.childkeys);
     //printf("%s:%d Splitkey=%p %s\n", __FILE__, __LINE__, splitkey, splitkey);
     newroot->u.n.childkeys[0] = splitk.data;
     newroot->u.n.totalchildkeylens=splitk.size;
@@ -1632,6 +1638,10 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     BNC_DISKOFF(newroot,1)=nodeb->thisnodename;
     r=toku_fifo_create(&BNC_BUFFER(newroot,0)); if (r!=0) return r;
     r=toku_fifo_create(&BNC_BUFFER(newroot,1)); if (r!=0) return r;
+    BNC_NBYTESINBUF(newroot, 0)=0;
+    BNC_NBYTESINBUF(newroot, 1)=0;
+    BNC_SUBTREE_FINGERPRINT(newroot, 0)=0; 
+    BNC_SUBTREE_FINGERPRINT(newroot, 1)=0; 
     toku_verify_counts(newroot);
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
