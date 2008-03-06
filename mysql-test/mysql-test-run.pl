@@ -2573,13 +2573,15 @@ sub after_test_failure ($) {
   {
     foreach my $ndbd ( ndbds($cluster) )
     {
-      my $datadir= $ndbd->value('DataDir');
-      foreach my $fs_dir ( glob("$datadir/ndb_*_fs") ) {
-	if (-d $fs_dir) {
-	  rmtree($fs_dir);
-	  mtr_debug("Removing '$fs_dir'");
-	}
+      my $data_dir= $ndbd->value('DataDir');
+      foreach my $fs_dir ( glob("$data_dir/ndb_*_fs") ) {
+	rmtree($fs_dir);
+	mtr_debug("Removing '$fs_dir'");
       }
+
+      my $backup_dir= $ndbd->value('BackupDataDir');
+      rmtree("$backup_dir/BACKUP");
+      mtr_debug("Removing '$backup_dir'");
     }
   }
 }
@@ -3009,14 +3011,6 @@ sub stop_servers($$) {
 
   foreach my $server (@servers)
   {
-    # Remove datadir
-    if ( $server->option('#!remove-datadir') )
-    {
-      my $datadir= $server->value('datadir');
-      mtr_debug("Removing '$datadir'");
-      rmtree($datadir);
-    }
-
     # Mark server as stopped
     $server->{proc}= undef;
 
