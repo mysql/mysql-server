@@ -2685,7 +2685,7 @@ int st_relay_log_info::wait_for_pos(THD* thd, String* log_name,
                                     longlong timeout)
 {
   if (!inited)
-    return -1;
+    return -2;
   int event_count = 0;
   ulong init_abort_pos_wait;
   int error=0;
