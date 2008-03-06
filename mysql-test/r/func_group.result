@@ -1419,4 +1419,10 @@ Note	1003	select (`test`.`t1`.`a` + 1) AS `y` from `test`.`t1` group by (`test`.
 DROP VIEW v1;
 DROP TABLE t1;
 SET SQL_MODE=DEFAULT;
+CREATE TABLE t1(a DOUBLE);
+INSERT INTO t1 VALUES (10), (20);
+SELECT AVG(a), CAST(AVG(a) AS DECIMAL) FROM t1;
+AVG(a)	CAST(AVG(a) AS DECIMAL)
+15	15
+DROP TABLE t1;
 End of 5.0 tests
