@@ -41,12 +41,14 @@ int main(int argc, const char** argv )
   /* Open the event to signal */
   if ((shutdown_event=
     OpenEvent(EVENT_MODIFY_STATE, FALSE, safe_process_name)) == NULL){
-    fprintf(stderr, "Failed to open shutdown_event\n");
+    fprintf(stderr, "Failed to open shutdown_event '%s', error: %d\n",
+            safe_process_name, GetLastError());
     exit(1);
   }
 
   if(SetEvent(shutdown_event) == 0) {
-    fprintf(stderr, "Failed to signal shutdown_event\n");
+    fprintf(stderr, "Failed to signal shutdown_event '%s', error: %d\n",
+            safe_process_name, GetLastError());
     CloseHandle(shutdown_event);
     exit(1);
   }
