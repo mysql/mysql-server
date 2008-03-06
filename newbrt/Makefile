@@ -124,7 +124,7 @@ check_test-assert: test-assert
 	@# one argument, "ok" should not error
 	$(DTOOL) ./test-assert ok
 check_%: %
-	time $(DTOOL)  ./$< $(VERBVERBOSE) 
+	$(DTOOL)  ./$< $(VERBVERBOSE) 
 
 check-fanout:
 	let BRT_FANOUT=4; \
