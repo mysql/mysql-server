@@ -3765,6 +3765,7 @@ fseg_print_low(
 		(ulong) n_used);
 }
 
+#ifdef UNIV_BTR_PRINT
 /***********************************************************************
 Writes info of a segment. */
 UNIV_INTERN
@@ -3786,6 +3787,7 @@ fseg_print(
 
 	fseg_print_low(inode, mtr);
 }
+#endif /* UNIV_BTR_PRINT */
 
 /***********************************************************************
 Validates the file space system and its segments. */
