@@ -1650,6 +1650,16 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 DROP DATABASE bug30269;
 DROP USER 'bug30269'@'localhost';
+#
+# Bug#25132 disabled query cache: Qcache_free_blocks = 1
+#
+set global query_cache_size=100000;
+set global query_cache_size=0;
+set global query_cache_type=0;
+show status like 'Qcache_free_blocks';
+Variable_name	Value
+Qcache_free_blocks	0
+Restore default values.
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;

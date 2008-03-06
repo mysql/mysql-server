@@ -1251,6 +1251,15 @@ DROP DATABASE bug30269;
 disconnect bug30269;
 DROP USER 'bug30269'@'localhost';
 
+--echo #
+--echo # Bug#25132 disabled query cache: Qcache_free_blocks = 1
+--echo #
+set global query_cache_size=100000;
+set global query_cache_size=0;
+set global query_cache_type=0;
+show status like 'Qcache_free_blocks';
+
+--echo Restore default values.
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
