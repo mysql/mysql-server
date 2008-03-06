@@ -7,8 +7,25 @@ SRCDIRS = newbrt src src/tests src/range_tree src/range_tree/tests src/lock_tree
 build:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k); done
 
-check:
-	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k check); done
+CHECKS = $(patsubst %,checkdir_%,$(SRCDIRS))
+
+# This is the original check rule
+# The stuff below allows "make -j2 -k check" to work
+
+#check:
+#	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k check); done
+
+checkdir_%: build
+	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
+checkdir_src/%: build
+	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
+checkdir_cxx/%: build
+	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
+
+check: $(CHECKS)
+
+foo:
+	echo $(MAKEFLAGS)
 
 clean:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
