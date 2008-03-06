@@ -160,7 +160,7 @@ my $opt_start_timeout   =    30; # 30 seconds
 my $opt_start;
 my $opt_start_dirty;
 my $opt_repeat= 1;
-my $opt_retry= 1;
+my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
 my $opt_strace_client;
