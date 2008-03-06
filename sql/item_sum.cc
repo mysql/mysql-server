@@ -1206,7 +1206,15 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
     null_value=1;
     return NULL;
   }
-  sum_dec= Item_sum_sum::val_decimal(&sum_buff);
+
+  /*
+    For non-DECIMAL hybrid_type the division will be done in
+    Item_sum_avg::val_real().
+  */
+  if (hybrid_type != DECIMAL_RESULT)
+    return val_decimal_from_real(val);
+
+  sum_dec= dec_buffs + curr_dec_buff;
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &cnt);
   my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
   return val;
