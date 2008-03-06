@@ -44,17 +44,24 @@ default: check
 
 all: make_libs $(ALL_TESTS)
 
-#check: check.lin check.tlog check.log
-check: check.lin #check.tlog check.log
-	@ echo ok
+check: check.lin check.tlin #check.tlog check.log
+	@ echo $@ ok
 tests.lin: make_libs $(LIN_TESTS)
+	@ echo $@ ok
 check.lin: make_libs $(RUN_LIN_TESTS)
+	@ echo $@ ok
 tests.tlin: make_libs $(TLIN_TESTS)
+	@ echo $@ ok
 check.tlin: make_libs $(RUN_TLIN_TESTS)
+	@ echo $@ ok
 tests.tlog: make_libs $(TLOG_TESTS)
+	@ echo $@ ok
 check.tlog: make_libs $(RUN_TLOG_TESTS)
+	@ echo $@ ok
 tests.log: make_libs $(LOG_TESTS)
+	@ echo $@ ok
 check.log: make_libs $(RUN_LOG_TESTS)
+	@ echo $@ ok
 
 # Need these rule so that Make knows about all the file names
 .PHONY: %.linrun %.tlinrun %.tlogrun %.logrun %.run
@@ -102,17 +109,17 @@ LT_BINS        = ../lth.o ../rth.o
 LT_OVERLAP     = ../locktree_global_readset.o
 LT_NOOVERLAP   = ../locktree_no_global_readset.o
 LT_LINEAR      = $(LT_OVERLAP)   $(LT_BINS) $(RT_LINEAR_BINS)
-LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS) -DTOKU_RT_NOOVERLAPS
-LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)    -DTOKU_RT_NOOVERLAPS
+LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS)
+LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)
 LT_LOG         = $(LT_OVERLAP)   $(LT_BINS) $(RT_LOG_BINS)
 
-%.lin: %.c ../locktree.h test.h
+%.lin: %.c ../locktree.h test.h $(LT_LINEAR)
 	cc  -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)
-%.tlin: %.c ../locktree.h test.h
-	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR)
-%.tlog: %.c ../locktree.h test.h
-	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)
-%.log: %.c ../locktree.h test.h
+%.tlin: %.c ../locktree.h test.h $(LT_TLINEAR)
+	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) -DTOKU_RT_NOOVERLAPS
+%.tlog: %.c ../locktree.h test.h $(LT_TLOG)
+	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    -DTOKU_RT_NOOVERLAPS
+%.log: %.c ../locktree.h test.h  $(LT_LOG)
 	cc  -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)
 
 .PHONY: make_libs

@@ -55,7 +55,7 @@ toku_rt_forest* toku_rth_find(toku_rth* table, DB_TXN* key) {
 
     uint32 index            = __toku_rth_hash(table, key);
     toku_rth_elt* element   = table->table[index];
-    while (element && element->key != key) element = element->next;
+    while (element && element->value.hash_key != key) element = element->next;
     return element ? &element->value : NULL;
 }
 
@@ -102,7 +102,7 @@ void toku_rth_delete(toku_rth* table, DB_TXN* key) {
     /* Elements of the right hash must exist. */
     assert(element);
     /* Case where it is the first element. */
-    if (element->key == key) {
+    if (element->value.hash_key == key) {
         table->table[index] = element->next;
         table->free(element);
         table->num_keys--;
@@ -114,7 +114,7 @@ void toku_rth_delete(toku_rth* table, DB_TXN* key) {
         assert(element);
         prev = element;
         element = element->next;
-    } while (element->key != key);
+    } while (element->value.hash_key != key);
     /* Must be found. */
     assert(element);
     prev->next              = element->next;
@@ -134,7 +134,7 @@ int toku_rth_insert(toku_rth* table, DB_TXN* key) {
     toku_rth_elt* element = (toku_rth_elt*)table->malloc(sizeof(*element));
     if (!element) return errno;
     memset(element, 0, sizeof(*element));
-    element->key            = key;
+    element->value.hash_key = key;
     element->next           = table->table[index];
     table->table[index]     = element;
     table->num_keys++;
