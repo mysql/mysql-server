@@ -7,7 +7,7 @@
 #   make VERBOSE=2
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
-# PROF_FLAGS = -pg
+PROF_FLAGS = -pg
 OPTFLAGS = -O2
 
 ifeq ($(VERBOSE),2)
@@ -54,6 +54,7 @@ REGRESSION_TESTS = \
         fifo-test \
 	test-brt-delete-both \
         brt-test \
+	brt-test-cursor \
 	test_oexcl \
 	test-assert \
 	test-primes \
@@ -96,6 +97,7 @@ CHECKS = \
  brt-serialize-test \
  test-brt-delete-both \
  brt-test \
+ brt-test-cursor \
  fifo-test \
  test_toku_malloc_plain_free \
  test-primes \
@@ -126,7 +128,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-pma-test benchmark-test brt-test test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+pma-test benchmark-test brt-test brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -142,10 +144,10 @@ ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-test-cursor brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 logformat: logformat.o toku_assert.o
-brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
+brt-test-cursor.o brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
