@@ -37,15 +37,20 @@ default: check
 
 all: make_libs $(ALL_TESTS)
 
-#check: check.lin check.tlog check.log
 check: check.lin #check.tlog check.log
-	@ echo ok
+	@ echo $@ ok
 tests.lin:  make_libs $(LIN_TESTS)
+	@ echo $@ ok
 check.lin:  make_libs $(RUN_LIN_TESTS)
+	@ echo $@ ok
 tests.tlog: make_libs $(TLOG_TESTS)
+	@ echo $@ ok
 check.tlog: make_libs $(RUN_TLOG_TESTS)
+	@ echo $@ ok
 tests.log:  make_libs $(LOG_TESTS)
+	@ echo $@ ok
 check.log:  make_libs $(RUN_LOG_TESTS)
+	@ echo $@ ok
 
 # Need these rule so that Make knows about all the file names
 .PHONY: %.linrun %.logrun %.run %.tlogrun
@@ -83,11 +88,11 @@ LINEAR_BINS = ../linear.o
 TLOG_BINS   = ../log_nooverlap.o
 LOG_BINS    = ../log.o
 
-%.lin: %.c ../rangetree.h test.h
+%.lin: %.c ../rangetree.h test.h  $(LINEAR_BINS)
 	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
-%.tlog: %.c ../rangetree.h test.h
+%.tlog: %.c ../rangetree.h test.h $(TLOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS)
-%.log: %.c ../rangetree.h test.h
+%.log: %.c ../rangetree.h test.h  $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
 .PHONY: make_libs

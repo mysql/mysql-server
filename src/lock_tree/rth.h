@@ -20,13 +20,13 @@ typedef u_int32_t uint32;
 
 typedef struct __toku_rt_forest toku_rt_forest;
 struct __toku_rt_forest {
+    DB_TXN*          hash_key;
     toku_range_tree* self_read;
     toku_range_tree* self_write;
 };
 
 typedef struct __toku_rth_elt toku_rth_elt;
 struct __toku_rth_elt {
-    DB_TXN*         key;
     toku_rt_forest  value;
     toku_rth_elt*   next;
 };

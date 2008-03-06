@@ -386,21 +386,21 @@ inline static int __toku_lt_meets(toku_lock_tree* tree, toku_range* query,
 
 /* 
     Determines whether 'query' meets 'rt' at txn2 not equal to txn.
-    This function supports overlapping trees with heterogenous transactions,
-    but queries must be a single point. 
+    This function supports all range trees, but queries must be a single point. 
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
 inline static int __toku_lt_meets_peer(toku_lock_tree* tree, toku_range* query, 
-                                toku_range_tree* rt, DB_TXN* self, BOOL* met) {
+                                       toku_range_tree* rt, BOOL is_homogenous,
+                                       DB_TXN* self, BOOL* met) {
     assert(tree && query && rt && self && met);
     assert(query->left == query->right);
 
-    const u_int32_t query_size = 2;
-    toku_range   buffer[query_size];
-    u_int32_t     buflen     = query_size;
+    const u_int32_t query_size = is_homogenous ? 1 : 2;
+    toku_range   buffer[2];
+    u_int32_t    buflen     = query_size;
     toku_range*  buf        = &buffer[0];
-    u_int32_t     numfound;
+    u_int32_t    numfound;
     int          r;
 
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
@@ -621,8 +621,10 @@ inline static int __toku_consolidate(toku_lock_tree* tree,
     BOOL             alloc_right   = TRUE;
     toku_range_tree* selfread;
     assert(tree && to_insert && txn);
+#if !defined(TOKU_RT_NOOVERLAPS)
     toku_range_tree* mainread      = tree->mainread;
     assert(mainread);
+#endif
     /* Find the self read tree */
     r = __toku_lt_selfread(tree, txn, &selfread);
     if (r!=0) return r;
@@ -651,8 +653,10 @@ inline static int __toku_consolidate(toku_lock_tree* tree,
     /* ... and mainread.
        Growth direction: if we had no overlaps, the next line
        should be commented out */
+#if !defined(TOKU_RT_NOOVERLAPS)
     r = __toku_lt_delete_overlapping_ranges(tree, mainread, numfound);
     if (r!=0) return __toku_lt_panic(tree, r);
+#endif
     /* Free all the points from ranges in tree->buf[0]..tree->buf[numfound-1] */
     __toku_lt_free_points(tree, to_insert, numfound, NULL);
     /* We don't necessarily need to panic after here unless numfound > 0
@@ -660,13 +664,16 @@ inline static int __toku_consolidate(toku_lock_tree* tree,
     /* Insert extreme range into selfread. */
     /* VL */
     r = toku_rt_insert(selfread, to_insert);
+#if !defined(TOKU_RT_NOOVERLAPS)
     int r2;
     if (0) { died2: r2 = toku_rt_delete(selfread, to_insert);
         if (r2!=0) return __toku_lt_panic(tree, r2); goto died1; }
+#endif
     if (r!=0) {
         /* If we deleted/merged anything, this is a panic situation. */
         if (numfound) return __toku_lt_panic(tree, TOKU_LT_INCONSISTENT);
         goto died1; }
+#if !defined(TOKU_RT_NOOVERLAPS)
     /* Insert extreme range into mainread. */
     assert(tree->mainread);
     r = toku_rt_insert(tree->mainread, to_insert);
@@ -674,6 +681,7 @@ inline static int __toku_consolidate(toku_lock_tree* tree,
         /* If we deleted/merged anything, this is a panic situation. */
         if (numfound) return __toku_lt_panic(tree, TOKU_LT_INCONSISTENT);
         goto died2; }
+#endif
     __toku_lt_range_incr(tree, numfound);
     return 0;
 }
@@ -944,11 +952,15 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     tmp_tree->malloc           = user_malloc;
     tmp_tree->free             = user_free;
     tmp_tree->realloc          = user_realloc;
+#if defined(TOKU_RT_NOOVERLAPS)
+    if (0) { died2: goto died1; }
+#else
     r = toku_rt_create(&tmp_tree->mainread,
                        __toku_lt_point_cmp, __toku_lt_txn_cmp, TRUE,
                        user_malloc, user_free, user_realloc);
     if (0) { died2: toku_rt_close(tmp_tree->mainread); goto died1; }
     if (r!=0) goto died1;
+#endif
     r = toku_rt_create(&tmp_tree->borderwrite,
                        __toku_lt_point_cmp, __toku_lt_txn_cmp, FALSE,
                        user_malloc, user_free, user_realloc);
@@ -969,8 +981,10 @@ int toku_lt_close(toku_lock_tree* tree) {
     if (!tree)                                              return EINVAL;
     int r;
     int r2 = 0;
+#if !defined(TOKU_RT_NOOVERLAPS)
     r = toku_rt_close(tree->mainread);
     if        (r!=0) r2 = r;
+#endif
     r = toku_rt_close(tree->borderwrite);
     if (!r2 && r!=0) r2 = r;
 
@@ -1043,13 +1057,39 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     return __toku_consolidate(tree, &query, &to_insert, txn);
 }
 
+static int __toku_lt_write_point_conflicts_reads(toku_lock_tree* tree,
+                                               DB_TXN* txn, toku_range* query) {
+    int r    = 0;
+    BOOL met = FALSE;
+#if defined(TOKU_RT_NOOVERLAPS)
+    toku_rth_start_scan(tree->rth);
+    toku_rt_forest* forest;
+    
+    while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        if (forest->self_read != NULL && forest->hash_key != txn) {
+            r = __toku_lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
+                            &met);
+            if (r!=0) goto cleanup;
+            if (met)  { r = DB_LOCK_DEADLOCK; goto cleanup; }
+        }
+    }
+#else
+    toku_range_tree* mainread = tree->mainread; assert(mainread);
+    r = __toku_lt_meets_peer(tree, query, mainread, FALSE, txn, &met);
+    if (r!=0) goto cleanup;
+    if (met)  { r = DB_LOCK_DEADLOCK; goto cleanup; }
+#endif
+    r = 0;
+cleanup:
+    return r;
+}
+
 int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                const DBT* key, const DBT* data) {
     int r;
     toku_point endpoint;
     toku_range query;
     BOOL dominated;
-    toku_range_tree* mainread;
     
     r = __toku_lt_preprocess(tree, txn, key,      &data,
                                         key,      &data,
@@ -1061,11 +1101,8 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                             __toku_lt_ifexist_selfwrite(tree, txn), &dominated);
     if (r || dominated) return r;
     /* else if K meets mainread at 'txn2' then return failure */
-    BOOL met;
-    mainread = tree->mainread;                          assert(mainread);
-    r = __toku_lt_meets_peer(tree, &query, mainread, txn, &met);
-    if (r!=0) return r; 
-    if (met)  return DB_LOCK_DEADLOCK;
+    r = __toku_lt_write_point_conflicts_reads(tree, txn, &query);
+    if (r!=0) return r;
     /*
         else if 'K' meets borderwrite at 'peer' ('peer'!='txn') &&
                 'K' meets selfwrite('peer') then return failure.
