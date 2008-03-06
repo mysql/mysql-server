@@ -19,6 +19,7 @@ MYSQLDATAdir =          $(localstatedir)
 MYSQLSHAREdir =         $(pkgdatadir)
 MYSQLBASEdir=           $(prefix)
 MYSQLLIBdir=            $(pkglibdir)
+pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/storage/innobase/include \
@@ -160,7 +161,7 @@ libinnobase_a_CFLAGS  =	$(AM_CFLAGS)
 EXTRA_LTLIBRARIES =	ha_innodb.la
 pkglib_LTLIBRARIES =	@plugin_innobase_shared_target@
 
-ha_innodb_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
+ha_innodb_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 ha_innodb_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_innodb_la_CFLAGS  =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 ha_innodb_la_SOURCES =	$(libinnobase_a_SOURCES)
