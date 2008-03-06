@@ -281,8 +281,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	u_int32_t subtree_fingerprint = rbuf_int(&rc);
 	u_int32_t check_subtree_fingerprint = 0;
 	result->u.n.n_children = rbuf_int(&rc);
-	MALLOC_N(result->u.n.n_children,   result->u.n.childinfos);
-	MALLOC_N(result->u.n.n_children-1, result->u.n.childkeys);
+	MALLOC_N(result->u.n.n_children+1,   result->u.n.childinfos);
+	MALLOC_N(result->u.n.n_children, result->u.n.childkeys);
 	//printf("n_children=%d\n", result->n_children);
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
 	for (i=0; i<result->u.n.n_children; i++) {
