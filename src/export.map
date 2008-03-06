@@ -6,6 +6,8 @@
    db_version;
    log_compare;
    
+   toku_ydb_error_all_cases;
+
  local: *;
 };
 
