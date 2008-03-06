@@ -18,14 +18,15 @@ MYSQLDATAdir =          $(localstatedir)
 MYSQLSHAREdir =         $(pkgdatadir)
 MYSQLBASEdir=           $(prefix)
 MYSQLLIBdir=            $(pkglibdir)
+pkgplugindir =		$(pkglibdir)/plugin
 INCLUDES =              -I$(top_srcdir)/include -I$(top_builddir)/include \
 			-I$(top_srcdir)/regex \
 			-I$(top_srcdir)/sql \
                         -I$(srcdir) @ZLIB_INCLUDES@
 
 EXTRA_LTLIBRARIES =	libdaemon_example.la
-pkglib_LTLIBRARIES =	@plugin_daemon_example_shared_target@
-libdaemon_example_la_LDFLAGS =	-module -rpath $(MYSQLLIBdir)
+pkgplugin_LTLIBRARIES =	@plugin_daemon_example_shared_target@
+libdaemon_example_la_LDFLAGS =	-module -rpath $(pkgplugindir)
 libdaemon_example_la_CXXFLAGS=	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libdaemon_example_la_CFLAGS =	$(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libdaemon_example_la_SOURCES =	daemon_example.cc
