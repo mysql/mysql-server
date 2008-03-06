@@ -46,14 +46,15 @@ default: bins libs recover tdb_logprint
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
-        ybt-test \
-        pma-test \
-        brt-serialize-test \
-        cachetable-test \
-        cachetable-test2 \
-        fifo-test \
+	ybt-test \
+	pma-test \
+	brt-serialize-test \
+	cachetable-test \
+	cachetable-test2 \
+	fifo-test \
 	test-brt-delete-both \
-        brt-test \
+	brt-test \
+	brt-test3 \
 	brt-test4 \
 	brt-test-cursor \
 	test_oexcl \
@@ -99,6 +100,7 @@ CHECKS = \
  test-brt-delete-both \
  brt-test \
  brt-test-cursor \
+ brt-test3 \
  brt-test4 \
  fifo-test \
  test_toku_malloc_plain_free \
@@ -106,7 +108,8 @@ CHECKS = \
  list-test \
 # This line intentially kept commented so I can have a \ on the previous line
 
-check: bins $(patsubst %,check_%,$(CHECKS)) check_benchmarktest_256
+# Put check_benchmarktest_256 first because it is long-running (and therefore on the critical path, so get it started)
+check: bins check_benchmarktest_256 $(patsubst %,check_%,$(CHECKS))
 check_benchmarktest_256: benchmark-test
 	$(DTOOL) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
 
@@ -121,7 +124,7 @@ check_test-assert: test-assert
 	@# one argument, "ok" should not error
 	$(DTOOL) ./test-assert ok
 check_%: %
-	$(DTOOL)  ./$< $(VERBVERBOSE) 
+	time $(DTOOL)  ./$< $(VERBVERBOSE) 
 
 check-fanout:
 	let BRT_FANOUT=4; \
@@ -130,7 +133,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-pma-test benchmark-test brt-test brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -146,10 +149,10 @@ ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test4 brt-test-cursor brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-test3 brt-test4 brt-test-cursor brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 logformat: logformat.o toku_assert.o
-brt-test4.o brt-test-cursor.o brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
+brt-test3.o brt-test4.o brt-test-cursor.o brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 

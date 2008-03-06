@@ -108,37 +108,6 @@ static void test2 (int memcheck) {
     if (verbose) printf("test2 ok\n");
 }
 
-static void test3 (int nodesize, int count, int memcheck) {
-    BRT t;
-    int r;
-    struct timeval t0,t1;
-    int i;
-    CACHETABLE ct;
-    char fname[]="testbrt.brt";
-    toku_memory_check=memcheck;
-    toku_memory_check_all_free();
-    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
-    gettimeofday(&t0, 0);
-    unlink(fname);
-    r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, toku_default_compare_fun, null_db);
-    assert(r==0);
-    for (i=0; i<count; i++) {
-	char key[100],val[100];
-	DBT k,v;
-	snprintf(key,100,"hello%d",i);
-	snprintf(val,100,"there%d",i);
-	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
-    }
-    r = toku_close_brt(t);              assert(r==0);
-    r = toku_cachetable_close(&ct);     assert(r==0);
-    toku_memory_check_all_free();
-    gettimeofday(&t1, 0);
-    {
-	double tdiff = (t1.tv_sec-t0.tv_sec)+1e-6*(t1.tv_usec-t0.tv_usec);
-	if (verbose) printf("serial insertions: blocksize=%d %d insertions in %.3f seconds, %.2f insertions/second\n", nodesize, count, tdiff, count/tdiff);
-    }
-}
-
 static void test5 (void) {
     int r;
     BRT t;
@@ -1689,17 +1658,6 @@ static void brt_blackbox_test (void) {
     test5();
     if (verbose) printf("test_multiple_files\n");
     test_multiple_files();
-    if (verbose) printf("test3 slow\n");
-    toku_memory_check=0;
-    test3(2048, 1<<15, 1);
-    if (verbose) printf("test3 fast\n");
-
-    if (verbose) toku_pma_show_stats();
-
-    test3(1<<15, 1024, 1);
-    if (verbose) printf("test3 fast\n");
-
-    test3(1<<18, 1<<20, 0);
 
     toku_memory_check = 1;
 

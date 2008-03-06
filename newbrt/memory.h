@@ -42,6 +42,8 @@ void *toku_realloc(void *, size_t size);
  */
 #define MALLOC_N(n,v) v = toku_malloc((n)*sizeof(*v))
 
+#define REALLOC_N(n,v) v = toku_realloc(v, (n)*sizeof(*v))
+
 /* If you have a type such as 
  *    struct pma *PMA;
  * and you define a corresponding int constant, such as

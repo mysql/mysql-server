@@ -278,18 +278,11 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     //printf("height==%d\n", result->height);
     if (result->height>0) {
 	result->u.n.totalchildkeylens=0;
-	for (i=0; i<TREE_FANOUT; i++) { 
-            result->u.n.childkeys[i]=0; 
-        }
-	for (i=0; i<TREE_FANOUT+1; i++) { 
-	    BNC_SUBTREE_FINGERPRINT(result, i)=0;
-            BNC_DISKOFF(result,i)=0; 
-            BNC_BUFFER(result,i)=0; 
-            BNC_NBYTESINBUF(result,i)=0;
-        }
 	u_int32_t subtree_fingerprint = rbuf_int(&rc);
 	u_int32_t check_subtree_fingerprint = 0;
 	result->u.n.n_children = rbuf_int(&rc);
+	MALLOC_N(result->u.n.n_children,   result->u.n.childinfos);
+	MALLOC_N(result->u.n.n_children-1, result->u.n.childkeys);
 	//printf("n_children=%d\n", result->n_children);
 	assert(result->u.n.n_children>=0 && result->u.n.n_children<=TREE_FANOUT);
 	for (i=0; i<result->u.n.n_children; i++) {
@@ -315,10 +308,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	}
 	for (i=0; i<result->u.n.n_children; i++) {
 	    BNC_DISKOFF(result,i) = rbuf_diskoff(&rc);
+	    BNC_NBYTESINBUF(result,i) = 0;
 	    //printf("Child %d at %lld\n", i, result->children[i]);
-	}
-	for (i=0; i<TREE_FANOUT+1; i++) {
-	    BNC_NBYTESINBUF(result,i)=0;
 	}
 	result->u.n.n_bytes_in_buffers = 0; 
 	for (i=0; i<result->u.n.n_children; i++) {
@@ -472,9 +463,6 @@ void toku_verify_counts (BRTNODE node) {
 	    sum += BNC_NBYTESINBUF(node,i);
 	// We don't rally care of the later buffers have garbage in them.  Valgrind would do a better job noticing if we leave it uninitialized.
 	// But for now the code always initializes the later tables so they are 0.
-	for (; i<TREE_FANOUT+1; i++) {
-	    assert(BNC_NBYTESINBUF(node,i)==0);
-        }
 	assert(sum==node->u.n.n_bytes_in_buffers);
     }
 }
