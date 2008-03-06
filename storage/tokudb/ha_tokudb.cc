@@ -450,6 +450,8 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = (*txn)->commit(*txn, 0);
+    if (*txn == trx->sp_level)
+        trx->sp_level = 0;
     *txn = 0;
     DBUG_RETURN(error);
 }
@@ -460,6 +462,8 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     int error = (*txn)->abort(*txn);
+    if (*txn == trx->sp_level)
+        trx->sp_level = 0;
     *txn = 0;
     DBUG_RETURN(error);
 }
@@ -1976,7 +1980,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 DBUG_PRINT("trans", ("commiting non-updating transaction"));
                 error = trx->stmt->commit(trx->stmt, 0);
                 trx->stmt = transaction = 0;
-            }        }
+            }
+        }
     }
     DBUG_RETURN(error);
 }
