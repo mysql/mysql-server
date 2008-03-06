@@ -139,37 +139,6 @@ static void test3 (int nodesize, int count, int memcheck) {
     }
 }
 
-static void test4 (int nodesize, int count, int memcheck) {
-    BRT t;
-    int r;
-    struct timeval t0,t1;
-    int i;
-    CACHETABLE ct;
-    char fname[]="testbrt.brt";
-    gettimeofday(&t0, 0);
-    unlink(fname);
-    toku_memory_check=memcheck;
-    toku_memory_check_all_free();
-    r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);         assert(r==0);
-    r = toku_open_brt(fname, 0, 1, &t, nodesize, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
-    for (i=0; i<count; i++) {
-	char key[100],val[100];
-	int rv = random();
-	DBT k,v;
-	snprintf(key,100,"hello%d",rv);
-	snprintf(val,100,"there%d",i);
-	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
-    }
-    r = toku_close_brt(t);              assert(r==0);
-    r = toku_cachetable_close(&ct);     assert(r==0);
-    toku_memory_check_all_free();
-    gettimeofday(&t1, 0);
-    {
-	double tdiff = (t1.tv_sec-t0.tv_sec)+1e-6*(t1.tv_usec-t0.tv_usec);
-	if (verbose) printf("random insertions: blocksize=%d %d insertions in %.3f seconds, %.2f insertions/second\n", nodesize, count, tdiff, count/tdiff);
-    }
-}
-
 static void test5 (void) {
     int r;
     BRT t;
@@ -1723,21 +1692,14 @@ static void brt_blackbox_test (void) {
     if (verbose) printf("test3 slow\n");
     toku_memory_check=0;
     test3(2048, 1<<15, 1);
-    if (verbose) printf("test4 slow\n");
-    test4(2048, 1<<15, 1);
     if (verbose) printf("test3 fast\n");
 
     if (verbose) toku_pma_show_stats();
 
     test3(1<<15, 1024, 1);
-    test4(1<<15, 1024, 1);
     if (verbose) printf("test3 fast\n");
 
     test3(1<<18, 1<<20, 0);
-    test4(1<<18, 1<<20, 0);
-
-    // Once upon a time srandom(8) caused this test to fail.
-    srandom(8); test4(2048, 1<<15, 1);
 
     toku_memory_check = 1;
 
@@ -1753,16 +1715,12 @@ static void brt_blackbox_test (void) {
     toku_brt_do_push_cmd = old_brt_do_push_cmd;
 
 //    test3(1<<19, 1<<20, 0);
-//    test4(1<<19, 1<<20, 0);
 
 //    test3(1<<20, 1<<20, 0);
-//    test4(1<<20, 1<<20, 0);
 
 //    test3(1<<20, 1<<21, 0);
-//    test4(1<<20, 1<<21, 0);
 
 //    test3(1<<20, 1<<22, 0);
-//    test4(1<<20, 1<<22, 0);
 
 }
 
