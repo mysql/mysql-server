@@ -185,7 +185,7 @@ all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.rec
 	$(MAYBEATSIGN) $(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
 make_libs:
-	cd ..;make
+	#cd ..;make # commented out as it disables make -j2
 
 .PHONY: clean cleanall
 
@@ -226,6 +226,6 @@ dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff dump.o dump.r
 
 # test on small stacks
-test_thread_stack.tdbrun: test_thread_stack.tdb
-	./test_thread_stack.tdb -a -thread_stack 16384
-	./test_thread_stack.tdb -a -thread_stack 16384 -resume
+test_thread_stack.%run: test_thread_stack.%
+	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384
+	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384 -resume
