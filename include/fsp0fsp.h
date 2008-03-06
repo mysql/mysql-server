@@ -356,6 +356,7 @@ fseg_validate(
 				/* out: TRUE if ok */
 	fseg_header_t*	header, /* in: segment header */
 	mtr_t*		mtr2);	/* in: mtr */
+#ifdef UNIV_BTR_PRINT
 /***********************************************************************
 Writes info of a segment. */
 UNIV_INTERN
@@ -364,6 +365,7 @@ fseg_print(
 /*=======*/
 	fseg_header_t*	header, /* in: segment header */
 	mtr_t*		mtr);	/* in: mtr */
+#endif /* UNIV_BTR_PRINT */
 
 /* Flags for fsp_reserve_free_extents */
 #define FSP_NORMAL	1000000
