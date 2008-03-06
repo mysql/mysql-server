@@ -137,7 +137,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                      " %s, Error_code: %d;", err->msg, err->code);
   }
   
-  rli->report(level, thd->net.client_last_errno,
+  rli->report(level, thd->is_error()? thd->main_da.sql_errno() : 0,
               "Could not execute %s event on table %s.%s;"
               "%s handler error %s; "
               "the event's master log %s, end_log_pos %lu",
