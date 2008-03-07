@@ -1226,8 +1226,12 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
     flags                  Flags as defined below
       WFRM_INITIAL_WRITE        If set we need to prepare table before
                                 creating the frm file
-      WFRM_CREATE_HANDLER_FILES If set we need to create the handler file as
-                                part of the creation of the frm file
+      WFRM_INSTALL_SHADOW       If set we should install the new frm
+      WFRM_KEEP_SHARE           If set we know that the share is to be
+                                retained and thus we should ensure share
+                                object is correct, if not set we don't
+                                set the new partition syntax string since
+                                we know the share object is destroyed.
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -1370,7 +1374,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       goto err;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (part_info)
+    if (part_info && (flags & WFRM_KEEP_SHARE))
     {
       TABLE_SHARE *share= lpt->table->s;
       char *tmp_part_syntax_str;
@@ -3322,8 +3326,9 @@ bool mysql_create_table_no_lock(THD *thd,
         }
       }
     }
-    DBUG_PRINT("info", ("db_type = %d",
-                         ha_legacy_type(part_info->default_engine_type)));
+    DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file,
                                         create_info, TRUE))
       goto err;
@@ -3347,8 +3352,8 @@ bool mysql_create_table_no_lock(THD *thd,
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %d",
-                          ha_legacy_type(create_info->db_type)));
+      DBUG_PRINT("info", ("db_type: %s",
+                        ha_resolve_storage_engine_name(create_info->db_type)));
       delete file;
       create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))
@@ -3511,8 +3516,18 @@ bool mysql_create_table_no_lock(THD *thd,
   thd_proc_info(thd, "creating table");
   create_info->table_existed= 0;		// Mark that table is created
 
-  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
+#ifdef HAVE_READLINK
+  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif
+  {
+    if (create_info->data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (create_info->index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     create_info->data_file_name= create_info->index_file_name= 0;
+  }
   create_info->table_options=db_options;
 
   path[path_length - reg_ext_length]= '\0'; // Remove .frm extension

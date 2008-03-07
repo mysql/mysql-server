@@ -230,6 +230,9 @@ select min(a) from t1 group by inet_ntoa(a);
 min(a)
 -2
 drop table t1;
+SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
+NAME_CONST('var', 'value') COLLATE latin1_general_cs
+value
 End of 5.0 tests
 select connection_id() > 0;
 connection_id() > 0

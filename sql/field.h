@@ -1904,6 +1904,7 @@ public:
     Field::move_field_offset(ptr_diff);
     bit_ptr= ADD_TO_PTR(bit_ptr, ptr_diff, uchar*);
   }
+  void hash(ulong *nr, ulong *nr2);
 
 private:
   virtual size_t do_last_null_byte() const;
@@ -2068,6 +2069,7 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define FIELDFLAG_NO_DEFAULT		16384   /* sql */
 #define FIELDFLAG_SUM			((uint) 32768)// predit: +#fieldflag
 #define FIELDFLAG_MAYBE_NULL		((uint) 32768)// sql
+#define FIELDFLAG_HEX_ESCAPE		((uint) 0x10000)
 #define FIELDFLAG_PACK_SHIFT		3
 #define FIELDFLAG_DEC_SHIFT		8
 #define FIELDFLAG_MAX_DEC		31
@@ -2093,3 +2095,4 @@ int set_field_to_null_with_conversions(Field *field, bool no_conversions);
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
 #define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
+#define f_is_hex_escape(x)      ((x) & FIELDFLAG_HEX_ESCAPE)

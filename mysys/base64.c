@@ -256,6 +256,7 @@ main(void)
     char * str;
     char * dst;
 
+    require(src);
     for (j= 0; j<src_len; j++)
     {
       char c= rand();
@@ -265,6 +266,7 @@ main(void)
     /* Encode */
     needed_length= base64_needed_encoded_length(src_len);
     str= (char *) malloc(needed_length);
+    require(str);
     for (k= 0; k < needed_length; k++)
       str[k]= 0xff; /* Fill memory to check correct NUL termination */
     require(base64_encode(src, src_len, str) == 0);
@@ -272,7 +274,8 @@ main(void)
 
     /* Decode */
     dst= (char *) malloc(base64_needed_decoded_length(strlen(str)));
-    dst_len= base64_decode(str, strlen(str), dst);
+    require(dst);
+    dst_len= base64_decode(str, strlen(str), dst, NULL);
     require(dst_len == src_len);
 
     if (memcmp(src, dst, src_len) != 0)

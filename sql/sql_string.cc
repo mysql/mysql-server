@@ -840,6 +840,68 @@ outp:
 }
 
 
+/**
+  Copy string with HEX-encoding of "bad" characters.
+
+  @details This functions copies the string pointed by "src"
+  to the string pointed by "dst". Not more than "srclen" bytes
+  are read from "src". Any sequences of bytes representing
+  a not-well-formed substring (according to cs) are hex-encoded,
+  and all well-formed substrings (according to cs) are copied as is.
+  Not more than "dstlen" bytes are written to "dst". The number 
+  of bytes written to "dst" is returned.
+  
+   @param      cs       character set pointer of the destination string
+   @param[out] dst      destination string
+   @param      dstlen   size of dst
+   @param      src      source string
+   @param      srclen   length of src
+
+   @retval     result length
+*/
+
+size_t
+my_copy_with_hex_escaping(CHARSET_INFO *cs,
+                          char *dst, size_t dstlen,
+                          const char *src, size_t srclen)
+{
+  const char *srcend= src + srclen;
+  char *dst0= dst;
+
+  for ( ; src < srcend ; )
+  {
+    size_t chlen;
+    if ((chlen= my_ismbchar(cs, src, srcend)))
+    {
+      if (dstlen < chlen)
+        break; /* purecov: inspected */
+      memcpy(dst, src, chlen);
+      src+= chlen;
+      dst+= chlen;
+      dstlen-= chlen;
+    }
+    else if (*src & 0x80)
+    {
+      if (dstlen < 4)
+        break; /* purecov: inspected */
+      *dst++= '\\';
+      *dst++= 'x';
+      *dst++= _dig_vec_upper[((unsigned char) *src) >> 4];
+      *dst++= _dig_vec_upper[((unsigned char) *src) & 15];
+      src++;
+      dstlen-= 4;
+    }
+    else
+    {
+      if (dstlen < 1)
+        break; /* purecov: inspected */
+      *dst++= *src++;
+      dstlen--;
+    }
+  }
+  return dst - dst0;
+}
+
 /*
   copy a string,
   with optional character set conversion,

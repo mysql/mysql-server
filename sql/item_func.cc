@@ -3705,11 +3705,24 @@ longlong Item_func_sleep::val_int()
   DBUG_ASSERT(fixed == 1);
 
   double time= args[0]->val_real();
+  /*
+    On 64-bit OSX pthread_cond_timedwait() waits forever
+    if passed abstime time has already been exceeded by 
+    the system time.
+    When given a very short timeout (< 10 mcs) just return 
+    immediately.
+    We assume that the lines between this test and the call 
+    to pthread_cond_timedwait() will be executed in less than 0.00001 sec.
+  */
+  if (time < 0.00001)
+    return 0;
+    
   set_timespec_nsec(abstime, (ulonglong)(time * ULL(1000000000)));
 
   pthread_cond_init(&cond, NULL);
   pthread_mutex_lock(&LOCK_user_locks);
 
+  thd_proc_info(thd, "User sleep");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
@@ -3721,6 +3734,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
+  thd_proc_info(thd, 0);
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
