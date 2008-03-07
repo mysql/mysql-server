@@ -94,6 +94,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     logger->fd = -1;
     logger->next_log_file_number = nexti;
     logger->n_in_buf = 0;
+    logger->n_in_file = 0;
 
     logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file. 
 
@@ -115,10 +116,25 @@ int toku_logger_is_open(TOKULOGGER logger) {
     return logger->is_open;
 }
 
+static int flush (TOKULOGGER logger) {
+    if (logger->n_in_buf>0) {
+	int r = write(logger->fd, logger->buf, logger->n_in_buf);
+	if (r==-1) return errno;
+	logger->n_in_file += logger->n_in_buf;
+	logger->n_in_buf=0;
+    }
+    if (logger->n_in_file > 100<<20) {
+	int r = close(logger->fd);
+	if (r!=0) return errno;
+	logger->fd=-1;
+	logger->n_in_file = 0;
+    }
+    return 0;
+}
+
 static int log_format_version=0;
 
 int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
-    int r;
     if (logger->is_panicked) return EINVAL;
     //fprintf(stderr, "%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
     if (logger->fd==-1) {
@@ -130,31 +146,23 @@ int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	if (logger->fd==-1) return errno;
 	logger->next_log_file_number++;
 	int version_l = htonl(log_format_version);
-	r = write(logger->fd, "tokulogg", 8); if (r!=8) return errno;
+	int r = write(logger->fd, "tokulogg", 8); if (r!=8) return errno;
 	r = write(logger->fd, &version_l, 4); if (r!=4) return errno;
     }
     if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE) {
-	struct iovec v[2];
-	v[0].iov_base = logger->buf;
-	v[0].iov_len  = logger->n_in_buf;
-	v[1].iov_base = bytes;
-	v[1].iov_len  = nbytes;
-	//fprintf(stderr, "%s:%d flushing log due to buffer overflow\n", __FILE__, __LINE__);
-	r=writev(logger->fd, v, 2);
-	if (r!=logger->n_in_buf + nbytes) return errno;
-	logger->n_in_file += logger->n_in_buf+nbytes;
-	logger->n_in_buf=0;
-	if (logger->n_in_file > 100<<20) {
-	    //fprintf(stderr, "%s:%d closing logfile\n", __FILE__, __LINE__);
-	    r = close(logger->fd);
+	printf("flushing %d %d\n", logger->n_in_buf, logger->n_in_file);
+	int r=flush(logger);
+	if (r!=0) return r;
+	if (nbytes>LOGGER_BUF_SIZE) {
+	    r = write(logger->fd, bytes, nbytes);
 	    if (r!=0) return errno;
-	    logger->fd=-1;
-	    logger->n_in_file = 0;
+	    logger->n_in_file = nbytes;
+	    return flush(logger);
 	}
-    } else {
-	memcpy(logger->buf+logger->n_in_buf, bytes, nbytes);
-	logger->n_in_buf += nbytes;
+	printf("saving %d\n", nbytes);
     }
+    memcpy(logger->buf+logger->n_in_buf, bytes, nbytes);
+    logger->n_in_buf += nbytes;
     return 0;
 }
 
@@ -169,7 +177,9 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 	    r = write(logger->fd, logger->buf, logger->n_in_buf);
 	    if (r==-1) return errno;
 	}
-	r = close(logger->fd);
+	r = fsync(logger->fd);
+	if (r!=0)   close(logger->fd);
+	else 	    r = close(logger->fd);
     }
     toku_free(logger->directory);
  is_closed:
@@ -194,13 +204,10 @@ int toku_logger_fsync (TOKULOGGER logger) {
     //return 0;/// NO TXN
     //fprintf(stderr, "%s:%d syncing log\n", __FILE__, __LINE__);
     if (logger->is_panicked) return EINVAL;
-    if (logger->n_in_buf>0) {
-	int r = write(logger->fd, logger->buf, logger->n_in_buf);
-	if (r==-1) return errno;
-	logger->n_in_buf=0;
-    }
-    {
-	int r = fsync(logger->fd);
+    int r=flush(logger);
+    if (r!=0) return r;
+    if (logger->fd>=0) {
+	r = fsync(logger->fd);
 	if (r!=0) return errno;
     }
     return 0;
