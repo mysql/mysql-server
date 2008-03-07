@@ -23,6 +23,7 @@ struct fieldinfo db_env_fields32[] = {
   {"int  (*set_verbose) (DB_ENV *, u_int32_t, int)", 440, 4},
   {"int  (*set_lg_bsize) (DB_ENV *, u_int32_t)", 452, 4},
   {"int  (*set_lg_dir) (DB_ENV *, const char *)", 460, 4},
+  {"int  (*get_lg_max) (DB_ENV *, u_int32_t*)", 464, 4},
   {"int  (*set_lg_max) (DB_ENV *, u_int32_t)", 468, 4},
   {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 480, 4},
   {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 492, 4},
