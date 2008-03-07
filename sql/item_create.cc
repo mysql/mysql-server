@@ -361,13 +361,13 @@ Item *create_func_space(Item *a)
   if (cs->mbminlen > 1)
   {
     uint dummy_errors;
-    sp= new Item_string("",0,cs);
+    sp= new Item_string("", 0, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
     if (sp)
       sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
   }
   else
   {
-    sp= new Item_string(" ",1,cs);
+    sp= new Item_string(" ", 1, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   }
   return sp ? new Item_func_repeat(sp, a) : 0;
 }
