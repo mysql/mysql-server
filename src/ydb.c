@@ -958,7 +958,7 @@ static int get_main_cursor_flag(u_int32_t flag) {
     return flag;
 }
 
-inline static BOOL toku_c_uninitialized(DBC* c) {
+static inline BOOL toku_c_uninitialized(DBC* c) {
     return toku_brt_cursor_uninitialized(c->i->c);
 }            
 
@@ -995,7 +995,7 @@ static inline int toku_uninitialized_swap(DBC* c, DBT* key, DBT* data,
     This may hold extra locks, and will not work as expected when
     a node has two non-completed txns at any time.
 */
-inline static DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
+static inline DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
     while (txn && txn->i->parent) txn = txn->i->parent;
     return txn;
 }
@@ -2214,7 +2214,7 @@ static int toku_db_fd(DB *db, int *fdp) {
 //TODO: DB_AUTO_COMMIT.
 //TODO: Nowait only conditionally?
 //TODO: NOSYNC change to SYNC if DB_ENV has something in set_flags
-inline static int toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed,
+static inline int toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed,
                                             BOOL force_auto_commit) {
     assert(db && txn && changed);
     DB_ENV* env = db->dbenv;
@@ -2230,14 +2230,14 @@ inline static int toku_db_construct_autotxn(DB* db, DB_TXN **txn, BOOL* changed,
     return 0;
 }
 
-inline static int toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
+static inline int toku_db_destruct_autotxn(DB_TXN *txn, int r, BOOL changed) {
     if (!changed) return r;
     if (r==0) return toku_txn_commit(txn, 0);
     toku_txn_abort(txn);
     return r; 
 }
 
-inline static int autotxn_db_associate(DB *primary, DB_TXN *txn, DB *secondary,
+static inline int autotxn_db_associate(DB *primary, DB_TXN *txn, DB *secondary,
                                        int (*callback)(DB *secondary, const DBT *key, const DBT *data, DBT *result), u_int32_t flags) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(primary, &txn, &changed, FALSE);
@@ -2255,7 +2255,7 @@ static int locked_db_close(DB * db, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_db_close(db, flags); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
+static inline int autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
     if (!txn && (db->dbenv->i->open_flags & DB_INIT_TXN)) {
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
@@ -2267,7 +2267,7 @@ static int locked_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {
     toku_ydb_lock(); int r = autotxn_db_cursor(db, txn, c, flags); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key,
+static inline int autotxn_db_del(DB* db, DB_TXN* txn, DBT* key,
                                  u_int32_t flags) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
@@ -2280,7 +2280,7 @@ static int locked_db_del(DB * db, DB_TXN * txn, DBT * key, u_int32_t flags) {
     toku_ydb_lock(); int r = autotxn_db_del(db, txn, key, flags); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data,
+static inline int autotxn_db_get(DB* db, DB_TXN* txn, DBT* key, DBT* data,
                                  u_int32_t flags) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
@@ -2293,7 +2293,7 @@ static int locked_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_
     toku_ydb_lock(); int r = autotxn_db_get(db, txn, key, data, flags); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
+static inline int autotxn_db_pget(DB* db, DB_TXN* txn, DBT* key, DBT* pkey,
                                   DBT* data, u_int32_t flags) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);
@@ -2306,7 +2306,7 @@ static int locked_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, 
     toku_ydb_lock(); int r = autotxn_db_pget(db, txn, key, pkey, data, flags); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
+static inline int autotxn_db_open(DB* db, DB_TXN* txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, flags & DB_AUTO_COMMIT);
     if (r!=0) return r;
@@ -2318,7 +2318,7 @@ static int locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *db
     toku_ydb_lock(); int r = autotxn_db_open(db, txn, fname, dbname, dbtype, flags, mode); toku_ydb_unlock(); return r;
 }
 
-inline static int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
+static inline int autotxn_db_put(DB* db, DB_TXN* txn, DBT* key, DBT* data,
                                  u_int32_t flags) {
     BOOL changed; int r;
     r = toku_db_construct_autotxn(db, &txn, &changed, FALSE);

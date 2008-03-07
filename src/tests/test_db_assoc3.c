@@ -174,8 +174,8 @@ static void dbg_name_delete (char *name) {
     assert(0);
 }
 #else
-inline static void dbg_name_insert(unsigned char*name __attribute__((__unused__))) {}
-inline static void dbg_name_delete(char*name __attribute__((__unused__))) {}
+static inline void dbg_name_insert(unsigned char*name __attribute__((__unused__))) {}
+static inline void dbg_name_delete(char*name __attribute__((__unused__))) {}
 #endif
 
 
