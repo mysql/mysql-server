@@ -89,23 +89,24 @@ int toku_rt_create(toku_range_tree** ptree,
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
     int r;
-    toku_range_tree* temptree;
+    toku_range_tree* tmptree;
 
-    r = toku_rt_super_create(&temptree, end_cmp, data_cmp, allow_overlaps,
+    if (!ptree) return EINVAL;
+    r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps,
                              user_malloc, user_free, user_realloc);
     if (0) {
         died1:
-        user_free(temptree);
+        user_free(tmptree);
         return r;
     }
     if (r!=0) return r;
     
     //Any local initializers go here.
-    temptree->i.ranges_len = minlen;
-    temptree->i.ranges     = (toku_range*)
-                       user_malloc(temptree->i.ranges_len * sizeof(toku_range));
-    if (!temptree->i.ranges) { r = errno; goto died1; }
-    *ptree = temptree;
+    tmptree->i.ranges_len = minlen;
+    tmptree->i.ranges     = (toku_range*)
+                       user_malloc(tmptree->i.ranges_len * sizeof(toku_range));
+    if (!tmptree->i.ranges) { r = errno; goto died1; }
+    *ptree = tmptree;
 
     return 0;
 }

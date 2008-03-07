@@ -67,7 +67,8 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
     return 0;
 }
 
-static inline int toku_rt_super_create(toku_range_tree** ptree,
+static inline int toku_rt_super_create(toku_range_tree** upperptree,
+                   toku_range_tree** ptree,
                    int (*end_cmp)(toku_point*,toku_point*),
                    int (*data_cmp)(DB_TXN*,DB_TXN*),
                    BOOL allow_overlaps,
@@ -75,7 +76,7 @@ static inline int toku_rt_super_create(toku_range_tree** ptree,
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
     toku_range_tree* temptree;
-    if (!ptree || !end_cmp || !data_cmp ||
+    if (!upperptree || !ptree || !end_cmp || !data_cmp ||
         !user_malloc || !user_free || !user_realloc)              return EINVAL;
     
     temptree = (toku_range_tree*)user_malloc(sizeof(toku_range_tree));

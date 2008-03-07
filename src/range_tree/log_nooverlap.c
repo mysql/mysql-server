@@ -121,10 +121,10 @@ int toku_rt_create(toku_range_tree** ptree,
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
     int r;
-    toku_range_tree* temptree;
+    toku_range_tree* tmptree;
 
     if (allow_overlaps) return ENOSYS;
-    r = toku_rt_super_create(&temptree, end_cmp, data_cmp, allow_overlaps,
+    r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps,
                              user_malloc, user_free, user_realloc);
     if (0) {
         died1:
@@ -134,9 +134,9 @@ int toku_rt_create(toku_range_tree** ptree,
     if (r!=0) return r;
     
     //Any local initializers go here.
-    temptree->rbt = toku_rbt_init(void);
-    if (!temptree->rbt) { r = errno; goto died1; }
-    *ptree = temptree;
+    tmptree->rbt = toku_rbt_init(void);
+    if (!tmptree->rbt) { r = errno; goto died1; }
+    *ptree = tmptree;
 
     return 0;
 }
