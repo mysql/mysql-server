@@ -88,7 +88,7 @@ private void
 re_addc(EditLine *el, int c)
 {
 
-	if (isprint(c)) {
+	if (el_isprint(c)) {
 		re_putc(el, c, 1);
 		return;
 	}
@@ -964,7 +964,7 @@ re_refresh_cursor(EditLine *el)
 					h = 1;
 					v++;
 				}
-			} else if (!isprint((unsigned char) c)) {
+			} else if (!el_isprint((unsigned char) c)) {
 				h += 3;
 				if (h > th) {	/* if overflow, compensate */
 					h = h - th;
@@ -1057,7 +1057,7 @@ re_fastaddc(EditLine *el)
 		char mc = (c == '\177') ? '?' : (c | 0100);
 		re_fastputc(el, '^');
 		re_fastputc(el, mc);
-	} else if (isprint((unsigned char) c)) {	/* normal char */
+	} else if (el_isprint((unsigned char) c)) {	/* normal char */
 		re_fastputc(el, c);
 	} else {
 		re_fastputc(el, '\\');
