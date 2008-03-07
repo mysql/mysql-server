@@ -3708,6 +3708,7 @@ sub restore_installed_db ($) {
       {
 	mtr_rmtree("$ndbd->{'path_fs'}" );
       }
+      mtr_rmtree("$cluster->{'data_dir'}/BACKUP");
     }
   }
   else
