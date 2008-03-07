@@ -759,12 +759,36 @@ enum enum_schema_tables
 
 typedef struct st_field_info
 {
+  /** 
+      This is used as column name. 
+  */
   const char* field_name;
+  /**
+     For string-type columns, this is the maximum number of
+     characters. Otherwise, it is the 'display-length' for the column.
+  */
   uint field_length;
+  /**
+     This denotes data type for the column. For the most part, there seems to
+     be one entry in the enum for each SQL data type, although there seem to
+     be a number of additional entries in the enum.
+  */
   enum enum_field_types field_type;
   int value;
+  /**
+     This is used to set column attributes. By default, columns are @c NOT
+     @c NULL and @c SIGNED, and you can deviate from the default
+     by setting the appopriate flags. You can use either one of the flags
+     @c MY_I_S_MAYBE_NULL and @cMY_I_S_UNSIGNED or
+     combine them using the bitwise or operator @c |. Both flags are
+     defined in table.h.
+   */
   uint field_flags;        // Field atributes(maybe_null, signed, unsigned etc.)
   const char* old_name;
+  /**
+     This should be one of @c SKIP_OPEN_TABLE,
+     @c OPEN_FRM_ONLY or @c OPEN_FULL_TABLE.
+  */
   uint open_method;
 } ST_FIELD_INFO;
 

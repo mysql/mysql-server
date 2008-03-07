@@ -5384,8 +5384,9 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 
   @param
     thd	       	          thread handler
-  @param
-    schema_table          pointer to 'shema_tables' element
+
+  @param table_list Used to pass I_S table information(fields info, tables
+  parameters etc) and table name.
 
   @retval  \#             Pointer to created table
   @retval  NULL           Can't create table
@@ -5436,6 +5437,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         DBUG_RETURN(NULL);
       break;
     case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))
       {
         DBUG_RETURN(0);
@@ -5785,7 +5787,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 {
   ST_SCHEMA_TABLE *schema_table= get_schema_table(schema_table_idx);
   LEX_STRING db, table;
-  DBUG_ENTER("mysql_schema_select");
+  DBUG_ENTER("make_schema_select");
   DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
      We have to make non const db_name & table_name
