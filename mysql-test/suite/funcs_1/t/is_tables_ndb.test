@@ -1,0 +1,34 @@
+# suite/funcs_1/t/is_tables_ndb.test
+#
+# Check the content of information_schema.tables about tables within
+# the databases created by the user.
+# Variant for storage engine NDB
+#
+# Author:
+# 2008-01-23 mleich WL#4203 Reorganize and fix the data dictionary tests of
+#                           testsuite funcs_1
+#                   Create this script based on older scripts and new code.
+#
+
+--source include/have_ndb.inc
+let $engine_type= NDB;
+--source suite/funcs_1/datadict/datadict_load.inc
+--enable_abort_on_error
+
+# We look only for the tables created by datadict_load.inc.
+let $my_where = WHERE table_schema LIKE 'test%' AND table_type = 'BASE TABLE';
+--source suite/funcs_1/datadict/tables1.inc
+
+# This test runs with a different set of tables.
+# --source suite/funcs_1/include/cleanup.inc
+DROP DATABASE test1;
+DROP DATABASE test4;
+DROP TABLE test.t1;
+DROP TABLE test.t2;
+DROP TABLE test.t3;
+DROP TABLE test.t4;
+DROP TABLE test.t7;
+DROP TABLE test.t8;
+DROP TABLE test.t9;
+DROP TABLE test.t10;
+DROP TABLE test.t11;

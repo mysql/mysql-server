@@ -1,7 +1,4 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
 drop table if exists tb2 ;
 create table tb2 (
 f59 numeric (0) unsigned, 
@@ -60,8 +57,6 @@ load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/memory_tb2.txt' into table t
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
 USE test1;
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
 drop table if exists tb2 ;
 create table tb2 (
 f59 numeric (0) unsigned, 
@@ -11457,4 +11452,5 @@ DROP VIEW  IF EXISTS v1_secondview;
 DROP VIEW  IF EXISTS v2;
 DROP DATABASE IF EXISTS test2;
 DROP DATABASE IF EXISTS test3;
-DROP DATABASE IF EXISTS test1;
+DROP DATABASE test1;
+DROP TABLE test.tb2;
