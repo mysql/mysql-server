@@ -4789,6 +4789,12 @@ Item_func_get_system_var::fix_fields(THD *thd, Item **ref)
 }
 
 
+bool Item_func_get_system_var::is_written_to_binlog()
+{
+  return var->is_written_to_binlog(var_type);
+}
+
+
 longlong Item_func_inet_aton::val_int()
 {
   DBUG_ASSERT(fixed == 1);

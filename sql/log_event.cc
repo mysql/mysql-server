@@ -14,7 +14,11 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 
-#ifndef MYSQL_CLIENT
+#ifdef MYSQL_CLIENT
+
+#include "mysql_priv.h"
+
+#else
 
 #ifdef USE_PRAGMA_IMPLEMENTATION
 #pragma implementation				// gcc: Class implementation
@@ -28,7 +32,9 @@
 #include "rpl_utility.h"
 #include "rpl_record.h"
 #include <my_dir.h>
+
 #endif /* MYSQL_CLIENT */
+
 #include <base64.h>
 #include <my_bitmap.h>
 
@@ -1589,7 +1595,7 @@ bool Query_log_event::write(IO_CACHE* file)
       recognize Q_CATALOG_CODE and have no problem.
     */
   }
-  if (auto_increment_increment != 1)
+  if (auto_increment_increment != 1 || auto_increment_offset != 1)
   {
     *start++= Q_AUTO_INCREMENT;
     int2store(start, auto_increment_increment);
@@ -2102,9 +2108,17 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   end= strmov(end, print_event_info->delimiter);
   *end++='\n';
   my_b_write(file, (uchar*) buff, (uint) (end-buff));
-  if (flags & LOG_EVENT_THREAD_SPECIFIC_F)
+  if ((!print_event_info->thread_id_printed ||
+       ((flags & LOG_EVENT_THREAD_SPECIFIC_F) &&
+        thread_id != print_event_info->thread_id)))
+  {
+    // If --short-form, print deterministic value instead of pseudo_thread_id.
     my_b_printf(file,"SET @@session.pseudo_thread_id=%lu%s\n",
-                (ulong)thread_id, print_event_info->delimiter);
+                short_form ? 999999999 : (ulong)thread_id,
+                print_event_info->delimiter);
+    print_event_info->thread_id= thread_id;
+    print_event_info->thread_id_printed= 1;
+  }
 
   /*
     If flags2_inited==0, this is an event from 3.23 or 4.0; nothing to
@@ -2151,20 +2165,14 @@ void Query_log_event::print_query_header(IO_CACHE* file,
     gracefully). So this code should always be good.
   */
 
-  if (likely(sql_mode_inited))
+  if (likely(sql_mode_inited) &&
+      (unlikely(print_event_info->sql_mode != sql_mode ||
+                !print_event_info->sql_mode_inited)))
   {
-    if (unlikely(!print_event_info->sql_mode_inited)) /* first Query event */
-    {
-      print_event_info->sql_mode_inited= 1;
-      /* force a difference to force write */
-      print_event_info->sql_mode= ~sql_mode;
-    }
-    if (unlikely(print_event_info->sql_mode != sql_mode))
-    {
-      my_b_printf(file,"SET @@session.sql_mode=%lu%s\n",
-                  (ulong)sql_mode, print_event_info->delimiter);
-      print_event_info->sql_mode= sql_mode;
-    }
+    my_b_printf(file,"SET @@session.sql_mode=%lu%s\n",
+                (ulong)sql_mode, print_event_info->delimiter);
+    print_event_info->sql_mode= sql_mode;
+    print_event_info->sql_mode_inited= 1;
   }
   if (print_event_info->auto_increment_increment != auto_increment_increment ||
       print_event_info->auto_increment_offset != auto_increment_offset)
@@ -2178,33 +2186,28 @@ void Query_log_event::print_query_header(IO_CACHE* file,
 
   /* TODO: print the catalog when we feature SET CATALOG */
 
-  if (likely(charset_inited))
+  if (likely(charset_inited) &&
+      (unlikely(!print_event_info->charset_inited ||
+                bcmp((uchar*) print_event_info->charset, (uchar*) charset, 6))))
   {
-    if (unlikely(!print_event_info->charset_inited)) /* first Query event */
+    CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
+    if (cs_info)
     {
-      print_event_info->charset_inited= 1;
-      print_event_info->charset[0]= ~charset[0]; // force a difference to force write
+      /* for mysql client */
+      my_b_printf(file, "/*!\\C %s */%s\n",
+                  cs_info->csname, print_event_info->delimiter);
     }
-    if (unlikely(bcmp((uchar*) print_event_info->charset, (uchar*) charset, 6)))
-    {
-      CHARSET_INFO *cs_info= get_charset(uint2korr(charset), MYF(MY_WME));
-      if (cs_info)
-      {
-        /* for mysql client */
-        my_b_printf(file, "/*!\\C %s */%s\n",
-                    cs_info->csname, print_event_info->delimiter);
-      }
-      my_b_printf(file,"SET "
-                  "@@session.character_set_client=%d,"
-                  "@@session.collation_connection=%d,"
-                  "@@session.collation_server=%d"
-                  "%s\n",
-                  uint2korr(charset),
-                  uint2korr(charset+2),
-                  uint2korr(charset+4),
-                  print_event_info->delimiter);
-      memcpy(print_event_info->charset, charset, 6);
-    }
+    my_b_printf(file,"SET "
+                "@@session.character_set_client=%d,"
+                "@@session.collation_connection=%d,"
+                "@@session.collation_server=%d"
+                "%s\n",
+                uint2korr(charset),
+                uint2korr(charset+2),
+                uint2korr(charset+4),
+                print_event_info->delimiter);
+    memcpy(print_event_info->charset, charset, 6);
+    print_event_info->charset_inited= 1;
   }
   if (time_zone_len)
   {
@@ -8631,3 +8634,34 @@ Incident_log_event::write_data_body(IO_CACHE *file)
   DBUG_ENTER("Incident_log_event::write_data_body");
   DBUG_RETURN(write_str(file, m_message.str, m_message.length));
 }
+
+
+#ifdef MYSQL_CLIENT
+/**
+  The default values for these variables should be values that are
+  *incorrect*, i.e., values that cannot occur in an event.  This way,
+  they will always be printed for the first event.
+*/
+st_print_event_info::st_print_event_info()
+  :flags2_inited(0), sql_mode_inited(0),
+   auto_increment_increment(0),auto_increment_offset(0), charset_inited(0),
+   lc_time_names_number(~0),
+   charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
+   thread_id(0), thread_id_printed(false),
+   base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
+{
+  /*
+    Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
+    program's startup, but these explicit bzero() is for the day someone
+    creates dynamic instances.
+  */
+  bzero(db, sizeof(db));
+  bzero(charset, sizeof(charset));
+  bzero(time_zone_str, sizeof(time_zone_str));
+  delimiter[0]= ';';
+  delimiter[1]= 0;
+  myf const flags = MYF(MY_WME | MY_NABP);
+  open_cached_file(&head_cache, NULL, NULL, 0, flags);
+  open_cached_file(&body_cache, NULL, NULL, 0, flags);
+}
+#endif
