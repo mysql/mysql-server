@@ -130,7 +130,7 @@ drop table t1,t2;
 # don't get any memory leaks for this
 
 create temporary table t3 (f int);
-sync_with_master;
+sync_slave_with_master;
 
 # The server will now close done
 
@@ -141,7 +141,8 @@ sync_with_master;
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
-sync_with_master;
+sync_slave_with_master;
+connection master;
 # find dumper's $id
 source include/get_binlog_dump_thread_id.inc;
 insert into t4 values (1);
