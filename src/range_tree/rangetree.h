@@ -79,6 +79,8 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
     \return
     - 0:                    Success.
     - EINVAL:               If any pointer argument is NULL.
+    - ENOSYS:               If allow_overlaps = TRUE and the implementation does
+                            not support overlaps.
     - Other exit codes may be forwarded from underlying system calls. */
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(toku_point*,toku_point*), 
