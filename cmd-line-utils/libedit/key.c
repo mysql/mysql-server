@@ -618,7 +618,7 @@ key__decode_char(char *buf, int cnt, int ch)
 	} else if (ch == '\\') {
 		buf[cnt++] = '\\';
 		buf[cnt] = '\\';
-	} else if (ch == ' ' || (isprint(ch) && !isspace(ch))) {
+	} else if (ch == ' ' || (el_isprint(ch) && !isspace(ch))) {
 		buf[cnt] = ch;
 	} else {
 		buf[cnt++] = '\\';
@@ -660,7 +660,7 @@ key__decode_str(const char *str, char *buf, const char *sep)
 		} else if (*p == '^' || *p == '\\') {
 			*b++ = '\\';
 			*b++ = *p;
-		} else if (*p == ' ' || (isprint((unsigned char) *p) &&
+		} else if (*p == ' ' || (el_isprint((unsigned char) *p) &&
 			!isspace((unsigned char) *p))) {
 			*b++ = *p;
 		} else {
