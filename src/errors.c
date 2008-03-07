@@ -24,7 +24,7 @@ int toku_env_is_panicked(DB_ENV *dbenv /**< The environment to check */) {
 
 /* Prints an error message to a file specified by env (or stderr),
    preceded by the environment's error prefix. */
-static void __toku_ydb_error_file(const DB_ENV *env, BOOL use_stderr, 
+static void toku__ydb_error_file(const DB_ENV *env, BOOL use_stderr, 
                                   char errmsg[]) {
     /* Determine the error file to use */
     FILE *efile=env->i->errfile;
@@ -80,7 +80,7 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
     if (env->i->errcall) env->i->errcall(env, env->i->errpfx, buf);
 
     /* Print out on a file */
-    __toku_ydb_error_file(env, use_stderr_if_nothing_else, buf);
+    toku__ydb_error_file(env, use_stderr_if_nothing_else, buf);
 }
 
 int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *string, ...)
