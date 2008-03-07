@@ -14,6 +14,7 @@ struct fieldinfo db_env_fields32[] = {
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 380, 4},
   {"int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 396, 4},
   {"int (*get_flags) (DB_ENV *, u_int32_t *)", 416, 4},
+  {"int  (*get_lg_max) (DB_ENV *, u_int32_t*)", 436, 4},
   {"int  (*get_lk_max_locks) (DB_ENV *, u_int32_t *)", 456, 4},
   {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 548, 4},
   {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 560, 4},
@@ -75,16 +76,16 @@ struct fieldinfo db_fields32[] = {
 };
 struct fieldinfo db_txn_active_fields32[] = {
   {"u_int32_t txnid", 0, 4},
-  {"DB_LSN lsn", 16, 8},
-  {0, 208, 208} /* size of whole struct */
+  {"DB_LSN lsn", 20, 8},
+  {0, 212, 212} /* size of whole struct */
 };
 struct fieldinfo db_txn_fields32[] = {
   {"DB_ENV *mgrp /*In TokuDB, mgrp is a DB_ENV not a DB_TXNMGR*/", 0, 4},
-  {"void *api_internal", 84, 4},
-  {"int (*abort) (DB_TXN *)", 96, 4},
-  {"int (*commit) (DB_TXN*, u_int32_t)", 100, 4},
-  {"u_int32_t (*id) (DB_TXN *)", 112, 4},
-  {0, 136, 136} /* size of whole struct */
+  {"void *api_internal", 88, 4},
+  {"int (*abort) (DB_TXN *)", 100, 4},
+  {"int (*commit) (DB_TXN*, u_int32_t)", 104, 4},
+  {"u_int32_t (*id) (DB_TXN *)", 116, 4},
+  {0, 140, 140} /* size of whole struct */
 };
 struct fieldinfo db_txn_stat_fields32[] = {
   {"u_int32_t st_nactive", 32, 4},
