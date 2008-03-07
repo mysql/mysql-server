@@ -46,21 +46,21 @@ COMMENT	varchar(16)	YES		NULL
 SHOW CREATE TABLE information_schema.STATISTICS;
 Table	Create Table
 STATISTICS	CREATE TEMPORARY TABLE `STATISTICS` (
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `TABLE_NAME` varchar(64) NOT NULL default '',
-  `NON_UNIQUE` bigint(1) NOT NULL default '0',
-  `INDEX_SCHEMA` varchar(64) NOT NULL default '',
-  `INDEX_NAME` varchar(64) NOT NULL default '',
-  `SEQ_IN_INDEX` bigint(2) NOT NULL default '0',
-  `COLUMN_NAME` varchar(64) NOT NULL default '',
-  `COLLATION` varchar(1) default NULL,
-  `CARDINALITY` bigint(21) default NULL,
-  `SUB_PART` bigint(3) default NULL,
-  `PACKED` varchar(10) default NULL,
-  `NULLABLE` varchar(3) NOT NULL default '',
-  `INDEX_TYPE` varchar(16) NOT NULL default '',
-  `COMMENT` varchar(16) default NULL
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `NON_UNIQUE` bigint(1) NOT NULL DEFAULT '0',
+  `INDEX_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `INDEX_NAME` varchar(64) NOT NULL DEFAULT '',
+  `SEQ_IN_INDEX` bigint(2) NOT NULL DEFAULT '0',
+  `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
+  `COLLATION` varchar(1) DEFAULT NULL,
+  `CARDINALITY` bigint(21) DEFAULT NULL,
+  `SUB_PART` bigint(3) DEFAULT NULL,
+  `PACKED` varchar(10) DEFAULT NULL,
+  `NULLABLE` varchar(3) NOT NULL DEFAULT '',
+  `INDEX_TYPE` varchar(16) NOT NULL DEFAULT '',
+  `COMMENT` varchar(16) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.STATISTICS;
 Field	Type	Null	Key	Default	Extra

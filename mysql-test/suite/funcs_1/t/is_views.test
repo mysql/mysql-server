@@ -52,6 +52,9 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 # IS_UPDATABLE (shows whether the view is an updatable view),
 # DEFINER (added with 5.0.14),
 # SECURITY_TYPE (added with 5.0.14).
+# Since MySQL 5.1
+# CHARACTER_SET_CLIENT
+# COLLATION_CONNECTION
 #
 --source suite/funcs_1/datadict/datadict_bug_12777.inc
 eval DESCRIBE          information_schema.$is_table;
