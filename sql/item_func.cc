@@ -3722,6 +3722,7 @@ longlong Item_func_sleep::val_int()
   pthread_cond_init(&cond, NULL);
   pthread_mutex_lock(&LOCK_user_locks);
 
+  thd_proc_info(thd, "User sleep");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
@@ -3733,6 +3734,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
+  thd_proc_info(thd, 0);
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
