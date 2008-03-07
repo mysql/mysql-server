@@ -2613,8 +2613,8 @@ level smallint unsigned);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `name` varchar(10) collate utf8_swedish_ci default NULL,
-  `level` smallint(5) unsigned default NULL
+  `name` varchar(10) COLLATE utf8_swedish_ci DEFAULT NULL,
+  `level` smallint(5) unsigned DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
