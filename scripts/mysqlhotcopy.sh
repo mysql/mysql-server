@@ -733,7 +733,7 @@ sub record_log_pos {
 	      = @{$row_hash}{ qw / Master_Host Log_File Pos / };
 	} else {
 	    ($master_host, $log_file, $log_pos ) 
-	      = @{$row_hash}{ qw / Master_Host Master_Log_File Read_Master_Log_Pos / };
+	      = @{$row_hash}{ qw / Master_Host Relay_Master_Log_File Exec_Master_Log_Pos / };
 	}
 	my $hostname = hostname();
 	
@@ -836,9 +836,10 @@ log-pos-table from the values returned from "show master status" and
 log_file and log_pos columns, and establish the position in the binary
 logs that any slaves of this host should adopt if initialised from
 this dump.  The slave status values are stored in master_host,
-master_log_file, and master_log_pos, and these are useful if the host
-performing the dump is a slave and other sibling slaves are to be
-initialised from this dump.
+master_log_file, and master_log_pos, corresponding to the coordinates
+of the next to the last event the slave has executed. The slave or its
+siblings can connect to the master next time and request replication
+starting from the recorded values. 
 
 The name of the log-pos table should be supplied in database.table format.
 A sample log-pos table definition:
