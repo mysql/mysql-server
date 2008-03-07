@@ -58,7 +58,7 @@ RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS)
 
 
-all: make_libs $(ALL_TESTS)
+all: $(ALL_TESTS)
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
@@ -67,13 +67,13 @@ foo:
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok $@
-tests.bdb: make_libs $(BDB_TESTS)
+tests.bdb: $(BDB_TESTS)
 	@ echo ok $@
-check.bdb: make_libs $(RUN_BDB_TESTS)
+check.bdb: $(RUN_BDB_TESTS)
 	@ echo ok $@
-tests.tdb: make_libs $(TDB_TESTS)
+tests.tdb: $(TDB_TESTS)
 	@ echo ok $@
-check.tdb: make_libs $(RUN_TDB_TESTS)
+check.tdb: $(RUN_TDB_TESTS)
 	@ echo ok $@
 
 # Need these rule so that Make knows about all the file names
@@ -153,13 +153,10 @@ NO_VGRIND = \
   kv_limits \
   log0 \
   log1 \
-  log2 \
-  log3 \
-  log4 \
-  log5 \
   nodup_set \
   thread_insert \
   # Comment to terminate list so the previous line can end with a slash
+  # Don't include log2 log3 log4 log5 since they are covered by all.recover
 
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
@@ -175,17 +172,15 @@ libs:
 .PHONY: %.recover
 all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
 %.recover: %.tdb
-	$(MAYBEATSIGN) cd ../../newbrt;make $(VERBQUIET) recover;make $(VERBQUIET)
-	$(MAYBEATSIGN) $(SETTOKUENV) cd ..;make $(VERBQUIET)
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
-	$(MAYBEATSIGN) $(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) $(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) $(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
 	$(MAYBEATSIGN) $(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
-make_libs:
-	#cd ..;make # commented out as it disables make -j2
+%.recoverwc: %.tdb
+	$(MAYBEATSIGN) $(SETTOKUENV) (cd dir.$(patsubst %.tdb,%.c.tdb,$<);pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
+
 
 .PHONY: clean cleanall
 
