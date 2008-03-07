@@ -1638,4 +1638,6 @@ show open tables where f1()=0;
 show open tables where f1()=0;
 drop table t1;
 drop function f1;
+select * from information_schema.tables where 1=sleep(100000);
+select * from information_schema.columns where 1=sleep(100000);
 End of 5.1 tests.
