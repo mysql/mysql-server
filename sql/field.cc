@@ -7644,6 +7644,17 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   if (value.alloc(new_length))
     goto oom_error;
 
+
+  if (f_is_hex_escape(flags))
+  {
+    copy_length= my_copy_with_hex_escaping(field_charset,
+                                           (char*) value.ptr(), new_length,
+                                            from, length);
+    Field_blob::store_length(copy_length);
+    tmp= value.ptr();
+    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
+    return 0;
+  }
   /*
     "length" is OK as "nchars" argument to well_formed_copy_nchars as this
     is never used to limit the length of the data. The cut of long data
