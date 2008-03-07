@@ -4,11 +4,14 @@
 source include/master-slave.inc;
 
 connection slave;
-select * from Information_schema.GLOBAL_VARIABLES where variable_name regexp 'report_\(host\|port\|user\|password\)';
-show global variables like 'report_host';
-show global variables like 'report_port';
-show global variables like 'report_user';
-show global variables like 'report_password';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_user';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_password';
+query_vertical show global variables like 'report_host';
+query_vertical show global variables like 'report_port';
+query_vertical show global variables like 'report_user';
+query_vertical show global variables like 'report_password';
 
 # to demonstrate that report global variables are read-only
 error ER_INCORRECT_GLOBAL_LOCAL_VAR;
