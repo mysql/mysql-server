@@ -32,8 +32,10 @@ clean:
 rangetree.o: linear.o
 	cp $< $@
 
-linear.o: linear.c rangetree.h
+HEADERS=rangetree.h rangetree-internal.h
 
-log.o: log.c rangetree.h
+linear.o: linear.c                  $(HEADERS)
 
-log_nooverlap.o: log_nooverlap.c rangetree.h
+log.o: log.c                        $(HEADERS)
+
+log_nooverlap.o: log_nooverlap.c    $(HEADERS)

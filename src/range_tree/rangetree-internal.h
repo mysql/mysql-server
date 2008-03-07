@@ -1,0 +1,41 @@
+/* -*- mode: C; c-basic-offset: 4 -*- */
+#ident "Copyright (c) 2007-8 Tokutek Inc.  All rights reserved."
+
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
+#if !defined(TOKU_RANGE_TREE_INTERNAL_H)
+#define TOKU_RANGE_TREE_INTERNAL_H
+/** Export the internal representation to a sensible name */
+/*  These lines will remain. */
+typedef struct __toku_range_tree_local toku_range_tree_local;
+struct __toku_range_tree_local;
+
+/** \brief Internal range representation 
+    Internal representation of a range tree. Some fields depend on the
+    implementation of range trees, and some others are shared.
+    Parameters are never modified on failure with the exception of
+    buf and buflen.
+ */
+struct __toku_range_tree {
+    //Shared fields:
+    /** A comparison function, as in bsearch(3), to compare the end-points of 
+        a range. It is assumed to be commutative. */
+    int       (*end_cmp)(toku_point*,toku_point*);  
+    /** A comparison function, as in bsearch(3), to compare the data associated
+        with a range */
+    int       (*data_cmp)(DB_TXN*,DB_TXN*);
+    /** Whether this tree allows ranges to overlap */
+    BOOL        allow_overlaps;
+    /** The number of ranges in the range tree */
+    u_int32_t   numelements;
+    /** The user malloc function */
+    void*     (*malloc) (size_t);
+    /** The user free function */
+    void      (*free)   (void*);
+    /** The user realloc function */
+    void*     (*realloc)(void*, size_t);
+
+    toku_range_tree_local i;
+};
+
+#endif  /* #if !defined(TOKU_RANGE_TREE_INTERNAL_H) */
