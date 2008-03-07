@@ -336,11 +336,10 @@ static int toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
     return 0;
 }
 
-static int toku_env_log_flush(DB_ENV * env, const DB_LSN * lsn) {
+static int toku_env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
     HANDLE_PANICKED_ENV(env);
-    env=env; lsn=lsn;
-    toku_ydb_barf();
-    return 1;
+    // We just flush everything.  MySQL uses lsn==0 which means flush everything.  For anyone else using the log, it is correct to flush too much, so we are OK.
+    return toku_logger_fsync(env->i->logger);
 }
 
 static int toku_env_set_cachesize(DB_ENV * env, u_int32_t gbytes, u_int32_t bytes, int ncache) {
