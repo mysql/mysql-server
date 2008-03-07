@@ -2,8 +2,8 @@
 
 #include "test.h"
 
-toku_range_tree* __toku_lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
-toku_range_tree* __toku_lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
+toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
+toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
 
 int r;
 toku_lock_tree* lt  = NULL;
@@ -160,8 +160,8 @@ void lt_find(BOOL dups, toku_range_tree* rt,
     }
     unsigned i;
     for (i = 0; i < numfound; i++) {
-        if (__toku_lt_point_cmp(buf[i].left,  &left ) == 0 &&
-            __toku_lt_point_cmp(buf[i].right, &right) == 0 &&
+        if (toku__lt_point_cmp(buf[i].left,  &left ) == 0 &&
+            toku__lt_point_cmp(buf[i].right, &right) == 0 &&
             buf[i].data == find_txn) return;
     }
     assert(FALSE);  //Crash since we didn't find it.

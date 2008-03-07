@@ -505,7 +505,7 @@ static int __attribute__((unused)) locked_env_get_lk_max_locks(DB_ENV *dbenv, u_
     toku_ydb_lock(); int r = toku_env_get_lk_max_locks(dbenv, lk_maxp); toku_ydb_unlock(); return r;
 }
 
-//void __toku_env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
+//void toku__env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
 //    env->i->noticecall = noticecall;
 //}
 
