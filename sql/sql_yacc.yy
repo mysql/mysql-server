@@ -7389,6 +7389,7 @@ variable_aux:
           }
         | '@' opt_var_ident_type ident_or_text opt_component
           {
+            /* disallow "SELECT @@global.global.variable" */
             if ($3.str && $4.str && check_reserved_words(&$3))
             {
               my_parse_error(ER(ER_SYNTAX_ERROR));
@@ -7396,6 +7397,8 @@ variable_aux:
             }
             if (!($$= get_system_var(YYTHD, $2, $3, $4)))
               MYSQL_YYABORT;
+            if (!((Item_func_get_system_var*) $$)->is_written_to_binlog())
+              Lex->set_stmt_unsafe();
           }
         ;
 
