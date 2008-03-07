@@ -91,7 +91,7 @@ WHERE trigger_catalog IS NOT NULL OR event_object_catalog IS NOT NULL
 #           trigger on which the current user or PUBLIC has privileges.
 # 3.2.18.3: Ensure that the table does not show any information on any trigger
 #           on which the current user and public have no privileges.
-# The SUPER privilege is required for
+# The SUPER (before 5.1.22) or TRIGGER (since 5.1.22) privilege is required for
 # - creation of triggers
 # - retrieval in INFORMATION_SCHEMA.TRIGGERS (affects size of result set)
 #
@@ -112,9 +112,9 @@ CREATE USER 'testuser3'@'localhost';
 DROP   USER 'testuser4'@'localhost';
 CREATE USER 'testuser4'@'localhost';
 
-GRANT SUPER ON *.* TO 'testuser1'@'localhost';
-GRANT SUPER ON *.* TO 'testuser3'@'localhost';
-GRANT SUPER ON *.* TO 'testuser4'@'localhost';
+GRANT TRIGGER ON *.* TO 'testuser1'@'localhost';
+GRANT TRIGGER ON *.* TO 'testuser3'@'localhost';
+GRANT TRIGGER ON *.* TO 'testuser4'@'localhost';
 GRANT ALL ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
 
 let $my_select = SELECT * FROM information_schema.triggers
@@ -130,6 +130,7 @@ ENGINE = $engine_type;
 CREATE TRIGGER trg1 BEFORE INSERT
 ON db_datadict.t1 FOR EACH ROW SET @test_before = 2, new.f1 = @test_before;
 GRANT ALL ON db_datadict.t1 TO 'testuser2'@'localhost';
+REVOKE TRIGGER ON db_datadict.t1 FROM 'testuser2'@'localhost';
 GRANT SELECT ON db_datadict.t1 TO 'testuser3'@'localhost';
 eval $my_select;
 eval $my_show;
@@ -138,7 +139,7 @@ eval $my_show;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser2, localhost, testuser2, , db_datadict);
 SHOW GRANTS FOR 'testuser2'@'localhost';
---echo # No SUPER Privilege --> no result for query
+--echo # No TRIGGER Privilege --> no result for query
 eval $my_select;
 eval $my_show;
 
@@ -146,7 +147,7 @@ eval $my_show;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser3, localhost, testuser3, , test);
 SHOW GRANTS FOR 'testuser3'@'localhost';
---echo # SUPER Privilege + SELECT Privilege on t1 --> result for query
+--echo # TRIGGER Privilege + SELECT Privilege on t1 --> result for query
 eval $my_select;
 eval $my_show;
 
@@ -154,7 +155,10 @@ eval $my_show;
 --replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
 connect (testuser4, localhost, testuser4, , test);
 SHOW GRANTS FOR 'testuser4'@'localhost';
---echo # SUPER Privilege + no SELECT Privilege on t1 --> no result for query
+--echo # TRIGGER Privilege + no SELECT Privilege on t1 --> result for query
+--disable_abort_on_error
+SELECT * FROM db_datadict.t1;
+DESC db_datadict.t1;
 eval $my_select;
 eval $my_show;
 

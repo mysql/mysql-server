@@ -24,14 +24,14 @@ COUNT(*)
 USE test;
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	root	localhost	test	Execute	0	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+<ID>	root	localhost	test	Query	0	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	root	localhost	test	Query	0	NULL	SHOW FULL PROCESSLIST
 USE information_schema;
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	root	localhost	information_schema	Execute	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+<ID>	root	localhost	information_schema	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	root	localhost	information_schema	Query	<TIME>	NULL	SHOW FULL PROCESSLIST
@@ -58,7 +58,7 @@ ID = @my_proclist_id + 1
 ----- switch to connection ddicttestuser1 (user = ddicttestuser1) -----
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	ddicttestuser1	localhost	information_schema	Execute	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+<ID>	ddicttestuser1	localhost	information_schema	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	ddicttestuser1	localhost	information_schema	Query	<TIME>	NULL	SHOW FULL PROCESSLIST
@@ -66,7 +66,7 @@ Id	User	Host	db	Command	Time	State	Info
 ----- establish connection con2 (user = ddicttestuser1) ------
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
-<ID>	ddicttestuser1	localhost	information_schema	Execute	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+<ID>	ddicttestuser1	localhost	information_schema	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 <ID>	ddicttestuser1	localhost	information_schema	Sleep	<TIME>		NULL
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
@@ -136,7 +136,7 @@ SELECT COUNT(*) FROM test.t1;
 SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST;
 ID	USER	HOST	DB	COMMAND	TIME	STATE	INFO
 <ID>	ddicttestuser1	localhost	information_schema	Query	<TIME>	Locked	SELECT COUNT(*) FROM test.t1
-<ID>	root	localhost	information_schema	Execute	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
+<ID>	root	localhost	information_schema	Query	<TIME>	executing	SELECT * FROM INFORMATION_SCHEMA.PROCESSLIST
 SHOW FULL PROCESSLIST;
 Id	User	Host	db	Command	Time	State	Info
 <ID>	root	localhost	information_schema	Query	<TIME>	NULL	SHOW FULL PROCESSLIST
@@ -152,3 +152,4 @@ COUNT(*)
 
 ----- close connection ddicttestuser1 -----
 DROP USER ddicttestuser1@'localhost';
+DROP TABLE test.t1;

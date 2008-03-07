@@ -33,46 +33,46 @@ TABLE_SCHEMA	varchar(64)	NO
 TABLE_NAME	varchar(64)	NO			
 TABLE_TYPE	varchar(64)	NO			
 ENGINE	varchar(64)	YES		NULL	
-VERSION	bigint(21)	YES		NULL	
+VERSION	bigint(21) unsigned	YES		NULL	
 ROW_FORMAT	varchar(10)	YES		NULL	
-TABLE_ROWS	bigint(21)	YES		NULL	
-AVG_ROW_LENGTH	bigint(21)	YES		NULL	
-DATA_LENGTH	bigint(21)	YES		NULL	
-MAX_DATA_LENGTH	bigint(21)	YES		NULL	
-INDEX_LENGTH	bigint(21)	YES		NULL	
-DATA_FREE	bigint(21)	YES		NULL	
-AUTO_INCREMENT	bigint(21)	YES		NULL	
+TABLE_ROWS	bigint(21) unsigned	YES		NULL	
+AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
+DATA_LENGTH	bigint(21) unsigned	YES		NULL	
+MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL	
+INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
+DATA_FREE	bigint(21) unsigned	YES		NULL	
+AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
 CREATE_TIME	datetime	YES		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
-CHECKSUM	bigint(21)	YES		NULL	
+CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
 TABLE_COMMENT	varchar(80)	NO			
 SHOW CREATE TABLE information_schema.TABLES;
 Table	Create Table
 TABLES	CREATE TEMPORARY TABLE `TABLES` (
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `TABLE_NAME` varchar(64) NOT NULL default '',
-  `TABLE_TYPE` varchar(64) NOT NULL default '',
-  `ENGINE` varchar(64) default NULL,
-  `VERSION` bigint(21) default NULL,
-  `ROW_FORMAT` varchar(10) default NULL,
-  `TABLE_ROWS` bigint(21) default NULL,
-  `AVG_ROW_LENGTH` bigint(21) default NULL,
-  `DATA_LENGTH` bigint(21) default NULL,
-  `MAX_DATA_LENGTH` bigint(21) default NULL,
-  `INDEX_LENGTH` bigint(21) default NULL,
-  `DATA_FREE` bigint(21) default NULL,
-  `AUTO_INCREMENT` bigint(21) default NULL,
-  `CREATE_TIME` datetime default NULL,
-  `UPDATE_TIME` datetime default NULL,
-  `CHECK_TIME` datetime default NULL,
-  `TABLE_COLLATION` varchar(64) default NULL,
-  `CHECKSUM` bigint(21) default NULL,
-  `CREATE_OPTIONS` varchar(255) default NULL,
-  `TABLE_COMMENT` varchar(80) NOT NULL default ''
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `ENGINE` varchar(64) DEFAULT NULL,
+  `VERSION` bigint(21) unsigned DEFAULT NULL,
+  `ROW_FORMAT` varchar(10) DEFAULT NULL,
+  `TABLE_ROWS` bigint(21) unsigned DEFAULT NULL,
+  `AVG_ROW_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `MAX_DATA_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `INDEX_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `DATA_FREE` bigint(21) unsigned DEFAULT NULL,
+  `AUTO_INCREMENT` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_TIME` datetime DEFAULT NULL,
+  `UPDATE_TIME` datetime DEFAULT NULL,
+  `CHECK_TIME` datetime DEFAULT NULL,
+  `TABLE_COLLATION` varchar(64) DEFAULT NULL,
+  `CHECKSUM` bigint(21) unsigned DEFAULT NULL,
+  `CREATE_OPTIONS` varchar(255) DEFAULT NULL,
+  `TABLE_COMMENT` varchar(80) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TABLES;
 Field	Type	Null	Key	Default	Extra
@@ -81,20 +81,20 @@ TABLE_SCHEMA	varchar(64)	NO
 TABLE_NAME	varchar(64)	NO			
 TABLE_TYPE	varchar(64)	NO			
 ENGINE	varchar(64)	YES		NULL	
-VERSION	bigint(21)	YES		NULL	
+VERSION	bigint(21) unsigned	YES		NULL	
 ROW_FORMAT	varchar(10)	YES		NULL	
-TABLE_ROWS	bigint(21)	YES		NULL	
-AVG_ROW_LENGTH	bigint(21)	YES		NULL	
-DATA_LENGTH	bigint(21)	YES		NULL	
-MAX_DATA_LENGTH	bigint(21)	YES		NULL	
-INDEX_LENGTH	bigint(21)	YES		NULL	
-DATA_FREE	bigint(21)	YES		NULL	
-AUTO_INCREMENT	bigint(21)	YES		NULL	
+TABLE_ROWS	bigint(21) unsigned	YES		NULL	
+AVG_ROW_LENGTH	bigint(21) unsigned	YES		NULL	
+DATA_LENGTH	bigint(21) unsigned	YES		NULL	
+MAX_DATA_LENGTH	bigint(21) unsigned	YES		NULL	
+INDEX_LENGTH	bigint(21) unsigned	YES		NULL	
+DATA_FREE	bigint(21) unsigned	YES		NULL	
+AUTO_INCREMENT	bigint(21) unsigned	YES		NULL	
 CREATE_TIME	datetime	YES		NULL	
 UPDATE_TIME	datetime	YES		NULL	
 CHECK_TIME	datetime	YES		NULL	
 TABLE_COLLATION	varchar(64)	YES		NULL	
-CHECKSUM	bigint(21)	YES		NULL	
+CHECKSUM	bigint(21) unsigned	YES		NULL	
 CREATE_OPTIONS	varchar(255)	YES		NULL	
 TABLE_COMMENT	varchar(80)	NO			
 SELECT table_catalog, table_schema, table_name

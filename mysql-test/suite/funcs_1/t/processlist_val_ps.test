@@ -1,4 +1,4 @@
-############## suite/funcs_1/t/b_processlist_val_ps.test ###############
+################ suite/funcs_1/t/processlist_val_ps.test ###############
 #                                                                      #
 # Testing of values within INFORMATION_SCHEMA.PROCESSLIST              #
 #                                                                      #
@@ -7,12 +7,6 @@
 #                                                                      #
 # There is important documentation within                              #
 #       suite/funcs_1/datadict/processlist_val.inc                     #
-#                                                                      #
-# Note(mleich):                                                        #
-#    The name "b_process..." with the unusual prefix "b_" is           #
-#    caused by the fact that this test should run as second test, that #
-#    means direct after server startup and b_processlist_priv_ps.      #
-#    Otherwise the connection IDs within the processlist would differ. #
 #                                                                      #
 # Creation:                                                            #
 # 2007-08-09 mleich Implement this test as part of                     #

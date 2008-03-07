@@ -37,12 +37,12 @@ IS_GRANTABLE	varchar(3)	NO
 SHOW CREATE TABLE information_schema.TABLE_PRIVILEGES;
 Table	Create Table
 TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
-  `GRANTEE` varchar(81) NOT NULL default '',
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `TABLE_NAME` varchar(64) NOT NULL default '',
-  `PRIVILEGE_TYPE` varchar(64) NOT NULL default '',
-  `IS_GRANTABLE` varchar(3) NOT NULL default ''
+  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.TABLE_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
@@ -102,6 +102,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
 SHOW GRANTS FOR 'testuser2'@'localhost';
 Grants for testuser2@localhost
@@ -133,6 +134,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
 'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
 'testuser3'@'localhost'	NULL	db_datadict	tb3	SELECT	NO
 SHOW GRANTS FOR 'testuser1'@'localhost';
@@ -185,6 +187,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser1'@'localhost'	NULL	test	t1_table	REFERENCES	NO
 'testuser1'@'localhost'	NULL	test	t1_table	SELECT	NO
 'testuser1'@'localhost'	NULL	test	t1_table	SHOW VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_table	TRIGGER	NO
 'testuser1'@'localhost'	NULL	test	t1_table	UPDATE	NO
 'testuser1'@'localhost'	NULL	test	t1_view	ALTER	NO
 'testuser1'@'localhost'	NULL	test	t1_view	CREATE	NO
@@ -196,6 +199,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser1'@'localhost'	NULL	test	t1_view	REFERENCES	NO
 'testuser1'@'localhost'	NULL	test	t1_view	SELECT	NO
 'testuser1'@'localhost'	NULL	test	t1_view	SHOW VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_view	TRIGGER	NO
 'testuser1'@'localhost'	NULL	test	t1_view	UPDATE	NO
 SELECT DISTINCT grantee, table_name FROM information_schema.table_privileges
 WHERE table_name LIKE 't1_%'

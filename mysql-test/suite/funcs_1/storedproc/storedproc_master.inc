@@ -4782,13 +4782,13 @@ delimiter ;//
 DROP PROCEDURE IF EXISTS sp1;
 --enable_warnings
 
-delimiter //;
---error ER_PARSE_ERROR
-CREATE PROCEDURE sp1()
-  read_only:BEGIN
-    SELECT @x;
-END//
-delimiter ;//
+# delimiter //;
+# --error ER_PARSE_ERROR
+# CREATE PROCEDURE sp1()
+#   read_only:BEGIN
+#     SELECT @x;
+# END//
+# delimiter ;//
 
 --disable_warnings
 DROP PROCEDURE IF EXISTS sp1;

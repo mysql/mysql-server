@@ -17,12 +17,14 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 ''@'%'	NULL	test	CREATE VIEW	NO
 ''@'%'	NULL	test	DELETE	NO
 ''@'%'	NULL	test	DROP	NO
+''@'%'	NULL	test	EVENT	NO
 ''@'%'	NULL	test	INDEX	NO
 ''@'%'	NULL	test	INSERT	NO
 ''@'%'	NULL	test	LOCK TABLES	NO
 ''@'%'	NULL	test	REFERENCES	NO
 ''@'%'	NULL	test	SELECT	NO
 ''@'%'	NULL	test	SHOW VIEW	NO
+''@'%'	NULL	test	TRIGGER	NO
 ''@'%'	NULL	test	UPDATE	NO
 SHOW DATABASES LIKE 'information_schema';
 Database (information_schema)
