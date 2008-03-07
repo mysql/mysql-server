@@ -75,6 +75,7 @@ void sample_db_env_offsets (void) {
     STRUCT_SETUP(DB_ENV, get_cachesize, "int (*%s) (DB_ENV *, u_int32_t *, u_int32_t *, int *)");
     STRUCT_SETUP(DB_ENV, get_flags, "int (*%s) (DB_ENV *, u_int32_t *)");
     STRUCT_SETUP(DB_ENV, get_lk_max_locks, "int  (*%s) (DB_ENV *, u_int32_t *)");    
+    STRUCT_SETUP(DB_ENV, get_lg_max, "int  (*%s) (DB_ENV *, u_int32_t*)");
 #endif
     STRUCT_SETUP(DB_ENV, log_archive, "int  (*%s) (DB_ENV *, char **[], u_int32_t)");
     STRUCT_SETUP(DB_ENV, log_flush, "int  (*%s) (DB_ENV *, const DB_LSN *)");
