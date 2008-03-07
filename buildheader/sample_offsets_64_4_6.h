@@ -14,6 +14,7 @@ struct fieldinfo db_env_fields64[] = {
   {"void (*err) (const DB_ENV *, int, const char *, ...)", 664, 8},
   {"int (*get_cachesize) (DB_ENV *, u_int32_t *, u_int32_t *, int *)", 696, 8},
   {"int (*get_flags) (DB_ENV *, u_int32_t *)", 744, 8},
+  {"int  (*get_lg_max) (DB_ENV *, u_int32_t*)", 784, 8},
   {"int  (*get_lk_max_locks) (DB_ENV *, u_int32_t *)", 824, 8},
   {"int  (*log_archive) (DB_ENV *, char **[], u_int32_t)", 1008, 8},
   {"int  (*log_flush) (DB_ENV *, const DB_LSN *)", 1032, 8},
