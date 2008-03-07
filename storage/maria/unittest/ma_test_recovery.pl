@@ -4,9 +4,10 @@ use Getopt::Long;
 use File::Copy;
 use File::Compare;
 use File::Basename;
+use Digest::MD5;
 
 $|= 1;
-$VER= "1.1";
+$VER= "1.2";
 
 $opt_version= 0;
 $opt_help=    0;
@@ -17,7 +18,6 @@ my $maria_exe_path; # path to executables (ma_test1, maria_chk etc)
 my $tmp= "./tmp";
 my $my_progname= $0;
 my $suffix;
-my $md5sum;
 my $zerofilled_tables= 0;
 
 $my_progname=~ s/.*[\/]//;
@@ -62,25 +62,6 @@ sub main
         }
       }
     }
-  }
-
-  # Test if we should use md5sum or digest -a md5
-
-  if (defined(my_which("md5sum")))
-  {
-    $md5sum="md5sum";
-  }
-  elsif (defined(my_which("md5")))
-  {
-  $md5sum="md5";
-  }
-  elsif (defined(my_which("digest")))
-  {
-  $md5sum="digest -a md5";
-  }
-  else
-  {
-    die "Can't find either md5sum or digest. Please install one of them"
   }
 
   # test data is always put in the current directory or a tmp subdirectory
@@ -329,7 +310,7 @@ sub check_table_is_same
 sub apply_log
 {
   my ($table, $shouldchangelog)= @_;
-  my ($log_md5);
+  my ($log_md5, $log_md5_2);
 
   # applies log, can verify if applying did write to log or not
 
@@ -339,12 +320,17 @@ sub apply_log
   {
     print MY_LOG "bad argument '$shouldchangelog'\n";
     return 1;
-  } 
-  $log_md5= `$md5sum maria_log.*`;
-
+  }
+  foreach (<maria_log.*>)
+  {
+    $log_md5.= md5_conv($_);
+  }
   print MY_LOG "applying log\n";
   `$maria_exe_path/maria_read_log$suffix -a > $tmp/maria_read_log_$table.txt`;
-  $log_md5_2= `$md5sum maria_log.*`;
+  foreach (<maria_log.*>)
+  {
+    $log_md5_2.= md5_conv($_);
+  }
   if ("$log_md5" ne "$log_md5_2" )
   {
     if ("$shouldchangelog" eq "shouldnotchangelog")
@@ -360,22 +346,26 @@ sub apply_log
   }
 }
 
+####
+#### md5_conv
+####
 
-sub my_which
+sub md5_conv
 {
-  my ($command) = @_;
-  my (@paths, $path);
+  my ($file)= @_;
+  my ($md5);
 
-  return $command if (-f $command && -x $command);
-  @paths = split(':', $ENV{'PATH'});
-  foreach $path (@paths)
+  open(FILE, $file) or die "Can't open '$file': $!\n";
+  binmode(FILE);
+
+  $md5= Digest::MD5->new;
+  while (<FILE>)
   {
-    $path .= "/$command";
-    return $path if (-f $path && -x $path);
+    $md5->add($_);
   }
-  return undef();
+  close (FILE);
+  return $md5->hexdigest . "\n";
 }
-
 
 ####
 #### physical_cmp: compares two tables (MAI and MAD) physically;
