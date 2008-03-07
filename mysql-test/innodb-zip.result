@@ -1,3 +1,4 @@
+set global innodb_file_per_table=1;
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
 insert into t1 values (1,1);
@@ -12,3 +13,4 @@ select a,left(b,40),b=1 is_equal from t1;
 a	left(b,40)	is_equal
 1	1	1
 drop table t1;
+set global innodb_file_per_table=0;
