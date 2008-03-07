@@ -4,17 +4,22 @@
 
 --echo Bug#20023
 SELECT @@session.sql_big_selects;
+--replace_result 18446744073709551615 MAX_JOIN_SIZE 4294967295 MAX_JOIN_SIZE
 SELECT @@global.max_join_size;
 --echo change_user
 --change_user
 SELECT @@session.sql_big_selects;
+--replace_result 18446744073709551615 MAX_JOIN_SIZE 4294967295 MAX_JOIN_SIZE
 SELECT @@global.max_join_size;
 SET @@global.max_join_size = 10000;
 SET @@session.max_join_size = default;
 --echo change_user
 --change_user
 SELECT @@session.sql_big_selects;
+# On some machines the following will result into a warning
+--disable_warnings
 SET @@global.max_join_size = -1;
+--enable_warnings
 SET @@session.max_join_size = default;
 --echo change_user
 --change_user
