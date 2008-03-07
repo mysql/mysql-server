@@ -651,9 +651,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
 	    node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
 	}
-	if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // none of this works for dupsort databases. The size is wrong. The setpivot is wrong.
+	//if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // the setpivot is wrong for TOKU_DB_DUPSORT, so recovery will be broken.
 	node->u.n.childkeys[childnum]= pivot;
-	node->u.n.totalchildkeylens += childsplitk->size;
+	node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, pivot);
     }
 
     node->u.n.n_children++;
