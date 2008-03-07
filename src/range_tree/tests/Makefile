@@ -87,12 +87,13 @@ endif
 LINEAR_BINS = ../linear.o
 TLOG_BINS   = ../log_nooverlap.o
 LOG_BINS    = ../log.o
+HEADERS=../rangetree.h ../rangetree-internal.h test.h
 
-%.lin: %.c ../rangetree.h test.h  $(LINEAR_BINS)
+%.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
-%.tlog: %.c ../rangetree.h test.h $(TLOG_BINS)
+%.tlog: %.c $(HEADERS) $(TLOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS)
-%.log: %.c ../rangetree.h test.h  $(LOG_BINS)
+%.log: %.c  $(HEADERS) $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
 .PHONY: make_libs

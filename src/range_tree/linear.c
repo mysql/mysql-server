@@ -17,33 +17,12 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
-
-/** \brief Internal range representation 
-    Internal representation of a range tree. Some fields depend on the
-    implementation of range trees, and some others are shared. */
-struct __toku_range_tree {
-    //Shared fields:
-    /** A comparison function, as in bsearch(3), to compare the end-points of 
-        a range. It is assumed to be commutative. */
-    int         (*end_cmp)(toku_point*,toku_point*);  
-    /** A comparison function, as in bsearch(3), to compare the data associated
-        with a range */
-    int         (*data_cmp)(DB_TXN*,DB_TXN*);
-    /** Whether this tree allows ranges to overlap */
-    BOOL        allow_overlaps;
-    /** The number of ranges in the range tree */
-    u_int32_t    numelements;
-    /** The user malloc function */
-    void*       (*malloc) (size_t);
-    /** The user free function */
-    void        (*free)   (void*);
-    /** The user realloc function */
-    void*       (*realloc)(void*, size_t);
-    
+struct __toku_range_tree_local {
     //Linear version only fields:
     toku_range* ranges;
-    u_int32_t    ranges_len;
+    u_int32_t   ranges_len;
 };
+#include "rangetree-internal.h"
 
 static const u_int32_t minlen = 64;
 
@@ -64,29 +43,29 @@ static int toku__rt_decrease_capacity(toku_range_tree* tree, u_int32_t _num) {
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(tree);
     u_int32_t num = _num < minlen ? minlen : _num;
     
-    if (tree->ranges_len >= num * 2) {
-        u_int32_t temp_len = tree->ranges_len;
+    if (tree->i.ranges_len >= num * 2) {
+        u_int32_t temp_len = tree->i.ranges_len;
         while (temp_len >= num * 2) temp_len /= 2;
         assert(temp_len >= _num);   //Sanity check.
         toku_range* temp_ranges =
-                     tree->realloc(tree->ranges, temp_len * sizeof(toku_range));
+                     tree->realloc(tree->i.ranges, temp_len * sizeof(toku_range));
         if (!temp_ranges) return errno;
-        tree->ranges     = temp_ranges;
-        tree->ranges_len = temp_len;
+        tree->i.ranges     = temp_ranges;
+        tree->i.ranges_len = temp_len;
     }
     return 0;
 }
 
 static int toku__rt_increase_capacity(toku_range_tree* tree, u_int32_t num) {
     //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(tree);
-    if (tree->ranges_len < num) {
-        u_int32_t temp_len = tree->ranges_len;
+    if (tree->i.ranges_len < num) {
+        u_int32_t temp_len = tree->i.ranges_len;
         while (temp_len < num) temp_len *= 2;
         toku_range* temp_ranges =
-                     tree->realloc(tree->ranges, temp_len * sizeof(toku_range));
+                     tree->realloc(tree->i.ranges, temp_len * sizeof(toku_range));
         if (!temp_ranges) return errno;
-        tree->ranges     = temp_ranges;
-        tree->ranges_len = temp_len;
+        tree->i.ranges     = temp_ranges;
+        tree->i.ranges_len = temp_len;
     }
     return 0;
 }
@@ -153,10 +132,10 @@ int toku_rt_create(toku_range_tree** ptree,
     temptree->end_cmp        = end_cmp;
     temptree->data_cmp       = data_cmp;
     temptree->allow_overlaps = allow_overlaps;
-    temptree->ranges_len     = minlen;
-    temptree->ranges         = (toku_range*)
-                         user_malloc(temptree->ranges_len * sizeof(toku_range));
-    if (!temptree->ranges) { r = errno; goto died1; }
+    temptree->i.ranges_len     = minlen;
+    temptree->i.ranges         = (toku_range*)
+                         user_malloc(temptree->i.ranges_len * sizeof(toku_range));
+    if (!temptree->i.ranges) { r = errno; goto died1; }
     temptree->malloc  = user_malloc;
     temptree->free    = user_free;
     temptree->realloc = user_realloc;
@@ -167,7 +146,7 @@ int toku_rt_create(toku_range_tree** ptree,
 
 int toku_rt_close(toku_range_tree* tree) {
     if (!tree)                                           return EINVAL;
-    tree->free(tree->ranges);
+    tree->free(tree->i.ranges);
     tree->free(tree);
     return 0;
 }
@@ -183,10 +162,10 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
     u_int32_t i;
     
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_overlap(tree, query, &tree->ranges[i])) {
+        if (toku__rt_overlap(tree, query, &tree->i.ranges[i])) {
             r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
             if (r != 0) return r;
-            (*buf)[temp_numfound++] = tree->ranges[i];
+            (*buf)[temp_numfound++] = tree->i.ranges[i];
             //k == 0 means limit of infinity, this is not a bug.
             if (temp_numfound == k) break;
         }
@@ -204,17 +183,17 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     //EDOM cases
     if (tree->allow_overlaps) {
         for (i = 0; i < tree->numelements; i++) {
-            if (toku__rt_exact  (tree, range, &tree->ranges[i])) return EDOM;
+            if (toku__rt_exact  (tree, range, &tree->i.ranges[i])) return EDOM;
         }
     }
     else {
         for (i = 0; i < tree->numelements; i++) {
-            if (toku__rt_overlap(tree, range, &tree->ranges[i])) return EDOM;
+            if (toku__rt_overlap(tree, range, &tree->i.ranges[i])) return EDOM;
         }
     }
     r = toku__rt_increase_capacity(tree, tree->numelements + 1);
     if (r != 0) return r;
-    tree->ranges[tree->numelements++] = *range;
+    tree->i.ranges[tree->numelements++] = *range;
     return 0;
 }
 
@@ -224,12 +203,12 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     
     for (i = 0;
          i < tree->numelements &&
-         !toku__rt_exact(tree, range, &(tree->ranges[i]));
+         !toku__rt_exact(tree, range, &(tree->i.ranges[i]));
          i++) {}
     //EDOM case: Not Found
     if (i == tree->numelements) return EDOM;
     if (i < tree->numelements - 1) {
-        tree->ranges[i] = tree->ranges[tree->numelements - 1];
+        tree->i.ranges[i] = tree->i.ranges[tree->numelements - 1];
     }
     toku__rt_decrease_capacity(tree, --tree->numelements);
     return 0;
@@ -243,9 +222,9 @@ int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
     u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->ranges[i]) > 0 &&
-            (!best || tree->end_cmp(best->left, tree->ranges[i].left) < 0)) {
-            best = &tree->ranges[i];
+        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i]) > 0 &&
+            (!best || tree->end_cmp(best->left, tree->i.ranges[i].left) < 0)) {
+            best = &tree->i.ranges[i];
         }
     }
     *wasfound = best != NULL;
@@ -261,9 +240,9 @@ int toku_rt_successor (toku_range_tree* tree, toku_point* point,
     u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->ranges[i]) < 0 &&
-            (!best || tree->end_cmp(best->left, tree->ranges[i].left) > 0)) {
-            best = &tree->ranges[i];
+        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i]) < 0 &&
+            (!best || tree->end_cmp(best->left, tree->i.ranges[i].left) > 0)) {
+            best = &tree->i.ranges[i];
         }
     }
     *wasfound = best != NULL;

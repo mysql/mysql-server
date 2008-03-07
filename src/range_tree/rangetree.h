@@ -37,14 +37,18 @@ typedef struct {
 	DB_TXN*     data;  /**< Data associated with the range */
 } toku_range;
 
-/** \brief Parameters are never modified on failure with the exception of
-    buf and buflen.
- */
-struct __toku_range_tree;
 
 /** Export the internal representation to a sensible name */
 /*  These lines will remain. */
-typedef struct __toku_range_tree toku_range_tree;
+typedef struct __toku_range_tree       toku_range_tree;
+
+/** \brief Internal range representation 
+    Internal representation of a range tree. Some fields depend on the
+    implementation of range trees, and some others are shared.
+    Parameters are never modified on failure with the exception of
+    buf and buflen.
+ */
+struct __toku_range_tree;
 
 /**
     Gets whether the range tree allows overlapping ranges.
