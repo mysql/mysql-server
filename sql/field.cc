@@ -7644,6 +7644,17 @@ int Field_blob::store(const char *from,uint length,CHARSET_INFO *cs)
   if (value.alloc(new_length))
     goto oom_error;
 
+
+  if (f_is_hex_escape(flags))
+  {
+    copy_length= my_copy_with_hex_escaping(field_charset,
+                                           (char*) value.ptr(), new_length,
+                                            from, length);
+    Field_blob::store_length(copy_length);
+    tmp= value.ptr();
+    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
+    return 0;
+  }
   /*
     "length" is OK as "nchars" argument to well_formed_copy_nchars as this
     is never used to limit the length of the data. The cut of long data
@@ -8790,6 +8801,23 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   */
   if (!null_ptr_arg)
     null_bit= bit_ofs_arg;
+}
+
+
+void Field_bit::hash(ulong *nr, ulong *nr2)
+{
+  if (is_null())
+  {
+    *nr^= (*nr << 1) | 1;
+  }
+  else
+  {
+    CHARSET_INFO *cs= &my_charset_bin;
+    longlong value= Field_bit::val_int();
+    uchar tmp[8];
+    mi_int8store(tmp,value);
+    cs->coll->hash_sort(cs, tmp, 8, nr, nr2);
+  }
 }
 
 

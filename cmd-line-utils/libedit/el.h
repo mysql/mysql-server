@@ -136,6 +136,8 @@ struct editline {
 
 protected int	el_editmode(EditLine *, int, const char **);
 
+#define el_isprint(x)  ((unsigned char) (x) < 0x80 ? isprint(x) : 1)
+
 #ifdef DEBUG
 #define	EL_ABORT(a)	do { \
 				fprintf(el->el_errfile, "%s, %d: ", \
