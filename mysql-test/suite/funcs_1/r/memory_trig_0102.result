@@ -1,7 +1,4 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
 drop table if exists tb3;
 create table tb3 (
 f118 char not null DEFAULT 'a', 
@@ -358,3 +355,4 @@ select @test_var1, @test_var2, @test_var3;
 trig1_b	trig1_a	trig2
 drop database trig_db1;
 drop database trig_db2;
+DROP TABLE test.tb3;
