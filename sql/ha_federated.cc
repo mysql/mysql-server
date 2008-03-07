@@ -1094,10 +1094,20 @@ bool ha_federated::create_where_from_key(String *to,
       {
         if (*ptr++)
         {
+          /*
+            We got "IS [NOT] NULL" condition against nullable column. We
+            distinguish between "IS NOT NULL" and "IS NULL" by flag. For
+            "IS NULL", flag is set to HA_READ_KEY_EXACT.
+          */
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(FEDERATED_ISNULL))
+              tmp.append(ranges[i]->flag == HA_READ_KEY_EXACT ?
+                         FEDERATED_ISNULL : " IS NOT NULL "))
             DBUG_RETURN(1);
-          continue;
+          /*
+            We need to adjust pointer and length to be prepared for next
+            key part. As well as check if this was last key part.
+          */
+          goto prepare_for_next_key_part;
         }
       }
 
@@ -1199,12 +1209,18 @@ bool ha_federated::create_where_from_key(String *to,
       if (tmp.append(FEDERATED_CLOSEPAREN))
         DBUG_RETURN(1);
 
+prepare_for_next_key_part:
       if (store_length >= length)
         break;
       DBUG_PRINT("info", ("remainder %d", remainder));
       DBUG_ASSERT(remainder > 1);
       length-= store_length;
-      ptr+= store_length;
+      /*
+        For nullable columns, null-byte is already skipped before, that is
+        ptr was incremented by 1. Since store_length still counts null-byte,
+        we need to subtract 1 from store_length.
+      */
+      ptr+= store_length - test(key_part->null_bit);
       if (tmp.append(FEDERATED_AND))
         DBUG_RETURN(1);
 
