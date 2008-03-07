@@ -37,12 +37,12 @@ SORTLEN	bigint(3)	NO		0
 SHOW CREATE TABLE information_schema.COLLATIONS;
 Table	Create Table
 COLLATIONS	CREATE TEMPORARY TABLE `COLLATIONS` (
-  `COLLATION_NAME` varchar(64) NOT NULL default '',
-  `CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `ID` bigint(11) NOT NULL default '0',
-  `IS_DEFAULT` varchar(3) NOT NULL default '',
-  `IS_COMPILED` varchar(3) NOT NULL default '',
-  `SORTLEN` bigint(3) NOT NULL default '0'
+  `COLLATION_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `ID` bigint(11) NOT NULL DEFAULT '0',
+  `IS_DEFAULT` varchar(3) NOT NULL DEFAULT '',
+  `IS_COMPILED` varchar(3) NOT NULL DEFAULT '',
+  `SORTLEN` bigint(3) NOT NULL DEFAULT '0'
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLLATIONS;
 Field	Type	Null	Key	Default	Extra

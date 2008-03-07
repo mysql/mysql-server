@@ -36,11 +36,11 @@ IS_GRANTABLE	varchar(3)	NO
 SHOW CREATE TABLE information_schema.SCHEMA_PRIVILEGES;
 Table	Create Table
 SCHEMA_PRIVILEGES	CREATE TEMPORARY TABLE `SCHEMA_PRIVILEGES` (
-  `GRANTEE` varchar(81) NOT NULL default '',
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `PRIVILEGE_TYPE` varchar(64) NOT NULL default '',
-  `IS_GRANTABLE` varchar(3) NOT NULL default ''
+  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.SCHEMA_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra

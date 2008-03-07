@@ -38,13 +38,13 @@ IS_GRANTABLE	varchar(3)	NO
 SHOW CREATE TABLE information_schema.COLUMN_PRIVILEGES;
 Table	Create Table
 COLUMN_PRIVILEGES	CREATE TEMPORARY TABLE `COLUMN_PRIVILEGES` (
-  `GRANTEE` varchar(81) NOT NULL default '',
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `TABLE_NAME` varchar(64) NOT NULL default '',
-  `COLUMN_NAME` varchar(64) NOT NULL default '',
-  `PRIVILEGE_TYPE` varchar(64) NOT NULL default '',
-  `IS_GRANTABLE` varchar(3) NOT NULL default ''
+  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
+  `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLUMN_PRIVILEGES;
 Field	Type	Null	Key	Default	Extra
@@ -141,6 +141,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser3'@'localhost'	NULL	db_datadict	CREATE VIEW	NO
 'testuser3'@'localhost'	NULL	db_datadict	DELETE	NO
 'testuser3'@'localhost'	NULL	db_datadict	DROP	NO
+'testuser3'@'localhost'	NULL	db_datadict	EVENT	NO
 'testuser3'@'localhost'	NULL	db_datadict	EXECUTE	NO
 'testuser3'@'localhost'	NULL	db_datadict	INDEX	NO
 'testuser3'@'localhost'	NULL	db_datadict	INSERT	NO
@@ -148,6 +149,7 @@ GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
 'testuser3'@'localhost'	NULL	db_datadict	REFERENCES	NO
 'testuser3'@'localhost'	NULL	db_datadict	SELECT	NO
 'testuser3'@'localhost'	NULL	db_datadict	SHOW VIEW	NO
+'testuser3'@'localhost'	NULL	db_datadict	TRIGGER	NO
 'testuser3'@'localhost'	NULL	db_datadict	UPDATE	NO
 SELECT * FROM information_schema.column_privileges
 WHERE grantee LIKE '''testuser%'''

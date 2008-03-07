@@ -32,43 +32,43 @@ TABLE_CATALOG	varchar(512)	YES		NULL
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(21)	NO		0	
+ORDINAL_POSITION	bigint(21) unsigned	NO		0	
 COLUMN_DEFAULT	longtext	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
 DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
-NUMERIC_PRECISION	bigint(21)	YES		NULL	
-NUMERIC_SCALE	bigint(21)	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21) unsigned	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21) unsigned	YES		NULL	
+NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL	
+NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
 COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(20)	NO			
+EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(255)	NO			
 SHOW CREATE TABLE information_schema.COLUMNS;
 Table	Create Table
 COLUMNS	CREATE TEMPORARY TABLE `COLUMNS` (
-  `TABLE_CATALOG` varchar(512) default NULL,
-  `TABLE_SCHEMA` varchar(64) NOT NULL default '',
-  `TABLE_NAME` varchar(64) NOT NULL default '',
-  `COLUMN_NAME` varchar(64) NOT NULL default '',
-  `ORDINAL_POSITION` bigint(21) NOT NULL default '0',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `COLUMN_NAME` varchar(64) NOT NULL DEFAULT '',
+  `ORDINAL_POSITION` bigint(21) unsigned NOT NULL DEFAULT '0',
   `COLUMN_DEFAULT` longtext,
-  `IS_NULLABLE` varchar(3) NOT NULL default '',
-  `DATA_TYPE` varchar(64) NOT NULL default '',
-  `CHARACTER_MAXIMUM_LENGTH` bigint(21) default NULL,
-  `CHARACTER_OCTET_LENGTH` bigint(21) default NULL,
-  `NUMERIC_PRECISION` bigint(21) default NULL,
-  `NUMERIC_SCALE` bigint(21) default NULL,
-  `CHARACTER_SET_NAME` varchar(64) default NULL,
-  `COLLATION_NAME` varchar(64) default NULL,
+  `IS_NULLABLE` varchar(3) NOT NULL DEFAULT '',
+  `DATA_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `CHARACTER_MAXIMUM_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `CHARACTER_OCTET_LENGTH` bigint(21) unsigned DEFAULT NULL,
+  `NUMERIC_PRECISION` bigint(21) unsigned DEFAULT NULL,
+  `NUMERIC_SCALE` bigint(21) unsigned DEFAULT NULL,
+  `CHARACTER_SET_NAME` varchar(64) DEFAULT NULL,
+  `COLLATION_NAME` varchar(64) DEFAULT NULL,
   `COLUMN_TYPE` longtext NOT NULL,
-  `COLUMN_KEY` varchar(3) NOT NULL default '',
-  `EXTRA` varchar(20) NOT NULL default '',
-  `PRIVILEGES` varchar(80) NOT NULL default '',
-  `COLUMN_COMMENT` varchar(255) NOT NULL default ''
+  `COLUMN_KEY` varchar(3) NOT NULL DEFAULT '',
+  `EXTRA` varchar(27) NOT NULL DEFAULT '',
+  `PRIVILEGES` varchar(80) NOT NULL DEFAULT '',
+  `COLUMN_COMMENT` varchar(255) NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.COLUMNS;
 Field	Type	Null	Key	Default	Extra
@@ -76,19 +76,19 @@ TABLE_CATALOG	varchar(512)	YES		NULL
 TABLE_SCHEMA	varchar(64)	NO			
 TABLE_NAME	varchar(64)	NO			
 COLUMN_NAME	varchar(64)	NO			
-ORDINAL_POSITION	bigint(21)	NO		0	
+ORDINAL_POSITION	bigint(21) unsigned	NO		0	
 COLUMN_DEFAULT	longtext	YES		NULL	
 IS_NULLABLE	varchar(3)	NO			
 DATA_TYPE	varchar(64)	NO			
-CHARACTER_MAXIMUM_LENGTH	bigint(21)	YES		NULL	
-CHARACTER_OCTET_LENGTH	bigint(21)	YES		NULL	
-NUMERIC_PRECISION	bigint(21)	YES		NULL	
-NUMERIC_SCALE	bigint(21)	YES		NULL	
+CHARACTER_MAXIMUM_LENGTH	bigint(21) unsigned	YES		NULL	
+CHARACTER_OCTET_LENGTH	bigint(21) unsigned	YES		NULL	
+NUMERIC_PRECISION	bigint(21) unsigned	YES		NULL	
+NUMERIC_SCALE	bigint(21) unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
 COLLATION_NAME	varchar(64)	YES		NULL	
 COLUMN_TYPE	longtext	NO		NULL	
 COLUMN_KEY	varchar(3)	NO			
-EXTRA	varchar(20)	NO			
+EXTRA	varchar(27)	NO			
 PRIVILEGES	varchar(80)	NO			
 COLUMN_COMMENT	varchar(255)	NO			
 SELECT table_catalog, table_schema, table_name, column_name

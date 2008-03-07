@@ -36,11 +36,11 @@ SQL_PATH	varchar(512)	YES		NULL
 SHOW CREATE TABLE information_schema.SCHEMATA;
 Table	Create Table
 SCHEMATA	CREATE TEMPORARY TABLE `SCHEMATA` (
-  `CATALOG_NAME` varchar(512) default NULL,
-  `SCHEMA_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_CHARACTER_SET_NAME` varchar(64) NOT NULL default '',
-  `DEFAULT_COLLATION_NAME` varchar(64) NOT NULL default '',
-  `SQL_PATH` varchar(512) default NULL
+  `CATALOG_NAME` varchar(512) DEFAULT NULL,
+  `SCHEMA_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_CHARACTER_SET_NAME` varchar(64) NOT NULL DEFAULT '',
+  `DEFAULT_COLLATION_NAME` varchar(64) NOT NULL DEFAULT '',
+  `SQL_PATH` varchar(512) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=utf8
 SHOW COLUMNS FROM information_schema.SCHEMATA;
 Field	Type	Null	Key	Default	Extra

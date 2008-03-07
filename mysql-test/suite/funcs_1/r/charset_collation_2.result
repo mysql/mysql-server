@@ -58,6 +58,7 @@ cp1250_bin	cp1250	66		Yes	1
 cp1250_croatian_ci	cp1250	44		Yes	1
 cp1250_czech_cs	cp1250	34		Yes	2
 cp1250_general_ci	cp1250	26	Yes	Yes	1
+cp1250_polish_ci	cp1250	99		Yes	1
 cp1251_bin	cp1251	50			0
 cp1251_bulgarian_ci	cp1251	14			0
 cp1251_general_ci	cp1251	51	Yes		0
@@ -191,6 +192,7 @@ cp1250_bin	cp1250
 cp1250_croatian_ci	cp1250
 cp1250_czech_cs	cp1250
 cp1250_general_ci	cp1250
+cp1250_polish_ci	cp1250
 cp1251_bin	cp1251
 cp1251_bulgarian_ci	cp1251
 cp1251_general_ci	cp1251
@@ -215,6 +217,7 @@ eucjpms_bin	eucjpms
 eucjpms_japanese_ci	eucjpms
 euckr_bin	euckr
 euckr_korean_ci	euckr
+filename	filename
 gb2312_bin	gb2312
 gb2312_chinese_ci	gb2312
 gbk_bin	gbk
