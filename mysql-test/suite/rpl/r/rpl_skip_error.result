@@ -4,31 +4,33 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+==== Test Without sql_mode=strict_trans_tables ====
+[on master]
 create table t1 (n int not null primary key);
+[on slave]
 insert into t1 values (1);
+[on master]
 insert into t1 values (1);
 insert into t1 values (2),(3);
+[on slave]
 select * from t1 ORDER BY n;
 n
 1
 2
 3
-drop table t1;
-create table t1(a int primary key);
-insert into t1 values (1),(2);
-delete from t1 where @@server_id=1;
+==== Test With sql_mode=strict_trans_tables ====
+insert into t1 values (7), (8);
+[on master]
 set sql_mode=strict_trans_tables;
-select @@server_id;
-@@server_id
-1
-insert into t1 values (1),(2),(3);
-select @@server_id;
-@@server_id
-2
+insert into t1 values (7), (8), (9);
+[on slave]
 select * from t1;
-a
+n
 1
 2
+3
+7
+8
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -68,4 +70,5 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+==== Clean Up ====
 drop table t1;
