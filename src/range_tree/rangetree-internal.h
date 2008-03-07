@@ -38,4 +38,60 @@ struct __toku_range_tree {
     toku_range_tree_local i;
 };
 
+/*
+ *  Returns:
+ *      0:      Point \in range
+ *      < 0:    Point strictly less than the range.
+ *      > 0:    Point strictly greater than the range.
+ */
+static inline int toku__rt_p_cmp(toku_range_tree* tree,
+                           toku_point* point, toku_range* range) {
+    if (tree->end_cmp(point, range->left) < 0)  return -1;
+    if (tree->end_cmp(point, range->right) > 0) return 1;
+    return 0;
+}
+    
+static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** buf,
+                                     u_int32_t* buflen, u_int32_t num) {
+    assert(buf);
+    //TODO: SOME ATTRIBUTE TO REMOVE NEVER EXECUTABLE ERROR: assert(buflen);
+    if (*buflen < num) {
+        u_int32_t temp_len = *buflen;
+        while (temp_len < num) temp_len *= 2;
+        toku_range* temp_buf =
+                             tree->realloc(*buf, temp_len * sizeof(toku_range));
+        if (!temp_buf) return errno;
+        *buf = temp_buf;
+        *buflen = temp_len;
+    }
+    return 0;
+}
+
+static inline int toku_rt_super_create(toku_range_tree** ptree,
+                   int (*end_cmp)(toku_point*,toku_point*),
+                   int (*data_cmp)(DB_TXN*,DB_TXN*),
+                   BOOL allow_overlaps,
+                   void* (*user_malloc) (size_t),
+                   void  (*user_free)   (void*),
+                   void* (*user_realloc)(void*, size_t)) {
+    toku_range_tree* temptree;
+    if (!ptree || !end_cmp || !data_cmp ||
+        !user_malloc || !user_free || !user_realloc)              return EINVAL;
+    
+    temptree = (toku_range_tree*)user_malloc(sizeof(toku_range_tree));
+    if (!temptree) return ENOMEM;
+    
+    //Any initializers go here.
+    memset(temptree, 0, sizeof(*temptree));
+    temptree->end_cmp        = end_cmp;
+    temptree->data_cmp       = data_cmp;
+    temptree->allow_overlaps = allow_overlaps;
+    temptree->malloc  = user_malloc;
+    temptree->free    = user_free;
+    temptree->realloc = user_realloc;
+    *ptree = temptree;
+
+    return 0;
+}
+
 #endif  /* #if !defined(TOKU_RANGE_TREE_INTERNAL_H) */
