@@ -139,7 +139,6 @@ static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
-static my_bool	innobase_file_per_table			= FALSE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
 static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
@@ -1751,7 +1750,6 @@ innobase_init(
 
 	row_rollback_on_timeout = (ibool) innobase_rollback_on_timeout;
 
-	srv_file_per_table = (ibool) innobase_file_per_table;
 	srv_locks_unsafe_for_binlog = (ibool) innobase_locks_unsafe_for_binlog;
 
 	srv_max_n_open_files = (ulint) innobase_open_files;
@@ -8320,8 +8318,8 @@ static MYSQL_SYSVAR_ULONG(fast_shutdown, innobase_fast_shutdown,
   ".",
   NULL, NULL, 1, 0, IF_NETWARE(1,2), 0);
 
-static MYSQL_SYSVAR_BOOL(file_per_table, innobase_file_per_table,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
+  PLUGIN_VAR_NOCMDARG,
   "Stores each InnoDB table to an .ibd file in the database dir.",
   NULL, NULL, FALSE);
 

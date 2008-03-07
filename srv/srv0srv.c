@@ -87,7 +87,7 @@ UNIV_INTERN char*	srv_arch_dir	= NULL;
 
 /* store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
-UNIV_INTERN ibool	srv_file_per_table = FALSE;
+UNIV_INTERN my_bool	srv_file_per_table;
 /* Place locks to records only i.e. do not use next-key locking except
 on duplicate key checking and foreign key checking */
 UNIV_INTERN ibool	srv_locks_unsafe_for_binlog = FALSE;
