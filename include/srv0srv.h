@@ -57,7 +57,11 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
-extern ibool	srv_file_per_table;
+/* store to its own file each table created by an user; data
+dictionary tables are in the system tablespace 0 */
+extern my_bool	srv_file_per_table;
+/* Place locks to records only i.e. do not use next-key locking except
+on duplicate key checking and foreign key checking */
 extern ibool	srv_locks_unsafe_for_binlog;
 
 extern ulint	srv_n_data_files;

@@ -979,7 +979,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		tablespace_size_in_header;
 	ulint		err;
 	ulint		i;
-	ibool		srv_file_per_table_original_value
+	my_bool		srv_file_per_table_original_value
 		= srv_file_per_table;
 	mtr_t		mtr;
 #ifdef HAVE_DARWIN_THREADS
@@ -1015,8 +1015,11 @@ innobase_start_or_create_for_mysql(void)
 			(ulong)sizeof(ulint), (ulong)sizeof(void*));
 	}
 
-	srv_file_per_table = FALSE; /* system tables are created in tablespace
-				    0 */
+	/* System tables are created in tablespace 0.  Thus, we must
+	temporarily clear srv_file_per_table.  This is ok, because the
+	server will not accept connections (which could modify
+	innodb_file_per_table) until this function has returned. */
+	srv_file_per_table = FALSE;
 #ifdef UNIV_DEBUG
 	fprintf(stderr,
 		"InnoDB: !!!!!!!! UNIV_DEBUG switched on !!!!!!!!!\n");
