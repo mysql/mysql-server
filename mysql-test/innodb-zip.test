@@ -1,5 +1,7 @@
 -- source include/have_innodb.inc
 
+let $default=`select @@innodb_file_per_table`;
+set global innodb_file_per_table=1;
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
 
@@ -29,3 +31,4 @@ disconnect a;
 disconnect b;
 
 drop table t1;
+eval set global innodb_file_per_table=$default;
