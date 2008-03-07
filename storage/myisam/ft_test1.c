@@ -75,12 +75,12 @@ static int run_test(const char *filename)
 
   /* First define 2 columns */
   recinfo[0].type=extra_field;
-  recinfo[0].length= (extra_field == FIELD_BLOB ? 4 + mi_portable_sizeof_char_ptr :
+  recinfo[0].length= (extra_field == FIELD_BLOB ? 4 + portable_sizeof_char_ptr :
 	      extra_length);
   if (extra_field == FIELD_VARCHAR)
     recinfo[0].length+= HA_VARCHAR_PACKLENGTH(extra_length);
   recinfo[1].type=key_field;
-  recinfo[1].length= (key_field == FIELD_BLOB ? 4+mi_portable_sizeof_char_ptr :
+  recinfo[1].length= (key_field == FIELD_BLOB ? 4+portable_sizeof_char_ptr :
 		      key_length);
   if (key_field == FIELD_VARCHAR)
     recinfo[1].length+= HA_VARCHAR_PACKLENGTH(key_length);
