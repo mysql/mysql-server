@@ -20,6 +20,9 @@ int toku_logger_panicked(TOKULOGGER /*logger*/);
 int toku_logger_is_open(TOKULOGGER);
 LSN toku_logger_last_lsn(TOKULOGGER);
 
+int toku_logger_set_lg_max (TOKULOGGER logger, u_int32_t);
+int toku_logger_get_lg_max (TOKULOGGER logger, u_int32_t *);
+
 int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF diskoff, int is_add, const struct kv_pair *pair);
 
 int toku_logger_commit (TOKUTXN txn, int no_sync);

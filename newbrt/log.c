@@ -69,6 +69,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     if (result==0) return errno;
     result->is_open=0;
     result->is_panicked=0;
+    result->lg_max = 100<<20; // 100MB default
     list_init(&result->live_txns);
     *resultp=result;
     return 0;
@@ -116,14 +117,30 @@ int toku_logger_is_open(TOKULOGGER logger) {
     return logger->is_open;
 }
 
-static int flush (TOKULOGGER logger) {
+int toku_logger_set_lg_max(TOKULOGGER logger, u_int32_t lg_max) {
+    if (logger==0) return EINVAL; // no logger
+    if (logger->is_panicked) return EINVAL;
+    if (logger->is_open) return EINVAL;
+    if (lg_max>(1<<30)) return EINVAL; // too big
+    logger->lg_max = lg_max;
+    return 0;
+}
+int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
+    if (logger==0) return EINVAL; // no logger
+    if (logger->is_panicked) return EINVAL;
+    *lg_maxp = logger->lg_max;
+    return 0;
+    
+}
+
+static int flush (TOKULOGGER logger, int close_p) {
     if (logger->n_in_buf>0) {
 	int r = write(logger->fd, logger->buf, logger->n_in_buf);
 	if (r==-1) return errno;
 	logger->n_in_file += logger->n_in_buf;
 	logger->n_in_buf=0;
     }
-    if (logger->n_in_file > 100<<20) {
+    if (close_p || logger->n_in_file >= logger->lg_max) {
 	int r = close(logger->fd);
 	if (r!=0) return errno;
 	logger->fd=-1;
@@ -149,17 +166,18 @@ int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
 	int r = write(logger->fd, "tokulogg", 8); if (r!=8) return errno;
 	r = write(logger->fd, &version_l, 4); if (r!=4) return errno;
     }
-    if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE) {
-	printf("flushing %d %d\n", logger->n_in_buf, logger->n_in_file);
-	int r=flush(logger);
+    if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE
+	|| logger->n_in_file + logger->n_in_buf + nbytes > logger->lg_max) {
+	//printf("flushing %d %d\n", logger->n_in_buf, logger->n_in_file);
+	int r=flush(logger, 1);
 	if (r!=0) return r;
 	if (nbytes>LOGGER_BUF_SIZE) {
 	    r = write(logger->fd, bytes, nbytes);
 	    if (r!=0) return errno;
 	    logger->n_in_file = nbytes;
-	    return flush(logger);
+	    return flush(logger, 0);
 	}
-	printf("saving %d\n", nbytes);
+	//printf("saving %d\n", nbytes);
     }
     memcpy(logger->buf+logger->n_in_buf, bytes, nbytes);
     logger->n_in_buf += nbytes;
@@ -202,9 +220,8 @@ n
 
 int toku_logger_fsync (TOKULOGGER logger) {
     //return 0;/// NO TXN
-    //fprintf(stderr, "%s:%d syncing log\n", __FILE__, __LINE__);
     if (logger->is_panicked) return EINVAL;
-    int r=flush(logger);
+    int r=flush(logger, 0);
     if (r!=0) return r;
     if (logger->fd>=0) {
 	r = fsync(logger->fd);

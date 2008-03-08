@@ -22,6 +22,7 @@ struct tokulogger {
     int  n_in_buf;
     CACHETABLE ct;
     struct list live_txns; // just a linked list.  Should be a hashtable.
+    int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
