@@ -2,10 +2,32 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <db.h>
-#include <sys/stat.h>
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include "test.h"
+
+void check_logmax (int max) {
+    int any_too_big=0;
+    DIR *dir = opendir(ENVDIR);
+    struct dirent *ent;
+    while ((ent=readdir(dir))) {
+	if (ent->d_type==DT_REG && strncmp(ent->d_name, "log", 3)==0) {
+	    // It is a "log*" file
+#define FULL_LEN (sizeof(ENVDIR)+NAME_MAX+1)
+	    char full_fname[FULL_LEN];
+	    snprintf(full_fname, FULL_LEN, "%s/%s", ENVDIR, ent->d_name); 
+	    struct stat sbuf;
+	    int r = stat(full_fname, &sbuf);
+	    assert(r==0);
+	    if (verbose)
+		printf("%s is of size %ld\n", ent->d_name, sbuf.st_size);
+	    if (sbuf.st_size > max) any_too_big=1;
+	}
+    }
+    assert(!any_too_big);
+}
 
 void test_logmax (int logmax) {
     int r;
@@ -68,14 +90,15 @@ void test_logmax (int logmax) {
 	    r=env->txn_begin(env, 0, &tid, 0); CKERR(r);
 	}
     }
-    printf("i=%d sum=%d effmax=%d\n", i, sum, effective_max);
+    if (verbose) printf("i=%d sum=%d effmax=%d\n", i, sum, effective_max);
     r=tid->commit(tid, 0); assert(r==0);
     r=db->close(db, 0); assert(r==0);
     r=env->close(env, 0); assert(r==0);
-    system("ls -l " ENVDIR);
+    check_logmax(effective_max);
 }
 
-int main (int argc, char *argv[]) {
+int main (int argc, const char *argv[]) {
+    parse_args(argc, argv);
     test_logmax(1<<20);
     test_logmax(-1);
     return 0;
