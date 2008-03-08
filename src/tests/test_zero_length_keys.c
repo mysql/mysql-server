@@ -11,8 +11,8 @@
 #include <db.h>
 
 #include "test.h"
-#ifndef DIR
-#define DIR "./test.dir"
+#ifndef ENVDIR
+#define ENVDIR "./test.dir"
 #endif
 
 void walk(DB *db) {
@@ -47,8 +47,8 @@ void test_insert_zero_length(int n, int dup_mode, const char *dbname) {
     DB_TXN * const null_txn = 0;
     int r;
 
-    char fname[strlen(DIR) + strlen("/") + strlen(dbname) + 1];
-    sprintf(fname, "%s/%s", DIR, dbname);
+    char fname[strlen(ENVDIR) + strlen("/") + strlen(dbname) + 1];
+    sprintf(fname, "%s/%s", ENVDIR, dbname);
 
     unlink(fname);
 
@@ -103,8 +103,8 @@ void test_insert_zero_length_keys(int n, int dup_mode, const char *dbname) {
     DB_TXN * const null_txn = 0;
     int r;
 
-    char fname[strlen(DIR) + strlen("/") + strlen(dbname) + 1];
-    sprintf(fname, "%s/%s", DIR, dbname);
+    char fname[strlen(ENVDIR) + strlen("/") + strlen(dbname) + 1];
+    sprintf(fname, "%s/%s", ENVDIR, dbname);
 
     unlink(fname);
 
@@ -136,8 +136,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     test_insert_zero_length(32, 0, "test0");
     test_insert_zero_length_keys(32, 0, "test0keys");

@@ -51,7 +51,7 @@ void test_cursor_nonleaf_expand(int n, int reverse) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.insert.brt";
+    const char * const fname = ENVDIR "/" "test.insert.brt";
     int r;
 
     unlink(fname);
@@ -89,8 +89,8 @@ void test_cursor_nonleaf_expand(int n, int reverse) {
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
-    system("rm -rf " DIR);
-    int r=mkdir(DIR, 0777); assert(r==0);
+    system("rm -rf " ENVDIR);
+    int r=mkdir(ENVDIR, 0777); assert(r==0);
 
     int i;
     for (i=1; i<=65536; i *= 2) {

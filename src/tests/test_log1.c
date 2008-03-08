@@ -10,7 +10,7 @@
 #include <string.h>
 #include <stdio.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 DB_ENV *env;
 DB *db;
@@ -20,10 +20,10 @@ DB_TXN *tid;
 
 int main (int argc, char *argv[]) {
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);

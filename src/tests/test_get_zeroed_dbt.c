@@ -14,10 +14,10 @@ void test_get (int dup_mode) {
     DB_TXN * const null_txn = 0;
     DB *db;
     DBT key,data;
-    int fnamelen = sizeof(DIR) + 30;
+    int fnamelen = sizeof(ENVDIR) + 30;
     char fname[fnamelen];
     int r;
-    snprintf(fname, fnamelen, "%s/test%d.db", DIR, dup_mode);
+    snprintf(fname, fnamelen, "%s/test%d.db", ENVDIR, dup_mode);
     r = db_create (&db, null_env, 0);                                        assert(r == 0);
     r = db->set_flags(db, dup_mode);                                         assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    assert(r == 0);
@@ -31,8 +31,8 @@ void test_get (int dup_mode) {
 
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     test_get(0);
     test_get(DB_DUP + DB_DUPSORT);

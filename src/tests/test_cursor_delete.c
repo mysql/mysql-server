@@ -51,7 +51,7 @@ void test_cursor_delete(int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.cursor.delete.brt";
+    const char * const fname = ENVDIR "/" "test.cursor.delete.brt";
     int r;
 
     unlink(fname);
@@ -98,7 +98,7 @@ void test_cursor_delete_dupsort() {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.cursor.delete.brt";
+    const char * const fname = ENVDIR "/" "test.cursor.delete.brt";
     int r;
 
     unlink(fname);
@@ -149,8 +149,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     
     test_cursor_delete(0);
 #if USE_BDB

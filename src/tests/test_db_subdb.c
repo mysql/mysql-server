@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <db.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
@@ -19,13 +19,13 @@ int main() {
     const char * const fname = "test.db";
     int r;
 
-    system("rm -rf " DIR);
+    system("rm -rf " ENVDIR);
 
-    r=mkdir(DIR, 0777); assert(r==0);
+    r=mkdir(ENVDIR, 0777); assert(r==0);
 
     r=db_env_create(&env, 0);   assert(r==0);
     // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
-    r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE|DB_INIT_LOG, 0777); assert(r==0);
+    r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE|DB_INIT_LOG, 0777); assert(r==0);
 
     r = db_create(&db, env, 0);
     CKERR(r);

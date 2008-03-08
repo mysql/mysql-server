@@ -19,7 +19,7 @@ void test_db_set_flags(int flags, int expectr, int flags2, int expectr2) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.db.set.flags.brt";
+    const char * const fname = ENVDIR "/" "test.db.set.flags.brt";
     int r;
 
     unlink(fname);
@@ -36,8 +36,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     
     test_db_set_flags(0, 0, 0, 0);
     test_db_set_flags(0, 0, DB_DUP, EINVAL);

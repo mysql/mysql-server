@@ -18,7 +18,7 @@ do {                                                                            
     if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);  \
 } while (0)
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 #define DB_HOME "DB_HOME"
 #define DBNAME "test.db"
@@ -35,9 +35,9 @@ void reinit_config(int set_home, int set_DB_ENVIRON, int set_DB_HOME) {
     //Return to base dir
     r = fchdir(rootfd);                 assert(r == 0);
 
-    r = system("rm -rf " DIR);          assert(r == 0);
-    r = mkdir(DIR, 0777);               assert(r == 0);
-    r = chdir(DIR);                     assert(r == 0);
+    r = system("rm -rf " ENVDIR);          assert(r == 0);
+    r = mkdir(ENVDIR, 0777);               assert(r == 0);
+    r = chdir(ENVDIR);                     assert(r == 0);
     unsetenv(DB_HOME);
 
     if (set_home) {

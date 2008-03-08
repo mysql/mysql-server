@@ -187,7 +187,7 @@ void create_databases (void) {
     int r;
 
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
-    r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
+    r = dbenv->open(dbenv, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
 
     r = db_create(&dbp, dbenv, 0);                                                           CKERR(r);
     r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
@@ -229,11 +229,11 @@ void setup_for_db_create (void) {
 
     // Remove name.db and then rebuild it with associate(... DB_CREATE)
 
-    int r=unlink(DIR "/name.db");
+    int r=unlink(ENVDIR "/name.db");
     assert(r==0);
 
     r = db_env_create(&dbenv, 0);                                                    CKERR(r);
-    r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                        CKERR(r);
+    r = dbenv->open(dbenv, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL, 0);                        CKERR(r);
 
     r = db_create(&dbp, dbenv, 0);                                                   CKERR(r);
     r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, 0, 0600);             CKERR(r);
@@ -507,8 +507,8 @@ int main (int argc, const char *argv[]) {
     switch (mode) {
     case MODE_DEFAULT:
 	oppass=1;
-	system("rm -rf " DIR);
-	mkdir(DIR, 0777); 
+	system("rm -rf " ENVDIR);
+	mkdir(ENVDIR, 0777); 
 	create_databases();
 	{
 	    int i;

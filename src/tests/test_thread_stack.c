@@ -105,8 +105,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (!do_resume) {
-        system("rm -rf " DIR);
-        mkdir(DIR, 0777);
+        system("rm -rf " ENVDIR);
+        mkdir(ENVDIR, 0777);
     }
 
     int r;
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
 
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_cachesize(env, 0, 8000000, 1); assert(r == 0);
-    r = env->open(env, DIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, 0777); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, 0777); assert(r == 0);
 
     DB *db;
 

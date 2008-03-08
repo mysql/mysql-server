@@ -38,7 +38,7 @@ void test_dupsort_delete(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_dupsort_delete.brt";
+    const char * const fname = ENVDIR "/" "test_dupsort_delete.brt";
     int r;
     int i;
 
@@ -96,8 +96,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     //   test_dupsort_delete(256); return 0;
     
     /* nodup tests */

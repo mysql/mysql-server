@@ -104,7 +104,7 @@ void test_get_both(int n, int dup_mode, int op) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_icdi_search.brt";
+    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
 
     unlink(fname);
@@ -178,8 +178,8 @@ int main(int argc, const char *argv[]) {
         }
     }
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     for (i=1; i <= 256; i *= 2) {
         test_get_both(i, 0, DB_GET_BOTH);

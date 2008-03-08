@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 typedef struct {
     int32_t pkey;
@@ -25,12 +25,12 @@ int32_t key_1 = 1;
 void setup(void) {
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     dbenv = 0;
     /* Open/create primary */
     r = db_create(&db, dbenv, 0);                                               CKERR(r);
-    r = db->open(db, null_txn, DIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
+    r = db->open(db, null_txn, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
 }
 
 void insert_test(void) {

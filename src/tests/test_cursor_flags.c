@@ -19,7 +19,7 @@ void test_cursor_flags(int cursor_flags, int expectr) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.cursor.delete.brt";
+    const char * const fname = ENVDIR "/" "test.cursor.delete.brt";
     int r;
 
     unlink(fname);
@@ -43,8 +43,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     
     test_cursor_flags(0, 0);
     test_cursor_flags(~0, EINVAL);

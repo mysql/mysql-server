@@ -13,14 +13,14 @@ void test_logmax (int logmax) {
     DB *db;
     DB_TXN *tid;
 
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
     if (logmax>0) {
 	r=env->set_lg_max(env, logmax);
 	assert(r==0);
     }
-    r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     {
 	u_int32_t lmax;
 	r=env->get_lg_max(env, &lmax);
@@ -72,7 +72,7 @@ void test_logmax (int logmax) {
     r=tid->commit(tid, 0); assert(r==0);
     r=db->close(db, 0); assert(r==0);
     r=env->close(env, 0); assert(r==0);
-    system("ls -l " DIR);
+    system("ls -l " ENVDIR);
 }
 
 int main (int argc, char *argv[]) {

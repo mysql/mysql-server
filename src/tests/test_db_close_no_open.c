@@ -8,7 +8,7 @@
 #include <sys/types.h>
 #include <db.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
@@ -17,10 +17,10 @@ DB *db;
 
 int main (int argc, char *argv[]) {
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
+    r=env->open(env, ENVDIR, DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
     r=db_create(&db, env, 0); assert(r==0);
     r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);

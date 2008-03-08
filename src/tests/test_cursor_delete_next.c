@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 
 DB *db;
@@ -22,11 +22,11 @@ DB_TXN *const null_txn = 0;
 void setup_db(char* name) {
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     r = db_env_create(&env, 0);                     CKERR(r);
-    r = env->open(env, DIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL, 0666);  CKERR(r);
+    r = env->open(env, ENVDIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL, 0666);  CKERR(r);
     r = db_create(&db, env, 0);                     CKERR(r);
     r = db->set_flags(db, DB_DUP | DB_DUPSORT);     CKERR(r);
     r = db->set_pagesize(db, 4096);                 CKERR(r);

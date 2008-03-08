@@ -8,7 +8,7 @@
 #include <db.h>
 #include "test.h"
 
-const char *dbfile = DIR "/" "test.db";
+const char *dbfile = ENVDIR "/" "test.db";
 const char *dbname = 0;
 
 int db_put(DB *db, int k, int v) {
@@ -69,8 +69,8 @@ void test_db_thread() {
 
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     test_db_create();
     test_db_thread();
     return 0;

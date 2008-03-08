@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 int dbtcmp(DBT *dbt1, DBT *dbt2) {
     int r;
@@ -55,7 +55,7 @@ void second_setup() {
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
-    r = dbp->open(dbp, NULL, DIR "/students.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
+    r = dbp->open(dbp, NULL, ENVDIR "/students.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 
     /*
      * Open/create secondary. Note that it supports duplicate data
@@ -64,7 +64,7 @@ void second_setup() {
     r = db_create(&sdbp, dbenv, 0);                                             CKERR(r);
     sdbp->set_errfile(sdbp,0); // Turn off those annoying errors
     r = sdbp->set_flags(sdbp, DB_DUP | DB_DUPSORT);                             CKERR(r);
-    r = sdbp->open(sdbp, NULL, DIR "/lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
+    r = sdbp->open(sdbp, NULL, ENVDIR "/lastname.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
     
 
     /* Associate the secondary with the primary. */
@@ -182,8 +182,8 @@ void verify_gone() {
 int main() {
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     second_setup();
     insert_test();

@@ -9,7 +9,7 @@
 #include <db.h>
 #include <string.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
 DB_ENV *env;
@@ -19,8 +19,8 @@ DBT data;
 
 int main (int argc, char *argv[]) {
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);         assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);         assert(r==0);
     memset(&key, 0, sizeof(key));
     memset(&data, 0, sizeof(data));
     key.size = sizeof("name");
@@ -28,7 +28,7 @@ int main (int argc, char *argv[]) {
     
     r=db_env_create(&env, 0);   assert(r==0);
     // Note: without DB_INIT_MPOOL the BDB library will fail on db->open().
-    r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
+    r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->remove(db, "DoesNotExist.db", NULL, 0);       assert(r==ENOENT);

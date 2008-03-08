@@ -58,13 +58,13 @@ void test_reverse_compare(int n, int dup_flags) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/reverse.compare.db";
+    const char * const fname = ENVDIR "/reverse.compare.db";
 
     int r;
     int i;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);

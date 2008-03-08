@@ -19,14 +19,14 @@ int main (int argc, const char *argv[]) {
     if (verbose) printf("Warning: fmemopen does not exist in OSX!\n");
 #else
     
-    system("rm -rf " DIR);
-    int r=mkdir(DIR, 0777); assert(r==0);
+    system("rm -rf " ENVDIR);
+    int r=mkdir(ENVDIR, 0777); assert(r==0);
 
     {
 	DB_ENV *env;
 	r = db_env_create(&env, 0); assert(r==0);
 	env->set_errfile(env,0); // Turn off those annoying errors
-	r = env->open(env, DIR, -1, 0644);
+	r = env->open(env, ENVDIR, -1, 0644);
 	assert(r==EINVAL);
 	assert(n_handle_error==0);
 	r = env->close(env, 0); assert(r==0);
@@ -55,7 +55,7 @@ int main (int argc, const char *argv[]) {
 			env->set_errfile(env, write_here);
 		    if (do_errcall) 
 			env->set_errcall(env, handle_error);
-		    r = env->open(env, DIR, -1, 0644);
+		    r = env->open(env, ENVDIR, -1, 0644);
 		    assert(r==EINVAL);
 		    r = env->close(env, 0); assert(r==0);
 		    fclose(write_here);

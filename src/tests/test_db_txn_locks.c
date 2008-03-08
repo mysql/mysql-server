@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 int dbtcmp(DBT *dbt1, DBT *dbt2) {
     int r;
@@ -147,8 +147,8 @@ void early_abort(char name) {
 void setup_dbs(u_int32_t dup_flags) {
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     dbenv   = NULL;
     db      = NULL;
     /* Open/create primary */
@@ -156,7 +156,7 @@ void setup_dbs(u_int32_t dup_flags) {
         CKERR(r);
     u_int32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
     u_int32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
-	r = dbenv->open(dbenv, DIR, env_open_flags | env_txn_flags, 0600);
+	r = dbenv->open(dbenv, ENVDIR, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
     r = db_create(&db, dbenv, 0);

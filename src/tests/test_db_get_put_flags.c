@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 typedef struct {
     u_int32_t db_flags;
@@ -56,15 +56,15 @@ DB_ENV *dbenv;
 void setup(u_int32_t flags) {
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     /* Open/create primary */
     r = db_create(&dbp, dbenv, 0);                                              CKERR(r);
     dbp->set_errfile(dbp,0); // Turn off those annoying errors
     if (flags) {
         r = dbp->set_flags(dbp, flags);                                       CKERR(r);
     }    
-    r = dbp->open(dbp, NULL, DIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
+    r = dbp->open(dbp, NULL, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);   CKERR(r);
 }
 
 void close_dbs() {
@@ -224,7 +224,7 @@ void setup_secondary(u_int32_t flags) {
     if (flags) {
         r = sdbp->set_flags(dbp, flags);                                                CKERR(r);
     }    
-    r = sdbp->open(sdbp, NULL, DIR "/secondary.db", NULL, DB_BTREE, DB_CREATE, 0600);    CKERR(r);
+    r = sdbp->open(sdbp, NULL, ENVDIR "/secondary.db", NULL, DB_BTREE, DB_CREATE, 0600);    CKERR(r);
     r = dbp->associate(dbp, NULL, sdbp, identity_callback, 0);                          CKERR(r);
 }
 
