@@ -1442,7 +1442,7 @@ end:
 static int check_page_layout(HA_CHECK *param, MARIA_HA *info,
                              my_off_t page_pos, uchar *page,
                              uint row_count, uint head_empty,
-                             uint *real_rows_found)
+                             uint *real_rows_found, uint *free_slots_found)
 {
   uint empty, last_row_end, row, first_dir_entry, free_entry, block_size;
   uint free_entries, prev_free_entry;
@@ -1495,6 +1495,7 @@ static int check_page_layout(HA_CHECK *param, MARIA_HA *info,
     free_entry= dir[3];
     free_entries++;
   }
+  *free_slots_found= free_entries;
 
   /* Check directry */
   dir_entry= page+ block_size - PAGE_SUFFIX_SIZE;
@@ -1694,7 +1695,7 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
   uint block_size= share->block_size;
   ha_rows full_page_count, tail_count;
   my_bool full_dir;
-  uint offset_page, offset;
+  uint offset_page, offset, free_count;
 
   LINT_INIT(full_dir);
 
@@ -1791,7 +1792,11 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
                           row_count * DIR_ENTRY_SIZE);
       if (empty_space < share->bitmap.sizes[3])
         param->lost+= empty_space;
-      full_dir= row_count == MAX_ROWS_PER_PAGE;
+      if (check_page_layout(param, info, pos, page_buff, row_count,
+                            empty_space, &real_row_count, &free_count))
+        goto err;
+      full_dir= (row_count == MAX_ROWS_PER_PAGE &&
+                 page_buff[DIR_FREE_OFFSET] == END_OF_DIR_FREE_LIST);
       break;
     case TAIL_PAGE:
       row_count= ((uchar*) page_buff)[DIR_COUNT_OFFSET];
@@ -1799,9 +1804,13 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
       param->used+= block_size - empty_space;
       param->link_used+= (PAGE_HEADER_SIZE + PAGE_SUFFIX_SIZE +
                           row_count * DIR_ENTRY_SIZE);
-      full_dir= row_count == MAX_ROWS_PER_PAGE;
       if (empty_space < share->bitmap.sizes[6])
         param->lost+= empty_space;
+      if (check_page_layout(param, info, pos, page_buff, row_count,
+                            empty_space, &real_row_count, &free_count))
+        goto err;
+      full_dir= (row_count - free_count >= MAX_ROWS_PER_PAGE -
+                 share->base.blobs);
       break;
     case BLOB_PAGE:
       full_page_count++;
@@ -1830,9 +1839,6 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
     if ((enum en_page_type) page_type == BLOB_PAGE)
       continue;
     param->empty+= empty_space;
-    if (check_page_layout(param, info, pos, page_buff, row_count,
-                          empty_space, &real_row_count))
-      goto err;
     if ((enum en_page_type) page_type == TAIL_PAGE)
     {
       tail_count+= real_row_count;

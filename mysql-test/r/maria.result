@@ -2254,3 +2254,21 @@ t1	CREATE TABLE `t1` (
   `c` char(1) DEFAULT NULL
 ) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=1 TRANSACTIONAL=1
 drop table t1;
+create table t1 (i int auto_increment not null primary key) transactional=0;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where i = 10;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+create table t1 (i int auto_increment not null primary key);
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+delete from t1 where i = 10;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;

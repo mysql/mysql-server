@@ -1455,6 +1455,41 @@ alter table t1 engine=maria;
 show create table t1;
 drop table t1;
 
+#
+# Test problems with small rows and row_type=page 
+# Bug 35048 "maria table corruption reported when transactional=0"
+#
+
+create table t1 (i int auto_increment not null primary key) transactional=0;
+
+let $i=510;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  insert into t1 values (null);
+}
+--enable_query_log
+check table t1 extended;
+delete from t1 where i = 10;
+check table t1 extended;
+drop table t1;
+
+create table t1 (i int auto_increment not null primary key);
+
+let $i=510;
+--disable_query_log
+while ($i)
+{
+  dec $i;
+  insert into t1 values (null);
+}
+--enable_query_log
+check table t1 extended;
+delete from t1 where i = 10;
+check table t1 extended;
+drop table t1;
+
 # End of 5.1 tests
 
 --disable_result_log

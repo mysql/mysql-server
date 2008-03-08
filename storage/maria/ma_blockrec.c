@@ -692,6 +692,34 @@ static void check_directory(uchar *buff, uint block_size)
 
 
 /**
+   @brief Calculate if there is enough entries on the page
+*/
+
+my_bool enough_free_entries(uchar *buff, uint block_size, uint wanted_entries)
+{
+  uint entries= (uint) buff[DIR_COUNT_OFFSET];
+  uint needed_free_entries, free_entry;
+
+  if (entries + wanted_entries <= MAX_ROWS_PER_PAGE)
+    return 1;
+
+  /* Check if enough free entries in free list */
+  needed_free_entries= entries + wanted_entries - MAX_ROWS_PER_PAGE;
+
+  free_entry= (uint) buff[DIR_FREE_OFFSET];
+  while (free_entry != END_OF_DIR_FREE_LIST)
+  {
+    uchar *dir;
+    if (!--needed_free_entries)
+      return 1;
+    dir= dir_entry_pos(buff, block_size, free_entry);
+    free_entry= dir[3];
+  }
+  return 0;                                     /* Not enough entries */
+}
+
+
+/**
    @brief Extend a record area to fit a given size block
 
    @fn extend_area_on_page()
@@ -1029,6 +1057,7 @@ static uchar *find_free_position(uchar *buff, uint block_size, uint *res_rownr,
     DBUG_RETURN(dir);
   }
   /* No free places in dir; create a new one */
+
   /* Check if there is place for the directory entry */
   if (max_entry == MAX_ROWS_PER_PAGE)
     DBUG_RETURN(0);
@@ -1801,8 +1830,8 @@ static my_bool write_tail(MARIA_HA *info,
     during _ma_bitmap_find_place() allocate more entries on the tail page
     than it can hold
   */
-  block->empty_space= ((uint) (row_pos.buff)[DIR_COUNT_OFFSET] <=
-                       MAX_ROWS_PER_PAGE - 1 - share->base.blobs ?
+  block->empty_space= (enough_free_entries(row_pos.buff, share->block_size,
+                                           1 + share->base.blobs) ?
                        empty_space : 0);
   block->used= BLOCKUSED_USED | BLOCKUSED_TAIL;
 
@@ -2587,7 +2616,8 @@ static my_bool write_block_record(MARIA_HA *info,
   int2store(page_buff + EMPTY_SPACE_OFFSET, row_pos->empty_space);
   /* Mark in bitmaps how the current page was actually used */
   head_block->empty_space= row_pos->empty_space;
-  if (page_buff[DIR_COUNT_OFFSET] == MAX_ROWS_PER_PAGE)
+  if (page_buff[DIR_COUNT_OFFSET] == MAX_ROWS_PER_PAGE &&
+      page_buff[DIR_FREE_OFFSET] == END_OF_DIR_FREE_LIST)
     head_block->empty_space= 0;               /* Page is full */
   head_block->used|= BLOCKUSED_USED;
 
@@ -3881,6 +3911,15 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
               info->pinned_pages.elements-1);
 
   DBUG_PRINT("info", ("empty_space: %u", empty_space));
+
+  /*
+    If there is not enough space for all possible tails, mark the
+    page full
+  */
+  if (!head && !enough_free_entries(buff, share->block_size,
+                                    1 + share->base.blobs))
+    empty_space= 0;
+
   DBUG_RETURN(_ma_bitmap_set(info, page, head, empty_space));
 }
 
