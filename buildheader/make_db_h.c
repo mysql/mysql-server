@@ -303,6 +303,7 @@ int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__un
     printf("char *db_strerror(int) %s;\n", VISIBLE);
     printf("const char *db_version(int*,int *,int *) %s;\n", VISIBLE);
     printf("int log_compare (const DB_LSN*, const DB_LSN *) %s;\n", VISIBLE);
+    printf("int db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;
