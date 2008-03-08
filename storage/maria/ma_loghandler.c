@@ -297,6 +297,11 @@ struct st_translog_descriptor
   pthread_mutex_t purger_lock;
   /* last low water mark checked */
   LSN last_lsn_checked;
+  /**
+    Must be set to 0 under loghandler lock every time a new LSN
+    is generated.
+  */
+  my_bool is_everything_flushed;
 };
 
 static struct st_translog_descriptor log_descriptor;
@@ -3263,6 +3268,7 @@ my_bool translog_init_with_table(const char *directory,
 
   id_to_share= NULL;
   log_descriptor.directory_fd= -1;
+  log_descriptor.is_everything_flushed= 1;
 
   (*init_table_func)();
 
@@ -3846,7 +3852,6 @@ my_bool translog_init_with_table(const char *directory,
       translog_free_record_header(&rec);
     }
   }
-
   DBUG_RETURN(0);
 }
 
@@ -4586,6 +4591,15 @@ static translog_size_t translog_get_current_group_size()
 }
 
 
+static inline void set_lsn(LSN *lsn, LSN value)
+{
+  translog_lock_assert_owner();
+  *lsn= value;
+  /* we generate LSN so something is not flushed in log */
+  log_descriptor.is_everything_flushed= 0;
+}
+
+
 /**
    @brief Write variable record in 1 group.
 
@@ -4631,7 +4645,7 @@ translog_write_variable_record_1group(LSN *lsn,
   if (buffer_to_flush)
     translog_buffer_lock_assert_owner(buffer_to_flush);
 
-  *lsn= horizon= log_descriptor.horizon;
+  set_lsn(lsn, horizon= log_descriptor.horizon);
   if (translog_set_lsn_for_files(LSN_FILE_NO(*lsn), LSN_FILE_NO(*lsn),
                                  *lsn, TRUE) ||
       (log_record_type_descriptor[type].inwrite_hook &&
@@ -4780,8 +4794,7 @@ translog_write_variable_record_1chunk(LSN *lsn,
 
   translog_write_variable_record_1group_header(parts, type, short_trid,
                                                header_length, chunk0_header);
-
-  *lsn= log_descriptor.horizon;
+  set_lsn(lsn, log_descriptor.horizon);
   if (translog_set_lsn_for_files(LSN_FILE_NO(*lsn), LSN_FILE_NO(*lsn),
                                  *lsn, TRUE) ||
       (log_record_type_descriptor[type].inwrite_hook &&
@@ -5468,12 +5481,23 @@ translog_write_variable_record_mgroup(LSN *lsn,
     if (first_chunk0)
     {
       first_chunk0= 0;
-      *lsn= horizon;
+
+      /*
+        We can drop "log_descriptor.is_everything_flushed" earlier when have
+        lock on loghandler and assign initial value of "horizon" variable or
+        before unlocking loghandler (because we will increase writers
+        counter on the buffer and every thread which wanted flush the buffer
+        will wait till we finish with it). But IMHO better here take short
+        lock and do not bother other threads with waiting.
+      */
+      translog_lock();
+      set_lsn(lsn, horizon);
       if (log_record_type_descriptor[type].inwrite_hook &&
           (*log_record_type_descriptor[type].inwrite_hook) (type, trn,
                                                             tbl_info,
                                                             lsn, hook_arg))
-        goto err;
+        goto err_unlock;
+      translog_unlock();
     }
 
     /*
@@ -5742,7 +5766,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
       translog_buffer_lock_assert_owner(buffer_to_flush);
   }
 
-  *lsn= log_descriptor.horizon;
+  set_lsn(lsn, log_descriptor.horizon);
   if (translog_set_lsn_for_files(LSN_FILE_NO(*lsn), LSN_FILE_NO(*lsn),
                              *lsn, TRUE) ||
       (log_record_type_descriptor[type].inwrite_hook &&
@@ -7293,6 +7317,12 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
 
   pthread_mutex_lock(&log_descriptor.log_flush_lock);
   translog_lock();
+  if (log_descriptor.is_everything_flushed)
+  {
+    DBUG_PRINT("info", ("everything is flushed"));
+    translog_unlock();
+    goto out;
+  }
   flush_horizon= LSN_IMPOSSIBLE;
   old_flushed= log_descriptor.flushed;
   for (;;)
@@ -7338,7 +7368,22 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
             then was at the moment of start flushing);
           */
           if (buffer_start == log_descriptor.bc.buffer_no)
+          {
+            translog_lock_assert_owner();
+            /*
+              Here we have loghandler locked.
+
+              We are going to flush last buffer, and will not release
+              log_flush_lock until it happened, so we can set the flag here
+              and other process which going to flush will not be able read
+              it and return earlier then we finish the flush process. (But
+              other process can drop the flag if new LSN appeared (only
+              after translog_force_current_buffer_to_finish() call and
+              transaction log unlock of course))
+            */
+            log_descriptor.is_everything_flushed= 1;
             translog_force_current_buffer_to_finish();
+          }
         }
         break;
       }
