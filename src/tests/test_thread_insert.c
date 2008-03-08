@@ -63,8 +63,8 @@ int main(int argc, char *argv[]) {
     int nthreads = 2;
     my_t n = 1000000;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     int i;
     for (i=1; i<argc; i++) {
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
 
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_cachesize(env, 0, 128000000, 1); assert(r == 0);
-    r = env->open(env, DIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, 0777); assert(r == 0);
+    r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, 0777); assert(r == 0);
 
     DB *db;
 

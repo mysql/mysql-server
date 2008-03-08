@@ -11,7 +11,7 @@
 #include <string.h>
 #include <stdio.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
@@ -20,10 +20,10 @@ void test_db_open_aborts (void) {
     DB *db;
 
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
 
     {
@@ -45,7 +45,7 @@ void test_db_open_aborts (void) {
     }
     {
 	struct stat buf;
-	r=stat(DIR "/foo.db", &buf);
+	r=stat(ENVDIR "/foo.db", &buf);
 	assert(r!=0);
 	assert(errno==ENOENT);
     }
@@ -60,10 +60,10 @@ void test_db_put_aborts (void) {
     DB *db;
 
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
 
     {
@@ -105,7 +105,7 @@ void test_db_put_aborts (void) {
     // The database should exist
     {
 	struct stat buf;
-	r=stat(DIR "/foo.db", &buf);
+	r=stat(ENVDIR "/foo.db", &buf);
 	assert(r==0);
     }
     // But the item should not be in it.

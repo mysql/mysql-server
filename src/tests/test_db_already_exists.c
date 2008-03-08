@@ -9,7 +9,7 @@
 #include <db.h>
 #include <errno.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 #define CKERR(r) if (r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, r, db_strerror(r)); assert(r==0);
 
@@ -20,9 +20,9 @@ int main() {
     const char * const fname = "test.already.exists.brt";
     int r;
 
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777); assert(r==0);
-    r=chdir(DIR);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777); assert(r==0);
+    r=chdir(ENVDIR);       assert(r==0);
 
     r = db_create(&db, null_env, 0);                                         CKERR(r);
     db->set_errfile(db,0); // Turn off those annoying errors

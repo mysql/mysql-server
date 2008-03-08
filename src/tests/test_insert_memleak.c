@@ -20,7 +20,7 @@ void test_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.insert.brt";
+    const char * const fname = ENVDIR "/" "test.insert.brt";
     int r;
 
     /* create the dup database file */
@@ -48,8 +48,8 @@ void test_insert(int n, int dup_mode) {
 int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
-    system("rm -rf " DIR);
-    int r=mkdir(DIR, 0777); assert(r==0);
+    system("rm -rf " ENVDIR);
+    int r=mkdir(ENVDIR, 0777); assert(r==0);
 
     test_insert(256, 0);
 

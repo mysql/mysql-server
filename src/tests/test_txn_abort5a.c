@@ -12,14 +12,14 @@
 void test_txn_abort(int n) {
     if (verbose>1) printf("%s %s:%d\n", __FILE__, __FUNCTION__, n);
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     int r;
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->set_data_dir(env, DIR);
-    r = env->set_lg_dir(env, DIR);
+    r = env->set_data_dir(env, ENVDIR);
+    r = env->set_lg_dir(env, ENVDIR);
     r = env->open(env, 0, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, 0777); 
     if (r != 0) printf("%s:%d:%d:%s\n", __FILE__, __LINE__, r, db_strerror(r));
     assert(r == 0);

@@ -59,7 +59,7 @@ void test_dup_key(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
+    const char * const fname = ENVDIR "/" "test_insert.brt";
     int r;
  
     unlink(fname);
@@ -110,7 +110,7 @@ void test_dup_dup(int dup_mode, u_int32_t put_flags, int rexpect, int rexpectdup
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
+    const char * const fname = ENVDIR "/" "test_insert.brt";
     int r;
  
     unlink(fname);
@@ -161,7 +161,7 @@ void test_put_00_01_01(int dup_mode, u_int32_t put_flags) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
+    const char * const fname = ENVDIR "/" "test_insert.brt";
     int r, expectr;
  
     unlink(fname);
@@ -221,8 +221,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     test_put_00_01_01(0, 0); 
     test_put_00_01_01(0, DB_NOOVERWRITE); 

@@ -9,7 +9,7 @@
 #include <db.h>
 #include <string.h>
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 DB_ENV *env;
 DB *db;
@@ -18,15 +18,15 @@ DBT data;
 
 int main (int argc, char *argv[]) {
     int r;
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);         assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);         assert(r==0);
     memset(&key, 0, sizeof(key));
     memset(&data, 0, sizeof(data));
     key.size = sizeof("name");
     key.data = "name";
     
     r=db_env_create(&env, 0);   assert(r==0);
-    r=env->open(env, DIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
+    r=env->open(env, ENVDIR, DB_INIT_MPOOL|DB_PRIVATE|DB_CREATE, 0777); assert(r==0);
 
     r=db_create(&db, env, 0);   assert(r==0);
     r=db->open(db, NULL, "master.db", NULL, DB_BTREE, DB_CREATE, 0666); assert(r==0);

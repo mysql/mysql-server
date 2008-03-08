@@ -44,7 +44,7 @@ void test_dup_delete(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_dup_delete.brt";
+    const char * const fname = ENVDIR "/" "test_dup_delete.brt";
     int r;
 
     unlink(fname);
@@ -135,7 +135,7 @@ void test_dup_delete_delete(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_dup_delete_delete.brt";
+    const char * const fname = ENVDIR "/" "test_dup_delete_delete.brt";
     int r;
 
     unlink(fname);
@@ -215,7 +215,7 @@ void test_dup_delete_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_dup_delete_insert.brt";
+    const char * const fname = ENVDIR "/" "test_dup_delete_insert.brt";
     int r;
 
     unlink(fname);
@@ -318,7 +318,7 @@ void test_all_dup_delete_insert(int n) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_all_dup_delete_insert.brt";
+    const char * const fname = ENVDIR "/" "test_all_dup_delete_insert.brt";
     int r;
 
     unlink(fname);
@@ -391,7 +391,7 @@ void test_walk_empty(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_walk_empty.brt";
+    const char * const fname = ENVDIR "/" "test_walk_empty.brt";
     int r;
 
     unlink(fname);
@@ -463,7 +463,7 @@ void test_icdi_search(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_icdi_search.brt";
+    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
 
     unlink(fname);
@@ -550,7 +550,7 @@ void test_ici_search(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_ici_search.brt";
+    const char * const fname = ENVDIR "/" "test_ici_search.brt";
     int r;
 
     unlink(fname);
@@ -644,7 +644,7 @@ void test_i0i1ci0_search(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_i0i1ci0.brt";
+    const char * const fname = ENVDIR "/" "test_i0i1ci0.brt";
     int r;
 
     unlink(fname);
@@ -698,8 +698,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
 #if USE_BDB
     /* dup tests */

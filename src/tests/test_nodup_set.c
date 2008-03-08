@@ -101,7 +101,7 @@ void test_icdi_search(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_icdi_search.brt";
+    const char * const fname = ENVDIR "/" "test_icdi_search.brt";
     int r;
 
     unlink(fname);
@@ -168,8 +168,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     for (i=1; i<65537; i *= 2) {
         test_icdi_search(i, 0);

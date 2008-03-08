@@ -10,20 +10,20 @@
 #include <errno.h>
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 int main() {
     DB_ENV *dbenv;
     int r;
 
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
 
     r = db_env_create(&dbenv, 0); assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR); assert(r == 0);
+    r = dbenv->set_data_dir(dbenv, ENVDIR); assert(r == 0);
 
-    r = dbenv->set_data_dir(dbenv, DIR); assert(r == 0);
+    r = dbenv->set_data_dir(dbenv, ENVDIR); assert(r == 0);
 
     r = dbenv->open(dbenv, 0, DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL, 0);
     CKERR(r);
@@ -31,7 +31,7 @@ int main() {
 #ifdef USE_TDB
     // According to the BDB man page, you may not call set_data_dir after doing the open.
     // Some versions of BDB don't actually check this or complain
-    r = dbenv->set_data_dir(dbenv, "foo" DIR);
+    r = dbenv->set_data_dir(dbenv, "foo" ENVDIR);
     assert(r == EINVAL);
 #endif
 

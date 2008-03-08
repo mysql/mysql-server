@@ -18,11 +18,11 @@ void test_key_size_limit(int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test.rand.insert.brt";
+    const char * const fname = ENVDIR "/" "test.rand.insert.brt";
     int r;
 
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777); assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777); assert(r==0);
 
     /* create the dup database file */
     r = db_create(&db, null_env, 0);

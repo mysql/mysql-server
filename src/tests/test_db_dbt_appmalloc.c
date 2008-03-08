@@ -9,7 +9,7 @@
 
 #include "test.h"
 
-// DIR is defined in the Makefile
+// ENVDIR is defined in the Makefile
 
 typedef struct {
     int32_t pkey;
@@ -81,13 +81,13 @@ void second_setup() {
 #ifndef USE_TDB
     r = db->set_alloc(db, my_malloc, my_realloc, my_free);                      CKERR(r);
 #endif
-    r = db->open(db, null_txn, DIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
+    r = db->open(db, null_txn, ENVDIR "/primary.db", NULL, DB_BTREE, DB_CREATE, 0600);  CKERR(r);
 
     r = db_create(&sdb, dbenv, 0);                                              CKERR(r);
 #ifndef USE_TDB
     r = sdb->set_alloc(sdb, my_malloc, my_realloc, my_free);                    CKERR(r);
 #endif
-    r = sdb->open(sdb, null_txn, DIR "/second.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
+    r = sdb->open(sdb, null_txn, ENVDIR "/second.db", NULL, DB_BTREE, DB_CREATE, 0600); CKERR(r);
 
     /* Associate the secondary with the primary. */
     r = db->associate(db, null_txn, sdb, getskey, 0);                           CKERR(r);
@@ -132,8 +132,8 @@ int main(int argc, const char *argv[]) {
     int i;
     
     parse_args(argc, argv);
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     second_setup();
     for (i = 0; i < 2; i++) {
         callback_set_malloc = i & 0x1;

@@ -10,9 +10,9 @@
 // Return the offset
 int grep_for_in_logs(const char *str) {
 #ifdef TOKUDB
-#define lname DIR "//log000000000000.tokulog"
+#define lname ENVDIR "//log000000000000.tokulog"
 #else
-#define lname DIR "//log.0000000001"
+#define lname ENVDIR "//log.0000000001"
 #endif
     int fd = open(lname, O_RDONLY);
     assert(fd>=0);
@@ -38,10 +38,10 @@ int main (int argc, char *argv[]) {
     DB *db;
     DB_TXN *tid;
 
-    system("rm -rf " DIR);
-    r=mkdir(DIR, 0777);       assert(r==0);
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-    r=env->open(env, DIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);

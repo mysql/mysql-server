@@ -44,7 +44,7 @@ void test_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_insert.brt";
+    const char * const fname = ENVDIR "/" "test_insert.brt";
     int r;
     int i;
 
@@ -143,7 +143,7 @@ void test_nonleaf_insert(int n, int dup_mode) {
     DB_ENV * const null_env = 0;
     DB *db;
     DB_TXN * const null_txn = 0;
-    const char * const fname = DIR "/" "test_nonleaf_insert.brt";
+    const char * const fname = ENVDIR "/" "test_nonleaf_insert.brt";
     int r;
     int i;
 
@@ -252,8 +252,8 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     
     /* nodup tests */
     for (i = 1; i <= (1<<16); i *= 2) {

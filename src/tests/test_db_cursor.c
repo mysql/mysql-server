@@ -156,7 +156,7 @@ static void create_databases (void) {
     int r;
 
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
-    r = dbenv->open(dbenv, DIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
+    r = dbenv->open(dbenv, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, 0);                      CKERR(r);
 
     r = db_create(&dbp, dbenv, 0);                                                           CKERR(r);
     r = dbp->open(dbp, null_txn, "primary.db", NULL, DB_BTREE, DB_CREATE, 0600);             CKERR(r);
@@ -343,8 +343,8 @@ int main (int argc, const char *argv[]) {
     switch (mode) {
     case MODE_DEFAULT:
 	opnum=0;
-	system("rm -rf " DIR);
-	mkdir(DIR, 0777); 
+	system("rm -rf " ENVDIR);
+	mkdir(ENVDIR, 0777); 
 	create_databases();
 	{
 	    int i;

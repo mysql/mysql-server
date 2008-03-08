@@ -14,11 +14,11 @@ void test_autotxn(u_int32_t env_flags, u_int32_t db_flags) {
     DB_ENV *env;
     DB *db;
     int r;
-    system("rm -rf " DIR);
-    mkdir(DIR, 0777);
+    system("rm -rf " ENVDIR);
+    mkdir(ENVDIR, 0777);
     r = db_env_create (&env, 0);           CKERR(r);
     r = env->set_flags(env, env_flags, 1); CKERR(r);
-    r = env->open(env, DIR, 
+    r = env->open(env, ENVDIR, 
                   DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | 
                   DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); CKERR(r);
     r = db_create(&db, env, 0);
