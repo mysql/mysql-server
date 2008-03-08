@@ -883,6 +883,7 @@ static File open_logfile_by_number_no_cache(uint32 file_no)
   @param file_no         Number of the log we want to open
 
   retval # file descriptor
+  retval NULL file is not opened
 */
 
 static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
@@ -890,12 +891,17 @@ static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
   TRANSLOG_FILE *file;
   DBUG_ENTER("get_logfile_by_number");
   rw_rdlock(&log_descriptor.open_files_lock);
+  if (log_descriptor.max_file - file_no >=
+      log_descriptor.open_files.elements)
+  {
+    DBUG_PRINT("info", ("File #%u is not opened", file_no));
+    DBUG_RETURN(NULL);
+  }
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
               log_descriptor.open_files.elements);
   DBUG_ASSERT(log_descriptor.max_file >= file_no);
   DBUG_ASSERT(log_descriptor.min_file <= file_no);
-  DBUG_ASSERT(log_descriptor.max_file - file_no <
-              log_descriptor.open_files.elements);
+
   file= *dynamic_element(&log_descriptor.open_files,
                          log_descriptor.max_file - file_no, TRANSLOG_FILE **);
   rw_unlock(&log_descriptor.open_files_lock);
@@ -2926,6 +2932,7 @@ restart:
     translog_unlock();
   }
   file= get_logfile_by_number(file_no);
+  DBUG_ASSERT(file != NULL);
   buffer=
     (uchar*) pagecache_read(log_descriptor.pagecache, &file->handler,
                             LSN_OFFSET(addr) / TRANSLOG_PAGE_SIZE,
@@ -2981,23 +2988,53 @@ static my_bool translog_get_last_page_addr(TRANSLOG_ADDRESS *addr,
                                            my_bool *last_page_ok,
                                            my_bool no_errors)
 {
-  MY_STAT stat_buff, *local_stat;
   char path[FN_REFLEN];
-  uint32 rec_offset, file_size;
+  uint32 rec_offset;
+  my_off_t file_size;
   uint32 file_no= LSN_FILE_NO(*addr);
+  TRANSLOG_FILE *file;
+#ifndef DBUG_OFF
+  char buff[21];
+#endif
   DBUG_ENTER("translog_get_last_page_addr");
 
-  if (!(local_stat= my_stat(translog_filename_by_fileno(file_no, path),
-                            &stat_buff,
-                            (no_errors ? MYF(0) : MYF(MY_WME)))))
-    DBUG_RETURN(1);
-  DBUG_PRINT("info", ("File size: %lu", (ulong) local_stat->st_size));
-  file_size= (uint32)local_stat->st_size; /* st_size can be 'long' on Windows*/
-  if (file_size > TRANSLOG_PAGE_SIZE)
+  if (likely((file= get_logfile_by_number(file_no)) != NULL))
   {
-    rec_offset= (((file_size / TRANSLOG_PAGE_SIZE) - 1) *
+    /*
+      This function used only during initialization of loghandler or in
+      scanner (which mean we need read that part of the log), so the
+      requested log file have to be opened and can't be freed after
+      returning pointer on it (file_size).
+    */
+    file_size= my_seek(file->handler.file, 0, SEEK_END, MYF(0));
+  }
+  else
+  {
+    /*
+      This branch is used only during very early initialization
+      when files are not opened.
+    */
+    File fd;
+    if ((fd= my_open(translog_filename_by_fileno(file_no, path),
+                     O_RDONLY, (no_errors ? MYF(0) : MYF(MY_WME)))) < 0)
+    {
+      my_errno= errno;
+      DBUG_PRINT("error", ("Error %d during opening file #%d",
+                           errno, file_no));
+      DBUG_RETURN(1);
+    }
+    file_size= my_seek(fd, 0, SEEK_END, MYF(0));
+    my_close(fd, MYF(0));
+  }
+  DBUG_PRINT("info", ("File size: %s", llstr(file_size, buff)));
+  if (file_size == MY_FILEPOS_ERROR)
+    DBUG_RETURN(1);
+  DBUG_ASSERT(file_size < ULL(0xffffffff));
+  if (((uint32)file_size) > TRANSLOG_PAGE_SIZE)
+  {
+    rec_offset= (((((uint32)file_size) / TRANSLOG_PAGE_SIZE) - 1) *
                        TRANSLOG_PAGE_SIZE);
-    *last_page_ok= (file_size == rec_offset + TRANSLOG_PAGE_SIZE);
+    *last_page_ok= (((uint32)file_size) == rec_offset + TRANSLOG_PAGE_SIZE);
   }
   else
   {
@@ -3440,9 +3477,13 @@ my_bool translog_init_with_table(const char *directory,
         */
         TRANSLOG_FILE *file= (TRANSLOG_FILE *)my_malloc(sizeof(TRANSLOG_FILE),
                                                         MYF(0));
+
+        compile_time_assert(MY_FILEPOS_ERROR > ULL(0xffffffff));
         if (file == NULL ||
             (file->handler.file=
-             open_logfile_by_number_no_cache(i)) < 0)
+             open_logfile_by_number_no_cache(i)) < 0 ||
+            my_seek(file->handler.file, 0, SEEK_END, MYF(0)) >=
+            ULL(0xffffffff))
         {
           int j;
           for (j= i - log_descriptor.min_file - 1; j > 0; j--)
@@ -7353,6 +7394,7 @@ my_bool translog_flush(TRANSLOG_ADDRESS lsn)
       uint32 fn= LSN_FILE_NO(buffer->offset);
       prev_file= fn;
       file= get_logfile_by_number(fn);
+      DBUG_ASSERT(file != NULL);
       if (!file->is_sync)
       {
         current_file_handler++;
@@ -8089,14 +8131,15 @@ static void get_options(int *argc,char ***argv)
 static void dump_header_page(uchar *buff)
 {
   LOGHANDLER_FILE_INFO desc;
+  char strbuff[21];
   translog_interpret_file_header(&desc, buff);
   printf("  This can be header page:\n"
-         "    Timestamp: %llu\n"
+         "    Timestamp: %s\n"
          "    Maria log version: %lu\n"
          "    Server version: %lu\n"
          "    Server id %lu\n"
          "    Page size %lu\n",
-         desc.timestamp,
+         llstr(desc.timestamp, strbuff),
          desc.maria_version,
          desc.mysql_version,
          desc.server_id,
