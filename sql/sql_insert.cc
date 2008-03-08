@@ -3006,7 +3006,8 @@ bool select_insert::send_eof()
                        ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                         info.touched : info.updated);
   id= autoinc_value_of_first_inserted_row > 0 ?
-    autoinc_value_of_first_inserted_row : thd->last_insert_id;
+    autoinc_value_of_first_inserted_row : thd->insert_id_used ?
+    thd->last_insert_id : 0;
   ::send_ok(thd, (ulong) thd->row_count_func, id, buff);
   DBUG_RETURN(0);
 }
