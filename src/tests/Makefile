@@ -161,6 +161,9 @@ NO_VGRIND = \
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
 $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 
+# Don't run valgrind on the groupcommit performance tests
+test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
+
 libs:
 	cd ..;make
 
@@ -206,6 +209,8 @@ test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	$(MAYBEATSIGN) $(SETTOKUENV) ./test_db_assoc3.tdb --seed=1 --count=200 --more
 	@ touch $@
+# serialize these two tests since they use the same directory
+test_db_assoc3.tdbrun_wasbad: test_db_assoc3.tdbrun
 
 test_db_assoc3.tdbrun: test_db_assoc3.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./test_db_assoc3.tdb --seed=2 --count=100000 $(VERBVERBOSE)
