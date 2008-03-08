@@ -462,8 +462,12 @@ static int toku_env_set_lg_dir(DB_ENV * env, const char *dir) {
 
 static int toku_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
     HANDLE_PANICKED_ENV(env);
-    lg_max=lg_max;
-    return toku_ydb_do_error(env, EINVAL, "TokuDB does not (yet) support set_lg_max\n");
+    return toku_logger_set_lg_max(env->i->logger, lg_max);
+}
+
+static int toku_env_get_lg_max(DB_ENV * env, u_int32_t *lg_maxp) {
+    HANDLE_PANICKED_ENV(env);
+    return toku_logger_get_lg_max(env->i->logger, lg_maxp);
 }
 
 static int toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
@@ -589,6 +593,10 @@ static int locked_env_set_lg_max(DB_ENV * env, u_int32_t lg_max) {
     toku_ydb_lock(); int r = toku_env_set_lg_max(env, lg_max); toku_ydb_unlock(); return r;
 }
 
+static int locked_env_get_lg_max(DB_ENV * env, u_int32_t *lg_maxp) {
+    toku_ydb_lock(); int r = toku_env_get_lg_max(env, lg_maxp); toku_ydb_unlock(); return r;
+}
+
 static int locked_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
     toku_ydb_lock(); int r = toku_env_set_lk_detect(env, detect); toku_ydb_unlock(); return r;
 }
@@ -633,6 +641,7 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->set_lg_bsize = locked_env_set_lg_bsize;
     result->set_lg_dir = locked_env_set_lg_dir;
     result->set_lg_max = locked_env_set_lg_max;
+    result->get_lg_max = locked_env_get_lg_max;
     result->set_lk_max_locks = locked_env_set_lk_max_locks;
     result->get_lk_max_locks = locked_env_get_lk_max_locks;
     result->set_cachesize = locked_env_set_cachesize;

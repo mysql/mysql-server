@@ -30,10 +30,9 @@ typedef struct weakstrong { char ignore; } *WS;
 
 extern long long n_items_malloced;
 
-static int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKULOGGER);
 static void verify_local_fingerprint_nonleaf (BRTNODE node);
-
 #ifdef FOO
+static int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKULOGGER);
 
 /* Frees a node, including all the stuff in the hash table. */
 void toku_brtnode_free (BRTNODE *nodep) {
@@ -319,9 +318,119 @@ static int split_leaf_node (BRT t, TOKULOGGER logger, BRTNODE node, int *n_new_n
     *splitks = result_splitks;
     return 0;
 }
+#endif
+
+static void find_heaviest_child (BRTNODE node, int *childnum) {
+    int max_child = 0;
+    int max_weight = BNC_NBYTESINBUF(node, 0);
+    int i;
+
+    if (0) printf("%s:%d weights: %d", __FILE__, __LINE__, max_weight);
+    assert(node->u.n.n_children>0);
+    for (i=1; i<node->u.n.n_children; i++) {
+	int this_weight = BNC_NBYTESINBUF(node,i);
+	if (0) printf(" %d", this_weight);
+	if (max_weight < this_weight) {
+	    max_child = i;
+	    max_weight = this_weight;
+	}
+    }
+    *childnum = max_child;
+    if (0) printf("\n");
+}
+
+/* find the leftmost child that may contain the key */
+static unsigned int brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
+    int i;
+    assert(node->height>0);
+    for (i=0; i<node->u.n.n_children-1; i++) {
+	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
+        if (cmp > 0) continue;
+        if (cmp < 0) return i;
+        return i;
+    }
+    return node->u.n.n_children-1;
+}
+
+static int brtnode_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p);
+
+// If CHILD is too wide, split it, and create a new node with the new children.  Unpin CHILD or the new children (even if something goes wrong).
+// If it does split, unpin the new root node also.
+static int maybe_split_root(BRT brt, BRTNODE child, CACHEKEY *rootp, TOKULOGGER logger);
+
+// if CHILD is too wide, split it, and fix up NODE.  Either way, unpin the child or resulting children (even if it fails do the unpin)
+static int maybe_split_nonroot (BRT brt, BRTNODE node, int childnum, BRTNODE child, int *n_children_replacing_child, TOKULOGGER logger);
+
+// Push stuff into a child weakly.  (That is don't cause any I/O or cause the child to get too big.)
+static int weak_push_to_child (BRT brt, BRTNODE node, int childnum, TOKULOGGER logger) {
+    void *child_v;
+    int r = toku_cachetable_maybe_get_and_pin(brt->cf, BNC_DISKOFF(node, childnum), &child_v);
+    if (r!=0) return 0;
+    BRTNODE child = child_v;
+    DBT key,val;
+    BRT_CMD_S cmd;
+    while (0 == toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
+	r = brtnode_put(brt, child, &cmd, logger, WEAK);
+	if (r==EAGAIN) break;
+	if (r!=0) goto died;
+	r=toku_fifo_deq(BNC_BUFFER(node, childnum));
+	if (r!=0) goto died;
+    }
+    return unpin_brtnode(brt, child);
+ died:
+    unpin_brtnode(brt, child);
+    return r;
+		  
+}
+
+// If the buffers are too big, push stuff down.  The subchild may need to be split, in which case our fanout may get too large.
+// When are done, this node is has little enough stuff in its buffers (but the fanout may be too large), and all the descendant
+// nodes are properly sized (the buffer sizes and fanouts are all small enough).
+static int push_down_if_buffers_too_full(BRT brt, BRTNODE node, TOKULOGGER logger) {
+    if (node->height==0) return 0; // can't push down for leaf nodes
+
+    while (node->u.n.n_bytes_in_buffers > 0 && toku_serialize_brtnode_size(node)>node->nodesize) {
+	int childnum;
+	find_heaviest_child(node, &childnum);
+	void *child_v;
+	int r = toku_cachetable_get_and_pin(brt->cf, BNC_DISKOFF(node, childnum), &child_v, NULL,
+					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
+	if (r!=0) return r;
+	BRTNODE child=child_v;
+	if (0) { died: unpin_brtnode(brt, child); return r; }
+	BRT_CMD_S cmd;
+	DBT key,val;
+	while (0==toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
+	    r=toku_fifo_deq(BNC_BUFFER(node, childnum));
+	    assert(r==0); // we just did a peek, so the buffer must be nonempty
+	    r=brtnode_put(brt, child, &cmd, logger, WEAK);
+	    if (r!=EAGAIN && r!=0) goto died;
+	    if (r==EAGAIN) {
+		// Weak pushes ran out of steam.  Now do a strong push if there is still something in the buffer.
+		if (0==toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
+		    r=brtnode_put(brt, child, &cmd, logger, STRONG);
+		    if (r!=0) goto died;
+		    r=toku_fifo_deq(BNC_BUFFER(node, childnum));
+		    if (r!=0) goto died;
+		    // Now it's possible that the child must be split.  (Or maybe the child managed to flush stuff to our grandchildren)
+		    int n_children_replacing_child;
+		    r=maybe_split_nonroot(brt, node, childnum, child, &n_children_replacing_child, logger);
+		    if (r!=0) return r; // don't go to died since that unpins
+		    int i;
+		    for (i=0; i<n_children_replacing_child; i++) {
+			r=weak_push_to_child(brt, node, childnum+i, logger);
+			if (r!=0) return r;
+		    }
+		    // we basically pushed as much as we could to that child
+		}
+	    } 
+	}
+    }
+    return 0;
+}
 
 /* Side effect: sets splitk->data pointer to a malloc'd value */
-static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger) {
+static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger) {
     int old_n_children = node->u.n.n_children;
     int n_children_in_a = old_n_children/2;
     int n_children_in_b = old_n_children-n_children_in_a;
@@ -430,7 +539,6 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	verify_local_fingerprint_nonleaf(B);
     }
 
-    *nodea = node;
     *nodeb = B;
 
     assert(toku_serialize_brtnode_size(node)<node->nodesize);
@@ -438,118 +546,10 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
     return 0;
 }
 
-#endif
-
-static void find_heaviest_child (BRTNODE node, int *childnum) {
-    int max_child = 0;
-    int max_weight = BNC_NBYTESINBUF(node, 0);
-    int i;
-
-    if (0) printf("%s:%d weights: %d", __FILE__, __LINE__, max_weight);
-    assert(node->u.n.n_children>0);
-    for (i=1; i<node->u.n.n_children; i++) {
-	int this_weight = BNC_NBYTESINBUF(node,i);
-	if (0) printf(" %d", this_weight);
-	if (max_weight < this_weight) {
-	    max_child = i;
-	    max_weight = this_weight;
-	}
-    }
-    *childnum = max_child;
-    if (0) printf("\n");
-}
-
-/* find the leftmost child that may contain the key */
-static unsigned int brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
-    int i;
+static int nonleaf_node_is_too_wide (BRTNODE node) {
     assert(node->height>0);
-    for (i=0; i<node->u.n.n_children-1; i++) {
-	int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[i]);
-        if (cmp > 0) continue;
-        if (cmp < 0) return i;
-        return i;
-    }
-    return node->u.n.n_children-1;
+    return node->u.n.n_children > TREE_FANOUT;
 }
-
-static int brtnode_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS weak_p);
-
-// If CHILD is too wide, split it, and create a new node with the new children.  Unpin CHILD or the new children (even if something goes wrong).
-// If it does split, unpin the new root node also.
-static int maybe_split_root(BRT brt, BRTNODE child, CACHEKEY *rootp, TOKULOGGER logger);
-// if CHILD is too wide, split it, and fix up NODE.  Either way, unpin the child or resulting children (even if it fails do the unpin)
-static int maybe_split_nonroot (BRT brt, BRTNODE node, int childnum, BRTNODE child, int *n_children_replacing_child, TOKULOGGER logger);
-
-// Push stuff into a child weakly.  (That is don't cause any I/O or cause the child to get too big.)
-static int weak_push_to_child (BRT brt, BRTNODE node, int childnum, TOKULOGGER logger) {
-    void *child_v;
-    int r = toku_cachetable_maybe_get_and_pin(brt->cf, BNC_DISKOFF(node, childnum), &child_v);
-    if (r!=0) return 0;
-    BRTNODE child = child_v;
-    DBT key,val;
-    BRT_CMD_S cmd;
-    while (0 == toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
-	r = brtnode_put(brt, child, &cmd, logger, WEAK);
-	if (r==EAGAIN) break;
-	if (r!=0) goto died;
-	r=toku_fifo_deq(BNC_BUFFER(node, childnum));
-	if (r!=0) goto died;
-    }
-    return unpin_brtnode(brt, child);
- died:
-    unpin_brtnode(brt, child);
-    return r;
-		  
-}
-
-// If the buffers are too big, push stuff down.  The subchild may need to be split, in which case our fanout may get too large.
-// When are done, this node is has little enough stuff in its buffers (but the fanout may be too large), and all the descendant
-// nodes are properly sized (the buffer sizes and fanouts are all small enough).
-static int push_down_if_buffers_too_full(BRT brt, BRTNODE node, TOKULOGGER logger) {
-    if (node->height==0) return 0; // can't push down for leaf nodes
-
-    while (node->u.n.n_bytes_in_buffers > 0 && toku_serialize_brtnode_size(node)>node->nodesize) {
-	int childnum;
-	find_heaviest_child(node, &childnum);
-	void *child_v;
-	int r = toku_cachetable_get_and_pin(brt->cf, BNC_DISKOFF(node, childnum), &child_v, NULL,
-					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-	if (r!=0) return r;
-	BRTNODE child=child_v;
-	if (0) { died: unpin_brtnode(brt, child); return r; }
-	BRT_CMD_S cmd;
-	DBT key,val;
-	while (0==toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
-	    r=toku_fifo_deq(BNC_BUFFER(node, childnum));
-	    assert(r==0); // we just did a peek, so the buffer must be nonempty
-	    r=brtnode_put(brt, child, &cmd, logger, WEAK);
-	    if (r!=EAGAIN && r!=0) goto died;
-	    if (r==EAGAIN) {
-		// Weak pushes ran out of steam.  Now do a strong push if there is still something in the buffer.
-		if (0==toku_fifo_peek_cmdstruct(BNC_BUFFER(node, childnum), &cmd, &key, &val)) {
-		    r=brtnode_put(brt, child, &cmd, logger, STRONG);
-		    if (r!=0) goto died;
-		    r=toku_fifo_deq(BNC_BUFFER(node, childnum));
-		    if (r!=0) goto died;
-		    // Now it's possible that the child must be split.  (Or maybe the child managed to flush stuff to our grandchildren)
-		    int n_children_replacing_child;
-		    r=maybe_split_nonroot(brt, node, childnum, child, &n_children_replacing_child, logger);
-		    if (r!=0) return r; // don't go to died since that unpins
-		    int i;
-		    for (i=0; i<n_children_replacing_child; i++) {
-			r=weak_push_to_child(brt, node, childnum+i, logger);
-			if (r!=0) return r;
-		    }
-		    // we basically pushed as much as we could to that child
-		}
-	    } 
-	}
-    }
-    return 0;
-}
-
-static int split_nonleaf_node(BRT brt, BRTNODE node_to_split, int *n_new_nodes, BRTNODE **new_nodes, DBT **splitks);
-static int nonleaf_node_is_too_wide (BRT, BRTNODE);
 
 static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE child, TOKULOGGER logger) // If the node is too big then deal with it.  Unpin the child (or children if it splits)  NODE may be too big at the end
 {
@@ -557,48 +557,56 @@ static int maybe_fixup_fat_child(BRT brt, BRTNODE node, int childnum, BRTNODE ch
     if (r!=0) return r;
     // now the child may have too much fanout.
     if (child->height>0) {
-	if (nonleaf_node_is_too_wide(brt, child)) {
-	    int n_new_nodes; BRTNODE *new_nodes; DBT *splitks;
-	    if ((r=split_nonleaf_node(brt, child,  &n_new_nodes, &new_nodes, &splitks))) return r;
-	    int i;
+	if (nonleaf_node_is_too_wide(child)) {
+	    BRTNODE newchild;
+	    DBT splitk;
+	    if ((r=brt_nonleaf_split(brt, child, &newchild, &splitk, logger))) return r;
 	    int old_n_children = node->u.n.n_children;
 	    FIFO old_fifo = BNC_BUFFER(node, childnum);
-	    REALLOC_N(old_n_children+n_new_nodes-1, node->u.n.childinfos);
 	    // slide the children over
-	    for (i=old_n_children-1; i>childnum; i--)
-		node->u.n.childinfos[i+n_new_nodes-1] = node->u.n.childinfos[i];
+	    REALLOC_N(old_n_children+1, node->u.n.childinfos);
+	    memmove(&node->u.n.childinfos[childnum+1], &node->u.n.childinfos[childnum+2], (old_n_children-childnum-1)*sizeof(node->u.n.childinfos[0]));
 	    // fill in the new children
-	    for (; i<childnum+n_new_nodes-1; i++) {
-		node->u.n.childinfos[i] = (struct brtnode_nonleaf_childinfo) { .subtree_fingerprint = 0,
-									       .diskoff = new_nodes[i-childnum]->thisnodename,
-									       .n_bytes_in_buffer = 0 };
-		r=toku_fifo_create(&BNC_BUFFER(node, i));
+	    {
+		struct brtnode_nonleaf_childinfo *ci = &node->u.n.childinfos[childnum+1];
+		ci->subtree_fingerprint = 0;
+		ci->diskoff = newchild->thisnodename;
+		ci->n_bytes_in_buffer = 0;
+		r=toku_fifo_create(&ci->buffer);
+		if (r!=0) return r;
 	    }
+	    // replace the fifo in the old child
+	    r=toku_fifo_create(&BNC_BUFFER(node, childnum));
+	    if (r!=0) return r;
 	    // slide the keys over
-	    node->u.n.childkeys = toku_realloc(node->u.n.childkeys, (old_n_children+n_new_nodes-2 ) * sizeof(node->u.n.childkeys[0]));
-	    for (i=node->u.n.n_children; i>=childnum; i--) {
-		node->u.n.childkeys[i+n_new_nodes-1] = node->u.n.childkeys[i];
+	    REALLOC_N(old_n_children, node->u.n.childkeys);
+	    memmove(&node->u.n.childkeys[childnum], &node->u.n.childkeys[childnum+1], (old_n_children-childnum-1)*sizeof(node->u.n.childkeys[0]));
+	    {
+		struct kv_pair *pivot = splitk.data;
+		BYTESTRING bs = { .len  = splitk.size,
+				  .data = kv_pair_key(pivot) };
+		r = toku_log_setpivot(logger, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum, bs);
+		if (r!=0) return r;
+		node->u.n.childkeys[childnum] = pivot;
+		node->u.n.totalchildkeylens += toku_brt_pivot_key_len(brt, pivot);
 	    }
+	    node->u.n.n_children++;
 	    // fix up fingerprints
-	    for (i=0; i<n_new_nodes; i++) {
-		fixup_child_fingerprint(node, childnum+i, new_nodes[i], brt, logger);
-	    }
-	    toku_free(new_nodes);
-	    // now everything in the fifos must be put again
+	    fixup_child_fingerprint(node, childnum,   child, brt, logger);
+	    fixup_child_fingerprint(node, childnum+1, newchild, brt, logger);
+	    // now everything in the fifo must be put again into one of the two fifos
 	    BRT_CMD_S cmd;
 	    DBT key,val;
 	    while (0==toku_fifo_peek_deq_cmdstruct(old_fifo, &cmd, &key, &val)) {
-		for (i=childnum; i<childnum+n_new_nodes-1; i++) {
-		    int cmp = brt_compare_pivot(brt, cmd.u.id.key, 0, node->u.n.childkeys[i]);
-		    if (cmp<=0) {
-			r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), &cmd);
-			if (r!=0) return r;
-			if (cmd.type!=BRT_DELETE || 0==(brt->flags&TOKU_DB_DUPSORT)) goto filled; // we only need to put one in
-		    }
+		int cmp = brt_compare_pivot(brt, cmd.u.id.key, 0, node->u.n.childkeys[childnum]);
+		if (cmp<=0) {
+		    r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, childnum), &cmd);
+		    if (r!=0) return r;
 		}
-		r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, i), &cmd);
-		if (r!=0) return r;
-	    filled: /*nothing*/;
+		if (cmp==0 && cmd.type==BRT_DELETE && brt->flags&TOKU_DB_DUPSORT) {
+		    r=toku_fifo_enq_cmdstruct(BNC_BUFFER(node, childnum+1), &cmd);
+		    if (r!=0) return r;
+		}
 	    }
 	    toku_fifo_free(&old_fifo);
 	    if (r!=0) return r;
@@ -767,7 +775,6 @@ static int brtnode_put (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger, WS 
 	return brt_nonleaf_put(t, node, cmd, logger, weak_p);
     }
 }
-#ifdef FOO
 
 static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     u_int32_t fp=0;
@@ -781,6 +788,7 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
     assert(fp==node->local_fingerprint);
 }
 
+#ifdef FOO
 static int setup_initial_brt_root_node (BRT t, DISKOFF offset, TOKULOGGER logger) {
     int r;
     TAGMALLOC(BRTNODE, node);
