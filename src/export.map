@@ -5,7 +5,8 @@
    db_strerror;
    db_version;
    log_compare;
-   
+   db_env_set_func_fsync;   
+
    toku_ydb_error_all_cases;
 
  local: *;

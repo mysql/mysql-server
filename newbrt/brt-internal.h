@@ -187,4 +187,6 @@ int toku_testsetup_get_sersize(BRT brt, DISKOFF diskoff); // Return the size on 
 int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keylen, char *val, int vallen, u_int32_t *leaf_fingerprint);
 int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_type, char *key, int keylen, char *val, int vallen, u_int32_t *subtree_fingerprint);
 
+int toku_set_func_fsync (int (*fsync_function)(int));
+
 #endif
