@@ -137,6 +137,19 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
+  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  unsigned backupId = rand() % (MAX_BACKUPS);
+
+  if (backup.start(backupId) == -1){
+    return NDBT_FAILED;
+  }
+  ndbout << "Started backup " << backupId << endl;
+  ctx->setProperty("BackupId", backupId);
+
+  return NDBT_OK;
+}
+
 int
 runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup(GETNDB(step)->getNodeId()+1);
@@ -470,6 +483,20 @@ TESTCASE("BackupOne",
 	 "5. Verify count and content of table\n"){
   INITIALIZER(runLoadTable);
   INITIALIZER(runBackupOne);
+  INITIALIZER(runDropTablesRestart);
+  INITIALIZER(runRestoreOne);
+  VERIFIER(runVerifyOne);
+  FINALIZER(runClearTable);
+}
+TESTCASE("BackupRandom", 
+	 "Test that backup n and restore works on one table \n"
+	 "1. Load table\n"
+	 "2. Backup\n"
+	 "3. Drop tables and restart \n"
+	 "4. Restore\n"
+	 "5. Verify count and content of table\n"){
+  INITIALIZER(runLoadTable);
+  INITIALIZER(runBackupRandom);
   INITIALIZER(runDropTablesRestart);
   INITIALIZER(runRestoreOne);
   VERIFIER(runVerifyOne);

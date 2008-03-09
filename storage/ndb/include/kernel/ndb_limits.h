@@ -27,6 +27,7 @@
 #define MAX_NDB_NODES 49
 #define MAX_NODES     256
 #define UNDEF_NODEGROUP 0xFFFF
+#define MAX_BACKUPS   0xFFFFFFFF
 
 /**************************************************************************
  * IT SHOULD BE (MAX_NDB_NODES - 1).

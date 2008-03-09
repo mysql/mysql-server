@@ -47,9 +47,7 @@ DIE_UNLESS(r == 0);\
 }
 
 
-class SqlResultSet : public Properties 
-{
-
+class SqlResultSet : public Properties {
 public:
 
   // Get row with number
@@ -60,12 +58,15 @@ public:
   void reset(void);
   // Remove current row from resultset
   void remove();
+  // Clear result
+  void clear();
 
   SqlResultSet();
   ~SqlResultSet();
 
   const char* column(const char* col_name);
   uint columnAsInt(const char* col_name);
+  unsigned long long columnAsLong(const char* col_name);
 
   uint insertId();
   uint affectedRows();
@@ -75,8 +76,8 @@ public:
   const char* mysqlSqlstate();
 
 private:
-
   uint get_int(const char* name);
+  unsigned long long get_long(const char* name);
   const char* get_string(const char* name);
 
   const Properties* m_curr_row;
@@ -84,18 +85,12 @@ private:
 };
 
 
-#define DBU_FAILED 1
-#define DBU_OK 0
-
 class DbUtil
 {
-
 public:
 
   DbUtil(MYSQL* mysql);
   DbUtil(const char* dbname = "mysql",
-         const char* user = "root",
-         const char* pass = "",
          const char* suffix = NULL);
   ~DbUtil();
 
@@ -109,9 +104,8 @@ public:
 
   bool waitConnected(int timeout);
 
-  /* Deprecated, see connect() */
-  void  databaseLogin(const char * system,
-                      const char * usr,
+  bool  databaseLogin(const char * host,
+                      const char * user,
                       const char * password,
                       unsigned int portIn,
                       const char * sockIn,
@@ -131,11 +125,11 @@ public:
   void databaseLogout();
   void mysqlCloseStmHandle(MYSQL_STMT *my_stmt);
 
-  int connect();
+  bool connect();
   void disconnect();
-  int selectDb();
-  int selectDb(const char *);
-  int createDb(BaseString&);
+  bool selectDb();
+  bool selectDb(const char *);
+  bool createDb(BaseString&);
   int getErrorNumber();
 
   unsigned long selectCountTable(const char * table);

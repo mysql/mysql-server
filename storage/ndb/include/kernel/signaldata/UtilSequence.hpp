@@ -33,17 +33,19 @@ class UtilSequenceReq {
 
   friend bool printUTIL_SEQUENCE_REQ(FILE *, const Uint32 *, Uint32, Uint16);
 public:
-  STATIC_CONST( SignalLength = 3 );
+  STATIC_CONST( SignalLength = 4 );
   
   enum RequestType {
     NextVal = 1, // Return uniq value
     CurrVal = 2, // Read
-    Create  = 3  // Create a sequence
+    Create  = 3,  // Create a sequence
+    SetVal  = 4  // Set a new sequence
   };
 private:
   Uint32 senderData;  
   Uint32 sequenceId;  // Number of sequence variable
   Uint32 requestType;
+  Uint32 value;
 };
 
 class UtilSequenceConf {

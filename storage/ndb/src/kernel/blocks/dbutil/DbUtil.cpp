@@ -171,7 +171,7 @@ DbUtil::execREAD_CONFIG_REQ(Signal* signal)
 
   c_pagePool.setSize(10);
   c_preparePool.setSize(1);            // one parallel prepare at a time
-  c_preparedOperationPool.setSize(5);  // three hardcoded, two for test
+  c_preparedOperationPool.setSize(6);  // three hardcoded, one for setval, two for test
   c_operationPool.setSize(64);         // 64 parallel operations
   c_transactionPool.setSize(32);       // 16 parallel transactions
   c_attrMappingPool.setSize(100);
@@ -1522,6 +1522,35 @@ DbUtil::hardcodedPrepare() {
     ptr.p->tckey.requestInfo = requestInfo;
     ptr.p->tckey.tableSchemaVersion = 1;
   }
+
+  /**
+   * Prepare SetSequence (UPDATE)
+   */
+  {
+    PreparedOperationPtr ptr;
+    ndbrequire(c_preparedOperationPool.seizeId(ptr, 3));
+    ptr.p->keyLen = 1;
+    ptr.p->rsLen = 0;
+    ptr.p->tckeyLenInBytes = (TcKeyReq::StaticLength + ptr.p->keyLen + 5) * 4;
+    ptr.p->keyDataPos = TcKeyReq::StaticLength;
+    ptr.p->tckey.attrLen = 9;
+    ptr.p->tckey.tableId = 0;
+    Uint32 requestInfo = 0;
+    TcKeyReq::setAbortOption(requestInfo, TcKeyReq::CommitIfFailFree);
+    TcKeyReq::setOperationType(requestInfo, ZUPDATE);
+    TcKeyReq::setKeyLength(requestInfo, 1);
+    TcKeyReq::setAIInTcKeyReq(requestInfo, 5);
+    TcKeyReq::setInterpretedFlag(requestInfo, 1);
+    ptr.p->tckey.requestInfo = requestInfo;
+    ptr.p->tckey.tableSchemaVersion = 1;
+
+    Uint32 * attrInfo = &ptr.p->tckey.distrGroupHashValue;
+    attrInfo[0] = 0; // IntialReadSize
+    attrInfo[1] = 3; // InterpretedSize
+    attrInfo[2] = 0; // FinalUpdateSize
+    attrInfo[3] = 1; // FinalReadSize
+    attrInfo[4] = 0; // SubroutineSize
+  }
 }
 
 void
@@ -1542,6 +1571,10 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
   case UtilSequenceReq::Create:
     prepOp = c_preparedOperationPool.getPtr(2); //c_CreateSequence
     break;
+  case UtilSequenceReq::SetVal:{
+    prepOp = c_preparedOperationPool.getPtr(3);
+    break;
+  }
   default:
     ndbrequire(false);
     prepOp = 0; // remove warning
@@ -1592,6 +1625,21 @@ DbUtil::execUTIL_SEQUENCE_REQ(Signal* signal){
     * it.data = 0;
   }
   
+  if(req->requestType == UtilSequenceReq::SetVal)
+  { // AttrInfo
+    ndbrequire(opPtr.p->attrInfo.seize(4));
+    AttrInfoBuffer::DataBufferIterator it;
+    opPtr.p->attrInfo.first(it);
+    * it.data = Interpreter::LoadConst16(7, req->value);
+    ndbrequire(opPtr.p->attrInfo.next(it));
+    * it.data = Interpreter::Write(1, 7);
+    ndbrequire(opPtr.p->attrInfo.next(it))
+    * it.data = Interpreter::ExitOK();
+
+    ndbrequire(opPtr.p->attrInfo.next(it));
+    AttributeHeader::init(it.data, 1, 0);
+  }
+ 
   runTransaction(signal, transPtr);
 }
 
@@ -1669,6 +1717,9 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
       ret->sequenceValue[1] = rsit.data[2];
       break;
     }
+    case UtilSequenceReq::SetVal:
+      ok = true;
+      break;
     case UtilSequenceReq::Create:
       ok = true;
       ret->sequenceValue[0] = 0;
@@ -1685,6 +1736,7 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
 
   switch(transP->sequence.requestType)
     {
+    case UtilSequenceReq::SetVal:
     case UtilSequenceReq::CurrVal:
     case UtilSequenceReq::NextVal:{
       if (transP->errorCode == 626)

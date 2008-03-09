@@ -1151,6 +1151,7 @@ Backup::execBACKUP_REQ(Signal* signal)
   const BlockReference senderRef = signal->senderBlockRef();
   const Uint32 dataLen32 = req->backupDataLen; // In 32 bit words
   const Uint32 flags = signal->getLength() > 2 ? req->flags : 2;
+  const Uint32 input_backupId = signal->getLength() > 3 ? req->inputBackupId : 0;
 
   if(getOwnNodeId() != getMasterNodeId()) {
     jam();
@@ -1195,7 +1196,10 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->flags = flags;
   ptr.p->masterRef = reference();
   ptr.p->nodes = c_aliveNodes;
-  ptr.p->backupId = 0;
+  if(input_backupId)
+    ptr.p->backupId = input_backupId;
+  else
+    ptr.p->backupId = 0;
   ptr.p->backupKey[0] = 0;
   ptr.p->backupKey[1] = 0;
   ptr.p->backupDataLen = 0;
@@ -1206,7 +1210,13 @@ Backup::execBACKUP_REQ(Signal* signal)
   ptr.p->masterData.gsn = GSN_UTIL_SEQUENCE_REQ;
   utilReq->senderData  = ptr.i;
   utilReq->sequenceId  = BACKUP_SEQUENCE;
-  utilReq->requestType = UtilSequenceReq::NextVal;
+  if(input_backupId) {
+    utilReq->requestType = UtilSequenceReq::SetVal;
+    utilReq->value = input_backupId;
+  }
+  else { 
+    utilReq->requestType = UtilSequenceReq::NextVal;
+  }
   sendSignal(DBUTIL_REF, GSN_UTIL_SEQUENCE_REQ, 
 	     signal, UtilSequenceReq::SignalLength, JBB);
 }
@@ -1288,11 +1298,13 @@ Backup::execUTIL_SEQUENCE_CONF(Signal* signal)
   }//if
 
 
+  if(!ptr.p->backupId && conf->requestType != UtilSequenceReq::SetVal)
   {
     Uint64 backupId;
     memcpy(&backupId,conf->sequenceValue,8);
     ptr.p->backupId= (Uint32)backupId;
   }
+
   ptr.p->backupKey[0] = (getOwnNodeId() << 16) | (ptr.p->backupId & 0xFFFF);
   ptr.p->backupKey[1] = NdbTick_CurrentMillisecond();
 
@@ -2979,8 +2991,7 @@ Backup::openFiles(Signal* signal, BackupRecordPtr ptr)
   req->userReference = reference();
   req->fileFlags = 
     FsOpenReq::OM_WRITEONLY | 
-    FsOpenReq::OM_TRUNCATE |
-    FsOpenReq::OM_CREATE | 
+    FsOpenReq::OM_CREATE_IF_NONE |
     FsOpenReq::OM_APPEND |
     FsOpenReq::OM_AUTOSYNC;
 
@@ -3096,11 +3107,20 @@ Backup::openFilesReply(Signal* signal,
     }//if
   }//for
 
+  if (ERROR_INSERTED(10037)) {
+    jam();
+    ptr.p->errorCode = DefineBackupRef::FailedForBackupFilesAleadyExist;
+    defineBackupRef(signal, ptr);
+    return;
+  }
   /**
    * Did open succeed for all files
    */
   if(ptr.p->checkError()) {
     jam();
+    if(ptr.p->errorCode == FsRef::fsErrFileExists)
+      ptr.p->errorCode = DefineBackupRef::FailedForBackupFilesAleadyExist;
+
     defineBackupRef(signal, ptr);
     return;
   }//if

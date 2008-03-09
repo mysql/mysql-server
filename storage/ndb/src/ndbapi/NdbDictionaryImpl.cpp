@@ -1209,7 +1209,7 @@ NdbIndexImpl::getIndexTable() const
 NdbOptimizeTableHandleImpl::NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &f)
   : NdbDictionary::OptimizeTableHandle(* this),
     m_ndb(NULL), m_table(NULL), m_trans(NULL), m_scan_op(NULL),
-    m_table_queue(NULL), m_table_queue_end(NULL),
+    m_table_queue(NULL), m_table_queue_first(NULL), m_table_queue_end(NULL),
     m_facade(this), m_state(NdbOptimizeTableHandleImpl::CREATED)
 {
 }
@@ -1315,7 +1315,10 @@ int NdbOptimizeTableHandleImpl::init(Ndb* ndb, const NdbTableImpl &table)
     }
   }
   if (!found_varpart)
+  {
+    m_state = NdbOptimizeTableHandleImpl::FINISHED;
     DBUG_RETURN(0);
+  }
   
   /*
    * Add main table to the table queue
@@ -1386,7 +1389,7 @@ int NdbOptimizeTableHandleImpl::next()
          */
       } while ((check = m_scan_op->nextResult(false)) == 0);
     }
-    
+
     /**
      * Commit when all cached tuple have been updated
      */
@@ -1517,9 +1520,11 @@ int NdbOptimizeIndexHandleImpl::close()
 {
   DBUG_ENTER("NdbOptimizeIndexHandleImpl::close");
   m_state = NdbOptimizeIndexHandleImpl::CLOSED;
-  if (m_index->m_facade->getType() != NdbDictionary::Index::UniqueHashIndex)
-    DBUG_RETURN(0);
-  DBUG_RETURN(m_optimize_table_handle.m_impl.close());
+  if (m_index &&
+      m_index->m_facade->getType() == NdbDictionary::Index::UniqueHashIndex)
+    DBUG_RETURN(m_optimize_table_handle.m_impl.close());
+
+  DBUG_RETURN(0);
 }
  
 /**

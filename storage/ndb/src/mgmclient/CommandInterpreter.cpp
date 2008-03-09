@@ -262,7 +262,7 @@ static const char* helpText =
 "SHOW CONFIG                            Print configuration\n"
 "SHOW PARAMETERS                        Print configuration parameters\n"
 #endif
-"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                                       Start backup (default WAIT COMPLETED)\n"
 "ABORT BACKUP <backup id>               Abort backup\n"
 "SHUTDOWN                               Shutdown all processes in cluster\n"
@@ -327,12 +327,15 @@ static const char* helpTextStartBackup =
 " NDB Cluster -- Management Client -- Help for START BACKUP command\n"
 "---------------------------------------------------------------------------\n"
 "START BACKUP  Start a cluster backup\n\n"
-"START BACKUP [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
+"START BACKUP [<backup id>] [NOWAIT | WAIT STARTED | WAIT COMPLETED]\n"
 "                   Start a backup for the cluster.\n"
 "                   Each backup gets an ID number that is reported to the\n"
 "                   user. This ID number can help you find the backup on the\n"
 "                   file system, or ABORT BACKUP if you wish to cancel a \n"
-"                   running backup.\n\n"
+"                   running backup.\n"
+"                   You can also start specified backup using START BACKUP <backup id> \n\n"
+"                   <backup id> \n"
+"                     Start a specified backup using <backup id> as bakcup ID number.\n" 
 "                   NOWAIT \n"
 "                     Start a cluster backup and return immediately.\n"
 "                     The management client will return control directly\n"
@@ -2753,6 +2756,7 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
 {
   struct ndb_mgm_reply reply;
   unsigned int backupId;
+  unsigned int input_backupId = 0;
 
   Vector<BaseString> args;
   {
@@ -2781,6 +2785,31 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
     ndbout_c("Waiting for started, this may take several minutes");
     flags = 1;
   }
+  else if (sscanf(args[1].c_str(), "%u", &input_backupId) == 1 && input_backupId > 0 && input_backupId < MAX_BACKUPS)
+  {
+    // start backup n nowait
+    if (sz == 3 && args[2] == "NOWAIT")
+    {
+      flags = 0;
+    }
+    // start backup n; start backup n wait complete
+    else if ( sz == 2 || (sz == 4 && args[2] == "WAIT" && args[3] =="COMPLETED"))
+    {
+      flags = 2;
+      ndbout_c("Waiting for completed, this may take several minutes");
+    }
+    //start backup n wait started
+    else if (sz == 4 && args[2] == "WAIT" && args[3] == "STARTED")
+    {
+      ndbout_c("Waiting for started, this may take several minutes");
+      flags = 1;
+    }
+    else
+    {
+      invalid_command(parameters);
+      return -1;
+    }
+  }
   else
   {
     invalid_command(parameters);
@@ -2800,7 +2829,10 @@ CommandInterpreter::executeStartBackup(char* parameters, bool interactive)
       return -1;
     }
   }
-  result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
+  if (input_backupId > 0)
+    result = ndb_mgm_start_backup2(m_mgmsrv, flags, &backupId, &reply, input_backupId);
+  else
+    result = ndb_mgm_start_backup(m_mgmsrv, flags, &backupId, &reply);
 
   if (result != 0) {
     ndbout << "Backup failed" << endl;
