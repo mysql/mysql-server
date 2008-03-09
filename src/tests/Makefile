@@ -16,7 +16,7 @@ ifneq ($(OSX),)
  CFLAGS = -DOSX
  LIBEXT=dylib
  VGRIND=
- BDB_SUPPRESSIONS=
+ HGRIND=
  TDB_LOADLIBES = -L../ -ltokudb 
  SETTOKUENV=export DYLD_LIBRARY_PATH=.. ;
  UNSETTOKUENV=unset DYLD_LIBRARY_PATH ;
@@ -31,6 +31,7 @@ else
  BDB_LDFLAGS += -lpthread
  TDB_LOADLIBES = -L../ -ltokudb -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
+ HGRIND=valgrind --quiet --tool=helgrind
 endif
 ifeq ($(VGRIND),)
   BDB_SUPPRESSIONS =
@@ -163,6 +164,11 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 
 # Don't run valgrind on the groupcommit performance tests
 test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
+# Use helgrind on the group commit count test
+test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
+	$(MAYBEATSIGN) $(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
+
+
 
 libs:
 	cd ..;make
@@ -229,3 +235,4 @@ dumpit:
 test_thread_stack.%run: test_thread_stack.%
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./test_thread_stack.% -a -thread_stack 16384 -resume
+
