@@ -133,7 +133,7 @@ our $default_vardir;
 
 our $opt_usage;
 our $opt_suites;
-our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
+our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb,ndb_binlog"; # Default suites to run
 our @extra_suites=
 (
  ["mysql-5.1-new-ndb",         "ndb_team"],
@@ -3728,6 +3728,7 @@ sub restore_installed_db ($) {
       {
 	mtr_rmtree("$ndbd->{'path_fs'}" );
       }
+      mtr_rmtree("$cluster->{'data_dir'}/BACKUP");
     }
   }
   else
