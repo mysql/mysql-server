@@ -546,12 +546,14 @@ static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1
 void toku_default_errcall(const char *errpfx, char *msg) {
+    fprintf(stderr, "YDB: %s: %s", errpfx, msg);
+}
 #else
 void toku_default_errcall(const DB_ENV *env, const char *errpfx, const char *msg) {
     env = env;
-#endif
     fprintf(stderr, "YDB: %s: %s", errpfx, msg);
 }
+#endif
 
 static int locked_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     toku_ydb_lock(); int r = toku_env_open(env, home, flags, mode); toku_ydb_unlock(); return r;
@@ -2488,4 +2490,8 @@ const char *db_version(int *major, int *minor, int *patch) {
     if (patch)
         *patch = DB_VERSION_PATCH;
     return DB_VERSION_STRING;
+}
+ 
+int db_env_set_func_fsync (int (*fsync_function)(int)) {
+    return toku_set_func_fsync(fsync_function);
 }

@@ -184,6 +184,8 @@ int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
     return 0;
 }
 
+static int (*toku_os_fsync_function)(int)=fsync;
+
 int toku_logger_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     if (logger->is_panicked) return EINVAL;
@@ -195,7 +197,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
 	    r = write(logger->fd, logger->buf, logger->n_in_buf);
 	    if (r==-1) return errno;
 	}
-	r = fsync(logger->fd);
+	r = toku_os_fsync_function(logger->fd);
 	if (r!=0)   close(logger->fd);
 	else 	    r = close(logger->fd);
     }
@@ -224,7 +226,7 @@ int toku_logger_fsync (TOKULOGGER logger) {
     int r=flush(logger, 0);
     if (r!=0) return r;
     if (logger->fd>=0) {
-	r = fsync(logger->fd);
+	r = toku_os_fsync_function(logger->fd);
 	if (r!=0) return errno;
     }
     return 0;
@@ -659,5 +661,10 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     }
     // If there is no txn, then we treat it as the null txn.
     *result = 0;
+    return 0;
+}
+
+int toku_set_func_fsync (int (*fsync_function)(int)) {
+    toku_os_fsync_function = fsync_function;
     return 0;
 }
