@@ -20,6 +20,7 @@ int main(int argc, const char *argv[]) {
                 |-------A-------|
             |-------B-------|
     */
+#ifndef TOKU_RT_NOOVERLAPS
     r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
     CKERR(r);
 
@@ -104,7 +105,7 @@ int main(int argc, const char *argv[]) {
     r = toku_rt_close(tree);            CKERR(r);
 
     tree = NULL;
-
+#endif
     /* Test no overlap case. */
     /*
         1   2   3   4   5   6   7

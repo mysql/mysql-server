@@ -11,6 +11,9 @@ int main(int argc, const char *argv[]) {
     parse_args(argc, argv);
 
     for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+#ifdef TOKU_RT_NOOVERLAPS
+    if (allow_overlaps) continue;
+#endif
     	r = toku_rt_create(&tree, int_cmp, char_cmp, allow_overlaps, malloc, free, realloc);
     	CKERR(r);
     
@@ -26,6 +29,9 @@ int main(int argc, const char *argv[]) {
     }
     
     for (allow_overlaps = 0; allow_overlaps < 2; allow_overlaps++) {
+#ifdef TOKU_RT_NOOVERLAPS
+    if (allow_overlaps) continue;
+#endif
         int i;
         for (i = 1; i <= 2; i++) {
             mallocced = 0;
