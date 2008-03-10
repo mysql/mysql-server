@@ -124,8 +124,8 @@ sub new {
      @_
     );
 
-  my $path     = delete($opts{'path'})    or die "path required";
-  my $args     = delete($opts{'args'})    or die "args required";
+  my $path     = delete($opts{'path'})    or die "path required @_";
+  my $args     = delete($opts{'args'})    or die "args required @_";
   my $input    = delete($opts{'input'});
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
