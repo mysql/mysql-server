@@ -12,7 +12,7 @@
 //Currently this is a stub implementation just so we can write and compile tests
 //before actually implementing the range tree.
 
-#include "rangetree.h"
+#include <rangetree.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -22,7 +22,7 @@ struct __toku_range_tree_local {
     toku_range* ranges;
     u_int32_t   ranges_len;
 };
-#include "rangetree-internal.h"
+#include <rangetree-internal.h>
 
 
 static const u_int32_t minlen = 64;
