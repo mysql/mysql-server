@@ -7,6 +7,10 @@
 #
 # This script can be used as /etc/init.d/mysql.server
 #
+# Comments to support chkconfig on RedHat Linux
+# chkconfig: 2345 64 36
+# description: A very fast and reliable SQL database engine.
+#
 # Version 1.0
 #
 
