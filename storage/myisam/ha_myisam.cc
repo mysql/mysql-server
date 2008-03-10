@@ -410,10 +410,10 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
       {
         if ((t1_keysegs_j__type == HA_KEYTYPE_VARTEXT2) &&
             (t2_keysegs[j].type == HA_KEYTYPE_VARTEXT1))
-          t1_keysegs_j__type= HA_KEYTYPE_VARTEXT1;
+          t1_keysegs_j__type= HA_KEYTYPE_VARTEXT1; /* purecov: tested */
         else if ((t1_keysegs_j__type == HA_KEYTYPE_VARBINARY2) &&
                  (t2_keysegs[j].type == HA_KEYTYPE_VARBINARY1))
-          t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1;
+          t1_keysegs_j__type= HA_KEYTYPE_VARBINARY1; /* purecov: inspected */
       }
 
       if (t1_keysegs_j__type != t2_keysegs[j].type ||
