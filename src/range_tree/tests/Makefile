@@ -92,7 +92,7 @@ HEADERS=../rangetree.h ../rangetree-internal.h test.h
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
 %.tlog: %.c $(HEADERS) $(TLOG_BINS)
-	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS)
+	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c  $(HEADERS) $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
