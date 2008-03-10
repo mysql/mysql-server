@@ -1,14 +1,3 @@
-#include <rangetree.h>
-
-// These are the redblack directives
-/* rbgen generated code begins here */
-/* rbgen: $Id: rbgen.in,v 1.3 2003/10/24 01:31:21 damo Exp $ */
-#define toku_range toku_range
-#define RB_INLINE
-/*
- * RCS $Id: redblack.h,v 1.9 2003/10/24 01:31:21 damo Exp $
- */
-
 /*
    Redblack balanced tree algorithm
    Copyright (C) Damian Ivereigh 2000
@@ -28,12 +17,12 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-/* Header file for redblack.c, should be included by any code that 
-** uses redblack.c since it defines the functions 
-*/ 
- 
-/* Stop multiple includes */
-#ifndef _REDBLACK_H
+#ifndef TOKU_REDBLACK_H
+#define TOKU_REDBLACK_H
+
+#include <rangetree.h>
+#define toku_range toku_range
+#define RB_INLINE
 
 /* Modes for rblookup */
 typedef enum {
@@ -109,5 +98,4 @@ struct toku_rbt_node
 #endif /* RB_INLINE */
 };
 
-#define _REDBLACK_H
-#endif /* _REDBLACK_H */
+#endif /* TOKU_REDBLACK_H */
