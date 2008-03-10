@@ -53,7 +53,10 @@ struct toku_rbt_tree {
 
 int toku_rbt_init (
     int (*cmp)(const toku_range*, const toku_range*),
-    struct toku_rbt_tree** ptree
+    struct toku_rbt_tree** ptree,
+    void* (*user_malloc) (size_t),
+    void  (*user_free)   (void*),
+    void* (*user_realloc)(void*, size_t)
 );
 
 int toku_rbt_lookup(
