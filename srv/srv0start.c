@@ -665,7 +665,7 @@ open_or_create_log_file(
 	if (k == 0 && i == 0) {
 		arch_space_id = 2 * k + 1 + SRV_LOG_SPACE_FIRST_ID;
 
-		fil_space_create("arch_log_space", arch_space_id, FIL_LOG);
+		fil_space_create("arch_log_space", arch_space_id, 0, FIL_LOG);
 	} else {
 		arch_space_id = ULINT_UNDEFINED;
 	}

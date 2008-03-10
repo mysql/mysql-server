@@ -1718,6 +1718,7 @@ ibuf_add_free_page(
 {
 	mtr_t	mtr;
 	page_t*	header_page;
+	ulint	flags;
 	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
@@ -1730,7 +1731,8 @@ ibuf_add_free_page(
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
+	zip_size = dict_table_flags_to_zip_size(flags);
 
 	header_page = ibuf_header_page_get(space, &mtr);
 
@@ -1807,6 +1809,7 @@ ibuf_remove_free_page(
 	mtr_t	mtr;
 	mtr_t	mtr2;
 	page_t*	header_page;
+	ulint	flags;
 	ulint	zip_size;
 	ulint	page_no;
 	page_t*	page;
@@ -1819,7 +1822,8 @@ ibuf_remove_free_page(
 
 	/* Acquire the fsp latch before the ibuf header, obeying the latching
 	order */
-	mtr_x_lock(fil_space_get_latch(space, &zip_size), &mtr);
+	mtr_x_lock(fil_space_get_latch(space, &flags), &mtr);
+	zip_size = dict_table_flags_to_zip_size(flags);
 
 	header_page = ibuf_header_page_get(space, &mtr);
 

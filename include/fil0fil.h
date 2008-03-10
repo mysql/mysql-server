@@ -222,6 +222,15 @@ fil_space_get_size(
 			/* out: space size, 0 if space not found */
 	ulint	id);	/* in: space id */
 /***********************************************************************
+Returns the flags of the space. The tablespace must be cached
+in the memory cache. */
+UNIV_INTERN
+ulint
+fil_space_get_flags(
+/*================*/
+			/* out: flags, ULINT_UNDEFINED if space not found */
+	ulint	id);	/* in: space id */
+/***********************************************************************
 Returns the compressed page size of the space, or 0 if the space
 is not compressed. The tablespace must be cached in the memory cache. */
 UNIV_INTERN
@@ -413,8 +422,8 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
-	ulint		zip_size,	/* in: compressed page size,
-					or 0 if uncompressed tablespace */
+	ulint		flags,		/* in: compressed page size and
+					file format version, or 0 */
 	ulint		size);		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -440,8 +449,7 @@ fil_open_single_table_tablespace(
 					faster (the OS caches them) than
 					accessing the first page of the file */
 	ulint		id,		/* in: space id */
-	ulint		zip_size,	/* in: compressed page size,
-					or 0 if uncompressed tablespace */
+	ulint		flags,		/* in: tablespace flags */
 	const char*	name);		/* in: table name in the
 					databasename/tablename format */
 /************************************************************************

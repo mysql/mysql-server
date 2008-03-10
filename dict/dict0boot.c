@@ -252,7 +252,10 @@ dict_boot(void)
 
 	dict_mem_table_add_col(table, heap, "NAME", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
+	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
+	/* TYPE is either DICT_TABLE_ORDINARY, or (TYPE & DICT_TF_COMPACT)
+	and (TYPE & DICT_TF_FORMAT_MASK) are nonzero and TYPE = table->flags */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
 	dict_mem_table_add_col(table, heap, "MIX_LEN", DATA_INT, 0, 4);

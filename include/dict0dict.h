@@ -631,6 +631,32 @@ dict_table_is_comp(
 					compact page format */
 	const dict_table_t*	table);	/* in: table */
 /************************************************************************
+Determine the file format of a table. */
+UNIV_INLINE
+ulint
+dict_table_get_format(
+/*==================*/
+					/* out: file format version */
+	const dict_table_t*	table);	/* in: table */
+/************************************************************************
+Set the file format of a table. */
+UNIV_INLINE
+void
+dict_table_set_format(
+/*==================*/
+	dict_table_t*	table,	/* in/out: table */
+	ulint		format);/* in: file format version */
+/************************************************************************
+Extract the compressed page size from table flags. */
+UNIV_INLINE
+ulint
+dict_table_flags_to_zip_size(
+/*=========================*/
+			/* out: compressed page size,
+			or 0 if not compressed */
+	ulint	flags)	/* in: flags */
+	__attribute__((const));
+/************************************************************************
 Check whether the table uses the compressed compact page format. */
 UNIV_INLINE
 ulint

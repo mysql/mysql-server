@@ -2559,8 +2559,7 @@ row_import_tablespace_for_mysql(
 	ibuf_delete_for_discarded_space(table->space);
 
 	success = fil_open_single_table_tablespace(TRUE, table->space,
-						   dict_table_zip_size(table),
-						   table->name);
+						   table->flags, table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
