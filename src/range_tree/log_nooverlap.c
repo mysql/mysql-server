@@ -24,72 +24,56 @@ struct __toku_range_tree_local {
 #include "rangetree-internal.h"
 
 /*
-Changes required in red black tree for max performance:
-Add finger object.. or keep track of it local?
-(or keep it local?)
+Redblack tree.
 
-Finger ops:
-    New  Finger.. or equivalent.
-    These overwrite the finger:
-        FINGER_FIND_LESS_THAN_OR_EQUAL
-        FINGER_FIND_EQUAL
-        FINGER_FIND_LESS_THAN
-        FINGER_FIND_GREATER_THAN
-    These use the finger, with boolean (overwrite or leave alone)
-        FINGER_NEXT
-        FINGER_PREV
-    These use the finger
-        FINGER_INSERT
-        FINGER_DELETE
-Subset of this that would just support FindOverlaps:
-    These overwrite the finger:
-        FINGER_FIND_LESS_THAN_OR_EQUAL
-        FINGER_NEXT
-    Almost for free:        
-        FINGER_FIND_LESS_THAN_OR_EQUAL
-        FINGER_FIND_EQUAL
-        FINGER_FIND_LESS_THAN
-        FINGER_FIND_GREATER_THAN
-        FINGER_NEXT
-        FINGER_PREV
-    Not for free:
-        FINGER_INSERT
-        FINGER_DELETE
+lookup (type) returns:
+    pointer to data (or NULL if not found)
+    'elementpointer' (to be used in finger_delete, finger_predecessor, finger_successor)
+    'insertpointer'  (to be used in finger_insert)
 
-    Things to add if we want to be nice to redblacklib
-        FINGER_FIND_GREATER_THAN_OR_EQUAL
-        
 Finger usefulness:
     1- Insert
-        O(lg N) CMPs    We do a find <=.  If found and overlaps (found.right >= query.left) return error
-                        Next op is either NO_UPDATE, or alternatively, use a copy of the finger.  (Return to original finger for INSERT)
-         (0+1)  CMPs    Do a FINGER_NEXT_NO_UPDATE.  If found and overlaps (found.left <= query.right) return error
-         (0)    CMPs    Do a FINGER_INSERT
+        O(lg N) CMPs    We do a lookup(<=) (out elementpointer, out found, out insertpointer)
+                        If found
+                            If overlaps (found.right >= query.left) return error
+                            Do a finger_successor(elementpointer)  (out found2)
+         (0+1)  CMPs        if (found2 and overlaps (found2.left <= query.right) return error
+                        else
+                            Do a lookup(First) (out found2)
+                            if (found2 and overlaps (found2.left <= query.right) return error
+         (0)    CMPs    Do a finger_insert(data, insertpointer)
     2- Delete
-        O(lg N) CMPs    We do a find ==.  If !found return error.
+        O(lg N) CMPs    We do a lookup (==). (out found, out elementpointer)
+                        If !found return error.
                         (== already checks for left end point)
                         Data cmp is free (pointer)
          (0+1)  CMPs    if (found.right != to_insert.data || found.data != to_delete.data), return error.
-         (0)    CMPs    Do a FINGER_DELETE
+         (0)    CMPs    Do a finger_delete(element_pointer)
     3- Predecessor:
-        O(lg N) CMPs    Do a find <
-                        If !found return not found
+        O(lg N) CMPs    Do a lookup(<) (out found, out elementpointer)
+                        If !found return "not found"
          (0+1)  CMPs    If overlaps (found.right >= query)
-         (0)    CMPs    Do a FINGER_PREV. If found return it.
-                            Return not found.
-                        return it.
+         (0)    CMPs        do a finger_predecessor(elementpointer) (out found2)
+                            If found2 return found2.
+                            else return "not found"
+                        else return found.
     4- Successor:
-        O(lg N) CMPs    Do a find >.
-                        If found, return it.
-                        return not found.
+        O(lg N) CMPs    Do a lookup (>) (out found)
+                        If found, return found.
+                        return "not found."
     5- FindOverlaps
-        O(lg N+1) CMPs  Do a find <=.  If found (test for overlap (if found.right >= query.left) if so, Increaes buffer, add to buffer)
-        while (Do a FINGER_NEXT_AND_UPDATE) {
-           If not found, DONE (return what we've found)
-           if not overlap (if found.left > query.right) then DONE (return what we've found)
-           Increase buffer
-           Add to buffer
-        }
+        O(lg N+1) CMPs  Do a lookup (<=) (out found, out elementpointer)
+                        If found
+         (0+1)  CMPs       if overlap (if found.right >= query.left)
+                              Increaes buffer
+                              add found to buffer
+         (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
+                        else
+                           do a lookup (FIRST) (out found, out elementpointer)
+        O(min(k,K))CMPs while (found && found.left <= query.right
+                            Increaes buffer
+                            add found to buffer
+         (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
 */
     
 static BOOL toku__rt_overlap(toku_range_tree* tree,
