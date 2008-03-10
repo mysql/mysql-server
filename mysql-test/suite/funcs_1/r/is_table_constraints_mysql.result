@@ -1,0 +1,41 @@
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+DROP   USER testuser1@localhost;
+CREATE USER testuser1@localhost;
+GRANT SELECT ON db_datadict.* TO testuser1@localhost;
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'mysql'
+ORDER BY table_schema,table_name,constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	db	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	event	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	func	PRIMARY KEY
+NULL	mysql	name	mysql	help_category	UNIQUE
+NULL	mysql	PRIMARY	mysql	help_category	PRIMARY KEY
+NULL	mysql	name	mysql	help_keyword	UNIQUE
+NULL	mysql	PRIMARY	mysql	help_keyword	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	help_relation	PRIMARY KEY
+NULL	mysql	name	mysql	help_topic	UNIQUE
+NULL	mysql	PRIMARY	mysql	help_topic	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	host	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	ndb_binlog_index	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	plugin	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	proc	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	procs_priv	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	servers	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	tables_priv	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	time_zone	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	time_zone_leap_second	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	time_zone_name	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	time_zone_transition	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	time_zone_transition_type	PRIMARY KEY
+NULL	mysql	PRIMARY	mysql	user	PRIMARY KEY
+# Establish connection testuser1 (user=testuser1)
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'mysql'
+ORDER BY table_schema,table_name,constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+# Switch to connection default and close connection testuser1
+DROP USER testuser1@localhost;
+DROP DATABASE db_datadict;
