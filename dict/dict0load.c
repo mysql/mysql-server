@@ -223,11 +223,11 @@ loop:
 }
 
 /************************************************************************
-Determine the compressed page size of a table described in SYS_TABLES. */
+Determine the flags of a table described in SYS_TABLES. */
 static
 ulint
-dict_sys_tables_get_zip_size(
-/*=========================*/
+dict_sys_tables_get_flags(
+/*======================*/
 				/* out: compressed page size in kilobytes;
 				or 0 if the tablespace is uncompressed,
 				ULINT_UNDEFINED on error */
@@ -236,29 +236,53 @@ dict_sys_tables_get_zip_size(
 	const byte*	field;
 	ulint		len;
 	ulint		n_cols;
-	ulint		table_type;
+	ulint		flags;
 
 	field = rec_get_nth_field_old(rec, 5, &len);
 	ut_a(len == 4);
 
-	table_type = mach_read_from_4(field);
+	flags = mach_read_from_4(field);
+
+	if (UNIV_LIKELY(flags == DICT_TABLE_ORDINARY)) {
+		return(0);
+	}
 
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	if (UNIV_EXPECT(n_cols & 0x80000000UL, 0x80000000UL)
-			&& UNIV_LIKELY(table_type > DICT_TABLE_COMPRESSED_BASE)
-			&& UNIV_LIKELY(table_type
-					<= DICT_TABLE_COMPRESSED_BASE + 16)) {
-
-		return(table_type - DICT_TABLE_COMPRESSED_BASE);
+	if (UNIV_UNLIKELY(!(n_cols & 0x80000000UL))) {
+		/* New file formats require ROW_FORMAT=COMPACT. */
+		return(ULINT_UNDEFINED);
 	}
 
-	if (UNIV_LIKELY(table_type == DICT_TABLE_ORDINARY)) {
-		return(0);
+	switch (flags & (DICT_TF_FORMAT_MASK | DICT_TF_COMPACT)) {
+	default:
+	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
+	case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+		/* flags should be DICT_TABLE_ORDINARY,
+		or DICT_TF_FORMAT_MASK should be nonzero. */
+		return(ULINT_UNDEFINED);
+
+	case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT | DICT_TF_COMPACT:
+#if DICT_TF_FORMAT_MAX > DICT_TF_FORMAT_ZIP
+# error "missing case labels for DICT_TF_FORMAT_ZIP .. DICT_TF_FORMAT_MAX"
+#endif
+		/* We support this format. */
+		break;
 	}
 
-	return(ULINT_UNDEFINED);
+	if (UNIV_UNLIKELY((flags & DICT_TF_ZSSIZE_MASK)
+			  > (DICT_TF_ZSSIZE_MAX << DICT_TF_ZSSIZE_SHIFT))) {
+		/* Unsupported compressed page size. */
+		return(ULINT_UNDEFINED);
+	}
+
+	if (UNIV_UNLIKELY(flags & (~0 << DICT_TF_BITS))) {
+		/* Some unused bits are set. */
+		return(ULINT_UNDEFINED);
+	}
+
+	return(flags);
 }
 
 /************************************************************************
@@ -321,14 +345,28 @@ loop:
 		const byte*	field;
 		ulint		len;
 		ulint		space_id;
-		ulint		zip_size_in_k;
+		ulint		flags;
 		char*		name;
 
 		field = rec_get_nth_field_old(rec, 0, &len);
 		name = mem_strdupl((char*) field, len);
 
-		zip_size_in_k = dict_sys_tables_get_zip_size(rec);
-		ut_a(zip_size_in_k != ULINT_UNDEFINED);
+		flags = dict_sys_tables_get_flags(rec);
+		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
+
+			field = rec_get_nth_field_old(rec, 5, &len);
+			flags = mach_read_from_4(field);
+
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: table ", stderr);
+			ut_print_filename(stderr, name);
+			fprintf(stderr, "\n"
+				"InnoDB: in InnoDB data dictionary"
+				" has unknown type %lx.\n",
+				(ulong) flags);
+
+			goto loop;
+		}
 
 		field = rec_get_nth_field_old(rec, 9, &len);
 		ut_a(len == 4);
@@ -352,8 +390,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-							 zip_size_in_k * 1024,
-							 name);
+							 flags, name);
 		}
 
 		mem_free(name);
@@ -784,7 +821,6 @@ dict_load_table(
 	ulint		n_cols;
 	ulint		flags;
 	ulint		err;
-	ulint		zip_size_in_k;
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -833,8 +869,22 @@ err_exit:
 
 	/* Check if the tablespace exists and has the right name */
 	if (space != 0) {
-		zip_size_in_k = dict_sys_tables_get_zip_size(rec);
-		ut_a(zip_size_in_k != ULINT_UNDEFINED);
+		flags = dict_sys_tables_get_flags(rec);
+
+		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
+unknown_table_type:
+			field = rec_get_nth_field_old(rec, 5, &len);
+			flags = mach_read_from_4(field);
+
+			ut_print_timestamp(stderr);
+			fputs("  InnoDB: Error: table ", stderr);
+			ut_print_filename(stderr, name);
+			fprintf(stderr, "\n"
+				"InnoDB: in InnoDB data dictionary"
+				" has unknown type %lx.\n",
+				(ulong) flags);
+			goto err_exit;
+		}
 
 		if (fil_space_for_table_exists_in_mem(space, name, FALSE,
 						      FALSE, FALSE)) {
@@ -853,7 +903,7 @@ err_exit:
 				name, (ulong)space);
 			/* Try to open the tablespace */
 			if (!fil_open_single_table_tablespace(
-				    TRUE, space, zip_size_in_k << 10, name)) {
+				    TRUE, space, flags, name)) {
 				/* We failed to find a sensible tablespace
 				file */
 
@@ -861,7 +911,7 @@ err_exit:
 			}
 		}
 	} else {
-		zip_size_in_k = 0;
+		flags = 0;
 	}
 
 	ut_a(name_of_col_is(sys_tables, sys_index, 4, "N_COLS"));
@@ -869,11 +919,12 @@ err_exit:
 	field = rec_get_nth_field_old(rec, 4, &len);
 	n_cols = mach_read_from_4(field);
 
-	flags = zip_size_in_k << DICT_TF_COMPRESSED_SHIFT;
-
 	/* The high-order bit of N_COLS is the "compact format" flag. */
 	if (n_cols & 0x80000000UL) {
 		flags |= DICT_TF_COMPACT;
+	} else if (UNIV_UNLIKELY(flags)) {
+		/* Only ROW_FORMAT=COMPACT tables can have flags set. */
+		goto unknown_table_type;
 	}
 
 	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
@@ -885,17 +936,6 @@ err_exit:
 
 	field = rec_get_nth_field_old(rec, 3, &len);
 	table->id = mach_read_from_8(field);
-
-	zip_size_in_k = dict_sys_tables_get_zip_size(rec);
-
-	if (UNIV_UNLIKELY(zip_size_in_k == ULINT_UNDEFINED)) {
-		field = rec_get_nth_field_old(rec, 5, &len);
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: table %s: unknown table type %lu\n",
-			name, (ulong) mach_read_from_4(field));
-		goto err_exit;
-	}
 
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);

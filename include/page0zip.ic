@@ -107,7 +107,7 @@ page_zip_get_size(
 		return(0);
 	}
 
-	size = 512 << page_zip->ssize;
+	size = (PAGE_ZIP_MIN_SIZE >> 1) << page_zip->ssize;
 
 	ut_ad(size >= PAGE_ZIP_MIN_SIZE);
 	ut_ad(size <= UNIV_PAGE_SIZE);

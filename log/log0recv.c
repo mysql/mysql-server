@@ -962,7 +962,7 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
 	case MLOG_FILE_DELETE:
-	case MLOG_ZIP_FILE_CREATE:
+	case MLOG_FILE_CREATE2:
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
@@ -1990,7 +1990,7 @@ loop:
 #endif/* UNIV_LOG_DEBUG */
 
 		} else if (type == MLOG_FILE_CREATE
-			   || type == MLOG_ZIP_FILE_CREATE
+			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
 			   || type == MLOG_FILE_DELETE) {
 			ut_a(space);

@@ -46,7 +46,8 @@ struct page_zip_des_struct
 					PAGE_ZIP_MIN_SIZE << (ssize - 1). */
 };
 
-#define PAGE_ZIP_MIN_SIZE	1024	/* smallest page_zip_des_struct.size */
+#define PAGE_ZIP_MIN_SIZE_SHIFT	10	/* log2 of smallest compressed size */
+#define PAGE_ZIP_MIN_SIZE	(1 << PAGE_ZIP_MIN_SIZE_SHIFT)
 
 /** Number of page compressions, indexed by page_zip_des_t::ssize */
 extern ulint	page_zip_compress_count[8];

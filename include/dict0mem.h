@@ -40,12 +40,32 @@ combination of types */
 #define	DICT_TABLE_CLUSTER		3 /* this means that the table is
 					  really a cluster definition */
 #endif
-#define DICT_TABLE_COMPRESSED_BASE	0x8000	/* compressed tablespace */
 
-/* Table flags */
-#define DICT_TF_COMPACT			1	/* compact page format */
-#define DICT_TF_COMPRESSED_MASK		62	/* compressed page size, KiB */
-#define DICT_TF_COMPRESSED_SHIFT	1
+/* Table flags.  All unused bits must be 0. */
+#define DICT_TF_COMPACT			1	/* Compact page format.
+						This must be set for
+						new file formats
+						(later than
+						DICT_TF_FORMAT_51). */
+
+/* compressed page size (0=uncompressed, up to 15 compressed sizes) */
+#define DICT_TF_ZSSIZE_SHIFT		1
+#define DICT_TF_ZSSIZE_MASK		(15 << DICT_TF_ZSSIZE_SHIFT)
+#define DICT_TF_ZSSIZE_MAX (UNIV_PAGE_SIZE_SHIFT - PAGE_ZIP_MIN_SIZE_SHIFT + 1)
+
+
+#define DICT_TF_FORMAT_SHIFT		5	/* file format */
+#define DICT_TF_FORMAT_MASK		(127 << DICT_TF_FORMAT_SHIFT)
+#define DICT_TF_FORMAT_51		0	/* InnoDB/MySQL up to 5.1 */
+#define DICT_TF_FORMAT_ZIP		1	/* InnoDB plugin for 5.1:
+						compressed tables,
+						new BLOB treatment */
+#define DICT_TF_FORMAT_MAX		DICT_TF_FORMAT_ZIP
+
+#define DICT_TF_BITS			6	/* number of flag bits */
+#if (1 << (DICT_TF_BITS - DICT_TF_FORMAT_SHIFT)) <= DICT_TF_FORMAT_MAX
+# error "DICT_TF_BITS is insufficient for DICT_TF_FORMAT_MAX"
+#endif
 
 /**************************************************************************
 Creates a table memory object. */
@@ -314,6 +334,7 @@ struct dict_table_struct{
 	unsigned	space:32;
 				/* space where the clustered index of the
 				table is placed */
+	unsigned	flags:DICT_TF_BITS;/* DICT_TF_COMPACT, ... */
 	unsigned	ibd_file_missing:1;
 				/* TRUE if this is in a single-table
 				tablespace and the .ibd file is missing; then
@@ -326,7 +347,6 @@ struct dict_table_struct{
 				TABLESPACE */
 	unsigned	cached:1;/* TRUE if the table object has been added
 				to the dictionary cache */
-	unsigned	flags:8;/* DICT_TF_COMPACT, ... */
 	unsigned	n_def:10;/* number of columns defined so far */
 	unsigned	n_cols:10;/* number of columns */
 	dict_col_t*	cols;	/* array of column descriptions */

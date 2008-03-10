@@ -5030,11 +5030,6 @@ create_table_def(
 
 	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
 
-	if (error == DB_TABLE_ZIP_NO_IBD) {
-		my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-			 innobase_hton_name, "KEY_BLOCK_SIZE");
-	}
-
 	error = convert_error_code_to_mysql(error, NULL);
 
 	DBUG_RETURN(error);
@@ -5236,6 +5231,7 @@ ha_innobase::create(
 	THD*		thd = ha_thd();
 	ib_longlong	auto_inc_value;
 	ulint		flags;
+	const ulint	file_format = srv_file_format;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -5291,14 +5287,68 @@ ha_innobase::create(
 
 	flags = 0;
 
-	if (form->s->row_type != ROW_TYPE_REDUNDANT) {
-		flags |= DICT_TF_COMPACT;
-
-		switch (create_info->key_block_size) {
-		case 1: case 2: case 4: case 8: case 16:
-			flags |= create_info->key_block_size
-				<< DICT_TF_COMPRESSED_SHIFT;
+	switch (create_info->key_block_size) {
+	case 0:
+		if (form->s->row_type != ROW_TYPE_REDUNDANT) {
+			flags |= DICT_TF_COMPACT;
 		}
+
+		goto key_block_size_ok;
+	case 1:
+		flags |= 1 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
+		break;
+	case 2:
+		flags |= 2 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
+		break;
+	case 4:
+		flags |= 3 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
+		break;
+	case 8:
+		flags |= 4 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
+		break;
+	case 16:
+		flags |= 5 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
+		break;
+#if DICT_TF_ZSSIZE_MAX != 5
+# error "DICT_TF_ZSSIZE_MAX != 5"
+#endif
+key_block_size_wrong:
+	default:
+		if (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
+			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+				 innobase_hton_name, "KEY_BLOCK_SIZE");
+			error = -1;
+			goto cleanup;
+		} else {
+			sql_print_warning("InnoDB: ignoring"
+					  " KEY_BLOCK_SIZE=%lu\n",
+					  create_info->key_block_size);
+			flags &= ~DICT_TF_ZSSIZE_MASK;
+			goto key_block_size_ok;
+		}
+	}
+
+	if (!srv_file_per_table || file_format < DICT_TF_FORMAT_ZIP) {
+
+		goto key_block_size_wrong;
+	}
+
+key_block_size_ok:
+
+	if (UNIV_EXPECT(flags & DICT_TF_COMPACT, DICT_TF_COMPACT)) {
+		/* New formats are only available if ROW_FORMAT=COMPACT. */
+		flags |= file_format << DICT_TF_FORMAT_SHIFT;
+	}
+
+	if ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
+	    && form->s->row_type != ((flags & DICT_TF_COMPACT)
+				     ? ROW_TYPE_COMPACT
+				     : ROW_TYPE_REDUNDANT)) {
+
+		my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+			 innobase_hton_name, "ROW_FORMAT");
+		error = -1;
+		goto cleanup;
 	}
 
 	error = create_table_def(trx, form, norm_name,
@@ -8323,6 +8373,11 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   "Stores each InnoDB table to an .ibd file in the database dir.",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_UINT(file_format, srv_file_format,
+  PLUGIN_VAR_RQCMDARG,
+  "File format to use for new tables in .ibd files.",
+  NULL, NULL, DICT_TF_FORMAT_51, DICT_TF_FORMAT_51, DICT_TF_FORMAT_MAX, 0);
+
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
   "Set to 0 (write and flush once per second),"
@@ -8500,6 +8555,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),
   MYSQL_SYSVAR(file_per_table),
+  MYSQL_SYSVAR(file_format),
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),

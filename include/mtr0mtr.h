@@ -130,8 +130,8 @@ flag value must give the length also! */
 						/* copy compact record list end
 						to a new created index page */
 #define MLOG_COMP_PAGE_REORGANIZE ((byte)46)	/* reorganize an index page */
-#define MLOG_ZIP_FILE_CREATE	((byte)47)	/* log record about creating a
-						compressed .ibd file */
+#define MLOG_FILE_CREATE2	((byte)47)	/* log record about creating
+						an .ibd file, with format */
 #define MLOG_ZIP_WRITE_NODE_PTR	((byte)48)	/* write the node pointer of
 						a record on a compressed
 						non-leaf B-tree page */
