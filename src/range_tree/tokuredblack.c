@@ -88,7 +88,7 @@ static void toku_rbt__delete_fix(struct toku_rbt_node **, struct toku_rbt_node *
  * Returns a pointer to the top of the tree.
  */
 int toku_rbt_init (
-    int (*cmp)(const toku_range*, const toku_range*),
+    int (*cmp)(const toku_point*, const toku_point*),
     struct toku_rbt_tree** ptree,
     void* (*user_malloc) (size_t),
     void  (*user_free)   (void*),
@@ -108,7 +108,8 @@ int toku_rbt_init (
       /* Key is initialized since the toku_rbt__null is static. */
    }
 
-    if (!ptree)    { r = EINVAL; goto cleanup; }
+    if (!cmp || !ptree || !user_malloc || !user_free || !user_realloc) {
+        r = EINVAL; goto cleanup; }
     temptree=(struct toku_rbt_tree *) user_malloc(sizeof(struct toku_rbt_tree));
     if (!temptree) { r = ENOMEM; goto cleanup; }
     
@@ -153,7 +154,7 @@ int toku_rbt_lookup(
     struct toku_rbt_tree*    rbinfo,
     struct toku_rbt_node**   pinsert_finger,
     struct toku_rbt_node**   pelement_finger,
-    const  toku_range** pdata
+           toku_range** pdata
 )
 {
     int r = ENOSYS;
@@ -193,7 +194,7 @@ toku_rbt__traverse(int insert, const toku_range *key, struct toku_rbt_tree *rbin
     {
         y=x;
         /* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
-        cmp=rbinfo->rb_cmp(key, RB_GET(x, key));
+        cmp=rbinfo->rb_cmp(key->left, x->key.left);
 
         if (cmp<0)
             x=x->left;
@@ -211,8 +212,8 @@ toku_rbt__traverse(int insert, const toku_range *key, struct toku_rbt_tree *rbin
 
 static struct toku_rbt_node* toku_rbt__insert(
     const  toku_range* key,
-    struct toku_rbt_tree*   rbinfo,
-    struct toku_rbt_node*   parent
+    struct toku_rbt_tree* rbinfo,
+    struct toku_rbt_node* parent
 ) {
     struct toku_rbt_node* x;
     struct toku_rbt_node* y = parent;
@@ -239,7 +240,7 @@ static struct toku_rbt_node* toku_rbt__insert(
     }
     else
     {
-        cmp=rbinfo->rb_cmp(RB_GET(z, key), RB_GET(y, key));
+        cmp=rbinfo->rb_cmp(z->key.left, y->key.left);
         if (cmp<0)
             y->left=z;
         else
@@ -375,7 +376,7 @@ toku_rbt__lookup(int mode, const toku_range *key, struct toku_rbt_tree *rbinfo, 
     {
         y=x;
         /* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
-        cmp=rbinfo->rb_cmp(key, RB_GET(x, key));
+        cmp=rbinfo->rb_cmp(key->left, x->key.left);
 
 
         if (cmp<0)
@@ -602,41 +603,42 @@ toku_rbt__predecessor(const struct toku_rbt_node *x)
     return(y);
 }
 
-int toku_rbt_finger_predecessor(const struct toku_rbt_node** pfinger,
-                                           const toku_range** ppred_data) {
+int toku_rbt_finger_predecessor(struct toku_rbt_node** pfinger,
+                                toku_range** ppred_data) {
     int r = ENOSYS;
 
     if (!pfinger || !*pfinger ||
         *pfinger == RBNULL || !ppred_data) { r = EINVAL; goto cleanup; }
     *pfinger = toku_rbt__predecessor(*pfinger);
-    *ppred_data = ((*pfinger==RBNULL) ? NULL : RB_GET((*pfinger), key));
+    *ppred_data = (toku_range*)
+        ((*pfinger==RBNULL) ? NULL : RB_GET((*pfinger), key));
     r = 0;
 cleanup:
     return r;
 }
 
-int toku_rbt_finger_succecessor(const struct toku_rbt_node** pfinger,
-                                           const toku_range** psucc_data) {
+int toku_rbt_finger_successor(struct toku_rbt_node** pfinger,
+                                toku_range** psucc_data) {
     int r = ENOSYS;
 
     if (!pfinger || !*pfinger ||
         *pfinger == RBNULL || !psucc_data) { r = EINVAL; goto cleanup; }
     *pfinger = toku_rbt__successor(*pfinger);
-    *psucc_data = ((*pfinger==RBNULL) ? NULL : RB_GET((*pfinger), key));
+    *psucc_data = (toku_range*)
+        ((*pfinger==RBNULL) ? NULL : RB_GET((*pfinger), key));
     r = 0;
 cleanup:
     return r;
 }
 
-const toku_range* toku_rbt_finger_insert(
+int toku_rbt_finger_insert(
     const  toku_range* key,
-    struct toku_rbt_tree*   rbinfo,
-    struct toku_rbt_node*   parent
+    struct toku_rbt_tree* rbinfo,
+    struct toku_rbt_node* parent
 ) {
-    struct toku_rbt_node* x;
-    if (!parent) return NULL;
-    x = toku_rbt__insert(key, rbinfo, parent);
-    return ((x==RBNULL) ? NULL : RB_GET(x, key));
+    if (!key || !rbinfo || !parent) return EINVAL;
+    toku_rbt__insert(key, rbinfo, parent);
+    return 0;
 }
 
 /* Delete the node z, and free up the space

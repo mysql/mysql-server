@@ -82,8 +82,8 @@ static inline BOOL toku__rt_exact(toku_range_tree* tree,
 }
 
 int toku_rt_create(toku_range_tree** ptree,
-                   int (*end_cmp)(toku_point*,toku_point*),
-                   int (*data_cmp)(DB_TXN*,DB_TXN*),
+                   int (*end_cmp)(const toku_point*,const toku_point*),
+                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
 		           BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),

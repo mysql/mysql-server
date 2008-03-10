@@ -28,7 +28,7 @@ LIN_TESTS = $(patsubst %.c,%.lin,$(SRCS))
 ALL_TESTS = $(LIN_TESTS) $(LOG_TESTS) $(TLOG_TESTS)
 
 RUN_LOG_TESTS  = $(patsubst %.log,%.logrun,$(LOG_TESTS))
-RUN_TLOG_TESTS = $(patsubst %.log,%.logrun,$(TLOG_TESTS))
+RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
 RUN_LIN_TESTS  = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
 RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
@@ -85,7 +85,7 @@ endif
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
 LINEAR_BINS = ../linear.o
-TLOG_BINS   = ../log_nooverlap.o
+TLOG_BINS   = ../log_nooverlap.o ../tokuredblack.o
 LOG_BINS    = ../log.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
 

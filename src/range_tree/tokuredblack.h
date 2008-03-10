@@ -21,7 +21,6 @@
 #define TOKU_REDBLACK_H
 
 #include <rangetree.h>
-#define toku_range toku_range
 #define RB_INLINE
 
 /* Modes for rblookup */
@@ -44,7 +43,7 @@ const struct toku_rbt_node *nextp;
 }; 
  
 struct toku_rbt_tree {
-    int (*rb_cmp)(const toku_range*, const toku_range*);
+    int (*rb_cmp)(const toku_point*, const toku_point*);
     struct toku_rbt_node *rb_root;
     void* (*rb_malloc) (size_t);
     void  (*rb_free)   (void*);
@@ -52,33 +51,34 @@ struct toku_rbt_tree {
 };
 
 int toku_rbt_init (
-    int (*cmp)(const toku_range*, const toku_range*),
+    int (*cmp)(const toku_point*, const toku_point*),
     struct toku_rbt_tree** ptree,
     void* (*user_malloc) (size_t),
     void  (*user_free)   (void*),
     void* (*user_realloc)(void*, size_t)
 );
 
+/* Sets *pdata to NULL if not found.  (unless error) */
 int toku_rbt_lookup(
     int mode,
     const  toku_range*  key,
     struct toku_rbt_tree*    rbinfo,
     struct toku_rbt_node**   pinsert_finger,
     struct toku_rbt_node**   pelement_finger,
-    const  toku_range** pdata
+           toku_range** pdata
 );
 
-const toku_range* toku_rbt_finger_insert(
+int toku_rbt_finger_insert(
     const  toku_range* key,
-    struct toku_rbt_tree*   rbinfo,
-    struct toku_rbt_node*   parent
+    struct toku_rbt_tree* rbinfo,
+    struct toku_rbt_node* parent
 );
 
 int toku_rbt_finger_delete(struct toku_rbt_node* node, struct toku_rbt_tree *rbinfo);
 
-int toku_rbt_finger_predecessor(const struct toku_rbt_node** pfinger, const toku_range** ppred_data);
+int toku_rbt_finger_predecessor(struct toku_rbt_node** pfinger, toku_range** ppred_data);
 
-int toku_rbt_finger_successor(const struct toku_rbt_node** pfinger, const toku_range** psucc_data);
+int toku_rbt_finger_successor(struct toku_rbt_node** pfinger, toku_range** psucc_data);
 
 void toku_rbt_destroy(struct toku_rbt_tree *);
 
