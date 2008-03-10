@@ -181,8 +181,7 @@ our $opt_warnings= 1;
 
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
-our $opt_with_ndbcluster= 0;
-our $glob_ndbcluster_supported= 0;
+our $opt_with_ndbcluster;
 our $opt_ndb_extra_test= 0;
 
 our $exe_ndb_mgm="";
@@ -1101,7 +1100,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
   # --------------------------------------------------------------------------
-  if ( $glob_ndbcluster_supported )
+  if ( !$opt_skip_ndbcluster )
   {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
@@ -1549,27 +1548,19 @@ sub check_ndbcluster_support ($) {
   if ($opt_skip_ndbcluster)
   {
     mtr_report(" - skipping ndbcluster");
-    $opt_skip_ndbcluster_slave= 1;
+    $opt_skip_ndbcluster_slave= $opt_skip_ndbcluster;
     return;
   }
 
   if ( ! $mysqld_variables{'ndb-connectstring'} )
   {
     mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
-    $opt_skip_ndbcluster= 1;
-    $opt_skip_ndbcluster_slave= 1;
+    $opt_skip_ndbcluster= 2;
+    $opt_skip_ndbcluster_slave= 2;
     return;
   }
 
-  $glob_ndbcluster_supported= 1;
   mtr_report(" - using ndbcluster when necessary, mysqld supports it");
-
-  if ( $mysql_version_id < 50100 )
-  {
-    # Slave cluster is not supported until 5.1
-    $opt_skip_ndbcluster_slave= 1;
-
-  }
 
   return;
 }

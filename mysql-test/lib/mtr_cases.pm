@@ -820,7 +820,7 @@ sub collect_one_test_case {
   if ( $tinfo->{'ndb_test'} )
   {
     # This is a NDB test
-    if ( ! $::glob_ndbcluster_supported )
+    if ( $::opt_skip_ndbcluster == 2 )
     {
       # Ndb is not supported, skip it
       $tinfo->{'skip'}= 1;
@@ -969,6 +969,7 @@ my @tags=
  ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["include/master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
+ ["include/ndb_master-slave.inc", "ndb_test", 1],
  ["include/federated.inc", "federated_test", 1],
  ["include/not_embedded.inc", "not_embedded", 1],
 );
