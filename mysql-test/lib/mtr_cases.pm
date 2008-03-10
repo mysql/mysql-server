@@ -1004,13 +1004,19 @@ sub tags_from_test_file {
       $value =~ s/^\s+//;  # Remove leading space
       $value =~ s/[[:space:]]+$//;  # Remove ending space
 
-      my $sourced_file= "$::glob_mysql_test_dir/$value";
-      if ( -f $sourced_file )
+      # Sourced file may exist relative to test or
+      # in global location
+      foreach my $sourced_file (dirname($file). "/$value",
+				"$::glob_mysql_test_dir/$value")
       {
-	# Only source the file if it exists, we may get
-	# false positives in the regexes above if someone
-	# writes "source nnnn;" in a test case(such as mysqltest.test)
-	tags_from_test_file($tinfo, $sourced_file);
+	if ( -f $sourced_file )
+	{
+	  # Only source the file if it exists, we may get
+	  # false positives in the regexes above if someone
+	  # writes "source nnnn;" in a test case(such as mysqltest.test)
+	  tags_from_test_file($tinfo, $sourced_file);
+	  last;
+	}
       }
     }
 
