@@ -1998,6 +1998,7 @@ void Query_cache::make_disabled()
   query_cache_size= 0;
   queries_blocks= 0;
   free_memory= 0;
+  free_memory_blocks= 0;
   bins= 0;
   steps= 0;
   cache= 0;
