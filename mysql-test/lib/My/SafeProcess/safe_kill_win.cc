@@ -29,6 +29,7 @@ int main(int argc, const char** argv )
   DWORD pid= -1;
   HANDLE shutdown_event;
   char safe_process_name[32]= {0};
+  int retry_open_event= 100;
 
   if (argc != 2) {
     fprintf(stderr, "safe_kill <pid>\n");
@@ -39,14 +40,33 @@ int main(int argc, const char** argv )
   _snprintf(safe_process_name, sizeof(safe_process_name), "safe_process[%d]", pid);
 
   /* Open the event to signal */
-  if ((shutdown_event=
-    OpenEvent(EVENT_MODIFY_STATE, FALSE, safe_process_name)) == NULL){
+  while ((shutdown_event=
+          OpenEvent(EVENT_MODIFY_STATE, FALSE, safe_process_name)) == NULL)
+  {
     fprintf(stderr, "Failed to open shutdown_event '%s', error: %d\n",
             safe_process_name, GetLastError());
-    exit(1);
+
+    /* Just check to see if pid exists */
+    HANDLE pid_handle= OpenProcess(SYNCHRONIZE, FALSE, pid);
+    if (pid_handle == NULL)
+      fprintf(stderr, "Could not open process with pid %d, error: %d\n", pid);
+	else
+	  CloseHandle(pid_handle);
+
+    if (retry_open_event--)
+    {
+      fprintf(stderr, "retrying...\n");
+      Sleep(100); /* In milli seconds */
+    }
+    else
+    {
+      fprintf(stderr, "No more retries, exiting");
+      exit(1);
+    }
   }
 
-  if(SetEvent(shutdown_event) == 0) {
+  if(SetEvent(shutdown_event) == 0)
+  {
     fprintf(stderr, "Failed to signal shutdown_event '%s', error: %d\n",
             safe_process_name, GetLastError());
     CloseHandle(shutdown_event);
