@@ -12,7 +12,7 @@
 //Currently this is a stub implementation just so we can write and compile tests
 //before actually implementing the range tree.
 
-#include "rangetree.h"
+#include <rangetree.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -21,7 +21,9 @@ struct __toku_range_tree_local {
     //Logarithmic non-overlapping version only fields:
     toku_rbt*   rbt;
 };
-#include "rangetree-internal.h"
+#include <rangetree-internal.h>
+
+#include <tokuredblack.h>
 
 /*
 Redblack tree.
