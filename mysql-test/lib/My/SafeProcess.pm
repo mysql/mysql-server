@@ -49,7 +49,7 @@ package My::SafeProcess;
 #
 
 use strict;
-
+use Carp;
 use POSIX qw(WNOHANG);
 
 use My::SafeProcess::Base;
@@ -73,7 +73,7 @@ END {
 
 sub is_child {
   my ($self, $parent_pid)= @_;
-  die "usage: \$safe_proc->is_child()" unless (@_ == 2 and ref $self);
+  croak "usage: \$safe_proc->is_child()" unless (@_ == 2 and ref $self);
   return ($self->{PARENT} == $parent_pid);
 }
 
@@ -124,8 +124,8 @@ sub new {
      @_
     );
 
-  my $path     = delete($opts{'path'})    or die "path required @_";
-  my $args     = delete($opts{'args'})    or die "args required @_";
+  my $path     = delete($opts{'path'})    or croak "path required @_";
+  my $args     = delete($opts{'args'})    or croak "args required @_";
   my $input    = delete($opts{'input'});
   my $output   = delete($opts{'output'});
   my $error    = delete($opts{'error'});
@@ -198,7 +198,7 @@ sub run {
 #
 sub timer {
   my $class= shift;
-  my $duration= shift or die "duration required";
+  my $duration= shift or croak "duration required";
   my $parent_pid= $$;
 
   my $pid= My::SafeProcess::Base::_safe_fork();
@@ -296,7 +296,7 @@ sub shutdown {
 #
 sub start_kill {
   my ($self)= @_;
-  die "usage: \$safe_proc->start_kill()" unless (@_ == 1 and ref $self);
+  croak "usage: \$safe_proc->start_kill()" unless (@_ == 1 and ref $self);
   #print "start_kill $self\n";
 
   if (defined $safe_kill and $self->{SAFE_WINPID}){
@@ -321,7 +321,7 @@ sub start_kill {
 #
 sub kill {
   my ($self)= @_;
-  die "usage: \$safe_proc->kill()" unless (@_ == 1 and ref $self);
+  croak "usage: \$safe_proc->kill()" unless (@_ == 1 and ref $self);
 
   $self->start_kill();
   $self->wait_one();
@@ -355,7 +355,7 @@ sub _collect {
 #
 sub wait_one {
   my ($self, $timeout)= @_;
-  die "usage: \$safe_proc->wait_one([timeout])" unless ref $self;
+  croak "usage: \$safe_proc->wait_one([timeout])" unless ref $self;
 
   #print "wait_one $self, $timeout\n";
 
