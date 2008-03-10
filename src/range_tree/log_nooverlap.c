@@ -76,7 +76,7 @@ Finger usefulness:
          (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
 */
     
-static BOOL toku__rt_overlap(toku_range_tree* tree,
+static inline BOOL toku__rt_overlap(toku_range_tree* tree,
                              toku_range* a, toku_range* b) {
     assert(tree);
     assert(a);
@@ -86,7 +86,7 @@ static BOOL toku__rt_overlap(toku_range_tree* tree,
             tree->end_cmp(b->left, a->right) <= 0);
 }
 
-static BOOL toku__rt_exact(toku_range_tree* tree,
+static inline BOOL toku__rt_exact(toku_range_tree* tree,
                             toku_range* a, toku_range* b) {
     assert(tree);
     assert(a);
