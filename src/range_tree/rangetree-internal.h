@@ -20,10 +20,10 @@ struct __toku_range_tree {
     //Shared fields:
     /** A comparison function, as in bsearch(3), to compare the end-points of 
         a range. It is assumed to be commutative. */
-    int       (*end_cmp)(toku_point*,toku_point*);  
+    int       (*end_cmp)(const toku_point*,const toku_point*);  
     /** A comparison function, as in bsearch(3), to compare the data associated
         with a range */
-    int       (*data_cmp)(DB_TXN*,DB_TXN*);
+    int       (*data_cmp)(const DB_TXN*,const DB_TXN*);
     /** Whether this tree allows ranges to overlap */
     BOOL        allow_overlaps;
     /** The number of ranges in the range tree */
@@ -69,8 +69,8 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
 
 static inline int toku_rt_super_create(toku_range_tree** upperptree,
                    toku_range_tree** ptree,
-                   int (*end_cmp)(toku_point*,toku_point*),
-                   int (*data_cmp)(DB_TXN*,DB_TXN*),
+                   int (*end_cmp)(const toku_point*,const toku_point*),
+                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
                    BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),

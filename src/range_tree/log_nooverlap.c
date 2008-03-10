@@ -16,14 +16,15 @@
 #include <errno.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <string.h>
+#include <tokuredblack.h>
 struct __toku_range_tree_local {
     //Logarithmic non-overlapping version only fields:
-    toku_rbt*   rbt;
+    struct toku_rbt_tree* rbt;
 };
 #include <rangetree-internal.h>
 
-#include <tokuredblack.h>
 
 /*
 Redblack tree.
@@ -34,224 +35,295 @@ lookup (type) returns:
     'insertpointer'  (to be used in finger_insert)
 
 Finger usefulness:
-    1- Insert
-        O(lg N) CMPs    We do a lookup(<=) (out elementpointer, out found, out insertpointer)
-                        If found
-                            If overlaps (found.right >= query.left) return error
-                            Do a finger_successor(elementpointer)  (out found2)
-         (0+1)  CMPs        if (found2 and overlaps (found2.left <= query.right) return error
-                        else
-                            Do a lookup(First) (out found2)
-                            if (found2 and overlaps (found2.left <= query.right) return error
-         (0)    CMPs    Do a finger_insert(data, insertpointer)
-    2- Delete
-        O(lg N) CMPs    We do a lookup (==). (out found, out elementpointer)
-                        If !found return error.
-                        (== already checks for left end point)
-                        Data cmp is free (pointer)
-         (0+1)  CMPs    if (found.right != to_insert.data || found.data != to_delete.data), return error.
-         (0)    CMPs    Do a finger_delete(element_pointer)
-    3- Predecessor:
-        O(lg N) CMPs    Do a lookup(<) (out found, out elementpointer)
-                        If !found return "not found"
-         (0+1)  CMPs    If overlaps (found.right >= query)
-         (0)    CMPs        do a finger_predecessor(elementpointer) (out found2)
-                            If found2 return found2.
-                            else return "not found"
-                        else return found.
-    4- Successor:
-        O(lg N) CMPs    Do a lookup (>) (out found)
-                        If found, return found.
-                        return "not found."
-    5- FindOverlaps
-        O(lg N+1) CMPs  Do a lookup (<=) (out found, out elementpointer)
-                        If found
-         (0+1)  CMPs       if overlap (if found.right >= query.left)
-                              Increaes buffer
-                              add found to buffer
-         (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
-                        else
-                           do a lookup (FIRST) (out found, out elementpointer)
-        O(min(k,K))CMPs while (found && found.left <= query.right
-                            Increaes buffer
-                            add found to buffer
-         (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
 */
-    
-static inline BOOL toku__rt_overlap(toku_range_tree* tree,
-                             toku_range* a, toku_range* b) {
-    assert(tree);
-    assert(a);
-    assert(b);
-    //a->left <= b->right && b->left <= a->right
-    return (tree->end_cmp(a->left, b->right) <= 0 &&
-            tree->end_cmp(b->left, a->right) <= 0);
-}
 
-static inline BOOL toku__rt_exact(toku_range_tree* tree,
-                            toku_range* a, toku_range* b) {
-    assert(tree);
-    assert(a);
-    assert(b);
-
-    return (tree->end_cmp (a->left,  b->left)  == 0 &&
-            tree->end_cmp (a->right, b->right) == 0 &&
-            tree->data_cmp(a->data,  b->data)  == 0);
-}
-
+//FIRST PASS
 int toku_rt_create(toku_range_tree** ptree,
-                   int (*end_cmp)(toku_point*,toku_point*),
-                   int (*data_cmp)(DB_TXN*,DB_TXN*),
+                   int (*end_cmp)(const toku_point*,const toku_point*),
+                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
 		           BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t)) {
-    int r;
-    toku_range_tree* tmptree;
+    int r = ENOSYS;
+    toku_range_tree* temptree = NULL;
 
-    if (allow_overlaps) return ENOSYS;
-    r = toku_rt_super_create(ptree, &tmptree, end_cmp, data_cmp, allow_overlaps,
+    if (allow_overlaps) return EINVAL;
+    r = toku_rt_super_create(ptree, &temptree, end_cmp, data_cmp, allow_overlaps,
                              user_malloc, user_free, user_realloc);
-    if (0) {
-        died1:
-        user_free(temptree);
-        return r;
-    }
-    if (r!=0) return r;
+    if (r!=0) { goto cleanup; }
     
     //Any local initializers go here.
-    tmptree->rbt = toku_rbt_init(void);
-    if (!tmptree->rbt) { r = errno; goto died1; }
-    *ptree = tmptree;
+    r = toku_rbt_init(end_cmp, &temptree->i.rbt, user_malloc, user_free, user_realloc);
+    if (r!=0) { goto cleanup; }
 
-    return 0;
+    *ptree = temptree;
+    r = 0;
+cleanup:
+    if (r!=0) {
+        if (temptree) user_free(temptree);
+    }
+    return r;
 }
 
+//FIRST PASS
 int toku_rt_close(toku_range_tree* tree) {
-    if (!tree)                                           return EINVAL;
-    toku_rbt_destroy(tree->rbt);
+    if (!tree) { return EINVAL; }
+    toku_rbt_destroy(tree->i.rbt);
     tree->free(tree);
     return 0;
 }
 
+/*
+5- FindOverlaps
+    O(lg N+1) CMPs  Do a lookup (<=) (out found, out elementpointer)
+                    If found
+     (0+1)  CMPs       if overlap (if found.right >= query.left)
+                          Increaes buffer
+                          add found to buffer
+     (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
+                    else
+                       do a lookup (FIRST) (out found, out elementpointer)
+    O(min(k,K))CMPs while (found && found.left <= query.right
+                        Increaes buffer
+                        add found to buffer
+     (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
+*/
 int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
                  toku_range** buf, u_int32_t* buflen, u_int32_t* numfound) {
-/* TODO: RED BLACK TREE does not support partial scan.
-*/
-    if (!tree || !query || !buf || !buflen || !numfound) return EINVAL;
-    if (query->data != NULL)                             return EINVAL;
-    if (*buflen == 0)                                    return EINVAL;
-    assert(!tree->allow_overlaps);
-   
-    u_int32_t temp_numfound = 0;
-    int r;
-    u_int32_t i;
-    
-    for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_overlap(tree, query, &tree->ranges[i])) {
-            r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
-            if (r != 0) return r;
-            (*buf)[temp_numfound++] = tree->ranges[i];
-            //k == 0 means limit of infinity, this is not a bug.
-            if (temp_numfound == k) break;
-        }
+    int r = ENOSYS;
+
+    if (!tree || !query || !buf || !buflen || !numfound ||
+        query->data != NULL || *buflen == 0) {
+        r = EINVAL; goto cleanup;
     }
-    *numfound = temp_numfound;
-    return 0;
-}
-
-int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
-/* TODO: */
-    if (!tree || !range)                                 return EINVAL;
     assert(!tree->allow_overlaps);
 
-    u_int32_t i;
-    int r;
+    struct toku_rbt_node* ignore_insert = NULL;
+    struct toku_rbt_node* succ_finger   = NULL;
+    toku_range*           data          = NULL;
+    u_int32_t             temp_numfound = 0;
 
-    //EDOM cases
-    if (tree->allow_overlaps) {
-        for (i = 0; i < tree->numelements; i++) {
-            if (toku__rt_exact  (tree, range, &tree->ranges[i])) return EDOM;
+    /* k = 0 means return ALL. (infinity) */
+    if (k == 0) { k = UINT32_MAX; }
+
+    r = toku_rbt_lookup(RB_LULTEQ, query, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+    if (r!=0) { goto cleanup; }
+    if (data != NULL) {
+        if (tree->end_cmp(data->right, query->left) >= 0) {
+            r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
+            if (r!=0) { goto cleanup; }
+            (*buf)[temp_numfound++] = *data;
+        }
+        if (temp_numfound < k) {
+            r = toku_rbt_finger_successor(&succ_finger, &data);
+            if (r!=0) { goto cleanup; }
         }
     }
     else {
-        for (i = 0; i < tree->numelements; i++) {
-            if (toku__rt_overlap(tree, range, &tree->ranges[i])) return EDOM;
-        }
+        r = toku_rbt_lookup(RB_LUFIRST, query, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+        if (r!=0) { goto cleanup; }
     }
-    r = toku__rt_increase_capacity(tree, tree->numelements + 1);
-    if (r != 0) return r;
-    tree->ranges[tree->numelements++] = *range;
-    return 0;
+
+    while (temp_numfound < k && data != NULL) {
+        if (tree->end_cmp(data->left, query->right) > 0) { break; }
+        r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
+        if (r!=0) { goto cleanup; }
+        (*buf)[temp_numfound++] = *data;
+        r = toku_rbt_finger_successor(&succ_finger, &data);
+        if (r!=0) { goto cleanup; }
+    }
+
+    *numfound = temp_numfound;
+    r = 0;
+cleanup:
+    return r;    
 }
 
+/*
+1- Insert
+    O(lg N) CMPs    We do a lookup(<=) (out elementpointer, out found, out insertpointer)
+                    If found
+                        If overlaps (found.right >= query.left) return error
+                        Do a finger_successor(elementpointer)  (out found2)
+     (0+1)  CMPs        if (found2 and overlaps (found2.left <= query.right) return error
+                    else
+                        Do a lookup(First) (out found2)
+                        if (found2 and overlaps (found2.left <= query.right) return error
+     (0)    CMPs    Do a finger_insert(data, insertpointer)
+*/
+int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
+    int r = ENOSYS;
+    if (!tree || !range) { r = EINVAL; goto cleanup; }
+    assert(!tree->allow_overlaps);
+
+    struct toku_rbt_node* insert_finger = NULL;
+    struct toku_rbt_node* ignore_insert = NULL;
+    struct toku_rbt_node* succ_finger   = NULL;
+    toku_range*           data          = NULL;
+
+    r = toku_rbt_lookup(RB_LULTEQ, range, tree->i.rbt, &insert_finger, &succ_finger, &data);
+    if (r!=0) { goto cleanup; }
+    if (data != NULL) {
+        if (tree->end_cmp(data->right, range->left) >= 0) {
+            r = EDOM; goto cleanup;
+        }
+        r = toku_rbt_finger_successor(&succ_finger, &data);
+        if (r!=0) { goto cleanup; }
+    }
+    else {
+        r = toku_rbt_lookup(RB_LUFIRST, range, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+        if (r!=0) { goto cleanup; }
+    }
+    if (data != NULL && tree->end_cmp(data->left, range->right) <= 0) {
+        r = EDOM; goto cleanup;
+    }
+    r = toku_rbt_finger_insert(range, tree->i.rbt, insert_finger);
+    if (r!=0) { goto cleanup; }
+
+    r = 0;
+    tree->numelements++;
+cleanup:
+    return r;
+}
+
+/*
+2- Delete
+    O(lg N) CMPs    We do a lookup (==). (out found, out elementpointer)
+                    If !found return error.
+                    (== already checks for left end point)
+                    Data cmp is free (pointer)
+     (0+1)  CMPs    if (found.right != to_insert.right || found.data != to_delete.data), return error.
+     (0)    CMPs    Do a finger_delete(element_pointer)
+*/
 int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
 /* TODO: */
-    if (!tree || !range)                                 return EINVAL;
-    u_int32_t i;
+    int r = ENOSYS;
+
+    if (!tree || !range) { r = EINVAL; goto cleanup; }
     assert(!tree->allow_overlaps);
-    
-    for (i = 0;
-         i < tree->numelements &&
-         !toku__rt_exact(tree, range, &(tree->ranges[i]));
-         i++) {}
-    //EDOM case: Not Found
-    if (i == tree->numelements) return EDOM;
-    if (i < tree->numelements - 1) {
-        tree->ranges[i] = tree->ranges[tree->numelements - 1];
+
+    struct toku_rbt_node* ignore_insert = NULL;
+    struct toku_rbt_node* delete_finger = NULL;
+    toku_range*           data          = NULL;
+
+    r = toku_rbt_lookup(RB_LUEQUAL, range, tree->i.rbt,
+                        &ignore_insert, &delete_finger, &data);
+    if (r!=0) { goto cleanup; }
+    if (!data ||
+        tree->data_cmp(data->data, range->data)  != 0 ||
+        tree->end_cmp(data->right, range->right) != 0) {
+        r = EDOM; goto cleanup;
     }
-    toku__rt_decrease_capacity(tree, --tree->numelements);
-    return 0;
+
+    r = toku_rbt_finger_delete(delete_finger, tree->i.rbt);
+    if (r!=0) { goto cleanup; }
+
+    r = 0;    
+    tree->numelements--;
+cleanup:
+    return r;
 }
 
+/*
+3- Predecessor:
+    O(lg N) CMPs    Do a lookup(<) (out found, out elementpointer)
+                    If !found return "not found"
+     (0+1)  CMPs    If overlaps (found.right >= query)
+     (0)    CMPs        do a finger_predecessor(elementpointer) (out found2)
+                        If found2 return found2.
+                        else return "not found"
+                    else return found.
+*/
 int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
                          toku_range* pred, BOOL* wasfound) {
-/* TODO: */
-    if (!tree || !point || !pred || !wasfound)           return EINVAL;
-    if (tree->allow_overlaps)                            return EINVAL;
-    toku_range* best = NULL;
-    u_int32_t i;
-
-    for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->ranges[i]) > 0 &&
-            (!best || tree->end_cmp(best->left, tree->ranges[i].left) < 0)) {
-            best = &tree->ranges[i];
-        }
+    int r = ENOSYS;
+    if (!tree || !point || !pred || !wasfound || tree->allow_overlaps) {
+        r = EINVAL; goto cleanup;
     }
-    *wasfound = best != NULL;
-    if (best) *pred = *best;
-    return 0;
-}
 
+    struct toku_rbt_node* ignore_insert = NULL;
+    struct toku_rbt_node* pred_finger   = NULL;
+    toku_range*           data          = NULL;
+    toku_range range;
+    range.left  = point;
+    range.right = point;
+    range.data  = NULL;
+
+    r = toku_rbt_lookup(RB_LULESS, &range, tree->i.rbt, &ignore_insert, &pred_finger, &data);
+    if (r!=0) { goto cleanup; }
+
+    if (!data) {
+        *wasfound = FALSE;
+        r = 0;
+        goto cleanup;
+    }
+    if (tree->end_cmp(data->right, point) < 0) {
+        *wasfound = TRUE;
+        *pred = *data;
+        r = 0;
+        goto cleanup;
+    }
+    r = toku_rbt_finger_predecessor(&pred_finger, &data);
+    if (r!=0) { goto cleanup; }
+    if (!data) {
+        *wasfound = FALSE;
+        r = 0;
+        goto cleanup;
+    }
+    *wasfound = TRUE;
+    *pred = *data;
+    r = 0;
+
+cleanup:    
+    return r;    
+}    
+
+/*
+4- Successor:
+    O(lg N) CMPs    Do a lookup (>) (out found)
+                    If found, return found.
+                    return "not found."
+*/
 int toku_rt_successor (toku_range_tree* tree, toku_point* point,
                        toku_range* succ, BOOL* wasfound) {
-/* TODO: */
-    if (!tree || !point || !succ || !wasfound)           return EINVAL;
-    if (tree->allow_overlaps)                            return EINVAL;
-    toku_range* best = NULL;
-    u_int32_t i;
-
-    for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->ranges[i]) < 0 &&
-            (!best || tree->end_cmp(best->left, tree->ranges[i].left) > 0)) {
-            best = &tree->ranges[i];
-        }
+    int r = ENOSYS;
+    if (!tree || !point || !succ || !wasfound || tree->allow_overlaps) {
+        r = EINVAL; goto cleanup;
     }
-    *wasfound = best != NULL;
-    if (best) *succ = *best;
-    return 0;
+
+    struct toku_rbt_node* ignore_insert = NULL;
+    struct toku_rbt_node* succ_finger   = NULL;
+    toku_range*           data          = NULL;
+    toku_range range;
+    range.left  = point;
+    range.right = point;
+    range.data  = NULL;
+
+    r = toku_rbt_lookup(RB_LUGREAT, &range, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+    if (r!=0) { goto cleanup; }
+
+    if (!data) {
+        *wasfound = FALSE;
+        r = 0;
+        goto cleanup;
+    }
+    *wasfound = TRUE;
+    *succ = *data;
+    r = 0;
+cleanup:    
+    return r;    
 }
 
 int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed) {
-    if (!tree || !allowed)                               return EINVAL;
+    if (!tree || !allowed) return EINVAL;
     assert(!tree->allow_overlaps);
     *allowed = tree->allow_overlaps;
     return 0;
 }
 
 int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size) {
-/* TODO: */
-    if (!tree || !size)                                  return EINVAL;
+    if (!tree || !size) return EINVAL;
     *size = tree->numelements;
     return 0;
 }

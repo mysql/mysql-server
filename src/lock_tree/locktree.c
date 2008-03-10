@@ -83,11 +83,11 @@ static inline DBT* toku__recreate_DBT(DBT* dbt, void* payload, u_int32_t length)
     return dbt;
 }
 
-static inline int toku__lt_txn_cmp(DB_TXN* a, DB_TXN* b) {
+static inline int toku__lt_txn_cmp(const DB_TXN* a, const DB_TXN* b) {
     return a < b ? -1 : (a != b);
 }
 
-int toku__lt_point_cmp(toku_point* x, toku_point* y) {
+int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
     int partial_result;
     DBT point_1;
     DBT point_2;
