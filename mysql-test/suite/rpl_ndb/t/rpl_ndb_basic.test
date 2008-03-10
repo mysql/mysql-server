@@ -184,14 +184,11 @@ set GLOBAL slave_transaction_retries=1;
 --echo **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 
-# wait for deadlock to be detected
-# sleep longer than dead lock detection timeout in config
-# we do this 2 times, once with few retries to verify that we 
-# get a failure with the set sleep, and once with the _same_
-# sleep, but with more retries to get it to succeed
---sleep 5
+# Wait for deadlock to be detected.
+# When detected, the slave will stop, so we just wait for it to stop.
+source include/wait_for_slave_sql_to_stop.inc;
 
-# replication should have stopped, since max retries where not enough
+# Replication should have stopped, since max retries were not enough.
 # verify with show slave status
 --connection slave
 --echo **** On Slave ****
@@ -202,9 +199,14 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 # now set max retries high enough to succeed, and start slave again
 set GLOBAL slave_transaction_retries=10;
 START SLAVE;
-# wait for deadlock to be detected and retried
-# should be the same sleep as above for test to be valid
---sleep 5
+source include/wait_for_slave_to_start.inc;
+# Wait for deadlock to be detected and retried.
+# We want to wait until at least one retry has been made, but before
+# the slave stops. currently, there is no safe way to do that: we
+# would need to access the retry counter, but that is not exposed.
+# Failing that, we just wait sufficiently long that one but not all
+# retries have been made. See BUG#35183.
+sleep 5;
 
 # commit transaction to release lock on row and let replication succeed
 select * from t1 order by nid;
