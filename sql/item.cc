@@ -1237,6 +1237,22 @@ bool Item_name_const::is_null()
   return value_item->is_null();
 }
 
+
+Item_name_const::Item_name_const(Item *name_arg, Item *val):
+    value_item(val), name_item(name_arg)
+{
+  if (!(valid_args= name_item->basic_const_item() &&
+                    (value_item->basic_const_item() ||
+                     ((value_item->type() == FUNC_ITEM) &&
+                      (((Item_func *) value_item)->functype() ==
+                                                 Item_func::NEG_FUNC) &&
+                      (((Item_func *) value_item)->key_item()->type() !=
+                       FUNC_ITEM)))))
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
+  Item::maybe_null= TRUE;
+}
+
+
 Item::Type Item_name_const::type() const
 {
   /*
@@ -1248,8 +1264,17 @@ Item::Type Item_name_const::type() const
     if (item->type() == FIELD_ITEM) 
       ((Item_field *) item)->... 
     we return NULL_ITEM in the case to avoid wrong casting.
+
+    valid_args guarantees value_item->basic_const_item(); if type is
+    FUNC_ITEM, then we have a fudged item_func_neg() on our hands
+    and return the underlying type.
   */
-  return valid_args ? value_item->type() : NULL_ITEM;
+  return valid_args ?
+             (((value_item->type() == FUNC_ITEM) &&
+               (((Item_func *) value_item)->functype() == Item_func::NEG_FUNC)) ?
+             ((Item_func *) value_item)->key_item()->type() :
+             value_item->type()) :
+           NULL_ITEM;
 }
 
 
