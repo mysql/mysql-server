@@ -25,7 +25,7 @@ if HAVE_DTRACE
   libtokudb_engine_la_LIBADD += tokudb_probes.o
 endif
 
-libtokudb_engine_la_LDFLAGS =	-module
+libtokudb_engine_la_LDFLAGS =	-module $(TOKUDB_LIB)
 libtokudb_engine_la_CFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 libtokudb_engine_la_CXXFLAGS = $(AM_CFLAGS) -DMYSQL_DYNAMIC_PLUGIN
 
