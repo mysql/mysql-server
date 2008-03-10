@@ -26,7 +26,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
-#include "redblack.h"
+#include <tokuredblack.h>
 #include <assert.h>
 
 /* Dummy (sentinel) node, so that we can make X->left->up = X
