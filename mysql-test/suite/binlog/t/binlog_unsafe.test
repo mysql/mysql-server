@@ -81,6 +81,7 @@ INSERT INTO t1 VALUES (@@global.sync_binlog);
 INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t1 VALUES (@@global.auto_increment_increment);
 INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t2 VALUES (@@global.init_slave);
 INSERT INTO t2 VALUES (@@hostname);
 
@@ -93,6 +94,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@session.insert_id);
   INSERT INTO t1 VALUES (@@global.auto_increment_increment);
   INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
   INSERT INTO t2 VALUES (@@global.init_slave);
   INSERT INTO t2 VALUES (@@hostname);
 END|
@@ -110,6 +112,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@session.insert_id);
   INSERT INTO t1 VALUES (@@global.auto_increment_increment);
   INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
   INSERT INTO t2 VALUES (@@global.init_slave);
   INSERT INTO t2 VALUES (@@hostname);
   RETURN 0;
@@ -129,6 +132,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@session.insert_id);
   INSERT INTO t1 VALUES (@@global.auto_increment_increment);
   INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
   INSERT INTO t2 VALUES (@@global.init_slave);
   INSERT INTO t2 VALUES (@@hostname);
 END|
@@ -142,10 +146,12 @@ PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
 PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
 PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
 PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
-PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
-PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@hostname)';
+PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
+PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
+PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
 
-EXECUTE p1; EXECUTE p2; EXECUTE p3; EXECUTE p4; EXECUTE p5; EXECUTE p6;
+EXECUTE p1; EXECUTE p2; EXECUTE p3; EXECUTE p4; EXECUTE p5;
+EXECUTE p6; EXECUTE p7;
 
 --echo ---- Insert from nested call of triggers / functions / procedures ----
 
@@ -200,7 +206,6 @@ INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
 INSERT INTO t1 VALUES (@@session.foreign_key_checks);
 INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
 INSERT INTO t1 VALUES (@@session.unique_checks);
-INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t1 VALUES (@@session.auto_increment_increment);
 INSERT INTO t1 VALUES (@@session.auto_increment_offset);
 INSERT INTO t2 VALUES (@@session.character_set_client);

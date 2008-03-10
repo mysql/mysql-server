@@ -20,6 +20,9 @@ Warning	1592	Statement is not safe to log in statement format.
 INSERT INTO t2 SELECT UUID();
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
+INSERT INTO t2 VALUES (@@session.sql_mode);
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
 INSERT INTO t2 VALUES (@@global.init_slave);
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
@@ -33,11 +36,13 @@ INSERT INTO t1 VALUES (@@global.sync_binlog);
 INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t1 VALUES (@@global.auto_increment_increment);
 INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t2 VALUES (@@global.init_slave);
 INSERT INTO t2 VALUES (@@hostname);
 END|
 CALL proc();
 Warnings:
+Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
@@ -52,6 +57,7 @@ INSERT INTO t1 VALUES (@@global.sync_binlog);
 INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t1 VALUES (@@global.auto_increment_increment);
 INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t2 VALUES (@@global.init_slave);
 INSERT INTO t2 VALUES (@@hostname);
 RETURN 0;
@@ -60,6 +66,7 @@ SELECT func();
 func()
 0
 Warnings:
+Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
@@ -75,6 +82,7 @@ INSERT INTO t1 VALUES (@@global.sync_binlog);
 INSERT INTO t1 VALUES (@@session.insert_id);
 INSERT INTO t1 VALUES (@@global.auto_increment_increment);
 INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t2 VALUES (@@global.init_slave);
 INSERT INTO t2 VALUES (@@hostname);
 END|
@@ -87,13 +95,15 @@ Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 ---- Insert from prepared statement ----
 PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
 PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
 PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
 PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
-PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
-PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@hostname)';
+PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
+PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
+PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
 EXECUTE p1;
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
@@ -110,6 +120,9 @@ EXECUTE p5;
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
 EXECUTE p6;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+EXECUTE p7;
 Warnings:
 Warning	1592	Statement is not safe to log in statement format.
 ---- Insert from nested call of triggers / functions / procedures ----
@@ -147,13 +160,13 @@ Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
 Warning	1592	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
 ==== Variables that should *not* be unsafe ====
 INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
 INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
 INSERT INTO t1 VALUES (@@session.foreign_key_checks);
 INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
 INSERT INTO t1 VALUES (@@session.unique_checks);
-INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t1 VALUES (@@session.auto_increment_increment);
 INSERT INTO t1 VALUES (@@session.auto_increment_offset);
 INSERT INTO t2 VALUES (@@session.character_set_client);
@@ -179,4 +192,3 @@ DROP PROCEDURE proc4;
 DROP FUNCTION  func5;
 DROP PREPARE   prep6;
 DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
-DROP VIEW v1;
