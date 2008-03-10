@@ -59,9 +59,9 @@ static struct toku_rbt_node* toku_rbt__insert(
 
 static struct toku_rbt_node *toku_rbt__lookup(int, const toku_range * , struct toku_rbt_tree *, struct toku_rbt_node**);
 
-static void toku_rbt__destroy(struct toku_rbt_node *);
+static void toku_rbt__destroy(struct toku_rbt_tree *rbinfo, struct toku_rbt_node *);
 
-static void toku_rbt__delete(struct toku_rbt_node **, struct toku_rbt_node *);
+static void toku_rbt__delete(struct toku_rbt_tree* rbinfo, struct toku_rbt_node **, struct toku_rbt_node *);
 static void toku_rbt__delete_fix(struct toku_rbt_node **, struct toku_rbt_node *);
 
 /*
@@ -132,7 +132,7 @@ toku_rbt_destroy(struct toku_rbt_tree *rbinfo)
         return;
 
     if (rbinfo->rb_root!=RBNULL)
-        toku_rbt__destroy(rbinfo->rb_root);
+        toku_rbt__destroy(rbinfo, rbinfo->rb_root);
     
     rbinfo->rb_free(rbinfo);
 }
@@ -141,7 +141,7 @@ int toku_rbt_finger_delete(struct toku_rbt_node* node, struct toku_rbt_tree *rbi
     int r = ENOSYS;
 
     if (!rbinfo || !node || node == RBNULL) { r = EINVAL; goto cleanup; }
-    toku_rbt__delete(&rbinfo->rb_root, node);
+    toku_rbt__delete(rbinfo, &rbinfo->rb_root, node);
     r = 0;
 cleanup:
     return r;
@@ -424,14 +424,14 @@ toku_rbt__lookup(int mode, const toku_range *key, struct toku_rbt_tree *rbinfo, 
  * only useful as part of a complete tree destroy.
  */
 static void
-toku_rbt__destroy(struct toku_rbt_node *x)
+toku_rbt__destroy(struct toku_rbt_tree *rbinfo, struct toku_rbt_node *x)
 {
     if (x!=RBNULL)
     {
         if (x->left!=RBNULL)
-            toku_rbt__destroy(x->left);
+            toku_rbt__destroy(rbinfo, x->left);
         if (x->right!=RBNULL)
-            toku_rbt__destroy(x->right);
+            toku_rbt__destroy(rbinfo, x->right);
         toku_rbt__free(rbinfo,x);
     }
 }
@@ -642,7 +642,7 @@ const toku_range* toku_rbt_finger_insert(
 /* Delete the node z, and free up the space
 */
 static void
-toku_rbt__delete(struct toku_rbt_node **rootp, struct toku_rbt_node *z)
+toku_rbt__delete(struct toku_rbt_tree* rbinfo, struct toku_rbt_node **rootp, struct toku_rbt_node *z)
 {
     struct toku_rbt_node *x, *y;
 
