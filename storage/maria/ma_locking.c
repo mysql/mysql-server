@@ -280,7 +280,6 @@ void _ma_get_status(void* param, int concurrent_insert)
 void _ma_update_status(void* param)
 {
   MARIA_HA *info=(MARIA_HA*) param;
-  MARIA_SHARE *share= info->s;
   /*
     Because someone may have closed the table we point at, we only
     update the state if its our own state.  This isn't a problem as
@@ -289,6 +288,7 @@ void _ma_update_status(void* param)
   */
   if (info->state == &info->save_state)
   {
+    MARIA_SHARE *share= info->s;
 #ifndef DBUG_OFF
     DBUG_PRINT("info",("updating status:  key_file: %ld  data_file: %ld",
 		       (long) info->state->key_file_length,

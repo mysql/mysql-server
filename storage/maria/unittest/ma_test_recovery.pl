@@ -353,16 +353,11 @@ sub apply_log
 sub md5_conv
 {
   my ($file)= @_;
-  my ($md5);
 
   open(FILE, $file) or die "Can't open '$file': $!\n";
   binmode(FILE);
-
-  $md5= Digest::MD5->new;
-  while (<FILE>)
-  {
-    $md5->add($_);
-  }
+  my $md5= Digest::MD5->new;
+  $md5->addfile(FILE);
   close (FILE);
   return $md5->hexdigest . "\n";
 }
