@@ -1,0 +1,336 @@
+SHOW TABLES FROM information_schema LIKE 'TABLE_PRIVILEGES';
+Tables_in_information_schema (TABLE_PRIVILEGES)
+TABLE_PRIVILEGES
+#######################################################################
+# Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+#######################################################################
+DROP VIEW      IF EXISTS test.v1;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP FUNCTION  IF EXISTS test.f1;
+CREATE VIEW test.v1 AS     SELECT * FROM information_schema.TABLE_PRIVILEGES;
+CREATE PROCEDURE test.p1() SELECT * FROM information_schema.TABLE_PRIVILEGES;
+CREATE FUNCTION test.f1() returns BIGINT
+BEGIN
+DECLARE counter BIGINT DEFAULT NULL;
+SELECT COUNT(*) INTO counter FROM information_schema.TABLE_PRIVILEGES;
+RETURN counter;
+END//
+# Attention: The printing of the next result sets is disabled.
+SELECT * FROM information_schema.TABLE_PRIVILEGES;
+SELECT * FROM test.v1;
+CALL test.p1;
+SELECT test.f1();
+DROP VIEW test.v1;
+DROP PROCEDURE test.p1;
+DROP FUNCTION test.f1;
+#########################################################################
+# Testcase 3.2.11.1: INFORMATION_SCHEMA.TABLE_PRIVILEGES layout
+#########################################################################
+DESCRIBE          information_schema.TABLE_PRIVILEGES;
+Field	Type	Null	Key	Default	Extra
+GRANTEE	varchar(81)	NO			
+TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_SCHEMA	varchar(64)	NO			
+TABLE_NAME	varchar(64)	NO			
+PRIVILEGE_TYPE	varchar(64)	NO			
+IS_GRANTABLE	varchar(3)	NO			
+SHOW CREATE TABLE information_schema.TABLE_PRIVILEGES;
+Table	Create Table
+TABLE_PRIVILEGES	CREATE TEMPORARY TABLE `TABLE_PRIVILEGES` (
+  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+SHOW COLUMNS FROM information_schema.TABLE_PRIVILEGES;
+Field	Type	Null	Key	Default	Extra
+GRANTEE	varchar(81)	NO			
+TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_SCHEMA	varchar(64)	NO			
+TABLE_NAME	varchar(64)	NO			
+PRIVILEGE_TYPE	varchar(64)	NO			
+IS_GRANTABLE	varchar(3)	NO			
+SELECT table_catalog, table_schema, table_name, privilege_type
+FROM information_schema.table_privileges WHERE table_catalog IS NOT NULL;
+table_catalog	table_schema	table_name	privilege_type
+######################################################################
+# Testcase 3.2.11.2+3.2.11.3+3.2.11.4:
+#          INFORMATION_SCHEMA.TABLE_PRIVILEGES accessible information
+######################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.tb1(f1 INT, f2 INT, f3 INT)
+ENGINE = <engine_type>;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT CREATE, SELECT ON db_datadict.*
+TO 'testuser1'@'localhost' WITH GRANT OPTION;
+GRANT SELECT ON db_datadict.tb1 TO 'testuser1'@'localhost';
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+GRANT ALL    ON db_datadict.tb1 TO 'testuser2'@'localhost' WITH GRANT OPTION;
+DROP   USER 'testuser3'@'localhost';
+CREATE USER 'testuser3'@'localhost';
+# Establish connection testuser1 (user=testuser1)
+CREATE TABLE tb3 (f1 TEXT)
+ENGINE = <other_engine_type>;
+GRANT SELECT ON db_datadict.tb3 TO 'testuser3'@'localhost';
+SELECT * FROM information_schema.table_privileges
+WHERE table_name LIKE 'tb%'
+ORDER BY grantee,table_schema,table_name,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	tb1	SELECT	NO
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT, CREATE ON `db_datadict`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `db_datadict`.`tb1` TO 'testuser1'@'localhost'
+# Establish connection testuser2 (user=testuser3)
+SELECT * FROM information_schema.table_privileges
+WHERE table_name LIKE 'tb%'
+ORDER BY grantee,table_schema,table_name,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser2'@'localhost'	NULL	db_datadict	tb1	ALTER	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	DELETE	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	DROP	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	INDEX	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	INSERT	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
+SHOW GRANTS FOR 'testuser2'@'localhost';
+Grants for testuser2@localhost
+GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO 'testuser2'@'localhost' WITH GRANT OPTION
+# Establish connection testuser3 (user=testuser3)
+SELECT * FROM information_schema.table_privileges
+WHERE table_name LIKE 'tb%'
+ORDER BY grantee,table_schema,table_name,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser3'@'localhost'	NULL	db_datadict	tb3	SELECT	NO
+SHOW GRANTS FOR 'testuser3'@'localhost';
+Grants for testuser3@localhost
+GRANT USAGE ON *.* TO 'testuser3'@'localhost'
+GRANT SELECT ON `db_datadict`.`tb3` TO 'testuser3'@'localhost'
+# Switch to connection default and close the other connections
+SELECT * FROM information_schema.table_privileges
+WHERE table_name LIKE 'tb%'
+ORDER BY grantee,table_schema,table_name,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	tb1	SELECT	NO
+'testuser2'@'localhost'	NULL	db_datadict	tb1	ALTER	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	CREATE VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	DELETE	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	DROP	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	INDEX	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	INSERT	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	REFERENCES	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	SELECT	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	SHOW VIEW	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	TRIGGER	YES
+'testuser2'@'localhost'	NULL	db_datadict	tb1	UPDATE	YES
+'testuser3'@'localhost'	NULL	db_datadict	tb3	SELECT	NO
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT, CREATE ON `db_datadict`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT SELECT ON `db_datadict`.`tb1` TO 'testuser1'@'localhost'
+SHOW GRANTS FOR 'testuser2'@'localhost';
+Grants for testuser2@localhost
+GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT ALL PRIVILEGES ON `db_datadict`.`tb1` TO 'testuser2'@'localhost' WITH GRANT OPTION
+SHOW GRANTS FOR 'testuser3'@'localhost';
+Grants for testuser3@localhost
+GRANT USAGE ON *.* TO 'testuser3'@'localhost'
+GRANT SELECT ON `db_datadict`.`tb3` TO 'testuser3'@'localhost'
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP USER 'testuser3'@'localhost';
+DROP DATABASE db_datadict;
+################################################################################
+# 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.TABLE_PRIVILEGES modifications
+################################################################################
+DROP TABLE IF EXISTS test.t1_table;
+DROP VIEW  IF EXISTS test.t1_view;
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE test.t1_table (f1 BIGINT)
+DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
+COMMENT = 'Initial Comment' ENGINE = <engine_type>;
+CREATE VIEW test.t1_view AS SELECT 1;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+DROP   USER 'the_user'@'localhost';
+SELECT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%';
+table_name
+GRANT ALL ON test.t1_table TO 'testuser1'@'localhost';
+GRANT ALL ON test.t1_view  TO 'testuser1'@'localhost';
+SELECT * FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY grantee, table_schema, table_name, privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	test	t1_table	ALTER	NO
+'testuser1'@'localhost'	NULL	test	t1_table	CREATE	NO
+'testuser1'@'localhost'	NULL	test	t1_table	CREATE VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_table	DELETE	NO
+'testuser1'@'localhost'	NULL	test	t1_table	DROP	NO
+'testuser1'@'localhost'	NULL	test	t1_table	INDEX	NO
+'testuser1'@'localhost'	NULL	test	t1_table	INSERT	NO
+'testuser1'@'localhost'	NULL	test	t1_table	REFERENCES	NO
+'testuser1'@'localhost'	NULL	test	t1_table	SELECT	NO
+'testuser1'@'localhost'	NULL	test	t1_table	SHOW VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_table	TRIGGER	NO
+'testuser1'@'localhost'	NULL	test	t1_table	UPDATE	NO
+'testuser1'@'localhost'	NULL	test	t1_view	ALTER	NO
+'testuser1'@'localhost'	NULL	test	t1_view	CREATE	NO
+'testuser1'@'localhost'	NULL	test	t1_view	CREATE VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_view	DELETE	NO
+'testuser1'@'localhost'	NULL	test	t1_view	DROP	NO
+'testuser1'@'localhost'	NULL	test	t1_view	INDEX	NO
+'testuser1'@'localhost'	NULL	test	t1_view	INSERT	NO
+'testuser1'@'localhost'	NULL	test	t1_view	REFERENCES	NO
+'testuser1'@'localhost'	NULL	test	t1_view	SELECT	NO
+'testuser1'@'localhost'	NULL	test	t1_view	SHOW VIEW	NO
+'testuser1'@'localhost'	NULL	test	t1_view	TRIGGER	NO
+'testuser1'@'localhost'	NULL	test	t1_view	UPDATE	NO
+SELECT DISTINCT grantee, table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY grantee, table_name;
+grantee	table_name
+'testuser1'@'localhost'	t1_table
+'testuser1'@'localhost'	t1_view
+RENAME USER 'testuser1'@'localhost' TO 'the_user'@'localhost';
+FLUSH PRIVILEGES;
+SELECT DISTINCT grantee, table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY grantee, table_name;
+grantee	table_name
+'the_user'@'localhost'	t1_table
+'the_user'@'localhost'	t1_view
+SHOW GRANTS FOR 'testuser1'@'localhost';
+ERROR 42000: There is no such grant defined for user 'testuser1' on host 'localhost'
+SHOW GRANTS FOR 'the_user'@'localhost';
+Grants for the_user@localhost
+GRANT USAGE ON *.* TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_schema,table_name;
+table_schema	table_name
+test	t1_table
+test	t1_view
+RENAME TABLE test.t1_table TO db_datadict.t1_table;
+RENAME TABLE test.t1_view  TO db_datadict.t1_view;
+ERROR HY000: Changing schema from 'test' to 'db_datadict' is not allowed.
+SELECT DISTINCT table_schema,table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_schema,table_name;
+table_schema	table_name
+test	t1_table
+test	t1_view
+SHOW GRANTS FOR 'the_user'@'localhost';
+Grants for the_user@localhost
+GRANT USAGE ON *.* TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_view` TO 'the_user'@'localhost'
+GRANT ALL PRIVILEGES ON `test`.`t1_table` TO 'the_user'@'localhost'
+REVOKE ALL PRIVILEGES ON test.t1_table FROM 'the_user'@'localhost';
+REVOKE ALL PRIVILEGES ON test.t1_view  FROM 'the_user'@'localhost';
+DROP VIEW test.t1_view;
+CREATE VIEW db_datadict.t1_view AS SELECT 1;
+GRANT ALL ON db_datadict.t1_table TO 'the_user'@'localhost';
+GRANT ALL ON db_datadict.t1_view  TO 'the_user'@'localhost';
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+RENAME TABLE db_datadict.t1_table TO db_datadict.t1_tablex;
+RENAME TABLE db_datadict.t1_view  TO db_datadict.t1_viewx;
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+RENAME TABLE db_datadict.t1_tablex TO db_datadict.t1_table;
+RENAME TABLE db_datadict.t1_viewx  TO db_datadict.t1_view;
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+DROP TABLE db_datadict.t1_table;
+DROP VIEW  db_datadict.t1_view;
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+CREATE TABLE db_datadict.t1_table
+ENGINE = <engine_type> AS
+SELECT 1;
+CREATE VIEW  db_datadict.t1_view      AS SELECT 1;
+GRANT ALL ON db_datadict.t1_table TO 'the_user'@'localhost';
+GRANT ALL ON db_datadict.t1_view  TO 'the_user'@'localhost';
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+DROP DATABASE db_datadict;
+SELECT DISTINCT table_name FROM information_schema.table_privileges
+WHERE table_name LIKE 't1_%'
+ORDER BY table_name;
+table_name
+t1_table
+t1_view
+DROP USER 'the_user'@'localhost';
+########################################################################
+# Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+#           DDL on INFORMATION_SCHEMA table are not supported
+########################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT)
+ENGINE = <engine_type>;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT (f1) ON db_datadict.t1 TO 'testuser1'@'localhost';
+INSERT INTO information_schema.table_privileges
+SELECT * FROM information_schema.table_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE information_schema.table_privileges SET table_schema = 'test'
+WHERE table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.table_privileges WHERE table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+TRUNCATE information_schema.table_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE INDEX my_idx_on_tables
+ON information_schema.table_privileges(table_schema);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_privileges ADD f1 INT;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE information_schema.table_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_privileges
+RENAME db_datadict.table_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_privileges
+RENAME information_schema.xtable_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP DATABASE db_datadict;
+DROP USER 'testuser1'@'localhost';

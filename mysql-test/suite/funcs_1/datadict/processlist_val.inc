@@ -306,3 +306,4 @@ connection default;
 --echo ----- close connection ddicttestuser1 -----
 disconnect ddicttestuser1;
 DROP USER ddicttestuser1@'localhost';
+DROP TABLE test.t1;
