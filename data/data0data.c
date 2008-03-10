@@ -561,9 +561,19 @@ dtuple_convert_big_rec(
 	dict_field_t*	ifield;
 	ulint		size;
 	ulint		n_fields;
+	ulint		local_len;
+	ulint		local_prefix_len;
 
 	if (UNIV_UNLIKELY(!dict_index_is_clust(index))) {
 		return(NULL);
+	}
+
+	if (dict_table_get_format(index->table) < DICT_TF_FORMAT_ZIP) {
+		/* up to MySQL 5.1: store a 768-byte prefix locally */
+		local_len = BTR_EXTERN_FIELD_REF_SIZE + DICT_MAX_INDEX_COL_LEN;
+	} else {
+		/* new-format table: do not store any BLOB prefix locally */
+		local_len = BTR_EXTERN_FIELD_REF_SIZE;
 	}
 
 	ut_a(dtuple_check_typed_no_assert(entry));
@@ -598,9 +608,11 @@ dtuple_convert_big_rec(
 							     *n_ext),
 				      dict_table_is_comp(index->table),
 				      dict_table_zip_size(index->table))) {
-		ulint	i;
-		ulint	longest		= 0;
-		ulint	longest_i	= ULINT_MAX;
+		ulint			i;
+		ulint			longest		= 0;
+		ulint			longest_i	= ULINT_MAX;
+		byte*			data;
+		big_rec_field_t*	b;
 
 		for (i = dict_index_get_n_unique_in_tree(index);
 		     i < dtuple_get_n_fields(entry); i++) {
@@ -615,13 +627,13 @@ dtuple_convert_big_rec(
 			if (ifield->fixed_len
 			    || dfield_is_null(dfield)
 			    || dfield_is_ext(dfield)
+			    || dfield_get_len(dfield) <= local_len
 			    || dfield_get_len(dfield)
 			    <= BTR_EXTERN_FIELD_REF_SIZE * 2) {
 				goto skip_field;
 			}
 
-			savings = dfield_get_len(dfield)
-				- BTR_EXTERN_FIELD_REF_SIZE;
+			savings = dfield_get_len(dfield) - local_len;
 
 			/* Check that there would be savings */
 			if (longest >= savings) {
@@ -651,25 +663,32 @@ skip_field:
 
 		dfield = dtuple_get_nth_field(entry, longest_i);
 		ifield = dict_index_get_nth_field(index, longest_i);
-		vector->fields[n_fields].field_no = longest_i;
+		local_prefix_len = local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
-		vector->fields[n_fields].len = dfield_get_len(dfield);
+		b = &vector->fields[n_fields];
+		b->field_no = longest_i;
+		b->len = dfield_get_len(dfield) - local_prefix_len;
+		b->data = (char*) dfield_get_data(dfield) + local_prefix_len;
 
-		vector->fields[n_fields].data = dfield_get_data(dfield);
+		/* Allocate the locally stored part of the column. */
+		data = mem_heap_alloc(heap, local_len);
 
-		/* Set the extern field reference in dfield to zero */
-		dfield_set_data(dfield,
-				mem_heap_zalloc(heap,
-						BTR_EXTERN_FIELD_REF_SIZE),
-				BTR_EXTERN_FIELD_REF_SIZE);
-		dfield_set_ext(dfield);
+		/* Copy the local prefix. */
+		memcpy(data, dfield_get_data(dfield), local_prefix_len);
+		/* Clear the extern field reference (BLOB pointer). */
+		memset(data + local_prefix_len, 0, BTR_EXTERN_FIELD_REF_SIZE);
 #if 0
 		/* The following would fail the Valgrind checks in
 		page_cur_insert_rec_low() and page_cur_insert_rec_zip().
 		The BLOB pointers in the record will be initialized after
 		the record and the BLOBs have been written. */
-		UNIV_MEM_ALLOC(dfield->data, BTR_EXTERN_FIELD_REF_SIZE);
+		UNIV_MEM_ALLOC(data + local_prefix_len,
+			       BTR_EXTERN_FIELD_REF_SIZE);
 #endif
+
+		dfield_set_data(dfield, data, local_len);
+		dfield_set_ext(dfield);
+
 		n_fields++;
 		(*n_ext)++;
 		ut_ad(n_fields < dtuple_get_n_fields(entry));
@@ -692,16 +711,26 @@ dtuple_convert_back_big_rec(
 	big_rec_t*	vector)	/* in, own: big rec vector; it is
 				freed in this function */
 {
-	dfield_t*	dfield;
-	ulint		i;
+	big_rec_field_t*		b	= vector->fields;
+	const big_rec_field_t* const	end	= b + vector->n_fields;
 
-	for (i = 0; i < vector->n_fields; i++) {
+	for (; b < end; b++) {
+		dfield_t*	dfield;
+		ulint		local_len;
 
-		dfield = dtuple_get_nth_field(entry,
-					      vector->fields[i].field_no);
+		dfield = dtuple_get_nth_field(entry, b->field_no);
+		local_len = dfield_get_len(dfield);
+
 		ut_ad(dfield_is_ext(dfield));
+		ut_ad(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+		local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+		ut_ad(local_len <= DICT_MAX_INDEX_COL_LEN);
+
 		dfield_set_data(dfield,
-				vector->fields[i].data, vector->fields[i].len);
+				(char*) b->data - local_len,
+				b->len + local_len);
 	}
 
 	mem_heap_free(vector->heap);

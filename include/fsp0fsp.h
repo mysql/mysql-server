@@ -82,6 +82,14 @@ fsp_header_get_space_id(
 				/* out: space id, ULINT UNDEFINED if error */
 	const page_t*	page);	/* in: first page of a tablespace */
 /**************************************************************************
+Reads the space flags from the first page of a tablespace. */
+UNIV_INTERN
+ulint
+fsp_header_get_flags(
+/*=================*/
+				/* out: flags */
+	const page_t*	page);	/* in: first page of a tablespace */
+/**************************************************************************
 Reads the compressed page size from the first page of a tablespace. */
 UNIV_INTERN
 ulint
@@ -100,8 +108,8 @@ fsp_header_init_fields(
 /*===================*/
 	page_t*	page,		/* in/out: first page in the space */
 	ulint	space_id,	/* in: space id */
-	ulint	zip_size);	/* in: compressed page size in bytes;
-				0 for uncompressed pages */
+	ulint	flags);		/* in: compressed page size and
+				file format version, or 0 */
 /**************************************************************************
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */
