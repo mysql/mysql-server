@@ -1,0 +1,304 @@
+SHOW TABLES FROM information_schema LIKE 'SCHEMA_PRIVILEGES';
+Tables_in_information_schema (SCHEMA_PRIVILEGES)
+SCHEMA_PRIVILEGES
+#######################################################################
+# Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+#######################################################################
+DROP VIEW      IF EXISTS test.v1;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP FUNCTION  IF EXISTS test.f1;
+CREATE VIEW test.v1 AS     SELECT * FROM information_schema.SCHEMA_PRIVILEGES;
+CREATE PROCEDURE test.p1() SELECT * FROM information_schema.SCHEMA_PRIVILEGES;
+CREATE FUNCTION test.f1() returns BIGINT
+BEGIN
+DECLARE counter BIGINT DEFAULT NULL;
+SELECT COUNT(*) INTO counter FROM information_schema.SCHEMA_PRIVILEGES;
+RETURN counter;
+END//
+# Attention: The printing of the next result sets is disabled.
+SELECT * FROM information_schema.SCHEMA_PRIVILEGES;
+SELECT * FROM test.v1;
+CALL test.p1;
+SELECT test.f1();
+DROP VIEW test.v1;
+DROP PROCEDURE test.p1;
+DROP FUNCTION test.f1;
+#########################################################################
+# Testcase 3.2.15.1: INFORMATION_SCHEMA.SCHEMA_PRIVILEGES layout
+#########################################################################
+DESCRIBE          information_schema.SCHEMA_PRIVILEGES;
+Field	Type	Null	Key	Default	Extra
+GRANTEE	varchar(81)	NO			
+TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_SCHEMA	varchar(64)	NO			
+PRIVILEGE_TYPE	varchar(64)	NO			
+IS_GRANTABLE	varchar(3)	NO			
+SHOW CREATE TABLE information_schema.SCHEMA_PRIVILEGES;
+Table	Create Table
+SCHEMA_PRIVILEGES	CREATE TEMPORARY TABLE `SCHEMA_PRIVILEGES` (
+  `GRANTEE` varchar(81) NOT NULL DEFAULT '',
+  `TABLE_CATALOG` varchar(512) DEFAULT NULL,
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `PRIVILEGE_TYPE` varchar(64) NOT NULL DEFAULT '',
+  `IS_GRANTABLE` varchar(3) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+SHOW COLUMNS FROM information_schema.SCHEMA_PRIVILEGES;
+Field	Type	Null	Key	Default	Extra
+GRANTEE	varchar(81)	NO			
+TABLE_CATALOG	varchar(512)	YES		NULL	
+TABLE_SCHEMA	varchar(64)	NO			
+PRIVILEGE_TYPE	varchar(64)	NO			
+IS_GRANTABLE	varchar(3)	NO			
+SELECT GRANTEE, TABLE_CATALOG, TABLE_SCHEMA, PRIVILEGE_TYPE
+FROM information_schema.schema_privileges WHERE table_catalog IS NOT NULL;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE
+###############################################################################
+# Testcase 3.2.15.2-3.2.15.4 INFORMATION_SCHEMA.SCHEMA_PRIVILEGES accessibility
+###############################################################################
+DROP DATABASE IF EXISTS db_datadict_1;
+DROP DATABASE IF EXISTS db_datadict_2;
+DROP DATABASE IF EXISTS db_datadict_3;
+CREATE DATABASE db_datadict_1;
+CREATE DATABASE db_datadict_2;
+CREATE DATABASE db_datadict_3;
+CREATE TABLE db_datadict_2.t1(f1 INT, f2 INT, f3 INT)
+ENGINE = MEMORY;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+DROP   USER 'testuser2'@'localhost';
+CREATE USER 'testuser2'@'localhost';
+GRANT INSERT ON db_datadict_1.*  TO 'testuser1'@'localhost';
+GRANT INSERT ON db_datadict_2.t1 TO 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict_4.*  TO 'testuser1'@'localhost' WITH GRANT OPTION;
+GRANT SELECT ON db_datadict_3.*  TO 'testuser2'@'localhost';
+GRANT SELECT ON db_datadict_1.*  TO 'testuser2'@'localhost';
+# Establish connection testuser1 (user=testuser1)
+GRANT SELECT ON db_datadict_4.*  TO 'testuser2'@'localhost';
+# Root granted INSERT db_datadict_1 to me     -> visible
+# Root granted SELECT db_datadict_1 to testuser2 -> invisible
+# Root granted INSERT db_datadict_2.t1 (no schema-level priv!)
+#          but not db_datadict_2 to me -> invisible
+# Root granted SELECT db_datadict_3. to testuser2 but not to me -> invisible
+# Root granted SELECT db_datadict_4. to me    -> visible
+# I granted SELECT db_datadict_4. to testuser2   -> invisible (reality), visible(requirement)
+# FIXME
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema LIKE 'db_datadict%'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict_1	INSERT	NO
+'testuser1'@'localhost'	NULL	db_datadict_4	SELECT	YES
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT INSERT ON `db_datadict_1`.* TO 'testuser1'@'localhost'
+GRANT SELECT ON `db_datadict_4`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT INSERT ON `db_datadict_2`.`t1` TO 'testuser1'@'localhost'
+SHOW GRANTS FOR 'testuser2'@'localhost';
+ERROR 42000: Access denied for user 'testuser1'@'localhost' to database 'mysql'
+# Establish connection testuser2 (user=testuser2)
+# Root granted SELECT db_datadict_1 to me     -> visible
+# Root granted INSERT db_datadict_1 to testuser1 -> invisible
+# Root granted INSERT db_datadict_2.t1 but not db_datadict_1 to testuser1 -> invisible
+# Root granted SELECT db_datadict_3. to me    -> visible
+# testuser1 granted SELECT db_datadict_4. to me  -> visible
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema LIKE 'db_datadict%'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser2'@'localhost'	NULL	db_datadict_1	SELECT	NO
+'testuser2'@'localhost'	NULL	db_datadict_3	SELECT	NO
+'testuser2'@'localhost'	NULL	db_datadict_4	SELECT	NO
+SHOW GRANTS FOR 'testuser1'@'localhost';
+ERROR 42000: Access denied for user 'testuser2'@'localhost' to database 'mysql'
+SHOW GRANTS FOR 'testuser2'@'localhost';
+Grants for testuser2@localhost
+GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_3`.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_1`.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_4`.* TO 'testuser2'@'localhost'
+# Switch to connection default and close connections testuser1 and testuser2
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema LIKE 'db_datadict%'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict_1	INSERT	NO
+'testuser1'@'localhost'	NULL	db_datadict_4	SELECT	YES
+'testuser2'@'localhost'	NULL	db_datadict_1	SELECT	NO
+'testuser2'@'localhost'	NULL	db_datadict_3	SELECT	NO
+'testuser2'@'localhost'	NULL	db_datadict_4	SELECT	NO
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT INSERT ON `db_datadict_1`.* TO 'testuser1'@'localhost'
+GRANT SELECT ON `db_datadict_4`.* TO 'testuser1'@'localhost' WITH GRANT OPTION
+GRANT INSERT ON `db_datadict_2`.`t1` TO 'testuser1'@'localhost'
+SHOW GRANTS FOR 'testuser2'@'localhost';
+Grants for testuser2@localhost
+GRANT USAGE ON *.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_3`.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_1`.* TO 'testuser2'@'localhost'
+GRANT SELECT ON `db_datadict_4`.* TO 'testuser2'@'localhost'
+DROP USER 'testuser1'@'localhost';
+DROP USER 'testuser2'@'localhost';
+DROP DATABASE db_datadict_1;
+DROP DATABASE db_datadict_2;
+DROP DATABASE db_datadict_3;
+################################################################################
+# 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.SCHEMA_PRIVILEGES modifications
+################################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+DROP   USER 'the_user'@'localhost';
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON test.* TO 'testuser1'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+# Establish connection testuser1 (user=testuser1)
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+# Switch to connection default
+GRANT UPDATE ON db_datadict.* TO 'testuser1'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+# Switch to connection default
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	NO
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	NO
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	NO
+# Switch to connection default
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost' WITH GRANT OPTION;
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+# Switch to connection default
+DROP SCHEMA db_datadict;
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+'testuser1'@'localhost'	NULL	db_datadict	UPDATE	YES
+# Switch to connection default
+REVOKE UPDATE ON db_datadict.* FROM 'testuser1'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'testuser1'@'localhost'	NULL	db_datadict	SELECT	YES
+# Switch to connection default
+RENAME USER 'testuser1'@'localhost' TO 'the_user'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+# Switch to connection testuser1
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+# Close connection testuser1
+# Establish connection the_user (user=the_user)
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+# Close connection the_user
+# Switch to connection default
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+'the_user'@'localhost'	NULL	db_datadict	SELECT	YES
+DROP USER 'the_user'@'localhost';
+SELECT * FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict'
+ORDER BY grantee,table_schema,privilege_type;
+GRANTEE	TABLE_CATALOG	TABLE_SCHEMA	PRIVILEGE_TYPE	IS_GRANTABLE
+########################################################################
+# Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+#           DDL on INFORMATION_SCHEMA table are not supported
+########################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT)
+ENGINE = <engine_type>;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT ON db_datadict.* TO 'testuser1'@'localhost';
+INSERT INTO information_schema.schema_privileges
+SELECT * FROM information_schema.schema_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE information_schema.schema_privileges SET table_schema = 'test'
+WHERE table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.schema_privileges
+WHERE table_schema = 'db_datadict';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+TRUNCATE information_schema.schema_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE INDEX my_idx_on_tables
+ON information_schema.schema_privileges(table_schema);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.schema_privileges ADD f1 INT;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE information_schema.schema_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.schema_privileges
+RENAME db_datadict.schema_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.schema_privileges
+RENAME information_schema.xschema_privileges;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP DATABASE db_datadict;
+DROP USER 'testuser1'@'localhost';

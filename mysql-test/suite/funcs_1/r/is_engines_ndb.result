@@ -1,0 +1,8 @@
+SELECT * FROM information_schema.engines
+WHERE ENGINE = 'ndbcluster';
+ENGINE	ndbcluster
+SUPPORT	YES
+COMMENT	Clustered, fault-tolerant tables
+TRANSACTIONS	YES
+XA	NO
+SAVEPOINTS	NO

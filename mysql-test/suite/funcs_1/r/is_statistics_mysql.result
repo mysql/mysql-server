@@ -1,0 +1,65 @@
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+DROP   USER testuser1@localhost;
+CREATE USER testuser1@localhost;
+GRANT SELECT ON db_datadict.* TO testuser1@localhost;
+SELECT * FROM information_schema.statistics
+WHERE table_schema = 'mysql'
+ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+NULL	mysql	columns_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	columns_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	columns_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	columns_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	columns_priv	0	mysql	PRIMARY	5	Column_name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	db	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	db	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	db	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	db	1	mysql	User	1	User	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	event	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	event	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	func	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_category	0	mysql	PRIMARY	1	help_category_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_keyword	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_relation	0	mysql	PRIMARY	1	help_keyword_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_relation	0	mysql	PRIMARY	2	help_topic_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	name	1	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	help_topic	0	mysql	PRIMARY	1	help_topic_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	host	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	host	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	ndb_binlog_index	0	mysql	PRIMARY	1	epoch	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	plugin	0	mysql	PRIMARY	1	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	proc	0	mysql	PRIMARY	1	db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	proc	0	mysql	PRIMARY	2	name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	proc	0	mysql	PRIMARY	3	type	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	0	mysql	PRIMARY	4	Routine_name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	procs_priv	0	mysql	PRIMARY	5	Routine_type	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	servers	0	mysql	PRIMARY	1	Server_name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	tables_priv	1	mysql	Grantor	1	Grantor	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	tables_priv	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	tables_priv	0	mysql	PRIMARY	2	Db	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	tables_priv	0	mysql	PRIMARY	3	User	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	tables_priv	0	mysql	PRIMARY	4	Table_name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_leap_second	0	mysql	PRIMARY	1	Transition_time	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_name	0	mysql	PRIMARY	1	Name	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_transition	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_transition	0	mysql	PRIMARY	2	Transition_time	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_transition_type	0	mysql	PRIMARY	1	Time_zone_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	time_zone_transition_type	0	mysql	PRIMARY	2	Transition_type_id	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	user	0	mysql	PRIMARY	1	Host	A	#CARD#	NULL	NULL		BTREE	
+NULL	mysql	user	0	mysql	PRIMARY	2	User	A	#CARD#	NULL	NULL		BTREE	
+# Establish connection testuser1 (user=testuser1)
+SELECT * FROM information_schema.statistics
+WHERE table_schema = 'mysql'
+ORDER BY table_schema, table_name, index_name, seq_in_index, column_name;
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	NON_UNIQUE	INDEX_SCHEMA	INDEX_NAME	SEQ_IN_INDEX	COLUMN_NAME	COLLATION	CARDINALITY	SUB_PART	PACKED	NULLABLE	INDEX_TYPE	COMMENT
+# Switch to connection default and close connection testuser1
+DROP USER testuser1@localhost;
+DROP DATABASE db_datadict;

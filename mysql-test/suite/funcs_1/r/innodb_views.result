@@ -1,4 +1,3 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
 drop table if exists tb2 ;
 create table tb2 (
@@ -22896,4 +22895,5 @@ DROP VIEW  IF EXISTS v1_secondview;
 DROP VIEW  IF EXISTS v2;
 DROP DATABASE IF EXISTS test2;
 DROP DATABASE IF EXISTS test3;
-DROP DATABASE IF EXISTS test1;
+DROP DATABASE test1;
+DROP TABLE test.tb2;
