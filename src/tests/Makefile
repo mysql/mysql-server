@@ -68,6 +68,8 @@ foo:
 .PHONY: check check.bdb check.tdb
 check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
 	@ echo ok $@
+tests: tests.bdb tests.tdb
+	@ echo ok $@
 tests.bdb: $(BDB_TESTS)
 	@ echo ok $@
 check.bdb: $(RUN_BDB_TESTS)
