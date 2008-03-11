@@ -337,6 +337,7 @@ mysql_explain_log.pl \
 mysql_install_db.pl \
 mysql_secure_installation.pl \
 mysql_tableinfo.pl \
+mysql_upgrade_shell.pl \
 mysqld_multi.pl \
 mysqldumpslow.pl \
 mysqlhotcopy.pl \
