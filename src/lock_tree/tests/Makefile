@@ -44,7 +44,7 @@ default: check
 
 all: make_libs $(ALL_TESTS)
 
-check: check.lin check.tlin #check.tlog check.log
+check: check.lin check.tlin check.tlog #check.log
 	@ echo $@ ok
 tests.lin: make_libs $(LIN_TESTS)
 	@ echo $@ ok
@@ -102,7 +102,7 @@ libs:
 
 RT_LINEAR_BINS  = ../../range_tree/linear.o
 RT_TLINEAR_BINS = ../../range_tree/linear.o
-RT_TLOG_BINS    = ../../range_tree/tlog.o
+RT_TLOG_BINS    = ../../range_tree/log_nooverlap.o ../../range_tree/tokuredblack.o
 RT_LOG_BINS     = ../../range_tree/log.o
 
 LT_BINS        = ../lth.o ../rth.o
