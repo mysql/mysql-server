@@ -32,7 +32,7 @@ RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
 RUN_LIN_TESTS  = $(patsubst %.lin,%.linrun,$(LIN_TESTS))
 RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
-.PHONY: default all check check.lin check.log tests.lin tests.log tests.tlog
+.PHONY: default all check check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
 default: check
 
@@ -86,14 +86,14 @@ endif
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
 LINEAR_BINS = ../linear.o
-TLOG_BINS   = ../log_nooverlap.o
+TLOG_BINS   = ../log_nooverlap.o ../tokuredblack.o
 LOG_BINS    = ../log.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
-%.tlog: %.c $(HEADERS) $(TLOG_BINS) ../libtokurange.so
-	cc  -L../ -ltokurange -Wl,-rpath,.. -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
+%.tlog: %.c $(HEADERS) $(TLOG_BINS)
+	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c  $(HEADERS) $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 

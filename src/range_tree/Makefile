@@ -5,19 +5,7 @@ OPTFLAGS = -O2
 
 LIBNAME=libtokurange
 
-EXPORTMAP = -Wl,--version-script=rangeexport.map
-VISIBILITY = -fvisibility=hidden
-
-ifneq ($(OSX),)
-LIBRARY=$(LIBNAME).dylib
-SHARED=-dynamiclib
-RPATHNAME=-install_name @rpath/$(LIBRARY)
-CFLAGS+=-fno-common
-else
-LIBRARY=$(LIBNAME).so
-SHARED=-shared $(EXPORTMAP)
-RPATHNAME=
-endif
+VISIBILITY = #-fvisibility=hidden
 
 ifneq ($(GCOV),)
  GCOV_FLAGS = -fprofile-arcs -ftest-coverage
@@ -37,14 +25,13 @@ CFLAGS+=-fno-common
 endif
 
 .PHONY: install
-install: linear.o rangetree.o log_nooverlap.o tokuredblack.o $(LIBRARY) #log.o 
-	cp $(LIBRARY) ../../lib/
+install: linear.o log_nooverlap.o tokuredblack.o rangetree.o #log.o 
 
 clean:
 	rm -rf *.o *.gcno *.gcda *.gcov
 	cd tests && make clean
 
-rangetree.o: linear.o
+rangetree.o: log_nooverlap.o
 	cp $< $@
 
 HEADERS=rangetree.h rangetree-internal.h
@@ -56,6 +43,3 @@ log.o: log.c                        $(HEADERS)
 log_nooverlap.o: log_nooverlap.c    $(HEADERS)
 
 tokuredblack.o:  tokuredblack.c     $(HEADERS) tokuredblack.h
-
-$(LIBRARY): tokuredblack.o
-	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) $(RPATHNAME)
