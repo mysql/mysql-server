@@ -19,8 +19,6 @@ SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
-LIBRARY=$(LIBNAME).$(LIBEXT)
-
 ifneq ($(GCOV),)
  GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 else
