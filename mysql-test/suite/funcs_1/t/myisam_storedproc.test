@@ -3,4 +3,6 @@
 
 let $engine_type= myisam;
 
+--source suite/funcs_1/storedproc/load_sp_tb.inc
+
 --source suite/funcs_1/storedproc/storedproc_master.inc
