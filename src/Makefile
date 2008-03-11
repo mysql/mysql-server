@@ -16,20 +16,19 @@ CFLAGS+= $(VISIBILITY)
 
 
 ifneq ($(OSX),)
-LIBEXT=dylib
+LIBRARY=$(LIBNAME).dylib
 SHARED=-dynamiclib
-RPATHNAME=-install_name @rpath/$(LIBNAME).$(LIBEXT)
+RPATHNAME=-install_name @rpath/$(LIBRARY)
 CFLAGS+=-fno-common
 else
-LIBEXT=so
-SHARED=-shared
+LIBRARY=$(LIBNAME).so
 SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
 .PHONY: install logformat
-install: logformat locktree $(LIBNAME).$(LIBEXT) $(LIBNAME).a
-	cp $(LIBNAME).$(LIBEXT) ../lib/
+install: logformat locktree $(LIBRARY) $(LIBNAME).a
+	cp $(LIBRARY) ../lib/
 	cp $(LIBNAME).a ../lib
 
 logformat:
@@ -38,14 +37,14 @@ logformat:
 locktree:
 	cd lock_tree && make
 
-check: $(LIBNAME).$(LIBEXT)
-	python tokuglobals.py $(LIBNAME).$(LIBEXT)
+check: $(LIBRARY)
+	python tokuglobals.py $(LIBRARY)
 
-strip: $(LIBNAME).$(LIBEXT)
-	strip $(LIBNAME).$(LIBEXT)
+strip: $(LIBRARY)
+	strip $(LIBRARY)
 
 clean:
-	rm -rf $(LIBNAME).$(LIBEXT) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
+	rm -rf $(LIBRARY) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
 	cd tests && make clean
 	cd lock_tree && make clean
 
@@ -57,7 +56,7 @@ RANGETREE_BINS = range_tree/rangetree.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o $(RANGETREE_BINS)
 
 
-$(LIBNAME).$(LIBEXT): $(DBBINS) $(LOCKTREE_BINS)
+$(LIBRARY): $(DBBINS) $(LOCKTREE_BINS)
 	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
 $(LIBNAME).a: $(DBBINS) $(LOCKTREE_BINS)
