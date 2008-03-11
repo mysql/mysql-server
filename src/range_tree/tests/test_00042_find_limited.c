@@ -161,8 +161,9 @@ int main(int argc, const char *argv[]) {
     buflen = 2;
     buf = (toku_range*)toku_malloc(2 * sizeof(toku_range));
     tests(FALSE);
+#ifndef TOKU_RT_NOOVERLAPS
     tests(TRUE);
-
+#endif
     tree = NULL;
     toku_free(buf);
     buf = NULL;
