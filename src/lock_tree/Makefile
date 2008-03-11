@@ -47,7 +47,7 @@ clean:
 
 BINS = locktree.o rth.o lth.o
 
-locktree.o: $(LT_LINEAR)
+locktree.o: $(LT_TLOG)
 	cp $< $@
 
 locktree_global_readset.o: locktree.c locktree.h
