@@ -87,6 +87,7 @@ my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
 our $opt_suites= $DEFAULT_SUITES;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
+$opt_verbose= 1 if IS_WINDOWS;
 our $opt_verbose_restart= 0;  # Verbose output for restarts
 
 my $exe_mysqld;
