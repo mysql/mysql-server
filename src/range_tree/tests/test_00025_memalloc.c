@@ -15,7 +15,7 @@ static void* malloc_fail(size_t size) {
         return malloc(size);
 }
 
-int main(int argc, const char *argv[]) {
+void RunTest (BOOL f_overlaps_allowed) {
     int i, j;
     int r;
     toku_range_tree *tree;
@@ -26,11 +26,10 @@ int main(int argc, const char *argv[]) {
     for (i = 0; i < 1024; i++)
       nums[i] = i;
 
-    parse_args(argc, argv);
 
     /* Insert and delete lots of ranges to force memory increase and decrease */
 
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc, free, realloc);
     CKERR(r);
 
     /* Insert lots of ranges */
@@ -61,16 +60,26 @@ int main(int argc, const char *argv[]) {
     /* Failure when allocating the tree */
     malloc_cnt  = 0;
     malloc_cntl = 1;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc_fail, free, 
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, free, 
                        realloc);
     CKERR2(r, ENOMEM);
 
     /* Failure when allocating the tree ranges */
     malloc_cnt  = 0;
     malloc_cntl = 2;
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc_fail, free, 
+    r = toku_rt_create(&tree, int_cmp, char_cmp, f_overlaps_allowed, malloc_fail, free, 
                        realloc);
     CKERR2(r, ENOMEM);
 
+}
+
+int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
+
+#ifndef TOKU_RT_NOOVERLAPS
+    RunTest(TRUE);
+#endif
+    RunTest(FALSE);
+    
     return 0;
 }
