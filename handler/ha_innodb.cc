@@ -44,10 +44,6 @@ have disabled the InnoDB inlining in this file. */
 /* This is needed because of Bug #3596.  Let us hope that pthread_mutex_t
 is defined the same in both builds: the MySQL server and the InnoDB plugin. */
 extern pthread_mutex_t LOCK_thread_count;
-
-/* this is defined in mysql_priv.h inside #ifdef MYSQL_SERVER
-but we need it here */
-bool check_global_access(THD *thd, ulong want_access);
 #endif /* MYSQL_SERVER */
 
 /** to protect innobase_open_files */
