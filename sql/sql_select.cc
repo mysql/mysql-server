@@ -11563,21 +11563,42 @@ join_read_key(JOIN_TAB *tab)
 }
 
 
+/*
+  ref access method implementation: "read_first" function
+
+  SYNOPSIS
+    join_read_always_key()
+      tab  JOIN_TAB of the accessed table
+
+  DESCRIPTION
+    This is "read_fist" function for the "ref" access method.
+   
+    The functon must leave the index initialized when it returns.
+    ref_or_null access implementation depends on that.
+
+  RETURN
+    0  - Ok
+   -1  - Row not found 
+    1  - Error
+*/
+
 static int
 join_read_always_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
 
+  /* Initialize the index first */
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+ 
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
     if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
         return -1;
-  } 
-  if (!table->file->inited)
-  {
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
   }
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_map(table->record[0],
