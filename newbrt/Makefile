@@ -57,6 +57,7 @@ REGRESSION_TESTS = \
 	brt-test3 \
 	brt-test4 \
 	brt-test-cursor \
+        log-test \
 	test_oexcl \
 	test-assert \
 	test-primes \
@@ -133,7 +134,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+log-test pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -162,7 +163,7 @@ fifo-test: fifo.o memory.o toku_assert.o ybt.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
-log-test: log.o memory.o
+log-test: log.o memory.o toku_assert.o roll.o log_code.o brt-serialize.o brt.o cachetable.o pma.o ybt.o fifo.o key.o fingerprint.o brt-verify.o mempool.o primes.o
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 toku_assert.o: toku_assert.h
