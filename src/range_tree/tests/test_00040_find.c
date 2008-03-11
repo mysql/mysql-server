@@ -21,8 +21,8 @@ int main(int argc, const char *argv[]) {
     int nums[1000];
     char letters[2] = {'A','B'};
     unsigned found;
-    unsigned bufsize = 2;
-    toku_range* buf = (toku_range*)toku_malloc(bufsize*sizeof(toku_range));
+    unsigned bufsize;
+    toku_range* buf;
     unsigned j = 0;
     unsigned i;
 
@@ -41,6 +41,8 @@ int main(int argc, const char *argv[]) {
     find_all_range.data  = NULL;
 
 #ifndef TOKU_RT_NOOVERLAPS
+    bufsize = 2;
+    buf = (toku_range*)toku_malloc(bufsize*sizeof(toku_range));
 
     /* Test overlap case */
     /*
