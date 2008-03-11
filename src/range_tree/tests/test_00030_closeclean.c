@@ -2,7 +2,7 @@
 
 #include "test.h"
 
-int main(int argc, const char *argv[]) {
+void run_test (BOOL overlap_allowed) {
     int r;
     toku_range_tree *tree;
     toku_range range;
@@ -10,14 +10,21 @@ int main(int argc, const char *argv[]) {
     char letters[2] = {'A','B'};
 
 
-    parse_args(argc, argv);
 
     /* Test overlap case */
     /*
         1   2   3   4   5   6   7
         |---A-----------|
     */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, TRUE, malloc, free, realloc);
+    r = toku_rt_create(
+        &tree, 
+        int_cmp, 
+        char_cmp, 
+        overlap_allowed, 
+        malloc, 
+        free, 
+        realloc
+        );
     CKERR(r);
 
     range.left = (toku_point*)&nums[1];
@@ -29,22 +36,14 @@ int main(int argc, const char *argv[]) {
 
     tree = NULL;
 
-    /* Test non-overlap case */
-    /*
-        1   2   3   4   5   6   7
-        |---A-----------|
-    */
-    r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
-    CKERR(r);
+}
 
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[5];
-    range.data = (DB_TXN*)&letters[0];
-    r = toku_rt_insert(tree, &range);   CKERR(r);
+int main(int argc, const char *argv[]) {
+    parse_args(argc, argv);
 
-    r = toku_rt_close(tree);            CKERR(r);
-
-    tree = NULL;
-
+#ifndef TOKU_RT_NOOVERLAPS
+    run_test(TRUE);
+#endif
+    run_test(FALSE);
     return 0;
 }
