@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define dname "log-test-dir"
+#define dname __FILE__ ".dir"
 #define rmrf "rm -rf " dname "/"
 
 int main (int argc __attribute__((__unused__)),
