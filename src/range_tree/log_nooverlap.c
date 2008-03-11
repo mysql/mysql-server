@@ -121,7 +121,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
         }
     }
     else {
-        r = toku_rbt_lookup(RB_LUFIRST, query, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+        r = toku_rbt_lookup(RB_LUFIRST, NULL, tree->i.rbt, &ignore_insert, &succ_finger, &data);
         if (r!=0) { goto cleanup; }
     }
 
@@ -172,7 +172,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
         if (r!=0) { goto cleanup; }
     }
     else {
-        r = toku_rbt_lookup(RB_LUFIRST, range, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+        r = toku_rbt_lookup(RB_LUFIRST, NULL, tree->i.rbt, &ignore_insert, &succ_finger, &data);
         if (r!=0) { goto cleanup; }
     }
     if (data != NULL && tree->end_cmp(data->left, range->right) <= 0) {
