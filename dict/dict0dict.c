@@ -4087,12 +4087,13 @@ dict_table_print_low(
 
 	fprintf(stderr,
 		"--------------------------------------\n"
-		"TABLE: name %s, id %lu %lu, columns %lu, indexes %lu,"
-		" appr.rows %lu\n"
+		"TABLE: name %s, id %lu %lu, flags %lx, columns %lu,"
+		" indexes %lu, appr.rows %lu\n"
 		"  COLUMNS: ",
 		table->name,
 		(ulong) ut_dulint_get_high(table->id),
 		(ulong) ut_dulint_get_low(table->id),
+		(ulong) table->flags,
 		(ulong) table->n_cols,
 		(ulong) UT_LIST_GET_LEN(table->indexes),
 		(ulong) table->stat_n_rows);
