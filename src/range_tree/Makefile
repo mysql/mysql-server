@@ -23,7 +23,7 @@ CFLAGS+=-fno-common
 endif
 
 .PHONY: install logformat
-install: linear.o rangetree.o #log_nooverlap.o log.o 
+install: linear.o rangetree.o log_nooverlap.o tokuredblack.o #log.o 
 
 clean:
 	rm -rf *.o *.gcno *.gcda *.gcov
@@ -39,3 +39,5 @@ linear.o: linear.c                  $(HEADERS)
 log.o: log.c                        $(HEADERS)
 
 log_nooverlap.o: log_nooverlap.c    $(HEADERS)
+
+tokuredblack.o:  tokuredblack.c     $(HEADERS) tokuredblack.h
