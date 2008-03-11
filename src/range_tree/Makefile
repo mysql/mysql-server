@@ -5,7 +5,7 @@ OPTFLAGS = -O2
 
 LIBNAME=libtokurange
 
-EXPORTMAP = -Wl,--version-script=export.map
+EXPORTMAP = -Wl,--version-script=rangeexport.map
 VISIBILITY = -fvisibility=hidden
 
 ifneq ($(OSX),)

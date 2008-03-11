@@ -1,0 +1,13 @@
+{
+ global:
+   toku_rbt_init;
+   toku_rbt_destroy;
+   toku_rbt_lookup;
+   toku_rbt_finger_successor;
+   toku_rbt_finger_insert;
+   toku_rbt_finger_delete;
+   toku_rbt_finger_predecessor;
+
+ local: *;
+};
+

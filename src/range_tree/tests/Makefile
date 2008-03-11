@@ -86,14 +86,14 @@ endif
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
 LINEAR_BINS = ../linear.o
-TLOG_BINS   = ../log_nooverlap.o ../tokuredblack.o
+TLOG_BINS   = ../log_nooverlap.o
 LOG_BINS    = ../log.o
 HEADERS=../rangetree.h ../rangetree-internal.h test.h
 
 %.lin: %.c  $(HEADERS) $(LINEAR_BINS)
 	cc  -DDIR=\"dir.$<.lin\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LINEAR_BINS)
-%.tlog: %.c $(HEADERS) $(TLOG_BINS)
-	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
+%.tlog: %.c $(HEADERS) $(TLOG_BINS) ../libtokurange.so
+	cc  -L../ -ltokurange -Wl,-rpath,.. -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c  $(HEADERS) $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
 
