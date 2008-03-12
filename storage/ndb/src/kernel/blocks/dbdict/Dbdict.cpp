@@ -15164,7 +15164,12 @@ Dbdict::getIndexAttrList(TableRecordPtr indexPtr, AttributeList& list)
     AttributeRecordPtr tempPtr = attrPtr;
     if (! alist.next(tempPtr))
       break;
-    getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz++]);
+    /**
+     * Post-increment moved out of original expression &list.id[list.sz++]
+     * due to Intel compiler bug on ia64 (BUG#34208).
+     */
+    getIndexAttr(indexPtr, attrPtr.i, &list.id[list.sz]);
+    list.sz++;
   }
   ndbrequire(indexPtr.p->noOfAttributes == list.sz + 1);
 }
