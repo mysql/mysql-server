@@ -668,7 +668,7 @@ bool Protocol::send_fields(List<Item> *list, uint flag)
     DBUG_RETURN(0);
 
   field_count= list->elements;
-  field_alloc= thd->current_stmt ? &thd->current_stmt->mem_root :
+  field_alloc= thd->current_stmt ? &thd->current_stmt->result.alloc :
                                    &mysql->field_alloc;
   if (!(client_field= mysql->fields= 
 	(MYSQL_FIELD *)alloc_root(field_alloc, 
