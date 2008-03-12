@@ -1111,12 +1111,17 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* Drop the table nicely */
       *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
-	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+2);
+                              thd->calloc(sizeof(*table_list) + 
+                                          strlen(db) + 1 +
+                                          MYSQL50_TABLE_NAME_PREFIX_LENGTH + 
+                                          strlen(file->name) + 1);
+
       if (!table_list)
-	goto err;
+        goto err;
       table_list->db= (char*) (table_list+1);
       table_list->table_name= strmov(table_list->db, db) + 1;
       VOID(filename_to_tablename(file->name, table_list->table_name,
+                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                  strlen(file->name) + 1));
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);
