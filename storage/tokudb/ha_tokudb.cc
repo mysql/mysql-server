@@ -1510,7 +1510,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
         DBUG_ASSERT(keynr != primary_key && prim_key->data != key_buff2);
         DBC *tmp_cursor;
         if (!(error = key_file[keynr]->cursor(key_file[keynr], trans, &tmp_cursor, 0))) {
-            if (!(error = tmp_cursor->c_get(tmp_cursor, create_key(&key, keynr, key_buff2, record), prim_key, DB_GET_BOTH | DB_RMW))) { // This shouldn't happen
+            if (!(error = tmp_cursor->c_get(tmp_cursor, create_key(&key, keynr, key_buff2, record), prim_key, DB_GET_BOTH))) { 
                 error = tmp_cursor->c_del(tmp_cursor, 0);
             }
             int result = tmp_cursor->c_close(tmp_cursor);
