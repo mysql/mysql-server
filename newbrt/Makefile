@@ -8,7 +8,7 @@
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
-# OPTFLAGS = -O2
+OPTFLAGS = -O2
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
@@ -42,7 +42,7 @@ endif
 # When debugging, try: valgrind --show-reachable=yes --leak-check=full ./brt-test
 
 
-default: bins libs recover tdb_logprint
+default: bins libs tdb-recover tdb_logprint
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
@@ -84,9 +84,9 @@ tdb_logprint: LDFLAGS+=-lz
 tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h
 tdb_logprint: log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o roll.o brt.o cachetable.o brt-verify.o key.o
 
-recover: LDFLAGS+=-lz
+tdb-recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
-recover: recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o cachetable.o brt.o brt-verify.o key.o roll.o
+tdb-recover: tdb-recover.o recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o cachetable.o brt.o brt-verify.o key.o roll.o
 
 roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h pma.h
 

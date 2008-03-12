@@ -19,19 +19,21 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-int tokudb_recover(const char *data_dir, const char *log_dir) {
+int main (int argc, char *argv[]) {
+    const char *dir;
     int r;
     int entrycount=0;
+    assert(argc==2);
+    dir = argv[1];
     int n_logfiles;
     char **logfiles;
 
     int lockfd;
 
     {
-	int namelen=strlen(data_dir);
+	int namelen=strlen(dir);
 	char lockfname[namelen+20];
-
-	snprintf(lockfname, sizeof(lockfname), "%s/__recoverylock_dont_delete_me", data_dir);
+	snprintf(lockfname, sizeof(lockfname), "%s/__recoverylock", dir);
 	lockfd = open(lockfname, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
 	if (lockfd<0) {
 	    printf("Couldn't open %s\n", lockfname);
@@ -44,34 +46,17 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	}
     }
 
-    r = toku_logger_find_logfiles(log_dir, &n_logfiles, &logfiles);
+    r = toku_logger_find_logfiles(dir, &n_logfiles, &logfiles);
     if (r!=0) exit(1);
     int i;
     toku_recover_init();
-    char org_wd[1000];
-    {
-	char *wd=getcwd(org_wd, sizeof(org_wd));
-	assert(wd!=0);
-	//printf("%s:%d org_wd=\"%s\"\n", __FILE__, __LINE__, org_wd);
-    }
-    char data_wd[1000];
-    {
-	r=chdir(data_dir); assert(r==0);
-	char *wd=getcwd(data_wd, sizeof(data_wd));
-	assert(wd!=0);
-	//printf("%s:%d data_wd=\"%s\"\n", __FILE__, __LINE__, data_wd);
-    }
     for (i=0; i<n_logfiles; i++) {
 	//fprintf(stderr, "Opening %s\n", logfiles[i]);
-	r=chdir(org_wd);
-	assert(r==0);
 	FILE *f = fopen(logfiles[i], "r");
 	struct log_entry le;
 	u_int32_t version;
 	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
-	r=chdir(data_wd);
-	assert(r==0);
 	while ((r = toku_log_fread(f, &le))==0) {
 	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
 	    logtype_dispatch_args(&le, toku_recover_);
@@ -93,10 +78,5 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	toku_free(logfiles[i]);
     }
     toku_free(logfiles);
-
-    r=flock(lockfd, LOCK_UN);
-
-    //printf("%s:%d recovery successful! ls -l says\n", __FILE__, __LINE__);
-    //system("ls -l");
     return 0;
 }
