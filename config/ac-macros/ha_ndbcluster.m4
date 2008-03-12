@@ -393,6 +393,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/test/run-test/Makefile dnl
    storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
    storage/ndb/include/ndb_types.h dnl
+   storage/ndb/swig/Makefile dnl
   )
 ])
 
