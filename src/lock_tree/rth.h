@@ -28,18 +28,19 @@ struct __toku_rt_forest {
 typedef struct __toku_rth_elt toku_rth_elt;
 struct __toku_rth_elt {
     toku_rt_forest  value;
-    toku_rth_elt*   next;
+    toku_rth_elt*   next_in_bucket;
+    toku_rth_elt*   next_in_iteration;
+    toku_rth_elt*   prev_in_iteration;
 };
 
 typedef struct __toku_rth toku_rth;
 struct __toku_rth {
-    toku_rth_elt**  table;
+    toku_rth_elt*   buckets;
+    uint32          num_buckets;
     uint32          num_keys;
-    uint32          array_size;
-    uint32          finger_index;
-    toku_rth_elt*   finger_ptr;
-    BOOL            finger_start;
-    BOOL            finger_end;
+    toku_rth_elt    iter_head;
+    toku_rth_elt*   iter_curr;
+    BOOL            iter_is_valid;
     /** The user malloc function */
     void*         (*malloc) (size_t);
     /** The user free function */
