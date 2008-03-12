@@ -1,7 +1,7 @@
 # On OSX do:
 #   make OSX=OSX
 
-OPTFLAGS = -O2
+OPTFLAGS = -O2 -finline-functions
 
 ifneq ($(GCOV),)
  GCOV_FLAGS = -fprofile-arcs -ftest-coverage
