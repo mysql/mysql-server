@@ -1097,7 +1097,7 @@ int toku_pma_split(TOKULOGGER logger, FILENUM filenum,
     n = spliti;
     // Since the new array is smaller than the old one, during recovery we need to do the resize after moving the elements.
     // But we must actually do the resize first here so we can determine the size.
-    unsigned int oldn_for_logging, newn_for_logging;
+    unsigned int oldn_for_logging = 0, newn_for_logging = 0;
     error = pma_resize_array_nolog(pma, n + n/4, 0, // zeros the elements
 				   &oldn_for_logging, &newn_for_logging);
     assert(error == 0);
