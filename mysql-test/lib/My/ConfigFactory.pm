@@ -349,12 +349,16 @@ sub post_check_client_groups {
 
 #
 # Generate [embedded] by copying the values
-# needed from first [mysqld.<suffix>]
+# needed from the default [mysqld] section
+# and from first [mysqld.<suffix>]
 #
 sub post_check_embedded_group {
   my ($self, $config)= @_;
 
   return unless $self->{ARGS}->{embedded};
+
+  my $mysqld= $config->group('mysqld') or
+    croak "Can't run with embedded, config has no default mysqld section";
 
   my $first_mysqld= $config->first_like('mysqld.') or
     croak "Can't run with embedded, config has no mysqld";
@@ -362,9 +366,10 @@ sub post_check_embedded_group {
   my @no_copy =
     (
      'log-error', # Embedded server writes stderr to mysqltest's log file
+     'slave-net-timeout', # Embedded server are not build with replication
     );
 
-  foreach my $option ( $first_mysqld->options() ) {
+  foreach my $option ( $mysqld->options(), $first_mysqld->options() ) {
     # Don't copy options whose name is in "no_copy" list
     next if grep ( $option->name() eq $_, @no_copy);
 
