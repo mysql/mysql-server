@@ -27,13 +27,10 @@ SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
-.PHONY: install logformat
-install: logformat locktree $(LIBRARY) $(LIBNAME).a
+.PHONY: install
+install: locktree $(LIBRARY) $(LIBNAME).a
 	cp $(LIBRARY) ../lib/
 	cp $(LIBNAME).a ../lib
-
-logformat:
-	(cd ../newbrt && make)
 
 locktree:
 	cd lock_tree && make

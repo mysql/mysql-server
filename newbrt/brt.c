@@ -95,7 +95,7 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     // We only call this function if we have reason to believe that the child's fingerprint did change.
     BNC_SUBTREE_FINGERPRINT(node,childnum_of_node)=sum;
     node->dirty=1;
-    toku_log_changechildfingerprint(logger, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
+    toku_log_changechildfingerprint(logger, 0, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
     toku_update_brtnode_loggerlsn(node, logger);
 }
 
@@ -227,7 +227,7 @@ static int malloc_diskblock_header_is_in_memory (DISKOFF *res, BRT brt, int size
     DISKOFF result = brt->h->unused_memory;
     brt->h->unused_memory+=size;
     brt->h->dirty = 1;
-    int r = toku_log_changeunusedmemory(logger, toku_cachefile_filenum(brt->cf), result, brt->h->unused_memory);
+    int r = toku_log_changeunusedmemory(logger, 0, toku_cachefile_filenum(brt->cf), result, brt->h->unused_memory);
     *res = result;
     return r;
 }
@@ -295,7 +295,7 @@ int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logg
     r=toku_cachetable_put(t->cf, n->thisnodename, n, brtnode_size(n),
 			  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t);
     assert(r==0);
-    r=toku_log_newbrtnode(logger, toku_cachefile_filenum(t->cf), n->thisnodename, height, n->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, n->rand4fingerprint);
+    r=toku_log_newbrtnode(logger, 0, toku_cachefile_filenum(t->cf), n->thisnodename, height, n->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, n->rand4fingerprint);
     assert(r==0);
     toku_update_brtnode_loggerlsn(n, logger);
     return 0;
@@ -381,7 +381,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 
 	    BNC_DISKOFF(B, targchild) = thischilddiskoff;
 
-	    int r = toku_log_addchild(logger, fnum, B->thisnodename, targchild, thischilddiskoff, BNC_SUBTREE_FINGERPRINT(node, i));
+	    int r = toku_log_addchild(logger, 0, fnum, B->thisnodename, targchild, thischilddiskoff, BNC_SUBTREE_FINGERPRINT(node, i));
 	    if (r!=0) return r;
 
 	    while (1) {
@@ -400,9 +400,9 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		u_int32_t new_to_fingerprint   = old_to_fingerprint   + B->rand4fingerprint   *delta;
 		if (r!=0) return r;
-		r = toku_log_brtdeq(logger, fnum, node->thisnodename, n_children_in_a, xid, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
+		r = toku_log_brtdeq(logger, 0, fnum, node->thisnodename, n_children_in_a, xid, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
 		if (r!=0) return r;
-		r = toku_log_brtenq(logger, fnum, B->thisnodename,    targchild,       xid, type, keybs, databs, old_to_fingerprint,   new_to_fingerprint);
+		r = toku_log_brtenq(logger, 0, fnum, B->thisnodename,    targchild,       xid, type, keybs, databs, old_to_fingerprint,   new_to_fingerprint);
 		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
 		if (r!=0) return r;
 		toku_fifo_deq(from_htab);
@@ -423,10 +423,10 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		BYTESTRING bs = { .len = kv_pair_keylen(node->u.n.childkeys[i-1]),
 				  .data = kv_pair_key(node->u.n.childkeys[i-1]) };
 		assert(i>0);
-		r = toku_log_delchild(logger, fnum, node->thisnodename, n_children_in_a, thischilddiskoff, BNC_SUBTREE_FINGERPRINT(node, i), bs);
+		r = toku_log_delchild(logger, 0, fnum, node->thisnodename, n_children_in_a, thischilddiskoff, BNC_SUBTREE_FINGERPRINT(node, i), bs);
 		if (r!=0) return r;
 		if (i>n_children_in_a) {
-		    r = toku_log_setpivot(logger, fnum, B->thisnodename, targchild-1, bs);
+		    r = toku_log_setpivot(logger, 0, fnum, B->thisnodename, targchild-1, bs);
 		    if (r!=0) return r;
 		    B->u.n.childkeys[targchild-1] = node->u.n.childkeys[i-1];
 		    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i-1]);
@@ -624,7 +624,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
 	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
     }
-    r = toku_log_addchild(logger, toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
+    r = toku_log_addchild(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
     assert(BNC_DISKOFF(node, childnum)==childa->thisnodename);
     BNC_DISKOFF(node, childnum+1) = childb->thisnodename;
     BNC_SUBTREE_FINGERPRINT(node, childnum)=0;
@@ -645,7 +645,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	struct kv_pair *pivot = childsplitk->data;
 	BYTESTRING bs = { .len  = childsplitk->size,
 			  .data = kv_pair_key(pivot) };
-	r = toku_log_setpivot(logger, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
+	r = toku_log_setpivot(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
 	if (r!=0) return r;
 
 	for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
@@ -1287,7 +1287,7 @@ static int setup_initial_brt_root_node (BRT t, DISKOFF offset, TOKULOGGER logger
     }
     toku_verify_counts(node);
 //    verify_local_fingerprint_nonleaf(node);
-    toku_log_newbrtnode(logger, toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
+    toku_log_newbrtnode(logger, 0, toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
     toku_update_brtnode_loggerlsn(node, logger);
     r = toku_unpin_brtnode(t, node);
     if (r!=0) {
@@ -1617,12 +1617,12 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     assert(r==0);
     assert(newroot);
     if (brt->database_name==0) {
-	toku_log_changeunnamedroot(logger, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
+	toku_log_changeunnamedroot(logger, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
     } else {
 	BYTESTRING bs;
 	bs.len = 1+strlen(brt->database_name);
 	bs.data = brt->database_name;
-	toku_log_changenamedroot(logger, toku_cachefile_filenum(brt->cf), bs, *rootp, newroot_diskoff);
+	toku_log_changenamedroot(logger, 0, toku_cachefile_filenum(brt->cf), bs, *rootp, newroot_diskoff);
     }
     *rootp=newroot_diskoff;
     brt->h->dirty=1;
@@ -1645,18 +1645,18 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     toku_verify_counts(newroot);
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
-    r=toku_log_newbrtnode(logger, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
+    r=toku_log_newbrtnode(logger, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
     if (r!=0) return r;
-    r=toku_log_addchild(logger, toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, nodea->thisnodename, 0);
+    r=toku_log_addchild(logger, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, nodea->thisnodename, 0);
     if (r!=0) return r;
-    r=toku_log_addchild(logger, toku_cachefile_filenum(brt->cf), newroot_diskoff, 1, nodeb->thisnodename, 0);
+    r=toku_log_addchild(logger, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, 1, nodeb->thisnodename, 0);
     if (r!=0) return r;
     fixup_child_fingerprint(newroot, 0, nodea, brt, logger);
     fixup_child_fingerprint(newroot, 1, nodeb, brt, logger);
     {
 	BYTESTRING bs = { .len = kv_pair_keylen(newroot->u.n.childkeys[0]),
 			  .data = kv_pair_key(newroot->u.n.childkeys[0]) };
-	r=toku_log_setpivot(logger, toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, bs);
+	r=toku_log_setpivot(logger, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, 0, bs);
 	if (r!=0) return r;
 	toku_update_brtnode_loggerlsn(newroot, logger);
     }

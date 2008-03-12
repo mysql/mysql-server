@@ -29,7 +29,7 @@ else
   BDB_LDFLAGS += -Wl,-rpath,$(BDBDIR)/lib
  endif
  BDB_LDFLAGS += -lpthread
- TDB_LOADLIBES = -L../ -ltokudb -Wl,-rpath,.. -lpthread
+ TDB_LOADLIBES = -L.. -ltokudb -Wl,-rpath,.. -lpthread
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
  HGRIND=valgrind --quiet --tool=helgrind
 endif

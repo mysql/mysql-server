@@ -311,7 +311,7 @@ void generate_log_free(void) {
 
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger", lt->name);
+			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
@@ -324,19 +324,20 @@ void generate_log_writer (void) {
 			fprintf(cf, "                              +8 // crc + len\n");
 			fprintf(cf, "                     );\n");
 			fprintf(cf, "  struct wbuf wbuf;\n");
-			fprintf(cf, "  char *buf = toku_malloc(buflen);\n");
-			fprintf(cf, "  if (buf==0) return errno;\n");
-			fprintf(cf, "  wbuf_init(&wbuf, buf, buflen);\n");
+			fprintf(cf, "  struct logbytes *lbytes = MALLOC_LOGBYTES(buflen);\n");
+			fprintf(cf, "  if (lbytes==0) return errno;\n");
+			fprintf(cf, "  wbuf_init(&wbuf, &lbytes->bytes[0], buflen);\n");
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", 0xff&lt->command_and_flags);
-			fprintf(cf, "  wbuf_LSN(&wbuf, logger->lsn);\n");
+			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
+			fprintf(cf, "  LSN lsn = logger->lsn;\n");
+			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
+			fprintf(cf, "  lbytes->lsn = lsn;\n");
 			fprintf(cf, "  logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
-			fprintf(cf, "  int r= toku_logger_finish(logger, &wbuf);\n");
+			fprintf(cf, "  int r= toku_logger_finish(logger, lbytes, &wbuf, do_fsync);\n");
 			fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
-			fprintf(cf, "  toku_free(buf);\n");
-
 			fprintf(cf, "  return r;\n");
 			fprintf(cf, "}\n\n");
 		    }));

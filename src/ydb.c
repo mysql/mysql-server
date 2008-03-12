@@ -711,25 +711,27 @@ static int toku_txn_release_locks(DB_TXN* txn) {
 }
 
 static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
+    if (!txn) return EINVAL;
     HANDLE_PANICKED_ENV(txn->mgrp);
     //toku_ydb_notef("flags=%d\n", flags);
-    int r;
     int nosync = (flags & DB_TXN_NOSYNC)!=0;
     flags &= ~DB_TXN_NOSYNC;
-    if (!txn) return EINVAL;
-    if (flags!=0) goto return_invalid;
-    r = toku_logger_commit(txn->i->tokutxn, nosync);
-    if (0) {
-    return_invalid:
-	r = EINVAL;
-	toku_free(txn->i->tokutxn);
+    if (flags!=0) {
+	if (txn->i) {
+	    if (txn->i->tokutxn)
+		toku_free(txn->i->tokutxn);
+	    toku_free(txn->i);
+	}
+	toku_free(txn);
+	return EINVAL;
     }
-    // Cleanup */
-    int r2 = toku_txn_release_locks(txn);
+    int r = toku_logger_commit(txn->i->tokutxn, nosync); // frees the tokutxn
+    int r2 = toku_txn_release_locks(txn); // release the locks after the commit (otherwise, what if we abort)
+    // the toxutxn is freed, and we must free the rest. */
     if (txn->i)
         toku_free(txn->i);
     toku_free(txn);
-    return r ? r : r2; // The txn is no good after the commit.
+    return r2 ? r2 : r; // The txn is no good after the commit even if the commit fails.
 }
 
 static u_int32_t toku_txn_id(DB_TXN * txn) {

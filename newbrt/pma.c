@@ -369,7 +369,7 @@ static int pma_log_distribute (TOKULOGGER logger, FILENUM filenum, DISKOFF old_d
 	}
     }
     ipa.size=j;
-    int r=toku_log_pmadistribute(logger, filenum, old_diskoff, new_diskoff, ipa);
+    int r=toku_log_pmadistribute(logger, 0, filenum, old_diskoff, new_diskoff, ipa);
     if (logger && oldnode_lsn) *oldnode_lsn = toku_logger_last_lsn(logger);
     if (logger && newnode_lsn) *newnode_lsn = toku_logger_last_lsn(logger);
 //    if (0 && pma) {
@@ -546,7 +546,7 @@ static int pma_resize_array(TOKULOGGER logger, FILENUM filenum, DISKOFF offset, 
     unsigned int oldN, n;
     int r = pma_resize_array_nolog(pma, asksize, startz, &oldN, &n);
     if (r!=0) return r;
-    toku_log_resizepma (logger, filenum, offset, oldN, n);
+    toku_log_resizepma (logger, 0, filenum, offset, oldN, n);
     if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
     return 0;
 }
@@ -734,7 +734,7 @@ int toku_pma_insert (PMA pma, DBT *k, DBT *v, TOKULOGGER logger, TXNID xid, FILE
 	{
 	    const BYTESTRING key  = { pair->keylen, kv_pair_key(pair) };
 	    const BYTESTRING data = { pair->vallen, kv_pair_val(pair) };
-	    int r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	    int r = toku_log_insertinleaf (logger, 0, xid, pma->filenum, diskoff, idx, key, data);
 	    if (r!=0) return r;
 	    if (node_lsn) *node_lsn = toku_logger_last_lsn(logger);
 	}
@@ -772,7 +772,7 @@ static int pma_log_delete (PMA pma, const char *key, int keylen, const char *val
     {
 	const BYTESTRING deletedkey  = { keylen, (char*)key };
 	const BYTESTRING deleteddata = { vallen, (char*)val };
-	int r=toku_log_deleteinleaf(logger, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
+	int r=toku_log_deleteinleaf(logger, 0, xid, pma->filenum, diskoff, idx, deletedkey, deleteddata);
 	if (r!=0) return r;
     }
     if (logger) {
@@ -945,7 +945,7 @@ int toku_pma_insert_or_replace (PMA pma, DBT *k, DBT *v,
 	{
 	    const BYTESTRING key  = { k->size, k->data };
 	    const BYTESTRING data = { v->size, v->data };
-	    r = toku_log_insertinleaf (logger, xid, pma->filenum, diskoff, idx, key, data);
+	    r = toku_log_insertinleaf (logger, 0, xid, pma->filenum, diskoff, idx, key, data);
 	    if (logger && node_lsn) *node_lsn = toku_logger_last_lsn(logger);
 	    if (r!=0) return r;
 	    /* We don't record the insert here for rollback.  The insert should have been logged at the top-level. */
@@ -1105,7 +1105,7 @@ int toku_pma_split(TOKULOGGER logger, FILENUM filenum,
     {
 	int r = pma_log_distribute(logger, filenum, diskoff, diskoff, spliti, &pairs[0], lsn, lsn);
 	if (r!=0) { toku_free(pairs); return r; }
-	r = toku_log_resizepma(logger, filenum, diskoff, oldn_for_logging, newn_for_logging);
+	r = toku_log_resizepma(logger, 0, filenum, diskoff, oldn_for_logging, newn_for_logging);
 	if (r!=0) { toku_free(pairs); return r; }
 	if (logger && lsn) *lsn = toku_logger_last_lsn(logger);
 

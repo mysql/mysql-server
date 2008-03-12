@@ -65,20 +65,74 @@ int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***r
 }
 
 int toku_logger_create (TOKULOGGER *resultp) {
+    int r;
     TAGMALLOC(TOKULOGGER, result);
     if (result==0) return errno;
     result->is_open=0;
     result->is_panicked=0;
     result->lg_max = 100<<20; // 100MB default
+    result->head = result->tail = 0;
+    result->lsn = result->written_lsn = result->fsynced_lsn = (LSN){0};
     list_init(&result->live_txns);
+    result->n_in_buf=0;
+    result->n_in_file=0;
+    result->directory=0;
     *resultp=result;
+    r = ml_init(&result->input_lock); if (r!=0) goto died0;
+    r = ml_init(&result->output_lock); if (r!=0) goto died1;
     return 0;
+    
+ died1:
+    ml_destroy(&result->input_lock);
+ died0:
+    toku_free(result);
+    return r;
 }
 
 void toku_logger_set_cachetable (TOKULOGGER tl, CACHETABLE ct) {
     tl->ct = ct;
 }
 
+static int (*toku_os_fsync_function)(int)=fsync;
+
+static const int log_format_version=0;
+
+// Write something out.  Keep trying even if partial writes occur.
+// On error: Return negative with errno set.
+// On success return nbytes.
+static int write_it (int fd, const void *bufv, int nbytes) {
+    int org_nbytes=nbytes;
+    const char *buf=bufv;
+    while (nbytes>0) {
+	int r = write(fd, buf, nbytes);
+	if (r<0 || errno!=EAGAIN) return r;
+	buf+=r;
+	nbytes-=r;
+    }
+    return org_nbytes;
+}
+
+static int open_logfile (TOKULOGGER logger) {
+    int r;
+    int fnamelen = strlen(logger->directory)+50;
+    char fname[fnamelen];
+    snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
+    logger->fd = creat(fname, O_EXCL | 0700);            if (logger->fd==-1) return errno;
+    logger->next_log_file_number++;
+    int version_l = htonl(log_format_version);
+    r = write_it(logger->fd, "tokulogg", 8);             if (r!=8) return errno;
+    r = write_it(logger->fd, &version_l, 4);             if (r!=4) return errno;
+    logger->fsynced_lsn = logger->written_lsn;
+    logger->n_in_file = 12;
+    return 0;
+}
+
+static int close_and_open_logfile (TOKULOGGER logger) {
+    int r;
+    r=toku_os_fsync_function(logger->fd);                if (r!=0) return errno;
+    r = close(logger->fd);                               if (r!=0) return errno;
+    return open_logfile(logger);
+}
 
 int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->is_open) return EINVAL;
@@ -86,22 +140,20 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     int r;
     long long nexti;
     r = toku_logger_find_next_unused_log_file(directory, &nexti);
-    if (r!=0) {
-    died0:
-	return r;
-    }
+    if (r!=0) return r;
     logger->directory = toku_strdup(directory);
-    if (logger->directory==0) goto died0;
-    logger->fd = -1;
+    if (logger->directory==0) return errno;
     logger->next_log_file_number = nexti;
-    logger->n_in_buf = 0;
-    logger->n_in_file = 0;
+    open_logfile(logger);
 
     logger->lsn.lsn = 0; // WRONG!!!  This should actually be calculated by looking at the log file. 
+    logger->written_lsn.lsn = 0;
+    logger->fsynced_lsn.lsn = 0;
 
     logger->is_open = 1;
 
-    return toku_logger_log_bytes(logger, 0, "");
+    return 0;
+
 }
 
 void toku_logger_panic (TOKULOGGER logger, int err) {
@@ -133,123 +185,157 @@ int toku_logger_get_lg_max(TOKULOGGER logger, u_int32_t *lg_maxp) {
     
 }
 
-static int flush (TOKULOGGER logger, int close_p) {
-    if (logger->n_in_buf>0) {
-	int r = write(logger->fd, logger->buf, logger->n_in_buf);
-	if (r==-1) return errno;
-	logger->n_in_file += logger->n_in_buf;
-	logger->n_in_buf=0;
-    }
-    if (close_p || logger->n_in_file >= logger->lg_max) {
-	int r = close(logger->fd);
-	if (r!=0) return errno;
-	logger->fd=-1;
-	logger->n_in_file = 0;
-    }
-    return 0;
-}
-
-static int log_format_version=0;
-
-int toku_logger_log_bytes(TOKULOGGER logger, int nbytes, void *bytes) {
-    if (logger->is_panicked) return EINVAL;
-    //fprintf(stderr, "%s:%d logging %d bytes\n", __FILE__, __LINE__, nbytes);
-    if (logger->fd==-1) {
-	int  fnamelen = strlen(logger->directory)+50;
-	char fname[fnamelen];
-	snprintf(fname, fnamelen, "%s/log%012llu.tokulog", logger->directory, logger->next_log_file_number);
-	//fprintf(stderr, "%s:%d creat(%s, ...)\n", __FILE__, __LINE__, fname);
-	logger->fd = creat(fname, O_EXCL | 0700);
-	if (logger->fd==-1) return errno;
-	logger->next_log_file_number++;
-	int version_l = htonl(log_format_version);
-	int r = write(logger->fd, "tokulogg", 8); if (r!=8) return errno;
-	r = write(logger->fd, &version_l, 4); if (r!=4) return errno;
-    }
-    if (logger->n_in_buf + nbytes > LOGGER_BUF_SIZE
-	|| logger->n_in_file + logger->n_in_buf + nbytes > logger->lg_max) {
-	//printf("flushing %d %d\n", logger->n_in_buf, logger->n_in_file);
-	int r=flush(logger, 1);
-	if (r!=0) return r;
-	if (nbytes>LOGGER_BUF_SIZE) {
-	    r = write(logger->fd, bytes, nbytes);
-	    if (r!=0) return errno;
-	    logger->n_in_file = nbytes;
-	    return flush(logger, 0);
+// Enter holding both locks
+// Exit holding only the output_lock
+static int do_write (TOKULOGGER logger, int do_fsync) {
+    int r;
+    struct logbytes *list = logger->head;
+    logger->head=logger->tail=0;
+    logger->n_in_buf=0;
+    r=ml_unlock(&logger->input_lock); if (r!=0) goto panic;
+    logger->n_in_buf=0;
+    while (list) {
+	if (logger->n_in_file + list->nbytes <= logger->lg_max) {
+	    if (logger->n_in_buf + list->nbytes <= LOGGER_BUF_SIZE) {
+		memcpy(logger->buf+logger->n_in_buf, list->bytes, list->nbytes);
+		logger->n_in_buf+=list->nbytes;
+		logger->n_in_file+=list->nbytes;
+		logger->written_lsn = list->lsn;
+		struct logbytes *next=list->next;
+		toku_free(list);
+		list=next;
+	    } else {
+		// it doesn't fit in the buffer, but it does fit in the file.  So flush the buffer
+		r=write_it(logger->fd, logger->buf, logger->n_in_buf);
+		if (r!=logger->n_in_buf) { r=errno; goto panic; }
+		logger->n_in_buf=0;
+		// Special case for a log entry that's too big to fit in the buffer.
+		if (list->nbytes > LOGGER_BUF_SIZE) {
+		    r=write_it(logger->fd, list->bytes, list->nbytes);
+		    if (r!=list->nbytes) { r=errno; goto panic; }
+		    logger->n_in_file+=list->nbytes;
+		    logger->written_lsn = list->lsn;
+		    struct logbytes *next=list->next;
+		    toku_free(list);
+		    list=next;
+		}
+	    }
+	} else {
+	    // The new item doesn't fit in the file, so write the buffer, reopen the file, and try again
+	    r=write_it(logger->fd, logger->buf, logger->n_in_buf);
+	    logger->n_in_buf=0;
+	    r=close_and_open_logfile(logger);   if (r!=0) goto panic;
 	}
-	//printf("saving %d\n", nbytes);
     }
-    memcpy(logger->buf+logger->n_in_buf, bytes, nbytes);
-    logger->n_in_buf += nbytes;
+    r=write_it(logger->fd, logger->buf, logger->n_in_buf);
+    if (r!=logger->n_in_buf) { r=errno; goto panic; }
+    logger->n_in_buf=0;
+    if (do_fsync) {
+	r = toku_os_fsync_function(logger->fd);
+	logger->fsynced_lsn = logger->written_lsn;
+    }
     return 0;
+ panic:
+    toku_logger_panic(logger, r);
+    return r;
 }
 
-static int (*toku_os_fsync_function)(int)=fsync;
+// enter holding input_lock
+// exit holding no locks
+int toku_logger_log_bytes (TOKULOGGER logger, struct logbytes *bytes, int do_fsync) {
+    int r;
+    if (logger->is_panicked) return EINVAL;
+    logger->n_in_buf += bytes->nbytes;
+    if (logger->tail) {
+	logger->tail->next=bytes;
+    } else {
+	logger->head = bytes;
+    }
+    logger->tail = bytes;
+    bytes->next = 0;
+    if (logger->n_in_buf >= LOGGER_BUF_SIZE || do_fsync) {
+	// We must flush it
+	r=ml_unlock(&logger->input_lock); if (r!=0) goto panic;
+	r=ml_lock(&logger->output_lock);  if (r!=0) goto panic;
+	if (logger->written_lsn.lsn < bytes->lsn.lsn) {
+	    // We found that our record has not yet been written, so we must write it, and everything else
+	    r=ml_lock(&logger->input_lock);  if (r!=0) goto panic;
+	    r=do_write(logger, do_fsync);    if (r!=0) goto panic;
+	} else {
+	    /* Our LSN has been written.  We have the output lock */
+	    if (do_fsync && logger->fsynced_lsn.lsn > bytes->lsn.lsn) {
+		/* But we need to fsync it. */
+		r = toku_os_fsync_function(logger->fd);
+		logger->fsynced_lsn = logger->written_lsn;
+	    }
+	}
+	r=ml_unlock(&logger->output_lock);	if (r!=0) goto panic;
+    } else {
+	r=ml_unlock(&logger->input_lock);	if (r!=0) goto panic;
+    }
+    return 0;
+ panic:
+    toku_logger_panic(logger, r);
+    return r;
+}
 
+// No locks held on entry
+// No locks held on exit.
+// No locks are needed, since you cannot legally close the log concurrently with doing anything else.
+// But grab the locks just to be careful.
 int toku_logger_close(TOKULOGGER *loggerp) {
     TOKULOGGER logger = *loggerp;
     if (logger->is_panicked) return EINVAL;
     int r = 0;
     if (!logger->is_open) goto is_closed;
+    r = ml_lock(&logger->output_lock); if (r!=0) goto panic;
+    r = ml_lock(&logger->input_lock); if (r!=0) goto panic;
+    r = do_write(logger, 1);              if (r!=0) goto panic;
     if (logger->fd!=-1) {
-	//printf("%s:%d closing log: n_in_buf=%d\n", __FILE__, __LINE__, logger->n_in_buf);
-	if (logger->n_in_buf>0) {
-	    r = write(logger->fd, logger->buf, logger->n_in_buf);
-	    if (r==-1) return errno;
-	}
-	r = toku_os_fsync_function(logger->fd);
-	if (r!=0)   close(logger->fd);
-	else 	    r = close(logger->fd);
+	r = close(logger->fd);                if (r!=0) { r=errno; goto panic; }
     }
-    toku_free(logger->directory);
+    logger->fd=-1;
+    r = ml_unlock(&logger->output_lock);
  is_closed:
     logger->is_panicked=1; // Just in case this might help.
+    if (logger->directory) toku_free(logger->directory);
     toku_free(logger);
     *loggerp=0;
     return r;
+ panic:
+    toku_logger_panic(logger, r);
+    return r;
 }
-#if 0
-int toku_logger_log_brt_remove (TOKULOGGER logger,
-			       TXNID txnid,
-			       diskoff diskoff,
-			       unsigned char *key,
-			       int keylen,
-			       unsigned char *val,
-			       int vallen) {
-n    
-}
-#endif
 
+// Entry: Holds no locks
+// Exit: Holds no locks 
+// This is the exported fsync used by ydb.c
 int toku_logger_fsync (TOKULOGGER logger) {
-    //return 0;/// NO TXN
+    int r;
     if (logger->is_panicked) return EINVAL;
-    int r=flush(logger, 0);
-    if (r!=0) return r;
-    if (logger->fd>=0) {
-	r = toku_os_fsync_function(logger->fd);
-	if (r!=0) return errno;
-    }
-    return 0;
+    r = ml_lock(&logger->output_lock);   if (r!=0) goto panic;
+    r = ml_lock(&logger->input_lock);   if (r!=0)  goto panic;
+    r = do_write(logger, 1);
+    r = ml_unlock(&logger->output_lock);   if (r!=0) goto panic;
+ panic:
+    toku_logger_panic(logger, r);
+    return r; 
 }
 
-int toku_logger_finish (TOKULOGGER logger, struct wbuf *wbuf) {
+// wbuf points into logbytes
+int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync) {
     if (logger->is_panicked) return EINVAL;
     wbuf_int(wbuf, toku_crc32(0, wbuf->buf, wbuf->ndone));
     wbuf_int(wbuf, 4+wbuf->ndone);
-    return toku_logger_log_bytes(logger, wbuf->ndone, wbuf->buf);
+    logbytes->nbytes=wbuf->ndone;
+    return toku_logger_log_bytes(logger, logbytes, do_fsync);
 }
 
 int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
-    int r = toku_log_commit(txn->logger, txn->txnid64);
+    int r = toku_log_commit(txn->logger, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (r!=0) goto free_and_return;
-    if (txn->parent==0) {
-	if (!nosync) {
-	    r = toku_logger_fsync(txn->logger);
-	    if (r!=0) toku_logger_panic(txn->logger, r);
-	}
-	goto free_and_return;
-    } else {
+    if (txn->parent!=0) {
 	// Append the list to the front.
 	if (txn->oldest_logentry) {
 	    // There are some entries, so link them in.
@@ -261,29 +347,32 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	}
 	txn->newest_logentry = txn->oldest_logentry = 0;
     }
- free_and_return: /*nothing*/;
-    struct roll_entry *item;
-    while ((item=txn->newest_logentry)) {
-	txn->newest_logentry = item->prev;
-	rolltype_dispatch(item, toku_free_rolltype_);
-	toku_free(item);
+ free_and_return:
+    {
+	struct roll_entry *item;
+	while ((item=txn->newest_logentry)) {
+	    txn->newest_logentry = item->prev;
+	    rolltype_dispatch(item, toku_free_rolltype_);
+	    toku_free(item);
+	}
+	list_remove(&txn->live_txns_link);
+	toku_free(txn);
     }
-    list_remove(&txn->live_txns_link);
-    toku_free(txn);
     return r;
 }
 
 int toku_logger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
     if (logger->is_panicked) return EINVAL;
     struct wbuf wbuf;
-    const int buflen =10;
-    unsigned char buf[buflen];
-    wbuf_init(&wbuf, buf, buflen);
+    const int buflen =18;
+    struct logbytes *lbytes = MALLOC_LOGBYTES(buflen);
+    if (lbytes==0) return errno;
+    wbuf_init(&wbuf, &lbytes->bytes[0], buflen);
     wbuf_char(&wbuf, LT_CHECKPOINT);
     wbuf_LSN (&wbuf, logger->lsn);
-    *lsn = logger->lsn;
+    *lsn = lbytes->lsn = logger->lsn;
     logger->lsn.lsn++;
-    return toku_logger_log_bytes(logger, wbuf.ndone, wbuf.buf);
+    return toku_logger_finish(logger, lbytes, &wbuf, 1);
     
 }
 
@@ -304,7 +393,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
-    int r = toku_log_fcreate (txn->logger, toku_txn_get_txnid(txn), bs, mode);
+    int r = toku_log_fcreate (txn->logger, 0, toku_txn_get_txnid(txn), bs, mode);
     if (r!=0) return r;
     r = toku_logger_save_rollback_fcreate(txn, bs);
     return r;
@@ -317,36 +406,12 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fopen (txn->logger, toku_txn_get_txnid(txn), bs, filenum);
-    
+    return toku_log_fopen (txn->logger, 0, toku_txn_get_txnid(txn), bs, filenum);
 }
 
 int toku_logger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
-#if 0
-    LOGGEDBRTHEADER lh;
-    lh.size = toku_serialize_brt_header_size(h);
-    lh.flags = h->flags;
-    lh.nodesize = h->nodesize;
-    lh.freelist = h->freelist;
-    lh.unused_memory = h->unused_memory;
-    lh.n_named_roots = h->n_named_roots;
-    if (h->n_named_roots==-1) {
-	lh.u.one.root = h->unnamed_root;
-    } else {
-	int i;
-	MALLOC_N(h->n_named_roots, lh.u.many.names);
-	MALLOC_N(h->n_named_roots, lh.u.many.roots);
-	for (i=0; i<h->n_named_roots; i++) {
-	    lh.u.many.names[i]=toku_strdup(h->names[i]);
-	    lh.u.many.roots[i]=h->roots[i];
-	}
-    }
-    r = toku_log_fheader(txn, toku_txn_get_txnid(txn), filenum, lh);
-    toku_free(all_that_stuff);
-    return r;
-#else
     int subsize=toku_serialize_brt_header_size(h);
     int buflen = (4   // firstlen
 		  + 1 //cmd
@@ -356,33 +421,25 @@ int toku_logger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) 
 		  + subsize
 		  + 8 // crc & len
 		  );
-    unsigned char *buf=toku_malloc(buflen); // alloc on heap because it might be big
+    struct logbytes *lbytes=MALLOC_LOGBYTES(buflen); // alloc on heap because it might be big
     int r;
-    if (buf==0) return errno;
+    if (lbytes==0) return errno;
     struct wbuf wbuf;
-    wbuf_init(&wbuf, buf, buflen);
+    r = ml_lock(&txn->logger->input_lock);   if (r!=0) { txn->logger->is_panicked=1; txn->logger->panic_errno=r; return r; }
+    LSN lsn = txn->logger->lsn;
+    wbuf_init(&wbuf, &lbytes->bytes[0], buflen);
     wbuf_int (&wbuf, buflen);
     wbuf_char(&wbuf, LT_FHEADER);
-    wbuf_LSN    (&wbuf, txn->logger->lsn);
+    wbuf_LSN    (&wbuf, lsn);
+    lbytes->lsn = lsn;
     txn->logger->lsn.lsn++;
     wbuf_TXNID(&wbuf, txn->txnid64);
     wbuf_FILENUM(&wbuf, filenum);
     r=toku_serialize_brt_header_to_wbuf(&wbuf, h);
     if (r!=0) return r;
-    r=toku_logger_finish(txn->logger, &wbuf);
-    toku_free(buf);
+    r=toku_logger_finish(txn->logger, lbytes, &wbuf, 0);
     return r;
-#endif
 }
-
-/*
-int brtenv_checkpoint (BRTENV env) {
-    init the checkpointing lock
-    acquire_spinlock(&env->checkpointing);
-    release_spinlock(&env->checkpointing);
-    return -1;
-}
-*/
 
 int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
     int vi=fgetc(f);
