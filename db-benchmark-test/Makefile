@@ -8,7 +8,7 @@
 BENCHDBS = bench.bdb/ bench.tokudb
 
 OPTFLAGS = -O2
-CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS)
+CFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(PROF_FLAGS)
 # CFLAGS += -pg
 
 ifdef BDBDIR
