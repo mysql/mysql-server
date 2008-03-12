@@ -15214,11 +15214,6 @@ static void test_bug14169()
 /*
    Test that mysql_insert_id() behaves as documented in our manual
 */
-
-#if 0
-
-  Commented out because of Bug#34889.
-
 static void test_mysql_insert_id()
 {
   my_ulonglong res;
@@ -15410,7 +15405,6 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t1,t2");
   myquery(rc);
 }
-#endif
 
 
 /*
@@ -16548,7 +16542,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17667", test_bug17667 },
   { "test_bug19671", test_bug19671 },
   { "test_bug15752", test_bug15752 },
-  /* { "test_mysql_insert_id", test_mysql_insert_id }, Bug#34889 */
+  { "test_mysql_insert_id", test_mysql_insert_id },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
   { "test_bug15518", test_bug15518 },
