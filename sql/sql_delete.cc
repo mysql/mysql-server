@@ -45,6 +45,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool		transactional_table, safe_update, const_cond;
   bool          const_cond_result;
   ha_rows	deleted= 0;
+  bool          triggers_applicable;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -102,6 +103,11 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     /* Error evaluating val_int(). */
     DBUG_RETURN(TRUE);
   }
+  /* NOTE: TRUNCATE must not invoke triggers. */
+
+  triggers_applicable= table->triggers &&
+                       thd->lex->sql_command != SQLCOM_TRUNCATE;
+
   /*
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
@@ -123,9 +129,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   */
   if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-      (thd->lex->sql_command == SQLCOM_TRUNCATE ||
-       (!thd->current_stmt_binlog_row_based &&
-        !(table->triggers && table->triggers->has_delete_triggers()))))
+      !triggers_applicable &&
+      !thd->current_stmt_binlog_row_based &&
+      !table->triggers->has_delete_triggers())
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -249,7 +255,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   init_ftfuncs(thd, select_lex, 1);
   thd_proc_info(thd, "updating");
-  if (table->triggers && 
+  if (triggers_applicable &&
       table->triggers->has_triggers(TRG_EVENT_DELETE,
                                     TRG_ACTION_AFTER))
   {
@@ -274,7 +280,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     if (!(select && select->skip_record())&& ! thd->is_error() )
     {
 
-      if (table->triggers &&
+      if (triggers_applicable &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
       {
@@ -285,7 +291,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       if (!(error= table->file->ha_delete_row(table->record[0])))
       {
 	deleted++;
-        if (table->triggers &&
+        if (triggers_applicable &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
         {
