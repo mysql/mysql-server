@@ -10729,24 +10729,6 @@ int ha_ndbcluster::check_if_supported_alter(TABLE *altered_table,
       ai=1;
   }
 
-  /**
-   * Changing from/to primary key
-   *
-   * This is _not_ correct, but check_if_incompatible_data-interface
-   *   doesnt give more info, so I guess that we can't do any
-   *   online add index if not using primary key
-   *
-   *   This as mysql will handle a unique not null index as primary
-   *     even wo/ user specifiying it... :-(
-   *
-   */
-  if ((table_share->primary_key == MAX_KEY && pk) ||
-      (table_share->primary_key != MAX_KEY && !pk) ||
-      (table_share->primary_key == MAX_KEY && !pk && ai))
-  {
-    DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
-  }
-
   /* Check that auto_increment value was not changed */
   if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
       create_info->auto_increment_value != 0)
