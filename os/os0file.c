@@ -22,8 +22,6 @@ Created 10/21/1995 Heikki Tuuri
 #include <errno.h>
 #endif /* UNIV_HOTBACKUP */
 
-#undef HAVE_FDATASYNC
-
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
@@ -1879,8 +1877,6 @@ os_file_flush(
 			ret = fsync(file);
 		}
 	}
-#elif HAVE_FDATASYNC
-	ret = fdatasync(file);
 #else
 	/*	fprintf(stderr, "Flushing to file %p\n", file); */
 	ret = fsync(file);

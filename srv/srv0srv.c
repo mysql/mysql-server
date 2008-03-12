@@ -192,7 +192,7 @@ a heavier load on the I/O sub system. */
 ulong	srv_insert_buffer_batch_size = 20;
 
 char*	srv_file_flush_method_str = NULL;
-ulint	srv_unix_file_flush_method = SRV_UNIX_FDATASYNC;
+ulint	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 
 ulint	srv_max_n_open_files	  = 300;
