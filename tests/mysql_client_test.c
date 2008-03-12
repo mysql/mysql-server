@@ -16600,6 +16600,8 @@ static void test_bug27592()
   DBUG_VOID_RETURN;
 }
 
+#if 0
+
 static void test_bug29948()
 {
   MYSQL *dbc=NULL;
@@ -16673,6 +16675,7 @@ static void test_bug29948()
   mysql_close(dbc);
 }
 
+#endif
 
 /*
   Bug#29687 mysql_stmt_store_result memory leak in libmysqld
@@ -17712,7 +17715,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
-  { "test_bug29948", test_bug29948 },
+  /* { "test_bug29948", test_bug29948 }, */
   { "test_bug29687", test_bug29687 },
   { "test_bug29692", test_bug29692 },
   { "test_bug29306", test_bug29306 },
