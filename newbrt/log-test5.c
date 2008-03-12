@@ -3,6 +3,7 @@
 
 #include "log-internal.h"
 #include "toku_assert.h"
+#include <dirent.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <sys/stat.h>
@@ -33,25 +34,36 @@ int main (int argc __attribute__((__unused__)),
     r = toku_logger_open(dname, logger);
     assert(r == 0);
     int i;
-    for (i=0; i<20; i++) {
-
-	r = ml_lock(&logger->LSN_lock);
+    for (i=0; i<1000; i++) {
+	r = ml_lock(&logger->input_lock);
 	assert(r==0);
 
-	LSN lsn={23};
-	char data[100];
-	snprintf(data, sizeof(data), "a%04d", i);
-	r = toku_logger_log_bytes(logger, strlen(data), data, lsn);
+	int ilen=3+random()%5;
+	struct logbytes *b = MALLOC_LOGBYTES(ilen+1);
+	b->nbytes=ilen+1;
+	snprintf(b->bytes, ilen+1, "a%0*d ", (int)ilen, i); // skip the trailing nul
+	b->lsn=(LSN){23+i};
+	r = toku_logger_log_bytes(logger, b, 0);
 	assert(r==0);
     }
     r = toku_logger_close(&logger);
     assert(r == 0);
 
     {
-	struct stat statbuf;
-	r = stat(dname "/log000000000000.tokulog", &statbuf);
+	DIR *dir=opendir(dname);
+	assert(dir);
+	struct dirent *dirent;
+	while ((dirent=readdir(dir))) {
+	    if (strncmp(dirent->d_name, "log", 3)!=0) continue;
+	    char fname[sizeof(dname)+256+1];
+	    snprintf(fname, sizeof(fname), "%s/%s", dname, dirent->d_name);
+	    struct stat statbuf;
+	    r = stat(fname, &statbuf);
+	    assert(r==0);
+	    assert(statbuf.st_size<=LSIZE);
+	}
+	r = closedir(dir);
 	assert(r==0);
-	assert(statbuf.st_size<=LSIZE);
     }
     return 0;
 }

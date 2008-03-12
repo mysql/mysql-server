@@ -8,7 +8,7 @@
 
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 # PROF_FLAGS = -pg
-OPTFLAGS = -O2
+# OPTFLAGS = -O2
 
 ifeq ($(VERBOSE),2)
 VERBVERBOSE=-v
@@ -59,6 +59,10 @@ REGRESSION_TESTS = \
 	brt-test-cursor \
         log-test \
 	log-test2 \
+	log-test3 \
+	log-test4 \
+	log-test5 \
+	log-test6 \
 	test_oexcl \
 	test-assert \
 	test-primes \
@@ -87,7 +91,9 @@ recover: recover.o log_code.o memory.o log.o brt-serialize.o fifo.o pma.o ybt.o 
 roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h pma.h
 
 log_code.o: log_header.h wbuf.h log-internal.h
-log_code.c log_header.h: logformat
+log_header.h: log_code.c
+	@echo generated log_code.c so log_header.c was also generated
+log_code.c: logformat
 	./logformat
 
 libs: log.o
@@ -135,7 +141,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-log-test log-test2 pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+log-test log-test2 log-test3 log-test4 log-test5 log-test6 pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -164,7 +170,7 @@ fifo-test: fifo.o memory.o toku_assert.o ybt.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o pma.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h ../include/db.h
-log-test2 log-test: log.o memory.o toku_assert.o roll.o log_code.o brt-serialize.o brt.o cachetable.o pma.o ybt.o fifo.o key.o fingerprint.o brt-verify.o mempool.o primes.o
+log-test6 log-test5 log-test4 log-test3 log-test2 log-test: log.o memory.o toku_assert.o roll.o log_code.o brt-serialize.o brt.o cachetable.o pma.o ybt.o fifo.o key.o fingerprint.o brt-verify.o mempool.o primes.o
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 toku_assert.o: toku_assert.h
