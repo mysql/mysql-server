@@ -120,7 +120,7 @@ int toku_rollback_fcreate (BYTESTRING bs_fname,
 
 
 void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,LOGGEDBRTHEADER header) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     struct brt_header *MALLOC(h);
@@ -158,7 +158,7 @@ void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,LOGGEDBR
 
 void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t height,u_int32_t nodesize,u_int8_t is_dup_sort,u_int32_t rand4fingerprint) {
     int r;
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     r = find_cachefile(filenum, &pair);
     assert(r==0);
     TAGMALLOC(BRTNODE, n);
@@ -205,7 +205,7 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
 
 
 static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf, BRTNODE *resultnode) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     assert(pair->brt);
@@ -248,7 +248,7 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
 }
 
 void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF child, u_int32_t childfingerprint, BYTESTRING pivotkey) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -283,7 +283,7 @@ void toku_recover_delchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
 }
 
 void toku_recover_setchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF UU(oldchild), DISKOFF newchild) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -299,7 +299,7 @@ void toku_recover_setchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(r==0);
 }
 void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, BYTESTRING pivotkey) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -322,7 +322,7 @@ void toku_recover_setpivot (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
 }
 
 void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, u_int32_t UU(oldfingerprint), u_int32_t newfingerprint) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -361,7 +361,7 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
 }
 
 void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -387,7 +387,7 @@ void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
 }
 
 void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -437,7 +437,7 @@ int toku_rollback_insertatleaf (FILENUM filenum, BYTESTRING key,BYTESTRING data,
 
 // a newbrtnode should have been done before this
 void toku_recover_resizepma (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t oldsize, u_int32_t newsize) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_v;
@@ -457,7 +457,7 @@ void toku_recover_resizepma (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_
 }
 
 void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, INTPAIRARRAY fromto) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     void *node_va, *node_vb;
@@ -497,7 +497,7 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
 }
 
 void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(oldroot), DISKOFF newroot) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     assert(pair->brt);
@@ -509,7 +509,7 @@ void toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, DISKOFF UU(ol
 void toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), DISKOFF UU(oldroot), DISKOFF UU(newroot)) { assert(0); }
 
 void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, DISKOFF UU(oldunused), DISKOFF newunused) {
-    struct cf_pair *pair;
+    struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
     assert(pair->brt);
