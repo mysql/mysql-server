@@ -6,13 +6,14 @@ LIBNAME=libtokudb
 EXPORTMAP = -Wl,--version-script=export.map
 VISIBILITY = -fvisibility=hidden
 
+# PROF_FLAGS=-pg
 OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CFLAGS = -W -Wall -Wextra -Werror -g3 -ggdb3 -fPIC $(OPTFLAGS) $(GCOV_FLAGS)
 CFLAGS += -Wbad-function-cast -Wcast-align -Waggregate-return
 CPPFLAGS = -I../include -I../newbrt -I./lock_tree/ -I./range_tree/
 CPPFLAGS += -D_GNU_SOURCE -D_THREAD_SAFE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
-CFLAGS+= $(VISIBILITY)
+CFLAGS+= $(VISIBILITY) $(PROF_FLAGS)
 
 
 ifneq ($(OSX),)
