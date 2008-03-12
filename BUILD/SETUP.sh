@@ -100,8 +100,10 @@ if [ "x$warning_mode" != "xpedantic" ]; then
 # C warnings
   c_warnings="$warnings -Wunused-parameter"
 # C++ warnings
-  cxx_warnings="$warnings -Woverloaded-virtual -Wsign-promo -Wreorder"
-  cxx_warnings="$warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
+  cxx_warnings="$warnings"
+# cxx_warnings="$cxx_warnings -Woverloaded-virtual -Wsign-promo"
+  cxx_warnings="$cxx_warnings -Wreorder"
+  cxx_warnings="$cxx_warnings -Wctor-dtor-privacy -Wnon-virtual-dtor"
 # Added unless --with-debug=full
   debug_extra_cflags="-O1 -Wuninitialized"
 else

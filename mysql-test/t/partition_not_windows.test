@@ -12,12 +12,10 @@
 #                       doesn't remove old directory
 
 --disable_query_log
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
-eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpdata''';
+eval SET @data_dir = 'DATA DIRECTORY = ''$MYSQLTEST_VARDIR/tmp''';
 let $data_directory = `select @data_dir`;
 
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
-eval SET @inx_dir = 'INDEX DIRECTORY = ''$MYSQLTEST_VARDIR/master-data/tmpinx''';
+eval SET @inx_dir = 'INDEX DIRECTORY = ''$MYSQLTEST_VARDIR/tmp''';
 let $inx_directory = `select @inx_dir`;
 --enable_query_log
 
@@ -35,10 +33,10 @@ subpartition by hash (a)
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart00.MYI
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart01.MYD
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0#SP#subpart01.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p0#SP#subpart00.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p0#SP#subpart01.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p0#SP#subpart00.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p0#SP#subpart01.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p0#SP#subpart00.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p0#SP#subpart01.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p0#SP#subpart00.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p0#SP#subpart01.MYI
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
@@ -58,18 +56,81 @@ eval ALTER TABLE t1 REORGANIZE PARTITION p0 INTO
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart20.MYI
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart21.MYD
 --file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p2#SP#subpart21.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p1#SP#subpart10.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p1#SP#subpart11.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p2#SP#subpart20.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpdata/t1#P#p2#SP#subpart21.MYD
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p1#SP#subpart10.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p1#SP#subpart11.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p2#SP#subpart20.MYI
---file_exists $MYSQLTEST_VARDIR/master-data/tmpinx/t1#P#p2#SP#subpart21.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p1#SP#subpart10.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p1#SP#subpart11.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p2#SP#subpart20.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p2#SP#subpart21.MYD
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p1#SP#subpart10.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p1#SP#subpart11.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p2#SP#subpart20.MYI
+--file_exists $MYSQLTEST_VARDIR/tmp/t1#P#p2#SP#subpart21.MYI
 
 drop table t1;
---exec rmdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
---exec rmdir $MYSQLTEST_VARDIR/master-data/tmpinx || true
+
+#
+# Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables
+#
+disable_query_log;
+eval create table t2 (i int )
+partition by range (i)
+(
+ partition p01 values less than (1000)
+ data directory="$MYSQLTEST_VARDIR/tmp/"
+ index directory="$MYSQLTEST_VARDIR/tmp/"
+);
+enable_query_log;
+          
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+create table t1 (i int )
+partition by range (i)
+(
+  partition p01 values less than (1000)
+  data directory='/not/existing'
+  index directory='/not/existing'
+);
+show create table t2;
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+
+#
+# Bug#32167: another privilege bypass with DATA/INDEX DIRECTORY
+#
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE t1(a INT)
+PARTITION BY KEY (a)
+(PARTITION p0 INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test');
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  DATA DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
+
+--replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
+eval CREATE TABLE ts (id INT, purchased DATE)
+PARTITION BY RANGE(YEAR(purchased))
+SUBPARTITION BY HASH(TO_DAYS(purchased)) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0a
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test',
+SUBPARTITION s0b
+  INDEX DIRECTORY = '$MYSQLTEST_VARDIR/master-data/test'
+));
 
 # End Windows specific test failures.
 

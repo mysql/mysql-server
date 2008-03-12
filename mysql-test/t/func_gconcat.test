@@ -640,4 +640,21 @@ SELECT GROUP_CONCAT(DISTINCT b, a ORDER BY b) FROM t1;
 
 DROP TABLE t1, t2, t3;
 
+#
+# Bug #34747: crash in debug assertion check after derived table
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES (),();
+SELECT s1.d1 FROM
+(
+ SELECT
+  t1.a as d1,
+  GROUP_CONCAT(DISTINCT t1.a) AS d2
+ FROM
+  t1 AS t1,
+  t1 AS t2
+ GROUP BY 1
+) AS s1;
+DROP TABLE t1;
+
 --echo End of 5.0 tests
