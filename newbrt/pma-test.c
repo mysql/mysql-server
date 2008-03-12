@@ -645,7 +645,7 @@ static void assert_cursor_val(PMA_CURSOR cursor, int v) {
 static void test_pma_cursor_4 (void) {
     int r;
     PMA pma;
-    PMA_CURSOR cursora, cursorb, cursorc;
+    PMA_CURSOR cursora = 0, cursorb = 0, cursorc = 0;
     int i;
 
     u_int32_t rand4fingerprint = random();
@@ -735,7 +735,7 @@ static void test_pma_cursor_delete(int n) {
     }
 
     /* point the cursor to the first kv */
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
@@ -961,7 +961,7 @@ static void test_pma_dup_split_n(int n, int dup_mode) {
     /* walk the pma's and verify the sort order with the input kv pairs */
     DBT key; memset(&key, 0, sizeof key); key.flags = DB_DBT_REALLOC;
     DBT val; memset(&val, 0, sizeof val); val.flags = DB_DBT_REALLOC;
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
 
     i = 0;
     r = toku_pma_cursor(pmaa, &cursor, &skey, &sval); assert(r == 0);
@@ -1428,7 +1428,7 @@ static void test_pma_delete_cursor(int n) {
 	do_insert(pma, k, strlen(k)+1, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
-    PMA_CURSOR pmacursor;
+    PMA_CURSOR pmacursor = 0;
 
     r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
@@ -1481,7 +1481,7 @@ static void test_pma_delete_insert() {
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(r == 0);
 
-    PMA_CURSOR pmacursor;
+    PMA_CURSOR pmacursor = 0;
 
     r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
@@ -1534,7 +1534,7 @@ static void test_pma_double_delete() {
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0);
     assert(r == 0);
 
-    PMA_CURSOR pmacursor;
+    PMA_CURSOR pmacursor = 0;
 
     r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
@@ -1591,7 +1591,7 @@ static void test_pma_cursor_first_delete_last() {
     }
     assert(toku_pma_n_entries(pma) == 2);
 
-    PMA_CURSOR pmacursor;
+    PMA_CURSOR pmacursor = 0;
 
     r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
@@ -1639,7 +1639,7 @@ static void test_pma_cursor_last_delete_first() {
     }
     assert(toku_pma_n_entries(pma) == 2);
 
-    PMA_CURSOR pmacursor;
+    PMA_CURSOR pmacursor = 0;
 
     r = toku_pma_cursor(pma, &pmacursor, &skey, &sval);
     assert(r == 0);
@@ -1793,7 +1793,7 @@ static void test_pma_cursor_first(int n) {
     PMA pma;
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0); assert(r == 0);
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(r == 0);
 
     DBT key, val;
@@ -1842,7 +1842,7 @@ static void test_pma_cursor_set_key() {
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
@@ -1899,7 +1899,7 @@ static void test_pma_cursor_set_range() {
 	do_insert(pma, &k, sizeof k, &v, sizeof v, rand4fingerprint, &sum, &expect_fingerprint);
     }
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
@@ -1947,7 +1947,7 @@ static void test_pma_cursor_delete_under() {
     r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, n * (8 + sizeof (int) + sizeof (int)));
     assert(r == 0);
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(r == 0);
 
     u_int32_t kvsize;
@@ -2022,7 +2022,7 @@ static void test_pma_cursor_delete_under_mode(int n, int dup_mode) {
     r = toku_pma_set_dup_mode(pma, dup_mode); assert(r == 0);
     r = toku_pma_set_dup_compare(pma, toku_default_compare_fun); assert(r == 0);
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval); assert(r == 0);
 
     u_int32_t kvsize;
@@ -2103,7 +2103,7 @@ static void test_pma_cursor_set_both() {
     assert(r == 0);
     r = toku_pma_set_dup_compare(pma, toku_default_compare_fun); assert(r == 0); 
 
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
@@ -2256,7 +2256,7 @@ static void test_dup_key_delete(int n, int mode) {
     toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
 
     /* cursor walk should find keys 1, 3 */
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
@@ -2349,7 +2349,7 @@ static void test_dupsort_key_insert(int n, int dup_data) {
     }
 
     /* cursor walk from key k should find values 0, 1, .. n-1 */
-    PMA_CURSOR cursor;
+    PMA_CURSOR cursor = 0;
     r = toku_pma_cursor(pma, &cursor, &skey, &sval);
     assert(r == 0);
 
