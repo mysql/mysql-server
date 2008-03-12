@@ -12411,17 +12411,20 @@ void Dbdih::checkEscalation()
 /*       DESCRIPTION: CHECK FOR MINIMUM GCI RESTORABLE WITH NEW LOCAL    */
 /*                    CHECKPOINT.                                        */
 /*************************************************************************/
-void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*, 
-			 Uint32 replicaStartIndex) 
+void Dbdih::checkKeepGci(TabRecordPtr tabPtr, 
+                         Uint32 fragId, 
+                         Fragmentstore * fragPtrP, 
+			 Uint32 replicaStartIndex)
 {
   ReplicaRecordPtr ckgReplicaPtr;
   ckgReplicaPtr.i = replicaStartIndex;
+  bool stored = (fragPtrP->storedReplicas == replicaStartIndex);
   while (ckgReplicaPtr.i != RNIL) {
     jam();
     ptrCheckGuard(ckgReplicaPtr, creplicaFileSize, replicaRecord);
     Uint32 keepGci;
     Uint32 oldestRestorableGci;
-    findMinGci(ckgReplicaPtr, keepGci, oldestRestorableGci);
+    findMinGci(ckgReplicaPtr, keepGci, oldestRestorableGci, stored);
     if (keepGci < c_lcpState.keepGci) {
       jam();
       /* ------------------------------------------------------------------- */
@@ -12706,7 +12709,8 @@ Uint32 Dbdih::findLogInterval(ConstPtr<ReplicaRecord> replicaPtr,
 /*************************************************************************/
 void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                        Uint32& keepGci,
-                       Uint32& oldestRestorableGci)
+                       Uint32& oldestRestorableGci,
+                       bool stored)
 {
   Uint32 nextLcpNo;
   Uint32 lcpNo;
@@ -12736,9 +12740,15 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
       oldestRestorableGci = fmgReplicaPtr.p->maxGciStarted[lcpNo];
       ndbassert(fmgReplicaPtr.p->maxGciStarted[lcpNo] <c_newest_restorable_gci);
       return;
-    } else {
+    } 
+    else if (stored)
+    {
+      /**
+       * Only check createGci for stored replicas (aka alive nodes)
+       */
       jam();
-      if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) {
+      if (fmgReplicaPtr.p->createGci[0] == fmgReplicaPtr.p->initialGci) 
+      {
         jam();
 	/*-------------------------------------------------------------------
 	 * WE CAN STILL RESTORE THIS REPLICA WITHOUT ANY LOCAL CHECKPOINTS BY
@@ -12749,7 +12759,7 @@ void Dbdih::findMinGci(ReplicaRecordPtr fmgReplicaPtr,
         // XXX Jonas
         //oldestRestorableGci = fmgReplicaPtr.p->createGci[0];
       }//if
-    }//if
+    }
     lcpNo = prevLcpNo(lcpNo);
   } while (lcpNo != nextLcpNo);
   return;
