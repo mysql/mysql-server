@@ -1,5 +1,4 @@
 SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 DROP DATABASE IF EXISTS test1;
 CREATE DATABASE test1;
 USE test;
