@@ -115,3 +115,61 @@ create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
 drop table t1;
+# ------------------------------------------------------------------
+# -- End of 4.1 tests
+# ------------------------------------------------------------------
+
+# -- Bug#33507: Event scheduler creates more threads than max_connections
+# -- which results in user lockout.
+
+GRANT USAGE ON *.* TO mysqltest_u1@localhost;
+
+SET GLOBAL max_connections = 3;
+SET GLOBAL event_scheduler = ON;
+
+# -- Waiting for old connections to close...
+
+
+# -- Disconnecting default connection...
+
+# -- Check that we allow exactly three user connections, no matter how
+# -- many threads are running.
+
+# -- Connecting (1)...
+
+# -- Waiting for root connection to close...
+
+# -- Connecting (2)...
+# -- Connecting (3)...
+# -- Connecting (4)...
+ERROR 08004: Too many connections
+
+# -- Waiting for the last connection to close...
+
+# -- Check that we allow one extra SUPER-user connection.
+
+# -- Connecting super (1)...
+# -- Connecting super (2)...
+ERROR 00000: Too many connections
+
+SELECT user FROM information_schema.processlist ORDER BY id;
+user
+event_scheduler
+mysqltest_u1
+mysqltest_u1
+mysqltest_u1
+root
+
+# -- Resetting variables...
+SET GLOBAL max_connections = 151;
+SET GLOBAL event_scheduler = OFF;
+
+# -- That's it. Closing connections...
+
+# -- Restoring default connection...
+
+# -- End of Bug#33507.
+
+# ------------------------------------------------------------------
+# -- End of 5.1 tests
+# ------------------------------------------------------------------

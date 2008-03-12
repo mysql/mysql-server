@@ -102,4 +102,129 @@ disconnect con7;
 connection default;
 drop table t1;
 
-# End of 4.1 tests
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+--disconnect con5
+--disconnect con6
+--disconnect con10
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 4.1 tests
+--echo # ------------------------------------------------------------------
+
+--echo
+--echo # -- Bug#33507: Event scheduler creates more threads than max_connections
+--echo # -- which results in user lockout.
+--echo
+
+GRANT USAGE ON *.* TO mysqltest_u1@localhost;
+
+# NOTE: if the test case fails sporadically due to spurious connections,
+# consider disabling all users.
+
+--echo
+
+let $saved_max_connections = `SELECT @@global.max_connections`;
+
+SET GLOBAL max_connections = 3;
+SET GLOBAL event_scheduler = ON;
+
+--echo
+--echo # -- Waiting for old connections to close...
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM information_schema.processlist
+  WHERE db = 'test';
+--source include/wait_condition.inc
+
+--echo
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM information_schema.processlist
+  WHERE user = 'event_scheduler';
+--source include/wait_condition.inc
+--echo
+
+--echo # -- Disconnecting default connection...
+--disconnect default
+
+--echo
+--echo # -- Check that we allow exactly three user connections, no matter how
+--echo # -- many threads are running.
+--echo 
+
+--echo # -- Connecting (1)...
+--connect (con_1,localhost,mysqltest_u1)
+
+--echo
+--echo # -- Waiting for root connection to close...
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM information_schema.processlist
+  WHERE db = 'test';
+--source include/wait_condition.inc
+--echo
+
+--echo # -- Connecting (2)...
+--connect (con_2,localhost,mysqltest_u1)
+
+--echo # -- Connecting (3)...
+--connect (con_3,localhost,mysqltest_u1)
+
+--echo # -- Connecting (4)...
+--disable_query_log
+--error ER_CON_COUNT_ERROR
+--connect (con_4,localhost,mysqltest_u1)
+--enable_query_log
+
+--echo
+--echo # -- Waiting for the last connection to close...
+let $wait_condition =
+  SELECT COUNT(*) = 3
+  FROM information_schema.processlist
+  WHERE db = 'test';
+--source include/wait_condition.inc
+
+--echo
+--echo # -- Check that we allow one extra SUPER-user connection.
+--echo
+
+--echo # -- Connecting super (1)...
+--connect (con_super_1,localhost,root)
+
+--echo # -- Connecting super (2)...
+--disable_query_log
+--error ER_CON_COUNT_ERROR
+--connect (con_super_2,localhost,root)
+--enable_query_log
+
+--echo
+# Ensure that we have Event Scheduler thread, 3 ordinary user connections and
+# one extra super-user connection.
+SELECT user FROM information_schema.processlist ORDER BY id;
+
+--echo
+--echo # -- Resetting variables...
+
+--eval SET GLOBAL max_connections = $saved_max_connections
+SET GLOBAL event_scheduler = OFF;
+
+--echo
+--echo # -- That's it. Closing connections...
+--disconnect con_1
+--disconnect con_2
+--disconnect con_super_1
+
+--echo
+--echo # -- Restoring default connection...
+--connect (default,localhost,root,,test)
+
+--echo
+--echo # -- End of Bug#33507.
+--echo
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.1 tests
+--echo # ------------------------------------------------------------------
