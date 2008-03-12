@@ -2343,7 +2343,8 @@ sub run_testcase ($) {
   if ( $opt_start or $opt_start_dirty )
   {
     $suite_timeout_proc->kill();
-    mtr_report("\nServers started, waiting for any of them to die...");
+    mtr_report("\nStarted", started(all_servers()));
+    mtr_report("Waiting for server(s) to exit...");
     my $proc= My::SafeProcess->wait_any();
     if ( grep($proc eq $_, started(all_servers())) )
     {
