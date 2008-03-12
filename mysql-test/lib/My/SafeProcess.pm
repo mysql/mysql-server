@@ -217,7 +217,7 @@ sub timer {
   }
 
   # Child, install signal handlers and sleep for "duration"
-  $SIG{INT}= 'DEFAULT';
+  $SIG{INT}= 'IGNORE';
 
   $SIG{TERM}= sub {
     #print STDERR "timer $$: woken up, exiting!\n";
@@ -281,11 +281,15 @@ sub shutdown {
   return if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes){
-    $proc->start_kill();
+    if ($proc->start_kill() == 0){
+      # Uncertain status, don't wait blocking
+      # for this process
+      $proc->{WAIT_ONE_TIMEOUT}= 0;
+    }
   }
 
   foreach my $proc (@kill_processes){
-    $proc->wait_one();
+    $proc->wait_one($proc->{WAIT_ONE_TIMEOUT});
   }
   return;
 }
@@ -298,20 +302,20 @@ sub start_kill {
   my ($self)= @_;
   croak "usage: \$safe_proc->start_kill()" unless (@_ == 1 and ref $self);
   #print "start_kill $self\n";
+  my $ret= 1;
 
   if (defined $safe_kill and $self->{SAFE_WINPID}){
     # Use my_safe_kill to tell my_safe_process
     # it's time to kill it's child and return
     my $pid= $self->{SAFE_WINPID};
-    my $ret= system($safe_kill, $pid);
-    #print STDERR "start_kill, safe_killed $pid, ret: $ret\n";
+    $ret= (system($safe_kill, $pid) >> 8) == 0;
   } else {
     my $pid= $self->{SAFE_PID};
     die "Can't kill not started process" unless defined $pid;
-    my $ret= kill(15, $pid);
-    #print STDERR "start_kill, sent signal 15 to $pid, ret: $ret\n";
+    $ret= kill(15, $pid);
   }
-  return 1;
+  print STDERR "$self already killed\n" unless $ret;
+  return $ret;
 }
 
 
@@ -323,8 +327,10 @@ sub kill {
   my ($self)= @_;
   croak "usage: \$safe_proc->kill()" unless (@_ == 1 and ref $self);
 
-  $self->start_kill();
-  $self->wait_one();
+  if ($self->start_kill())
+  {
+    $self->wait_one();
+  }
   return 1;
 }
 

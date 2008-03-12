@@ -85,6 +85,7 @@ static void die(const char* fmt, ...)
   va_end(args);
   if (int last_err= GetLastError())
     fprintf(stderr, "error: %d, %s\n", last_err, strerror(last_err));
+  fflush(stderr);
   exit(1);
 }
 
