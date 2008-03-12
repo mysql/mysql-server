@@ -129,9 +129,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   */
   if (!using_limit && const_cond_result &&
       !(specialflag & (SPECIAL_NO_NEW_FUNC | SPECIAL_SAFE_MODE)) &&
-      !triggers_applicable &&
-      !thd->current_stmt_binlog_row_based &&
-      !table->triggers->has_delete_triggers())
+      !(triggers_applicable &&
+        thd->current_stmt_binlog_row_based &&
+        table->triggers->has_delete_triggers()))
   {
     /* Update the table->file->stats.records number */
     table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
