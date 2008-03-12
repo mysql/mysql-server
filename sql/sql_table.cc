@@ -6358,7 +6358,7 @@ view_err:
                key_part++)
             is_candidate_key=
               (is_candidate_key && 
-               (! table->field[key_part->fieldnr]->maybe_null()));
+               (! table->field[key_part->fieldnr-1]->maybe_null()));
           if (is_candidate_key)
             candidate_key_count--;
         }
