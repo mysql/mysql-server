@@ -584,7 +584,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
-		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+                LOCK_connection_count;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -720,6 +721,11 @@ char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
+/**
+  Number of currently active user connections. The variable is protected by
+  LOCK_connection_count.
+*/
+uint connection_count= 0;
 
 /* Function declarations */
 
@@ -1341,6 +1347,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+  (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
@@ -1783,6 +1790,11 @@ void unlink_thd(THD *thd)
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
   thd->cleanup();
+
+  pthread_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  pthread_mutex_unlock(&LOCK_connection_count);
+
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
@@ -3453,6 +3465,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -4700,6 +4713,11 @@ void create_thread_to_handle_connection(THD *thd)
       thread_count--;
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+      pthread_mutex_lock(&LOCK_connection_count);
+      --connection_count;
+      pthread_mutex_unlock(&LOCK_connection_count);
+
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
@@ -4739,15 +4757,31 @@ static void create_new_thread(THD *thd)
   if (protocol_version > 9)
     net->return_errno=1;
 
-  /* don't allow too many connections */
-  if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
+  /*
+    Don't allow too many connections. We roughly check here that we allow
+    only (max_connections + 1) connections.
+  */
+
+  pthread_mutex_lock(&LOCK_connection_count);
+
+  if (connection_count >= max_connections + 1 || abort_loop)
   {
+    pthread_mutex_unlock(&LOCK_connection_count);
+
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR, 1);
     delete thd;
     DBUG_VOID_RETURN;
   }
+
+  ++connection_count;
+
+  pthread_mutex_unlock(&LOCK_connection_count);
+
+  /* Start a new thread to handle connection. */
+
   pthread_mutex_lock(&LOCK_thread_count);
+
   /*
     The initialization of thread_id is done in create_embedded_thd() for
     the embedded library.
@@ -4755,13 +4789,13 @@ static void create_new_thread(THD *thd)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
-  /* Start a new thread to handle connection */
   thread_count++;
 
   if (thread_count - delayed_insert_threads > max_used_connections)
     max_used_connections= thread_count - delayed_insert_threads;
 
   thread_scheduler.add_connection(thd);
+
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
