@@ -7,8 +7,11 @@ const char *toku_patent_string = "The technology is licensed by the Massachusett
 const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved.";
 
 #include <assert.h>
+#include <ctype.h>
 #include <errno.h>
+#include <libgen.h>
 #include <limits.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,10 +19,8 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include <sys/fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <ctype.h>
+#include <sys/wait.h>
 #include <unistd.h>
-#include <libgen.h>
-#include <pthread.h>
 
 #include "ydb-internal.h"
 
@@ -222,9 +223,35 @@ cleanup:
 
 #endif
 
+static int do_recovery (DB_ENV *env) {
+    const char *datadir=env->i->dir;
+    char *logdir;
+    if (env->i->lg_dir) {
+	logdir = construct_full_name(env->i->dir, env->i->lg_dir);
+    } else {
+	logdir = strdup(env->i->dir);
+    }
+    
+    // want to do recovery in its own process
+    pid_t pid;
+    if ((pid=fork())==0) {
+	int r=tokudb_recover(datadir, logdir);
+	assert(r==0);
+	exit(0);
+    }
+    int status;
+    waitpid(pid, &status, 0);
+    if (!WIFEXITED(status) || WEXITSTATUS(status)!=0)  {
+	return toku_ydb_do_error(env, -1, "Recovery failed\n");
+    }
+    toku_free(logdir);
+    return 0;
+}
+
 static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
     HANDLE_PANICKED_ENV(env);
     int r;
+    u_int32_t unused_flags=flags;
 
     if (env_opened(env)) {
 	return toku_ydb_do_error(env, EINVAL, "The environment is already open\n");
@@ -242,6 +269,8 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     else if ((flags & DB_USE_ENVIRON) ||
              ((flags & DB_USE_ENVIRON_ROOT) && geteuid() == 0)) home = getenv("DB_HOME");
 
+    unused_flags &= ~DB_USE_ENVIRON & ~DB_USE_ENVIRON_ROOT; 
+
     if (!home) home = ".";
 
 	// Verify that the home exists.
@@ -256,6 +285,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     if (!(flags & DB_PRIVATE)) {
 	return toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_PRIVATE when opening an env\n");
     }
+    unused_flags &= ~DB_PRIVATE;
 
     if (env->i->dir)
         toku_free(env->i->dir);
@@ -277,6 +307,13 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     env->i->open_flags = flags;
     env->i->open_mode = mode;
 
+    unused_flags &= ~DB_INIT_TXN & ~DB_INIT_LOG; 
+
+    if (flags&DB_RECOVER) {
+	r=do_recovery(env);
+	if (r!=0) return r;
+    }
+
     if (flags & (DB_INIT_TXN | DB_INIT_LOG)) {
         char* full_dir = NULL;
         if (env->i->lg_dir) full_dir = construct_full_name(env->i->dir, env->i->lg_dir);
@@ -289,6 +326,23 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	    toku_logger_close(&env->i->logger);
 	    goto died1;
 	}
+    }
+
+    unused_flags &= ~DB_INIT_MPOOL; // we always init an mpool.
+    unused_flags &= ~DB_CREATE;     // we always do DB_CREATE
+    unused_flags &= ~DB_INIT_LOCK;  // we check this later (e.g. in db->open)
+    unused_flags &= ~DB_RECOVER;
+
+// This is probably correct, but it will be pain...
+//    if ((flags & DB_THREAD)==0) {
+//	return toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_THREAD");
+//    }
+    unused_flags &= ~DB_THREAD;
+
+    if (unused_flags!=0) {
+	static char string[100];
+	snprintf(string, 100, "Extra flags not understood by tokudb: %d\n", unused_flags);
+	return toku_ydb_do_error(env, EINVAL, string);
     }
 
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);

@@ -153,4 +153,6 @@ int toku_logger_abort(TOKUTXN);
 // Return 0 if there is a live txn with that txnid.
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 
+int tokudb_recover(const char *datadir, const char *logdir);
+
 #endif
