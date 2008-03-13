@@ -59,6 +59,7 @@ use My::Find;
 use My::Platform;
 
 my %running;
+my $_verbose= IS_WINDOWS;
 
 END {
   # Kill any children still running
@@ -85,33 +86,17 @@ if (IS_WIN32PERL or IS_CYGWIN){
   # Use my_safe_process.exe
   my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
 		       "my_safe_process");
-  die "Could not find my_safe_process" unless $exe;
   push(@safe_process_cmd, $exe);
 
   # Use my_safe_kill.exe
   $safe_kill= my_find_bin(".", "lib/My/SafeProcess", "my_safe_kill");
-  die "Could not find my_safe_kill" unless $safe_kill;
 }
 else
 {
-  my $use_safe_process_binary= 1;
-  if ($use_safe_process_binary) {
-    # Use my_safe_process
-    my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
-			 "my_safe_process");
-    die "Could not find my_safe_process" unless $exe;
-    push(@safe_process_cmd, $exe);
-  }
-  else
-  {
-    # Use safe_process.pl
-    my $script=  "lib/My/SafeProcess/safe_process.pl";
-    $script= "../$script" unless -f $script;
-    die "Could not find safe_process.pl" unless -f $script;
-
-    # Call $script with Perl interpreter
-    push(@safe_process_cmd, $^X, $script);
-  }
+  # Use my_safe_process
+  my $exe= my_find_bin(".", ["lib/My/SafeProcess", "My/SafeProcess"],
+		       "my_safe_process");
+  push(@safe_process_cmd, $exe);
 }
 
 
@@ -248,14 +233,14 @@ sub timer {
 sub shutdown {
   my $shutdown_timeout= shift;
   my @processes= @_;
+  _verbose("shutdown, timeout: $shutdown_timeout, @processes");
 
   return if (@processes == 0);
-
-  #print "shutdown: @processes\n";
 
   # Call shutdown function if process has one, else
   # use kill
   foreach my $proc (@processes){
+    _verbose("  proc: $proc");
     my $shutdown= $proc->{SAFE_SHUTDOWN};
     if ($shutdown_timeout > 0 and defined $shutdown){
       $shutdown->();
@@ -301,7 +286,7 @@ sub shutdown {
 sub start_kill {
   my ($self)= @_;
   croak "usage: \$safe_proc->start_kill()" unless (@_ == 1 and ref $self);
-  #print "start_kill $self\n";
+  _verbose("start_kill: $self");
   my $ret= 1;
 
   if (defined $safe_kill and $self->{SAFE_WINPID}){
@@ -309,6 +294,7 @@ sub start_kill {
     # it's time to kill it's child and return
     my $pid= $self->{SAFE_WINPID};
     $ret= (system($safe_kill, $pid) >> 8) == 0;
+    print `tasklist` unless $ret;
   } else {
     my $pid= $self->{SAFE_PID};
     die "Can't kill not started process" unless defined $pid;
@@ -327,10 +313,8 @@ sub kill {
   my ($self)= @_;
   croak "usage: \$safe_proc->kill()" unless (@_ == 1 and ref $self);
 
-  if ($self->start_kill())
-  {
-    $self->wait_one();
-  }
+  $self->start_kill();
+  $self->wait_one();
   return 1;
 }
 
@@ -338,8 +322,8 @@ sub kill {
 sub _collect {
   my ($self)= @_;
 
-  #print "_collect\n";
   $self->{EXIT_STATUS}= $?;
+  _verbose("_collect: $self");
 
   # Take the process out of running list
   my $pid= $self->{SAFE_PID};
@@ -363,15 +347,17 @@ sub wait_one {
   my ($self, $timeout)= @_;
   croak "usage: \$safe_proc->wait_one([timeout])" unless ref $self;
 
-  #print "wait_one $self, $timeout\n";
+  _verbose("wait_one $self, $timeout");
 
   if ( ! defined($self->{SAFE_PID}) ) {
     # No pid => not running
+    _verbose("No pid => not running");
     return 0;
   }
 
   if ( defined $self->{EXIT_STATUS} ) {
     # Exit status already set => not running
+    _verbose("Exit status already set => not running");
     return 0;
   }
 
@@ -400,6 +386,7 @@ sub wait_one {
     $blocking= 1;
     $use_alarm= 0;
   }
+  #_verbose("blocking: $blocking, use_alarm: $use_alarm");
 
   my $retpid;
   eval
@@ -419,18 +406,22 @@ sub wait_one {
     die "Got unexpected: $@" if ($@ !~ /waitpid timeout/);
     if (!defined $retpid) {
       # Got timeout
+      _verbose("Got timeout");
       return 1;
     }
     # Got pid _and_ alarm, continue
+    _verbose("Got pid and alarm, continue");
   }
 
   if ( $retpid == 0 ) {
     # 0 => still running
+    _verbose("0 => still running");
     return 1;
   }
 
   if ( not $blocking and $retpid == -1 ) {
     # still running
+    _verbose("still running");
     return 1;
   }
 
@@ -514,5 +505,9 @@ sub self2str {
   $str.= "]";
 }
 
+sub _verbose {
+  return unless $_verbose;
+  print STDERR " ## ", @_, "\n";
+}
 
 1;

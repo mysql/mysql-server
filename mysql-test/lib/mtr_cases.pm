@@ -803,13 +803,6 @@ sub collect_one_test_case {
     return $tinfo
   }
 
-  if ( $tinfo->{'ndb_extra'} and ! $::opt_ndb_extra_test )
-  {
-    $tinfo->{'skip'}= 1;
-    $tinfo->{'comment'}= "Test need 'ndb_extra' option";
-    return $tinfo
-  }
-
   if ( $tinfo->{'need_debug'} && ! $::debug_compiled_binaries )
   {
     $tinfo->{'skip'}= 1;
@@ -966,7 +959,6 @@ my @tags=
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
  ["include/have_multi_ndb.inc", "ndb_test", 1],
- ["include/have_ndb_extra.inc", "ndb_extra", 1],
  ["include/master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "rpl_test", 1],
  ["include/ndb_master-slave.inc", "ndb_test", 1],

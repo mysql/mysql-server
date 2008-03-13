@@ -47,6 +47,7 @@ use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
+use My::Find;
 use mtr_cases;
 use mtr_report;
 
@@ -94,8 +95,6 @@ my $exe_mysqld;
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
-our $exe_ndbd;
-our $exe_ndb_mgmd= "";
 our $exe_libtool;
 
 my $opt_big_test= 0;
@@ -183,14 +182,10 @@ our $opt_warnings= 1;
 our $opt_skip_ndbcluster= 0;
 our $opt_skip_ndbcluster_slave= 0;
 our $opt_with_ndbcluster;
-our $opt_ndb_extra_test= 0;
 
-our $exe_ndb_mgm="";
-our $exe_ndb_waiter;
-our $path_ndb_tools_dir= "";
-our $path_ndb_examples_dir= "";
-our $exe_ndb_example= "";
-our $path_ndb_testrun_log;
+my $exe_ndbd;
+my $exe_ndb_mgmd;
+my $exe_ndb_waiter;
 
 our $path_sql_dir;
 
@@ -295,7 +290,6 @@ sub command_line_setup {
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'skip-ndbcluster-slave|skip-ndb-slave'
                                         => \$opt_skip_ndbcluster_slave,
-             'ndb-extra-test'           => \$opt_ndb_extra_test,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
              'skip-test=s'              => \&collect_option,
@@ -749,7 +743,6 @@ sub command_line_setup {
 
   $path_testlog=         "$opt_vardir/log/mysqltest.log";
   $path_current_testlog= "$opt_vardir/log/current_test";
-  $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
 
 }
 
@@ -880,44 +873,6 @@ sub collect_mysqld_features {
 }
 
 
-sub executable_setup_ndb () {
-
-  # Look for ndb tols and binaries
-  my $ndb_path= mtr_file_exists("$basedir/ndb",
-				"$basedir/storage/ndb",
-				"$basedir/bin");
-
-  $exe_ndbd=
-    mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
-			 "$ndb_path/ndbd");
-  $exe_ndb_mgm=
-    mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
-			 "$ndb_path/ndb_mgm");
-  $exe_ndb_mgmd=
-    mtr_exe_maybe_exists("$ndb_path/src/mgmsrv/ndb_mgmd",
-			 "$ndb_path/ndb_mgmd");
-  $exe_ndb_waiter=
-    mtr_exe_maybe_exists("$ndb_path/tools/ndb_waiter",
-			 "$ndb_path/ndb_waiter");
-
-  # May not exist
-  $path_ndb_tools_dir= mtr_file_exists("$ndb_path/tools",
-				       "$ndb_path");
-  # May not exist
-  $path_ndb_examples_dir=
-    mtr_file_exists("$ndb_path/ndbapi-examples",
-		    "$ndb_path/examples");
-  # May not exist
-  $exe_ndb_example=
-    mtr_file_exists("$path_ndb_examples_dir/ndbapi_simple/ndbapi_simple");
-
-  return ( $exe_ndbd eq "" or
-	   $exe_ndb_mgm eq "" or
-	   $exe_ndb_mgmd eq "" or
-	   $exe_ndb_waiter eq "");
-}
-
-
 sub executable_setup () {
 
   #
@@ -940,14 +895,23 @@ sub executable_setup () {
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
 
-  if ( ! $opt_skip_ndbcluster and executable_setup_ndb()) {
-    mtr_warning("Could not find all required ndb binaries, " .
-		"all ndb tests will fail, use --skip-ndbcluster to " .
-		"skip testing it.");
+  if ( ! $opt_skip_ndbcluster )
+  {
+    $exe_ndbd=
+      my_find_bin($basedir,
+		  ["storage/ndb/src/kernel", "libexec"],
+		  "ndbd");
 
-    foreach my $cluster ( clusters()) {
-      $cluster->{"executable_setup_failed"}= 1;
-    }
+    $exe_ndb_mgmd=
+      my_find_bin($basedir,
+		  ["storage/ndb/src/mgmsrv", "libexec"],
+		  "ndb_mgmd");
+
+    $exe_ndb_waiter=
+      my_find_bin($basedir,
+		  ["storage/ndb/tools/", "bin"],
+		  "ndb_waiter");
+
   }
 
   # Look for mysqltest executable
@@ -1204,13 +1168,30 @@ sub environment_setup {
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
-  $ENV{'NDB_MGM'}=                  $exe_ndb_mgm;
-  $ENV{'NDB_EXTRA_TEST'}=           $opt_ndb_extra_test;
-  $ENV{'NDB_TOOLS_DIR'}=            $path_ndb_tools_dir;
-  $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
-  $ENV{'NDB_EXAMPLES_DIR'}=         $path_ndb_examples_dir;
-  $ENV{'NDB_EXAMPLES_BINARY'}=      $exe_ndb_example;
-  $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
+  if ( ! $opt_skip_ndbcluster )
+  {
+    $ENV{'NDB_MGM'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/src/mgmclient", "bin"],
+		  "ndb_mgm");
+
+    $ENV{'NDB_TOOLS_DIR'}=
+      my_find_dir($basedir,
+		  ["storage/ndb/tools", "bin"]);
+
+    $ENV{'NDB_EXAMPLES_DIR'}=
+      my_find_dir($basedir,
+		  ["storage/ndb/ndbapi-examples", "bin"]);
+
+    $ENV{'NDB_EXAMPLES_BINARY'}=
+      my_find_bin($basedir,
+		  ["storage/ndb/ndbapi-examples/ndbapi_simple", "bin"],
+		  "ndbapi_simple", NOT_REQUIRED);
+
+    my $path_ndb_testrun_log= "$opt_vardir/log/ndb_testrun.log";
+    $ENV{'NDB_TOOLS_OUTPUT'}=         $path_ndb_testrun_log;
+    $ENV{'NDB_EXAMPLES_OUTPUT'}=      $path_ndb_testrun_log;
+  }
 
   # ----------------------------------------------------
   # mysql clients
@@ -2109,23 +2090,6 @@ sub run_testcase_check_skip_test($)
     mtr_report_test_skipped($tinfo);
     return 1;
   }
-
-  if ($tinfo->{'ndb_test'})
-  {
-    foreach my $cluster ( clusters() )
-    {
-      # If test needs this cluster, check binaries was found ok
-      if ( $cluster->{'executable_setup_failed'} )
-      {
-	$tinfo->{comment}=
-	  "Failed to find cluster binaries";
-	mtr_report_test_failed($tinfo, undef);
-	return 1;
-      }
-    }
-  }
-
-
 
   return 0;
 }
@@ -3628,7 +3592,6 @@ Options to control what test suites or cases to run
   with-ndbcluster-only  Run only tests that include "ndb" in the filename
   skip-ndb[cluster]     Skip all tests that need cluster
   skip-ndb[cluster]-slave Skip all tests that need a slave cluster
-  ndb-extra             Run extra tests from ndb directory
   do-test=PREFIX or REGEX
                         Run test cases which name are prefixed with PREFIX
                         or fulfills REGEX
