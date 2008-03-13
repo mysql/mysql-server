@@ -186,7 +186,7 @@ all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.rec
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
 	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
 	$(MAYBEATSIGN) $(SETTOKUENV) mkdir dir.$(patsubst %.tdb,%.c.tdb,$<).recover
-	$(MAYBEATSIGN) $(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
+	$(MAYBEATSIGN) $(SETTOKUENV) cd dir.$(patsubst %.tdb,%.c.tdb,$<).recover; $(VGRIND) ../../../newbrt/tdb-recover ../dir.$(patsubst %.tdb,%.c.tdb,$<)
 	$(MAYBEATSIGN) $(SETTOKUENV) diff dir.$(patsubst %.tdb,%.c.tdb,$<) dir.$(patsubst %.tdb,%.c.tdb,$<).recover/foo.db
 
 %.recoverwc: %.tdb
