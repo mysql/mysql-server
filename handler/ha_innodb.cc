@@ -2327,13 +2327,33 @@ UNIV_INTERN
 enum row_type
 ha_innobase::get_row_type() const
 /*=============================*/
-			/* out: ROW_TYPE_REDUNDANT or ROW_TYPE_COMPACT */
+			/* out: one of
+			ROW_TYPE_REDUNDANT,
+			ROW_TYPE_COMPACT,
+			ROW_TYPE_COMPRESSED,
+			ROW_TYPE_DYNAMIC */
 {
 	if (prebuilt && prebuilt->table) {
-		if (dict_table_is_comp(prebuilt->table)) {
-			return(ROW_TYPE_COMPACT);
-		} else {
+		const ulint	flags = prebuilt->table->flags;
+
+		if (UNIV_UNLIKELY(!flags)) {
 			return(ROW_TYPE_REDUNDANT);
+		}
+
+		ut_ad(flags & DICT_TF_COMPACT);
+
+		switch (flags & DICT_TF_FORMAT_MASK) {
+		case DICT_TF_FORMAT_51 << DICT_TF_FORMAT_SHIFT:
+			return(ROW_TYPE_COMPACT);
+		case DICT_TF_FORMAT_ZIP << DICT_TF_FORMAT_SHIFT:
+			if (flags & DICT_TF_ZSSIZE_MASK) {
+				return(ROW_TYPE_COMPRESSED);
+			} else {
+				return(ROW_TYPE_DYNAMIC);
+			}
+#if DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX
+# error "DICT_TF_FORMAT_ZIP != DICT_TF_FORMAT_MAX"
+#endif
 		}
 	}
 	ut_ad(0);
@@ -5231,6 +5251,8 @@ ha_innobase::create(
 	THD*		thd = ha_thd();
 	ib_longlong	auto_inc_value;
 	ulint		flags;
+	/* Cache the value of innodb_file_format, in case it is
+	modified by another thread while the table is being created. */
 	const ulint	file_format = srv_file_format;
 
 	DBUG_ENTER("ha_innobase::create");
@@ -5287,68 +5309,152 @@ ha_innobase::create(
 
 	flags = 0;
 
-	switch (create_info->key_block_size) {
-	case 0:
-		if (form->s->row_type != ROW_TYPE_REDUNDANT) {
-			flags |= DICT_TF_COMPACT;
-		}
-
-		goto key_block_size_ok;
-	case 1:
-		flags |= 1 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
-		break;
-	case 2:
-		flags |= 2 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
-		break;
-	case 4:
-		flags |= 3 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
-		break;
-	case 8:
-		flags |= 4 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
-		break;
-	case 16:
-		flags |= 5 << DICT_TF_ZSSIZE_SHIFT | DICT_TF_COMPACT;
-		break;
+	if (create_info->key_block_size
+	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
+		switch (create_info->key_block_size) {
+		case 1:
+			flags = 1 << DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				  << DICT_TF_FORMAT_SHIFT;
+			break;
+		case 2:
+			flags = 2 << DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				  << DICT_TF_FORMAT_SHIFT;
+			break;
+		case 4:
+			flags = 3 << DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				  << DICT_TF_FORMAT_SHIFT;
+			break;
+		case 8:
+			flags = 4 << DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				  << DICT_TF_FORMAT_SHIFT;
+			break;
+		case 16:
+			flags = 5 << DICT_TF_ZSSIZE_SHIFT
+				| DICT_TF_COMPACT
+				| DICT_TF_FORMAT_ZIP
+				  << DICT_TF_FORMAT_SHIFT;
+			break;
 #if DICT_TF_ZSSIZE_MAX != 5
 # error "DICT_TF_ZSSIZE_MAX != 5"
 #endif
-key_block_size_wrong:
-	default:
-		if (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
-			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-				 innobase_hton_name, "KEY_BLOCK_SIZE");
-			error = -1;
-			goto cleanup;
-		} else {
-			sql_print_warning("InnoDB: ignoring"
-					  " KEY_BLOCK_SIZE=%lu\n",
-					  create_info->key_block_size);
-			flags &= ~DICT_TF_ZSSIZE_MASK;
-			goto key_block_size_ok;
+		}
+
+		if (!srv_file_per_table) {
+			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				     ER_ILLEGAL_HA_CREATE_OPTION,
+				     "InnoDB: KEY_BLOCK_SIZE"
+				     " requires innodb_file_per_table.");
+			flags = 0;
+		}
+
+		if (file_format < DICT_TF_FORMAT_ZIP) {
+			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+				     ER_ILLEGAL_HA_CREATE_OPTION,
+				     "InnoDB: KEY_BLOCK_SIZE"
+				     " requires innodb_file_format>0.");
+			flags = 0;
+		}
+
+		if (!flags) {
+			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+					    ER_ILLEGAL_HA_CREATE_OPTION,
+					    "InnoDB: ignoring"
+					    " KEY_BLOCK_SIZE=%lu.",
+					    create_info->key_block_size);
 		}
 	}
 
-	if (!srv_file_per_table || file_format < DICT_TF_FORMAT_ZIP) {
+	if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
+		if (flags) {
+			/* KEY_BLOCK_SIZE was specified. */
+			if (form->s->row_type != ROW_TYPE_COMPRESSED) {
+				/* ROW_FORMAT other than COMPRESSED
+				ignores KEY_BLOCK_SIZE.  It does not
+				make sense to reject conflicting
+				KEY_BLOCK_SIZE and ROW_FORMAT, because
+				such combinations can be obtained
+				with ALTER TABLE anyway. */
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
+					" unless ROW_FORMAT=COMPRESSED.",
+					create_info->key_block_size);
+				flags = 0;
+			}
+		} else {
+			/* No KEY_BLOCK_SIZE */
+			if (form->s->row_type == ROW_TYPE_COMPRESSED) {
+				/* ROW_FORMAT=COMPRESSED without
+				KEY_BLOCK_SIZE implies
+				KEY_BLOCK_SIZE=8. */
+				flags = 4 << DICT_TF_ZSSIZE_SHIFT
+					| DICT_TF_COMPACT
+					| DICT_TF_FORMAT_ZIP
+					  << DICT_TF_FORMAT_SHIFT;
+			}
+		}
 
-		goto key_block_size_wrong;
-	}
+		switch (form->s->row_type) {
+			const char* row_format_name;
+		case ROW_TYPE_REDUNDANT:
+			break;
+		case ROW_TYPE_COMPRESSED:
+		case ROW_TYPE_DYNAMIC:
+			row_format_name
+				= form->s->row_type == ROW_TYPE_COMPRESSED
+				? "COMPRESSED"
+				: "DYNAMIC";
 
-key_block_size_ok:
+			if (!srv_file_per_table) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s"
+					" requires innodb_file_per_table.",
+					row_format_name);
+			} else if (file_format < DICT_TF_FORMAT_ZIP) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_WARN,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s"
+					" requires innodb_file_format>0.",
+					row_format_name);
+			} else {
+				flags |= DICT_TF_COMPACT
+					| (DICT_TF_FORMAT_ZIP
+					   << DICT_TF_FORMAT_SHIFT);
+				break;
+			}
 
-	if (UNIV_EXPECT(flags & DICT_TF_COMPACT, DICT_TF_COMPACT)) {
-		/* New formats are only available if ROW_FORMAT=COMPACT. */
-		flags |= file_format << DICT_TF_FORMAT_SHIFT;
-	}
-
-	if ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
-	    && form->s->row_type != ((flags & DICT_TF_COMPACT)
-				     ? ROW_TYPE_COMPACT
-				     : ROW_TYPE_REDUNDANT)) {
-
-		my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
-			 innobase_hton_name, "ROW_FORMAT");
-		error = -1;
-		goto cleanup;
+			/* fall through */
+		case ROW_TYPE_NOT_USED:
+		case ROW_TYPE_FIXED:
+		default:
+			push_warning(thd,
+				     MYSQL_ERROR::WARN_LEVEL_WARN,
+				     ER_ILLEGAL_HA_CREATE_OPTION,
+				     "InnoDB: assuming ROW_FORMAT=COMPACT.");
+		case ROW_TYPE_DEFAULT:
+		case ROW_TYPE_COMPACT:
+			flags = DICT_TF_COMPACT;
+			break;
+		}
+	} else if (!flags) {
+		/* No KEY_BLOCK_SIZE or ROW_FORMAT specified:
+		use ROW_FORMAT=COMPACT by default. */
+		flags = DICT_TF_COMPACT;
 	}
 
 	error = create_table_def(trx, form, norm_name,
@@ -8313,9 +8419,14 @@ ha_innobase::check_if_incompatible_data(
 	}
 
 	/* Check that row format didn't change */
-	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
-		get_row_type() != info->row_type) {
+	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
+	    get_row_type() != info->row_type) {
 
+		return(COMPATIBLE_DATA_NO);
+	}
+
+	/* Specifying KEY_BLOCK_SIZE requests a rebuild of the table. */
+	if (info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE) {
 		return(COMPATIBLE_DATA_NO);
 	}
 
