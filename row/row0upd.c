@@ -877,6 +877,8 @@ row_upd_index_replace_new_col_val(
 	const dict_field_t*	field,	/* in: index field */
 	const dict_col_t*	col,	/* in: field->col */
 	const upd_field_t*	uf,	/* in: update field */
+	mem_heap_t*		heap,	/* in: memory heap for allocating
+					and copying the new value */
 	ulint			zip_size)/* in: compressed page
 					 size of the table, or 0 */
 {
@@ -976,7 +978,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/* in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap,	/* in: memory heap for allocating and
+	mem_heap_t*	heap)	/* in: memory heap for allocating and
 				copying the new values */
 {
 	ulint		i;
@@ -1005,7 +1007,7 @@ row_upd_index_replace_new_col_vals_index_pos(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf, zip_size);
+				field, col, uf, heap, zip_size);
 		}
 	}
 }
@@ -1050,7 +1052,7 @@ row_upd_index_replace_new_col_vals(
 		if (uf) {
 			row_upd_index_replace_new_col_val(
 				dtuple_get_nth_field(entry, i),
-				field, col, uf);
+				field, col, uf, heap, zip_size);
 		}
 	}
 }
