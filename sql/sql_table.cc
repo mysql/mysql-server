@@ -5348,7 +5348,7 @@ compare_tables(THD *thd,
 
           *alter_flags|= HA_DROP_UNIQUE_INDEX;
           key_part= table_key->key_part;
-          end= key_part + new_key->key_parts;
+          end= key_part + table_key->key_parts;
 
          /*
             Check if all fields in key are declared
@@ -5358,7 +5358,7 @@ compare_tables(THD *thd,
           {
             is_not_null=
               (is_not_null && 
-               (!table->field[key_part->fieldnr]->maybe_null()));
+               (!table->field[key_part->fieldnr-1]->maybe_null()));
           }
           if (is_not_null)
             candidate_key_count--;
