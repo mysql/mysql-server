@@ -2371,6 +2371,8 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
+Warnings:
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
