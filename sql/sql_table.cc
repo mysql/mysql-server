@@ -5347,7 +5347,7 @@ compare_tables(THD *thd,
           bool is_not_null;
 
           *alter_flags|= HA_DROP_UNIQUE_INDEX;
-          key_part= new_key->key_part;
+          key_part= table_key->key_part;
           end= key_part + new_key->key_parts;
 
          /*
