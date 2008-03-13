@@ -17,29 +17,86 @@
 
 ## Process this file with automake to create Makefile.in
 
-testdir =		$(prefix)/mysql-test
+testdir =	$(prefix)/mysql-test
 
-EXTRA_DIST =		README \
-			mysql-test-run.pl \
-			mysql-stress-test.pl \
-			t r include suite extra \
-			lib std_data \
-			valgrind.supp
+test_SCRIPTS =	mtr \
+		mysql-test-run \
+		mysql-test-run.pl \
+		mysql-stress-test.pl
 
-test_SCRIPTS =		mtr mysql-test-run
-CLEANFILES =		$(test_SCRIPTS)
+nobase_test_DATA = lib/mtr_cases.pm \
+	lib/mtr_gcov.pl \
+	lib/mtr_gprof.pl \
+	lib/mtr_io.pl \
+	lib/mtr_match.pl \
+	lib/mtr_misc.pl \
+	lib/mtr_process.pl \
+	lib/mtr_report.pm \
+	lib/mtr_stress.pl \
+	lib/mtr_unique.pl \
+	lib/My/ConfigFactory.pm \
+	lib/My/Config.pm \
+	lib/My/Find.pm \
+	lib/My/Options.pm \
+	lib/My/Platform.pm \
+	lib/My/SafeProcess.pm \
+	lib/My/File/Path.pm \
+	lib/My/SafeProcess/Base.pm \
+	lib/My/SafeProcess/safe_process.pl
 
-SUBDIRS =               lib/My/SafeProcess
+SUBDIRS =	lib/My/SafeProcess
 
+EXTRA_DIST =	README \
+		valgrind.supp \
+		$(test_SCRIPTS) \
+		$(nobase_test_DATA)
 
-# Install all files and files in directories listed in EXTRA_DIST
-install-data-local:
-	for f in `(cd $(srcdir); find $(EXTRA_DIST) -type f)`; \
-	do \
-	  d=$(DESTDIR)$(testdir)/`dirname $$f`; \
-	  mkdir -p $$d ; \
-	  $(INSTALL_DATA) $(srcdir)/$$f $$d ; \
+# List of directories containing test + result files and the
+# related test data files that should be copied
+TEST_DIRS = t r include std_data std_data/parts \
+	extra/binlog_tests/ extra/rpl_tests \
+	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
+	suite/bugs/data suite/bugs/t suite/bugs/r \
+	suite/federated \
+	suite/funcs_1 suite/funcs_1/bitdata suite/funcs_1/data \
+	suite/funcs_1/include suite/funcs_1/lib suite/funcs_1/r \
+	suite/funcs_1/t suite/funcs_1/views suite/funcs_1/cursors \
+	suite/funcs_1/datadict suite/funcs_1/storedproc suite/funcs_1/triggers \
+	suite/funcs_2 suite/funcs_2/charset suite/funcs_2/data \
+	suite/funcs_2/include suite/funcs_2/lib suite/funcs_2/r \
+	suite/funcs_2/t \
+	suite/jp suite/jp/t suite/jp/r suite/jp/std_data \
+	suite/manual/t suite/manual/r \
+	suite/ndb_team suite/ndb_team/t suite/ndb_team/r \
+	suite/rpl suite/rpl/data suite/rpl/include suite/rpl/r \
+	suite/rpl/t \
+	suite/stress/include suite/stress/t suite/stress/r \
+	suite/ndb suite/ndb/t suite/ndb/r \
+	suite/rpl_ndb suite/rpl_ndb/t suite/rpl_ndb/r \
+	suite/parts suite/parts/t suite/parts/r suite/parts/inc
+
+# Used by dist-hook and install-data-local to copy all
+# test files into either dist or install directory
+install_test_files:
+	@if test -z "$(INSTALL_TO_DIR)"; then \
+	  echo "Set INSTALL_TO_DIR!" && exit 1; \
+	fi
+	@for dir in $(TEST_DIRS); do \
+	  from_dir="$(srcdir)/$$dir"; \
+	  to_dir="$(INSTALL_TO_DIR)/$$dir"; \
+	  $(mkinstalldirs) "$$to_dir"; \
+	  for f in `(cd $$from_dir && ls)`; do \
+	    if test -f "$$from_dir/$$f"; then \
+	      $(INSTALL_DATA) "$$from_dir/$$f" "$$to_dir/$$f" ; \
+	    fi; \
+	  done \
 	done
+
+dist-hook:
+	$(MAKE)	INSTALL_TO_DIR="$(distdir)" install_test_files
+
+install-data-local:
+	$(MAKE)	INSTALL_TO_DIR="$(DESTDIR)$(testdir)" install_test_files
 
 uninstall-local:
 	@RM@ -f -r $(DESTDIR)$(testdir)

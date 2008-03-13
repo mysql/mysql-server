@@ -13,9 +13,16 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS =		my_safe_process
+safedir = $(prefix)/mysql-test/lib/My/SafeProcess
+#nobase_bin_PROGRAMS = ...
+safe_PROGRAMS =		my_safe_process
 
 my_safe_process_SOURCES = safe_process.cc
+
+EXTRA_DIST = 	safe_kill_win.cc \
+		safe_process_win.cc \
+		CMakeLists.txt
+
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
