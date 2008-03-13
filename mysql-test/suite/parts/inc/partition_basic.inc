@@ -34,17 +34,13 @@ let $unique= ;
    #
    --disable_query_log
    # DATA DIRECTORY
-   # Make directory for partition data
-   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/data || true
    eval SET @data_dir = 'DATA DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/master-data/test/data''''';
+   ''''$MYSQLTEST_VARDIR/tmp''''';
    let $data_directory = `select @data_dir`;
 
    #INDEX DIRECTORY
-   # Make directory for partition index
-   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/index || true
    eval SET @indx_dir = 'INDEX DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/master-data/test/index''''';
+   ''''$MYSQLTEST_VARDIR/tmp''''';
    let $index_directory = `select @indx_dir`;
 
    let $with_directories= 1;
@@ -77,17 +73,13 @@ if ($more_pk_ui_tests)
    #
    --disable_query_log
    # DATA DIRECTORY
-   # Make directory for partition data
-   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/data || true
    eval SET @data_dir = 'DATA DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/master-data/test/data''''';
+   ''''$MYSQLTEST_VARDIR/tmp''''';
    let $data_directory = `select @data_dir`;
 
    #INDEX DIRECTORY
-   # Make directory for partition index
-   --exec mkdir $MYSQLTEST_VARDIR/master-data/test/index || true
    eval SET @indx_dir = 'INDEX DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/master-data/test/index''''';
+   ''''$MYSQLTEST_VARDIR/tmp''''';
    let $index_directory = `select @indx_dir`;
 
    let $with_directories= TRUE;
