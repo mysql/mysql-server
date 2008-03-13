@@ -209,12 +209,23 @@ SELECT user FROM information_schema.processlist ORDER BY id;
 --echo # -- Resetting variables...
 
 --eval SET GLOBAL max_connections = $saved_max_connections
+
+--echo
+--echo # -- Stopping Event Scheduler...
 SET GLOBAL event_scheduler = OFF;
+
+--echo # -- Waiting for Event Scheduler to stop...
+let $wait_condition =
+  SELECT COUNT(*) = 0
+  FROM information_schema.processlist
+  WHERE user = 'event_scheduler';
+--source include/wait_condition.inc
 
 --echo
 --echo # -- That's it. Closing connections...
 --disconnect con_1
 --disconnect con_2
+--disconnect con_3
 --disconnect con_super_1
 
 --echo
@@ -222,7 +233,71 @@ SET GLOBAL event_scheduler = OFF;
 --connect (default,localhost,root,,test)
 
 --echo
+--echo # -- Waiting for connections to close...
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM information_schema.processlist
+  WHERE db = 'test';
+--source include/wait_condition.inc
+
+--echo
+DROP USER mysqltest_u1@localhost;
+
+--echo
 --echo # -- End of Bug#33507.
+--echo
+
+###########################################################################
+
+--echo # -- Bug#35074: max_used_connections is not correct. 
+--echo
+
+FLUSH STATUS;
+
+--echo
+SHOW STATUS LIKE 'max_used_connections';
+
+--echo
+--echo # -- Starting Event Scheduler...
+SET GLOBAL event_scheduler = ON;
+
+--echo # -- Waiting for Event Scheduler to start...
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM information_schema.processlist
+  WHERE user = 'event_scheduler';
+--source include/wait_condition.inc
+
+# NOTE: We should use a new connection here instead of reconnect in order to
+# avoid races (we can not for sure when the connection being disconnected is
+# actually disconnected on the server).
+
+--echo
+--echo # -- Opening a new connection to check max_used_connections...
+--connect (con_1,localhost,root)
+
+--echo
+--echo # -- Check that max_used_connections hasn't changed.
+SHOW STATUS LIKE 'max_used_connections';
+
+--echo
+--echo # -- Closing new connection...
+--disconnect con_1
+--connection default
+
+--echo
+--echo # -- Stopping Event Scheduler...
+SET GLOBAL event_scheduler = OFF;
+
+--echo # -- Waiting for Event Scheduler to stop...
+let $wait_condition =
+  SELECT COUNT(*) = 0
+  FROM information_schema.processlist
+  WHERE user = 'event_scheduler';
+--source include/wait_condition.inc
+
+--echo
+--echo # -- End of Bug#35074.
 --echo
 
 --echo # ------------------------------------------------------------------
