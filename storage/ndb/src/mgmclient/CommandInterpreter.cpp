@@ -1391,6 +1391,8 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
     retval = (this->*fun)(nodeId, allAfterSecondToken, true);
     ndbout_c("Trying to start all nodes of system.");
     ndbout_c("Use ALL STATUS to see the system start-up phases.");
+  } else if (strcasecmp(cmd, "STATUS") == 0) {
+    (this->*fun)(nodeId, allAfterSecondToken, true);    
   } else {
     Guard g(m_print_mutex);
     struct ndb_mgm_cluster_state *cl= ndb_mgm_get_status(m_mgmsrv);
@@ -2177,6 +2179,103 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
   return retval;
 }
 
+/**
+ * print status of one node
+ */
+static
+void
+print_status(const ndb_mgm_node_state * state)
+{
+  Uint32 version = state->version;
+  if (state->node_type != NDB_MGM_NODE_TYPE_NDB)
+  {
+    if (version != 0)
+    {
+      ndbout << "Node " << state->node_id <<": connected" ;
+      ndbout_c(" (Version %d.%d.%d)",
+               getMajor(version) ,
+               getMinor(version),
+               getBuild(version));
+      
+    }
+    else
+    {
+      ndbout << "Node " << state->node_id << ": not connected" << endl;
+    }
+    return;
+  }
+  
+  ndbout << "Node " << state->node_id 
+         << ": " << status_string(state->node_status);
+  switch(state->node_status){
+  case NDB_MGM_NODE_STATUS_STARTING:
+    ndbout << " (Phase " << state->start_phase << ")";
+    break;
+  case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
+    ndbout << " (Phase " << state->start_phase << ")";
+    break;
+  default:
+    break;
+  }
+
+  if(state->node_status != NDB_MGM_NODE_STATUS_NO_CONTACT)
+  {
+    char tmp[100];
+    ndbout_c(" (%s)", ndbGetVersionString(version, 
+                                          state->mysql_version, 0, 
+					  tmp, sizeof(tmp))); 
+  }
+  else
+  {
+    ndbout << endl;
+  }
+}
+
+int
+CommandInterpreter::executeStatus(int processId, 
+				  const char* parameters, bool all) 
+{
+  if (! emptyString(parameters)) {
+    ndbout_c("No parameters expected to this command.");
+    return -1;
+  }
+
+  ndb_mgm_node_type types[2] = {
+    NDB_MGM_NODE_TYPE_NDB,
+    NDB_MGM_NODE_TYPE_UNKNOWN
+  };
+  struct ndb_mgm_cluster_state *cl;
+  cl = ndb_mgm_get_status2(m_mgmsrv, all ? types : 0);
+  if(cl == NULL) 
+  {
+    ndbout_c("Cannot get status of node %d.", processId);
+    printError();
+    return -1;
+  }
+  NdbAutoPtr<char> ap1((char*)cl);
+
+  if (all)
+  {
+    for (int i = 0; i<cl->no_of_nodes; i++)
+      print_status(cl->node_states+i);
+    return 0;
+  }
+  else
+  {
+    for (int i = 0; i<cl->no_of_nodes; i++)
+    {
+      if (cl->node_states[i].node_id == processId)
+      {
+        print_status(cl->node_states + i);
+        return 0;
+      }
+    }
+    ndbout << processId << ": Node not found" << endl;
+    return -1;
+  }
+  return 0;
+} //
+
 int
 CommandInterpreter::executeDumpState(int processId, const char* parameters,
 				     bool all) 
@@ -2311,74 +2410,6 @@ static void helpTextReportFn()
     ndbout_c("  %s\t- %s", report_cmds[i].name, report_cmds[i].help);
   }
 }
-
-int
-CommandInterpreter::executeStatus(int processId, 
-				  const char* parameters, bool all) 
-{
-  if (! emptyString(parameters)) {
-    ndbout_c("No parameters expected to this command.");
-    return -1;
-  }
-
-  ndb_mgm_node_status status;
-  Uint32 startPhase, version, mysql_version;
-  
-  struct ndb_mgm_cluster_state *cl;
-  cl = ndb_mgm_get_status(m_mgmsrv);
-  if(cl == NULL) {
-    ndbout_c("Cannot get status of node %d.", processId);
-    printError();
-    return -1;
-  }
-  NdbAutoPtr<char> ap1((char*)cl);
-
-  int i = 0;
-  while((i < cl->no_of_nodes) && cl->node_states[i].node_id != processId)
-    i++;
-  if(cl->node_states[i].node_id != processId) {
-    ndbout << processId << ": Node not found" << endl;
-    return -1;
-  }
-  if (cl->node_states[i].node_type != NDB_MGM_NODE_TYPE_NDB){
-    if (cl->node_states[i].version != 0){
-      version = cl->node_states[i].version;
-      ndbout << "Node "<< cl->node_states[i].node_id <<": connected" ;
-      ndbout_c(" (Version %d.%d.%d)",
-             getMajor(version) ,
-             getMinor(version),
-             getBuild(version));
-
-    }else
-     ndbout << "Node "<< cl->node_states[i].node_id <<": not connected" << endl;
-    return 0;
-  }
-  status = cl->node_states[i].node_status;
-  startPhase = cl->node_states[i].start_phase;
-  version = cl->node_states[i].version;
-  mysql_version = cl->node_states[i].mysql_version;
-
-  ndbout << "Node " << processId << ": " << status_string(status);
-  switch(status){
-  case NDB_MGM_NODE_STATUS_STARTING:
-    ndbout << " (Phase " << startPhase << ")";
-    break;
-  case NDB_MGM_NODE_STATUS_SHUTTING_DOWN:
-    ndbout << " (Phase " << startPhase << ")";
-    break;
-  default:
-    break;
-  }
-  
-  char tmp[100];
-  if(status != NDB_MGM_NODE_STATUS_NO_CONTACT)
-    ndbout_c(" (%s)", ndbGetVersionString(version, mysql_version, 0, tmp, sizeof(tmp))); 
-  else
-    ndbout << endl;
-  
-  return 0;
-}
-
 
 //*****************************************************************************
 //*****************************************************************************
