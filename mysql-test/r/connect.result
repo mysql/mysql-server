@@ -162,13 +162,47 @@ root
 
 # -- Resetting variables...
 SET GLOBAL max_connections = 151;
+
+# -- Stopping Event Scheduler...
 SET GLOBAL event_scheduler = OFF;
+# -- Waiting for Event Scheduler to stop...
 
 # -- That's it. Closing connections...
 
 # -- Restoring default connection...
 
+# -- Waiting for connections to close...
+
+DROP USER mysqltest_u1@localhost;
+
 # -- End of Bug#33507.
+
+# -- Bug#35074: max_used_connections is not correct. 
+
+FLUSH STATUS;
+
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	1
+
+# -- Starting Event Scheduler...
+SET GLOBAL event_scheduler = ON;
+# -- Waiting for Event Scheduler to start...
+
+# -- Opening a new connection to check max_used_connections...
+
+# -- Check that max_used_connections hasn't changed.
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	2
+
+# -- Closing new connection...
+
+# -- Stopping Event Scheduler...
+SET GLOBAL event_scheduler = OFF;
+# -- Waiting for Event Scheduler to stop...
+
+# -- End of Bug#35074.
 
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
