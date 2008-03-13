@@ -24,23 +24,21 @@ struct __toku_range_tree_local {
     struct toku_rbt_tree* rbt;
     /*
      * if iter_at_beginning is TRUE, then iteration is at beginning,
-     * if iter_at_beginning is FALSE and iterator_finger is NOT NULL, 
+     * if iter_at_beginning is FALSE and iter_finger is NOT NULL, 
      * iteration is ongoing, 
-     * if iter_at_beginning is FALSE and iterator_finger is NULL,
+     * if iter_at_beginning is FALSE and iter_finger is NULL,
      * iteration has ended or in invalid state. 
      */
     
     /*
-     * BOOL that says if iteration is at beginning.
-     * If at beginning, toku_rt_next returns first element
-     * in the range_tree, otherwise returns successor of curr_range
+     * BOOL that says whether we are allowed to iterate.
      */ 
-    BOOL iter_at_beginning;
+    BOOL iter_is_valid;
     /**
      * The range we are currently at in the iterator, if it is set to NULL, that means
      * the iteration is no longer valid and/or the iteration is done 
      * */
-    struct toku_rbt_node* iterator_finger;
+    struct toku_rbt_node* iter_finger;
 };
 #include <rangetree-internal.h>
 
@@ -55,6 +53,10 @@ lookup (type) returns:
 
 Finger usefulness:
 */
+
+static inline void toku_rt_invalidate_iteration(toku_range_tree* tree) {
+    tree->i.iter_is_valid = FALSE;
+}
 
 //FIRST PASS
 int toku_rt_create(toku_range_tree** ptree,
@@ -80,8 +82,7 @@ int toku_rt_create(toku_range_tree** ptree,
      * Start range tree in invalid iteration state, toku_rt_start_scan must
      * be called to start iteration
      */
-    temptree->i.iter_at_beginning = FALSE;
-    temptree->i.iterator_finger = NULL;
+    toku_rt_invalidate_iteration(temptree);
     *ptree = temptree;
     r = 0;
 cleanup:
@@ -210,7 +211,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     /*
      * invalidate iteration, because we have inserted node
      */
-    tree->i.iterator_finger = NULL;
+    toku_rt_invalidate_iteration(tree);
     r = 0;
 cleanup:
     return r;
@@ -251,7 +252,7 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     /*
      * invalidate iteration, because we have deleted node
      */
-    tree->i.iterator_finger = NULL;
+    toku_rt_invalidate_iteration(tree);
     tree->numelements--;
     r = 0;    
 cleanup:
@@ -363,42 +364,42 @@ int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size) {
 
 void toku_rt_start_scan (toku_range_tree* range_tree) {
     assert(range_tree);
-    range_tree->i.iter_at_beginning = TRUE;
-    range_tree->i.iterator_finger = NULL;
+    range_tree->i.iter_is_valid = TRUE;
+    /* NULL finger means we have not gotten any yet (beginning). */
+    range_tree->i.iter_finger = NULL;
     return;
 }
 
 int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem_found) {
     int r = ENOSYS;
-    toku_range* ret_range = NULL;
+           toku_range*    ret_range     = NULL;
     struct toku_rbt_node* ignore_insert = NULL;
-    if (!range_tree || !out_range) { r = EINVAL; goto cleanup; }
-    /* Check to see if range tree is in invalid iteation state */
-    if (!range_tree->i.iter_at_beginning && !range_tree->i.iterator_finger){ 
-        r = EDOM; goto cleanup; 
-    }
-    
-    if (range_tree->i.iter_at_beginning) {
+
+    if (!range_tree || !out_range || !elem_found) { r = EINVAL; goto cleanup; }
+    /* Check to see if range tree is in invalid iteration state */
+    if (!range_tree->i.iter_is_valid)             { r = EDOM;   goto cleanup; }
+
+    if (range_tree->i.iter_finger == NULL) {
+        /* Initial scan */
         r = toku_rbt_lookup(RB_LUFIRST, NULL, range_tree->i.rbt, 
-                &ignore_insert, &range_tree->i.iterator_finger, &ret_range);
+                &ignore_insert, &range_tree->i.iter_finger, &ret_range);
         if (r != 0) { goto cleanup; }
     }
     else {
+        /* Repeated successor queries. */
         /*
          * If there is no successor because we have arrived at the end of the iteration,
          * or because of some unexpected error, ret_range will have the value of NULL,
          * which we want to return to the user in such cases
          */
-        r = toku_rbt_finger_successor(&range_tree->i.iterator_finger, &ret_range);
+        r = toku_rbt_finger_successor(&range_tree->i.iter_finger, &ret_range);
         if (r != 0) { goto cleanup; }
     }
 
-    if (ret_range) {
-        *elem_found = TRUE;
-        *out_range = *ret_range;
-    }
+    range_tree->i.iter_is_valid     = ret_range != NULL;
+    *elem_found                   = range_tree->i.iter_is_valid;
+    if (*elem_found) { *out_range = *ret_range; }
     r = 0;
-    
 cleanup:
     return r;
 }

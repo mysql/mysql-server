@@ -621,8 +621,8 @@ int toku_rbt_finger_successor(struct toku_rbt_node** pfinger,
                                 toku_range** psucc_data) {
     int r = ENOSYS;
 
-    if (!pfinger || !*pfinger ||
-        *pfinger == RBNULL || !psucc_data) { r = EINVAL; goto cleanup; }
+    if (!pfinger || !*pfinger || !psucc_data) { r = EINVAL; goto cleanup; }
+    if (*pfinger == RBNULL)                   { r = EDOM;   goto cleanup; }
     *pfinger = toku_rbt__successor(*pfinger);
     *psucc_data = (toku_range*)
         ((*pfinger==RBNULL) ? NULL : RB_GET((*pfinger), key));
