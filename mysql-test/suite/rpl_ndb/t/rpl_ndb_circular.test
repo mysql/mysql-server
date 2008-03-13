@@ -6,8 +6,8 @@
 --connection slave
 RESET MASTER;
 
-# Check Last_errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_Errno, 1);
+# Check Last_IO_Errno
+let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 echo Last errno after reset master on slave: $the_last_errno;
 
 --connection master
@@ -18,7 +18,7 @@ START SLAVE;
 
 
 # Check Last_errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_Errno, 1);
+let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 echo Last errno after start slave: $the_last_errno;
 
 # create the table on the "slave"
@@ -32,7 +32,7 @@ CREATE TABLE t1 (a int key, b int) ENGINE=ndb;
 SHOW TABLES;
 
 # Check Last_errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_Errno, 1);
+let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
 echo Last errno after table on both: $the_last_errno;
 
 # insert some values on the slave and master
