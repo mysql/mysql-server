@@ -396,11 +396,12 @@ int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem
         if (r != 0) { goto cleanup; }
     }
 
-    range_tree->i.iter_is_valid     = ret_range != NULL;
-    *elem_found                   = range_tree->i.iter_is_valid;
+    *elem_found                   = ret_range != NULL;
+    range_tree->i.iter_is_valid   = ret_range != NULL;
     if (*elem_found) { *out_range = *ret_range; }
     r = 0;
 cleanup:
+    if (r!=0) { toku_rt_invalidate_iteration(range_tree); }
     return r;
 }
 
