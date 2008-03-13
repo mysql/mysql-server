@@ -1006,7 +1006,8 @@ private:
 			 Uint32 startGci);
   void findMinGci(ReplicaRecordPtr fmgReplicaPtr,
                   Uint32& keeGci,
-                  Uint32& oldestRestorableGci);
+                  Uint32& oldestRestorableGci, 
+                  bool);
   bool findStartGci(ConstPtr<ReplicaRecord> fstReplicaPtr,
                     Uint32 tfstStopGci,
                     Uint32& tfstStartGci,
