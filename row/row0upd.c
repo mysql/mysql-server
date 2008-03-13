@@ -866,6 +866,97 @@ row_upd_ext_fetch(
 }
 
 /***************************************************************
+Replaces the new column value stored in the update vector in
+the given index entry field. */
+static
+void
+row_upd_index_replace_new_col_val(
+/*==============================*/
+	dfield_t*		dfield,	/* in/out: data field
+					of the index entry */
+	const dict_field_t*	field,	/* in: index field */
+	const dict_col_t*	col,	/* in: field->col */
+	const upd_field_t*	uf,	/* in: update field */
+	ulint			zip_size)/* in: compressed page
+					 size of the table, or 0 */
+{
+	ulint		len;
+	const byte*	data;
+
+	dfield_copy_data(dfield, &uf->new_val);
+
+	if (dfield_is_null(dfield)) {
+		return;
+	}
+
+	len = dfield_get_len(dfield);
+	data = dfield_get_data(dfield);
+
+	if (field->prefix_len > 0) {
+		ibool		fetch_ext = dfield_is_ext(dfield)
+			&& len < (ulint) field->prefix_len
+			+ BTR_EXTERN_FIELD_REF_SIZE;
+
+		if (fetch_ext) {
+			ulint	l = len;
+
+			len = field->prefix_len;
+
+			data = row_upd_ext_fetch(data, l, zip_size,
+						 &len, heap);
+		}
+
+		len = dtype_get_at_most_n_mbchars(col->prtype,
+						  col->mbminlen, col->mbmaxlen,
+						  field->prefix_len, len,
+						  (const char*) data);
+
+		dfield_set_data(dfield, data, len);
+
+		if (!fetch_ext) {
+			dfield_dup(dfield, heap);
+		}
+
+		return;
+	}
+
+	switch (uf->orig_len) {
+		byte*	buf;
+	case BTR_EXTERN_FIELD_REF_SIZE:
+		/* Restore the original locally stored
+		part of the column.  In the undo log,
+		InnoDB writes a longer prefix of externally
+		stored columns, so that column prefixes
+		in secondary indexes can be reconstructed. */
+		dfield_set_data(dfield,
+				data + len - BTR_EXTERN_FIELD_REF_SIZE,
+				BTR_EXTERN_FIELD_REF_SIZE);
+		dfield_set_ext(dfield);
+		/* fall through */
+	case 0:
+		dfield_dup(dfield, heap);
+		break;
+	default:
+		/* Reconstruct the original locally
+		stored part of the column.  The data
+		will have to be copied. */
+		ut_a(uf->orig_len > BTR_EXTERN_FIELD_REF_SIZE);
+		buf = mem_heap_alloc(heap, uf->orig_len);
+		/* Copy the locally stored prefix. */
+		memcpy(buf, data,
+		       uf->orig_len - BTR_EXTERN_FIELD_REF_SIZE);
+		/* Copy the BLOB pointer. */
+		memcpy(buf + uf->orig_len - BTR_EXTERN_FIELD_REF_SIZE,
+		       data + len - BTR_EXTERN_FIELD_REF_SIZE,
+		       BTR_EXTERN_FIELD_REF_SIZE);
+
+		dfield_set_data(dfield, buf, uf->orig_len);
+		dfield_set_ext(dfield);
+		break;
+	}
+}
+
+/***************************************************************
 Replaces the new column values stored in the update vector to the index entry
 given. */
 UNIV_INTERN
@@ -885,18 +976,12 @@ row_upd_index_replace_new_col_vals_index_pos(
 				/* in: if TRUE, limit the replacement to
 				ordering fields of index; note that this
 				does not work for non-clustered indexes. */
-	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
-				copy the new values, set this as NULL if you
-				do not want allocation */
-	mem_heap_t*	ext_heap)/* in: memory heap where to allocate
-				column prefixes of externally stored
-				columns, may be NULL if the index
-				record does not contain externally
-				stored columns or column prefixes */
+	mem_heap_t*	heap,	/* in: memory heap for allocating and
+				copying the new values */
 {
-	ulint		j;
 	ulint		i;
 	ulint		n_fields;
+	const ulint	zip_size	= dict_table_zip_size(index->table);
 
 	ut_ad(index);
 
@@ -908,80 +993,19 @@ row_upd_index_replace_new_col_vals_index_pos(
 		n_fields = dict_index_get_n_fields(index);
 	}
 
-	for (j = 0; j < n_fields; j++) {
+	for (i = 0; i < n_fields; i++) {
+		const dict_field_t*	field;
+		const dict_col_t*	col;
+		const upd_field_t*	uf;
 
-		dict_field_t*		field
-			= dict_index_get_nth_field(index, j);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
+		field = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(field);
+		uf = upd_get_field_by_field_no(update, i);
 
-		for (i = 0; i < upd_get_n_fields(update); i++) {
-
-			upd_field_t*	upd_field;
-			dfield_t*	dfield;
-
-			upd_field = upd_get_nth_field(update, i);
-
-			if (upd_field->field_no != j) {
-				continue;
-			}
-
-			dfield = dtuple_get_nth_field(entry, j);
-
-			dfield_copy_data(dfield, &upd_field->new_val);
-
-			if (dfield_is_null(dfield)) {
-				break;
-			}
-
-			if (field->prefix_len > 0) {
-				ulint		len
-					= dfield_get_len(dfield);
-				const byte*	data
-					= dfield_get_data(dfield);
-				ibool		fetch_ext
-					= dfield_is_ext(dfield)
-					&& len < (ulint) field->prefix_len
-					+ BTR_EXTERN_FIELD_REF_SIZE;
-
-				if (fetch_ext) {
-					ulint	l
-						= len;
-					ulint	zip_size
-						= dict_table_zip_size(
-							index->table);
-					ut_a(ext_heap);
-
-					len = field->prefix_len;
-
-					data = row_upd_ext_fetch(data, l,
-								 zip_size,
-								 &len,
-								 ext_heap);
-				}
-
-				len = dtype_get_at_most_n_mbchars(
-					col->prtype,
-					col->mbminlen,
-					col->mbmaxlen,
-					field->prefix_len,
-					len, (const char*) data);
-
-				dfield_set_data(dfield, data, len);
-
-				if (fetch_ext && heap && heap == ext_heap) {
-					/* Skip the dfield_dup() below,
-					as the column prefix has already
-					been allocated from ext_heap. */
-					break;
-				}
-			}
-
-			if (heap) {
-				dfield_dup(dfield, heap);
-			}
-
-			break;
+		if (uf) {
+			row_upd_index_replace_new_col_val(
+				dtuple_get_nth_field(entry, i),
+				field, col, uf, zip_size);
 		}
 	}
 }
@@ -1002,101 +1026,31 @@ row_upd_index_replace_new_col_vals(
 	const upd_t*	update,	/* in: an update vector built for the
 				CLUSTERED index so that the field number in
 				an upd_field is the clustered index position */
-	mem_heap_t*	heap,	/* in: memory heap to which we allocate and
-				copy the new values, set this as NULL if you
-				do not want allocation */
-	mem_heap_t*	ext_heap)/* in: memory heap where to allocate
-				column prefixes of externally stored
-				columns, may be NULL if the index
-				record does not contain externally
-				stored columns or column prefixes */
+	mem_heap_t*	heap)	/* in: memory heap for allocating and
+				copying the new values */
 {
-	ulint		j;
-	ulint		i;
-	dict_index_t*	clust_index;
-
-	ut_ad(index);
-
-	clust_index = dict_table_get_first_index(index->table);
+	ulint			i;
+	const dict_index_t*	clust_index
+		= dict_table_get_first_index(index->table);
+	const ulint		zip_size
+		= dict_table_zip_size(index->table);
 
 	dtuple_set_info_bits(entry, update->info_bits);
 
-	for (j = 0; j < dict_index_get_n_fields(index); j++) {
+	for (i = 0; i < dict_index_get_n_fields(index); i++) {
+		const dict_field_t*	field;
+		const dict_col_t*	col;
+		const upd_field_t*	uf;
 
-		dict_field_t*		field
-			= dict_index_get_nth_field(index, j);
-		const dict_col_t*	col
-			= dict_field_get_col(field);
-		const ulint		clust_pos
-			= dict_col_get_clust_pos(col, clust_index);
+		field = dict_index_get_nth_field(index, i);
+		col = dict_field_get_col(field);
+		uf = upd_get_field_by_field_no(
+			update, dict_col_get_clust_pos(col, clust_index));
 
-		for (i = 0; i < upd_get_n_fields(update); i++) {
-
-			upd_field_t*	upd_field;
-			dfield_t*	dfield;
-
-			upd_field = upd_get_nth_field(update, i);
-
-			if (upd_field->field_no != clust_pos) {
-				continue;
-			}
-
-			dfield = dtuple_get_nth_field(entry, j);
-
-			dfield_copy_data(dfield, &upd_field->new_val);
-
-			if (dfield_is_null(dfield)) {
-				break;
-			}
-
-			if (field->prefix_len > 0) {
-				ulint		len
-					= dfield_get_len(dfield);
-				const byte*	data
-					= dfield_get_data(dfield);
-				ibool		fetch_ext
-					= dfield_is_ext(dfield)
-					&& len < (ulint) field->prefix_len
-					+ BTR_EXTERN_FIELD_REF_SIZE;
-
-				if (fetch_ext) {
-					ulint	l
-						= len;
-					ulint	zip_size
-						= dict_table_zip_size(
-							index->table);
-					ut_a(ext_heap);
-
-					len = field->prefix_len;
-
-					data = row_upd_ext_fetch(data, l,
-								 zip_size,
-								 &len,
-								 ext_heap);
-				}
-
-				len = dtype_get_at_most_n_mbchars(
-					col->prtype,
-					col->mbminlen,
-					col->mbmaxlen,
-					field->prefix_len,
-					len, (const char*) data);
-
-				dfield_set_data(dfield, data, len);
-
-				if (fetch_ext && heap && heap == ext_heap) {
-					/* Skip the dfield_dup() below,
-					as the column prefix has already
-					been allocated from ext_heap. */
-					break;
-				}
-			}
-
-			if (heap) {
-				dfield_dup(dfield, heap);
-			}
-
-			break;
+		if (uf) {
+			row_upd_index_replace_new_col_val(
+				dtuple_get_nth_field(entry, i),
+				field, col, uf);
 		}
 	}
 }
