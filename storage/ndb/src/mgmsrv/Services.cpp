@@ -1035,7 +1035,7 @@ MgmApiSession::getStatus(Parser<MgmApiSession>::Context &,
   m_output->println("nodes: %d", noOfNodes);
   for (i = 0; types[i] != NDB_MGM_NODE_TYPE_UNKNOWN; i++)
   {
-    SLEEP_ERROR_INSERTED(7+i);
+    SLEEP_ERROR_INSERTED(int(7+i));
     printNodeStatus(m_output, m_mgmsrv, types[i]);
   }
   m_output->println("");
