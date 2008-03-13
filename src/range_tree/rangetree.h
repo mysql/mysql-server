@@ -207,7 +207,7 @@ int toku_rt_predecessor(toku_range_tree* tree, toku_point* point,
     - 0:                Success.
     - EINVAL:           If any pointer argument is NULL.
                         If tree allows overlaps.
-    - Other exit codes may be forwarded from underlying system calls.
+    - Other exit codes may be forwarded from underlying system calls. 
  */
 int toku_rt_successor(toku_range_tree* tree, toku_point* point,
                       toku_range* succ, BOOL* wasfound);
@@ -223,5 +223,9 @@ int toku_rt_successor(toku_range_tree* tree, toku_point* point,
     - EINVAL:           If any pointer argument is NULL.
  */
 int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size);
-                      
+
+void toku_rt_start_scan (toku_range_tree* range_tree);
+
+int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range);
+
 #endif  /* #if !defined(TOKU_RANGE_TREE_H) */
