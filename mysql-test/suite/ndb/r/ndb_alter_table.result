@@ -310,7 +310,7 @@ a	b	c
 12	403	NULL
 drop table t1;
 create table t1(a int not null) engine=ndb;
-$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 insert into t1 values (1),(2),(3);
 alter table t1 add primary key (a);
@@ -324,7 +324,7 @@ a
 3
 17
 alter table t1 drop primary key;
-$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 update t1 set a = 1 where a = 17;
 select * from t1 order by a;
@@ -334,7 +334,7 @@ a
 3
 drop table t1;
 create table t1(a int not null) engine=ndb;
-$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 insert into t1 values (1),(2),(3);
 create unique index pk on t1(a);
@@ -347,7 +347,7 @@ a
 3
 17
 alter table t1 drop index pk;
-$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+$PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 update t1 set a = 1 where a = 17;
 select * from t1 order by a;
