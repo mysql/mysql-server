@@ -453,12 +453,12 @@ UNIV_INTERN
 ibool
 btr_index_rec_validate(
 /*===================*/
-					/* out: TRUE if ok */
-	rec_t*		rec,		/* in: index record */
-	dict_index_t*	index,		/* in: index */
-	ibool		dump_on_error);	/* in: TRUE if the function
-					should print hex dump of record
-					and page on error */
+						/* out: TRUE if ok */
+	const rec_t*		rec,		/* in: index record */
+	const dict_index_t*	index,		/* in: index */
+	ibool			dump_on_error);	/* in: TRUE if the function
+						should print hex dump of record
+						and page on error */
 /******************************************************************
 Checks the consistency of an index tree. */
 UNIV_INTERN
