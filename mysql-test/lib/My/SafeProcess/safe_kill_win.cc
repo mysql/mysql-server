@@ -50,7 +50,7 @@ int main(int argc, const char** argv )
           OpenEvent(EVENT_MODIFY_STATE, FALSE, safe_process_name)) == NULL)
   {
     if (retry_open_event--)
-      Sleep(0); /* yield */
+      Sleep(100);
     else
     {
       fprintf(stderr, "Failed to open shutdown_event '%s', error: %d\n",

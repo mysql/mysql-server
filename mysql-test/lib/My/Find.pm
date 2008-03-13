@@ -26,11 +26,14 @@ use Carp;
 use My::Platform;
 
 use base qw(Exporter);
-our @EXPORT= qw(my_find_bin my_find_dir);
+our @EXPORT= qw(my_find_bin my_find_dir NOT_REQUIRED);
 
 our $vs_config_dir;
 
 my $bin_extension= ".exe" if IS_WINDOWS;
+
+# Helper function to be used for fourth parameter to find functions
+sub NOT_REQUIRED { return 0; }
 
 #
 # my_find_bin - find an executable with "name_1...name_n" in
@@ -44,19 +47,31 @@ my $bin_extension= ".exe" if IS_WINDOWS;
 #                               ["client", "bin"],
 #                               "mysql");
 #
+#
+#    To check if something exists, use the required parameter
+#    set to 0, the function will return an empty string if the
+#    binary is not found
+#    my $mysql_exe= my_find_bin($basedir,
+#                               ["client", "bin"],
+#                               "mysql", 0);
+#
 # NOTE: The function honours MTR_VS_CONFIG environment variable
 #
 #
 sub my_find_bin {
-  my ($base, $paths, $names)= @_;
-  croak "usage: my_find_bin(<base>, <paths>, <names>)"
-    unless @_ == 3;
+  my ($base, $paths, $names, $required)= @_;
+  croak "usage: my_find_bin(<base>, <paths>, <names>, [<required>])"
+    unless @_ == 4 or @_ == 3;
 
   # -------------------------------------------------------
   # Find and return the first executable
   # -------------------------------------------------------
   foreach my $path (my_find_paths($base, $paths, $names, $bin_extension)) {
     return $path if ( -x $path or (IS_WINDOWS and -f $path) );
+  }
+  if (defined $required and $required == NOT_REQUIRED){
+    # Return empty string to indicate not found
+    return "";
   }
   find_error($base, $paths, $names);
 }
@@ -79,7 +94,7 @@ sub my_find_bin {
 #
 #
 sub my_find_dir {
-  my ($base, $paths, $dirs)= @_;
+  my ($base, $paths, $dirs, $required)= @_;
   croak "usage: my_find_dir(<base>, <paths>[, <dirs>])"
     unless (@_ == 3 or @_ == 2);
 
