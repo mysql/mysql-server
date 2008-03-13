@@ -316,7 +316,8 @@ int toku_logger_fsync (TOKULOGGER logger) {
     r = ml_lock(&logger->output_lock);   if (r!=0) goto panic;
     r = ml_lock(&logger->input_lock);   if (r!=0)  goto panic;
     r = do_write(logger, 1);
-    r = ml_unlock(&logger->output_lock);   if (r!=0) goto panic;
+    r = ml_unlock(&logger->output_lock);  if (r!=0) goto panic;
+    return 0;
  panic:
     toku_logger_panic(logger, r);
     return r; 
