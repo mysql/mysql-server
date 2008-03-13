@@ -617,6 +617,25 @@ extern "C" {
    */
   struct ndb_mgm_cluster_state * ndb_mgm_get_status(NdbMgmHandle handle);
 
+
+  /**
+   * Gets status of the nodes *of specified types* in an NDB Cluster
+   *
+   * @note The caller must free the pointer returned by this function.
+   * @note Passing a NULL pointer into types make this equivalent to
+   *       ndb_mgm_get_status
+   *
+   * @param   handle        Management handle.
+   * @param   types         Pointer to array of interesting node types.
+   *                        Array should be terminated 
+   *                        by *NDB_MGM_NODE_TYPE_UNKNOWN*.
+   *
+   * @return                Cluster state (or <var>NULL</var> on error).
+   */
+  struct ndb_mgm_cluster_state * 
+  ndb_mgm_get_status2(NdbMgmHandle handle,
+                      const enum ndb_mgm_node_type types[]);
+
   /** @} *********************************************************************/
   /**
    * @name Functions: Start/stop nodes
