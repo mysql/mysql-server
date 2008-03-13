@@ -449,10 +449,14 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    int error = (*txn)->commit(*txn, 0);
-    if (*txn == trx->sp_level)
-        trx->sp_level = 0;
-    *txn = 0;
+    int error = 0;
+    if (*txn) {
+        error = (*txn)->commit(*txn, 0);
+        if (*txn == trx->sp_level)
+            trx->sp_level = 0;
+        *txn = 0;
+    } else
+        printf("%s:%d:warning\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -461,10 +465,14 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
-    int error = (*txn)->abort(*txn);
-    if (*txn == trx->sp_level)
-        trx->sp_level = 0;
-    *txn = 0;
+    int error = 0;
+    if (*txn) {
+        error = (*txn)->abort(*txn);
+	if (*txn == trx->sp_level)
+	    trx->sp_level = 0;
+	*txn = 0;
+    } else
+        printf("%s:%d:warning\n", __FILE__, __LINE__);
     DBUG_RETURN(error);
 }
 
@@ -1958,6 +1966,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                     DBUG_RETURN(0);     // Don't create stmt trans
             }
             DBUG_PRINT("trans", ("starting transaction stmt"));
+	    printf("%s:%d:warning:stmt=%p\n", __FILE__, __LINE__, trx->stmt);
             if ((error = db_env->txn_begin(db_env, trx->sp_level, &trx->stmt, 0))) {
                 /* We leave the possible master transaction open */
                 trx->tokudb_lock_count--;  // We didn't get the lock
@@ -2496,7 +2505,7 @@ mysql_declare_plugin(tokudb) {
     "TokuDB", 
     "Tokutek Inc", 
     "Fractal trees with transactions, row level locks",
-    PLUGIN_LICENSE_BSD,        /* QQQ license? */
+    PLUGIN_LICENSE_PROPRIETARY,        /* QQQ license? */
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     0x0200,                    /* QQQ 2.0 */
