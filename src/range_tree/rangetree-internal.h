@@ -35,25 +35,6 @@ struct __toku_range_tree {
     /** The user realloc function */
     void*     (*realloc)(void*, size_t);
 
-    /*
-     * if iter_at_beginning is TRUE, then iteration is at beginning,
-     * if iter_at_beginning is FALSE and successor_finger is NOT NULL, 
-     * iteration is ongoing, 
-     * if iter_at_beginning is FALSE and successor_finger is NULL,
-     * iteration has ended or in invalid state. 
-     */
-    
-    /*
-     * BOOL that says if iteration is at beginning.
-     * If at beginning, toku_rt_next returns first element
-     * in the range_tree, otherwise returns successor of curr_range
-     */ 
-    BOOL iter_at_beginning;
-    /**
-     * The range we are currently at in the iterator, if it is set to NULL, that means
-     * the iteration is no longer valid and/or the iteration is done 
-     * */
-    struct toku_rbt_node* successor_finger;
     toku_range_tree_local i;
 };
 

@@ -32,9 +32,9 @@ typedef struct __toku_point toku_point;
     Represents a range of data with an associated value.
  */
 typedef struct {
-	toku_point* left;  /**< Left end-point */
-  	toku_point* right; /**< Right end-point */
-	DB_TXN*     data;  /**< Data associated with the range */
+    toku_point* left;  /**< Left end-point */
+    toku_point* right; /**< Right end-point */
+    DB_TXN*     data;  /**< Data associated with the range */
 } toku_range;
 
 
