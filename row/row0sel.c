@@ -651,12 +651,12 @@ row_sel_build_committed_vers_for_mysql(
 					/* out: DB_SUCCESS or error code */
 	dict_index_t*	clust_index,	/* in: clustered index */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
-	rec_t*		rec,		/* in: record in a clustered index */
+	const rec_t*	rec,		/* in: record in a clustered index */
 	ulint**		offsets,	/* in/out: offsets returned by
 					rec_get_offsets(rec, clust_index) */
 	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
 					the offsets are allocated */
-	rec_t**		old_vers,	/* out: old version, or NULL if the
+	const rec_t**	old_vers,	/* out: old version, or NULL if the
 					record does not exist in the view:
 					i.e., it was freshly inserted
 					afterwards */
@@ -2494,14 +2494,14 @@ static
 void
 row_sel_store_row_id_to_prebuilt(
 /*=============================*/
-	row_prebuilt_t*	prebuilt,	/* in: prebuilt */
-	rec_t*		index_rec,	/* in: record */
-	dict_index_t*	index,		/* in: index of the record */
-	const ulint*	offsets)	/* in: rec_get_offsets
-					(index_rec, index) */
+	row_prebuilt_t*		prebuilt,	/* in/out: prebuilt */
+	const rec_t*		index_rec,	/* in: record */
+	const dict_index_t*	index,		/* in: index of the record */
+	const ulint*		offsets)	/* in: rec_get_offsets
+						(index_rec, index) */
 {
-	byte*	data;
-	ulint	len;
+	const byte*	data;
+	ulint		len;
 
 	ut_ad(rec_offs_validate(index_rec, index, offsets));
 
@@ -2847,7 +2847,7 @@ row_sel_build_prev_vers_for_mysql(
 	read_view_t*	read_view,	/* in: read view */
 	dict_index_t*	clust_index,	/* in: clustered index */
 	row_prebuilt_t*	prebuilt,	/* in: prebuilt struct */
-	rec_t*		rec,		/* in: record in a clustered index */
+	const rec_t*	rec,		/* in: record in a clustered index */
 	ulint**		offsets,	/* in/out: offsets returned by
 					rec_get_offsets(rec, clust_index) */
 	mem_heap_t**	offset_heap,	/* in/out: memory heap from which
@@ -2883,12 +2883,12 @@ row_sel_get_clust_rec_for_mysql(
 				/* out: DB_SUCCESS or error code */
 	row_prebuilt_t*	prebuilt,/* in: prebuilt struct in the handle */
 	dict_index_t*	sec_index,/* in: secondary index where rec resides */
-	rec_t*		rec,	/* in: record in a non-clustered index; if
+	const rec_t*	rec,	/* in: record in a non-clustered index; if
 				this is a locking read, then rec is not
 				allowed to be delete-marked, and that would
 				not make sense either */
 	que_thr_t*	thr,	/* in: query thread */
-	rec_t**		out_rec,/* out: clustered record or an old version of
+	const rec_t**	out_rec,/* out: clustered record or an old version of
 				it, NULL if the old version did not exist
 				in the read view, i.e., it was a fresh
 				inserted version */
@@ -2903,7 +2903,7 @@ row_sel_get_clust_rec_for_mysql(
 				access the clustered index */
 {
 	dict_index_t*	clust_index;
-	rec_t*		clust_rec;
+	const rec_t*	clust_rec;
 	rec_t*		old_vers;
 	ulint		err;
 	trx_t*		trx;
@@ -3234,7 +3234,7 @@ ulint
 row_sel_try_search_shortcut_for_mysql(
 /*==================================*/
 				/* out: SEL_FOUND, SEL_EXHAUSTED, SEL_RETRY */
-	rec_t**		out_rec,/* out: record if found */
+	const rec_t**	out_rec,/* out: record if found */
 	row_prebuilt_t*	prebuilt,/* in: prebuilt struct */
 	ulint**		offsets,/* in/out: for rec_get_offsets(*out_rec) */
 	mem_heap_t**	heap,	/* in/out: heap for rec_get_offsets() */
@@ -3244,7 +3244,7 @@ row_sel_try_search_shortcut_for_mysql(
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
 	btr_pcur_t*	pcur		= prebuilt->pcur;
 	trx_t*		trx		= prebuilt->trx;
-	rec_t*		rec;
+	const rec_t*	rec;
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(!prebuilt->templ_contains_blob);
@@ -3335,9 +3335,9 @@ row_search_for_mysql(
 	trx_t*		trx		= prebuilt->trx;
 	dict_index_t*	clust_index;
 	que_thr_t*	thr;
-	rec_t*		rec;
-	rec_t*		result_rec;
-	rec_t*		clust_rec;
+	const rec_t*	rec;
+	const rec_t*	result_rec;
+	const rec_t*	clust_rec;
 	ulint		err				= DB_SUCCESS;
 	ibool		unique_search			= FALSE;
 	ibool		unique_search_from_clust_index	= FALSE;
@@ -3757,13 +3757,12 @@ shortcut_fails_too_big_rec:
 
 			/* Try to place a gap lock on the next index record
 			to prevent phantoms in ORDER BY ... DESC queries */
+			const rec_t*	next = page_rec_get_next_const(rec);
 
-			offsets = rec_get_offsets(page_rec_get_next(rec),
-						  index, offsets,
+			offsets = rec_get_offsets(next, index, offsets,
 						  ULINT_UNDEFINED, &heap);
 			err = sel_set_rec_lock(btr_pcur_get_block(pcur),
-					       page_rec_get_next(rec),
-					       index, offsets,
+					       next, index, offsets,
 					       prebuilt->select_lock_type,
 					       LOCK_GAP, thr);
 
@@ -4103,7 +4102,7 @@ no_gap_lock:
 				       lock_type, thr);
 
 		switch (err) {
-			rec_t*	old_vers;
+			const rec_t*	old_vers;
 		case DB_SUCCESS:
 			break;
 		case DB_LOCK_WAIT:
