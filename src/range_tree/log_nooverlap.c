@@ -368,7 +368,7 @@ void toku_rt_start_scan (toku_range_tree* range_tree) {
     return;
 }
 
-int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range) {
+int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem_found) {
     int r = ENOSYS;
     toku_range* ret_range = NULL;
     struct toku_rbt_node* ignore_insert = NULL;
@@ -393,9 +393,10 @@ int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range) {
         if (r != 0) { goto cleanup; }
     }
 
-    out_range->left = ret_range->left;
-    out_range->right = ret_range->right;
-    out_range->data = ret_range->data;
+    if (ret_range) {
+        *elem_found = TRUE;
+        *out_range = *ret_range;
+    }
     r = 0;
     
 cleanup:
