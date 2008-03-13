@@ -57,7 +57,7 @@ row_vers_old_has_index_entry(
 	ibool		also_curr,/* in: TRUE if also rec is included in the
 				versions to search; otherwise only versions
 				prior to it are searched */
-	rec_t*		rec,	/* in: record in the clustered index; the
+	const rec_t*	rec,	/* in: record in the clustered index; the
 				caller must have a latch on the page */
 	mtr_t*		mtr,	/* in: mtr holding the latch on rec; it will
 				also hold the latch on purge_view */
@@ -72,7 +72,7 @@ ulint
 row_vers_build_for_consistent_read(
 /*===============================*/
 				/* out: DB_SUCCESS or DB_MISSING_HISTORY */
-	rec_t*		rec,	/* in: record in a clustered index; the
+	const rec_t*	rec,	/* in: record in a clustered index; the
 				caller must have a latch on the page; this
 				latch locks the top of the stack of versions
 				of this records */
@@ -85,7 +85,7 @@ row_vers_build_for_consistent_read(
 	mem_heap_t**	offset_heap,/* in/out: memory heap from which
 				the offsets are allocated */
 	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
-				old_vers is allocated; memory for possible
+				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
 	rec_t**		old_vers);/* out, own: old version, or NULL if the
@@ -100,7 +100,7 @@ ulint
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
 				/* out: DB_SUCCESS or DB_MISSING_HISTORY */
-	rec_t*		rec,	/* in: record in a clustered index; the
+	const rec_t*	rec,	/* in: record in a clustered index; the
 				caller must have a latch on the page; this
 				latch locks the top of the stack of versions
 				of this records */
@@ -111,10 +111,10 @@ row_vers_build_for_semi_consistent_read(
 	mem_heap_t**	offset_heap,/* in/out: memory heap from which
 				the offsets are allocated */
 	mem_heap_t*	in_heap,/* in: memory heap from which the memory for
-				old_vers is allocated; memory for possible
+				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	rec_t**		old_vers);/* out, own: rec, old version, or NULL if the
+	const rec_t**	old_vers);/* out: rec, old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
 

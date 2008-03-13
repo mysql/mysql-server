@@ -2932,9 +2932,9 @@ static
 void
 btr_index_rec_validate_report(
 /*==========================*/
-	const page_t*	page,	/* in: index page */
-	const rec_t*	rec,	/* in: index record */
-	dict_index_t*	index)	/* in: index */
+	const page_t*		page,	/* in: index page */
+	const rec_t*		rec,	/* in: index record */
+	const dict_index_t*	index)	/* in: index */
 {
 	fputs("InnoDB: Record in ", stderr);
 	dict_index_name_print(stderr, NULL, index);
@@ -2949,17 +2949,17 @@ UNIV_INTERN
 ibool
 btr_index_rec_validate(
 /*===================*/
-					/* out: TRUE if ok */
-	rec_t*		rec,		/* in: index record */
-	dict_index_t*	index,		/* in: index */
-	ibool		dump_on_error)	/* in: TRUE if the function
-					should print hex dump of record
-					and page on error */
+						/* out: TRUE if ok */
+	const rec_t*		rec,		/* in: index record */
+	const dict_index_t*	index,		/* in: index */
+	ibool			dump_on_error)	/* in: TRUE if the function
+						should print hex dump of record
+						and page on error */
 {
 	ulint		len;
 	ulint		n;
 	ulint		i;
-	page_t*		page;
+	const page_t*	page;
 	mem_heap_t*	heap	= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
