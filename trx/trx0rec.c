@@ -1552,8 +1552,7 @@ trx_undo_prev_version_build(
 		/* The page containing the clustered index record
 		corresponding to entry is latched in mtr.  Thus the
 		following call is safe. */
-		row_upd_index_replace_new_col_vals(entry, index, update,
-						   heap, heap);
+		row_upd_index_replace_new_col_vals(entry, index, update, heap);
 
 		buf = mem_heap_alloc(heap, rec_get_converted_size(index, entry,
 								  n_ext));

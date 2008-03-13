@@ -1867,7 +1867,7 @@ any_extern:
 	corresponding to new_entry is latched in mtr.
 	Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, NULL, heap);
+						     FALSE, heap);
 	old_rec_size = rec_offs_size(offsets);
 	new_rec_size = rec_get_converted_size(index, new_entry, 0);
 
@@ -2144,7 +2144,7 @@ btr_cur_pessimistic_update(
 	purge would also have removed the clustered index record
 	itself.  Thus the following call is safe. */
 	row_upd_index_replace_new_col_vals_index_pos(new_entry, index, update,
-						     FALSE, *heap, *heap);
+						     FALSE, *heap);
 	if (!(flags & BTR_KEEP_SYS_FLAG)) {
 		row_upd_index_entry_sys_field(new_entry, index, DATA_ROLL_PTR,
 					      roll_ptr);

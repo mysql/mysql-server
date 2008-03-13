@@ -49,21 +49,22 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=1
 drop table t1;
-create table t1(a int primary key) engine=innodb key_block_size=9;
-ERROR HY000: Table storage engine 'InnoDB' does not support the create option 'KEY_BLOCK_SIZE'
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
-insert into t1 values (1,1);
+create table t2(b text)engine=innodb;
+insert into t2 values(concat('1abcdefghijklmnopqrstuvwxyz', repeat('A',5000)));
+insert into t1 select 1, b from t2;
 commit;
 begin;
 update t1 set b=repeat('B',100);
-select a,left(b,40),b=1 is_equal from t1;
-a	left(b,40)	is_equal
-1	1	1
+select a,left(b,40) from t1 natural join t2;
+a	left(b,40)
+1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
 rollback;
-select a,left(b,40),b=1 is_equal from t1;
-a	left(b,40)	is_equal
-1	1	1
+select a,left(b,40) from t1 natural join t2;
+a	left(b,40)
+1	1abcdefghijklmnopqrstuvwxyzAAAAAAAAAAAAA
 drop table t1;
+drop table t2;
 set global innodb_file_per_table=0;
 set global innodb_file_format=0;

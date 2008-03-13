@@ -37,15 +37,13 @@ key_block_size=1;
 show create table t1;
 drop table t1;
 
---error 1478
-create table t1(a int primary key) engine=innodb key_block_size=9;
-
 create table t1(a int not null, b text, index(b(10))) engine=innodb
 key_block_size=1;
 
-let $b=`select '1abcdefghijklmnopqrstuvwxyz'+repeat('A',5000)`;
+create table t2(b text)engine=innodb;
+insert into t2 values(concat('1abcdefghijklmnopqrstuvwxyz', repeat('A',5000)));
 
-eval insert into t1 values (1,$b);
+insert into t1 select 1, b from t2;
 commit;
 
 connect (a,localhost,root,,);
@@ -56,18 +54,19 @@ begin;
 update t1 set b=repeat('B',100);
 
 connection b;
-eval select a,left(b,40),b=$b is_equal from t1;
+select a,left(b,40) from t1 natural join t2;
 
 connection a;
 rollback;
 
 connection b;
-eval select a,left(b,40),b=$b is_equal from t1;
+select a,left(b,40) from t1 natural join t2;
 
 connection default;
 disconnect a;
 disconnect b;
 
 drop table t1;
+drop table t2;
 eval set global innodb_file_per_table=$per_table;
 eval set global innodb_file_format=$format;
