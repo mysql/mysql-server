@@ -61,7 +61,7 @@ int main (int argc, char *argv[]) {
 	r=env->log_flush(env, 0); CKERR(r);
 	r=grep_for_in_logs(hello);
 	assert(r>=0);
-	r=tid->commit(tid, 0); assert(r==0);
+	r=tid->commit(tid, 0);    CKERR(r);
     }
     r=db->close(db, 0); assert(r==0);
     r=env->close(env, 0); assert(r==0);
