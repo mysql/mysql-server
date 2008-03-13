@@ -444,6 +444,45 @@ truncate ndb_show_tables_results;
 
 DROP TABLE t1;
 
+#####################################
+# Adding dropping primary key
+######################################
+# Bug:31233
+######################################
+--echo ****************************************
+--echo * Adding dropping primary key
+--echo ****************************************
+CREATE TABLE t1 (a INT UNSIGNED NOT NULL) ENGINE NDB;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a);
+ALTER OFFLINE TABLE t1 ADD PRIMARY KEY (a);
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 DROP PRIMARY KEY;
+ALTER OFFLINE TABLE t1 DROP PRIMARY KEY;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+--error ER_NOT_SUPPORTED_YET
+CREATE ONLINE UNIQUE INDEX pk ON t1(a);
+CREATE OFFLINE UNIQUE INDEX pk ON t1(a);
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 DROP INDEX PK;
+ALTER OFFLINE TABLE t1 DROP INDEX PK;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+DROP TABLE t1;
+
+CREATE TABLE t1 (a INT UNSIGNED) ENGINE NDB;
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD b INT UNIQUE;
+ALTER OFFLINE TABLE t1 ADD b INT UNIQUE;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+--error ER_NOT_SUPPORTED_YET
+ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+ALTER OFFLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep PRIMARY
+DROP TABLE t1;
+
 ######################################
 # Alter dynmaic table, add TEXT column
 ######################################
