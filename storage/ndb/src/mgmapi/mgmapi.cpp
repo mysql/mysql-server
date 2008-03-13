@@ -830,14 +830,66 @@ extern "C"
 struct ndb_mgm_cluster_state * 
 ndb_mgm_get_status(NdbMgmHandle handle)
 {
+  return ndb_mgm_get_status2(handle, 0);
+}
+
+extern "C"
+struct ndb_mgm_cluster_state * 
+ndb_mgm_get_status2(NdbMgmHandle handle, const enum ndb_mgm_node_type types[])
+{
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_get_status");
   CHECK_HANDLE(handle, NULL);
   CHECK_CONNECTED(handle, NULL);
 
+  char typestring[1024];
+  typestring[0] = 0;
+  if (types != 0)
+  {
+    int pos = 0;
+    for (Uint32 i = 0; types[i] != NDB_MGM_NODE_TYPE_UNKNOWN; i++)
+    {
+      if (int(types[i]) < NDB_MGM_NODE_TYPE_MIN ||
+          int(types[i]) > NDB_MGM_NODE_TYPE_MAX)
+      {
+        SET_ERROR(handle, EINVAL, 
+                  "Incorrect node type for ndb_mgm_get_status2");
+        return 0;
+      }
+      /**
+       * Check for duplicates
+       */
+      for (Int32 j = i - 1; j >= 0; j--)
+      {
+        if (types[i] == types[j])
+        {
+          SET_ERROR(handle, EINVAL, 
+                    "Duplicate types for ndb_mgm_get_status2");
+          return 0;
+        }
+      }
+      
+      int left = sizeof(typestring) - pos;
+      int len = BaseString::snprintf(typestring+pos, left, "%s ", 
+                                     ndb_mgm_get_node_type_string(types[i]));
+      
+      if (len >= left)
+      {
+        SET_ERROR(handle, EINVAL, 
+                  "Out of memory for type-string for ndb_mgm_get_status2");
+        return 0;
+      }
+      pos += len;
+    }
+  }
+  
   SocketOutputStream out(handle->socket, handle->timeout);
   SocketInputStream in(handle->socket, handle->timeout);
 
   out.println("get status");
+  if (types)
+  {
+    out.println("types: %s", typestring);
+  }
   out.println("");
 
   CHECK_TIMEDOUT_RET(handle, in, out, NULL);
