@@ -180,9 +180,8 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
 	n->u.n.n_children = 0;
 	n->u.n.totalchildkeylens = 0;
 	n->u.n.n_bytes_in_buffers = 0;
-	int i;
-	for (i=0; i<TREE_FANOUT+1; i++)
-	    BNC_NBYTESINBUF(n, i) = 0;
+	MALLOC_N(3,n->u.n.childinfos);
+	MALLOC_N(2,n->u.n.childkeys);
     }
     // Now put it in the cachetable
     toku_cachetable_put(pair->cf, diskoff, n, toku_serialize_brtnode_size(n),  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
