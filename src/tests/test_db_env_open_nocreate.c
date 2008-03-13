@@ -29,6 +29,8 @@ int main() {
     for (do_private=0; do_private<2; do_private++) {
 #ifdef USE_TDB
 	if (do_private==0) continue; // See #208.
+#else
+	if (do_private==1) continue; // See #530.  BDB 4.6.21 segfaults if DB_PRIVATE is passed when no environment previously exists.
 #endif
 	int private_flags = do_private ? DB_PRIVATE : 0;
 	
@@ -66,6 +68,7 @@ int main() {
     CKERR(r);
     r=db_create(&db, dbenv, 0);
     CKERR(r);
+    db->close(db, 0);
     dbenv->close(dbenv,0); // free memory
     r = db_env_create(&dbenv, 0);
     CKERR(r);
