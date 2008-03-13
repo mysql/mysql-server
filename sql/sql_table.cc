@@ -5344,7 +5344,7 @@ compare_tables(THD *thd,
         }
         else
         {
-          bool is_not_null;
+          bool is_not_null= true;
 
           *alter_flags|= HA_DROP_UNIQUE_INDEX;
           key_part= table_key->key_part;
