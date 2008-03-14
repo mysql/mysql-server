@@ -6629,6 +6629,23 @@ end//
 call proc_33618(20);
 drop table t_33618;
 drop procedure proc_33618;
+#
+# Bug#30787: Stored function ignores user defined alias.
+#
+use test;
+drop function if exists func30787;
+create table t1(f1 int);
+insert into t1 values(1),(2);
+create function func30787(p1 int) returns int
+begin
+return p1;
+end |
+select (select func30787(f1)) as ttt from t1;
+ttt
+1
+2
+drop function func30787;
+drop table t1;
 # ------------------------------------------------------------------
 # -- End of 5.0 tests
 # ------------------------------------------------------------------

@@ -3672,4 +3672,33 @@ DROP TABLE t1;
 
 --echo
 
+###########################################################################
+
+#
+# Bug #33764: Wrong result with IN(), CONCAT() and implicit type conversion
+#
+
+CREATE TABLE t1 (a VARCHAR(10) NOT NULL PRIMARY KEY);
+INSERT INTO t1 (a) VALUES ('foo0'), ('bar0'), ('baz0');
+SELECT * FROM t1 WHERE a IN (CONCAT('foo', 0), 'bar');
+DROP TABLE t1;
+
+#
+# Bug #32942 now() - interval '7200' second is NOT pre-calculated, causing "full table scan"
+#
+
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, c INT, KEY(a));
+
+INSERT INTO t1 VALUES (1, 1), (2, 2);
+INSERT INTO t2 VALUES (1, 1), (1, 2), (1, 3), (1, 4), (1, 5),
+                      (2, 1), (2, 2), (2, 3), (2, 4), (2, 5),
+                      (3, 1), (3, 2), (3, 3), (3, 4), (3, 5),
+                      (4, 1), (4, 2), (4, 3), (4, 4), (4, 5);
+
+FLUSH STATUS;
+SELECT DISTINCT b FROM t1 LEFT JOIN t2 USING(a) WHERE c <= 3;
+SHOW STATUS LIKE 'Handler_read%';
+DROP TABLE t1, t2;
+
 --echo End of 5.0 tests
