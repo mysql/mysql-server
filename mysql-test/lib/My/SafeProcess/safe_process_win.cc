@@ -289,25 +289,28 @@ int main(int argc, const char** argv )
   if (TerminateJobObject(job_handle, 201) == 0)
     message("TerminateJobObject failed");
   CloseHandle(job_handle);
-
+  message("Job terminated and closed");
   if (wait_res != WAIT_OBJECT_0 + CHILD)
   {
-	/* The child has not yet returned, wait for it */
+    /* The child has not yet returned, wait for it */
     message("waiting for child to exit");
-    if ((wait_res= WaitForSingleObject(wait_handles[CHILD], INFINITE)) != WAIT_OBJECT_0)
-	{
+    if ((wait_res= WaitForSingleObject(wait_handles[CHILD], INFINITE))
+        != WAIT_OBJECT_0)
+    {
       message("child wait failed: %d", wait_res);
-	}
-	else
-	{
-	  message("child wait succeeded");
-	}
+    }
+    else
+    {
+      message("child wait succeeded");
+    }
     /* Child's exit code should now be 201, no need to get it */
   }
 
+  message("Closing handles");
   for (int i= 0; i < NUM_HANDLES; i++)
     CloseHandle(wait_handles[i]);
 
+  message("Exiting, exit_code: %d", child_exit_code);
   exit(child_exit_code);
 }
 
