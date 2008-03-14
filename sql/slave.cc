@@ -415,7 +415,20 @@ terminate_slave_thread(THD *thd,
   while (*slave_running)                        // Should always be true
   {
     DBUG_PRINT("loop", ("killing slave thread"));
-    KICK_SLAVE(thd);
+
+    pthread_mutex_lock(&thd->LOCK_delete);
+#ifndef DONT_USE_THR_ALARM
+    /*
+      Error codes from pthread_kill are:
+      EINVAL: invalid signal number (can't happen)
+      ESRCH: thread already killed (can happen, should be ignored)
+    */
+    IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
+    DBUG_ASSERT(err != EINVAL);
+#endif
+    thd->awake(THD::NOT_KILLED);
+    pthread_mutex_unlock(&thd->LOCK_delete);
+
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
