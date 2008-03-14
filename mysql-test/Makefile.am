@@ -54,6 +54,8 @@ EXTRA_DIST =	README \
 # List of directories containing test + result files and the
 # related test data files that should be copied
 TEST_DIRS = t r include std_data std_data/parts \
+	std_data/ndb_backup50 std_data/ndb_backup51 \
+	std_data/ndb_backup51_data_be std_data/ndb_backup51_data_le \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/bugs/data suite/bugs/t suite/bugs/r \
