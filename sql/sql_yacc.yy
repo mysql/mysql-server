@@ -4357,7 +4357,7 @@ create_table_option:
             Lex->create_info.row_type= $3;
             Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
           }
-        | UNION_SYM opt_equal '(' table_list ')'
+        | UNION_SYM opt_equal '(' opt_table_list ')'
           {
             /* Move the union list to the merge_list */
             LEX *lex=Lex;
