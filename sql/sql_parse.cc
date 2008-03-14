@@ -2351,6 +2351,28 @@ mysql_execute_command(THD *thd)
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
+
+    if (test_if_data_home_dir(lex->create_info.data_file_name))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+      res= -1;
+      break;
+    }
+    if (test_if_data_home_dir(lex->create_info.index_file_name))
+    {
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+      res= -1;
+      break;
+    }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+    if (check_partition_dirs(thd->lex->part_info))
+    {
+      res= -1;
+      break;
+    }
+#endif
+
 #ifdef HAVE_READLINK
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
@@ -3241,6 +3263,18 @@ end_with_restore_list:
       thd->one_shot_set|= lex->one_shot_set;
       my_ok(thd);
     }
+    else
+    {
+      /*
+        We encountered some sort of error, but no message was sent.
+        Send something semi-generic here since we don't know which
+        assignment in the list caused the error.
+      */
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),"SET");
+      goto error;
+    }
+
     break;
   }
 
@@ -7329,6 +7363,49 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
   if (!no_error)
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
   return TRUE;
+}
+
+
+/*
+  Check if path does not contain mysql data home directory
+  SYNOPSIS
+    test_if_data_home_dir()
+    dir                     directory
+    conv_home_dir           converted data home directory
+    home_dir_len            converted data home directory length
+
+  RETURN VALUES
+    0	ok
+    1	error  
+*/
+
+bool test_if_data_home_dir(const char *dir)
+{
+  char path[FN_REFLEN], conv_path[FN_REFLEN];
+  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  DBUG_ENTER("test_if_data_home_dir");
+
+  if (!dir)
+    DBUG_RETURN(0);
+
+  (void) fn_format(path, dir, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  dir_len= unpack_dirname(conv_path, dir);
+
+  if (home_dir_len < dir_len)
+  {
+    if (lower_case_file_system)
+    {
+      if (!my_strnncoll(character_set_filesystem,
+                        (const uchar*) conv_path, home_dir_len,
+                        (const uchar*) mysql_unpacked_real_data_home,
+                        home_dir_len))
+        DBUG_RETURN(1);
+    }
+    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 
 
