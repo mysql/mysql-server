@@ -232,20 +232,28 @@ static int do_recovery (DB_ENV *env) {
 	logdir = strdup(env->i->dir);
     }
     
+#if 0
     // want to do recovery in its own process
     pid_t pid;
     if ((pid=fork())==0) {
 	int r=tokudb_recover(datadir, logdir);
 	assert(r==0);
+	toku_free(logdir); // the child must also free.
 	exit(0);
     }
     int status;
     waitpid(pid, &status, 0);
     if (!WIFEXITED(status) || WEXITSTATUS(status)!=0)  {
+	toku_free(logdir);
 	return toku_ydb_do_error(env, -1, "Recovery failed\n");
     }
     toku_free(logdir);
     return 0;
+#else
+    int r = tokudb_recover(datadir, logdir);
+    toku_free(logdir);
+    return r;
+#endif
 }
 
 static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mode) {
