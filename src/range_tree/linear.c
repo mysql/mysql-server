@@ -21,11 +21,20 @@ struct __toku_range_tree_local {
     //Linear version only fields:
     toku_range* ranges;
     u_int32_t   ranges_len;
+    /*
+     * BOOL that says whether we are allowed to iterate.
+     */ 
+    BOOL iter_is_valid;
+    u_int32_t  iter_index;
 };
 #include <rangetree-internal.h>
 
 
 static const u_int32_t minlen = 64;
+
+static inline void toku_rt_invalidate_iteration(toku_range_tree* tree) {
+    tree->i.iter_is_valid = FALSE;
+}
 
 static inline int toku__rt_decrease_capacity(toku_range_tree* tree,
                                              u_int32_t _num) {
@@ -106,6 +115,8 @@ int toku_rt_create(toku_range_tree** ptree,
     tmptree->i.ranges     = (toku_range*)
                        user_malloc(tmptree->i.ranges_len * sizeof(toku_range));
     if (!tmptree->i.ranges) { r = errno; goto died1; }
+
+    toku_rt_invalidate_iteration(tmptree);
     *ptree = tmptree;
 
     return 0;
@@ -161,6 +172,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     r = toku__rt_increase_capacity(tree, tree->numelements + 1);
     if (r != 0) return r;
     tree->i.ranges[tree->numelements++] = *range;
+    toku_rt_invalidate_iteration(tree);
     return 0;
 }
 
@@ -178,6 +190,7 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
         tree->i.ranges[i] = tree->i.ranges[tree->numelements - 1];
     }
     toku__rt_decrease_capacity(tree, --tree->numelements);
+    toku_rt_invalidate_iteration(tree);
     return 0;
 }
 
@@ -228,3 +241,28 @@ int toku_rt_get_size(toku_range_tree* tree, u_int32_t* size) {
     *size = tree->numelements;
     return 0;
 }
+
+void toku_rt_start_scan (toku_range_tree* range_tree) {
+    assert(range_tree);
+    range_tree->i.iter_is_valid = TRUE;
+    range_tree->i.iter_index = 0;
+    return;
+}
+
+int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem_found) {
+    int r = ENOSYS;
+
+    if (!range_tree || !out_range || !elem_found) { r = EINVAL; goto cleanup; }
+    /* Check to see if range tree is in invalid iteration state */
+    if (!range_tree->i.iter_is_valid) { r = EDOM;   goto cleanup; }
+    
+    *elem_found = range_tree->i.iter_index < range_tree->i.ranges_len;
+    if (*elem_found) { *out_range = range_tree->i.ranges[range_tree->i.iter_index]; }
+    range_tree->i.iter_index++;
+    range_tree->i.iter_is_valid = range_tree->i.iter_index < range_tree->i.ranges_len;
+    r = 0;
+cleanup:
+    if (range_tree && r!=0) { toku_rt_invalidate_iteration(range_tree); }
+    return r;
+}
+
