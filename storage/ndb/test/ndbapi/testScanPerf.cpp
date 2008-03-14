@@ -59,7 +59,7 @@ g_paramters[] = {
   { "fetch",       0, 0, 1 }, // nextResult fetchAllowed.  No, yes
   { "size",  1000000, 1, ~0 }, // Num rows to operate on
   { "iterations",  3, 1, ~0 }, // Num times to repeat tests
-  { "create_drop", 1, 0, 1 }, // Whether to recreate the table
+  { "create_drop", 1, 0, 2 }, // Whether to recreate the table
   { "data",        1, 0, 1 }, // Ignored currently
   { "multi read range", 1000, 1, ~0 } // Number of ranges to use in MRR access (range=3)
 };
@@ -126,7 +126,7 @@ main(int argc, const char** argv){
     BaseString::snprintf(g_indexname, sizeof(g_indexname), "IDX_%s", T);
     if(create_table())
       goto error;
-    if(run_scan())
+    if(g_paramters[P_CREATE].value != 2 && run_scan())
       goto error;
   }
 
@@ -300,7 +300,7 @@ run_scan(){
     }
     
     int par = g_paramters[P_PARRA].value;
-    int bat = 0; // g_paramters[P_BATCH].value;
+    int bat = g_paramters[P_BATCH].value;
     NdbScanOperation::LockMode lm;
     switch(g_paramters[P_LOCK].value){
     case 0:
@@ -317,6 +317,7 @@ run_scan(){
     }
 
     NdbScanOperation::ScanOptions options;
+    bzero(&options, sizeof(options));
 
     options.optionsPresent= 
       NdbScanOperation::ScanOptions::SO_SCANFLAGS |
@@ -367,7 +368,7 @@ run_scan(){
       assert(pOp);
     } else {
       pOp= pIOp= pTrans->scanIndex(g_index_record,
-                                   g_index_record,
+                                   g_table_record,
                                    lm,
                                    NULL, // Mask
                                    NULL, // First IndexBound

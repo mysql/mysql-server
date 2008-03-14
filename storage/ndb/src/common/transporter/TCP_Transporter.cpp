@@ -466,6 +466,7 @@ TCP_Transporter::doReceive() {
 void
 TCP_Transporter::disconnectImpl() {
   if(theSocket != NDB_INVALID_SOCKET){
+    m_transporter_registry.remove_from_epoll(remoteNodeId);
     if(NDB_CLOSE_SOCKET(theSocket) < 0){
       report_error(TE_ERROR_CLOSING_SOCKET);
     }

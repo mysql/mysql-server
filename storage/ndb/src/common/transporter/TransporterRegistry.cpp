@@ -93,7 +93,20 @@ TransporterRegistry::TransporterRegistry(void * callback,
   theTransporters     = new Transporter     * [maxTransporters];
   performStates       = new PerformState      [maxTransporters];
   ioStates            = new IOState           [maxTransporters]; 
-  
+ 
+#if defined(HAVE_EPOLL_CREATE)
+ m_epoll_fd = 0;
+ m_epoll_events       = new struct epoll_event[maxTransporters];
+ m_epoll_fd = epoll_create(maxTransporters);
+ if (m_epoll_fd == -1 || !m_epoll_events)
+ {
+   /* Failure to allocate data or get epoll socket, abort */
+   perror("Failed to alloc epoll-array or calling epoll_create...giving up!");
+   abort();
+ }
+ memset((char*)m_epoll_events, 0,
+        maxTransporters * sizeof(struct epoll_event));
+#endif
   // Initialize member variables
   nTransporters    = 0;
   nTCPTransporters = 0;
@@ -149,6 +162,10 @@ TransporterRegistry::~TransporterRegistry()
   delete[] performStates;
   delete[] ioStates;
 
+#if defined(HAVE_EPOLL_CREATE)
+  delete [] m_epoll_events;
+  close(m_epoll_fd);
+#endif
   if (m_mgm_handle)
     ndb_mgm_destroy_handle(&m_mgm_handle);
 
@@ -681,12 +698,33 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis){
 #endif
 
 #ifdef NDB_TCP_TRANSPORTER
+#if defined(HAVE_EPOLL_CREATE)
+  Uint32 num_trps = nTCPTransporters;
+  /**
+   * If any transporters have left-over data that was not fully executed in
+   * last loop, don't wait and return 'data available' even if nothing new
+   * from epoll.
+   */
+  if (!m_has_data_transporters.isclear())
+  {
+    timeOutMillis = 0;
+    retVal = 1;
+  }
+  
+  if (num_trps)
+  {
+    tcpReadSelectReply = epoll_wait(m_epoll_fd, m_epoll_events,
+                                    num_trps, timeOutMillis);
+    retVal |= tcpReadSelectReply;
+  }
+#else
   if(nTCPTransporters > 0 || retVal == 0)
   {
     retVal |= poll_TCP(timeOutMillis);
   }
   else
     tcpReadSelectReply = 0;
+#endif
 #endif
 #ifdef NDB_SCI_TRANSPORTER
   if(nSCITransporters > 0)
@@ -802,11 +840,113 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
 }
 #endif
 
+void
+TransporterRegistry::remove_from_epoll(NodeId node_id)
+{
+#if defined(HAVE_EPOLL_CREATE)
+  DBUG_ENTER("TransporterRegistry::remove_from_epoll");
+  change_epoll((TCP_Transporter*)theTransporters[node_id], FALSE);
+  m_has_data_transporters.clear(node_id);
+  DBUG_VOID_RETURN;
+#else
+  (void)node_id;
+  return;
+#endif
+}
+
+#if defined(HAVE_EPOLL_CREATE)
+bool
+TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
+{
+  struct epoll_event event_poll;
+  int sock_fd = t->getSocket();
+  int node_id = t->getRemoteNodeId();
+  int op = add ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
+  int ret_val, error;
+
+  if (sock_fd == NDB_INVALID_SOCKET)
+    return FALSE;
+
+  event_poll.data.u32 = t->getRemoteNodeId();
+  event_poll.events = EPOLLIN;
+  ret_val = epoll_ctl(m_epoll_fd, op, sock_fd, &event_poll);
+  if (!ret_val)
+    goto ok;
+  error= errno;
+  if (error == ENOENT && !add)
+  {
+    /*
+     * Could be that socket was closed premature to this call.
+     * Not a problem that this occurs.
+     */
+    goto ok;
+  }
+  if (!add || (add && (error != ENOMEM)))
+  {
+    /*
+     * Serious problems, we are either using wrong parameters,
+     * have permission problems or the socket doesn't support
+     * epoll!!
+     */
+    perror("Failed to add fd to epoll-set...giving up!");
+    abort();
+  }
+  ndbout << "We lacked memory to add the socket for node id ";
+  ndbout << node_id << endl;
+  return TRUE;
+
+ok:
+  return FALSE;
+}
+
+void
+TransporterRegistry::get_tcp_data(TCP_Transporter *t)
+{
+  const NodeId node_id = t->getRemoteNodeId();
+  bool hasdata = false;
+  checkJobBuffer();
+  if (is_connected(node_id) && t->isConnected())
+  {
+    t->doReceive();
+    
+    Uint32 *ptr;
+    Uint32 sz = t->getReceiveData(&ptr);
+    transporter_recv_from(callbackObj, node_id);
+    Uint32 szUsed = unpack(ptr, sz, node_id, ioStates[node_id]);
+    t->updateReceiveDataPtr(szUsed);
+    hasdata = t->hasReceiveData();
+  }
+  m_has_data_transporters.set(node_id, hasdata);
+}
+
+#endif
 
 void
 TransporterRegistry::performReceive()
 {
 #ifdef NDB_TCP_TRANSPORTER
+#if defined(HAVE_EPOLL_CREATE)
+  int num_socket_events = tcpReadSelectReply;
+  int i;
+
+  if (num_socket_events > 0)
+  {
+    for (i = 0; i < num_socket_events; i++)
+    {
+      m_has_data_transporters.set(m_epoll_events[i].data.u32);
+    }
+  }
+  else if (num_socket_events < 0)
+  {
+    assert(errno == EINTR);
+  }
+  
+  Uint32 id = 0;
+  while ((id = m_has_data_transporters.find(id + 1)) != BitmaskImpl::NotFound)
+  {
+    get_tcp_data((TCP_Transporter*)theTransporters[id]);
+  }
+#else
   for (int i=0; i<nTCPTransporters; i++) 
   {
     checkJobBuffer();
@@ -832,6 +972,7 @@ TransporterRegistry::performReceive()
       } 
     }
   }
+#endif
 #endif
   
 #ifdef NDB_SCI_TRANSPORTER
@@ -1035,6 +1176,14 @@ TransporterRegistry::report_connect(NodeId node_id)
   DBUG_ENTER("TransporterRegistry::report_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTED",node_id));
   performStates[node_id] = CONNECTED;
+#if defined(HAVE_EPOLL_CREATE)
+  if (change_epoll((TCP_Transporter*)theTransporters[node_id],
+                   TRUE))
+  {
+    performStates[node_id] = DISCONNECTING;
+    DBUG_VOID_RETURN;
+  }
+#endif
   reportConnect(callbackObj, node_id);
   DBUG_VOID_RETURN;
 }
@@ -1045,6 +1194,7 @@ TransporterRegistry::report_disconnect(NodeId node_id, int errnum)
   DBUG_ENTER("TransporterRegistry::report_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTED",node_id));
   performStates[node_id] = DISCONNECTED;
+  remove_from_epoll(node_id);
   reportDisconnect(callbackObj, node_id, errnum);
   DBUG_VOID_RETURN;
 }
