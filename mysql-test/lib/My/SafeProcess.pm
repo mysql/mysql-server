@@ -313,7 +313,7 @@ sub start_kill {
   my $ret= 1;
 
   my $pid;
-  if (IS_WINDOWS)
+  if (IS_WINDOWS and defined $self->{SAFE_WINPID})
   {
     die "INTERNAL ERROR: no safe_kill" unless defined $safe_kill;
     die "INTERNAL ERROR: no winpid" unless defined $self->{SAFE_WINPID};
