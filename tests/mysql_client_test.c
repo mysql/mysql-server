@@ -15524,11 +15524,6 @@ static void test_bug14169()
 /*
    Test that mysql_insert_id() behaves as documented in our manual
 */
-
-#if 0
-
-  Commented out because of Bug#34889.
-
 static void test_mysql_insert_id()
 {
   my_ulonglong res;
@@ -15553,6 +15548,22 @@ static void test_mysql_insert_id()
   myquery(rc);
   res= mysql_insert_id(mysql);
   DIE_UNLESS(res == 0);
+
+  /*
+    Test for bug #34889: mysql_client_test::test_mysql_insert_id test fails
+    sporadically
+  */
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (null,'b')");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 select 5,'c'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "drop table t2");
+  myquery(rc);
+  
   rc= mysql_query(mysql, "insert into t1 select null,'d'");
   myquery(rc);
   res= mysql_insert_id(mysql);
@@ -15708,7 +15719,6 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t1,t2");
   myquery(rc);
 }
-#endif
 
 /*
   Bug#20152: mysql_stmt_execute() writes to MYSQL_TYPE_DATE buffer
@@ -17696,7 +17706,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug14169", test_bug14169 },
   { "test_bug17667", test_bug17667 },
   { "test_bug15752", test_bug15752 },
-  /* { "test_mysql_insert_id", test_mysql_insert_id }, Bug#34889 */
+  { "test_mysql_insert_id", test_mysql_insert_id },
   { "test_bug19671", test_bug19671 },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },

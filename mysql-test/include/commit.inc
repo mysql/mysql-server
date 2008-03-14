@@ -732,6 +732,6 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo #
 --echo # Cleanup
 --echo #
-drop table t1;
+drop table t1, t2, t3;
 drop procedure p_verify_status_increment;
 drop function f1;

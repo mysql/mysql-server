@@ -849,6 +849,7 @@ struct st_mysql_storage_engine example_storage_engine=
 { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
 static ulong srv_enum_var= 0;
+static ulong srv_ulong_var= 0;
 
 const char *enum_var_names[]=
 {
@@ -871,8 +872,21 @@ static MYSQL_SYSVAR_ENUM(
   0,                              // def
   &enum_var_typelib);             // typelib
 
+static MYSQL_SYSVAR_ULONG(
+  ulong_var,
+  srv_ulong_var,
+  PLUGIN_VAR_RQCMDARG,
+  "0..1000",
+  NULL,
+  NULL,
+  8,
+  0,
+  1000,
+  0);
+
 static struct st_mysql_sys_var* example_system_variables[]= {
   MYSQL_SYSVAR(enum_var),
+  MYSQL_SYSVAR(ulong_var),
   NULL
 };
 

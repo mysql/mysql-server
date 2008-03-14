@@ -1090,6 +1090,19 @@ SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 
 DROP TABLE t1;
 
+#
+# Bug #34223: Assertion failed: (optp->var_type & 127) == 8,
+#             file .\my_getopt.c, line 830
+#
+
+set @my_innodb_autoextend_increment=@@global.innodb_autoextend_increment;
+set global innodb_autoextend_increment=8;
+set global innodb_autoextend_increment=@my_innodb_autoextend_increment;
+
+set @my_innodb_commit_concurrency=@@global.innodb_commit_concurrency;
+set global innodb_commit_concurrency=0;
+set global innodb_commit_concurrency=@my_innodb_commit_concurrency;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY

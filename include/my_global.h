@@ -486,9 +486,6 @@ C_MODE_END
 #include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
 #define HAVE_ULONG
 #endif
-#ifdef DONT_USE_FINITE		/* HPUX 11.x has is_finite() */
-#undef HAVE_FINITE
-#endif
 #if defined(HPUX10) && defined(_LARGEFILE64_SOURCE) && defined(THREAD)
 /* Fix bug in setrlimit */
 #undef setrlimit
@@ -858,9 +855,13 @@ typedef SOCKET_SIZE_TYPE size_socket;
 #define SIZE_T_MAX ~((size_t) 0)
 #endif
 
-#ifndef HAVE_FINITE
+#ifndef isfinite
+#ifdef HAVE_FINITE
+#define isfinite(x) finite(x)
+#else
 #define finite(x) (1.0 / fabs(x) > 0.0)
-#endif
+#endif /* HAVE_FINITE */
+#endif /* isfinite */
 
 #ifndef HAVE_ISNAN
 #define isnan(x) ((x) != (x))
@@ -870,7 +871,7 @@ typedef SOCKET_SIZE_TYPE size_socket;
 /* isinf() can be used in both C and C++ code */
 #define my_isinf(X) isinf(X)
 #else
-#define my_isinf(X) (!finite(X) && !isnan(X))
+#define my_isinf(X) (!isfinite(X) && !isnan(X))
 #endif
 
 /* Define missing math constants. */

@@ -955,6 +955,23 @@ explain select * from t1 where dateval >= '2007-01-01 00:00:00' and dateval <= '
 
 drop table t1;
 
+#
+# Bug #33833: different or-ed predicates were erroneously merged into one that
+# resulted in ref access instead of range access and  a wrong result set
+#
+
+CREATE TABLE t1 (
+  a varchar(32), index (a)
+) DEFAULT CHARSET=latin1 COLLATE=latin1_bin;
+
+INSERT INTO t1 VALUES
+  ('B'), ('A'), ('A'), ('C'), ('B'), ('A'), ('A');
+
+SELECT a FROM t1 WHERE a='b' OR a='B';
+EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
+
+DROP TABLE t1;
+
 # End of 5.0 tests
 
 # BUG#22393 fix: Adjust 'ref' estimate if we have 'range' estimate for
