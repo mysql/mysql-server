@@ -18,7 +18,7 @@
 # bug in this test: BUG#30594: rpl.rpl_skip_error is nondeterministic
 
 source include/master-slave.inc;
-source include/have_binlog_format_mixed_or_statement.inc;
+source include/have_binlog_format_statement.inc;
 
 
 --echo ==== Test Without sql_mode=strict_trans_tables ====
@@ -37,17 +37,34 @@ insert into t1 values (1);
 # These should work fine
 insert into t1 values (2),(3);
 
---echo [on slave]
 sync_slave_with_master;
-select * from t1 ORDER BY n;
-
+--echo [on slave]
+select * from t1 order by n;
 
 --echo ==== Test With sql_mode=strict_trans_tables ====
-
-insert into t1 values (7), (8);
-
+insert into t1 values (7),(8);
 --echo [on master]
 connection master;
+set sql_mode=strict_trans_tables;
+insert into t1 values (7), (8), (9);
+--echo [on slave]
+sync_slave_with_master;
+select * from t1 order by n;
+source include/show_slave_status2.inc;
+
+--echo ==== Clean Up ====
+connection master;
+drop table t1;
+sync_slave_with_master;
+# End of 4.1 tests
+
+#
+# #28839 Errors in strict mode silently stop SQL thread if --slave-skip-errors exists
+#
+connection master;
+create table t1(a int primary key);
+insert into t1 values (1),(2);
+delete from t1 where @@server_id=1;
 set sql_mode=strict_trans_tables;
 insert into t1 values (7), (8), (9);
 
@@ -62,5 +79,4 @@ source include/show_slave_status2.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
-
 # End of 5.0 tests
