@@ -1026,7 +1026,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     {
       TR_Checksum = 0x1, // Need to be 1
       TR_RowGCI   = 0x2,
-      TR_ForceVarPart = 0x4
+      TR_ForceVarPart = 0x4,
+      TR_DiskPart  = 0x8
     };
     Uint16 m_bits;
     Uint16 total_rec_size; // Max total size for entire tuple in words
@@ -1526,12 +1527,16 @@ struct KeyReqStruct {
   Uint32          out_buf_index;
   Uint32          out_buf_bits;
   Uint32          in_buf_index;
-  Uint32          in_buf_len;
+  union {
+    Uint32 in_buf_len;
+    Uint32 m_lcp_varpart_len;
+  };
   Uint32          attr_descriptor;
   bool            xfrm_flag;
 
   /* Flag: is tuple in expanded or in shrunken/stored format? */
   bool is_expanded;
+  bool m_is_lcp;
 
   struct Var_data {
     /*
@@ -1687,6 +1692,7 @@ public:
   void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
   void complete_restore_lcp(Signal*, Uint32 ref, Uint32 data,
                             Uint32 tableId, Uint32 fragmentId);
+  Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
   int nr_update_gci(Uint32 fragPtr, const Local_key*, Uint32 gci);
@@ -2417,6 +2423,16 @@ private:
   bool disk_nullFlagCheck(KeyReqStruct *req_struct, Uint32 attrDes2);
   Uint32 read_pseudo(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
   Uint32 read_packed(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
+  Uint32 update_packed(KeyReqStruct*, const Uint32* src);
+
+  Uint32 read_lcp(const Uint32 *, Uint32, KeyReqStruct*, Uint32*);
+  void update_lcp(KeyReqStruct *req_struct, const Uint32* src, Uint32 len);
+public:
+  /**
+   * Used by Restore...
+   */
+  Uint32 read_lcp_keys(Uint32, const Uint32 * src, Uint32 len, Uint32 *dst);
+private:
 
   /* Fast bit counting (16 instructions on x86_64, gcc -O3). */
   static inline uint32_t count_bits(uint32_t x)
