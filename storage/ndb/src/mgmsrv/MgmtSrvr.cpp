@@ -1176,18 +1176,13 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
 int MgmtSrvr::stopNodes(const Vector<NodeId> &node_ids,
                         int *stopCount, bool abort, int* stopSelf)
 {
-  if (!abort)
-  {
-    NodeId nodeId = 0;
-    ClusterMgr::Node node;
-    while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
-    {
-      node = theFacade->theClusterMgr->getNodeInfo(nodeId);
-      if((node.m_state.startLevel != NodeState::SL_STARTED) && 
-	 (node.m_state.startLevel != NodeState::SL_NOTHING))
-	return OPERATION_NOT_ALLOWED_START_STOP;
-    }
-  }
+  /*
+    verify that no nodes are starting before stopping as this would cause
+    the starting node to shutdown
+  */
+  if (!abort && check_nodes_starting())
+    return OPERATION_NOT_ALLOWED_START_STOP;
+
   NodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
@@ -1258,15 +1253,6 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
 {
   if (getNodeType(singleUserNodeId) != NDB_MGM_NODE_TYPE_API)
     return NODE_NOT_API_NODE;
-  NodeId nodeId = 0;
-  ClusterMgr::Node node;
-  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
-  {
-    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
-    if((node.m_state.startLevel != NodeState::SL_STARTED) && 
-       (node.m_state.startLevel != NodeState::SL_NOTHING))
-      return OPERATION_NOT_ALLOWED_START_STOP;
-  }
   NodeBitmask nodes;
   Vector<NodeId> node_ids;
   int stopSelf;
@@ -1288,11 +1274,47 @@ int MgmtSrvr::enterSingleUser(int * stopCount, Uint32 singleUserNodeId)
  * Perform node restart
  */
 
+int MgmtSrvr::check_nodes_stopping()
+{
+  NodeId nodeId = 0;
+  ClusterMgr::Node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if((node.m_state.startLevel == NodeState::SL_STOPPING_1) || 
+       (node.m_state.startLevel == NodeState::SL_STOPPING_2) || 
+       (node.m_state.startLevel == NodeState::SL_STOPPING_3) || 
+       (node.m_state.startLevel == NodeState::SL_STOPPING_4))
+      return 1;
+  }
+  return 0;
+}
+
+int MgmtSrvr::check_nodes_starting()
+{
+  NodeId nodeId = 0;
+  ClusterMgr::Node node;
+  while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
+  {
+    node = theFacade->theClusterMgr->getNodeInfo(nodeId);
+    if((node.m_state.startLevel == NodeState::SL_STARTING))
+      return 1;
+  }
+  return 0;
+}
+
 int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
                            int * stopCount, bool nostart,
                            bool initialStart, bool abort,
                            int *stopSelf)
 {
+  /*
+    verify that no nodes are starting before stopping as this would cause
+    the starting node to shutdown
+  */
+  if (!abort && check_nodes_starting())
+    return OPERATION_NOT_ALLOWED_START_STOP;
+
   NodeBitmask nodes;
   int ret= sendSTOP_REQ(node_ids,
                         nodes,
@@ -1337,6 +1359,21 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
   if (nostart)
     return 0;
 
+  /*
+    verify that no nodes are stopping before starting as this would cause
+    the starting node to shutdown
+  */
+  int retry= 600*10;
+  for (;check_nodes_stopping();)
+  {
+    if (--retry)
+      break;
+    NdbSleep_MilliSleep(100);
+  }
+
+  /*
+    start the nodes
+  */
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
     (void) start(node_ids[i]);
