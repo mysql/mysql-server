@@ -247,6 +247,18 @@ protected:
   CHARSET_INFO *m_connection_cl;
 };
 
+
+/**
+  Opening modes for open_temporary_table and open_table_from_share
+*/
+
+enum open_table_mode
+{
+  OTM_OPEN= 0,
+  OTM_CREATE= 1,
+  OTM_ALTER= 2
+};
+
 /***************************************************************************
   Configuration parameters
 ****************************************************************************/
@@ -460,7 +472,11 @@ protected:
 #define TMP_TABLE_FORCE_MYISAM          (ULL(1) << 32)
 #define OPTION_PROFILING                (ULL(1) << 33)
 
-
+/*
+  Dont report errors for individual rows,
+  But just report error on commit (or read ofcourse)
+*/
+#define OPTION_ALLOW_BATCH              (ULL(1) << 33) // THD, intern (slave)
 
 /**
   Maximum length of time zone name that we support
@@ -1374,6 +1390,8 @@ void set_item_name(Item *item,char *pos,uint length);
 bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum enum_field_types type,
 		       char *length, char *decimal,
 		       uint type_modifier,
+                       enum ha_storage_media storage_type,
+                       enum column_format_type column_format,
 		       Item *default_value, Item *on_update_value,
 		       LEX_STRING *comment,
 		       char *change, List<String> *interval_list,
@@ -1489,8 +1507,9 @@ bool open_normal_and_derived_tables(THD *thd, TABLE_LIST *tables, uint flags);
 int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list);
-bool rm_temporary_table(handlerton *base, char *path);
+                            const char *table_name, bool link_in_list,
+                            open_table_mode open_mode);
+bool rm_temporary_table(handlerton *base, char *path, bool frm_only);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
@@ -1850,6 +1869,7 @@ extern ulong query_cache_size, query_cache_min_res_unit;
 extern ulong slow_launch_threads, slow_launch_time;
 extern ulong table_cache_size, table_def_size;
 extern ulong max_connections,max_connect_errors, connect_timeout;
+extern my_bool slave_allow_batching;
 extern ulong slave_net_timeout, slave_trans_retries;
 extern uint max_user_connections;
 extern ulong what_to_log,flush_time;
@@ -2073,7 +2093,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
 void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
-                          TABLE *outparam, bool is_create_table);
+                          TABLE *outparam, open_table_mode open_mode);
 int readfrm(const char *name, uchar **data, size_t *length);
 int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);

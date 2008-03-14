@@ -20,11 +20,8 @@
 
 Suma::Suma(Block_context& ctx) :
   SimulatedBlock(SUMA, ctx),
-  c_metaSubscribers(c_subscriberPool),
-  c_removeDataSubscribers(c_subscriberPool),
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
-  Restart(*this),
   c_gcp_list(c_gcp_pool)
 {
   BLOCK_CONSTRUCTOR(Suma);
@@ -69,8 +66,6 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUB_REMOVE_REQ, &Suma::execSUB_REMOVE_REQ);
   addRecSignal(GSN_SUB_START_REQ, &Suma::execSUB_START_REQ);
   addRecSignal(GSN_SUB_STOP_REQ, &Suma::execSUB_STOP_REQ);
-  addRecSignal(GSN_SUB_STOP_REF, &Suma::execSUB_STOP_REF);
-  addRecSignal(GSN_SUB_STOP_CONF, &Suma::execSUB_STOP_CONF);
   addRecSignal(GSN_SUB_SYNC_REQ, &Suma::execSUB_SYNC_REQ);
 
   /**
@@ -80,15 +75,12 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_ALTER_TAB_REQ, &Suma::execALTER_TAB_REQ);
   addRecSignal(GSN_CREATE_TAB_CONF, &Suma::execCREATE_TAB_CONF);
 
-#if 0
-  addRecSignal(GSN_LIST_TABLES_CONF, &Suma::execLIST_TABLES_CONF);
-#endif
   addRecSignal(GSN_GET_TABINFO_CONF, &Suma::execGET_TABINFO_CONF);
   addRecSignal(GSN_GET_TABINFOREF, &Suma::execGET_TABINFOREF);
-#if 0
-  addRecSignal(GSN_GET_TABLEID_CONF, &Suma::execGET_TABLEID_CONF);
-  addRecSignal(GSN_GET_TABLEID_REF, &Suma::execGET_TABLEID_REF);
-#endif
+
+  addRecSignal(GSN_DICT_LOCK_REF, &Suma::execDICT_LOCK_REF);
+  addRecSignal(GSN_DICT_LOCK_CONF, &Suma::execDICT_LOCK_CONF);
+
   /**
    * Dih interface
    */
@@ -124,7 +116,14 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &Suma::execSUB_GCP_COMPLETE_REP);
 
+  c_current_seq = 0;
+  c_restart.m_ref = 0;
   c_startup.m_restart_server_node_id = RNIL; // Server for my NR
+
+#ifdef VM_TRACE
+  m_gcp_monitor = 0;
+#endif
+  m_missing_data = false;
 }
 
 Suma::~Suma()

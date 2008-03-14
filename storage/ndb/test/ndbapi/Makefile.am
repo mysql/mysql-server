@@ -34,6 +34,7 @@ testIndex \
 testMgm \
 testNdbApi \
 testNodeRestart \
+testUpgrade \
 testOIBasic \
 testOperations \
 testRestartGci \
@@ -53,6 +54,8 @@ DbCreate DbAsyncGenerator \
 testSRBank \
 test_event_merge \
 testIndexStat \
+ndbapi_50compat0 \
+ndbapi_50compat1 \
 testNDBT \
 NdbRepStress
 
@@ -83,6 +86,8 @@ testIndex_SOURCES = testIndex.cpp
 testMgm_SOURCES = testMgm.cpp
 testNdbApi_SOURCES = testNdbApi.cpp
 testNodeRestart_SOURCES = testNodeRestart.cpp
+testUpgrade_SOURCES = testUpgrade.cpp
+testUpgrade_LDADD = $(LDADD) $(top_srcdir)/libmysql_r/libmysqlclient_r.la
 testOIBasic_SOURCES = testOIBasic.cpp
 testOperations_SOURCES = testOperations.cpp
 testRestartGci_SOURCES = testRestartGci.cpp
@@ -110,6 +115,14 @@ testSRBank_SOURCES = testSRBank.cpp
 test_event_merge_SOURCES = test_event_merge.cpp
 test_event_multi_table_SOURCES = test_event_multi_table.cpp
 testIndexStat_SOURCES = testIndexStat.cpp
+
+ndbapi_50compat0_CPPFLAGS = -DNDBAPI_50_COMPAT
+ndbapi_50compat0_SOURCES = ndbapi_50compat0.cpp
+ndbapi_50compat0_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
+
+ndbapi_50compat1_CPPFLAGS = -DNDBAPI_50_COMPAT
+ndbapi_50compat1_SOURCES = ndbapi_50compat1.cpp
+ndbapi_50compat1_LDADD = $(LDADD) $(top_srcdir)/libmysql/libmysqlclient.la
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/include/kernel
 

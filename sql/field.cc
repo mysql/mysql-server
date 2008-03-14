@@ -7157,6 +7157,11 @@ uint32 Field_varstring::data_length()
   return length_bytes == 1 ? (uint32) *ptr : uint2korr(ptr);
 }
 
+uint32 Field_varstring::used_length()
+{
+  return length_bytes == 1 ? 1 + (uint32) (uchar) *ptr : 2 + uint2korr(ptr);
+}
+
 /*
   Functions to create a packed row.
   Here the number of length bytes are depending on the given max_length
@@ -9396,7 +9401,9 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
                         uint fld_type_modifier, Item *fld_default_value,
                         Item *fld_on_update_value, LEX_STRING *fld_comment,
                         char *fld_change, List<String> *fld_interval_list,
-                        CHARSET_INFO *fld_charset, uint fld_geom_type)
+                        CHARSET_INFO *fld_charset, uint fld_geom_type,
+                        enum ha_storage_media storage_type,
+                        enum column_format_type column_format)
 {
   uint sign_len, allowed_type_modifier= 0;
   ulong max_field_charlength= MAX_FIELD_CHARLENGTH;
@@ -9407,6 +9414,8 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   field_name= fld_name;
   def= fld_default_value;
   flags= fld_type_modifier;
+  flags|= (((uint)storage_type & STORAGE_TYPE_MASK) << FIELD_STORAGE_FLAGS);
+  flags|= (((uint)column_format & COLUMN_FORMAT_MASK) << COLUMN_FORMAT_FLAGS);
   unireg_check= (fld_type_modifier & AUTO_INCREMENT_FLAG ?
                  Field::NEXT_NUMBER : Field::NONE);
   decimals= fld_decimals ? (uint)atoi(fld_decimals) : 0;

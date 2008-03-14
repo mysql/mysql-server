@@ -91,6 +91,7 @@ public:
     NORMAL = 0,
     WAITING_FOR_FAILCONF1 = 1,
     WAITING_FOR_FAILCONF2 = 2,
+    WAITING_FOR_FAILCONF3 = 3,
     WAITING_FOR_NDB_FAILCONF = 3
   };
 
@@ -154,7 +155,6 @@ public:
     QmgrState sendCommitFailReqStatus;
     QmgrState sendPresToStatus;
     FailState failState;
-    BlockReference rcv[2];        // remember which failconf we have received
     BlockReference blockRef;
 
     NodeRec() { }
@@ -182,10 +182,11 @@ public:
     NodeId node;		// current arbitrator candidate
     ArbitTicket ticket;		// ticket
     NodeBitmask apiMask[1+2];	// arbitrators 0=all 1,2=per rank
-    NodeBitmask newMask;	// new nodes to process in RUN state
+    NdbNodeBitmask newMask;	// new nodes to process in RUN state
     Uint8 sendCount;		// control send/recv of signals
     Uint8 recvCount;
-    NodeBitmask recvMask;	// left to recv
+    Uint8 m_disabled;
+    NdbNodeBitmask recvMask;	// left to recv
     Uint32 code;		// code field from signal
     Uint32 failureNr;            // cfailureNr at arbitration start
     Uint32 timeout;             // timeout for CHOOSE state
@@ -279,6 +280,8 @@ private:
   void execARBIT_CHOOSEREF(Signal* signal);
   void execARBIT_STOPREP(Signal* signal);
 
+  void execUPGRADE_PROTOCOL_ORD(Signal*);
+  
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -355,6 +358,7 @@ private:
   void stateArbitChoose(Signal* signal);
   void stateArbitCrash(Signal* signal);
   void computeArbitNdbMask(NodeBitmask& aMask);
+  void computeArbitNdbMask(NdbNodeBitmask& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type);
 
   // Initialisation
@@ -465,6 +469,8 @@ private:
                        Uint32 length, 
                        JobBufferLevel jbuf,
                        Uint32 minversion);
+
+  bool m_micro_gcp_enabled;
 };
 
 #endif

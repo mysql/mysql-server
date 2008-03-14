@@ -117,6 +117,9 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 #endif
   Pack_header_error_handler pack_header_error_handler;
   int error;
+  const uint format_section_header_size= 8;
+  uint format_section_len;
+  uint tablespace_len= 0;
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
@@ -184,6 +187,14 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     if (key_info[i].parser_name)
       create_info->extra_size+= key_info[i].parser_name->length + 1;
   }
+  /* Add space for storage type and field format array of fields */
+  if (create_info->tablespace)
+    tablespace_len= strlen(create_info->tablespace);
+  format_section_len=
+    format_section_header_size +
+    tablespace_len + 1 +
+    create_fields.elements;
+  create_info->extra_size+= format_section_len;
 
   if ((file=create_frm(thd, file_name, db, table, reclength, fileinfo,
 		       create_info, keys)) < 0)
@@ -296,6 +307,45 @@ bool mysql_create_frm(THD *thd, const char *file_name,
     }
   }
 
+  /* Store storage type and field format array of fields */
+  {
+    /* prepare header */
+    {
+      uint flags= 0;
+      flags|= create_info->default_storage_media; //3 bits
+
+      bzero(buff, format_section_header_size);
+      /* length of section 2 bytes*/
+      int2store(buff+0, format_section_len);
+      /* flags of section 4 bytes*/
+      int4store(buff+2, flags);
+      /* 2 bytes left for future use */
+    }
+    /* write header */
+    if (my_write(file, (const uchar*)buff, format_section_header_size, MYF_RW))
+      goto err;
+    /* write tablespace name */
+    if (tablespace_len > 0)
+      if (my_write(file, (const uchar*)create_info->tablespace, tablespace_len, MYF_RW))
+        goto err;
+    buff[0]= 0;
+    if (my_write(file, (const uchar*)buff, 1, MYF_RW))
+      goto err;
+    /* write column info, 1 byte per column */
+    {
+      List_iterator<Create_field> it(create_fields);
+      Create_field *field;
+      uchar storage_type, column_format, write_byte;
+      while ((field=it++))
+      {
+        storage_type= (uchar)field->field_storage_type();
+        column_format= (uchar)field->column_format();
+        write_byte= storage_type + (column_format << COLUMN_FORMAT_SHIFT);
+        if (my_write(file, &write_byte, 1, MYF_RW))
+          goto err;
+      }
+    }
+  }
   VOID(my_seek(file,filepos,MY_SEEK_SET,MYF(0)));
   if (my_write(file, forminfo, 288, MYF_RW) ||
       my_write(file, screen_buff, info_length, MYF_RW) ||

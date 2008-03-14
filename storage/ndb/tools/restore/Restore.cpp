@@ -124,7 +124,9 @@ RestoreMetaData::loadContent()
       return 0;
     }
   }
-  if (! markSysTables())
+  if (!markSysTables())
+    return 0;
+  if (!fixBlobs())
     return 0;
   if(!readGCPEntry())
     return 0;
@@ -335,6 +337,7 @@ RestoreMetaData::markSysTables()
           if (table->isSysTable)
             blobTable->isSysTable = true;
           blobTable->m_main_table = table;
+          blobTable->m_main_column_id = id2;
           break;
         }
       }
@@ -342,6 +345,52 @@ RestoreMetaData::markSysTables()
         err << "Restore: Bad primary table id in " << blobTableName << endl;
         return false;
       }
+    }
+  }
+  return true;
+}
+
+bool
+RestoreMetaData::fixBlobs()
+{
+  Uint32 i;
+  for (i = 0; i < getNoOfTables(); i++) {
+    TableS* table = allTables[i];
+    assert(table->m_dictTable != NULL);
+    NdbTableImpl& t = NdbTableImpl::getImpl(*table->m_dictTable);
+    const Uint32 noOfBlobs = t.m_noOfBlobs;
+    if (noOfBlobs == 0)
+      continue;
+    const Uint32 noOfColumns = t.getNoOfColumns();
+    Uint32 n = 0;
+    Uint32 j;
+    for (j = 0; n < noOfBlobs; j++) {
+      NdbColumnImpl* c = t.getColumn(j);
+      assert(c != NULL);
+      if (!c->getBlobType())
+        continue;
+      // tinyblobs are counted in noOfBlobs...
+      n++;
+      if (c->getPartSize() == 0)
+        continue;
+      Uint32 k;
+      TableS* blobTable = NULL;
+      for (k = 0; k < getNoOfTables(); k++) {
+        TableS* tmp = allTables[k];
+        if (tmp->m_main_table == table &&
+            tmp->m_main_column_id == j) {
+          blobTable = tmp;
+          break;
+        }
+      }
+      assert(blobTable != NULL);
+      assert(blobTable->m_dictTable != NULL);
+      NdbTableImpl& bt = NdbTableImpl::getImpl(*blobTable->m_dictTable);
+      const char* colName = c->m_blobVersion == 1 ? "DATA" : "NDB$DATA";
+      const NdbColumnImpl* bc = bt.getColumn(colName);
+      assert(bc != NULL);
+      assert(c->m_storageType == NDB_STORAGETYPE_MEMORY);
+      c->m_storageType = bc->m_storageType;
     }
   }
   return true;
@@ -433,6 +482,7 @@ TableS::TableS(Uint32 version, NdbTableImpl* tableImpl)
   backupVersion = version;
   isSysTable = false;
   m_main_table = NULL;
+  m_main_column_id = ~(Uint32)0;
   
   for (int i = 0; i < tableImpl->getNoOfColumns(); i++)
     createAttr(tableImpl->getColumn(i));
@@ -731,6 +781,9 @@ BackupFile::BackupFile(void (* _free_data_callback)())
   m_buffer = malloc(m_buffer_sz);
   m_buffer_ptr = m_buffer;
   m_buffer_data_left = 0;
+
+  m_file_size = 0;
+  m_file_pos = 0;
 }
 
 BackupFile::~BackupFile(){
@@ -745,9 +798,30 @@ BackupFile::openFile(){
   if(m_file != NULL){
     fclose(m_file);
     m_file = 0;
+    m_file_size = 0;
+    m_file_pos = 0;
   }
   
+  info.setLevel(254);
+  info << "Opening file '" << m_fileName << "'\n";
   m_file = fopen(m_fileName, "r");
+
+  if (m_file)
+  {
+    struct stat buf;
+    if (fstat(fileno(m_file), &buf) == 0)
+    {
+      m_file_size = (Uint64)buf.st_size;
+      info << "File size " << m_file_size << " bytes\n";
+    }
+    else
+    {
+      info << "Progress reporting degraded output since fstat failed,"
+           << "errno: " << errno << endl;
+      m_file_size = 0;
+    }
+  }
+
   return m_file != 0;
 }
 
@@ -762,6 +836,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
     size_t r = fread(((char *)m_buffer) + m_buffer_data_left, 1, m_buffer_sz - m_buffer_data_left, m_file);
+    m_file_pos += r;
     m_buffer_data_left += r;
     m_buffer_ptr = m_buffer;
 

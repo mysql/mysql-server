@@ -1,0 +1,275 @@
+==================================================
+mysql-5.1.X-ndb-6.2.Y
+==================================================
+
+mysql-5.1.19-ndb-6.2.4 (released 2007-07-04)
+
+  Bug #29525 batching incorrect
+  Bug #28720 Disk data meta information is not visible in mysqld but exists in ndbd
+  Bug #28642 Tablespace returning incorrect usage status
+  Bug #29501 DN crashes in LGMAN during NR while DD schema operations are being handled
+  Bug #29354 Incorrect handling of replica REDO during SR (5.0)
+  Bug #29364 SQL queries hang while data node in start phase 5
+  Bug #27404 util thd mysql_parse sig11 when mysqld default multibyte charset
+
+mysql-5.1.19-ndb-6.2.3 (released 2007-07-02)
+(additional bugs fixed compared to mysql-5.1.19)
+
+  Bug #29331 Incorrect node killed on GCP Stop (COPY_GCI)
+  Bug #29057 Incorrect handling of file 0 during redo execution(Error while reading REDO log)
+  Bug #29067 Incorrect order during redo invalidation(Error while reading REDO log)
+  Bug #29118 Incorrect handling of loglap in redo invalidation (Error while reading REDO log)
+  Bug #29229 memory corruption in dbtup
+  Bug #29185 Large IN list crashes mysqld with cluster and condition pushdown
+  Bug #29176 drop table can crash pgman
+  Bug #28989 hpux11 ps_row warnings
+  Bug #25305 rpl_ndb_UUID.test fails on pb-valgrind
+  Bug #29167 Insufficient nodes for SR
+  Bug #27640 backup id not displayed in the output of "ndb_mgm start backup wait completed"
+  Bug #28949 n_mix valgrind failing in pushbuild
+  Bug #29099 slow backup for disk data
+  Bug #26342 auto_increment_increment AND auto_increment_offset REALLY REALLY anger NDB cluster
+  Bug #29103 ndb_restore segfaults on NULL var[char|binary]
+  Bug #29074 preserve file timestamps in ndb_error_reporter
+  Bug #29073 Store history for ndb_mgm
+  Bug #29063 mgmapi: connect timeout set incorrectly
+  Bug #29044 blob code sets error code on transaction object
+  Bug #28724 for blobs, op flag to not set error on trans
+  Bug #28751 Lots of memory locked in memory causes high kswapd
+  Bug #28899 not possible to set separate watchdog timeout at startup
+  Bug# 28726 LCP files not removed after initial system restart
+  Bug #20612 failed ndbrequire in PGMAN
+  Bug #28443 transporter gets stuck when >1024 signals received at once
+  Bug #28770 file already opened error when corrupt schema file
+  Bug #28749 MaxNoOfOpenFiles offset by 1
+  Bug #26783 replication status unknown after cluster or mysqld failure
+  Bug #28717 Race between NODE_FAILREP and COPY_GCIREQ
+  Bug #28719 multi pk update ignore corrupts data
+  Bug #28653 Fast GCP + high load + high RedoBuffer causes ndbrequire
+  Bug #28525 Node failures in PGMAN at ndbrequire (line 430)
+
+
+==================================================
+mysql-5.1.15-ndb-6.1.X
+==================================================
+
+mysql-5.1.15-ndb-6.1.16 (2007-06-28)
+
+  Bug #29331 Incorrect node killed on GCP Stop (COPY_GCI)
+  Bug #29057 Incorrect handling of file 0 during redo execution(Error while reading REDO log)
+  Bug #29067 Incorrect order during redo invalidation(Error while reading REDO log)
+  Bug #29118 Incorrect handling of loglap in redo invalidation (Error while reading REDO log)
+  Bug #29176 drop table can crash pgman
+
+mysql-5.1.15-ndb-6.1.15 (2007-06-20)
+
+  Bug #29229 memory corruption in dbtup
+
+mysql-5.1.15-ndb-6.1.14 (2007-06-19)
+
+  Bug #29176 missing stack pruning in drop_page
+  Bug #29167 Insufficient nodes for SR
+
+mysql-5.1.15-ndb-6.1.13 (2007-06-15)
+
+  Bug #29099 slow backup for disk data
+
+mysql-5.1.15-ndb-6.1.12 (2007-06-13)
+
+  Bug #29044 memory buddy allocator "unoptimal" memory handling
+  extend backup dump to give more info
+
+mysql-5.1.15-ndb-6.1.11 (2007-06-06)
+
+  Bug #28751 Lots of memory locked in memory causes high kswapd
+  Bug #28899 not possible to set separate watchdog timeout at startup
+  Bug #28726 LCP files not removed after initial system restart
+  Bug #20612 failed ndbrequire in PGMAN
+  make size of redo log files (fragment log files) configurable (error 1220)
+
+mysql-5.1.15-ndb-6.1.10 (2007-05-30)
+
+  Bug #28783 heartbeat failures under high load
+  Bug #28770 file already opened error when corrupt schema file
+  Bug #28717 Race between NODE_FAILREP and COPY_GCIREQ
+  Bug #28525 Node failures in PGMAN at ndbrequire (line 430)
+  Bug #28653 Fast GCP + high load + high RedoBuffer causes ndbrequire
+  Bug #28749 MaxNoOfOpenFiles offset by 1
+  Added addditional 'times' printout in ndbd WatchDog thread
+  Some filename changes to avoid 'tar' issues with 99 char limit
+  Removed some extra printouts in ndbd out file
+
+mysql-5.1.15-ndb-6.1.9 (2007-05-24)
+
+  Bug #28593 cluster backup scans in acc index order, bad for disk data
+  Bug #28443 transporter gets stuck when >1024 signals received at once
+ 
+mysql-5.1.15-ndb-6.1.8 (2007-05-18)
+
+  Bug #28491 Expand check gets disabled in some cases (initial node restart)
+  Bug #28348 Dropped tables not removed from LCP
+  Bug #20535 NDB API implicit insert of NULL does not overwrite old value
+  Bug #27437 NDB Data node crashes during mysqldump inserts
+  Bug #27942 node failure during massive insert
+
+mysql-5.1.15-ndb-6.1.7 (2007-05-05)
+
+  Bug #26121 mysqldump includes LOCK TABLES general_log WRITE
+  Bug #28161 Detached triggers + DD and only MM update could cause node failure
+  Bug #25530 --with-readline fails with commercial source packages
+  Bug #25741 AllocNodeIdRef::NodeFailureHandlingNotCompleted
+  Bug #27205 Occational 899 if delete+insert during LCP
+  Bug #24667 After ALTER TABLE operation ndb_dd table becomes regular ndb
+  Bug #28093 ndb: retry sleep in get table stats 30s instead of 30ms
+  Bug #28073 Infinite loop in lock queue.
+  Bug #27495 Missing implementation of NdbTransaction::executeAsynch().
+  Bug #28023 NR can fail to update GCI
+  Bug #27756 Memleak with insert+delete
+  Bug #27757 Tup scan cant see own records
+  Bug #27748 Inconsistent replication(backup) with some multi-update combinations
+  Bug #27651 Very high load can cause event api to get out of sync, "out of order buckets"
+  Bug #27728 Partially connected API's can cause problem for SUMA
+  Bug #27663 Missmatched free/delete in listObjects
+  Bug #27560 Memory usage of mysqld grows while doing nothing
+  Bug #27581 Drop/truncate table can result in node/cluster-crash
+
+  (no bug number) fix bug in my.cnf config handling, put64 for 64-bit variables
+
+  Other changes:
+  - Force varpart, such that tables can handle online add column when feature arrives
+
+  Test tools update for measuring replication latency:
+
+  - new ndb tool 'rep_latency' to measure replication latency
+  - simple extend of 'listen_event' to do apply on remote cluster
+
+mysql-5.1.15-ndb-6.1.6 (2007-03-30)
+
+  Bug #27529 Slave crashes on lots of updates
+  Bug #27512 Inconsistent tuples when using variable size and >16Gb datamemory
+  Bug #27378 update becomes delete on slave
+  Bug #27466 nf during nr can leave cluster in inconsistent state
+  Bug #27444 DataMemory missing from report in cluster logs
+  Bug #27044 replicated with unique field ndb table allows duplicate key inserts
+  Bug #26286 row-based logging scales worse than statement-based logging
+  Bug #19896 Last_Errno: 4294967295, Error in Write_rows event: (error number 4 billion ?)
+  Bug #27320 ndb handler does not reset extra flags on reset()
+  Bug #27283 Race condition in GCP Master take-over
+  Bug #26825 MySQL Server Crashes in high load
+  Bug #27286 Rare racecondition in nodeid allocation on master failure
+  Bug #27291 Setting LockPagesInMainMemory to zero doesn't work
+  Bug #20185 Node failure might cause other node failure
+  Bug #27203 ScanDelete+Scan+Insert could cause node crash
+  Bug #27169 xtra word sent in SUMA::resend_bucket causing crash of mysqld(event listener)
+  Bug #27005 Node failure + API failure can crash SUMA resend
+  Bug #27087 Unoptimal handling of failed API in SUMA
+  Bug #27102 Node can crash during flush of undo during restart with filesystem error
+  Bug #27003 Failure during noderestart could crash/hang alive node (and hence cluster)
+  (not reported) correct event buffer status reporting
+
+mysql-5.1.15-ndb-6.1.5 (2007-03-15)
+
+  Bug #26997 - mysqld segfault when in single user mode
+  Bug #26825 - MySQL Server Crashes in high load
+  Bug #25743 - If undo_buffer_size (for LG) greater than the inital shared memory (default 20M), ndbd nodes are crashed
+  Bug #26899 - ndb_restore cannot restore selected tables and databases
+  Bug #26900 - ndb_restore printout option does not give structured data
+  Bug #26720 - Infinite loop on unknown signal in logging function
+
+  * ndb_apply_status schema change
+  * ndb_restore options for printing to file
+
+  Note: since ndb_apply_status schema change this version is not backwards compatible
+
+mysql-5.1.15-ndb-6.1.4 (limited test release)
+
+  Bug #26741 - ndb_restore with only print_data seg faults
+  Bug #26739 - ndb_restore segfault on some 64-bit architectures
+  Bug #26663 - cluster have issues with api nodeids > 63
+
+mysql-5.1.15-ndb-6.1.3 (25 Feb 2007)
+
+  Bug #26515 - Incorrect pointer after FSCLOSECONF in REDO invalidation
+  Bug #26514 - Invalid memory access could occur during DD usage
+  Bug #26490 - duplicate cluster error code
+  Bug #26487 - Bug in extent/page allocation when *using* >1gb datafiles
+  Bug #25801 - Internal error if starting partially with missing REDO
+  Bug #26481 - Node failure during initial node restart, can lead to subsequent node failures
+  Bug #26457 - Incorrect handling of LCP take-over during multi-master-node-failure
+  Bug #26454 - LockPagesInMemory=1 is called after distributed communcation has started
+  Bug #25239 - Out of memory problem can cause crash in SUMA
+  Bug #21033 - Error 0 in readAutoIncrementValue()
+  Bug #26293 - cluster mgmt node sometimes doesn't receive events from all nodes on restart
+
+  * listEvents ndbapi extension
+  * Modified ndb_show_tables to also handle Table Events
+  * mysqld option --ndb-wait-connected
+  * Possibility to disable arbitration by setting arbitrationrank=0 on all nodes
+  * All dump 2352
+  * Different READ/SCAN (EX-SH)
+  * New dump commands for tracking hanging locks
+  * Change level on StartREDOLog to make it default come up in cluster log
+  * Make ndbd_redo_log_reader be build default
+
+---------------------------------------------------
+
+mysql-5.1.16-ndb-6.2.0 (2007-03-09)
+
+  * WAN settings for TCP transporters
+  * moved initialization of ndbd fs block first to ensure that it gets enough space for allocation of file system thread stacks
+  * added listEvents
+  * modified ndb_show_tables to also handle Table Events
+  * added mysqld option --ndb-wait-connected
+  * Add possibility to disable arbitration by setting arbitrationrank=0 on all nodes
+  * Add all dump 2352
+  * Add different READ/SCAN (EX-SH)
+  * ndb - add new dump commands for tracking hanging locks
+  * Change level on StartREDOLog to make it default come up in cluster log
+  * Make ndbd_redo_log_reader be build default
+  * Integrate mem-manager with TUP removing need for DataMemory2
+  * New interface(ndbapi) for iterating over ndb-object connected to a Ndb_cluster_connection
+  * New interface(ndbapi) for starting transaction with hints
+  * Different handling of AbortOption in ndbapi
+
+---------------------------------------------------
+
+mysql-5.1.15-ndb-6.1.2 (7 Feb 2007)
+
+  Bug #26267 - using node ids > 48 causes invalid memory access
+
+---------------------------------------------------
+
+mysql-5.1.15-ndb-6.1.1 (31 Jan 2007)
+
+  Bug #25997 - Valgrind reports leak in event code in mysqld during hadeling of NF and CF
+  Bug #25794 - Delete+Read (in same op) crashes datanodes if >5 cols or disk/varchar
+  Bug #25286 - NDB data node crashed in DBLQH, Line 2483
+
+  (* added extra version info to API to enable support for non-supported online software upgrade)
+  * 255 node support
+
+  Notes:
+
+  - This release is not online upgradable with ndb-6.1.0.
+  - All executables needs to be replaced
+  - All ndbapi/mgmapi application should be recompiled
+
+---------------------------------------------------
+
+mysql-5.1.14-ndb-6.1.0 (20 Dec 2006)
+
+  Bug #25059 - Unique index lookup execute(Commit) on non existing tuple can lead to 4012
+  Bug #25090 - Incorrect handling of execute(Commit, AO_IgnoreError), can lead to DBCT crash
+  Bug #19956 - Problems with VARCHAR primary key and BLOB fields
+  Bug #24949 - Pulling cable from _last_ db-node can cause 6min timeout in api
+  Bug #25001 - MEDIUMTEXT column not stored on disk
+  Bug #24664 - Rare problem in LCP, can lead to unability to restart
+  Bug #24917 - Makeing node restart with "newly" dropped disk table can cause failure during restart
+  Bug #24914 - Start Transaction with hint guessed incorrectly
+  Bug #21948 - Repeated create/drop/truncate(DD) together with restarts can cause SR failure
+  Bug #17605 - DD Extents are not available until after LCP
+  Bug #22773 - NDB_LE_Connected sent when it should be NDB_LE_Disconnected
+  Bug #24166 - SR-crash if DD and hidden key
+
+  * add support for periodic mem-reporting, config.ini parameter "MemReportFrequency" which is specified in seconds
+

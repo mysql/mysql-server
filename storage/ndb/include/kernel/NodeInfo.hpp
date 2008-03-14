@@ -34,8 +34,8 @@ public:
   };
   NodeType getType() const;
   
-  Uint32 m_version;       ///< Node version
-  Uint32 m_signalVersion; ///< Signal version
+  Uint32 m_version;       ///< Ndb version
+  Uint32 m_mysql_version; ///< MySQL version
   Uint32 m_type;          ///< Node type
   Uint32 m_connectCount;  ///< No of times connected
   bool   m_connected;     ///< Node is connected
@@ -48,7 +48,7 @@ public:
 inline
 NodeInfo::NodeInfo(){
   m_version = 0;
-  m_signalVersion = 0;
+  m_mysql_version = 0;
   m_type = INVALID;
   m_connectCount = 0;
   m_heartbeat_cnt= 0;
@@ -82,8 +82,8 @@ operator<<(NdbOut& ndbout, const NodeInfo & info){
     break;
   }
 
-  ndbout << " version: " << info.m_version
-	 << " sig. version; " << info.m_signalVersion
+  ndbout << " ndb version: " << info.m_version
+	 << " mysql version; " << info.m_mysql_version
 	 << " connect count: " << info.m_connectCount
 	 << "]";
   return ndbout;

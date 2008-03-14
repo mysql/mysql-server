@@ -102,6 +102,9 @@
 #endif
 
 class Dbdih: public SimulatedBlock {
+#ifdef ERROR_INSERT
+  typedef void (Dbdih::* SendFunction)(Signal*, Uint32);
+#endif
 public:
 
   // Records
@@ -113,7 +116,7 @@ public:
    *  IT IS LINKED INTO A QUEUE IN CASE THE GLOBAL CHECKPOINT IS CURRENTLY 
    * ONGOING */
   struct ApiConnectRecord {
-    Uint32 apiGci;
+    Uint64 apiGci;
     Uint32 nextApi;
   };
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
@@ -278,18 +281,6 @@ public:
       Uint32 replicaPtr;
     };
     
-    enum GcpState {
-      READY = 0,
-      PREPARE_SENT = 1,
-      PREPARE_RECEIVED = 2,
-      COMMIT_SENT = 3,
-      NODE_FINISHED = 4,
-      SAVE_REQ_SENT = 5,
-      SAVE_RECEIVED = 6,
-      COPY_GCI_SENT = 7
-    };
-
-    GcpState gcpstate;
     Sysfile::ActiveStatus activeStatus;
     
     NodeStatus nodeStatus;
@@ -624,11 +615,13 @@ private:
   void execCREATE_FRAGREQ(Signal *);
   void execCREATE_FRAGCONF(Signal *);
   void execDIVERIFYREQ(Signal *);
+  void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
   void execGCP_PREPARECONF(Signal *);
   void execGCP_PREPARE(Signal *);
   void execGCP_NODEFINISH(Signal *);
   void execGCP_COMMIT(Signal *);
+  void execSUB_GCP_COMPLETE_REP(Signal *);
   void execDIHNDBTAMPER(Signal *);
   void execCONTINUEB(Signal *);
   void execCOPY_GCIREQ(Signal *);
@@ -729,6 +722,8 @@ private:
 
   void execDICT_LOCK_CONF(Signal* signal);
   void execDICT_LOCK_REF(Signal* signal);
+
+  void execUPGRADE_PROTOCOL_ORD(Signal* signal);
 
   // Statement blocks
 //------------------------------------
@@ -851,11 +846,11 @@ private:
   void emptyverificbuffer(Signal *, bool aContintueB);
   Uint32 findHotSpare();
   void handleGcpStateInMaster(Signal *, NodeRecordPtr failedNodeptr);
-  void initRestartInfo();
+  void initRestartInfo(Signal*);
   void initRestorableGciFiles();
   void makeNodeGroups(Uint32 nodeArray[]);
   void makePrnList(class ReadNodesConf * readNodes, Uint32 nodeArray[]);
-  void nodeResetStart();
+  void nodeResetStart(Signal* signal);
   void releaseTabPages(Uint32 tableId);
   void replication(Uint32 noOfReplicas,
                    NodeGroupRecordPtr NGPtr,
@@ -870,6 +865,7 @@ private:
   void setNodeLcpActiveStatus();
   void setNodeRestartInfoBits();
   void startGcp(Signal *);
+  void startGcpMonitor(Signal*);
 
   void readFragment(RWFragment* rf, FragmentstorePtr regFragptr);
   Uint32 readPageWord(RWFragment* rf);
@@ -977,7 +973,7 @@ private:
   void startNextChkpt(Signal *);
   void failedNodeLcpHandling(Signal*, NodeRecordPtr failedNodePtr);
   void failedNodeSynchHandling(Signal *, NodeRecordPtr failedNodePtr);
-  void checkCopyTab(NodeRecordPtr failedNodePtr);
+  void checkCopyTab(Signal*, NodeRecordPtr failedNodePtr);
 
   void initCommonData();
   void initialiseRecordsLab(Signal *, Uint32 stepNo, Uint32, Uint32);
@@ -1211,36 +1207,77 @@ private:
   /*       ON DISK.                                                         */
   /*------------------------------------------------------------------------*/
   Uint32 crestartInfoFile[2];
-  /*------------------------------------------------------------------------*/
-  /*       THIS VARIABLE KEEPS TRACK OF THE STATUS OF A GLOBAL CHECKPOINT   */
-  /*       PARTICIPANT. THIS IS NEEDED TO HANDLE A NODE FAILURE. WHEN A NODE*/
-  /*       FAILURE OCCURS IT IS EASY THAT THE PROTOCOL STOPS IF NO ACTION IS*/
-  /*       TAKEN TO PREVENT THIS. THIS VARIABLE ENSURES SUCH ACTION CAN BE  */
-  /*       TAKEN.                                                           */
-  /*------------------------------------------------------------------------*/
-  enum GcpParticipantState {
-    GCP_PARTICIPANT_READY = 0,
-    GCP_PARTICIPANT_PREPARE_RECEIVED = 1,
-    GCP_PARTICIPANT_COMMIT_RECEIVED = 2,
-    GCP_PARTICIPANT_TC_FINISHED = 3,
-    GCP_PARTICIPANT_COPY_GCI_RECEIVED = 4
-  };
-  GcpParticipantState cgcpParticipantState;
-  /*------------------------------------------------------------------------*/
-  /*       THESE VARIABLES ARE USED TO CONTROL THAT GCP PROCESSING DO NOT   */
-  /*STOP FOR SOME REASON.                                                   */
-  /*------------------------------------------------------------------------*/
-  enum GcpStatus {
-    GCP_READY = 0,
-    GCP_PREPARE_SENT = 1,
-    GCP_COMMIT_SENT = 2,
-    GCP_NODE_FINISHED = 3,
-    GCP_SAVE_LQH_FINISHED = 4
-  };
-  GcpStatus cgcpStatus;
-  Uint32 cgcpStartCounter; 
-  Uint32 coldGcpStatus;
-  Uint32 coldGcpId;
+
+  bool cgckptflag;    /* A FLAG WHICH IS SET WHILE A NEW GLOBAL CHECK
+                           POINT IS BEING CREATED. NO VERIFICATION IS ALLOWED
+                           IF THE FLAG IS SET*/
+  Uint32 cgcpOrderBlocked;
+
+  /**
+   * This structure describes
+   *   the GCP Save protocol
+   */
+  struct GcpSave
+  {
+    Uint32 m_gci;
+    Uint32 m_master_ref;
+    enum State {
+      GCP_SAVE_IDLE     = 0, // Idle
+      GCP_SAVE_REQ      = 1, // REQ received
+      GCP_SAVE_CONF     = 2, // REF/CONF sent
+      GCP_SAVE_COPY_GCI = 3
+    } m_state;
+
+    struct {
+      State m_state;
+      Uint32 m_new_gci;
+      Uint32 m_time_between_gcp;   /* Delay between global checkpoints */
+      Uint64 m_start_time;
+    } m_master;
+  } m_gcp_save;
+
+  /**
+   * This structure describes the MicroGCP protocol
+   */
+  struct MicroGcp
+  {
+    bool m_enabled;
+    Uint32 m_master_ref;
+    Uint64 m_old_gci;
+    Uint64 m_current_gci; // Currently active
+    Uint64 m_new_gci;     // Currently being prepared...
+    enum State {
+      M_GCP_IDLE      = 0,
+      M_GCP_PREPARE   = 1,
+      M_GCP_COMMIT    = 2,
+      M_GCP_COMMITTED = 3
+    } m_state;
+
+    struct {
+      State m_state;
+      Uint32 m_time_between_gcp;
+      Uint64 m_new_gci;
+      Uint64 m_start_time;
+    } m_master;
+  } m_micro_gcp;
+
+  struct GcpMonitor
+  {
+    struct
+    {
+      Uint32 m_gci;
+      Uint32 m_counter;
+      Uint32 m_max_lag;
+    } m_gcp_save;
+
+    struct
+    {
+      Uint64 m_gci;
+      Uint32 m_counter;
+      Uint32 m_max_lag;
+    } m_micro_gcp;
+  } m_gcp_monitor;
+
   /*------------------------------------------------------------------------*/
   /*       THIS VARIABLE KEEPS TRACK OF THE STATE OF THIS NODE AS MASTER.   */
   /*------------------------------------------------------------------------*/
@@ -1370,32 +1407,24 @@ private:
   /*       WHEN NO TABLES ARE ACTIVATED.                                    */
   /*------------------------------------------------------------------------*/
   Uint32 cnoOfActiveTables;
-  Uint32 cgcpDelay;                       /* Delay between global checkpoints */
 
   BlockReference cdictblockref;          /* DICTIONARY BLOCK REFERENCE */
   Uint32 cfailurenr;              /* EVERY TIME WHEN A NODE FAILURE IS REPORTED
                                     THIS NUMBER IS INCREMENTED. AT THE START OF
                                     THE SYSTEM THIS NUMBER MUST BE INITIATED TO
                                     ZERO */
-  bool cgckptflag;    /* A FLAG WHICH IS SET WHILE A NEW GLOBAL CHECK
-                           POINT IS BEING CREATED. NO VERIFICATION IS ALLOWED 
-                           IF THE FLAG IS SET*/
-  Uint32 cgcpOrderBlocked;
+
   BlockReference clocallqhblockref;
   BlockReference clocaltcblockref;
   BlockReference cmasterdihref;
   Uint16 cownNodeId;
-  Uint32 cnewgcp;
   BlockReference cndbStartReqBlockref;
   BlockReference cntrlblockref;
-  Uint32 cgcpSameCounter;
-  Uint32 coldgcp;
   Uint32 con_lineNodes;
   Uint32 creceivedfrag;
   Uint32 cremainingfrags;
   Uint32 cstarttype;
   Uint32 csystemnodes;
-  Uint32 currentgcp;
   Uint32 c_newest_restorable_gci;
   Uint32 c_set_initial_start_flag;
 
@@ -1472,8 +1501,6 @@ private:
   
   bool cwaitLcpSr;
   Uint32 cnoOfNodeGroups;
-  bool cstartGcpNow;
-
   Uint32 crestartGci;      /* VALUE OF GCI WHEN SYSTEM RESTARTED OR STARTED */
   Uint32 cminHotSpareNodes;
   
@@ -1663,6 +1690,15 @@ private:
   void recvDictLockConf_nodeRestart(Signal* signal, Uint32 data, Uint32 ret);
 
   Uint32 c_error_7181_ref;
+
+#ifdef ERROR_INSERT
+  void sendToRandomNodes(const char*, Signal*, SignalCounter*,
+                         SendFunction,
+                         Uint32 block = 0, Uint32 gsn = 0, Uint32 len = 0,
+                         JobBufferLevel = JBB);
+#endif
+
+  bool check_enable_micro_gcp(Signal* signal, bool broadcast);
 };
 
 #if (DIH_CDATA_SIZE < _SYSFILE_SIZE32)

@@ -137,6 +137,10 @@ Transporter::connect_client() {
     {
       return false;
     }
+    if (pre_connect_options(m_socket_client->m_sockfd) != 0)
+    {
+      return false;
+    }
     if (strlen(localHostName) > 0)
     {
       if (m_socket_client->bind(localHostName, 0) != 0)

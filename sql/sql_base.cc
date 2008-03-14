@@ -1966,8 +1966,13 @@ void close_temporary(TABLE *table, bool free_share, bool delete_table)
 
   free_io_cache(table);
   closefrm(table, 0);
+  /*
+     Check that temporary table has not been created with
+     frm_only because it has then not been created in any storage engine
+   */
   if (delete_table)
-    rm_temporary_table(table_type, table->s->path.str);
+    rm_temporary_table(table_type, table->s->path.str, 
+                       table->s->tmp_table == TMP_TABLE_FRM_FILE_ONLY);
   if (free_share)
   {
     free_table_share(table->s);
@@ -3873,7 +3878,7 @@ retry:
                                                HA_TRY_READ_ONLY),
                                        (READ_KEYINFO | COMPUTE_TYPES |
                                         EXTRA_RECORD),
-                                       thd->open_options, entry, FALSE)))
+                                       thd->open_options, entry, OTM_OPEN)))
   {
     if (error == 7)                             // Table def changed
     {
@@ -3936,7 +3941,7 @@ retry:
                                        HA_TRY_READ_ONLY),
                                READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
                                ha_open_options | HA_OPEN_FOR_REPAIR,
-                               entry, FALSE) || ! entry->file ||
+                               entry, OTM_OPEN) || ! entry->file ||
         (entry->file->is_crashed() && entry->file->ha_check_and_repair(thd)))
      {
        /* Give right error message */
@@ -5318,7 +5323,8 @@ void close_tables_for_reopen(THD *thd, TABLE_LIST **tables)
 */
 
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
-			    const char *table_name, bool link_in_list)
+			    const char *table_name, bool link_in_list,
+                            open_table_mode open_mode)
 {
   TABLE *tmp_table;
   TABLE_SHARE *share;
@@ -5352,11 +5358,15 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 
   if (open_table_def(thd, share, 0) ||
       open_table_from_share(thd, share, table_name,
+                            (open_mode == OTM_ALTER) ? 0 :
                             (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
                                     HA_GET_INDEX),
-                            READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
+                            (open_mode == OTM_ALTER) ?
+                              (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
+                               OPEN_FRM_FILE_ONLY)
+                            : (READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD),
                             ha_open_options,
-                            tmp_table, FALSE))
+                            tmp_table, open_mode))
   {
     /* No need to lock share->mutex as this is not needed for tmp tables */
     free_table_share(share);
@@ -5365,8 +5375,17 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
   }
 
   tmp_table->reginfo.lock_type= TL_WRITE;	 // Simulate locked
-  share->tmp_table= (tmp_table->file->has_transactions() ? 
-                     TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
+  if (open_mode == OTM_ALTER)
+  {
+    /*
+       Temporary table has been created with frm_only
+       and has not been created in any storage engine
+    */
+    share->tmp_table= TMP_TABLE_FRM_FILE_ONLY;
+  }
+  else
+    share->tmp_table= (tmp_table->file->has_transactions() ?
+                       TRANSACTIONAL_TMP_TABLE : NON_TRANSACTIONAL_TMP_TABLE);
 
   if (link_in_list)
   {
@@ -5386,7 +5405,7 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+bool rm_temporary_table(handlerton *base, char *path, bool frm_only)
 {
   bool error=0;
   handler *file;
@@ -5398,7 +5417,7 @@ bool rm_temporary_table(handlerton *base, char *path)
     error=1; /* purecov: inspected */
   *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
-  if (file && file->ha_delete_table(path))
+  if (!frm_only && file && file->ha_delete_table(path))
   {
     error=1;
     sql_print_warning("Could not remove temporary table: '%s', error: %d",

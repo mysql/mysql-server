@@ -1,1 +1,1 @@
---innodb
+--innodb --slave-allow-batching=0

@@ -303,6 +303,9 @@ sub mtr_report_stats ($) {
 		/Slave: .*master may suffer from/ or
 		/Slave: According to the master's version/ or
 		/Slave: Column [0-9]* type mismatch/ or
+                /Slave: Can't DROP 'c7'; check that column.key exists Error_code: 1091/ or
+                /Slave: Unknown column 'c7' in 't15' Error_code: 1054/ or
+                /Slave: Key column 'c6' doesn't exist in table Error_code: 1072/ or
 		/Slave: Error .* doesn't exist/ or
 		/Slave: Error .*Deadlock found/ or
 		/Slave: Error .*Unknown table/ or
@@ -361,6 +364,9 @@ sub mtr_report_stats ($) {
                 # BUG#32080 - Excessive warnings on Solaris: setrlimit could not
                 #             change the size of core files
                 /setrlimit could not change the size of core files to 'infinity'/ or
+
+                # rpl_ndb_basic expects this error
+                /Slave: Got error 146 during COMMIT Error_code: 1180/ or
 
 		# rpl_extrColmaster_*.test, the slave thread produces warnings
 		# when it get updates to a table that has more columns on the
