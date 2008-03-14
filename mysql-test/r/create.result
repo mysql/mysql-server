@@ -1545,6 +1545,20 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	7
 drop table t1,t2;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1));
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH	
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE	
+DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t1 (a int, b int);
 insert into t1 values (1,1),(1,2);
