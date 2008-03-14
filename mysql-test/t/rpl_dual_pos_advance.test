@@ -65,12 +65,6 @@ connection master;
 # asking it to stop before creation of t3.
 
 start slave until master_log_file="slave-bin.000001",master_log_pos=195;
-
-# wait until it's started (the position below is the start of "CREATE
-# TABLE t2") (otherwise wait_for_slave_to_stop may return at once)
-
-select master_pos_wait("slave-bin.000001",137);
-
 wait_for_slave_to_stop;
 
 # then BUG#13861 causes t3 to show up below (because stopped too
