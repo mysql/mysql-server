@@ -126,6 +126,9 @@ drop table t1;
 --write_file $MYSQLTEST_VARDIR/tmp/t1.MYI
 EOF
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
+# If $MYSQLTEST_VARDIR is a symbolic link, the low level MyISAm error
+# message contains the real path of $MYSQLTEST_VARDIR. Try to catch this.
+--replace_regex /write to file '\/.*\/tmp/write to file 'TEST_DIR\/tmp/
 --error 1
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLTEST_VARDIR/tmp'
@@ -209,13 +212,13 @@ INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data/mysql';
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/test';
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
 eval CREATE TABLE t1(a INT)
 DATA DIRECTORY='$MYSQLTEST_VARDIR/master-data/';
-DROP TABLE t1;
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
+--error 1210
 eval CREATE TABLE t1(a INT)
 INDEX DIRECTORY='$MYSQLTEST_VARDIR/master-data';
-DROP TABLE t1;
 --replace_result $MYSQLTEST_VARDIR TEST_DIR
 --error 1
 eval CREATE TABLE t1(a INT)
