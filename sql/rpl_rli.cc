@@ -615,7 +615,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_ENTER("Relay_log_info::wait_for_pos");
 
   if (!inited)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(-2);
 
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr(), (ulong) log_pos, (ulong) timeout));
