@@ -236,9 +236,9 @@ void generate_log_struct (void) {
 		    fprintf(hf, "  %-16s crc;\n", "u_int32_t");
 		    fprintf(hf, "  %-16s len;\n", "u_int32_t");
 		    fprintf(hf, "};\n");
-		    fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
-		    DO_FIELDS(ft, lt, fprintf(hf, ", %s %s", ft->type, ft->name));
-		    fprintf(hf, ");\n");
+		    //fprintf(hf, "void toku_recover_%s (LSN lsn", lt->name);
+		    //DO_FIELDS(ft, lt, fprintf(hf, ", %s %s", ft->type, ft->name));
+		    //fprintf(hf, ");\n");
 		}));
     DO_ROLLBACKS(lt,
 		 ({  fprintf(hf, "struct rolltype_%s {\n", lt->name);
