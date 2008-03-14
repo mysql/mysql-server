@@ -35,17 +35,17 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	lockfd = open(lockfname, O_RDWR|O_CREAT, S_IRUSR | S_IWUSR);
 	if (lockfd<0) {
 	    printf("Couldn't open %s\n", lockfname);
-	    exit(1);
+	    return errno;
 	}
 	r=flock(lockfd, LOCK_EX | LOCK_NB);
 	if (r!=0) {
 	    printf("Couldn't run recovery because some other process holds the recovery lock %s\n", lockfname);
-	    exit(1);
+	    return errno;
 	}
     }
 
     r = toku_logger_find_logfiles(log_dir, &n_logfiles, &logfiles);
-    if (r!=0) exit(1);
+    if (r!=0) return r;
     int i;
     toku_recover_init();
     char org_wd[1000];
@@ -80,10 +80,10 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	if (r!=EOF) {
 	    if (r==DB_BADFORMAT) {
 		fprintf(stderr, "Bad log format at record %d\n", entrycount);
-		exit(1);
+		return r;
 	    } else {
 		fprintf(stderr, "Huh? %s\n", strerror(r));
-		exit(1);
+		return r;
 	    }
 	}
 	fclose(f);
@@ -95,6 +95,10 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
     toku_free(logfiles);
 
     r=flock(lockfd, LOCK_UN);
+    if (r!=0) return errno;
+
+    r=chdir(org_wd);
+    if (r!=0) return errno;
 
     //printf("%s:%d recovery successful! ls -l says\n", __FILE__, __LINE__);
     //system("ls -l");
