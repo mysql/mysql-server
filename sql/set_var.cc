@@ -137,7 +137,8 @@ static void fix_trans_mem_root(THD *thd, enum_var_type type);
 static void fix_server_id(THD *thd, enum_var_type type);
 static ulonglong fix_unsigned(THD *, ulonglong, const struct my_option *);
 static bool get_unsigned(THD *thd, set_var *var);
-static void throw_bounds_warning(THD *thd, const char *name, ulonglong num);
+bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
+                          const char *name, longlong val);
 static KEY_CACHE *create_key_cache(const char *name, uint length);
 void fix_sql_mode_var(THD *thd, enum_var_type type);
 static uchar *get_error_count(THD *thd);
@@ -1274,13 +1275,29 @@ static void fix_server_id(THD *thd, enum_var_type type)
 }
 
 
-static void throw_bounds_warning(THD *thd, const char *name, ulonglong num)
+bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
+                          const char *name, longlong val)
 {
-  char buf[22];
-  push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                      ER_TRUNCATED_WRONG_VALUE,
-                      ER(ER_TRUNCATED_WRONG_VALUE), name,
-                      ullstr(num, buf));
+  if (fixed)
+  {
+    char buf[22];
+
+    if (unsignd)
+      ullstr((ulonglong) val, buf);
+    else
+      llstr(val, buf);
+
+    if (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)
+    {
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), name, buf);
+      return TRUE;
+    }
+
+    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                        ER_TRUNCATED_WRONG_VALUE,
+                        ER(ER_TRUNCATED_WRONG_VALUE), name, buf);
+  }
+  return FALSE;
 }
 
 static ulonglong fix_unsigned(THD *thd, ulonglong num,
@@ -1289,8 +1306,7 @@ static ulonglong fix_unsigned(THD *thd, ulonglong num,
   my_bool fixed= FALSE;
   ulonglong out= getopt_ull_limit_value(num, option_limits, &fixed);
 
-  if (fixed)
-    throw_bounds_warning(thd, option_limits->name, num);
+  throw_bounds_warning(thd, fixed, TRUE, option_limits->name, (longlong) num);
   return out;
 }
 
@@ -1333,7 +1349,8 @@ bool sys_var_long_ptr_global::update(THD *thd, set_var *var)
     if (tmp > ULONG_MAX)
     {
       tmp= ULONG_MAX;
-      throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
+      throw_bounds_warning(thd, TRUE, TRUE, name,
+                           (longlong) var->save_result.ulonglong_value);
     }
 #endif
     *value= (ulong) tmp;
@@ -1422,7 +1439,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   /* Don't use bigger value than given with --maximum-variable-name=.. */
   if ((ulong) tmp > max_system_variables.*offset)
   {
-    throw_bounds_warning(thd, name, tmp);
+    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) tmp);
     tmp= max_system_variables.*offset;
   }
 
@@ -1432,7 +1449,7 @@ bool sys_var_thd_ulong::update(THD *thd, set_var *var)
   else if (tmp > ULONG_MAX)
   {
     tmp= ULONG_MAX;
-    throw_bounds_warning(thd, name, var->save_result.ulonglong_value);
+    throw_bounds_warning(thd, TRUE, TRUE, name, (longlong) var->save_result.ulonglong_value);
   }
 #endif
 
