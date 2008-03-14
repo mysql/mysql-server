@@ -44,11 +44,12 @@ class StartPermConf {
   friend class Dbdih;
   
 public:
-  STATIC_CONST( SignalLength = 2 );
+  STATIC_CONST( SignalLength = 3 );
 private:
   
   Uint32 startingNodeId;
   Uint32 systemFailureNo;  
+  Uint32 microGCP;
 };
 
 class StartPermRef {

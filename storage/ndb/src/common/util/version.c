@@ -40,27 +40,39 @@ Uint32 ndbMakeVersion(Uint32 major, Uint32 minor, Uint32 build) {
 const char * ndbGetOwnVersionString()
 {
   static char ndb_version_string_buf[NDB_VERSION_STRING_BUF_SZ];
-  return ndbGetVersionString(NDB_VERSION, NDB_VERSION_STATUS,
+  return ndbGetVersionString(NDB_VERSION, NDB_MYSQL_VERSION_D, NDB_VERSION_STATUS,
                              ndb_version_string_buf,
                              sizeof(ndb_version_string_buf));
 }
 
-const char * ndbGetVersionString(Uint32 version, const char * status,
+const char * ndbGetVersionString(Uint32 version, Uint32 mysql_version, const char * status,
                                  char *buf, unsigned sz)
 {
+  char tmp[NDB_VERSION_STRING_BUF_SZ];
   if (status && status[0] != 0)
-	  basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d (%s)",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version),
-	     status);
+    basestring_snprintf(tmp, sizeof(tmp), "%s", status);
   else
-    basestring_snprintf(buf, sz,
-	     "Version %d.%d.%d",
-	     getMajor(version),
-	     getMinor(version),
-	     getBuild(version));
+    tmp[0] = 0;
+
+  if (mysql_version)
+  {
+    basestring_snprintf(buf, sz, "mysql-%d.%d.%d ndb-%d.%d.%d%s",
+			getMajor(mysql_version),
+			getMinor(mysql_version),
+			getBuild(mysql_version),
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
+  else
+  {
+    basestring_snprintf(buf, sz, "ndb-%d.%d.%d%s",
+			getMajor(version),
+			getMinor(version),
+			getBuild(version),
+			tmp);
+  }
   return buf;
 }
 
@@ -98,8 +110,19 @@ void ndbSetOwnVersion() {}
 
 #ifndef TEST_VERSION
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,2,1), UG_Range },
+  { MAKE_VERSION(6,2,0), MAKE_VERSION(6,2,0), UG_Range},
+
+  { MAKE_VERSION(6,2,NDB_VERSION_BUILD), MAKE_VERSION(6,1,19), UG_Range },
+  { MAKE_VERSION(6,1,NDB_VERSION_BUILD), MAKE_VERSION(6,1,6), UG_Range},
+  /* var page reference 32bit->64bit making 6.1.6 not backwards compatible */
+  /* ndb_apply_status table changed, and no compatability code written */
+  { MAKE_VERSION(6,1,4), MAKE_VERSION(6,1,2), UG_Range},
+  { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,0), UG_Range},
+
   { MAKE_VERSION(5,1,NDB_VERSION_BUILD), MAKE_VERSION(5,1,18), UG_Range},
   { MAKE_VERSION(5,1,17), MAKE_VERSION(5,1,0), UG_Range},
+
   { MAKE_VERSION(5,0,NDB_VERSION_BUILD), MAKE_VERSION(5,0,12), UG_Range},
   { MAKE_VERSION(5,0,11), MAKE_VERSION(5,0,2), UG_Range},
   { MAKE_VERSION(4,1,NDB_VERSION_BUILD), MAKE_VERSION(4,1,15), UG_Range },

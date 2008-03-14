@@ -46,6 +46,60 @@
 #define HA_ADMIN_NEEDS_ALTER    -11
 #define HA_ADMIN_NEEDS_CHECK    -12
 
+/* Bits to show what an alter table will do */
+#include <sql_bitmap.h>
+
+#define HA_MAX_ALTER_FLAGS 39
+typedef Bitmap<HA_MAX_ALTER_FLAGS> HA_ALTER_FLAGS;
+
+#define HA_ADD_INDEX                  (0)
+#define HA_DROP_INDEX                 (1)
+#define HA_ALTER_INDEX                (2)
+#define HA_RENAME_INDEX               (3)
+#define HA_ADD_UNIQUE_INDEX           (4)
+#define HA_DROP_UNIQUE_INDEX          (5)
+#define HA_ALTER_UNIQUE_INDEX         (6)
+#define HA_RENAME_UNIQUE_INDEX        (7)
+#define HA_ADD_PK_INDEX               (8)
+#define HA_DROP_PK_INDEX              (9)
+#define HA_ALTER_PK_INDEX             (10)
+#define HA_ADD_COLUMN                 (11)
+#define HA_DROP_COLUMN                (12)
+#define HA_CHANGE_COLUMN              (13)
+#define HA_ALTER_COLUMN_NAME          (14)
+#define HA_ALTER_COLUMN_TYPE          (15)
+#define HA_ALTER_COLUMN_ORDER         (16)
+#define HA_ALTER_COLUMN_NULLABLE      (17)
+#define HA_COLUMN_DEFAULT_VALUE       (18)
+#define HA_COLUMN_STORAGE             (19)
+#define HA_COLUMN_FORMAT              (20)
+#define HA_ADD_FOREIGN_KEY            (21)
+#define HA_DROP_FOREIGN_KEY           (22)
+#define HA_ALTER_FOREIGN_KEY          (23)
+#define HA_ADD_CONSTRAINT             (24)
+#define HA_ADD_PARTITION              (25)
+#define HA_DROP_PARTITION             (26)
+#define HA_ALTER_PARTITION            (27)
+#define HA_COALESCE_PARTITION         (28)
+#define HA_REORGANIZE_PARTITION       (29)
+#define HA_CHANGE_CHARACTER_SET       (30)
+#define HA_SET_DEFAULT_CHARACTER_SET  (31)
+#define HA_CHANGE_AUTOINCREMENT_VALUE (32)
+#define HA_ALTER_STORAGE              (33)
+#define HA_ALTER_TABLESPACE           (34)
+#define HA_ALTER_ROW_FORMAT           (35)
+#define HA_RENAME_TABLE               (36)
+#define HA_ALTER_STORAGE_ENGINE       (37)
+#define HA_RECREATE                   (38)
+/* Remember to increase HA_MAX_ALTER_FLAGS when adding more flags! */
+
+/* Return values for check_if_supported_alter */
+
+#define HA_ALTER_ERROR               -1
+#define HA_ALTER_SUPPORTED_WAIT_LOCK  0
+#define HA_ALTER_SUPPORTED_NO_LOCK    1
+#define HA_ALTER_NOT_SUPPORTED        2
+
 /* Bits in table_flags() to show what database can do */
 
 #define HA_NO_TRANSACTIONS     (1 << 0) /* Doesn't support transactions */
@@ -124,6 +178,8 @@
 #define HA_BINLOG_ROW_CAPABLE  (LL(1) << 34)
 #define HA_BINLOG_STMT_CAPABLE (LL(1) << 35)
 
+#define HA_ONLINE_ALTER        (LL(1) << 36)
+
 /*
   Set of all binlog flags. Currently only contain the capabilities
   flags.
@@ -138,30 +194,6 @@
 #define HA_ONLY_WHOLE_INDEX	16	/* Can't use part key searches */
 #define HA_KEYREAD_ONLY         64	/* Support HA_EXTRA_KEYREAD */
 
-/*
-  bits in alter_table_flags:
-*/
-/*
-  These bits are set if different kinds of indexes can be created
-  off-line without re-create of the table (but with a table lock).
-*/
-#define HA_ONLINE_ADD_INDEX_NO_WRITES           (1L << 0) /*add index w/lock*/
-#define HA_ONLINE_DROP_INDEX_NO_WRITES          (1L << 1) /*drop index w/lock*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES    (1L << 2) /*add unique w/lock*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES   (1L << 3) /*drop uniq. w/lock*/
-#define HA_ONLINE_ADD_PK_INDEX_NO_WRITES        (1L << 4) /*add prim. w/lock*/
-#define HA_ONLINE_DROP_PK_INDEX_NO_WRITES       (1L << 5) /*drop prim. w/lock*/
-/*
-  These are set if different kinds of indexes can be created on-line
-  (without a table lock). If a handler is capable of one or more of
-  these, it should also set the corresponding *_NO_WRITES bit(s).
-*/
-#define HA_ONLINE_ADD_INDEX                     (1L << 6) /*add index online*/
-#define HA_ONLINE_DROP_INDEX                    (1L << 7) /*drop index online*/
-#define HA_ONLINE_ADD_UNIQUE_INDEX              (1L << 8) /*add unique online*/
-#define HA_ONLINE_DROP_UNIQUE_INDEX             (1L << 9) /*drop uniq. online*/
-#define HA_ONLINE_ADD_PK_INDEX                  (1L << 10)/*add prim. online*/
-#define HA_ONLINE_DROP_PK_INDEX                 (1L << 11)/*drop prim. online*/
 /*
   HA_PARTITION_FUNCTION_SUPPORTED indicates that the function is
   supported at all.
@@ -187,9 +219,9 @@
   the storage engine. A typical engine to support this is NDB (through
   WL #2498).
 */
-#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 12)
-#define HA_FAST_CHANGE_PARTITION                (1L << 13)
-#define HA_PARTITION_ONE_PHASE                  (1L << 14)
+#define HA_PARTITION_FUNCTION_SUPPORTED         (1L << 1)
+#define HA_FAST_CHANGE_PARTITION                (1L << 2)
+#define HA_PARTITION_ONE_PHASE                  (1L << 3)
 
 /*
   Index scan will not return records in rowid order. Not guaranteed to be
@@ -229,7 +261,7 @@
 #define HA_BLOCK_LOCK		256	/* unlock when reading some records */
 #define HA_OPEN_TEMPORARY	512
 
-	/* Some key definitions */
+/* Some key definitions */
 #define HA_KEY_NULL_LENGTH	1
 #define HA_KEY_BLOB_LENGTH	2
 
@@ -279,6 +311,11 @@ enum legacy_db_type
 enum row_type { ROW_TYPE_NOT_USED=-1, ROW_TYPE_DEFAULT, ROW_TYPE_FIXED,
 		ROW_TYPE_DYNAMIC, ROW_TYPE_COMPRESSED,
 		ROW_TYPE_REDUNDANT, ROW_TYPE_COMPACT, ROW_TYPE_PAGE };
+
+enum column_format_type { COLUMN_FORMAT_TYPE_NOT_USED= -1,
+                          COLUMN_FORMAT_TYPE_DEFAULT=   0,
+                          COLUMN_FORMAT_TYPE_FIXED=     1,
+                          COLUMN_FORMAT_TYPE_DYNAMIC=   2 };
 
 enum enum_binlog_func {
   BFN_RESET_LOGS=        1,
@@ -661,7 +698,7 @@ struct handlerton
    bool (*flush_logs)(handlerton *hton);
    bool (*show_status)(handlerton *hton, THD *thd, stat_print_fn *print, enum ha_stat_type stat);
    uint (*partition_flags)();
-   uint (*alter_table_flags)(uint flags);
+   uint (*alter_partition_flags)();
    int (*alter_tablespace)(handlerton *hton, THD *thd, st_alter_tablespace *ts_info);
    int (*fill_files_table)(handlerton *hton, THD *thd,
                            TABLE_LIST *tables,
@@ -860,7 +897,7 @@ private:
 
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
-			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
+                         ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
 
 
 enum ndb_distribution { ND_KEYHASH= 0, ND_LINHASH= 1 };
@@ -916,8 +953,19 @@ typedef struct st_ha_create_information
   bool table_existed;			/* 1 in create if table existed */
   bool frm_only;                        /* 1 if no ha_create_table() */
   bool varchar;                         /* 1 if table has a VARCHAR */
-  enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
+  enum ha_storage_media default_storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
+
+typedef struct st_ha_alter_information
+{
+  KEY  *key_info_buffer;
+  uint key_count;
+  uint index_drop_count;
+  uint *index_drop_buffer;
+  uint index_add_count;
+  uint *index_add_buffer;
+  void *data;
+} HA_ALTER_INFO;
 
 
 typedef struct st_key_create_information
@@ -1448,6 +1496,8 @@ public:
   virtual int info(uint)=0; // see my_base.h for full description
   virtual void get_dynamic_partition_info(PARTITION_INFO *stat_info,
                                           uint part_id);
+  virtual uint32 calculate_key_hash_value(Field **field_array)
+  { DBUG_ASSERT(0); return 0; }
   virtual int extra(enum ha_extra_function operation)
   { return 0; }
   virtual int extra_opt(enum ha_extra_function operation, ulong cache_size)
@@ -1528,8 +1578,8 @@ public:
   { return FALSE; }
   virtual char* get_foreign_key_create_info()
   { return(NULL);}  /* gets foreign key create string from InnoDB */
-  virtual char* get_tablespace_name(THD *thd, char *name, uint name_len)
-  { return(NULL);}  /* gets tablespace name from handler */
+  /* gets tablespace name from handler */
+  const char* get_tablespace_name();
   /** used in ALTER TABLE; 1 if changing storage engine is allowed */
   virtual bool can_switch_engines() { return 1; }
   /** used in REPLACE; is > 0 if table is referred by a FOREIGN KEY */
@@ -1562,7 +1612,9 @@ public:
     *no_parts= 0;
     return 0;
   }
-  virtual void set_part_info(partition_info *part_info) {return;}
+  virtual void set_part_info(partition_info *part_info,
+                             bool early)
+  {return;}
 
   virtual ulong index_flags(uint idx, uint part, bool all_parts) const =0;
 
@@ -1601,7 +1653,6 @@ public:
 #define CHF_CREATE_FLAG 0
 #define CHF_DELETE_FLAG 1
 #define CHF_RENAME_FLAG 2
-#define CHF_INDEX_FLAG  3
 
 
   /**
@@ -1622,8 +1673,8 @@ public:
     are not attached when this is called from another thread.
   */
   virtual THR_LOCK_DATA **store_lock(THD *thd,
-				     THR_LOCK_DATA **to,
-				     enum thr_lock_type lock_type)=0;
+                                     THR_LOCK_DATA **to,
+                                     enum thr_lock_type lock_type)=0;
 
   /** Type of table for caching query */
   virtual uint8 table_cache_type() { return HA_CACHE_TBL_NONTRANSACT; }
@@ -1714,9 +1765,108 @@ public:
    Pops the top if condition stack, if stack is not empty.
  */
  virtual void cond_pop() { return; };
+ /*
+    Part of old fast alter table, to be depricated
+  */
  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info,
-					 uint table_changes)
+                                         uint table_changes)
  { return COMPATIBLE_DATA_NO; }
+
+ /* On-line ALTER TABLE interface */
+
+ /**
+    Check if a storage engine supports a particular alter table on-line
+
+    @param    altered_table     A temporary table show what table is to
+                                change to
+    @param    create_info       Information from the parsing phase about new
+                                table properties.
+    @param    alter_flags       Bitmask that shows what will be changed
+    @param    table_changes     Shows if table layout has changed (for
+                                backwards compatibility with
+                                check_if_incompatible_data
+
+    @retval   HA_ALTER_ERROR                Unexpected error
+    @retval   HA_ALTER_SUPPORTED_WAIT_LOCK  Supported, but requires DDL lock
+    @retval   HA_ALTER_SUPPORTED_NO_LOCK    Supported
+    @retval   HA_ALTER_NOT_SUPPORTED        Not supported
+
+    @note
+      The default implementation is implemented to support fast
+      alter table (storage engines that support some changes by
+      just changing the frm file) without any change in the handler
+      implementation.    
+ */
+ virtual int check_if_supported_alter(TABLE *altered_table,
+                                      HA_CREATE_INFO *create_info,
+                                      HA_ALTER_FLAGS *alter_flags,
+                                      uint table_changes)
+ {
+   DBUG_ENTER("check_if_supported_alter");
+   if (this->check_if_incompatible_data(create_info, table_changes)
+       == COMPATIBLE_DATA_NO)
+     DBUG_RETURN(HA_ALTER_NOT_SUPPORTED);
+   else
+     DBUG_RETURN(HA_ALTER_SUPPORTED_WAIT_LOCK);
+ }
+ /**
+   Tell storage engine to prepare for the on-line alter table (pre-alter)
+
+   @param     thd               The thread handle
+   @param     altered_table     A temporary table show what table is to
+                                change to
+   @param     alter_info        Storage place for data used during phase1
+                                and phase2
+   @param     alter_flags       Bitmask that shows what will be changed
+
+   @retval   0      OK
+   @retval   error  error code passed from storage engine
+ */
+ virtual int alter_table_phase1(THD *thd,
+                                TABLE *altered_table,
+                                HA_CREATE_INFO *create_info,
+                                HA_ALTER_INFO *alter_info,
+                                HA_ALTER_FLAGS *alter_flags)
+ {
+   return HA_ERR_UNSUPPORTED;
+ }
+  /**
+    Tell storage engine to perform the on-line alter table (alter)
+
+    @param    thd               The thread handle
+    @param    altered_table     A temporary table show what table is to
+                                change to
+    @param    alter_info        Storage place for data used during phase1
+                                and phase2
+    @param    alter_flags       Bitmask that shows what will be changed
+
+    @retval  0      OK
+    @retval  error  error code passed from storage engine
+
+    @note
+      If check_if_supported_alter returns HA_ALTER_SUPPORTED_WAIT_LOCK
+      this call is to be wrapped with a DDL lock. This is currently NOT
+      supported.
+ */
+ virtual int alter_table_phase2(THD *thd,
+                                TABLE *altered_table,
+                                HA_CREATE_INFO *create_info,
+                                HA_ALTER_INFO *alter_info,
+                                HA_ALTER_FLAGS *alter_flags)
+ {
+   return HA_ERR_UNSUPPORTED;
+ }
+ /**
+    Tell storage engine that changed frm file is now on disk and table
+    has been re-opened (post-alter)
+
+    @param    thd               The thread handle
+    @param    table             The altered table, re-opened
+ */
+ virtual int alter_table_phase3(THD *thd, TABLE *table)
+ {
+   return HA_ERR_UNSUPPORTED;
+ }
 
   /**
     use_hidden_primary_key() is called in case of an update/delete when
@@ -1917,9 +2067,6 @@ private:
   { return HA_ERR_WRONG_COMMAND; }
 };
 
-
-	/* Some extern variables used with handlers */
-
 extern const char *ha_row_type[];
 extern const char *tx_isolation_names[];
 extern const char *binlog_format_names[];
@@ -1927,7 +2074,7 @@ extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
 
-       /* Wrapper functions */
+/* Wrapper functions */
 #define ha_commit(thd) (ha_commit_trans((thd), TRUE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 
@@ -1977,7 +2124,7 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info);
+                    bool update_create_info);
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 

@@ -52,7 +52,7 @@ public:
    * (Ndb objects should not be shared by different threads.)
    */
   STATIC_CONST( MAX_NO_THREADS = 4711 );
-  TransporterFacade();
+  TransporterFacade(GlobalDictCache *cache);
   virtual ~TransporterFacade();
   bool init(Uint32, const ndb_mgm_configuration *);
 
@@ -281,7 +281,7 @@ public:
   NdbMutex* theMutexPtr;
 
 public:
-  GlobalDictCache m_globalDictCache;
+  GlobalDictCache *m_globalDictCache;
 };
 
 class PollGuard

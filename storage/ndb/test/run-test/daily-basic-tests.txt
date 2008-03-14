@@ -557,6 +557,22 @@ max-time: 1000
 cmd: testNodeRestart
 args: -n Bug25554 T1
 
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug26457 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug26481 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug29364 T1
+
+max-time: 1000
+cmd: testNodeRestart
+args: -n Bug28023 T7 D2
+
 max-time: 3000
 cmd: testNodeRestart
 args: -n Bug25984 T1
@@ -650,6 +666,14 @@ args: -n Bug21755 T1
 max-time: 1500
 cmd: testDict
 args: -l 25 -n DictRestart T1
+
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrs
+
+max-time: 1500
+cmd: testDict
+args: -n TableAddAttrsDuring T1 T2 T7
 
 max-time: 500
 cmd: testDict
@@ -755,6 +779,10 @@ args:
 max-time: 1500
 cmd: testRestartGci
 args: T6 
+
+max-time: 1500
+cmd: testBlobs
+args: -version 1
 
 max-time: 1500
 cmd: testBlobs
@@ -888,6 +916,10 @@ max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
 
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug31980 T1
+
 # OLD FLEX
 max-time: 500
 cmd: flexBench
@@ -957,6 +989,10 @@ args: -n ApiMgmEventTimeout T1
 max-time: 120
 cmd: testMgm
 args: -n ApiMgmStructEventTimeout T1
+
+max-time: 5000
+cmd: testNodeRestart
+args: -n GCP T1
 
 max-time: 180
 cmd: testIndex
@@ -1043,6 +1079,10 @@ cmd: testSystemRestart
 args: -n Bug22696 T1
 
 max-time: 300
+cmd: testNodeRestart
+args: -n Bug32922 T1
+
+max-time: 300
 cmd: test_event
 args: -n Bug33793 T1
 
@@ -1053,4 +1093,12 @@ args: -n Bug34216 -l 10 T1 I3 D2
 max-time: 1200
 cmd: testNodeRestart
 args: -n mixedmultiop T1 I2 I3 D2
+
+max-time: 600
+cmd: test_event
+args: -l 1 -n SubscribeNR T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug34702 T1
 

@@ -5,11 +5,25 @@ CREATE TABLE t1
 b VARCHAR(10) )
 ROW_FORMAT=FIXED
 ENGINE=NDB;
-ERROR HY000: Can't create table 'test.t1' (errno: 138)
+Warnings:
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
 SHOW WARNINGS;
 Level	Code	Message
-Error	1478	Table storage engine 'ndbcluster' does not support the create option 'Row format FIXED incompatible with variable sized attribute'
-Error	1005	Can't create table 'test.t1' (errno: 138)
+Warning	1478	Row format FIXED incompatible with dynamic attribute b
+ForceVarPart: 0
+INSERT INTO t1 values(0,''),(2,"**"),(4,"****"),(6,"******"),(8,"********"),(10,"**********"),(12,"************");
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 7
+SELECT * FROM t1 ORDER BY a;
+a	b
+0	
+2	**
+4	****
+6	******
+8	********
+10	**********
+12	**********
+DROP TABLE t1;
 CREATE TABLE t1
 ( a INT KEY,
 b INT )

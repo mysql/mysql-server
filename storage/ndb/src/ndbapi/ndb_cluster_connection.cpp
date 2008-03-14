@@ -46,7 +46,14 @@ static int g_ndb_connection_count = 0;
  */
 
 Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string)
-  : m_impl(* new Ndb_cluster_connection_impl(connect_string))
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, 0))
+{
+}
+
+Ndb_cluster_connection::Ndb_cluster_connection(const char *connect_string,
+                                               Ndb_cluster_connection *
+                                               main_connection)
+  : m_impl(* new Ndb_cluster_connection_impl(connect_string, main_connection))
 {
 }
 
@@ -262,21 +269,26 @@ unsigned Ndb_cluster_connection::get_connect_count() const
  * Ndb_cluster_connection_impl
  */
 
-Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
-							 connect_string)
+Ndb_cluster_connection_impl::
+Ndb_cluster_connection_impl(const char *
+                            connect_string,
+                            Ndb_cluster_connection *main_connection)
   : Ndb_cluster_connection(*this),
+    m_main_connection(main_connection),
     m_optimized_node_selection(1),
     m_name(0),
     m_run_connect_thread(0),
     m_event_add_drop_mutex(0),
-    m_latest_trans_gci(0)
+    m_latest_trans_gci(0),
+    m_first_ndb_object(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
   if (!m_event_add_drop_mutex)
     m_event_add_drop_mutex= NdbMutex_Create();
-
+  m_new_delete_ndb_mutex = NdbMutex_Create();
+  
   g_eventLogger.createConsoleHandler();
   g_eventLogger.setCategory("NdbApi");
   g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
@@ -302,8 +314,19 @@ Ndb_cluster_connection_impl::Ndb_cluster_connection_impl(const char *
     NdbMgmHandle h= m_config_retriever->get_mgmHandle();
     ndb_mgm_set_name(h, m_name);
   }
-  m_transporter_facade= new TransporterFacade();
-  
+  if (!m_main_connection)
+  {
+    m_globalDictCache = new GlobalDictCache;
+    m_transporter_facade= new TransporterFacade(m_globalDictCache);
+  }
+  else
+  {
+    assert(m_main_connection->m_impl.m_globalDictCache != NULL);
+    m_globalDictCache = 0;
+    m_transporter_facade=
+      new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
+  }
+
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(g_ndb_connection_count++ == 0){
     NdbDictionary::Column::FRAGMENT= 
@@ -344,6 +367,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_transporter_facade != 0)
   {
     m_transporter_facade->stop_instance();
+  }
+  if (m_globalDictCache)
+  {
+    delete m_globalDictCache;
   }
   if (m_connect_thread)
   {
@@ -408,7 +435,74 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
   if (m_event_add_drop_mutex)
     NdbMutex_Destroy(m_event_add_drop_mutex);
 
+  NdbMutex_Destroy(m_new_delete_ndb_mutex);
+  m_new_delete_ndb_mutex = 0;
+  
   DBUG_VOID_RETURN;
+}
+
+void
+Ndb_cluster_connection::lock_ndb_objects()
+{
+  NdbMutex_Lock(m_impl.m_new_delete_ndb_mutex);
+}
+
+void
+Ndb_cluster_connection::unlock_ndb_objects()
+{
+  NdbMutex_Unlock(m_impl.m_new_delete_ndb_mutex);
+}
+
+const Ndb*
+Ndb_cluster_connection::get_next_ndb_object(const Ndb* p)
+{
+  if (p == 0)
+    return m_impl.m_first_ndb_object;
+  
+  return p->theImpl->m_next_ndb_object;
+}
+
+void
+Ndb_cluster_connection_impl::link_ndb_object(Ndb* p)
+{
+  lock_ndb_objects();
+  if (m_first_ndb_object != 0)
+  {
+    m_first_ndb_object->theImpl->m_prev_ndb_object = p;
+  }
+  
+  p->theImpl->m_next_ndb_object = m_first_ndb_object;
+  m_first_ndb_object = p;
+  
+  unlock_ndb_objects();
+}
+
+void
+Ndb_cluster_connection_impl::unlink_ndb_object(Ndb* p)
+{
+  lock_ndb_objects();
+  Ndb* prev = p->theImpl->m_prev_ndb_object;
+  Ndb* next = p->theImpl->m_next_ndb_object;
+
+  if (prev == 0)
+  {
+    assert(m_first_ndb_object == p);
+    m_first_ndb_object = next;
+  }
+  else
+  {
+    prev->theImpl->m_next_ndb_object = next;
+  }
+
+  if (next)
+  {
+    next->theImpl->m_prev_ndb_object = prev;
+  }
+  
+  p->theImpl->m_prev_ndb_object = 0;
+  p->theImpl->m_next_ndb_object = 0;
+
+  unlock_ndb_objects();  
 }
 
 void

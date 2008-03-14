@@ -25,6 +25,20 @@ order by a;
 --connection slave
 select 'S', a, sha1(b) from t1
 order by a;
+--connection master
+
+update t1 set b = repeat('xyz',3000) where a = 1;
+delete from t1 where a = 2;
+update t1 set b = concat(b,'xyz') where a = 3;
+
+select 'M', a, sha1(b) from t1
+order by a;
+
+--sync_slave_with_master
+--sleep 5
+--connection slave
+select 'S', a, sha1(b) from t1
+order by a;
 
 --connection master
 drop table t1;

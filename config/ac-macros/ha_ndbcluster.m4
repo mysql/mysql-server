@@ -2,10 +2,10 @@ dnl ---------------------------------------------------------------------------
 dnl Macro: MYSQL_CHECK_NDBCLUSTER
 dnl ---------------------------------------------------------------------------
 
-NDB_VERSION_MAJOR=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f1`
-NDB_VERSION_MINOR=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f2`
-NDB_VERSION_BUILD=`echo $MYSQL_NO_DASH_VERSION | cut -d. -f3`
-NDB_VERSION_STATUS=`echo $VERSION | sed 's/^[[-.0-9]]*//'`
+NDB_MYSQL_VERSION_MAJOR=`echo $VERSION | cut -d. -f1`
+NDB_MYSQL_VERSION_MINOR=`echo $VERSION | cut -d. -f2`
+NDB_MYSQL_VERSION_BUILD=`echo $VERSION | cut -d. -f3 | cut -d- -f1`
+
 TEST_NDBCLUSTER=""
 
 dnl for build ndb docs
@@ -303,6 +303,17 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   AC_DEFINE_UNQUOTED([NDB_VERSION_STATUS], ["$NDB_VERSION_STATUS"],
                      [NDB status version])
 
+
+  AC_SUBST(NDB_MYSQL_VERSION_MAJOR)
+  AC_SUBST(NDB_MYSQL_VERSION_MINOR)
+  AC_SUBST(NDB_MYSQL_VERSION_BUILD)
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MAJOR], [$NDB_MYSQL_VERSION_MAJOR],
+                     [MySQL major version])
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_MINOR], [$NDB_MYSQL_VERSION_MINOR],
+                     [MySQL minor version])
+  AC_DEFINE_UNQUOTED([NDB_MYSQL_VERSION_BUILD], [$NDB_MYSQL_VERSION_BUILD],
+                     [MySQL build version])
+
   AC_SUBST(ndbcluster_includes)
   AC_SUBST(ndbcluster_libs)
   AC_SUBST(ndbcluster_system_libs)
@@ -364,6 +375,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
    storage/ndb/test/run-test/Makefile dnl
    storage/ndb/include/ndb_version.h storage/ndb/include/ndb_global.h dnl
    storage/ndb/include/ndb_types.h dnl
+   storage/ndb/swig/Makefile dnl
   )
 ])
 

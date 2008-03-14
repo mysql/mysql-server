@@ -45,9 +45,10 @@ public:
   STATIC_CONST( ROWID        = 0xFFF6 );
   STATIC_CONST( ROW_GCI      = 0xFFF5 );
   STATIC_CONST( FRAGMENT_VARSIZED_MEMORY = 0xFFF4 );
-  // 0xFFF3  to be used for read packed when merged
+  STATIC_CONST( READ_PACKED  = 0xFFF3 );
   STATIC_CONST( ANY_VALUE    = 0xFFF2 );
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
+  STATIC_CONST( READ_ALL     = 0xFFF0 );
   
   // NOTE: in 5.1 ctors and init take size in bytes
 

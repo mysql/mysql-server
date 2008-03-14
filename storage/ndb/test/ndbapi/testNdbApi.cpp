@@ -1517,6 +1517,61 @@ runTestIgnoreError(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+Uint32
+do_cnt(Ndb_cluster_connection* con)
+{
+  Uint32 cnt = 0;
+  const Ndb* p = 0;
+  con->lock_ndb_objects();
+  while ((p = con->get_next_ndb_object(p)) != 0) cnt++;
+  con->unlock_ndb_objects();
+  return cnt;
+}
+
+int runCheckNdbObjectList(NDBT_Context* ctx, NDBT_Step* step)
+{
+  const NdbDictionary::Table* pTab = ctx->getTab();
+
+  Ndb_cluster_connection* con = &ctx->m_cluster_connection;
+  
+  Uint32 cnt1 = do_cnt(con);
+  Vector<Ndb*> objs;
+  for (Uint32 i = 0; i<100; i++)
+  {
+    Uint32 add = 1 + (rand() % 5);
+    for (Uint32 j = 0; j<add; j++)
+    {
+      Ndb* pNdb = new Ndb(&ctx->m_cluster_connection, "TEST_DB");
+      if (pNdb == NULL){
+	ndbout << "pNdb == NULL" << endl;      
+	return NDBT_FAILED;  
+      }
+      objs.push_back(pNdb);
+    }
+    if (do_cnt(con) != (cnt1 + objs.size()))
+      return NDBT_FAILED;
+  }
+  
+  for (Uint32 i = 0; i<100 && objs.size(); i++)
+  {
+    Uint32 sub = 1 + rand() % objs.size();
+    for (Uint32 j = 0; j<sub && objs.size(); j++)
+    {
+      Uint32 idx = rand() % objs.size();
+      delete objs[idx];
+      objs.erase(idx);
+    }
+    if (do_cnt(con) != (cnt1 + objs.size()))
+      return NDBT_FAILED;
+  }
+  
+  for (Uint32 i = 0; i<objs.size(); i++)
+    delete objs[i];
+  
+  return (cnt1 == do_cnt(con)) ? NDBT_OK : NDBT_FAILED;
+}
+  
 static void
 testExecuteAsynchCallback(int res, NdbTransaction *con, void *data_ptr)
 {
@@ -1714,6 +1769,10 @@ TESTCASE("IgnoreError", ""){
   STEP(runTestIgnoreError);
   FINALIZER(runClearTable);
   FINALIZER(createPkIndex_Drop);
+}
+TESTCASE("CheckNdbObjectList", 
+	 ""){ 
+  INITIALIZER(runCheckNdbObjectList);
 }
 TESTCASE("ExecuteAsynch", 
 	 "Check that executeAsync() works (BUG#27495)\n"){ 

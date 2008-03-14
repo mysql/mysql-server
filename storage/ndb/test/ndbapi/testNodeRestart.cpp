@@ -1821,6 +1821,91 @@ runBug28717(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+f_master_failure [] = {
+  7000, 7001, 7002, 7003, 7004, 7186, 7187, 7188, 7189, 7190, 0
+};
+
+static
+int
+f_participant_failure [] = {
+  7005, 7006, 7007, 7008, 5000, 0
+};
+
+int
+runerrors(NdbRestarter& res, NdbRestarter::NodeSelector sel, const int* errors)
+{
+  for (Uint32 i = 0; errors[i]; i++)
+  {
+    int node = res.getNode(sel);
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+    if (res.dumpStateOneNode(node, val2, 2))
+      return NDBT_FAILED;
+
+    ndbout << "node " << node << " err: " << errors[i]<< endl;
+    if (res.insertErrorInNode(node, errors[i]))
+      return NDBT_FAILED;
+
+    if (res.waitNodesNoStart(&node, 1) != 0)
+      return NDBT_FAILED;
+
+    res.startNodes(&node, 1);
+
+    if (res.waitClusterStarted() != 0)
+      return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
+int
+runGCP(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter res;
+  int loops = ctx->getNumLoops();
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  if (res.getNumDbNodes() < 4)
+  {
+    /**
+     * 7186++ is only usable for 4 nodes and above
+     */
+    Uint32 i;
+    for (i = 0; f_master_failure[i] && f_master_failure[i] != 7186; i++);
+    f_master_failure[i] = 0;
+  }
+
+  while (loops >= 0 && !ctx->isTestStopped())
+  {
+    loops --;
+
+#if 0
+    if (runerrors(res, NdbRestarter::NS_NON_MASTER, f_participant_failure))
+    {
+      return NDBT_FAILED;
+    }
+
+    if (runerrors(res, NdbRestarter::NS_MASTER, f_participant_failure))
+    {
+      return NDBT_FAILED;
+    }
+#endif
+
+    if (runerrors(res, NdbRestarter::NS_MASTER, f_master_failure))
+    {
+      return NDBT_FAILED;
+    }
+  }
+  ctx->stopTest();
+  return NDBT_OK;
+}
+
 int
 runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1891,6 +1976,58 @@ runBug31525(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
+int
+runBug31980(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+
+  HugoOperations hugoOps (* ctx->getTab());
+  if(hugoOps.startTransaction(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  if(hugoOps.pkInsertRecord(pNdb, 1) != 0)
+    return NDBT_FAILED;
+  
+  if(hugoOps.execute_NoCommit(pNdb) != 0)
+    return NDBT_FAILED;
+  
+  int transNode= hugoOps.getTransaction()->getConnectedNodeId();
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+
+  if (res.dumpStateOneNode(transNode, val2, 2))
+  {
+    return NDBT_FAILED;
+  }
+
+  if (res.insertErrorInNode(transNode, 8055))
+  {
+    return NDBT_FAILED;
+  }
+    
+  hugoOps.execute_Commit(pNdb); // This should hang/fail
+
+  if (res.waitNodesNoStart(&transNode, 1))
+    return NDBT_FAILED;
+
+  if (res.startNodes(&transNode, 1))
+    return NDBT_FAILED;
+
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
 
   return NDBT_OK;
 }
@@ -1936,6 +2073,52 @@ runBug32160(NDBT_Context* ctx, NDBT_Step* step)
 
   if (res.waitClusterStarted())
     return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
+int
+runBug32922(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  while (loops--)
+  {
+    int master = res.getMasterNodeId();    
+
+    int victim = 32768;
+    for (Uint32 i = 0; i<res.getNumDbNodes(); i++)
+    {
+      int node = res.getDbNodeId(i);
+      if (node != master && node < victim)
+        victim = node;
+    }
+
+    int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+    if (res.dumpStateOneNode(victim, val2, 2))
+      return NDBT_FAILED;
+    
+    if (res.insertErrorInNode(master, 7200))
+      return NDBT_FAILED;
+    
+    if (res.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+    
+    if (res.startNodes(&victim, 1))
+      return NDBT_FAILED;
+    
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
   
   return NDBT_OK;
 }
@@ -2111,6 +2294,42 @@ runNF_commit(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug34702(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  while (loops--)
+  {
+    int victim = res.getDbNodeId(rand()%res.getNumDbNodes());
+    res.restartOneDbNode(victim,
+                         /** initial */ true, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+
+    if (res.waitNodesNoStart(&victim, 1))
+      return NDBT_FAILED;
+
+    res.insertErrorInAllNodes(7204);
+    res.insertErrorInNode(victim, 7203);
+
+    res.startNodes(&victim, 1);
+    
+    if (res.waitClusterStarted())
+      return NDBT_FAILED;
+  }
+  
+  return NDBT_OK;
+}
 
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
@@ -2478,11 +2697,23 @@ TESTCASE("Bug28023", ""){
 TESTCASE("Bug28717", ""){
   INITIALIZER(runBug28717);
 }
+TESTCASE("Bug31980", ""){
+  INITIALIZER(runBug31980);
+}
 TESTCASE("Bug29364", ""){
   INITIALIZER(runBug29364);
 }
+TESTCASE("GCP", ""){
+  INITIALIZER(runLoadTable);
+  STEP(runGCP);
+  STEP(runScanUpdateUntilStopped);
+  FINALIZER(runClearTable);
+}
 TESTCASE("Bug32160", ""){
   INITIALIZER(runBug32160);
+}
+TESTCASE("Bug32922", ""){
+  INITIALIZER(runBug32922);
 }
 TESTCASE("Bug34216", ""){
   INITIALIZER(runCheckAllNodesStarted);
@@ -2498,6 +2729,9 @@ TESTCASE("mixedmultiop", ""){
   STEP(runPkUpdateUntilStopped);
   STEP(runPkUpdateUntilStopped);
   FINALIZER(runClearTable);
+}
+TESTCASE("Bug34702", ""){
+  INITIALIZER(runBug34702);  
 }
 NDBT_TESTSUITE_END(testNodeRestart);
 

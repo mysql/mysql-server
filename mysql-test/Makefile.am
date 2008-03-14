@@ -42,8 +42,11 @@ dist-hook:
 		$(distdir)/std_data \
 		$(distdir)/std_data/ndb_backup50 \
 		$(distdir)/std_data/ndb_backup51 \
+		$(distdir)/std_data/ndb_backup51_dd \
 		$(distdir)/std_data/ndb_backup51_data_be \
 		$(distdir)/std_data/ndb_backup51_data_le \
+		$(distdir)/std_data/ndb_backup51_d2_be \
+		$(distdir)/std_data/ndb_backup51_d2_le \
 		$(distdir)/std_data/parts \
 		$(distdir)/lib \
 		$(distdir)/lib/My
@@ -72,8 +75,11 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_dd/BACKUP* $(distdir)/std_data/ndb_backup51_dd
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(distdir)/std_data/ndb_backup51_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(distdir)/std_data/ndb_backup51_data_le
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_be/BACKUP* $(distdir)/std_data/ndb_backup51_d2_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(distdir)/std_data/ndb_backup51_d2_le
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(distdir)/std_data/parts
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(distdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(distdir)/lib/My
@@ -89,8 +95,11 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50 \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51 \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_dd \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_be \
+		$(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_le \
 		$(DESTDIR)$(testdir)/std_data/parts \
 		$(DESTDIR)$(testdir)/lib \
 		$(DESTDIR)$(testdir)/lib/My
@@ -124,8 +133,11 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_dd/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_dd
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_le
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_be
+	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_d2_le/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_d2_le
 	$(INSTALL_DATA) $(srcdir)/std_data/parts/part_* $(DESTDIR)$(testdir)/std_data/parts
 	$(INSTALL_DATA) $(srcdir)/lib/*.pl $(DESTDIR)$(testdir)/lib
 	$(INSTALL_DATA) $(srcdir)/lib/My/*.pm $(DESTDIR)$(testdir)/lib/My

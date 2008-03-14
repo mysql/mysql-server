@@ -181,7 +181,6 @@ struct TsmanChunk
   Vector<Uint32> bitmask;
 };
 template class Vector<TsmanChunk>;
-template class Vector<Uint32>;
 #endif
 
 void
@@ -1837,6 +1836,13 @@ Tsman::restart_undo_page_free_bits(Signal* signal,
     Uint32 page_no_in_extent = calc_page_no_in_extent(key->m_page_no, &val);
     Uint32 src = header->get_free_bits(page_no_in_extent);
         
+    if (! (header->m_table == tableId && header->m_fragment_id == fragId))
+    {
+      ndbout_c("%u %u != %u %u", 
+               header->m_table, header->m_fragment_id,
+               tableId, fragId);
+    }
+
     ndbrequire(header->m_table == tableId);
     ndbrequire(header->m_fragment_id == fragId);
     
