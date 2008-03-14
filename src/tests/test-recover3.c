@@ -62,6 +62,10 @@ static void test (void) {
 	data.data=0;
 	free(keys[i]);
 	free(vals[i]);
+	if (i%500==499) {
+	    r=tid->commit(tid, 0);                                                     assert(r==0);
+	    r=env->txn_begin(env, 0, &tid, 0);                                         assert(r==0);
+	}
     }
     r=tid->commit(tid, 0);                                                     assert(r==0);
     free(data.data);
