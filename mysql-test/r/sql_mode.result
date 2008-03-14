@@ -496,3 +496,13 @@ xb	x
 xcx
 drop table t1;
 SET @@SQL_MODE=@OLD_SQL_MODE;
+create user mysqltest_32753@localhost;
+set @OLD_SQL_MODE=@@SESSION.SQL_MODE;
+set session sql_mode='PAD_CHAR_TO_FULL_LENGTH';
+flush privileges;
+select current_user();
+current_user()
+mysqltest_32753@localhost
+set session sql_mode=@OLD_SQL_MODE;
+flush privileges;
+drop user mysqltest_32753@localhost;
