@@ -68,6 +68,8 @@ struct __toku_lock_tree {
     u_int32_t           max_ranges;
     /** The current number of ranges. */
     u_int32_t*          num_ranges;
+    /** Whether lock escalation is allowed. */
+    BOOL                lock_escalation_allowed;
     /** The lock callback function. */
     int               (*lock_callback)(DB_TXN*, toku_lock_tree*);
     /** The key compare function */

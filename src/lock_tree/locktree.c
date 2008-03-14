@@ -434,7 +434,7 @@ static inline int toku__lt_check_borderwrite_conflict(toku_lock_tree* tree,
         if (r!=0)   return r;
         conflict = met ? TOKU_YES_CONFLICT : TOKU_NO_CONFLICT;
     }
-    if    (conflict == TOKU_YES_CONFLICT) return DB_LOCK_DEADLOCK;
+    if    (conflict == TOKU_YES_CONFLICT) return DB_LOCK_NOTGRANTED;
     assert(conflict == TOKU_NO_CONFLICT);
     return 0;
 }
@@ -612,15 +612,19 @@ static inline int toku__lt_free_points(toku_lock_tree* tree, toku_range* to_inse
     return 0;
 }
 
+/* TODO: query should be made from the to_insert instead of a parameter. */
+/* TODO: toku_query should be an object.  toku_range would contain a query and a transaction. */
+/* TODO: Toku error codes, i.e. get rid of the extra parameter for (ran out of locks) */
 /* Consolidate the new range and all the overlapping ranges */
 static inline int toku__consolidate(toku_lock_tree* tree,
-                              toku_range* query, toku_range* to_insert,
-                              DB_TXN* txn) {
+                                    toku_range* query, toku_range* to_insert,
+                                    DB_TXN* txn, BOOL* out_of_locks) {
     int r;
     BOOL             alloc_left    = TRUE;
     BOOL             alloc_right   = TRUE;
     toku_range_tree* selfread;
-    assert(tree && to_insert && txn);
+    assert(tree && to_insert && txn && out_of_locks);
+    *out_of_locks = FALSE;
 #if !defined(TOKU_RT_NOOVERLAPS)
     toku_range_tree* mainread      = tree->mainread;
     assert(mainread);
@@ -637,9 +641,12 @@ static inline int toku__consolidate(toku_lock_tree* tree,
     assert(numfound <= tree->buflen);
     /* Find the extreme left and right point of the consolidated interval */
     r = toku__lt_extend_extreme(tree, to_insert, &alloc_left, &alloc_right,
-                                 numfound);
+                                numfound);
     if (r!=0) return r;
-    if (!toku__lt_range_test_incr(tree, numfound)) return ENOMEM;
+    if (!toku__lt_range_test_incr(tree, numfound)) {
+        *out_of_locks = TRUE;
+        return 0;
+    }
     /* Allocate the consolidated range */
     r = toku__lt_alloc_extreme(tree, to_insert, alloc_left, &alloc_right);
     if (0) { died1:
@@ -709,11 +716,12 @@ static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* 
     int r2;
     BOOL found = FALSE;
 
-    toku_rt_start_scan(rt);
     toku_range query;
     toku_point left;
     toku_point right;
     toku__lt_init_full_query(tree, &query, &left, &right);
+
+    toku_rt_start_scan(rt);
     while ((r = toku_rt_next(rt, &tree->buf[0], &found)) == 0 && found) {
         r = toku__lt_free_points(tree, &query, 1, rtdel);
         if (r!=0) return toku__lt_panic(tree, r);
@@ -731,7 +739,7 @@ static inline BOOL toku__r_backwards(toku_range* range) {
     /* Optimization: if all the pointers are equal, clearly left == right. */
     return (left->key_payload  != right->key_payload ||
             left->data_payload != right->data_payload) &&
-           toku__lt_point_cmp(left, right) > 0;
+            toku__lt_point_cmp(left, right) > 0;
 }
 
 
@@ -739,9 +747,9 @@ static inline int toku__lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
                                 const DBT* key_left,  const DBT** pdata_left,
                                 const DBT* key_right, const DBT** pdata_right,
                                 toku_point* left, toku_point* right,
-                                toku_range* query) {
+                                toku_range* query, BOOL* out_of_locks) {
     assert(pdata_left && pdata_right);
-    if (!tree || !txn || !key_left || !key_right)           return EINVAL;
+    if (!tree || !txn || !key_left || !key_right || !out_of_locks) return EINVAL;
     if (!tree->duplicates) *pdata_right = *pdata_left = NULL;
     const DBT* data_left  = *pdata_left;
     const DBT* data_right = *pdata_right;
@@ -950,6 +958,9 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     tmp_tree->buf    = (toku_range*)
                         user_malloc(tmp_tree->buflen * sizeof(toku_range));
     if (!tmp_tree->buf) { r = errno; goto died4; }
+    /* We have not failed lock escalation, so we allow escalation if we run
+       out of locks. */
+    tmp_tree->lock_escalation_allowed = TRUE;
     *ptree = tmp_tree;
     return 0;
 }
@@ -986,20 +997,24 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     return toku_lt_acquire_range_read_lock(tree, txn, key, data, key, data);
 }
 
-int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
+
+static int toku__lt_try_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                                   const DBT* key_left,  const DBT* data_left,
-                                  const DBT* key_right, const DBT* data_right) {
+                                  const DBT* key_right, const DBT* data_right,
+                                  BOOL* out_of_locks) {
     int r;
     toku_point left;
     toku_point right;
     toku_range query;
     BOOL dominated;
     
-    r = toku__lt_preprocess(tree, txn, key_left,  &data_left,
-                                        key_right, &data_right,
-                                           &left,       &right,
-                             &query);
-    if (r!=0) return r;
+    if (!out_of_locks) { return EINVAL; }
+    r = toku__lt_preprocess(tree, txn, 
+                            key_left,  &data_left,
+                            key_right, &data_right,
+                            &left, &right,
+                            &query, out_of_locks);
+    if (r!=0) { goto cleanup; }
 
     /*
         For transaction 'txn' to acquire a read-lock on range 'K'=['left','right']:
@@ -1015,23 +1030,72 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     /* if 'K' is dominated by selfwrite('txn') then return success. */
     r = toku__lt_rt_dominates(tree, &query, 
                             toku__lt_ifexist_selfwrite(tree, txn), &dominated);
-    if (r || dominated) return r;
+    if (r || dominated) { goto cleanup; }
 
     /* else if 'K' is dominated by selfread('txn') then return success. */
     r = toku__lt_rt_dominates(tree, &query, 
                             toku__lt_ifexist_selfread(tree, txn), &dominated);
-    if (r || dominated) return r; 
+    if (r || dominated) { goto cleanup; }
     /*
         else if 'K' meets borderwrite at 'peer' ('peer'!='txn') &&
                 'K' meets selfwrite('peer') then return failure.
     */
     r = toku__lt_check_borderwrite_conflict(tree, txn, &query);
-    if (r!=0) return r;
+    if (r!=0) { goto cleanup; }
     /* Now need to merge, copy the memory and insert. */
     toku_range  to_insert;
     toku__init_insert(&to_insert, &left, &right, txn);
     /* Consolidate the new range and all the overlapping ranges */
-    return toku__consolidate(tree, &query, &to_insert, txn);
+    r = toku__consolidate(tree, &query, &to_insert, txn, out_of_locks);
+    if (r!=0) { goto cleanup; }
+    
+    r = 0;
+cleanup:
+    return r;
+}
+
+/*
+ * TODO: implement function
+ */
+static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
+    int r = ENOSYS;
+    if (!tree || !locks_available ) { r = EINVAL; goto cleanup; }
+    
+    *locks_available = FALSE;
+    r = 0;
+cleanup:
+    return r;
+}
+
+int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
+                                  const DBT* key_left,  const DBT* data_left,
+                                  const DBT* key_right, const DBT* data_right) {
+    BOOL out_of_locks = FALSE;
+    int r = ENOSYS;
+    r = toku__lt_try_acquire_range_read_lock(tree, txn, 
+                                             key_left,  data_left,
+                                             key_right, data_right,
+                                            &out_of_locks);
+    if (r != 0) { goto cleanup; }
+
+    if (out_of_locks && tree->lock_escalation_allowed) {
+        BOOL locks_available = FALSE;
+        r = toku__do_escalation(tree, &locks_available);
+        if (r != 0) { goto cleanup; }
+        
+        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        
+        r = toku__lt_try_acquire_range_read_lock(tree, txn, 
+                                                 key_left,  data_left,
+                                                 key_right, data_right,
+                                                 &out_of_locks);
+        if (r != 0) { goto cleanup; }
+    }
+    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+
+    r = 0;
+cleanup:
+    return r;
 }
 
 static int toku__lt_write_point_conflicts_reads(toku_lock_tree* tree,
@@ -1047,32 +1111,36 @@ static int toku__lt_write_point_conflicts_reads(toku_lock_tree* tree,
             r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
                             &met);
             if (r!=0) goto cleanup;
-            if (met)  { r = DB_LOCK_DEADLOCK; goto cleanup; }
+            if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
         }
     }
 #else
     toku_range_tree* mainread = tree->mainread; assert(mainread);
     r = toku__lt_meets_peer(tree, query, mainread, FALSE, txn, &met);
     if (r!=0) goto cleanup;
-    if (met)  { r = DB_LOCK_DEADLOCK; goto cleanup; }
+    if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
 #endif
     r = 0;
 cleanup:
     return r;
 }
 
-int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
-                               const DBT* key, const DBT* data) {
+static int toku__lt_try_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+                               const DBT* key, const DBT* data, 
+                               BOOL* out_of_locks) {
     int r;
     toku_point endpoint;
     toku_range query;
     BOOL dominated;
     
-    r = toku__lt_preprocess(tree, txn, key,      &data,
-                                        key,      &data,
-                                       &endpoint, &endpoint,
-                             &query);
+    r = toku__lt_preprocess(tree, txn, 
+                            key,      &data,
+                            key,      &data,
+                            &endpoint, &endpoint,
+                            &query, out_of_locks);
     if (r!=0) return r;
+    
+    *out_of_locks = FALSE;
     /* if 'K' is dominated by selfwrite('txn') then return success. */
     r = toku__lt_rt_dominates(tree, &query, 
                             toku__lt_ifexist_selfwrite(tree, txn), &dominated);
@@ -1093,7 +1161,9 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     */
     toku_range to_insert;
     toku__init_insert(&to_insert, &endpoint, &endpoint, txn);
-    if (!toku__lt_range_test_incr(tree, 0)) return ENOMEM; 
+    if (!toku__lt_range_test_incr(tree, 0)) { 
+        *out_of_locks = TRUE; return 0; 
+    }
 
     BOOL dummy = TRUE;
     r = toku__lt_alloc_extreme(tree, &to_insert, TRUE, &dummy);
@@ -1103,7 +1173,6 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     r = toku__lt_selfwrite(tree, txn, &selfwrite);
     if (r!=0) goto died1;
     assert(selfwrite);
-    /* VL change this: r = toku_rt_insert(selfwrite, &to_insert); */
     r = toku_rt_insert(selfwrite, &to_insert);
     if (r!=0) goto died1;
     /* Need to update borderwrite. */
@@ -1113,9 +1182,39 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
     return 0;
 }
 
-int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+                               const DBT* key, const DBT* data) {
+    BOOL out_of_locks = FALSE;
+    int r = ENOSYS;
+
+    r = toku__lt_try_acquire_write_lock (tree, txn,
+                                      key, data,
+                                      &out_of_locks);
+    if (r != 0) { goto cleanup; }
+
+    if (out_of_locks && tree->lock_escalation_allowed) {
+        BOOL locks_available = FALSE;
+        r = toku__do_escalation(tree, &locks_available);
+        if (r != 0) { goto cleanup; }
+        
+        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        
+        r = toku__lt_try_acquire_write_lock (tree, txn,
+                                          key, data,
+                                          &out_of_locks);
+        if (r != 0) { goto cleanup; }
+    }
+    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+
+    r = 0;
+cleanup:
+    return r;
+}
+
+static int toku__lt_try_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                   const DBT* key_left,  const DBT* data_left,
-                                  const DBT* key_right, const DBT* data_right) {
+                                  const DBT* key_right, const DBT* data_right,
+                                  BOOL* out_of_locks) {
     int r;
     toku_point left;
     toku_point right;
@@ -1123,20 +1222,55 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     if (key_left == key_right &&
         (data_left == data_right || (tree && !tree->duplicates))) {
-        return toku_lt_acquire_write_lock(tree, txn, key_left, data_left);
+        return toku__lt_try_acquire_write_lock(tree, txn, 
+                                               key_left, data_left, 
+                                               out_of_locks);
     }
 
-    r = toku__lt_preprocess(tree, txn, key_left,  &data_left,
-                                        key_right, &data_right,
-                                           &left,       &right,
-                             &query);
+    r = toku__lt_preprocess(tree, txn, 
+                            key_left,  &data_left,
+                            key_right, &data_right,
+                           &left,      &right,
+                           &query,      out_of_locks);
     if (r!=0) return r;
+    *out_of_locks = FALSE;
 
     return ENOSYS;
     //We are not ready for this.
     //Not needed for Feb 1 release.
 }
 
+int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+                                  const DBT* key_left,  const DBT* data_left,
+                                  const DBT* key_right, const DBT* data_right) {
+    BOOL out_of_locks = FALSE;
+    int r = ENOSYS;
+
+    r = toku__lt_try_acquire_range_write_lock (tree, txn,
+                                            key_left,  data_left,
+                                            key_right, data_right,
+                                            &out_of_locks);
+    if (r != 0) { goto cleanup; }
+
+    if (out_of_locks && tree->lock_escalation_allowed) {
+        BOOL locks_available = FALSE;
+        r = toku__do_escalation(tree, &locks_available);
+        if (r != 0) { goto cleanup; }
+        
+        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        
+        r = toku__lt_try_acquire_range_write_lock (tree, txn,
+                                                key_left,  data_left,
+                                                key_right, data_right,
+                                                &out_of_locks);
+        if (r != 0) { goto cleanup; }
+    }
+    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+
+    r = 0;
+cleanup:
+    return r;
+}
 
 static inline int toku__sweep_border(toku_lock_tree* tree, toku_range* range) {
     assert(tree && range);
