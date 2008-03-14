@@ -27,3 +27,30 @@ SET GLOBAL example_enum_var= e2;
 SET GLOBAL example_enum_var= impossible;
 ERROR 42000: Variable 'enum_var' can't be set to the value of 'impossible'
 UNINSTALL PLUGIN example;
+INSTALL PLUGIN example SONAME 'ha_example.so';
+select @@session.sql_mode into @old_sql_mode;
+set session sql_mode='';
+set global example_ulong_var=500;
+select @@global.example_ulong_var;
+@@global.example_ulong_var
+500
+set global example_ulong_var=1111;
+Warnings:
+Warning	1292	Truncated incorrect ulong_var value: '1111'
+select @@global.example_ulong_var;
+@@global.example_ulong_var
+1000
+set session sql_mode='STRICT_ALL_TABLES';
+set global example_ulong_var=500;
+select @@global.example_ulong_var;
+@@global.example_ulong_var
+500
+set global example_ulong_var=1111;
+ERROR 42000: Variable 'ulong_var' can't be set to the value of '1111'
+select @@global.example_ulong_var;
+@@global.example_ulong_var
+500
+set session sql_mode=@old_sql_mode;
+set session old=bla;
+ERROR HY000: Variable 'old' is a read only variable
+UNINSTALL PLUGIN example;
