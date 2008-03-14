@@ -2516,7 +2516,7 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ENTER("mysql_stmt_close");
 
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
-    DBUG_VOID_RETURN;
+    goto out;
 
   /*
     The only way currently a statement can be deallocated when it's
@@ -2525,6 +2525,9 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
 
+out:
+  /* clear errors, response packet is not expected */
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 
@@ -2591,10 +2594,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length <= MYSQL_LONG_DATA_HEADER)
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
-    DBUG_VOID_RETURN;
-  }
+    goto out;
 #endif
 
   stmt_id= uint4korr(packet);
@@ -2614,7 +2614,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_WRONG_ARGUMENTS;
     sprintf(stmt->last_error, ER(ER_WRONG_ARGUMENTS),
             "mysql_stmt_send_long_data");
-    DBUG_VOID_RETURN;
+    goto out;
   }
 #endif
 
@@ -2630,6 +2630,10 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
+
+out:
+  /* clear errors, response packet is not expected */
+  thd->clear_error();
   DBUG_VOID_RETURN;
 }
 
