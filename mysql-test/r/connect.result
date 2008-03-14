@@ -150,7 +150,7 @@ ERROR 08004: Too many connections
 
 # -- Connecting super (1)...
 # -- Connecting super (2)...
-ERROR 00000: Too many connections
+ERROR HY000: Too many connections
 
 SELECT user FROM information_schema.processlist ORDER BY id;
 user
