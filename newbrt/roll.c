@@ -227,6 +227,8 @@ void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t
     assert(node->height>0);
     assert(childnum <= (unsigned)node->u.n.n_children);
     unsigned int i;
+    REALLOC_N(node->u.n.n_children+1, node->u.n.childinfos);
+    REALLOC_N(node->u.n.n_children, node->u.n.childkeys);
     for (i=node->u.n.n_children; i>childnum; i--) {
 	node->u.n.childinfos[i]=node->u.n.childinfos[i-1];
 	BNC_NBYTESINBUF(node,i) = BNC_NBYTESINBUF(node,i-1);
