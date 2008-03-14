@@ -2934,7 +2934,7 @@ create_table_option:
 	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKSIZE", "PARTITION");
 	    MYSQL_YYABORT;
 	  }
-	| UNION_SYM opt_equal '(' table_list ')'
+	| UNION_SYM opt_equal '(' opt_table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
