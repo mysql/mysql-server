@@ -492,6 +492,10 @@ private:
   int getBlockNumber(const BaseString &blockName);
 
   int alloc_node_id_req(NodeId free_node_id, enum ndb_mgm_node_type type);
+
+  int check_nodes_starting();
+  int check_nodes_stopping();
+
   //**************************************************************************
   
   int _blockNumber;
