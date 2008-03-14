@@ -5451,13 +5451,16 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
   DBUG_ASSERT(*ref);
   /*
     Check if this is an incorrect reference in a group function or forward
-    reference. Do not issue an error if this is an unnamed reference inside an
-    aggregate function.
+    reference. Do not issue an error if this is:
+      1. outer reference (will be fixed later by the fix_inner_refs function);
+      2. an unnamed reference inside an aggregate function.
   */
-  if (((*ref)->with_sum_func && name &&
-       !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
-         current_sel->having_fix_field)) ||
-      !(*ref)->fixed)
+  if (!((*ref)->type() == REF_ITEM &&
+       ((Item_ref *)(*ref))->ref_type() == OUTER_REF) &&
+      (((*ref)->with_sum_func && name &&
+        !(current_sel->linkage != GLOBAL_OPTIONS_TYPE &&
+          current_sel->having_fix_field)) ||
+       !(*ref)->fixed))
   {
     my_error(ER_ILLEGAL_REFERENCE, MYF(0),
              name, ((*ref)->with_sum_func?
