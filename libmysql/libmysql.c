@@ -4522,14 +4522,11 @@ my_bool STDCALL mysql_stmt_free_result(MYSQL_STMT *stmt)
   {
     MYSQL *mysql= stmt->mysql;
 
-    if (result->data)
-    {
-      /* Result buffered */
-      free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
-      result->data= NULL;
-      result->rows= 0;
-      stmt->data_cursor= NULL;
-    }
+    /* Result buffered */
+    free_root(&result->alloc, MYF(MY_KEEP_PREALLOC));
+    result->data= NULL;
+    result->rows= 0;
+    stmt->data_cursor= NULL;
 
     if (mysql && stmt->field_count &&
         (int) stmt->state > (int) MYSQL_STMT_PREPARE_DONE)
