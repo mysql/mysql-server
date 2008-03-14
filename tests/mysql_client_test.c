@@ -15214,11 +15214,6 @@ static void test_bug14169()
 /*
    Test that mysql_insert_id() behaves as documented in our manual
 */
-
-#if 0
-
-  Commented out because of Bug#34889.
-
 static void test_mysql_insert_id()
 {
   my_ulonglong res;
@@ -15243,6 +15238,22 @@ static void test_mysql_insert_id()
   myquery(rc);
   res= mysql_insert_id(mysql);
   DIE_UNLESS(res == 0);
+
+  /*
+    Test for bug #34889: mysql_client_test::test_mysql_insert_id test fails
+    sporadically
+  */
+  rc= mysql_query(mysql, "create table t2 (f1 int not null primary key auto_increment, f2 varchar(255))");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t2 values (null,'b')");
+  myquery(rc);
+  rc= mysql_query(mysql, "insert into t1 select 5,'c'");
+  myquery(rc);
+  res= mysql_insert_id(mysql);
+  DIE_UNLESS(res == 0);
+  rc= mysql_query(mysql, "drop table t2");
+  myquery(rc);
+  
   rc= mysql_query(mysql, "insert into t1 select null,'d'");
   myquery(rc);
   res= mysql_insert_id(mysql);
@@ -15394,7 +15405,6 @@ static void test_mysql_insert_id()
   rc= mysql_query(mysql, "drop table t1,t2");
   myquery(rc);
 }
-#endif
 
 
 /*
@@ -15942,6 +15952,7 @@ static void test_bug27592()
   DBUG_VOID_RETURN;
 }
 
+#if 0
 
 static void test_bug29948()
 {
@@ -16016,6 +16027,8 @@ static void test_bug29948()
   mysql_query(dbc, "DROP TABLE t1");
   mysql_close(dbc);
 }
+
+#endif
 
 /**
   Bug#29306 Truncated data in MS Access with decimal (3,1) columns in a VIEW
@@ -16532,7 +16545,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug17667", test_bug17667 },
   { "test_bug19671", test_bug19671 },
   { "test_bug15752", test_bug15752 },
-  /* { "test_mysql_insert_id", test_mysql_insert_id }, Bug#34889 */
+  { "test_mysql_insert_id", test_mysql_insert_id },
   { "test_bug21206", test_bug21206 },
   { "test_bug21726", test_bug21726 },
   { "test_bug15518", test_bug15518 },
@@ -16543,7 +16556,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
-  { "test_bug29948", test_bug29948 },
+  /* { "test_bug29948", test_bug29948 }, Bug#35103 */
   { "test_bug29306", test_bug29306 },
   { "test_bug31669", test_bug31669 },
   { "test_bug32265", test_bug32265 },

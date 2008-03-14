@@ -3285,6 +3285,7 @@ static int do_show_master_status(MYSQL *mysql_con)
       my_printf_error(0, "Error: Binlogging on server not active",
                       MYF(0));
       mysql_free_result(master);
+      maybe_exit(EX_MYSQLERR);
       return 1;
     }
     mysql_free_result(master);
