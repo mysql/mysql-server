@@ -314,8 +314,27 @@ private:
   */
   Discrete_interval        *current;
   uint                  elements; // number of elements
+
+  /* helper function for copy construct and assignment operator */
+  void copy_(const Discrete_intervals_list& from)
+  {
+    for (Discrete_interval *i= from.head; i; i= i->next)
+    {
+      Discrete_interval j= *i;
+      append(&j);
+    }
+  }
 public:
   Discrete_intervals_list() : head(NULL), current(NULL), elements(0) {};
+  Discrete_intervals_list(const Discrete_intervals_list& from)
+  {
+    copy_(from);
+  }
+  void operator=(const Discrete_intervals_list& from)
+  {
+    empty();
+    copy_(from);
+  }
   void empty_no_free()
   {
     head= current= NULL;
@@ -331,6 +350,7 @@ public:
     }
     empty_no_free();
   }
+
   const Discrete_interval* get_next()
   {
     Discrete_interval *tmp= current;
@@ -340,6 +360,7 @@ public:
   }
   ~Discrete_intervals_list() { empty(); };
   bool append(ulonglong start, ulonglong val, ulonglong incr);
+  bool append(Discrete_interval *interval);
   ulonglong minimum()     const { return (head ? head->minimum() : 0); };
   ulonglong maximum()     const { return (head ? tail->maximum() : 0); };
   uint      nb_elements() const { return elements; }

@@ -28,6 +28,7 @@
 #include "mysql_priv.h"
 #include "rpl_rli.h"
 #include "rpl_record.h"
+#include "slave.h"
 #include <my_bitmap.h>
 #include "log_event.h"
 #include <m_ctype.h>
@@ -2827,6 +2828,18 @@ extern "C" void thd_mark_transaction_to_rollback(MYSQL_THD thd, bool all)
 void THD::reset_sub_statement_state(Sub_statement_state *backup,
                                     uint new_state)
 {
+#ifndef EMBEDDED_LIBRARY
+  /* BUG#33029, if we are replicating from a buggy master, reset
+     auto_inc_intervals_forced to prevent substatement
+     (triggers/functions) from using erroneous INSERT_ID value
+   */
+  if (rpl_master_erroneous_autoinc(this))
+  {
+    backup->auto_inc_intervals_forced= auto_inc_intervals_forced;
+    auto_inc_intervals_forced.empty();
+  }
+#endif
+  
   backup->options=         options;
   backup->in_sub_stmt=     in_sub_stmt;
   backup->enable_slow_log= enable_slow_log;
@@ -2864,6 +2877,18 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
 
 void THD::restore_sub_statement_state(Sub_statement_state *backup)
 {
+#ifndef EMBEDDED_LIBRARY
+  /* BUG#33029, if we are replicating from a buggy master, restore
+     auto_inc_intervals_forced so that the top statement can use the
+     INSERT_ID value set before this statement.
+   */
+  if (rpl_master_erroneous_autoinc(this))
+  {
+    auto_inc_intervals_forced= backup->auto_inc_intervals_forced;
+    backup->auto_inc_intervals_forced.empty();
+  }
+#endif
+
   /*
     To save resources we want to release savepoints which were created
     during execution of function or trigger before leaving their savepoint
@@ -3569,16 +3594,23 @@ bool Discrete_intervals_list::append(ulonglong start, ulonglong val,
   {
     /* it cannot, so need to add a new interval */
     Discrete_interval *new_interval= new Discrete_interval(start, val, incr);
-    if (unlikely(new_interval == NULL)) // out of memory
-      DBUG_RETURN(1);
-    DBUG_PRINT("info",("adding new auto_increment interval"));
-    if (head == NULL)
-      head= current= new_interval;
-    else
-      tail->next= new_interval;
-    tail= new_interval;
-    elements++;
+    DBUG_RETURN(append(new_interval));
   }
+  DBUG_RETURN(0);
+}
+
+bool Discrete_intervals_list::append(Discrete_interval *new_interval)
+{
+  DBUG_ENTER("Discrete_intervals_list::append");
+  if (unlikely(new_interval == NULL))
+    DBUG_RETURN(1);
+  DBUG_PRINT("info",("adding new auto_increment interval"));
+  if (head == NULL)
+    head= current= new_interval;
+  else
+    tail->next= new_interval;
+  tail= new_interval;
+  elements++;
   DBUG_RETURN(0);
 }
 
