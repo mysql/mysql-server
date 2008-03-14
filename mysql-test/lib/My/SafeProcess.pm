@@ -100,6 +100,17 @@ else
 }
 
 
+sub _process_alive {
+  my ($pid)= @_;
+
+  return kill(0, $pid) unless IS_WINDOWS;
+
+  my @list= split(/,/, `tasklist /FI "PID eq $pid" /NH /FO CSV`);
+  my $ret_pid= eval($list[1]);
+  return ($ret_pid == $pid);
+}
+
+
 sub new {
   my $class= shift;
 
@@ -244,6 +255,7 @@ sub shutdown {
     my $shutdown= $proc->{SAFE_SHUTDOWN};
     if ($shutdown_timeout > 0 and defined $shutdown){
       $shutdown->();
+      $proc->{WAS_SHUTDOWN}= 1;
     }
     else {
       $proc->start_kill();
@@ -252,8 +264,10 @@ sub shutdown {
 
   my @kill_processes= ();
 
-  # Wait for shutdown_timeout for processes to exit
+  # Wait max shutdown_timeout seconds for those process
+  # that has been shutdown
   foreach my $proc (@processes){
+    next unless $proc->{WAS_SHUTDOWN};
     my $ret= $proc->wait_one($shutdown_timeout);
     if ($ret != 0) {
       push(@kill_processes, $proc);
@@ -262,20 +276,29 @@ sub shutdown {
     $shutdown_timeout= 0;
   }
 
+  # Wait infinitely for those process
+  # that has been killed
+  foreach my $proc (@processes){
+    next if $proc->{WAS_SHUTDOWN};
+    my $ret= $proc->wait_one(undef);
+    if ($ret != 0) {
+      warn "Wait for killed process failed!";
+      push(@kill_processes, $proc);
+      # Try one more time, best option...
+    }
+  }
+
   # Return if all servers has exited
   return if (@kill_processes == 0);
 
   foreach my $proc (@kill_processes){
-    if ($proc->start_kill() == 0){
-      # Uncertain status, don't wait blocking
-      # for this process
-      $proc->{WAIT_ONE_TIMEOUT}= 0;
-    }
+    $proc->start_kill();
   }
 
   foreach my $proc (@kill_processes){
-    $proc->wait_one($proc->{WAIT_ONE_TIMEOUT});
+    $proc->wait_one(undef);
   }
+
   return;
 }
 
@@ -289,18 +312,31 @@ sub start_kill {
   _verbose("start_kill: $self");
   my $ret= 1;
 
-  if (defined $safe_kill and $self->{SAFE_WINPID}){
+  my $pid;
+  if (IS_WINDOWS)
+  {
+    die "INTERNAL ERROR: no safe_kill" unless defined $safe_kill;
+    die "INTERNAL ERROR: no winpid" unless defined $self->{SAFE_WINPID};
+
     # Use my_safe_kill to tell my_safe_process
     # it's time to kill it's child and return
-    my $pid= $self->{SAFE_WINPID};
-    $ret= (system($safe_kill, $pid) >> 8) == 0;
-    print `tasklist` unless $ret;
-  } else {
-    my $pid= $self->{SAFE_PID};
+    $pid= $self->{SAFE_WINPID};
+    $ret= system($safe_kill, $pid) >> 8;
+    if (IS_CYGWIN and $ret == 3)
+    {
+      print "safe_process is gone, kickstart the fake process\n";
+      if (kill(15, $self->{SAFE_PID}) != 1){
+	print STDERR "Failed to kickstart the fake process\n";
+      }
+    }
+  }
+  else
+  {
+    $pid= $self->{SAFE_PID};
     die "Can't kill not started process" unless defined $pid;
     $ret= kill(15, $pid);
   }
-  print STDERR "$self already killed\n" unless $ret;
+
   return $ret;
 }
 
