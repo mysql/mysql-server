@@ -665,11 +665,12 @@ my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const char *header, ulong header_length,
 		     const char *arg, ulong arg_length, my_bool skip_check,
-                     MYSQL_STMT *stmt __attribute__((unused)))
+                     MYSQL_STMT *stmt)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
   init_sigpipe_variables
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
   DBUG_ENTER("cli_advanced_command");
 
   /* Don't give sigpipe errors if the client doesn't want them */
@@ -677,7 +678,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       DBUG_RETURN(1);
   }
   if (mysql->status != MYSQL_STATUS_READY ||
@@ -708,7 +709,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       goto end;
     }
     end_server(mysql);
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       goto end;
     if (net_write_command(net,(uchar) command, header, header_length,
 			  arg, arg_length))
@@ -2503,6 +2504,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
       if (stmt->state != MYSQL_STMT_INIT_DONE)
       {
         stmt->mysql= 0;
+        stmt->last_errno= CR_SERVER_LOST;
+        strmov(stmt->last_error, ER(CR_SERVER_LOST));
+        strmov(stmt->sqlstate, unknown_sqlstate);
       }
       else
       {
