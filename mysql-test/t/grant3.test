@@ -134,3 +134,29 @@ SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 
 
 DROP USER CUser2@localhost;
 DROP USER CUser2@LOCALHOST;
+
+
+#
+# Bug#31194: Privilege ordering does not order properly for wildcard values
+#
+
+CREATE DATABASE mysqltest_1;
+CREATE TABLE mysqltest_1.t1 (a INT);
+CREATE USER 'mysqltest1'@'%';
+GRANT SELECT, UPDATE ON `mysqltest_1`.* TO 'mysqltest1'@'%';
+REVOKE SELECT ON `mysqltest_1`.* FROM 'mysqltest1'@'%';
+GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO 'mysqltest1'@'%';
+FLUSH PRIVILEGES;
+
+connect (conn1,localhost,mysqltest1,,);
+connection conn1;
+SHOW GRANTS;
+SELECT * FROM mysqltest_1.t1;
+disconnect conn1;
+
+connection default;
+DROP USER 'mysqltest1'@'%';
+DROP DATABASE mysqltest_1;
+
+
+--echo End of 5.0 tests

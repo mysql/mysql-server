@@ -2852,8 +2852,12 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
-      tables->table->reginfo.lock_type= tables->lock_type == TL_WRITE_DEFAULT ?
-        thd->update_lock_default : tables->lock_type;
+    {
+      if (tables->lock_type == TL_WRITE_DEFAULT)
+        tables->table->reginfo.lock_type= thd->update_lock_default;
+      else if (tables->table->s->tmp_table == NO_TMP_TABLE)
+        tables->table->reginfo.lock_type= tables->lock_type;
+    }
     tables->table->grant= tables->grant;
 
 process_view_routines:

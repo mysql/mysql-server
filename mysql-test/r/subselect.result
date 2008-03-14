@@ -4147,103 +4147,37 @@ DROP TABLE t1,t2;
 create table t1(a int,b int,key(a),key(b));
 insert into t1(a,b) values (1,2),(2,1),(2,3),(3,4),(5,4),(5,5),
 (6,7),(7,4),(5,3);
-select sum(a),a from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1
-)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1) 
-group by a;
-sum(a)	a
-select sum(a),a from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1) 
-group by a;
-ERROR HY000: Thread stack overrun detected
-explain select sum(a),a from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 
-)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1) 
-group by a;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	index	a	a	5	NULL	9	Using where; Using index
-2	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-3	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-4	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-5	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-6	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-7	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-8	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-9	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-10	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-11	SUBQUERY	t1	range	a	a	5	NULL	9	Using where; Using temporary; Using filesort
-12	SUBQUERY	t1	range	a	a	5	NULL	1	Using where; Using temporary; Using filesort
-13	SUBQUERY	t1	index	NULL	a	5	NULL	9	Using index
-explain select sum(a),a from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 where a> ( select sum(a) from t1 where a> (
-select sum(a) from t1 
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1
-)group by b limit 1)group by b limit 1)group by b limit 1) 
-group by a;
-ERROR HY000: Thread stack overrun detected
+5
+4
+3
+2
+1
+26
+25
+24
+23
+22
+21
+20
+19
+18
+17
+16
+15
+14
+13
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
 drop table t1;
 CREATE TABLE t1 (a1 INT, a2 INT);
 CREATE TABLE t2 (b1 INT, b2 INT);

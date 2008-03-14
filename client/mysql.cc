@@ -1125,6 +1125,7 @@ int main(int argc,char *argv[])
   }
   if (mysql_server_init(emb_argc, emb_argv, (char**) server_default_groups))
   {
+    put_error(NULL);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
