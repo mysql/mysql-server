@@ -3517,8 +3517,26 @@ bool mysql_create_table_no_lock(THD *thd,
   create_info->table_existed= 0;		// Mark that table is created
 
 #ifdef HAVE_READLINK
+  if (test_if_data_home_dir(create_info->data_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "DATA DIRECTORY");
+    goto unlock_and_end;
+  }
+  if (test_if_data_home_dir(create_info->index_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "INDEX DIRECTORY");
+    goto unlock_and_end;
+  }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (check_partition_dirs(thd->lex->part_info))
+  {
+    goto unlock_and_end;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
   if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
-#endif
+#endif /* HAVE_READLINK */
   {
     if (create_info->data_file_name)
       push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
