@@ -57,6 +57,7 @@ REGRESSION_TESTS = \
 	brt-test3 \
 	brt-test4 \
 	brt-test-cursor \
+	brt-test-cursor-2 \
         log-test \
 	log-test2 \
 	log-test3 \
@@ -108,6 +109,7 @@ CHECKS = \
  test-brt-delete-both \
  brt-test \
  brt-test-cursor \
+ brt-test-cursor-2 \
  brt-test3 \
  brt-test4 \
  fifo-test \
@@ -141,7 +143,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-log-test log-test2 log-test3 log-test4 log-test5 log-test6 pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+log-test log-test2 log-test3 log-test4 log-test5 log-test6 pma-test benchmark-test brt-test brt-test3 brt-test4 brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h pma.h brt.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h
@@ -157,10 +159,10 @@ ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: cachetable.h hashfun.h memory.h
-brt-test3 brt-test4 brt-test-cursor brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-test3 brt-test4 brt-test-cursor brt-test-cursor-2 brt-test: ybt.o brt.o fifo.o pma.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 logformat: logformat.o toku_assert.o
-brt-test3.o brt-test4.o brt-test-cursor.o brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
+brt-test3.o brt-test4.o brt-test-cursor.o brt-test-cursor-2.o brt-test.o brt.o: brt.h ../include/db.h fifo.h pma.h brttypes.h cachetable.h memory.h
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 

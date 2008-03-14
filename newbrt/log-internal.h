@@ -129,3 +129,10 @@ static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
     return 4+(4+4)*pa.size;
 }
 
+static inline char *fixup_fname(BYTESTRING *f) {
+    assert(f->len>0);
+    char *fname = toku_malloc(f->len+1);
+    memcpy(fname, f->data, f->len);
+    fname[f->len]=0;
+    return fname;
+}
