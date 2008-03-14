@@ -1232,7 +1232,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
@@ -1306,7 +1310,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
