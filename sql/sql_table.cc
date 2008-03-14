@@ -5855,9 +5855,9 @@ int mysql_fast_or_online_alter_table(THD *thd,
     wait_if_global_read_lock(), which could create a deadlock if called
     with LOCK_open.
   */
-  error= ha_commit_stmt(thd);
+  error= ha_autocommit_or_rollback(thd, 0);
 
-  if (ha_commit(thd))
+  if (end_active_trans(thd))
     error=1;
   if (error)
     goto err;
