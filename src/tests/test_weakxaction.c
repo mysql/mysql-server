@@ -17,23 +17,23 @@ void test_autotxn(u_int32_t env_flags, u_int32_t db_flags) {
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
     r = db_env_create (&env, 0);           CKERR(r);
+    env->set_errfile(env, stderr);
     r = env->set_flags(env, env_flags, 1); CKERR(r);
     r = env->open(env, ENVDIR, 
                   DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | 
                   DB_INIT_LOG | DB_INIT_TXN | DB_INIT_LOCK, 0777); CKERR(r);
     r = db_create(&db, env, 0);
     CKERR(r);
-    db->set_errfile(db, stderr);
     {
 	DB_TXN *x = NULL;
-        #ifdef USE_BDB
-	    r = env->txn_begin(env, 0, &x, 0); assert(r==0);
-        #endif
+	if (env_flags==0 && db_flags==0) {
+	    r = env->txn_begin(env, 0, &x, 0); CKERR(r);
+	}
 	r = db->open(db, x, "numbers.db", 0, DB_BTREE, DB_CREATE | db_flags, 0);
+	if (env_flags==0 && db_flags==0) {
+	    r = x->commit(x, 0); CKERR(r);
+	}
 	CKERR(r);
-        #ifdef USE_BDB
-	    r = x->commit(x, 0); assert(r==0);
-        #endif
     }
 
     DB_TXN *x1, *x2 = NULL;
