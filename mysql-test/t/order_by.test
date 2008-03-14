@@ -726,3 +726,15 @@ SELECT a, b FROM t1 ORDER BY b DESC;
 SELECT a, b FROM t1 ORDER BY SEC_TO_TIME(a) DESC;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#31590: Wrong error message on sort buffer being too small.
+--echo #
+create table t1(a int, b tinytext);
+insert into t1 values (1,2),(3,2);
+set session sort_buffer_size= 30000;
+set session max_sort_length= 2180;
+--error 1038
+select * from t1 order by b;
+drop table t1;
+

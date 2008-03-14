@@ -1486,7 +1486,7 @@ my_ulonglong STDCALL mysql_insert_id(MYSQL *mysql)
 
 const char *STDCALL mysql_sqlstate(MYSQL *mysql)
 {
-  return mysql->net.sqlstate;
+  return mysql ? mysql->net.sqlstate : cant_connect_sqlstate;
 }
 
 uint STDCALL mysql_warning_count(MYSQL *mysql)
