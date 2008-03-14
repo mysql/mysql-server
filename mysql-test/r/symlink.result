@@ -140,16 +140,16 @@ DROP TABLE t1;
 End of 5.0 tests
 CREATE TABLE t1(a INT)
 INDEX DIRECTORY='TEST_DIR/master-data/mysql';
-ERROR HY000: Incorrect arguments to INDEX DIRECORY
+ERROR HY000: Incorrect arguments to INDEX DIRECTORY
 CREATE TABLE t1(a INT)
 DATA DIRECTORY='TEST_DIR/master-data/test';
-ERROR HY000: Incorrect arguments to DATA DIRECORY
+ERROR HY000: Incorrect arguments to DATA DIRECTORY
 CREATE TABLE t1(a INT)
 DATA DIRECTORY='TEST_DIR/master-data/';
-ERROR HY000: Incorrect arguments to DATA DIRECORY
+ERROR HY000: Incorrect arguments to DATA DIRECTORY
 CREATE TABLE t1(a INT)
 INDEX DIRECTORY='TEST_DIR/master-data';
-ERROR HY000: Incorrect arguments to INDEX DIRECORY
+ERROR HY000: Incorrect arguments to INDEX DIRECTORY
 CREATE TABLE t1(a INT)
 INDEX DIRECTORY='TEST_DIR/master-data_var';
 ERROR HY000: Can't create/write to file 'TEST_DIR/master-data_var/t1.MYI' (Errcode: 2)
