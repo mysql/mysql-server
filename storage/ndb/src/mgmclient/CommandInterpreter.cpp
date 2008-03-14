@@ -125,6 +125,8 @@ public:
                    int *node_ids, int no_of_nodes);
   int  executeRestart(Vector<BaseString> &command_list, unsigned command_pos,
                       int *node_ids, int no_of_nodes);
+  int  executeStart(Vector<BaseString> &command_list, unsigned command_pos,
+                    int *node_ids, int no_of_nodes);
 
   int  executeRep(char* parameters);
 
@@ -1280,8 +1282,13 @@ CommandInterpreter::executeCommand(Vector<BaseString> &command_list,
     retval = executeRestart(command_list, command_pos+1, node_ids, no_of_nodes);
     return retval;
   }
+  if (strcasecmp("START", cmd) == 0)
+  {
+    retval = executeStart(command_list, command_pos+1, node_ids, no_of_nodes);
+    return retval;
+  }
   ndbout_c("Invalid command: '%s' after multi node id list. "
-           "Expected STOP or RESTART.", cmd);
+           "Expected STOP, START, or RESTART.", cmd);
   return -1;
 }
 
@@ -2035,6 +2042,29 @@ CommandInterpreter::executeStart(int processId, const char* parameters,
 	ndbout_c("Database node %d is being started.", processId);
     }
   return retval;
+}
+
+int
+CommandInterpreter::executeStart(Vector<BaseString> &command_list,
+                                 unsigned command_pos,
+                                 int *node_ids, int no_of_nodes)
+{
+  int result;
+  result= ndb_mgm_start(m_mgmsrv, no_of_nodes, node_ids);
+
+  if (result <= 0) {
+    ndbout_c("Start failed.");
+    printError();
+    return -1;
+  }
+  else
+  {
+    ndbout << "Node";
+    for (int i= 0; i < no_of_nodes; i++)
+      ndbout << " " << node_ids[i];
+    ndbout_c(" is being started");
+  }
+  return 0;
 }
 
 int
