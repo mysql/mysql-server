@@ -78,3 +78,14 @@ NULL	NULL
 db-1	t-2
 NULL	NULL
 drop database `db-1`;
+create table t1(id int primary key) engine = Innodb;
+create table t2(pid int, foreign key (pid) references t1(id)) engine = Innodb;
+set foreign_key_checks = 0;
+drop table t1;
+select UNIQUE_CONSTRAINT_NAME
+from information_schema.referential_constraints
+where constraint_schema = schema();
+UNIQUE_CONSTRAINT_NAME
+NULL
+drop table t2;
+set foreign_key_checks = 1;

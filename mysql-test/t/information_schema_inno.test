@@ -76,3 +76,16 @@ select referenced_table_schema, referenced_table_name
 from information_schema.key_column_usage
 where constraint_schema = 'db-1';
 drop database `db-1`;
+
+#
+# Bug#35108 SELECT FROM REFERENTIAL_CONSTRAINTS crashes
+#
+create table t1(id int primary key) engine = Innodb;
+create table t2(pid int, foreign key (pid) references t1(id)) engine = Innodb;
+set foreign_key_checks = 0;
+drop table t1;
+select UNIQUE_CONSTRAINT_NAME
+from information_schema.referential_constraints
+where constraint_schema = schema();
+drop table t2;
+set foreign_key_checks = 1;
