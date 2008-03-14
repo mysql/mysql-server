@@ -210,6 +210,8 @@ static void reap_plugins(void);
 
 /* declared in set_var.cc */
 extern sys_var *intern_find_sys_var(const char *str, uint length, bool no_error);
+extern bool throw_bounds_warning(THD *thd, bool fixed, bool unsignd,
+                                 const char *name, longlong val);
 
 #ifdef EMBEDDED_LIBRARY
 /* declared in sql_base.cc */
@@ -1907,16 +1909,8 @@ static int check_func_int(THD *thd, struct st_mysql_sys_var *var,
   else
     *(int *)save= (int) getopt_ll_limit_value(tmp, &options, &fixed);
 
-  if (fixed)
-  {
-    char buf[22];
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
-                        ullstr(tmp, buf));
-  }
-  return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
-         (*(int *)save != (int) tmp);
+  return throw_bounds_warning(thd, fixed, var->flags & PLUGIN_VAR_UNSIGNED,
+                              var->name, (longlong) tmp);
 }
 
 
@@ -1935,16 +1929,8 @@ static int check_func_long(THD *thd, struct st_mysql_sys_var *var,
   else
     *(long *)save= (long) getopt_ll_limit_value(tmp, &options, &fixed);
 
-  if (fixed)
-  {
-    char buf[22];
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
-                        ullstr(tmp, buf));
-  }
-  return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
-         (*(long *)save != (long) tmp);
+  return throw_bounds_warning(thd, fixed, var->flags & PLUGIN_VAR_UNSIGNED,
+                              var->name, (longlong) tmp);
 }
 
 
@@ -1963,16 +1949,8 @@ static int check_func_longlong(THD *thd, struct st_mysql_sys_var *var,
   else
     *(longlong *)save= getopt_ll_limit_value(tmp, &options, &fixed);
 
-  if (fixed)
-  {
-    char buf[22];
-    push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                        ER_TRUNCATED_WRONG_VALUE,
-                        ER(ER_TRUNCATED_WRONG_VALUE), var->name,
-                        ullstr(tmp, buf));
-  }
-  return (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) &&
-         (*(long long *)save != tmp);
+  return throw_bounds_warning(thd, fixed, var->flags & PLUGIN_VAR_UNSIGNED,
+                              var->name, (longlong) tmp);
 }
 
 static int check_func_str(THD *thd, struct st_mysql_sys_var *var,
