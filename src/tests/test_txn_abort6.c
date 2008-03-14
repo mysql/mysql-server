@@ -106,6 +106,9 @@ void test_txn_abort(int n, int which_guys_to_abort) {
 
 int main(int argc, char *argv[]) {
     int i,j;
+#ifndef TOKUDB
+    return 0; // This test is inappropriate for BDB.  It requires finer grained locking that BDB supports.
+#endif
     for (i = 1; i < argc; i++) {
         char *arg = argv[i];
         if (strcmp(arg, "-v") == 0 || strcmp(arg, "--verbose") == 0) {
