@@ -39,13 +39,6 @@ sync_with_master;
 
 select * from t1;
 select * from t3;
-# We want to be sure that LOAD DATA is in the slave's binlog.
-# But we can't simply read this binlog, because as the slave has not been
-# restarted for this test, the file_id is uncertain (would cause test
-# failures). So instead, we test if the binlog looks long enough to
-# contain LOAD DATA. Since 5.0.3 we assume that binlog of 1292 is ok.
-# If LOAD DATA was not logged, the binlog would be shorter.
-show master status;
 
 connection master;
 

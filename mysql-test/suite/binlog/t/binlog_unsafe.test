@@ -200,7 +200,6 @@ INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
 INSERT INTO t1 VALUES (@@session.foreign_key_checks);
 INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
 INSERT INTO t1 VALUES (@@session.unique_checks);
-INSERT INTO t2 VALUES (@@session.sql_mode);
 INSERT INTO t1 VALUES (@@session.auto_increment_increment);
 INSERT INTO t1 VALUES (@@session.auto_increment_offset);
 INSERT INTO t2 VALUES (@@session.character_set_client);
