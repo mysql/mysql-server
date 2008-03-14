@@ -875,6 +875,13 @@ select benchmark(100, NULL);
 select benchmark(NULL, 1+1);
 
 #
+# Bug #20752: BENCHMARK with many iterations returns too quickly
+#
+
+# not a string, but belongs with the above Bug#22684
+select benchmark(-1, 1);
+
+#
 # Please note:
 # 1) The collation of the password is irrelevant, the encryption uses
 # the binary representation of the string without charset/collation.

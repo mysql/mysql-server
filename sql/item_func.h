@@ -54,7 +54,8 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC };
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
+                  NEG_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -192,6 +193,13 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
+  inline double fix_result(double value)
+  {
+    if (isfinite(value))
+      return value;
+    null_value=1;
+    return 0.0;
+  }
 };
 
 
@@ -479,7 +487,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
-  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
+  enum Functype functype() const   { return NEG_FUNC; }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
@@ -510,18 +518,6 @@ class Item_dec_func :public Item_real_func
   {
     decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
     maybe_null=1;
-  }
-  inline double fix_result(double value)
-  {
-#ifndef HAVE_FINITE
-    return value;
-#else
-    /* The following should be safe, even if we compare doubles */
-    if (finite(value) && value != POSTFIX_ERROR)
-      return value;
-    null_value=1;
-    return 0.0;
-#endif
   }
 };
 
