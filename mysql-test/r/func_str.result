@@ -1431,6 +1431,11 @@ benchmark(100, NULL)
 select benchmark(NULL, 1+1);
 benchmark(NULL, 1+1)
 NULL
+select benchmark(-1, 1);
+benchmark(-1, 1)
+NULL
+Warnings:
+Error	1411	Incorrect count value: '-1' for function benchmark
 set @password="password";
 set @my_data="clear text to encode";
 select md5(encode(@my_data, "password"));

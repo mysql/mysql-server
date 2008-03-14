@@ -539,7 +539,7 @@ F2E5F1F2
 drop table t1;
 create table t1 ( a timestamp );
 alter table t1 add unique ( a(1) );
-ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 drop table t1;
 drop table if exists t1;
 create table t1 (a int, key(a));
@@ -953,12 +953,12 @@ t1	CREATE TABLE `t1` (
   KEY `b_2` (`b`(50))
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 CREATE TABLE t2 (a INT, KEY (a(20)));
-ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE t1 ADD d INT;
 ALTER TABLE t1 ADD KEY (d(20));
-ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 ALTER TABLE t1 ADD e GEOMETRY NOT NULL, ADD SPATIAL KEY (e(30));
-ERROR HY000: Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys
+ERROR HY000: Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys
 DROP TABLE t1;
 CREATE TABLE t1 (s CHAR(8) BINARY);
 INSERT INTO t1 VALUES ('test');

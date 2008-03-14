@@ -1152,6 +1152,30 @@ create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
 show status like 'handler_read%';
 drop table t1,t2;
 
+#
+# Bug #25162: Backing up DB from 5.1 adds 'USING BTREE' to KEYs on table creates
+#
+
+# Show that the old syntax for index type is supported
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1));
+DROP TABLE t1;
+
+# Show that the new syntax for index type is supported
+CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
+DROP TABLE t1;
+
+# Show that in case of multiple index type definitions, the last one takes 
+# precedence
+
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+DROP TABLE t1;
+
+
 --echo End of 5.0 tests
 
 #

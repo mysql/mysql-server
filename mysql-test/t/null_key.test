@@ -240,3 +240,26 @@ SHOW STATUS LIKE "handler_read%";
 
 DROP TABLE t1,t2,t3,t4;
 # End of 4.1 tests
+
+#
+# BUG#34945 "ref_or_null queries that are null_rejecting and have a null value crash mysql"
+# 
+CREATE TABLE t1 (
+  a int(11) default NULL,
+  b int(11) default NULL,
+  KEY a (a,b)
+);
+INSERT INTO t1 VALUES (0,10),(0,11),(0,12);
+
+CREATE TABLE t2 (
+  a int(11) default NULL,
+  b int(11) default NULL,
+  KEY a (a)
+);
+INSERT INTO t2 VALUES (3,NULL),(3,11),(3,12);
+
+SELECT * FROM t2 inner join t1 WHERE ( t1.a = 0 OR t1.a IS NULL) AND t2.a = 3 AND t2.b = t1.b;
+
+drop table t1, t2;
+-- echo End of 5.0 tests
+

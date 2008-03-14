@@ -761,6 +761,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
+bool test_if_data_home_dir(const char *dir);
 
 bool parse_sql(THD *thd,
                class Lex_input_stream *lip,
@@ -1806,7 +1807,8 @@ extern time_t server_start_time, flush_status_time;
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern uint mysql_data_home_len;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-            mysql_real_data_home[];
+            mysql_real_data_home[], mysql_unpacked_real_data_home[];
+extern CHARSET_INFO *character_set_filesystem;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[],
