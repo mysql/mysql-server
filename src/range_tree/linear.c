@@ -256,10 +256,10 @@ int toku_rt_next (toku_range_tree* range_tree, toku_range* out_range, BOOL* elem
     /* Check to see if range tree is in invalid iteration state */
     if (!range_tree->i.iter_is_valid) { r = EDOM;   goto cleanup; }
     
-    *elem_found = range_tree->i.iter_index < range_tree->i.ranges_len;
+    *elem_found                 = range_tree->i.iter_index < range_tree->numelements;
+    range_tree->i.iter_is_valid = range_tree->i.iter_index < range_tree->numelements;
     if (*elem_found) { *out_range = range_tree->i.ranges[range_tree->i.iter_index]; }
     range_tree->i.iter_index++;
-    range_tree->i.iter_is_valid = range_tree->i.iter_index < range_tree->i.ranges_len;
     r = 0;
 cleanup:
     if (range_tree && r!=0) { toku_rt_invalidate_iteration(range_tree); }
