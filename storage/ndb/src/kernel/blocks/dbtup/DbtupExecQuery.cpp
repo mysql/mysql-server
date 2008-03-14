@@ -628,6 +628,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.no_changed_attrs= 0;
    req_struct.last_row= false;
    req_struct.changeMask.clear();
+   req_struct.m_is_lcp = false;
 
    if (unlikely(get_trans_state(regOperPtr) != TRANS_IDLE))
    {
@@ -1464,7 +1465,12 @@ int Dbtup::handleInsertReq(Signal* signal,
     goto null_check_error;
   }
   
-  if (regTabPtr->need_shrink())
+  if (req_struct->m_is_lcp)
+  {
+    jam();
+    sizes[2+MM] = req_struct->m_lcp_varpart_len;
+  }
+  else if (regTabPtr->need_shrink())
   {  
     shrink_tuple(req_struct, sizes+2, regTabPtr, true);
   }

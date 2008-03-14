@@ -859,6 +859,7 @@ bool
 TransporterRegistry::change_epoll(TCP_Transporter *t, bool add)
 {
   struct epoll_event event_poll;
+  bzero(&event_poll, sizeof(event_poll));
   int sock_fd = t->getSocket();
   int node_id = t->getRemoteNodeId();
   int op = add ? EPOLL_CTL_ADD : EPOLL_CTL_DEL;
