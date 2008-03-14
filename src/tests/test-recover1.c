@@ -44,7 +44,8 @@ static void test (void) {
     r=db->get(db, tid, dbt_init(&key, "a", 2), dbt_init_malloc(&data), 0);     assert(r==0); 
     r=tid->commit(tid, 0);                                                     assert(r==0);
     free(data.data);
-    
+    r=db->close(db, 0);                                                        CKERR(r);
+    r=env->close(env, 0);                                                      CKERR(r);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
