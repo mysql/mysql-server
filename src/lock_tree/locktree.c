@@ -695,34 +695,11 @@ static inline void toku__lt_init_full_query(toku_lock_tree* tree, toku_range* qu
     toku__init_query(query, left, right);
 }
 
-static inline int toku__lt_free_contents_slow(toku_lock_tree* tree,
-                                        toku_range_tree* rt,
-                                        toku_range_tree* rtdel) {
-    int r;
-    toku_range query;
-    toku_point left;
-    toku_point right;
-    u_int32_t numfound;
-
-    toku__lt_init_full_query(tree, &query, &left, &right);
-    /*
-        To free space the fast way, we need to allocate more space.
-        Since we can't, we free the slow way.
-        We do not optimize this, we take one entry at a time,
-        delete it from the tree, and then free the memory.
-    */
-    do {
-        r = toku_rt_find(rt, &query, 1, &tree->buf, &tree->buflen, &numfound);
-        if (r!=0)      break;
-        if (!numfound) break;
-        assert(numfound == 1);
-        r = toku_rt_delete(rt, &tree->buf[0]);
-        if (r!=0)      break;
-        r = toku__lt_free_points(tree, &query, numfound, rtdel);
-    } while (TRUE);
-    return r;
-}
-
+/*
+    TODO: Refactor.
+    toku__lt_free_points should be replaced (or supplanted) with a 
+    toku__lt_free_point (singular)
+*/
 static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* rt,
                                    toku_range_tree *rtdel) {
     assert(tree);
@@ -730,17 +707,17 @@ static inline int toku__lt_free_contents(toku_lock_tree* tree, toku_range_tree* 
     
     int r;
     int r2;
+    BOOL found = FALSE;
 
+    toku_rt_start_scan(rt);
     toku_range query;
     toku_point left;
     toku_point right;
     toku__lt_init_full_query(tree, &query, &left, &right);
-
-    u_int32_t numfound;
-    r = toku_rt_find(rt, &query, 0, &tree->buf, &tree->buflen, &numfound);
-    if (r==0)           r = toku__lt_free_points(tree, &query, numfound, 
-                                                  rtdel);
-    else if (r==ENOMEM) r = toku__lt_free_contents_slow(tree, rt, rtdel);
+    while ((r = toku_rt_next(rt, &tree->buf[0], &found)) == 0 && found) {
+        r = toku__lt_free_points(tree, &query, 1, rtdel);
+        if (r!=0) return toku__lt_panic(tree, r);
+    }
     r2 = toku_rt_close(rt);
     assert(r2 == 0);
     return r;
