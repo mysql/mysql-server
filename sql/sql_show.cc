@@ -5276,8 +5276,14 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
                              f_key_info->referenced_db->length, cs);
       table->field[10]->store(f_key_info->referenced_table->str, 
                              f_key_info->referenced_table->length, cs);
-      table->field[5]->store(f_key_info->referenced_key_name->str, 
-                             f_key_info->referenced_key_name->length, cs);
+      if (f_key_info->referenced_key_name)
+      {
+        table->field[5]->store(f_key_info->referenced_key_name->str, 
+                               f_key_info->referenced_key_name->length, cs);
+        table->field[5]->set_notnull();
+      }
+      else
+        table->field[5]->set_null();
       table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
       table->field[7]->store(f_key_info->update_method->str, 
                              f_key_info->update_method->length, cs);
@@ -6480,8 +6486,8 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
    OPEN_FULL_TABLE},
   {"UNIQUE_CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
    OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
+  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0,
+   MY_I_S_MAYBE_NULL, 0, OPEN_FULL_TABLE},
   {"MATCH_OPTION", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"UPDATE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"DELETE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
