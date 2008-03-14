@@ -397,7 +397,10 @@ sub mtr_report_stats ($) {
 		# rpl_temporary has an error on slave that can be ignored
 		($testname eq 'rpl.rpl_temporary' and
 		 (/Slave: Can\'t find record in \'user\' Error_code: 1032/
-		 ))
+		 )) or
+
+                # Test case for Bug#31590 produces the following error:
+                /Out of sort memory; increase server sort buffer size/
 		)
             {
               next;                       # Skip these lines

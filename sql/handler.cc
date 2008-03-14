@@ -1924,6 +1924,13 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 handler *handler::clone(MEM_ROOT *mem_root)
 {
   handler *new_handler= get_new_handler(table->s, mem_root, table->s->db_type());
+  /*
+    Allocate handler->ref here because otherwise ha_open will allocate it
+    on this->table->mem_root and we will not be able to reclaim that memory 
+    when the clone handler object is destroyed.
+  */
+  if (!(new_handler->ref= (uchar*) alloc_root(mem_root, ALIGN_SIZE(ref_length)*2)))
+    return NULL;
   if (new_handler && !new_handler->ha_open(table,
                                            table->s->normalized_path.str,
                                            table->db_stat,
@@ -1992,7 +1999,9 @@ int handler::ha_open(TABLE *table_arg, const char *name, int mode,
       table->db_stat|=HA_READ_ONLY;
     (void) extra(HA_EXTRA_NO_READCHECK);	// Not needed in SQL
 
-    if (!(ref= (uchar*) alloc_root(&table->mem_root, ALIGN_SIZE(ref_length)*2)))
+    /* ref is already allocated for us if we're called from handler::clone() */
+    if (!ref && !(ref= (uchar*) alloc_root(&table->mem_root, 
+                                          ALIGN_SIZE(ref_length)*2)))
     {
       close();
       error=HA_ERR_OUT_OF_MEM;

@@ -138,3 +138,20 @@ SELECT user, host, db, select_priv FROM mysql.db where user = 'CUser2' order by 
 user	host	db	select_priv
 DROP USER CUser2@localhost;
 DROP USER CUser2@LOCALHOST;
+CREATE DATABASE mysqltest_1;
+CREATE TABLE mysqltest_1.t1 (a INT);
+CREATE USER 'mysqltest1'@'%';
+GRANT SELECT, UPDATE ON `mysqltest_1`.* TO 'mysqltest1'@'%';
+REVOKE SELECT ON `mysqltest_1`.* FROM 'mysqltest1'@'%';
+GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO 'mysqltest1'@'%';
+FLUSH PRIVILEGES;
+SHOW GRANTS;
+Grants for mysqltest1@%
+GRANT USAGE ON *.* TO 'mysqltest1'@'%'
+GRANT SELECT, UPDATE ON `mysqltest\_1`.* TO 'mysqltest1'@'%'
+GRANT UPDATE ON `mysqltest_1`.* TO 'mysqltest1'@'%'
+SELECT * FROM mysqltest_1.t1;
+a
+DROP USER 'mysqltest1'@'%';
+DROP DATABASE mysqltest_1;
+End of 5.0 tests
