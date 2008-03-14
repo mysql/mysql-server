@@ -6,20 +6,11 @@
 --connection slave
 RESET MASTER;
 
-# Check Last_IO_Errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-echo Last errno after reset master on slave: $the_last_errno;
-
 --connection master
-
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 --eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
 START SLAVE;
 
-
-# Check Last_errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-echo Last errno after start slave: $the_last_errno;
 
 # create the table on the "slave"
 --connection slave
@@ -30,10 +21,6 @@ CREATE TABLE t1 (a int key, b int) ENGINE=ndb;
 --sync_with_master
 # now we should have a table on the master as well
 SHOW TABLES;
-
-# Check Last_errno
-let $the_last_errno= query_get_value(SHOW SLAVE STATUS, Last_IO_Errno, 1);
-echo Last errno after table on both: $the_last_errno;
 
 # insert some values on the slave and master
 --connection master

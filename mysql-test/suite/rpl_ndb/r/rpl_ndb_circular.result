@@ -5,15 +5,12 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 RESET MASTER;
-Last errno after reset master on slave: 0
 CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
 START SLAVE;
-Last errno after start slave: 0
 CREATE TABLE t1 (a int key, b int) ENGINE=ndb;
 SHOW TABLES;
 Tables_in_test
 t1
-Last errno after table on both: 0
 INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (2,3);
 SELECT * FROM t1 ORDER BY a;
