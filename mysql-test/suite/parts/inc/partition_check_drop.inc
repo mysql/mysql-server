@@ -27,8 +27,7 @@ if ($do_file_tests)
 --exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
 if ($with_directories)
 {
---exec ls $MYSQLTEST_VARDIR/master-data/test/data/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
---exec ls $MYSQLTEST_VARDIR/master-data/test/index/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
+--exec ls $MYSQLTEST_VARDIR/tmp/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
 }
 eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2'')');
 let $file_list= `SELECT @aux`;
@@ -65,8 +64,7 @@ if ($found_garbage)
    --exec rm -f $MYSQLTEST_VARDIR/master-data/test/t1* || true
    if ($with_directories)
    {
-	   --exec rm -f $MYSQLTEST_VARDIR/master-data/test/data/t1* || true
-	   --exec rm -f $MYSQLTEST_VARDIR/master-data/test/index/t1* || true
+	   --exec rm -f $MYSQLTEST_VARDIR/tmp/t1* || true
    }
 }
 --enable_query_log
