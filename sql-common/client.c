@@ -684,6 +684,16 @@ cli_safe_read(MYSQL *mysql)
 	strmake(net->sqlstate, pos+1, SQLSTATE_LENGTH);
 	pos+= SQLSTATE_LENGTH+1;
       }
+      else
+      {
+        /*
+          The SQL state hasn't been received -- it should be reset to HY000
+          (unknown error sql state).
+        */
+
+        strmov(net->sqlstate, unknown_sqlstate);
+      }
+
       (void) strmake(net->last_error,(char*) pos,
 		     min((uint) len,(uint) sizeof(net->last_error)-1));
     }
@@ -1897,7 +1907,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
-      /* Try also with PIPE or TCP/IP */
+
+      /*
+        Try also with PIPE or TCP/IP. Clear the error from
+        create_shared_memory().
+      */
+
+      net_clear_error(net);
     }
     else
     {
