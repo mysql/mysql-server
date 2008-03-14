@@ -167,8 +167,9 @@ $(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
 # Don't run valgrind on the groupcommit performance tests
 test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
 # Use helgrind on the group commit count test
-test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
-	$(MAYBEATSIGN) $(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
+# helgrind is too flakey, so I'm removing it from the tests. -Bradley
+#test_groupcommit_count_helgrind.tdbrun: test_groupcommit_count_helgrind.tdb
+#	$(MAYBEATSIGN) $(SETTOKUENV) $(HGRIND) ./$< $(VERBVERBOSE)
 
 
 
