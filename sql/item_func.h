@@ -54,7 +54,8 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC };
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
+                  NEG_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -466,7 +467,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
-  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
+  enum Functype functype() const   { return NEG_FUNC; }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
