@@ -25,9 +25,6 @@ insert into t3 values(4);
 start slave until master_log_file="slave-bin.000001",master_log_pos=195;
 Warnings:
 Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
-select master_pos_wait("slave-bin.000001",137);
-master_pos_wait("slave-bin.000001",137)
-0
 show tables;
 Tables_in_test
 t1
