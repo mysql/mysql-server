@@ -68,6 +68,9 @@ void test_cursor() {
 	printf("v0:%p:%d\n", v0.data, v0.size);
     }
 
+    assert(k0.data != k1.data);
+    assert(v0.data != v1.data);
+
     r = cursor[0]->c_close(cursor[0]); assert(r == 0);
     r = cursor[1]->c_close(cursor[1]); assert(r == 0);
 
