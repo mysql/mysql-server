@@ -23,6 +23,9 @@ partition p01 values less than (1000)
 data directory='/not/existing'
   index directory='/not/existing'
 );
+Warnings:
+Warning	0	DATA DIRECTORY option ignored
+Warning	0	INDEX DIRECTORY option ignored
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
