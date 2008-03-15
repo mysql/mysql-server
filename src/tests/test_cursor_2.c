@@ -26,6 +26,7 @@ void test_cursor() {
 
     /* create the dup database file */
     r = db_env_create(&env, 0);        assert(r == 0);
+    env->set_errfile(env, stderr);
     r = env->open(env, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_THREAD|DB_PRIVATE, 0777); CKERR(r);
     r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db,stderr); // Turn off those annoying errors

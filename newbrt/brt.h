@@ -47,7 +47,7 @@ int toku_verify_brt (BRT brt);
 //int show_brt_blocknumbers(BRT);
 
 typedef struct brt_cursor *BRT_CURSOR;
-int toku_brt_cursor (BRT, BRT_CURSOR*);
+int toku_brt_cursor (BRT, BRT_CURSOR*, int is_temporary_cursor);
 int toku_brt_cursor_get (BRT_CURSOR cursor, DBT *kbt, DBT *vbt, int brtc_flags, TOKUTXN);
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN);
 int toku_brt_cursor_close (BRT_CURSOR curs);

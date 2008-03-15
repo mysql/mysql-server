@@ -177,6 +177,7 @@ void *toku_tagmalloc(size_t size, int typtag) {
 }
 
 void *toku_realloc(void *p, size_t size) {
+    if (p==0) return toku_malloc(size);
     void *newp;
     note_did_free(p);
     errno=0;

@@ -34,7 +34,7 @@ static void assert_cursor_notfound(BRT brt, int position) {
     int r;
     DBT kbt, vbt;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     toku_init_dbt(&kbt); kbt.flags = DB_DBT_MALLOC;
@@ -52,7 +52,7 @@ static void assert_cursor_value(BRT brt, int position, long long value) {
     DBT kbt, vbt;
     long long v;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -78,7 +78,7 @@ static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv)
     DBT kbt, vbt;
     long long v;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("first key: ");
@@ -285,7 +285,7 @@ static void assert_cursor_walk(BRT brt, int n) {
     int i;
     int r;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -357,7 +357,7 @@ static void assert_cursor_rwalk(BRT brt, int n) {
     int i;
     int r;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -430,7 +430,7 @@ static void assert_cursor_walk_inorder(BRT brt, int n) {
     int r;
     char *prevkey;
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     prevkey = 0;
@@ -542,7 +542,7 @@ static void test_brt_cursor_split(int n, DB *db) {
         assert(r==0);
     }
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -609,7 +609,7 @@ static void test_multiple_brt_cursors(int n, DB *db) {
 
     int i;
     for (i=0; i<n; i++) {
-        r = toku_brt_cursor(brt, &cursors[i]);
+        r = toku_brt_cursor(brt, &cursors[i], 0);
         assert(r == 0);
     }
 
@@ -659,7 +659,7 @@ static void test_multiple_brt_cursor_walk(int n, DB *db) {
     int c;
     /* create the cursors */
     for (c=0; c<ncursors; c++) {
-        r = toku_brt_cursor(brt, &cursors[c]);
+        r = toku_brt_cursor(brt, &cursors[c], 0);
         assert(r == 0);
     }
 
@@ -751,7 +751,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
         assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
@@ -824,7 +824,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
         assert(r == 0);
     }
 
-    r = toku_brt_cursor(brt, &cursor);
+    r = toku_brt_cursor(brt, &cursor, 0);
     assert(r==0);
 
     /* pick random keys v in 0 <= v < 10*n, the cursor should point
@@ -875,7 +875,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     error = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db);
     assert(error == 0);
 
-    error = toku_brt_cursor(brt, &cursor);
+    error = toku_brt_cursor(brt, &cursor, 0);
     assert(error == 0);
 
     DBT key, val;
@@ -936,7 +936,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     error = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, test_brt_cursor_keycompare, db);
     assert(error == 0);
 
-    error = toku_brt_cursor(brt, &cursor);
+    error = toku_brt_cursor(brt, &cursor, 0);
     assert(error == 0);
 
     DBT key, val;
