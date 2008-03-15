@@ -1,4 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+// Verify that different cursors return different data items when DBT is given no flags.
+
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include <stdio.h>
@@ -13,12 +15,41 @@
 
 #include "test.h"
 
-void test_cursor(void) {
+void verify_distinct_pointers (void **ptrs, int n) {
+    int i,j;
+    for (i=0; i<n; i++) {
+	for (j=i+1; j<n; j++) {
+	    assert(ptrs[i]!=ptrs[j]);
+	}
+    }
+}
+
+DB_ENV * env;
+DB *db;
+DB_TXN * const null_txn = 0;
+
+enum { ncursors = 2 };
+DBC *cursor[ncursors];
+
+void testit (u_int32_t cop)  {
+    void *kptrs[ncursors];
+    void *vptrs[ncursors];
+    int i;
+    for (i=0; i<ncursors; i++) {
+	DBT k0; memset(&k0, 0, sizeof k0);
+	DBT v0; memset(&v0, 0, sizeof v0);
+	int r = cursor[i]->c_get(cursor[i], &k0, &v0, cop);
+	CKERR(r);
+	kptrs[i] = k0.data;
+	vptrs[i] = v0.data;
+    }
+    verify_distinct_pointers(kptrs, ncursors);
+    verify_distinct_pointers(vptrs, ncursors);
+}
+
+void test(void) {
     if (verbose) printf("test_cursor\n");
 
-    DB_ENV * env;
-    DB *db;
-    DB_TXN * const null_txn = 0;
     const char * const fname = "test.cursor.brt";
     int r;
 
@@ -40,35 +71,14 @@ void test_cursor(void) {
         assert(r == 0); 
     }
 
-    int ncursors = 2;
-    DBC *cursor[ncursors];
-    r = db->cursor(db, null_txn, &cursor[0], 0); assert(r == 0);
-    r = db->cursor(db, null_txn, &cursor[1], 0); assert(r == 0);
-
-    DBT k0; memset(&k0, 0, sizeof k0);
-    DBT v0; memset(&v0, 0, sizeof v0);
-    r = cursor[0]->c_get(cursor[0], &k0, &v0, DB_FIRST); assert(r == 0);
-    if (verbose) {
-	printf("k0:%p:%d\n", k0.data, k0.size);
-	printf("v0:%p:%d\n", v0.data, v0.size);
+    for (i=0; i<ncursors; i++) {
+	r = db->cursor(db, null_txn, &cursor[i], 0); CKERR(r);
     }
 
-    DBT k1; memset(&k1, 0, sizeof k1);
-    DBT v1; memset(&v1, 0, sizeof v1);
-    r = cursor[1]->c_get(cursor[1], &k1, &v1, DB_FIRST); assert(r == 0);
-    if (verbose) {
-	printf("k1:%p:%d\n", k1.data, k1.size);
-	printf("v1:%p:%d\n", v1.data, v1.size);
-    }
-
-    r = cursor[0]->c_get(cursor[0], &k0, &v0, DB_NEXT); assert(r == 0);
-    if (verbose) {
-	printf("k0:%p:%d\n", k0.data, k0.size);
-	printf("v0:%p:%d\n", v0.data, v0.size);
-    }
-
-    assert(k0.data != k1.data);
-    assert(v0.data != v1.data);
+    testit(DB_FIRST);
+    testit(DB_NEXT);
+    testit(DB_PREV);
+    testit(DB_LAST);
 
     r = cursor[0]->c_close(cursor[0]); assert(r == 0);
     r = cursor[1]->c_close(cursor[1]); assert(r == 0);
@@ -84,7 +94,7 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
     
-    test_cursor();
+    test();
 
     return 0;
 }
