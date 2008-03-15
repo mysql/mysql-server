@@ -163,8 +163,8 @@ void *toku_malloc(size_t size) {
     if (size<MALLOC_SIZE_COUNTING_LIMIT) fresh_malloc_counts[size]++;
     else fresh_other_malloc_count++;
     r=actual_malloc(size);
-    //printf("%s:%d malloc(%ld)->%p\n", __FILE__, __LINE__, size,r);
     note_did_malloc(r, size);
+    //printf("%s:%d malloc(%ld)->%p (%lld)\n", __FILE__, __LINE__, size,r, n_items_malloced);
     //if ((long)r==0x80523f8) { printf("%s:%d %p size=%ld\n", __FILE__, __LINE__, r, size);   }
     return r;
 }
@@ -181,19 +181,19 @@ void *toku_realloc(void *p, size_t size) {
     note_did_free(p);
     errno=0;
     newp = actual_realloc(p, size);
-    //printf("%s:%d realloc(%p,%ld)-->%p\n", __FILE__, __LINE__, p, size, newp);
     note_did_malloc(newp, size);
+    //printf("%s:%d realloc(%p,%ld)-->%p (%lld)\n", __FILE__, __LINE__, p, size, newp, n_items_malloced);
     return newp;
 }
 
 void toku_free(void* p) {
-    //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
+    //printf("%s:%d free(%p) (%lld)\n", __FILE__, __LINE__, p, n_items_malloced-1);
     note_did_free(p);
     actual_free(p);
 }
 
 void toku_free_n(void* p, size_t size) {
-    //printf("%s:%d free(%p)\n", __FILE__, __LINE__, p);
+    //printf("%s:%d free(%p) (%lld)\n", __FILE__, __LINE__, p, n_items_malloced-1);
     note_did_free(p);
     if (size>=sizeof(void*) && size<FREELIST_LIMIT) {
 	//printf("freelist[%lu] ||= %p\n", size, p);
