@@ -77,7 +77,7 @@ static inline int db_opened(DB *db) {
 static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t flags);
 static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_int32_t flags);
-static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags);
+static int toku_db_cursor(DB *db, DB_TXN * txn, DBC **c, u_int32_t flags, int is_temporary_cursor);
 
 /* txn methods */
 
@@ -889,7 +889,7 @@ int log_compare(const DB_LSN * a, const DB_LSN * b) {
 
 static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {
     DBC *dbc;
-    int r = toku_db_cursor(secondary, txn, &dbc, 0);
+    int r = toku_db_cursor(secondary, txn, &dbc, 0, 0);
     if (r!=0) return r;
     DBT key,data;
     r = toku_c_get(dbc, &key, &data, DB_FIRST);
@@ -900,7 +900,7 @@ static int maybe_do_associate_create (DB_TXN*txn, DB*primary, DB*secondary) {
 	}
     }
     /* Now we know the secondary is empty. */
-    r = toku_db_cursor(primary, txn, &dbc, 0);
+    r = toku_db_cursor(primary, txn, &dbc, 0, 0);
     if (r!=0) return r;
     for (r = toku_c_get(dbc, &key, &data, DB_FIRST); r==0; r = toku_c_get(dbc, &key, &data, DB_NEXT)) {
 	r = do_associated_inserts(txn, &key, &data, secondary);
@@ -1457,7 +1457,7 @@ static int toku_c_count(DBC *cursor, db_recno_t *count, u_int32_t flags) {
     r = toku_c_get(cursor, &currentkey, &currentval, DB_CURRENT_BINDING);
     if (r != 0) goto finish;
     
-    r = toku_db_cursor(cursor->dbp, 0, &count_cursor, 0);
+    r = toku_db_cursor(cursor->dbp, 0, &count_cursor, 0, 0);
     if (r != 0) goto finish;
 
     *count = 0;
@@ -1489,7 +1489,7 @@ static int toku_db_get_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
     if (flags!=0 && flags!=DB_GET_BOTH) return EINVAL;
 
     DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, 0);
+    r = toku_db_cursor(db, txn, &dbc, 0, 1);
     if (r!=0) return r;
     r = toku_c_get_noassociate(dbc, key, data,
                                (flags == 0) ? DB_SET : DB_GET_BOTH);
@@ -1538,7 +1538,7 @@ static int do_associated_deletes(DB_TXN *txn, DBT *key, DBT *data, DB *secondary
     if (brtflags & TOKU_DB_DUPSORT) {
         //If the secondary has duplicates we need to use cursor deletes.
         DBC *dbc;
-        r = toku_db_cursor(secondary, txn, &dbc, 0);
+        r = toku_db_cursor(secondary, txn, &dbc, 0, 0);
         if (r!=0) goto cursor_cleanup;
         r = toku_c_get_noassociate(dbc, &idx, key, DB_GET_BOTH);
         if (r!=0) goto cursor_cleanup;
@@ -1698,7 +1698,7 @@ static int locked_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_c_put(dbc, key, data, flags); toku_ydb_unlock(); return r;
 }
 
-static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
+static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     if (flags != 0)
         return EINVAL;
@@ -1716,7 +1716,7 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags) {
     assert(result->i);
     result->dbp = db;
     result->i->txn = txn;
-    int r = toku_brt_cursor(db->i->brt, &result->i->c);
+    int r = toku_brt_cursor(db->i->brt, &result->i->c, is_temporary_cursor);
     assert(r == 0);
     *c = result;
     return 0;
@@ -1747,7 +1747,7 @@ static int toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
              * We have to make certain we cascade all the deletes. */
 
             assert(db->i->primary!=0);    //Primary cannot have duplicates.
-            r = toku_db_cursor(db, txn, &dbc, 0);
+            r = toku_db_cursor(db, txn, &dbc, 0, 1);
             if (r!=0) return r;
             r = toku_c_get_noassociate(dbc, key, &data, DB_SET);
             while (r==0) {
@@ -1830,7 +1830,7 @@ static int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t 
     // We aren't ready to handle flags such as DB_READ_COMMITTED or DB_READ_UNCOMMITTED or DB_RMW
 
     DBC *dbc;
-    r = toku_db_cursor(db, txn, &dbc, 0);
+    r = toku_db_cursor(db, txn, &dbc, 0, 1);
     if (r!=0) return r;
     r = toku_c_get(dbc, key, data, (flags == 0) ? DB_SET : DB_GET_BOTH);
     int r2 = toku_c_close(dbc);
@@ -1850,7 +1850,7 @@ static int toku_db_pget (DB *db, DB_TXN *txn, DBT *key, DBT *pkey, DBT *data, u_
     if ((db->i->open_flags & DB_THREAD) && (db_thread_need_flags(pkey) || db_thread_need_flags(data)))
         return EINVAL;
 
-    r = toku_db_cursor(db, txn, &dbc, 0);
+    r = toku_db_cursor(db, txn, &dbc, 0, 1);
     if (r!=0) return r;
     r = toku_c_pget(dbc, key, pkey, data, DB_SET);
     if (r==DB_KEYEMPTY) r = DB_NOTFOUND;
@@ -2335,7 +2335,7 @@ static inline int autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flag
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
     }
-    return toku_db_cursor(db, txn, c, flags);
+    return toku_db_cursor(db, txn, c, flags, 0);
 }
 
 static int locked_db_cursor(DB *db, DB_TXN *txn, DBC **c, u_int32_t flags) {

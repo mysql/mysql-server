@@ -109,16 +109,16 @@ void insert_test() {
 
     /* Try to get it from primary. */
     r = dbp->get(dbp, null_txn, &key, &testdata, 0);    CKERR(r);
-    r = dbtcmp(&data, &testdata);                       CKERR(r);
+    r = dbtcmp(&data, &testdata);                       assert(r == 0); // Not ckerr
     
     /* Try to get it from secondary. */
     r = sdbp->get(sdbp, null_txn, &skey, &testdata, 0); CKERR(r);
-    r = dbtcmp(&data, &testdata);                       CKERR(r);
+    r = dbtcmp(&data, &testdata);                       assert(r == 0); // Not ckerr
 
     /* Try to pget from secondary */ 
     r = sdbp->pget(sdbp, null_txn, &skey, &testkey, &testdata, 0);  CKERR(r);
-    r = dbtcmp(&data, &testdata);                       CKERR(r);
-    r = dbtcmp(&testkey, &key);                         CKERR(r);
+    r = dbtcmp(&data, &testdata);                       assert(r == 0); // Not ckerr
+    r = dbtcmp(&testkey, &key);                         assert(r == 0); // Not ckerr
     
     /* Make sure we fail 'pget' from primary */
     r = dbp->pget(dbp, null_txn, &key, &testkey, &data, 0);         assert(r == EINVAL);

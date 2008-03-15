@@ -173,6 +173,8 @@ struct brt_cursor {
     BRT brt;
     DBT key;
     DBT val;
+    int is_temporary_cursor;  // If it is a temporary cursor then use the following skey and sval to return tokudb-managed values in dbts.  Otherwise use the brt's skey and skval.
+    void *skey, *sval;
 };
 
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);

@@ -1733,7 +1733,7 @@ int toku_brt_lookup (BRT brt, DBT *k, DBT *v) {
     int r, rr;
     BRT_CURSOR cursor;
 
-    rr = toku_brt_cursor(brt, &cursor);
+    rr = toku_brt_cursor(brt, &cursor, 1);
     if (rr != 0) return rr;
 
     int op = brt->flags & TOKU_DB_DUPSORT ? DB_GET_BOTH : DB_SET;
@@ -2039,7 +2039,7 @@ static inline void brt_cursor_set_key_val(BRT_CURSOR cursor, DBT *newkey, DBT *n
     cursor->val = *newval; memset(newval, 0, sizeof *newval);
 }
 
-int toku_brt_cursor(BRT brt, BRT_CURSOR *cursorptr) {
+int toku_brt_cursor (BRT brt, BRT_CURSOR *cursorptr, int is_temporary_cursor) {
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     if (cursor == 0)
         return ENOMEM;
@@ -2047,12 +2047,16 @@ int toku_brt_cursor(BRT brt, BRT_CURSOR *cursorptr) {
     toku_init_dbt(&cursor->key);
     toku_init_dbt(&cursor->val);
     list_push(&brt->cursors, &cursor->cursors_link);
+    cursor->is_temporary_cursor=is_temporary_cursor;
+    cursor->skey = cursor->sval = 0;
     *cursorptr = cursor;
     return 0;
 }
 
 int toku_brt_cursor_close(BRT_CURSOR cursor) {
     brt_cursor_cleanup(cursor);
+    if (cursor->skey) toku_free(cursor->skey);
+    if (cursor->sval) toku_free(cursor->sval);
     list_remove(&cursor->cursors_link);
     toku_free_n(cursor, sizeof *cursor);
     return 0;
@@ -2076,9 +2080,9 @@ static inline int compare_kv_xy(BRT brt, DBT *k, DBT *v, DBT *x, DBT *y) {
 static inline int brt_cursor_copyout(BRT_CURSOR cursor, DBT *key, DBT *val) {
     int r = 0;
     if (key) 
-        r = toku_dbt_set_value(key, cursor->key.data, cursor->key.size, &cursor->brt->skey);
+        r = toku_dbt_set_value(key, cursor->key.data, cursor->key.size, cursor->is_temporary_cursor ? &cursor->brt->skey : &cursor->skey);
     if (r == 0 && val)
-        r = toku_dbt_set_value(val, cursor->val.data, cursor->val.size, &cursor->brt->sval);
+        r = toku_dbt_set_value(val, cursor->val.data, cursor->val.size, cursor->is_temporary_cursor ? &cursor->brt->sval : &cursor->sval);
     return r;
 }
 
