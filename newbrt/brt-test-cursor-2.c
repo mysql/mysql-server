@@ -45,7 +45,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
 	DBT kbt,vbt;
 	char key[10],val[10];
 	snprintf(key, sizeof key, "k%04d", i);
-	snprintf(key, sizeof val, "k%04d", i);
+	snprintf(val, sizeof val, "v%04d", i);
 	r = toku_brt_insert(brt,
 			    toku_fill_dbt(&kbt, key, strlen(key)),
 			    toku_fill_dbt(&vbt, val, strlen(val)),
