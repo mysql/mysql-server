@@ -22,7 +22,7 @@
 int main (int argc, char *argv[]) {
     assert(argc==2);
 
-    int r=tokudb_recover(argv[1], argv[1]);
+    int r=tokudb_recover(".", argv[1]);
     if (r!=0) {
 	fprintf(stderr, "Recovery failed\n");
 	exit(1);
