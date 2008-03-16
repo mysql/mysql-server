@@ -621,6 +621,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     REALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
     REALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
+    BNC_SUBTREE_FINGERPRINT(node, node->u.n.n_children+1)=0;
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
 	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
     }
