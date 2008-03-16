@@ -122,6 +122,12 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
                    toku__recreate_DBT(&point_2, y->data_payload, y->data_len));
 }
 
+static inline BOOL toku__lt_fraction_ranges_free(toku_lock_tree* tree, u_int32_t denominator) {
+    assert(tree && tree->num_ranges && denominator);
+    return *tree->num_ranges <=
+            tree->max_ranges - (tree->max_ranges / denominator);
+}
+
 /* Functions to update the range count and compare it with the
    maximum number of ranges */
 static inline BOOL toku__lt_range_test_incr(toku_lock_tree* tree, u_int32_t replace) {
@@ -129,7 +135,7 @@ static inline BOOL toku__lt_range_test_incr(toku_lock_tree* tree, u_int32_t repl
     assert(tree->num_ranges);
     assert(replace <= *tree->num_ranges);
     return *tree->num_ranges - replace < tree->max_ranges;
-} 
+}
 
 static inline void toku__lt_range_incr(toku_lock_tree* tree, u_int32_t replace) {
     assert(toku__lt_range_test_incr(tree, replace));
@@ -1054,16 +1060,53 @@ cleanup:
     return r;
 }
 
+static inline int toku__border_escalation_trivial(toku_lock_tree* tree, toku_range* border_range, BOOL* trivial) {
+    assert(tree && border_range && trivial);
+    *trivial = TRUE;
+    return 0;
+}
+static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
+    assert(tree && border_range);
+    return 0;
+}
+static inline int toku__escalate_writes_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
+    assert(tree && border_range);
+    return 0;
+}
+
 /*
  * TODO: implement function
  */
 static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
     int r = ENOSYS;
-    if (!tree || !locks_available ) { r = EINVAL; goto cleanup; }
-    
-    *locks_available = FALSE;
+    if (!tree || !locks_available)      { r = EINVAL; goto cleanup; }
+    if (!tree->lock_escalation_allowed) { r = EDOM;   goto cleanup; }
+    toku_range_tree* border       = tree->borderwrite;
+    toku_range       border_range;
+    BOOL             found        = FALSE;
+    BOOL             trivial      = FALSE;
+
+    toku_rt_start_scan(border);
+    while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
+        r = toku__border_escalation_trivial(tree, &border_range, &trivial);
+        if (r!=0)     { goto cleanup; }
+        if (!trivial) { continue; }
+        r = toku__escalate_reads_from_border_range(tree, &border_range);
+        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
+        r = toku__escalate_writes_from_border_range(tree, &border_range);
+        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
+    }
     r = 0;
+    *locks_available = toku__lt_range_test_incr(tree, 0);
+    /* Escalation is allowed if 1/10th of the locks (or more) are free. */
+    tree->lock_escalation_allowed = toku__lt_fraction_ranges_free(tree, 10);
 cleanup:
+    if (r!=0) {
+        if (tree && locks_available) {
+            *locks_available              = FALSE;
+            tree->lock_escalation_allowed = FALSE;
+        }
+    }
     return r;
 }
 
