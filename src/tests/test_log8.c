@@ -23,7 +23,7 @@ struct in_db {
     struct in_db *next;
 } *items=0;
 
-int maxcount = 10000;
+int maxcount = 10;
 
 static void insert_some (int outeri) {
     u_int32_t create_flag = outeri%2 ? DB_CREATE : 0; // Sometimes use DB_CREATE, sometimes don't.

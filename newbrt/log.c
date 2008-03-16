@@ -37,6 +37,12 @@ int toku_logger_find_next_unused_log_file(const char *directory, long long *resu
     return r;
 }
 
+int logfilenamecompare (const void *ap, const void *bp) {
+    char *a=*(char**)ap;
+    char *b=*(char**)bp;
+    return strcmp(a,b);
+}
+
 int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp) {
     int result_limit=1;
     int n_results=0;
@@ -59,6 +65,8 @@ int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***r
 	snprintf(fname, fnamelen, "%s/%s", directory, de->d_name);
 	result[n_results++] = fname;
     }
+    // Return them in increasing order.
+    qsort(result, n_results, sizeof(result[0]), logfilenamecompare);
     *n_resultsp = n_results;
     *resultp    = result;
     return closedir(d);
