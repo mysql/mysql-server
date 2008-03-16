@@ -27,6 +27,8 @@ void check_logmax (int max) {
 	}
     }
     assert(!any_too_big);
+    int r=closedir(dir);
+    assert(r==0);
 }
 
 void test_logmax (int logmax) {
