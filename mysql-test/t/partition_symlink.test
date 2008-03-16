@@ -125,6 +125,9 @@ connection default;
   DROP USER mysqltest_1@localhost;
   disconnect con1;
 
+#--exec rmdir $MYSQLTEST_VARDIR/tmp/test || true
+#--exec rmdir $MYSQLTEST_VARDIR/tmp/mysqltest2 || true
+
 #
 # Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables 
 #
@@ -171,6 +174,3 @@ create table t1 (a int)
 partition by key (a)
 (partition p0,
  partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-
-#--exec rmdir $MYSQLTEST_VARDIR/tmp/test || true
-#--exec rmdir $MYSQLTEST_VARDIR/tmp/mysqltest2 || true
