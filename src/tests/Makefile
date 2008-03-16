@@ -108,61 +108,14 @@ endif
 # It was this:
 #%.bdbrun: %.bdb
 #	$(MAYBEATSIGN) $(UNSETTOKUENV) $(VGRIND) $(BDB_SUPPRESSIONS) ./$< $(VERBVERBOSE)
-# Now thiss:
+# Now this:
 %.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
 	@ touch $@
 
-# For BDB, VGRIND isn't happy
-NO_VGRIND = \
-  abort1 \
-  cursor_delete \
-  cursor_delete_next \
-  cursor_flags \
-  cursor_db_current \
-  cursor_nonleaf_expand \
-  cursor_stickyness \
-  db_already_exists \
-  db_assoc3 \
-  db_dbt_appmalloc \
-  db_dbt_mem_behavior \
-  db_curs2 \
-  db_delete \
-  db_donotindex \
-  db_env_open_nocreate \
-  db_env_open_open_close \
-  db_open_notexist_reopen \
-  db_remove_subdb \
-  db_set_flags \
-  db_subdb \
-  dup_delete \
-  dup_dup \
-  dup_flags \
-  dup_insert \
-  dup_next \
-  dup_search \
-  dupsort_delete \
-  dupsort_get \
-  dupsort_get_both \
-  dupsort_get_both_range \
-  dupsort_set \
-  dupsort_set_range \
-  get_zeroed_dbt \
-  hsoc \
-  insert_cursor_delete_insert \
-  insert_memleak \
-  kv_limits \
-  log0 \
-  log1 \
-  nodup_set \
-  thread_insert \
-  # Comment to terminate list so the previous line can end with a slash
-  # Don't include log2 log3 log4 log5 since they are covered by all.recover
-
-$(patsubst %,test_%.bdbrun,$(NO_VGRIND)): VGRIND=
-$(patsubst %,test_%.bdbrun,$(NO_VGRIND)): BDB_SUPPRESSIONS=
+# Don't include log2 log3 log4 log5 etc since they are covered by all.recover
 
 # Don't run valgrind on the groupcommit performance tests
 test_groupcommit_perf.bdbrun test_groupcommit_perf.tdbrun: VGRIND=
@@ -182,7 +135,7 @@ libs:
 	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover
+all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover
 %.recover: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
 	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
