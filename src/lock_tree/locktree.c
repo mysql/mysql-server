@@ -1125,9 +1125,9 @@ static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
         r = toku__border_escalation_trivial(tree, &border_range, &trivial);
         if (r!=0)     { goto cleanup; }
         if (!trivial) { continue; }
-        r = toku__escalate_reads_from_border_range(tree, &border_range);
-        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
         r = toku__escalate_writes_from_border_range(tree, &border_range);
+        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
+        r = toku__escalate_reads_from_border_range(tree, &border_range);
         if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
     }
     r = 0;
