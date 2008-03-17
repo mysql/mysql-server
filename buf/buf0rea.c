@@ -67,7 +67,7 @@ buf_read_page_low(
 	ulint	space,	/* in: space id */
 	ulint	zip_size,/* in: compressed page size, or 0 */
 	ibool	unzip,	/* in: TRUE=request uncompressed page */
-	ib_longlong tablespace_version, /* in: if the space memory object has
+	ib_int64_t tablespace_version, /* in: if the space memory object has
 			this timestamp different from what we are giving here,
 			treat the tablespace as dropped; this is a timestamp we
 			use to stop dangling page reads from a tablespace
@@ -177,7 +177,7 @@ buf_read_ahead_random(
 	ulint	offset)	/* in: page number of a page which the current thread
 			wants to access */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		recent_blocks	= 0;
 	ulint		count;
 	ulint		LRU_recent_limit;
@@ -327,7 +327,7 @@ buf_read_page(
 	ulint	zip_size,/* in: compressed page size in bytes, or 0 */
 	ulint	offset)	/* in: page number */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		count2;
 	ulint		err;
@@ -395,7 +395,7 @@ buf_read_ahead_linear(
 	ulint	offset)	/* in: page number of a page; NOTE: the current thread
 			must want access to this page (see NOTE 3 above) */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
@@ -643,7 +643,7 @@ buf_read_ibuf_merge_pages(
 					to get read in, before this
 					function returns */
 	const ulint*	space_ids,	/* in: array of space ids */
-	const ib_longlong* space_versions,/* in: the spaces must have
+	const ib_int64_t* space_versions,/* in: the spaces must have
 					this version number
 					(timestamp), otherwise we
 					discard the read; we use this
@@ -728,7 +728,7 @@ buf_read_recv_pages(
 	ulint		n_stored)	/* in: number of page numbers
 					in the array */
 {
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 	ulint		count;
 	ulint		err;
 	ulint		i;

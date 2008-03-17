@@ -4656,7 +4656,7 @@ row_search_check_if_query_cache_permitted(
 Read the AUTOINC column from the current row. If the value is less than
 0 and the type is not unsigned then we reset the value to 0. */
 static
-ib_ulonglong
+ib_uint64_t
 row_search_autoinc_read_column(
 /*===========================*/
 					/* out: value read from the column */
@@ -4667,7 +4667,7 @@ row_search_autoinc_read_column(
 {
 	ulint		len;
 	const byte*	data;
-	ib_ulonglong	value;
+	ib_uint64_t	value;
 	mem_heap_t*	heap = NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
@@ -4688,7 +4688,7 @@ row_search_autoinc_read_column(
 		mem_heap_free(heap);
 	}
 
-	if (!unsigned_type && (ib_longlong) value < 0) {
+	if (!unsigned_type && (ib_int64_t) value < 0) {
 		value = 0;
 	}
 
@@ -4727,7 +4727,7 @@ row_search_max_autoinc(
 					column name can't be found in index */
 	dict_index_t*	index,		/* in: index to search */
 	const char*	col_name,	/* in: name of autoinc column */
-	ib_ulonglong*	value)		/* out: AUTOINC value read */
+	ib_uint64_t*	value)		/* out: AUTOINC value read */
 {
 	ulint		i;
 	ulint		n_cols;

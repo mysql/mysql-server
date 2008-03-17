@@ -246,7 +246,7 @@ struct dict_index_struct{
 			indexes;/* list of indexes of the table */
 	btr_search_t*	search_info; /* info used in optimistic searches */
 	/*----------------------*/
-	ib_longlong*	stat_n_diff_key_vals;
+	ib_int64_t*	stat_n_diff_key_vals;
 				/* approximate number of different key values
 				for this index, for each n-column prefix
 				where n <= dict_get_n_unique(index); we
@@ -417,7 +417,7 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /* TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
-	ib_longlong	stat_n_rows;
+	ib_int64_t	stat_n_rows;
 				/* approximate number of rows in the table;
 				we periodically calculate new estimates */
 	ulint		stat_clustered_index_size;
@@ -445,9 +445,9 @@ struct dict_table_struct{
 				/* TRUE if the autoinc counter has been
 				inited; MySQL gets the init value by executing
 				SELECT MAX(auto inc column) */
-	ib_ulonglong	autoinc;/* autoinc counter value to give to the
+	ib_uint64_t	autoinc;/* autoinc counter value to give to the
 				next inserted row */
-	ib_longlong	autoinc_increment;
+	ib_int64_t	autoinc_increment;
 				/* The increment step of the auto increment
 				column. Value must be greater than or equal
 				to 1 */

@@ -559,7 +559,7 @@ struct trx_struct{
 					contains a pointer to the latest file
 					name; this is NULL if binlog is not
 					used */
-	ib_longlong	mysql_log_offset;/* if MySQL binlog is used, this field
+	ib_int64_t	mysql_log_offset;/* if MySQL binlog is used, this field
 					contains the end offset of the binlog
 					entry */
 	os_thread_id_t	mysql_thread_id;/* id of the MySQL thread associated
