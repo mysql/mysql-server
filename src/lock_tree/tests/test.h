@@ -41,12 +41,6 @@ int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
     return x - y;
 }
 
-int charcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
-    int x = *(char*)a->data;
-    int y = *(char*)b->data;
-
-    return x - y;
-}
 
 int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);

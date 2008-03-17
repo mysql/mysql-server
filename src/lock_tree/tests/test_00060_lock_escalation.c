@@ -47,7 +47,8 @@ void init_query(BOOL dups) {
 
 void setup_tree(BOOL dups) {
     num_locks = 0;
-    r = toku_lt_create(&lt, db, dups, dbpanic, &max_locks, &num_locks, intcmp, charcmp,
+    assert(lt == NULL);
+    r = toku_lt_create(&lt, db, dups, dbpanic, &max_locks, &num_locks, intcmp, intcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
