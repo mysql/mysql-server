@@ -192,7 +192,7 @@ void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     int r;
     recover_setup_node(filenum, diskoff, &cf, &node);
     assert(node->height>0);
-    printf("deq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
+    //printf("deq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
     assert(node->local_fingerprint==oldfingerprint);
     bytevec actual_key, actual_data;
     ITEMLEN actual_keylen, actual_datalen;
@@ -220,7 +220,7 @@ void toku_recover_brtenq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     int r;
     recover_setup_node(filenum, diskoff, &cf, &node);
     assert(node->height>0);
-    printf("enq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
+    //printf("enq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
     assert(node->local_fingerprint==oldfingerprint);
     r = toku_fifo_enq(BNC_BUFFER(node, childnum), key.data, key.len, data.data, data.len, typ, xid);
     assert(r==0);
