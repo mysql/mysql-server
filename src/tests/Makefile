@@ -66,7 +66,7 @@ foo:
 	echo ALL_TESTS: $(ALL_TESTS)
 
 .PHONY: check check.bdb check.tdb
-check: check.bdb check.tdb all.recover test_db_assoc3.tdbrun_wasbad
+check: check.bdb check.tdb test_db_assoc3.tdbrun_wasbad
 	@ echo ok $@
 tests: tests.bdb tests.tdb
 	@ echo ok $@
@@ -76,7 +76,7 @@ check.bdb: $(RUN_BDB_TESTS)
 	@ echo ok $@
 tests.tdb: $(TDB_TESTS)
 	@ echo ok $@
-check.tdb: $(RUN_TDB_TESTS)
+check.tdb: $(RUN_TDB_TESTS) all.recover
 	@ echo ok $@
 
 # Need these rule so that Make knows about all the file names
@@ -135,7 +135,10 @@ libs:
 	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover test_log8.recover test_log9.recover
+TLRECOVER = 2 3 4 5 6 7 8 9
+all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER))
+$(patsubst %,test_log%.tdbrun,$(TLRECOVER)):
+	@echo -n
 %.recover: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
 	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
