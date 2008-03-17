@@ -4751,7 +4751,7 @@ int STDCALL mysql_stmt_store_result(MYSQL_STMT *stmt)
   if (!mysql)
   {
     /* mysql can be reset in mysql_close called from mysql_reconnect */
-    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate);
+    set_stmt_error(stmt, CR_SERVER_LOST, unknown_sqlstate, NULL);
     DBUG_RETURN(1);
   }
 
