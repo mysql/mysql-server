@@ -4656,7 +4656,7 @@ row_search_check_if_query_cache_permitted(
 Read the AUTOINC column from the current row. If the value is less than
 0 and the type is not unsigned then we reset the value to 0. */
 static
-ib_longlong
+ib_ulonglong
 row_search_autoinc_read_column(
 /*===========================*/
 					/* out: value read from the column */
@@ -4667,33 +4667,28 @@ row_search_autoinc_read_column(
 {
 	ulint		len;
 	const byte*	data;
-	ib_longlong	value;
+	ib_ulonglong	value;
 	mem_heap_t*	heap = NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets	= offsets_;
 
 	rec_offs_init(offsets_);
 
-	/* TODO: We have to cast away the const of rec for now.  This needs
-	to be fixed later.*/
-	offsets = rec_get_offsets(
-		(rec_t*) rec, index, offsets, ULINT_UNDEFINED, &heap);
+	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-	/* TODO: We have to cast away the const of rec for now.  This needs
-	to be fixed later.*/
-	data = rec_get_nth_field((rec_t*)rec, offsets, col_no, &len);
+	data = rec_get_nth_field(rec, offsets, col_no, &len);
 
 	ut_a(len != UNIV_SQL_NULL);
 	ut_a(len <= sizeof value);
 
 	/* we assume AUTOINC value cannot be negative */
-	value = (ib_longlong) mach_read_int_type(data, len, unsigned_type);
+	value = mach_read_int_type(data, len, unsigned_type);
 
 	if (UNIV_LIKELY_NULL(heap)) {
 		mem_heap_free(heap);
 	}
 
-	if (!unsigned_type && value < 0) {
+	if (!unsigned_type && (ib_longlong) value < 0) {
 		value = 0;
 	}
 
@@ -4732,7 +4727,7 @@ row_search_max_autoinc(
 					column name can't be found in index */
 	dict_index_t*	index,		/* in: index to search */
 	const char*	col_name,	/* in: name of autoinc column */
-	ib_longlong*	value)		/* out: AUTOINC value read */
+	ib_ulonglong*	value)		/* out: AUTOINC value read */
 {
 	ulint		i;
 	ulint		n_cols;
