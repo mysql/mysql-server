@@ -1060,11 +1060,45 @@ cleanup:
     return r;
 }
 
+/* Checks for if a write range conflicts with reads.
+   Supports ranges. */
+static inline int toku__lt_write_range_conflicts_reads(toku_lock_tree* tree,
+                                               DB_TXN* txn, toku_range* query) {
+    int r    = 0;
+    BOOL met = FALSE;
+    toku_rth_start_scan(tree->rth);
+    toku_rt_forest* forest;
+    
+    while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        if (forest->self_read != NULL && forest->hash_key != txn) {
+            r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
+                            &met);
+            if (r!=0) { goto cleanup; }
+            if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
+        }
+    }
+    r = 0;
+cleanup:
+    return r;
+}
+
 static inline int toku__border_escalation_trivial(toku_lock_tree* tree, toku_range* border_range, BOOL* trivial) {
     assert(tree && border_range && trivial);
-    *trivial = TRUE;
-    return 0;
+    int r = ENOSYS;
+
+    toku_range query = *border_range;
+    query.data       = NULL;
+
+    r = toku__lt_write_range_conflicts_reads(tree, border_range->data, &query);
+    if (r == DB_LOCK_NOTGRANTED || r == DB_LOCK_DEADLOCK) { *trivial = FALSE; }
+    else if (r!=0) { goto cleanup; }
+    else { *trivial = TRUE; }
+
+    r = 0;
+cleanup:
+    return r;
 }
+
 static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
     assert(tree && border_range);
     return 0;
@@ -1141,26 +1175,22 @@ cleanup:
     return r;
 }
 
+/* Checks for if a write point conflicts with reads.
+   If mainread exists, it uses a single query, else it uses T queries
+   (one in each selfread).
+   Does not support write ranges.
+*/
 static int toku__lt_write_point_conflicts_reads(toku_lock_tree* tree,
                                                DB_TXN* txn, toku_range* query) {
     int r    = 0;
-    BOOL met = FALSE;
 #if defined(TOKU_RT_NOOVERLAPS)
-    toku_rth_start_scan(tree->rth);
-    toku_rt_forest* forest;
-    
-    while ((forest = toku_rth_next(tree->rth)) != NULL) {
-        if (forest->self_read != NULL && forest->hash_key != txn) {
-            r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
-                            &met);
-            if (r!=0) goto cleanup;
-            if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
-        }
-    }
+    r = toku__lt_write_range_conflicts_reads(tree, txn, query);
+    if (r!=0) { goto cleanup; }    
 #else
+    BOOL met = FALSE;
     toku_range_tree* mainread = tree->mainread; assert(mainread);
     r = toku__lt_meets_peer(tree, query, mainread, FALSE, txn, &met);
-    if (r!=0) goto cleanup;
+    if (r!=0) { goto cleanup; }
     if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
 #endif
     r = 0;
