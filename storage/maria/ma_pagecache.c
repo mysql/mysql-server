@@ -2093,7 +2093,6 @@ restart:
                         PAGE_READ : PAGE_WAIT_TO_BE_READ);
         }
       }
-      pagecache->global_cache_read++;
     }
     else
     {
@@ -2592,6 +2591,7 @@ static void read_block(PAGECACHE *pagecache,
     DBUG_PRINT("read_block",
                ("page to be read by primary request"));
 
+    pagecache->global_cache_read++;
     /* Page is not in buffer yet, is to be read from disk */
     pagecache_pthread_mutex_unlock(&pagecache->cache_lock);
     /*
@@ -3852,11 +3852,14 @@ no_key_cache:
   /* Key cache is not used */
   if (write_mode == PAGECACHE_WRITE_DELAY)
   {
+    /* We can't use mutex here as the key cache may not be initialized */
     pagecache->global_cache_w_requests++;
     pagecache->global_cache_write++;
     if (offset != 0 || size != pagecache->block_size)
     {
       uchar *page_buffer= (uchar *) alloca(pagecache->block_size);
+
+      pagecache->global_cache_read++;
       if ((error= pagecache_fread(pagecache, file,
                                   page_buffer,
                                   pageno,
