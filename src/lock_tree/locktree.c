@@ -122,10 +122,11 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
                    toku__recreate_DBT(&point_2, y->data_payload, y->data_len));
 }
 
-static inline BOOL toku__lt_fraction_ranges_free(toku_lock_tree* tree, u_int32_t denominator) {
-    assert(tree && tree->num_ranges && denominator);
-    return *tree->num_ranges <=
-            tree->max_ranges - (tree->max_ranges / denominator);
+static inline BOOL toku__lt_percent_ranges_free(toku_lock_tree* tree, 
+                                                u_int32_t percent) {
+    assert(tree && tree->num_ranges && (percent <= 100));
+    u_int64_t max_ranges64= tree->max_ranges;
+    return *tree->num_ranges <= max_ranges64 * (100 - percent) / 100;
 }
 
 /* Functions to update the range count and compare it with the
@@ -283,6 +284,12 @@ static inline int toku__lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
 }
 
 
+static inline BOOL toku__dominated(toku_range* query, toku_range* by) {
+    assert(query && by);
+    return (toku__lt_point_cmp(query->left,  by->left) >= 0 &&
+            toku__lt_point_cmp(query->right, by->right) <= 0);
+}
+
 /*
     This function only supports non-overlapping trees.
     Uses the standard definition of dominated from the design document.
@@ -316,8 +323,7 @@ static inline int toku__lt_rt_dominates(toku_lock_tree* tree, toku_range* query,
         return 0;
     }
     assert(numfound == 1);
-    *dominated = (toku__lt_point_cmp(query->left,  buf[0].left) >= 0 &&
-                  toku__lt_point_cmp(query->right, buf[0].right) <= 0);
+    *dominated = toku__dominated(query, &buf[0]);
     return 0;
 }
 
@@ -392,7 +398,8 @@ static inline int toku__lt_meets(toku_lock_tree* tree, toku_range* query,
 
 /* 
     Determines whether 'query' meets 'rt' at txn2 not equal to txn.
-    This function supports all range trees, but queries must be a single point. 
+    This function supports all range trees, but queries must either be a single point,
+    or the range tree is homogenous.
     Uses the standard definition of 'query' meets 'tree' at 'data' from the
     design document.
 */
@@ -400,7 +407,7 @@ static inline int toku__lt_meets_peer(toku_lock_tree* tree, toku_range* query,
                                        toku_range_tree* rt, BOOL is_homogenous,
                                        DB_TXN* self, BOOL* met) {
     assert(tree && query && rt && self && met);
-    assert(query->left == query->right);
+    assert(query->left == query->right || is_homogenous);
 
     const u_int32_t query_size = is_homogenous ? 1 : 2;
     toku_range   buffer[2];
@@ -1071,7 +1078,7 @@ static inline int toku__lt_write_range_conflicts_reads(toku_lock_tree* tree,
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
         if (forest->self_read != NULL && forest->hash_key != txn) {
-            r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
+            r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,///
                             &met);
             if (r!=0) { goto cleanup; }
             if (met)  { r = DB_LOCK_NOTGRANTED; goto cleanup; }
@@ -1082,7 +1089,13 @@ cleanup:
     return r;
 }
 
-static inline int toku__border_escalation_trivial(toku_lock_tree* tree, toku_range* border_range, BOOL* trivial) {
+/*
+    Tests whether a range from BorderWrite is trivially escalatable.
+    i.e. No read locks from other transactions overlap the range.
+*/
+static inline int toku__border_escalation_trivial(toku_lock_tree* tree, 
+                                                  toku_range* border_range, 
+                                                  BOOL* trivial) {
     assert(tree && border_range && trivial);
     int r = ENOSYS;
 
@@ -1099,23 +1112,111 @@ cleanup:
     return r;
 }
 
-static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
-    assert(tree && border_range);
-    return 0;
-}
-static inline int toku__escalate_writes_from_border_range(toku_lock_tree* tree, toku_range* border_range) {
-    assert(tree && border_range);
-    return 0;
+/*  */
+static inline int toku__escalate_writes_from_border_range(toku_lock_tree* tree, 
+                                                          toku_range* border_range) {
+    int r = ENOSYS;
+    if (!tree || !border_range) { r = EINVAL; goto cleanup; }
+    DB_TXN* txn = border_range->data;
+    toku_range_tree* self_write = toku__lt_ifexist_selfwrite(tree, txn);
+    assert(self_write);
+    toku_range query = *border_range;
+    u_int32_t numfound = 0;
+    query.data = NULL;
+
+    /*
+     * Delete all overlapping ranges
+     */
+    r = toku_rt_find(self_write, &query, 0, &tree->buf, &tree->buflen, &numfound);
+    if (r != 0) { goto cleanup; }
+    u_int32_t i;
+    for (i = 0; i < numfound; i++) {
+        r = toku_rt_delete(self_write, &tree->buf[i]);
+        if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
+        /*
+         * Clean up memory that is not referenced by border_range.
+         */
+        if (tree->buf[i].left != tree->buf[i].right &&
+            toku__lt_p_independent(tree->buf[i].left, border_range)) {
+            /* Do not double free if left and right are same point. */
+            toku__p_free(tree, tree->buf[i].left);
+        }
+        if (toku__lt_p_independent(tree->buf[i].right, border_range)) {
+            toku__p_free(tree, tree->buf[i].right);
+        }
+    }
+    
+    /*
+     * Insert border_range into self_write table
+     */
+    r = toku_rt_insert(self_write, border_range);
+    if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
+
+    toku__lt_range_incr(tree, numfound);
+    r = 0;
+cleanup:
+    return r;
 }
 
+static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree, 
+                                                         toku_range* border_range) {
+    int r = ENOSYS;
+    if (!tree || !border_range) { r = EINVAL; goto cleanup; }
+    DB_TXN* txn = border_range->data;
+    toku_range_tree* self_read = toku__lt_ifexist_selfread(tree, txn);
+    if (self_read == NULL) { r = 0; goto cleanup; }
+    toku_range query = *border_range;
+    u_int32_t numfound = 0;
+    query.data = NULL;
+
+    /*
+     * Delete all overlapping ranges
+     */
+    r = toku_rt_find(self_read, &query, 0, &tree->buf, &tree->buflen, &numfound);
+    if (r != 0) { goto cleanup; }
+    u_int32_t i;
+    u_int32_t removed = 0;
+    for (i = 0; i < numfound; i++) {
+        if (!toku__dominated(&tree->buf[0], border_range)) { continue; }
+        r = toku_rt_delete(self_read, &tree->buf[i]);
+        if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
+#if !defined(TOKU_RT_NOOVERLAPS)
+        r = toku_rt_delete(tree->mainread, &tree->buf[i]);
+        if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
+#endif /* TOKU_RT_NOOVERLAPS */
+        removed++;
+        /*
+         * Clean up memory that is not referenced by border_range.
+         */
+        if (tree->buf[i].left != tree->buf[i].right &&
+            toku__lt_p_independent(tree->buf[i].left, border_range)) {
+            /* Do not double free if left and right are same point. */
+            toku__p_free(tree, tree->buf[i].left);
+        }
+        if (toku__lt_p_independent(tree->buf[i].right, border_range)) {
+            toku__p_free(tree, tree->buf[i].right);
+        }
+    }
+    
+    toku__lt_range_decr(tree, removed);
+    r = 0;
+cleanup:
+    return r;
+}
+
+
 /*
- * TODO: implement function
+ * For each range in BorderWrite:
+ *     Check to see if range conflicts any read lock held by other transactions
+ *     Replaces all writes that overlap with range
+ *     Deletes all reads dominated by range
  */
 static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
     int r = ENOSYS;
     if (!tree || !locks_available)      { r = EINVAL; goto cleanup; }
     if (!tree->lock_escalation_allowed) { r = EDOM;   goto cleanup; }
     toku_range_tree* border       = tree->borderwrite;
+    assert(border);
     toku_range       border_range;
     BOOL             found        = FALSE;
     BOOL             trivial      = FALSE;
@@ -1125,6 +1226,10 @@ static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
         r = toku__border_escalation_trivial(tree, &border_range, &trivial);
         if (r!=0)     { goto cleanup; }
         if (!trivial) { continue; }
+        /*
+         * At this point, we determine that escalation is simple,
+         * Attempt escalation
+         */
         r = toku__escalate_writes_from_border_range(tree, &border_range);
         if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
         r = toku__escalate_reads_from_border_range(tree, &border_range);
@@ -1133,7 +1238,8 @@ static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
     r = 0;
     *locks_available = toku__lt_range_test_incr(tree, 0);
     /* Escalation is allowed if 1/10th of the locks (or more) are free. */
-    tree->lock_escalation_allowed = toku__lt_fraction_ranges_free(tree, 10);
+    tree->lock_escalation_allowed = toku__lt_percent_ranges_free(tree,
+                                             TOKU_DISABLE_ESCALATION_THRESHOLD);
 cleanup:
     if (r!=0) {
         if (tree && locks_available) {
@@ -1469,6 +1575,10 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
     if (selfread || selfwrite) toku_rth_delete(tree->rth, txn);
     
     toku__lt_range_decr(tree, ranges);
+
+    if (toku__lt_percent_ranges_free(tree, TOKU_ENABLE_ESCALATION_THRESHOLD)) {
+        tree->lock_escalation_allowed = TRUE;
+    }
 
     return 0;
 }

@@ -30,6 +30,9 @@ typedef enum {
                                    state */
 } TOKU_LT_ERROR;
 
+#define TOKU_DISABLE_ESCALATION_THRESHOLD 10
+#define TOKU_ENABLE_ESCALATION_THRESHOLD  20
+
 /** Convert error codes into a human-readable error message */
 char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
                        __attribute__((const,pure));
