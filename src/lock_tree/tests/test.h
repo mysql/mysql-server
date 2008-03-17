@@ -34,6 +34,19 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
     return key1len-key2len;
 }
 
+int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
+    int x = *(int*)a->data;
+    int y = *(int*)b->data;
+
+    return x - y;
+}
+
+int charcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
+    int x = *(char*)a->data;
+    int y = *(char*)b->data;
+
+    return x - y;
+}
 
 int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
