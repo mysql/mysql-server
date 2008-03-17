@@ -186,9 +186,51 @@ static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf,
     *cf = pair->cf;
 }
 
-void toku_recover_brtdeq (LSN UU(lsn), FILENUM UU(filenum), DISKOFF UU(diskoff), u_int32_t UU(childnum), TXNID UU(xid), u_int32_t UU(typ), BYTESTRING UU(key), BYTESTRING UU(data), u_int32_t UU(oldfingerprint), u_int32_t UU(newfingerprint)) { assert(0); }
+void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING data, u_int32_t oldfingerprint, u_int32_t newfingerprint) {
+    CACHEFILE cf;
+    BRTNODE node;
+    int r;
+    recover_setup_node(filenum, diskoff, &cf, &node);
+    assert(node->height>0);
+    printf("deq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
+    assert(node->local_fingerprint==oldfingerprint);
+    bytevec actual_key, actual_data;
+    ITEMLEN actual_keylen, actual_datalen;
+    u_int32_t actual_type;
+    TXNID   actual_xid;
+    r = toku_fifo_peek_deq(BNC_BUFFER(node, childnum), &actual_key, &actual_keylen, &actual_data, &actual_datalen, &actual_type, &actual_xid);
+    assert(r==0);
+    assert(actual_keylen==(ITEMLEN)key.len);
+    assert(memcmp(actual_key, key.data, actual_keylen)==0);
+    assert(actual_datalen=data.len);
+    assert(memcmp(actual_data, data.data, actual_datalen)==0);
+    assert(actual_type==typ);
+    assert(actual_xid==xid);
+    node->local_fingerprint = newfingerprint;
+    node->log_lsn = lsn;
+    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(data.data);
+}
 
-void toku_recover_brtenq (LSN UU(lsn), FILENUM UU(filenum), DISKOFF UU(diskoff), u_int32_t UU(childnum), TXNID UU(xid), u_int32_t UU(typ), BYTESTRING UU(key), BYTESTRING UU(data), u_int32_t UU(oldfingerprint), u_int32_t UU(newfingerprint)) { assert(0); }
+void toku_recover_brtenq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING data, u_int32_t oldfingerprint, u_int32_t newfingerprint) {
+    CACHEFILE cf;
+    BRTNODE node;
+    int r;
+    recover_setup_node(filenum, diskoff, &cf, &node);
+    assert(node->height>0);
+    printf("enq: expected_old_fingerprint=%08x actual=%08x\n", oldfingerprint, node->local_fingerprint);
+    assert(node->local_fingerprint==oldfingerprint);
+    r = toku_fifo_enq(BNC_BUFFER(node, childnum), key.data, key.len, data.data, data.len, typ, xid);
+    assert(r==0);
+    node->local_fingerprint = newfingerprint;
+    node->log_lsn = lsn;
+    r = toku_cachetable_unpin(cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(data.data);
+}
 
 void toku_recover_addchild (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, DISKOFF child, u_int32_t childfingerprint) {
     CACHEFILE cf;

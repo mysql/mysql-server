@@ -387,7 +387,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	    while (1) {
 		bytevec key, data;
 		unsigned int keylen, datalen;
-		int type;
+		u_int32_t type;
 		TXNID xid;
 		int fr = toku_fifo_peek(from_htab, &key, &keylen, &data, &datalen, &type, &xid);
 		if (fr!=0) break;
@@ -560,7 +560,16 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     DBT *k = cmd->u.id.key;
     DBT *v = cmd->u.id.val;
     //if (debug) printf("%s:%d %*sinserted down child_did_split=%d\n", __FILE__, __LINE__, debug, "", child_did_split);
-    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_cmdstruct(cmd);
+    u_int32_t old_fingerprint = node->local_fingerprint;
+    u_int32_t new_fingerprint = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmdstruct(cmd);
+    node->local_fingerprint = new_fingerprint;
+    {
+	BYTESTRING keybs  = { .len=k->size, .data=(char*)k->data };
+	BYTESTRING databs = { .len=v->size, .data=(char*)v->data };
+	int r = toku_log_brtdeq(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
+				cmd->xid, cmd->type, keybs, databs, old_fingerprint, new_fingerprint);
+	assert(r==0);
+    }
     {
 	int r = toku_fifo_deq(BNC_BUFFER(node,childnum));
 	//printf("%s:%d deleted status=%d\n", __FILE__, __LINE__, r);
@@ -802,7 +811,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
 	ITEMLEN keylen, vallen;
 	//printf("%s:%d Try random_pick, weight=%d \n", __FILE__, __LINE__, BNC_NBYTESINBUF(node, childnum));
 	assert(toku_fifo_n_entries(BNC_BUFFER(node,childnum))>0);
-	int type;
+	u_int32_t type;
 	TXNID xid;
         while(0==toku_fifo_peek(BNC_BUFFER(node,childnum), &key, &keylen, &val, &vallen, &type, &xid)) {
 	    int child_did_split=0; BRTNODE childa, childb;
@@ -1064,9 +1073,14 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
         DBT *v = cmd->u.id.val;
 
 	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
-        int r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	BYTESTRING keybs  = { .len=k->size, .data=(char*)k->data };
+	BYTESTRING databs = { .len=v->size, .data=(char*)v->data };
+	u_int32_t newfingerprint = node->local_fingerprint + node->rand4fingerprint * toku_calccrc32_cmd(type, cmd->xid, k->data, k->size, v->data, v->size);
+	int r=toku_log_brtenq(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, cmd->xid, type, keybs, databs, node->local_fingerprint, newfingerprint);
 	assert(r==0);
-	node->local_fingerprint += node->rand4fingerprint * toku_calccrc32_cmd(type, cmd->xid, k->data, k->size, v->data, v->size);
+        r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	assert(r==0);
+	node->local_fingerprint = newfingerprint;
 	node->u.n.n_bytes_in_buffers += diff;
 	BNC_NBYTESINBUF(node, childnum) += diff;
         node->dirty = 1;

@@ -135,7 +135,7 @@ libs:
 	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-TLRECOVER = 2 3 4 5 6 7 8 9
+TLRECOVER = 2 3 4 5 6 7 8 9 10
 all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER))
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)):
 	@echo -n
