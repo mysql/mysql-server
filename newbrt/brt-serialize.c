@@ -359,8 +359,9 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	}
     } else {
 	int n_in_buf = rbuf_int(&rc);
+        int index_limit = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=toku_pma_create(&result->u.l.buffer, bt_compare, db, filenum, nodesize);
+	r=toku_pma_create(&result->u.l.buffer, bt_compare, db, filenum, nodesize, index_limit);
 	if (r!=0) {
 	    if (0) { died_21: toku_pma_free(&result->u.l.buffer); }
 	    goto died1;
@@ -369,62 +370,29 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
         toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 	toku_verify_counts(result);
-#define BRT_USE_PMA_BULK_INSERT 1
-#if BRT_USE_PMA_BULK_INSERT
-        int index_limit __attribute__((__unused__))= rbuf_int(&rc);
-        if (n_in_buf > 0) {
-#define BRT_BULK_INSERT_MALLOC 1
-#if BRT_BULK_INSERT_MALLOC
-            /* some applications run with small stacks so we malloc the
-               keys and vals structs */
-            size_t n = 2 * n_in_buf * sizeof (DBT);
-            DBT *keys = toku_malloc(n);
-            if (keys == 0) goto died_21;
-            DBT *vals = &keys[n_in_buf];
-#else
-            DBT keys[n_in_buf], vals[n_in_buf];
-#endif
-            for (i=0; i<n_in_buf; i++) {
-                bytevec key; ITEMLEN keylen; 
-                bytevec val; ITEMLEN vallen;
-                // The counts are wrong here
-                int idx __attribute__((__unused__)) = rbuf_int(&rc);
-                rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
-                toku_fill_dbt(&keys[i], key, keylen);
-                rbuf_bytes(&rc, &val, &vallen);
-                toku_fill_dbt(&vals[i], val, vallen);
-                result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
-            }
-            u_int32_t actual_sum = 0;
-            r = toku_pma_bulk_insert((TOKULOGGER)0, (FILENUM){0}, (DISKOFF)0, result->u.l.buffer, keys, vals, n_in_buf, result->rand4fingerprint, &actual_sum, 0);
-            
-#if BRT_BULK_INSERT_MALLOC
-            toku_free_n(keys, n);
-#endif
-            if (r!=0) goto died_21;
-            if (actual_sum!=result->local_fingerprint) {
-                //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
-                return DB_BADFORMAT;
-                goto died_21;
-            } else {
-                //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
-            }
-        }
-#else
+
+	u_int32_t actual_sum = 0;
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
-	    toku_verify_counts(result);
+	    int idx = rbuf_int(&rc);
+	    DBT keydbt, datadbt;
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 	    rbuf_bytes(&rc, &val, &vallen);
-	    {
-		DBT k,v;
-		r = toku_pma_insert(result->u.l.buffer, toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen), 0);
-		if (r!=0) goto died_21;
-	    }
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
+	    r = toku_pma_set_at_index(result->u.l.buffer, idx, toku_fill_dbt(&keydbt, key, keylen), toku_fill_dbt(&datadbt, val, vallen));
+	    actual_sum += result->rand4fingerprint*toku_calccrc32_kvpair(key, keylen, val, vallen);
 	}
-#endif
+            
+	if (r!=0) goto died_21;
+	if (actual_sum!=result->local_fingerprint) {
+	    //fprintf(stderr, "%s:%d Corrupted checksum stored=%08x rand=%08x actual=%08x height=%d n_keys=%d\n", __FILE__, __LINE__, result->rand4fingerprint, result->local_fingerprint, actual_sum, result->height, n_in_buf);
+	    return DB_BADFORMAT;
+	    goto died_21;
+	} else {
+	    //fprintf(stderr, "%s:%d Good checksum=%08x height=%d\n", __FILE__, __LINE__, actual_sum, result->height);
+	}
+	    
 	toku_verify_counts(result);
     }
     {

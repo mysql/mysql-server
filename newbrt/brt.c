@@ -267,7 +267,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	n->u.n.childinfos=0;
 	n->u.n.childkeys=0;
     } else {
-	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, t->db, toku_cachefile_filenum(t->cf), n->nodesize);
+	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, t->db, toku_cachefile_filenum(t->cf), n->nodesize, 0);
         assert(r==0);
         toku_pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
         toku_pma_set_dup_compare(n->u.l.buffer, t->dup_compare);

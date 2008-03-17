@@ -153,7 +153,7 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
     n->local_fingerprint = 0; // nothing there yet
     n->dirty = 1;
     if (height==0) {
-	r=toku_pma_create(&n->u.l.buffer, toku_dont_call_this_compare_fun, null_db, filenum, nodesize);
+	r=toku_pma_create(&n->u.l.buffer, toku_dont_call_this_compare_fun, null_db, filenum, nodesize, 0);
 	assert(r==0);
 	n->u.l.n_bytes_in_buffer=0;
     } else {
@@ -348,6 +348,9 @@ void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(keybs.data, keybs.len, databs.data, databs.len);
     node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + keybs.len + databs.len; 
 
+//    PMA_ITERATE_IDX(node->u.l.buffer, idx, skey, keylen __attribute__((__unused__)), sdata, datalen __attribute__((__unused__)),
+//		    printf("%d: %s %s\n", idx, (char*)skey, (char*)sdata));
+
     VERIFY_COUNTS(node);
 
     node->log_lsn = lsn;
@@ -415,10 +418,13 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
     BRTNODE nodeb = node_vb;      assert(nodeb->height==0);
     {    
 	unsigned int i;
+	//printf("{");
 	for (i=0; i<fromto.size; i++) {
+	    //printf(" {%d %d}", fromto.array[i].a, fromto.array[i].b);
 	    assert(fromto.array[i].a < toku_pma_index_limit(nodea->u.l.buffer));
 	    assert(fromto.array[i].b < toku_pma_index_limit(nodeb->u.l.buffer));
 	}
+	//printf("}\n");
     }
     r = toku_pma_move_indices (nodea->u.l.buffer, nodeb->u.l.buffer, fromto,
 			       nodea->rand4fingerprint, &nodea->local_fingerprint,
@@ -426,6 +432,9 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
 			       &nodea->u.l.n_bytes_in_buffer, &nodeb->u.l.n_bytes_in_buffer
 			       );
     // The bytes in buffer and fingerprint shouldn't change
+
+//    PMA_ITERATE_IDX(nodeb->u.l.buffer, idx, key, keylen __attribute__((__unused__)), data, datalen __attribute__((__unused__)),
+//		    printf("%d: %s %s\n", idx, (char*)key, (char*)data));
 
     VERIFY_COUNTS(nodea);
     VERIFY_COUNTS(nodeb);
@@ -514,12 +523,13 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	FILE *f = fopen(logfiles[i], "r");
 	struct log_entry le;
 	u_int32_t version;
+	//printf("Reading file %s\n", logfiles[i]);
 	r=toku_read_and_print_logmagic(f, &version);
 	assert(r==0 && version==0);
 	r=chdir(data_wd);
 	assert(r==0);
 	while ((r = toku_log_fread(f, &le))==0) {
-	    //printf("%lld: Got cmd %c\n", le.u.commit.lsn.lsn, le.cmd);
+	    //printf("%lld: Got cmd %c\n", (long long)le.u.commit.lsn.lsn, le.cmd);
 	    logtype_dispatch_args(&le, toku_recover_);
 	    entrycount++;
 	}

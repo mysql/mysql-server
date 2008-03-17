@@ -477,7 +477,7 @@ static unsigned int pma_array_size(PMA pma __attribute__((unused)), int asksize)
     return n;
 }
 
-int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM filenum, int maxsize) {
+int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM filenum, int maxsize, int initial_n_pairs /* set to zero to get default. */) {
     int error;
     TAGMALLOC(PMA, result);
     if (result==0) return -1;
@@ -490,7 +490,7 @@ int toku_pma_create(PMA *pma, pma_compare_fun_t compare_fun, DB *db, FILENUM fil
     result->filenum = filenum;
     result->skey = 0;
     result->sval = 0;
-    result->N = PMA_MIN_ARRAY_SIZE;
+    result->N = initial_n_pairs ? initial_n_pairs : PMA_MIN_ARRAY_SIZE;
     result->pairs = 0;
     {
 	unsigned int n = pma_array_size(result, result->N);

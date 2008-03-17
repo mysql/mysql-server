@@ -48,6 +48,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 					   toku_default_compare_fun, toku_default_compare_fun,
 					   (DB*)0, (FILENUM){0});
     assert(r==0);
+    assert(n!=0);
     printf("brtnode\n");
     printf(" nodesize    =%u\n", n->nodesize);
     printf(" sizeonddisk =%d\n", toku_serialize_brtnode_size(n));
@@ -107,6 +108,7 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	printf(" items_in_buffer  =%d\n", toku_pma_n_entries(n->u.l.buffer));
 	PMA_ITERATE_IDX(n->u.l.buffer, idx, key, keylen, data, datalen,
 			({
+			  printf("%d: ", idx);
 			  print_item(key, keylen);
 			  printf(" ");
 			  print_item(data, datalen);

@@ -35,7 +35,9 @@ static void make_db (void) {
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
+#ifdef TOKUDB
     r=env->set_lk_max_locks(env, 2*maxcount); CKERR(r);
+#endif
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
@@ -58,6 +60,13 @@ static void make_db (void) {
 	key.data  = hello; key.size=strlen(hello)+1;
 	data.data = there; data.size=strlen(there)+1;
 	r=db->put(db, tid, &key, &data, 0);  assert(r==0);
+#ifndef TOKUDB
+	// BDB cannot handle this huge transaction even with a lot of locks.
+	if (i%1000==599) {
+	    r=tid->commit(tid, 0);    assert(r==0);
+	    r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
+	}
+#endif
     }
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
