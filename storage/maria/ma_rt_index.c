@@ -15,6 +15,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "maria_def.h"
+#include "trnman.h"
+#include "ma_key_recover.h"
 
 #ifdef HAVE_RTREE_KEYS
 
@@ -762,10 +764,14 @@ err1:
 
 int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
 {
+  int res;
   DBUG_ENTER("maria_rtree_insert");
-  DBUG_RETURN((!key_length ||
-               (maria_rtree_insert_level(info, keynr, key, key_length, -1) == -1)) ?
-              -1 : 0);
+  res= - (!key_length ||
+          (maria_rtree_insert_level(info, keynr, key, key_length, -1) == -1));
+  _ma_fast_unlock_key_del(info);
+  /** @todo RECOVERY use a real LSN */
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
+  DBUG_RETURN(res);
 }
 
 
@@ -980,6 +986,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
   my_off_t old_root;
   MARIA_KEYDEF *keyinfo= info->s->keyinfo + keynr;
   MARIA_PINNED_PAGE *page_link, *root_page_link;
+  int res;
   DBUG_ENTER("maria_rtree_delete");
 
   if ((old_root= share->state.key_root[keynr]) == HA_OFFSET_ERROR)
@@ -999,7 +1006,8 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
   case 2: /* empty */
   {
     share->state.key_root[keynr]= HA_OFFSET_ERROR;
-    DBUG_RETURN(0);
+    res= 0;
+    goto err;
   }
   case 0: /* deleted */
   {
@@ -1028,7 +1036,6 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
       last= rt_PAGE_END(share, page_buf);
       for (; k < last; k= rt_PAGE_NEXT_KEY(share, k, key_length, nod_flag))
       {
-        int res;
         if ((res=
              maria_rtree_insert_level(info, keynr, k, key_length,
                                       ReinsertList.pages[i].level)) == -1)
@@ -1049,6 +1056,7 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
           }
         }
       }
+      res= 0;
       my_afree(page_buf);
       page_link->changed= 1;
       if (_ma_dispose(info, ReinsertList.pages[i].offs, 0))
@@ -1078,20 +1086,29 @@ int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
       share->state.key_root[keynr]= new_root;
     }
     info->update= HA_STATE_DELETED;
-    DBUG_RETURN(0);
+    res= 0;
+    goto err;
 
 err1:
-    DBUG_RETURN(-1); /* purecov: inspected */
+    res= -1;
+    goto err; /* purecov: inspected */
   }
   case 1:                                     /* not found */
   {
     my_errno= HA_ERR_KEY_NOT_FOUND;
-    DBUG_RETURN(-1); /* purecov: inspected */
+    res= -1;
+    goto err; /* purecov: inspected */
   }
   default:
   case -1:                                    /* error */
-    DBUG_RETURN(-1); /* purecov: inspected */
+    res= -1;
+    goto err; /* purecov: inspected */
   }
+err:
+  _ma_fast_unlock_key_del(info);
+  /** @todo RECOVERY use a real LSN */
+  _ma_unpin_all_pages_and_finalize_row(info, LSN_IMPOSSIBLE);
+  DBUG_RETURN(res);
 }
 
 
