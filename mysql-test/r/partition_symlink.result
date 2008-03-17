@@ -81,6 +81,13 @@ Got one of the listed errors
 DROP DATABASE mysqltest2;
 USE test;
 DROP USER mysqltest_1@localhost;
+create table t2 (i int )
+partition by range (i)
+(
+partition p01 values less than (1000)
+data directory="MYSQLTEST_VARDIR/tmp"
+    index directory="MYSQLTEST_VARDIR/tmp"
+);
 set @org_mode=@@sql_mode;
 set @@sql_mode='NO_DIR_IN_CREATE';
 select @@sql_mode;

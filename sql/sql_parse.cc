@@ -2354,13 +2354,13 @@ mysql_execute_command(THD *thd)
 
     if (test_if_data_home_dir(lex->create_info.data_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
       res= -1;
       break;
     }
     if (test_if_data_home_dir(lex->create_info.index_file_name))
     {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
       res= -1;
       break;
     }
