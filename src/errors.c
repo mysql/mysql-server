@@ -33,7 +33,7 @@ static void toku__ydb_error_file(const DB_ENV *env, BOOL use_stderr,
     /* Print out on a file */
     if (efile) {
         if (env->i->errpfx) fprintf(efile, "%s: ", env->i->errpfx);
-	fprintf(efile, ": %s", errmsg);
+	fprintf(efile, "%s", errmsg);
     }
 }
 
@@ -96,7 +96,7 @@ int toku_ydb_do_error (const DB_ENV *dbenv, int error, const char *fmt, ...) {
     if (toku_logger_panicked(dbenv->i->logger)) dbenv->i->is_panicked=1;
     va_list ap;
     va_start(ap, fmt);
-    toku_ydb_error_all_cases(dbenv, error, TRUE, FALSE, fmt, ap);
+    toku_ydb_error_all_cases(dbenv, error, FALSE, FALSE, fmt, ap);
     va_end(ap);
     return error;
 }
@@ -114,7 +114,7 @@ void toku_locked_env_err(const DB_ENV * env, int error, const char *fmt, ...) {
     toku_ydb_lock();
     va_list ap;
     va_start(ap, fmt);
-    toku_ydb_error_all_cases(env, error, TRUE, TRUE, fmt, ap);
+    toku_ydb_error_all_cases(env, error, FALSE, TRUE, fmt, ap);
     va_end(ap);
     toku_ydb_unlock();
 }
