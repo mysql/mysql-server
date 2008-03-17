@@ -30,7 +30,7 @@ else
  endif
  BDB_LDFLAGS += -lpthread
  TDB_LOADLIBES = -L.. -ltokudb -Wl,-rpath,.. -lpthread
- VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
+ VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=full --show-reachable=yes
  HGRIND=valgrind --quiet --tool=helgrind
 endif
 ifeq ($(VGRIND),)

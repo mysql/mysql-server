@@ -46,7 +46,8 @@ void *do_inserts(void *arg) {
     }
     
     if (verbose) printf("%lu:%u:do_inserts:end\n", (unsigned long)pthread_self(), getmyid());
-    if (mywork->do_exit) pthread_exit(arg);
+    // Don't call pthread_exit(), since it has a memory leak.
+    // if (mywork->do_exit) pthread_exit(arg);
     return 0;
 }
 
