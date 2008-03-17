@@ -70,7 +70,7 @@ struct sync_cell_struct {
 	ibool		waiting;	/* TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
-	ib_longlong	signal_count;	/* We capture the signal_count
+	ib_int64_t	signal_count;	/* We capture the signal_count
 					of the wait_object when we
 					reset the event. This value is
 					then passed on to os_event_wait
@@ -297,7 +297,7 @@ sync_array_validate(
 /***********************************************************************
 Puts the cell event in reset state. */
 static
-ib_longlong
+ib_int64_t
 sync_cell_event_reset(
 /*==================*/
 				/* out: value of signal_count

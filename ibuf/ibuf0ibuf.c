@@ -1999,7 +1999,7 @@ ibuf_get_merge_page_nos(
 	rec_t*		rec,	/* in: record from which we read up and down
 				in the chain of records */
 	ulint*		space_ids,/* in/out: space id's of the pages */
-	ib_longlong*	space_versions,/* in/out: tablespace version
+	ib_int64_t*	space_versions,/* in/out: tablespace version
 				timestamps; used to prevent reading in old
 				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/* in/out: buffer for at least
@@ -2178,7 +2178,7 @@ ibuf_contract_ext(
 	ibool		all_trees_empty;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_longlong	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	ulint		sum_sizes;
 	mtr_t		mtr;
@@ -2636,7 +2636,7 @@ ibuf_insert_low(
 	ulint		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_longlong	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	ulint		bits;

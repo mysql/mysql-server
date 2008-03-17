@@ -2992,7 +2992,7 @@ btr_cur_add_path_info(
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 				/* out: estimated number of rows */
@@ -3010,7 +3010,7 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged;
 	ibool		diverged_lot;
 	ulint		divergence_level;
-	ib_longlong	n_rows;
+	ib_int64_t	n_rows;
 	ulint		i;
 	mtr_t		mtr;
 
@@ -3153,7 +3153,7 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
-	ib_longlong*	n_diff;
+	ib_int64_t*	n_diff;
 	ulint		not_empty_flag	= 0;
 	ulint		total_external_size = 0;
 	ulint		i;
@@ -3170,7 +3170,7 @@ btr_estimate_number_of_different_key_vals(
 
 	n_cols = dict_index_get_n_unique(index);
 
-	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_longlong));
+	n_diff = mem_zalloc((n_cols + 1) * sizeof(ib_int64_t));
 
 	/* We sample some pages in the index to get an estimate */
 
@@ -3273,7 +3273,7 @@ btr_estimate_number_of_different_key_vals(
 	for (j = 0; j <= n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= ((n_diff[j]
-			    * (ib_longlong)index->stat_n_leaf_pages
+			    * (ib_int64_t)index->stat_n_leaf_pages
 			    + BTR_KEY_VAL_ESTIMATE_N_PAGES - 1
 			    + total_external_size
 			    + not_empty_flag)

@@ -43,7 +43,7 @@ up to this position. If .._pos is -1, it means no crash recovery was needed,
 or there was no master log position info inside InnoDB. */
 
 UNIV_INTERN char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-UNIV_INTERN ib_longlong	trx_sys_mysql_master_log_pos	= -1;
+UNIV_INTERN ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
 
 /* If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
@@ -51,7 +51,7 @@ here. If .._pos is -1, it means there was no binlog position info inside
 InnoDB. */
 
 UNIV_INTERN char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
-UNIV_INTERN ib_longlong	trx_sys_mysql_bin_log_pos	= -1;
+UNIV_INTERN ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
 
 
 /********************************************************************
@@ -605,7 +605,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/* in: MySQL log file name */
-	ib_longlong	offset,	/* in: position in that log file */
+	ib_int64_t	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/* in: mtr */
@@ -725,8 +725,8 @@ trx_sys_print_mysql_binlog_offset(void)
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
-		= (((ib_longlong)trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (ib_longlong)trx_sys_mysql_bin_log_pos_low;
+		= (((ib_int64_t)trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (ib_int64_t)trx_sys_mysql_bin_log_pos_low;
 
 	ut_memcpy(trx_sys_mysql_bin_log_name,
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
@@ -786,10 +786,10 @@ trx_sys_print_mysql_master_log_pos(void)
 		  TRX_SYS_MYSQL_LOG_NAME_LEN);
 
 	trx_sys_mysql_master_log_pos
-		= (((ib_longlong) mach_read_from_4(
+		= (((ib_int64_t) mach_read_from_4(
 			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_longlong) mach_read_from_4(
+		+ ((ib_int64_t) mach_read_from_4(
 			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
 			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
@@ -912,7 +912,7 @@ trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	trx_sysf_t*	sys_header;
-	ib_longlong	rows_to_undo	= 0;
+	ib_int64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
 	trx_t*		trx;
 	mtr_t		mtr;

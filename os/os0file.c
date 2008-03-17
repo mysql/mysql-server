@@ -680,8 +680,8 @@ next_file:
 
 		strcpy(info->name, (char *) lpFindFileData->cFileName);
 
-		info->size = (ib_longlong)(lpFindFileData->nFileSizeLow)
-			+ (((ib_longlong)(lpFindFileData->nFileSizeHigh))
+		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
+			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
 			   << 32);
 
 		if (lpFindFileData->dwFileAttributes
@@ -781,7 +781,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_longlong)statinfo.st_size;
+	info->size = (ib_int64_t)statinfo.st_size;
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;
@@ -1669,9 +1669,9 @@ os_file_get_size(
 }
 
 /***************************************************************************
-Gets file size as a 64-bit integer ib_longlong. */
+Gets file size as a 64-bit integer ib_int64_t. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 os_file_get_size_as_iblonglong(
 /*===========================*/
 				/* out: size in bytes, -1 if error */
@@ -1688,7 +1688,7 @@ os_file_get_size_as_iblonglong(
 		return(-1);
 	}
 
-	return((((ib_longlong)size_high) << 32) + (ib_longlong)size);
+	return((((ib_int64_t)size_high) << 32) + (ib_int64_t)size);
 }
 
 /***************************************************************************
@@ -1705,8 +1705,8 @@ os_file_set_size(
 				size */
 	ulint		size_high)/* in: most significant 32 bits of size */
 {
-	ib_longlong	current_size;
-	ib_longlong	desired_size;
+	ib_int64_t	current_size;
+	ib_int64_t	desired_size;
 	ibool		ret;
 	byte*		buf;
 	byte*		buf2;
@@ -1715,7 +1715,7 @@ os_file_set_size(
 	ut_a(size == (size & 0xFFFFFFFF));
 
 	current_size = 0;
-	desired_size = (ib_longlong)size + (((ib_longlong)size_high) << 32);
+	desired_size = (ib_int64_t)size + (((ib_int64_t)size_high) << 32);
 
 	/* Write up to 1 megabyte at a time. */
 	buf_size = ut_min(64, (ulint) (desired_size / UNIV_PAGE_SIZE))
@@ -1728,7 +1728,7 @@ os_file_set_size(
 	/* Write buffer full of zeros */
 	memset(buf, 0, buf_size);
 
-	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_int64_t)(100 * 1024 * 1024)) {
 
 		fprintf(stderr, "InnoDB: Progress in MB:");
 	}
@@ -1736,7 +1736,7 @@ os_file_set_size(
 	while (current_size < desired_size) {
 		ulint	n_bytes;
 
-		if (desired_size - current_size < (ib_longlong) buf_size) {
+		if (desired_size - current_size < (ib_int64_t) buf_size) {
 			n_bytes = (ulint) (desired_size - current_size);
 		} else {
 			n_bytes = buf_size;
@@ -1752,18 +1752,18 @@ os_file_set_size(
 		}
 
 		/* Print about progress for each 100 MB written */
-		if ((ib_longlong) (current_size + n_bytes) / (ib_longlong)(100 * 1024 * 1024)
-		    != current_size / (ib_longlong)(100 * 1024 * 1024)) {
+		if ((ib_int64_t) (current_size + n_bytes) / (ib_int64_t)(100 * 1024 * 1024)
+		    != current_size / (ib_int64_t)(100 * 1024 * 1024)) {
 
 			fprintf(stderr, " %lu00",
 				(ulong) ((current_size + n_bytes)
-					 / (ib_longlong)(100 * 1024 * 1024)));
+					 / (ib_int64_t)(100 * 1024 * 1024)));
 		}
 
 		current_size += n_bytes;
 	}
 
-	if (desired_size >= (ib_longlong)(100 * 1024 * 1024)) {
+	if (desired_size >= (ib_int64_t)(100 * 1024 * 1024)) {
 
 		fprintf(stderr, "\n");
 	}

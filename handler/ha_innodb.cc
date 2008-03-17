@@ -2029,7 +2029,7 @@ retry:
 		}
 
 		trx->mysql_log_file_name = mysql_bin_log_file_name();
-		trx->mysql_log_offset = (ib_longlong) mysql_bin_log_file_pos();
+		trx->mysql_log_offset = (ib_int64_t) mysql_bin_log_file_pos();
 
 		innobase_commit_low(trx);
 
@@ -2171,7 +2171,7 @@ innobase_rollback_to_savepoint(
 				whose transaction should be rolled back */
 	void*	savepoint)	/* in: savepoint data */
 {
-	ib_longlong	mysql_binlog_cache_pos;
+	ib_int64_t	mysql_binlog_cache_pos;
 	int		error = 0;
 	trx_t*		trx;
 	char		name[64];
@@ -2269,7 +2269,7 @@ innobase_savepoint(
 	char name[64];
 	longlong2str((ulint)savepoint,name,36);
 
-	error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
+	error = (int) trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
@@ -5250,7 +5250,7 @@ ha_innobase::create(
 	char		name2[FN_REFLEN];
 	char		norm_name[FN_REFLEN];
 	THD*		thd = ha_thd();
-	ib_longlong	auto_inc_value;
+	ib_int64_t	auto_inc_value;
 	ulint		flags;
 	/* Cache the value of innodb_file_format, in case it is
 	modified by another thread while the table is being created. */
@@ -5953,7 +5953,7 @@ ha_innobase::records_in_range(
 					+ table->s->max_key_length + 100;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
-	ib_longlong	n_rows;
+	ib_int64_t	n_rows;
 	ulint		mode1;
 	ulint		mode2;
 	mem_heap_t*	heap;
@@ -6156,7 +6156,7 @@ ha_innobase::info(
 	dict_table_t*	ib_table;
 	dict_index_t*	index;
 	ha_rows		rec_per_key;
-	ib_longlong	n_rows;
+	ib_int64_t	n_rows;
 	ulong		j;
 	ulong		i;
 	char		path[FN_REFLEN];
@@ -8108,7 +8108,7 @@ UNIV_INTERN
 ulonglong
 ha_innobase::get_mysql_bin_log_pos()
 {
-	/* trx... is ib_longlong, which is a typedef for a 64-bit integer
+	/* trx... is ib_int64_t, which is a typedef for a 64-bit integer
 	(__int64 or longlong) so it's ok to cast it to ulonglong. */
 
 	return(trx_sys_mysql_bin_log_pos);

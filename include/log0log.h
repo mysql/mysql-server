@@ -46,7 +46,7 @@ ulint
 log_calc_where_lsn_is(
 /*==================*/
 						/* out: log file number */
-	ib_longlong*	log_file_offset,	/* out: offset in that file
+	ib_int64_t*	log_file_offset,	/* out: offset in that file
 						(including the header) */
 	ib_uint64_t	first_header_lsn,	/* in: first log file start
 						lsn */
@@ -54,7 +54,7 @@ log_calc_where_lsn_is(
 						determine */
 	ulint		n_log_files,		/* in: total number of log
 						files */
-	ib_longlong	log_file_size);		/* in: log file size
+	ib_int64_t	log_file_size);		/* in: log file size
 						(including the header) */
 /****************************************************************
 Writes to the log the string given. The log must be released with
