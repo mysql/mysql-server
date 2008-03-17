@@ -2602,7 +2602,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 
   if (!(stmt=find_prepared_statement(thd, stmt_id,
                                      "mysql_stmt_send_long_data")))
-    DBUG_VOID_RETURN;
+    goto out;
 
   param_number= uint2korr(packet);
   packet+= 2;
