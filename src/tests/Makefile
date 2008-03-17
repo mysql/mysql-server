@@ -135,7 +135,7 @@ libs:
 	$(SETTOKUENV) cc  -DENVDIR=\"dir.$<.tdb\" -DUSE_TDB -DIS_TDB=1 $(CFLAGS) $(TDB_CPPFLAGS) $(TDB_LOADLIBES) $< -o $@
 
 .PHONY: %.recover
-all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover
+all.recover: test_log2.recover test_log3.recover test_log4.recover test_log5.recover test_log6.recover test_log7.recover test_log8.recover test_log9.recover
 %.recover: %.tdb
 	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$<
 	$(MAYBEATSIGN) $(SETTOKUENV) rm -rf dir.$(patsubst %.tdb,%.c.tdb,$<).recover
