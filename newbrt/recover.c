@@ -302,7 +302,7 @@ void toku_recover_changechildfingerprint (LSN lsn, FILENUM filenum, DISKOFF disk
     assert(r==0);
     BRTNODE node = node_v;
     assert(node->height>0);
-    assert((signed)childnum < node->u.n.n_children);
+    assert((signed)childnum <= node->u.n.n_children); // we allow the childnum to be one too large.
     BNC_SUBTREE_FINGERPRINT(node, childnum) = newfingerprint;
     node->log_lsn = lsn;
     r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
