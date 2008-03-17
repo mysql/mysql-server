@@ -421,7 +421,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 /***********************************************************************
 Estimates the number of rows in a given index range. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 				/* out: estimated number of rows */

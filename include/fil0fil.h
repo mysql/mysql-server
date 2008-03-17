@@ -133,7 +133,7 @@ extern ulint	fil_n_pending_tablespace_flushes;
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 fil_space_get_version(
 /*==================*/
 			/* out: version number, -1 if the tablespace does not
@@ -503,7 +503,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 				/* out: TRUE if does not exist or is being\
 				deleted */
 	ulint		id,	/* in: space id */
-	ib_longlong	version);/* in: tablespace_version should be this; if
+	ib_int64_t	version);/* in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 /***********************************************************************

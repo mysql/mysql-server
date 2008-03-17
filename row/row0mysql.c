@@ -836,7 +836,7 @@ row_update_statistics_if_needed(
 	a counter table which is very small and updated very often. */
 
 	if (counter > 2000000000
-	    || ((ib_longlong)counter > 16 + table->stat_n_rows / 16)) {
+	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
 
 		dict_update_statistics(table);
 	}

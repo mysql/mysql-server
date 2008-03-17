@@ -334,7 +334,7 @@ static ulint	srv_n_rows_read_old		= 0;
 
 UNIV_INTERN ulint		srv_n_lock_wait_count		= 0;
 UNIV_INTERN ulint		srv_n_lock_wait_current_count	= 0;
-UNIV_INTERN ib_longlong	srv_n_lock_wait_time		= 0;
+UNIV_INTERN ib_int64_t	srv_n_lock_wait_time		= 0;
 UNIV_INTERN ulint		srv_n_lock_max_wait_time	= 0;
 
 
@@ -1363,8 +1363,8 @@ srv_suspend_mysql_thread(
 	trx_t*		trx;
 	ulint		had_dict_lock;
 	ibool		was_declared_inside_innodb	= FALSE;
-	ib_longlong	start_time			= 0;
-	ib_longlong	finish_time;
+	ib_int64_t	start_time			= 0;
+	ib_int64_t	finish_time;
 	ulint		diff_time;
 	ulint		sec;
 	ulint		ms;
@@ -1414,7 +1414,7 @@ srv_suspend_mysql_thread(
 		srv_n_lock_wait_current_count++;
 
 		ut_usectime(&sec, &ms);
-		start_time = (ib_longlong)sec * 1000000 + ms;
+		start_time = (ib_int64_t)sec * 1000000 + ms;
 	}
 	/* Wake the lock timeout monitor thread, if it is suspended */
 
@@ -1478,7 +1478,7 @@ srv_suspend_mysql_thread(
 
 	if (thr->lock_state == QUE_THR_LOCK_ROW) {
 		ut_usectime(&sec, &ms);
-		finish_time = (ib_longlong)sec * 1000000 + ms;
+		finish_time = (ib_int64_t)sec * 1000000 + ms;
 
 		diff_time = (ulint) (finish_time - start_time);
 

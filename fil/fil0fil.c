@@ -119,9 +119,9 @@ struct fil_node_struct {
 				/* count of pending flushes on this file;
 				closing of the file is not allowed if
 				this is > 0 */
-	ib_longlong	modification_counter;/* when we write to the file we
+	ib_int64_t	modification_counter;/* when we write to the file we
 				increment this by one */
-	ib_longlong	flush_counter;/* up to what modification_counter value
+	ib_int64_t	flush_counter;/* up to what modification_counter value
 				we have flushed the modifications to disk */
 	UT_LIST_NODE_T(fil_node_t) chain;
 				/* link field for the file chain */
@@ -137,7 +137,7 @@ struct fil_space_struct {
 	char*		name;	/* space name = the path to the first file in
 				it */
 	ulint		id;	/* space id */
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 				/* in DISCARD/IMPORT this timestamp is used to
 				check if we should ignore an insert buffer
 				merge request for a page because it actually
@@ -230,7 +230,7 @@ struct fil_system_struct {
 	ulint		n_open;		/* number of files currently open */
 	ulint		max_n_open;	/* n_open is not allowed to exceed
 					this */
-	ib_longlong	modification_counter;/* when we write to a file we
+	ib_int64_t	modification_counter;/* when we write to a file we
 					increment this by one */
 	ulint		max_assigned_id;/* maximum space id in the existing
 					tables, or assigned during the time
@@ -238,7 +238,7 @@ struct fil_system_struct {
 					startup we scan the data dictionary
 					and set here the maximum of the
 					space id's of the tables there */
-	ib_longlong	tablespace_version;
+	ib_int64_t	tablespace_version;
 					/* a counter which is incremented for
 					every space object memory creation;
 					every space mem object gets a
@@ -394,7 +394,7 @@ fil_space_get_by_name(
 /***********************************************************************
 Returns the version number of a tablespace, -1 if not found. */
 UNIV_INTERN
-ib_longlong
+ib_int64_t
 fil_space_get_version(
 /*==================*/
 			/* out: version number, -1 if the tablespace does not
@@ -403,7 +403,7 @@ fil_space_get_version(
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
-	ib_longlong	version		= -1;
+	ib_int64_t	version		= -1;
 
 	ut_ad(system);
 
@@ -606,7 +606,7 @@ fil_node_open_file(
 	fil_system_t*	system,	/* in: tablespace memory cache */
 	fil_space_t*	space)	/* in: space */
 {
-	ib_longlong	size_bytes;
+	ib_int64_t	size_bytes;
 	ulint		size_low;
 	ulint		size_high;
 	ibool		ret;
@@ -649,8 +649,8 @@ fil_node_open_file(
 
 		os_file_get_size(node->handle, &size_low, &size_high);
 
-		size_bytes = (((ib_longlong)size_high) << 32)
-			+ (ib_longlong)size_low;
+		size_bytes = (((ib_int64_t)size_high) << 32)
+			+ (ib_int64_t)size_low;
 #ifdef UNIV_HOTBACKUP
 		node->size = (ulint) (size_bytes / UNIV_PAGE_SIZE);
 		/* TODO: adjust to zip_size, like below? */
@@ -2814,8 +2814,8 @@ fil_reset_too_high_lsns(
 	byte*		buf2;
 	ib_uint64_t	flush_lsn;
 	ulint		space_id;
-	ib_longlong	file_size;
-	ib_longlong	offset;
+	ib_int64_t	file_size;
+	ib_int64_t	offset;
 	ulint		zip_size;
 	ibool		success;
 
@@ -3123,7 +3123,7 @@ fil_load_single_table_tablespace(
 	ulint		flags;
 	ulint		size_low;
 	ulint		size_high;
-	ib_longlong	size;
+	ib_int64_t	size;
 #ifdef UNIV_HOTBACKUP
 	fil_space_t*	space;
 #endif
@@ -3243,7 +3243,7 @@ fil_load_single_table_tablespace(
 	/* Every .ibd file is created >= 4 pages in size. Smaller files
 	cannot be ok. */
 
-	size = (((ib_longlong)size_high) << 32) + (ib_longlong)size_low;
+	size = (((ib_int64_t)size_high) << 32) + (ib_int64_t)size_low;
 #ifndef UNIV_HOTBACKUP
 	if (size < FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE) {
 		fprintf(stderr,
@@ -3582,7 +3582,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 				/* out: TRUE if does not exist or is being\
 				deleted */
 	ulint		id,	/* in: space id */
-	ib_longlong	version)/* in: tablespace_version should be this; if
+	ib_int64_t	version)/* in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 {
@@ -3601,7 +3601,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 		return(TRUE);
 	}
 
-	if (version != ((ib_longlong)-1)
+	if (version != ((ib_int64_t)-1)
 	    && space->tablespace_version != version) {
 		mutex_exit(&(system->mutex));
 
@@ -4529,7 +4529,7 @@ fil_flush(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	os_file_t	file;
-	ib_longlong	old_mod_counter;
+	ib_int64_t	old_mod_counter;
 
 	mutex_enter(&(system->mutex));
 

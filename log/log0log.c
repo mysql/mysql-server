@@ -505,10 +505,10 @@ log_group_calc_lsn_offset(
 	log_group_t*	group)	/* in: log group */
 {
 	ib_uint64_t	gr_lsn;
-	ib_longlong	gr_lsn_size_offset;
-	ib_longlong	difference;
-	ib_longlong	group_size;
-	ib_longlong	offset;
+	ib_int64_t	gr_lsn_size_offset;
+	ib_int64_t	difference;
+	ib_int64_t	group_size;
+	ib_int64_t	offset;
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
@@ -517,16 +517,16 @@ log_group_calc_lsn_offset(
 
 	gr_lsn = group->lsn;
 
-	gr_lsn_size_offset = (ib_longlong)
+	gr_lsn_size_offset = (ib_int64_t)
 		log_group_calc_size_offset(group->lsn_offset, group);
 
-	group_size = (ib_longlong) log_group_get_capacity(group);
+	group_size = (ib_int64_t) log_group_get_capacity(group);
 
 	if (lsn >= gr_lsn) {
 
-		difference = (ib_longlong) (lsn - gr_lsn);
+		difference = (ib_int64_t) (lsn - gr_lsn);
 	} else {
-		difference = (ib_longlong) (gr_lsn - lsn);
+		difference = (ib_int64_t) (gr_lsn - lsn);
 
 		difference = difference % group_size;
 
@@ -535,7 +535,7 @@ log_group_calc_lsn_offset(
 
 	offset = (gr_lsn_size_offset + difference) % group_size;
 
-	ut_a(offset < (((ib_longlong) 1) << 32)); /* offset must be < 4 GB */
+	ut_a(offset < (((ib_int64_t) 1) << 32)); /* offset must be < 4 GB */
 
 	/* fprintf(stderr,
 	"Offset is %lu gr_lsn_offset is %lu difference is %lu\n",
@@ -552,7 +552,7 @@ ulint
 log_calc_where_lsn_is(
 /*==================*/
 						/* out: log file number */
-	ib_longlong*	log_file_offset,	/* out: offset in that file
+	ib_int64_t*	log_file_offset,	/* out: offset in that file
 						(including the header) */
 	ib_uint64_t	first_header_lsn,	/* in: first log file start
 						lsn */
@@ -560,18 +560,18 @@ log_calc_where_lsn_is(
 						determine */
 	ulint		n_log_files,		/* in: total number of log
 						files */
-	ib_longlong	log_file_size)		/* in: log file size
+	ib_int64_t	log_file_size)		/* in: log file size
 						(including the header) */
 {
-	ib_longlong	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
+	ib_int64_t	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
 	ulint		file_no;
-	ib_longlong	add_this_many;
+	ib_int64_t	add_this_many;
 
 	if (lsn < first_header_lsn) {
 		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * (ib_longlong)n_log_files);
+			/ (capacity * (ib_int64_t)n_log_files);
 		lsn += add_this_many
-			* capacity * (ib_longlong)n_log_files;
+			* capacity * (ib_int64_t)n_log_files;
 	}
 
 	ut_a(lsn >= first_header_lsn);

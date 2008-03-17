@@ -31,7 +31,7 @@ up to this position. If .._pos is -1, it means no crash recovery was needed,
 or there was no master log position info inside InnoDB. */
 
 extern char		trx_sys_mysql_master_log_name[];
-extern ib_longlong	trx_sys_mysql_master_log_pos;
+extern ib_int64_t	trx_sys_mysql_master_log_pos;
 
 /* If this MySQL server uses binary logging, after InnoDB has been inited
 and if it has done a crash recovery, we store the binlog file name and position
@@ -39,7 +39,7 @@ here. If .._pos is -1, it means there was no binlog position info inside
 InnoDB. */
 
 extern char		trx_sys_mysql_bin_log_name[];
-extern ib_longlong	trx_sys_mysql_bin_log_pos;
+extern ib_int64_t	trx_sys_mysql_bin_log_pos;
 
 /* The transaction system */
 extern trx_sys_t*	trx_sys;
@@ -268,7 +268,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/* in: MySQL log file name */
-	ib_longlong	offset,	/* in: position in that log file */
+	ib_int64_t	offset,	/* in: position in that log file */
 	ulint		field,	/* in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr);	/* in: mtr */

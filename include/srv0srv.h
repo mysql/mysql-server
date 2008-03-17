@@ -538,7 +538,7 @@ struct export_var_struct{
 	ulint innodb_pages_written;
 	ulint innodb_row_lock_waits;
 	ulint innodb_row_lock_current_waits;
-	ib_longlong innodb_row_lock_time;
+	ib_int64_t innodb_row_lock_time;
 	ulint innodb_row_lock_time_avg;
 	ulint innodb_row_lock_time_max;
 	ulint innodb_rows_read;

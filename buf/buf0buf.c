@@ -2540,7 +2540,7 @@ buf_page_init_for_read(
 	ulint		space,	/* in: space id */
 	ulint		zip_size,/* in: compressed page size, or 0 */
 	ibool		unzip,	/* in: TRUE=request uncompressed page */
-	ib_longlong	tablespace_version,/* in: prevents reading from a wrong
+	ib_int64_t	tablespace_version,/* in: prevents reading from a wrong
 				version of the tablespace in case we have done
 				DISCARD + IMPORT */
 	ulint		offset)	/* in: page number */
