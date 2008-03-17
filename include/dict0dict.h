@@ -179,12 +179,12 @@ void
 dict_table_autoinc_initialize(
 /*==========================*/
 	dict_table_t*	table,	/* in/out: table */
-	ib_longlong	value);	/* in: next value to assign to a row */
+	ib_ulonglong	value);	/* in: next value to assign to a row */
 /************************************************************************
 Reads the next autoinc value (== autoinc counter value), 0 if not yet
 initialized. */
 UNIV_INTERN
-ib_longlong
+ib_ulonglong
 dict_table_autoinc_read(
 /*====================*/
 					/* out: value for a new row, or 0 */
@@ -198,7 +198,7 @@ dict_table_autoinc_update(
 /*======================*/
 
 	dict_table_t*	table,	/* in/out: table */
-	ib_longlong	value);	/* in: value which was assigned to a row */
+	ib_ulonglong	value);	/* in: value which was assigned to a row */
 /************************************************************************
 Release the autoinc lock.*/
 UNIV_INTERN
