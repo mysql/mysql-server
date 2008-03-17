@@ -1177,7 +1177,7 @@ static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree,
     u_int32_t i;
     u_int32_t removed = 0;
     for (i = 0; i < numfound; i++) {
-        if (!toku__dominated(&tree->buf[0], border_range)) { continue; }
+        if (!toku__dominated(&tree->buf[i], border_range)) { continue; }
         r = toku_rt_delete(self_read, &tree->buf[i]);
         if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
 #if !defined(TOKU_RT_NOOVERLAPS)
