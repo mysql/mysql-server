@@ -82,7 +82,7 @@ static void make_db (void) {
     r=db->close(db, 0);  CKERR(r);
     r=env->close(env, 0); CKERR(r);
 
-    for (i=0; i<2; i++)
+    for (i=0; i<1; i++)
 	insert_some(i);
     
     while (items) {

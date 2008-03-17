@@ -21,7 +21,7 @@ typedef struct pma *PMA;
 /* compare 2 DBT's. return a value < 0, = 0, > 0 if a < b, a == b, a > b respectively */
 typedef int (*pma_compare_fun_t)(DB *, const DBT *a, const DBT *b);
 
-int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, DB *, FILENUM filenum, int maxsize);
+int toku_pma_create(PMA *, pma_compare_fun_t compare_fun, DB *, FILENUM filenum, int maxsize, int initial_n_pairs);
 
 int toku_pma_set_compare(PMA pma, pma_compare_fun_t compare_fun);
 
