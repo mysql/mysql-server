@@ -263,4 +263,5 @@ convert_error_code_to_mysql(
 /*========================*/
 				/* out: MySQL error code */
 	int		error,	/* in: InnoDB error code */
+	ulint		flags,	/* in: InnoDB table flags, or 0 */
 	MYSQL_THD	thd);	/* in: user thread handle or NULL */
