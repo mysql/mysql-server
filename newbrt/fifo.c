@@ -84,7 +84,7 @@ int toku_fifo_enq_cmdstruct (FIFO fifo, const BRT_CMD cmd) {
 }
 
 /* peek at the head (the oldest entry) of the fifo */
-int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, int *type, TXNID *xid) {
+int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data, unsigned int *datalen, u_int32_t *type, TXNID *xid) {
     struct fifo_entry *entry = fifo_peek(fifo);
     if (entry == 0) return -1;
     *key = entry->key;
@@ -98,7 +98,7 @@ int toku_fifo_peek(FIFO fifo, bytevec *key, unsigned int *keylen, bytevec *data,
 
 // fill in the BRT_CMD, using the two DBTs for the DBT part.
 int toku_fifo_peek_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
-    int type;
+    u_int32_t type;
     bytevec keyb,datab;
     unsigned int keylen,datalen;
     int r = toku_fifo_peek(fifo, &keyb, &keylen, &datab, &datalen, &type, &cmd->xid);
@@ -118,6 +118,13 @@ int toku_fifo_deq(FIFO fifo) {
     toku_free_n(entry, fifo_entry_size(entry));
     return 0;
 }
+
+int toku_fifo_peek_deq (FIFO fifo, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid) {
+    int r= toku_fifo_peek(fifo, key, keylen, data, datalen, type, xid);
+    if (r==0) return toku_fifo_deq(fifo);
+    else return r;
+}
+
 
 void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {
     struct fifo_entry *entry;
