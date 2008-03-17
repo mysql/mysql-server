@@ -5359,7 +5359,7 @@ ha_innobase::create(
 			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				     ER_ILLEGAL_HA_CREATE_OPTION,
 				     "InnoDB: KEY_BLOCK_SIZE"
-				     " requires innodb_file_format>0.");
+				     " requires innodb_file_format=1.");
 			flags = 0;
 		}
 
