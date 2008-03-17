@@ -540,8 +540,9 @@ static int toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
 
 static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     HANDLE_PANICKED_ENV(dbenv);
-    if (env_opened(dbenv))  return EINVAL;
-    if (!max)               return EINVAL;
+    if (env_opened(dbenv))         { return EINVAL; }
+    if (!max)                      { return EINVAL; }
+    if (max < dbenv->i->num_locks) { return EDOM;   }
     dbenv->i->max_locks = max;
     return 0;
 }
@@ -2029,7 +2030,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     if (need_locktree) {
         r = toku_lt_create(&db->i->lt, db, FALSE,
-                           toku_db_lt_panic, db->dbenv->i->max_locks,
+                           toku_db_lt_panic, &db->dbenv->i->max_locks,
                            &db->dbenv->i->num_locks,
                            db->i->brt->compare_fun, db->i->brt->dup_compare,
                            toku_malloc, toku_free, toku_realloc);

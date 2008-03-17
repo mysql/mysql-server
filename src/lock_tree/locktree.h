@@ -68,7 +68,7 @@ struct __toku_lock_tree {
     toku_range*         buf;      
     u_int32_t           buflen;      /**< The length of buf */
     /** The maximum number of ranges allowed. */
-    u_int32_t           max_ranges;
+    u_int32_t*          max_ranges;
     /** The current number of ranges. */
     u_int32_t*          num_ranges;
     /** Whether lock escalation is allowed. */
@@ -149,7 +149,7 @@ typedef struct __toku_point toku_point;
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   int (*panic)(DB*, int), u_int32_t max_locks,
+                   int (*panic)(DB*, int), u_int32_t* max_locks,
                    u_int32_t* num_locks,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
