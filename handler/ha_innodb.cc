@@ -594,6 +594,7 @@ convert_error_code_to_mysql(
 /*========================*/
 			/* out: MySQL error code */
 	int	error,	/* in: InnoDB error code */
+	ulint	flags,	/* in: InnoDB table flags, or 0 */
 	THD*	thd)	/* in: user thread handle or NULL */
 {
 	switch (error) {
@@ -665,6 +666,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_NO_SUCH_TABLE);
 
 	case DB_TOO_BIG_RECORD:
+		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
+			 page_get_free_space_of_empty(flags
+						      & DICT_TF_COMPACT) / 2);
 		return(HA_ERR_TO_BIG_ROW);
 
 	case DB_NO_SAVEPOINT:
@@ -2122,7 +2126,7 @@ innobase_rollback(
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
 	}
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************
@@ -2153,7 +2157,7 @@ innobase_rollback_trx(
 
 	error = trx_rollback_for_mysql(trx);
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************
@@ -2191,7 +2195,7 @@ innobase_rollback_to_savepoint(
 
 	error = (int) trx_rollback_to_savepoint_for_mysql(trx, name,
 						&mysql_binlog_cache_pos);
-	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************
@@ -2222,7 +2226,7 @@ innobase_release_savepoint(
 
 	error = (int) trx_release_savepoint_for_mysql(trx, name);
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************
@@ -2269,7 +2273,7 @@ innobase_savepoint(
 
 	error = (int) trx_savepoint_for_mysql(trx, name, (ib_longlong)0);
 
-	DBUG_RETURN(convert_error_code_to_mysql(error, NULL));
+	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
 }
 
 /*********************************************************************
@@ -3805,7 +3809,8 @@ set_max_autoinc:
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
-	error = convert_error_code_to_mysql(error, user_thd);
+	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
+					    user_thd);
 
 func_exit:
 	innobase_active_small();
@@ -4037,7 +4042,8 @@ ha_innobase::update_row(
 
 	innodb_srv_conc_exit_innodb(trx);
 
-	error = convert_error_code_to_mysql(error, user_thd);
+	error = convert_error_code_to_mysql(error,
+					    prebuilt->table->flags, user_thd);
 
 	if (error == 0 /* success */
 	    && uvect->n_fields == 0 /* no columns were updated */) {
@@ -4112,7 +4118,8 @@ ha_innobase::delete_row(
 	innodb_srv_conc_exit_innodb(trx);
 
 error_exit:
-	error = convert_error_code_to_mysql(error, user_thd);
+	error = convert_error_code_to_mysql(error,
+					    prebuilt->table->flags, user_thd);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -4447,20 +4454,25 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
-	if (ret == DB_SUCCESS) {
+	switch (ret) {
+	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-
-	} else if (ret == DB_RECORD_NOT_FOUND) {
+		break;
+	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
-
-	} else if (ret == DB_END_OF_INDEX) {
+		break;
+	case DB_END_OF_INDEX:
 		error = HA_ERR_KEY_NOT_FOUND;
 		table->status = STATUS_NOT_FOUND;
-	} else {
-		error = convert_error_code_to_mysql((int) ret, user_thd);
+		break;
+	default:
+		error = convert_error_code_to_mysql((int) ret,
+						    prebuilt->table->flags,
+						    user_thd);
 		table->status = STATUS_NOT_FOUND;
+		break;
 	}
 
 	DBUG_RETURN(error);
@@ -4623,20 +4635,24 @@ ha_innobase::general_fetch(
 
 	innodb_srv_conc_exit_innodb(prebuilt->trx);
 
-	if (ret == DB_SUCCESS) {
+	switch (ret) {
+	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-
-	} else if (ret == DB_RECORD_NOT_FOUND) {
+		break;
+	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
 		table->status = STATUS_NOT_FOUND;
-
-	} else if (ret == DB_END_OF_INDEX) {
+		break;
+	case DB_END_OF_INDEX:
 		error = HA_ERR_END_OF_FILE;
 		table->status = STATUS_NOT_FOUND;
-	} else {
-		error = convert_error_code_to_mysql((int) ret, user_thd);
+		break;
+	default:
+		error = convert_error_code_to_mysql(
+			(int) ret, prebuilt->table->flags, user_thd);
 		table->status = STATUS_NOT_FOUND;
+		break;
 	}
 
 	DBUG_RETURN(error);
@@ -4910,24 +4926,6 @@ ha_innobase::position(
 	}
 }
 
-/*********************************************************************
-If it's a DB_TOO_BIG_RECORD error then set a suitable message to
-return to the client.*/
-inline
-void
-innodb_check_for_record_too_big_error(
-/*==================================*/
-	ulint	comp,	/* in: ROW_FORMAT: nonzero=COMPACT, 0=REDUNDANT */
-	int	error)	/* in: error code to check */
-{
-	if (error == (int)DB_TOO_BIG_RECORD) {
-		ulint	max_row_size
-			= page_get_free_space_of_empty(comp) / 2;
-
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0), max_row_size);
-	}
-}
-
 /* limit innodb monitor access to users with PROCESS privilege.
 See http://bugs.mysql.com/32710 for expl. why we choose PROCESS. */
 #define IS_MAGIC_TABLE_AND_USER_DENIED_ACCESS(table_name, thd) \
@@ -5048,9 +5046,7 @@ create_table_def(
 
 	error = row_create_table_for_mysql(table, trx);
 
-	innodb_check_for_record_too_big_error(flags & DICT_TF_COMPACT, error);
-
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, flags, NULL);
 
 	DBUG_RETURN(error);
 }
@@ -5064,6 +5060,7 @@ create_index(
 	trx_t*		trx,		/* in: InnoDB transaction handle */
 	TABLE*		form,		/* in: information on table
 					columns and indexes */
+	ulint		flags,		/* in: InnoDB table flags */
 	const char*	table_name,	/* in: table name */
 	uint		key_num)	/* in: index number */
 {
@@ -5100,8 +5097,8 @@ create_index(
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
-	index = dict_mem_index_create((char*) table_name, key->name, 0,
-						ind_type, n_fields);
+	index = dict_mem_index_create(table_name, key->name, 0,
+				      ind_type, n_fields);
 
 	field_lengths = (ulint*) my_malloc(sizeof(ulint) * n_fields,
 		MYF(MY_FAE));
@@ -5172,10 +5169,7 @@ create_index(
 	sure we don't create too long indexes. */
 	error = row_create_index_for_mysql(index, trx, field_lengths);
 
-	innodb_check_for_record_too_big_error(form->s->row_type
-					      != ROW_TYPE_REDUNDANT, error);
-
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, flags, NULL);
 
 	my_free(field_lengths, MYF(0));
 
@@ -5190,8 +5184,7 @@ int
 create_clustered_index_when_no_primary(
 /*===================================*/
 	trx_t*		trx,		/* in: InnoDB transaction handle */
-	ulint		comp,		/* in: ROW_FORMAT:
-					nonzero=COMPACT, 0=REDUNDANT */
+	ulint		flags,		/* in: InnoDB table flags */
 	const char*	table_name)	/* in: table name */
 {
 	dict_index_t*	index;
@@ -5205,9 +5198,7 @@ create_clustered_index_when_no_primary(
 
 	error = row_create_index_for_mysql(index, trx, NULL);
 
-	innodb_check_for_record_too_big_error(comp, error);
-
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, flags, NULL);
 
 	return(error);
 }
@@ -5484,8 +5475,7 @@ ha_innobase::create(
 		by InnoDB */
 
 		error = create_clustered_index_when_no_primary(
-			trx, form->s->row_type != ROW_TYPE_REDUNDANT,
-			norm_name);
+			trx, flags, norm_name);
 		if (error) {
 			goto cleanup;
 		}
@@ -5494,7 +5484,7 @@ ha_innobase::create(
 	if (primary_key_no != -1) {
 		/* In InnoDB the clustered index must always be created
 		first */
-		if ((error = create_index(trx, form, norm_name,
+		if ((error = create_index(trx, form, flags, norm_name,
 					  (uint) primary_key_no))) {
 			goto cleanup;
 		}
@@ -5504,7 +5494,8 @@ ha_innobase::create(
 
 		if (i != (uint) primary_key_no) {
 
-			if ((error = create_index(trx, form, norm_name, i))) {
+			if ((error = create_index(trx, form, flags, norm_name,
+						  i))) {
 				goto cleanup;
 			}
 		}
@@ -5515,7 +5506,7 @@ ha_innobase::create(
 			*trx->mysql_query_str, norm_name,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
-		error = convert_error_code_to_mysql(error, NULL);
+		error = convert_error_code_to_mysql(error, flags, NULL);
 
 		if (error) {
 			goto cleanup;
@@ -5600,7 +5591,7 @@ ha_innobase::discard_or_import_tablespace(
 		err = row_import_tablespace_for_mysql(dict_table->name, trx);
 	}
 
-	err = convert_error_code_to_mysql(err, NULL);
+	err = convert_error_code_to_mysql(err, dict_table->flags, NULL);
 
 	DBUG_RETURN(err);
 }
@@ -5637,7 +5628,8 @@ ha_innobase::delete_all_rows(void)
 		goto fallback;
 	}
 
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, prebuilt->table->flags,
+					    NULL);
 
 	DBUG_RETURN(error);
 }
@@ -5726,7 +5718,7 @@ ha_innobase::delete_table(
 
 	trx_free_for_mysql(trx);
 
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, 0, NULL);
 
 	DBUG_RETURN(error);
 }
@@ -5804,13 +5796,6 @@ innobase_drop_database(
 
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
-#ifdef NO_LONGER_INTERESTED_IN_DROP_DB_ERROR
-	error = convert_error_code_to_mysql(error, NULL);
-
-	return(error);
-#else
-	return;
-#endif
 }
 /*************************************************************************
 Renames an InnoDB table. */
@@ -5922,7 +5907,7 @@ ha_innobase::rename_table(
 	innobase_commit_low(trx);
 	trx_free_for_mysql(trx);
 
-	error = convert_error_code_to_mysql(error, NULL);
+	error = convert_error_code_to_mysql(error, 0, NULL);
 
 	DBUG_RETURN(error);
 }
@@ -7056,7 +7041,7 @@ ha_innobase::external_lock(
 
 				if (error != DB_SUCCESS) {
 					error = convert_error_code_to_mysql(
-						(int) error, thd);
+						(int) error, 0, thd);
 					DBUG_RETURN((int) error);
 				}
 			}
@@ -7183,7 +7168,8 @@ ha_innobase::transactional_table_lock(
 		error = row_lock_table_for_mysql(prebuilt, NULL, 0);
 
 		if (error != DB_SUCCESS) {
-			error = convert_error_code_to_mysql((int) error, thd);
+			error = convert_error_code_to_mysql(
+				(int) error, prebuilt->table->flags, thd);
 			DBUG_RETURN((int) error);
 		}
 
@@ -7962,7 +7948,9 @@ ha_innobase::reset_auto_increment(
 	error = row_lock_table_autoinc_for_mysql(prebuilt);
 
 	if (error != DB_SUCCESS) {
-		error = convert_error_code_to_mysql(error, user_thd);
+		error = convert_error_code_to_mysql(error,
+						    prebuilt->table->flags,
+						    user_thd);
 
 		DBUG_RETURN(error);
 	}
