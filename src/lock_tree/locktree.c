@@ -124,8 +124,8 @@ int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
 
 static inline BOOL toku__lt_percent_ranges_free(toku_lock_tree* tree, 
                                                 u_int32_t percent) {
-    assert(tree && tree->num_ranges && (percent <= 100));
-    u_int64_t max_ranges64= tree->max_ranges;
+    assert(tree && tree->max_ranges && tree->num_ranges && (percent <= 100));
+    u_int64_t max_ranges64 = *tree->max_ranges;
     return *tree->num_ranges <= max_ranges64 * (100 - percent) / 100;
 }
 
@@ -135,7 +135,7 @@ static inline BOOL toku__lt_range_test_incr(toku_lock_tree* tree, u_int32_t repl
     assert(tree);
     assert(tree->num_ranges);
     assert(replace <= *tree->num_ranges);
-    return *tree->num_ranges - replace < tree->max_ranges;
+    return *tree->num_ranges - replace < *tree->max_ranges;
 }
 
 static inline void toku__lt_range_incr(toku_lock_tree* tree, u_int32_t replace) {
@@ -924,7 +924,7 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
 }
 
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   int   (*panic)(DB*, int), u_int32_t max_ranges,
+                   int   (*panic)(DB*, int), u_int32_t* max_ranges,
                    u_int32_t* num_ranges,
                    int   (*compare_fun)(DB*,const DBT*,const DBT*),
                    int   (*dup_compare)(DB*,const DBT*,const DBT*),
@@ -933,7 +933,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
                    void* (*user_realloc)(void*, size_t)) {
     if (!ptree || !db || !compare_fun || !dup_compare || !panic ||
         !max_ranges || !num_ranges || !user_malloc || !user_free ||
-        !user_realloc) { return EINVAL; }
+        !user_realloc || !*max_ranges) { return EINVAL; }
     int r;
 
     toku_lock_tree* tmp_tree = (toku_lock_tree*)user_malloc(sizeof(*tmp_tree));

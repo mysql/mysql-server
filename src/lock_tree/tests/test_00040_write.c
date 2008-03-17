@@ -47,7 +47,7 @@ void init_query(BOOL dups) {
 
 void setup_tree(BOOL dups) {
     memcnt = 0;
-    r = toku_lt_create(&lt, db, dups, dbpanic, mem, &memcnt, dbcmp, dbcmp,
+    r = toku_lt_create(&lt, db, dups, dbpanic, &mem, &memcnt, dbcmp, dbcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
