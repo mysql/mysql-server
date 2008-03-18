@@ -27,5 +27,6 @@ int main (int argc, char *argv[]) {
 	fprintf(stderr, "Recovery failed\n");
 	exit(1);
     }
+    toku_malloc_cleanup();
     return 0;
 }

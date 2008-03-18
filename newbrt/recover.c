@@ -198,6 +198,7 @@ void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     ITEMLEN actual_keylen, actual_datalen;
     u_int32_t actual_type;
     TXNID   actual_xid;
+    assert(childnum<(u_int32_t)node->u.n.n_children);
     r = toku_fifo_peek(BNC_BUFFER(node, childnum), &actual_key, &actual_keylen, &actual_data, &actual_datalen, &actual_type, &actual_xid);
     assert(r==0);
     assert(actual_keylen==(ITEMLEN)key.len);
