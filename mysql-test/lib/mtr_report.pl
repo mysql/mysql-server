@@ -388,7 +388,7 @@ sub mtr_report_stats ($) {
                  (/Slave: Can\'t find record in \'user\' Error_code: 1032/
                  )) or
                 # maria-recovery.test has warning about missing log file
-                /Can't get stat of '.*maria_log.00/ or
+                /File '.*maria_log.000.*' not found \(Errcode: 2\)/ or
                 # and about marked-corrupted table
                 /Table '.\/mysqltest\/t1' is crashed, skipping it. Please repair it with maria_chk -r/
 	       )
