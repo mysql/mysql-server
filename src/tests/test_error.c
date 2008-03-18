@@ -83,6 +83,7 @@ int main (int argc, const char *argv[]) {
 		    } else {
 			assert(n_handle_error==0);
 		    }
+		    fclose(read_here);
 		}
 		unlink(errfname);
 	    }
