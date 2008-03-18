@@ -119,11 +119,19 @@ int toku_fifo_deq(FIFO fifo) {
     return 0;
 }
 
-int toku_fifo_peek_deq (FIFO fifo, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid) {
-    int r= toku_fifo_peek(fifo, key, keylen, data, datalen, type, xid);
-    if (r==0) return toku_fifo_deq(fifo);
-    else return r;
-}
+// fill in the BRT_CMD, using the two DBTs for the DBT part.
+//int toku_fifo_peek_deq_cmdstruct (FIFO fifo, BRT_CMD cmd, DBT*key, DBT*data) {
+//    int r = toku_fifo_peek_cmdstruct(fifo, cmd, key, data);
+//    if (r!=0) return r;
+//    return toku_fifo_deq(fifo);
+//}
+
+
+//int toku_fifo_peek_deq (FIFO fifo, bytevec *key, ITEMLEN *keylen, bytevec *data, ITEMLEN *datalen, u_int32_t *type, TXNID *xid) {
+//    int r= toku_fifo_peek(fifo, key, keylen, data, datalen, type, xid);
+//    if (r==0) return toku_fifo_deq(fifo);
+//    else return r;
+//}
 
 
 void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen,int type, TXNID xid, void*), void *arg) {

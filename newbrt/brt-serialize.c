@@ -193,7 +193,8 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	assert((size_t)r==w.ndone);
     }
 
-    //printf("%s:%d w.done=%d r=%d\n", __FILE__, __LINE__, w.ndone, r);
+    if (calculated_size!=w.ndone)
+	printf("%s:%d w.done=%d calculated_size=%d\n", __FILE__, __LINE__, w.ndone, calculated_size);
     assert(calculated_size==w.ndone);
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
