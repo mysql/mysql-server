@@ -2558,8 +2558,10 @@ row_import_tablespace_for_mysql(
 
 	ibuf_delete_for_discarded_space(table->space);
 
-	success = fil_open_single_table_tablespace(TRUE, table->space,
-						   table->flags, table->name);
+	success = fil_open_single_table_tablespace(
+		TRUE, table->space,
+		table->flags == DICT_TF_COMPACT ? 0 : table->flags,
+		table->name);
 	if (success) {
 		table->ibd_file_missing = FALSE;
 		table->tablespace_discarded = FALSE;
@@ -2741,9 +2743,9 @@ row_truncate_table_for_mysql(
 	if (table->space && !table->dir_path_of_temp_table) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
-		ulint	zip_size= fil_space_get_zip_size(space);
+		ulint	flags	= fil_space_get_flags(space);
 
-		if (zip_size != ULINT_UNDEFINED
+		if (flags != ULINT_UNDEFINED
 		    && fil_discard_tablespace(space)) {
 
 			dict_index_t*	index;
@@ -2751,7 +2753,7 @@ row_truncate_table_for_mysql(
 			space = 0;
 
 			if (fil_create_new_single_table_tablespace(
-				    &space, table->name, FALSE, zip_size,
+				    &space, table->name, FALSE, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 				ut_print_timestamp(stderr);
 				fprintf(stderr,
