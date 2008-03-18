@@ -388,7 +388,6 @@ RestoreMetaData::fixBlobs()
     const Uint32 noOfBlobs = t.m_noOfBlobs;
     if (noOfBlobs == 0)
       continue;
-    const Uint32 noOfColumns = t.getNoOfColumns();
     Uint32 n = 0;
     Uint32 j;
     for (j = 0; n < noOfBlobs; j++) {
@@ -567,6 +566,70 @@ RestoreDataIterator::RestoreDataIterator(const RestoreMetaData & md, void (* _fr
 {
   debug << "RestoreDataIterator constructor" << endl;
   setDataFile(md, 0);
+
+  m_bitfield_storage_len = 8192;
+  m_bitfield_storage_ptr = (Uint32*)malloc(4*m_bitfield_storage_len);
+  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
+  m_row_bitfield_len = 0;
+}
+
+RestoreDataIterator::~RestoreDataIterator()
+{
+  free_bitfield_storage();
+}
+
+void
+RestoreDataIterator::init_bitfield_storage(const NdbDictionary::Table* tab)
+{
+  Uint32 len = 0;
+  for (Uint32 i = 0; i<(Uint32)tab->getNoOfColumns(); i++)
+  {
+    if (tab->getColumn(i)->getType() == NdbDictionary::Column::Bit)
+    {
+      len += (tab->getColumn(i)->getLength() + 31) >> 5;
+    }
+  }
+
+  m_row_bitfield_len = len;
+}
+
+void
+RestoreDataIterator::reset_bitfield_storage()
+{
+  m_bitfield_storage_curr_ptr = m_bitfield_storage_ptr;
+}
+
+void
+RestoreDataIterator::free_bitfield_storage()
+{
+  delete [] m_bitfield_storage_ptr;
+  m_bitfield_storage_ptr = 0;
+  m_bitfield_storage_curr_ptr = 0;
+  m_bitfield_storage_len = 0;
+}
+
+Uint32
+RestoreDataIterator::get_free_bitfield_storage() const
+{
+  return (m_bitfield_storage_ptr + m_bitfield_storage_len) - 
+    m_bitfield_storage_curr_ptr;
+}
+
+Uint32*
+RestoreDataIterator::get_bitfield_storage(Uint32 len)
+{
+  Uint32 * currptr = m_bitfield_storage_curr_ptr;
+  Uint32 * nextptr = currptr + len;
+  Uint32 * endptr = m_bitfield_storage_ptr + m_bitfield_storage_len;
+
+  if (nextptr <= endptr)
+  {
+    m_bitfield_storage_curr_ptr = nextptr;
+    return currptr;
+  }
+  
+  abort();
+  return 0;
 }
 
 TupleS & TupleS::operator=(const TupleS& tuple)
@@ -617,9 +680,316 @@ TupleS::prepareRecord(TableS & tab){
   return true;
 }
 
+static
+inline
+Uint8*
+pad(Uint8* src, Uint32 align, Uint32 bitPos)
+{
+  UintPtr ptr = UintPtr(src);
+  switch(align){
+  case DictTabInfo::aBit:
+  case DictTabInfo::a32Bit:
+  case DictTabInfo::a64Bit:
+  case DictTabInfo::a128Bit:
+    return (Uint8*)(((ptr + 3) & ~(UintPtr)3) + 4 * ((bitPos + 31) >> 5));
+charpad:
+  case DictTabInfo::an8Bit:
+  case DictTabInfo::a16Bit:
+    return src + 4 * ((bitPos + 31) >> 5);
+  default:
+#ifdef VM_TRACE
+    abort();
+#endif
+    goto charpad;
+  }
+}
+
+const TupleS *
+RestoreDataIterator::getNextTuple(int  & res)
+{
+  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
+  {
+    if (m_row_bitfield_len >= get_free_bitfield_storage())
+    {
+      /**
+       * Informing buffer reader that it does not need to cache
+       * "old" data here would be clever...
+       * But I can't find a good/easy way to do this
+       */
+      if (free_data_callback)
+        (*free_data_callback)();
+      reset_bitfield_storage();
+    }
+  }
+  
+  Uint32  dataLength = 0;
+  // Read record length
+  if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
+    err << "getNextTuple:Error reading length  of data part" << endl;
+    res = -1;
+    return NULL;
+  } // if
+  
+  // Convert length from network byte order
+  dataLength = ntohl(dataLength);
+  const Uint32 dataLenBytes = 4 * dataLength;
+  
+  if (dataLength == 0) {
+    // Zero length for last tuple
+    // End of this data fragment
+    debug << "End of fragment" << endl;
+    res = 0;
+    return NULL;
+  } // if
+
+  // Read tuple data
+  void *_buf_ptr;
+  if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
+    err << "getNextTuple:Read error: " << endl;
+    res = -1;
+    return NULL;
+  }
+
+  Uint32 *buf_ptr = (Uint32*)_buf_ptr;
+  if (m_currentTable->backupVersion >= NDBD_RAW_LCP)
+  {
+    res = readTupleData_packed(buf_ptr, dataLength);
+  }
+  else
+  {
+    res = readTupleData_old(buf_ptr, dataLength);
+  }
+  
+  if (res)
+  {
+    return NULL;
+  }
+
+  m_count ++;  
+  res = 0;
+  return &m_tuple;
+} // RestoreDataIterator::getNextTuple
+
+
 int
-RestoreDataIterator::readTupleData(Uint32 *buf_ptr, Uint32 *ptr,
-                                   Uint32 dataLength)
+RestoreDataIterator::readTupleData_packed(Uint32 *buf_ptr, 
+                                          Uint32 dataLength)
+{
+  Uint32 * ptr = buf_ptr;
+  /**
+   * Unpack READ_PACKED header
+   */
+  Uint32 rp = * ptr;
+  if(unlikely(!m_hostByteOrder))
+    rp = Twiddle32(rp);
+
+  AttributeHeader ah(rp);
+  assert(ah.getAttributeId() == AttributeHeader::READ_PACKED);
+  Uint32 bmlen = ah.getByteSize();
+  assert((bmlen & 3) == 0);
+  Uint32 bmlen32 = bmlen / 4;
+
+  /**
+   * Twiddle READ_BACKED header
+   */
+  if (!m_hostByteOrder)
+  {
+    for (Uint32 i = 0; i < 1 + bmlen32; i++)
+    {
+      ptr[i] = Twiddle32(ptr[i]);
+    }
+  }
+  
+  const NdbDictionary::Table* tab = m_currentTable->m_dictTable;
+  
+  // All columns should be present...
+  assert(((tab->getNoOfColumns() + 31) >> 5) <= (int)bmlen32);
+  
+  /**
+   * Iterate through attributes...
+   */
+  const Uint32 * bmptr = ptr + 1;
+  Uint8* src = (Uint8*)(bmptr + bmlen32);
+  Uint32 bmpos = 0;
+  Uint32 bitPos = 0;
+  for (Uint32 i = 0; i < (Uint32)tab->getNoOfColumns(); i++, bmpos++)
+  {
+    // All columns should be present
+    assert(BitmaskImpl::get(bmlen32, bmptr, bmpos));
+    const NdbColumnImpl & col = NdbColumnImpl::getImpl(* tab->getColumn(i));
+    AttributeData * attr_data = m_tuple.getData(i);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(i);
+    if (col.getNullable())
+    {
+      bmpos++;
+      if (BitmaskImpl::get(bmlen32, bmptr, bmpos))
+      {
+        attr_data->null = true;
+        attr_data->void_value = NULL;
+        continue;
+      }
+    }
+    
+    attr_data->null = false;
+    
+    /**
+     * Handle padding
+     */
+    Uint32 align = col.m_orgAttrSize;
+    Uint32 attrSize = col.m_attrSize;
+    Uint32 array = col.m_arraySize;
+    Uint32 len = col.m_length;
+    Uint32 sz = attrSize * array;
+    Uint32 arrayType = col.m_arrayType;
+    
+    switch(align){
+    case DictTabInfo::aBit:{ // Bit
+      src = pad(src, 0, 0);
+      Uint32* src32 = (Uint32*)src;
+      
+      Uint32 len32 = (len + 31) >> 5;
+      Uint32* tmp = get_bitfield_storage(len32);
+      attr_data->null = false;
+      attr_data->void_value = tmp;
+      attr_data->size = 4*len32;
+      
+      if (m_hostByteOrder)
+      {
+        BitmaskImpl::getField(1 + len32, src32, bitPos, len, tmp);
+      }
+      else
+      {
+        Uint32 ii;
+        for (ii = 0; ii< (1 + len32); ii++)
+          src32[ii] = Twiddle32(src32[ii]);
+        BitmaskImpl::getField(1 + len32, (Uint32*)src, bitPos, len, tmp);
+        for (ii = 0; ii< (1 + len32); ii++)
+          src32[ii] = Twiddle32(src32[ii]);
+      }
+      
+      src += 4 * ((bitPos + len) >> 5);
+      bitPos = (bitPos + len) & 31;
+      goto next;
+    }
+    default:
+      src = pad(src, align, bitPos);
+    }
+    switch(arrayType){
+    case NDB_ARRAYTYPE_FIXED:
+      break;
+    case NDB_ARRAYTYPE_SHORT_VAR:
+      sz = 1 + src[0];
+      break;
+    case NDB_ARRAYTYPE_MEDIUM_VAR:
+      sz = 2 + src[0] + 256 * src[1];
+      break;
+    default:
+      abort();
+    }
+    
+    attr_data->void_value = src;
+    attr_data->size = sz;
+    
+    if(!Twiddle(attr_desc, attr_data))
+    {
+      return -1;
+    }
+    
+    /**
+     * Next
+     */
+    bitPos = 0;
+    src += sz;
+next:
+    (void)1;
+  }
+  return 0;
+}
+
+int
+RestoreDataIterator::readTupleData_old(Uint32 *buf_ptr, 
+                                       Uint32 dataLength)
+{
+  Uint32 * ptr = buf_ptr;
+  ptr += m_currentTable->m_nullBitmaskSize;
+  Uint32 i;
+  for(i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
+    assert(ptr < buf_ptr + dataLength);
+ 
+    const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
+
+    const Uint32 sz = attr_desc->getSizeInWords();
+
+    attr_data->null = false;
+    attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
+
+    if(!Twiddle(attr_desc, attr_data))
+    {
+      return -1;
+    }
+    ptr += sz;
+  }
+  
+  for(i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
+    assert(ptr < buf_ptr + dataLength);
+
+    const Uint32 attrId = m_currentTable->m_fixedAttribs[i]->attrId;
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
+
+    const Uint32 sz = attr_desc->getSizeInWords();
+
+    attr_data->null = false;
+    attr_data->void_value = ptr;
+    attr_data->size = 4*sz;
+
+    if(!m_hostByteOrder
+       && attr_desc->m_column->getType() == NdbDictionary::Column::Timestamp)
+    {
+      attr_data->u_int32_value[0] = Twiddle32(attr_data->u_int32_value[0]);
+    }
+
+    if(!Twiddle(attr_desc, attr_data))
+    {
+      return -1;
+    }
+    
+    ptr += sz;
+  }
+
+  // init to NULL
+  for(i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
+    const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
+
+    AttributeData * attr_data = m_tuple.getData(attrId);
+    
+    attr_data->null = true;
+    attr_data->void_value = NULL;
+  }
+
+  int res;
+  if (m_currentTable->backupVersion != DROP6_VERSION)
+  {
+    if ((res = readVarData(buf_ptr, ptr, dataLength)))
+      return res;
+  }
+  else
+  {
+    if ((res = readVarData_drop6(buf_ptr, ptr, dataLength)))
+      return res;
+  }
+
+  return 0;
+}
+
+int
+RestoreDataIterator::readVarData(Uint32 *buf_ptr, Uint32 *ptr,
+                                  Uint32 dataLength)
 {
   while (ptr + 2 < buf_ptr + dataLength)
   {
@@ -678,8 +1048,8 @@ RestoreDataIterator::readTupleData(Uint32 *buf_ptr, Uint32 *ptr,
 
 
 int
-RestoreDataIterator::readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
-                                         Uint32 dataLength)
+RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
+                                       Uint32 dataLength)
 {
   Uint32 i;
   for (i = 0; i < m_currentTable->m_variableAttribs.size(); i++)
@@ -726,114 +1096,6 @@ RestoreDataIterator::readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
   assert(ptr == buf_ptr + dataLength);
   return 0;
 }
-
-const TupleS *
-RestoreDataIterator::getNextTuple(int  & res)
-{
-  Uint32  dataLength = 0;
-  // Read record length
-  if (buffer_read(&dataLength, sizeof(dataLength), 1) != 1){
-    err << "getNextTuple:Error reading length  of data part" << endl;
-    res = -1;
-    return NULL;
-  } // if
-  
-  // Convert length from network byte order
-  dataLength = ntohl(dataLength);
-  const Uint32 dataLenBytes = 4 * dataLength;
-  
-  if (dataLength == 0) {
-    // Zero length for last tuple
-    // End of this data fragment
-    debug << "End of fragment" << endl;
-    res = 0;
-    return NULL;
-  } // if
-
-  // Read tuple data
-  void *_buf_ptr;
-  if (buffer_get_ptr(&_buf_ptr, 1, dataLenBytes) != dataLenBytes) {
-    err << "getNextTuple:Read error: " << endl;
-    res = -1;
-    return NULL;
-  }
- 
-  //if (m_currentTable->getTableId() >= 2) { for (uint ii=0; ii<dataLenBytes; ii+=4) ndbout << "*" << hex << *(Uint32*)( (char*)_buf_ptr+ii ); ndbout << endl; }
-
-  Uint32 *buf_ptr = (Uint32*)_buf_ptr, *ptr = buf_ptr;
-  ptr += m_currentTable->m_nullBitmaskSize;
-  Uint32 i;
-  for(i= 0; i < m_currentTable->m_fixedKeys.size(); i++){
-    assert(ptr < buf_ptr + dataLength);
- 
-    const Uint32 attrId = m_currentTable->m_fixedKeys[i]->attrId;
-
-    AttributeData * attr_data = m_tuple.getData(attrId);
-    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
-
-    const Uint32 sz = attr_desc->getSizeInWords();
-
-    attr_data->null = false;
-    attr_data->void_value = ptr;
-    attr_data->size = 4*sz;
-
-    if(!Twiddle(attr_desc, attr_data))
-      {
-	res = -1;
-	return NULL;
-      }
-    ptr += sz;
-  }
-
-  for(i = 0; i < m_currentTable->m_fixedAttribs.size(); i++){
-    assert(ptr < buf_ptr + dataLength);
-
-    const Uint32 attrId = m_currentTable->m_fixedAttribs[i]->attrId;
-
-    AttributeData * attr_data = m_tuple.getData(attrId);
-    const AttributeDesc * attr_desc = m_tuple.getDesc(attrId);
-
-    const Uint32 sz = attr_desc->getSizeInWords();
-
-    attr_data->null = false;
-    attr_data->void_value = ptr;
-    attr_data->size = 4*sz;
-
-    //if (m_currentTable->getTableId() >= 2) { ndbout << "fix i=" << i << " off=" << ptr-buf_ptr << " attrId=" << attrId << endl; }
-    if(!Twiddle(attr_desc, attr_data))
-      {
-	res = -1;
-	return NULL;
-      }
-
-    ptr += sz;
-  }
-
-  // init to NULL
-  for(i = 0; i < m_currentTable->m_variableAttribs.size(); i++){
-    const Uint32 attrId = m_currentTable->m_variableAttribs[i]->attrId;
-
-    AttributeData * attr_data = m_tuple.getData(attrId);
-
-    attr_data->null = true;
-    attr_data->void_value = NULL;
-  }
-
-  if (m_currentTable->backupVersion != DROP6_VERSION)
-  {
-    if ((res = readTupleData(buf_ptr, ptr, dataLength)))
-      return NULL;
-  }
-  else
-  {
-    if ((res = readTupleData_drop6(buf_ptr, ptr, dataLength)))
-      return NULL;
-  }
-
-  m_count ++;  
-  res = 0;
-  return &m_tuple;
-} // RestoreDataIterator::getNextTuple
 
 BackupFile::BackupFile(void (* _free_data_callback)()) 
   : free_data_callback(_free_data_callback)
@@ -902,6 +1164,7 @@ Uint32 BackupFile::buffer_get_ptr_ahead(void **p_buf_ptr, Uint32 size, Uint32 nm
     if (free_data_callback)
       (*free_data_callback)();
 
+    reset_buffers();
     memcpy(m_buffer, m_buffer_ptr, m_buffer_data_left);
 
     int error;
@@ -1006,13 +1269,14 @@ BackupFile::readHeader(){
     return false;
   }
   
-  if(buffer_read(&m_fileHeader, sizeof(m_fileHeader), 1) != 1){
+  Uint32 oldsz = sizeof(BackupFormat::FileHeader_pre_backup_version);
+  if(buffer_read(&m_fileHeader, oldsz, 1) != 1){
     err << "readDataFileHeader: Error reading header" << endl;
     return false;
   }
   
   // Convert from network to host byte order for platform compatibility
-  m_fileHeader.NdbVersion  = ntohl(m_fileHeader.NdbVersion);
+  m_fileHeader.BackupVersion  = ntohl(m_fileHeader.BackupVersion);
   m_fileHeader.SectionType = ntohl(m_fileHeader.SectionType);
   m_fileHeader.SectionLength = ntohl(m_fileHeader.SectionLength);
   m_fileHeader.FileType = ntohl(m_fileHeader.FileType);
@@ -1020,8 +1284,26 @@ BackupFile::readHeader(){
   m_fileHeader.BackupKey_0 = ntohl(m_fileHeader.BackupKey_0);
   m_fileHeader.BackupKey_1 = ntohl(m_fileHeader.BackupKey_1);
 
+  if (m_fileHeader.BackupVersion >= NDBD_RAW_LCP)
+  {
+    if (buffer_read(&m_fileHeader.NdbVersion, 
+                    sizeof(m_fileHeader) - oldsz, 1) != 1)
+    {
+      err << "readDataFileHeader: Error reading header" << endl;
+      return false;
+    }
+    
+    m_fileHeader.NdbVersion = ntohl(m_fileHeader.NdbVersion);
+    m_fileHeader.MySQLVersion = ntohl(m_fileHeader.MySQLVersion);
+  }
+  else
+  {
+    m_fileHeader.NdbVersion = m_fileHeader.BackupVersion;
+    m_fileHeader.MySQLVersion = 0;
+  }
+  
   debug << "FileHeader: " << m_fileHeader.Magic << " " <<
-    m_fileHeader.NdbVersion << " " <<
+    m_fileHeader.BackupVersion << " " <<
     m_fileHeader.SectionType << " " <<
     m_fileHeader.SectionLength << " " <<
     m_fileHeader.FileType << " " <<
@@ -1107,6 +1389,8 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
     ret =-1;
     return false;
   }
+
+  init_bitfield_storage(m_currentTable->m_dictTable);
 
   info.setLevel(254);
   info << "_____________________________________________________" << endl
