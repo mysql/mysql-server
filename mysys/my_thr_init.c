@@ -223,7 +223,7 @@ void my_thread_global_end(void)
 #endif
 }
 
-static long thread_id=0;
+static ulong thread_id=0;
 
 /*
   Allocate thread specific memory for the thread, used by mysys and dbug
