@@ -305,7 +305,9 @@ static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT 
     unsigned int n_bytes_added = BRT_CMD_OVERHEAD + KEY_VALUE_OVERHEAD + k->size + v->size;
     int r = toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, xid);
     if (r!=0) return r;
+//    printf("%s:%d fingerprint %08x -> ", __FILE__, __LINE__, node->local_fingerprint);
     node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_cmd(type, xid, k->data, k->size, v->data, v->size);
+//    printf(" %08x\n", node->local_fingerprint);
     BNC_NBYTESINBUF(node,childnum) += n_bytes_added;
     node->u.n.n_bytes_in_buffers += n_bytes_added;
     node->dirty = 1;
@@ -582,8 +584,9 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
         node->dirty = 1;
     }
     if (*child_did_split) {
-	fixup_child_fingerprint(node, childnum,   *childa, t, logger);
-	fixup_child_fingerprint(node, childnum+1, *childb, t, logger);
+	// Don't try to fix these up.
+	//fixup_child_fingerprint(node, childnum,   *childa, t, logger);
+	//fixup_child_fingerprint(node, childnum+1, *childb, t, logger);
     } else {
 	fixup_child_fingerprint(node, childnum,   child, t, logger);
     }
@@ -635,20 +638,33 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
     }
     r = toku_log_addchild(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
-    assert(BNC_DISKOFF(node, childnum)==childa->thisnodename);
+    node->u.n.n_children++;
+
+    assert(BNC_DISKOFF(node, childnum)==childa->thisnodename); // use the same child
     BNC_DISKOFF(node, childnum+1) = childb->thisnodename;
-    BNC_SUBTREE_FINGERPRINT(node, childnum)=0;
+    // BNC_SUBTREE_FINGERPRINT(node, childnum)=0; // leave the subtreefingerprint alone for the child, so we can log the change
     BNC_SUBTREE_FINGERPRINT(node, childnum+1)=0;
     fixup_child_fingerprint(node, childnum,   childa, t, logger);
     fixup_child_fingerprint(node, childnum+1, childb, t, logger);
-    r=toku_fifo_create(&BNC_BUFFER(node,childnum));   assert(r==0); // ??? SHould handle this error case
     r=toku_fifo_create(&BNC_BUFFER(node,childnum+1)); assert(r==0);
+    //verify_local_fingerprint_nonleaf(node);    // The fingerprint hasn't changed and everhything is still there.
+    r=toku_fifo_create(&BNC_BUFFER(node,childnum));   assert(r==0); // ??? SHould handle this error case
     BNC_NBYTESINBUF(node, childnum) = 0;
     BNC_NBYTESINBUF(node, childnum+1) = 0;
 
     // Remove all the cmds from the local fingerprint.  Some may get added in again when we try to push to the child.
     FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid,
-                 node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen));
+		 ({
+		     BYTESTRING keybs  = { .len = skeylen,  .data = (char*)skey };
+		     BYTESTRING databs = { .len = svallen,  .data = (char*)sval };
+		     u_int32_t old_fingerprint   = node->local_fingerprint;
+		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen);
+		     r = toku_log_brtdeq(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
+					 xid, type, keybs, databs, old_fingerprint, new_fingerprint);
+		     node->local_fingerprint = new_fingerprint;
+		 }));
+
+    //verify_local_fingerprint_nonleaf(node);
 
     // Slide the keys over
     {
@@ -658,7 +674,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	r = toku_log_setpivot(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
 	if (r!=0) return r;
 
-	for (cnum=node->u.n.n_children-1; cnum>childnum; cnum--) {
+	for (cnum=node->u.n.n_children-2; cnum>childnum; cnum--) {
 	    node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
 	}
 	//if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // the setpivot is wrong for TOKU_DB_DUPSORT, so recovery will be broken.
@@ -666,14 +682,14 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 	node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, pivot);
     }
 
-    node->u.n.n_children++;
-
     if (toku_brt_debug_mode) {
 	int i;
 	printf("%s:%d splitkeys:", __FILE__, __LINE__);
-	for(i=0; i<node->u.n.n_children-1; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
+	for(i=0; i<node->u.n.n_children-2; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
 	printf("\n");
     }
+
+    //verify_local_fingerprint_nonleaf(node);
 
     node->u.n.n_bytes_in_buffers -= old_count; /* By default, they are all removed.  We might add them back in. */
     /* Keep pushing to the children, but not if the children would require a pushdown */
