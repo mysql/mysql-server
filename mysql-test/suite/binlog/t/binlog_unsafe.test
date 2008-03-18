@@ -15,4 +15,24 @@ query_vertical SHOW WARNINGS;
 
 DROP TABLE t1,t2,t3;
 
-
+#
+# BUG#34768 - nondeterministic INSERT using LIMIT logged in stmt mode if
+#             binlog_format=mixed
+#
+CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+UPDATE t1 SET a=1 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+  REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+  UPDATE t1 SET a=1 LIMIT 1;
+  DELETE FROM t1 LIMIT 1;
+END|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
