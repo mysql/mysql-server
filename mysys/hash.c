@@ -46,7 +46,7 @@ static uint calc_hash(const HASH *hash, const uchar *key, size_t length)
 }
 
 my_bool
-_hash_init(HASH *hash,CHARSET_INFO *charset,
+_hash_init(HASH *hash,uint growth_size, CHARSET_INFO *charset,
 	   ulong size, size_t key_offset, size_t key_length,
 	   hash_get_key get_key,
 	   void (*free_element)(void*),uint flags CALLER_INFO_PROTO)
@@ -55,7 +55,8 @@ _hash_init(HASH *hash,CHARSET_INFO *charset,
   DBUG_PRINT("enter",("hash: 0x%lx  size: %u", (long) hash, (uint) size));
 
   hash->records=0;
-  if (my_init_dynamic_array_ci(&hash->array,sizeof(HASH_LINK),size,0))
+  if (my_init_dynamic_array_ci(&hash->array, sizeof(HASH_LINK), size,
+                               growth_size))
   {
     hash->free=0;				/* Allow call to hash_free */
     DBUG_RETURN(1);
