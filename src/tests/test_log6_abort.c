@@ -1,8 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-/* Test to see if we can do logging and recovery. */
-/* This is very specific to TokuDB.  It won't work with Berkeley DB. */
+/* Like test_log6 except abort. */
 
 #include <assert.h>
 #include <db.h>
@@ -92,7 +91,20 @@ static void make_db (void) {
 	    del_n(db, tid, random()%(i+1));
 	}
     }
-    r=tid->commit(tid, 0);    assert(r==0);
+    r=tid->abort(tid);    assert(r==0);
+    {
+	struct in_db *l=items;
+	for (l=items; l; l=l->next) {
+	    char hello[30];
+	    DBT key,data;
+	    memset(&key, 0, sizeof(key));
+	    memset(&data, 0, sizeof(data));
+	    snprintf(hello, sizeof(hello), "hello%ld.%d", l->r, i);
+	    r = db->get(db, 0, &key, &data, 0);
+	    assert(r==DB_NOTFOUND);
+	}
+    }
+
     r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);
     while (items) {
