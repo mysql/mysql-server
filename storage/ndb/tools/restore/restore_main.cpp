@@ -744,14 +744,22 @@ main(int argc, char** argv)
   }
 
   const BackupFormat::FileHeader & tmp = metaData.getFileHeader();
-  const Uint32 version = tmp.NdbVersion;
+  const Uint32 version = tmp.BackupVersion;
   
   char buf[NDB_VERSION_STRING_BUF_SZ];
   info.setLevel(254);
-  info << "Ndb version in backup files: " 
+  info << "Backup version in files: " 
        <<  ndbGetVersionString(version, 0, 
                                version == DROP6_VERSION ? "-drop6" : 0, 
-                               buf, sizeof(buf)) << endl;
+                               buf, sizeof(buf));
+  if (version >= NDBD_RAW_LCP)
+  {
+    info << " ndb version: "
+         << ndbGetVersionString(tmp.NdbVersion, tmp.MySQLVersion, 0, 
+                                buf, sizeof(buf));
+  }
+
+  info << endl;
   
   /**
    * check wheater we can restore the backup (right version).

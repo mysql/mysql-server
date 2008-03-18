@@ -59,6 +59,7 @@
 #include <signaldata/DumpStateOrd.hpp>
 
 #include <NdbTick.h>
+#include <dbtup/Dbtup.hpp>
 
 static NDB_TICKS startTime;
 
@@ -541,7 +542,6 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
       if(lcp.p->tables.isEmpty())
       {
 	ndbrequire(c_tablePool.getSize() == c_tablePool.getNoOfFree());
-	ndbrequire(c_attributePool.getSize() == c_attributePool.getNoOfFree());
 	ndbrequire(c_fragmentPool.getSize() == c_fragmentPool.getNoOfFree());
 	ndbrequire(c_triggerPool.getSize() == c_triggerPool.getNoOfFree());
       }
@@ -801,9 +801,8 @@ Backup::CompoundState::forceState(State newState)
 #endif
 }
 
-Backup::Table::Table(ArrayPool<Attribute> & ah, 
-		     ArrayPool<Fragment> & fh) 
-  : attributes(ah), fragments(fh)
+Backup::Table::Table(ArrayPool<Fragment> & fh)
+  : fragments(fh)
 {
   triggerIds[0] = ILLEGAL_TRIGGER_ID;
   triggerIds[1] = ILLEGAL_TRIGGER_ID;
@@ -1493,14 +1492,8 @@ Backup::createAttributeMask(TablePtr tabPtr,
 			    Bitmask<MAXNROFATTRIBUTESINWORDS> & mask)
 {
   mask.clear();
-  Table & table = * tabPtr.p;
-  Ptr<Attribute> attrPtr;
-  table.attributes.first(attrPtr);
-  for(; !attrPtr.isNull(); table.attributes.next(attrPtr))
-  {
-    jam();
-    mask.set(attrPtr.p->data.attrId);
-  }
+  for (Uint32 i = 0; i<tabPtr.p->noOfAttributes; i++)
+    mask.set(i);
 }
 
 void
@@ -3172,7 +3165,7 @@ Backup::insertFileHeader(BackupFormat::FileType ft,
   BackupFormat::FileHeader* header = (BackupFormat::FileHeader*)dst;
   ndbrequire(sizeof(header->Magic) == sizeof(BACKUP_MAGIC));
   memcpy(header->Magic, BACKUP_MAGIC, sizeof(BACKUP_MAGIC));
-  header->NdbVersion    = htonl(NDB_VERSION);
+  header->BackupVersion = htonl(NDB_BACKUP_VERSION);
   header->SectionType   = htonl(BackupFormat::FILE_HEADER);
   header->SectionLength = htonl(sz - 3);
   header->FileType      = htonl(ft);
@@ -3180,6 +3173,8 @@ Backup::insertFileHeader(BackupFormat::FileType ft,
   header->BackupKey_0   = htonl(ptrP->backupKey[0]);
   header->BackupKey_1   = htonl(ptrP->backupKey[1]);
   header->ByteOrder     = 0x12345678;
+  header->NdbVersion    = htonl(NDB_VERSION_D);
+  header->MySQLVersion  = htonl(NDB_MYSQL_VERSION_D);
   
   buf.updateWritePtr(sz);
   return true;
@@ -3303,6 +3298,7 @@ next:
     
     if(ptr.p->is_lcp())
     {
+      jam();
       lcp_open_file_done(signal, ptr);
       return;
     }
@@ -3360,10 +3356,6 @@ Backup::parseTableDescription(Signal* signal,
    */
   tabPtr.p->noOfRecords = 0;
   tabPtr.p->schemaVersion = tmpTab.TableVersion;
-  tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
-  tabPtr.p->noOfNull = 0;
-  tabPtr.p->noOfVariable = 0; // Computed while iterating over attribs
-  tabPtr.p->sz_FixedAttributes = 0; // Computed while iterating over attribs
   tabPtr.p->triggerIds[0] = ILLEGAL_TRIGGER_ID;
   tabPtr.p->triggerIds[1] = ILLEGAL_TRIGGER_ID;
   tabPtr.p->triggerIds[2] = ILLEGAL_TRIGGER_ID;
@@ -3371,9 +3363,28 @@ Backup::parseTableDescription(Signal* signal,
   tabPtr.p->triggerAllocated[1] = false;
   tabPtr.p->triggerAllocated[2] = false;
 
+  tabPtr.p->noOfAttributes = tmpTab.NoOfAttributes;
+  tabPtr.p->maxRecordSize = 1; // LEN word
+  bzero(tabPtr.p->attrInfo, sizeof(tabPtr.p->attrInfo));
+
+  Uint32 *list = tabPtr.p->attrInfo + 1;
+
+  if (lcp)
+  {
+    jam();
+    AttributeHeader::init(tabPtr.p->attrInfo, AttributeHeader::READ_LCP, 0);
+  }
+  else
+  {
+    jam();
+    AttributeHeader::init(tabPtr.p->attrInfo, AttributeHeader::READ_ALL,
+                          tmpTab.NoOfAttributes);
+  }
+
+  Uint32 varsize = 0;
   Uint32 disk = 0;
-  const Uint32 count = tabPtr.p->noOfAttributes;
-  for(Uint32 i = 0; i<count; i++) {
+  Uint32 null = 0;
+  for(Uint32 i = 0; i<tmpTab.NoOfAttributes; i++) {
     jam();
     DictTabInfo::Attribute tmp; tmp.init();
     stat = SimpleProperties::unpack(it, &tmp, 
@@ -3384,102 +3395,46 @@ Backup::parseTableDescription(Signal* signal,
     ndbrequire(stat == SimpleProperties::Break);
     it.next(); // Move Past EndOfAttribute
 
-    const Uint32 arr = tmp.AttributeArraySize;
-    const Uint32 sz = 1 << tmp.AttributeSize;
-    const Uint32 sz32 = (sz * arr + 31) >> 5;
-
     if(lcp && tmp.AttributeStorageType == NDB_STORAGETYPE_DISK)
     {
       disk++;
       continue;
     }
 
-    AttributePtr attrPtr;
-    if(!tabPtr.p->attributes.seize(attrPtr))
-    {
-      jam();
-      ptr.p->setErrorCode(DefineBackupRef::FailedToAllocateAttributeRecord);
-      return false;
-    }
-    
-    attrPtr.p->data.m_flags = 0;
-    attrPtr.p->data.attrId = tmp.AttributeId;
+    if (tmp.AttributeArrayType != NDB_ARRAYTYPE_FIXED)
+      varsize++;
 
-    attrPtr.p->data.m_flags |= 
-      (tmp.AttributeNullableFlag ? Attribute::COL_NULLABLE : 0);
-    attrPtr.p->data.m_flags |= (tmp.AttributeArrayType == NDB_ARRAYTYPE_FIXED)?
-      Attribute::COL_FIXED : 0;
-    attrPtr.p->data.sz32 = sz32;
-    
-    /**
-     * 1) Fixed non-nullable
-     * 2) Other
-     */
-    if(attrPtr.p->data.m_flags & Attribute::COL_FIXED && 
-       !(attrPtr.p->data.m_flags & Attribute::COL_NULLABLE)) {
-      jam();
-      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-      tabPtr.p->sz_FixedAttributes += sz32;
-    } else {
-      attrPtr.p->data.offset = ~0;
-      tabPtr.p->noOfVariable++;
-    }
-  }//for
+    if (tmp.AttributeNullableFlag)
+      null++;
 
-
-  if(lcp)
-  {
-    if (disk)
+    if (tmp.AttributeSize == 0)
     {
-      /**
-       * Remove all disk attributes
-       */
-      tabPtr.p->noOfAttributes -= disk;
-      
-      {
-	AttributePtr attrPtr;
-	ndbrequire(tabPtr.p->attributes.seize(attrPtr));
-	
-	Uint32 sz32 = 2;
-	attrPtr.p->data.attrId = AttributeHeader::DISK_REF;
-	attrPtr.p->data.m_flags = Attribute::COL_FIXED;
-	attrPtr.p->data.sz32 = 2;
-	
-	attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-	tabPtr.p->sz_FixedAttributes += sz32;
-	tabPtr.p->noOfAttributes ++;
-      }
+      tabPtr.p->maxRecordSize += (tmp.AttributeArraySize + 31) >> 5;
     }
-    
+    else
     {
-      AttributePtr attrPtr;
-      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
-      
-      Uint32 sz32 = 2;
-      attrPtr.p->data.attrId = AttributeHeader::ROWID;
-      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
-      attrPtr.p->data.sz32 = 2;
-      
-      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-      tabPtr.p->sz_FixedAttributes += sz32;
-      tabPtr.p->noOfAttributes ++;
-    }
+      const Uint32 arr = tmp.AttributeArraySize;
+      const Uint32 sz = 1 << tmp.AttributeSize;
+      const Uint32 sz32 = (sz * arr + 31) >> 5;
 
-    if (tmpTab.RowGCIFlag)
-    {
-      AttributePtr attrPtr;
-      ndbrequire(tabPtr.p->attributes.seize(attrPtr));
-      
-      Uint32 sz32 = 2;
-      attrPtr.p->data.attrId = AttributeHeader::ROW_GCI;
-      attrPtr.p->data.m_flags = Attribute::COL_FIXED;
-      attrPtr.p->data.sz32 = 2;
-      
-      attrPtr.p->data.offset = tabPtr.p->sz_FixedAttributes;
-      tabPtr.p->sz_FixedAttributes += sz32;
-      tabPtr.p->noOfAttributes ++;
+      tabPtr.p->maxRecordSize += sz32;
     }
   }
+
+  tabPtr.p->attrInfoLen = list - tabPtr.p->attrInfo;
+
+  if (lcp)
+  {
+    Dbtup* tup = (Dbtup*)globalData.getBlock(DBTUP);
+    tabPtr.p->maxRecordSize = 1 + tup->get_max_lcp_record_size(tmpTab.TableId);
+  }
+  else
+  {
+    // mask
+    tabPtr.p->maxRecordSize += 1 + ((tmpTab.NoOfAttributes + 31) >> 5);
+    tabPtr.p->maxRecordSize += (2 * varsize + 3) / 4;
+  }
+
   return true;
 }
 
@@ -3738,7 +3693,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     Table & table = * tabPtr.p;
     ScanFragReq * req = (ScanFragReq *)signal->getDataPtrSend();
     const Uint32 parallelism = 16;
-    const Uint32 attrLen = 5 + table.noOfAttributes;
+    const Uint32 attrLen = 5 + table.attrInfoLen;
 
     req->senderData = filePtr.i;
     req->resultRef = reference();
@@ -3751,7 +3706,7 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     ScanFragReq::setLockMode(req->requestInfo, 0);
     ScanFragReq::setHoldLockFlag(req->requestInfo, 0);
     ScanFragReq::setKeyinfoFlag(req->requestInfo, 0);
-    ScanFragReq::setAttrLen(req->requestInfo,attrLen); 
+    ScanFragReq::setAttrLen(req->requestInfo, attrLen);
     ScanFragReq::setTupScanFlag(req->requestInfo, 1);
     if (ptr.p->is_lcp())
     {
@@ -3772,38 +3727,17 @@ Backup::execBACKUP_FRAGMENT_REQ(Signal* signal)
     signal->theData[2] = (BACKUP << 20) + (getOwnNodeId() << 8);
     
     // Return all
-    signal->theData[3] = table.noOfAttributes;
+    signal->theData[3] = table.attrInfoLen;
     signal->theData[4] = 0;
     signal->theData[5] = 0;
     signal->theData[6] = 0;
     signal->theData[7] = 0;
     
     Uint32 dataPos = 8;
-    Ptr<Attribute> attrPtr;
-    table.attributes.first(attrPtr);
-    for(; !attrPtr.isNull(); table.attributes.next(attrPtr))
-    {
-      jam();
-      
-      /**
-       * LCP should not save disk attributes
-       */
-      ndbrequire(! (ptr.p->is_lcp() && 
-		    attrPtr.p->data.m_flags & Attribute::COL_DISK));
-      
-      AttributeHeader::init(&signal->theData[dataPos], 
-			    attrPtr.p->data.attrId, 0);
-      dataPos++;
-      if(dataPos == 25) {
-        jam();
-	sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, 25, JBB);
-	dataPos = 3;
-      }//if
-    }//for
-    if(dataPos != 3) {
-      jam();
-      sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, dataPos, JBB);
-    }//if
+    memcpy(signal->theData + dataPos, table.attrInfo, 4*table.attrInfoLen);
+    dataPos += table.attrInfoLen;
+    ndbassert(dataPos < 25);
+    sendSignal(DBLQH_REF, GSN_ATTRINFO, signal, dataPos, JBB);
   }
 }
 
@@ -3828,88 +3762,27 @@ Backup::execTRANSID_AI(Signal* signal)
 
   OperationRecord & op = filePtr.p->operation;
   
-  TablePtr tabPtr LINT_SET_PTR;
-  c_tablePool.getPtr(tabPtr, op.tablePtr);
-  
-  Table & table = * tabPtr.p;
-  
   /**
    * Unpack data
    */
   op.attrSzTotal += dataLen;
+  ndbrequire(dataLen < op.maxRecordSize);
 
-  Uint32 srcSz = dataLen;
-  Uint32 usedSz = 0;
   const Uint32 * src = &signal->theData[3];
+  Uint32 * dst = op.dst;
 
-  Ptr<Attribute> attrPtr;
-  table.attributes.first(attrPtr);
-  Uint32 columnNo = 0;
-  
-  while (usedSz < srcSz) 
-  {
-    jam();
-    
-    /**
-     * Finished with one attribute now find next
-     */
-    const AttributeHeader attrHead(* src);
-    const Uint32 attrId = attrHead.getAttributeId();
-    const bool null = attrHead.isNULL();
-    const Attribute::Data attr = attrPtr.p->data;
-    ndbrequire(attrId == attr.attrId);
-    
-    usedSz += attrHead.getHeaderSize();
-    src    += attrHead.getHeaderSize();
-      
-    if (null) {
-      jam();
-      ndbrequire(attr.m_flags & Attribute::COL_NULLABLE);
-      op.nullVariable();
-    } else {
-      Uint32* dst;
-      Uint32 dstSz = attrHead.getDataSize();
-      if (attr.m_flags & Attribute::COL_FIXED && 
-         ! (attr.m_flags & Attribute::COL_NULLABLE)) {
-        jam();
-        dst = op.newAttrib(attr.offset, dstSz);
-        ndbrequire(dstSz == attr.sz32);
-      } else {
-        dst = op.newVariable(columnNo, attrHead.getByteSize());
-        ndbrequire(dstSz <= attr.sz32);
-      }
-      
-      memcpy(dst, src, (dstSz << 2));
-      src    += dstSz;
-      usedSz += dstSz;
-    }
-    table.attributes.next(attrPtr);
-    columnNo++;
-  }
-  
-  ndbrequire(usedSz == srcSz);
-  ndbrequire(op.finished());
-  op.newRecord(op.dst);
+  * dst = htonl(dataLen);
+  memcpy(dst + 1, src, 4*dataLen);
+  op.finished(dataLen);
+
+  op.newRecord(dst + dataLen + 1);
 }
 
 void 
 Backup::OperationRecord::init(const TablePtr & ptr)
 {
-  
   tablePtr = ptr.i;
-  noOfAttributes = ptr.p->noOfAttributes;
-  
-  sz_Bitmask = (ptr.p->noOfNull + 31) >> 5;
-  sz_FixedAttribs = ptr.p->sz_FixedAttributes;
-
-  if(ptr.p->noOfVariable == 0) {
-    jam();
-    maxRecordSize = 1 + sz_Bitmask + sz_FixedAttribs;
-  } else {
-    jam();
-    maxRecordSize = 
-      1 + sz_Bitmask + 2048 /* Max tuple size */ + 2 * ptr.p->noOfVariable;
-  }//if
+  maxRecordSize = ptr.p->maxRecordSize;
 }
 
 bool
@@ -4001,7 +3874,8 @@ Backup::OperationRecord::newScan()
 {
   Uint32 * tmp;
   ndbrequire(16 * maxRecordSize < dataBuffer.getMaxWrite());
-  if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize)) {
+  if(dataBuffer.getWritePtr(&tmp, 16 * maxRecordSize))
+  {
     jam();
     opNoDone = opNoConf = opLen = 0;
     newRecord(tmp);
@@ -5007,7 +4881,6 @@ Backup::cleanup(Signal* signal, BackupRecordPtr ptr)
   for(ptr.p->tables.first(tabPtr); tabPtr.i != RNIL;ptr.p->tables.next(tabPtr))
   {
     jam();
-    tabPtr.p->attributes.release();
     tabPtr.p->fragments.release();
     for(Uint32 j = 0; j<3; j++) {
       jam();
@@ -5145,7 +5018,6 @@ Backup::execLCP_PREPARE_REQ(Signal* signal)
     else
     {
       jam();
-      tabPtr.p->attributes.release();
       tabPtr.p->fragments.release();
       ptr.p->tables.release();
       ptr.p->errorCode = 0;
@@ -5196,7 +5068,6 @@ Backup::lcp_close_file_conf(Signal* signal, BackupRecordPtr ptr)
   tabPtr.p->fragments.getPtr(fragPtr, 0);
   Uint32 fragmentId = fragPtr.p->fragmentId;
   
-  tabPtr.p->attributes.release();
   tabPtr.p->fragments.release();
   ptr.p->tables.release();
   ptr.p->errorCode = 0;
@@ -5312,7 +5183,6 @@ Backup::execEND_LCPREQ(Signal* signal)
     ndbrequire(ptr.p->errorCode);
     TablePtr tabPtr;
     ptr.p->tables.first(tabPtr);
-    tabPtr.p->attributes.release();
     tabPtr.p->fragments.release();
     ptr.p->tables.release();
     ptr.p->errorCode = 0;

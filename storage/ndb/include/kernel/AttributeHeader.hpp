@@ -49,6 +49,7 @@ public:
   STATIC_CONST( ANY_VALUE    = 0xFFF2 );
   STATIC_CONST( COPY_ROWID   = 0xFFF1 );
   STATIC_CONST( READ_ALL     = 0xFFF0 );
+  STATIC_CONST( READ_LCP     = 0xFFEF );
   
   /**
    * Optimize pseudo column and optimization options

@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+// Restore
+
 #ifndef RESTORE_H
 #define RESTORE_H
 
@@ -291,6 +293,7 @@ protected:
   Uint64 m_file_pos;
 
   void (* free_data_callback)();
+  virtual void reset_buffers() {}
 
   bool openFile();
   void setCtlFile(Uint32 nodeId, Uint32 backupId, const char * path);
@@ -305,7 +308,8 @@ protected:
   void setName(const char * path, const char * name);
 
   BackupFile(void (* free_data_callback)() = 0);
-  ~BackupFile();
+  virtual ~BackupFile();
+
 public:
   bool readHeader();
   bool validateFooter();
@@ -373,8 +377,9 @@ class RestoreDataIterator : public BackupFile {
 public:
 
   // Constructor
-  RestoreDataIterator(const RestoreMetaData &, void (* free_data_callback)());
-  ~RestoreDataIterator() {};
+  RestoreDataIterator(const RestoreMetaData &,
+                      void (* free_data_callback)());
+  virtual ~RestoreDataIterator();
   
   // Read data file fragment header
   bool readFragmentHeader(int & res, Uint32 *fragmentId);
@@ -383,9 +388,25 @@ public:
   const TupleS *getNextTuple(int & res);
 
 private:
+  void init_bitfield_storage(const NdbDictionary::Table*);
+  void free_bitfield_storage();
+  void reset_bitfield_storage();
+  Uint32* get_bitfield_storage(Uint32 len);
+  Uint32 get_free_bitfield_storage() const;
 
-  int readTupleData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
-  int readTupleData_drop6(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
+  Uint32 m_row_bitfield_len; // in words
+  Uint32* m_bitfield_storage_ptr;
+  Uint32* m_bitfield_storage_curr_ptr;
+  Uint32 m_bitfield_storage_len; // In words
+
+protected:
+  virtual void reset_buffers() { reset_bitfield_storage();}
+
+  int readTupleData_old(Uint32 *buf_ptr, Uint32 dataLength);
+  int readTupleData_packed(Uint32 *buf_ptr, Uint32 dataLength);
+
+  int readVarData(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
+  int readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr, Uint32 dataLength);
 };
 
 class LogEntry {
