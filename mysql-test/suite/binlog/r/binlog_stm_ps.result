@@ -16,5 +16,6 @@ master-bin.000001	#	Query	#	#	use `test`; create table t1 (a int)
 master-bin.000001	#	User var	#	#	@`a`=98
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (@a),(98)
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (99)
-master-bin.000001	#	Query	#	#	use `test`; insert into t1 select 100 limit 100
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 drop table t1;
