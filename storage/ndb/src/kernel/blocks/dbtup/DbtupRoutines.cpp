@@ -2841,23 +2841,33 @@ Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
   Uint32 fixsz = 4 * (req_struct->check_offset[MM] - Tuple_header::HeaderSize);
   Uint32 varlen = 0;
   char* varstart = 0;
-  if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
-      regTabPtr->m_attributes[MM].m_no_of_dynamic)
+  if (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::VAR_PART)
   {
     ndbassert(req_struct->is_expanded == false);
     varstart = (char*)req_struct->m_var_data[MM].m_offset_array_ptr;
     char* end = req_struct->m_var_data[MM].m_data_ptr;
-    end = (char*)((UintPtr(end) + 3) & ~(UintPtr)3);
+    if (end != 0)
+    {
+      end = (char*)((UintPtr(end) + 3) & ~(UintPtr)3);
+    }
+    else
+    {
+      ndbassert(regTabPtr->m_attributes[MM].m_no_of_varsize == 0);
+      end = varstart; // No var size ("fixed" varsize);
+    }
     Uint32 len = req_struct->m_var_data[MM].m_max_var_offset;
     Uint32 dyn = 4 * req_struct->m_var_data[MM].m_dyn_part_len;
     varlen = (end - varstart) + len + dyn;
     varlen = (varlen + 3) & ~(Uint32)3;
+    ndbassert(varlen < 32768);
   }
   Uint32 totsz = fixsz + varlen;
 
   Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
   dst[0] = req_struct->frag_page_id;
   dst[1] = operPtr.p->m_tuple_location.m_page_idx;
+  ndbassert(req_struct->m_tuple_ptr->m_data != 0);
+  ndbassert(fixsz < 8192);
   memcpy(dst+2, req_struct->m_tuple_ptr->m_data, fixsz);
 
   if (varstart)
@@ -2933,18 +2943,26 @@ Dbtup::read_lcp_keys(Uint32 tableId,
       const Uint32 *src_data= src_ptr;
       KeyReqStruct::Var_data* dst= &req_struct.m_var_data[MM];
 
-      char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
-      Uint32 varlen = ((Uint16*)src_data)[mm_vars];
-      Uint32* dynstart = ALIGN_WORD(varstart + varlen);
-
-      dst->m_data_ptr= varstart;
-      dst->m_offset_array_ptr= (Uint16*)src_data;
-      dst->m_var_len_offset= 1;
-      dst->m_max_var_offset= varlen;
-
-      Uint32 dynlen = src_len - (dynstart - src_data);
-      dst->m_dyn_data_ptr= (char*)dynstart;
-      dst->m_dyn_part_len= dynlen;
+      if (mm_vars)
+      {
+        char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+        Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+        Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+        
+        dst->m_data_ptr= varstart;
+        dst->m_offset_array_ptr= (Uint16*)src_data;
+        dst->m_var_len_offset= 1;
+        dst->m_max_var_offset= varlen;
+        
+        Uint32 dynlen = src_len - (dynstart - src_data);
+        dst->m_dyn_data_ptr= (char*)dynstart;
+        dst->m_dyn_part_len= dynlen;
+      }
+      else
+      {
+        dst->m_dyn_data_ptr= (char*)src_data;
+        dst->m_dyn_part_len= src_len;
+      }
     }
   }
 

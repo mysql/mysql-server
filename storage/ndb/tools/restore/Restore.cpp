@@ -948,12 +948,6 @@ RestoreDataIterator::readTupleData_old(Uint32 *buf_ptr,
     attr_data->void_value = ptr;
     attr_data->size = 4*sz;
 
-    if(!m_hostByteOrder
-       && attr_desc->m_column->getType() == NdbDictionary::Column::Timestamp)
-    {
-      attr_data->u_int32_value[0] = Twiddle32(attr_data->u_int32_value[0]);
-    }
-
     if(!Twiddle(attr_desc, attr_data))
     {
       return -1;
