@@ -1527,6 +1527,19 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
         return -1;
       }
     } 
+    else if(attributeId == AttributeHeader::READ_LCP)
+    {
+      Uint32 sz= ahIn.getDataSize();
+      update_lcp(req_struct, inBuffer+inBufIndex+1, sz);
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
+    else if (attributeId == AttributeHeader::READ_PACKED)
+    {
+      Uint32 sz = update_packed(req_struct, inBuffer+inBufIndex);
+      inBufIndex += 1 + sz;
+      req_struct->in_buf_index = inBufIndex;
+    }
     else if(attributeId == AttributeHeader::DISK_REF)
     {
       jam();
@@ -2189,6 +2202,8 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   Signal * signal = (Signal*)&signalT;
   bzero(signal, sizeof(signalT));
   switch(attrId){
+  case AttributeHeader::READ_LCP:
+    return read_lcp(inBuffer, inPos, req_struct, outBuf);
   case AttributeHeader::READ_PACKED:
   case AttributeHeader::READ_ALL:
     return read_packed(inBuffer, inPos, req_struct, outBuf);
@@ -2427,6 +2442,12 @@ Dbtup::read_packed(const Uint32* inBuf, Uint32 inPos,
   
 error:  
   ndbrequire(false);
+  return 0;
+}
+
+Uint32
+Dbtup::update_packed(KeyReqStruct *req_struct, const Uint32* inBuf)
+{
   return 0;
 }
 
@@ -2805,3 +2826,174 @@ Dbtup::updateDiskBitsNULLable(Uint32* inBuffer,
   }//if
 }
 
+Uint32
+Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
+                KeyReqStruct *req_struct,
+                Uint32* outBuffer)
+{
+  ndbassert(req_struct->out_buf_index >= 4);
+  ndbassert((req_struct->out_buf_index & 3) == 0);
+  ndbassert(req_struct->out_buf_bits == 0);
+
+  Tablerec* const regTabPtr =  tabptr.p;
+  Uint32 outPos = req_struct->out_buf_index;
+
+  Uint32 fixsz = 4 * (req_struct->check_offset[MM] - Tuple_header::HeaderSize);
+  Uint32 varlen = 0;
+  char* varstart = 0;
+  if (regTabPtr->m_attributes[MM].m_no_of_varsize ||
+      regTabPtr->m_attributes[MM].m_no_of_dynamic)
+  {
+    ndbassert(req_struct->is_expanded == false);
+    varstart = (char*)req_struct->m_var_data[MM].m_offset_array_ptr;
+    char* end = req_struct->m_var_data[MM].m_data_ptr;
+    end = (char*)((UintPtr(end) + 3) & ~(UintPtr)3);
+    Uint32 len = req_struct->m_var_data[MM].m_max_var_offset;
+    Uint32 dyn = 4 * req_struct->m_var_data[MM].m_dyn_part_len;
+    varlen = (end - varstart) + len + dyn;
+    varlen = (varlen + 3) & ~(Uint32)3;
+  }
+  Uint32 totsz = fixsz + varlen;
+
+  Uint32* dst = (Uint32*)(outBuffer + ((outPos - 4) >> 2));
+  dst[0] = req_struct->frag_page_id;
+  dst[1] = operPtr.p->m_tuple_location.m_page_idx;
+  memcpy(dst+2, req_struct->m_tuple_ptr->m_data, fixsz);
+
+  if (varstart)
+  {
+    memcpy(dst + 2 + (fixsz >> 2), varstart, varlen);
+  }
+
+  req_struct->out_buf_index = outPos + 8 + totsz - /* remove header */ 4;
+
+  return 0;
+}
+
+void
+Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
+{
+  Tablerec* const tabPtrP =  tabptr.p;
+
+  req_struct->m_is_lcp = true;
+  Uint32 fixsz32 = (req_struct->check_offset[MM] - Tuple_header::HeaderSize);
+  Uint32 fixsz = 4 * fixsz32;
+  Tuple_header* ptr = (Tuple_header*)req_struct->m_tuple_ptr;
+  memcpy(ptr->m_data, src, fixsz);
+
+  Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
+  Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
+
+  if (mm_vars || mm_dyns)
+  {
+    Uint32 varlen32 = len - fixsz32;
+    if (mm_dyns == 0)
+    {
+      ndbassert(len > fixsz32);
+    }
+    Varpart_copy* vp = (Varpart_copy*)ptr->get_end_of_fix_part_ptr(tabPtrP);
+    vp->m_len = varlen32;
+    memcpy(vp->m_data, src + fixsz32, 4*varlen32);
+    req_struct->m_lcp_varpart_len = varlen32;
+  }
+  ptr->m_header_bits |= (tabPtrP->m_bits & Tablerec::TR_DiskPart) ? 
+    Tuple_header::DISK_PART : 0;
+  req_struct->changeMask.set();
+}
+
+Uint32
+Dbtup::read_lcp_keys(Uint32 tableId,
+                     const Uint32 * src, Uint32 len, Uint32 *dst)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+  Tablerec* tabPtrP = tabPtr.p;
+
+  /**
+   * This is a "special" prepare_read
+   */
+  Tuple_header*ptr = (Tuple_header*)(src - Tuple_header::HeaderSize);
+  KeyReqStruct req_struct;
+  req_struct.m_tuple_ptr = ptr;
+  req_struct.check_offset[MM]= len;
+  req_struct.is_expanded = false;
+
+  /**
+   * prepare_read...
+   */
+  {
+    Uint16 mm_vars = tabPtrP->m_attributes[MM].m_no_of_varsize;
+    Uint16 mm_dyns = tabPtrP->m_attributes[MM].m_no_of_dynamic;
+    Uint32 src_len = Tuple_header::HeaderSize + len - tabPtrP->m_offsets[MM].m_fix_header_size;
+
+    const Uint32 *src_ptr= ptr->get_end_of_fix_part_ptr(tabPtrP);
+    if(mm_vars || mm_dyns)
+    {
+      const Uint32 *src_data= src_ptr;
+      KeyReqStruct::Var_data* dst= &req_struct.m_var_data[MM];
+
+      char* varstart = (char*)(((Uint16*)src_data)+mm_vars+1);
+      Uint32 varlen = ((Uint16*)src_data)[mm_vars];
+      Uint32* dynstart = ALIGN_WORD(varstart + varlen);
+
+      dst->m_data_ptr= varstart;
+      dst->m_offset_array_ptr= (Uint16*)src_data;
+      dst->m_var_len_offset= 1;
+      dst->m_max_var_offset= varlen;
+
+      Uint32 dynlen = src_len - (dynstart - src_data);
+      dst->m_dyn_data_ptr= (char*)dynstart;
+      dst->m_dyn_part_len= dynlen;
+    }
+  }
+
+  Uint32 descr_start= tabPtr.p->tabDescriptor;
+  TableDescriptor *tab_descr= &tableDescriptor[descr_start];
+  req_struct.attr_descr= tab_descr;
+  const Uint32* attrIds= &tableDescriptor[tabPtr.p->readKeyArray].tabDescr;
+  const Uint32 numAttrs= tabPtr.p->noOfKeyAttr;
+  // read pk attributes from original tuple
+
+  // save globals
+  TablerecPtr tabptr_old= tabptr;
+  FragrecordPtr fragptr_old= fragptr;
+  OperationrecPtr operPtr_old= operPtr;
+
+  // new globals
+  tabptr= tabPtr;
+  fragptr.i = RNIL;
+  fragptr.p = NULL;
+  operPtr.i= RNIL;
+  operPtr.p= NULL;
+
+  // do it
+  int ret = readAttributes(&req_struct,
+                           attrIds,
+                           numAttrs,
+                           dst,
+                           ZNIL,
+                           false);
+
+  {
+    Uint32 *src = dst;
+    Uint32 *tmp = dst;
+    for (Uint32 * end = src + ret; src < end;)
+    {
+      AttributeHeader ah(* src);
+      memmove(tmp, src + 1, 4*ah.getDataSize());
+      tmp += ah.getDataSize();
+      src += 1 + ah.getDataSize();
+    }
+    ret -= numAttrs;
+  }
+
+  ndbrequire(ret > 0);
+
+  // restore globals
+  tabptr= tabptr_old;
+  fragptr= fragptr_old;
+  operPtr= operPtr_old;
+
+  return ret;
+}

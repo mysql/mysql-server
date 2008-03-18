@@ -38,6 +38,21 @@ struct BackupFormat {
 
   struct FileHeader {
     char Magic[8];
+    Uint32 BackupVersion;
+
+    Uint32 SectionType;
+    Uint32 SectionLength;
+    Uint32 FileType;
+    Uint32 BackupId;
+    Uint32 BackupKey_0;
+    Uint32 BackupKey_1;
+    Uint32 ByteOrder;
+    Uint32 NdbVersion;
+    Uint32 MySQLVersion;
+  };
+
+  struct FileHeader_pre_backup_version {
+    char Magic[8];
     Uint32 NdbVersion;
 
     Uint32 SectionType;

@@ -84,6 +84,7 @@ private:
     Uint32 m_fd;          // File pointer
     Uint32 m_file_type;   // File type
     Uint32 m_status;
+    Uint32 m_lcp_version;
 
     enum StatusFlags 
     {
