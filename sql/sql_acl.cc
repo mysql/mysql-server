@@ -2287,7 +2287,7 @@ GRANT_TABLE::GRANT_TABLE(const char *h, const char *d,const char *u,
                 	 const char *t, ulong p, ulong c)
   :GRANT_NAME(h,d,u,t,p), cols(c)
 {
-  (void) hash_init(&hash_columns,system_charset_info,
+  (void) hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
 }
 
@@ -2335,7 +2335,7 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
   cols= (ulong) form->field[7]->val_int();
   cols =  fix_rights_for_column(cols);
 
-  (void) hash_init(&hash_columns,system_charset_info,
+  (void) hash_init2(&hash_columns,4,system_charset_info,
                    0,0,0, (hash_get_key) get_key_column,0,0);
   if (cols)
   {
