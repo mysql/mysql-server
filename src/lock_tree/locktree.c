@@ -1263,7 +1263,10 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         r = toku__do_escalation(tree, &locks_available);
         if (r != 0) { goto cleanup; }
         
-        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        if (!locks_available) {
+            r = ENOMEM;
+            goto cleanup;
+        }
         
         r = toku__lt_try_acquire_range_read_lock(tree, txn, 
                                                  key_left,  data_left,
@@ -1271,7 +1274,10 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                                                  &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
-    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+    if (out_of_locks) {
+        r = ENOMEM;
+        goto cleanup;
+    }
 
     r = 0;
 cleanup:
@@ -1373,14 +1379,20 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         r = toku__do_escalation(tree, &locks_available);
         if (r != 0) { goto cleanup; }
         
-        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        if (!locks_available) {
+            r = ENOMEM;
+            goto cleanup;
+        }
         
         r = toku__lt_try_acquire_write_lock (tree, txn,
                                           key, data,
                                           &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
-    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+    if (out_of_locks) {
+        r = ENOMEM;
+        goto cleanup;
+    }
 
     r = 0;
 cleanup:
@@ -1433,7 +1445,10 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         r = toku__do_escalation(tree, &locks_available);
         if (r != 0) { goto cleanup; }
         
-        if (!locks_available) { r = ENOMEM; goto cleanup; }
+        if (!locks_available) {
+            r = ENOMEM;
+            goto cleanup;
+        }
         
         r = toku__lt_try_acquire_range_write_lock (tree, txn,
                                                 key_left,  data_left,
@@ -1441,7 +1456,10 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                                 &out_of_locks);
         if (r != 0) { goto cleanup; }
     }
-    if (out_of_locks) { r = ENOMEM; goto cleanup; }
+    if (out_of_locks) {
+        r = ENOMEM;
+        goto cleanup;
+    }
 
     r = 0;
 cleanup:
