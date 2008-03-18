@@ -36,6 +36,11 @@ static inline int toku__lt_callback(toku_lock_tree *tree, DB_TXN* txn) {
     return tree->lock_callback ? tree->lock_callback(txn, tree) : 0;
 }
 
+static void toku_breakpoint(toku_lock_tree* tree) {
+    assert(tree != NULL);
+}
+
+
 const u_int32_t __toku_default_buflen = 2;
 
 static const DBT __toku_lt_infinity;
@@ -1281,6 +1286,9 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     r = 0;
 cleanup:
+    if (r == ENOMEM) {
+        toku_breakpoint(tree);
+    }
     return r;
 }
 
@@ -1396,6 +1404,9 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     r = 0;
 cleanup:
+    if (r == ENOMEM) {
+        toku_breakpoint(tree);
+    }
     return r;
 }
 
@@ -1463,6 +1474,9 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 
     r = 0;
 cleanup:
+    if (r == ENOMEM) {
+        toku_breakpoint(tree);
+    }
     return r;
 }
 
