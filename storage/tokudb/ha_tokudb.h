@@ -11,6 +11,7 @@ typedef struct st_tokudb_share {
     THR_LOCK lock;
 
     ulonglong auto_ident;
+    ulonglong last_auto_increment;
     ha_rows rows, org_rows;
     ulong *rec_per_key;
     DB *status_block, *file, **key_file;
@@ -145,4 +146,5 @@ class ha_tokudb : public handler {
 
   private:
     int __close(int mutex_is_locked);
+    int read_last();
 };
