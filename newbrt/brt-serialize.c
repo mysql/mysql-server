@@ -186,11 +186,13 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     wbuf_int(&w, w.crc32);
 #endif
 
+    memset(w.buf+w.ndone, 0, size-w.ndone); // fill with zeros
+
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
-	ssize_t r=pwrite(fd, w.buf, w.ndone, off);
+	ssize_t r=pwrite(fd, w.buf, size, off); // write the whole buffer, including the zeros
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
-	assert((size_t)r==w.ndone);
+	assert(r==size);
     }
 
     if (calculated_size!=w.ndone)
