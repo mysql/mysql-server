@@ -108,8 +108,8 @@ fsp_header_init_fields(
 /*===================*/
 	page_t*	page,		/* in/out: first page in the space */
 	ulint	space_id,	/* in: space id */
-	ulint	flags);		/* in: compressed page size and
-				file format version, or 0 */
+	ulint	flags);		/* in: tablespace flags (FSP_SPACE_FLAGS):
+				0, or table->flags if newer than COMPACT */
 /**************************************************************************
 Initializes the space header of a new created space and creates also the
 insert buffer tree root if space == 0. */

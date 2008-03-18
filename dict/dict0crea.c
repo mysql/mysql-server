@@ -263,7 +263,7 @@ dict_build_table_def_step(
 
 		error = fil_create_new_single_table_tablespace(
 			&space, path_or_name, is_path,
-			table->flags,
+			table->flags == DICT_TF_COMPACT ? 0 : table->flags,
 			FIL_IBD_FILE_INITIAL_SIZE);
 		table->space = (unsigned int) space;
 

@@ -422,8 +422,7 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
-	ulint		flags,		/* in: compressed page size and
-					file format version, or 0 */
+	ulint		flags,		/* in: tablespace flags */
 	ulint		size);		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
