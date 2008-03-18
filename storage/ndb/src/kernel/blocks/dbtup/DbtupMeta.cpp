@@ -972,6 +972,7 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
     /* Room for disk part location. */
     regTabPtr->m_offsets[MM].m_disk_ref_offset= pos[MM];
     pos[MM] += Disk_part_ref::SZ32; // 8 bytes
+    regTabPtr->m_bits |= Tablerec::TR_DiskPart;
   }
   else
   {
@@ -2050,6 +2051,16 @@ Dbtup::execFSREMOVECONF(Signal* signal)
     jam();
     drop_fragment_fsremove_done(signal, tabPtr, fragPtr);
   }
+}
+
+Uint32
+Dbtup::get_max_lcp_record_size(Uint32 tableId)
+{
+  TablerecPtr tabPtr;
+  tabPtr.i= tableId;
+  ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
+
+  return tabPtr.p->total_rec_size;
 }
 // End remove LCP
 

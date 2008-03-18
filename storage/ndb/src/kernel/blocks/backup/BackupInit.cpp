@@ -132,7 +132,6 @@ Backup::~Backup()
 BLOCK_FUNCTIONS(Backup)
 
 template class ArrayPool<Backup::Page32>;
-template class ArrayPool<Backup::Attribute>;
 template class ArrayPool<Backup::Fragment>;
 
 void
@@ -191,7 +190,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_backupPool.setSize(noBackups + 1);
   c_backupFilePool.setSize(3 * noBackups + 1);
   c_tablePool.setSize(noBackups * noTables + 1);
-  c_attributePool.setSize(noBackups * noAttribs + MAX_ATTRIBUTES_IN_TABLE);
   c_triggerPool.setSize(noBackups * 3 * noTables);
   c_fragmentPool.setSize(noBackups * noFrags + 1);
   
@@ -208,7 +206,6 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   c_defaults.m_minWriteSize = szWrite;
   c_defaults.m_maxWriteSize = maxWriteSize;
   c_defaults.m_lcp_buffer_size = szDataBuf;
-  
 
   Uint32 szMem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
@@ -222,7 +219,7 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
     SLList<Table> tables(c_tablePool);
     TablePtr ptr;
     while(tables.seize(ptr)){
-      new (ptr.p) Table(c_attributePool, c_fragmentPool);
+      new (ptr.p) Table(c_fragmentPool);
     }
     tables.release();
   }

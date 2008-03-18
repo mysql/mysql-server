@@ -731,7 +731,8 @@ Restore::parse_file_header(Signal* signal,
     return;
   }
   
-  if (check_file_version(signal, ntohl(fh->NdbVersion)))
+  file_ptr.p->m_lcp_version = ntohl(fh->BackupVersion);
+  if (check_file_version(signal, ntohl(fh->BackupVersion)))
   {
     parse_error(signal, file_ptr, __LINE__, ntohl(fh->NdbVersion));
     return;
@@ -938,100 +939,117 @@ Restore::parse_record(Signal* signal, FilePtr file_ptr,
   data += 1;
   const Uint32* const dataStart = data;
 
-  Uint32 *keyData = key_start;
-  Uint32 *attrData = attr_start;
-  union {
-    Column c;
-    Uint32 _align[sizeof(Column)/sizeof(Uint32)];
-  };
   bool disk = false;
   bool rowid = false;
   bool gci = false;
-  Uint32 tableId = file_ptr.p->m_table_id;
-
-  Uint64 gci_val;
+  Uint32 keyLen;
+  Uint32 attrLen;
   Local_key rowid_val;
-  columns.first(it);
-  while(!it.isNull())
-  {
-    _align[0] = *it.data; ndbrequire(columns.next(it));
-    _align[1] = *it.data; columns.next(it);
-    
-    if (c.m_id == AttributeHeader::ROWID)
-    {
-      rowid_val.m_page_no = data[0];
-      rowid_val.m_page_idx = data[1];
-      data += 2;
-      rowid = true;
-      continue;
-    }
-
-    if (c.m_id == AttributeHeader::ROW_GCI)
-    {
-      memcpy(&gci_val, data, 8);
-      data += 2;
-      gci = true;
-      continue;
-    }
-    
-    if (! (c.m_flags & (Column::COL_VAR | Column::COL_NULL)))
-    {
-      ndbrequire(data < dataStart + len);
-
-      if(c.m_flags & Column::COL_KEY)
-      {
-        memcpy(keyData, data, 4*c.m_size);
-        keyData += c.m_size;
-      } 
-
-      AttributeHeader::init(attrData++, c.m_id, c.m_size << 2);
-      memcpy(attrData, data, 4*c.m_size);
-      attrData += c.m_size;
-      data += c.m_size;
-    }
-
-    if(c.m_flags & Column::COL_DISK)
-      disk= true;
-  }
-
-  // second part is data driven
-  while (data + 2 < dataStart + len) {
-    Uint32 sz= ntohl(*data); data++;
-    Uint32 id= ntohl(*data); data++; // column_no
-
-    ndbrequire(columns.position(it, 2 * id));
-
-    _align[0] = *it.data; ndbrequire(columns.next(it));
-    _align[1] = *it.data;
-
-    Uint32 sz32 = (sz + 3) >> 2;
-    ndbassert(c.m_flags & (Column::COL_VAR | Column::COL_NULL));
-    if (c.m_flags & Column::COL_KEY)
-    {
-      memcpy(keyData, data, 4 * sz32);
-      keyData += sz32;
-    }
-
-    AttributeHeader::init(attrData++, c.m_id, sz);
-    memcpy(attrData, data, sz);
-
-    attrData += sz32;
-    data += sz32;
-  }
-
-  ndbrequire(data == dataStart + len - 1);
-
-  ndbrequire(disk == false); // Not supported...
-  ndbrequire(rowid == true);
-  Uint32 keyLen = keyData - key_start;
-  Uint32 attrLen = attrData - attr_start;
-  LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
-  
+  Uint64 gci_val;
+  Uint32 tableId = file_ptr.p->m_table_id;
   const KeyDescriptor* desc = g_key_descriptor_pool.getPtr(tableId);
-  if (desc->noOfKeyAttr != desc->noOfVarKeys)
+
+  if (likely(file_ptr.p->m_lcp_version >= NDBD_RAW_LCP))
   {
-    reorder_key(desc, key_start, keyLen);
+    rowid = true;
+    rowid_val.m_page_no = data[0];
+    rowid_val.m_page_idx = data[1];
+    keyLen = c_tup->read_lcp_keys(tableId, data+2, len - 3, key_start);
+
+    AttributeHeader::init(attr_start, AttributeHeader::READ_LCP, 4*(len - 3));
+    memcpy(attr_start + 1, data + 2, 4 * (len - 3));
+    attrLen = 1 + len - 3;
   }
+  else
+  {
+    Uint32 *keyData = key_start;
+    Uint32 *attrData = attr_start;
+    union {
+      Column c;
+      Uint32 _align[sizeof(Column)/sizeof(Uint32)];
+    };
+    
+    columns.first(it);
+    while(!it.isNull())
+    {
+      _align[0] = *it.data; ndbrequire(columns.next(it));
+      _align[1] = *it.data; columns.next(it);
+
+      if (c.m_id == AttributeHeader::ROWID)
+      {
+        rowid_val.m_page_no = data[0];
+        rowid_val.m_page_idx = data[1];
+        data += 2;
+        rowid = true;
+        continue;
+      }
+
+      if (c.m_id == AttributeHeader::ROW_GCI)
+      {
+        memcpy(&gci_val, data, 8);
+        data += 2;
+        gci = true;
+        continue;
+      }
+
+      if (! (c.m_flags & (Column::COL_VAR | Column::COL_NULL)))
+      {
+        ndbrequire(data < dataStart + len);
+
+        if(c.m_flags & Column::COL_KEY)
+        {
+          memcpy(keyData, data, 4*c.m_size);
+          keyData += c.m_size;
+        }
+
+        AttributeHeader::init(attrData++, c.m_id, c.m_size << 2);
+        memcpy(attrData, data, 4*c.m_size);
+        attrData += c.m_size;
+        data += c.m_size;
+      }
+
+      if(c.m_flags & Column::COL_DISK)
+        disk= true;
+    }
+
+    // second part is data driven
+    while (data + 2 < dataStart + len) {
+      Uint32 sz= ntohl(*data); data++;
+      Uint32 id= ntohl(*data); data++; // column_no
+
+      ndbrequire(columns.position(it, 2 * id));
+
+      _align[0] = *it.data; ndbrequire(columns.next(it));
+      _align[1] = *it.data;
+
+      Uint32 sz32 = (sz + 3) >> 2;
+      ndbassert(c.m_flags & (Column::COL_VAR | Column::COL_NULL));
+      if (c.m_flags & Column::COL_KEY)
+      {
+        memcpy(keyData, data, 4 * sz32);
+        keyData += sz32;
+      }
+
+      AttributeHeader::init(attrData++, c.m_id, sz);
+      memcpy(attrData, data, sz);
+
+      attrData += sz32;
+      data += sz32;
+    }
+
+    ndbrequire(data == dataStart + len - 1);
+
+    ndbrequire(disk == false); // Not supported...
+    ndbrequire(rowid == true);
+    keyLen = keyData - key_start;
+    attrLen = attrData - attr_start;
+    if (desc->noOfKeyAttr != desc->noOfVarKeys)
+    {
+      reorder_key(desc, key_start, keyLen);
+    }
+  }
+  
+  LqhKeyReq * req = (LqhKeyReq *)signal->getDataPtrSend();
   
   Uint32 hashValue;
   if (g_key_descriptor_pool.getPtr(tableId)->hasCharAttr)
