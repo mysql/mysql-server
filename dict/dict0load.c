@@ -872,7 +872,6 @@ err_exit:
 		flags = dict_sys_tables_get_flags(rec);
 
 		if (UNIV_UNLIKELY(flags == ULINT_UNDEFINED)) {
-unknown_table_type:
 			field = rec_get_nth_field_old(rec, 5, &len);
 			flags = mach_read_from_4(field);
 
@@ -922,9 +921,6 @@ unknown_table_type:
 	/* The high-order bit of N_COLS is the "compact format" flag. */
 	if (n_cols & 0x80000000UL) {
 		flags |= DICT_TF_COMPACT;
-	} else if (UNIV_UNLIKELY(flags)) {
-		/* Only ROW_FORMAT=COMPACT tables can have flags set. */
-		goto unknown_table_type;
 	}
 
 	table = dict_mem_table_create(name, space, n_cols & ~0x80000000UL,
