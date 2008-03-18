@@ -1238,13 +1238,10 @@ static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
     r = 0;
     *locks_available = toku__lt_range_test_incr(tree, 0);
     /* Escalation is allowed if 1/10th of the locks (or more) are free. */
-    tree->lock_escalation_allowed = toku__lt_percent_ranges_free(tree,
-                                             TOKU_DISABLE_ESCALATION_THRESHOLD);
 cleanup:
     if (r!=0) {
         if (tree && locks_available) {
             *locks_available              = FALSE;
-            tree->lock_escalation_allowed = FALSE;
         }
     }
     return r;
@@ -1576,9 +1573,6 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
     
     toku__lt_range_decr(tree, ranges);
 
-    if (toku__lt_percent_ranges_free(tree, TOKU_ENABLE_ESCALATION_THRESHOLD)) {
-        tree->lock_escalation_allowed = TRUE;
-    }
 
     return 0;
 }

@@ -368,11 +368,8 @@ void run_escalation_test(BOOL dups) {
     }
     assert(lt->lock_escalation_allowed);
     lt_insert_write(dups, ENOMEM, 'a', 100, 100);
-    assert(!lt->lock_escalation_allowed);
     lt_insert_write(dups, ENOMEM, 'b', 100, 100);
-    assert(!lt->lock_escalation_allowed);
     lt_insert_write(dups, ENOMEM, 'c', 100, 100);
-    assert(!lt->lock_escalation_allowed);
     lt_insert_read(dups, ENOMEM, 'a', 100, 100, 100, 100);
     lt_insert_read(dups, ENOMEM, 'b', 100, 100, 100, 100);
     lt_insert_read(dups, ENOMEM, 'c', 100, 100, 100, 100);
