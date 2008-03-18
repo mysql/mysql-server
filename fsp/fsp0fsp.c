@@ -909,9 +909,15 @@ fsp_header_init_fields(
 /*===================*/
 	page_t*	page,		/* in/out: first page in the space */
 	ulint	space_id,	/* in: space id */
-	ulint	flags)		/* in: compressed page size and
-				file format version, or 0 */
+	ulint	flags)		/* in: tablespace flags (FSP_SPACE_FLAGS):
+				0, or table->flags if newer than COMPACT */
 {
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
+
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_ID + page,
 			space_id);
 	mach_write_to_4(FSP_HEADER_OFFSET + FSP_SPACE_FLAGS + page,

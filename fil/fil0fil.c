@@ -1079,6 +1079,13 @@ fil_space_create(
 {
 	fil_system_t*	system		= fil_system;
 	fil_space_t*	space;
+
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
+
 try_again:
 	/*printf(
 	"InnoDB: Adding tablespace %lu of name %s, purpose %lu\n", id, name,
@@ -2606,8 +2613,7 @@ fil_create_new_single_table_tablespace(
 					table */
 	ibool		is_temp,	/* in: TRUE if a table created with
 					CREATE TEMPORARY TABLE */
-	ulint		flags,		/* in: compressed page size and
-					file format version, or 0 */
+	ulint		flags,		/* in: tablespace flags */
 	ulint		size)		/* in: the initial size of the
 					tablespace file in pages,
 					must be >= FIL_IBD_FILE_INITIAL_SIZE */
@@ -2621,6 +2627,11 @@ fil_create_new_single_table_tablespace(
 	char*		path;
 
 	ut_a(size >= FIL_IBD_FILE_INITIAL_SIZE);
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
 
 	path = fil_make_ibd_name(tablename, is_temp);
 
@@ -2987,6 +2998,12 @@ fil_open_single_table_tablespace(
 	ibool		ret		= TRUE;
 
 	filepath = fil_make_ibd_name(name, FALSE);
+
+	/* The tablespace flags (FSP_SPACE_FLAGS) should be 0 for
+	ROW_FORMAT=COMPACT (table->flags == DICT_TF_COMPACT) and
+	ROW_FORMAT=REDUNDANT (table->flags == 0).  For any other
+	format, the tablespace flags should equal table->flags. */
+	ut_a(flags != DICT_TF_COMPACT);
 
 	file = os_file_create_simple_no_error_handling(
 		filepath, OS_FILE_OPEN, OS_FILE_READ_ONLY, &success);
