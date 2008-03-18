@@ -12016,6 +12016,7 @@ static void test_bug5194()
 
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
+    mysql_stmt_reset(stmt);
   }
 
   mysql_stmt_close(stmt);
@@ -16610,6 +16611,11 @@ static void test_bug27592()
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  Bug#29948 autoreconnect + prepared statements + kill seems unstable
+*/
+
 static void test_bug29948()
 {
   MYSQL *dbc=NULL;
@@ -16622,7 +16628,10 @@ static void test_bug29948()
   const char *query;
   int buf;
   unsigned long length, cursor_type;
-  
+
+  DBUG_ENTER("test_bug29948");
+  myheader("test_bug29948");
+
   dbc = mysql_init(NULL);
   DIE_UNLESS(dbc);
 
@@ -16658,7 +16667,7 @@ static void test_bug29948()
   res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&cursor_type);
   myquery(res);
 
-  query= "SELECT * from t1 where a=?";
+  query= "SELECT * FROM t1 WHERE a=?";
   res= mysql_stmt_prepare(stmt, query, strlen(query));
   myquery(res);
 
@@ -16670,16 +16679,20 @@ static void test_bug29948()
 
   res= mysql_stmt_bind_result(stmt,&bind);
   check_execute(stmt, res);
-    
-  sprintf(kill_buf, "kill %ld", dbc->thread_id);
-  mysql_query(dbc, kill_buf);
+
+  my_snprintf(kill_buf, sizeof(kill_buf), "KILL %ld", dbc->thread_id);
+  res= mysql_query(dbc, kill_buf);
+  myquery(res);
 
   res= mysql_stmt_store_result(stmt);
   DIE_UNLESS(res);
 
   mysql_stmt_free_result(stmt);
   mysql_stmt_close(stmt);
-  mysql_query(dbc, "DROP TABLE t1");
+
+  res= mysql_query(dbc, "DROP TABLE t1");
+  myquery(res);
+
   mysql_close(dbc);
 }
 
