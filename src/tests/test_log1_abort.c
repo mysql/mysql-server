@@ -1,14 +1,16 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-/* Simple test of logging.  Can I start a TokuDB with logging enabled? */
+/* Do test_log1, except abort instead of commit. */
+
 #include <assert.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <db.h>
-#include <string.h>
+#include <errno.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
 // ENVDIR is defined in the Makefile
 
@@ -38,7 +40,7 @@ int main (int argc, char *argv[]) {
 	r=db->put(db, tid, &key, &data, 0);
 	CKERR(r);
     }
-    r=tid->commit(tid, 0);    assert(r==0);
+    r=tid->abort(tid);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
     r=env->close(env, 0);     assert(r==0);
     {
