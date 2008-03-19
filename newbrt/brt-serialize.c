@@ -164,6 +164,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 				  }));
 	    }
 	    //printf("%s:%d check_local_fingerprint=%8x\n", __FILE__, __LINE__, check_local_fingerprint);
+	    if (check_local_fingerprint!=node->local_fingerprint) printf("%s:%d node=%lld fingerprint expected=%08x actual=%08x\n", __FILE__, __LINE__, (long long)node->thisnodename, check_local_fingerprint, node->local_fingerprint);
 	    assert(check_local_fingerprint==node->local_fingerprint);
 	}
     } else {

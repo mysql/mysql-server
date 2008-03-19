@@ -70,5 +70,9 @@ int toku_rollback_xactiontouchednonleaf(FILENUM filenum, DISKOFFARRAY array __at
     assert(r==0);
     r = toku_brt_nonleaf_expunge_xaction(brt,  diskoff, txn->txnid64);
     assert(r==0);
+    printf("%s:%d node=%lld has Rollback parents = {", __FILE__, __LINE__, (long long)diskoff);
+    int i; for (i=0; i<array.len; i++) printf(" %lld", array.array[i]);
+    printf("}\n");
+    if (array.len!=0) printf("%s:%d array.len!=0 and we didn't fix up the fingerprints.\n", __FILE__, __LINE__);
     return 0;
 }

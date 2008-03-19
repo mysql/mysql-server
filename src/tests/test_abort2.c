@@ -78,6 +78,8 @@ void do_test_abort2 (void) {
     r=txn->abort(txn); CKERR(r);
 
     // Don't do a lookup on "hello7", because that will force things out of the buffer.
+    r=db->close(db, 0); CKERR(r);
+    r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, 0777); CKERR(r);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     {
