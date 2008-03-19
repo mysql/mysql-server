@@ -97,6 +97,8 @@ typedef enum {
 #define DB_TXN_NOWAIT 2048
 #define DB_TXN_SYNC 4096
 #endif
+/* TOKUDB specific error codes */
+#define TOKUDB_OUT_OF_LOCKS -100000
 /* in wrap mode, top-level function txn_begin is renamed, but the field isn't renamed, so we have to hack it here.*/
 #ifdef _TOKUDB_WRAP_H
 #undef txn_begin
