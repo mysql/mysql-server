@@ -45,8 +45,7 @@ int main (int argc, char *argv[]) {
     {
 	struct stat statbuf;
 	r = stat(ENVDIR "/foo.db", &statbuf);
-	assert(r==-1);
-	assert(errno==ENOENT);
+	assert(r==0);
     }
     return 0;
 }
