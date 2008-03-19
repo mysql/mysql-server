@@ -586,6 +586,23 @@ SELECT a FROM t1 WHERE a NOT IN (65,66);
 SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 EXPLAIN SELECT a FROM t1 WHERE a NOT IN (SELECT a FROM t2);
 
-DROP TABLE t1;
+DROP TABLE t1, t2;
+
+#
+# Bug #34763: item_subselect.cc:1235:Item_in_subselect::row_value_transformer:
+#             Assertion failed, unexpected error message:
+#             ERROR 1247 (42S22): Reference '<list ref>' not supported (forward
+#             reference in item list)
+#
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES(1);
+
+CREATE TABLE t2 (placeholder CHAR(11));
+INSERT INTO t2 VALUES("placeholder");
+
+SELECT ROW(1, 2) IN (SELECT t1.a, 2)         FROM t1 GROUP BY t1.a;
+SELECT ROW(1, 2) IN (SELECT t1.a, 2 FROM t2) FROM t1 GROUP BY t1.a;
+
+DROP TABLE t1, t2;
 
 --echo End of 5.0 tests
