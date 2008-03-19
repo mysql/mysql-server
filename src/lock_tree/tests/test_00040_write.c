@@ -7,9 +7,9 @@ toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
 
 int r;
 toku_lock_tree* lt  = NULL;
+toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
-u_int32_t mem = 1000;
-u_int32_t memcnt = 0;
+u_int32_t max_locks = 1000;
 BOOL duplicates = FALSE;
 int  nums[100];
 
@@ -46,8 +46,11 @@ void init_query(BOOL dups) {
 }
 
 void setup_tree(BOOL dups) {
-    memcnt = 0;
-    r = toku_lt_create(&lt, db, dups, dbpanic, &mem, &memcnt, dbcmp, dbcmp,
+    assert(!lt && !ltm);
+    r = toku_ltm_create(&ltm, max_locks, toku_malloc, toku_free, toku_realloc);
+    CKERR(r);
+    assert(ltm);
+    r = toku_lt_create(&lt, db, dups, dbpanic, ltm, dbcmp, dbcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
@@ -55,10 +58,13 @@ void setup_tree(BOOL dups) {
 }
 
 void close_tree(void) {
-    assert(lt);
+    assert(lt && ltm);
     r = toku_lt_close(lt);
-    CKERR(r);
+        CKERR(r);
+    r = toku_ltm_close(ltm);
+        CKERR(r);
     lt = NULL;
+    ltm = NULL;
 }
 
 typedef enum { null = -1, infinite = -2, neg_infinite = -3 } lt_infty;

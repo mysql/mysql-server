@@ -382,6 +382,7 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
     if (env->i->tmp_dir)
         toku_free(env->i->tmp_dir);
     toku_free(env->i->dir);
+    toku_ltm_close(env->i->ltm);
     toku_free(env->i);
     toku_free(env);
     ydb_unref();
@@ -539,12 +540,11 @@ static int toku_env_set_lk_detect(DB_ENV * env, u_int32_t detect) {
 }
 
 static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
+    int r = ENOSYS;
     HANDLE_PANICKED_ENV(dbenv);
     if (env_opened(dbenv))         { return EINVAL; }
-    if (!max)                      { return EINVAL; }
-    if (max < dbenv->i->num_locks) { return EDOM;   }
-    dbenv->i->max_locks = max;
-    return 0;
+    r = toku_ltm_set_max_locks(dbenv->i->ltm, max);
+    return r;
 }
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
@@ -559,9 +559,7 @@ static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 
 static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
     HANDLE_PANICKED_ENV(dbenv);
-    if (!lk_maxp)           return EINVAL;
-    *lk_maxp = dbenv->i->max_locks;
-    return 0;
+    return toku_ltm_get_max_locks(dbenv->i->ltm, lk_maxp);
 }
 
 static int locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
@@ -685,10 +683,12 @@ static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fla
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
 static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
-    if (flags!=0) return EINVAL;
-    DB_ENV *MALLOC(result);
-    if (result == 0)
-        return ENOMEM;
+    int r = ENOSYS;
+    DB_ENV* result = NULL;
+
+    if (flags!=0)    { r = EINVAL; goto cleanup; }
+    MALLOC(result);
+    if (result == 0) { r = ENOMEM; goto cleanup; }
     memset(result, 0, sizeof *result);
     result->err = toku_locked_env_err;
     result->open = locked_env_open;
@@ -722,31 +722,40 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->txn_begin = locked_txn_begin;
 
     MALLOC(result->i);
-    if (result->i == 0) {
-        toku_free(result);
-        return ENOMEM;
-    }
+    if (result->i == 0) { r = ENOMEM; goto cleanup; }
     memset(result->i, 0, sizeof *result->i);
     result->i->is_panicked=0;
     result->i->ref_count = 1;
     result->i->errcall = 0;
     result->i->errpfx = 0;
     result->i->errfile = 0;
-    result->i->max_locks = __toku_env_default_max_locks;
+
+    r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
+                        toku_malloc, toku_free, toku_realloc);
+    if (r!=0) { goto cleanup; }
 
     {
-	int r = toku_logger_create(&result->i->logger);
-	if (r!=0) {
-	    toku_free(result->i);
-	    toku_free(result);
-	    return r;
-	}
+	r = toku_logger_create(&result->i->logger);
+	if (r!=0) { goto cleanup; }
 	assert(result->i->logger);
     }
 
     ydb_add_ref();
     *envp = result;
-    return 0;
+    r = 0;
+cleanup:
+    if (r!=0) {
+        if (result) {
+            if (result->i) {
+                if (result->i->ltm) {
+                    toku_ltm_close(result->i->ltm);
+                }
+                toku_free(result->i);
+            }
+            toku_free(result);
+        }
+    }
+    return r;
 }
 
 int db_env_create(DB_ENV ** envp, u_int32_t flags) {
@@ -2030,8 +2039,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
 
     if (need_locktree) {
         r = toku_lt_create(&db->i->lt, db, FALSE,
-                           toku_db_lt_panic, &db->dbenv->i->max_locks,
-                           &db->dbenv->i->num_locks,
+                           toku_db_lt_panic, db->dbenv->i->ltm,
                            db->i->brt->compare_fun, db->i->brt->dup_compare,
                            toku_malloc, toku_free, toku_realloc);
         if (r!=0) goto error_cleanup;

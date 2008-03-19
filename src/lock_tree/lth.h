@@ -17,6 +17,13 @@
 #include <brttypes.h>
 #include <locktree.h>
 
+
+#if !defined(TOKU_LOCKTREE_DEFINE)
+#define TOKU_LOCKTREE_DEFINE
+typedef struct __toku_lock_tree toku_lock_tree;
+#endif
+
+
 typedef struct __toku_lth_value toku_lth_value;
 struct __toku_lth_value {
     toku_lock_tree*          hash_key;
@@ -30,11 +37,15 @@ struct __toku_lth_elt {
     toku_lth_elt*   prev_in_iteration;
 };
 
+#if !defined(TOKU_LTH_DEFINE)
+#define TOKU_LTH_DEFINE
 typedef struct __toku_lth toku_lth;
+#endif
+
 struct __toku_lth {
     toku_lth_elt*   buckets;
-    uint32          num_buckets;
-    uint32          num_keys;
+    u_int32_t          num_buckets;
+    u_int32_t          num_keys;
     toku_lth_elt    iter_head;
     toku_lth_elt*   iter_curr;
     BOOL            iter_is_valid;
@@ -45,6 +56,7 @@ struct __toku_lth {
     /** The user realloc function */
     void*         (*realloc)(void*, size_t);
 };
+
 
 int  toku_lth_create(toku_lth** ptable,
                      void* (*user_malloc) (size_t),
