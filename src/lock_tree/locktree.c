@@ -1316,15 +1316,15 @@ cleanup:
  *     Replaces all writes that overlap with range
  *     Deletes all reads dominated by range
  */
-static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
+static int toku__lt_do_escalation(toku_lock_tree* tree) {
     int r = ENOSYS;
-    if (!tree || !locks_available)      { r = EINVAL; goto cleanup; }
-    if (!tree->lock_escalation_allowed) { r = EDOM;   goto cleanup; }
-    toku_range_tree* border       = tree->borderwrite;
+    if (!tree)                          { r = EINVAL; goto cleanup; }
+    if (!tree->lock_escalation_allowed) { r = 0;      goto cleanup; }
+    toku_range_tree* border  = tree->borderwrite;
     assert(border);
     toku_range       border_range;
-    BOOL             found        = FALSE;
-    BOOL             trivial      = FALSE;
+    BOOL             found   = FALSE;
+    BOOL             trivial = FALSE;
 
     toku_rt_start_scan(border);
     while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
@@ -1341,14 +1341,25 @@ static int toku__do_escalation(toku_lock_tree* tree, BOOL* locks_available) {
         if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
     }
     r = 0;
-    *locks_available = toku__mgr_lock_test_incr(tree->mgr, 0);
-    /* Escalation is allowed if 1/10th of the locks (or more) are free. */
 cleanup:
-    if (r!=0) {
-        if (tree && locks_available) {
-            *locks_available              = FALSE;
-        }
+    return r;
+}
+
+/* TODO: Different error code for escalation failed vs not even happened. */
+static int toku__ltm_do_escalation(toku_ltm* mgr, BOOL* locks_available) {
+    assert(mgr && locks_available);
+    int r = ENOSYS;
+    toku_lock_tree* lt = NULL;
+
+    toku_lth_start_scan(mgr->lth);
+    while ((lt = toku_lth_next(mgr->lth)) != NULL) {
+        r = toku__lt_do_escalation(lt);
+        if (r!=0) { goto cleanup; }
     }
+
+    *locks_available = toku__mgr_lock_test_incr(mgr, 0);
+    r = 0;
+cleanup:
     return r;
 }
 
@@ -1363,9 +1374,9 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
                                             &out_of_locks);
     if (r != 0) { goto cleanup; }
 
-    if (out_of_locks && tree->lock_escalation_allowed) {
+    if (out_of_locks) {
         BOOL locks_available = FALSE;
-        r = toku__do_escalation(tree, &locks_available);
+        r = toku__ltm_do_escalation(tree->mgr, &locks_available);
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
@@ -1479,9 +1490,9 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                       &out_of_locks);
     if (r != 0) { goto cleanup; }
 
-    if (out_of_locks && tree->lock_escalation_allowed) {
+    if (out_of_locks) {
         BOOL locks_available = FALSE;
-        r = toku__do_escalation(tree, &locks_available);
+        r = toku__ltm_do_escalation(tree->mgr, &locks_available);
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
@@ -1545,9 +1556,9 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
                                             &out_of_locks);
     if (r != 0) { goto cleanup; }
 
-    if (out_of_locks && tree->lock_escalation_allowed) {
+    if (out_of_locks) {
         BOOL locks_available = FALSE;
-        r = toku__do_escalation(tree, &locks_available);
+        r = toku__ltm_do_escalation(tree->mgr, &locks_available);
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
