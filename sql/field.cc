@@ -8715,6 +8715,8 @@ bool create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
     }
   case FIELD_TYPE_DECIMAL:
     DBUG_ASSERT(0); /* Was obsolete */
+  default:
+    break;
   }
   /* Remember the value of length */
   char_length= length;
