@@ -29,6 +29,10 @@ void print_db_notices (void) {
 
 #define dodefine(name) printf("#define %s %d\n", #name, name)
 
+enum {
+	TOKUDB_OUT_OF_LOCKS = -100000,
+};
+
 void print_defines (void) {
     printf("#ifndef _TOKUDB_WRAP_H\n");
     dodefine(DB_VERB_DEADLOCK);
@@ -120,7 +124,12 @@ void print_defines (void) {
     dodefine(DB_TXN_NOWAIT);
     dodefine(DB_TXN_SYNC);
 
+    
     printf("#endif\n");
+    
+    /* TOKUDB specific error codes*/
+    printf("/* TOKUDB specific error codes */\n");
+    dodefine(TOKUDB_OUT_OF_LOCKS);
 }
 
 //#define DECL_LIMIT 100
