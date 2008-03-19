@@ -21,5 +21,9 @@ int main() {
         lt = NULL;
     }
 
+    r = toku_ltm_close(mgr);
+    CKERR(r);
+    mgr = NULL;
+
     return 0;
 }
