@@ -301,9 +301,6 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
   regOperPtr.p->m_undo_buffer_space= 0;
   req_struct->m_tuple_ptr->m_operation_ptr_i= regOperPtr.i;
   if (prevOpPtr.i == RNIL) {
-    set_change_mask_state(regOperPtr.p, USE_SAVED_CHANGE_MASK);
-    regOperPtr.p->saved_change_mask[0] = 0;
-    regOperPtr.p->saved_change_mask[1] = 0;
     return true;
   } else {
     req_struct->prevOpPtr.p= prevOpPtr.p= c_operation_pool.getPtr(prevOpPtr.i);
@@ -315,9 +312,6 @@ Dbtup::insertActiveOpList(OperationrecPtr regOperPtr,
       prevOpPtr.p->op_struct.m_load_diskpage_on_commit;
     regOperPtr.p->m_undo_buffer_space= prevOpPtr.p->m_undo_buffer_space;
     // start with prev mask (matters only for UPD o UPD)
-    set_change_mask_state(regOperPtr.p, get_change_mask_state(prevOpPtr.p));
-    regOperPtr.p->saved_change_mask[0] = prevOpPtr.p->saved_change_mask[0];
-    regOperPtr.p->saved_change_mask[1] = prevOpPtr.p->saved_change_mask[1];
 
     regOperPtr.p->m_any_value = prevOpPtr.p->m_any_value;
 
@@ -410,9 +404,9 @@ Dbtup::setup_read(KeyReqStruct *req_struct,
     }
     else
     {
-      req_struct->m_tuple_ptr= (Tuple_header*)
-	c_undo_buffer.get_ptr(&currOpPtr.p->m_copy_tuple_location);
-    }      
+      req_struct->m_tuple_ptr=
+        get_copy_tuple(regTabPtr, &currOpPtr.p->m_copy_tuple_location);
+    }
 
     if (regTabPtr->need_expand(disk))
       prepare_read(req_struct, regTabPtr, disk);
@@ -624,8 +618,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
    req_struct.interpreted_exec= (TrequestInfo >> 10) & 1;
    req_struct.no_fired_triggers= 0;
    req_struct.read_length= 0;
-   req_struct.max_attr_id_updated= 0;
-   req_struct.no_changed_attrs= 0;
    req_struct.last_row= false;
    req_struct.changeMask.clear();
    req_struct.m_is_lcp = false;
@@ -787,7 +779,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 					 regOperPtr,
 					 regTabPtr,
                                          disk_page != RNIL);
-       set_change_mask_state(regOperPtr, SET_ALL_MASK);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
@@ -827,7 +818,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 	 tupkeyErrorLab(signal);
 	 return;
        }
-       update_change_mask_info(&req_struct, regOperPtr);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      } 
@@ -853,7 +843,6 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 					 regOperPtr, 
 					 regTabPtr,
                                          disk_page != RNIL);
-       set_change_mask_state(regOperPtr, DELETE_CHANGES);
        sendTUPKEYCONF(signal, &req_struct, regOperPtr);
        return;
      }
@@ -994,26 +983,31 @@ int Dbtup::handleUpdateReq(Signal* signal,
                            KeyReqStruct* req_struct,
 			   bool disk) 
 {
-  Uint32 *dst;
+  Tuple_header *dst;
   Tuple_header *base= req_struct->m_tuple_ptr, *org;
-  if ((dst= c_undo_buffer.alloc_copy_tuple(&operPtrP->m_copy_tuple_location,
-					   regTabPtr->total_rec_size)) == 0)
+  Uint32 * change_mask_ptr;
+  if ((dst= alloc_copy_tuple(regTabPtr, &operPtrP->m_copy_tuple_location))== 0)
   {
     terrorCode= ZMEM_NOMEM_ERROR;
     goto error;
   }
 
   Uint32 tup_version;
+  change_mask_ptr = get_change_mask_ptr(regTabPtr, dst);
   if(operPtrP->is_first_operation())
   {
     org= req_struct->m_tuple_ptr;
     tup_version= org->get_tuple_version();
+    clear_change_mask_info(regTabPtr, change_mask_ptr);
   }
   else
   {
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     tup_version= prevOp->tupVersion;
-    org= (Tuple_header*)c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
+    org= get_copy_tuple(regTabPtr, &prevOp->m_copy_tuple_location);
+    copy_change_mask_info(regTabPtr,
+                          change_mask_ptr,
+                          get_change_mask_ptr(regTabPtr, org));
   }
 
   /**
@@ -1027,7 +1021,7 @@ int Dbtup::handleUpdateReq(Signal* signal,
     goto error;
   }
 
-  req_struct->m_tuple_ptr= (Tuple_header*)dst;
+  req_struct->m_tuple_ptr= dst;
 
   union {
     Uint32 sizes[4];
@@ -1077,7 +1071,11 @@ int Dbtup::handleUpdateReq(Signal* signal,
     if (unlikely(interpreterStartLab(signal, req_struct) == -1))
       return -1;
   }
-  
+
+  update_change_mask_info(regTabPtr,
+                          change_mask_ptr,
+                          req_struct->changeMask.rep.data);
+
   switch (req_struct->optimize_options) {
     case AttributeHeader::OPTIMIZE_MOVE_VARPART:
       /**
@@ -1349,7 +1347,8 @@ int Dbtup::handleInsertReq(Signal* signal,
 {
   Uint32 tup_version = 1;
   Fragrecord* regFragPtr = fragPtr.p;
-  Uint32 *dst, *ptr= 0;
+  Uint32 *ptr= 0;
+  Tuple_header *dst;
   Tuple_header *base= req_struct->m_tuple_ptr, *org= base;
   Tuple_header *tuple_ptr;
     
@@ -1375,13 +1374,14 @@ int Dbtup::handleInsertReq(Signal* signal,
     goto undo_buffer_error;
   }
 
-  dst= c_undo_buffer.alloc_copy_tuple(&regOperPtr.p->m_copy_tuple_location,
-				      regTabPtr->total_rec_size);
+  dst= alloc_copy_tuple(regTabPtr, &regOperPtr.p->m_copy_tuple_location);
+
   if (unlikely(dst == 0))
   {
     goto undo_buffer_error;
   }
-  tuple_ptr= req_struct->m_tuple_ptr= (Tuple_header*)dst;
+  tuple_ptr= req_struct->m_tuple_ptr= dst;
+  set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
 
   if(mem_insert)
   {
@@ -1395,7 +1395,7 @@ int Dbtup::handleInsertReq(Signal* signal,
     tup_version= prevOp->tupVersion + 1;
     
     if(!prevOp->is_first_operation())
-      org= (Tuple_header*)c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
+      org= get_copy_tuple(regTabPtr, &prevOp->m_copy_tuple_location);
     if (regTabPtr->need_expand())
     {
       expand_tuple(req_struct, sizes, org, regTabPtr, !disk_insert);
@@ -1702,16 +1702,18 @@ int Dbtup::handleDeleteReq(Signal* signal,
     Operationrec* prevOp= req_struct->prevOpPtr.p;
     regOperPtr->tupVersion= prevOp->tupVersion;
     // make copy since previous op is committed before this one
-    const Uint32* org = c_undo_buffer.get_ptr(&prevOp->m_copy_tuple_location);
-    Uint32* dst = c_undo_buffer.alloc_copy_tuple(
-        &regOperPtr->m_copy_tuple_location, regTabPtr->total_rec_size);
+    const Tuple_header* org = get_copy_tuple(regTabPtr,
+                                             &prevOp->m_copy_tuple_location);
+    Tuple_header* dst = alloc_copy_tuple(regTabPtr,
+                                         &regOperPtr->m_copy_tuple_location);
     if (dst == 0) {
       terrorCode = ZMEM_NOMEM_ERROR;
       goto error;
     }
     memcpy(dst, org, regTabPtr->total_rec_size << 2);
-    req_struct->m_tuple_ptr = (Tuple_header*)dst;
-  } 
+    req_struct->m_tuple_ptr = dst;
+    set_change_mask_info(regTabPtr, get_change_mask_ptr(regTabPtr, dst));
+  }
   else 
   {
     regOperPtr->tupVersion= req_struct->m_tuple_ptr->get_tuple_version();
@@ -3583,8 +3585,8 @@ Dbtup::nr_read_pk(Uint32 fragPtrI,
       Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
       ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr= (Tuple_header*)
-	c_undo_buffer.get_ptr(&opPtrP->m_copy_tuple_location);
+      req_struct.m_tuple_ptr=
+        get_copy_tuple(tablePtr.p, &opPtrP->m_copy_tuple_location);
       copy = true;
     }
     req_struct.check_offset[MM]= tablePtr.p->get_check_offset(MM);
