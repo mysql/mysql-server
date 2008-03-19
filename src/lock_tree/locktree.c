@@ -1264,7 +1264,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
-            r = ENOMEM;
+            r = TOKUDB_OUT_OF_LOCKS;
             goto cleanup;
         }
         
@@ -1275,7 +1275,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
     }
     if (out_of_locks) {
-        r = ENOMEM;
+        r = TOKUDB_OUT_OF_LOCKS;
         goto cleanup;
     }
 
@@ -1380,7 +1380,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
-            r = ENOMEM;
+            r = TOKUDB_OUT_OF_LOCKS;
             goto cleanup;
         }
         
@@ -1390,7 +1390,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
     }
     if (out_of_locks) {
-        r = ENOMEM;
+        r = TOKUDB_OUT_OF_LOCKS;
         goto cleanup;
     }
 
@@ -1446,7 +1446,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
         
         if (!locks_available) {
-            r = ENOMEM;
+            r = TOKUDB_OUT_OF_LOCKS;
             goto cleanup;
         }
         
@@ -1457,7 +1457,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
         if (r != 0) { goto cleanup; }
     }
     if (out_of_locks) {
-        r = ENOMEM;
+        r = TOKUDB_OUT_OF_LOCKS;
         goto cleanup;
     }
 
