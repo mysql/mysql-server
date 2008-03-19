@@ -2173,6 +2173,169 @@ runNFSubscribe(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug35208_createTable(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbDictionary::Table tab = *ctx->getTab();
+
+  while (tab.getNoOfColumns() < 100)
+  {
+    BaseString name;
+    NdbDictionary::Column col;
+    name.assfmt("COL_%d", tab.getNoOfColumns());
+    col.setName(name.c_str());
+    col.setType(NdbDictionary::Column::Unsigned);
+    col.setLength(1);
+    col.setNullable(false);
+    col.setPrimaryKey(false);
+    tab.addColumn(col);
+  }
+
+  NdbDictionary::Dictionary* dict = GETNDB(step)->getDictionary();
+  dict->dropTable(tab.getName());
+  dict->createTable(tab);
+
+  const NdbDictionary::Table* pTab = dict->getTable(tab.getName());
+  ctx->setTab(pTab);
+
+  return NDBT_OK;
+}
+
+#define UPDATE_COL 66
+
+int
+runBug35208(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* ndb= GETNDB(step);
+  const NdbDictionary::Table * table= ctx->getTab();
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = ndb->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return NDBT_FAILED;
+  }
+
+  int result = NDBT_OK;
+  HugoTransactions hugoTrans(* table);
+
+  char col[100];
+  BaseString::snprintf(col, sizeof(col), "COL_%u", UPDATE_COL);
+
+  int i;
+  int n_columns= table->getNoOfColumns();
+  NdbRecAttr* recAttr[1024];
+  NdbRecAttr* recAttrPre[1024];
+  for (i = 0; i < n_columns; i++) {
+    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
+    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
+  }
+
+  if (pOp->execute())
+  { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
+    goto err;
+  }
+
+  hugoTrans.loadTable(GETNDB(step), ctx->getNumRecords());
+
+  for (int i = 0; i<ctx->getNumLoops(); i++)
+  {
+    ndbout_c("testing %u updates", (i + 1));
+    NdbTransaction* pTrans = ndb->startTransaction();
+    for (int m = 0; m<(i+1); m++)
+    {
+      for (int r = 0; r<ctx->getNumRecords(); r++)
+      {
+        NdbOperation* pOp = pTrans->getNdbOperation(table->getName());
+        pOp->updateTuple();
+        HugoOperations hop(* table);
+        hop.equalForRow(pOp, r);
+        pOp->setValue(col, rand());
+      }
+      if (pTrans->execute(NoCommit) != 0)
+      {
+        ndbout << pTrans->getNdbError() << endl;
+        goto err;
+      }
+    }
+    if (pTrans->execute(Commit) != 0)
+    {
+      ndbout << pTrans->getNdbError() << endl;
+      goto err;
+    }
+
+    Uint64 gci;
+    pTrans->getGCI(&gci);
+    ndbout_c("set(LastGCI_hi): %u/%u",
+             Uint32(gci >> 32),
+             Uint32(gci));
+    ctx->setProperty("LastGCI_lo", Uint32(gci));
+    ctx->setProperty("LastGCI_hi", Uint32(gci >> 32));
+    if(ctx->getPropertyWait("LastGCI_hi", ~(Uint32)0))
+    {
+      g_err << "FAIL " << __LINE__ << endl;
+      goto err;
+    }
+
+    Uint32 bug = 0;
+    Uint32 cnt = 0;
+    Uint64 curr_gci = 0;
+    while(curr_gci <= gci)
+    {
+      ndb->pollEvents(100, &curr_gci);
+      NdbEventOperation* tmp = 0;
+      while ((tmp= ndb->nextEvent()) != 0)
+      {
+        if (tmp->getEventType() == NdbDictionary::Event::TE_UPDATE)
+        {
+          cnt++;
+          bool first = true;
+          for (int c = 0; c<table->getNoOfColumns(); c++)
+          {
+            if (recAttr[c]->isNULL() >= 0)
+            {
+              /**
+               * Column has value...it should be PK or column we updated
+               */
+              if (c != UPDATE_COL &&
+                  table->getColumn(c)->getPrimaryKey() == false)
+              {
+                bug++;
+                if (first)
+                {
+                  first = false;
+                  printf("Detect (incorrect) update value for: ");
+                }
+                printf("%u ", c);
+                result = NDBT_FAILED;
+              }
+            }
+          }
+          if (!first)
+            printf("\n");
+        }
+      }
+    }
+    ndbout_c("found %u updates bugs: %u", cnt, bug);
+  }
+
+  ndb->dropEventOperation(pOp);
+  ctx->stopTest();
+
+  return result;
+
+err:
+  ndb->dropEventOperation(pOp);
+
+  return NDBT_FAILED;
+}
+
+
+
 /** Telco 6.3 **/
 
 NDBT_TESTSUITE(test_event);
@@ -2338,6 +2501,16 @@ TESTCASE("Bug33793", ""){
   STEP(runEventListenerUntilStopped);
   STEP(runBug33793);
   FINALIZER(runDropEvent);
+}
+TESTCASE("Bug35208", ""){
+  INITIALIZER(runBug35208_createTable);
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runCreateShadowTable);
+  STEP(runBug35208);
+  STEP(runEventApplier);
+  FINALIZER(runDropEvent);
+  FINALIZER(runVerify);
+  FINALIZER(runDropShadowTable);
 }
 NDBT_TESTSUITE_END(test_event);
 
