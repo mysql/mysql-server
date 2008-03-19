@@ -22,6 +22,8 @@
 #pragma interface                       /* gcc class implementation */
 #endif
 
+#define round_up_byte(size) ((size + 7) >> 3) << 3
+
 typedef enum ndb_item_type {
   NDB_VALUE = 0,   // Qualified more with Item::Type
   NDB_FIELD = 1,   // Qualified from table definition
@@ -302,22 +304,36 @@ class Ndb_cond_stack : public Sql_alloc
   Ndb_cond_stack *next;
 };
 
+/*
+  This class implements look-ahead during the parsing
+  of the item tree. It contains bit masks for expected
+  items, field types and field results. It also contains
+  expected collation. The parse context (Ndb_cond_traverse_context)
+  always contains one expect_stack instance (top of the stack).
+  More expects (deeper look-ahead) can be pushed to the expect_stack
+  to check specific order (currently used for detecting support for
+  <field> LIKE <string>|<func>, but not <string>|<func> LIKE <field>).
+ */
 class Ndb_expect_stack : public Sql_alloc
 {
  public:
   Ndb_expect_stack(): collation(NULL), next(NULL) 
   {
     // Allocate type checking bitmaps   
-    bitmap_init(&expect_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_type_mask, 0, 512, FALSE);
-    bitmap_init(&expect_field_result_mask, 0, 512, FALSE);
+    bitmap_init(&expect_mask,
+                0, round_up_byte(Item::MAX_NO_ITEMS), FALSE);
+    bitmap_init(&expect_field_type_mask,
+                0, round_up_byte(MAX_NO_FIELD_TYPES), FALSE);
+    bitmap_init(&expect_field_result_mask,
+                0, round_up_byte(MAX_NO_ITEM_RESULTS), FALSE);
   };
   ~Ndb_expect_stack()
   {
     bitmap_free(&expect_mask);
     bitmap_free(&expect_field_type_mask);
     bitmap_free(&expect_field_result_mask);
-    if (next) delete next;
+    if (next)
+      delete next;
     next= NULL;
   }
   void push(Ndb_expect_stack* expect_next)
@@ -343,7 +359,8 @@ class Ndb_expect_stack : public Sql_alloc
   void expect(Item::Type type)
   {
     bitmap_set_bit(&expect_mask, (uint) type);
-    if (type == Item::FIELD_ITEM) expect_all_field_types();
+    if (type == Item::FIELD_ITEM)
+      expect_all_field_types();
   };
   void dont_expect(Item::Type type)
   {
@@ -467,8 +484,8 @@ class Ndb_cond_traverse_context : public Sql_alloc
     : table(tab), ndb_table(ndb_tab), 
     supported(TRUE), cond_stack(stack), cond_ptr(NULL),
     skip(0), rewrite_stack(NULL)
-  {
-    if (stack)
+  { 
+   if (stack)
       cond_ptr= stack->ndb_cond;
   };
   ~Ndb_cond_traverse_context()
