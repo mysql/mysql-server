@@ -211,8 +211,8 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 bits= tuple_ptr->m_header_bits;
 
   Tuple_header *disk_ptr= 0;
-  Tuple_header *copy= (Tuple_header*)
-    c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
+  Tuple_header *copy=
+    get_copy_tuple(regTabPtr, &regOperPtr->m_copy_tuple_location);
   
   Uint32 copy_bits= copy->m_header_bits;
 
@@ -576,8 +576,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     if(!regOperPtr.p->m_copy_tuple_location.isNull())
     {
       jam();
-      Tuple_header* tmp= (Tuple_header*)
-	c_undo_buffer.get_ptr(&regOperPtr.p->m_copy_tuple_location);
+      Tuple_header* tmp=
+        get_copy_tuple(regTabPtr.p, &regOperPtr.p->m_copy_tuple_location);
       
       memcpy(&req.m_page, 
 	     tmp->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
@@ -704,7 +704,7 @@ skip_disk:
      * Perform "real" commit
      */
     Uint32 disk = regOperPtr.p->m_commit_disk_callback_page;
-    set_change_mask_info(&req_struct, regOperPtr.p);
+    set_commit_change_mask_info(regTabPtr.p, &req_struct, regOperPtr.p);
     checkDetachedTriggers(&req_struct, regOperPtr.p, regTabPtr.p, 
                           disk != RNIL);
     
@@ -747,58 +747,22 @@ skip_disk:
 }
 
 void
-Dbtup::set_change_mask_info(KeyReqStruct * const req_struct,
-                            Operationrec * const regOperPtr)
+Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
+                                   KeyReqStruct * req_struct,
+                                   const Operationrec * regOperPtr)
 {
-  ChangeMaskState state = get_change_mask_state(regOperPtr);
-  if (state == USE_SAVED_CHANGE_MASK) {
-    jam();
-    req_struct->changeMask.setWord(0, regOperPtr->saved_change_mask[0]);
-    req_struct->changeMask.setWord(1, regOperPtr->saved_change_mask[1]);
-  } else if (state == RECALCULATE_CHANGE_MASK) {
-    jam();
-    // Recompute change mask, for now set all bits
-    req_struct->changeMask.set();
-  } else if (state == SET_ALL_MASK) {
-    jam();
-    req_struct->changeMask.set();
-  } else {
-    jam();
-    ndbrequire(state == DELETE_CHANGES);
+  Uint32 masklen = (regTabPtr->m_no_of_attributes + 31) >> 5;
+  if (regOperPtr->m_copy_tuple_location.isNull())
+  {
+    ndbassert(regOperPtr->op_struct.op_type == ZDELETE);
     req_struct->changeMask.set();
   }
-}
-
-void
-Dbtup::calculateChangeMask(Page* const pagePtr,
-                           Tablerec* const regTabPtr,
-                           KeyReqStruct * const req_struct)
-{
-  OperationrecPtr loopOpPtr;
-  Uint32 saved_word1= 0;
-  Uint32 saved_word2= 0;
-  loopOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
-  do {
-    c_operation_pool.getPtr(loopOpPtr);
-    ndbrequire(loopOpPtr.p->op_struct.op_type == ZUPDATE);
-    ChangeMaskState change_mask= get_change_mask_state(loopOpPtr.p);
-    if (change_mask == USE_SAVED_CHANGE_MASK) {
-      jam();
-      saved_word1|= loopOpPtr.p->saved_change_mask[0];
-      saved_word2|= loopOpPtr.p->saved_change_mask[1];
-    } else if (change_mask == RECALCULATE_CHANGE_MASK) {
-      jam();
-      //Recompute change mask, for now set all bits
-      req_struct->changeMask.set();
-      return;
-    } else {
-      ndbrequire(change_mask == SET_ALL_MASK);
-      jam();
-      req_struct->changeMask.set();
-      return;
-    }
-    loopOpPtr.i= loopOpPtr.p->prevActiveOp;
-  } while (loopOpPtr.i != RNIL);
-  req_struct->changeMask.setWord(0, saved_word1);
-  req_struct->changeMask.setWord(1, saved_word2);
+  else
+  {
+    Uint32 * dst = req_struct->changeMask.rep.data;
+    Tuple_header* ptr = get_copy_tuple(regTabPtr,
+                                       &regOperPtr->m_copy_tuple_location);
+    const Uint32 * maskptr = get_change_mask_ptr(regTabPtr, ptr);
+    memcpy(dst, maskptr, 4*masklen);
+  }
 }

@@ -128,8 +128,8 @@ void Dbtup::do_tup_abortreq(Signal* signal, Uint32 flags)
   Uint32 bits= tuple_ptr->m_header_bits;  
   if(regOperPtr.p->op_struct.op_type != ZDELETE)
   {
-    Tuple_header *copy= (Tuple_header*)
-      c_undo_buffer.get_ptr(&regOperPtr.p->m_copy_tuple_location);
+    Tuple_header *copy=
+      get_copy_tuple(regTabPtr.p, &regOperPtr.p->m_copy_tuple_location);
     
     if(regOperPtr.p->op_struct.m_disk_preallocated)
     {
