@@ -3,9 +3,10 @@ TAGS: */*.c */*.h
 
 SRCDIRS = newbrt src src/tests src/range_tree src/range_tree/tests src/lock_tree src/lock_tree/tests cxx cxx/tests \
 		utils db-benchmark-test db-benchmark-test-cxx
+BUILDDIRS = $(SRCDIRS) man/texi
 
 build:
-	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k); done
+	for d in $(BUILDDIRS); do (cd $$d; $(MAKE) -k); done
 
 CHECKS = $(patsubst %,checkdir_%,$(SRCDIRS))
 
