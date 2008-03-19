@@ -155,7 +155,6 @@ wait_for_pid () {
   i=0
   avoid_race_condition="by checking again"
   while test $i -ne $service_startup_timeout ; do
-    sleep 1
 
     case "$verb" in
       'created')
@@ -191,6 +190,7 @@ wait_for_pid () {
 
     echo $echo_n ".$echo_c"
     i=`expr $i + 1`
+    sleep 1
   done
 
   if test -z "$i" ; then
