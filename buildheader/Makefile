@@ -73,7 +73,7 @@ sample_offsets_local: ./db.h
 sample_offsets_local: sample_offsets.c
 	$(CC) $(CFLAGS) -I. -DLOCAL $< -o $@
  
-hfiles: db.h_4_1 db.h_4_3 db.h_4_4 db.h_4_5
+hfiles: db.h_4_1 db.h_4_3 db.h_4_4 db.h_4_5 db.h_4_6
 
 check32: sample_offsets_local
 	./sample_offsets_local
