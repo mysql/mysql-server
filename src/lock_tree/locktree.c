@@ -186,6 +186,7 @@ int toku_ltm_close(toku_ltm* mgr) {
         r = toku_lt_close_without_ltm(lt);
         if (r!=0 && first_error==0) { first_error = r; }
     }
+    toku_lth_close(mgr->lth);
     mgr->free(mgr);
 
     r = first_error;
