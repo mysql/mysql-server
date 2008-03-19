@@ -9,6 +9,7 @@
 #include <db.h>
 #include <string.h>
 #include <stdio.h>
+#include <errno.h>
 
 // ENVDIR is defined in the Makefile
 
