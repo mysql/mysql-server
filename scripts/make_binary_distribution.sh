@@ -327,8 +327,8 @@ if [ $BASE_SYSTEM != "netware" ] ; then
       < support-files/mysql.server.sh > $BASE/support-files/mysql.server
   $BASE/bin/replace /my/gnu/bin/hostname /bin/hostname -- $BASE/bin/mysqld_safe
   mv $BASE/support-files/binary-configure $BASE/configure
-  chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-* \
-      $BASE/support-files/mysql.server $BASE/configure
+  chmod a+x $BASE/bin/* $BASE/scripts/* $BASE/support-files/mysql-log-rotate \
+      $BASE/support-files/*.server $BASE/configure
   $CP -r sql-bench/* $BASE/sql-bench
   rm -f $BASE/sql-bench/*.sh $BASE/sql-bench/Makefile* $BASE/lib/*.la
   rm -f $BASE/bin/*.sql
