@@ -642,10 +642,12 @@ fi
 %files ndb-storage
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndbd
+%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 
 %files ndb-management
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndb_mgmd
+%doc %attr(644, root, man) %{_mandir}/man8/ndb_mgmd.8*
 
 %files ndb-tools
 %defattr(-,root,root,0755)
@@ -737,6 +739,10 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog 
+* Wed Mar 19 2008 Joerg Bruehe <joerg@mysql.com>
+
+- Add the man pages for "ndbd" and "ndb_mgmd".
+
 * Fri Mar 02 2007 Joerg Bruehe <joerg@mysql.com>
 
 - Add several man pages for NDB which are now created.
