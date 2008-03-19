@@ -1510,13 +1510,6 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
       jam();
       req_struct->attr_descriptor= attrDescriptor;
       req_struct->changeMask.set(attributeId);
-      if (attributeId >= 64) {
-        if (req_struct->max_attr_id_updated < attributeId) {
-          Uint32 no_changed_attrs= req_struct->no_changed_attrs;
-          req_struct->max_attr_id_updated= attributeId;
-          req_struct->no_changed_attrs= no_changed_attrs + 1;
-        }
-      }
       if ((this->*f)(inBuffer,
                      req_struct,
                      attributeOffset)) {

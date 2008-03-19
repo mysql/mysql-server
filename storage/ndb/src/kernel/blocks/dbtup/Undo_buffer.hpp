@@ -46,7 +46,7 @@ struct Undo_buffer
   /**
    * Get pointer to copy tuple
    */
-  Uint32 * get_ptr(Local_key* key);
+  Uint32 * get_ptr(const Local_key* key);
   
 private:
   class Ndbd_mem_manager* m_mm;
