@@ -365,14 +365,6 @@ public:
   Lgman* c_lgman;
   Page_cache_client m_pgman;
 
-// State values
-enum ChangeMaskState {
-  DELETE_CHANGES = 0,
-  SET_ALL_MASK = 1,
-  USE_SAVED_CHANGE_MASK = 2,
-  RECALCULATE_CHANGE_MASK = 3
-};
-
 enum TransState {
   TRANS_IDLE = 0,
   TRANS_STARTED = 1,
@@ -818,11 +810,6 @@ struct Operationrec {
   };
 
   /*
-   * We use 64 bits to save change mask for the most common cases.
-   */
-  Uint32 saved_change_mask[2];
-
-  /*
    * State variables on connection.
    * State variable on tuple after multi-updates
    * Is operation undo logged or not
@@ -840,7 +827,7 @@ struct Operationrec {
     unsigned int op_type : 3;
     unsigned int delete_insert_flag : 1;
     unsigned int primary_replica : 1;
-    unsigned int change_mask_state : 2;
+    unsigned int unused : 2;
     unsigned int m_disk_preallocated : 1;
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
@@ -1586,11 +1573,9 @@ struct KeyReqStruct {
   Uint32 trans_id2;
   Uint32 TC_index;
   // next 2 apply only to attrids >= 64 (zero otherwise)
-  Uint32 max_attr_id_updated;
-  Uint32 no_changed_attrs;
   BlockReference TC_ref;
   BlockReference rec_blockref;
-  bool change_mask_calculated;
+
   /*
    * A bit mask where a bit set means that the update or insert
    * was updating this record.
@@ -2437,10 +2422,13 @@ private:
   Uint32 get_fix_page_offset(Uint32 page_index, Uint32 tuple_size);
 
   Uint32 decr_tup_version(Uint32 tuple_version);
-  void set_change_mask_state(Operationrec * const, ChangeMaskState);
-  ChangeMaskState get_change_mask_state(Operationrec * const);
-  void update_change_mask_info(KeyReqStruct * const, Operationrec * const);
-  void set_change_mask_info(KeyReqStruct * const, Operationrec * const);
+  void update_change_mask_info(const Tablerec*, Uint32* dst, const Uint32*src);
+  void set_change_mask_info(const Tablerec*, Uint32* dst);
+  void clear_change_mask_info(const Tablerec*, Uint32* dst);
+  void copy_change_mask_info(const Tablerec*, Uint32* dst, const Uint32* src);
+  void set_commit_change_mask_info(const Tablerec*,
+                                   KeyReqStruct*,
+                                   const Operationrec*);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2737,10 +2725,6 @@ private:
 
   void findBeforeValueOperation(OperationrecPtr& befOpPtr,
                                 OperationrecPtr firstOpPtr);
-
-  void calculateChangeMask(Page* PagePtr,
-                           Tablerec* regTabPtr,
-                           KeyReqStruct * req_struct);
 
   void updateGcpId(KeyReqStruct *req_struct,
                    Operationrec* regOperPtr,
@@ -3060,6 +3044,25 @@ private:
   Uint32* get_dd_ptr(PagePtr*, const Local_key*, const Tablerec*);
   Uint32 get_len(Ptr<Page>* pagePtr, Var_part_ref ref);
 
+  Tuple_header* alloc_copy_tuple(const Tablerec* tabPtrP, Local_key* ptr){
+    Uint32 * dst = c_undo_buffer.alloc_copy_tuple(ptr, tabPtrP->total_rec_size);
+    if (unlikely(dst == 0))
+      return 0;
+    dst += ((tabPtrP->m_no_of_attributes + 31) >> 5);
+    return (Tuple_header*)dst;
+  }
+
+  Tuple_header* get_copy_tuple(const Tablerec* tabPtrP, const Local_key* ptr){
+    Uint32 mask = (tabPtrP->m_no_of_attributes + 31) >> 5;
+    return (Tuple_header*)(c_undo_buffer.get_ptr(ptr) + mask);
+  }
+
+  Uint32* get_change_mask_ptr(const Tablerec* tabP, Tuple_header* copy_tuple){
+    Uint32 * tmp = (Uint32*)copy_tuple;
+    tmp -= ((tabP->m_no_of_attributes + 31) >> 5);
+    return tmp;
+  }
+
   /**
    * prealloc space from disk
    *   key.m_file_no  contains file no
@@ -3236,41 +3239,6 @@ Dbtup::decr_tup_version(Uint32 tup_version)
 }
 
 inline
-Dbtup::ChangeMaskState
-Dbtup::get_change_mask_state(Operationrec * regOperPtr)
-{
-  return (Dbtup::ChangeMaskState)regOperPtr->op_struct.change_mask_state;
-}
-
-inline
-void
-Dbtup::set_change_mask_state(Operationrec * regOperPtr,
-                             ChangeMaskState new_state)
-{
-  regOperPtr->op_struct.change_mask_state= (Uint32)new_state;
-}
-
-inline
-void
-Dbtup::update_change_mask_info(KeyReqStruct * req_struct,
-                               Operationrec * regOperPtr)
-{
-  if (req_struct->max_attr_id_updated == 0) {
-    if (get_change_mask_state(regOperPtr) == USE_SAVED_CHANGE_MASK) {
-      // add new changes
-      regOperPtr->saved_change_mask[0] |= req_struct->changeMask.getWord(0);
-      regOperPtr->saved_change_mask[1] |= req_struct->changeMask.getWord(1);
-    }
-  } else {
-    if (req_struct->no_changed_attrs < 16) {
-      set_change_mask_state(regOperPtr, RECALCULATE_CHANGE_MASK);
-    } else {
-      set_change_mask_state(regOperPtr, SET_ALL_MASK);
-    }
-  }
-}
-
-inline
 Uint32*
 Dbtup::get_ptr(Var_part_ref ref)
 {
@@ -3354,6 +3322,46 @@ bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
     c_operation_pool.getPtr(loopOpPtr);
   }
   return false;
+}
+
+inline
+void
+Dbtup::update_change_mask_info(const Tablerec* tablePtrP,
+                               Uint32* dst,
+                               const Uint32 * src)
+{
+  Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
+  for (Uint32 i = 0; i<len; i++)
+  {
+    * dst |= *src;
+    dst++;
+    src++;
+  }
+}
+
+inline
+void
+Dbtup::set_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+{
+  Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
+  BitmaskImpl::set(len, dst);
+}
+
+inline
+void
+Dbtup::clear_change_mask_info(const Tablerec* tablePtrP, Uint32* dst)
+{
+  Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
+  BitmaskImpl::clear(len, dst);
+}
+
+inline
+void
+Dbtup::copy_change_mask_info(const Tablerec* tablePtrP,
+                             Uint32* dst, const Uint32* src)
+{
+  Uint32 len = (tablePtrP->m_no_of_attributes + 31) >> 5;
+  memcpy(dst, src, 4*len);
 }
 
 #endif
