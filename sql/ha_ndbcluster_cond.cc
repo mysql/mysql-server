@@ -896,7 +896,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           context->supported= FALSE;
         }
         }
-        if (pop) context->expect_stack.pop();
+        if (pop)
+          context->expect_stack.pop();
       }
       if (context->supported && context->rewrite_stack)
       {
