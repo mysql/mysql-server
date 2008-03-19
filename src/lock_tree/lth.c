@@ -108,13 +108,13 @@ void toku_lth_delete(toku_lth* lth, toku_lock_tree* key) {
     toku_lth_elt* prev    = head; 
     toku_lth_elt* current = prev->next_in_bucket;
 
-    while (current != head) {
+    while (current != NULL) {
         if (current->value.hash_key == key) break;
         prev = current;
         current = current->next_in_bucket;
     }
     /* Must be found. */
-    assert(current != head);
+    assert(current);
     current->prev_in_iteration->next_in_iteration = current->next_in_iteration;
     current->next_in_iteration->prev_in_iteration = current->prev_in_iteration;
     prev->next_in_bucket = current->next_in_bucket;
