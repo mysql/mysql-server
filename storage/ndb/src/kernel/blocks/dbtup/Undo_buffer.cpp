@@ -115,7 +115,7 @@ Undo_buffer::free_copy_tuple(Local_key* key)
 }
 
 Uint32 *
-Undo_buffer::get_ptr(Local_key* key)
+Undo_buffer::get_ptr(const Local_key* key)
 {
   return get_page(m_mm, key->m_page_no)->m_data+key->m_page_idx;
 }
