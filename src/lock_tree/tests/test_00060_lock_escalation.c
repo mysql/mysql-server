@@ -7,9 +7,9 @@ toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
 
 int r;
 toku_lock_tree* lt  = NULL;
+toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
 u_int32_t max_locks = 10;
-u_int32_t num_locks = 0;
 BOOL duplicates = FALSE;
 int  nums[10000];
 
@@ -46,9 +46,11 @@ void init_query(BOOL dups) {
 }
 
 void setup_tree(BOOL dups) {
-    num_locks = 0;
-    assert(lt == NULL);
-    r = toku_lt_create(&lt, db, dups, dbpanic, &max_locks, &num_locks, intcmp, intcmp,
+    assert(!lt && !ltm);
+    r = toku_ltm_create(&ltm, max_locks, toku_malloc, toku_free, toku_realloc);
+    CKERR(r);
+    assert(ltm);
+    r = toku_lt_create(&lt, db, dups, dbpanic, ltm, intcmp, intcmp,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
@@ -56,10 +58,13 @@ void setup_tree(BOOL dups) {
 }
 
 void close_tree(void) {
-    assert(lt);
+    assert(lt && ltm);
     r = toku_lt_close(lt);
-    CKERR(r);
+        CKERR(r);
+    r = toku_ltm_close(ltm);
+        CKERR(r);
     lt = NULL;
+    ltm = NULL;
 }
 
 typedef enum { null = -1, infinite = -2, neg_infinite = -3 } lt_infty;
@@ -344,9 +349,9 @@ void run_escalation_test(BOOL dups) {
         lt_insert_write(dups, 0, 'a', i, i);
         lt_insert_write(dups, 0, 'b', i+1, i+1);
     }
-    lt_insert_write(dups, ENOMEM, 'a', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'b', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'c', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100);
     close_tree();
 /* ******************** */
 /*
@@ -367,12 +372,12 @@ void run_escalation_test(BOOL dups) {
         lt_insert_write(dups, 0, 'b', i+1, i+1);
     }
     assert(lt->lock_escalation_allowed);
-    lt_insert_write(dups, ENOMEM, 'a', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'b', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'c', 100, 100);
-    lt_insert_read(dups, ENOMEM, 'a', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'b', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'c', 100, 100, 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100, 100, 100);
     lt_unlock('b');
     assert(lt->lock_escalation_allowed);
     for (i = 50; i < 1000; i++) {
@@ -396,12 +401,12 @@ void run_escalation_test(BOOL dups) {
     }
     lt_insert_read (dups, 0, 'b', 5, 5, 5, 5);
     lt_insert_read (dups, 0, 'b', 2, 2, 2, 2);
-    lt_insert_write(dups, ENOMEM, 'a', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'b', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'c', 100, 100);
-    lt_insert_read(dups, ENOMEM, 'a', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'b', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'c', 100, 100, 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100, 100, 100);
     lt_unlock('b');
     assert(lt->lock_escalation_allowed);
     for (i = 50; i < 1000; i++) {
@@ -425,12 +430,12 @@ void run_escalation_test(BOOL dups) {
     }
     lt_insert_read (dups, 0, 'b', 5, 5, 6, 6);
     lt_insert_read (dups, 0, 'b', 2, 2, 3, 3);
-    lt_insert_write(dups, ENOMEM, 'a', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'b', 100, 100);
-    lt_insert_write(dups, ENOMEM, 'c', 100, 100);
-    lt_insert_read(dups, ENOMEM, 'a', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'b', 100, 100, 100, 100);
-    lt_insert_read(dups, ENOMEM, 'c', 100, 100, 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'a', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'b', 100, 100, 100, 100);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'c', 100, 100, 100, 100);
     lt_unlock('b');
     assert(lt->lock_escalation_allowed);
     for (i = 50; i < 1000; i++) {

@@ -7,7 +7,7 @@
 #include "../newbrt/brttypes.h"
 #include "../newbrt/brt.h"
 #include "../newbrt/list.h"
-#include "./lock_tree/lth.h"
+#include "./lock_tree/locktree.h"
 
 struct db_header {
     int n_databases; // Or there can be >=1 named databases.  This is the count.
@@ -61,8 +61,7 @@ struct __toku_db_env_internal {
     unsigned long cachetable_size;
     CACHETABLE cachetable;
     TOKULOGGER logger;
-    u_int32_t max_locks;
-    u_int32_t num_locks;
+    toku_ltm* ltm;
 };
 
 struct __toku_db_txn_internal {

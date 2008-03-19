@@ -22,6 +22,7 @@
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
+#include <lth.h>
 #include <rth.h>
 
 /** Errors returned by lock trees */
@@ -34,7 +35,19 @@ typedef enum {
 char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
                        __attribute__((const,pure));
 
+#if !defined(TOKU_LOCKTREE_DEFINE)
+#define TOKU_LOCKTREE_DEFINE
 typedef struct __toku_lock_tree toku_lock_tree;
+#endif
+
+#if !defined(TOKU_LTH_DEFINE)
+#define TOKU_LTH_DEFINE
+typedef struct __toku_lth toku_lth;
+#endif
+
+
+typedef struct __toku_ltm toku_ltm;
+
 /** \brief The lock tree structure */
 struct __toku_lock_tree {
     /** The database for which this locktree will be handling locks */
@@ -64,12 +77,10 @@ struct __toku_lock_tree {
     */
     toku_range*         buf;      
     u_int32_t           buflen;      /**< The length of buf */
-    /** The maximum number of ranges allowed. */
-    u_int32_t*          max_ranges;
-    /** The current number of ranges. */
-    u_int32_t*          num_ranges;
     /** Whether lock escalation is allowed. */
     BOOL                lock_escalation_allowed;
+    /** Lock tree manager */
+    toku_ltm* mgr;
     /** The lock callback function. */
     int               (*lock_callback)(DB_TXN*, toku_lock_tree*);
     /** The key compare function */
@@ -86,6 +97,20 @@ struct __toku_lock_tree {
     void*             (*realloc)(void*, size_t);
 };
 
+struct __toku_ltm {
+    /** The maximum number of locks allowed for the environment. */
+    u_int32_t          max_locks;
+    /** The current number of locks for the environment. */
+    u_int32_t          curr_locks;
+    /** The list of lock trees it manages. */
+    toku_lth*          lth;
+    /** The user malloc function */
+    void*             (*malloc) (size_t);
+    /** The user free function */
+    void              (*free)   (void*);
+    /** The user realloc function */
+    void*             (*realloc)(void*, size_t);
+};
 
 extern const DBT* const toku_lt_infinity;     /**< Special value denoting 
                                                    +infty */
@@ -146,8 +171,8 @@ typedef struct __toku_point toku_point;
    instead.
  */
 int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   int (*panic)(DB*, int), u_int32_t* max_locks,
-                   u_int32_t* num_locks,
+                   int (*panic)(DB*, int),
+                   toku_ltm* mgr,
                    int (*compare_fun)(DB*,const DBT*,const DBT*),
                    int (*dup_compare)(DB*,const DBT*,const DBT*),
                    void* (*user_malloc) (size_t),
@@ -384,5 +409,67 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
 */
 int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
                                     int (*callback)(DB_TXN*, toku_lock_tree*));
+
+
+
+/* Lock tree manager functions begin here */
+/**
+    Creates a lock tree manager..
+    
+    \param pmgr      A buffer for the new lock tree manager.
+    \param max_locks    The maximum number of locks.
+    \param user_malloc  A user provided malloc(3) function.
+    \param user_free    A user provided free(3) function.
+    \param user_realloc A user provided realloc(3) function.
+
+    \return
+    - 0 on success.
+    - EINVAL if any pointer parameter is NULL.
+    - May return other errors due to system calls.
+*/
+int toku_ltm_create(toku_ltm** pmgr,
+                       u_int32_t max_locks,
+                       void* (*user_malloc) (size_t),
+                       void  (*user_free)   (void*),
+                       void* (*user_realloc)(void*, size_t));
+
+/**
+    Closes and frees a lock tree manager..
+    
+    \param mgr  The lock tree manager.
+
+    \return
+    - 0 on success.
+    - EINVAL if any pointer parameter is NULL.
+    - May return other errors due to system calls.
+*/
+int toku_ltm_close(toku_ltm* mgr);
+
+/**
+    Sets the maximum number of locks on the lock tree manager.
+    
+    \param mgr       The lock tree manager to which to set max_locks.
+    \param max_locks    The new maximum number of locks.
+
+    \return
+    - 0 on success.
+    - EINVAL if tree is NULL or max_locks is 0
+    - EDOM   if max_locks is less than the number of locks held by any lock tree
+         held by the manager
+*/
+int toku_ltm_set_max_locks(toku_ltm* mgr, u_int32_t max_locks);
+
+/**
+    Sets the maximum number of locks on the lock tree manager.
+    
+    \param mgr          The lock tree manager to which to set max_locks.
+    \param max_locks    A buffer to return the number of max locks.
+
+    \return
+    - 0 on success.
+    - EINVAL if any parameter is NULL.
+*/
+int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
+
 
 #endif

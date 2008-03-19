@@ -6,8 +6,8 @@ static DBT _key;
 static DBT _data;
 DBT* key;
 DBT* data;
-u_int32_t mem = 1000;
-u_int32_t memcnt = 0;
+u_int32_t max_locks = 1000;
+toku_ltm* ltm = NULL;
 
 static void do_range_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
                                          const DBT*, const DBT*,
@@ -40,8 +40,7 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
             reverse_data_l = &_data_l;
             reverse_data_r = &_data_r;
         }
-        memcnt = 0;
-        r = toku_lt_create(&lt, db, duplicates, dbpanic, &mem, &memcnt, 
+        r = toku_lt_create(&lt, db, duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR(r);
         assert(lt);
@@ -119,10 +118,11 @@ static void do_range_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
         /* Cleanup. */
         r = toku_lt_close(lt);
         CKERR(r);
-        
+
         lt = NULL;
     }
 }
+
 static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
                                          const DBT*, const DBT*)) {
     int r;
@@ -145,15 +145,14 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
             reverse_data = &_data;
             data         = NULL;
         }
-        memcnt = 0;
-        r = toku_lt_create(&lt, db, duplicates, dbpanic, &mem, &memcnt,
+        r = toku_lt_create(&lt, db, duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR(r);
         assert(lt);
 
         r = toku_lt_unlock(NULL, (DB_TXN*)1);
         CKERR2(r, EINVAL);
-    
+
         r = toku_lt_unlock(lt, NULL);
         CKERR2(r, EINVAL);
 
@@ -186,7 +185,7 @@ static void do_point_test(int (*acquire)(toku_lock_tree*, DB_TXN*,
         /* Cleanup. */
         r = toku_lt_close(lt);
         CKERR(r);
-        
+
         lt = NULL;
     }
 }
@@ -199,55 +198,77 @@ int main(int argc, const char *argv[]) {
     DB*             db  = (DB*)1;
     BOOL duplicates = FALSE;
 
+    r = toku_ltm_create(NULL, max_locks, toku_malloc, toku_free, toku_realloc);
+        CKERR2(r, EINVAL);
+        assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, 0,         toku_malloc, toku_free, toku_realloc);
+        CKERR2(r, EINVAL);
+        assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, max_locks, NULL,        toku_free, toku_realloc);
+        CKERR2(r, EINVAL);
+        assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, max_locks, toku_malloc, NULL,      toku_realloc);
+        CKERR2(r, EINVAL);
+        assert(ltm == NULL);
+    r = toku_ltm_create(&ltm, max_locks, toku_malloc, toku_free, NULL);
+        CKERR2(r, EINVAL);
+        assert(ltm == NULL);
+
+    /* Actually create it. */
+    r = toku_ltm_create(&ltm, max_locks, toku_malloc, toku_free, toku_realloc);
+    CKERR(r);
+    assert(ltm);
+
+    r = toku_ltm_set_max_locks(NULL, max_locks);
+        CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_locks(ltm,  0);
+        CKERR2(r, EINVAL);
+    r = toku_ltm_set_max_locks(ltm,  max_locks);
+        CKERR(r);
+
+    u_int32_t get_max = 73; //Some random number that isn't 0.
+    r = toku_ltm_get_max_locks(NULL, &get_max);
+        CKERR2(r, EINVAL);
+        assert(get_max == 73);
+    r = toku_ltm_get_max_locks(ltm,  NULL);
+        CKERR2(r, EINVAL);
+        assert(get_max == 73);
+    r = toku_ltm_get_max_locks(ltm,  &get_max);
+        CKERR(r);
+        assert(get_max == max_locks);
+
     /* create tests. */
     for (duplicates = 0; duplicates < 2; duplicates++) {
-        memcnt = 0;
-        r = toku_lt_create(NULL, db,   duplicates, dbpanic, &mem,  &memcnt,
-                           dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        memcnt = 0;
-        r = toku_lt_create(&lt,  NULL, duplicates, dbpanic, &mem,  &memcnt, 
-                           dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, NULL,    &mem,  &memcnt,
+        r = toku_lt_create(NULL, db,   duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
 
-        u_int32_t old_mem = mem;
-        mem = 0;
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
+        r = toku_lt_create(&lt,  NULL, duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
-        mem = old_mem;        
 
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  NULL,
+        r = toku_lt_create(&lt,  db,   duplicates, NULL,    ltm,
+                           dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
+        CKERR2(r, EINVAL);
+
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, NULL,
+                           dbcmp, dbcmp, toku_malloc, toku_free, toku_realloc);
+        CKERR2(r, EINVAL);
+
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, ltm,
                            NULL,  dbcmp, toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
 
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
-                           NULL,  dbcmp, toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, ltm,
+                           dbcmp, NULL,  toku_malloc, toku_free, toku_realloc);
         CKERR2(r, EINVAL);
-
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
-                           dbcmp, NULL,
-                           toku_malloc, toku_free, toku_realloc);
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, ltm,
+                           dbcmp, dbcmp, NULL,        toku_free, toku_realloc);
         CKERR2(r, EINVAL);
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
-                           dbcmp, dbcmp,
-                           NULL,        toku_free, toku_realloc);
-        CKERR2(r, EINVAL);
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, NULL,      toku_realloc);
         CKERR2(r, EINVAL);
-        memcnt = 0;
-        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, &mem,  &memcnt,
+        r = toku_lt_create(&lt,  db,   duplicates, dbpanic, ltm,
                            dbcmp, dbcmp, toku_malloc, toku_free, NULL);
         CKERR2(r, EINVAL);
     }
