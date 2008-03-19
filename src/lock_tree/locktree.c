@@ -87,6 +87,16 @@ static inline int toku__lt_txn_cmp(const DB_TXN* a, const DB_TXN* b) {
     return a < b ? -1 : (a != b);
 }
 
+static inline void toku_ltm_remove_lt(toku_ltm* mgr, toku_lock_tree* lt) {
+    assert(mgr && lt);
+    toku_lth_delete(mgr->lth, lt);
+}
+
+static inline int toku_ltm_add_lt(toku_ltm* mgr, toku_lock_tree* lt) {
+    assert(mgr && lt);
+    return toku_lth_insert(mgr->lth, lt);
+}
+
 int toku__lt_point_cmp(const toku_point* x, const toku_point* y) {
     int partial_result;
     DBT point_1;
@@ -162,6 +172,8 @@ cleanup:
     return r;
 }
 
+static int toku_lt_close_without_ltm(toku_lock_tree* tree);
+
 int toku_ltm_close(toku_ltm* mgr) {
     int r           = ENOSYS;
     int first_error = 0;
@@ -171,10 +183,9 @@ int toku_ltm_close(toku_ltm* mgr) {
     toku_lth_start_scan(mgr->lth);
     toku_lock_tree* lt;
     while ((lt = toku_lth_next(mgr->lth)) != NULL) {
-        r = toku_lt_close(lt);
+        r = toku_lt_close_without_ltm(lt);
         if (r!=0 && first_error==0) { first_error = r; }
     }
-    toku_lth_close(mgr->lth);
     mgr->free(mgr);
 
     r = first_error;
@@ -1020,7 +1031,7 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     tmp_tree->db               = db;
     tmp_tree->duplicates       = duplicates;
     tmp_tree->panic            = panic;
-    tmp_tree->mgr           = mgr;
+    tmp_tree->mgr              = mgr;
     tmp_tree->compare_fun      = compare_fun;
     tmp_tree->dup_compare      = dup_compare;
     tmp_tree->malloc           = user_malloc;
@@ -1046,15 +1057,18 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
     tmp_tree->buflen = __toku_default_buflen;
     tmp_tree->buf    = (toku_range*)
                         user_malloc(tmp_tree->buflen * sizeof(toku_range));
+    if (0) { died5: toku_free(tmp_tree->buf); goto died4; }
     if (!tmp_tree->buf) { r = errno; goto died4; }
     /* We have not failed lock escalation, so we allow escalation if we run
        out of locks. */
     tmp_tree->lock_escalation_allowed = TRUE;
+    r = toku_ltm_add_lt(tmp_tree->mgr, tmp_tree);
+    if (r!=0) { goto died5; }
     *ptree = tmp_tree;
     return 0;
 }
 
-int toku_lt_close(toku_lock_tree* tree) {
+static int toku_lt_close_without_ltm(toku_lock_tree* tree) {
     if (!tree) return EINVAL;
     int r;
     int r2 = 0;
@@ -1079,6 +1093,20 @@ int toku_lt_close(toku_lock_tree* tree) {
     tree->free(tree->buf);
     tree->free(tree);
     return r2;
+}
+
+int toku_lt_close(toku_lock_tree* tree) {
+    int r = ENOSYS;
+    int first_error = 0;
+    if (!tree) { r = EINVAL; goto cleanup; }
+
+    toku_ltm_remove_lt(tree->mgr, tree);
+    r = toku_lt_close_without_ltm(tree);
+    if (r!=0 && first_error==0) { first_error = r; }
+
+    r = first_error;
+cleanup:
+    return r;
 }
 
 int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
