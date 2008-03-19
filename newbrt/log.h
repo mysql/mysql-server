@@ -112,6 +112,9 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
 static inline void toku_free_BYTESTRING(BYTESTRING val) {
     toku_free(val.data);
 }
+static inline void toku_free_DISKOFFARRAY(DISKOFFARRAY val) {
+    toku_free(val.array);
+}
 
 static inline int toku_copy_LOGGEDBRTHEADER(LOGGEDBRTHEADER *target, LOGGEDBRTHEADER val) {
     *target = val;

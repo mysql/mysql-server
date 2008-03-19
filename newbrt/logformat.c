@@ -49,6 +49,10 @@ const struct logtype rollbacks[] = {
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
 			     NULLFIELD}},
+    {"xactiontouchednonleaf", 'n', FA{{"FILENUM", "filenum", 0},
+				      {"DISKOFFARRAY", "parents", 0},
+				      {"DISKOFF", "diskoff", 0},
+				      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 

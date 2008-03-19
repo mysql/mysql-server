@@ -27,6 +27,11 @@ typedef struct {
     char *data;
 } BYTESTRING;
 
+typedef struct {
+    int len;
+    DISKOFF *array;
+} DISKOFFARRAY;
+
 /* Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})

@@ -140,7 +140,20 @@ void toku_fifo_iterate (FIFO fifo, void(*f)(bytevec key,ITEMLEN keylen,bytevec d
         f(entry->key, entry->keylen, entry->key + entry->keylen, entry->vallen, entry->type, entry->xid, arg);
 }
 
-
-
-
-    
+int toku_fifo_expunge_xaction(FIFO fifo, TXNID xid, int (*callback_on_delete)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, int type, TXNID xid, void*), void*arg) {
+    struct fifo_entry **prev=&fifo->head;
+    struct fifo_entry *entry;
+    while ((entry=*prev)) {
+	if (entry->xid==xid) {
+	    // Must remove it.
+	    int r = callback_on_delete(entry->key, entry->keylen, entry->key+entry->keylen, entry->vallen, entry->type, entry->xid, arg);
+	    fifo->n--;
+	    *prev=entry->next;
+	    toku_free_n(entry, fifo_entry_size(entry));
+	    if (r!=0) return r;
+	} else {
+	    prev = &entry->next;
+	}
+    }
+    return 0;
+}

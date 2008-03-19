@@ -77,7 +77,7 @@ void do_test_abort2 (void) {
     insert(7, 1);
     r=txn->abort(txn); CKERR(r);
 
-    // Don't do a query on "hello7", because that will force things out of the buffer.
+    // Don't do a lookup on "hello7", because that will force things out of the buffer.
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     {

@@ -62,3 +62,13 @@ int toku_rollback_deleteatleaf (FILENUM filenum, BYTESTRING key, BYTESTRING data
 			0); // Do the insertion unconditionally
     return r;
 }
+
+int toku_rollback_xactiontouchednonleaf(FILENUM filenum, DISKOFFARRAY array __attribute__((__unused__)), DISKOFF diskoff, TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
+    assert(r==0);
+    r = toku_brt_nonleaf_expunge_xaction(brt,  diskoff, txn->txnid64);
+    assert(r==0);
+    return 0;
+}
