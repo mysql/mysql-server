@@ -51,7 +51,7 @@ void do_test_abort2 (void) {
 
     printf("%s:%d\n", __FILE__, __LINE__);
 
-    // Now do a few inserts.
+    // Now do a few inserts that abort.
     r=db_env_create(&env, 0); assert(r==0);
     env->set_errfile(env, stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
@@ -77,9 +77,15 @@ void do_test_abort2 (void) {
     insert(7, 1);
     r=txn->abort(txn); CKERR(r);
 
+
+    printf("%s:%d\n", __FILE__, __LINE__);
+    //r=db->close(db,0); CKERR(r); r=env->close(env, 0); CKERR(r); return;
+
     // Don't do a lookup on "hello7", because that will force things out of the buffer.
     r=db->close(db, 0); CKERR(r);
+    printf("%s:%d\n", __FILE__, __LINE__);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, 0777); CKERR(r);
+    printf("%s:%d\n", __FILE__, __LINE__);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     {
