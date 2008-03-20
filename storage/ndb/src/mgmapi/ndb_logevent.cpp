@@ -23,6 +23,7 @@
 #include <InputStream.hpp>
 
 #include <debugger/EventLogger.hpp>
+#include <kernel/NodeBitmask.hpp>
 
 #include "ndb_logevent.hpp"
 
@@ -307,10 +308,53 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( BackupCompleted,     "n_records",     6, n_records), 
   ROW( BackupCompleted,     "n_log_bytes",   7, n_log_bytes),
   ROW( BackupCompleted,     "n_log_records", 8, n_log_records),
+  ROW( BackupCompleted,     "n_bytes_hi",    9+NdbNodeBitmask::Size, n_bytes_hi),
+  ROW( BackupCompleted,     "n_records_hi", 10+NdbNodeBitmask::Size, n_records_hi), 
+  ROW( BackupCompleted,     "n_log_bytes_hi",   11+NdbNodeBitmask::Size, n_log_bytes_hi),
+  ROW( BackupCompleted,     "n_log_records_hi", 12+NdbNodeBitmask::Size, n_log_records_hi), 
+
+  ROW_FN( BackupStatus,     "starting_node",    1, starting_node, ref_to_node),
+  ROW( BackupStatus,        "backup_id",        2, backup_id), 
+  ROW( BackupStatus,        "n_bytes_lo",       3, n_bytes_lo),
+  ROW( BackupStatus,        "n_bytes_hi",       4, n_bytes_hi),
+  ROW( BackupStatus,        "n_records_lo",     5, n_records_lo), 
+  ROW( BackupStatus,        "n_records_hi",     6, n_records_hi), 
+  ROW( BackupStatus,        "n_log_bytes_lo",   7, n_log_bytes_lo),
+  ROW( BackupStatus,        "n_log_bytes_hi",   8, n_log_bytes_hi),
+  ROW( BackupStatus,        "n_log_records_lo", 9, n_log_records_lo),
+  ROW( BackupStatus,        "n_log_records_hi",10, n_log_records_hi),
 
   ROW_FN( BackupAborted,    "starting_node", 1, starting_node, ref_to_node),
   ROW( BackupAborted,       "backup_id",     2, backup_id),
   ROW( BackupAborted,       "error",         3, error),
+
+  ROW( RestoreStarted,      "backup_id",     1, backup_id),
+  ROW( RestoreStarted,      "node_id",       2, node_id),
+
+  ROW( RestoreMetaData,     "backup_id",     1, backup_id),
+  ROW( RestoreMetaData,     "node_id",       2, node_id),
+  ROW( RestoreMetaData,     "n_tables",      3, n_tables),
+  ROW( RestoreMetaData,     "n_tablespaces", 4, n_tablespaces),
+  ROW( RestoreMetaData,     "n_logfilegroups", 5, n_logfilegroups),
+  ROW( RestoreMetaData,     "n_datafiles",   6, n_datafiles),
+  ROW( RestoreMetaData,     "n_undofiles",   7, n_undofiles),
+
+  ROW( RestoreData,         "backup_id",     1, backup_id),
+  ROW( RestoreData,         "node_id",       2, node_id),
+  ROW( RestoreData,         "n_records_lo",  3, n_records_lo),
+  ROW( RestoreData,         "n_records_hi",  4, n_records_hi),
+  ROW( RestoreData,         "n_bytes_lo",    5, n_bytes_lo),
+  ROW( RestoreData,         "n_bytes_hi",    6, n_bytes_hi),
+
+  ROW( RestoreLog,          "backup_id",     1, backup_id),
+  ROW( RestoreLog,          "node_id",       2, node_id),
+  ROW( RestoreLog,          "n_records_lo",  3, n_records_lo),
+  ROW( RestoreLog,          "n_records_hi",  4, n_records_hi),
+  ROW( RestoreLog,          "n_bytes_lo",    5, n_bytes_lo),
+  ROW( RestoreLog,          "n_bytes_hi",    6, n_bytes_hi),
+
+  ROW( RestoreCompleted,    "backup_id",     1, backup_id),
+  ROW( RestoreCompleted,    "node_id",       2, node_id),
 
   ROW( SingleUser,          "type",	     1, type),
   ROW( SingleUser,          "node_id",	     2, node_id),

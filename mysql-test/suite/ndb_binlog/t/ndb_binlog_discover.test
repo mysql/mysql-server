@@ -29,6 +29,9 @@ while ($mysql_errno)
 }
 --enable_query_log
 
+# check that data went in ok
+select * from t1;
+
 --source include/show_binlog_events2.inc
 PURGE MASTER LOGS TO 'master-bin.000002';
 

@@ -9,6 +9,8 @@ create table t1 (a int key, b int) engine=ndb;
 create table t2 (a int key, b int) engine=ndb;
 insert into t1 values (1,1);
 alter table t1 add c int;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	1	#	BEGIN

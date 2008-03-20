@@ -5,14 +5,13 @@ Next DBACC 3002
 Next DBTUP 4029
 Next DBLQH 5050
 Next DBDICT 6008
-Next DBDIH 7195
+Next DBDIH 7202
 Next DBTC 8058
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
-Next SUMA 13034
-Next SUMA 13036
+Next SUMA 13043
 Next LGMAN 15001
 Next TSMAN 16001
 
@@ -50,6 +49,21 @@ all nodes in the cluster.
 7004:
 Insert system error in master after completing global checkpoint with
 all nodes in the cluster.
+
+7186:
+Master: Dont send GCP_PREPARE to all node(s)...and die after 1s
+
+7187:
+Master: Dont send GCP_COMMIT to all node(s)...and die after 1s
+
+7188:
+Master: Dont send GCP_SAVE_REQ to all node(s)...and die after 1s
+
+7189:
+Master: Dont send COPY_GCIREQ (GCP) to all node(s)...and die after 1s
+
+7190:
+Master Dont send SUB_GCP_COMPLETE_REP to all node(s) and dies after 1s
 
 7005:
 Insert system error in GCP participant when receiving GCP_PREPARE.
@@ -238,6 +252,8 @@ Delay execution of ABORTREQ signal 2 seconds to generate time-out.
 5100,5101: Drop ABORT req in primary replica
            Crash on "next" ABORT
 
+5047: ZTRANSPORTER_OVERLOADED_ERROR in execLQHKEYREQ
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 8040:
@@ -322,6 +338,8 @@ ABORT OF TCKEYREQ
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
 
+8055 : Crash in sendApiCommit, disconnect API, and set 8056
+8056 : return directly in API_FAILREQ
 8057 : Send only 1 COMMIT per timeslice
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
@@ -555,6 +573,16 @@ NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
+
+SUMA:
+13036: Simulate report MISSING_DATA at node failure
+13037: Simulate disconnect lagging subscribers
+13038: Simulate out of event buffer
+
+13039: Crash i DICT_LOCKCONF
+13040: Crash in SUB_CREATE_REQ if m_restart_server_node_id != RNIL
+13041: Crash in SUB_CREATE_REQ (no matter)
+13042: Crash in SUB_START_REQ (if m_restart_server_node_id != 0)
 
 LGMAN:
 -----

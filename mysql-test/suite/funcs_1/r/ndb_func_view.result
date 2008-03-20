@@ -1,3 +1,7 @@
+
+! Attention: The file with the expected results suffers from
+Bug#10713: mysqldump includes database in create view and referenced tables
+--------------------------------------------------------------------------------
 DROP TABLE IF EXISTS t1_selects, t1_modes, t1_values;
 DROP VIEW  IF EXISTS v1;
 CREATE TABLE t1_values
@@ -85,9 +89,6 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 4;
 INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = -25;
-##### 1.1.1. CAST --> BINARY
-##### 1.1.2. CAST --> CHAR
-##### 1.1.3. CAST --> DATE
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = '2005-06-27';
 INSERT INTO t1_values SET select_id = @select_id,
@@ -100,7 +101,6 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 20050627;
 INSERT INTO t1_values SET select_id = @select_id,
 my_double = +20.050627E+6;
-##### 1.1.4. CAST --> DATETIME
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = '2005-06-27 17:58';
 INSERT INTO t1_values SET select_id = @select_id,
@@ -113,7 +113,6 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 200506271758;
 INSERT INTO t1_values SET select_id = @select_id,
 my_double = +0.0200506271758E+13;
-##### 1.1.5. CAST --> TIME
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = '1 17:58';
 INSERT INTO t1_values SET select_id = @select_id,
@@ -126,7 +125,6 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_bigint = 1758;
 INSERT INTO t1_values SET select_id = @select_id,
 my_double = +1.758E+3;
-##### 1.1.6. CAST --> DECIMAL
 INSERT INTO t1_values SET select_id = @select_id,
 my_char_30 = '-3333.3333';
 INSERT INTO t1_values SET select_id = @select_id,
@@ -137,13 +135,11 @@ INSERT INTO t1_values SET select_id = @select_id,
 my_varbinary_1000 = '-3333.3333';
 INSERT INTO t1_values SET select_id = @select_id,
 my_double = -0.33333333E+4;
-##### 1.1.7. CAST --> SIGNED INTEGER
 
 "Attention: CAST --> SIGNED INTEGER
             Bug#5913 Traditional mode: BIGINT range not correctly delimited
             Status: To be fixed later"
 --------------------------------------------------------------------------------
-##### 1.1.8. CAST --> UNSIGNED INTEGER
 
 "Attention: CAST --> UNSIGNED INTEGER
             The file with expected results suffers from Bug 5913"
@@ -188,12 +184,14 @@ SET @my_select =
 'SELECT LEFT(my_binary_30, 2), my_binary_30, id FROM t1_values';
 SET @my_select = 
 'SELECT LEFT(my_varbinary_1000, 2), my_varbinary_1000, id FROM t1_values';
-SET @my_select = 
-'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', my_bigint), my_bigint, id FROM t1_values';
+
+"Attention: LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', <numeric column>)
+            The file with expected results suffers from Bug 10963"
+            and the testcases with length = BIGINT or DOUBLE column are deactivated,
+because there are 32/64 Bit differences
+--------------------------------------------------------------------------------
 SET @my_select =
 'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', my_decimal), my_decimal, id FROM t1_values';
-SET @my_select =
-'SELECT LEFT(''AaBbCcDdEeFfGgHhIiJjÄäÜüÖö'', my_double), my_double, id FROM t1_values';
 SET @my_select = 'SELECT LENGTH(my_char_30),
 my_char_30, id FROM t1_values';
 SET @my_select = 'SELECT LENGTH(my_varchar_1000),
@@ -286,19 +284,19 @@ SET sql_mode = '';
 --------------------------------------------------------------------------------
 CREATE VIEW v1 AS SELECT my_char_30, id FROM t1_values;
 SELECT my_char_30, id FROM t1_values
-WHERE select_id = 193 OR select_id IS NULL order by id;
+WHERE select_id = 190 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 193 OR select_id IS NULL) order by id;
+WHERE select_id = 190 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT CONCAT('A',my_char_30), my_char_30, id FROM t1_values;
 SELECT CONCAT('A',my_char_30), my_char_30, id FROM t1_values
-WHERE select_id = 192 OR select_id IS NULL order by id;
+WHERE select_id = 189 OR select_id IS NULL order by id;
 CONCAT('A',my_char_30)	my_char_30	id
 NULL	NULL	1
 A		2
@@ -310,7 +308,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select concat(_latin1'A',`t1_values`.`my_char_30`) AS `CONCAT('A',my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 192 OR select_id IS NULL) order by id;
+WHERE select_id = 189 OR select_id IS NULL) order by id;
 CONCAT('A',my_char_30)	my_char_30	id
 NULL	NULL	1
 A		2
@@ -324,13 +322,13 @@ CREATE VIEW v1 AS SELECT LTRIM(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values;
 SELECT LTRIM(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 191 OR select_id IS NULL order by id;
+WHERE select_id = 188 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ltrim(`t1_values`.`my_varbinary_1000`) AS `LTRIM(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 191 OR select_id IS NULL) order by id;
+WHERE select_id = 188 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -338,13 +336,13 @@ CREATE VIEW v1 AS SELECT LTRIM(my_binary_30),
 my_binary_30, id FROM t1_values;
 SELECT LTRIM(my_binary_30),
 my_binary_30, id FROM t1_values
-WHERE select_id = 190 OR select_id IS NULL order by id;
+WHERE select_id = 187 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ltrim(`t1_values`.`my_binary_30`) AS `LTRIM(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 190 OR select_id IS NULL) order by id;
+WHERE select_id = 187 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -352,13 +350,13 @@ CREATE VIEW v1 AS SELECT LTRIM(my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT LTRIM(my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 189 OR select_id IS NULL order by id;
+WHERE select_id = 186 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ltrim(`t1_values`.`my_varchar_1000`) AS `LTRIM(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 189 OR select_id IS NULL) order by id;
+WHERE select_id = 186 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -366,13 +364,13 @@ CREATE VIEW v1 AS SELECT LTRIM(my_char_30),
 my_char_30, id FROM t1_values;
 SELECT LTRIM(my_char_30),
 my_char_30, id FROM t1_values
-WHERE select_id = 188 OR select_id IS NULL order by id;
+WHERE select_id = 185 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ltrim(`t1_values`.`my_char_30`) AS `LTRIM(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 188 OR select_id IS NULL) order by id;
+WHERE select_id = 185 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -380,13 +378,13 @@ CREATE VIEW v1 AS SELECT LOWER(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values;
 SELECT LOWER(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 187 OR select_id IS NULL order by id;
+WHERE select_id = 184 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varbinary_1000`) AS `LOWER(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 187 OR select_id IS NULL) order by id;
+WHERE select_id = 184 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -394,13 +392,13 @@ CREATE VIEW v1 AS SELECT LOWER(my_binary_30),
 my_binary_30, id FROM t1_values;
 SELECT LOWER(my_binary_30),
 my_binary_30, id FROM t1_values
-WHERE select_id = 186 OR select_id IS NULL order by id;
+WHERE select_id = 183 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_binary_30`) AS `LOWER(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 186 OR select_id IS NULL) order by id;
+WHERE select_id = 183 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -408,13 +406,13 @@ CREATE VIEW v1 AS SELECT LOWER(my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT LOWER(my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 185 OR select_id IS NULL order by id;
+WHERE select_id = 182 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varchar_1000`) AS `LOWER(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 185 OR select_id IS NULL) order by id;
+WHERE select_id = 182 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -422,13 +420,13 @@ CREATE VIEW v1 AS SELECT LOWER(my_char_30),
 my_char_30, id FROM t1_values;
 SELECT LOWER(my_char_30),
 my_char_30, id FROM t1_values
-WHERE select_id = 184 OR select_id IS NULL order by id;
+WHERE select_id = 181 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_char_30`) AS `LOWER(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 184 OR select_id IS NULL) order by id;
+WHERE select_id = 181 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -436,13 +434,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', ' - -ABC', my_decimal),
 my_decimal, id FROM t1_values;
 SELECT LOCATE('-', ' - -ABC', my_decimal),
 my_decimal, id FROM t1_values
-WHERE select_id = 183 OR select_id IS NULL order by id;
+WHERE select_id = 180 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',_latin1' - -ABC',`t1_values`.`my_decimal`) AS `LOCATE('-', ' - -ABC', my_decimal)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 183 OR select_id IS NULL) order by id;
+WHERE select_id = 180 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -450,13 +448,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', ' - -ABC', my_double),
 my_double, id FROM t1_values;
 SELECT LOCATE('-', ' - -ABC', my_double),
 my_double, id FROM t1_values
-WHERE select_id = 182 OR select_id IS NULL order by id;
+WHERE select_id = 179 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',_latin1' - -ABC',`t1_values`.`my_double`) AS `LOCATE('-', ' - -ABC', my_double)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 182 OR select_id IS NULL) order by id;
+WHERE select_id = 179 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -464,13 +462,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', ' - -ABC', my_bigint),
 my_bigint, id FROM t1_values;
 SELECT LOCATE('-', ' - -ABC', my_bigint),
 my_bigint, id FROM t1_values
-WHERE select_id = 181 OR select_id IS NULL order by id;
+WHERE select_id = 178 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',_latin1' - -ABC',`t1_values`.`my_bigint`) AS `LOCATE('-', ' - -ABC', my_bigint)`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 181 OR select_id IS NULL) order by id;
+WHERE select_id = 178 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -478,13 +476,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', my_varbinary_1000, 3),
 my_varbinary_1000, id FROM t1_values;
 SELECT LOCATE('-', my_varbinary_1000, 3),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 180 OR select_id IS NULL order by id;
+WHERE select_id = 177 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',`t1_values`.`my_varbinary_1000`,3) AS `LOCATE('-', my_varbinary_1000, 3)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 180 OR select_id IS NULL) order by id;
+WHERE select_id = 177 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -492,13 +490,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', my_binary_30, 3),
 my_binary_30, id FROM t1_values;
 SELECT LOCATE('-', my_binary_30, 3),
 my_binary_30, id FROM t1_values
-WHERE select_id = 179 OR select_id IS NULL order by id;
+WHERE select_id = 176 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',`t1_values`.`my_binary_30`,3) AS `LOCATE('-', my_binary_30, 3)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 179 OR select_id IS NULL) order by id;
+WHERE select_id = 176 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -506,13 +504,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', my_varchar_1000, 3),
 my_varchar_1000, id FROM t1_values;
 SELECT LOCATE('-', my_varchar_1000, 3),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 178 OR select_id IS NULL order by id;
+WHERE select_id = 175 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',`t1_values`.`my_varchar_1000`,3) AS `LOCATE('-', my_varchar_1000, 3)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 178 OR select_id IS NULL) order by id;
+WHERE select_id = 175 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -520,13 +518,13 @@ CREATE VIEW v1 AS SELECT LOCATE('-', my_char_30, 3),
 my_char_30, id FROM t1_values;
 SELECT LOCATE('-', my_char_30, 3),
 my_char_30, id FROM t1_values
-WHERE select_id = 177 OR select_id IS NULL order by id;
+WHERE select_id = 174 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'-',`t1_values`.`my_char_30`,3) AS `LOCATE('-', my_char_30, 3)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 177 OR select_id IS NULL) order by id;
+WHERE select_id = 174 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -534,13 +532,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varbinary_1000, my_binary_30 ),
 my_varbinary_1000, my_binary_30 id FROM t1_values;
 SELECT LOCATE(my_varbinary_1000, my_binary_30 ),
 my_varbinary_1000, my_binary_30 id FROM t1_values
-WHERE select_id = 176 OR select_id IS NULL order by id;
+WHERE select_id = 173 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varbinary_1000`,`t1_values`.`my_binary_30`) AS `LOCATE(my_varbinary_1000, my_binary_30 )`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`my_binary_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 176 OR select_id IS NULL) order by id;
+WHERE select_id = 173 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -548,13 +546,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varbinary_1000, my_varchar_1000 ),
 my_varbinary_1000, my_varchar_1000 id FROM t1_values;
 SELECT LOCATE(my_varbinary_1000, my_varchar_1000 ),
 my_varbinary_1000, my_varchar_1000 id FROM t1_values
-WHERE select_id = 175 OR select_id IS NULL order by id;
+WHERE select_id = 172 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varbinary_1000`,`t1_values`.`my_varchar_1000`) AS `LOCATE(my_varbinary_1000, my_varchar_1000 )`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`my_varchar_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 175 OR select_id IS NULL) order by id;
+WHERE select_id = 172 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -562,13 +560,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varbinary_1000, my_char_30 ),
 my_varbinary_1000, my_char_30 id FROM t1_values;
 SELECT LOCATE(my_varbinary_1000, my_char_30 ),
 my_varbinary_1000, my_char_30 id FROM t1_values
-WHERE select_id = 174 OR select_id IS NULL order by id;
+WHERE select_id = 171 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varbinary_1000`,`t1_values`.`my_char_30`) AS `LOCATE(my_varbinary_1000, my_char_30 )`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`my_char_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 174 OR select_id IS NULL) order by id;
+WHERE select_id = 171 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -576,13 +574,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varbinary_1000, my_varbinary_1000 ),
 my_varbinary_1000, id FROM t1_values;
 SELECT LOCATE(my_varbinary_1000, my_varbinary_1000 ),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 173 OR select_id IS NULL order by id;
+WHERE select_id = 170 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varbinary_1000`,`t1_values`.`my_varbinary_1000`) AS `LOCATE(my_varbinary_1000, my_varbinary_1000 )`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 173 OR select_id IS NULL) order by id;
+WHERE select_id = 170 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -590,13 +588,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_binary_30, my_varbinary_1000 ),
 my_binary_30, my_varbinary_1000 id FROM t1_values;
 SELECT LOCATE(my_binary_30, my_varbinary_1000 ),
 my_binary_30, my_varbinary_1000 id FROM t1_values
-WHERE select_id = 172 OR select_id IS NULL order by id;
+WHERE select_id = 169 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_binary_30`,`t1_values`.`my_varbinary_1000`) AS `LOCATE(my_binary_30, my_varbinary_1000 )`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`my_varbinary_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 172 OR select_id IS NULL) order by id;
+WHERE select_id = 169 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -604,13 +602,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_binary_30, my_varchar_1000 ),
 my_binary_30, my_varchar_1000 id FROM t1_values;
 SELECT LOCATE(my_binary_30, my_varchar_1000 ),
 my_binary_30, my_varchar_1000 id FROM t1_values
-WHERE select_id = 171 OR select_id IS NULL order by id;
+WHERE select_id = 168 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_binary_30`,`t1_values`.`my_varchar_1000`) AS `LOCATE(my_binary_30, my_varchar_1000 )`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`my_varchar_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 171 OR select_id IS NULL) order by id;
+WHERE select_id = 168 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -618,13 +616,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_binary_30, my_char_30 ),
 my_binary_30, my_char_30 id FROM t1_values;
 SELECT LOCATE(my_binary_30, my_char_30 ),
 my_binary_30, my_char_30 id FROM t1_values
-WHERE select_id = 170 OR select_id IS NULL order by id;
+WHERE select_id = 167 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_binary_30`,`t1_values`.`my_char_30`) AS `LOCATE(my_binary_30, my_char_30 )`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`my_char_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 170 OR select_id IS NULL) order by id;
+WHERE select_id = 167 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -632,13 +630,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_binary_30, my_binary_30 ),
 my_binary_30, id FROM t1_values;
 SELECT LOCATE(my_binary_30, my_binary_30 ),
 my_binary_30, id FROM t1_values
-WHERE select_id = 169 OR select_id IS NULL order by id;
+WHERE select_id = 166 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_binary_30`,`t1_values`.`my_binary_30`) AS `LOCATE(my_binary_30, my_binary_30 )`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 169 OR select_id IS NULL) order by id;
+WHERE select_id = 166 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -646,13 +644,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varchar_1000, my_varbinary_1000 ),
 my_varchar_1000, my_varbinary_1000 id FROM t1_values;
 SELECT LOCATE(my_varchar_1000, my_varbinary_1000 ),
 my_varchar_1000, my_varbinary_1000 id FROM t1_values
-WHERE select_id = 168 OR select_id IS NULL order by id;
+WHERE select_id = 165 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varchar_1000`,`t1_values`.`my_varbinary_1000`) AS `LOCATE(my_varchar_1000, my_varbinary_1000 )`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`my_varbinary_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 168 OR select_id IS NULL) order by id;
+WHERE select_id = 165 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -660,13 +658,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varchar_1000, my_binary_30 ),
 my_varchar_1000, my_binary_30 id FROM t1_values;
 SELECT LOCATE(my_varchar_1000, my_binary_30 ),
 my_varchar_1000, my_binary_30 id FROM t1_values
-WHERE select_id = 167 OR select_id IS NULL order by id;
+WHERE select_id = 164 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varchar_1000`,`t1_values`.`my_binary_30`) AS `LOCATE(my_varchar_1000, my_binary_30 )`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`my_binary_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 167 OR select_id IS NULL) order by id;
+WHERE select_id = 164 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -674,13 +672,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varchar_1000, my_char_30 ),
 my_varchar_1000, my_char_30 id FROM t1_values;
 SELECT LOCATE(my_varchar_1000, my_char_30 ),
 my_varchar_1000, my_char_30 id FROM t1_values
-WHERE select_id = 166 OR select_id IS NULL order by id;
+WHERE select_id = 163 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varchar_1000`,`t1_values`.`my_char_30`) AS `LOCATE(my_varchar_1000, my_char_30 )`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`my_char_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 166 OR select_id IS NULL) order by id;
+WHERE select_id = 163 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -688,13 +686,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_varchar_1000, my_varchar_1000 ),
 my_varchar_1000, id FROM t1_values;
 SELECT LOCATE(my_varchar_1000, my_varchar_1000 ),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 165 OR select_id IS NULL order by id;
+WHERE select_id = 162 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_varchar_1000`,`t1_values`.`my_varchar_1000`) AS `LOCATE(my_varchar_1000, my_varchar_1000 )`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 165 OR select_id IS NULL) order by id;
+WHERE select_id = 162 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -702,13 +700,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_char_30, my_varbinary_1000 ),
 my_char_30, my_varbinary_1000 id FROM t1_values;
 SELECT LOCATE(my_char_30, my_varbinary_1000 ),
 my_char_30, my_varbinary_1000 id FROM t1_values
-WHERE select_id = 164 OR select_id IS NULL order by id;
+WHERE select_id = 161 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_char_30`,`t1_values`.`my_varbinary_1000`) AS `LOCATE(my_char_30, my_varbinary_1000 )`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`my_varbinary_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 164 OR select_id IS NULL) order by id;
+WHERE select_id = 161 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -716,13 +714,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_char_30, my_binary_30 ),
 my_char_30, my_binary_30 id FROM t1_values;
 SELECT LOCATE(my_char_30, my_binary_30 ),
 my_char_30, my_binary_30 id FROM t1_values
-WHERE select_id = 163 OR select_id IS NULL order by id;
+WHERE select_id = 160 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_char_30`,`t1_values`.`my_binary_30`) AS `LOCATE(my_char_30, my_binary_30 )`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`my_binary_30` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 163 OR select_id IS NULL) order by id;
+WHERE select_id = 160 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -730,13 +728,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_char_30, my_varchar_1000 ),
 my_char_30, my_varchar_1000 id FROM t1_values;
 SELECT LOCATE(my_char_30, my_varchar_1000 ),
 my_char_30, my_varchar_1000 id FROM t1_values
-WHERE select_id = 162 OR select_id IS NULL order by id;
+WHERE select_id = 159 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_char_30`,`t1_values`.`my_varchar_1000`) AS `LOCATE(my_char_30, my_varchar_1000 )`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`my_varchar_1000` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 162 OR select_id IS NULL) order by id;
+WHERE select_id = 159 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -744,13 +742,13 @@ CREATE VIEW v1 AS SELECT LOCATE(my_char_30, my_char_30 ),
 my_char_30, id FROM t1_values;
 SELECT LOCATE(my_char_30, my_char_30 ),
 my_char_30, id FROM t1_values
-WHERE select_id = 161 OR select_id IS NULL order by id;
+WHERE select_id = 158 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(`t1_values`.`my_char_30`,`t1_values`.`my_char_30`) AS `LOCATE(my_char_30, my_char_30 )`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 161 OR select_id IS NULL) order by id;
+WHERE select_id = 158 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -758,13 +756,13 @@ CREATE VIEW v1 AS SELECT LOCATE('char', my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values;
 SELECT LOCATE('char', my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 160 OR select_id IS NULL order by id;
+WHERE select_id = 157 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'char',`t1_values`.`my_varbinary_1000`) AS `LOCATE('char', my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 160 OR select_id IS NULL) order by id;
+WHERE select_id = 157 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -772,13 +770,13 @@ CREATE VIEW v1 AS SELECT LOCATE('char', my_binary_30),
 my_binary_30, id FROM t1_values;
 SELECT LOCATE('char', my_binary_30),
 my_binary_30, id FROM t1_values
-WHERE select_id = 159 OR select_id IS NULL order by id;
+WHERE select_id = 156 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'char',`t1_values`.`my_binary_30`) AS `LOCATE('char', my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 159 OR select_id IS NULL) order by id;
+WHERE select_id = 156 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -786,13 +784,13 @@ CREATE VIEW v1 AS SELECT LOCATE('char', my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT LOCATE('char', my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 158 OR select_id IS NULL order by id;
+WHERE select_id = 155 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'char',`t1_values`.`my_varchar_1000`) AS `LOCATE('char', my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 158 OR select_id IS NULL) order by id;
+WHERE select_id = 155 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -800,19 +798,19 @@ CREATE VIEW v1 AS SELECT LOCATE('char', my_char_30),
 my_char_30, id FROM t1_values;
 SELECT LOCATE('char', my_char_30),
 my_char_30, id FROM t1_values
-WHERE select_id = 157 OR select_id IS NULL order by id;
+WHERE select_id = 154 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'char',`t1_values`.`my_char_30`) AS `LOCATE('char', my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 157 OR select_id IS NULL) order by id;
+WHERE select_id = 154 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT LOAD_FILE('../tmp/func_view.dat'), id FROM t1_values;
 SELECT LOAD_FILE('../tmp/func_view.dat'), id FROM t1_values
-WHERE select_id = 156 OR select_id IS NULL order by id;
+WHERE select_id = 153 OR select_id IS NULL order by id;
 LOAD_FILE('../tmp/func_view.dat')	id
 äÄ@
 	1
@@ -829,7 +827,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select load_file(_latin1'../tmp/func_view.dat') AS `LOAD_FILE('../tmp/func_view.dat')`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 156 OR select_id IS NULL) order by id;
+WHERE select_id = 153 OR select_id IS NULL) order by id;
 LOAD_FILE('../tmp/func_view.dat')	id
 äÄ@
 	1
@@ -848,13 +846,13 @@ CREATE VIEW v1 AS SELECT LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values;
 SELECT LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 155 OR select_id IS NULL order by id;
+WHERE select_id = 152 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select length(`t1_values`.`my_varbinary_1000`) AS `LENGTH(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 155 OR select_id IS NULL) order by id;
+WHERE select_id = 152 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -862,13 +860,13 @@ CREATE VIEW v1 AS SELECT LENGTH(my_binary_30),
 my_binary_30, id FROM t1_values;
 SELECT LENGTH(my_binary_30),
 my_binary_30, id FROM t1_values
-WHERE select_id = 154 OR select_id IS NULL order by id;
+WHERE select_id = 151 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select length(`t1_values`.`my_binary_30`) AS `LENGTH(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 154 OR select_id IS NULL) order by id;
+WHERE select_id = 151 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -876,13 +874,13 @@ CREATE VIEW v1 AS SELECT LENGTH(my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT LENGTH(my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 153 OR select_id IS NULL order by id;
+WHERE select_id = 150 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select length(`t1_values`.`my_varchar_1000`) AS `LENGTH(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 153 OR select_id IS NULL) order by id;
+WHERE select_id = 150 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -890,49 +888,19 @@ CREATE VIEW v1 AS SELECT LENGTH(my_char_30),
 my_char_30, id FROM t1_values;
 SELECT LENGTH(my_char_30),
 my_char_30, id FROM t1_values
-WHERE select_id = 152 OR select_id IS NULL order by id;
+WHERE select_id = 149 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select length(`t1_values`.`my_char_30`) AS `LENGTH(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 152 OR select_id IS NULL) order by id;
-DROP VIEW v1;
-
-
-CREATE VIEW v1 AS SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double), my_double, id FROM t1_values;
-SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double), my_double, id FROM t1_values
-WHERE select_id = 151 OR select_id IS NULL order by id;
-LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)	my_double	id
-NULL	NULL	1
-	-1.7976931348623e+308	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e+308	3
-	0	4
-	-1	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(_latin1'AaBbCcDdEeFfGgHhIiJjÄäÜüÖö',`t1_values`.`my_double`) AS `LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
-SELECT v1.* FROM v1
-WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 151 OR select_id IS NULL) order by id;
-LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_double)	my_double	id
-NULL	NULL	1
-	-1.7976931348623e+308	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	1.7976931348623e+308	3
-	0	4
-	-1	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
+WHERE select_id = 149 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
 CREATE VIEW v1 AS SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_decimal), my_decimal, id FROM t1_values;
 SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_decimal), my_decimal, id FROM t1_values
-WHERE select_id = 150 OR select_id IS NULL order by id;
+WHERE select_id = 148 OR select_id IS NULL order by id;
 LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_decimal)	my_decimal	id
 NULL	NULL	1
 	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -947,7 +915,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(_latin1'AaBbCcDdEeFfGgHhIiJjÄäÜüÖö',`t1_values`.`my_decimal`) AS `LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_decimal)`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 150 OR select_id IS NULL) order by id;
+WHERE select_id = 148 OR select_id IS NULL) order by id;
 LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_decimal)	my_decimal	id
 NULL	NULL	1
 	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -960,33 +928,9 @@ Error	1292	Truncated incorrect DECIMAL value: ''
 DROP VIEW v1;
 
 
-CREATE VIEW v1 AS SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_bigint), my_bigint, id FROM t1_values;
-SELECT LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_bigint), my_bigint, id FROM t1_values
-WHERE select_id = 149 OR select_id IS NULL order by id;
-LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_bigint)	my_bigint	id
-NULL	NULL	1
-	-9223372036854775808	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	9223372036854775807	3
-	0	4
-	-1	5
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(_latin1'AaBbCcDdEeFfGgHhIiJjÄäÜüÖö',`t1_values`.`my_bigint`) AS `LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_bigint)`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
-SELECT v1.* FROM v1
-WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 149 OR select_id IS NULL) order by id;
-LEFT('AaBbCcDdEeFfGgHhIiJjÄäÜüÖö', my_bigint)	my_bigint	id
-NULL	NULL	1
-	-9223372036854775808	2
-AaBbCcDdEeFfGgHhIiJjÄäÜüÖö	9223372036854775807	3
-	0	4
-	-1	5
-DROP VIEW v1;
-
-
 CREATE VIEW v1 AS SELECT LEFT(my_varbinary_1000, 2), my_varbinary_1000, id FROM t1_values;
 SELECT LEFT(my_varbinary_1000, 2), my_varbinary_1000, id FROM t1_values
-WHERE select_id = 148 OR select_id IS NULL order by id;
+WHERE select_id = 147 OR select_id IS NULL order by id;
 LEFT(my_varbinary_1000, 2)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -998,7 +942,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(`t1_values`.`my_varbinary_1000`,2) AS `LEFT(my_varbinary_1000, 2)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 148 OR select_id IS NULL) order by id;
+WHERE select_id = 147 OR select_id IS NULL) order by id;
 LEFT(my_varbinary_1000, 2)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -1010,7 +954,7 @@ DROP VIEW v1;
 
 CREATE VIEW v1 AS SELECT LEFT(my_binary_30, 2), my_binary_30, id FROM t1_values;
 SELECT LEFT(my_binary_30, 2), my_binary_30, id FROM t1_values
-WHERE select_id = 147 OR select_id IS NULL order by id;
+WHERE select_id = 146 OR select_id IS NULL order by id;
 LEFT(my_binary_30, 2)	my_binary_30	id
 NULL	NULL	1
   	                              	2
@@ -1022,7 +966,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(`t1_values`.`my_binary_30`,2) AS `LEFT(my_binary_30, 2)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 147 OR select_id IS NULL) order by id;
+WHERE select_id = 146 OR select_id IS NULL) order by id;
 LEFT(my_binary_30, 2)	my_binary_30	id
 NULL	NULL	1
   	                              	2
@@ -1034,7 +978,7 @@ DROP VIEW v1;
 
 CREATE VIEW v1 AS SELECT LEFT(my_varchar_1000, 2), my_varchar_1000, id FROM t1_values;
 SELECT LEFT(my_varchar_1000, 2), my_varchar_1000, id FROM t1_values
-WHERE select_id = 146 OR select_id IS NULL order by id;
+WHERE select_id = 145 OR select_id IS NULL order by id;
 LEFT(my_varchar_1000, 2)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -1046,7 +990,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(`t1_values`.`my_varchar_1000`,2) AS `LEFT(my_varchar_1000, 2)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 146 OR select_id IS NULL) order by id;
+WHERE select_id = 145 OR select_id IS NULL) order by id;
 LEFT(my_varchar_1000, 2)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -1058,7 +1002,7 @@ DROP VIEW v1;
 
 CREATE VIEW v1 AS SELECT LEFT(my_char_30, 2), my_char_30, id FROM t1_values;
 SELECT LEFT(my_char_30, 2), my_char_30, id FROM t1_values
-WHERE select_id = 145 OR select_id IS NULL order by id;
+WHERE select_id = 144 OR select_id IS NULL order by id;
 LEFT(my_char_30, 2)	my_char_30	id
 NULL	NULL	1
 		2
@@ -1070,7 +1014,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select left(`t1_values`.`my_char_30`,2) AS `LEFT(my_char_30, 2)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 145 OR select_id IS NULL) order by id;
+WHERE select_id = 144 OR select_id IS NULL) order by id;
 LEFT(my_char_30, 2)	my_char_30	id
 NULL	NULL	1
 		2
@@ -1084,13 +1028,13 @@ CREATE VIEW v1 AS SELECT LCASE(my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT LCASE(my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 144 OR select_id IS NULL order by id;
+WHERE select_id = 143 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select lcase(`t1_values`.`my_varchar_1000`) AS `LCASE(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 144 OR select_id IS NULL) order by id;
+WHERE select_id = 143 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -1098,13 +1042,13 @@ CREATE VIEW v1 AS SELECT INSTR(my_char_30, 'char'),
 my_char_30, id FROM t1_values;
 SELECT INSTR(my_char_30, 'char'),
 my_char_30, id FROM t1_values
-WHERE select_id = 143 OR select_id IS NULL order by id;
+WHERE select_id = 142 OR select_id IS NULL order by id;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select locate(_latin1'char',`t1_values`.`my_char_30`) AS `INSTR(my_char_30, 'char')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 143 OR select_id IS NULL) order by id;
+WHERE select_id = 142 OR select_id IS NULL) order by id;
 DROP VIEW v1;
 
 
@@ -1112,7 +1056,7 @@ CREATE VIEW v1 AS SELECT BIT_LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values;
 SELECT BIT_LENGTH(my_varbinary_1000),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 142 OR select_id IS NULL order by id;
+WHERE select_id = 141 OR select_id IS NULL order by id;
 BIT_LENGTH(my_varbinary_1000)	my_varbinary_1000	id
 NULL	NULL	1
 0		2
@@ -1124,7 +1068,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select bit_length(`t1_values`.`my_varbinary_1000`) AS `BIT_LENGTH(my_varbinary_1000)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 142 OR select_id IS NULL) order by id;
+WHERE select_id = 141 OR select_id IS NULL) order by id;
 BIT_LENGTH(my_varbinary_1000)	my_varbinary_1000	id
 NULL	NULL	1
 0		2
@@ -1138,7 +1082,7 @@ CREATE VIEW v1 AS SELECT BIT_LENGTH(my_binary_30),
 my_binary_30, id FROM t1_values;
 SELECT BIT_LENGTH(my_binary_30),
 my_binary_30, id FROM t1_values
-WHERE select_id = 141 OR select_id IS NULL order by id;
+WHERE select_id = 140 OR select_id IS NULL order by id;
 BIT_LENGTH(my_binary_30)	my_binary_30	id
 NULL	NULL	1
 240	                              	2
@@ -1150,7 +1094,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select bit_length(`t1_values`.`my_binary_30`) AS `BIT_LENGTH(my_binary_30)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 141 OR select_id IS NULL) order by id;
+WHERE select_id = 140 OR select_id IS NULL) order by id;
 BIT_LENGTH(my_binary_30)	my_binary_30	id
 NULL	NULL	1
 240	                              	2
@@ -1164,7 +1108,7 @@ CREATE VIEW v1 AS SELECT BIT_LENGTH(my_varchar_1000),
 my_varchar_1000, id FROM t1_values;
 SELECT BIT_LENGTH(my_varchar_1000),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 140 OR select_id IS NULL order by id;
+WHERE select_id = 139 OR select_id IS NULL order by id;
 BIT_LENGTH(my_varchar_1000)	my_varchar_1000	id
 NULL	NULL	1
 0		2
@@ -1176,7 +1120,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select bit_length(`t1_values`.`my_varchar_1000`) AS `BIT_LENGTH(my_varchar_1000)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 140 OR select_id IS NULL) order by id;
+WHERE select_id = 139 OR select_id IS NULL) order by id;
 BIT_LENGTH(my_varchar_1000)	my_varchar_1000	id
 NULL	NULL	1
 0		2
@@ -1190,7 +1134,7 @@ CREATE VIEW v1 AS SELECT BIT_LENGTH(my_char_30),
 my_char_30, id FROM t1_values;
 SELECT BIT_LENGTH(my_char_30),
 my_char_30, id FROM t1_values
-WHERE select_id = 139 OR select_id IS NULL order by id;
+WHERE select_id = 138 OR select_id IS NULL order by id;
 BIT_LENGTH(my_char_30)	my_char_30	id
 NULL	NULL	1
 0		2
@@ -1202,7 +1146,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select bit_length(`t1_values`.`my_char_30`) AS `BIT_LENGTH(my_char_30)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 139 OR select_id IS NULL) order by id;
+WHERE select_id = 138 OR select_id IS NULL) order by id;
 BIT_LENGTH(my_char_30)	my_char_30	id
 NULL	NULL	1
 0		2
@@ -1216,7 +1160,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_year,'IS_NULL'),
 my_year, id FROM t1_values;
 SELECT IFNULL(my_year,'IS_NULL'),
 my_year, id FROM t1_values
-WHERE select_id = 138 OR select_id IS NULL order by id;
+WHERE select_id = 137 OR select_id IS NULL order by id;
 IFNULL(my_year,'IS_NULL')	my_year	id
 IS_NULL	NULL	1
 1901	1901	2
@@ -1228,7 +1172,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_year`,_latin1'IS_NULL') AS `IFNULL(my_year,'IS_NULL')`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 138 OR select_id IS NULL) order by id;
+WHERE select_id = 137 OR select_id IS NULL) order by id;
 IFNULL(my_year,'IS_NULL')	my_year	id
 IS_NULL	NULL	1
 1901	1901	2
@@ -1242,7 +1186,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_time,'IS_NULL'),
 my_time, id FROM t1_values;
 SELECT IFNULL(my_time,'IS_NULL'),
 my_time, id FROM t1_values
-WHERE select_id = 137 OR select_id IS NULL order by id;
+WHERE select_id = 136 OR select_id IS NULL order by id;
 IFNULL(my_time,'IS_NULL')	my_time	id
 IS_NULL	NULL	1
 -838:59:59	-838:59:59	2
@@ -1254,7 +1198,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_time`,_latin1'IS_NULL') AS `IFNULL(my_time,'IS_NULL')`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 137 OR select_id IS NULL) order by id;
+WHERE select_id = 136 OR select_id IS NULL) order by id;
 IFNULL(my_time,'IS_NULL')	my_time	id
 IS_NULL	NULL	1
 -838:59:59	-838:59:59	2
@@ -1268,7 +1212,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_timestamp,'IS_NULL'),
 my_timestamp, id FROM t1_values;
 SELECT IFNULL(my_timestamp,'IS_NULL'),
 my_timestamp, id FROM t1_values
-WHERE select_id = 136 OR select_id IS NULL order by id;
+WHERE select_id = 135 OR select_id IS NULL order by id;
 IFNULL(my_timestamp,'IS_NULL')	my_timestamp	id
 0000-00-00 00:00:00	0000-00-00 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
@@ -1280,7 +1224,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_timestamp`,_latin1'IS_NULL') AS `IFNULL(my_timestamp,'IS_NULL')`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 136 OR select_id IS NULL) order by id;
+WHERE select_id = 135 OR select_id IS NULL) order by id;
 IFNULL(my_timestamp,'IS_NULL')	my_timestamp	id
 0000-00-00 00:00:00	0000-00-00 00:00:00	1
 1970-01-01 03:00:01	1970-01-01 03:00:01	2
@@ -1294,7 +1238,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_date,'IS_NULL'),
 my_date, id FROM t1_values;
 SELECT IFNULL(my_date,'IS_NULL'),
 my_date, id FROM t1_values
-WHERE select_id = 135 OR select_id IS NULL order by id;
+WHERE select_id = 134 OR select_id IS NULL order by id;
 IFNULL(my_date,'IS_NULL')	my_date	id
 IS_NULL	NULL	1
 0001-01-01	0001-01-01	2
@@ -1306,7 +1250,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_date`,_latin1'IS_NULL') AS `IFNULL(my_date,'IS_NULL')`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 135 OR select_id IS NULL) order by id;
+WHERE select_id = 134 OR select_id IS NULL) order by id;
 IFNULL(my_date,'IS_NULL')	my_date	id
 IS_NULL	NULL	1
 0001-01-01	0001-01-01	2
@@ -1320,7 +1264,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_datetime,'IS_NULL'),
 my_datetime, id FROM t1_values;
 SELECT IFNULL(my_datetime,'IS_NULL'),
 my_datetime, id FROM t1_values
-WHERE select_id = 134 OR select_id IS NULL order by id;
+WHERE select_id = 133 OR select_id IS NULL order by id;
 IFNULL(my_datetime,'IS_NULL')	my_datetime	id
 IS_NULL	NULL	1
 0001-01-01 00:00:00	0001-01-01 00:00:00	2
@@ -1332,7 +1276,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_datetime`,_latin1'IS_NULL') AS `IFNULL(my_datetime,'IS_NULL')`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 134 OR select_id IS NULL) order by id;
+WHERE select_id = 133 OR select_id IS NULL) order by id;
 IFNULL(my_datetime,'IS_NULL')	my_datetime	id
 IS_NULL	NULL	1
 0001-01-01 00:00:00	0001-01-01 00:00:00	2
@@ -1346,7 +1290,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_double,'IS_NULL'),
 my_double, id FROM t1_values;
 SELECT IFNULL(my_double,'IS_NULL'),
 my_double, id FROM t1_values
-WHERE select_id = 133 OR select_id IS NULL order by id;
+WHERE select_id = 132 OR select_id IS NULL order by id;
 IFNULL(my_double,'IS_NULL')	my_double	id
 IS_NULL	NULL	1
 -1.7976931348623e+308	-1.7976931348623e+308	2
@@ -1358,7 +1302,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_double`,_latin1'IS_NULL') AS `IFNULL(my_double,'IS_NULL')`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 133 OR select_id IS NULL) order by id;
+WHERE select_id = 132 OR select_id IS NULL) order by id;
 IFNULL(my_double,'IS_NULL')	my_double	id
 IS_NULL	NULL	1
 -1.7976931348623e+308	-1.7976931348623e+308	2
@@ -1372,7 +1316,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_decimal,'IS_NULL'),
 my_decimal, id FROM t1_values;
 SELECT IFNULL(my_decimal,'IS_NULL'),
 my_decimal, id FROM t1_values
-WHERE select_id = 132 OR select_id IS NULL order by id;
+WHERE select_id = 131 OR select_id IS NULL order by id;
 IFNULL(my_decimal,'IS_NULL')	my_decimal	id
 IS_NULL	NULL	1
 -9999999999999999999999999999999999.999999999999999999999999999999	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -1384,7 +1328,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_decimal`,_latin1'IS_NULL') AS `IFNULL(my_decimal,'IS_NULL')`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 132 OR select_id IS NULL) order by id;
+WHERE select_id = 131 OR select_id IS NULL) order by id;
 IFNULL(my_decimal,'IS_NULL')	my_decimal	id
 IS_NULL	NULL	1
 -9999999999999999999999999999999999.999999999999999999999999999999	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -1398,7 +1342,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_bigint,'IS_NULL'),
 my_bigint, id FROM t1_values;
 SELECT IFNULL(my_bigint,'IS_NULL'),
 my_bigint, id FROM t1_values
-WHERE select_id = 131 OR select_id IS NULL order by id;
+WHERE select_id = 130 OR select_id IS NULL order by id;
 IFNULL(my_bigint,'IS_NULL')	my_bigint	id
 IS_NULL	NULL	1
 -9223372036854775808	-9223372036854775808	2
@@ -1410,7 +1354,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_bigint`,_latin1'IS_NULL') AS `IFNULL(my_bigint,'IS_NULL')`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 131 OR select_id IS NULL) order by id;
+WHERE select_id = 130 OR select_id IS NULL) order by id;
 IFNULL(my_bigint,'IS_NULL')	my_bigint	id
 IS_NULL	NULL	1
 -9223372036854775808	-9223372036854775808	2
@@ -1424,7 +1368,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_varbinary_1000,'IS_NULL'),
 my_varbinary_1000, id FROM t1_values;
 SELECT IFNULL(my_varbinary_1000,'IS_NULL'),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 130 OR select_id IS NULL order by id;
+WHERE select_id = 129 OR select_id IS NULL order by id;
 IFNULL(my_varbinary_1000,'IS_NULL')	my_varbinary_1000	id
 IS_NULL	NULL	1
 		2
@@ -1436,7 +1380,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_varbinary_1000`,_latin1'IS_NULL') AS `IFNULL(my_varbinary_1000,'IS_NULL')`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 130 OR select_id IS NULL) order by id;
+WHERE select_id = 129 OR select_id IS NULL) order by id;
 IFNULL(my_varbinary_1000,'IS_NULL')	my_varbinary_1000	id
 IS_NULL	NULL	1
 		2
@@ -1450,7 +1394,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_binary_30,'IS_NULL'),
 my_binary_30, id FROM t1_values;
 SELECT IFNULL(my_binary_30,'IS_NULL'),
 my_binary_30, id FROM t1_values
-WHERE select_id = 129 OR select_id IS NULL order by id;
+WHERE select_id = 128 OR select_id IS NULL order by id;
 IFNULL(my_binary_30,'IS_NULL')	my_binary_30	id
 IS_NULL	NULL	1
                               	                              	2
@@ -1462,7 +1406,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_binary_30`,_latin1'IS_NULL') AS `IFNULL(my_binary_30,'IS_NULL')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 129 OR select_id IS NULL) order by id;
+WHERE select_id = 128 OR select_id IS NULL) order by id;
 IFNULL(my_binary_30,'IS_NULL')	my_binary_30	id
 IS_NULL	NULL	1
                               	                              	2
@@ -1476,7 +1420,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_varchar_1000,'IS_NULL'),
 my_varchar_1000, id FROM t1_values;
 SELECT IFNULL(my_varchar_1000,'IS_NULL'),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 128 OR select_id IS NULL order by id;
+WHERE select_id = 127 OR select_id IS NULL order by id;
 IFNULL(my_varchar_1000,'IS_NULL')	my_varchar_1000	id
 IS_NULL	NULL	1
 		2
@@ -1488,7 +1432,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_varchar_1000`,_latin1'IS_NULL') AS `IFNULL(my_varchar_1000,'IS_NULL')`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 128 OR select_id IS NULL) order by id;
+WHERE select_id = 127 OR select_id IS NULL) order by id;
 IFNULL(my_varchar_1000,'IS_NULL')	my_varchar_1000	id
 IS_NULL	NULL	1
 		2
@@ -1502,7 +1446,7 @@ CREATE VIEW v1 AS SELECT IFNULL(my_char_30,'IS_NULL'),
 my_char_30, id FROM t1_values;
 SELECT IFNULL(my_char_30,'IS_NULL'),
 my_char_30, id FROM t1_values
-WHERE select_id = 127 OR select_id IS NULL order by id;
+WHERE select_id = 126 OR select_id IS NULL order by id;
 IFNULL(my_char_30,'IS_NULL')	my_char_30	id
 IS_NULL	NULL	1
 		2
@@ -1514,7 +1458,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select ifnull(`t1_values`.`my_char_30`,_latin1'IS_NULL') AS `IFNULL(my_char_30,'IS_NULL')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 127 OR select_id IS NULL) order by id;
+WHERE select_id = 126 OR select_id IS NULL) order by id;
 IFNULL(my_char_30,'IS_NULL')	my_char_30	id
 IS_NULL	NULL	1
 		2
@@ -1528,7 +1472,7 @@ CREATE VIEW v1 AS SELECT IF(my_year IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_year, id FROM t1_values;
 SELECT IF(my_year IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_year, id FROM t1_values
-WHERE select_id = 126 OR select_id IS NULL order by id;
+WHERE select_id = 125 OR select_id IS NULL order by id;
 IF(my_year IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_year	id
 IS     NULL	NULL	1
@@ -1542,7 +1486,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 126 OR select_id IS NULL) order by id;
+WHERE select_id = 125 OR select_id IS NULL) order by id;
 IF(my_year IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_year	id
 IS     NULL	NULL	1
@@ -1557,7 +1501,7 @@ CREATE VIEW v1 AS SELECT IF(my_time IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_time, id FROM t1_values;
 SELECT IF(my_time IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_time, id FROM t1_values
-WHERE select_id = 125 OR select_id IS NULL order by id;
+WHERE select_id = 124 OR select_id IS NULL order by id;
 IF(my_time IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_time	id
 IS     NULL	NULL	1
@@ -1571,7 +1515,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 125 OR select_id IS NULL) order by id;
+WHERE select_id = 124 OR select_id IS NULL) order by id;
 IF(my_time IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_time	id
 IS     NULL	NULL	1
@@ -1586,7 +1530,7 @@ CREATE VIEW v1 AS SELECT IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_timestamp, id FROM t1_values;
 SELECT IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_timestamp, id FROM t1_values
-WHERE select_id = 124 OR select_id IS NULL order by id;
+WHERE select_id = 123 OR select_id IS NULL order by id;
 IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_timestamp	id
 IS NOT NULL	0000-00-00 00:00:00	1
@@ -1600,7 +1544,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 124 OR select_id IS NULL) order by id;
+WHERE select_id = 123 OR select_id IS NULL) order by id;
 IF(my_timestamp IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_timestamp	id
 IS NOT NULL	0000-00-00 00:00:00	1
@@ -1615,7 +1559,7 @@ CREATE VIEW v1 AS SELECT IF(my_date IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_date, id FROM t1_values;
 SELECT IF(my_date IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_date, id FROM t1_values
-WHERE select_id = 123 OR select_id IS NULL order by id;
+WHERE select_id = 122 OR select_id IS NULL order by id;
 IF(my_date IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_date	id
 IS     NULL	NULL	1
@@ -1629,7 +1573,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 123 OR select_id IS NULL) order by id;
+WHERE select_id = 122 OR select_id IS NULL) order by id;
 IF(my_date IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_date	id
 IS     NULL	NULL	1
@@ -1644,7 +1588,7 @@ CREATE VIEW v1 AS SELECT IF(my_datetime IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_datetime, id FROM t1_values;
 SELECT IF(my_datetime IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_datetime, id FROM t1_values
-WHERE select_id = 122 OR select_id IS NULL order by id;
+WHERE select_id = 121 OR select_id IS NULL order by id;
 IF(my_datetime IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_datetime	id
 IS     NULL	NULL	1
@@ -1658,7 +1602,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 122 OR select_id IS NULL) order by id;
+WHERE select_id = 121 OR select_id IS NULL) order by id;
 IF(my_datetime IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_datetime	id
 IS     NULL	NULL	1
@@ -1673,7 +1617,7 @@ CREATE VIEW v1 AS SELECT IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_double, id FROM t1_values;
 SELECT IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_double, id FROM t1_values
-WHERE select_id = 121 OR select_id IS NULL order by id;
+WHERE select_id = 120 OR select_id IS NULL order by id;
 IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_double	id
 IS     NULL	NULL	1
@@ -1687,7 +1631,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 121 OR select_id IS NULL) order by id;
+WHERE select_id = 120 OR select_id IS NULL) order by id;
 IF(my_double IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_double	id
 IS     NULL	NULL	1
@@ -1702,7 +1646,7 @@ CREATE VIEW v1 AS SELECT IF(my_decimal IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_decimal, id FROM t1_values;
 SELECT IF(my_decimal IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_decimal, id FROM t1_values
-WHERE select_id = 120 OR select_id IS NULL order by id;
+WHERE select_id = 119 OR select_id IS NULL order by id;
 IF(my_decimal IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_decimal	id
 IS     NULL	NULL	1
@@ -1716,7 +1660,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 120 OR select_id IS NULL) order by id;
+WHERE select_id = 119 OR select_id IS NULL) order by id;
 IF(my_decimal IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_decimal	id
 IS     NULL	NULL	1
@@ -1731,7 +1675,7 @@ CREATE VIEW v1 AS SELECT IF(my_bigint IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_bigint, id FROM t1_values;
 SELECT IF(my_bigint IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_bigint, id FROM t1_values
-WHERE select_id = 119 OR select_id IS NULL order by id;
+WHERE select_id = 118 OR select_id IS NULL order by id;
 IF(my_bigint IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_bigint	id
 IS     NULL	NULL	1
@@ -1745,7 +1689,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 119 OR select_id IS NULL) order by id;
+WHERE select_id = 118 OR select_id IS NULL) order by id;
 IF(my_bigint IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_bigint	id
 IS     NULL	NULL	1
@@ -1760,7 +1704,7 @@ CREATE VIEW v1 AS SELECT IF(my_varbinary_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_varbinary_1000, id FROM t1_values;
 SELECT IF(my_varbinary_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_varbinary_1000, id FROM t1_values
-WHERE select_id = 118 OR select_id IS NULL order by id;
+WHERE select_id = 117 OR select_id IS NULL order by id;
 IF(my_varbinary_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_varbinary_1000	id
 IS     NULL	NULL	1
@@ -1774,7 +1718,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 118 OR select_id IS NULL) order by id;
+WHERE select_id = 117 OR select_id IS NULL) order by id;
 IF(my_varbinary_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_varbinary_1000	id
 IS     NULL	NULL	1
@@ -1789,7 +1733,7 @@ CREATE VIEW v1 AS SELECT IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_binary_30, id FROM t1_values;
 SELECT IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_binary_30, id FROM t1_values
-WHERE select_id = 117 OR select_id IS NULL order by id;
+WHERE select_id = 116 OR select_id IS NULL order by id;
 IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_binary_30	id
 IS     NULL	NULL	1
@@ -1803,7 +1747,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 117 OR select_id IS NULL) order by id;
+WHERE select_id = 116 OR select_id IS NULL) order by id;
 IF(my_binary_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_binary_30	id
 IS     NULL	NULL	1
@@ -1818,7 +1762,7 @@ CREATE VIEW v1 AS SELECT IF(my_varchar_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_varchar_1000, id FROM t1_values;
 SELECT IF(my_varchar_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_varchar_1000, id FROM t1_values
-WHERE select_id = 116 OR select_id IS NULL order by id;
+WHERE select_id = 115 OR select_id IS NULL order by id;
 IF(my_varchar_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_varchar_1000	id
 IS     NULL	NULL	1
@@ -1832,7 +1776,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 116 OR select_id IS NULL) order by id;
+WHERE select_id = 115 OR select_id IS NULL) order by id;
 IF(my_varchar_1000 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_varchar_1000	id
 IS     NULL	NULL	1
@@ -1847,7 +1791,7 @@ CREATE VIEW v1 AS SELECT IF(my_char_30 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_char_30, id FROM t1_values;
 SELECT IF(my_char_30 IS NULL, 'IS     NULL',
 'IS NOT NULL'), my_char_30, id FROM t1_values
-WHERE select_id = 115 OR select_id IS NULL order by id;
+WHERE select_id = 114 OR select_id IS NULL order by id;
 IF(my_char_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_char_30	id
 IS     NULL	NULL	1
@@ -1861,7 +1805,7 @@ v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VI
 'IS NOT NULL')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 115 OR select_id IS NULL) order by id;
+WHERE select_id = 114 OR select_id IS NULL) order by id;
 IF(my_char_30 IS NULL, 'IS     NULL',
 'IS NOT NULL')	my_char_30	id
 IS     NULL	NULL	1
@@ -1876,7 +1820,7 @@ CREATE VIEW v1 AS SELECT IF(my_year, 'IS     TRUE', 'IS NOT TRUE'),
 my_year, id FROM t1_values;
 SELECT IF(my_year, 'IS     TRUE', 'IS NOT TRUE'),
 my_year, id FROM t1_values
-WHERE select_id = 114 OR select_id IS NULL order by id;
+WHERE select_id = 113 OR select_id IS NULL order by id;
 IF(my_year, 'IS     TRUE', 'IS NOT TRUE')	my_year	id
 IS NOT TRUE	NULL	1
 IS     TRUE	1901	2
@@ -1888,7 +1832,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_year`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_year, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 114 OR select_id IS NULL) order by id;
+WHERE select_id = 113 OR select_id IS NULL) order by id;
 IF(my_year, 'IS     TRUE', 'IS NOT TRUE')	my_year	id
 IS NOT TRUE	NULL	1
 IS     TRUE	1901	2
@@ -1902,7 +1846,7 @@ CREATE VIEW v1 AS SELECT IF(my_time, 'IS     TRUE', 'IS NOT TRUE'),
 my_time, id FROM t1_values;
 SELECT IF(my_time, 'IS     TRUE', 'IS NOT TRUE'),
 my_time, id FROM t1_values
-WHERE select_id = 113 OR select_id IS NULL order by id;
+WHERE select_id = 112 OR select_id IS NULL order by id;
 IF(my_time, 'IS     TRUE', 'IS NOT TRUE')	my_time	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-838:59:59	2
@@ -1914,7 +1858,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_time`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_time, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 113 OR select_id IS NULL) order by id;
+WHERE select_id = 112 OR select_id IS NULL) order by id;
 IF(my_time, 'IS     TRUE', 'IS NOT TRUE')	my_time	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-838:59:59	2
@@ -1928,7 +1872,7 @@ CREATE VIEW v1 AS SELECT IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE'),
 my_timestamp, id FROM t1_values;
 SELECT IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE'),
 my_timestamp, id FROM t1_values
-WHERE select_id = 112 OR select_id IS NULL order by id;
+WHERE select_id = 111 OR select_id IS NULL order by id;
 IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE')	my_timestamp	id
 IS NOT TRUE	0000-00-00 00:00:00	1
 IS     TRUE	1970-01-01 03:00:01	2
@@ -1940,7 +1884,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_timestamp`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 112 OR select_id IS NULL) order by id;
+WHERE select_id = 111 OR select_id IS NULL) order by id;
 IF(my_timestamp, 'IS     TRUE', 'IS NOT TRUE')	my_timestamp	id
 IS NOT TRUE	0000-00-00 00:00:00	1
 IS     TRUE	1970-01-01 03:00:01	2
@@ -1954,7 +1898,7 @@ CREATE VIEW v1 AS SELECT IF(my_date, 'IS     TRUE', 'IS NOT TRUE'),
 my_date, id FROM t1_values;
 SELECT IF(my_date, 'IS     TRUE', 'IS NOT TRUE'),
 my_date, id FROM t1_values
-WHERE select_id = 111 OR select_id IS NULL order by id;
+WHERE select_id = 110 OR select_id IS NULL order by id;
 IF(my_date, 'IS     TRUE', 'IS NOT TRUE')	my_date	id
 IS NOT TRUE	NULL	1
 IS     TRUE	0001-01-01	2
@@ -1966,7 +1910,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_date`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_date, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 111 OR select_id IS NULL) order by id;
+WHERE select_id = 110 OR select_id IS NULL) order by id;
 IF(my_date, 'IS     TRUE', 'IS NOT TRUE')	my_date	id
 IS NOT TRUE	NULL	1
 IS     TRUE	0001-01-01	2
@@ -1980,7 +1924,7 @@ CREATE VIEW v1 AS SELECT IF(my_datetime, 'IS     TRUE', 'IS NOT TRUE'),
 my_datetime, id FROM t1_values;
 SELECT IF(my_datetime, 'IS     TRUE', 'IS NOT TRUE'),
 my_datetime, id FROM t1_values
-WHERE select_id = 110 OR select_id IS NULL order by id;
+WHERE select_id = 109 OR select_id IS NULL order by id;
 IF(my_datetime, 'IS     TRUE', 'IS NOT TRUE')	my_datetime	id
 IS NOT TRUE	NULL	1
 IS     TRUE	0001-01-01 00:00:00	2
@@ -1992,7 +1936,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_datetime`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_datetime, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 110 OR select_id IS NULL) order by id;
+WHERE select_id = 109 OR select_id IS NULL) order by id;
 IF(my_datetime, 'IS     TRUE', 'IS NOT TRUE')	my_datetime	id
 IS NOT TRUE	NULL	1
 IS     TRUE	0001-01-01 00:00:00	2
@@ -2006,7 +1950,7 @@ CREATE VIEW v1 AS SELECT IF(my_double, 'IS     TRUE', 'IS NOT TRUE'),
 my_double, id FROM t1_values;
 SELECT IF(my_double, 'IS     TRUE', 'IS NOT TRUE'),
 my_double, id FROM t1_values
-WHERE select_id = 109 OR select_id IS NULL order by id;
+WHERE select_id = 108 OR select_id IS NULL order by id;
 IF(my_double, 'IS     TRUE', 'IS NOT TRUE')	my_double	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-1.7976931348623e+308	2
@@ -2018,7 +1962,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_double`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_double, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 109 OR select_id IS NULL) order by id;
+WHERE select_id = 108 OR select_id IS NULL) order by id;
 IF(my_double, 'IS     TRUE', 'IS NOT TRUE')	my_double	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-1.7976931348623e+308	2
@@ -2032,7 +1976,7 @@ CREATE VIEW v1 AS SELECT IF(my_decimal, 'IS     TRUE', 'IS NOT TRUE'),
 my_decimal, id FROM t1_values;
 SELECT IF(my_decimal, 'IS     TRUE', 'IS NOT TRUE'),
 my_decimal, id FROM t1_values
-WHERE select_id = 108 OR select_id IS NULL order by id;
+WHERE select_id = 107 OR select_id IS NULL order by id;
 IF(my_decimal, 'IS     TRUE', 'IS NOT TRUE')	my_decimal	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -2044,7 +1988,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_decimal`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_decimal, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_decimal` AS `my_decimal`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 108 OR select_id IS NULL) order by id;
+WHERE select_id = 107 OR select_id IS NULL) order by id;
 IF(my_decimal, 'IS     TRUE', 'IS NOT TRUE')	my_decimal	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-9999999999999999999999999999999999.999999999999999999999999999999	2
@@ -2058,7 +2002,7 @@ CREATE VIEW v1 AS SELECT IF(my_bigint, 'IS     TRUE', 'IS NOT TRUE'),
 my_bigint, id FROM t1_values;
 SELECT IF(my_bigint, 'IS     TRUE', 'IS NOT TRUE'),
 my_bigint, id FROM t1_values
-WHERE select_id = 107 OR select_id IS NULL order by id;
+WHERE select_id = 106 OR select_id IS NULL order by id;
 IF(my_bigint, 'IS     TRUE', 'IS NOT TRUE')	my_bigint	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-9223372036854775808	2
@@ -2070,7 +2014,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_bigint`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_bigint, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_bigint` AS `my_bigint`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 107 OR select_id IS NULL) order by id;
+WHERE select_id = 106 OR select_id IS NULL) order by id;
 IF(my_bigint, 'IS     TRUE', 'IS NOT TRUE')	my_bigint	id
 IS NOT TRUE	NULL	1
 IS     TRUE	-9223372036854775808	2
@@ -2084,7 +2028,7 @@ CREATE VIEW v1 AS SELECT IF(my_varbinary_1000, 'IS     TRUE', 'IS NOT TRUE'),
 my_varbinary_1000, id FROM t1_values;
 SELECT IF(my_varbinary_1000, 'IS     TRUE', 'IS NOT TRUE'),
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 106 OR select_id IS NULL order by id;
+WHERE select_id = 105 OR select_id IS NULL order by id;
 IF(my_varbinary_1000, 'IS     TRUE', 'IS NOT TRUE')	my_varbinary_1000	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2096,7 +2040,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_varbinary_1000`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_varbinary_1000, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 106 OR select_id IS NULL) order by id;
+WHERE select_id = 105 OR select_id IS NULL) order by id;
 IF(my_varbinary_1000, 'IS     TRUE', 'IS NOT TRUE')	my_varbinary_1000	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2110,7 +2054,7 @@ CREATE VIEW v1 AS SELECT IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE'),
 my_binary_30, id FROM t1_values;
 SELECT IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE'),
 my_binary_30, id FROM t1_values
-WHERE select_id = 105 OR select_id IS NULL order by id;
+WHERE select_id = 104 OR select_id IS NULL order by id;
 IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE')	my_binary_30	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE	                              	2
@@ -2127,7 +2071,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_binary_30`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 105 OR select_id IS NULL) order by id;
+WHERE select_id = 104 OR select_id IS NULL) order by id;
 IF(my_binary_30, 'IS     TRUE', 'IS NOT TRUE')	my_binary_30	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE	                              	2
@@ -2146,7 +2090,7 @@ CREATE VIEW v1 AS SELECT IF(my_varchar_1000, 'IS     TRUE', 'IS NOT TRUE'),
 my_varchar_1000, id FROM t1_values;
 SELECT IF(my_varchar_1000, 'IS     TRUE', 'IS NOT TRUE'),
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 104 OR select_id IS NULL order by id;
+WHERE select_id = 103 OR select_id IS NULL order by id;
 IF(my_varchar_1000, 'IS     TRUE', 'IS NOT TRUE')	my_varchar_1000	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2158,7 +2102,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_varchar_1000`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_varchar_1000, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 104 OR select_id IS NULL) order by id;
+WHERE select_id = 103 OR select_id IS NULL) order by id;
 IF(my_varchar_1000, 'IS     TRUE', 'IS NOT TRUE')	my_varchar_1000	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2172,7 +2116,7 @@ CREATE VIEW v1 AS SELECT IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE'),
 my_char_30, id FROM t1_values;
 SELECT IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE'),
 my_char_30, id FROM t1_values
-WHERE select_id = 103 OR select_id IS NULL order by id;
+WHERE select_id = 102 OR select_id IS NULL order by id;
 IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE')	my_char_30	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2187,7 +2131,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select if(`t1_values`.`my_char_30`,_latin1'IS     TRUE',_latin1'IS NOT TRUE') AS `IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE')`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 103 OR select_id IS NULL) order by id;
+WHERE select_id = 102 OR select_id IS NULL) order by id;
 IF(my_char_30, 'IS     TRUE', 'IS NOT TRUE')	my_char_30	id
 IS NOT TRUE	NULL	1
 IS NOT TRUE		2
@@ -2204,7 +2148,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING koi8r),
 my_varbinary_1000, id FROM t1_values;
 SELECT CONVERT(my_varbinary_1000 USING koi8r), 
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 102 OR select_id IS NULL order by id;
+WHERE select_id = 101 OR select_id IS NULL order by id;
 CONVERT(my_varbinary_1000 USING koi8r)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -2216,7 +2160,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varbinary_1000` using koi8r) AS `CONVERT(my_varbinary_1000 USING koi8r)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 102 OR select_id IS NULL) order by id;
+WHERE select_id = 101 OR select_id IS NULL) order by id;
 CONVERT(my_varbinary_1000 USING koi8r)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -2230,7 +2174,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING koi8r),
 my_binary_30, id FROM t1_values;
 SELECT CONVERT(my_binary_30 USING koi8r), 
 my_binary_30, id FROM t1_values
-WHERE select_id = 101 OR select_id IS NULL order by id;
+WHERE select_id = 100 OR select_id IS NULL order by id;
 CONVERT(my_binary_30 USING koi8r)	my_binary_30	id
 NULL	NULL	1
                               	                              	2
@@ -2242,7 +2186,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using koi8r) AS `CONVERT(my_binary_30 USING koi8r)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 101 OR select_id IS NULL) order by id;
+WHERE select_id = 100 OR select_id IS NULL) order by id;
 CONVERT(my_binary_30 USING koi8r)	my_binary_30	id
 NULL	NULL	1
                               	                              	2
@@ -2256,7 +2200,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING koi8r),
 my_varchar_1000, id FROM t1_values;
 SELECT CONVERT(my_varchar_1000 USING koi8r), 
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 100 OR select_id IS NULL order by id;
+WHERE select_id = 99 OR select_id IS NULL order by id;
 CONVERT(my_varchar_1000 USING koi8r)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -2268,7 +2212,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varchar_1000` using koi8r) AS `CONVERT(my_varchar_1000 USING koi8r)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 100 OR select_id IS NULL) order by id;
+WHERE select_id = 99 OR select_id IS NULL) order by id;
 CONVERT(my_varchar_1000 USING koi8r)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -2282,7 +2226,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING koi8r),
 my_char_30, id FROM t1_values;
 SELECT CONVERT(my_char_30 USING koi8r), 
 my_char_30, id FROM t1_values
-WHERE select_id = 99 OR select_id IS NULL order by id;
+WHERE select_id = 98 OR select_id IS NULL order by id;
 CONVERT(my_char_30 USING koi8r)	my_char_30	id
 NULL	NULL	1
 		2
@@ -2294,7 +2238,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_char_30` using koi8r) AS `CONVERT(my_char_30 USING koi8r)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 99 OR select_id IS NULL) order by id;
+WHERE select_id = 98 OR select_id IS NULL) order by id;
 CONVERT(my_char_30 USING koi8r)	my_char_30	id
 NULL	NULL	1
 		2
@@ -2308,7 +2252,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_varbinary_1000 USING utf8),
 my_varbinary_1000, id FROM t1_values;
 SELECT CONVERT(my_varbinary_1000 USING utf8), 
 my_varbinary_1000, id FROM t1_values
-WHERE select_id = 98 OR select_id IS NULL order by id;
+WHERE select_id = 97 OR select_id IS NULL order by id;
 CONVERT(my_varbinary_1000 USING utf8)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -2320,7 +2264,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varbinary_1000` using utf8) AS `CONVERT(my_varbinary_1000 USING utf8)`,`t1_values`.`my_varbinary_1000` AS `my_varbinary_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 98 OR select_id IS NULL) order by id;
+WHERE select_id = 97 OR select_id IS NULL) order by id;
 CONVERT(my_varbinary_1000 USING utf8)	my_varbinary_1000	id
 NULL	NULL	1
 		2
@@ -2334,7 +2278,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_binary_30 USING utf8),
 my_binary_30, id FROM t1_values;
 SELECT CONVERT(my_binary_30 USING utf8), 
 my_binary_30, id FROM t1_values
-WHERE select_id = 97 OR select_id IS NULL order by id;
+WHERE select_id = 96 OR select_id IS NULL order by id;
 CONVERT(my_binary_30 USING utf8)	my_binary_30	id
 NULL	NULL	1
                               	                              	2
@@ -2346,7 +2290,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_binary_30` using utf8) AS `CONVERT(my_binary_30 USING utf8)`,`t1_values`.`my_binary_30` AS `my_binary_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 97 OR select_id IS NULL) order by id;
+WHERE select_id = 96 OR select_id IS NULL) order by id;
 CONVERT(my_binary_30 USING utf8)	my_binary_30	id
 NULL	NULL	1
                               	                              	2
@@ -2360,7 +2304,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_varchar_1000 USING utf8),
 my_varchar_1000, id FROM t1_values;
 SELECT CONVERT(my_varchar_1000 USING utf8), 
 my_varchar_1000, id FROM t1_values
-WHERE select_id = 96 OR select_id IS NULL order by id;
+WHERE select_id = 95 OR select_id IS NULL order by id;
 CONVERT(my_varchar_1000 USING utf8)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -2372,7 +2316,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_varchar_1000` using utf8) AS `CONVERT(my_varchar_1000 USING utf8)`,`t1_values`.`my_varchar_1000` AS `my_varchar_1000`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 96 OR select_id IS NULL) order by id;
+WHERE select_id = 95 OR select_id IS NULL) order by id;
 CONVERT(my_varchar_1000 USING utf8)	my_varchar_1000	id
 NULL	NULL	1
 		2
@@ -2386,7 +2330,7 @@ CREATE VIEW v1 AS SELECT CONVERT(my_char_30 USING utf8),
 my_char_30, id FROM t1_values;
 SELECT CONVERT(my_char_30 USING utf8), 
 my_char_30, id FROM t1_values
-WHERE select_id = 95 OR select_id IS NULL order by id;
+WHERE select_id = 94 OR select_id IS NULL order by id;
 CONVERT(my_char_30 USING utf8)	my_char_30	id
 NULL	NULL	1
 		2
@@ -2398,7 +2342,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select convert(`t1_values`.`my_char_30` using utf8) AS `CONVERT(my_char_30 USING utf8)`,`t1_values`.`my_char_30` AS `my_char_30`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 95 OR select_id IS NULL) order by id;
+WHERE select_id = 94 OR select_id IS NULL) order by id;
 CONVERT(my_char_30 USING utf8)	my_char_30	id
 NULL	NULL	1
 		2
@@ -2412,7 +2356,7 @@ CREATE VIEW v1 AS SELECT CAST(my_year AS UNSIGNED INTEGER),
 my_year, id FROM t1_values;
 SELECT CAST(my_year AS UNSIGNED INTEGER),
 my_year, id FROM t1_values
-WHERE select_id = 94 OR select_id IS NULL order by id;
+WHERE select_id = 93 OR select_id IS NULL order by id;
 CAST(my_year AS UNSIGNED INTEGER)	my_year	id
 NULL	NULL	1
 1901	1901	2
@@ -2424,7 +2368,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_year` as unsigned) AS `CAST(my_year AS UNSIGNED INTEGER)`,`t1_values`.`my_year` AS `my_year`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 94 OR select_id IS NULL) order by id;
+WHERE select_id = 93 OR select_id IS NULL) order by id;
 CAST(my_year AS UNSIGNED INTEGER)	my_year	id
 NULL	NULL	1
 1901	1901	2
@@ -2438,7 +2382,7 @@ CREATE VIEW v1 AS SELECT CAST(my_time AS UNSIGNED INTEGER),
 my_time, id FROM t1_values;
 SELECT CAST(my_time AS UNSIGNED INTEGER),
 my_time, id FROM t1_values
-WHERE select_id = 93 OR select_id IS NULL order by id;
+WHERE select_id = 92 OR select_id IS NULL order by id;
 CAST(my_time AS UNSIGNED INTEGER)	my_time	id
 NULL	NULL	1
 18446744073701165657	-838:59:59	2
@@ -2450,7 +2394,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as unsigned) AS `CAST(my_time AS UNSIGNED INTEGER)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 93 OR select_id IS NULL) order by id;
+WHERE select_id = 92 OR select_id IS NULL) order by id;
 CAST(my_time AS UNSIGNED INTEGER)	my_time	id
 NULL	NULL	1
 18446744073701165657	-838:59:59	2
@@ -2464,7 +2408,7 @@ CREATE VIEW v1 AS SELECT CAST(my_timestamp AS UNSIGNED INTEGER),
 my_timestamp, id FROM t1_values;
 SELECT CAST(my_timestamp AS UNSIGNED INTEGER),
 my_timestamp, id FROM t1_values
-WHERE select_id = 92 OR select_id IS NULL order by id;
+WHERE select_id = 91 OR select_id IS NULL order by id;
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
@@ -2476,7 +2420,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_timestamp` as unsigned) AS `CAST(my_timestamp AS UNSIGNED INTEGER)`,`t1_values`.`my_timestamp` AS `my_timestamp`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 92 OR select_id IS NULL) order by id;
+WHERE select_id = 91 OR select_id IS NULL) order by id;
 CAST(my_timestamp AS UNSIGNED INTEGER)	my_timestamp	id
 0	0000-00-00 00:00:00	1
 19700101030001	1970-01-01 03:00:01	2
@@ -2490,7 +2434,7 @@ CREATE VIEW v1 AS SELECT CAST(my_date AS UNSIGNED INTEGER),
 my_date, id FROM t1_values;
 SELECT CAST(my_date AS UNSIGNED INTEGER),
 my_date, id FROM t1_values
-WHERE select_id = 91 OR select_id IS NULL order by id;
+WHERE select_id = 90 OR select_id IS NULL order by id;
 CAST(my_date AS UNSIGNED INTEGER)	my_date	id
 NULL	NULL	1
 10101	0001-01-01	2
@@ -2502,7 +2446,7 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_date` as unsigned) AS `CAST(my_date AS UNSIGNED INTEGER)`,`t1_values`.`my_date` AS `my_date`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 91 OR select_id IS NULL) order by id;
+WHERE select_id = 90 OR select_id IS NULL) order by id;
 CAST(my_date AS UNSIGNED INTEGER)	my_date	id
 NULL	NULL	1
 10101	0001-01-01	2
@@ -2516,7 +2460,7 @@ CREATE VIEW v1 AS SELECT CAST(my_datetime AS UNSIGNED INTEGER),
 my_datetime, id FROM t1_values;
 SELECT CAST(my_datetime AS UNSIGNED INTEGER),
 my_datetime, id FROM t1_values
-WHERE select_id = 90 OR select_id IS NULL order by id;
+WHERE select_id = 89 OR select_id IS NULL order by id;
 CAST(my_datetime AS UNSIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
 10101000000	0001-01-01 00:00:00	2
@@ -2528,45 +2472,13 @@ View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_datetime` as unsigned) AS `CAST(my_datetime AS UNSIGNED INTEGER)`,`t1_values`.`my_datetime` AS `my_datetime`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
 SELECT v1.* FROM v1
 WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 90 OR select_id IS NULL) order by id;
+WHERE select_id = 89 OR select_id IS NULL) order by id;
 CAST(my_datetime AS UNSIGNED INTEGER)	my_datetime	id
 NULL	NULL	1
 10101000000	0001-01-01 00:00:00	2
 99991231235959	9999-12-31 23:59:59	3
 20040229235959	2004-02-29 23:59:59	4
 20050628100000	2005-06-28 10:00:00	5
-DROP VIEW v1;
-
-
-CREATE VIEW v1 AS SELECT CAST(my_double AS UNSIGNED INTEGER),
-my_double, id FROM t1_values;
-SELECT CAST(my_double AS UNSIGNED INTEGER),
-my_double, id FROM t1_values
-WHERE select_id = 89 OR select_id IS NULL order by id;
-CAST(my_double AS UNSIGNED INTEGER)	my_double	id
-NULL	NULL	1
-9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
-0	0	4
-18446744073709551615	-1	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
-SHOW CREATE VIEW v1;
-View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as unsigned) AS `CAST(my_double AS UNSIGNED INTEGER)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
-SELECT v1.* FROM v1
-WHERE v1.id IN (SELECT id FROM t1_values
-WHERE select_id = 89 OR select_id IS NULL) order by id;
-CAST(my_double AS UNSIGNED INTEGER)	my_double	id
-NULL	NULL	1
-9223372036854775808	-1.7976931348623e+308	2
-9223372036854775807	1.7976931348623e+308	3
-0	0	4
-18446744073709551615	-1	5
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: '-1.7976931348623e+308'
-Warning	1292	Truncated incorrect INTEGER value: '1.7976931348623e+308'
 DROP VIEW v1;
 
 

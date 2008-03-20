@@ -34,7 +34,8 @@
 NdbRestarter::NdbRestarter(const char* _addr): 
   connected(false),
   handle(NULL),
-  m_config(0)
+  m_config(0),
+  m_reconnect(false)
 {
   if (_addr == NULL){
     addr.assign("");
@@ -46,6 +47,7 @@ NdbRestarter::NdbRestarter(const char* _addr):
 NdbRestarter::~NdbRestarter(){
   disconnect();
 }
+
 
 int NdbRestarter::getDbNodeId(int _i){
   if (!isConnected())
@@ -270,6 +272,21 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
   return -1;
 }
 
+
+// Wait until connected to ndb_mgmd
+int
+NdbRestarter::waitConnected(unsigned int _timeout){
+  _timeout*= 10;
+  while (isConnected() && getStatus() != 0){
+    if (_timeout-- == 0){
+      ndbout << "NdbRestarter::waitConnected failed" << endl;
+      return -1;
+    }
+    NdbSleep_MilliSleep(100);
+  }
+  return 0;
+}
+
 int 
 NdbRestarter::waitClusterStarted(unsigned int _timeout){
   return waitClusterState(NDB_MGM_NODE_STATUS_STARTED, _timeout);
@@ -298,8 +315,10 @@ NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
   int nodes[MAX_NDB_NODES];
   int numNodes = 0;
 
-  if (getStatus() != 0)
+  if (getStatus() != 0){
+    g_err << "waitClusterStat: getStatus != 0" << endl;
     return -1;
+  }
   
   // Collect all nodes into nodes
   for (size_t i = 0; i < ndbNodes.size(); i++){
@@ -352,14 +371,14 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
       } 
 
       if (!waitMore || resetAttempts > MAX_RESET_ATTEMPTS){
-	g_err << "waitNodeState("
+	g_err << "waitNodesState("
 	      << ndb_mgm_get_node_status_string(_status)
 	      <<", "<<_startphase<<")"
 	      << " timeout after " << attempts <<" attemps" << endl;
 	return -1;
       } 
 
-      g_err << "waitNodeState("
+      g_err << "waitNodesState("
 	    << ndb_mgm_get_node_status_string(_status)
 	    <<", "<<_startphase<<")"
 	    << " resetting number of attempts "
@@ -371,7 +390,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 
     allInState = true;
     if (getStatus() != 0){
-      g_err << "getStatus != 0" << endl;
+      g_err << "waitNodesState: getStatus != 0" << endl;
       return -1;
     }
 
@@ -508,6 +527,20 @@ NdbRestarter::getStatus(){
   while(retries < 10){
     status = ndb_mgm_get_status(handle);
     if (status == NULL){
+      if (m_reconnect){
+        if (connect() == 0){
+          g_err << "Reconnected..." << endl;
+          continue;
+        }
+        const int err = ndb_mgm_get_latest_error(handle);
+        if (err == NDB_MGM_COULD_NOT_CONNECT_TO_SOCKET){
+          g_err << "Could not connect to socket, sleep and retry" << endl;
+          retries= 0;
+          NdbSleep_SecSleep(1);
+          continue;
+        }
+      }
+      const int err = ndb_mgm_get_latest_error(handle);
       ndbout << "status==NULL, retries="<<retries<<endl;
       MGMERR(handle);
       retries++;
@@ -746,5 +779,28 @@ NdbRestarter::getConfig(){
   m_config = ndb_mgm_get_configuration(handle, 0);
   return m_config;
 }
+
+int
+NdbRestarter::getNode(NodeSelector type)
+{
+  switch(type){
+  case NS_RANDOM:
+    return getDbNodeId(rand() % getNumDbNodes());
+  case NS_MASTER:
+    return getMasterNodeId();
+  case NS_NON_MASTER:
+    return getRandomNotMasterNodeId(rand());
+  default:
+    abort();
+  }
+  return -1;
+}
+
+
+void
+NdbRestarter::setReconnect(bool val){
+  m_reconnect= val;
+}
+
 
 template class Vector<ndb_mgm_node_state>;

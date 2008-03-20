@@ -35,7 +35,7 @@ class TcCommitConf {
   friend class NdbTransaction;
 
 public:
-  STATIC_CONST( SignalLength = 4 );
+  STATIC_CONST( SignalLength = 5 );
 private:
 
   /**
@@ -48,7 +48,8 @@ private:
   
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 gci;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
 };
 
 class TcCommitRef {

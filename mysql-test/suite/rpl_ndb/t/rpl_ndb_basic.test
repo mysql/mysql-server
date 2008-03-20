@@ -1,4 +1,6 @@
 --source include/have_ndb.inc
+#error message differs slightly with statement based replication
+--source include/have_binlog_format_mixed_or_row.inc
 --source include/ndb_master-slave.inc
 
 
@@ -196,7 +198,7 @@ UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 --connection slave
 --echo **** On Slave ****
 --replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 19 <Last_Errno> 20 <Last_Error> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error> 37 <Last_SQL_Errno> 38 <Last_SQL_Error>
+--replace_column 1 <Slave_IO_State> 7 <Read_Master_Log_Pos> 8 <Relay_Log_File> 9 <Relay_Log_Pos> 16 <Replicate_Ignore_Table> 22 <Exec_Master_Log_Pos> 23 <Relay_Log_Space> 33 <Seconds_Behind_Master> 35 <Last_IO_Errno> 36 <Last_IO_Error> 37 <Last_SQL_Errno> 38 <Last_SQL_Error>
 --query_vertical SHOW SLAVE STATUS;
 
 # now set max retries high enough to succeed, and start slave again
@@ -231,6 +233,14 @@ CREATE TABLE t1 (c1 INT KEY) ENGINE=NDB;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 
 ALTER TABLE t1 ADD c2 INT;
+
+--sync_slave_with_master
+connection slave;
+SELECT * FROM t1 ORDER BY c1;
+
+connection master;
+
+INSERT INTO t1 VALUES (11,11),(12,12),(13,13),(14,14);
 
 --sync_slave_with_master
 connection slave;

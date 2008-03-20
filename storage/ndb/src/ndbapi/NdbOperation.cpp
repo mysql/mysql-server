@@ -79,7 +79,7 @@ NdbOperation::NdbOperation(Ndb* aNdb, NdbOperation::Type aType) :
   m_abortOption(-1),
   m_noErrorPropagation(false)
 {
-  theReceiver.init(NdbReceiver::NDB_OPERATION, this);
+  theReceiver.init(NdbReceiver::NDB_OPERATION, false, this);
   theError.code = 0;
 }
 /*****************************************************************************
@@ -131,7 +131,8 @@ NdbOperation::setErrorCodeAbort(int anErrorCode)
  *****************************************************************************/
 
 int
-NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
+NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection,
+                   bool useRec){
   NdbApiSignal* tSignal;
   theStatus		= Init;
   theError.code		= 0;
@@ -162,10 +163,13 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   theScanInfo        	= 0;
   theTotalNrOfKeyWordInSignal = 8;
   theMagicNumber        = 0xABCDEF01;
+  m_attribute_record= NULL;
   theBlobList = NULL;
   m_abortOption = -1;
   m_noErrorPropagation = false;
   m_no_disk_flag = 1;
+  m_interpreted_code = NULL;
+  m_use_any_value = 0;
 
   tSignal = theNdb->getSignal();
   if (tSignal == NULL)
@@ -181,7 +185,7 @@ NdbOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection){
   tcKeyReq->scanInfo = 0;
   theKEYINFOptr = &tcKeyReq->keyInfo[0];
   theATTRINFOptr = &tcKeyReq->attrInfo[0];
-  if (theReceiver.init(NdbReceiver::NDB_OPERATION, this))
+  if (theReceiver.init(NdbReceiver::NDB_OPERATION, useRec, this))
   {
     // theReceiver sets the error code of its owner
     return -1;

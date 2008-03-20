@@ -188,7 +188,7 @@ void Trix::execREAD_NODESCONF(Signal* signal)
 
   for(unsigned i = 0; i < MAX_NDB_NODES; i++) {
     jam();
-    if(NodeBitmask::get(readNodes->allNodes, i)) {
+    if(NdbNodeBitmask::get(readNodes->allNodes, i)) {
       // Node is defined
       jam();
       ndbrequire(c_theNodes.seizeId(nodeRecPtr, i));
@@ -196,7 +196,7 @@ void Trix::execREAD_NODESCONF(Signal* signal)
       if (i == c_masterNodeId) {
         c_masterTrixRef = nodeRecPtr.p->trixRef;
       }
-      if(NodeBitmask::get(readNodes->inactiveNodes, i)){
+      if(NdbNodeBitmask::get(readNodes->inactiveNodes, i)){
         // Node is not active
 	jam();
 	/**-----------------------------------------------------------------
@@ -248,7 +248,7 @@ void Trix::execNODE_FAILREP(Signal* signal)
   for(c_theNodes.first(nodeRecPtr); 
       nodeRecPtr.i != RNIL; 
       c_theNodes.next(nodeRecPtr)) {
-    if(NodeBitmask::get(nodeFail->theNodes, nodeRecPtr.i)) {
+    if(NdbNodeBitmask::get(nodeFail->theNodes, nodeRecPtr.i)) {
       nodeRecPtr.p->alive = false;
       c_noNodesFailed++;
       c_noActiveNodes--;      
@@ -683,6 +683,7 @@ void Trix::execSUB_SYNC_CONTINUE_REQ(Signal* signal)
   }
   subRecPtr.p = subRec;
   subRec->pendingSubSyncContinueConf = true;
+  subRec->syncPtr = subSyncContinueReq->senderData;
   checkParallelism(signal, subRec);
 }
 
@@ -985,6 +986,7 @@ void Trix::checkParallelism(Signal* signal, SubscriptionRecord* subRec)
       (SubSyncContinueConf *) signal->getDataPtrSend();
     subSyncContinueConf->subscriptionId = subRec->subscriptionId;
     subSyncContinueConf->subscriptionKey = subRec->subscriptionKey;
+    subSyncContinueConf->senderData = subRec->syncPtr;
     sendSignal(SUMA_REF, GSN_SUB_SYNC_CONTINUE_CONF, signal, 
 	       SubSyncContinueConf::SignalLength , JBB);  
     subRec->pendingSubSyncContinueConf = false;
