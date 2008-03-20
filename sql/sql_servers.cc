@@ -55,8 +55,8 @@ static bool get_server_from_table_to_cache(TABLE *table);
 static int insert_server(THD *thd, FOREIGN_SERVER *server_options);
 static int insert_server_record(TABLE *table, FOREIGN_SERVER *server);
 static int insert_server_record_into_cache(FOREIGN_SERVER *server);
-static void prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
-                                             FOREIGN_SERVER *server);
+static FOREIGN_SERVER *
+prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options);
 /* drop functions */ 
 static int delete_server_record(TABLE *table,
                                 char *server_name,
@@ -966,10 +966,14 @@ int create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 				   server_options->server_name_length))
     goto end;
 
-  server= (FOREIGN_SERVER *)alloc_root(&mem,
-                                       sizeof(FOREIGN_SERVER));
 
-  prepare_server_struct_for_insert(server_options, server);
+  if (!(server= prepare_server_struct_for_insert(server_options)))
+  {
+    /* purecov: begin inspected */
+    error= ER_OUT_OF_RESOURCES;
+    goto end;
+    /* purecov: end */
+  }
 
   error= insert_server(thd, server);
 
@@ -1040,52 +1044,64 @@ end:
   SYNOPSIS
     prepare_server_struct_for_insert()
       LEX_SERVER_OPTIONS *server_options
-      FOREIGN_SERVER *server
 
   NOTES
+    As FOREIGN_SERVER members are allocated on mem_root, we do not need to
+    free them in case of error.
 
   RETURN VALUE
-    none
+    On success filled FOREIGN_SERVER, or NULL in case out of memory.
 
 */
 
-static void
-prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options,
-                                 FOREIGN_SERVER *server)
+static FOREIGN_SERVER *
+prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options)
 {
   char *unset_ptr= (char*)"";
+  FOREIGN_SERVER *server;
   DBUG_ENTER("prepare_server_struct");
 
+  if (!(server= (FOREIGN_SERVER *)alloc_root(&mem, sizeof(FOREIGN_SERVER))))
+    DBUG_RETURN(NULL); /* purecov: inspected */
+
   /* these two MUST be set */
-  server->server_name= strdup_root(&mem, server_options->server_name);
+  if (!(server->server_name= strdup_root(&mem, server_options->server_name)))
+    DBUG_RETURN(NULL); /* purecov: inspected */
   server->server_name_length= server_options->server_name_length;
 
-  server->host= server_options->host ?
-    strdup_root(&mem, server_options->host) : unset_ptr;
+  if (!(server->host= server_options->host ?
+          strdup_root(&mem, server_options->host) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  server->db= server_options->db ?
-    strdup_root(&mem, server_options->db) : unset_ptr;
+  if (!(server->db= server_options->db ?
+          strdup_root(&mem, server_options->db) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  server->username= server_options->username ?
-    strdup_root(&mem, server_options->username) : unset_ptr;
+  if (!(server->username= server_options->username ?
+          strdup_root(&mem, server_options->username) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  server->password= server_options->password ?
-    strdup_root(&mem, server_options->password) : unset_ptr;
+  if (!(server->password= server_options->password ?
+          strdup_root(&mem, server_options->password) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
   /* set to 0 if not specified */
   server->port= server_options->port > -1 ?
     server_options->port : 0;
 
-  server->socket= server_options->socket ?
-    strdup_root(&mem, server_options->socket) : unset_ptr;
+  if (!(server->socket= server_options->socket ?
+          strdup_root(&mem, server_options->socket) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  server->scheme= server_options->scheme ?
-    strdup_root(&mem, server_options->scheme) : unset_ptr;
+  if (!(server->scheme= server_options->scheme ?
+          strdup_root(&mem, server_options->scheme) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  server->owner= server_options->owner ?
-    strdup_root(&mem, server_options->owner) : unset_ptr;
+  if (!(server->owner= server_options->owner ?
+          strdup_root(&mem, server_options->owner) : unset_ptr))
+    DBUG_RETURN(NULL); /* purecov: inspected */
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(server);
 }
 
 /*
