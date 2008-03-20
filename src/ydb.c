@@ -1972,6 +1972,18 @@ static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     return r;
 }
 
+static void toku_txn_remove_lt(DB_TXN* txn, toku_lock_tree* lt) {
+    assert(txn && lt);
+    toku_lth* lth = txn->i->lth;
+    assert(lth);
+
+    toku_lock_tree* find = toku_lth_find(lth, lt);
+    if (find) {
+        assert(find == lt);
+        toku_lth_delete(lth, lt);
+    }
+}
+
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
     // Warning.  Should check arguments.  Should check return codes on malloc and open and so forth.
@@ -2044,6 +2056,8 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
                            toku_malloc, toku_free, toku_realloc);
         if (r!=0) goto error_cleanup;
         r = toku_lt_set_txn_add_lt_callback(db->i->lt, toku_txn_add_lt);
+        assert(r==0);
+        r = toku_lt_set_txn_remove_lt_callback(db->i->lt, toku_txn_remove_lt);
         assert(r==0);
     }
         

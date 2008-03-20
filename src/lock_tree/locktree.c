@@ -32,8 +32,14 @@ static inline int toku__lt_panic(toku_lock_tree *tree, int r) {
     return tree->panic(tree->db, r);
 }
                 
-static inline int toku__lt_callback(toku_lock_tree *tree, DB_TXN* txn) {
-    return tree->lock_callback ? tree->lock_callback(txn, tree) : 0;
+static inline int toku__lt_add_callback(toku_lock_tree *tree, DB_TXN* txn) {
+    return tree->lock_add_callback ? tree->lock_add_callback(txn, tree) : 0;
+}
+
+static inline void toku__lt_remove_callback(toku_lock_tree *tree, DB_TXN* txn) {
+    if (tree->lock_remove_callback) {
+        tree->lock_remove_callback(txn, tree);
+    }
 }
 
 const u_int32_t __toku_default_buflen = 2;
@@ -329,9 +335,16 @@ static inline int toku__lt_selfread(toku_lock_tree* tree, DB_TXN* txn,
 
     toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
     if (!forest) {
+        /* Let the transaction know about this lock tree. */
+        r = toku__lt_add_callback(tree, txn);
+        if (r!=0) return r;
+
         /* Neither selfread nor selfwrite exist. */
         r = toku_rth_insert(tree->rth, txn);
-        if (r!=0) return r;
+        if (r!=0) {
+            toku__lt_remove_callback(tree, txn);
+            return r;
+        }
         forest = toku_rth_find(tree->rth, txn);
     }
     assert(forest);
@@ -356,8 +369,16 @@ static inline int toku__lt_selfwrite(toku_lock_tree* tree, DB_TXN* txn,
 
     toku_rt_forest* forest = toku_rth_find(tree->rth, txn);
     if (!forest) {
-        r = toku_rth_insert(tree->rth, txn);
+        /* Let the transaction know about this lock tree. */
+        r = toku__lt_add_callback(tree, txn);
         if (r!=0) return r;
+
+        /* Neither selfread nor selfwrite exist. */
+        r = toku_rth_insert(tree->rth, txn);
+        if (r!=0) {
+            toku__lt_remove_callback(tree, txn);
+            return r;
+        }
         forest = toku_rth_find(tree->rth, txn);
     }
     assert(forest);
@@ -875,10 +896,8 @@ static inline int toku__lt_preprocess(toku_lock_tree* tree, DB_TXN* txn,
     toku__init_query(query, left, right);
     /* Verify left <= right, otherwise return EDOM. */
     if (toku__r_backwards(query))                          return EDOM;
-    tree->dups_final = TRUE;
+    tree->settings_final = TRUE;
 
-    r = toku__lt_callback(tree, txn);
-    if (r!=0) return r;
     return 0;
 }
 
@@ -1070,30 +1089,33 @@ int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
 }
 
 static int toku_lt_close_without_ltm(toku_lock_tree* tree) {
-    if (!tree) return EINVAL;
-    int r;
-    int r2 = 0;
+    int r = ENOSYS;
+    int first_error = 0;
+    if (!tree) { r = ENOSYS; goto cleanup; }
 #if !defined(TOKU_RT_NOOVERLAPS)
     r = toku_rt_close(tree->mainread);
-    if        (r!=0) r2 = r;
+    if (!first_error && r!=0) { first_error = r; }
 #endif
     r = toku_rt_close(tree->borderwrite);
-    if (!r2 && r!=0) r2 = r;
+    if (!first_error && r!=0) { first_error = r; }
 
     toku_rth_start_scan(tree->rth);
     toku_rt_forest* forest;
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        toku__lt_remove_callback(tree, forest->hash_key);
         r = toku__lt_free_contents(tree, forest->self_read,  NULL);
-        if (!r2 && r!=0) r2 = r;
+        if (!first_error && r!=0) { first_error = r; }
         r = toku__lt_free_contents(tree, forest->self_write, NULL);
-        if (!r2 && r!=0) r2 = r;
+        if (!first_error && r!=0) { first_error = r; }
     }
     toku_rth_close(tree->rth);
 
     tree->free(tree->buf);
     tree->free(tree);
-    return r2;
+    r = first_error;
+cleanup:
+    return r;
 }
 
 int toku_lt_close(toku_lock_tree* tree) {
@@ -1712,16 +1734,33 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn) {
 }
 
 int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates) {
-    if (!tree)              return EINVAL;
-    if (tree->dups_final)   return EDOM;
+    int r = ENOSYS;
+    if (!tree)                { r = EINVAL; goto cleanup; }
+    if (tree->settings_final) { r = EDOM;   goto cleanup; }
     tree->duplicates = duplicates;
-    return 0;
+    r = 0;
+cleanup:
+    return r;
 }
 
 int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
-                                    int (*callback)(DB_TXN*, toku_lock_tree*)) {
-    if (!tree || !callback) return EINVAL;
-    if (tree->dups_final)   return EDOM;
-    tree->lock_callback = callback;
-    return 0;
+                                    int (*add_callback)(DB_TXN*, toku_lock_tree*)) {
+    int r = ENOSYS;
+    if (!tree || !add_callback) { r = EINVAL; goto cleanup; }
+    if (tree->settings_final)   { r = EDOM;   goto cleanup; }
+    tree->lock_add_callback = add_callback;
+    r = 0;
+cleanup:
+    return r;
+}
+
+int toku_lt_set_txn_remove_lt_callback(toku_lock_tree* tree,
+                            void (*remove_callback)(DB_TXN*, toku_lock_tree*)) {
+    int r = ENOSYS;
+    if (!tree || !remove_callback) { r = EINVAL; goto cleanup; }
+    if (tree->settings_final)      { r = EDOM;   goto cleanup; }
+    tree->lock_remove_callback = remove_callback;
+    r = 0;
+cleanup:
+    return r;
 }

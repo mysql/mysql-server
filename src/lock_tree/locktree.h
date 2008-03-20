@@ -55,7 +55,7 @@ struct __toku_lock_tree {
     /** Whether the db supports duplicate */
     BOOL                duplicates;
     /** Whether the duplicates flag can no longer be changed. */
-    BOOL                dups_final;
+    BOOL                settings_final;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
     toku_rth*           rth;
@@ -81,8 +81,10 @@ struct __toku_lock_tree {
     BOOL                lock_escalation_allowed;
     /** Lock tree manager */
     toku_ltm* mgr;
-    /** The lock callback function. */
-    int               (*lock_callback)(DB_TXN*, toku_lock_tree*);
+    /** The callback function to let a transaction add a new lock tree. */
+    int               (*lock_add_callback)(DB_TXN*, toku_lock_tree*);
+    /** The callback function to let a transaction forget a lock tree. */
+    void              (*lock_remove_callback)(DB_TXN*, toku_lock_tree*);
     /** The key compare function */
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
@@ -394,13 +396,13 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
 int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
 
 /**
-    Set a callback function to run after parameter checking but before
+    Set a add_callback function to run after parameter checking but before
     any locks.
     This can be called after create, but NOT after any locks or unlocks have
     occurred.
 
-    \param tree     The tree on whick to set the callback function
-    \param callback The callback function
+    \param tree     The tree on whick to set the add_callback function
+    \param add_callback The add_callback function
 
     \return
     - 0 on success.
@@ -408,7 +410,24 @@ int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
     - EDOM   if it is too late to change. 
 */
 int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
-                                    int (*callback)(DB_TXN*, toku_lock_tree*));
+                                 int (*add_callback)(DB_TXN*, toku_lock_tree*));
+
+/**
+    Set a remove_callback function to run after parameter checking but before
+    any locks.
+    This can be called after create, but NOT after any locks or unlocks have
+    occurred.
+
+    \param tree     The tree on whick to set the remove_callback function
+    \param remove_callback The remove_callback function
+
+    \return
+    - 0 on success.
+    - EINVAL if tree is NULL
+    - EDOM   if it is too late to change. 
+*/
+int toku_lt_set_txn_remove_lt_callback(toku_lock_tree* tree,
+                              void (*remove_callback)(DB_TXN*, toku_lock_tree*));
 
 
 
