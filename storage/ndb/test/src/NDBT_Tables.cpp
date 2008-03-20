@@ -62,6 +62,69 @@ static
 const
 NDBT_Table T2("T2", sizeof(T2Attribs)/sizeof(NDBT_Attribute), T2Attribs);
 
+static
+const
+NDBT_Attribute T3Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 100, true), 
+  NDBT_Attribute("KOL00", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL01", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL02", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL03", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL04", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL05", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL06", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL08", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL19", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL21", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL23", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL25", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL27", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL29", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL31", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL32", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL33", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL34", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL35", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL36", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL37", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL38", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL39", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL40", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL41", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL42", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL43", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL44", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL45", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL46", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL47", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL48", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL49", NdbDictionary::Column::Varbinary, 100),
+
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned)
+};
+
+static
+const
+NDBT_Table T3("T3", sizeof(T3Attribs)/sizeof(NDBT_Attribute), T3Attribs);
+
 /* T6 */
 static
 const
@@ -83,7 +146,7 @@ NDBT_Attribute T6Attribs[] = {
   NDBT_Attribute("ATTR11", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR12", NdbDictionary::Column::Char, 49),
   NDBT_Attribute("ATTR13", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR14", NdbDictionary::Column::Char, 50),
+  NDBT_Attribute("ATTR14", NdbDictionary::Column::Varbinary, 50),
   NDBT_Attribute("ATTR15", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR16", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR17", NdbDictionary::Column::Unsigned),
@@ -320,6 +383,7 @@ NDBT_Table *test_tables[]=
 { 
   &T1,
   &T2,
+  &T3,
   &T6,
   &T13,
   &T15,
