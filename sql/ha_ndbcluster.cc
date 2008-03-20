@@ -486,8 +486,7 @@ check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
 
 void
 ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
-                                            NdbTransaction *trans,
-                                            bool force_release)
+                                            NdbTransaction *trans)
 {
   if (trans->hasBlobOperation())
   {
@@ -496,29 +495,20 @@ ha_ndbcluster::release_completed_operations(Thd_ndb *thd_ndb,
     */
     return;
   }
-  if (!force_release)
-  {
-    if (thd_ndb->query_state & NDB_QUERY_MULTI_READ_RANGE)
-    {
-      /* We are batching reads and have not consumed all fetched
-	 rows yet, releasing operation records is unsafe 
-      */
-      return;
-    }
-  }
+
   trans->releaseCompletedOperations();
 }
 
 int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
-                      bool force_release, bool ignore_no_key,
+                      bool ignore_no_key,
                       uint *ignore_count= 0);
 inline
 int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
-                      bool force_release, bool ignore_no_key,
+                      bool ignore_no_key,
                       uint *ignore_count)
 {
   DBUG_ENTER("execute_no_commit");
-  ha_ndbcluster::release_completed_operations(thd_ndb, trans, force_release);
+  ha_ndbcluster::release_completed_operations(thd_ndb, trans);
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
   if (trans->execute(NdbTransaction::NoCommit,
@@ -567,11 +557,10 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
 }
 
 inline
-int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans,
-			 bool force_release)
+int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans)
 {
   DBUG_ENTER("execute_no_commit_ie");
-  ha_ndbcluster::release_completed_operations(thd_ndb, trans, force_release);
+  ha_ndbcluster::release_completed_operations(thd_ndb, trans);
   int res= trans->execute(NdbTransaction::NoCommit,
                           NdbOperation::AO_IgnoreError,
                           thd_ndb->m_force_send);
@@ -842,6 +831,7 @@ bool ha_ndbcluster::get_error_message(int error,
   DBUG_PRINT("exit", ("message: %s, temporary: %d", buf->ptr(), temporary));
   DBUG_RETURN(temporary);
 }
+
 
 
 /**
@@ -2135,7 +2125,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
                                       NULL))))
     ERR_RETURN(trans->getNdbError());
 
-  if ((res = execute_no_commit_ie(m_thd_ndb, trans, FALSE)) != 0 ||
+  if ((res = execute_no_commit_ie(m_thd_ndb, trans)) != 0 ||
       op->getNdbError().code) 
   {
     table->status= STATUS_NOT_FOUND;
@@ -2209,8 +2199,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       if (error != 0)
         ERR_RETURN(op->getNdbError());
     }
-
-    if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0) 
+    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0) 
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(ndb_err(trans));
@@ -2457,7 +2446,7 @@ int ha_ndbcluster::peek_indexed_rows(const uchar *record,
   }
   last= trans->getLastDefinedOperation();
   if (first)
-    res= execute_no_commit_ie(m_thd_ndb, trans, FALSE);
+    res= execute_no_commit_ie(m_thd_ndb, trans);
   else
   {
     // Table has no keys
@@ -2497,7 +2486,7 @@ int ha_ndbcluster::unique_index_read(const uchar *key,
   if (!(op= pk_unique_index_read_key(active_index, key, buf, lm, NULL)))
     ERR_RETURN(trans->getNdbError());
   
-  if (execute_no_commit_ie(m_thd_ndb, trans, FALSE) != 0 ||
+  if (execute_no_commit_ie(m_thd_ndb, trans) != 0 ||
       op->getNdbError().code) 
   {
     int err= ndb_err(trans);
@@ -2564,7 +2553,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     */
     if (m_thd_ndb->m_unsent_bytes && m_blobs_pending)
     {
-      if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+      if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
         DBUG_RETURN(ndb_err(trans));
     }
     
@@ -2865,7 +2854,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
 
   m_active_cursor= op;
 
-  if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   
   DBUG_RETURN(next_result(buf));
@@ -3006,7 +2995,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       get_blob_values(op, NULL, table->read_set) != 0)
     ERR_RETURN(op->getNdbError());
 
-  if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
@@ -3624,7 +3613,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
        m_blobs_pending))
   {
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, FALSE,
+    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0)
     {
@@ -3891,7 +3880,6 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     if (res != 0)
       DBUG_RETURN(res);
   }
-
   uint ignore_count= 0;
   /*
     Batch update operation if we are doing a scan for update, unless
@@ -3901,7 +3889,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       !(cursor || (batch_allowed && have_pk)) ||
       need_flush)
   {
-    if (execute_no_commit(m_thd_ndb, trans, FALSE,
+    if (execute_no_commit(m_thd_ndb, trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0)
     {
@@ -3948,7 +3936,7 @@ int ha_ndbcluster::end_bulk_delete()
       !m_thd_ndb->m_handler)
   {
     uint ignore_count= 0;
-    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans, FALSE,
+    if (execute_no_commit(m_thd_ndb, m_thd_ndb->trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0)
     {
@@ -4091,7 +4079,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   // Execute delete operation
   uint ignore_count= 0;
-  if (execute_no_commit(m_thd_ndb, trans, FALSE,
+  if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
@@ -4525,7 +4513,7 @@ int ha_ndbcluster::close_scan()
     */
     DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
                         (long) m_thd_ndb->m_unsent_bytes));    
-    if (execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -4945,7 +4933,7 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
   if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
     if (!allow_batch &&
-        execute_no_commit(m_thd_ndb, trans, FALSE, m_ignore_no_key) != 0)
+        execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -5643,7 +5631,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   if (thd->slave_thread)
   {
     if (!thd_ndb->m_conflict_fn_usage_count || !thd_ndb->m_unsent_bytes ||
-        !(res= execute_no_commit(thd_ndb, trans, FALSE, TRUE)))
+        !(res= execute_no_commit(thd_ndb, trans, TRUE)))
       res= execute_commit(thd_ndb, trans, 1, TRUE);
   }
   else
@@ -10047,6 +10035,7 @@ int ha_ndbcluster::write_ndb_file(const char *name)
   DBUG_RETURN(error);
 }
 
+
 bool 
 ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
 				       KEY_MULTI_RANGE *end_range,
@@ -10058,6 +10047,12 @@ ha_ndbcluster::null_value_index_search(KEY_MULTI_RANGE *ranges,
   ulong reclength= table->s->reclength;
   uchar *curr= (uchar*)buffer->buffer;
   uchar *end_of_buffer= (uchar*)buffer->buffer_end;
+
+  /* All passed ranges whose results could fit into the 
+   * buffer are examined, although some may later be
+   * marked for skipping, wasting buffer space.
+   */
+  assert(!(range->range_flag & SKIP_RANGE));
   
   for (; range<end_range && curr+reclength <= end_of_buffer; 
        range++)
@@ -10242,6 +10237,7 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
           partition
         */
         r->range_flag|= SKIP_RANGE;
+        row_buf += reclength;
         continue;
       }
       if (!trans)
@@ -10392,18 +10388,60 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   buffer->end_of_used_area= row_buf;
 
-  /*
-   * Set first operation in multi range
-   */
-  if (any_real_read)
-  {
-    m_current_multi_operation= 
-      lastOp ? lastOp->next() : trans->getFirstDefinedOperation();
-    if (execute_no_commit_ie(m_thd_ndb, trans, TRUE))
-      ERR_RETURN(trans->getNdbError());
+  /* Get pointer to first range key operation (not scans) */
+  const NdbOperation* rangeOp= lastOp ? lastOp->next() : 
+    m_thd_ndb->trans->getFirstDefinedOperation();
 
+  if (!execute_no_commit_ie(this, m_thd_ndb->trans))
+  {
     m_multi_range_result_ptr= buffer->buffer;
+
+    /* We must check the result of any primary or unique key
+     * ranges now, as these operations may be invalidated by 
+     * further execute+releaseOperations calls on this transaction by 
+     * different handler objects.
+     */
+    KEY_MULTI_RANGE* rangeInfo= multi_range_curr;
+
+    for (;rangeInfo < m_multi_range_defined_end; rangeInfo++)
+    {
+      if (rangeInfo->range_flag & SKIP_RANGE)
+        continue; 
+
+      if (rangeInfo->range_flag & UNIQUE_RANGE)
+      {
+        if (rangeOp->getNdbError().code == 0)
+        {
+          /* Successful read, results are in buffer.
+           */
+          rangeInfo->range_flag &= ~(uint)EMPTY_RANGE;
+
+          DBUG_PRINT("info", ("Unique range op has result"));
+        }
+        else
+        {
+          NdbError err= rangeOp->getNdbError();
+
+          if (err.classification !=
+              NdbError::NoDataFound)
+            DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+
+          DBUG_PRINT("info", ("Unique range op has no result"));
+          /* Indicate to read_multi_range_next that this
+           * result is empty
+           */
+          rangeInfo->range_flag |= EMPTY_RANGE;
+        }
+        
+        /* Move to next completed operation */
+        rangeOp= m_thd_ndb->trans->getNextCompletedOperation(rangeOp);
+      }
+
+      /* For scan ranges, do nothing here */
+    }
   }
+  else
+    ERR_RETURN(m_thd_ndb->trans->getNdbError());
 
   DBUG_RETURN(read_multi_range_next(found_range_p));
 }
@@ -10417,11 +10455,16 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
     DBUG_RETURN(handler::read_multi_range_next(multi_range_found_p));
   }
 
+  const ulong reclength= table_share->reclength;
+
   while (multi_range_curr < m_multi_range_defined_end)
   {
     if (multi_range_curr->range_flag & SKIP_RANGE)
     {
-      /* Nothing in this range, move to next one. */
+      /* Nothing in this range, move to next one, skipping a buffer
+       'slot'
+      */
+      m_multi_range_result_ptr += reclength;
       multi_range_curr++;
     }
     else if (multi_range_curr->range_flag & READ_KEY_FROM_RANGE)
@@ -10447,21 +10490,14 @@ ha_ndbcluster::read_multi_range_next(KEY_MULTI_RANGE ** multi_range_found_p)
         or pk operation.
       */
       m_active_cursor= NULL;
-      const NdbOperation *op= m_current_multi_operation;
-      m_current_multi_operation= m_thd_ndb->trans->getNextCompletedOperation(op);
       const uchar *src_row= m_multi_range_result_ptr;
       m_multi_range_result_ptr= src_row + table_share->reclength;
 
-      const NdbError &error= op->getNdbError();
-      if (error.code == 0)
+      if (!(old_multi_range_curr->range_flag & EMPTY_RANGE))
       {
         *multi_range_found_p= old_multi_range_curr;
         memcpy(table->record[0], src_row, table_share->reclength);
         DBUG_RETURN(0);
-      }
-      else if (error.classification != NdbError::NoDataFound)
-      {
-        DBUG_RETURN(ndb_err(m_thd_ndb->trans));
       }
 
       /* No row found, so fall through to try the next range. */

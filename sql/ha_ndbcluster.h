@@ -454,7 +454,7 @@ static void set_tabname(const char *pathname, char *tabname);
     static member function as it needs to access private
     NdbTransaction methods
   */
-  static void release_completed_operations(Thd_ndb*, NdbTransaction*, bool);
+  static void release_completed_operations(Thd_ndb*, NdbTransaction*);
 
   /*
     Condition pushdown
@@ -685,6 +685,7 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
+
   NdbTransaction *start_transaction_part_id(uint32 part_id, int &error);
   inline NdbTransaction *get_transaction_part_id(uint32 part_id, int &error)
   {
@@ -807,7 +808,6 @@ private:
     pieces.
   */
   KEY_MULTI_RANGE *m_multi_range_defined_end;
-  const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
