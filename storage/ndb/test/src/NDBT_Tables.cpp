@@ -16,6 +16,7 @@
 #include <NDBT.hpp>
 #include <NDBT_Table.hpp>
 #include <NDBT_Tables.hpp>
+#include <NdbEnv.h>
 
 /* ******************************************************* */
 //    Define Ndb standard tables 
@@ -745,12 +746,27 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       return NDBT_FAILED;
     }
   }
+
+  Uint32 mb = 96;
   {
-    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile01.dat");
-    if (strcmp(uf.getPath(), "undofile01.dat") != 0)
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOSIZE", buf, sizeof(buf)))
     {
-      uf.setPath("undofile01.dat");
-      uf.setSize(32*1024*1024);
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-undo", mb);
+    }
+  }
+  
+  Uint32 sz = 32;
+  for (Uint32 i = 0; i * sz < mb; i++)
+  {
+    char tmp[256];
+    BaseString::snprintf(tmp, sizeof(tmp), "undofile%u.dat", i);
+    NdbDictionary::Undofile uf = pDict->getUndofile(0, tmp);
+    if (strcmp(uf.getPath(), tmp) != 0)
+    {
+      uf.setPath(tmp);
+      uf.setSize(sz*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
       
       res = pDict->createUndofile(uf, true);
@@ -761,22 +777,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       }
     }
   }
-  {
-    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile02.dat");
-    if (strcmp(uf.getPath(), "undofile02.dat") != 0)
-    {
-      uf.setPath("undofile02.dat");
-      uf.setSize(32*1024*1024);
-      uf.setLogfileGroup("DEFAULT-LG");
-      
-      res = pDict->createUndofile(uf, true);
-      if(res != 0){
-	g_err << "Failed to create undofile:"
-	      << endl << pDict->getNdbError() << endl;
-	return NDBT_FAILED;
-      }
-    }
-  }
+
   NdbDictionary::Tablespace ts = pDict->getTablespace("DEFAULT-TS");
   if (strcmp(ts.getName(), "DEFAULT-TS") != 0)
   {
