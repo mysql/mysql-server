@@ -6486,6 +6486,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         result= 1;
       if (grant_reload(thd))
         result= 1;
+      if (servers_reload(thd))
+        result= 1;
     }
     if (tmp_thd)
     {
