@@ -353,7 +353,7 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     u_int32_t old_fingerprint = *fingerprint;
     u_int32_t fdiff=node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
     u_int32_t new_fingerprint = old_fingerprint + fdiff;
-    printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, (long long)node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
+    //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, (long long)node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
     *fingerprint = new_fingerprint;
     int r = toku_log_brtenq(logger, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs, old_fingerprint, new_fingerprint);
     if (r!=0) return r;
@@ -2470,11 +2470,12 @@ struct callpair {
 static int note_removal (bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, int type, TXNID xid, void*cpairv) {
     struct callpair *cpair = cpairv;
     BRTNODE node = cpair->node;
-    printf("%s:%d Removed %s,%s fingerprint was %08x ", __FILE__, __LINE__, (char*)key, (char*)data, node->local_fingerprint);
+    //printf("%s:%d Removed %s,%s fingerprint was %08x ", __FILE__, __LINE__, (char*)key, (char*)data, node->local_fingerprint);
     int  childnum = cpair->childnum; 
     u_int32_t old_fingerprint = node->local_fingerprint;
-    node->local_fingerprint = old_fingerprint = node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
-    printf("is %08x (addr=%p)\n", node->local_fingerprint, &node->local_fingerprint);
+    u_int32_t diff            = node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
+    node->local_fingerprint = old_fingerprint - diff;
+    //printf("is %08x diff=%08x (addr=%p)\n", node->local_fingerprint, diff, &node->local_fingerprint);
     u_int32_t countdiff = keylen+datalen+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD;
     BNC_NBYTESINBUF(node,childnum) -= countdiff;
     node->u.n.n_bytes_in_buffers -= countdiff;
@@ -2488,7 +2489,7 @@ int toku_brt_nonleaf_expunge_xaction(BRT brt, DISKOFF diskoff, TXNID xid) {
     if (r!=0) return r;
     BRTNODE node = node_v;
     verify_local_fingerprint_nonleaf(node);
-    printf("%s:%d node->local_fingerprint=%08x\n", __FILE__, __LINE__, node->local_fingerprint);
+    //printf("%s:%d node->local_fingerprint=%08x\n", __FILE__, __LINE__, node->local_fingerprint);
     int i;
     r=0;
     for (i=0; i<node->u.n.n_children; i++) {

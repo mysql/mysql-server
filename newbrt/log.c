@@ -701,7 +701,7 @@ int toku_logger_abort(TOKUTXN txn) {
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
     struct roll_entry *item;
-    printf("%s:%d abort\n", __FILE__, __LINE__);
+    //printf("%s:%d abort\n", __FILE__, __LINE__);
     while ((item=txn->newest_logentry)) {
 	txn->newest_logentry = item->prev;
 	int r;

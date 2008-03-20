@@ -2056,6 +2056,7 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
                            toku_malloc, toku_free, toku_realloc);
         if (r!=0) goto error_cleanup;
         r = toku_lt_set_txn_add_lt_callback(db->i->lt, toku_txn_add_lt);
+	if (r!=0) fprintf(stderr, "%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
         assert(r==0);
         r = toku_lt_set_txn_remove_lt_callback(db->i->lt, toku_txn_remove_lt);
         assert(r==0);
