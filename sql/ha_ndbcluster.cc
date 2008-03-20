@@ -3671,7 +3671,7 @@ int ha_ndbcluster::update_row(const uchar *old_data, uchar *new_data)
 
   if (need_execute)
   {
-    if (execute_no_commit(this,trans,FALSE) != 0)
+    if (execute_no_commit(this,trans) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -4584,7 +4584,7 @@ ha_ndbcluster::flush_bulk_insert()
   
   if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
-    if (execute_no_commit(this,trans,FALSE) != 0)
+    if (execute_no_commit(this,trans) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
