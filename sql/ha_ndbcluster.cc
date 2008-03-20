@@ -646,6 +646,8 @@ static bool ndb_supported_type(enum_field_types type)
     return TRUE;
   case MYSQL_TYPE_NULL:   
     break;
+  default:
+    break;
   }
   return FALSE;
 }
