@@ -322,7 +322,7 @@ class Ndb_expect_stack : public Sql_alloc
   {
     // Allocate type checking bitmaps   
     bitmap_init(&expect_mask,
-                0, round_up_byte(Item::MAX_NO_ITEMS), FALSE);
+                0, round_up_byte(MAX_NO_ITEMS), FALSE);
     bitmap_init(&expect_field_type_mask,
                 0, round_up_byte(MAX_NO_FIELD_TYPES), FALSE);
     bitmap_init(&expect_field_result_mask,
