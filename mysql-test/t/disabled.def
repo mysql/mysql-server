@@ -24,4 +24,4 @@ wait_timeout         : Bug#32801 wait_timeout.test fails randomly
 ctype_create         : Bug#32965 main.ctype_create fails
 status               : Bug#32966 main.status fails
 ps_ddl               : Bug#12093 2007-12-14 pending WL#4165 / WL#4166
-maria-preload        : Bug#35030 unrepeatable output of SHOW STATUS
+maria-preload        : Bug#34911 unrepeatable output of SHOW STATUS
