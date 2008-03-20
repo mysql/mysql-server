@@ -636,7 +636,7 @@ Log_event::Log_event(const char* buf,
         binlog, so which will cause problems if the user uses this value
         in CHANGE MASTER).
       */
-    log_pos+= data_written;
+    log_pos+= data_written; /* purecov: inspected */
   }
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
