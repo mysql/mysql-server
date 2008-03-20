@@ -16,6 +16,7 @@
 #include <NDBT.hpp>
 #include <NDBT_Table.hpp>
 #include <NDBT_Tables.hpp>
+#include <NdbEnv.h>
 
 /* ******************************************************* */
 //    Define Ndb standard tables 
@@ -46,33 +47,81 @@ static
 const
 NDBT_Table T1("T1", sizeof(T1Attribs)/sizeof(NDBT_Attribute), T1Attribs);
 
-/* T2 */
 static
 const
 NDBT_Attribute T2Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Bigunsigned, 1, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Bit, 23),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 
-		 1, false, true), // Nullable 
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned)
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 100, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL6", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL7", NdbDictionary::Column::Unsigned)
 };
+
 static
 const
 NDBT_Table T2("T2", sizeof(T2Attribs)/sizeof(NDBT_Attribute), T2Attribs);
 
-/* T3 */
 static
 const
 NDBT_Attribute T3Attribs[] = {
-  NDBT_Attribute("ID", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PERSNR", NdbDictionary::Column::Char, 10),
-  NDBT_Attribute("NAME", NdbDictionary::Column::Char, 25),
-  NDBT_Attribute("ADRESS", NdbDictionary::Column::Char, 50),
-  NDBT_Attribute("ADRESS2", NdbDictionary::Column::Char, 
-		 30, false, true), // Nullable
-  NDBT_Attribute("FÖDELSEÅR", NdbDictionary::Column::Unsigned)
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 100, true), 
+  NDBT_Attribute("KOL00", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL01", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL02", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL03", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL04", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL05", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL06", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL07", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL08", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL09", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL10", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL11", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL12", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL13", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL14", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL15", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL16", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL17", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL18", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL19", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL21", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL22", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL23", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL24", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL25", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL26", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL27", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL28", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL29", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL31", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL32", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL33", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL34", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL35", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL36", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL37", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL38", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL39", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL40", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL41", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL42", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL43", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL44", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL45", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL46", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL47", NdbDictionary::Column::Varbinary, 100),
+  NDBT_Attribute("KOL48", NdbDictionary::Column::Char, 100),
+  NDBT_Attribute("KOL49", NdbDictionary::Column::Varbinary, 100),
+
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned)
 };
+
 static
 const
 NDBT_Table T3("T3", sizeof(T3Attribs)/sizeof(NDBT_Attribute), T3Attribs);
@@ -81,30 +130,18 @@ NDBT_Table T3("T3", sizeof(T3Attribs)/sizeof(NDBT_Attribute), T3Attribs);
 static
 const
 NDBT_Attribute T4Attribs[] = {
-  NDBT_Attribute("REGNR", NdbDictionary::Column::Char, 6, true), 
-  NDBT_Attribute("YEAR", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("OWNER", NdbDictionary::Column::Char, 25),
-  NDBT_Attribute("ADRESS", NdbDictionary::Column::Char, 50),
-  NDBT_Attribute("ADRESS2", NdbDictionary::Column::Char, 
-		 30, false, true), // Nullable
-  NDBT_Attribute("OWNERID", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("CHECKDATE", NdbDictionary::Column::Unsigned)
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true,  false, 0, MM, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, false, true, 0, MM, true),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true)
 };
+
 static
 const
 NDBT_Table T4("T4", sizeof(T4Attribs)/sizeof(NDBT_Attribute), T4Attribs);
 
-/* T5 */
-static
-const
-NDBT_Attribute T5Attribs[] = {
-  NDBT_Attribute("OWNERID", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("REGNR", NdbDictionary::Column::Char, 6, true),
-  NDBT_Attribute("CREATEDDATE", NdbDictionary::Column::Unsigned)
-};
-static
-const
-NDBT_Table T5("T5", sizeof(T5Attribs)/sizeof(NDBT_Attribute), T5Attribs);
+
 
 /* T6 */
 static
@@ -127,139 +164,20 @@ NDBT_Attribute T6Attribs[] = {
   NDBT_Attribute("ATTR11", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR12", NdbDictionary::Column::Char, 49),
   NDBT_Attribute("ATTR13", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR14", NdbDictionary::Column::Char, 50),
+  NDBT_Attribute("ATTR14", NdbDictionary::Column::Varbinary, 50),
   NDBT_Attribute("ATTR15", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR16", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR17", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR18", NdbDictionary::Column::Char, 257),
   NDBT_Attribute("ATTR19", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR20", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("ATTR21", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("ATTR22", NdbDictionary::Column::Varbinary, 255, false, false, 0, MM, true)
 };
+
 static
 const
 NDBT_Table T6("T6", sizeof(T6Attribs)/sizeof(NDBT_Attribute), T6Attribs);
-
-/* T7 */
-static
-const
-NDBT_Attribute T7Attribs[] = {
-  NDBT_Attribute("PK1", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PK2", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PK3", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PK4", NdbDictionary::Column::Varbinary, 123, true), 
-  NDBT_Attribute("ATTR1", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR2", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR4", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR5", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR6", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR7", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR8", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR9", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR10", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR11", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR12", NdbDictionary::Column::Char, 259),
-  NDBT_Attribute("ATTR13", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR14", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR15", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR16", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR17", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR18", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR19", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("ATTR20", NdbDictionary::Column::Unsigned),
-};
-static
-const
-NDBT_Table T7("T7", sizeof(T7Attribs)/sizeof(NDBT_Attribute), T7Attribs);
-
-/* T8 */
-static
-const
-NDBT_Attribute T8Attribs[] = {
-  NDBT_Attribute("PERSON_ID", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("NAME", NdbDictionary::Column::Varbinary, 255),
-  NDBT_Attribute("ADRESS", NdbDictionary::Column::Longvarbinary, 513),
-  NDBT_Attribute("POSTADRESS", NdbDictionary::Column::Char, 1173),
-  NDBT_Attribute("VALUE", NdbDictionary::Column::Unsigned),
-  
-};
-static
-const
-NDBT_Table T8("T8", sizeof(T8Attribs)/sizeof(NDBT_Attribute), T8Attribs);
-
-/* T9 */
-static
-const
-NDBT_Attribute T9Attribs[] = {
-  NDBT_Attribute("KF_SKAPAD", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("PLATS_ID", NdbDictionary::Column::Char, 2, true),
-  NDBT_Attribute("TNR_SKAPAD", NdbDictionary::Column::Char, 12, true),
-  NDBT_Attribute("DELG_MOT", NdbDictionary::Column::Char, 1, true),
-  NDBT_Attribute("VALUE", NdbDictionary::Column::Unsigned),
-};
-static
-const
-NDBT_Table T9("T9", sizeof(T9Attribs)/sizeof(NDBT_Attribute), T9Attribs);
-
-/* T10 - Long key table */
-static
-const
-NDBT_Attribute T10Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Char, 256, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Char, 257),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned),
-};
-static
-const
-NDBT_Table T10("T10", sizeof(T10Attribs)/sizeof(NDBT_Attribute), T10Attribs);
-
-
-/* T11 - Primary key is not first attribute */
-static
-const
-NDBT_Attribute T11Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Char, 111),
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 113)
-};
-
-static
-const
-NDBT_Table T11("T11", sizeof(T11Attribs)/sizeof(NDBT_Attribute), T11Attribs);
-
-/* T12 - 16 primary keys */
-static
-const
-NDBT_Attribute T12Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL6", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL7", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL8", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL9", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL10", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL11", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL12", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL13", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL14", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL15", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL16", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL30", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL40", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Unsigned)
-};
-
-static
-const
-NDBT_Table T12("T12", sizeof(T12Attribs)/sizeof(NDBT_Attribute), T12Attribs);
 
 /* T13 - Long key table */
 static
@@ -275,26 +193,6 @@ NDBT_Attribute T13Attribs[] = {
 static
 const
 NDBT_Table T13("T13", sizeof(T13Attribs)/sizeof(NDBT_Attribute), T13Attribs);
-
-/* T14 - 5 primary keys */
-static
-const
-NDBT_Attribute T14Attribs[] = {
-  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL3", NdbDictionary::Column::Char, 4, true), 
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, true), 
-  NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL30", NdbDictionary::Column::Int),
-  NDBT_Attribute("KOL40", NdbDictionary::Column::Float),
-  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200, false, false, 0, MM, true)
-};
-
-
-static
-const
-NDBT_Table T14("T14", sizeof(T14Attribs)/sizeof(NDBT_Attribute), T14Attribs);
 
 /*
   T15 - Dynamic attributes.
@@ -489,7 +387,7 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 127, true), 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
 };
@@ -507,16 +405,8 @@ NDBT_Table *test_tables[]=
   &T2,
   &T3,
   &T4,
-  &T5,
   &T6,
-  &T7,
-  &T8,
-  &T9,
-  &T10,
-  &T11,
-  &T12,
   &T13,
-  &T14,
   &T15,
   &T16,
   &I1,
@@ -965,12 +855,27 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       return NDBT_FAILED;
     }
   }
+
+  Uint32 mb = 96;
   {
-    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile01.dat");
-    if (strcmp(uf.getPath(), "undofile01.dat") != 0)
+    char buf[256];
+    if (NdbEnv_GetEnv("UNDOSIZE", buf, sizeof(buf)))
     {
-      uf.setPath("undofile01.dat");
-      uf.setSize(32*1024*1024);
+      mb = atoi(buf);
+      ndbout_c("Using %umb dd-undo", mb);
+    }
+  }
+  
+  Uint32 sz = 32;
+  for (Uint32 i = 0; i * sz < mb; i++)
+  {
+    char tmp[256];
+    BaseString::snprintf(tmp, sizeof(tmp), "undofile%u.dat", i);
+    NdbDictionary::Undofile uf = pDict->getUndofile(0, tmp);
+    if (strcmp(uf.getPath(), tmp) != 0)
+    {
+      uf.setPath(tmp);
+      uf.setSize(sz*1024*1024);
       uf.setLogfileGroup("DEFAULT-LG");
       
       res = pDict->createUndofile(uf, true);
@@ -981,22 +886,7 @@ NDBT_Tables::create_default_tablespace(Ndb* pNdb)
       }
     }
   }
-  {
-    NdbDictionary::Undofile uf = pDict->getUndofile(0, "undofile02.dat");
-    if (strcmp(uf.getPath(), "undofile02.dat") != 0)
-    {
-      uf.setPath("undofile02.dat");
-      uf.setSize(32*1024*1024);
-      uf.setLogfileGroup("DEFAULT-LG");
-      
-      res = pDict->createUndofile(uf, true);
-      if(res != 0){
-	g_err << "Failed to create undofile:"
-	      << endl << pDict->getNdbError() << endl;
-	return NDBT_FAILED;
-      }
-    }
-  }
+
   NdbDictionary::Tablespace ts = pDict->getTablespace("DEFAULT-TS");
   if (strcmp(ts.getName(), "DEFAULT-TS") != 0)
   {
