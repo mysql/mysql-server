@@ -5161,6 +5161,7 @@ compare_tables(TABLE *table,
       create_info->used_fields & HA_CREATE_USED_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_DEFAULT_CHARSET ||
       create_info->used_fields & HA_CREATE_USED_ROW_FORMAT ||
+      create_info->used_fields & HA_CREATE_USED_PAGE_CHECKSUM ||
       (alter_info->flags & (ALTER_RECREATE | ALTER_FOREIGN_KEY)) ||
       order_num ||
       !table->s->mysql_version ||

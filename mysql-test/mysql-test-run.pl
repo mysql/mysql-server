@@ -2179,6 +2179,22 @@ sub environment_setup () {
                         "$glob_basedir/myisam/myisampack"));
 
   # ----------------------------------------------------
+  # Setup env so childs can execute maria_pack and maria_chk
+  # ----------------------------------------------------
+  $ENV{'MARIA_CHK'}= mtr_native_path(mtr_exe_exists(
+                       vs_config_dirs('storage/maria', 'maria_chk'),
+                       vs_config_dirs('maria', 'maria_chk'),
+                       "$path_client_bindir/maria_chk",
+                       "$glob_basedir/storage/maria/maria_chk",
+                       "$glob_basedir/maria/maria_chk"));
+  $ENV{'MARIA_PACK'}= mtr_native_path(mtr_exe_exists(
+                        vs_config_dirs('storage/maria', 'maria_pack'),
+                        vs_config_dirs('maria', 'maria_pack'),
+                        "$path_client_bindir/maria_pack",
+                        "$glob_basedir/storage/maria/maria_pack",
+                        "$glob_basedir/maria/maria_pack"));
+
+  # ----------------------------------------------------
   # We are nice and report a bit about our settings
   # ----------------------------------------------------
   if (!$opt_extern)

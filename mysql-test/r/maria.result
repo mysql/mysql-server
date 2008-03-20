@@ -993,7 +993,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 create table t2 like t1;
 show create table t2;
 Table	Create Table
@@ -1001,7 +1001,7 @@ t2	CREATE TABLE `t2` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 create table t3 select * from t1;
 show create table t3;
 Table	Create Table
@@ -1009,7 +1009,7 @@ t3	CREATE TABLE `t3` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify c varchar(10);
 show create table t1;
 Table	Create Table
@@ -1017,7 +1017,7 @@ t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify v char(10);
 show create table t1;
 Table	Create Table
@@ -1025,7 +1025,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` text
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 alter table t1 modify t varchar(10);
 Warnings:
 Note	1265	Data truncated for column 't' at row 2
@@ -1035,7 +1035,7 @@ t1	CREATE TABLE `t1` (
   `v` char(10) DEFAULT NULL,
   `c` varchar(10) DEFAULT NULL,
   `t` varchar(10) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+*+*+ *
@@ -1051,7 +1051,7 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`),
   KEY `c` (`c`),
   KEY `t` (`t`(10))
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1;
 count(*)
 270
@@ -1270,7 +1270,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1350,7 +1350,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`(30))
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select count(*) from t1 where v='a';
 count(*)
 10
@@ -1430,7 +1430,7 @@ t1	CREATE TABLE `t1` (
   KEY `c` (`c`),
   KEY `t` (`t`(10)),
   KEY `v` (`v`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -1508,14 +1508,14 @@ t1	CREATE TABLE `t1` (
   KEY `v` (`v`(5)),
   KEY `c` (`c`(5)),
   KEY `t` (`t`(5))
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v char(10) character set utf8);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` char(10) CHARACTER SET utf8 DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(10), c char(10)) row_format=fixed;
 show create table t1;
@@ -1523,7 +1523,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` varchar(10) DEFAULT NULL,
   `c` char(10) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=FIXED
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=FIXED
 insert into t1 values('a','a'),('a ','a ');
 select concat('*',v,'*',c,'*') from t1;
 concat('*',v,'*',c,'*')
@@ -1556,7 +1556,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(65530) character set utf8);
 Warnings:
@@ -1565,7 +1565,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `v` mediumtext CHARACTER SET utf8
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (v varchar(65535));
 ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. You have to change some columns to TEXT or BLOBs
@@ -1669,7 +1669,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=2048);
 show create table t1;
@@ -1677,7 +1677,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a));
 Warnings:
@@ -1687,7 +1687,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1112))
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1024);
 Warnings:
@@ -1697,7 +1697,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1112)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=1024;
 Warnings:
@@ -1709,7 +1709,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1112)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=1024
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=1024
 alter table t1 key_block_size=2048;
 show create table t1;
 Table	Create Table
@@ -1718,7 +1718,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1112)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
 alter table t1 add c int, add key (c);
 show create table t1;
 Table	Create Table
@@ -1729,7 +1729,7 @@ t1	CREATE TABLE `t1` (
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`(1112)) KEY_BLOCK_SIZE=8192,
   KEY `c` (`c`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=2048
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=2048
 alter table t1 key_block_size=0;
 alter table t1 add d int, add key (d);
 show create table t1;
@@ -1743,7 +1743,7 @@ t1	CREATE TABLE `t1` (
   KEY `b` (`b`(1112)) KEY_BLOCK_SIZE=8192,
   KEY `c` (`c`) KEY_BLOCK_SIZE=8192,
   KEY `d` (`d`)
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a), key(b)) key_block_size=8192;
 Warnings:
@@ -1755,7 +1755,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(1112))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=8192
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b varchar(2048), key (a) key_block_size=1024, key(b)) key_block_size=8192;
 Warnings:
@@ -1767,7 +1767,7 @@ t1	CREATE TABLE `t1` (
   `b` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`),
   KEY `b` (`b`(1112))
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=8192
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=8192
 drop table t1;
 create table t1 (a int not null, b int, key (a) key_block_size=1024, key(b) key_block_size=8192) key_block_size=16384;
 show create table t1;
@@ -1777,7 +1777,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192,
   KEY `b` (`b`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1 KEY_BLOCK_SIZE=16384
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 KEY_BLOCK_SIZE=16384
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=512);
 show create table t1;
@@ -1785,7 +1785,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a varchar(2048), key `a` (a) key_block_size=1000000000000000000);
 Warnings:
@@ -1795,7 +1795,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(2048) DEFAULT NULL,
   KEY `a` (`a`(1112)) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key `a` (a) key_block_size=1025);
 show create table t1;
@@ -1803,7 +1803,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`) KEY_BLOCK_SIZE=8192
-) ENGINE=MARIA DEFAULT CHARSET=latin1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
 drop table t1;
 create table t1 (a int not null, key key_block_size=1024 (a));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '=1024 (a))' at line 1
@@ -1859,14 +1859,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=dynamic transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=dynamic transactional=1;
 Warnings:
@@ -1875,13 +1875,13 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 row_format=PAGE;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 row_format=DYNAMIC;
 Warnings:
 Note	1478	Row format set to PAGE because of TRANSACTIONAL=1 option
@@ -1889,39 +1889,39 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE TRANSACTIONAL=1
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=1
 alter table t1 transactional=0;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE TRANSACTIONAL=0
 alter table t1 row_format=DYNAMIC;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC TRANSACTIONAL=0
 drop table t1;
 create table t1 (a int) row_format=PAGE;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
 drop table t1;
 create table t1 (a int) row_format=PAGE TRANSACTIONAL=DEFAULT;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=PAGE
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=PAGE
 alter table t1 row_format=DYNAMIC;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
-) ENGINE=MARIA DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+) ENGINE=MARIA DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 ROW_FORMAT=DYNAMIC
 drop table t1;
 create table `t1` (
 t1_name varchar(255) default null,

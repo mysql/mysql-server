@@ -2343,8 +2343,10 @@ void ha_maria::update_create_info(HA_CREATE_INFO *create_info)
     Show always page checksums, as this can be forced with
     maria_page_checksums variable
   */
-  if (file->s->options & HA_OPTION_PAGE_CHECKSUM)
-    create_info->page_checksum= HA_CHOICE_YES;
+  if (create_info->page_checksum == HA_CHOICE_UNDEF)
+    create_info->page_checksum=
+      (file->s->options & HA_OPTION_PAGE_CHECKSUM) ? HA_CHOICE_YES :
+      HA_CHOICE_NO;
 }
 
 
