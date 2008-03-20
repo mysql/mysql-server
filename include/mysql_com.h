@@ -223,6 +223,8 @@ typedef struct st_net {
 
 #define packet_error (~(unsigned long) 0)
 
+#define MAX_NO_FIELD_TYPES 256
+
 enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
                         MYSQL_TYPE_SHORT,  MYSQL_TYPE_LONG,
                         MYSQL_TYPE_FLOAT,  MYSQL_TYPE_DOUBLE,
@@ -241,9 +243,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
                         MYSQL_TYPE_BLOB=252,
                         MYSQL_TYPE_VAR_STRING=253,
                         MYSQL_TYPE_STRING=254,
-                        MYSQL_TYPE_GEOMETRY=255,
-                        MAX_NO_FIELD_TYPES // Should always be last
-};
+                        MYSQL_TYPE_GEOMETRY=255 };
 
 /* For backward compatibility */
 #define CLIENT_MULTI_QUERIES    CLIENT_MULTI_STATEMENTS    
@@ -369,10 +369,10 @@ struct rand_struct {
 
   /* The following is for user defined functions */
 
+#define MAX_NO_ITEM_RESULTS 5
+
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
-                  DECIMAL_RESULT,
-                  MAX_NO_ITEM_RESULTS // Should always be last
-};
+                  DECIMAL_RESULT};
 
 typedef struct st_udf_args
 {
