@@ -1646,6 +1646,15 @@ void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     (*file_array)->change_table_ptr(table_arg, share);
   } while (*(++file_array));
+  if (m_added_file && m_added_file[0])
+  {
+    /* if in middle of a drop/rename etc */
+    file_array= m_added_file;
+    do
+    {
+      (*file_array)->change_table_ptr(table_arg, share);
+    } while (*(++file_array));
+  }
 }
 
 /*

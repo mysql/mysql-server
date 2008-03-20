@@ -1312,11 +1312,11 @@ bool check_partition_dirs(partition_info *part_info)
   return 0;
 
 dd_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECTORY");
   return 1;
 
 id_err:
-  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
+  my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECTORY");
   return 1;
 }
 
