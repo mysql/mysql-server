@@ -125,6 +125,23 @@ static
 const
 NDBT_Table T3("T3", sizeof(T3Attribs)/sizeof(NDBT_Attribute), T3Attribs);
 
+/* T4 */
+static
+const
+NDBT_Attribute T4Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true,  false, 0, MM, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, false, true, 0, MM, true),
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, false, false, 0, MM, true)
+};
+
+static
+const
+NDBT_Table T4("T4", sizeof(T4Attribs)/sizeof(NDBT_Attribute), T4Attribs);
+
+
+
 /* T6 */
 static
 const
@@ -153,6 +170,8 @@ NDBT_Attribute T6Attribs[] = {
   NDBT_Attribute("ATTR18", NdbDictionary::Column::Char, 257),
   NDBT_Attribute("ATTR19", NdbDictionary::Column::Unsigned),
   NDBT_Attribute("ATTR20", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("ATTR21", NdbDictionary::Column::Char, 4, false, true, 0, MM, true),
+  NDBT_Attribute("ATTR22", NdbDictionary::Column::Varbinary, 255, false, false, 0, MM, true)
 };
 
 static
@@ -367,7 +386,7 @@ NDBT_Attribute D2Attribs[] = {
   NDBT_Attribute("KOL1", NdbDictionary::Column::Varbinary, 127, true), 
   NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL3", NdbDictionary::Column::Unsigned),
-  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133),
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Varbinary, 133, false, true, 0, MM, true),
   NDBT_Attribute("KOL5", NdbDictionary::Column::Char, 199, false, true, 0, NdbDictionary::Column::StorageTypeDisk),
   NDBT_Attribute("KOL6", NdbDictionary::Column::Bit, 21, false, false, 0, NdbDictionary::Column::StorageTypeDisk),
 };
@@ -384,6 +403,7 @@ NDBT_Table *test_tables[]=
   &T1,
   &T2,
   &T3,
+  &T4,
   &T6,
   &T13,
   &T15,
