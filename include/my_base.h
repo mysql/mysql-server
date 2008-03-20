@@ -513,6 +513,7 @@ enum data_file_type {
 #define GEOM_FLAG      128
 #define SKIP_RANGE     256
 #define READ_KEY_FROM_RANGE 512
+#define EMPTY_RANGE    1024
 
 typedef struct st_key_range
 {
