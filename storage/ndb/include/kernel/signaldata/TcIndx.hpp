@@ -52,7 +52,7 @@ private:
   //-------------------------------------------------------------
 
   Uint32 apiConnectPtr;
-  Uint32 gci;
+  Uint32 gci_hi; // gci_lo is stored after operations
   Uint32 confInfo;
   Uint32 transId1;
   Uint32 transId2;

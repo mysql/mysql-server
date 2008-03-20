@@ -26,6 +26,11 @@
 #include <NodeInfo.hpp>
 #include "ArrayPool.hpp"
 
+// #define GCP_TIMER_HACK
+#ifdef GCP_TIMER_HACK
+#include <NdbTick.h>
+#endif
+
 class SimulatedBlock;
 
 enum  restartStates {initial_state, 
@@ -67,6 +72,9 @@ struct GlobalData {
     theSignalId = 0; 
     theStartLevel = NodeState::SL_NOTHING;
     theRestartFlag = perform_start;
+#ifdef GCP_TIMER_HACK
+    gcp_timer_limit = 0;
+#endif
   }
   ~GlobalData(){}
   
@@ -82,6 +90,20 @@ private:
 public:
   ArrayPool<GlobalPage> m_global_page_pool;
   ArrayPool<GlobalPage> m_shared_page_pool;
+
+#ifdef GCP_TIMER_HACK
+  // timings are local to the node
+
+  // from prepare to commit (DIH, TC)
+  MicroSecondTimer gcp_timer_commit[2];
+  // from GCP_SAVEREQ to GCP_SAVECONF (LQH)
+  MicroSecondTimer gcp_timer_save[2];
+  // sysfile update (DIH)
+  MicroSecondTimer gcp_timer_copygci[2];
+
+  // report threshold in ms, if 0 guessed, set with dump 7901 <limit>
+  Uint32 gcp_timer_limit;
+#endif
 };
 
 extern GlobalData globalData;

@@ -71,7 +71,7 @@ public:
   void update_max_log_level(const LogLevel&);
   void update_log_level(const LogLevel&);
   
-  void log(int eventType, const Uint32* theData, NodeId nodeId);
+  void log(int eventType, const Uint32* theData, Uint32 len, NodeId nodeId);
   
   void stop_sessions();
 
@@ -168,7 +168,7 @@ public:
    *   @return true if succeeded, otherwise false
    */
   bool check_start(); // may be run before start to check that some things are ok
-  bool start(BaseString &error_string);
+  bool start(BaseString &error_string, const char * bindaddress = 0);
 
   ~MgmtSrvr();
 
@@ -181,6 +181,7 @@ public:
   int status(int nodeId,
 	     ndb_mgm_node_status * status,
 	     Uint32 * version,
+	     Uint32 * mysql_version,
 	     Uint32 * phase,
 	     bool * systemShutdown,
 	     Uint32 * dynamicId,
@@ -236,7 +237,8 @@ public:
    *   @param   processId: Id of the DB process to stop
    *   @return  0 if succeeded, otherwise: as stated above, plus:
    */
-  int versionNode(int nodeId, Uint32 &version, const char **address);
+  int versionNode(int nodeId, Uint32 &version, Uint32 &mysql_version,
+		  const char **address);
 
   /**
    *   Maintenance on the system
@@ -440,7 +442,7 @@ public:
   int getConnectionDbParameter(int node1, int node2, int param,
 			       int *value, BaseString& msg);
 
-  int connect_to_self(void);
+  int connect_to_self(const char* bindaddress = 0);
 
   void transporter_connect(NDB_SOCKET_TYPE sockfd);
 
@@ -464,7 +466,7 @@ private:
                    bool initialStart);
 
   int sendSTOP_REQ(const Vector<NodeId> &node_ids,
-		   NodeBitmask &stoppedNodes,
+		   NdbNodeBitmask &stoppedNodes,
 		   Uint32 singleUserNodeId,
 		   bool abort,
 		   bool stop,
@@ -584,7 +586,7 @@ private:
   /**
    * An event from <i>nodeId</i> has arrived
    */
-  void eventReport(const Uint32 * theData);
+  void eventReport(const Uint32 * theData, Uint32 len);
  
 
   //**************************************************************************
@@ -610,7 +612,8 @@ private:
   char m_local_mgm_connect_string[20];
   class TransporterFacade * theFacade;
 
-  int  sendVersionReq( int processId, Uint32 &version, const char **address);
+  int  sendVersionReq( int processId, Uint32 &version, Uint32& mysql_version,
+		       const char **address);
   int translateStopRef(Uint32 errCode);
   
   bool _isStopThread;

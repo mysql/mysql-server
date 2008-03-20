@@ -13,15 +13,70 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#ifndef GCP_SAVE_HPP
-#define GCP_SAVE_HPP
+#ifndef GCP_HPP
+#define GCP_HPP
 
 #include "SignalData.hpp"
+
+struct GCPPrepare // Distr. DIH-DIH
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 nodeId;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+};
+
+struct GCPPrepareConf // Distr. DIH-DIH
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 nodeId;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+};
+
+struct GCPCommit // Distr. DIH-DIH
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 nodeId;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+};
+
+struct GCPNoMoreTrans // Local DIH/TC
+{
+  STATIC_CONST( SignalLength = 3 );
+  Uint32 senderData;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+};
+
+struct GCPTCFinished // Local TC-DIH
+{
+  STATIC_CONST( SignalLength = 3 );
+
+  Uint32 senderData;
+  Uint32 gci_hi;
+  Uint32 gci_lo;
+};
+
+struct GCPNodeFinished // Distr. DIH-DIH
+{
+  STATIC_CONST( SignalLength = 4 );
+
+  Uint32 nodeId;
+  Uint32 gci_hi;
+  Uint32 failno;
+  Uint32 gci_lo;
+};
 
 /**
  * GCPSaveReq / (Ref/Conf) is sent as part of GCP
  */
-class GCPSaveReq {
+class GCPSaveReq // Distr. DIH-LQH
+{
   /**
    * Sender(s)
    */
@@ -43,7 +98,8 @@ private:
   Uint32 gci;
 };
 
-class GCPSaveRef {
+class GCPSaveRef // Distr. LQH-DIH
+{
   /**
    * Sender(s)
    */
@@ -72,7 +128,8 @@ private:
   Uint32 errorCode;
 };
 
-class GCPSaveConf {
+class GCPSaveConf // Distr. LQH-DIH
+{
   /**
    * Sender(s)
    */

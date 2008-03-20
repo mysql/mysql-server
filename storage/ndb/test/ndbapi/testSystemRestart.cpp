@@ -1221,6 +1221,54 @@ runBug24664(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int 
+runBug27434(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  Ndb* pNdb = GETNDB(step);
+  const Uint32 nodeCount = restarter.getNumDbNodes();
+
+  if (nodeCount < 2)
+    return NDBT_OK;
+
+  int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
+  int dump[] = { DumpStateOrd::DihStartLcpImmediately };
+
+  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
+  NdbLogEventHandle handle = 
+    ndb_mgm_create_logevent_handle(restarter.handle, filter);
+
+  struct ndb_logevent event;
+
+  do {
+    int node1 = restarter.getDbNodeId(rand() % nodeCount);
+    CHECK(restarter.restartOneDbNode(node1, false, true, true) == 0);
+    NdbSleep_SecSleep(3);
+    CHECK(restarter.waitNodesNoStart(&node1, 1) == 0);
+
+    CHECK(restarter.dumpStateAllNodes(args, 1) == 0);
+
+    for (Uint32 i = 0; i<3; i++)
+    {
+      CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	    event.type != NDB_LE_LocalCheckpointStarted);
+      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
+	    event.type != NDB_LE_LocalCheckpointCompleted);
+    }      
+    
+    restarter.restartAll(false, true, true);
+    NdbSleep_SecSleep(3);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    restarter.insertErrorInNode(node1, 5046);
+    restarter.startAll();
+    CHECK(restarter.waitClusterStarted() == 0);
+  } while(false);
+  
+  return result;
+}
+
+int
 runBug29167(NDBT_Context* ctx, NDBT_Step* step)
 {
   int result = NDBT_OK;
@@ -1261,7 +1309,6 @@ runBug29167(NDBT_Context* ctx, NDBT_Step* step)
   
   return result;
 }
-
 int
 runBug28770(NDBT_Context* ctx, NDBT_Step* step) {
   Ndb* pNdb = GETNDB(step);
@@ -1530,54 +1577,6 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
   }
   
   ctx->stopTest();  
-  return result;
-}
-
-int 
-runBug27434(NDBT_Context* ctx, NDBT_Step* step)
-{
-  int result = NDBT_OK;
-  NdbRestarter restarter;
-  Ndb* pNdb = GETNDB(step);
-  const Uint32 nodeCount = restarter.getNumDbNodes();
-
-  if (nodeCount < 2)
-    return NDBT_OK;
-
-  int args[] = { DumpStateOrd::DihMaxTimeBetweenLCP };
-  int dump[] = { DumpStateOrd::DihStartLcpImmediately };
-
-  int filter[] = { 15, NDB_MGM_EVENT_CATEGORY_CHECKPOINT, 0 };
-  NdbLogEventHandle handle = 
-    ndb_mgm_create_logevent_handle(restarter.handle, filter);
-
-  struct ndb_logevent event;
-
-  do {
-    int node1 = restarter.getDbNodeId(rand() % nodeCount);
-    CHECK(restarter.restartOneDbNode(node1, false, true, true) == 0);
-    NdbSleep_SecSleep(3);
-    CHECK(restarter.waitNodesNoStart(&node1, 1) == 0);
-
-    CHECK(restarter.dumpStateAllNodes(args, 1) == 0);
-
-    for (Uint32 i = 0; i<3; i++)
-    {
-      CHECK(restarter.dumpStateAllNodes(dump, 1) == 0);
-      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
-	    event.type != NDB_LE_LocalCheckpointStarted);
-      while(ndb_logevent_get_next(handle, &event, 0) >= 0 &&
-	    event.type != NDB_LE_LocalCheckpointCompleted);
-    }      
-    
-    restarter.restartAll(false, true, true);
-    NdbSleep_SecSleep(3);
-    CHECK(restarter.waitClusterNoStart() == 0);
-    restarter.insertErrorInNode(node1, 5046);
-    restarter.startAll();
-    CHECK(restarter.waitClusterStarted() == 0);
-  } while(false);
-  
   return result;
 }
 

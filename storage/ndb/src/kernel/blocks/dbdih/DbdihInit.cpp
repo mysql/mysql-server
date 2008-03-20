@@ -151,11 +151,14 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_CREATE_FRAGREQ, &Dbdih::execCREATE_FRAGREQ);
   addRecSignal(GSN_CREATE_FRAGCONF, &Dbdih::execCREATE_FRAGCONF);
   addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
+  addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
+  addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_SAVECONF, &Dbdih::execGCP_SAVECONF);
   addRecSignal(GSN_GCP_PREPARECONF, &Dbdih::execGCP_PREPARECONF);
   addRecSignal(GSN_GCP_PREPARE, &Dbdih::execGCP_PREPARE);
   addRecSignal(GSN_GCP_NODEFINISH, &Dbdih::execGCP_NODEFINISH);
   addRecSignal(GSN_GCP_COMMIT, &Dbdih::execGCP_COMMIT);
+  addRecSignal(GSN_SUB_GCP_COMPLETE_REP, &Dbdih::execSUB_GCP_COMPLETE_REP);
   addRecSignal(GSN_DIHNDBTAMPER, &Dbdih::execDIHNDBTAMPER);
   addRecSignal(GSN_CONTINUEB, &Dbdih::execCONTINUEB);
   addRecSignal(GSN_COPY_GCIREQ, &Dbdih::execCOPY_GCIREQ);
@@ -184,7 +187,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_STTOR, &Dbdih::execSTTOR);
   addRecSignal(GSN_DI_FCOUNTREQ, &Dbdih::execDI_FCOUNTREQ);
   addRecSignal(GSN_DIGETPRIMREQ, &Dbdih::execDIGETPRIMREQ);
-  addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
   addRecSignal(GSN_GCP_TCFINISHED, &Dbdih::execGCP_TCFINISHED);
   addRecSignal(GSN_READ_NODESCONF, &Dbdih::execREAD_NODESCONF);
   addRecSignal(GSN_NDB_STTOR, &Dbdih::execNDB_STTOR);
@@ -264,6 +266,9 @@ Dbdih::Dbdih(Block_context& ctx):
 	       &Dbdih::execPREPARE_COPY_FRAG_REF);
   addRecSignal(GSN_PREPARE_COPY_FRAG_CONF,
 	       &Dbdih::execPREPARE_COPY_FRAG_CONF);
+
+  addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
+	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
   
   apiConnectRecord = 0;
   connectRecord = 0;

@@ -956,6 +956,8 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
   {
     handlerton *table_type= table->s->db_type();
     TABLE_SHARE *share= table->s;
+    bool frm_only= (share->tmp_table == TMP_TABLE_FRM_FILE_ONLY);
+
     if (!ha_check_storage_engine_flag(table_type, HTON_CAN_RECREATE))
       goto trunc_by_del;
 
@@ -967,8 +969,9 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok)
     // We don't need to call invalidate() because this table is not in cache
     if ((error= (int) !(open_temporary_table(thd, share->path.str,
                                              share->db.str,
-					     share->table_name.str, 1))))
-      (void) rm_temporary_table(table_type, path);
+					     share->table_name.str, 1,
+                                             OTM_OPEN))))
+      (void) rm_temporary_table(table_type, path, frm_only);
     free_table_share(share);
     my_free((char*) table,MYF(0));
     /*

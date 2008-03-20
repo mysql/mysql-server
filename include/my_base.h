@@ -98,6 +98,14 @@ enum ha_key_alg {
   HA_KEY_ALG_FULLTEXT=	4		/* FULLTEXT (MyISAM tables) */
 };
 
+	/* Index and table build methods */
+
+enum ha_build_method { 
+  HA_BUILD_DEFAULT, 
+  HA_BUILD_ONLINE,
+  HA_BUILD_OFFLINE 
+};
+
         /* Storage media types */ 
 
 enum ha_storage_media {
