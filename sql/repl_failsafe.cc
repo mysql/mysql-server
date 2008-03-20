@@ -191,7 +191,7 @@ int register_slave(THD* thd, uchar* packet, uint packet_length)
 
 err:
   my_free((gptr) si, MYF(MY_WME));
-  my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0));
+  my_message(ER_UNKNOWN_ERROR, errmsg, MYF(0)); /* purecov: inspected */
 err2:
   return 1;
 }
