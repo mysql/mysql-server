@@ -5,15 +5,15 @@ max-time: 1500
 cmd: testIndex
 args: -n CreateAll T1 T6 T13
 
-#-m 7200 1: testIndex -n InsertDeleteGentle T7
+#-m 7200 1: testIndex -n InsertDeleteGentle T6
 max-time: 3600
 cmd: testIndex
-args: -n InsertDelete T1 T10 
+args: -n InsertDelete T1 
 
-#-m 3600 1: testIndex -n CreateLoadDropGentle T7
+#-m 3600 1: testIndex -n CreateLoadDropGentle T6
 max-time: 3600
 cmd: testIndex
-args: -n CreateLoadDrop T1 T10 
+args: -n CreateLoadDrop T1 
 
 #
 # BACKUP
@@ -55,7 +55,7 @@ args: -n NoLoad T6
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n MixedPkRead T6 T8 T13 
+args: -n MixedPkRead T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
@@ -99,7 +99,7 @@ args: -l 1 -n RestartNFDuringNR T6 T13
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n RestartMasterNodeError T6 T8 T13 
+args: -n RestartMasterNodeError T6 T13 
 
 max-time: 3600
 cmd: testNodeRestart
@@ -107,31 +107,31 @@ args: -n RestartNodeDuringLCP T6
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n TwoNodeFailure T6 T8 T13 
+args: -n TwoNodeFailure T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n TwoMasterNodeFailure T6 T8 T13 
+args: -n TwoMasterNodeFailure T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n FiftyPercentFail T6 T8 T13 
+args: -n FiftyPercentFail T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n RestartAllNodes T6 T8 T13 
+args: -n RestartAllNodes T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n RestartAllNodesAbort T6 T8 T13 
+args: -n RestartAllNodesAbort T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n RestartAllNodesError9999 T6 T8 T13 
+args: -n RestartAllNodesError9999 T6 T13 
 
 max-time: 2500
 cmd: testNodeRestart
-args: -n FiftyPercentStopAndWait T6 T8 T13 
+args: -n FiftyPercentStopAndWait T6 T13 
 
 #max-time: 500
 #cmd: testNodeRestart
