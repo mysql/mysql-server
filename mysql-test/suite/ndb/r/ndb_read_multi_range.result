@@ -547,3 +547,14 @@ delete from t1 where a in (7,8) or a >= 10;
 select * from t1 order by a;
 a	b
 drop table t1;
+create table t1 (a int primary key, b int, key b_idx (b)) engine ndb;
+insert into t1 values(1,1), (2,2), (3,3), (4,4), (5,5);
+select one.a 
+from t1 one left join t1 two 
+on (two.b = one.b) 
+where one.a in (3, 4) 
+order by a;
+a
+3
+4
+drop table t1;
