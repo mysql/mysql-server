@@ -453,7 +453,10 @@ public:
 	     FIELD_VARIANCE_ITEM, INSERT_VALUE_ITEM,
              SUBSELECT_ITEM, ROW_ITEM, CACHE_ITEM, TYPE_HOLDER,
              PARAM_ITEM, TRIGGER_FIELD_ITEM, DECIMAL_ITEM,
-             VIEW_FIXER_ITEM};
+             VIEW_FIXER_ITEM,
+             // Add new item types here
+             MAX_NO_ITEMS // Should always be last
+  };
 
   enum cond_result { COND_UNDEF,COND_OK,COND_TRUE,COND_FALSE };
 
