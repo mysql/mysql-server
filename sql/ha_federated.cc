@@ -643,12 +643,19 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   if ((strchr(share->table_name, '/')))
     goto error;
 
+  /*
+    If hostname is omitted, we set it to NULL. According to
+    mysql_real_connect() manual:
+    The value of host may be either a hostname or an IP address.
+    If host is NULL or the string "localhost", a connection to the
+    local host is assumed.
+  */
   if (share->hostname[0] == '\0')
     share->hostname= NULL;
 
   if (!share->port)
   {
-    if (strcmp(share->hostname, my_localhost) == 0)
+    if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
       share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
     else
       share->port= MYSQL_PORT;
