@@ -17,10 +17,8 @@
 #include <NDBT_Output.hpp>
 #include <NdbSleep.h>
 
-AtrtClient::AtrtClient(const char* _user,
-                       const char* _password,
-                       const char* _group_suffix)
- : DbUtil(_user, _password, _group_suffix)
+AtrtClient::AtrtClient(const char* _group_suffix)
+  : DbUtil("atrt", _group_suffix)
 {
 }
 
