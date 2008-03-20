@@ -26,9 +26,7 @@ public:
     ATCT_RESET_PROC= 2
   };
 
-  AtrtClient(const char* _user= "root",
-             const char* _password= "",
-             const char* _suffix= ".1.atrt");
+  AtrtClient(const char* _suffix= ".1.atrt");
   AtrtClient(MYSQL*);
   ~AtrtClient();
 
