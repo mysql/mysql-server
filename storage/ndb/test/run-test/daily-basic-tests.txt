@@ -571,7 +571,7 @@ args: -n Bug29364 T1
 
 max-time: 1000
 cmd: testNodeRestart
-args: -n Bug28023 T7 D2
+args: -n Bug28023 T6 D2
 
 max-time: 3000
 cmd: testNodeRestart
@@ -673,7 +673,7 @@ args: -n TableAddAttrs
 
 max-time: 1500
 cmd: testDict
-args: -n TableAddAttrsDuring T1 T2 T7
+args: -n TableAddAttrsDuring T1 T6
 
 max-time: 500
 cmd: testDict
