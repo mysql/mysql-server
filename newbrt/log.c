@@ -374,6 +374,10 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 
 int toku_logger_log_checkpoint (TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
+    int r = toku_cachetable_checkpoint(logger->ct);
+    if (r!=0) return r;
+    logger->checkpoint_lsns[1]=logger->checkpoint_lsns[0];
+    logger->checkpoint_lsns[0]=logger->lsn;
     return toku_log_checkpoint(logger, 1);
 }
 
@@ -741,17 +745,23 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
     LSN earliest_lsn_seen={(unsigned long long)(-1LL)};
     r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_seen); // try to find the lsn that's in the most recent log
-    for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
-	r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
-	if (r!=0) continue; // In case of error, just keep going
-
-	if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
-	    (earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
-	    break;
+    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
+	(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
+	i=all_n_logs-1;
+    } else {
+	for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
+	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
+	    if (r!=0) continue; // In case of error, just keep going
+	    
+	    printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
+	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
+		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
+		break;
+	    }
 	}
     }
     
-    // all log files up to, but not including i can be archived.
+    // all log files up to, but but not including, i can be archived.
     int n_to_archive=i;
     int count_bytes=0;
     for (i=0; i<n_to_archive; i++) {
@@ -770,7 +780,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	free(all_logs[i]);
     }
     free(all_logs);
-    result[i]=0;
+    result[n_to_archive]=0;
     *logs_p = result;
     return 0;
 }

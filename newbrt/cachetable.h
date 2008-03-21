@@ -86,4 +86,6 @@ FILENUM toku_cachefile_filenum (CACHEFILE);
 // During a transaction, we cannot reuse a filenum.
 int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT *brt);
 
+int toku_cachetable_checkpoint (CACHETABLE ct);
+
 #endif

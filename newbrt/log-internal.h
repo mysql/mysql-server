@@ -116,7 +116,7 @@ static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
 	int sum_of_pieces=0;
 	int i;
 	for (i=0; i<bs.n_named_roots; i++) {
-	    sum_of_pieces += 8+1+strlen(bs.u.many.names[i]);
+	    sum_of_pieces += 4+8+1+strlen(bs.u.many.names[i]);
 	}
 	return in_both+sum_of_pieces;
     }
