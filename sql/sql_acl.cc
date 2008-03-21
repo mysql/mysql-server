@@ -1382,7 +1382,7 @@ bool acl_check_host(const char *host, const char *ip)
       1		ERROR  ; In this case the error is sent to the client.
 */
 
-bool check_change_password(THD *thd, const char *host, const char *user,
+int check_change_password(THD *thd, const char *host, const char *user,
                            char *new_password, uint new_password_len)
 {
   if (!initialized)
@@ -2763,7 +2763,7 @@ table_error:
     TRUE  error
 */
 
-bool mysql_table_grant(THD *thd, TABLE_LIST *table_list,
+int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 		      List <LEX_USER> &user_list,
 		      List <LEX_COLUMN> &columns, ulong rights,
 		      bool revoke_grant)
@@ -5805,7 +5805,7 @@ bool sp_revoke_privileges(THD *thd, const char *sp_db, const char *sp_name,
     < 0         Error. Error message not yet sent.
 */
 
-bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
+int sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
                          bool is_proc)
 {
   Security_context *sctx= thd->security_ctx;
