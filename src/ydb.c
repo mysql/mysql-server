@@ -394,9 +394,7 @@ static int toku_env_close(DB_ENV * env, u_int32_t flags) {
 }
 
 static int toku_env_log_archive(DB_ENV * env, char **list[], u_int32_t flags) {
-    env=env; flags=flags; // Suppress compiler warnings.
-    *list = NULL;
-    return 0;
+    return toku_logger_log_archive(env->i->logger, list, flags);
 }
 
 static int toku_env_log_flush(DB_ENV * env, const DB_LSN * lsn __attribute__((__unused__))) {
@@ -594,9 +592,8 @@ static int toku_env_set_verbose(DB_ENV * env, u_int32_t which, int onoff) {
     return 1;
 }
 
-static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte, u_int32_t min, u_int32_t flags) {
-    env=env; kbyte=kbyte; min=min; flags=flags;
-    return 0;
+static int toku_env_txn_checkpoint(DB_ENV * env, u_int32_t kbyte __attribute__((__unused__)), u_int32_t min __attribute__((__unused__)), u_int32_t flags __attribute__((__unused__))) {
+    return toku_logger_log_checkpoint(env->i->logger); 
 }
 
 static int toku_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t flags) {

@@ -57,6 +57,7 @@ const struct logtype rollbacks[] = {
 };
 
 const struct logtype logtypes[] = {
+    {"checkpoint", 'x', FA{NULLFIELD}},
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
 #if 0
     {"tl_delete", 'D', FA{{"FILENUM", "filenum", 0}, // tl logentries can be used, by themselves, to rebuild the whole DB from scratch.

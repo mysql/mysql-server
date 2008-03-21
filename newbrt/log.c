@@ -7,6 +7,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -43,8 +44,8 @@ int logfilenamecompare (const void *ap, const void *bp) {
     return strcmp(a,b);
 }
 
-int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp) {
-    int result_limit=1;
+int toku_logger_find_logfiles (const char *directory, char ***resultp) {
+    int result_limit=2;
     int n_results=0;
     char **MALLOC_N(result_limit, result);
     struct dirent *de;
@@ -56,7 +57,7 @@ int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***r
 	long long thisl;
 	int r = sscanf(de->d_name, "log%llu.tokulog", &thisl);
 	if (r!=1) continue; // Skip over non-log files.
-	if (n_results>=result_limit) {
+	if (n_results+1>=result_limit) {
 	    result_limit*=2;
 	    result = toku_realloc(result, result_limit*sizeof(*result));
 	}
@@ -67,8 +68,8 @@ int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***r
     }
     // Return them in increasing order.
     qsort(result, n_results, sizeof(result[0]), logfilenamecompare);
-    *n_resultsp = n_results;
     *resultp    = result;
+    result[n_results]=0; // make a trailing null
     return closedir(d);
 }
 
@@ -85,6 +86,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->n_in_buf=0;
     result->n_in_file=0;
     result->directory=0;
+    result->checkpoint_lsns[0]=result->checkpoint_lsns[1]=(LSN){0};
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died0;
     r = ml_init(&result->output_lock); if (r!=0) goto died1;
@@ -370,19 +372,9 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
     return r;
 }
 
-int toku_logger_log_checkpoint (TOKULOGGER logger, LSN *lsn) {
+int toku_logger_log_checkpoint (TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
-    struct wbuf wbuf;
-    const int buflen =18;
-    struct logbytes *lbytes = MALLOC_LOGBYTES(buflen);
-    if (lbytes==0) return errno;
-    wbuf_init(&wbuf, &lbytes->bytes[0], buflen);
-    wbuf_char(&wbuf, LT_CHECKPOINT);
-    wbuf_LSN (&wbuf, logger->lsn);
-    *lsn = lbytes->lsn = logger->lsn;
-    logger->lsn.lsn++;
-    return toku_logger_finish(logger, lbytes, &wbuf, 1);
-    
+    return toku_log_checkpoint(logger, 1);
 }
 
 int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
@@ -416,38 +408,6 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     bs.len = strlen(fname);
     bs.data = (char*)fname;
     return toku_log_fopen (txn->logger, 0, toku_txn_get_txnid(txn), bs, filenum);
-}
-
-int toku_logger_log_header (TOKUTXN txn, FILENUM filenum, struct brt_header *h) {
-    if (txn==0) return 0;
-    if (txn->logger->is_panicked) return EINVAL;
-    int subsize=toku_serialize_brt_header_size(h);
-    int buflen = (4   // firstlen
-		  + 1 //cmd
-		  + 8 // lsn
-		  + 8 // txnid
-		  + 4 // filenum
-		  + subsize
-		  + 8 // crc & len
-		  );
-    struct logbytes *lbytes=MALLOC_LOGBYTES(buflen); // alloc on heap because it might be big
-    int r;
-    if (lbytes==0) return errno;
-    struct wbuf wbuf;
-    r = ml_lock(&txn->logger->input_lock);   if (r!=0) { txn->logger->is_panicked=1; txn->logger->panic_errno=r; return r; }
-    LSN lsn = txn->logger->lsn;
-    wbuf_init(&wbuf, &lbytes->bytes[0], buflen);
-    wbuf_int (&wbuf, buflen);
-    wbuf_char(&wbuf, LT_FHEADER);
-    wbuf_LSN    (&wbuf, lsn);
-    lbytes->lsn = lsn;
-    txn->logger->lsn.lsn++;
-    wbuf_TXNID(&wbuf, txn->txnid64);
-    wbuf_FILENUM(&wbuf, filenum);
-    r=toku_serialize_brt_header_to_wbuf(&wbuf, h);
-    if (r!=0) return r;
-    r=toku_logger_finish(txn->logger, lbytes, &wbuf, 0);
-    return r;
 }
 
 int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
@@ -493,6 +453,13 @@ int toku_fread_u_int32_t (FILE *f, u_int32_t *v, u_int32_t *crc, u_int32_t *len)
 	  (c2<< 8)|
 	  (c3<<0));
     return 0;
+}
+int toku_fread_int32_t (FILE *f, int32_t *v, u_int32_t *crc, u_int32_t *len) {
+    u_int32_t uv;
+    int r = toku_fread_u_int32_t(f, &uv, crc, len);
+    int32_t rv = uv;
+    if (r==0) *v=rv;
+    return r;
 }
 
 int toku_fread_u_int64_t (FILE *f, u_int64_t *v, u_int32_t *crc, u_int32_t *len) {
@@ -540,8 +507,8 @@ int toku_fread_LOGGEDBRTHEADER (FILE *f, LOGGEDBRTHEADER *v, u_int32_t *crc, u_i
     r = toku_fread_u_int32_t(f, &v->nodesize,      crc, len); if (r!=0) return r;
     r = toku_fread_DISKOFF  (f, &v->freelist,      crc, len); if (r!=0) return r;
     r = toku_fread_DISKOFF  (f, &v->unused_memory, crc, len); if (r!=0) return r;
-    r = toku_fread_u_int32_t(f, &v->n_named_roots, crc, len); if (r!=0) return r;
-    assert((signed)v->n_named_roots==-1);
+    r = toku_fread_int32_t  (f, &v->n_named_roots, crc, len); if (r!=0) return r;
+    assert(v->n_named_roots==-1);
     r = toku_fread_DISKOFF  (f, &v->u.one.root,     crc, len); if (r!=0) return r;
     return 0;
 }
@@ -733,5 +700,77 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
 
 int toku_set_func_fsync (int (*fsync_function)(int)) {
     toku_os_fsync_function = fsync_function;
+    return 0;
+}
+
+// Find the earliest LSN in a log
+static int peek_at_log (TOKULOGGER logger, char* filename, LSN *first_lsn) {
+    logger=logger;
+    int fd = open(filename, O_RDONLY);
+    if (fd<0) { printf("couldn't open: %s\n", strerror(errno)); assert(fd>=0); return errno; }
+    enum { SKIP = 12+1+4 }; // read the 12 byte header, the first cmd, and the first len
+    unsigned char header[SKIP+8];
+    int r = read(fd, header, SKIP+8);
+    if (r!=SKIP+8) return 0; // cannot determine that it's archivable, so we'll assume no.  If a later-log is archivable is then this one will be too.
+    u_int64_t lsn = 0;
+    int i;
+    for (i=0; i<8; i++) lsn=(lsn<<8)+header[SKIP+i];
+
+    r=close(fd);
+    if (r!=0) { return 0; }
+
+    first_lsn->lsn=lsn;
+    return 0;
+}
+
+// Return a malloc'd array of malloc'd strings which are the filenames that can be archived.
+int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
+    if (flags!=0) return EINVAL; // don't know what to do.
+    int all_n_logs;
+    int i;
+    char **all_logs;
+    int r = toku_logger_find_logfiles (logger->directory, &all_logs);
+    if (r!=0) return r;
+
+    for (i=0; all_logs[i]; i++);
+    all_n_logs=i;
+    // get them into increasing order
+    qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
+
+    // Now starting at the last one, look for archivable ones.
+    // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
+    LSN earliest_lsn_seen={(unsigned long long)(-1LL)};
+    r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_seen); // try to find the lsn that's in the most recent log
+    for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
+	r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
+	if (r!=0) continue; // In case of error, just keep going
+
+	if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
+	    (earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
+	    break;
+	}
+    }
+    
+    // all log files up to, but not including i can be archived.
+    int n_to_archive=i;
+    int count_bytes=0;
+    for (i=0; i<n_to_archive; i++) {
+	count_bytes+=1+strlen(all_logs[i]);
+    }
+    char **result = toku_malloc((1+n_to_archive)*sizeof(*result) + count_bytes);
+    char  *base = (char*)(result+1+n_to_archive);
+    for (i=0; i<n_to_archive; i++) {
+	int len=1+strlen(all_logs[i]);
+	result[i]=base;
+	memcpy(base, all_logs[i], len);
+	base+=len;
+	free(all_logs[i]);
+    }
+    for (; all_logs[i]; i++) {
+	free(all_logs[i]);
+    }
+    free(all_logs);
+    result[i]=0;
+    *logs_p = result;
     return 0;
 }

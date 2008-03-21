@@ -29,7 +29,7 @@ struct wbuf {
 #endif
 };
 
-static void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
+static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
     w->buf=buf;
     w->size=size;
     w->ndone=0;
@@ -129,7 +129,7 @@ static inline void wbuf_LOGGEDBRTHEADER (struct wbuf *w, LOGGEDBRTHEADER h) {
     if ((signed)h.n_named_roots==-1) {
 	wbuf_DISKOFF(w, h.u.one.root);
     } else {
-	unsigned int i;
+	int i;
 	for (i=0; i<h.n_named_roots; i++) {
 	    wbuf_DISKOFF(w, h.u.many.roots[i]);
 	    wbuf_bytes  (w, h.u.many.names[i], 1+strlen(h.u.many.names[i]));
