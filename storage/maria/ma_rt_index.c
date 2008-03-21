@@ -666,7 +666,7 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
         HA_OFFSET_ERROR)
       DBUG_RETURN(-1);
     info->keyread_buff_used= 1;
-    bzero(info->buff, share->keypage_header);
+    bzero(info->buff, share->block_size);
     _ma_store_keynr(share, info->buff, keynr);
     _ma_store_page_used(share, info->buff, share->keypage_header);
 
@@ -703,7 +703,7 @@ static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
         DBUG_RETURN(-1); /* purecov: inspected */
       }
 
-      bzero(new_root_buf, share->keypage_header);
+      bzero(new_root_buf, share->block_size);
       if (nod_flag)
         _ma_store_keypage_flag(share, new_root_buf, KEYPAGE_FLAG_ISNOD);
       _ma_store_keynr(share, new_root_buf, keynr);

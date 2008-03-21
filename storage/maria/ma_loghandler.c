@@ -8332,7 +8332,11 @@ static uchar *dump_chunk(uchar *buffer, uchar *ptr)
     }
     break;
   }
-  length= translog_get_total_chunk_length(buffer, ptr - buffer);
+  {
+    intptr offset= ptr - buffer;
+    DBUG_ASSERT(offset >= 0 && offset <= UINT_MAX16);
+    length= translog_get_total_chunk_length(buffer, (uint16)offset);
+  }
   printf("      Length %u\n", length);
   ptr+= length;
   return ptr;

@@ -317,6 +317,7 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     err_code= -1;
     goto split_err;
   }
+  bzero(new_page, share->block_size);
 
   stop= task + (max_keys + 1);
   cur1= rt_PAGE_FIRST_KEY(share, page, nod_flag);
@@ -342,7 +343,6 @@ int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
       memcpy(to - nod_flag, cur->key - nod_flag, full_length);
   }
 
-  bzero(new_page, share->keypage_header);
   if (nod_flag)
     _ma_store_keypage_flag(share, new_page, KEYPAGE_FLAG_ISNOD);
   _ma_store_keynr(share, new_page, keyinfo->key_nr);
