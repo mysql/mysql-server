@@ -99,13 +99,13 @@ static void make_db (int n_locks) {
 	    // Lock escalation cannot help here:  We require too many locks because we are alternating between tid and tid2
 	    if (i*2+j<effective_n_locks) {
 		CKERR(r);
-	    } else assert(r==ENOMEM);
+	    } else CKERR2(r, TOKUDB_OUT_OF_LOCKS);
 #else
 	    if (i*2+j+2<effective_n_locks) {
 		if (r!=0) printf("r=%d on i=%d j=%d eff=%d\n", r, i, j, effective_n_locks);
 		CKERR(r);
 	    }
-	    else assert(r==ENOMEM);
+	    else CKERR2(r, TOKUDB_OUT_OF_LOCKS);
 #endif
 	}
     }
