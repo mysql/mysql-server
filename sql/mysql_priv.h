@@ -741,8 +741,8 @@ inline bool check_some_routine_access(THD *thd, const char *db,
 
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool mysql_multi_update_prepare(THD *thd);
-bool mysql_multi_delete_prepare(THD *thd);
+int mysql_multi_update_prepare(THD *thd);
+int mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
 bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -978,7 +978,7 @@ bool setup_connection_thread_globals(THD *thd);
 bool login_connection(THD *thd);
 void end_connection(THD *thd);
 
-bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db);
@@ -1022,7 +1022,7 @@ void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
-bool mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
@@ -1198,7 +1198,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,
                   bool reset_auto_increment);
@@ -1472,14 +1472,14 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling */
-inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, FALSE);
 }
 /* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, TRUE);
 }
@@ -1708,7 +1708,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
 bool eval_const_cond(COND *cond);
 
 /* sql_load.cc */
-bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
+int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values_list,
                 enum enum_duplicates handle_duplicates, bool ignore,
