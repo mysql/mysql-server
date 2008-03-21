@@ -682,7 +682,7 @@ int analyse::send_row(List<Item> & /* field_list */)
 } // analyse::send_row
 
 
-bool analyse::end_of_records()
+int analyse::end_of_records()
 {
   field_info **f = f_info;
   char buff[MAX_FIELD_WIDTH];
