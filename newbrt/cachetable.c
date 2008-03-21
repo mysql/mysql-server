@@ -735,6 +735,7 @@ int toku_cachetable_checkpoint (CACHETABLE ct) {
 
 //?? This is a skeleton.  It compiles, but doesn't do anything reasonable yet.
 //??    log_the_checkpoint();
+
     int n_saved=0;
     int n_in_table = ct->n_in_table;
     struct save_something {

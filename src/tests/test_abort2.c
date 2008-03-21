@@ -84,6 +84,7 @@ void do_test_abort2 (void) {
     // Don't do a lookup on "hello7", because that will force things out of the buffer.
     r=db->close(db, 0); CKERR(r);
     printf("%s:%d\n", __FILE__, __LINE__);
+    r=db_create(&db, env, 0); CKERR(r);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, 0777); CKERR(r);
     printf("%s:%d\n", __FILE__, __LINE__);
 
