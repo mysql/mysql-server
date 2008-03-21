@@ -815,7 +815,7 @@ public:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   /* end of the list of admin commands */
 
-  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
+  virtual bool check_and_repair(THD *thd) { return TRUE; }
   virtual int dump(THD* thd, int fd = -1) { return HA_ERR_WRONG_COMMAND; }
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
