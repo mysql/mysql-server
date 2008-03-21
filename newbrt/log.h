@@ -24,7 +24,7 @@ void toku_logger_set_cachetable (TOKULOGGER, CACHETABLE);
 int toku_logger_open(const char */*directory*/, TOKULOGGER);
 int toku_logger_log_bytes(TOKULOGGER logger, struct logbytes *bytes, int do_fsync);
 int toku_logger_close(TOKULOGGER *logger);
-int toku_logger_log_checkpoint (TOKULOGGER, LSN*);
+int toku_logger_log_checkpoint (TOKULOGGER);
 void toku_logger_panic(TOKULOGGER, int/*err*/);
 int toku_logger_panicked(TOKULOGGER /*logger*/);
 int toku_logger_is_open(TOKULOGGER);
@@ -124,11 +124,11 @@ static inline int toku_copy_LOGGEDBRTHEADER(LOGGEDBRTHEADER *target, LOGGEDBRTHE
 	if (target->u.many.names==0) { r=errno; if (0) { died0: toku_free(target->u.many.names); } return r; }
 	target->u.many.roots = toku_memdup(target->u.many.roots, val.n_named_roots*sizeof(target->u.many.roots[0]));
 	if (target->u.many.roots==0) { r=errno; if (0) { died1: toku_free(target->u.many.names); } goto died0; }
-	u_int32_t i;
+	int32_t i;
 	for (i=0; i<val.n_named_roots; i++) {
 	    target->u.many.names[i] = toku_strdup(target->u.many.names[i]);
 	    if (target->u.many.names[i]==0) {
-		u_int32_t j;
+		int32_t j;
 		r=errno;
 		for (j=0; j<i; j++) toku_free(target->u.many.names[j]);
 		goto died1;
@@ -139,7 +139,7 @@ static inline int toku_copy_LOGGEDBRTHEADER(LOGGEDBRTHEADER *target, LOGGEDBRTHE
 }
 static inline void toku_free_LOGGEDBRTHEADER(LOGGEDBRTHEADER val) {
     if ((int32_t)val.n_named_roots==-1) return;
-    u_int32_t i;
+    int32_t i;
     for (i=0; i<val.n_named_roots; i++) {
 	toku_free(val.u.many.names[i]);
     }
@@ -157,5 +157,6 @@ int toku_logger_abort(TOKUTXN);
 int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 
 int tokudb_recover(const char *datadir, const char *logdir);
+int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 
 #endif

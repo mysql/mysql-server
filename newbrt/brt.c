@@ -1512,7 +1512,22 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 		t->h->names=0;
 		t->h->roots=0;
 	    }
-	    if ((r=toku_logger_log_header(txn, toku_cachefile_filenum(t->cf), t->h)))                               { goto died6; }
+	    
+	    {
+		LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
+				      .flags = t->h->flags,
+				      .nodesize = t->h->nodesize,
+				      .freelist = t->h->freelist,
+				      .unused_memory = t->h->unused_memory,
+				      .n_named_roots = t->h->n_named_roots };
+		if (t->h->n_named_roots>0) {
+		    lh.u.many.names = t->h->names;
+		    lh.u.many.roots = t->h->roots;
+		} else {
+		    lh.u.one.root = t->h->unnamed_root;
+		}
+		if ((r=toku_log_fheader(toku_txn_logger(txn), 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { goto died6; }
+	    }
 	    if ((r=setup_initial_brt_root_node(t, t->nodesize, toku_txn_logger(txn)))!=0) { died6: if (dbname) goto died5; else goto died2;	}
 	    if ((r=toku_cachetable_put(t->cf, 0, t->h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0))) { goto died6; }
 	}

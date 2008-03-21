@@ -523,11 +523,13 @@ void toku_recover_changeunusedmemory (LSN UU(lsn), FILENUM filenum, DISKOFF UU(o
     r = toku_unpin_brt_header(pair->brt);
 }
 
+static int toku_recover_checkpoint (LSN UU(lsn)) {
+    return 0;
+}
 
 int tokudb_recover(const char *data_dir, const char *log_dir) {
     int r;
     int entrycount=0;
-    int n_logfiles;
     char **logfiles;
 
     int lockfd;
@@ -549,7 +551,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	}
     }
 
-    r = toku_logger_find_logfiles(log_dir, &n_logfiles, &logfiles);
+    r = toku_logger_find_logfiles(log_dir, &logfiles);
     if (r!=0) return r;
     int i;
     toku_recover_init();
@@ -566,7 +568,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	assert(wd!=0);
 	//printf("%s:%d data_wd=\"%s\"\n", __FILE__, __LINE__, data_wd);
     }
-    for (i=0; i<n_logfiles; i++) {
+    for (i=0; logfiles[i]; i++) {
 	//fprintf(stderr, "Opening %s\n", logfiles[i]);
 	r=chdir(org_wd);
 	assert(r==0);
@@ -595,7 +597,7 @@ int tokudb_recover(const char *data_dir, const char *log_dir) {
 	fclose(f);
     }
     toku_recover_cleanup();
-    for (i=0; i<n_logfiles; i++) {
+    for (i=0; logfiles[i]; i++) {
 	toku_free(logfiles[i]);
     }
     toku_free(logfiles);

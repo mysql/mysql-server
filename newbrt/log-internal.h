@@ -62,6 +62,7 @@ struct tokulogger {
     // To access these, you must have the output lock
     LSN written_lsn; // the last lsn written
     LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry
+    LSN checkpoint_lsns[2]; // What are the LSNs of the most recent checkpoints.  checkpoint_lsn[0] is the most recent one.
     long long next_log_file_number;
     char buf[LOGGER_BUF_SIZE]; // used to marshall logbytes so we can use only a single write
     int n_in_file;
@@ -69,20 +70,7 @@ struct tokulogger {
 };
 
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
-int toku_logger_find_logfiles (const char *directory, int *n_resultsp, char ***resultp);
-
-enum lt_command {
-    LT_COMMIT                   = 'C',
-    LT_DELETE                   = 'D',
-    LT_FCREATE                  = 'F',
-    LT_FHEADER                  = 'H',
-    LT_INSERT_WITH_NO_OVERWRITE = 'I',
-    LT_NEWBRTNODE               = 'N',
-    LT_FOPEN                    = 'O',
-    LT_CHECKPOINT               = 'P',
-    LT_BLOCK_RENAME             = 'R',
-    LT_UNLINK                   = 'U'
-};
+int toku_logger_find_logfiles (const char *directory, char ***resultp);
 
 struct tokutxn {
     enum typ_tag tag;
@@ -121,8 +109,18 @@ static inline int toku_logsizeof_BYTESTRING (BYTESTRING bs) {
 }
 
 static inline int toku_logsizeof_LOGGEDBRTHEADER (LOGGEDBRTHEADER bs) {
-    assert(bs.n_named_roots=0);
-    return 4+4+4+8+8+4+8;
+    int in_both = 4+4+4+8+8+4;
+    if (bs.n_named_roots==-1)
+	return in_both+8;
+    else {
+	int sum_of_pieces=0;
+	int i;
+	for (i=0; i<bs.n_named_roots; i++) {
+	    sum_of_pieces += 8+1+strlen(bs.u.many.names[i]);
+	}
+	return in_both+sum_of_pieces;
+    }
+	
 }
 
 static inline int toku_logsizeof_INTPAIRARRAY (INTPAIRARRAY pa) {
