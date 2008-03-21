@@ -716,7 +716,7 @@ static table_map get_table_map(List<Item> *items)
     TRUE  Error
 */
 
-bool mysql_multi_update_prepare(THD *thd)
+int mysql_multi_update_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *table_list= lex->query_tables;
