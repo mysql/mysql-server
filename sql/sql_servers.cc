@@ -166,6 +166,9 @@ end:
   RETURN VALUES
     FALSE  Success
     TRUE   Error
+
+  TODO
+    Revert back to old list if we failed to load new one.
 */
 
 static bool servers_load(THD *thd, TABLE_LIST *tables)
@@ -175,10 +178,9 @@ static bool servers_load(THD *thd, TABLE_LIST *tables)
   bool return_val= TRUE;
   DBUG_ENTER("servers_load");
 
-  /* first, send all cached rows to sleep with the fishes, oblivion!
-     I expect this crappy comment replaced */
-  free_root(&mem, MYF(MY_MARK_BLOCKS_FREE));
   my_hash_reset(&servers_cache);
+  free_root(&mem, MYF(0));
+  init_alloc_root(&mem, ACL_ALLOC_BLOCK_SIZE, 0);
 
   init_read_record(&read_record_info,thd,table=tables[0].table,NULL,1,0);
   while (!(read_record_info.read_record(&read_record_info)))

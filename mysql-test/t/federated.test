@@ -1816,5 +1816,12 @@ DROP TABLE t1;
 connection slave;
 DROP TABLE t1;
 
+#
+# BUG#34788 - malformed federated connection url is not handled correctly -
+#             crashes server !
+#
+CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
+DROP TABLE t1;
+
 --echo End of 5.1 tests
 source include/federated_cleanup.inc;
