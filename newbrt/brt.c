@@ -397,6 +397,9 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	    BNC_SUBTREE_FINGERPRINT(B,i)=0;
 	}
 
+	assert(path_to_parent.len<MAX_PATHLEN_TO_ROOT);
+	path_to_parent.array[path_to_parent.len++]=node->thisnodename; // Don't have to restore it since path_to_parent is passed by value, and this one not used again except in this loop.
+
 	for (i=n_children_in_a; i<old_n_children; i++) {
 
 	    int targchild = i-n_children_in_a;
@@ -425,8 +428,6 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		if (r!=0) return r;
 		r = toku_log_brtdeq(logger, 0, fnum, node->thisnodename, n_children_in_a, xid, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
 		if (r!=0) return r;
-		assert(path_to_parent.len<MAX_PATHLEN_TO_ROOT);
-		path_to_parent.array[path_to_parent.len++]=node->thisnodename; // Don't have to restore it since path_to_parent is passed by value.
 		r = log_and_save_brtenq(logger, t, B, targchild, xid, type, key, keylen, data, datalen, &B->local_fingerprint, path_to_parent);
 		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
 		if (r!=0) return r;
