@@ -57,6 +57,7 @@ int main (int argc, const char *argv[]) {
     r=txn2->commit(txn2, 0); CKERR(r);
 
     r=db->close(db, 0); CKERR(r);
+    r=db2->close(db2, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
     return 0;
 }    
