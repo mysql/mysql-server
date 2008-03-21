@@ -344,7 +344,7 @@ int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbu
 
 int toku_logger_commit (TOKUTXN txn, int nosync) {
     // panic handled in log_commit
-    int r = toku_log_commit(txn->logger, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
+    int r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
     if (r!=0) goto free_and_return;
     if (txn->parent!=0) {
 	// Append the list to the front.
@@ -378,14 +378,16 @@ int toku_logger_log_checkpoint (TOKULOGGER logger) {
     if (r!=0) return r;
     logger->checkpoint_lsns[1]=logger->checkpoint_lsns[0];
     logger->checkpoint_lsns[0]=logger->lsn;
-    return toku_log_checkpoint(logger, 1);
+    return toku_log_checkpoint(logger, (LSN*)0, 1);
 }
 
-int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TXNID txnid64, TOKULOGGER logger) {
+int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
     TAGMALLOC(TOKUTXN, result);
     if (result==0) return errno;
-    result->txnid64 = txnid64;
+    int r =toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
+    if (r!=0) { toku_logger_panic(logger, r);  return r; }
+    result->txnid64 = result->first_lsn.lsn;
     result->logger = logger;
     result->parent = parent_tokutxn;
     result->oldest_logentry = result->newest_logentry = 0;
@@ -398,7 +400,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     if (txn==0) return 0;
     if (txn->logger->is_panicked) return EINVAL;
     BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
-    int r = toku_log_fcreate (txn->logger, 0, toku_txn_get_txnid(txn), bs, mode);
+    int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, mode);
     if (r!=0) return r;
     r = toku_logger_save_rollback_fcreate(txn, bs);
     return r;
@@ -411,7 +413,7 @@ int toku_logger_log_fopen (TOKUTXN txn, const char * fname, FILENUM filenum) {
     BYTESTRING bs;
     bs.len = strlen(fname);
     bs.data = (char*)fname;
-    return toku_log_fopen (txn->logger, 0, toku_txn_get_txnid(txn), bs, filenum);
+    return toku_log_fopen (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, filenum);
 }
 
 int toku_fread_u_int8_t_nocrclen (FILE *f, u_int8_t *v) {
@@ -767,20 +769,24 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     for (i=0; i<n_to_archive; i++) {
 	count_bytes+=1+strlen(all_logs[i]);
     }
-    char **result = toku_malloc((1+n_to_archive)*sizeof(*result) + count_bytes);
-    char  *base = (char*)(result+1+n_to_archive);
-    for (i=0; i<n_to_archive; i++) {
-	int len=1+strlen(all_logs[i]);
-	result[i]=base;
-	memcpy(base, all_logs[i], len);
-	base+=len;
-	free(all_logs[i]);
+    char **result;
+    if (i==0) {
+	result=0;
+    } else {
+	result = toku_malloc((1+n_to_archive)*sizeof(*result) + count_bytes);
+	char  *base = (char*)(result+1+n_to_archive);
+	for (i=0; i<n_to_archive; i++) {
+	    int len=1+strlen(all_logs[i]);
+	    result[i]=base;
+	    memcpy(base, all_logs[i], len);
+	    base+=len;
+	}
+	result[n_to_archive]=0;
     }
-    for (; all_logs[i]; i++) {
+    for (i=0; all_logs[i]; i++) {
 	free(all_logs[i]);
     }
     free(all_logs);
-    result[n_to_archive]=0;
     *logs_p = result;
     return 0;
 }
