@@ -59,6 +59,7 @@ const struct logtype rollbacks[] = {
 const struct logtype logtypes[] = {
     {"checkpoint", 'x', FA{NULLFIELD}},
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
+    {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},
 #if 0
     {"tl_delete", 'D', FA{{"FILENUM", "filenum", 0}, // tl logentries can be used, by themselves, to rebuild the whole DB from scratch.
 		       {"DISKOFF", "diskoff", 0},
@@ -316,7 +317,7 @@ void generate_log_free(void) {
 
 void generate_log_writer (void) {
     DO_LOGTYPES(lt, ({
-			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, int do_fsync", lt->name);
+			fprintf2(cf, hf, "int toku_log_%s (TOKULOGGER logger, LSN *lsnp, int do_fsync", lt->name);
 			DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 			fprintf(hf, ");\n");
 			fprintf(cf, ") {\n");
@@ -338,6 +339,7 @@ void generate_log_writer (void) {
 			fprintf(cf, "  LSN lsn = logger->lsn;\n");
 			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
 			fprintf(cf, "  lbytes->lsn = lsn;\n");
+			fprintf(cf, "  if (lsnp) *lsnp=logger->lsn;\n");
 			fprintf(cf, "  logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));

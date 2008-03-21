@@ -527,6 +527,10 @@ static int toku_recover_checkpoint (LSN UU(lsn)) {
     return 0;
 }
 
+static int toku_recover_xbegin (LSN UU(lsn), TXNID UU(parent)) {
+    return 0;
+}
+
 int tokudb_recover(const char *data_dir, const char *log_dir) {
     int r;
     int entrycount=0;

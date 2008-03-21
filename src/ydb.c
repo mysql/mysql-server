@@ -810,8 +810,6 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
     return -1;
 }
 
-static TXNID next_txn = 0;
-
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
     int r = toku_logger_abort(txn->i->tokutxn);
@@ -873,7 +871,7 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
         }
     }
     
-    r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, next_txn++, env->i->logger);
+    r = toku_logger_txn_begin(stxn ? stxn->i->tokutxn : 0, &result->i->tokutxn, env->i->logger);
     if (r != 0)
         return r;
     *txn = result;

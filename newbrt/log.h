@@ -37,7 +37,7 @@ int toku_logger_log_phys_add_or_delete_in_leaf    (DB *db, TOKUTXN txn, DISKOFF 
 
 int toku_logger_commit (TOKUTXN txn, int no_sync);
 
-int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TXNID /*txnid64*/, TOKULOGGER /*logger*/);
+int toku_logger_txn_begin (TOKUTXN /*parent*/,TOKUTXN *, TOKULOGGER /*logger*/);
 
 int toku_logger_log_fcreate (TOKUTXN, const char */*fname*/, int /*mode*/);
 
