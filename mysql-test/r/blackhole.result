@@ -138,3 +138,20 @@ ALTER TABLE t1 DROP INDEX a;
 ALTER TABLE t1 ADD PRIMARY KEY(a);
 DELETE FROM t1 WHERE a=10;
 DROP TABLE t1;
+reset master;
+create table t1 (a int auto_increment, primary key (a)) engine=blackhole;
+insert into t1 values (11), (NULL), (NULL), (NULL);
+set insert_id= 3;
+insert into t1 values (NULL), (33), (NULL);
+set insert_id= 5;
+insert into t1 values (55), (NULL);
+show binlog events from <binlog_start>;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	1	#	use `test`; create table t1 (a int auto_increment, primary key (a)) engine=blackhole
+master-bin.000001	#	Intvar	1	#	INSERT_ID=1
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (11), (NULL), (NULL), (NULL)
+master-bin.000001	#	Intvar	1	#	INSERT_ID=3
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (NULL), (33), (NULL)
+master-bin.000001	#	Intvar	1	#	INSERT_ID=5
+master-bin.000001	#	Query	1	#	use `test`; insert into t1 values (55), (NULL)
+drop table t1;
