@@ -148,17 +148,17 @@ DROP DATABASE IF EXISTS mysql_test;
 
 CREATE DATABASE mysql_test;
 
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.frm
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.MYD
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.MYI
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI
 
 DROP TABLE mysql.proc;
 
 DROP DATABASE mysql_test;
 
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
---copy_file $MYSQLTEST_VARDIR/master-data/mysql/backup.proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
 
 --echo
 --echo # --
