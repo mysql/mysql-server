@@ -110,7 +110,7 @@ static bool write_execute_load_query_log_event(THD *thd,
     TRUE - error / FALSE - success
 */
 
-bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
+int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values,
                 enum enum_duplicates handle_duplicates, bool ignore,
