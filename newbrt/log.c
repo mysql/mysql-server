@@ -743,19 +743,32 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
     // get them into increasing order
     qsort(all_logs, all_n_logs, sizeof(all_logs[0]), logfilenamecompare);
 
+    LSN oldest_live_txn_lsn={1LL<<63};
+    {
+	struct list *l;
+	for (l=list_head(&logger->live_txns); l!=&logger->live_txns; l=l->next) {
+	    TOKUTXN txn = list_struct(l, struct tokutxn, live_txns_link);
+	    if (oldest_live_txn_lsn.lsn>txn->txnid64) {
+		oldest_live_txn_lsn.lsn=txn->txnid64;
+	    }
+	}
+    }
+    //printf("%s:%d Oldest txn is %lld\n", __FILE__, __LINE__, (long long)oldest_live_txn_lsn.lsn);
+
     // Now starting at the last one, look for archivable ones.
     // Count the total number of bytes, because we have to return a single big array.  (That's the BDB interface.  Bleah...)
     LSN earliest_lsn_seen={(unsigned long long)(-1LL)};
     r = peek_at_log(logger, all_logs[all_n_logs-1], &earliest_lsn_seen); // try to find the lsn that's in the most recent log
     if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
-	(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
+	(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)&&
+	(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
 	i=all_n_logs-1;
     } else {
 	for (i=all_n_logs-2; i>=0; i--) { // start at all_n_logs-2 because we never archive the most recent log
 	    r = peek_at_log(logger, all_logs[i], &earliest_lsn_seen);
 	    if (r!=0) continue; // In case of error, just keep going
 	    
-	    printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
+	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
 	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
 		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
 		break;
