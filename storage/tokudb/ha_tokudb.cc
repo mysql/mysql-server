@@ -24,7 +24,7 @@ unsigned int my_tid() {
 #undef HAVE_DTRACE
 #undef _DTRACE_VERSION
 
-#include "tokudb_config.h"
+//#include "tokudb_config.h"
 
 /* We define DTRACE after mysql_priv.h in case it disabled dtrace in the main server */
 #ifdef HAVE_DTRACE
