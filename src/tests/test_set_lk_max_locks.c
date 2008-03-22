@@ -105,7 +105,7 @@ static void make_db (int n_locks) {
 		if (r!=0) printf("r=%d on i=%d j=%d eff=%d\n", r, i, j, effective_n_locks);
 		CKERR(r);
 	    }
-	    else CKERR2(r, TOKUDB_OUT_OF_LOCKS);
+	    else CKERR2(r, ENOMEM);
 #endif
 	}
     }
