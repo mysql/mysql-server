@@ -900,6 +900,7 @@ static TRANSLOG_FILE *get_logfile_by_number(uint32 file_no)
       log_descriptor.open_files.elements)
   {
     DBUG_PRINT("info", ("File #%u is not opened", file_no));
+    rw_unlock(&log_descriptor.open_files_lock);
     DBUG_RETURN(NULL);
   }
   DBUG_ASSERT(log_descriptor.max_file - log_descriptor.min_file + 1 ==
