@@ -1005,7 +1005,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 
   current_time= my_time(0);
   while (*current_handler)
-    error+= (*current_handler++)->
+    error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
                   user_host_len, id,
                   command_name[(uint) command].str,
