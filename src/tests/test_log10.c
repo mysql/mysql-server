@@ -34,7 +34,7 @@ static void insert_some (int outeri) {
     DB_TXN *tid;
     r=db_env_create(&env, 0); assert(r==0);
     r=env->set_lk_max_locks(env, 2*maxcount); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|create_flag, 0777); CKERR(r);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|create_flag, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
     r=db->open(db, tid, "foo.db", 0, DB_BTREE, create_flag, 0777); CKERR(r);
@@ -57,7 +57,14 @@ static void insert_some (int outeri) {
 	memset(&data, 0, sizeof(data));
 	key.data  = hello; key.size=strlen(hello)+1;
 	data.data = there; data.size=strlen(there)+1;
-	r=db->put(db, tid, &key, &data, 0);  assert(r==0);
+	r=db->put(db, tid, &key, &data, 0);  CKERR(r);
+#ifndef TOKUDB
+	// BDB cannot handle such a big txn.
+	if (i%1000==999) {
+	    r=tid->commit(tid, 0);    assert(r==0);
+	    r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
+	}
+#endif
     }
     r=tid->commit(tid, 0);    assert(r==0);
     r=db->close(db, 0);       assert(r==0);
