@@ -33,7 +33,7 @@ fi
 targetdir=$prefix/$tokudb-$bdbmajor.$bdbminor
 if [ -d $targetdir ] ; then rm -rf $targetdir ; fi
 
-mkdir $targetdir
+mkdir -p $targetdir
 mkdir $targetdir/include
 cp include/db.h $targetdir/include
 cp include/db_cxx.h $targetdir/include
