@@ -73,8 +73,8 @@ public:
   bool no_support_one_shot;
   sys_var(const char *name_arg, sys_after_update_func func= NULL,
           Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
-    :name(name_arg), after_update(func), binlog_status(binlog_status_arg)
-    , no_support_one_shot(1)
+    :name(name_arg), after_update(func), no_support_one_shot(1),
+    binlog_status(binlog_status_arg)
   {}
   virtual ~sys_var() {}
   void chain_sys_var(sys_var_chain *chain_arg)
