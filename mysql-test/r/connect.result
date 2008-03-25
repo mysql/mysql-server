@@ -115,3 +115,106 @@ create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
 drop table t1;
+# ------------------------------------------------------------------
+# -- End of 4.1 tests
+# ------------------------------------------------------------------
+
+# -- Bug#33507: Event scheduler creates more threads than max_connections
+# -- which results in user lockout.
+
+GRANT USAGE ON *.* TO mysqltest_u1@localhost;
+
+SET GLOBAL max_connections = 3;
+SET GLOBAL event_scheduler = ON;
+
+# -- Waiting for Event Scheduler to start...
+
+# -- Disconnecting default connection...
+
+# -- Check that we allow exactly three user connections, no matter how
+# -- many threads are running.
+
+# -- Connecting (1)...
+# -- Establishing connection 'con_1' (user: mysqltest_u1)...
+# -- Connection 'con_1' has been established.
+
+# -- Connecting (2)...
+# -- Establishing connection 'con_2' (user: mysqltest_u1)...
+# -- Connection 'con_2' has been established.
+
+# -- Connecting (3)...
+# -- Establishing connection 'con_3' (user: mysqltest_u1)...
+# -- Connection 'con_3' has been established.
+
+# -- Connecting (4) [should fail]...
+# -- Establishing connection 'con_4' (user: mysqltest_u1)...
+# -- Error: can not establish connection 'con_4'.
+
+# -- Check that we allow one extra SUPER-user connection.
+
+# -- Connecting super (1)...
+# -- Establishing connection 'con_super_1' (user: root)...
+# -- Connection 'con_super_1' has been established.
+
+# -- Connecting super (2) [should fail]...
+# -- Establishing connection 'con_super_2' (user: root)...
+# -- Error: can not establish connection 'con_super_2'.
+
+# -- Ensure that we have Event Scheduler thread, 3 ordinary user
+# -- connections and one extra super-user connection.
+SELECT user FROM information_schema.processlist ORDER BY id;
+user
+event_scheduler
+mysqltest_u1
+mysqltest_u1
+mysqltest_u1
+root
+
+# -- Resetting variables...
+SET GLOBAL max_connections = 151;
+
+# -- Stopping Event Scheduler...
+SET GLOBAL event_scheduler = OFF;
+
+# -- Waiting for Event Scheduler to stop...
+
+# -- That's it. Closing connections...
+
+# -- Restoring default connection...
+
+# -- Waiting for connections to close...
+
+DROP USER mysqltest_u1@localhost;
+
+# -- End of Bug#33507.
+
+# -- Bug#35074: max_used_connections is not correct. 
+
+FLUSH STATUS;
+
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	1
+
+# -- Starting Event Scheduler...
+SET GLOBAL event_scheduler = ON;
+# -- Waiting for Event Scheduler to start...
+
+# -- Opening a new connection to check max_used_connections...
+
+# -- Check that max_used_connections hasn't changed.
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	2
+
+# -- Closing new connection...
+
+# -- Stopping Event Scheduler...
+SET GLOBAL event_scheduler = OFF;
+# -- Waiting for Event Scheduler to stop...
+
+# -- End of Bug#35074.
+
+# ------------------------------------------------------------------
+# -- End of 5.1 tests
+# ------------------------------------------------------------------

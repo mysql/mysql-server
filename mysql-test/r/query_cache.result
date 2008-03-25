@@ -1650,6 +1650,16 @@ a	(select count(*) from t2)
 3	0
 4	0
 drop table t1,t2;
+#
+# Bug#25132 disabled query cache: Qcache_free_blocks = 1
+#
+set global query_cache_size=100000;
+set global query_cache_size=0;
+set global query_cache_type=0;
+show status like 'Qcache_free_blocks';
+Variable_name	Value
+Qcache_free_blocks	0
+Restore default values.
 set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
