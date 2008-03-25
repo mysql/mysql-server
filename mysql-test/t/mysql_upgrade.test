@@ -15,7 +15,8 @@ select LENGTH("$MYSQL_UPGRADE")>0 as have_mysql_upgrade;
 --exec $MYSQL_UPGRADE --skip-verbose 2>&1
 
 # It should have created a file in the MySQL Servers datadir
-file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
+let $MYSQLD_DATADIR= `select @@datadir`;
+file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo Run it again - should say already completed
 --replace_result $MYSQL_SERVER_VERSION VERSION
@@ -23,13 +24,13 @@ file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
 --exec $MYSQL_UPGRADE --skip-verbose 2>&1
 
 # It should have created a file in the MySQL Servers datadir
-file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
+file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 --echo Force should run it regardless of wether it's been run before
 --exec $MYSQL_UPGRADE --skip-verbose --force 2>&1
 
 # It should have created a file in the MySQL Servers datadir
-file_exists $MYSQLTEST_VARDIR/master-data/mysql_upgrade_info;
+file_exists $MYSQLD_DATADIR/mysql_upgrade_info;
 
 
 #

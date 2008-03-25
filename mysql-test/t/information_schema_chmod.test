@@ -17,7 +17,8 @@
 #
 create database mysqltest;
 create table mysqltest.t1(a int);
-chmod 0000 $MYSQLTEST_VARDIR/master-data/mysqltest;
+let $MYSQLD_DATADIR= `select @@datadir`;
+chmod 0000 $MYSQLD_DATADIR/mysqltest;
 select table_schema from information_schema.tables where table_schema='mysqltest';
-chmod 0777 $MYSQLTEST_VARDIR/master-data/mysqltest;
+chmod 0777 $MYSQLD_DATADIR/mysqltest;
 drop database mysqltest;

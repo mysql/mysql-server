@@ -55,9 +55,9 @@ insert into t2 values (17 );
 insert into t3 values (5 );
 insert into t3 values (13 );
 insert into t3 values (17 );
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t6;
 select abs(col1) from t1 order by col1;
 abs(col1)
 5
@@ -1731,9 +1731,9 @@ insert into t2 values (17);
 insert into t3 values (5);
 insert into t3 values (19);
 insert into t3 values (17);
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_int.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_int.inc' into table t6;
 select mod(col1,10) from t1 order by col1;
 mod(col1,10)
 5
@@ -3429,9 +3429,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select day(col1) from t1 order by col1;
 day(col1)
 17
@@ -3925,9 +3925,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select dayofmonth(col1) from t1 order by col1;
 dayofmonth(col1)
 17
@@ -4421,9 +4421,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-02-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select dayofweek(col1) from t1 order by col1;
 dayofweek(col1)
 3
@@ -4929,9 +4929,9 @@ insert into t2 values ('2006-02-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-02-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select dayofyear(col1) from t1 order by col1;
 dayofyear(col1)
 3
@@ -5427,9 +5427,9 @@ insert into t2 values ('2006-02-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-02-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select dayofyear(col1) from t1 order by col1;
 dayofyear(col1)
 3
@@ -5925,9 +5925,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-02-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select extract(month from col1) from t1 order by col1;
 extract(month from col1)
 1
@@ -6423,9 +6423,9 @@ insert into t2 values ('21:59');
 insert into t3 values ('09:09');
 insert into t3 values ('14:30');
 insert into t3 values ('21:59');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select hour(col1) from t1 order by col1;
 hour(col1)
 9
@@ -6927,9 +6927,9 @@ insert into t2 values ('00:59:22.000024');
 insert into t3 values ('09:09:15.000002');
 insert into t3 values ('04:30:01.000018');
 insert into t3 values ('00:59:22.000024');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select microsecond(col1) from t1 order by col1;
 microsecond(col1)
 0
@@ -7417,9 +7417,9 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:15');
 insert into t3 values ('14:30:45');
 insert into t3 values ('21:59:22');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select minute(col1) from t1 order by col1;
 minute(col1)
 9
@@ -7927,9 +7927,9 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:09');
 insert into t3 values ('14:30:20');
 insert into t3 values ('21:59:22');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select second(col1) from t1 order by col1;
 second(col1)
 9
@@ -8437,9 +8437,9 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:09');
 insert into t3 values ('14:30:20');
 insert into t3 values ('21:59:22');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select second(col1) from t1 order by col1;
 second(col1)
 9
@@ -8947,9 +8947,9 @@ insert into t2 values ('2006-05-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-12-17');
 insert into t3 values ('2006-05-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select month(col1) from t1 order by col1;
 month(col1)
 1
@@ -9451,9 +9451,9 @@ insert into t2 values ('2006-09-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-12-17');
 insert into t3 values ('2006-09-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select quarter(col1) from t1 order by col1;
 quarter(col1)
 1
@@ -9953,9 +9953,9 @@ insert into t2 values ('21:59:22');
 insert into t3 values ('09:09:15');
 insert into t3 values ('14:30:45');
 insert into t3 values ('21:59:22');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_time.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_time.inc' into table t6;
 select time_to_sec(col1)-(time_to_sec(col1)-20) from t1 order by col1;
 time_to_sec(col1)-(time_to_sec(col1)-20)
 20
@@ -10461,9 +10461,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select to_days(col1)-to_days('2006-01-01') from t1 order by col1;
 to_days(col1)-to_days('2006-01-01')
 16
@@ -10961,9 +10961,9 @@ insert into t2 values ('2006-01-25');
 insert into t3 values ('2006-02-03');
 insert into t3 values ('2006-01-17');
 insert into t3 values ('2006-01-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select datediff(col1, '2006-01-01') from t1 order by col1;
 datediff(col1, '2006-01-01')
 16
@@ -11461,9 +11461,9 @@ insert into t2 values ('2006-05-25');
 insert into t3 values ('2006-12-03');
 insert into t3 values ('2006-11-17');
 insert into t3 values ('2006-05-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select weekday(col1) from t1 order by col1;
 weekday(col1)
 4
@@ -11961,9 +11961,9 @@ insert into t2 values ('2004-05-25');
 insert into t3 values ('1996-01-03');
 insert into t3 values ('2000-02-17');
 insert into t3 values ('2004-05-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select year(col1)-1990 from t1 order by col1;
 year(col1)-1990
 6
@@ -12465,9 +12465,9 @@ insert into t2 values ('2006-03-25');
 insert into t3 values ('2006-01-03');
 insert into t3 values ('2006-08-17');
 insert into t3 values ('2006-03-25');
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t4;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t5;
-load data infile '../std_data_ln/parts/part_supported_sql_funcs_int_date.inc' into table t6;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t4;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t5;
+load data infile 'MYSQLTEST_VARDIR/std_data/parts/part_supported_sql_funcs_int_date.inc' into table t6;
 select yearweek(col1)-200600 from t1 order by col1;
 yearweek(col1)-200600
 1

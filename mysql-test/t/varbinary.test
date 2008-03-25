@@ -47,12 +47,13 @@ drop table t1;
 #
 
 # Test with a saved table from 4.1
-copy_file std_data/bug19371.frm $MYSQLTEST_VARDIR/master-data/test/t1.frm;
-chmod 0777 $MYSQLTEST_VARDIR/master-data/test/t1.frm;
-copy_file std_data/bug19371.MYD $MYSQLTEST_VARDIR/master-data/test/t1.MYD;
-chmod 0777 $MYSQLTEST_VARDIR/master-data/test/t1.MYD;
-copy_file std_data/bug19371.MYI $MYSQLTEST_VARDIR/master-data/test/t1.MYI;
-chmod 0777 $MYSQLTEST_VARDIR/master-data/test/t1.MYI;
+let $MYSQLD_DATADIR= `select @@datadir`;
+copy_file std_data/bug19371.frm $MYSQLD_DATADIR/test/t1.frm;
+chmod 0777 $MYSQLD_DATADIR/test/t1.frm;
+copy_file std_data/bug19371.MYD $MYSQLD_DATADIR/test/t1.MYD;
+chmod 0777 $MYSQLD_DATADIR/test/t1.MYD;
+copy_file std_data/bug19371.MYI $MYSQLD_DATADIR/test/t1.MYI;
+chmod 0777 $MYSQLD_DATADIR/test/t1.MYI;
 
 # Everything _looks_ fine
 show create table t1;

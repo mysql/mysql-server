@@ -317,17 +317,18 @@ connection con4;
 select get_lock("a",10); # wait for rollback to finish
 flush logs;
 
+let $MYSQLD_DATADIR= `select @@datadir`;
 # we check that the error code of the "ROLLBACK" event is 0 and not
 # ER_SERVER_SHUTDOWN (i.e. disconnection just rolls back transaction
 # and does not make slave to stop)
 if (`select @@binlog_format = 'ROW'`)
 {
-  --exec $MYSQL_BINLOG --start-position=524 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=524 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 }
 
 if (`select @@binlog_format = 'STATEMENT' || @@binlog_format = 'MIXED'`)
 {
-  --exec $MYSQL_BINLOG --start-position=555 $MYSQLTEST_VARDIR/log/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
+  --exec $MYSQL_BINLOG --start-position=555 $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/mix_innodb_myisam_binlog.output
 }
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
@@ -618,7 +619,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 
 # execute
  --error ER_DUP_ENTRY
- load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+ load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
 # check
  select * from t4;
  select count(*) from t1 /* must be 2 */;

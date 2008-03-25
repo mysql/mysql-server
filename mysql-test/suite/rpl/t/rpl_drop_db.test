@@ -53,7 +53,8 @@ drop database mysqltest1;
 
 connection master;
 # Remove the "extra" file created above
---remove_file $MYSQLTEST_VARDIR/master-data/mysqltest1/f1.txt
+let $MYSQLD_DATADIR= `select @@datadir`;
+--remove_file $MYSQLD_DATADIR/mysqltest1/f1.txt
 drop database mysqltest1;
 
 use test;

@@ -265,13 +265,9 @@ COUNT(*)
 SELECT COUNT(*) FROM history;
 COUNT(*)
 200
-CREATE TEMPORARY TABLE IF NOT EXISTS mysql.backup_info (id INT, backup_id INT) ENGINE = HEAP;
-DELETE FROM mysql.backup_info;
-LOAD DATA INFILE '../tmp.dat' INTO TABLE mysql.backup_info FIELDS TERMINATED BY ',';
-SELECT @the_backup_id:=backup_id FROM mysql.backup_info;
-@the_backup_id:=backup_id
-<the_backup_id>
-DROP TABLE IF EXISTS mysql.backup_info;
+CREATE TEMPORARY TABLE test.backup_info (id INT, backup_id INT) ENGINE = HEAP;
+LOAD DATA INFILE 'DUMP_FILE' INTO TABLE test.backup_info FIELDS TERMINATED BY ',';
+DROP TABLE test.backup_info;
 ************ Restore the slave ************************
 CREATE DATABASE tpcb;
 ***** Check a few slave restore values ***************
