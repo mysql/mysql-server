@@ -8,7 +8,7 @@ Next DBDICT 6008
 Next DBDIH 7202
 Next DBTC 8058
 Next CMVMI 9000
-Next BACKUP 10039
+Next BACKUP 10041
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13043
@@ -480,8 +480,8 @@ Backup Stuff:
 10034: define backup reply error
 10035: Fail to allocate buffers
 
-10036: Halt backup for table >= 2
-10037: Resume backup (from 10036)
+10039: Halt backup for table >= 2
+10040: Resume backup (from 10039)
 10038: Receive abort backup in the middle of locking tables.
 
 11001: Send UTIL_SEQUENCE_REF (in master)
