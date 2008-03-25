@@ -1676,6 +1676,7 @@ TESTCASE("BuildDuring",
   TC_PROPERTY("OrderedIndex", (unsigned)0);
   TC_PROPERTY("LoggedIndexes", (unsigned)0);
   TC_PROPERTY("Threads", 1); // # runTransactions4
+  TC_PROPERTY("BatchSize", 1);
   INITIALIZER(runClearTable);
   STEP(runBuildDuring);
   STEP(runTransactions4);
