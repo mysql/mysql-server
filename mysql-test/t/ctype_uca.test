@@ -458,6 +458,7 @@ drop table t1;
 SET collation_connection='utf8_unicode_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
+-- source include/ctype_german.inc
 
 # End of 4.1 tests
 
@@ -539,7 +540,8 @@ select * from t1 where a like 'c%';
 drop table t1;
 
 set collation_connection=ucs2_unicode_ci;
---source include/ctype_regex.inc
+-- source include/ctype_regex.inc
+-- source include/ctype_like_range_f1f2.inc
 set names utf8;
 
 -- echo End for 5.0 tests

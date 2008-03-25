@@ -15,8 +15,10 @@ connection master;
 insert into t1 values(1);
 insert into t1 values(2);
 save_master_pos;
+let $slave_param= Read_Master_Log_Pos;
+let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
 connection slave;
---real_sleep 3 # wait for I/O thread to have read updates
+source include/wait_for_slave_param.inc;
 stop slave;
 source include/show_slave_status2.inc;
 change master to master_user='root';

@@ -1887,6 +1887,18 @@ void var_set_errno(int sql_errno)
   var_set_int("$mysql_errno", sql_errno);
 }
 
+
+/*
+  Update $mysql_get_server_version variable with version
+  of the currently connected server
+*/
+
+void var_set_mysql_get_server_version(MYSQL* mysql)
+{
+  var_set_int("$mysql_get_server_version", mysql_get_server_version(mysql));
+}
+
+
 /*
   Set variable from the result of a query
 
@@ -2196,7 +2208,7 @@ int open_file(const char *name)
   if (!(cur_file->file = my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
   {
     cur_file--;
-    die("Could not open file '%s'", buff);
+    die("Could not open '%s' for reading", buff);
   }
   cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
   cur_file->lineno=1;
@@ -4016,6 +4028,10 @@ int select_connection_name(const char *name)
 
   if (!(cur_con= find_connection_by_name(name)))
     die("connection '%s' not found in connection pool", name);
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
+
   DBUG_RETURN(0);
 }
 
@@ -4402,6 +4418,9 @@ void do_connect(struct st_command *command)
     if (con_slot == next_con)
       next_con++; /* if we used the next_con slot, advance the pointer */
   }
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
 
   dynstr_free(&ds_connection_name);
   dynstr_free(&ds_host);
@@ -5245,7 +5264,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     DBUG_ASSERT(cur_file == file_stack && cur_file->file == 0);
     if (!(cur_file->file=
           my_fopen(buff, O_RDONLY | FILE_BINARY, MYF(0))))
-      die("Could not open %s: errno = %d", buff, errno);
+      die("Could not open '%s' for reading: errno = %d", buff, errno);
     cur_file->file_name= my_strdup(buff, MYF(MY_FAE));
     cur_file->lineno= 1;
     break;
@@ -5362,9 +5381,9 @@ void str_to_file2(const char *fname, char *str, int size, my_bool append)
     flags|= O_TRUNC;
   if ((fd= my_open(buff, flags,
                    MYF(MY_WME | MY_FFNF))) < 0)
-    die("Could not open %s: errno = %d", buff, errno);
+    die("Could not open '%s' for writing: errno = %d", buff, errno);
   if (append && my_seek(fd, 0, SEEK_END, MYF(0)) == MY_FILEPOS_ERROR)
-    die("Could not find end of file %s: errno = %d", buff, errno);
+    die("Could not find end of file '%s': errno = %d", buff, errno);
   if (my_write(fd, (uchar*)str, size, MYF(MY_WME|MY_FNABP)))
     die("write failed");
   my_close(fd, MYF(0));
@@ -6927,6 +6946,9 @@ int main(int argc, char **argv)
     - detect if there was never a command sent to the server
   */
   var_set_errno(-1);
+
+  /* Update $mysql_get_server_version to that of current connection */
+  var_set_mysql_get_server_version(&cur_con->mysql);
 
   if (opt_include)
   {

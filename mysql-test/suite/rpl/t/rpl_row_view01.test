@@ -23,6 +23,7 @@ DROP TABLE IF EXISTS mysqltest1.t3;
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
+DROP TABLE IF EXISTS mysqltest1.t10;
 
 # Begin test section 1 
 CREATE TABLE mysqltest1.t1 (a INT, c CHAR(6),PRIMARY KEY(a));
@@ -43,12 +44,18 @@ CREATE VIEW mysqltest1.v4 AS SELECT * FROM mysqltest1.v3 WHERE a > 1 WITH LOCAL 
 
 SELECT * FROM mysqltest1.v2;
 SELECT * FROM mysqltest1.v1;
-# Had to add a sleep for use with NDB
+
+
+# Had to add a waiting for use with NDB
 # engine. Injector thread would have not 
-# populated biblog and data would not be on 
+# populated binlog and data would not be on 
 # the slave.
-sleep 10;
-sync_slave_with_master;
+
+CREATE TABLE mysqltest1.t10 (a INT, PRIMARY KEY(a));
+let $wait_binlog_event= CREATE TABLE mysqltest1.t10;
+-- source include/wait_for_binlog_event.inc
+--sync_slave_with_master
+
 SELECT * FROM mysqltest1.v2;
 SELECT * FROM mysqltest1.v1;
 connection master;
@@ -82,6 +89,7 @@ DROP TABLE IF EXISTS mysqltest1.t3;
 DROP TABLE IF EXISTS mysqltest1.t1;
 DROP TABLE IF EXISTS mysqltest1.t2;
 DROP TABLE IF EXISTS mysqltest1.t4;
+DROP TABLE IF EXISTS mysqltest1.t10;
 DROP DATABASE mysqltest1;
 sync_slave_with_master;
 
