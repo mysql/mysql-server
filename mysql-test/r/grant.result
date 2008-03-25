@@ -1129,4 +1129,10 @@ DROP USER mysqltest_1@localhost;
 DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
+#
+#  Bug#33275 Server crash when creating temporary table mysql.user
+#
+CREATE TEMPORARY TABLE mysql.user (id INT);
+FLUSH PRIVILEGES;
+DROP TABLE mysql.user;
 End of 5.0 tests
