@@ -409,6 +409,12 @@ public:
      */
     bool getDynamic() const;
 
+    /**
+     * Determine if the column is defined relative to an Index
+     * This affects the meaning of the attrId, column no and primary key,
+     */
+    bool getIndexSourced() const;
+
     /** @} *******************************************************************/
 
 
@@ -1104,7 +1110,7 @@ public:
     /**
      * Check if index is set to be stored on disk
      *
-     * @return if true then logging id enabled
+     * @return if true then logging is enabled
      *
      * @note Non-logged indexes are rebuilt at system restart.
      * @note Ordered index does not currently support logging.
@@ -1497,7 +1503,7 @@ public:
     /*
       Offset of data from start of a row.
       
-      For reading blobs, the blob handle (NdbBlob *) will be writted into the
+      For reading blobs, the blob handle (NdbBlob *) will be written into the
       row, not the actual blob data. So at least sizeof(NdbBlob *) must be
       available in the row.
     */
@@ -2042,12 +2048,6 @@ public:
     /*
       Create an NdbRecord for use in index operations.
     */
-    NdbRecord *createRecord(const Index *index,
-                            const Table *table,
-                            const RecordSpecification *recSpec,
-                            Uint32 length,
-                            Uint32 elemSize,
-                            Uint32 flags= 0);
     NdbRecord *createRecord(const Index *index,
                             const RecordSpecification *recSpec,
                             Uint32 length,

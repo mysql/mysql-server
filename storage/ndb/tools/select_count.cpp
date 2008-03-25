@@ -131,6 +131,17 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
   int                  check;
   NdbTransaction       *pTrans;
   NdbScanOperation	       *pOp;
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  if ((code.interpret_exit_last_row() != 0) ||
+      (code.finalise() != 0))
+  {
+    ERR(code.getNdbError());
+    return NDBT_FAILED;
+  }
 
   while (true){
 
@@ -166,7 +177,7 @@ select_count(Ndb* pNdb, const NdbDictionary::Table* pTab,
     }
 
 
-    check = pOp->interpret_exit_last_row();
+    check = pOp->setInterpretedCode(&code);
     if( check == -1 ) {
       ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);

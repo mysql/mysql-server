@@ -76,7 +76,6 @@ private:
    */
   class NdbRecAttr * getValue(const class NdbColumnImpl*, char * user_dst_ptr);
   void getValues(const NdbRecord*, char*);
-  int do_get_value(NdbReceiver*, Uint32 rows, Uint32 key_size, Uint32 range);
   void prepareSend();
   void calculate_batch_size(Uint32, Uint32, Uint32&, Uint32&, Uint32&,
                             const NdbRecord *);
