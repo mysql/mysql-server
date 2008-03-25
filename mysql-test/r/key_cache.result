@@ -368,3 +368,8 @@ Variable_name	Value
 key_cache_block_size	1536
 SET GLOBAL key_cache_block_size= @bug28478_key_cache_block_size;
 DROP TABLE t1;
+SET @save_key_buffer = @@global.key_buffer_size;
+SET @@global.key_buffer_size = 4294967295;
+SET @@global.key_buffer_size = 9223372036854775807;
+SET @@global.key_buffer_size = @save_key_buffer;
+End of 5.1 tests
