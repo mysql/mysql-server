@@ -1435,6 +1435,15 @@ public:
   void fix_length_and_dec() { DBUG_ASSERT(0); }
   /* TODO: fix to support views */
   const char *func_name() const { return "get_system_var"; }
+  /**
+    Indicates whether this system variable is written to the binlog or not.
+
+    Variables are written to the binlog as part of "status_vars" in
+    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
+
+    @return true if the variable is written to the binlog, false otherwise.
+  */
+  bool is_written_to_binlog();
 };
 
 
