@@ -10320,61 +10320,67 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
   buffer->end_of_used_area= row_buf;
 
-  /* Get pointer to first range key operation (not scans) */
-  const NdbOperation* rangeOp= lastOp ? lastOp->next() : 
-    m_thd_ndb->trans->getFirstDefinedOperation();
-
-  if (!execute_no_commit_ie(this, m_thd_ndb->trans))
+  if (any_real_read)
   {
-    m_multi_range_result_ptr= buffer->buffer;
-
-    /* We must check the result of any primary or unique key
-     * ranges now, as these operations may be invalidated by 
-     * further execute+releaseOperations calls on this transaction by 
-     * different handler objects.
-     */
-    KEY_MULTI_RANGE* rangeInfo= multi_range_curr;
-
-    for (;rangeInfo < m_multi_range_defined_end; rangeInfo++)
+    /* Get pointer to first range key operation (not scans) */
+    const NdbOperation* rangeOp= lastOp ? lastOp->next() : 
+      trans->getFirstDefinedOperation();
+    
+    if (execute_no_commit_ie(m_thd_ndb, trans) == 0)
     {
-      if (rangeInfo->range_flag & SKIP_RANGE)
-        continue; 
-
-      if (rangeInfo->range_flag & UNIQUE_RANGE)
+      m_multi_range_result_ptr= buffer->buffer;
+      
+      /* We must check the result of any primary or unique key
+       * ranges now, as these operations may be invalidated by 
+       * further execute+releaseOperations calls on this transaction by 
+       * different handler objects.
+       */
+      KEY_MULTI_RANGE* rangeInfo= multi_range_curr;
+      
+      for (;rangeInfo < m_multi_range_defined_end; rangeInfo++)
       {
-        if (rangeOp->getNdbError().code == 0)
+        DBUG_PRINT("info", ("range flag is %u", rangeInfo->range_flag));
+        if (rangeInfo->range_flag & SKIP_RANGE)
+          continue; 
+        
+        if ((rangeInfo->range_flag & UNIQUE_RANGE) &&
+            (!(rangeInfo->range_flag & READ_KEY_FROM_RANGE)))
         {
-          /* Successful read, results are in buffer.
-           */
-          rangeInfo->range_flag &= ~(uint)EMPTY_RANGE;
-
-          DBUG_PRINT("info", ("Unique range op has result"));
-        }
-        else
-        {
-          NdbError err= rangeOp->getNdbError();
-
-          if (err.classification !=
-              NdbError::NoDataFound)
-            DBUG_RETURN(ndb_err(m_thd_ndb->trans));
-
-          DBUG_PRINT("info", ("Unique range op has no result"));
-          /* Indicate to read_multi_range_next that this
-           * result is empty
-           */
-          rangeInfo->range_flag |= EMPTY_RANGE;
+          assert(rangeOp != NULL);
+          if (rangeOp->getNdbError().code == 0)
+          {
+            /* Successful read, results are in buffer.
+             */
+            rangeInfo->range_flag &= ~(uint)EMPTY_RANGE;
+            
+            DBUG_PRINT("info", ("Unique range op has result"));
+          }
+          else
+          {
+            NdbError err= rangeOp->getNdbError();
+            
+            if (err.classification !=
+                NdbError::NoDataFound)
+              DBUG_RETURN(ndb_err(trans));
+            
+            DBUG_PRINT("info", ("Unique range op has no result"));
+            /* Indicate to read_multi_range_next that this
+             * result is empty
+             */
+            rangeInfo->range_flag |= EMPTY_RANGE;
+          }
+          
+          /* Move to next completed operation */
+          rangeOp= trans->getNextCompletedOperation(rangeOp);
         }
         
-        /* Move to next completed operation */
-        rangeOp= m_thd_ndb->trans->getNextCompletedOperation(rangeOp);
+        /* For scan ranges, do nothing here */
       }
-
-      /* For scan ranges, do nothing here */
     }
+    else
+      ERR_RETURN(trans->getNdbError());
   }
-  else
-    ERR_RETURN(m_thd_ndb->trans->getNdbError());
-
+  
   DBUG_RETURN(read_multi_range_next(found_range_p));
 }
 
