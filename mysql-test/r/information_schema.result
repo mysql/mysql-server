@@ -1471,11 +1471,22 @@ f6	bigint(20)	NO		10
 f7	datetime	NO		NULL	
 f8	datetime	YES		2006-01-01 00:00:00	
 drop table t1;
-End of 5.0 tests.
 show fields from information_schema.table_names;
 ERROR 42S02: Unknown table 'table_names' in information_schema
 show keys from information_schema.table_names;
 ERROR 42S02: Unknown table 'table_names' in information_schema
+USE information_schema;
+SET max_heap_table_size = 16384;
+CREATE TABLE test.t1( a INT );
+SELECT *
+FROM tables ta
+JOIN collations co ON ( co.collation_name = ta.table_catalog )
+JOIN character_sets cs ON ( cs.character_set_name = ta.table_catalog );
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT	COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN	CHARACTER_SET_NAME	DEFAULT_COLLATE_NAME	DESCRIPTION	MAXLEN
+DROP TABLE test.t1;
+SET max_heap_table_size = DEFAULT;
+USE test;
+End of 5.0 tests.
 select * from information_schema.engines WHERE ENGINE="MyISAM";
 ENGINE	SUPPORT	COMMENT	TRANSACTIONS	XA	SAVEPOINTS
 MyISAM	DEFAULT	Default engine as of MySQL 3.23 with great performance	NO	NO	NO
