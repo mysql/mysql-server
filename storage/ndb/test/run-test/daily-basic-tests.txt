@@ -822,6 +822,10 @@ args:
 #
 max-time: 1500
 cmd: testSystemRestart
+args: -n basic T1 
+
+max-time: 1500
+cmd: testSystemRestart
 args: -n SR1 T1 
 
 max-time: 1500
