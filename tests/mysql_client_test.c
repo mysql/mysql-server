@@ -12016,6 +12016,7 @@ static void test_bug5194()
 
     rc= mysql_stmt_execute(stmt);
     check_execute(stmt, rc);
+    mysql_stmt_reset(stmt);
   }
 
   mysql_stmt_close(stmt);
@@ -13229,6 +13230,40 @@ static void test_bug15518()
   DIE_UNLESS(rc && mysql_stmt_errno(stmt));
 
   mysql_stmt_close(stmt);
+}
+
+
+static void disable_general_log()
+{
+  int rc;
+  rc= mysql_query(mysql, "set @@global.general_log=off");
+  myquery(rc);
+}
+
+
+static void enable_general_log(int truncate)
+{
+  int rc;
+
+  rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.general_log=on");
+  myquery(rc);
+
+  if (truncate)
+  {
+    rc= mysql_query(mysql, "truncate mysql.general_log");
+    myquery(rc);
+  }
+}
+
+
+static void restore_general_log()
+{
+  int rc;
+  rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
 }
 
 
@@ -15396,6 +15431,8 @@ static void test_bug17667()
     return;
   }
 
+  enable_general_log(1);
+
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
   {
@@ -15473,6 +15510,8 @@ static void test_bug17667()
       printf("Found statement starting with \"%s\"\n",
              statement_cursor->buffer);
   }
+
+  restore_general_log();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -16610,80 +16649,6 @@ static void test_bug27592()
   DBUG_VOID_RETURN;
 }
 
-static void test_bug29948()
-{
-  MYSQL *dbc=NULL;
-  MYSQL_STMT *stmt=NULL;
-  MYSQL_BIND bind;
-
-  int res=0;
-  my_bool auto_reconnect=1, error=0, is_null=0;
-  char kill_buf[20];
-  const char *query;
-  int buf;
-  unsigned long length, cursor_type;
-  
-  dbc = mysql_init(NULL);
-  DIE_UNLESS(dbc);
-
-  mysql_options(dbc, MYSQL_OPT_RECONNECT, (char*)&auto_reconnect);
-  if (!mysql_real_connect(dbc, opt_host, opt_user,
-                           opt_password, current_db, opt_port,
-                           opt_unix_socket,
-                          (CLIENT_FOUND_ROWS | CLIENT_MULTI_STATEMENTS |
-                           CLIENT_MULTI_RESULTS)))
-  {
-    printf("connection failed: %s (%d)", mysql_error(dbc),
-           mysql_errno(dbc));
-    exit(1);
-  }
-
-  bind.buffer_type= MYSQL_TYPE_LONG;
-  bind.buffer= (char *)&buf;
-  bind.is_null= &is_null;
-  bind.error= &error;
-  bind.length= &length;
-
-  res= mysql_query(dbc, "DROP TABLE IF EXISTS t1");
-  myquery(res);
-  res= mysql_query(dbc, "CREATE TABLE t1 (a INT)");
-  myquery(res);
-  res= mysql_query(dbc, "INSERT INTO t1 VALUES(1)");
-  myquery(res);
-
-  stmt= mysql_stmt_init(dbc);
-  check_stmt(stmt);
-
-  cursor_type= CURSOR_TYPE_READ_ONLY;
-  res= mysql_stmt_attr_set(stmt, STMT_ATTR_CURSOR_TYPE, (void *)&cursor_type);
-  myquery(res);
-
-  query= "SELECT * from t1 where a=?";
-  res= mysql_stmt_prepare(stmt, query, strlen(query));
-  myquery(res);
-
-  res= mysql_stmt_bind_param(stmt, &bind);
-  myquery(res);
-
-  res= mysql_stmt_execute(stmt);
-  check_execute(stmt, res);
-
-  res= mysql_stmt_bind_result(stmt,&bind);
-  check_execute(stmt, res);
-    
-  sprintf(kill_buf, "kill %ld", dbc->thread_id);
-  mysql_query(dbc, kill_buf);
-
-  res= mysql_stmt_store_result(stmt);
-  DIE_UNLESS(res);
-
-  mysql_stmt_free_result(stmt);
-  mysql_stmt_close(stmt);
-  mysql_query(dbc, "DROP TABLE t1");
-  mysql_close(dbc);
-}
-
-
 /*
   Bug#29687 mysql_stmt_store_result memory leak in libmysqld
 */
@@ -17374,14 +17339,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "set @@global.general_log=on");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "truncate mysql.general_log");
-  myquery(rc);
+  enable_general_log(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17420,8 +17378,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
-  myquery(rc);
+  restore_general_log();
 
   DBUG_VOID_RETURN;
 }
@@ -17502,7 +17459,8 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "test_view_sp_list_fields", test_view_sp_list_fields},
+  { "disable_general_log", disable_general_log },
+  { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
 #if NOT_YET_WORKING
@@ -17722,7 +17680,6 @@ static struct my_tests_st my_tests[]= {
   { "test_bug28505", test_bug28505 },
   { "test_bug28934", test_bug28934 },
   { "test_bug27592", test_bug27592 },
-  { "test_bug29948", test_bug29948 },
   { "test_bug29687", test_bug29687 },
   { "test_bug29692", test_bug29692 },
   { "test_bug29306", test_bug29306 },

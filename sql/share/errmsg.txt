@@ -5584,8 +5584,7 @@ ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with '%-.192s'@'%-.192s' definer"
         ger "Sie brauchen die SUPER-Berechtigung, um einen View mit dem Definierer '%-.192s'@'%-.192s' zu erzeugen"
 ER_NO_SUCH_USER
-        eng "There is no '%-.64s'@'%-.64s' registered"
-        ger "'%-.64s'@'%-.64s' ist nicht registriert"
+        eng "The user specified as a definer ('%-.64s'@'%-.64s') does not exist"
 ER_FORBID_SCHEMA_CHANGE
         eng "Changing schema from '%-.192s' to '%-.192s' is not allowed."
         ger "Wechsel des Schemas von '%-.192s' auf '%-.192s' ist nicht erlaubt"

@@ -1847,4 +1847,45 @@ DROP TABLE t3;
 
 # -- End of Bug#18834.
 
+# --
+# -- Bug#34274: Invalid handling of 'DEFAULT 0' for YEAR data type.
+# --
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c1 YEAR DEFAULT 2008, c2 YEAR DEFAULT 0);
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) DEFAULT '2008',
+  `c2` year(4) DEFAULT '0000'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+INSERT INTO t1 VALUES();
+
+SELECT * FROM t1;
+c1	c2
+2008	0000
+
+ALTER TABLE t1 MODIFY c1 YEAR DEFAULT 0;
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year(4) DEFAULT '0000',
+  `c2` year(4) DEFAULT '0000'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+
+INSERT INTO t1 VALUES();
+
+SELECT * FROM t1;
+c1	c2
+2008	0000
+0000	0000
+
+DROP TABLE t1;
+
+# -- End of Bug#34274
+
 End of 5.1 tests
