@@ -1,0 +1,21 @@
+# Verify that mysqld init time --report-{host,port,user,password} parameters
+# are SHOW-able and SELECT-able FROM INFORMATION_SCHEMA.global_variables
+
+source include/master-slave.inc;
+
+connection slave;
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_host';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_port';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_user';
+select * from Information_schema.GLOBAL_VARIABLES where variable_name like 'report_password';
+query_vertical show global variables like 'report_host';
+query_vertical show global variables like 'report_port';
+query_vertical show global variables like 'report_user';
+query_vertical show global variables like 'report_password';
+
+# to demonstrate that report global variables are read-only
+error ER_INCORRECT_GLOBAL_LOCAL_VAR;
+set @@global.report_host='my.new.address.net';
+
+
+--echo end of tests
