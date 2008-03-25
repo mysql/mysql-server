@@ -90,7 +90,6 @@ our $opt_suites= $DEFAULT_SUITES;
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $opt_verbose_restart= 0;  # Verbose output for restarts
 
-my $exe_mysqld;
 our $exe_mysql;
 our $exe_mysqladmin;
 our $exe_mysqltest;
@@ -416,11 +415,6 @@ sub command_line_setup {
     $basedir= dirname($basedir);
   }
 
-  #
-  # Find the mysqld executable to be able to find the mysqld version
-  # number as early as possible
-  #
-
   # Look for the client binaries directory
   if ($path_client_bindir)
   {
@@ -456,20 +450,7 @@ sub command_line_setup {
 				   "$basedir/scripts");
   }
 
-  $exe_mysqld=       mtr_exe_exists (vs_config_dirs('sql', 'mysqld'),
-				     vs_config_dirs('sql', 'mysqld-debug'),
-				     "$basedir/sql/mysqld",
-				     "$path_client_bindir/mysqld-max-nt",
-				     "$path_client_bindir/mysqld-max",
-				     "$path_client_bindir/mysqld-nt",
-				     "$path_client_bindir/mysqld",
-				     "$path_client_bindir/mysqld-debug",
-				     "$path_client_bindir/mysqld-max",
-				     "$basedir/libexec/mysqld",
-				     "$basedir/bin/mysqld",
-				     "$basedir/sbin/mysqld");
-
-  # Use the mysqld found above to find out what features are available
+  # Run the mysqld to find out what features are available
   collect_mysqld_features();
 
   if ( $opt_comment )
@@ -809,6 +790,7 @@ sub collect_mysqld_features {
   mtr_add_arg($args, "--verbose");
   mtr_add_arg($args, "--help");
 
+  my $exe_mysqld= find_mysqld($basedir);
   my $cmd= join(" ", $exe_mysqld, @$args);
   my $list= `$cmd`;
 
@@ -872,6 +854,24 @@ sub collect_mysqld_features {
 }
 
 
+sub find_mysqld {
+  my ($mysqld_basedir)= @_;
+
+  my @mysqld_names= ("mysqld", "mysqld-max-nt", "mysqld-max",
+		     "mysqld-nt");
+
+  if ( $opt_debug ){
+    # Put mysqld-debug first in the list of binaries to look for
+    mtr_verbose("Adding mysqld-debug first in list of binaries to look for");
+    unshift(@mysqld_names, "mysqld-debug");
+  }
+
+  return my_find_bin($mysqld_basedir,
+		     ["sql", "libexec", "sbin"],
+		     [@mysqld_names]);
+}
+
+
 sub executable_setup () {
 
   #
@@ -888,7 +888,6 @@ sub executable_setup () {
       mtr_report("Using \"$exe_libtool\" when running valgrind or debugger");
     }
   }
-
 
   # Look for the client binaries
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
@@ -927,7 +926,6 @@ sub executable_setup () {
   }
 
 }
-
 
 
 sub client_debug_arg($$) {
@@ -2004,7 +2002,7 @@ sub mysql_install_db {
   # --bootstrap or --skip-grant-tables options.  The user can set
   # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
   # --bootstrap, to accommodate this.
-  my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || $exe_mysqld;
+  my $exe_mysqld_bootstrap = $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($basedir);
 
   # ----------------------------------------------------------------------
   # export MYSQLD_BOOTSTRAP_CMD variable containing <path>/mysqld <args>
@@ -2673,7 +2671,7 @@ sub mysqld_start ($$) {
 
   mtr_verbose(My::Options::toStr("mysqld_start", @$extra_opts));
 
-  my $exe= $exe_mysqld;
+  my $exe= find_mysqld($mysqld->value('basedir'));
   my $wait_for_pid_file= 1;
 
   mtr_error("Internal error: mysqld should never be started for embedded")
