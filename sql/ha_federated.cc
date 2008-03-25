@@ -656,7 +656,7 @@ static int parse_url(FEDERATED_SHARE *share, TABLE *table,
   if (!share->port)
   {
     if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
-      share->socket= my_strdup(MYSQL_UNIX_ADDR, MYF(0));
+      share->socket= (char*) MYSQL_UNIX_ADDR;
     else
       share->port= MYSQL_PORT;
   }
@@ -1342,7 +1342,6 @@ static int free_share(FEDERATED_SHARE *share)
   {
     hash_delete(&federated_open_tables, (byte*) share);
     my_free((gptr) share->scheme, MYF(MY_ALLOW_ZERO_PTR));
-    my_free((gptr) share->socket, MYF(MY_ALLOW_ZERO_PTR));
     thr_lock_delete(&share->lock);
     VOID(pthread_mutex_destroy(&share->mutex));
     my_free((gptr) share, MYF(0));
