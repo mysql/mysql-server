@@ -278,7 +278,7 @@ CREATE TABLE t5 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
 
 # execute
  --error ER_DUP_ENTRY
- load data infile '../std_data_ln/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
+ load data infile '../../std_data/rpl_loaddata.dat' into table t4 (a, @b) set b= @b + bug27417(2);
 # check
  select * from t4;
  select count(*) from t1 /* must be 2 */;

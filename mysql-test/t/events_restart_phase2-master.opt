@@ -1,1 +1,1 @@
---event-scheduler=on
+--event-scheduler=on --force-restart

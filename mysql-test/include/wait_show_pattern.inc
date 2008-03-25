@@ -32,7 +32,7 @@ let $wait_counter= 150;
 while ($wait_counter)
 {
   let $result= `SHOW $show_type`;
-  let $success= `SELECT '$result' LIKE $show_pattern`;
+  let $success= `SELECT "$result" LIKE $show_pattern`;
   if ($success)
   {
     let $wait_counter= 0;

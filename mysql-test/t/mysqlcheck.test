@@ -14,6 +14,9 @@
 DROP TABLE IF EXISTS t1, `t``1`, `t 1`;
 drop view if exists v1;
 drop database if exists client_test_db;
+# Repair any tables in mysql, sometimes the slow_log is marked as crashed
+# after server has been killed
+--exec $MYSQL_CHECK --repair  --databases mysql > /dev/null 2>&1
 --enable_warnings
 
 #
@@ -55,9 +58,10 @@ create table t_bug25347 (a int);
 create view v_bug25347 as select * from t_bug25347;
 insert into t_bug25347 values (1),(2),(3);
 flush tables;
+let $MYSQLD_DATADIR= `select @@datadir`;
 --echo removing and creating
---remove_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
---write_file $MYSQLTEST_VARDIR/master-data/d_bug25347/t_bug25347.MYI
+--remove_file $MYSQLD_DATADIR/d_bug25347/t_bug25347.MYI
+--write_file $MYSQLD_DATADIR/d_bug25347/t_bug25347.MYI
 EOF
 --exec $MYSQL_CHECK --repair --databases d_bug25347
 --error 130
@@ -79,7 +83,8 @@ use test;
 create table t1(a int);
 create view v1 as select * from t1;
 show tables;
---copy_file $MYSQLTEST_VARDIR/master-data/test/v1.frm $MYSQLTEST_VARDIR/master-data/test/v-1.frm
+let $MYSQLD_DATADIR= `select @@datadir`;
+--copy_file $MYSQLD_DATADIR/test/v1.frm $MYSQLD_DATADIR/test/v-1.frm
 show tables;
 --exec $MYSQL_CHECK --check-upgrade --fix-table-names --databases test
 show tables;

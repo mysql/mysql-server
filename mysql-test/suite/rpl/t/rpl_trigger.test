@@ -300,8 +300,10 @@ STOP SLAVE;
 # Replace master's binlog.
 
 connection master;
+let $MYSQLD_DATADIR= `select @@datadir`;
 FLUSH LOGS;
-exec cp $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLTEST_VARDIR/log/master-bin.000001;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+copy_file $MYSQL_TEST_DIR/std_data/bug16266.000001 $MYSQLD_DATADIR/master-bin.000001;
 
 # Make the slave to replay the new binlog.
 

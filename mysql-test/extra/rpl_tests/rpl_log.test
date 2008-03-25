@@ -32,8 +32,13 @@ reset master;
 eval create table t1(n int not null auto_increment primary key)ENGINE=$engine_type;
 insert into t1 values (NULL);
 drop table t1;
+let $LOAD_FILE= ../../std_data/words.dat;
+if (!`SELECT length(load_file('$LOAD_FILE'))`){
+  let $LOAD_FILE= ../$LOAD_FILE;
+}
 eval create table t1 (word char(20) not null)ENGINE=$engine_type;
-load data infile '../std_data_ln/words.dat' into table t1 ignore 1 lines;
+--replace_result $LOAD_FILE LOAD_FILE
+eval load data infile '$LOAD_FILE' into table t1 ignore 1 lines;
 select count(*) from t1;
 --replace_result $VERSION VERSION
 --replace_column 2 # 5 #

@@ -29,7 +29,8 @@ drop table if exists t1;
 --enable_warnings
 create table t1(a int) engine=myisam;
 insert into t1 values(1);
---system rm -f $MYSQLTEST_VARDIR/master-data/test/t1.frm
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/t1.frm;
 --echo "We get an error because the table is in the definition cache"
 --error ER_TABLE_EXISTS_ERROR
 create table t1(a int, b int);

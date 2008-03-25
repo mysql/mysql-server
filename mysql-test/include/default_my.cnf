@@ -1,0 +1,25 @@
+# Use default setting for mysqld processes
+!include default_mysqld.cnf
+
+[mysqld.1]
+
+# Run the master.sh script before starting this process
+#!run-master-sh
+
+log-bin=                 master-bin
+
+
+[mysqlbinlog]
+disable-force-if-open
+
+# mysql_fix_privilege_tables.sh does not read from [client] so it
+# need its own section
+[mysql_fix_privilege_tables]
+socket=                  @client.socket
+port=                    @client.port
+user=                    @client.user
+password=                @client.password
+
+[ENV]
+MASTER_MYPORT=           @mysqld.1.port
+MASTER_MYSOCK=           @mysqld.1.socket
