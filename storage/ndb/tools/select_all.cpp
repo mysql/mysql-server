@@ -367,20 +367,41 @@ int scanReadRecords(Ndb* pNdb,
       return -1;
     }
 
-    if (rowid)
-      ndbout << "ROWID\t";
-    
-    if (gci)
-      ndbout << "\tGCI";
-    
-    if (headers && !nodata)
-      row->header(ndbout);
-    
-    if (disk_ref)
-      ndbout << "\tDISK_REF";
+    bool do_delimiter= false;
+    char delimiter_string[2];
+    delimiter_string[0]= delimiter;
+    delimiter_string[1]= '\0';
+#define DELIMITER if (do_delimiter) ndbout << delimiter_string; else do_delimiter= true
+    if (headers)
+    {
+      if (rowid)
+      {
+        DELIMITER;
+        ndbout << "ROWID";
+      }
 
-    ndbout << endl;
-    
+      if (gci)
+      {
+        DELIMITER;
+        ndbout << "GCI";
+      }
+
+      if (!nodata)
+      {
+        DELIMITER;
+        row->header(ndbout);
+      }
+
+      if (disk_ref)
+      {
+        DELIMITER;
+        ndbout << "DISK_REF";
+      }
+
+      ndbout << endl;
+    }
+#undef DELIMITER
+
     int eof;
     int rows = 0;
     eof = pOp->nextResult();

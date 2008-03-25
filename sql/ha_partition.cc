@@ -72,7 +72,7 @@ static handler *partition_create_handler(handlerton *hton,
                                          TABLE_SHARE *share,
                                          MEM_ROOT *mem_root);
 static uint partition_flags();
-static uint alter_table_flags(uint flags);
+static uint alter_partition_flags();
 
 
 static int partition_initialize(void *p)
@@ -85,7 +85,7 @@ static int partition_initialize(void *p)
   partition_hton->db_type= DB_TYPE_PARTITION_DB;
   partition_hton->create= partition_create_handler;
   partition_hton->partition_flags= partition_flags;
-  partition_hton->alter_table_flags= alter_table_flags;
+  partition_hton->alter_partition_flags= alter_partition_flags;
   partition_hton->flags= HTON_NOT_USER_SELECTABLE | HTON_HIDDEN;
 
   return 0;
@@ -139,7 +139,7 @@ static uint partition_flags()
   return HA_CAN_PARTITION;
 }
 
-static uint alter_table_flags(uint flags __attribute__((unused)))
+static uint alter_partition_flags()
 {
   return (HA_PARTITION_FUNCTION_SUPPORTED |
           HA_FAST_CHANGE_PARTITION);
@@ -3568,15 +3568,18 @@ int ha_partition::common_index_read(uchar *buf, const uchar *key,
 {
   int error;
   bool reverse_order= FALSE;
+  bool index_read_flag= !(key == NULL);
   uint key_len= calculate_key_len(table, active_index, key, keypart_map);
   DBUG_ENTER("ha_partition::common_index_read");
 
-  memcpy((void*)m_start_key.key, key, key_len);
-  m_start_key.keypart_map= keypart_map;
-  m_start_key.length= key_len;
-  m_start_key.flag= find_flag;
-
-  if ((error= partition_scan_set_up(buf, TRUE)))
+  if (index_read_flag)
+  {
+    memcpy((void*)m_start_key.key, key, key_len);
+    m_start_key.keypart_map= keypart_map;
+    m_start_key.length= key_len;
+    m_start_key.flag= find_flag;
+  }
+  if ((error= partition_scan_set_up(buf, index_read_flag)))
   {
     DBUG_RETURN(error);
   }
@@ -5377,6 +5380,35 @@ uint8 ha_partition::table_cache_type()
   DBUG_ENTER("ha_partition::table_cache_type");
 
   DBUG_RETURN(m_file[0]->table_cache_type());
+}
+
+
+/*
+  Calculate hash value for KEY partitioning using an array of fields.
+
+  SYNOPSIS
+    calculate_key_hash_value()
+    field_array             An array of the fields in KEY partitioning
+
+  RETURN VALUE
+    hash_value calculated
+
+  DESCRIPTION
+    Uses the hash function on the character set of the field. Integer and
+    floating point fields use the binary character set by default.
+*/
+
+uint32 ha_partition::calculate_key_hash_value(Field **field_array)
+{
+  ulong nr1= 1;
+  ulong nr2= 4;
+
+  do
+  {
+    Field *field= *field_array;
+    field->hash(&nr1, &nr2);
+  } while (*(++field_array));
+  return (uint32) nr1;
 }
 
 

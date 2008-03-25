@@ -29,4 +29,6 @@ INCLUDES += -I$(srcdir) \
         -I$(top_srcdir)/storage/ndb/include/portlib \
         -I$(top_srcdir)/storage/ndb/test/include \
         -I$(top_srcdir)/storage/ndb/include/mgmapi \
-        -I$(top_srcdir)/storage/ndb/include/kernel
+        -I$(top_srcdir)/storage/ndb/include/kernel \
+        -I$(top_srcdir)/storage/ndb/src/ndbapi \
+        -I$(top_srcdir)/storage/ndb/include/debugger

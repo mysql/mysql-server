@@ -33,6 +33,11 @@ SafeCounterManager::getSize() const {
   return m_counterPool.getSize();
 }
 
+Uint32
+SafeCounterManager::getNoOfFree() const {
+  return m_counterPool.getNoOfFree();
+}
+
 bool
 SafeCounterManager::seize(ActiveCounterPtr& ptr){
   return m_activeCounters.seize(ptr);
@@ -53,7 +58,7 @@ void
 SafeCounterManager::printNODE_FAILREP(){
   ActiveCounterPtr ptr;
 
-  NodeBitmask nodes;
+  NdbNodeBitmask nodes;
   nodes.clear();
   //  nodes.bitORC(nodes);
 
@@ -66,9 +71,9 @@ SafeCounterManager::printNODE_FAILREP(){
     Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
 		     desc.m_senderRefOffset);
     
-    NodeBitmask overlapping = ptr.p->m_nodes;
+    NdbNodeBitmask overlapping = ptr.p->m_nodes;
     Uint32 i = 0;
-    while((i = overlapping.find(i)) != NodeBitmask::NotFound){
+    while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
       ndbout_c("  theData[desc.m_senderRefOffset=%u] = %x",
 	       desc.m_senderRefOffset, numberToRef(desc.m_block, i));
       ndbout_c("  sendSignal(%x,%u,signal,%u,JBB",
@@ -82,8 +87,8 @@ void
 SafeCounterManager::execNODE_FAILREP(Signal* signal){
   Uint32 * theData = signal->getDataPtrSend();
   ActiveCounterPtr ptr;
-  NodeBitmask nodes;
-  nodes.assign(NodeBitmask::Size, 
+  NdbNodeBitmask nodes;
+  nodes.assign(NdbNodeBitmask::Size, 
 	       ((const NodeFailRep*)signal->getDataPtr())->theNodes);
 
   for(m_activeCounters.first(ptr); !ptr.isNull(); m_activeCounters.next(ptr)){
@@ -94,10 +99,10 @@ SafeCounterManager::execNODE_FAILREP(Signal* signal){
       Uint32 len = MAX(MAX(desc.m_senderDataOffset, desc.m_errorCodeOffset),
 		       desc.m_senderRefOffset);
       
-      NodeBitmask overlapping = ptr.p->m_nodes;
+      NdbNodeBitmask overlapping = ptr.p->m_nodes;
       overlapping.bitAND(nodes);
       Uint32 i = 0;
-      while((i = overlapping.find(i)) != NodeBitmask::NotFound){
+      while((i = overlapping.find(i)) != NdbNodeBitmask::NotFound){
 	theData[desc.m_senderRefOffset] = numberToRef(desc.m_block, i);
 	m_block.sendSignal(m_block.reference(), desc.m_gsn, signal, len+1,JBB);
 	i++;

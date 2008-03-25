@@ -38,7 +38,7 @@
 #include <signaldata/SumaImpl.hpp>
 
 //#define REPORT_TRANSPORTER
-//#define API_TRACE;
+//#define API_TRACE
 
 static int numberToIndex(int number)
 {
@@ -175,11 +175,25 @@ setSignalLog(){
   }
   return false;
 }
-#ifdef TRACE_APIREGREQ
-#define TRACE_GSN(gsn) true
-#else
-#define TRACE_GSN(gsn) (gsn != GSN_API_REGREQ && gsn != GSN_API_REGCONF)
+inline
+bool
+TRACE_GSN(Uint32 gsn)
+{
+  switch(gsn){
+#ifndef TRACE_APIREGREQ
+  case GSN_API_REGREQ:
+  case GSN_API_REGCONF:
+    return false;
 #endif
+#if 0
+  case GSN_SUB_GCP_COMPLETE_REP:
+  case GSN_SUB_GCP_COMPLETE_ACK:
+    return true;
+#endif
+  default:
+    return true;
+  }
+}
 #endif
 
 /**
@@ -311,14 +325,16 @@ execute(void * callbackObj, SignalHeader * const header,
 
      case GSN_ALTER_TABLE_REP:
      {
+       if (theFacade->m_globalDictCache == NULL)
+         break;
        const AlterTableRep* rep = (const AlterTableRep*)theData;
-       theFacade->m_globalDictCache.lock();
-       theFacade->m_globalDictCache.
+       theFacade->m_globalDictCache->lock();
+       theFacade->m_globalDictCache->
 	 alter_table_rep((const char*)ptr[0].p, 
 			 rep->tableId,
 			 rep->tableVersion,
 			 rep->changeType == AlterTableRep::CT_ALTERED);
-       theFacade->m_globalDictCache.unlock();
+       theFacade->m_globalDictCache->unlock();
        break;
      }
      case GSN_SUB_GCP_COMPLETE_REP:
@@ -641,12 +657,13 @@ void TransporterFacade::init_cond_wait_queue()
   }
 }
 
-TransporterFacade::TransporterFacade() :
+TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
   theTransporterRegistry(0),
   theStopReceive(0),
   theSendThread(NULL),
   theReceiveThread(NULL),
-  m_fragmented_signal_id(0)
+  m_fragmented_signal_id(0),
+  m_globalDictCache(cache)
 {
   DBUG_ENTER("TransporterFacade::TransporterFacade");
   init_cond_wait_queue();

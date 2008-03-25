@@ -30,6 +30,9 @@ class NdbOperation;
 class NdbTransaction;
 class NdbColumnImpl;
 class NdbBlob;
+class TcKeyReq;
+class NdbRecord;
+class NdbInterpretedCode;
 
 /**
  * @class NdbOperation
@@ -436,6 +439,15 @@ public:
    * operation and is maintained automatically.
    *
    * See NdbBlob for details.
+   *
+   * For NdbRecord operation, this method can be used to fetch the blob
+   * handle for an NdbRecord operation that references the blob, but extra
+   * blob columns can not be added with this call (it will return 0).
+   *
+   * For reading with NdbRecord, the NdbRecord entry for each blob must
+   * reserve space in the row for sizeof(NdbBlob *). The blob handle
+   * will be stored there, providing an alternative way of obtaining the
+   * blob handle.
    */
   virtual NdbBlob* getBlobHandle(const char* anAttrName);
   virtual NdbBlob* getBlobHandle(Uint32 anAttrId);
@@ -768,11 +780,13 @@ public:
 
   /**
    * Get table name of this operation.
+   * Not supported for NdbRecord operation.
    */
   const char* getTableName() const;
 
   /**
    * Get table object for this operation
+   * Not supported for NdbRecord operation.
    */
   const NdbDictionary::Table * getTable() const;
 
@@ -818,12 +832,10 @@ public:
    * Set/get partition key
    */
   void setPartitionId(Uint32 id);
-  void setPartitionHash(Uint32 key);
-  void setPartitionHash(const Uint64 *, Uint32 len);
   Uint32 getPartitionId() const;
 #endif
 protected:
-  int handle_distribution_key(const Uint64 *, Uint32 len);
+  int handle_distribution_key(const NdbColumnImpl*, const Uint64 *, Uint32 len);
 protected:
 /******************************************************************************
  * These are the methods used to create and delete the NdbOperation objects.
@@ -836,7 +848,7 @@ protected:
 //--------------------------------------------------------------
 // Initialise after allocating operation to a transaction		      
 //--------------------------------------------------------------
-  int init(const class NdbTableImpl*, NdbTransaction* aCon);
+  int init(const class NdbTableImpl*, NdbTransaction* aCon, bool useRec);
   void initInterpreter();
 
   NdbOperation(Ndb* aNdb, Type aType = PrimaryKeyAccess);	
@@ -852,22 +864,80 @@ public:
 #endif
 protected:
 
+  /*
+    Methods that define the operation (readTuple(), getValue(), etc). can be
+    called in any order, but not all are valid.
+
+    To keep track of things, we store a 'current state of definitin operation'
+    in member 'theStatus', with possible values given here.
+  */
   enum OperationStatus
-  { 
-    Init,                       
+  {
+    /*
+      Init: Initial state after getting NdbOperation.
+      At this point, the type of operation must be set (insertTuple(),
+      readTuple(), etc.).
+
+    */
+    Init,
+    /*
+      OperationDefined: State in which the primary key search condition is
+      defined with equal().
+    */
     OperationDefined,
+    /*
+      TupleKeyDefined: All parts of the primary key have been specified with
+      equal().
+    */
     TupleKeyDefined,
+    /*
+      GetValue: The state in which the attributes to read are defined with
+      calls to getValue(). For interpreted operations, these are the initial
+      reads, before the interpreted program.
+    */
     GetValue,
+    /*
+      SetValue: The state in which attributes to update are defined with
+      calls to setValue().
+    */
     SetValue,
+    /*
+      ExecInterpretedValue: The state in which the interpreted program is
+      defined.
+    */
     ExecInterpretedValue,
+    /*
+      SetValueInterpreted: Updates after interpreted program.
+    */
     SetValueInterpreted,
+    /*
+      FinalGetValue: Attributes to read after interpreted program.
+    */
     FinalGetValue,
+    /*
+      SubroutineExec: In the middle of a subroutine definition being defined.
+    */
     SubroutineExec,
+    /*
+      SubroutineEnd: A subroutine has been fully defined, but a new subroutine
+      definition may still be defined after.
+    */
     SubroutineEnd,
+    /*
+      WaitResponse: Operation has been sent to kernel, waiting for reply.
+    */
     WaitResponse,
-    WaitCommitResponse,
+    /*
+      Finished: The TCKEY{REF,CONF} signal for this operation has been
+      received.
+    */
     Finished,
-    ReceiveFinished
+    /*
+      NdbRecord: For operations using NdbRecord. Built in a single call (like
+      NdbTransaction::readTuple(), and no state transitions possible before
+      execute().
+    */
+    UseNdbRecord
   };
 
   OperationStatus   Status();	         	// Read the status information
@@ -898,7 +968,38 @@ protected:
   virtual void   setLastFlag(NdbApiSignal* signal, Uint32 lastFlag);
     
   int	 prepareSendInterpreted();            // Help routine to prepare*
-   
+
+  int    prepareSendNdbRecord(Uint32 aTC_ConnectPtr, Uint64 aTransId,
+                              AbortOption ao);
+
+  /* Helper routines for prepareSendNdbRecord(). */
+  Uint32 fillTcKeyReqHdr(TcKeyReq *tcKeyReq,
+                         Uint32 connectPtr,
+                         Uint64 transId,
+                         AbortOption ao);
+  int    allocKeyInfo(Uint32 connectPtr, Uint64 transId,
+                      Uint32 **dstPtr, Uint32 *remain);
+  int    allocAttrInfo(Uint32 connectPtr, Uint64 transId,
+                       Uint32 **dstPtr, Uint32 *remain);
+  int    insertKEYINFO_NdbRecord(Uint32 connectPtr,
+                                 Uint64 transId,
+                                 const char *value,
+                                 Uint32 size,
+                                 Uint32 **dstPtr,
+                                 Uint32 *remain);
+  int    insertATTRINFOHdr_NdbRecord(Uint32 connectPtr,
+                                     Uint64 transId,
+                                     Uint32 attrId,
+                                     Uint32 attrLen,
+                                     Uint32 **dstPtr,
+                                     Uint32 *remain);
+  int    insertATTRINFOData_NdbRecord(Uint32 connectPtr,
+                                      Uint64 transId,
+                                      const char *value,
+                                      Uint32 size,
+                                      Uint32 **dstPtr,
+                                      Uint32 *remain);
+
   int	 receiveTCKEYREF(NdbApiSignal*); 
 
   int	 checkMagicNumber(bool b = true); // Verify correct object
@@ -911,6 +1012,7 @@ protected:
 
   virtual int equal_impl(const NdbColumnImpl*,const char* aValue);
   virtual NdbRecAttr* getValue_impl(const NdbColumnImpl*, char* aValue = 0);
+  NdbRecAttr* getValue_NdbRecord(const NdbColumnImpl* tAttrInfo, char* aValue);
   int setValue(const NdbColumnImpl* anAttrObject, const char* aValue);
   NdbBlob* getBlobHandle(NdbTransaction* aCon, const NdbColumnImpl* anAttrObject);
   int incValue(const NdbColumnImpl* anAttrObject, Uint32 aValue);
@@ -922,7 +1024,11 @@ protected:
   int branch_reg_reg(Uint32 type, Uint32, Uint32, Uint32);
   int branch_col(Uint32 type, Uint32, const void *, Uint32, bool, Uint32 Label);
   int branch_col_null(Uint32 type, Uint32 col, Uint32 Label);
-  
+  NdbBlob *linkInBlobHandle(NdbTransaction *aCon,
+                            const NdbColumnImpl *column,
+                            NdbBlob * & lastPtr);
+  int getBlobHandlesNdbRecord(NdbTransaction* aCon);
+  int getBlobHandlesDelete(NdbTransaction* aCon);  
   // Handle ATTRINFO signals   
   int insertATTRINFO(Uint32 aData);
   int insertATTRINFOloop(const Uint32* aDataPtr, Uint32 aLength);
@@ -934,9 +1040,6 @@ protected:
   
   virtual void setErrorCode(int aErrorCode);
   virtual void setErrorCodeAbort(int aErrorCode);
-
-  void        handleFailedAI_ElemLen();	   // When not all attribute data
-                                           // were received
 
   int	      incCheck(const NdbColumnImpl* anAttrObject);
   int	      initial_interpreterCheck();
@@ -996,8 +1099,17 @@ protected:
   Uint32*           theKEYINFOptr;       // Pointer to where to write KEYINFO
   Uint32*           theATTRINFOptr;      // Pointer to where to write ATTRINFO
 
-  const class NdbTableImpl* m_currentTable; // The current table
-  const class NdbTableImpl* m_accessTable;  // Index table (== current for pk)
+  /* 
+     The table object for the table to read or modify (for index operations,
+     it is the table being indexed.)
+  */
+  const class NdbTableImpl* m_currentTable;
+
+  /*
+    The table object for the index used to access the table. For primary key
+    lookups, it is equal to m_currentTable.
+  */
+  const class NdbTableImpl* m_accessTable;
 
   // Set to TRUE when a tuple key attribute has been defined. 
   Uint32	    theTupleKeyDefined[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY][3];
@@ -1029,15 +1141,65 @@ protected:
   Uint8  theSimpleIndicator;	 // Indicator of whether simple operation
   Uint8  theDirtyIndicator;	 // Indicator of whether dirty operation
   Uint8  theInterpretIndicator;  // Indicator of whether interpreted operation
+                                 // Note that scan operations always have this
+                                 // set true
   Int8  theDistrKeyIndicator_;    // Indicates whether distr. key is used
   Uint8  m_no_disk_flag;          
+  /*
+    For NdbRecord, this flag indicates that we need to send the Event-attached
+    word set by setAnyValue().
+  */
+  Uint8 m_use_any_value;
 
   Uint16 m_tcReqGSN;
   Uint16 m_keyInfoGSN;
   Uint16 m_attrInfoGSN;
 
+  /*
+    Members for NdbRecord operations.
+    ToDo: We might overlap these (with anonymous unions) with members used
+    for NdbRecAttr access (theKEYINFOptr etc), to save a bit of memory. Not
+    sure if it is worth the loss of code clarity though.
+  */
+
+  /*
+    NdbRecord describing the placement of Primary key in row.
+    As a special case, we set this to NULL for scan lock take-over operations,
+    in which case the m_key_row points to keyinfo obtained from the KEYINFO20
+    signal.
+  */
+  const NdbRecord *m_key_record;
+  /* Row containing the primary key to operate on, or KEYINFO20 data. */
+  const char *m_key_row;
+  /* Size in words of keyinfo in m_key_row. */
+  Uint32 m_keyinfo_length;
+  /*
+    NdbRecord describing attributes to update (or read for scans).
+    We also use m_attribute_record!=NULL to indicate that the operation is
+    using the NdbRecord interface (as opposed to NdbRecAttr).
+  */
+  const NdbRecord *m_attribute_record;
+  /* Row containing the update values. */
+  const char *m_attribute_row;
+  /*
+    Bitmask to disable selected columns.
+    Do not use clas Bitmask/BitmaskPOD here, to avoid having to
+    #include <Bitmask.hpp> in application code.
+  */
+  Uint32 m_read_mask[(NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5];
+  /* Interpreted program for NdbRecord operations. */
+  const NdbInterpretedCode *m_interpreted_code;
+
+  Uint32 m_any_value;                           // Valid if m_use_any_value!=0
+
   // Blobs in this operation
   NdbBlob* theBlobList;
+
+  // ONLY for blob V2 implementation (not virtual, only PK ops)
+  NdbRecAttr*
+  getVarValue(const NdbColumnImpl*, char* aBareValue, Uint16* aLenLoc);
+  int
+  setVarValue(const NdbColumnImpl*, const char* aBareValue, const Uint16&  aLen);
 
   /*
    * Abort option per operation, used by blobs.
@@ -1053,6 +1215,8 @@ protected:
   Int8 m_noErrorPropagation;
 
   friend struct Ndb_free_list_t<NdbOperation>;
+
+  Uint32 repack_read(Uint32 len);
 };
 
 #ifdef NDB_NO_DROPPED_SIGNAL
