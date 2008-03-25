@@ -112,11 +112,11 @@ connect (con100,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo ####################################################################################
 connection default;
 eval SHOW CREATE TABLE $table;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SHOW $table;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SELECT * FROM $table $select_where ORDER BY id;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SELECT $columns FROM $table $select_where ORDER BY id;
 --source suite/funcs_1/datadict/datadict_priv.inc
 --real_sleep 0.3
@@ -128,11 +128,11 @@ connection con100;
 --echo   SHOW/SELECT shows only the processes (1) of the user.
 --echo ####################################################################################
 eval SHOW CREATE TABLE $table;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SHOW $table;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SELECT * FROM $table $select_where ORDER BY id;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 eval SELECT $columns FROM $table $select_where ORDER BY id;
 --source suite/funcs_1/datadict/datadict_priv.inc
 --real_sleep 0.3
@@ -154,9 +154,9 @@ GRANT PROCESS ON *.* TO ddicttestuser1@'localhost' IDENTIFIED BY 'ddictpass';
 --echo ####################################################################################
 connection con100;
 SHOW GRANTS;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -166,9 +166,9 @@ SELECT * FROM information_schema.processlist;
 --echo ####################################################################################
 connect (con101,localhost,ddicttestuser1,ddictpass,information_schema);
 SHOW GRANTS;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -188,9 +188,9 @@ GRANT PROCESS ON *.* TO ''@'localhost';
 --echo ####################################################################################
 connect (anonymous1,localhost,'',,information_schema);
 SHOW GRANTS;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -210,9 +210,9 @@ connect (con102,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo     ddicttestuser1 are visible.
 --echo ####################################################################################
 SHOW GRANTS;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -235,10 +235,10 @@ SHOW GRANTS FOR ''@'localhost';
 if ($fixed_bug_30395)
 {
 # Bug#30395 strange results after REVOKE PROCESS ON *.* FROM ...
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
 }
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -257,9 +257,9 @@ connect (con103,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo     Only the processes of ddicttestuser1 user are visible.
 --echo ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -279,9 +279,9 @@ connect (con104,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo     Only the processes of ddicttestuser1 are visible.
 --echo ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -326,9 +326,9 @@ connect (con200,localhost,ddicttestuser2,ddictpass,information_schema);
 --echo      ddicttestuser2 has now the PROCESS privilege and sees all connections
 --echo ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser2'@'localhost';
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -347,9 +347,9 @@ connect (con201,localhost,ddicttestuser2,ddictpass,information_schema);
 --echo      ddicttestuser2 has no more the PROCESS privilege and can only see own connects
 --echo ####################################################################################
 SHOW GRANTS;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -370,9 +370,9 @@ connect (con107,localhost,ddicttestuser1,ddictpass,information_schema);
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
 --error ER_ACCESS_DENIED_ERROR
 GRANT PROCESS ON *.* TO 'ddicttestuser2'@'localhost';
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 
@@ -394,9 +394,9 @@ connect (con108,localhost,ddicttestuser1,ddictpass,information_schema);
 --echo      Therefore the missing SELECT privilege does not affect SELECTs on PROCESSLIST.
 --echo ####################################################################################
 SHOW GRANTS FOR 'ddicttestuser1'@'localhost';
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SHOW processlist;
---replace_column 6 TIME
+--replace_column 1 ID 6 TIME
 SELECT * FROM information_schema.processlist;
 --real_sleep 0.3
 

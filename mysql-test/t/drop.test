@@ -134,4 +134,19 @@ drop table mysql_test.`#sql-347f_8`;
 copy_file $MYSQLTEST_VARDIR/master-data/mysql_test/t1.frm $MYSQLTEST_VARDIR/master-data/mysql_test/#sql-347f_6.frm;
 drop database mysql_test;
 
+#
+# Bug#26703: DROP DATABASE fails if database contains a #mysql50# table with backticks
+#
+create database mysqltestbug26703;
+use mysqltestbug26703;
+create table `#mysql50#abc``def` ( id int );
+--error ER_WRONG_TABLE_NAME
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+--error ER_WRONG_TABLE_NAME
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+use test;
+drop database mysqltestbug26703;
+
 --echo End of 5.1 tests
