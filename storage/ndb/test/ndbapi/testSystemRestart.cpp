@@ -1572,6 +1572,75 @@ int runBug22696(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int 
+runCreateAllTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if (NDBT_Tables::createAllTables(GETNDB(step), false, true))
+    return NDBT_FAILED;
+  return NDBT_OK;
+}
+
+int
+runBasic(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  NdbRestarter restarter;
+  int result = NDBT_OK;
+
+  for (int l = 0; l<loops; l++)
+  {
+    for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
+    {
+      const NdbDictionary::Table* tab = 
+        pDict->getTable(NDBT_Tables::getTable(i)->getName());
+      HugoTransactions trans(* tab);
+      switch(l % 3){
+      case 0:
+        trans.loadTable(pNdb, records);
+        trans.scanUpdateRecords(pNdb, records);
+        break;
+      case 1:
+        trans.scanUpdateRecords(pNdb, records);
+        trans.clearTable(pNdb, records/2);
+        trans.loadTable(pNdb, records/2);
+        break;
+      case 2:
+        trans.clearTable(pNdb, records/2);
+        trans.loadTable(pNdb, records/2);
+        trans.clearTable(pNdb, records/2);
+        break;
+      }
+    }
+
+    ndbout << "Restarting cluster..." << endl;
+    CHECK(restarter.restartAll(false, true, false) == 0);
+    CHECK(restarter.waitClusterNoStart() == 0);
+    CHECK(restarter.startAll() == 0);
+    CHECK(restarter.waitClusterStarted() == 0);
+    CHECK(pNdb->waitUntilReady() == 0);
+    
+    for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
+    {
+      const NdbDictionary::Table* tab = 
+        pDict->getTable(NDBT_Tables::getTable(i)->getName());
+      HugoTransactions trans(* tab);
+      trans.scanUpdateRecords(pNdb, records);
+    }
+  }
+
+  return result;
+}
+
+int 
+runDropAllTables(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NDBT_Tables::dropAllTables(GETNDB(step));
+  return NDBT_OK;
+}
+
+int 
 runTO(NDBT_Context* ctx, NDBT_Step* step)
 {
   Ndb* pNdb = GETNDB(step);
@@ -1937,6 +2006,13 @@ TESTCASE("to", "Take-over during SR")
   INITIALIZER(runLoadTable);
   INITIALIZER(runTO);
   FINALIZER(runClearTable);
+}
+TESTCASE("basic", "")
+{
+  INITIALIZER(runWaitStarted);
+  INITIALIZER(runCreateAllTables);
+  STEP(runBasic);
+  FINALIZER(runDropAllTables);
 }
 NDBT_TESTSUITE_END(testSystemRestart);
 
