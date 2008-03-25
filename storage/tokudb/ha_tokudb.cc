@@ -95,7 +95,11 @@ static char *tokudb_log_dir;
 static ulong tokudb_trans_retry = 1;
 static ulong tokudb_max_lock;
 static ulong tokudb_debug;
-static char* tokudb_version = TOKUDB_VERSION;
+#ifdef TOKUDB_VERSION
+static char *tokudb_version = TOKUDB_VERSION;
+#else
+static char *tokudb_version;
+#endif
 
 static DB_ENV *db_env;
 
@@ -1141,7 +1145,7 @@ void ha_tokudb::get_status() {
         pthread_mutex_lock(&share->mutex);
 
         (void) extra(HA_EXTRA_KEYREAD);
-        read_last();
+        error = read_last();
         (void) extra(HA_EXTRA_NO_KEYREAD);
 
         if (error == 0) {

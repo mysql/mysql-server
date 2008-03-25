@@ -17,9 +17,11 @@ endif
 ifeq ($(DEBUG),0)
 OPTFLAGS = -O2
 MYSQL_FLAGS = 
+CXXFLAGS =
 else
 OPTFLAGS = -O0
 MYSQL_FLAGS = -DHAVE_CONFIG_H -DDBUG_ON -DSAFE_MUTEX -DEXTRA_DEBUG -DSAFEMALLOC -DPEDANTIC_SAFEMALLOC -DSAFE_MUTEX
+CXXFLAGS = -Wall -Werror
 endif
 
 MYSQL_FLAGS += -DMYSQL_DYNAMIC_PLUGIN
@@ -28,7 +30,7 @@ MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
 CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I$(TOKUDB)/include
 CPPFLAGS += $(MYSQL_FLAGS)
 CPPFLAGS += -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\"
-CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
+CXXFLAGS += -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
 LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
 LIBS  = -L$(TOKUDB)/lib -ltokudb -lpthread -lz -lstdc++ -lm -lgcc_s -lc
