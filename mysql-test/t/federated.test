@@ -1742,6 +1742,11 @@ DROP TABLE t1;
 # BUG#34788 - malformed federated connection url is not handled correctly -
 #             crashes server !
 #
+# also tests
+#
+# BUG#35509 - Federated leaks memory when connecting to localhost/default
+#             port
+#
 CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
 DROP TABLE t1;
 
