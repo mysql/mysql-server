@@ -81,47 +81,54 @@ NdbInterpretedCode::error(Uint32 code)
 bool 
 NdbInterpretedCode::have_space_for(Uint32 wordsRequired)
 {
+  assert(m_last_meta_pos <= m_buffer_length);
+  assert(m_last_meta_pos >= m_instructions_length);
+  assert(m_available_length == m_last_meta_pos - m_instructions_length);
   if (likely(m_available_length >= wordsRequired))
     return true;
 
-  if (m_buffer_length == 0)
+  if ((m_internal_buffer != NULL) || (m_buffer_length == 0))
   {
-    /* First dynamic allocation */
-    m_buffer= m_internal_buffer= new Uint32 [ DynamicBufStartWords ];
-    
-    if (m_buffer != NULL)
-    {
-      m_last_meta_pos= m_available_length= m_buffer_length= 
-        DynamicBufStartWords;
-      return true;
-    }
-  }
-  else if (m_internal_buffer != NULL)
-  {
-    /* Dynamically double buffer length */
-    Uint32 newSize= m_buffer_length << 1;
+    Uint32 newSize= m_buffer_length;
+    const Uint32 extraRequired= wordsRequired - m_available_length; 
 
+    /* Initial allocation of dynamic buffer */
+    if (newSize == 0)
+      newSize= 1;
+
+    do {
+      /* Double buffer length until there's enough space, or 
+       * we reach the maximum size
+       */
+      newSize= newSize << 1;
+    } while (((newSize - m_buffer_length) < extraRequired) &&
+             (newSize < MaxDynamicBufSize));
+    
     if (newSize > MaxDynamicBufSize)
       newSize= MaxDynamicBufSize;
     
-    if (newSize > m_buffer_length)
+    /* Were we able to get enough extra space? */
+    if ((newSize - m_buffer_length) >= extraRequired)
     {
       Uint32 *newBuf= new Uint32[ newSize ];
       
       if (newBuf != NULL)
       {
-        /* Copy instruction words to start of new buffer */
-        memcpy(newBuf, m_internal_buffer, m_instructions_length << 2);
-        
         Uint32 metaInfoWords= m_buffer_length - m_last_meta_pos;
         Uint32 newLastMetaInfoPos= newSize - metaInfoWords;
+
+        if (m_buffer_length > 0)
+        {
+          /* Copy instruction words to start of new buffer */
+          memcpy(newBuf, m_internal_buffer, m_instructions_length << 2);
+          
+          /* Copy metainfo words to end of new buffer */
+          memcpy(&newBuf[ newLastMetaInfoPos ],
+                 &m_buffer[ m_last_meta_pos ],
+                 metaInfoWords << 2);
         
-        /* Copy metainfo words to end of new buffer */
-        memcpy(&newBuf[ newLastMetaInfoPos ],
-               &m_buffer[ m_last_meta_pos ],
-               metaInfoWords << 2);
-        
-        delete [] m_internal_buffer;
+          delete [] m_internal_buffer;
+        }
         
         m_buffer= m_internal_buffer= newBuf;
         m_available_length+= (newSize - m_buffer_length);

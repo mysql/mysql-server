@@ -489,7 +489,6 @@ private:
   static const Uint32 MaxReg= 8;
   static const Uint32 MaxLabels= 65535;
   static const Uint32 MaxSubs=65535;
-  static const Uint32 DynamicBufStartWords= 64;
   static const Uint32 MaxDynamicBufSize= NDB_MAX_SCANFILTER_SIZE_IN_WORDS;
 
   const NdbTableImpl *m_table_impl;
