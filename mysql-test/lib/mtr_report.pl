@@ -279,6 +279,8 @@ sub mtr_report_stats ($) {
 		/Failed to open log/ or
 		/Failed to open the existing master info file/ or
 		/Forcing shutdown of [0-9]* plugins/ or
+                /Can't open shared library .*\bha_example\b/ or
+                /Couldn't load plugin .*\bha_example\b/ or
 		/Got error [0-9]* when reading table/ or
 		/Incorrect definition of table/ or
 		/Incorrect information in file/ or
