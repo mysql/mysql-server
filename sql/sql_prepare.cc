@@ -155,11 +155,11 @@ public:
   virtual void cleanup_stmt();
   bool set_name(LEX_STRING *name);
   inline void close_cursor() { delete cursor; cursor= 0; }
-
+  inline bool is_in_use() { return flags & (uint) IS_IN_USE; }
   bool prepare(const char *packet, uint packet_length);
   bool execute(String *expanded_query, bool open_cursor);
   /* Destroy this statement */
-  bool deallocate();
+  void deallocate();
 private:
   /**
     Store the parsed tree of a prepared statement here.
@@ -198,7 +198,7 @@ inline bool is_param_null(const uchar *pos, ulong param_no)
 */
 
 static Prepared_statement *
-find_prepared_statement(THD *thd, ulong id, const char *where)
+find_prepared_statement(THD *thd, ulong id)
 {
   /*
     To strictly separate namespaces of SQL prepared statements and C API
@@ -208,12 +208,8 @@ find_prepared_statement(THD *thd, ulong id, const char *where)
   Statement *stmt= thd->stmt_map.find(id);
 
   if (stmt == 0 || stmt->type() != Query_arena::PREPARED_STATEMENT)
-  {
-    char llbuf[22];
-    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf), llstr(id, llbuf),
-             where);
-    return 0;
-  }
+    return NULL;
+
   return (Prepared_statement *) stmt;
 }
 
@@ -2121,8 +2117,13 @@ void mysql_sql_stmt_prepare(THD *thd)
       If there is a statement with the same name, remove it. It is ok to
       remove old and fail to insert a new one at the same time.
     */
-    if (stmt->deallocate())
+    if (stmt->is_in_use())
+    {
+      my_error(ER_PS_NO_RECURSION, MYF(0));
       DBUG_VOID_RETURN;
+    }
+
+    stmt->deallocate();
   }
 
   if (! (query= get_dynamic_sql_string(lex, &query_len)) ||
@@ -2320,8 +2321,13 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_execute")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id)))
+  {
+    char llbuf[22];
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+             llstr(stmt_id, llbuf), "mysql_stmt_execute");
     DBUG_VOID_RETURN;
+  }
 
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.set_query_source(stmt->query, stmt->query_length);
@@ -2458,8 +2464,13 @@ void mysql_stmt_fetch(THD *thd, char *packet, uint packet_length)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
   status_var_increment(thd->status_var.com_stmt_fetch);
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_fetch")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id)))
+  {
+    char llbuf[22];
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+             llstr(stmt_id, llbuf), "mysql_stmt_fetch");
     DBUG_VOID_RETURN;
+  }
 
   cursor= stmt->cursor;
   if (!cursor)
@@ -2520,8 +2531,13 @@ void mysql_stmt_reset(THD *thd, char *packet)
   mysql_reset_thd_for_next_command(thd);
 
   status_var_increment(thd->status_var.com_stmt_reset);
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_reset")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id)))
+  {
+    char llbuf[22];
+    my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0), sizeof(llbuf),
+             llstr(stmt_id, llbuf), "mysql_stmt_reset");
     DBUG_VOID_RETURN;
+  }
 
   stmt->close_cursor();
 
@@ -2557,15 +2573,15 @@ void mysql_stmt_close(THD *thd, char *packet)
 
   thd->main_da.disable_status();
 
-  if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
+  if (!(stmt= find_prepared_statement(thd, stmt_id)))
     DBUG_VOID_RETURN;
 
   /*
     The only way currently a statement can be deallocated when it's
     in use is from within Dynamic SQL.
   */
-  DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
-  (void) stmt->deallocate();
+  DBUG_ASSERT(! stmt->is_in_use());
+  stmt->deallocate();
   general_log_print(thd, thd->command, NullS);
 
   DBUG_VOID_RETURN;
@@ -2592,14 +2608,15 @@ void mysql_sql_stmt_close(THD *thd)
                       name->str));
 
   if (! (stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
-  {
     my_error(ER_UNKNOWN_STMT_HANDLER, MYF(0),
              name->length, name->str, "DEALLOCATE PREPARE");
-    return;
-  }
-
-  if (stmt->deallocate() == 0)
+  else if (stmt->is_in_use())
+    my_error(ER_PS_NO_RECURSION, MYF(0));
+  else
+  {
+    stmt->deallocate();
     my_ok(thd);
+  }
 }
 
 /**
@@ -2633,17 +2650,13 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #ifndef EMBEDDED_LIBRARY
   /* Minimal size of long data packet is 6 bytes */
   if (packet_length < MYSQL_LONG_DATA_HEADER)
-  {
-    my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_send_long_data");
     DBUG_VOID_RETURN;
-  }
 #endif
 
   stmt_id= uint4korr(packet);
   packet+= 4;
 
-  if (!(stmt=find_prepared_statement(thd, stmt_id,
-                                     "mysql_stmt_send_long_data")))
+  if (!(stmt=find_prepared_statement(thd, stmt_id)))
     DBUG_VOID_RETURN;
 
   param_number= uint2korr(packet);
@@ -3186,16 +3199,10 @@ error:
 
 /** Common part of DEALLOCATE PREPARE and mysql_stmt_close. */
 
-bool Prepared_statement::deallocate()
+void Prepared_statement::deallocate()
 {
   /* We account deallocate in the same manner as mysql_stmt_close */
   status_var_increment(thd->status_var.com_stmt_close);
-  if (flags & (uint) IS_IN_USE)
-  {
-    my_error(ER_PS_NO_RECURSION, MYF(0));
-    return TRUE;
-  }
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
-  return FALSE;
 }
