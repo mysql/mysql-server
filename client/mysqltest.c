@@ -4221,11 +4221,13 @@ int connect_n_handle_errors(struct st_command *command,
   if (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
+    var_set_errno(mysql_errno(con));
     handle_error(command, mysql_errno(con), mysql_error(con),
 		 mysql_sqlstate(con), ds);
     return 0; /* Not connected */
   }
 
+  var_set_errno(0);
   handle_no_error(command);
   return 1; /* Connected */
 }
