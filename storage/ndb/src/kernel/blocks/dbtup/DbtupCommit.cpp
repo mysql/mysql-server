@@ -152,7 +152,7 @@ Dbtup::dealloc_tuple(Signal* signal,
   }
   
   if (! (bits & (Tuple_header::LCP_SKIP | Tuple_header::ALLOC)) && 
-      lcpScan_ptr_i != RNIL)
+      lcpScan_ptr_i != RNIL && regTabPtr->m_no_of_disk_attributes > 0)
   {
     jam();
     ScanOpPtr scanOp;
