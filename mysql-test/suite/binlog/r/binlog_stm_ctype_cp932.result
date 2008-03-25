@@ -11399,6 +11399,23 @@ cp932_japanese_ci	6109
 cp932_japanese_ci	61
 cp932_japanese_ci	6120
 drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 SET collation_connection='cp932_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -11409,6 +11426,23 @@ cp932_bin	6109
 cp932_bin	61
 cp932_bin	6120
 drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 create table t2 (a char(1));
 insert into t2 values ('0'),('1'),('2'),('3'),('4'),('5'),('6'),('7');
 insert into t2 values ('8'),('9'),('A'),('B'),('C'),('D'),('E'),('F');

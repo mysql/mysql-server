@@ -279,6 +279,12 @@ sub mtr_report_stats ($) {
 		/Failed to open log/ or
 		/Failed to open the existing master info file/ or
 		/Forcing shutdown of [0-9]* plugins/ or
+
+		# Due to timing issues, it might be that this warning
+		# is printed when the server shuts down and the
+		# computer is loaded.
+		/Forcing close of thread \d+  user: '.*?'/ or
+
 		/Got error [0-9]* when reading table/ or
 		/Incorrect definition of table/ or
 		/Incorrect information in file/ or
@@ -382,6 +388,11 @@ sub mtr_report_stats ($) {
 		  $testname eq 'binlog.binlog_killed') and
 		 (/Failed to write to mysql\.\w+_log/
 		 )) or
+
+		# rpl_bug33931 has deliberate failures
+		($testname eq 'rpl.rpl_bug33931' and
+		 (/Failed during slave.*thread initialization/
+		  )) or
 
 		# rpl_temporary has an error on slave that can be ignored
 		($testname eq 'rpl.rpl_temporary' and

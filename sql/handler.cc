@@ -4326,28 +4326,24 @@ bool ha_show_status(THD *thd, handlerton *db_type, enum ha_stat_type stat)
   - table is not mysql.event
 */
 
-/* The Sun compiler cannot instantiate the template below if this is
-   declared static, but it works by putting it into an anonymous
-   namespace. */
-namespace {
-  bool check_table_binlog_row_based(THD *thd, TABLE *table)
+static bool check_table_binlog_row_based(THD *thd, TABLE *table)
+{
+  if (table->s->cached_row_logging_check == -1)
   {
-    if (table->s->cached_row_logging_check == -1)
-    {
-      int const check(table->s->tmp_table == NO_TMP_TABLE &&
-                      binlog_filter->db_ok(table->s->db.str));
-      table->s->cached_row_logging_check= check;
-    }
-
-    DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
-                table->s->cached_row_logging_check == 1);
-
-    return (thd->current_stmt_binlog_row_based &&
-            table->s->cached_row_logging_check &&
-            (thd->options & OPTION_BIN_LOG) &&
-            mysql_bin_log.is_open());
+    int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                    binlog_filter->db_ok(table->s->db.str));
+    table->s->cached_row_logging_check= check;
   }
+
+  DBUG_ASSERT(table->s->cached_row_logging_check == 0 ||
+              table->s->cached_row_logging_check == 1);
+
+  return (thd->current_stmt_binlog_row_based &&
+          table->s->cached_row_logging_check &&
+          (thd->options & OPTION_BIN_LOG) &&
+          mysql_bin_log.is_open());
 }
+
 
 /** @brief
    Write table maps for all (manually or automatically) locked tables
@@ -4362,7 +4358,7 @@ namespace {
        that are locked by the thread 'thd'.  Either manually locked
        (stored in THD::locked_tables) and automatically locked (stored
        in THD::lock) are considered.
-   
+
    RETURN VALUE
        0   All OK
        1   Failed to write all table maps
@@ -4371,114 +4367,96 @@ namespace {
        THD::lock
        THD::locked_tables
 */
-namespace
+
+static int write_locked_table_maps(THD *thd)
 {
-  int write_locked_table_maps(THD *thd)
+  DBUG_ENTER("write_locked_table_maps");
+  DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
+                       "thd->extra_lock: 0x%lx",
+                       (long) thd, (long) thd->lock,
+                       (long) thd->locked_tables, (long) thd->extra_lock));
+
+  if (thd->get_binlog_table_maps() == 0)
   {
-    DBUG_ENTER("write_locked_table_maps");
-    DBUG_PRINT("enter", ("thd: 0x%lx  thd->lock: 0x%lx  thd->locked_tables: 0x%lx  "
-                         "thd->extra_lock: 0x%lx",
-                         (long) thd, (long) thd->lock,
-                         (long) thd->locked_tables, (long) thd->extra_lock));
-
-    if (thd->get_binlog_table_maps() == 0)
+    MYSQL_LOCK *locks[3];
+    locks[0]= thd->extra_lock;
+    locks[1]= thd->lock;
+    locks[2]= thd->locked_tables;
+    for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
     {
-      MYSQL_LOCK *locks[3];
-      locks[0]= thd->extra_lock;
-      locks[1]= thd->lock;
-      locks[2]= thd->locked_tables;
-      for (uint i= 0 ; i < sizeof(locks)/sizeof(*locks) ; ++i )
-      {
-        MYSQL_LOCK const *const lock= locks[i];
-        if (lock == NULL)
-          continue;
+      MYSQL_LOCK const *const lock= locks[i];
+      if (lock == NULL)
+        continue;
 
-        TABLE **const end_ptr= lock->table + lock->table_count;
-        for (TABLE **table_ptr= lock->table ; 
-             table_ptr != end_ptr ;
-             ++table_ptr)
+      TABLE **const end_ptr= lock->table + lock->table_count;
+      for (TABLE **table_ptr= lock->table ; 
+           table_ptr != end_ptr ;
+           ++table_ptr)
+      {
+        TABLE *const table= *table_ptr;
+        DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
+        if (table->current_lock == F_WRLCK &&
+            check_table_binlog_row_based(thd, table))
         {
-          TABLE *const table= *table_ptr;
-          DBUG_PRINT("info", ("Checking table %s", table->s->table_name.str));
-          if (table->current_lock == F_WRLCK &&
-              check_table_binlog_row_based(thd, table))
-          {
-            int const has_trans= table->file->has_transactions();
-            int const error= thd->binlog_write_table_map(table, has_trans);
-            /*
-              If an error occurs, it is the responsibility of the caller to
-              roll back the transaction.
-            */
-            if (unlikely(error))
-              DBUG_RETURN(1);
-          }
+          int const has_trans= table->file->has_transactions();
+          int const error= thd->binlog_write_table_map(table, has_trans);
+          /*
+            If an error occurs, it is the responsibility of the caller to
+            roll back the transaction.
+          */
+          if (unlikely(error))
+            DBUG_RETURN(1);
         }
       }
     }
-    DBUG_RETURN(0);
   }
-
-  template<class RowsEventT> int
-  binlog_log_row(TABLE* table,
-                 const uchar *before_record,
-                 const uchar *after_record)
-  {
-    if (table->no_replicate)
-      return 0;
-    bool error= 0;
-    THD *const thd= table->in_use;
-
-    if (check_table_binlog_row_based(thd, table))
-    {
-      MY_BITMAP cols;
-      /* Potential buffer on the stack for the bitmap */
-      uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
-      uint n_fields= table->s->fields;
-      my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
-
-      /*
-        If there are no table maps written to the binary log, this is
-        the first row handled in this statement. In that case, we need
-        to write table maps for all locked tables to the binary log.
-      */
-      if (likely(!(error= bitmap_init(&cols,
-                                      use_bitbuf ? bitbuf : NULL,
-                                      (n_fields + 7) & ~7UL,
-                                      FALSE))))
-      {
-        bitmap_set_all(&cols);
-        if (likely(!(error= write_locked_table_maps(thd))))
-        {
-          error=
-            RowsEventT::binlog_row_logging_function(thd, table,
-                                                    table->file->
-                                                    has_transactions(),
-                                                    &cols, table->s->fields,
-                                                    before_record,
-                                                    after_record);
-        }
-        if (!use_bitbuf)
-          bitmap_free(&cols);
-      }
-    }
-    return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
-  }
-
-  /*
-    Instantiate the versions we need for the above template function,
-    because we have -fno-implicit-template as compiling option.
-  */
-
-  template int
-  binlog_log_row<Write_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Delete_rows_log_event>(TABLE *, const uchar *, const uchar *);
-
-  template int
-  binlog_log_row<Update_rows_log_event>(TABLE *, const uchar *, const uchar *);
+  DBUG_RETURN(0);
 }
 
+
+typedef bool Log_func(THD*, TABLE*, bool, MY_BITMAP*,
+                      uint, const uchar*, const uchar*);
+
+static int binlog_log_row(TABLE* table,
+                          const uchar *before_record,
+                          const uchar *after_record,
+                          Log_func *log_func)
+{
+  if (table->no_replicate)
+    return 0;
+  bool error= 0;
+  THD *const thd= table->in_use;
+
+  if (check_table_binlog_row_based(thd, table))
+  {
+    MY_BITMAP cols;
+    /* Potential buffer on the stack for the bitmap */
+    uint32 bitbuf[BITMAP_STACKBUF_SIZE/sizeof(uint32)];
+    uint n_fields= table->s->fields;
+    my_bool use_bitbuf= n_fields <= sizeof(bitbuf)*8;
+
+    /*
+      If there are no table maps written to the binary log, this is
+      the first row handled in this statement. In that case, we need
+      to write table maps for all locked tables to the binary log.
+    */
+    if (likely(!(error= bitmap_init(&cols,
+                                    use_bitbuf ? bitbuf : NULL,
+                                    (n_fields + 7) & ~7UL,
+                                    FALSE))))
+    {
+      bitmap_set_all(&cols);
+      if (likely(!(error= write_locked_table_maps(thd))))
+        error= (*log_func)(thd, table, table->file->has_transactions(),
+                           &cols, table->s->fields,
+                           before_record, after_record);
+
+      if (!use_bitbuf)
+        bitmap_free(&cols);
+    }
+  }
+  return error ? HA_ERR_RBR_LOGGING_FAILED : 0;
+}
 
 int handler::ha_external_lock(THD *thd, int lock_type)
 {
@@ -4526,13 +4504,14 @@ int handler::ha_reset()
 int handler::ha_write_row(uchar *buf)
 {
   int error;
+  Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
 
   mark_trx_read_write();
 
   if (unlikely(error= write_row(buf)))
     DBUG_RETURN(error);
-  if (unlikely(error= binlog_log_row<Write_rows_log_event>(table, 0, buf)))
+  if (unlikely(error= binlog_log_row(table, 0, buf, log_func)))
     DBUG_RETURN(error); /* purecov: inspected */
   DBUG_RETURN(0);
 }
@@ -4541,6 +4520,7 @@ int handler::ha_write_row(uchar *buf)
 int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 {
   int error;
+  Log_func *log_func= Update_rows_log_event::binlog_row_logging_function;
 
   /*
     Some storage engines require that the new record is in record[0]
@@ -4552,7 +4532,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 
   if (unlikely(error= update_row(old_data, new_data)))
     return error;
-  if (unlikely(error= binlog_log_row<Update_rows_log_event>(table, old_data, new_data)))
+  if (unlikely(error= binlog_log_row(table, old_data, new_data, log_func)))
     return error;
   return 0;
 }
@@ -4560,12 +4540,13 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
 int handler::ha_delete_row(const uchar *buf)
 {
   int error;
+  Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
 
   mark_trx_read_write();
 
   if (unlikely(error= delete_row(buf)))
     return error;
-  if (unlikely(error= binlog_log_row<Delete_rows_log_event>(table, buf, 0)))
+  if (unlikely(error= binlog_log_row(table, buf, 0, log_func)))
     return error;
   return 0;
 }

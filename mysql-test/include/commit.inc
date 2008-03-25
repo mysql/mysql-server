@@ -341,6 +341,14 @@ drop function if exists f1;
 drop procedure if exists p_verify_status_increment;
 --enable_warnings
 
+# Save binlog_format in a user variable. References to system
+# variables are "unsafe", meaning they are written as rows instead of
+# as statements to the binlog, if the loggging mode is 'mixed'.  But
+# we don't want p_verify_status_increment to affect the logging mode.
+# Hence, we save binlog_format in a user variable (which is not
+# unsafe) and use that inside p_verify_status_increment.
+set @binlog_format=@@global.binlog_format;
+
 set sql_mode=no_engine_substitution;
 create table t1 (a int unique); 
 create table t2 (a int) engine=myisam;
@@ -367,7 +375,7 @@ begin
      where variable_name='Handler_commit' or variable_name='Handler_prepare'
      order by variable_name;
 
-  if @@global.binlog_format = 'ROW' then
+  if @binlog_format = 'ROW' then
     set commit_inc= commit_inc_row;
     set prepare_inc= prepare_inc_row;
   else

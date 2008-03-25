@@ -747,7 +747,11 @@ int init_intvar_from_file(int* var, IO_CACHE* f, int default_val)
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 {
+  char err_buff[MAX_SLAVE_ERRMSG];
   const char* errmsg= 0;
+  int err_code= 0;
+  MYSQL_RES *master_res= 0;
+  MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
 
   /*
@@ -758,7 +762,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   mi->rli.relay_log.description_event_for_queue= 0;
 
   if (!my_isdigit(&my_charset_bin,*mysql->server_version))
+  {
     errmsg = "Master reported unrecognized MySQL version";
+    err_code= ER_SLAVE_FATAL_ERROR;
+    sprintf(err_buff, ER(err_code), errmsg);
+  }
   else
   {
     /*
@@ -770,6 +778,8 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     case '1':
     case '2':
       errmsg = "Master reported unrecognized MySQL version";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
       break;
     case '3':
       mi->rli.relay_log.description_event_for_queue= new
@@ -802,26 +812,21 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   if (errmsg)
-  {
-    sql_print_error(errmsg);
-    DBUG_RETURN(1);
-  }
+    goto err;
 
   /* as we are here, we tried to allocate the event */
   if (!mi->rli.relay_log.description_event_for_queue)
   {
-    mi->report(ERROR_LEVEL, ER_SLAVE_CREATE_EVENT_FAILURE,
-               ER(ER_SLAVE_CREATE_EVENT_FAILURE),
-               "default Format_description_log_event");
-    DBUG_RETURN(1);
+    errmsg= "default Format_description_log_event";
+    err_code= ER_SLAVE_CREATE_EVENT_FAILURE;
+    sprintf(err_buff, ER(err_code), errmsg);
+    goto err;
   }
 
   /*
     Compare the master and slave's clock. Do not die if master's clock is
     unavailable (very old master not supporting UNIX_TIMESTAMP()?).
   */
-  MYSQL_RES *master_res= 0;
-  MYSQL_ROW master_row;
 
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT UNIX_TIMESTAMP()")) &&
       (master_res= mysql_store_result(mysql)) &&
@@ -858,11 +863,17 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     if ((master_row= mysql_fetch_row(master_res)) &&
         (::server_id == strtoul(master_row[1], 0, 10)) &&
         !mi->rli.replicate_same_server_id)
+    {
       errmsg= "The slave I/O thread stops because master and slave have equal \
 MySQL server ids; these ids must be different for replication to work (or \
 the --replicate-same-server-id option must be used on slave but this does \
 not always make sense; please check the manual before using it).";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+    if (errmsg)
+      goto err;
   }
 
   /*
@@ -893,10 +904,16 @@ not always make sense; please check the manual before using it).";
   {
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0], global_system_variables.collation_server->name))
+    {
       errmsg= "The slave I/O thread stops because master and slave have \
 different values for the COLLATION_SERVER global variable. The values must \
 be equal for replication to work";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+    if (errmsg)
+      goto err;
   }
 
   /*
@@ -921,16 +938,24 @@ be equal for replication to work";
     if ((master_row= mysql_fetch_row(master_res)) &&
         strcmp(master_row[0],
                global_system_variables.time_zone->get_name()->ptr()))
+    {
       errmsg= "The slave I/O thread stops because master and slave have \
 different values for the TIME_ZONE global variable. The values must \
 be equal for replication to work";
+      err_code= ER_SLAVE_FATAL_ERROR;
+      sprintf(err_buff, ER(err_code), errmsg);
+    }
     mysql_free_result(master_res);
+
+    if (errmsg)
+      goto err;
   }
 
 err:
   if (errmsg)
   {
-    sql_print_error(errmsg);
+    DBUG_ASSERT(err_code != 0);
+    mi->report(ERROR_LEVEL, err_code, err_buff);
     DBUG_RETURN(1);
   }
 
@@ -1507,6 +1532,9 @@ void set_slave_thread_default_charset(THD* thd, Relay_log_info const *rli)
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
 {
   DBUG_ENTER("init_slave_thread");
+#if !defined(DBUG_OFF)
+  int simulate_error= 0;
+#endif
   thd->system_thread = (thd_type == SLAVE_THD_SQL) ?
     SYSTEM_THREAD_SLAVE_SQL : SYSTEM_THREAD_SLAVE_IO;
   thd->security_ctx->skip_grants();
@@ -1526,10 +1554,17 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   pthread_mutex_unlock(&LOCK_thread_count);
 
+  DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_IO););
+  DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
+                  simulate_error|= (1 << SLAVE_THD_SQL););
+#if !defined(DBUG_OFF)
+  if (init_thr_lock() || thd->store_globals() || simulate_error & (1<< thd_type))
+#else
   if (init_thr_lock() || thd->store_globals())
+#endif
   {
     thd->cleanup();
-    delete thd;
     DBUG_RETURN(-1);
   }
   lex_start(thd);
@@ -2229,6 +2264,7 @@ pthread_handler_t handle_slave_io(void *arg)
 
   thd= new THD; // note that contructor of THD uses DBUG_ !
   THD_CHECK_SENTRY(thd);
+  mi->io_thd = thd;
 
   pthread_detach_this_thread();
   thd->thread_stack= (char*) &thd; // remember where our stack is
@@ -2239,7 +2275,6 @@ pthread_handler_t handle_slave_io(void *arg)
     sql_print_error("Failed during slave I/O thread initialization");
     goto err;
   }
-  mi->io_thd = thd;
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
   pthread_mutex_unlock(&LOCK_thread_count);
@@ -2530,9 +2565,11 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->thread_stack = (char*)&thd; // remember where our stack is
-
+  rli->sql_thd= thd;
+  
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
+  rli->slave_running = 1;
 
   pthread_detach_this_thread();
   if (init_slave_thread(thd, SLAVE_THD_SQL))
@@ -2547,7 +2584,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     goto err;
   }
   thd->init_for_queries();
-  rli->sql_thd= thd;
   thd->temporary_tables = rli->save_temporary_tables; // restore temp tables
   pthread_mutex_lock(&LOCK_thread_count);
   threads.append(thd);
@@ -2560,7 +2596,6 @@ pthread_handler_t handle_slave_sql(void *arg)
     start receiving data so we realize we are not caught up and
     Seconds_Behind_Master grows. No big deal.
   */
-  rli->slave_running = 1;
   rli->abort_slave = 0;
   pthread_mutex_unlock(&rli->run_lock);
   pthread_cond_broadcast(&rli->start_cond);

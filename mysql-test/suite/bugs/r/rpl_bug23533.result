@@ -1,0 +1,23 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+DROP TABLE IF EXISTS t1,t2;
+SET AUTOCOMMIT=0;
+SET GLOBAL max_binlog_cache_size=4096;
+SHOW VARIABLES LIKE 'max_binlog_cache_size';
+Variable_name	Value
+max_binlog_cache_size	4096
+CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT, b TEXT, PRIMARY KEY(a)) ENGINE=InnoDB;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+START TRANSACTION;
+CREATE TABLE t2 SELECT * FROM t1;
+ERROR HY000: Writing one row to the row-based binary log failed
+COMMIT;
+SHOW TABLES LIKE 't%';
+Tables_in_test (t%)
+t1
