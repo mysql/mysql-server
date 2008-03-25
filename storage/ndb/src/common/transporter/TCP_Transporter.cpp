@@ -59,36 +59,47 @@ ndbstrerror::~ndbstrerror(void)
 #define ndbstrerror strerror
 #endif
 
-TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
-				 int sendBufSize, int maxRecvSize, 
-                                 const char *lHostName,
-                                 const char *rHostName, 
-                                 int r_port,
-				 bool isMgmConnection_arg,
-				 NodeId lNodeId,
-                                 NodeId rNodeId,
-				 NodeId serverNodeId,
-                                 bool chksm, bool signalId,
-                                 Uint32 _reportFreq) :
-  Transporter(t_reg, tt_TCP_TRANSPORTER,
-	      lHostName, rHostName, r_port, isMgmConnection_arg,
-	      lNodeId, rNodeId, serverNodeId,
-	      0, false, chksm, signalId),
-  m_sendBuffer(sendBufSize)
+static
+void
+setIf(int& ref, Uint32 val, Uint32 def)
 {
-  maxReceiveSize = maxRecvSize;
+  if (val)
+    ref = val;
+  else
+    ref = def;
+}
+
+TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
+				 const TransporterConfiguration* conf)
+  :
+  Transporter(t_reg, tt_TCP_TRANSPORTER,
+	      conf->localHostName,
+	      conf->remoteHostName,
+	      conf->s_port,
+	      conf->isMgmConnection,
+	      conf->localNodeId,
+	      conf->remoteNodeId,
+	      conf->serverNodeId,
+	      0, false, 
+	      conf->checksum,
+	      conf->signalId),
+  m_sendBuffer(conf->tcp.sendBufferSize)
+{
+  maxReceiveSize = conf->tcp.maxReceiveSize;
   
   // Initialize member variables
   theSocket     = NDB_INVALID_SOCKET;
   
   sendCount      = receiveCount = 0;
   sendSize       = receiveSize  = 0;
-  reportFreq     = _reportFreq;
-
-  sockOptRcvBufSize = 70080;
-  sockOptSndBufSize = 71540;
+  reportFreq     = 4096; 
+  
   sockOptNodelay    = 1;
-  sockOptTcpMaxSeg  = 4096;
+  setIf(sockOptRcvBufSize, conf->tcp.tcpRcvBufSize, 70080);
+  setIf(sockOptSndBufSize, conf->tcp.tcpSndBufSize, 71540);
+  setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
+
+  overloadedPct = 80; // make configurable in next patch
 }
 
 TCP_Transporter::~TCP_Transporter() {
@@ -150,41 +161,61 @@ TCP_Transporter::initTransporter() {
   return true;
 }
 
+static
 void
-TCP_Transporter::setSocketOptions(){
-  int sockOptKeepAlive  = 1;
+set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname, 
+	int val)
+{
+  int actual = 0, defval = 0;
+  socklen_t len = sizeof(actual);
 
-  if (setsockopt(theSocket, SOL_SOCKET, SO_RCVBUF,
-                 (char*)&sockOptRcvBufSize, sizeof(sockOptRcvBufSize)) < 0) {
-#ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("The setsockopt SO_RCVBUF error code = %d", InetErrno);
-#endif
-  }//if
+  getsockopt(fd, level, optval, (char*)&defval, &len);
   
-  if (setsockopt(theSocket, SOL_SOCKET, SO_SNDBUF,
-                 (char*)&sockOptSndBufSize, sizeof(sockOptSndBufSize)) < 0) {
+  if (setsockopt(fd, level, optval,
+		 (char*)&val, sizeof(val)) < 0)
+  {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("The setsockopt SO_SNDBUF error code = %d", InetErrno);
+    g_eventLogger.error("setsockopt(%s, %d) errno: %d %s", 
+                        optname, val, errno, strerror(errno));
 #endif
-  }//if
+  }
   
-  if (setsockopt(theSocket, SOL_SOCKET, SO_KEEPALIVE,
-                 (char*)&sockOptKeepAlive, sizeof(sockOptKeepAlive)) < 0) {
-    ndbout_c("The setsockopt SO_KEEPALIVE error code = %d", InetErrno);
-  }//if
-
-  //-----------------------------------------------
-  // Set the TCP_NODELAY option so also small packets are sent
-  // as soon as possible
-  //-----------------------------------------------
-  if (setsockopt(theSocket, IPPROTO_TCP, TCP_NODELAY, 
-                 (char*)&sockOptNodelay, sizeof(sockOptNodelay)) < 0) {
+  len = sizeof(actual);
+  if ((getsockopt(fd, level, optval,
+		  (char*)&actual, &len) == 0) &&
+      actual != val)
+  {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("The setsockopt TCP_NODELAY error code = %d", InetErrno);
+    g_eventLogger.error("setsockopt(%s, %d) - actual %d default: %d", 
+                        optname, val, actual, defval);
 #endif
-  }//if
+  }
 }
 
+int
+TCP_Transporter::pre_connect_options(NDB_SOCKET_TYPE sockfd)
+{
+  if (sockOptTcpMaxSeg)
+  {
+    set_get(sockfd, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", sockOptTcpMaxSeg);
+  }
+  return 0;
+}
+
+void
+TCP_Transporter::setSocketOptions(){
+
+  set_get(theSocket, SOL_SOCKET, SO_RCVBUF, "SO_RCVBUF", sockOptRcvBufSize);
+  set_get(theSocket, SOL_SOCKET, SO_SNDBUF, "SO_SNDBUF", sockOptSndBufSize);
+  set_get(theSocket, IPPROTO_TCP, TCP_NODELAY, "TCP_NODELAY", sockOptNodelay);
+  set_get(theSocket, SOL_SOCKET, SO_KEEPALIVE, "SO_KEEPALIVE", 1);
+
+  if (sockOptTcpMaxSeg)
+  {
+    set_get(theSocket, IPPROTO_TCP, TCP_MAXSEG, "TCP_MAXSEG", 
+	    sockOptTcpMaxSeg);
+  }
+}
 
 #ifdef NDB_WIN32
 
@@ -280,6 +311,7 @@ TCP_Transporter::getWritePtr(Uint32 lenBytes, Uint32 prio){
 void
 TCP_Transporter::updateWritePtr(Uint32 lenBytes, Uint32 prio){
   m_sendBuffer.updateInsertPtr(lenBytes);
+  update_status_overloaded();
   
   const int bufsize = m_sendBuffer.bufferSize();
   if(bufsize > TCP_SEND_LIMIT) {
@@ -328,6 +360,7 @@ TCP_Transporter::doSend() {
     {
       sent_any = true;
       m_sendBuffer.bytesSent(nBytesSent);
+      update_status_overloaded();
       
       sendCount ++;
       sendSize  += nBytesSent;

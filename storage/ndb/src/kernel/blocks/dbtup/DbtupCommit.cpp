@@ -58,7 +58,8 @@ void Dbtup::execTUP_DEALLOCREQ(Signal* signal)
       return;
     }
     
-    if (regTabPtr.p->m_attributes[MM].m_no_of_varsize)
+    if (regTabPtr.p->m_attributes[MM].m_no_of_varsize +
+        regTabPtr.p->m_attributes[MM].m_no_of_dynamic)
     {
       jam();
       free_var_rec(regFragPtr.p, regTabPtr.p, &tmp, pagePtr);
@@ -73,7 +74,8 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   jamEntry();
   OperationrecPtr loopOpPtr;
   loopOpPtr.i= signal->theData[0];
-  Uint32 gci= signal->theData[1];
+  Uint32 gci_hi = signal->theData[1];
+  Uint32 gci_lo = signal->theData[2];
   c_operation_pool.getPtr(loopOpPtr);
   while (loopOpPtr.p->prevActiveOp != RNIL) {
     jam();
@@ -82,15 +84,16 @@ void Dbtup::execTUP_WRITELOG_REQ(Signal* signal)
   }
   do {
     ndbrequire(get_trans_state(loopOpPtr.p) == TRANS_STARTED);
-    signal->theData[0]= loopOpPtr.p->userpointer;
-    signal->theData[1]= gci;
+    signal->theData[0] = loopOpPtr.p->userpointer;
+    signal->theData[1] = gci_hi;
+    signal->theData[2] = gci_lo;
     if (loopOpPtr.p->nextActiveOp == RNIL) {
       jam();
-      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
+      EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
       return;
     }
     jam();
-    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 2);
+    EXECUTE_DIRECT(DBLQH, GSN_LQH_WRITELOG_REQ, signal, 3);
     jamEntry();
     loopOpPtr.i= loopOpPtr.p->nextActiveOp;
     c_operation_pool.getPtr(loopOpPtr);
@@ -175,6 +178,23 @@ Dbtup::dealloc_tuple(Signal* signal,
   }
 }
 
+static void dump_buf_hex(unsigned char *p, Uint32 bytes)
+{
+  char buf[3001];
+  char *q= buf;
+  buf[0]= '\0';
+
+  for(Uint32 i=0; i<bytes; i++)
+  {
+    if(i==((sizeof(buf)/3)-1))
+    {
+      sprintf(q, "...");
+      break;
+    }
+    sprintf(q+3*i, " %02X", p[i]);
+  }
+  ndbout_c("%8p: %s", p, buf);
+}
 void
 Dbtup::commit_operation(Signal* signal,
 			Uint32 gci,
@@ -191,14 +211,15 @@ Dbtup::commit_operation(Signal* signal,
   Uint32 bits= tuple_ptr->m_header_bits;
 
   Tuple_header *disk_ptr= 0;
-  Tuple_header *copy= (Tuple_header*)
-    c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
+  Tuple_header *copy=
+    get_copy_tuple(regTabPtr, &regOperPtr->m_copy_tuple_location);
   
   Uint32 copy_bits= copy->m_header_bits;
 
   Uint32 fixsize= regTabPtr->m_offsets[MM].m_fix_header_size;
   Uint32 mm_vars= regTabPtr->m_attributes[MM].m_no_of_varsize;
-  if(mm_vars == 0)
+  Uint32 mm_dyns= regTabPtr->m_attributes[MM].m_no_of_dynamic;
+  if((mm_vars+mm_dyns) == 0)
   {
     jam();
     memcpy(tuple_ptr, copy, 4*fixsize);
@@ -220,25 +241,58 @@ Dbtup::commit_operation(Signal* signal,
     ref->assign(&tmp);
 
     PagePtr vpagePtr;
-    Uint32 *dst= get_ptr(&vpagePtr, *ref);
-    Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
-    Uint32 *src= copy->get_end_of_fix_part_ptr(regTabPtr);
-    Uint32 sz= ((mm_vars + 1) << 1) + (((Uint16*)src)[mm_vars]);
-    ndbassert(4*vpagePtrP->get_entry_len(tmp.m_page_idx) >= sz);
-    memcpy(dst, src, sz);
-
-    copy_bits |= Tuple_header::CHAINED_ROW;
-    
-    if(copy_bits & Tuple_header::MM_SHRINK)
+    if (copy_bits & Tuple_header::VAR_PART)
     {
       jam();
-      vpagePtrP->shrink_entry(tmp.m_page_idx, (sz + 3) >> 2);
-      update_free_page_list(regFragPtr, vpagePtr);
-    } 
-    
-    disk_ptr = (Tuple_header*)(((Uint32*)copy)+fixsize+((sz + 3) >> 2));
+      ndbassert(tmp.m_page_no != RNIL);
+      ndbassert(bits & Tuple_header::VAR_PART);
+      Uint32 *dst= get_ptr(&vpagePtr, *ref);
+      Var_page* vpagePtrP = (Var_page*)vpagePtr.p;
+      Varpart_copy*vp =(Varpart_copy*)copy->get_end_of_fix_part_ptr(regTabPtr);
+      ndbassert(copy_bits & Tuple_header::COPY_TUPLE);
+      /* The first word of shrunken tuple holds the lenght in words. */
+      Uint32 len = vp->m_len;
+      memcpy(dst, vp->m_data, 4*len);
+
+      if(copy_bits & Tuple_header::MM_SHRINK)
+      {
+        jam();
+        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) >= len);
+        if (len)
+        {
+          jam();
+          vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+        }
+        else
+        {
+          jam();
+          vpagePtrP->free_record(tmp.m_page_idx, Var_page::CHAIN);
+          tmp.m_page_no = RNIL;
+          ref->assign(&tmp);
+          copy_bits &= ~(Uint32)Tuple_header::VAR_PART;
+        }
+        update_free_page_list(regFragPtr, vpagePtr);
+      }
+      else
+      {
+        jam();
+        ndbassert(vpagePtrP->get_entry_len(tmp.m_page_idx) == len);
+      }
+
+      /**
+       * Find disk part after
+       * header + fixed MM part + length word + varsize part.
+       */
+      disk_ptr = (Tuple_header*)(vp->m_data + len);
+    }
+    else
+    {
+      jam();
+      ndbassert(tmp.m_page_no == RNIL);
+      disk_ptr = (Tuple_header*)copy->get_end_of_fix_part_ptr(regTabPtr);
+    }
   }
-  
+
   if (regTabPtr->m_no_of_disk_attributes &&
       (copy_bits & Tuple_header::DISK_INLINE))
   {
@@ -300,7 +354,7 @@ Dbtup::commit_operation(Signal* signal,
   }
   
   Uint32 clear= 
-    Tuple_header::ALLOC | Tuple_header::FREE |
+    Tuple_header::ALLOC | Tuple_header::FREE | Tuple_header::COPY_TUPLE |
     Tuple_header::DISK_ALLOC | Tuple_header::DISK_INLINE | 
     Tuple_header::MM_SHRINK | Tuple_header::MM_GROWN;
   copy_bits &= ~(Uint32)clear;
@@ -325,19 +379,20 @@ Dbtup::disk_page_commit_callback(Signal* signal,
 				 Uint32 opPtrI, Uint32 page_id)
 {
   Uint32 hash_value;
-  Uint32 gci;
+  Uint32 gci_hi, gci_lo;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
-  tupCommitReq->gci= gci;
+  tupCommitReq->gci_hi= gci_hi;
+  tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page_id;
 
   regOperPtr.p->op_struct.m_load_diskpage_on_commit= 0;
@@ -365,20 +420,21 @@ Dbtup::disk_page_log_buffer_callback(Signal* signal,
 				     Uint32 unused)
 {
   Uint32 hash_value;
-  Uint32 gci;
+  Uint32 gci_hi, gci_lo;
   OperationrecPtr regOperPtr;
 
   jamEntry();
   
   c_operation_pool.getPtr(regOperPtr, opPtrI);
-  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci);
+  c_lqh->get_op_info(regOperPtr.p->userpointer, &hash_value, &gci_hi, &gci_lo);
   Uint32 page= regOperPtr.p->m_commit_disk_callback_page;
 
   TupCommitReq * const tupCommitReq= (TupCommitReq *)signal->getDataPtr();
   
   tupCommitReq->opPtr= opPtrI;
   tupCommitReq->hashValue= hash_value;
-  tupCommitReq->gci= gci;
+  tupCommitReq->gci_hi= gci_hi;
+  tupCommitReq->gci_lo= gci_lo;
   tupCommitReq->diskpage = page;
 
   ndbassert(regOperPtr.p->op_struct.m_load_diskpage_on_commit == 0);
@@ -424,7 +480,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   regOperPtr.i= tupCommitReq->opPtr;
   Uint32 hash_value= tupCommitReq->hashValue;
-  Uint32 gci = tupCommitReq->gci;
+  Uint32 gci_hi = tupCommitReq->gci_hi;
+  Uint32 gci_lo = tupCommitReq->gci_lo;
 
   jamEntry();
 
@@ -440,12 +497,11 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
 
   no_of_tablerec= cnoOfTablerec;
   regTabPtr.i= regFragPtr.p->fragTableId;
-  hash_value= tupCommitReq->hashValue;
-  gci= tupCommitReq->gci;
 
   req_struct.signal= signal;
   req_struct.hash_value= hash_value;
-  req_struct.gci= gci;
+  req_struct.gci_hi = gci_hi;
+  req_struct.gci_lo = gci_lo;
   regOperPtr.p->m_commit_disk_callback_page = tupCommitReq->diskpage;
 
 #ifdef VM_TRACE
@@ -520,8 +576,8 @@ void Dbtup::execTUP_COMMITREQ(Signal* signal)
     if(!regOperPtr.p->m_copy_tuple_location.isNull())
     {
       jam();
-      Tuple_header* tmp= (Tuple_header*)
-	c_undo_buffer.get_ptr(&regOperPtr.p->m_copy_tuple_location);
+      Tuple_header* tmp=
+        get_copy_tuple(regTabPtr.p, &regOperPtr.p->m_copy_tuple_location);
       
       memcpy(&req.m_page, 
 	     tmp->get_disk_ref_ptr(regTabPtr.p), sizeof(Local_key));
@@ -648,7 +704,7 @@ skip_disk:
      * Perform "real" commit
      */
     Uint32 disk = regOperPtr.p->m_commit_disk_callback_page;
-    set_change_mask_info(&req_struct, regOperPtr.p);
+    set_commit_change_mask_info(regTabPtr.p, &req_struct, regOperPtr.p);
     checkDetachedTriggers(&req_struct, regOperPtr.p, regTabPtr.p, 
                           disk != RNIL);
     
@@ -657,7 +713,7 @@ skip_disk:
     if(regOperPtr.p->op_struct.op_type != ZDELETE)
     {
       jam();
-      commit_operation(signal, gci, tuple_ptr, page,
+      commit_operation(signal, gci_hi, tuple_ptr, page,
 		       regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
     else
@@ -665,7 +721,7 @@ skip_disk:
       jam();
       if (get_page)
 	ndbassert(tuple_ptr->m_header_bits & Tuple_header::DISK_PART);
-      dealloc_tuple(signal, gci, page.p, tuple_ptr, 
+      dealloc_tuple(signal, gci_hi, page.p, tuple_ptr,
 		    regOperPtr.p, regFragPtr.p, regTabPtr.p); 
     }
   } 
@@ -691,58 +747,22 @@ skip_disk:
 }
 
 void
-Dbtup::set_change_mask_info(KeyReqStruct * const req_struct,
-                            Operationrec * const regOperPtr)
+Dbtup::set_commit_change_mask_info(const Tablerec* regTabPtr,
+                                   KeyReqStruct * req_struct,
+                                   const Operationrec * regOperPtr)
 {
-  ChangeMaskState state = get_change_mask_state(regOperPtr);
-  if (state == USE_SAVED_CHANGE_MASK) {
-    jam();
-    req_struct->changeMask.setWord(0, regOperPtr->saved_change_mask[0]);
-    req_struct->changeMask.setWord(1, regOperPtr->saved_change_mask[1]);
-  } else if (state == RECALCULATE_CHANGE_MASK) {
-    jam();
-    // Recompute change mask, for now set all bits
-    req_struct->changeMask.set();
-  } else if (state == SET_ALL_MASK) {
-    jam();
-    req_struct->changeMask.set();
-  } else {
-    jam();
-    ndbrequire(state == DELETE_CHANGES);
+  Uint32 masklen = (regTabPtr->m_no_of_attributes + 31) >> 5;
+  if (regOperPtr->m_copy_tuple_location.isNull())
+  {
+    ndbassert(regOperPtr->op_struct.op_type == ZDELETE);
     req_struct->changeMask.set();
   }
-}
-
-void
-Dbtup::calculateChangeMask(Page* const pagePtr,
-                           Tablerec* const regTabPtr,
-                           KeyReqStruct * const req_struct)
-{
-  OperationrecPtr loopOpPtr;
-  Uint32 saved_word1= 0;
-  Uint32 saved_word2= 0;
-  loopOpPtr.i= req_struct->m_tuple_ptr->m_operation_ptr_i;
-  do {
-    c_operation_pool.getPtr(loopOpPtr);
-    ndbrequire(loopOpPtr.p->op_struct.op_type == ZUPDATE);
-    ChangeMaskState change_mask= get_change_mask_state(loopOpPtr.p);
-    if (change_mask == USE_SAVED_CHANGE_MASK) {
-      jam();
-      saved_word1|= loopOpPtr.p->saved_change_mask[0];
-      saved_word2|= loopOpPtr.p->saved_change_mask[1];
-    } else if (change_mask == RECALCULATE_CHANGE_MASK) {
-      jam();
-      //Recompute change mask, for now set all bits
-      req_struct->changeMask.set();
-      return;
-    } else {
-      ndbrequire(change_mask == SET_ALL_MASK);
-      jam();
-      req_struct->changeMask.set();
-      return;
-    }
-    loopOpPtr.i= loopOpPtr.p->prevActiveOp;
-  } while (loopOpPtr.i != RNIL);
-  req_struct->changeMask.setWord(0, saved_word1);
-  req_struct->changeMask.setWord(1, saved_word2);
+  else
+  {
+    Uint32 * dst = req_struct->changeMask.rep.data;
+    Tuple_header* ptr = get_copy_tuple(regTabPtr,
+                                       &regOperPtr->m_copy_tuple_location);
+    const Uint32 * maskptr = get_change_mask_ptr(regTabPtr, ptr);
+    memcpy(dst, maskptr, 4*masklen);
+  }
 }

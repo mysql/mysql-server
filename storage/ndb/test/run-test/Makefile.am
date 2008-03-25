@@ -23,19 +23,20 @@ include $(top_srcdir)/storage/ndb/config/type_ndbapitools.mk.am
 test_PROGRAMS = atrt
 test_DATA=daily-basic-tests.txt daily-devel-tests.txt 16node-tests.txt \
           conf-ndbmaster.cnf \
-          conf-dl145a.cnf test-tests.txt conf-test.cnf
+          conf-dl145a.cnf test-tests.txt conf-test.cnf db.sql
 
 test_SCRIPTS=atrt-analyze-result.sh atrt-gather-result.sh atrt-setup.sh \
           atrt-clear-result.sh autotest-run.sh
 
-atrt_SOURCES = main.cpp setup.cpp files.cpp
+atrt_SOURCES = main.cpp setup.cpp files.cpp db.cpp command.cpp
 
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/test/include
 LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 	    $(top_builddir)/storage/ndb/src/libndbclient.la \
             $(top_builddir)/dbug/libdbug.a \
             $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@
+            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@ \
+            $(top_builddir)/libmysql_r/libmysqlclient_r.la
 
 atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \
                       -I$(top_srcdir)/ndb/src/mgmsrv \

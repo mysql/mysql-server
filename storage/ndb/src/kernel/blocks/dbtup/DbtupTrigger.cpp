@@ -278,18 +278,20 @@ Dbtup::createTrigger(Tablerec* table, const CreateTrigReq* req)
   tptr.p->monitorReplicas = req->getMonitorReplicas();
   tptr.p->m_receiverBlock = refToBlock(req->getReceiverRef());
 
-  tptr.p->attributeMask.clear();
-  if (tptr.p->monitorAllAttributes) {
+  if (tptr.p->monitorAllAttributes)
+  {
     jam();
+    // Set all non-pk attributes
+    tptr.p->attributeMask.set();
     for(Uint32 i = 0; i < table->m_no_of_attributes; i++) {
-      if (!primaryKey(table, i)) {
-        jam();
-        tptr.p->attributeMask.set(i);
-      }
+      if (primaryKey(table, i))
+        tptr.p->attributeMask.clear(i);
     }
-  } else {
-    // Set attribute mask
+  }
+  else
+  {
     jam();
+    // Set attribute mask
     tptr.p->attributeMask = req->getAttributeMask();
   }
   return true;
@@ -473,8 +475,8 @@ void Dbtup::checkDetachedTriggers(KeyReqStruct *req_struct,
   switch (save_type) {
   case ZUPDATE:
   case ZINSERT:
-    req_struct->m_tuple_ptr = (Tuple_header*)
-      c_undo_buffer.get_ptr(&regOperPtr->m_copy_tuple_location);
+    req_struct->m_tuple_ptr =
+      get_copy_tuple(regTablePtr, &regOperPtr->m_copy_tuple_location);
     break;
   }
 
@@ -851,8 +853,9 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
       !regOperPtr->is_first_operation())
   {
     jam();
-    req_struct->m_tuple_ptr= (Tuple_header*)
-      c_undo_buffer.get_ptr(&req_struct->prevOpPtr.p->m_copy_tuple_location);
+    req_struct->m_tuple_ptr=
+      get_copy_tuple(regTabPtr,
+                     &req_struct->prevOpPtr.p->m_copy_tuple_location);
   }
 
   if (regTabPtr->need_expand(disk)) 
@@ -945,10 +948,9 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
     }
     else
     {
-      Uint32 *ptr= 
-	c_undo_buffer.get_ptr(&req_struct->prevOpPtr.p->m_copy_tuple_location);
-
-      req_struct->m_tuple_ptr= (Tuple_header*)ptr;
+      req_struct->m_tuple_ptr =
+        get_copy_tuple(regTabPtr,
+                       &req_struct->prevOpPtr.p->m_copy_tuple_location);
     }
 
     if (regTabPtr->need_expand(disk)) 
@@ -1062,9 +1064,10 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci);
+    fireTrigOrd->setGCI(req_struct->gci_hi);
     fireTrigOrd->setHashValue(req_struct->hash_value);
     fireTrigOrd->m_any_value = regOperPtr->m_any_value;
+    fireTrigOrd->m_gci_lo = req_struct->gci_lo;
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
@@ -1074,7 +1077,7 @@ void Dbtup::sendFireTrigOrd(Signal* signal,
     jam();
     // Since only backup uses subscription triggers we 
     // send to backup directly for now
-    fireTrigOrd->setGCI(req_struct->gci);
+    fireTrigOrd->setGCI(req_struct->gci_hi);
     EXECUTE_DIRECT(trigPtr->m_receiverBlock,
                    GSN_FIRE_TRIG_ORD,
                    signal,
