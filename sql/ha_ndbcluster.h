@@ -620,12 +620,12 @@ private:
   void no_uncommitted_rows_update(int);
   void no_uncommitted_rows_reset(THD *);
 
-  void release_completed_operations(NdbTransaction*, bool);
+  void release_completed_operations(NdbTransaction*);
 
   friend int execute_commit(ha_ndbcluster*, NdbTransaction*);
   friend int execute_no_commit_ignore_no_key(ha_ndbcluster*, NdbTransaction*);
-  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*, bool);
-  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*, bool);
+  friend int execute_no_commit(ha_ndbcluster*, NdbTransaction*);
+  friend int execute_no_commit_ie(ha_ndbcluster*, NdbTransaction*);
 
   void transaction_checks(THD *thd);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, Ndb* ndb);
@@ -736,7 +736,6 @@ private:
     pieces.
   */
   KEY_MULTI_RANGE *m_multi_range_defined_end;
-  const NdbOperation *m_current_multi_operation;
   NdbIndexScanOperation *m_multi_cursor;
   Ndb *get_ndb(THD *thd);
 
