@@ -4,31 +4,33 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+==== Test Without sql_mode=strict_trans_tables ====
+[on master]
 create table t1 (n int not null primary key);
+[on slave]
 insert into t1 values (1);
+[on master]
 insert into t1 values (1);
 insert into t1 values (2),(3);
-select * from t1 ORDER BY n;
+[on slave]
+select * from t1 order by n;
 n
 1
 2
 3
-drop table t1;
-create table t1(a int primary key);
-insert into t1 values (1),(2);
-delete from t1 where @@server_id=1;
+==== Test With sql_mode=strict_trans_tables ====
+insert into t1 values (7),(8);
+[on master]
 set sql_mode=strict_trans_tables;
-select @@server_id;
-@@server_id
-1
-insert into t1 values (1),(2),(3);
-select @@server_id;
-@@server_id
-2
-select * from t1;
-a
+insert into t1 values (7), (8), (9);
+[on slave]
+select * from t1 order by n;
+n
 1
 2
+3
+7
+8
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -68,4 +70,61 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+==== Clean Up ====
+drop table t1;
+create table t1(a int primary key);
+insert into t1 values (1),(2);
+delete from t1 where @@server_id=1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+set sql_mode=strict_trans_tables;
+insert into t1 values (7), (8), (9);
+[on slave]
+select * from t1;
+a
+1
+2
+7
+8
+9
+SHOW SLAVE STATUS;
+Slave_IO_State	#
+Master_Host	127.0.0.1
+Master_User	root
+Master_Port	MASTER_PORT
+Connect_Retry	1
+Master_Log_File	master-bin.000001
+Read_Master_Log_Pos	#
+Relay_Log_File	#
+Relay_Log_Pos	#
+Relay_Master_Log_File	master-bin.000001
+Slave_IO_Running	Yes
+Slave_SQL_Running	Yes
+Replicate_Do_DB	
+Replicate_Ignore_DB	
+Replicate_Do_Table	
+Replicate_Ignore_Table	#
+Replicate_Wild_Do_Table	
+Replicate_Wild_Ignore_Table	
+Last_Errno	0
+Last_Error	
+Skip_Counter	0
+Exec_Master_Log_Pos	#
+Relay_Log_Space	#
+Until_Condition	None
+Until_Log_File	
+Until_Log_Pos	0
+Master_SSL_Allowed	No
+Master_SSL_CA_File	
+Master_SSL_CA_Path	
+Master_SSL_Cert	
+Master_SSL_Cipher	
+Master_SSL_Key	
+Seconds_Behind_Master	#
+Master_SSL_Verify_Server_Cert	No
+Last_IO_Errno	#
+Last_IO_Error	#
+Last_SQL_Errno	0
+Last_SQL_Error	
+==== Clean Up ====
 drop table t1;

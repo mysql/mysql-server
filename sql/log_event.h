@@ -592,8 +592,9 @@ typedef struct st_print_event_info
 {
   /*
     Settings for database, sql_mode etc that comes from the last event
-    that was printed.
-   */
+    that was printed.  We cache these so that we don't have to print
+    them if they are unchanged.
+  */
   // TODO: have the last catalog here ??
   char db[FN_REFLEN+1]; // TODO: make this a LEX_STRING when thd->db is
   bool flags2_inited;
@@ -606,26 +607,10 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  st_print_event_info()
-    :flags2_inited(0), sql_mode_inited(0),
-     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
-     lc_time_names_number(0), charset_database_number(0),
-     base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
-    {
-      /*
-        Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
-        program's startup, but these explicit bzero() is for the day someone
-        creates dynamic instances.
-      */
-      bzero(db, sizeof(db));
-      bzero(charset, sizeof(charset));
-      bzero(time_zone_str, sizeof(time_zone_str));
-      delimiter[0]= ';';
-      delimiter[1]= 0;
-      myf const flags = MYF(MY_WME | MY_NABP);
-      open_cached_file(&head_cache, NULL, NULL, 0, flags);
-      open_cached_file(&body_cache, NULL, NULL, 0, flags);
-    }
+  uint thread_id;
+  bool thread_id_printed;
+
+  st_print_event_info();
 
   ~st_print_event_info() {
     close_cached_file(&head_cache);
