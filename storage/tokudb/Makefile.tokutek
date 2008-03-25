@@ -2,6 +2,7 @@
 MYSQL_SRC = $(HOME)/mysql-5.1.23-rc
 MYSQL_LIBDIR = $(HOME)/mysql-5.1.23-rc-build/lib/mysql
 TOKUDB = /usr/local/tokudb-4.4
+TOKUDB_VERSION = "Tokudb"
 DEBUG = 1
 
 # sources to target
@@ -26,6 +27,7 @@ MYSQL_CXXFLAGS = -fno-implicit-templates -fno-exceptions -fno-rtti
 
 CPPFLAGS = -I. -I$(MYSQL_SRC)/sql -I$(MYSQL_SRC)/include -I$(MYSQL_SRC)/regex -I$(TOKUDB)/include
 CPPFLAGS += $(MYSQL_FLAGS)
+CPPFLAGS += -DTOKUDB_VERSION=\"$(TOKUDB_VERSION)\"
 CXXFLAGS = -Wall -Werror -g $(OPTFLAGS) $(GCOV_FLAGS) $(MYSQL_CXXFLAGS)
 CXXFLAGS += -fPIC
 LDFLAGS = -fPIC -shared -Wl,-soname -Wl,libtokudb_engine.so
