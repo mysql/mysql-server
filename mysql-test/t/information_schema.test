@@ -1108,8 +1108,6 @@ select * from `information_schema`.`TRIGGERS` where `EVENT_OBJECT_TABLE` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_SCHEMA` = NULL;
 select * from `information_schema`.`VIEWS` where `TABLE_NAME` = NULL;
 
---echo End of 5.0 tests.
-
 #
 # Bug#30079 A check for "hidden" I_S tables is flawed
 #
@@ -1139,3 +1137,7 @@ JOIN character_sets cs ON ( cs.character_set_name = ta.table_catalog );
 
 DROP TABLE test.t1;
 SET max_heap_table_size = DEFAULT;
+USE test;
+
+--echo End of 5.0 tests.
+
