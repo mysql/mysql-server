@@ -979,7 +979,7 @@ multi_update::multi_update(TABLE_LIST *table_list,
    tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(1), ignore(ignore_arg), error_handled(0)
+   transactional_tables(0), ignore(ignore_arg), error_handled(0)
 {}
 
 
@@ -1482,7 +1482,7 @@ void multi_update::send_error(uint errcode,const char *err)
 
   if (trans_safe)
   {
-    DBUG_ASSERT(transactional_tables);
+    DBUG_ASSERT(!updated || transactional_tables);
     (void) ha_autocommit_or_rollback(thd, 1);
   }
   else

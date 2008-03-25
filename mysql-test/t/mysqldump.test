@@ -1348,6 +1348,7 @@ grant RELOAD on *.* to mysqltest_1@localhost;
 grant REPLICATION CLIENT on *.* to mysqltest_1@localhost;
 
 # Execute mysqldump, should now succeed
+--replace_regex /MASTER_LOG_POS=[0-9]+/MASTER_LOG_POS=#/
 --exec $MYSQL_DUMP --compact --master-data -u mysqltest_1 test 2>&1
 
 # Clean up
