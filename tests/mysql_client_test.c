@@ -13233,6 +13233,40 @@ static void test_bug15518()
 }
 
 
+static void disable_general_log()
+{
+  int rc;
+  rc= mysql_query(mysql, "set @@global.general_log=off");
+  myquery(rc);
+}
+
+
+static void enable_general_log(int truncate)
+{
+  int rc;
+
+  rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
+  myquery(rc);
+
+  rc= mysql_query(mysql, "set @@global.general_log=on");
+  myquery(rc);
+
+  if (truncate)
+  {
+    rc= mysql_query(mysql, "truncate mysql.general_log");
+    myquery(rc);
+  }
+}
+
+
+static void restore_general_log()
+{
+  int rc;
+  rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
+  myquery(rc);
+}
+
+
 static void test_view_sp_list_fields()
 {
   int		rc;
@@ -15397,6 +15431,8 @@ static void test_bug17667()
     return;
   }
 
+  enable_general_log(1);
+
   for (statement_cursor= statements; statement_cursor->buffer != NULL;
        statement_cursor++)
   {
@@ -15474,6 +15510,8 @@ static void test_bug17667()
       printf("Found statement starting with \"%s\"\n",
              statement_cursor->buffer);
   }
+
+  restore_general_log();
 
   if (!opt_silent)
     printf("success.  All queries found intact in the log.\n");
@@ -17301,14 +17339,7 @@ static void test_bug28386()
   }
   mysql_free_result(result);
 
-  rc= mysql_query(mysql, "set @save_global_general_log=@@global.general_log");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "set @@global.general_log=on");
-  myquery(rc);
-
-  rc= mysql_query(mysql, "truncate mysql.general_log");
-  myquery(rc);
+  enable_general_log(1);
 
   stmt= mysql_simple_prepare(mysql, "SELECT ?");
   check_stmt(stmt);
@@ -17347,8 +17378,7 @@ static void test_bug28386()
 
   mysql_free_result(result);
 
-  rc= mysql_query(mysql, "set @@global.general_log=@save_global_general_log");
-  myquery(rc);
+  restore_general_log();
 
   DBUG_VOID_RETURN;
 }
@@ -17429,7 +17459,8 @@ and you are welcome to modify and redistribute it under the GPL license\n");
 
 
 static struct my_tests_st my_tests[]= {
-  { "test_view_sp_list_fields", test_view_sp_list_fields},
+  { "disable_general_log", disable_general_log },
+  { "test_view_sp_list_fields", test_view_sp_list_fields },
   { "client_query", client_query },
   { "test_prepare_insert_update", test_prepare_insert_update},
 #if NOT_YET_WORKING
