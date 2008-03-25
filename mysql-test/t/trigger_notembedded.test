@@ -360,10 +360,11 @@ CREATE TRIGGER trg5 BEFORE DELETE ON t1
     SET @a = 5;
 
 # Replace definers with the "weird" definers
+let MYSQLD_DATADIR= `select @@datadir`;
 perl;
 use strict;
 use warnings;
-my $fname= "$ENV{'MYSQLTEST_VARDIR'}/master-data/mysqltest_db1/t1.TRG";
+my $fname= "$ENV{'MYSQLD_DATADIR'}/mysqltest_db1/t1.TRG";
 open(FILE, "<", $fname) or die;
 my @content= grep($_ !~ /^definers=/, <FILE>);
 close FILE;

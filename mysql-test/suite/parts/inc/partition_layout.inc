@@ -10,5 +10,5 @@ eval SHOW CREATE TABLE t1;
 if ($ls)
 {
    --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-   --exec ls $MYSQLTEST_VARDIR/master-data/test/t1*
+   --exec ls $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*
 }

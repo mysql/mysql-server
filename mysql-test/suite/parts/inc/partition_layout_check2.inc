@@ -27,12 +27,12 @@ if ($no_debug)
 DELETE FROM t0_definition WHERE state = 'new';
 
 # Dump the current definition of the table t1 to tmp1
---exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLTEST_VARDIR/master-data/test/tmp1 2>&1 || true
+--exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp1 2>&1 || true
 if ($do_file_tests)
 {
 # List the files belonging to the table t1
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
-eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2'')');
+--exec ls $MYSQLTEST_VARDIR/mysqld.1/data/test/t1* > $MYSQLTEST_VARDIR/mysqld.1/data/test/tmp2 2>&1 || true
+eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/mysqld.1/data/test/tmp2'')');
 let $file_list= `SELECT @aux`;
 }
 if (!$do_file_tests)
@@ -42,7 +42,7 @@ let $file_list= '--- not determined ---';
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'new',
-     create_command = load_file('$MYSQLTEST_VARDIR/master-data/test/tmp1'),
+     create_command = load_file('$MYSQLTEST_VARDIR/mysqld.1/data/test/tmp1'),
      file_list      = $file_list;
 
 # Print the old and new table layout, if they differ

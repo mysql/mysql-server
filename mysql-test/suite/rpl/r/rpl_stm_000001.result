@@ -5,7 +5,7 @@ reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
 create table t1 (word char(20) not null);
-load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
 load data local infile 'MYSQL_TEST_DIR/std_data/words.dat' into table t1;
 select * from t1 limit 10;
 word

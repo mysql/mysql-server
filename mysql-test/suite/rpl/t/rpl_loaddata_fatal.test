@@ -13,7 +13,7 @@ source include/show_slave_status.inc;
 # Now we feed it a load data infile, which should make it stop with a
 # fatal error.
 connection master;
-LOAD DATA INFILE '../std_data_ln/rpl_loaddata.dat' INTO TABLE t1;
+LOAD DATA INFILE '../../std_data/rpl_loaddata.dat' INTO TABLE t1;
 
 connection slave;
 wait_for_slave_to_stop;

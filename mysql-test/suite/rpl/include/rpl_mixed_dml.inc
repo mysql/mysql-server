@@ -51,8 +51,8 @@ DELETE FROM t2 WHERE a = 2;
 
 --echo
 --echo ******************** LOAD DATA INFILE ********************
---copy_file ./suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
-LOAD DATA INFILE '../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
+--copy_file suite/rpl/data/rpl_mixed.dat $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
+LOAD DATA INFILE '../../tmp/rpl_mixed.dat' INTO TABLE t1 FIELDS TERMINATED BY '|' ;
 --remove_file $MYSQLTEST_VARDIR/tmp/rpl_mixed.dat
 SELECT * FROM t1 ORDER BY a;
 --source suite/rpl/include/rpl_mixed_check_select.inc
@@ -344,4 +344,4 @@ sync_slave_with_master;
 # will be created. You will need to go to the mysql-test dir and diff
 # the files your self to see what is not matching
 
---exec diff $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql
+--diff_files $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_master.sql $MYSQLTEST_VARDIR/tmp/rpl_switch_stm_row_mixed_slave.sql

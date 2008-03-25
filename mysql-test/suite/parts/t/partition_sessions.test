@@ -34,16 +34,16 @@ let $col_new_list    = new.f1,new.f2,new.f3 new.f4 ;
 --disable_query_log
 # DATA DIRECTORY
 # Make directory for partition data
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpdata || true
+--exec mkdir $MYSQLTEST_VARDIR/mysqld.1/data/tmpdata || true
 eval SET @data_dir = 'DATA DIRECTORY =
-''$MYSQLTEST_VARDIR/master-data/tmpdata''';
+''$MYSQLTEST_VARDIR/mysqld.1/data/tmpdata''';
 let $data_directory = `select @data_dir`;
 
 #INDEX DIRECTORY
 # Make directory for partition index
---exec mkdir $MYSQLTEST_VARDIR/master-data/tmpindex || true
+--exec mkdir $MYSQLTEST_VARDIR/mysqld.1/data/tmpindex || true
 eval SET @indx_dir = 'INDEX DIRECTORY =
-''$MYSQLTEST_VARDIR/master-data/tmpindex''';
+''$MYSQLTEST_VARDIR/mysqld.1/data/tmpindex''';
 let $index_directory = `select @indx_dir`;
 --enable_query_log
 

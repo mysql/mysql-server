@@ -21,11 +21,12 @@ insert into t1 values(3, 0, 0, 0, password('does_this_work?'));
 # "altogether now"
 insert into t1 values(4, connection_id(), rand()*1000, rand()*1000, password('does_this_still_work?'));
 select * into outfile 'rpl_misc_functions.outfile' from t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
 sync_slave_with_master;
 create table t2 like t1; 
 # read the values from the master table
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
-eval load data local infile '$MYSQLTEST_VARDIR/master-data/test/rpl_misc_functions.outfile' into table t2;
+--replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+eval load data local infile '$MYSQLD_DATADIR/test/rpl_misc_functions.outfile' into table t2;
 # compare them with the replica; the SELECT below should return no row
 select * from t1, t2 where (t1.id=t2.id) and not(t1.i=t2.i and t1.r1=t2.r1 and t1.r2=t2.r2 and t1.p=t2.p);
 
@@ -81,12 +82,12 @@ INSERT INTO t1 (col_a) VALUES (test_replication_sf());
 --sync_slave_with_master
 
 # Dump table on slave
-select * from t1 into outfile "../tmp/t1_slave.txt";
+select * from t1 into outfile "../../tmp/t1_slave.txt";
 
 # Load data from slave into temp table on master
 connection master;
 create temporary table t1_slave select * from t1 where 1=0;
-load data infile '../tmp/t1_slave.txt' into table t1_slave;
+load data infile '../../tmp/t1_slave.txt' into table t1_slave;
 --remove_file $MYSQLTEST_VARDIR/tmp/t1_slave.txt
 
 # Compare master and slave temp table, use subtraction
@@ -109,7 +110,7 @@ DROP TABLE t1, t1_slave;
 DROP PROCEDURE test_replication_sp1;
 DROP PROCEDURE test_replication_sp2;
 DROP FUNCTION test_replication_sf;
---remove_file $MYSQLTEST_VARDIR/master-data/test/rpl_misc_functions.outfile
+--remove_file $MYSQLD_DATADIR/test/rpl_misc_functions.outfile
 --sync_slave_with_master
 
 

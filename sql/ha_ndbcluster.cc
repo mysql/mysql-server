@@ -5209,6 +5209,7 @@ int ha_ndbcluster::create(const char *name,
           strcmp(m_tabname, NDB_SCHEMA_TABLE) == 0))
     {
       DBUG_PRINT("info", ("Schema distribution table not setup"));
+      DBUG_ASSERT(ndb_schema_share);
       DBUG_RETURN(HA_ERR_NO_CONNECTION);
     }
     single_user_mode = NdbDictionary::Table::SingleUserModeReadWrite;
@@ -6036,6 +6037,7 @@ ha_ndbcluster::delete_table(ha_ndbcluster *h, Ndb *ndb,
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
   /* ndb_share reference temporary */
@@ -6217,6 +6219,7 @@ int ha_ndbcluster::delete_table(const char *name)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 #endif
@@ -6503,8 +6506,11 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
     DBUG_RETURN(res);
   }
 #ifdef HAVE_NDB_BINLOG
-  if (!ndb_binlog_tables_inited && ndb_binlog_running)
+  if (!ndb_binlog_tables_inited)
+  {
     table->db_stat|= HA_READ_ONLY;
+    sql_print_information("table '%s' opened read only", name);
+  }
 #endif
   DBUG_RETURN(0);
 }
@@ -6868,8 +6874,8 @@ static void ndbcluster_drop_database(handlerton *hton, char *path)
   if (!ndb_schema_share)
   {
     DBUG_PRINT("info", ("Schema distribution table not setup"));
+    DBUG_ASSERT(ndb_schema_share);
     DBUG_VOID_RETURN;
-    //DBUG_RETURN(HA_ERR_NO_CONNECTION);
   }
 #endif
   ndbcluster_drop_database_impl(path);

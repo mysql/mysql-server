@@ -20,7 +20,8 @@
 
 eval create table t1 (a int) engine=$engine_type;
 flush tables;
-system rm $MYSQLTEST_VARDIR/master-data/test/t1.MYI ;
+let $MYSQLD_DATADIR= `select @@datadir`;
+system rm $MYSQLD_DATADIR/test/t1.MYI ;
 drop table if exists t1;
 save_master_pos;
 connection slave;

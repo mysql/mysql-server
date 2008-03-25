@@ -23,12 +23,12 @@ connection master;
 
 select last_insert_id();
 create table t1(a int not null auto_increment, b int, primary key(a) );
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 # verify that LAST_INSERT_ID() is set by LOAD DATA INFILE
 select last_insert_id();
 
 create temporary table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60));
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by '\n##\n' starting by '>' ignore 1 lines;
 
 create table t3 (day date,id int(9),category enum('a','b','c'),name varchar(60));
 insert into t3 select * from t2;
@@ -56,7 +56,7 @@ sync_with_master;
 insert into t1 values(1,10);
 
 connection master;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 
 save_master_pos;
 connection slave;
@@ -80,7 +80,7 @@ connection master;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now. 
@@ -105,7 +105,7 @@ connection master;
 set sql_log_bin=0;
 delete from t1;
 set sql_log_bin=1;
-load data infile '../std_data_ln/rpl_loaddata.dat' into table t1;
+load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 save_master_pos;
 connection slave;
 # The SQL slave thread should be stopped now.
@@ -125,7 +125,7 @@ reset master;
 eval create table t2 (day date,id int(9),category enum('a','b','c'),name varchar(60),
 unique(day)) engine=$engine_type; # no transactions
 --error ER_DUP_ENTRY
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 select * from t2;
@@ -141,7 +141,7 @@ alter table t2 drop key day;
 connection master;
 delete from t2;
 --error ER_DUP_ENTRY
-load data infile '../std_data_ln/rpl_loaddata2.dat' into table t2 fields
+load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 connection slave;
@@ -155,7 +155,7 @@ drop table t1;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
 
 --error ER_DUP_ENTRY
-LOAD DATA INFILE "../std_data_ln/words.dat" INTO TABLE t1;
+LOAD DATA INFILE "../../std_data/words.dat" INTO TABLE t1;
 
 --disable_warnings
 DROP TABLE IF EXISTS t1;

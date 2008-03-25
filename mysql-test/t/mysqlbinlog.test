@@ -4,6 +4,9 @@
 
 -- source include/have_log_bin.inc
 
+# Deletes all the binary logs
+reset master;
+
 # we need this for getting fixed timestamps inside of this test
 set timestamp=1000000000;
 
@@ -23,11 +26,11 @@ insert into t2 values ();
 
 # test for load data and load data distributed among the several 
 # files (we need to fill up first binlog)
-load data infile '../std_data_ln/words.dat' into table t1;
-load data infile '../std_data_ln/words.dat' into table t1;
-load data infile '../std_data_ln/words.dat' into table t1;
-load data infile '../std_data_ln/words.dat' into table t1;
-load data infile '../std_data_ln/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
+load data infile '../../std_data/words.dat' into table t1;
 # simple query to show more in second binlog
 insert into t1 values ("Alas");
 flush logs;
@@ -41,10 +44,10 @@ select "--- Local --" as "";
 # We should use --short-form everywhere because in other case output will
 # be time dependend. Better than nothing.
 #
-
+let $MYSQLD_DATADIR= `select @@datadir`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000001
 
 # this should not fail but shouldn't produce any working statements
 --disable_query_log
@@ -52,7 +55,7 @@ select "--- Broken LOAD DATA --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000002 2> /dev/null
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000002 2> /dev/null
 
 # this should show almost nothing
 --disable_query_log
@@ -60,7 +63,7 @@ select "--- --database --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLTEST_VARDIR/log/master-bin.000001 2> /dev/null
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --database=nottest $MYSQLD_DATADIR/master-bin.000001 2> /dev/null
 
 # this test for position option
 --disable_query_log
@@ -68,7 +71,7 @@ select "--- --position --" as "";
 --enable_query_log
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=239 $MYSQLTEST_VARDIR/log/master-bin.000002
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=239 $MYSQLD_DATADIR/master-bin.000002
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
@@ -137,7 +140,7 @@ EOF
 # must be digestable for both client and server. In 4.1 the client 
 # should use default-character-set same as the server.
 flush logs;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000004 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000004 | $MYSQL
 select * from t5  /* must be (1),(1) */;
 drop table t5;
 
@@ -156,7 +159,7 @@ insert into t5 values (3, date_format('2001-01-01','%W'));
 select * from t5 order by c1;
 flush logs;
 drop table t5;
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000006 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000006 | $MYSQL
 select * from t5 order by c1;
 drop table t5;
 
@@ -180,8 +183,8 @@ drop procedure p1;
 --error 1305
 call p1();
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008
---exec $MYSQL_BINLOG --short-form $MYSQLTEST_VARDIR/log/master-bin.000008 | $MYSQL
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000008
+--exec $MYSQL_BINLOG --short-form $MYSQLD_DATADIR/master-bin.000008 | $MYSQL
 call p1();
 drop procedure p1;
 
@@ -200,23 +203,23 @@ drop procedure p1;
 
 flush logs;
 create table t1 (a varchar(64) character set utf8);
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=koi8r;
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=latin1;
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=koi8r;
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1;
 set character_set_database=latin1;
-load data infile '../std_data_ln/loaddata6.dat' into table t1;
-load data infile '../std_data_ln/loaddata6.dat' into table t1 character set koi8r;
+load data infile '../../std_data/loaddata6.dat' into table t1;
+load data infile '../../std_data/loaddata6.dat' into table t1 character set koi8r;
 select hex(a) from t1;
 drop table t1;
 flush logs;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --replace_regex /SQL_LOAD_MB-[0-9]-[0-9]/SQL_LOAD_MB-#-#/
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000010
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000010
 
 #
 # Bug#28293 missed '#' sign in the hex dump when the dump length
@@ -229,7 +232,7 @@ flush logs;
 INSERT INTO t1 VALUES ('0123456789');
 flush logs;
 DROP TABLE t1;
---exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLTEST_VARDIR/log/master-bin.000012 | grep 'Query' | sed 's/[0-9]\{1,\}/REMOVED/g'
+--exec $MYSQL_BINLOG --hexdump --local-load=$MYSQLTEST_VARDIR/tmp/ $MYSQLD_DATADIR/master-bin.000012 | grep 'Query' | sed 's/[0-9]\{1,\}/REMOVED/g'
 
 #
 # Bug #29928: incorrect connection_id() restoring from mysqlbinlog out
@@ -239,7 +242,7 @@ create table t1(a int);
 insert into t1 values(connection_id()); 
 let $a= `select a from t1`;
 flush logs;
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000014 > $MYSQLTEST_VARDIR/tmp/bug29928.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000014 > $MYSQLTEST_VARDIR/tmp/bug29928.sql
 drop table t1;
 connect (con1, localhost, root, , test);                                            
 connection con1;
@@ -263,8 +266,8 @@ exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTES
 #
 flush logs;
 --error 1
---exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
---exec $MYSQL_BINLOG --force-if-open $MYSQLTEST_VARDIR/log/master-bin.000016 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000016 >/dev/null 2>/dev/null
+--exec $MYSQL_BINLOG --force-if-open $MYSQLD_DATADIR/master-bin.000016 >/dev/null 2>/dev/null
 
 --echo BUG#31611: Security risk with BINLOG statement
 
@@ -280,7 +283,7 @@ flush logs;
 INSERT INTO t1 VALUES (1,USER());
 flush logs;
 echo mysqlbinlog var/log/master-bin.000017 > var/tmp/bug31611.sql;
-exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000017 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000017 > $MYSQLTEST_VARDIR/tmp/bug31611.sql;
 connect (unsecure,localhost,untrusted,,mysqltest1);
 echo mysql mysqltest1 -uuntrusted < var/tmp/bug31611.sql;
 error 1;
@@ -313,7 +316,7 @@ query_vertical SELECT * FROM t1;
 DROP TABLE t1;
 
 echo >> mysqlbinlog var/log/master-bin.000019 > var/tmp/bug32580.sql;
-exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/log/master-bin.000019 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
+exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.000019 > $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 echo >> mysql test < var/tmp/bug32580.sql;
 exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug32580.sql;
 remove_file $MYSQLTEST_VARDIR/tmp/bug32580.sql;

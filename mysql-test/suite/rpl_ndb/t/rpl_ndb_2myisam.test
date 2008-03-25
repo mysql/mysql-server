@@ -11,6 +11,14 @@
 -- source include/master-slave.inc
 
 -- connection slave
+
+# Remove any old ndb_apply_status from slaves datadir
+let $datadir= `SELECT @@datadir`;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.frm;
+--error 0,1
+remove_file $datadir/mysql/ndb_apply_status.ndb;
+
 set @@global.slave_exec_mode= 'IDEMPOTENT';
 CREATE TABLE mysql.ndb_apply_status
                    ( server_id INT UNSIGNED NOT NULL,

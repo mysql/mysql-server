@@ -246,7 +246,7 @@ if (0)
 # Option, for displaying files:
 #     $ls= 1 (default)
 #          --> Display the table related directory content via
-#                "ls $MYSQLTEST_VARDIR/master-data/test/t1*"
+#                "ls $MYSQLTEST_VARDIR/mysqld.1/data/test/t1*"
 #              if these informations were collected.
 #              This is probably not portable to some OS.
 #     $ls= 0
@@ -410,7 +410,7 @@ if (0)
 # 3. How to analyze a partitioning bug revealed with these tests/ How to build
 #    a small replay script from the monstrous protocols ?
 #------------------------------------------------------------------------------#
-# a) crash    -- use the file var/master-data/mysql/general_log.CSV
+# a) crash    -- use the file var/mysqld.1/data/mysql/general_log.CSV
 # b) no crash, but unexpected server response (there is no "reject file)
 #             -- use the file r/<testcase>.log
 #                Please be aware that the option $debug= 0 suppresses the
