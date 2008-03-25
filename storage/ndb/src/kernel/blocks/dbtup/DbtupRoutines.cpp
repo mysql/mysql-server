@@ -2831,26 +2831,16 @@ Dbtup::read_lcp(const Uint32* inBuf, Uint32 inPos,
   Tablerec* const regTabPtr =  tabptr.p;
   Uint32 outPos = req_struct->out_buf_index;
 
-  Uint32 fixsz = 4 * (req_struct->check_offset[MM] - Tuple_header::HeaderSize);
+  Uint32 fixsz = 4 * (regTabPtr->m_offsets[MM].m_fix_header_size - Tuple_header::HeaderSize);
   Uint32 varlen = 0;
   char* varstart = 0;
   if (req_struct->m_tuple_ptr->m_header_bits & Tuple_header::VAR_PART)
   {
     ndbassert(req_struct->is_expanded == false);
     varstart = (char*)req_struct->m_var_data[MM].m_offset_array_ptr;
-    char* end = req_struct->m_var_data[MM].m_data_ptr;
-    if (end != 0)
-    {
-      end = (char*)((UintPtr(end) + 3) & ~(UintPtr)3);
-    }
-    else
-    {
-      ndbassert(regTabPtr->m_attributes[MM].m_no_of_varsize == 0);
-      end = varstart; // No var size ("fixed" varsize);
-    }
-    Uint32 len = req_struct->m_var_data[MM].m_max_var_offset;
-    Uint32 dyn = 4 * req_struct->m_var_data[MM].m_dyn_part_len;
-    varlen = (end - varstart) + len + dyn;
+    char * end = req_struct->m_var_data->m_dyn_data_ptr + 
+      4*req_struct->m_var_data[MM].m_dyn_part_len;
+    varlen = end - varstart;
     varlen = (varlen + 3) & ~(Uint32)3;
     ndbassert(varlen < 32768);
   }
@@ -2879,7 +2869,7 @@ Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
   Tablerec* const tabPtrP =  tabptr.p;
 
   req_struct->m_is_lcp = true;
-  Uint32 fixsz32 = (req_struct->check_offset[MM] - Tuple_header::HeaderSize);
+  Uint32 fixsz32 = (tabPtrP->m_offsets[MM].m_fix_header_size - Tuple_header::HeaderSize);
   Uint32 fixsz = 4 * fixsz32;
   Tuple_header* ptr = (Tuple_header*)req_struct->m_tuple_ptr;
   memcpy(ptr->m_data, src, fixsz);
