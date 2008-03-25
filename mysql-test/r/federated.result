@@ -2092,6 +2092,8 @@ DROP TABLE t1;
 DROP TABLE t1;
 CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
 DROP TABLE t1;
+create server 's1' foreign data wrapper 'mysql' options (port 3306);
+drop server 's1';
 End of 5.1 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;

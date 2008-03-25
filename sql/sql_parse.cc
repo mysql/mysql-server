@@ -6487,7 +6487,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
       if (grant_reload(thd))
         result= 1;
       if (servers_reload(thd))
-        result= 1;
+        result= 1; /* purecov: inspected */
     }
     if (tmp_thd)
     {
