@@ -147,4 +147,5 @@ class ha_tokudb : public handler {
   private:
     int __close(int mutex_is_locked);
     int read_last();
+    ulong field_offset(Field *);
 };

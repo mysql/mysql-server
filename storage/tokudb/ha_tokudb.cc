@@ -918,7 +918,7 @@ ulong ha_tokudb::max_row_length(const uchar * buf) {
     uint *ptr, *end;
     for (ptr = table_share->blob_field, end = ptr + table_share->blob_fields; ptr != end; ptr++) {
         Field_blob *blob = ((Field_blob *) table->field[*ptr]);
-        length += blob->get_length((uchar *) (buf + blob->offset((uchar *) buf))) + 2;
+        length += blob->get_length((uchar *) (buf + field_offset(blob))) + 2;
     }
     return length;
 }
@@ -956,7 +956,7 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record, bool new_row) {
 
     for (Field ** field = table->field; *field; field++)
         ptr = (*field)->pack(ptr, (const uchar *)
-                             (record + (*field)->offset((uchar *) record)));
+                             (record + field_offset(*field)));
 
     if (hidden_primary_key) {
         if (new_row)
@@ -978,11 +978,8 @@ void ha_tokudb::unpack_row(uchar * record, DBT * row) {
         const uchar *ptr = (const uchar *) row->data;
         memcpy(record, ptr, table_share->null_bytes);
         ptr += table_share->null_bytes;
-        uchar *fieldrecord = record;
-        if (fieldrecord == table->record[1])
-            fieldrecord = table->record[0];
         for (Field ** field = table->field; *field; field++)
-            ptr = (*field)->unpack(record + (*field)->offset(fieldrecord), ptr);
+            ptr = (*field)->unpack(record + field_offset(*field), ptr);
         dbug_tmp_restore_column_map(table->write_set, old_map);
     }
 }
@@ -1005,7 +1002,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
             }
             record[key_part->null_offset] &= ~key_part->null_bit;
         }
-        pos = (uchar *) key_part->field->unpack_key(record + key_part->field->offset(record), pos,
+        pos = (uchar *) key_part->field->unpack_key(record + field_offset(key_part->field), pos,
 #if MYSQL_VERSION_ID < 50123
                                                     key_part->length);
 #else
@@ -2478,6 +2475,12 @@ int ha_tokudb::check(THD * thd, HA_CHECK_OPT * check_opt) {
 }
 #endif
 
+ulong ha_tokudb::field_offset(Field *field) {
+    if (table->record[0] <= field->ptr && field->ptr < table->record[1])
+        return field->offset(table->record[0]);
+    assert(0);
+    return 0;
+}
 
 struct st_mysql_storage_engine storage_engine_structure = { MYSQL_HANDLERTON_INTERFACE_VERSION };
 
