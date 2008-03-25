@@ -43,6 +43,7 @@ use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
 use File::Temp qw / tempdir /;
+use File::Spec::Functions qw / splitdir /;
 use My::Platform;
 use My::SafeProcess;
 use My::ConfigFactory;
@@ -85,7 +86,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
-our $opt_suites= $DEFAULT_SUITES;
+my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $opt_verbose_restart= 0;  # Verbose output for restarts
@@ -220,7 +221,34 @@ sub main {
     gcov_prepare();
   }
 
-  # Figure out which tests we are going to run
+  mtr_report("Collecting tests...");
+
+  if (!$opt_suites)
+  {
+    $opt_suites= $DEFAULT_SUITES;
+
+    # Check for any extra suites to enable based on the path name
+    my %extra_suites=
+      (
+       "mysql-5.1-new-ndb"              => "ndb_team",
+       "mysql-5.1-new-ndb-merge"        => "ndb_team",
+       "mysql-5.1-telco-6.2"            => "ndb_team",
+       "mysql-5.1-telco-6.2-merge"      => "ndb_team",
+       "mysql-5.1-telco-6.3"            => "ndb_team",
+       "mysql-6.0-ndb"                  => "ndb_team",
+      );
+
+    foreach my $dir ( reverse splitdir($basedir) )
+    {
+      my $extra_suite= $extra_suites{$dir};
+      if (defined $extra_suite){
+	mtr_report("Found extra suite: $extra_suite");
+	$opt_suites= "$extra_suite,$opt_suites";
+	last;
+      }
+    }
+  }
+
   mtr_report("Collecting tests...");
   my $tests= collect_test_cases($opt_suites, \@opt_cases);
 
@@ -3600,7 +3628,7 @@ Options to control what test suites or cases to run
   suite[s]=NAME1,..,NAMEN
                         Collect tests in suites from the comma separated
                         list of suite names.
-                        The default is: "$opt_suites"
+                        The default is: "$DEFAULT_SUITES"
   skip-rpl              Skip the replication test cases.
   big-test              Set the environment variable BIG_TEST, which can be
                         checked from test cases.
