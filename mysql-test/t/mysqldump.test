@@ -1613,6 +1613,10 @@ DROP TABLE t1;
 #
 # Added for use-thread option
 #
+
+# THIS PART OF THE TEST IS DISABLED UNTIL BUG#32991 IS FIXED
+if ($bug32991_fixed) {
+
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
@@ -1649,6 +1653,8 @@ drop table t1;
 drop table t2;
 
 drop table words2;
+
+}
 
 --echo #
 --echo # BUG# 16853: mysqldump doesn't show events
