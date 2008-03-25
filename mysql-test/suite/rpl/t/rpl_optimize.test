@@ -31,7 +31,9 @@ INSERT INTO t1 (a) SELECT null FROM t1;
 save_master_pos;
 # a few updates to force OPTIMIZE to do something
 update t1 set b=(a/2*rand());
+--disable_warnings
 delete from t1 order by b limit 10000;
+--enable_warnings
 
 connection slave;
 sync_with_master;
