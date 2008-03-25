@@ -80,7 +80,8 @@ class NdbEventOperationImpl;
  *
  * Usage notes for different operation types:
  *
- * - insertTuple must use setValue if blob attribute is non-nullable
+ * - insertTuple must be followed by a setValue() call for every non
+ *   nullable blob in the row.
  *
  * - readTuple or scan readTuples with lock mode LM_CommittedRead is
  *   automatically upgraded to lock mode LM_Read if any blob attributes
@@ -417,7 +418,7 @@ private:
                      Buf& packedBuf, Buf& unpackedBuf);
   Uint32 getHeadInlineSize() { return theHeadSize + theInlineSize; }
   void prepareSetHeadInlineValue();
-  void getBlobHeadData(const char * & data, Uint32 & byteSize);
+  void getNullOrEmptyBlobHeadDataPtr(const char * & data, Uint32 & byteSize);
   // getters and setters
   void packBlobHead();
   void unpackBlobHead();

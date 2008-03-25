@@ -588,7 +588,8 @@ static void* flexBenchThread(void* pArg)
   unsigned int      threadNo, threadBase;
   Ndb*              pNdb = NULL ;
   NdbConnection     *pTrans = NULL ;
-  NdbOperation**    pOps = NULL ;
+  const NdbOperation**    
+                    pOps = NULL ;
   StartType         tType ;
   StartType         tSaveType ;
   NdbRecAttr*       tTmp = NULL ;
@@ -620,7 +621,7 @@ static void* flexBenchThread(void* pArg)
 
   attrValue = (int*)malloc(nReadBuffSize) ;
   attrRefValue = (int*)malloc(nRefBuffSize) ;
-  pOps = (NdbOperation**)malloc(tNoOfTables*sizeof(NdbOperation*)) ;
+  pOps = (const NdbOperation**)malloc(tNoOfTables*sizeof(NdbOperation*)) ;
   pNdb = new Ndb(g_cluster_connection, "TEST_DB" );
   pRec= (NdbRecord **)calloc(tNoOfTables*3, sizeof(*pRec));
   pAttrSet= (unsigned char **)calloc(tNoOfTables, sizeof(*pAttrSet));
@@ -887,7 +888,8 @@ static void* flexBenchThread(void* pArg)
                                                    attr_record, pRowAttr);
 	  break;
 	case stDelete:          // Delete Case
-	  pOps[countTables]= pTrans->deleteTuple(pk_record, pRowPK);
+	  pOps[countTables]= pTrans->deleteTuple(pk_record, pRowPK,
+                                                 attr_record);
 	  break;
 	case stVerify:
 	  pOps[countTables]= pTrans->readTuple(pk_record, pRowPK,

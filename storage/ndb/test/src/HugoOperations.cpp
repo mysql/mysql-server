@@ -72,6 +72,7 @@ int HugoOperations::pkReadRecord(Ndb* pNdb,
 				 NdbOperation::LockMode lm){
   int a;  
   allocRows(numRecords);
+  indexScans.clear();
   int check;
 
   NdbOperation* pOp = 0;
@@ -99,6 +100,8 @@ rand_lock_mode:
       {
 	pIndexScanOp = ((NdbIndexScanOperation*)pOp);
 	check = pIndexScanOp->readTuples(lm);
+        /* Record NdbIndexScanOperation ptr for later... */
+        indexScans.push_back(pIndexScanOp);
       }
       else
 	check = pOp->readTuple(lm);
@@ -117,10 +120,15 @@ rand_lock_mode:
     if (equalForRow(pOp, r+recordNo) != 0)
       return NDBT_FAILED;
 
-    if(pIndexScanOp)
-      pIndexScanOp->end_of_bound(r);
+    // TODO : 
+    // Multi-read range functionality is disabled for
+    // old style scans, so we can't use it here
+    // Longer term, Hugo* should be changed to use
+    // NdbRecord in this area.
+    //if(pIndexScanOp)
+    //  pIndexScanOp->end_of_bound(r);
     
-    if(r == 0 || pIndexScanOp == 0)
+    // if(r == 0 || pIndexScanOp == 0)
     {
       // Define attributes to read  
       for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -131,6 +139,9 @@ rand_lock_mode:
 	}
       } 
     }
+    /* Note pIndexScanOp will point to the 'last' index scan op
+     * we used.  The full list is in the indexScans vector
+     */
     pOp = pIndexScanOp;
   }
   return NDBT_OK;
@@ -519,7 +530,7 @@ int HugoOperations::equalForAttr(NdbOperation* pOp,
     g_info << "Can't call equalForAttr on non PK attribute" << endl;
     return NDBT_FAILED;
   }
-    
+  
   int len = attr->getSizeInBytes();
   char buf[8000];
   memset(buf, 0, sizeof(buf));

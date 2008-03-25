@@ -165,7 +165,6 @@ public:
     tableId, fragmentCount etc. into the NdbRecord.
   */
   const NdbTableImpl *table;
-  const NdbTableImpl *base_table;
 
   Uint32 tableId;
   Uint32 tableVersion;
@@ -173,7 +172,12 @@ public:
   Uint32 m_keyLenInWords;
   /* Total maximum size of TRANSID_AI data (for computing batch size). */
   Uint32 m_max_transid_ai_bytes;
-  /* Number of distribution keys (usually == number of primary keys). */
+  /**
+   * Number of distribution keys (usually == number of primary keys).
+   *
+   * For an index NdbRecord, this is zero if the index does not include all
+   * of the distribution keys in the table.
+   */
   Uint32 m_no_of_distribution_keys;
   /* Flags, or-ed from enum RecFlags. */
   Uint32 flags;
@@ -192,17 +196,30 @@ public:
     Array of index (into columns[]) of distribution keys, in attrId order.
     This is used to build the distribution key, which is the concatenation
     of key values in attrId order.
+
+    If the index does not include all of the base table's distribution keys,
+    this array is empty (zero length).
   */
   const Uint32 *distkey_indexes;
   /* Length of distkey_indexes array. */
   Uint32 distkey_index_length;
 
+  /**
+   * Array mapping an attribute Id into the corresponding index into the
+   * columns[] array, useful for looking up a column by attribute id.
+   *
+   * If the column is not included in the NdbRecord, the value is -1.
+   */
+  const int *m_attrId_indexes;
+  /* Size of array pointed to by m_attrId_indexes. */
+  Uint32 m_attrId_indexes_length;
+
   /*
     m_min_distkey_prefix_length is the minimum lenght of an index prefix
     needed to include all distribution keys. In other words, it is one more
     that the index of the last distribution key in the index order.
-    If the index does not include all distribution keys, it is set to 0.
-    This member is only valid for an index NdbRecord.
+
+    This member only makes sense for an index NdbRecord.
   */
   Uint32 m_min_distkey_prefix_length;
   /* The real size of the array at the end of this struct. */
