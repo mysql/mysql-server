@@ -459,6 +459,8 @@ testcase(Ndb_cluster_connection&cc, int flag)
 		return ndberror("def_label");
 	    if (code->interpret_exit_ok() < 0)
 		return ndberror("interpret_exit_ok");
+            if (code->finalise() != 0)
+                return ndberror("finalise");
             if (sop->setInterpretedCode(code) != 0)
                 return ndberror("setInterpretedCode");
 	}
