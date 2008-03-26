@@ -1,0 +1,33 @@
+change master to
+MASTER_HOST='dummy.localdomain',
+RELAY_LOG_FILE='slave-relay-bin.000001',
+RELAY_LOG_POS=4;
+start slave sql_thread;
+select MASTER_POS_WAIT('master-bin.000001', 3776);
+# Result on slave
+SELECT * FROM t1;
+id
+5
+6
+7
+8
+9
+10
+11
+SELECT * FROM t2;
+id
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+17
+18
+19
