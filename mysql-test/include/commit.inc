@@ -267,7 +267,7 @@ select * from t2;
 insert into t2 (a) values (1026);
 --replace_result $MYSQLTEST_VARDIR ..
 --error ER_DUP_ENTRY
-eval load data infile "../std_data_ln/words.dat" into table t1 (a) set a:=f2(26);
+eval load data infile "../../std_data/words.dat" into table t1 (a) set a:=f2(26);
 
 select * from t2;
 rollback;
@@ -740,6 +740,6 @@ call p_verify_status_increment(0, 0, 0, 0);
 --echo #
 --echo # Cleanup
 --echo #
-drop table t1;
+drop table t1, t2, t3;
 drop procedure p_verify_status_increment;
 drop function f1;

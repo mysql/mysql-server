@@ -455,11 +455,14 @@ sub mtr_report_stats ($) {
     # that can be copy pasted to rerun only failing tests
     print "Failing test(s):";
 
+    my %seen= ();
     foreach my $tinfo (@$tests)
     {
-      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' )
+      my $tname= $tinfo->{'name'};
+      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' and ! $seen{$tname})
       {
-        print " $tinfo->{'name'}";
+        print " $tname";
+	$seen{$tname}= 1;
       }
     }
     print "\n\n";
