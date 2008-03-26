@@ -969,7 +969,7 @@ uint _mi_rec_pack(MI_INFO *info, register uchar *to,
 	else
 	{
 	  char *temp_pos;
-	  size_t tmp_length=length-mi_portable_sizeof_char_ptr;
+	  size_t tmp_length=length-portable_sizeof_char_ptr;
 	  memcpy((uchar*) to,from,tmp_length);
 	  memcpy_fixed(&temp_pos,from+tmp_length,sizeof(char*));
 	  memcpy(to+tmp_length,temp_pos,(size_t) blob->length);
@@ -1090,11 +1090,11 @@ my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
       if (type == FIELD_BLOB)
       {
 	uint blob_length=
-	  _mi_calc_blob_length(length-mi_portable_sizeof_char_ptr,record);
+	  _mi_calc_blob_length(length-portable_sizeof_char_ptr,record);
 	if (!blob_length && !(flag & bit))
 	  goto err;
 	if (blob_length)
-	  to+=length - mi_portable_sizeof_char_ptr+ blob_length;
+	  to+=length - portable_sizeof_char_ptr+ blob_length;
       }
       else if (type == FIELD_SKIP_ZERO)
       {
@@ -1277,7 +1277,7 @@ ulong _mi_rec_unpack(register MI_INFO *info, register uchar *to, uchar *from,
       }
       else if (type == FIELD_BLOB)
       {
-	uint size_length=rec_length- mi_portable_sizeof_char_ptr;
+	uint size_length=rec_length- portable_sizeof_char_ptr;
 	ulong blob_length=_mi_calc_blob_length(size_length,from);
         ulong from_left= (ulong) (from_end - from);
         if (from_left < size_length ||
