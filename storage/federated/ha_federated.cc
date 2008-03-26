@@ -794,9 +794,9 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         goto error;
       /*
         Found that if the string is:
-user:@hostname:port/db/table
-Then password is a null string, so set to NULL
-    */
+        user:@hostname:port/db/table
+        Then password is a null string, so set to NULL
+      */
       if ((share->password[0] == '\0'))
         share->password= NULL;
     }
@@ -833,14 +833,21 @@ Then password is a null string, so set to NULL
     if ((strchr(share->table_name, '/')))
       goto error;
 
+    /*
+      If hostname is omitted, we set it to NULL. According to
+      mysql_real_connect() manual:
+      The value of host may be either a hostname or an IP address.
+      If host is NULL or the string "localhost", a connection to the
+      local host is assumed.
+    */
     if (share->hostname[0] == '\0')
       share->hostname= NULL;
 
   }
   if (!share->port)
   {
-    if (strcmp(share->hostname, my_localhost) == 0)
-      share->socket= (char *) MYSQL_UNIX_ADDR;
+    if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
+      share->socket= (char*) MYSQL_UNIX_ADDR;
     else
       share->port= MYSQL_PORT;
   }
