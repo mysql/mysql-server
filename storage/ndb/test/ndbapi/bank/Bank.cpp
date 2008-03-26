@@ -668,13 +668,6 @@ int Bank::findLastGL(Uint64 &lastTime){
     return NDBT_FAILED;
   }
 
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
   NdbRecAttr* timeRec = pOp->getValue("TIME");
   if( timeRec ==NULL ) {
     ERR(pScanTrans->getNdbError());
@@ -999,13 +992,6 @@ int Bank::sumTransactionsForGL(const Uint64 glTime,
     return NDBT_FAILED;
   }
 
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
     ERR(pScanTrans->getNdbError());
@@ -1153,13 +1139,6 @@ int Bank::performValidateGL(Uint64 glTime){
    }
    
    if( pOp->readTuples() ) {
-     ERR(pScanTrans->getNdbError());
-     m_ndb.closeTransaction(pScanTrans);
-     return NDBT_FAILED;
-   }
-   
-   check = pOp->interpret_exit_ok();
-   if( check == -1 ) {
      ERR(pScanTrans->getNdbError());
      m_ndb.closeTransaction(pScanTrans);
      return NDBT_FAILED;
@@ -1424,13 +1403,6 @@ int Bank::getOldestPurgedGL(const Uint32 accountType,
       return NDBT_FAILED;
     }
     
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pScanTrans->getNdbError());
-      m_ndb.closeTransaction(pScanTrans);
-      return NDBT_FAILED;
-    }
-    
     NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
     if( accountTypeRec ==NULL ) {
       ERR(pScanTrans->getNdbError());
@@ -1531,13 +1503,6 @@ int Bank::getOldestNotPurgedGL(Uint64 &oldest,
     return NDBT_FAILED;
   }
 
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
   NdbRecAttr* accountTypeRec = pOp->getValue("ACCOUNT_TYPE");
   if( accountTypeRec ==NULL ) {
     ERR(pScanTrans->getNdbError());
@@ -1627,13 +1592,6 @@ int Bank::checkNoTransactionsOlderThan(const Uint32 accountType,
     }
     
     if( pOp->readTuples() ) {
-      ERR(pScanTrans->getNdbError());
-      m_ndb.closeTransaction(pScanTrans);
-      return NDBT_FAILED;
-    }
-    
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
       ERR(pScanTrans->getNdbError());
       m_ndb.closeTransaction(pScanTrans);
       return NDBT_FAILED;
@@ -1888,13 +1846,6 @@ int Bank::findTransactionsToPurge(const Uint64 glTime,
   }
 
   if( pOp->readTuplesExclusive() ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
@@ -2419,13 +2370,6 @@ int Bank::getSumAccounts(Uint32 &sumAccounts,
   }
 
   if( pOp->readTuplesExclusive() ) {
-    ERR(pScanTrans->getNdbError());
-    m_ndb.closeTransaction(pScanTrans);
-    return NDBT_FAILED;
-  }
-
-  check = pOp->interpret_exit_ok();
-  if( check == -1 ) {
     ERR(pScanTrans->getNdbError());
     m_ndb.closeTransaction(pScanTrans);
     return NDBT_FAILED;
