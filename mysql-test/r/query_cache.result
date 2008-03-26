@@ -1654,3 +1654,30 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+use test;
+FLUSH STATUS;
+SET GLOBAL query_cache_size=10*1024*1024;
+SET @save_concurrent_insert= @@concurrent_insert;
+SET GLOBAL concurrent_insert= 0;
+CREATE TABLE t1 (c1 INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 (c1) VALUES (1), (2);
+SHOW GLOBAL VARIABLES LIKE 'concurrent_insert';
+Variable_name	Value
+concurrent_insert	0
+SHOW STATUS LIKE 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	0
+SELECT * FROM t1;
+c1
+1
+2
+SELECT * FROM t1;
+c1
+1
+2
+SHOW STATUS LIKE 'Qcache_hits';
+Variable_name	Value
+Qcache_hits	1
+DROP TABLE t1;
+SET GLOBAL concurrent_insert= @save_concurrent_insert;
+SET GLOBAL query_cache_size= default;
