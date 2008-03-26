@@ -37,7 +37,7 @@ mysqld-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1b
 mysqld-bin.000001	#	Query	#	#	use `test`; TRUNCATE t1n
 RESET MASTER;
 SET SESSION BINLOG_FORMAT=MIXED;
-INSERTs INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
+INSERT INTO t1b VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1m VALUES (1,1), (1,2), (2,1), (2,2);
 INSERT INTO t1n VALUES (1,1), (1,2), (2,1), (2,2);
 UPDATE t1m, t1b SET m = 2, b = 3 WHERE n = c;

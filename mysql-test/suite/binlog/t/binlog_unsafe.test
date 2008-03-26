@@ -236,4 +236,3 @@ DROP PROCEDURE proc4;
 DROP FUNCTION  func5;
 DROP PREPARE   prep6;
 DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
-DROP VIEW v1;
