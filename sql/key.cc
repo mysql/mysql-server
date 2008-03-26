@@ -168,6 +168,7 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
   }
   for (key_part= key_info->key_part ; (int) key_length > 0 ; key_part++)
   {
+    uchar used_uneven_bits= 0;
     if (key_part->null_bit)
     {
       if (*from_key++)
@@ -186,6 +187,8 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
         set_rec_bits(bits, to_record + key_part->null_offset +
                      (key_part->null_bit == 128),
                      field->bit_ofs, field->bit_len);
+        /* we have now used the byte with 'uneven' bits */
+        used_uneven_bits= 1;
       }
     }
     if (key_part->key_part_flag & HA_BLOB_PART)
@@ -222,7 +225,9 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
     else
     {
       length= min(key_length, key_part->length);
-      memcpy(to_record + key_part->offset, from_key, (size_t) length);
+      /* skip the byte with 'uneven' bits, if used */
+      memcpy(to_record + key_part->offset, from_key + used_uneven_bits
+             , (size_t) length - used_uneven_bits);
     }
     from_key+= length;
     key_length-= length;

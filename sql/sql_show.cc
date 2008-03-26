@@ -3430,7 +3430,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /*
       there was errors during opening tables
     */
-    const char *error= thd->main_da.message();
+    const char *error= thd->is_error() ? thd->main_da.message() : "";
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
@@ -3631,8 +3631,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
         rather than in SHOW COLUMNS
       */ 
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+      if (thd->is_error())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     thd->main_da.sql_errno(), thd->main_da.message());
       thd->clear_error();
       res= 0;
     }

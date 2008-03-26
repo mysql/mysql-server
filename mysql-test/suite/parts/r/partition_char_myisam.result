@@ -1,24 +1,16 @@
 ---- Partitioning and char data type
 create table t1 (a char(255) not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values (repeat('a',255)), ('b'), (repeat('a',128)), (repeat('b',64));
 select * from t1;
 a
@@ -107,24 +99,16 @@ drop table t2;
 ---- Partitioning and binary data type
 create table t1 (a binary(255) not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` binary(255) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values (repeat('a',255)), ('b'), (repeat('a',128)), (repeat('b',64));
 select hex(a) from t1;
 hex(a)
@@ -216,24 +200,16 @@ drop table t2;
 ---- Partitioning and varchar data type
 create table t1 (a varchar(767) not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values (repeat('a',767)), ('b'), (repeat('a',500)), (repeat('b',64));
 select * from t1;
 a
@@ -322,24 +298,16 @@ drop table t2;
 ---- Partitioning and varbinary data type
 create table t1 (a varbinary(767) not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varbinary(767) NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values (repeat('a',767)), ('b'), (repeat('a',500)), (repeat('b',64));
 select * from t1;
 a
@@ -428,24 +396,16 @@ drop table t2;
 ---- Partitioning and enum data type
 create table t1 (a enum('A','B','C','D','E','F','G','H','I','J','K','L') not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` enum('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values ('A'),('D'),('L'),('G');
 select * from t1;
 a
@@ -558,24 +518,16 @@ drop table t2;
 ---- Partitioning and set data type
 create table t1 (a set('A','B','C','D','E','F','G','H','I','J','K','L') not null, primary key(a)) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` set('A','B','C','D','E','F','G','H','I','J','K','L') NOT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 DATA DIRECTORY = '/tmp' INDEX DIRECTORY = '/tmp' ENGINE = MyISAM) */
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY KEY (a) (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = MyISAM, PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = MyISAM, PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = MyISAM, PARTITION pa4 MAX_ROWS = 40 MIN_ROWS = 2 ENGINE = MyISAM) */
 insert into t1 values ('A,B'),('C,D'),('E,L'),('G,H,K');
 select * from t1 order by a;
 a
@@ -727,18 +679,10 @@ drop table t2;
 ---- Partitioning and blob data type
 create table t1 (a blob not null, primary key(a(767))) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a blob not null, primary key(a(767))) engine='MyISAM' 
 partition by key (a) partitions 30;
@@ -755,18 +699,10 @@ ERROR HY000: A BLOB field is not allowed in partition function
 ---- Partitioning and text data type
 create table t1 (a text not null, primary key(a(767))) engine='MyISAM' 
 partition by key (a) (
-partition pa1 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=20 min_rows=2,
-partition pa2 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=3,
-partition pa3 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=30 min_rows=4,
-partition pa4 DATA DIRECTORY =
-'/tmp' INDEX DIRECTORY =
-'/tmp' max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 ERROR HY000: A BLOB field is not allowed in partition function
 create table t2 (a tinytext not null, primary key(a(767))) engine='MyISAM' 
 partition by key (a) partitions 30;
