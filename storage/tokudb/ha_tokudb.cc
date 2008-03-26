@@ -64,15 +64,25 @@ typedef struct st_tokudb_trx_data {
 // tokudb debug tracing
 #define TOKUDB_DEBUG_INIT 1
 #define TOKUDB_DEBUG_OPEN 2
-#define TOKUDB_DEBUG_ERROR 4
-#define TOKUDB_DEBUG_TXN 8
-#define TOKUDB_DEBUG_AUTO_INCREMENT 16
+#define TOKUDB_DEBUG_ENTER 4
+#define TOKUDB_DEBUG_RETURN 8
+#define TOKUDB_DEBUG_ERROR 16
+#define TOKUDB_DEBUG_TXN 32
+#define TOKUDB_DEBUG_AUTO_INCREMENT 64
+
+#define TOKUDB_DBUG_ENTER(f) \
+{ \
+    if (tokudb_debug & TOKUDB_DEBUG_ENTER) \
+        printf("%d:%s:%d:%s\n", my_tid(), __FILE__, __LINE__, __FUNCTION__); \
+} \
+    DBUG_ENTER(f);
+
 
 #define TOKUDB_DBUG_RETURN(r) \
 { \
     int rr = (r); \
-    if (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR)) \
-        printf("%d:%s:%d:return:%d\n", my_tid(), __FILE__, __LINE__, rr); \
+    if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) \
+        printf("%d:%s:%d:%s:return:%d\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, rr); \
     DBUG_RETURN(rr); \
 }
 
@@ -169,7 +179,7 @@ void tokudb_thr_private_set(void *v) {
 }
 
 static int tokudb_init_func(void *p) {
-    DBUG_ENTER("tokudb_init_func");
+    TOKUDB_DBUG_ENTER("tokudb_init_func");
 
     tokudb_hton = (handlerton *) p;
 
@@ -319,7 +329,7 @@ error:
 }
 
 static int tokudb_done_func(void *p) {
-    DBUG_ENTER("tokudb_done_func");
+    TOKUDB_DBUG_ENTER("tokudb_done_func");
     int error = 0;
 
     if (tokudb_open_tables.records)
@@ -427,7 +437,7 @@ static handler *tokudb_create_handler(handlerton * hton, TABLE_SHARE * table, ME
 }
 
 int tokudb_end(handlerton * hton, ha_panic_function type) {
-    DBUG_ENTER("tokudb_end");
+    TOKUDB_DBUG_ENTER("tokudb_end");
     int error = 0;
     if (db_env) {
         tokudb_cleanup_log_files();
@@ -443,7 +453,7 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
 }
 
 bool tokudb_flush_logs(handlerton * hton) {
-    DBUG_ENTER("tokudb_flush_logs");
+    TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
     if ((error = db_env->log_flush(db_env, 0))) {
@@ -458,7 +468,7 @@ bool tokudb_flush_logs(handlerton * hton) {
 }
 
 static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
-    DBUG_ENTER("tokudb_commit");
+    TOKUDB_DBUG_ENTER("tokudb_commit");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     u_int32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -478,7 +488,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
 }
 
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
-    DBUG_ENTER("tokudb_rollback");
+    TOKUDB_DBUG_ENTER("tokudb_rollback");
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
@@ -499,7 +509,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
 #if 0
 
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    DBUG_ENTER("tokudb_savepoint");
+    TOKUDB_DBUG_ENTER("tokudb_savepoint");
     int error;
     DB_TXN **save_txn = (DB_TXN **) savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -510,7 +520,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
 }
 
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    DBUG_ENTER("tokudb_rollback_to_savepoint");
+    TOKUDB_DBUG_ENTER("tokudb_rollback_to_savepoint");
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -523,7 +533,7 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
 }
 
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint) {
-    DBUG_ENTER("tokudb_release_savepoint");
+    TOKUDB_DBUG_ENTER("tokudb_release_savepoint");
     int error;
     DB_TXN *parent, **save_txn = (DB_TXN **) savepoint;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[hton->slot];
@@ -538,7 +548,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
 #endif
 
 static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
-    DBUG_ENTER("tokudb_show_logs");
+    TOKUDB_DBUG_ENTER("tokudb_show_logs");
     char **all_logs, **free_logs, **a, **f;
     int error = 1;
     MEM_ROOT **root_ptr = my_pthread_getspecific_ptr(MEM_ROOT **, THR_MALLOC);
@@ -592,7 +602,7 @@ static void tokudb_print_error(const DB_ENV * db_env, const char *db_errpfx, con
 }
 
 void tokudb_cleanup_log_files(void) {
-    DBUG_ENTER("tokudb_cleanup_log_files");
+    TOKUDB_DBUG_ENTER("tokudb_cleanup_log_files");
     char **names;
     int error;
 
@@ -759,7 +769,7 @@ static bool tokudb_key_cmp(TABLE * table, KEY * key_info, const uchar * key, uin
 }
 
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
-    DBUG_ENTER("ha_tokudb::open");
+    TOKUDB_DBUG_ENTER("ha_tokudb::open");
     TOKUDB_OPEN();
 
     char name_buff[FN_REFLEN];
@@ -898,13 +908,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 }
 
 int ha_tokudb::close(void) {
-    DBUG_ENTER("ha_tokudb::close");
+    TOKUDB_DBUG_ENTER("ha_tokudb::close");
     TOKUDB_CLOSE();
     TOKUDB_DBUG_RETURN(__close(0));
 }
 
 int ha_tokudb::__close(int mutex_is_locked) {
-    DBUG_ENTER("ha_tokudb::__close");
+    TOKUDB_DBUG_ENTER("ha_tokudb::__close");
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         printf("%d:%s:%d:close:%p\n", my_tid(), __FILE__, __LINE__, this);
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -1032,7 +1042,7 @@ void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
 */
 
 DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * record, int key_length) {
-    DBUG_ENTER("ha_tokudb::create_key");
+    TOKUDB_DBUG_ENTER("ha_tokudb::create_key");
     bzero((void *) key, sizeof(*key));
     if (hidden_primary_key && keynr == primary_key) {
         key->data = current_ident;
@@ -1079,7 +1089,7 @@ DBT *ha_tokudb::create_key(DBT * key, uint keynr, uchar * buff, const uchar * re
 */
 
 DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length) {
-    DBUG_ENTER("ha_tokudb::pack_key");
+    TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
     KEY *key_info = table->key_info + keynr;
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + key_info->key_parts;
@@ -1145,7 +1155,7 @@ void ha_tokudb::get_status() {
         pthread_mutex_lock(&share->mutex);
 
         (void) extra(HA_EXTRA_KEYREAD);
-        error = read_last();
+        read_last();
         (void) extra(HA_EXTRA_NO_KEYREAD);
 
         if (error == 0) {
@@ -1216,7 +1226,7 @@ void ha_tokudb::get_status() {
 }
 
 static int write_status(DB * status_block, char *buff, uint length) {
-    DBUG_ENTER("write_status");
+    TOKUDB_DBUG_ENTER("write_status");
     DBT row, key;
     int error;
     const char *key_buff = "status";
@@ -1232,7 +1242,7 @@ static int write_status(DB * status_block, char *buff, uint length) {
 }
 
 static void update_status(TOKUDB_SHARE * share, TABLE * table) {
-    DBUG_ENTER("update_status");
+    TOKUDB_DBUG_ENTER("update_status");
     if (share->rows != share->org_rows || (share->status & STATUS_TOKUDB_ANALYZE)) {
         pthread_mutex_lock(&share->mutex);
         if (!share->status_block) {
@@ -1307,7 +1317,7 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 }
 
 int ha_tokudb::write_row(uchar * record) {
-    DBUG_ENTER("write_row");
+    TOKUDB_DBUG_ENTER("write_row");
     DBT row, prim_key, key;
     int error;
 
@@ -1408,7 +1418,7 @@ int ha_tokudb::key_cmp(uint keynr, const uchar * old_row, const uchar * new_row)
   Clobbers key_buff2
 */
 int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * new_key, bool local_using_ignore) {
-    DBUG_ENTER("update_primary_key");
+    TOKUDB_DBUG_ENTER("update_primary_key");
     DBT row;
     int error;
 
@@ -1442,7 +1452,7 @@ int ha_tokudb::update_primary_key(DB_TXN * trans, bool primary_key_changed, cons
   Clobbers keybuff2
 */
 int ha_tokudb::restore_keys(DB_TXN * trans, key_map * changed_keys, uint primary_key, const uchar * old_row, DBT * old_key, const uchar * new_row, DBT * new_key) {
-    DBUG_ENTER("restore_keys");
+    TOKUDB_DBUG_ENTER("restore_keys");
     int error;
     DBT tmp_key;
     uint keynr;
@@ -1474,7 +1484,7 @@ int ha_tokudb::restore_keys(DB_TXN * trans, key_map * changed_keys, uint primary
 }
 
 int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
-    DBUG_ENTER("update_row");
+    TOKUDB_DBUG_ENTER("update_row");
     DBT prim_key, key, old_prim_key;
     int error;
     DB_TXN *sub_trans;
@@ -1550,7 +1560,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 */
 
 int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key) {
-    DBUG_ENTER("remove_key");
+    TOKUDB_DBUG_ENTER("remove_key");
     int error;
     DBT key;
     DBUG_PRINT("enter", ("index: %d", keynr));
@@ -1597,7 +1607,7 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_recor
 }
 
 int ha_tokudb::delete_row(const uchar * record) {
-    DBUG_ENTER("delete_row");
+    TOKUDB_DBUG_ENTER("delete_row");
     int error;
     DBT row, prim_key;
     key_map keys = table_share->keys_in_use;
@@ -1629,7 +1639,7 @@ int ha_tokudb::delete_row(const uchar * record) {
 }
 
 int ha_tokudb::index_init(uint keynr, bool sorted) {
-    DBUG_ENTER("ha_tokudb::index_init");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_init");
     int error;
     DBUG_PRINT("enter", ("table: '%s'  key: %d", table_share->table_name.str, keynr));
 
@@ -1651,7 +1661,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
 }
 
 int ha_tokudb::index_end() {
-    DBUG_ENTER("ha_tokudb::index_end");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_end");
     int error = 0;
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
@@ -1664,7 +1674,7 @@ int ha_tokudb::index_end() {
 
 /* What to do after we have read a row based on an index */
 int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * found_key, bool read_next) {
-    DBUG_ENTER("ha_tokudb::read_row");
+    TOKUDB_DBUG_ENTER("ha_tokudb::read_row");
     if (error) {
         if (error == DB_NOTFOUND || error == DB_KEYEMPTY)
             error = read_next ? HA_ERR_END_OF_FILE : HA_ERR_KEY_NOT_FOUND;
@@ -1703,7 +1713,7 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
   This is only used to read whole keys
 */
 int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_tokudb::index_read_idx");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_read_idx");
     table->in_use->status_var.ha_read_key_count++;
     current_row.flags = DB_DBT_REALLOC;
     active_index = MAX_KEY;
@@ -1711,7 +1721,7 @@ int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint k
 }
 
 int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
-    DBUG_ENTER("ha_tokudb::index_read");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_read");
     DBT row;
     int error;
 
@@ -1795,7 +1805,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
   the previous key
 */
 int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
-    DBUG_ENTER("ha_tokudb::index_read_last");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_read_last");
     DBT row;
     int error;
     KEY *key_info = &table->key_info[active_index];
@@ -1819,7 +1829,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 
 
 int ha_tokudb::index_next(uchar * buf) {
-    DBUG_ENTER("ha_tokudb::index_next");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
@@ -1827,7 +1837,7 @@ int ha_tokudb::index_next(uchar * buf) {
 }
 
 int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
-    DBUG_ENTER("ha_tokudb::index_next_same");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same");
     DBT row;
     int error;
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
@@ -1850,7 +1860,7 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
 }
 
 int ha_tokudb::index_prev(uchar * buf) {
-    DBUG_ENTER("ha_tokudb::index_prev");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_prev_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
@@ -1858,7 +1868,7 @@ int ha_tokudb::index_prev(uchar * buf) {
 }
 
 int ha_tokudb::index_first(uchar * buf) {
-    DBUG_ENTER("ha_tokudb::index_first");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
@@ -1866,7 +1876,7 @@ int ha_tokudb::index_first(uchar * buf) {
 }
 
 int ha_tokudb::index_last(uchar * buf) {
-    DBUG_ENTER("ha_tokudb::index_last");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
@@ -1874,7 +1884,7 @@ int ha_tokudb::index_last(uchar * buf) {
 }
 
 int ha_tokudb::rnd_init(bool scan) {
-    DBUG_ENTER("ha_tokudb::rnd_init");
+    TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     current_row.flags = DB_DBT_REALLOC;
     TOKUDB_DBUG_RETURN(index_init(primary_key, 0));
 }
@@ -1884,7 +1894,7 @@ int ha_tokudb::rnd_end() {
 }
 
 int ha_tokudb::rnd_next(uchar * buf) {
-    DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
+    TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_rnd_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
@@ -1912,7 +1922,7 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
 }
 
 int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
-    DBUG_ENTER("ha_tokudb::rnd_pos");
+    TOKUDB_DBUG_ENTER("ha_tokudb::rnd_pos");
     DBT db_pos;
     statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
     active_index = MAX_KEY;
@@ -1942,7 +1952,7 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
 */
 
 void ha_tokudb::position(const uchar * record) {
-    DBUG_ENTER("ha_tokudb::position");
+    TOKUDB_DBUG_ENTER("ha_tokudb::position");
     DBT key;
     if (hidden_primary_key) {
         DBUG_ASSERT(ref_length == TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH);
@@ -1956,7 +1966,7 @@ void ha_tokudb::position(const uchar * record) {
 }
 
 int ha_tokudb::info(uint flag) {
-    DBUG_ENTER("ha_tokudb::info");
+    TOKUDB_DBUG_ENTER("ha_tokudb::info");
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + changed_rows;
@@ -2021,7 +2031,7 @@ int ha_tokudb::reset(void) {
 */
 
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
-    DBUG_ENTER("ha_tokudb::external_lock");
+    TOKUDB_DBUG_ENTER("ha_tokudb::external_lock");
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
     if (!trx) {
@@ -2095,7 +2105,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
 */
 
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
-    DBUG_ENTER("ha_tokudb::start_stmt");
+    TOKUDB_DBUG_ENTER("ha_tokudb::start_stmt");
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
     DBUG_ASSERT(trx);
@@ -2154,7 +2164,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
 
 
 static int create_sub_table(const char *table_name, const char *sub_name, DBTYPE type, int flags) {
-    DBUG_ENTER("create_sub_table");
+    TOKUDB_DBUG_ENTER("create_sub_table");
     int error;
     DB *file;
     DBUG_PRINT("enter", ("sub_name: %s  flags: %d", sub_name, flags));
@@ -2227,7 +2237,7 @@ static int rmall(const char *dname) {
 }
 
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
-    DBUG_ENTER("ha_tokudb::create");
+    TOKUDB_DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
     int error;
     char newname[get_name_length(name) + 32];
@@ -2293,7 +2303,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
 
 int ha_tokudb::delete_table(const char *name) {
-    DBUG_ENTER("ha_tokudb::delete_table");
+    TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
     int error;
 #if 0 // QQQ single file per table
     char name_buff[FN_REFLEN];
@@ -2366,7 +2376,7 @@ double ha_tokudb::scan_time() {
 }
 
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range * end_key) {
-    DBUG_ENTER("ha_tokudb::records_in_range");
+    TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
 #if 0 // QQQ need key_range
     DBT key;
     DB_KEY_RANGE start_range, end_range;
@@ -2494,7 +2504,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
 
 #if 0 // QQQ use default
 int ha_tokudb::check(THD * thd, HA_CHECK_OPT * check_opt) {
-    DBUG_ENTER("ha_tokudb::check");
+    TOKUDB_DBUG_ENTER("ha_tokudb::check");
     TOKUDB_DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
     // look in old_ha_tokudb.cc for a start of an implementation
 }
