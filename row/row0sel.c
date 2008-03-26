@@ -2759,6 +2759,25 @@ row_sel_store_mysql_rec(
 
 			data = rec_get_nth_field(rec, offsets,
 						 templ->rec_field_no, &len);
+
+			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)
+			    && len != UNIV_SQL_NULL) {
+
+				/* It is a BLOB field locally stored in the
+				InnoDB record: we MUST copy its contents to
+				prebuilt->blob_heap here because later code
+				assumes all BLOB values have been copied to a
+				safe place. */
+
+				if (prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap = mem_heap_create(
+						UNIV_PAGE_SIZE);
+				}
+
+				data = memcpy(mem_heap_alloc(
+						prebuilt->blob_heap, len),
+						data, len);
+			}
 		}
 
 		if (len != UNIV_SQL_NULL) {
