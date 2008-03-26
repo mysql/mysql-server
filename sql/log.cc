@@ -418,6 +418,7 @@ bool Log_to_csv_event_handler::
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
+  table->field[5]->flags|= FIELDFLAG_HEX_ESCAPE;
   if (table->field[5]->store(sql_text, sql_text_len, client_cs) < 0)
     goto err;
 

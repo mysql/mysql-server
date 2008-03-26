@@ -131,6 +131,16 @@ SET GLOBAL GENERAL_LOG=ON;
 SET GLOBAL SLOW_QUERY_LOG=ON;
 
 #
+# Bug#23924 general_log truncates queries with character set introducers.
+#
+truncate table mysql.general_log;
+set names binary;
+select _koi8r'тест' as test;
+--replace_column 1 TIMESTAMP 2 USER_HOST 3 THREAD_ID
+select * from mysql.general_log;
+set names utf8;
+
+#
 # Bug #16905    Log tables: unicode statements are logged incorrectly
 #
 
