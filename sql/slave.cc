@@ -4026,9 +4026,10 @@ end:
    has a certain bug.
    @param rli Relay_log_info which tells the master's version
    @param bug_id Number of the bug as found in bugs.mysql.com
+   @param report bool report error message, default TRUE
    @return TRUE if master has the bug, FALSE if it does not.
 */
-bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
+bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
 {
   struct st_version_range_for_one_bug {
     uint        bug_id;
@@ -4038,7 +4039,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
   static struct st_version_range_for_one_bug versions_for_all_bugs[]=
   {
     {24432, { 5, 0, 24 }, { 5, 0, 38 } },
-    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } },
+    {33029, { 5, 0,  0 }, { 5, 0, 58 } },
+    {33029, { 5, 1,  0 }, { 5, 1, 12 } },
   };
   const uchar *master_ver=
     rli->relay_log.description_event_for_exec->server_version_split;
@@ -4054,6 +4057,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
         (memcmp(introduced_in, master_ver, 3) <= 0) &&
         (memcmp(fixed_in,      master_ver, 3) >  0))
     {
+      if (!report)
+	return TRUE;
+      
       // a short message for SHOW SLAVE STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"
@@ -4081,6 +4087,26 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
                       fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
+  }
+  return FALSE;
+}
+
+/**
+   BUG#33029, For all 5.0 up to 5.0.58 exclusive, and 5.1 up to 5.1.12
+   exclusive, if one statement in a SP generated AUTO_INCREMENT value
+   by the top statement, all statements after it would be considered
+   generated AUTO_INCREMENT value by the top statement, and a
+   erroneous INSERT_ID value might be associated with these statement,
+   which could cause duplicate entry error and stop the slave.
+
+   Detect buggy master to work around.
+ */
+bool rpl_master_erroneous_autoinc(THD *thd)
+{
+  if (active_mi && active_mi->rli.sql_thd == thd)
+  {
+    Relay_log_info *rli= &active_mi->rli;
+    return rpl_master_has_bug(rli, 33029, FALSE);
   }
   return FALSE;
 }
