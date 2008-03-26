@@ -15806,6 +15806,14 @@ void st_select_lex::print(THD *thd, String *str)
     /* go through join tree */
     print_join(thd, str, &top_join_list);
   }
+  else if (where)
+  {
+    /*
+      "SELECT 1 FROM DUAL WHERE 2" should not be printed as 
+      "SELECT 1 WHERE 2": the 1st syntax is valid, but the 2nd is not.
+    */
+    str->append(STRING_WITH_LEN(" from DUAL "));
+  }
 
   // Where
   Item *cur_where= where;
