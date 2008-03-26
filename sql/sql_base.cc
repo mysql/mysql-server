@@ -747,6 +747,7 @@ void close_handle_and_leave_table_as_lock(TABLE *table)
   table->db_stat= 0;                            // Mark file closed
   release_table_share(table->s, RELEASE_NORMAL);
   table->s= share;
+  table->file->change_table_ptr(table, table->s);
 
   DBUG_VOID_RETURN;
 }

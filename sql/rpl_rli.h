@@ -296,7 +296,7 @@ public:
   void close_temporary_tables();
 
   /* Check if UNTIL condition is satisfied. See slave.cc for more. */
-  bool is_until_satisfied();
+  bool is_until_satisfied(my_off_t master_beg_pos);
   inline ulonglong until_pos()
   {
     return ((until_condition == UNTIL_MASTER_POS) ? group_master_log_pos :

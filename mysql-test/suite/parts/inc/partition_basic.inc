@@ -30,25 +30,6 @@
 let $unique= ;
 --source suite/parts/inc/partition_methods1.inc
 #
-   --echo # 1.1.1 with DATA DIECTORY/INDEX DIRECTORY
-   #
-   --disable_query_log
-   # DATA DIRECTORY
-   eval SET @data_dir = 'DATA DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/tmp''''';
-   let $data_directory = `select @data_dir`;
-
-   #INDEX DIRECTORY
-   eval SET @indx_dir = 'INDEX DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/tmp''''';
-   let $index_directory = `select @indx_dir`;
-
-   let $with_directories= 1;
-   --source suite/parts/inc/partition_methods1.inc
-   --source suite/parts/inc/partition_directory.inc
-   let $with_directories= 0;
-   --enable_query_log
-   #
 --echo #  1.2 The partitioning function contains two columns.
 let $unique= ;
 --source suite/parts/inc/partition_methods2.inc
@@ -68,24 +49,6 @@ if ($more_pk_ui_tests)
    --echo #  2.2 UNIQUE INDEX consisting of one column
    let $unique= , UNIQUE INDEX uidx1 (f_int1);
    --source suite/parts/inc/partition_methods1.inc
-
-   --echo # 2.2.1 with DATA DIECTORY/INDEX DIRECTORY
-   #
-   --disable_query_log
-   # DATA DIRECTORY
-   eval SET @data_dir = 'DATA DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/tmp''''';
-   let $data_directory = `select @data_dir`;
-
-   #INDEX DIRECTORY
-   eval SET @indx_dir = 'INDEX DIRECTORY =
-   ''''$MYSQLTEST_VARDIR/tmp''''';
-   let $index_directory = `select @indx_dir`;
-
-   let $with_directories= TRUE;
-   --source suite/parts/inc/partition_methods1.inc
-   let $with_directories= FALSE;
-   --enable_query_log
    #
    if ($do_pk_tests)
    {
