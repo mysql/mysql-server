@@ -32,8 +32,8 @@
 
 
 NdbRestarter::NdbRestarter(const char* _addr): 
-  connected(false),
   handle(NULL),
+  connected(false),
   m_config(0),
   m_reconnect(false)
 {
