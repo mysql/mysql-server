@@ -2764,6 +2764,19 @@ bool mysql_insert_select_prepare(THD *thd)
   DBUG_ENTER("mysql_insert_select_prepare");
 
   /*
+    Statement-based replication of INSERT ... SELECT ... LIMIT is not safe
+    as order of rows is not defined, so in mixed mode we go to row-based.
+
+    Note that we may consider a statement as safe if ORDER BY primary_key
+    is present or we SELECT a constant. However it may confuse users to
+    see very similiar statements replicated differently.
+  */
+  if (lex->current_select->select_limit)
+  {
+    lex->set_stmt_unsafe();
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+  }
+  /*
     SELECT_LEX do not belong to INSERT statement, so we can't add WHERE
     clause if table is VIEW
   */
