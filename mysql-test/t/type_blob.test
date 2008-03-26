@@ -449,6 +449,9 @@ set @@sql_mode='';
 # raise ER_TOO_BIG_DISPLAYWIDTH
 
 # BLOB and TEXT types
+--disable_warnings
+drop table if exists b15776;
+--enable_warnings
 create table b15776 (data blob(2147483647));
 drop table b15776;
 --error ER_PARSE_ERROR
@@ -570,7 +573,7 @@ explain select cast(1 as binary(4294967296));
 explain select cast(1 as decimal(-1));
 explain select cast(1 as decimal(64, 30));
 # It's not as important which errors are raised for these, since the 
-# limit is nowhere near 3**32.  We may fix these eventually to take
+# limit is nowhere near 2**32.  We may fix these eventually to take
 # 4294967295 and still reject it because it's greater than 64 or 30, 
 # but that's not a high priority and the parser needn't worry about 
 # such a weird case.
