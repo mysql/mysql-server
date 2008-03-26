@@ -39,7 +39,7 @@ COMMIT;
 BEGIN;
 INSERT INTO tmyisam VALUES (5);
 INSERT INTO tmyisam VALUES (6);
---warning 1196
+#--warning 1196
 ROLLBACK;
 
 SELECT * FROM tmyisam ORDER BY a;
