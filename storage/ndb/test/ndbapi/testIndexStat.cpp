@@ -105,6 +105,27 @@ static Ndb* g_ndb = 0;
 static NdbDictionary::Dictionary* g_dic = 0;
 static const NdbDictionary::Table* g_tab = 0;
 static const NdbDictionary::Index* g_ind = 0;
+static const NdbRecord* g_tab_rec = 0;
+static const NdbRecord* g_ind_rec = 0;
+
+
+struct my_record
+{
+  Uint32 m_null_bm;
+  Uint32 m_a;
+  Uint16 m_b;
+  char m_c[1+g_charlen];
+  Uint32 m_d;
+};
+
+
+static const Uint32 g_ndbrec_a_offset=offsetof(my_record, m_a);
+static const Uint32 g_ndbrec_b_offset=offsetof(my_record, m_b);
+static const Uint32 g_ndbrec_c_offset=offsetof(my_record, m_c);
+static const Uint32 g_ndbrec_c_nb_offset=2;
+static const Uint32 g_ndbrec_d_offset=offsetof(my_record, m_d);
+static const Uint32 g_ndbrec_d_nb_offset=3;
+static const Uint32 g_ndbrecord_bytes=sizeof(my_record);
 
 static NdbIndexStat* g_stat = 0;
 
@@ -193,6 +214,53 @@ errdb()
     ll0("unknown db error");
 }
 
+/* Methods to create NdbRecord structs for the table and index */
+static int
+createNdbRecords()
+{
+  const Uint32 numCols=4;
+  const Uint32 numIndexCols=3;
+  NdbDictionary::RecordSpecification recSpec[numCols];
+
+  recSpec[0].column= g_tab->getColumn("a"); // 4 bytes
+  recSpec[0].offset= g_ndbrec_a_offset;
+  recSpec[0].nullbit_byte_offset= 0;
+  recSpec[0].nullbit_bit_in_byte= 0;
+ 
+  recSpec[1].column= g_tab->getColumn("b"); // 2 bytes
+  recSpec[1].offset= g_ndbrec_b_offset;
+  recSpec[1].nullbit_byte_offset= 0;
+  recSpec[1].nullbit_bit_in_byte= 0;
+ 
+  recSpec[2].column= g_tab->getColumn("c"); // Varchar(10) -> ~12 bytes
+  recSpec[2].offset= g_ndbrec_c_offset;
+  recSpec[2].nullbit_byte_offset= 0;
+  recSpec[2].nullbit_bit_in_byte= g_ndbrec_c_nb_offset;
+
+  recSpec[3].column= g_tab->getColumn("d"); // 4 bytes
+  recSpec[3].offset= g_ndbrec_d_offset;
+  recSpec[3].nullbit_byte_offset= 0;
+  recSpec[3].nullbit_bit_in_byte= g_ndbrec_d_nb_offset;
+
+  g_tab_rec= g_dic->createRecord(g_tab,
+                                 &recSpec[0],
+                                 numCols,
+                                 sizeof(NdbDictionary::RecordSpecification),
+                                 0);
+
+  chkrc(g_tab_rec != NULL);
+
+  g_ind_rec= g_dic->createRecord(g_ind,
+                                 &recSpec[1],
+                                 numIndexCols,
+                                 sizeof(NdbDictionary::RecordSpecification),
+                                 0);
+  
+  chkrc(g_ind_rec != NULL);
+
+  return 0;
+}
+
 // create table ts0 (
 //   a int unsigned, b smallint not null, c varchar(10), d int unsigned,
 //   primary key using hash (a), index (b, c, d) )
@@ -250,6 +318,9 @@ createtable()
   }
   chkdb((g_tab = g_dic->getTable(g_tabname)) != 0);
   chkdb((g_ind = g_dic->getIndex(g_indname, g_tabname)) != 0);
+  
+  chkrc(createNdbRecords() == 0);
+
   g_dic = 0;
   return 0;
 }
@@ -497,10 +568,19 @@ countrows()
   Uint64 rows = 0;
   Uint64 r;
   char* r_addr = (char*)&r;
+  
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  chkrc(code.interpret_exit_last_row());
+  chkrc(code.finalise());
+
   chkdb((g_con = g_ndb->startTransaction()) != 0);
   chkdb((g_scan_op = g_con->getNdbScanOperation(g_tab)) != 0);
   chkdb(g_scan_op->readTuples() == 0);
-  chkdb(g_scan_op->interpret_exit_last_row() == 0);
+  chkdb(g_scan_op->setInterpretedCode(&code) == 0);
   chkdb(g_scan_op->getValue(NdbDictionary::Column::ROW_COUNT, r_addr) != 0);
   chkdb(g_con->execute(NdbTransaction::NoCommit) == 0);
   while (1) {
@@ -716,7 +796,7 @@ Bnd::cmp(const Val& theval) const
   int place; // debug
   int ret;
   do {
-    assert(theval.numattrs == g_numattrs);
+    assert(theval.numattrs == (uint) g_numattrs);
     int k = theval.cmp(val, val.numattrs);
     if (k != 0) {
       place = 1;
@@ -942,9 +1022,7 @@ makeranges()
       range.bnd[1] = range.bnd[0];
       range.bnd[0].side = -1;
       range.bnd[1].side = +1;
-      // fix types
-      range.bnd[0];
-      range.bnd[1];
+
       assert(range.iseq());
     }
   }
@@ -975,10 +1053,12 @@ setbounds(const Range& range)
   ll2("setbounds: " << range);
   uint i;
   const Bnd (&bnd)[2] = range.bnd;
-  for (i = 0; i < g_numattrs; i++) {
+  for (i = 0; i < (uint)g_numattrs; i++) {
     const Uint32 no = i; // index attribute number
     uint j;
     int type[2] = { -1, -1 };
+    // determine inclusivity (boundtype) of upper+lower bounds on this col.
+    // -1 == no bound on the col.
     for (j = 0; j <= 1; j++) {
       if (no < bnd[j].val.numattrs)
         type[j] = bnd[j].type(j, no);
@@ -992,17 +1072,111 @@ setbounds(const Range& range)
       const Val& val = bnd[j].val;
       const void* addr = 0;
       if (no == 0)
-        addr = (const void*)&val.b;
+        addr = (const void*)&val.b; // col a, not nullable
       else if (no == 1)
-        addr = ! val.c_null ? (const void*)val.c : 0;
+        addr = ! val.c_null ? (const void*)val.c : 0; // col b, nullable
       else if (no == 2)
-        addr = ! val.d_null ? (const void*)&val.d : 0;
+        addr = ! val.d_null ? (const void*)&val.d : 0; // col c, nullable
       else
         assert(false);
       ll2("setBound attr:" << no << " type:" << t << " val: " << val);
       chkdb(g_rangescan_op->setBound(no, t, addr) == 0);
     }
   }
+  return 0;
+}
+
+/* This method initialises the passed in IndexBound
+ * to represent the range passed in.
+ * It assumes that the storage pointed to by low_key
+ * and high_key in the passed IndexBound can be overwritten
+ * and is long enough to store the data
+ */
+static int
+initialiseIndexBound(const Range& range, 
+                     NdbIndexScanOperation::IndexBound& ib)
+{
+  ll2("initialiseIndexBound: " << range);
+  uint i;
+  const Bnd (&bnd)[2] = range.bnd;
+  Uint32 colsInBound[2]= {0, 0};
+  bool boundInclusive[2]= {false, false};
+
+  // Clear nullbit storage
+  *((char *)ib.low_key) = 
+    *((char *)ib.high_key) = 0;
+
+  for (i = 0; i < (uint)g_numattrs; i++) {
+    const Uint32 no = i; // index attribute number
+    uint j;
+    int type[2] = { -1, -1 };
+    // determine inclusivity (boundtype) of upper+lower bounds on this col.
+    // -1 == no bound on the col.
+    for (j = 0; j <= 1; j++) {
+      if (no < bnd[j].val.numattrs)
+        type[j] = bnd[j].type(j, no);
+    }
+    for (j = 0; j <= 1; j++) {
+      /* Get ptr to key storage space for this bound */
+      my_record* keyBuf= (my_record *)( (j==0) ? ib.low_key : ib.high_key);
+      int t = type[j];
+      if (t == -1)
+        continue;
+      colsInBound[j]++;
+
+      if (no + 1 >= bnd[j].val.numattrs)
+        // Last column in bound, inclusive if GE or LE (or EQ)
+        // i.e. bottom bit of boundtype is clear
+        boundInclusive[j]= !(t & 1);
+      
+      const Val& val = bnd[j].val;
+      if (no == 0)
+        // b, not nullable
+        keyBuf->m_b= val.b;
+      else if (no == 1)
+      {
+        // c, nullable
+        if (! val.c_null)
+          memcpy(&keyBuf->m_c[0],
+                 (const void*)&val.c,
+                 1+ g_charlen);
+        
+        // Set null bit
+        keyBuf->m_null_bm |= ((val.c_null?1:0) << g_ndbrec_c_nb_offset);
+      } 
+      else if (no == 2)
+      {
+        // d, nullable
+        if (! val.d_null)
+          keyBuf->m_d= val.d;
+
+        // Set null bit
+        keyBuf->m_null_bm |= ((val.d_null?1:0) << g_ndbrec_d_nb_offset);
+      }
+      else
+        assert(false);
+      ll2("initialiseIndexBound attr:" << no << " type:" << t << " val: " << val);
+    }
+  }
+
+  /* Now have everything we need to initialise the IndexBound */
+  ib.low_key_count= colsInBound[0];
+  ib.low_inclusive= boundInclusive[0];
+  ib.high_key_count= colsInBound[1];
+  ib.high_inclusive= boundInclusive[1];
+  ib.range_no= 0;
+
+  ll2(" indexBound low_key_count=" << ib.low_key_count << 
+      " low_inc=" << ib.low_inclusive <<
+      " high_key_count=" << ib.high_key_count <<
+      " high_inc=" << ib.high_inclusive);
+  ll2(" low bound b=" << *((Uint16*) &ib.low_key[g_ndbrec_b_offset]) <<
+      " d=" << *((Uint32*) &ib.low_key[g_ndbrec_d_offset]) <<
+      " first byte=%xu" << ib.low_key[0]);
+  ll2(" high bound b=" << *((Uint16*) &ib.high_key[g_ndbrec_b_offset]) <<
+      " d=" << *((Uint32*) &ib.high_key[g_ndbrec_d_offset]) <<
+      " first byte=%xu" << ib.high_key[0]);  
+
   return 0;
 }
 
@@ -1018,12 +1192,25 @@ static int
 runstat(Range& range, int flags)
 {
   ll2("runstat: " << range << " flags=" << flags);
+  
+  /* Create IndexBound and key storage space */
+  char keySpace[2][g_ndbrecord_bytes];
+  NdbIndexScanOperation::IndexBound ib;
+  ib.low_key= keySpace[0];
+  ib.high_key= keySpace[1];
+
   chkdb((g_con = g_ndb->startTransaction()) != 0);
-  chkdb((g_rangescan_op = g_con->getNdbIndexScanOperation(g_ind, g_tab)) != 0);
-  chkdb(g_rangescan_op->readTuples(NdbOperation::LM_CommittedRead) == 0);
-  chkrc(setbounds(range) == 0);
+  chkrc(initialiseIndexBound(range, ib) == 0);
+
   Uint64 count = ~(Uint64)0;
-  chkdb(g_stat->records_in_range(g_ind, g_rangescan_op, g_opts.rows, &count, flags) == 0);
+  chkdb(g_stat->records_in_range(g_ind, 
+                                 g_con,
+                                 g_ind_rec,
+                                 g_tab_rec,
+                                 &ib,
+                                 g_opts.rows, 
+                                 &count, 
+                                 flags) == 0);
   g_ndb->closeTransaction(g_con);
   g_con = 0;
   g_rangescan_op = 0;
@@ -1252,7 +1439,7 @@ setseed(int n)
   if (n == -1) {
     if (g_opts.seed == 0)
       return;
-    if (g_opts.seed != -1)
+    if (g_opts.seed != (uint) -1)
       seed = (uint)g_opts.seed;
     else
       seed = 1 + (ushort)getpid();
@@ -1389,7 +1576,7 @@ main(int argc, char** argv)
     strchr(argv[0], '/') ? strrchr(argv[0], '/') + 1 : argv[0];
   uint i;
   ndbout << g_progname;
-  for (i = 1; i < argc; i++)
+  for (i = 1; i < (uint)argc; i++)
     ndbout << " " << argv[i];
   ndbout << endl;
   int ret;

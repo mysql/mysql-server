@@ -277,6 +277,7 @@ private:
 
   int setup(const class NdbDictionary::Column* col, char* aValue);
   int setup(const class NdbColumnImpl* anAttrInfo, char* aValue);
+  int setup(Uint32 byteSize, char* aValue);
                                 /* Set up attributes and buffers        */
   bool copyoutRequired() const; /* Need to copy data to application     */
   void copyout();               /* Copy from storage to application     */
