@@ -269,7 +269,7 @@ public:
   bool set_up_defaults_for_partitioning(handler *file, HA_CREATE_INFO *info,
                                         uint start_no);
   char *has_unique_names();
-  static bool check_engine_mix(handlerton **engine_array, uint no_parts);
+  bool check_engine_mix(handlerton *engine_type, bool default_engine);
   bool check_range_constants();
   bool check_list_constants();
   bool check_partition_info(THD *thd, handlerton **eng_type,

@@ -37,6 +37,9 @@ uint32 well_formed_copy_nchars(CHARSET_INFO *to_cs,
                                const char **well_formed_error_pos,
                                const char **cannot_convert_error_pos,
                                const char **from_end_pos);
+size_t my_copy_with_hex_escaping(CHARSET_INFO *cs,
+                                 char *dst, size_t dstlen,
+                                 const char *src, size_t srclen);
 
 class String
 {
