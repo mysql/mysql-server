@@ -842,11 +842,12 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
     */
     if (share->hostname[0] == '\0')
       share->hostname= NULL;
-
   }
+
   if (!share->port)
   {
     if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
+      share->socket= (char*) MYSQL_UNIX_ADDR;
     else
       share->port= MYSQL_PORT;
   }
