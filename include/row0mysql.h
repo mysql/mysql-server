@@ -679,7 +679,7 @@ struct row_prebuilt_struct {
 					fetched row in fetch_cache */
 	ulint		n_fetch_cached;	/* number of not yet fetched rows
 					in fetch_cache */
-	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fie lds are copied
+	mem_heap_t*	blob_heap;	/* in SELECTS BLOB fields are copied
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/* memory heap where a previous
 					version is built in consistent read */
