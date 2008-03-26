@@ -1189,30 +1189,27 @@ Dbtup::releaseScanOp(ScanOpPtr& scanPtr)
 void
 Dbtup::execLCP_FRAG_ORD(Signal* signal)
 {
+  jamEntry();
   LcpFragOrd* req= (LcpFragOrd*)signal->getDataPtr();
   
   TablerecPtr tablePtr;
   tablePtr.i = req->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  if (tablePtr.p->m_no_of_disk_attributes)
-  {
-    jam();
-    FragrecordPtr fragPtr;
-    Uint32 fragId = req->fragmentId;
-    fragPtr.i = RNIL;
-    getFragmentrec(fragPtr, fragId, tablePtr.p);
-    ndbrequire(fragPtr.i != RNIL);
-    Fragrecord& frag = *fragPtr.p;
-    
-    ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
-    frag.m_lcp_scan_op = c_lcp_scan_op;
-    ScanOpPtr scanPtr;
-    c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
-    ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
-    scanPtr.p->m_fragPtrI = fragPtr.i;
-    
-    scanFirst(signal, scanPtr);
-    scanPtr.p->m_state = ScanOp::First;
-  }
+  FragrecordPtr fragPtr;
+  Uint32 fragId = req->fragmentId;
+  fragPtr.i = RNIL;
+  getFragmentrec(fragPtr, fragId, tablePtr.p);
+  ndbrequire(fragPtr.i != RNIL);
+  Fragrecord& frag = *fragPtr.p;
+  
+  ndbrequire(frag.m_lcp_scan_op == RNIL && c_lcp_scan_op != RNIL);
+  frag.m_lcp_scan_op = c_lcp_scan_op;
+  ScanOpPtr scanPtr;
+  c_scanOpPool.getPtr(scanPtr, frag.m_lcp_scan_op);
+  ndbrequire(scanPtr.p->m_fragPtrI == RNIL);
+  scanPtr.p->m_fragPtrI = fragPtr.i;
+  
+  scanFirst(signal, scanPtr);
+  scanPtr.p->m_state = ScanOp::First;
 }

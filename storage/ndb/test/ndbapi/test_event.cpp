@@ -559,7 +559,7 @@ int runEventMixedLoad(NDBT_Context* ctx, NDBT_Step* step)
 
 int runDropEvent(NDBT_Context* ctx, NDBT_Step* step)
 {
-  return NDBT_OK;
+  return dropEvent(GETNDB(step), * ctx->getTab());
 }
 
 int runVerify(NDBT_Context* ctx, NDBT_Step* step)

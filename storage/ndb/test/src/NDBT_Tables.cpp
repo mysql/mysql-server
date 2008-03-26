@@ -194,6 +194,27 @@ static
 const
 NDBT_Table T13("T13", sizeof(T13Attribs)/sizeof(NDBT_Attribute), T13Attribs);
 
+
+/* T14 - 5 primary keys */
+static
+const
+NDBT_Attribute T14Attribs[] = {
+  NDBT_Attribute("KOL1", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL2", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL3", NdbDictionary::Column::Char, 4, true), 
+  NDBT_Attribute("KOL4", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL5", NdbDictionary::Column::Unsigned, 1, true), 
+  NDBT_Attribute("KOL20", NdbDictionary::Column::Unsigned),
+  NDBT_Attribute("KOL30", NdbDictionary::Column::Int),
+  NDBT_Attribute("KOL40", NdbDictionary::Column::Float),
+  NDBT_Attribute("KOL50", NdbDictionary::Column::Char, 200, false, false, 0, MM, true)
+};
+
+
+static
+const
+NDBT_Table T14("T14", sizeof(T14Attribs)/sizeof(NDBT_Attribute), T14Attribs);
+
 /*
   T15 - Dynamic attributes.
   Test many different combinations of attribute types, sizes, and NULLability.
@@ -407,6 +428,7 @@ NDBT_Table *test_tables[]=
   &T4,
   &T6,
   &T13,
+  &T14,
   &T15,
   &T16,
   &I1,
