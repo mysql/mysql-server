@@ -221,8 +221,6 @@ sub main {
     gcov_prepare();
   }
 
-  mtr_report("Collecting tests...");
-
   if (!$opt_suites)
   {
     $opt_suites= $DEFAULT_SUITES;
