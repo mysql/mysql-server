@@ -1041,10 +1041,10 @@ NdbEventOperationImpl::printAll()
 
 NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_system_nodes(ndb->theImpl->theNoOfDBnodes),
-  m_ndb(ndb),
-  m_latestGCI(0), m_latest_complete_GCI(0),
   m_min_gci_index(0),
   m_max_gci_index(0),
+  m_ndb(ndb),
+  m_latestGCI(0), m_latest_complete_GCI(0),
   m_total_alloc(0),
   m_free_thresh(10),
   m_min_free_thresh(10),

@@ -40,7 +40,7 @@ class Ndb_event_data
 {
 public:
   Ndb_event_data(NDB_SHARE *the_share) : 
-    share(the_share), table_share((TABLE_SHARE *)0), table((TABLE *)0)
+    table_share((TABLE_SHARE *)0), table((TABLE *)0), share(the_share)
   {
     ndb_value[0]= 0;
     ndb_value[1]= 0;
