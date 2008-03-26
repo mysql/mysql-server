@@ -8,15 +8,53 @@ reset master;
 change master to master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
 start slave;
 create table t1 (n int);
+stop slave;
+create table t2 (n int);
+show tables;
+Tables_in_test
+t1
+t2
+create table t3 (n int) engine=innodb;
+set @a=1;
+insert into t3 values(@a);
+begin;
+insert into t3 values(2);
+insert into t3 values(3);
+commit;
+insert into t3 values(4);
+start slave until master_log_file="slave-bin.000001",master_log_pos=195;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+show tables;
+Tables_in_test
+t1
+t2
+start slave until master_log_file="slave-bin.000001",master_log_pos=438;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+select * from t3;
+n
+1
+start slave until master_log_file="slave-bin.000001",master_log_pos=663;
+Warnings:
+Note	1278	It is recommended to use --skip-slave-start when doing step-by-step replication with START SLAVE UNTIL; otherwise, you will get problems if you get an unexpected slave's mysqld restart
+select * from t3;
+n
+1
+2
+3
+start slave;
 create table t4 (n int);
 create table t5 (n int);
 create table t6 (n int);
 show tables;
 Tables_in_test
 t1
+t2
+t3
 t4
 t5
 t6
 stop slave;
 reset slave;
-drop table t1,t4,t5,t6;
+drop table t1,t2,t3,t4,t5,t6;
