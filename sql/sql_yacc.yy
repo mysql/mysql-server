@@ -3010,7 +3010,7 @@ udf_type:
 
 field_list:
 	  field_list_item
-	| field_list ',' field_list_item; /* FIXME:  Should this be backward? */
+	| field_list ',' field_list_item;
 
 
 field_list_item:
