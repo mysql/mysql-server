@@ -2351,37 +2351,7 @@ mysql_execute_command(THD *thd)
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifndef HAVE_READLINK
-    if (create_info.data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
-    if (create_info.index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
-    create_info.data_file_name= create_info.index_file_name= NULL;
-#else
-
-    if (test_if_data_home_dir(lex->create_info.data_file_name))
-    {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"DATA DIRECORY");
-      res= -1;
-      break;
-    }
-    if (test_if_data_home_dir(lex->create_info.index_file_name))
-    {
-      my_error(ER_WRONG_ARGUMENTS,MYF(0),"INDEX DIRECORY");
-      res= -1;
-      break;
-    }
-
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (check_partition_dirs(thd->lex->part_info))
-    {
-      res= -1;
-      break;
-    }
-#endif
-
+#ifdef HAVE_READLINK
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||

@@ -5379,4 +5379,13 @@ SHOW WARNINGS;
 Level	Code	Message
 Error	1178	The storage engine for the table doesn't support nullable columns
 Error	1005	Can't create table 'test.t1' (errno: 138)
+create table t1 (c1 tinyblob not null) engine=csv;
+insert into t1 values("This");
+update t1 set c1="That" where c1="This";
+affected rows: 1
+info: Rows matched: 1  Changed: 1  Warnings: 0
+select * from t1;
+c1
+That
+drop table t1;
 End of 5.1 tests
