@@ -360,7 +360,7 @@ Backup::execCONTINUEB(Signal* signal)
     return;
   }
   case BackupContinueB::ZDELAY_SCAN_NEXT:
-    if (ERROR_INSERTED(10036))
+    if (ERROR_INSERTED(10039))
     {
       jam();
       sendSignalWithDelay(BACKUP_REF, GSN_CONTINUEB, signal, 300, 
@@ -4140,7 +4140,7 @@ Backup::checkScan(Signal* signal, BackupFilePtr filePtr)
     req->batch_size_rows= 16;
     req->batch_size_bytes= 0;
 
-    if (ERROR_INSERTED(10036) && 
+    if (ERROR_INSERTED(10039) && 
 	filePtr.p->tableId >= 2 &&
 	filePtr.p->operation.noOfRecords > 0)
     {
