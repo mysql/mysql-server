@@ -598,4 +598,36 @@ show procedure code proc_33618_c;
 drop procedure proc_33618_h;
 drop procedure proc_33618_c;
 
+#
+# Bug#20906 (Multiple assignments in SET in stored routine produce incorrect
+# instructions)
+#
+
+--disable_warnings
+drop procedure if exists p_20906_a;
+drop procedure if exists p_20906_b;
+--enable_warnings
+
+create procedure p_20906_a() SET @a=@a+1, @b=@b+1;
+show procedure code p_20906_a;
+
+set @a=1;
+set @b=1;
+
+call p_20906_a();
+select @a, @b;
+
+create procedure p_20906_b() SET @a=@a+1, @b=@b+1, @c=@c+1;
+show procedure code p_20906_b;
+
+set @a=1;
+set @b=1;
+set @c=1;
+
+call p_20906_b();
+select @a, @b, @c;
+
+drop procedure p_20906_a;
+drop procedure p_20906_b;
+
 --echo End of 5.0 tests.
