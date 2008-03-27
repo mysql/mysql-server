@@ -70,7 +70,7 @@ void *ndb_thread_remove_thread_id(void *param)
   return NULL;
 }
 
-void ndb_thread_fill_thread_object(void *param, uint *len, bool server)
+void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
 {
   *len = 0;
 }

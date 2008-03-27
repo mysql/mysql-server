@@ -73,7 +73,7 @@ void*
 ndb_thread_remove_thread_id(void *param);
 
 void
-ndb_thread_fill_thread_object(void *param, uint *len, bool server);
+ndb_thread_fill_thread_object(void *param, uint *len, my_bool server);
 
 struct NdbThread;
 
@@ -158,8 +158,8 @@ NDB_THAND_TYPE NdbThread_getThreadHandle();
 /**
  * Set Scheduler for pid
  */
-int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, bool rt_prio,
-                           bool high_prio);
+int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
+                           my_bool high_prio);
 
 /**
  * Lock Thread to CPU

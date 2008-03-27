@@ -56,7 +56,7 @@ struct NdbThread
   void * object;
   NDB_THREAD_FUNC *start_func;
   NDB_THREAD_FUNC *end_func;
-  bool same_start_end_object;
+  my_bool same_start_end_object;
   char start_object[THREAD_CONTAINER_SIZE];
   char end_object[THREAD_CONTAINER_SIZE];
 };
@@ -324,7 +324,7 @@ get_min_prio(int policy)
 }
 
 static int
-get_prio(bool rt_prio, bool high_prio, int policy)
+get_prio(my_bool rt_prio, my_bool high_prio, int policy)
 {
   if (!rt_prio)
     return 0;
@@ -351,8 +351,8 @@ get_prio(bool rt_prio, bool high_prio, int policy)
 }
 
 int
-NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, bool rt_prio,
-                       bool high_prio)
+NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, my_bool rt_prio,
+                       my_bool high_prio)
 {
   int policy, prio, error_no= 0;
 #ifdef HAVE_LINUX_SCHEDULING

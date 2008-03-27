@@ -781,7 +781,7 @@ int init_floatvar_from_file(float* var, IO_CACHE* f, float default_val)
 
 static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
 {
-  char err_buff[MAX_SLAVE_ERRMSG];
+  char error_buf[MAX_SLAVE_ERRMSG];
   String err_msg(error_buf, sizeof(error_buf), &my_charset_bin);
   int err_code= 0;
   MYSQL_RES *master_res= 0;

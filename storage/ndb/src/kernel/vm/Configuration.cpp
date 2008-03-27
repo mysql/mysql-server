@@ -1098,7 +1098,7 @@ Configuration::setLockCPU(NDB_TID_TYPE threadId,
   return 0;
 }
 
-void ndb_thread_fill_thread_object(void *param, uint *len, bool server)
+void ndb_thread_fill_thread_object(void *param, uint *len, my_bool server)
 {
   struct ThreadContainer container;
 
