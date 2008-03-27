@@ -99,9 +99,11 @@ SELECT * FROM t2;
 
 # clean up
 connection master;
+disable_warnings;
 DROP TABLE IF EXISTS t1, t2;
 DROP PROCEDURE IF EXISTS p1;
 DROP PROCEDURE IF EXISTS p2;
 DROP FUNCTION IF EXISTS f1;
 DROP TRIGGER IF EXISTS tr1;
+enable_warnings;
 sync_slave_with_master;
