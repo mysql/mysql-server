@@ -103,11 +103,12 @@ inline
 int
 ndb_check_prep_copy_frag_version(Uint32 version)
 {	
+  const Uint32 major = (version >> 16) & 0xFF;
+  const Uint32 minor = (version >>  8) & 0xFF;
+
   if (version == NDB_VERSION_D)
     return 2;
 
-  const Uint32 major = (version >> 16) & 0xFF;
-  const Uint32 minor = (version >>  8) & 0xFF;
   if (major >= 6)
   {
     if (minor == 2)
