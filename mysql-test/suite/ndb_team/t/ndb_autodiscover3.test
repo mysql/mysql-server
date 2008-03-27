@@ -7,6 +7,9 @@
 
 --disable_warnings
 drop table if exists t1, t2;
+--disable_query_log
+set ndb_table_temporary=0;
+--enable_query_log
 --enable_warnings
 
 connect (con1,127.0.0.1,root,,test,$MASTER_MYPORT,);

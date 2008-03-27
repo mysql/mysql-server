@@ -17,6 +17,7 @@
 #define START_REC_HPP
 
 #include "SignalData.hpp"
+#include <NodeBitmask.hpp>
 
 class StartRecReq {
   /**
@@ -30,7 +31,7 @@ class StartRecReq {
 
   friend bool printSTART_REC_REQ(FILE *, const Uint32 *, Uint32, Uint16);  
 public:
-  STATIC_CONST( SignalLength = 5 );
+  STATIC_CONST( SignalLength = 6 + NdbNodeBitmask::Size);
 private:
   
   Uint32 receivingNodeId;
@@ -38,6 +39,8 @@ private:
   Uint32 keepGci;
   Uint32 lastCompletedGci;
   Uint32 newestGci;
+  Uint32 senderData;
+  Uint32 sr_nodes[NdbNodeBitmask::Size];
 };
 
 class StartRecConf {
@@ -52,9 +55,10 @@ class StartRecConf {
 
   friend bool printSTART_REC_CONF(FILE *, const Uint32 *, Uint32, Uint16);    
 public:
-  STATIC_CONST( SignalLength = 1 );
+  STATIC_CONST( SignalLength = 2 );
 private:
   
   Uint32 startingNodeId;
+  Uint32 senderData;
 };
 #endif

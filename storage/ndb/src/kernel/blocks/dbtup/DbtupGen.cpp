@@ -255,6 +255,13 @@ void Dbtup::execCONTINUEB(Signal* signal)
     drop_fragment_free_pages(signal);
     return;
   }
+  case ZREBUILD_FREE_PAGE_LIST:
+  {
+    jam();
+    rebuild_page_free_list(signal);
+    return;
+  }
+
   default:
     ndbrequire(false);
     break;

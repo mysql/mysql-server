@@ -40,14 +40,18 @@ void Dbdih::initData()
     new (&nodeRecord[i]) NodeRecord();
   }
   
-  takeOverRecord = (TakeOverRecord*)allocRecord("TakeOverRecord",
-                                                sizeof(TakeOverRecord), 
-                                                MAX_NDB_NODES);
-  for(i = 0; i<MAX_NDB_NODES; i++)
-    new (&takeOverRecord[i]) TakeOverRecord();
-
-  for(i = 0; i<MAX_NDB_NODES; i++)
-    new (&takeOverRecord[i]) TakeOverRecord();
+  c_takeOverPool.setSize(MAX_NDB_NODES);
+  {
+    Ptr<TakeOverRecord> ptr;
+    while (c_activeTakeOverList.seize(ptr))
+    {
+      new (ptr.p) TakeOverRecord();
+    }
+    while (c_activeTakeOverList.first(ptr))
+    {
+      releaseTakeOver(ptr);
+    }
+  }
   
   waitGCPProxyPool.setSize(ZPROXY_FILE_SIZE);
   waitGCPMasterPool.setSize(ZPROXY_MASTER_FILE_SIZE);
@@ -62,6 +66,7 @@ void Dbdih::initData()
   c_blockCommitNo  = 1;
   cntrlblockref    = RNIL;
   c_set_initial_start_flag = FALSE;
+  c_sr_wait_to = false;
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 
@@ -119,6 +124,7 @@ Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool)
+  ,c_activeTakeOverList(c_takeOverPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
@@ -138,10 +144,19 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_PERMREF, &Dbdih::execSTART_PERMREF);
   addRecSignal(GSN_INCL_NODEREQ, &Dbdih::execINCL_NODEREQ);
   addRecSignal(GSN_INCL_NODECONF, &Dbdih::execINCL_NODECONF);
-  addRecSignal(GSN_END_TOREQ, &Dbdih::execEND_TOREQ);
-  addRecSignal(GSN_END_TOCONF, &Dbdih::execEND_TOCONF);
+
   addRecSignal(GSN_START_TOREQ, &Dbdih::execSTART_TOREQ);
+  addRecSignal(GSN_START_TOREF, &Dbdih::execSTART_TOREQ);
   addRecSignal(GSN_START_TOCONF, &Dbdih::execSTART_TOCONF);
+
+  addRecSignal(GSN_UPDATE_TOREQ, &Dbdih::execUPDATE_TOREQ);
+  addRecSignal(GSN_UPDATE_TOREF, &Dbdih::execUPDATE_TOREF);
+  addRecSignal(GSN_UPDATE_TOCONF, &Dbdih::execUPDATE_TOCONF);
+
+  addRecSignal(GSN_END_TOREQ, &Dbdih::execEND_TOREQ);
+  addRecSignal(GSN_END_TOREF, &Dbdih::execEND_TOREF);
+  addRecSignal(GSN_END_TOCONF, &Dbdih::execEND_TOCONF);
+
   addRecSignal(GSN_START_MEREQ, &Dbdih::execSTART_MEREQ);
   addRecSignal(GSN_START_MECONF, &Dbdih::execSTART_MECONF);
   addRecSignal(GSN_START_MEREF, &Dbdih::execSTART_MEREF);
@@ -242,9 +257,6 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_WAIT_GCP_REF, &Dbdih::execWAIT_GCP_REF);
   addRecSignal(GSN_WAIT_GCP_CONF, &Dbdih::execWAIT_GCP_CONF);
 
-  addRecSignal(GSN_UPDATE_TOREQ, &Dbdih::execUPDATE_TOREQ);
-  addRecSignal(GSN_UPDATE_TOCONF, &Dbdih::execUPDATE_TOCONF);
-
   addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbdih::execPREP_DROP_TAB_REQ);
   addRecSignal(GSN_WAIT_DROP_TAB_REF, &Dbdih::execWAIT_DROP_TAB_REF);
   addRecSignal(GSN_WAIT_DROP_TAB_CONF, &Dbdih::execWAIT_DROP_TAB_CONF);
@@ -269,7 +281,7 @@ Dbdih::Dbdih(Block_context& ctx):
 
   addRecSignal(GSN_UPGRADE_PROTOCOL_ORD,
 	       &Dbdih::execUPGRADE_PROTOCOL_ORD);
-  
+
   apiConnectRecord = 0;
   connectRecord = 0;
   fileRecord = 0;
@@ -277,7 +289,6 @@ Dbdih::Dbdih(Block_context& ctx):
   pageRecord = 0;
   replicaRecord = 0;
   tabRecord = 0;
-  takeOverRecord = 0;
   createReplicaRecord = 0;
   nodeGroupRecord = 0;
   nodeRecord = 0;
@@ -324,11 +335,6 @@ Dbdih::~Dbdih()
   
   deallocRecord((void **)&nodeRecord, "NodeRecord", 
                 sizeof(NodeRecord), MAX_NDB_NODES);
-
-  deallocRecord((void **)&takeOverRecord, "TakeOverRecord",
-                sizeof(TakeOverRecord), 
-                MAX_NDB_NODES);
-
 }//Dbdih::~Dbdih()
 
 BLOCK_FUNCTIONS(Dbdih)

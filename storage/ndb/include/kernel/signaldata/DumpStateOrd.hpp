@@ -82,6 +82,11 @@ public:
     NdbfsDumpAllFiles = 401,
     NdbfsDumpOpenFiles = 402,
     NdbfsDumpIdleFiles = 403,
+    CmvmiSchedulerExecutionTimer = 502,
+    CmvmiRealtimeScheduler = 503,
+    CmvmiExecuteLockCPU = 504,
+    CmvmiMaintLockCPU = 505,
+    CmvmiSchedulerSpinTimer = 506,
     // 1222-1225 DICT
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
@@ -156,7 +161,10 @@ public:
     
     DumpTsman = 9800, 
     DumpLgman = 10000,
-    DumpPgman = 11000
+    DumpPgman = 11000,
+    DumpBackup = 13000,
+    DumpBackupSetCompressed = 13001,
+    DumpBackupSetCompressedLCP = 13002
   };
 public:
   

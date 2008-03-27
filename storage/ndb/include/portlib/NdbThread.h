@@ -22,6 +22,7 @@
 extern "C" {
 #endif
 
+#define THREAD_CONTAINER_SIZE 128
 typedef enum NDB_THREAD_PRIO_ENUM {
   NDB_THREAD_PRIO_HIGHEST,
   NDB_THREAD_PRIO_HIGH,
@@ -33,6 +34,46 @@ typedef enum NDB_THREAD_PRIO_ENUM {
 typedef void* (NDB_THREAD_FUNC)(void*);
 typedef void* NDB_THREAD_ARG;
 typedef size_t NDB_THREAD_STACKSIZE;
+
+#ifdef HAVE_LINUX_SCHEDULING
+  typedef pid_t NDB_TID_TYPE;
+#else
+#ifdef HAVE_SOLARIS_AFFINITY
+  typedef id_t NDB_TID_TYPE;
+#else
+  typedef int NDB_TID_TYPE;
+#endif
+#endif
+
+#ifdef HAVE_LINUX_SCHEDULING
+  typedef pid_t NDB_THAND_TYPE;
+#else
+#ifdef HAVE_PTHREAD_SELF
+  typedef pthread_t NDB_THAND_TYPE;
+#else
+  typedef int NDB_THAND_TYPE;
+#endif
+#endif
+
+/**
+ * Three functions that are used in conjunctions with SocketClient
+ * threads and SocketServer threads. In the NDB kernel they are
+ * used to set real-time properties and lock threads to CPU's. In
+ * the NDB API they are dummy subroutines.
+ * ndb_thread_add_thread_id is used before starting run method in thread.
+ * ndb_thread_remove_thread_id is called immediately after returning from
+ * run-method in thread.
+ * ndb_thread_fill_thread_object is called before calling
+ * ndb_thread_add_thread_id to prepare parameters.
+ */
+void*
+ndb_thread_add_thread_id(void *param);
+
+void*
+ndb_thread_remove_thread_id(void *param);
+
+void
+ndb_thread_fill_thread_object(void *param, uint *len, bool server);
 
 struct NdbThread;
 
@@ -58,6 +99,18 @@ struct NdbThread* NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   		      const NDB_THREAD_STACKSIZE thread_stack_size,
 		      const char* p_thread_name,
                       NDB_THREAD_PRIO thread_prio);
+
+struct NdbThread* NdbThread_CreateWithFunc(NDB_THREAD_FUNC *p_thread_func,
+                      NDB_THREAD_ARG *p_thread_arg,
+  		      const NDB_THREAD_STACKSIZE thread_stack_size,
+		      const char* p_thread_name,
+                      NDB_THREAD_PRIO thread_prio,
+                      NDB_THREAD_FUNC *start_func,
+                      NDB_THREAD_ARG start_obj,
+                      size_t start_obj_len,
+                      NDB_THREAD_FUNC *end_func,
+                      NDB_THREAD_ARG end_obj,
+                      size_t end_obj_len);
 
 /**
  * Destroy a thread
@@ -92,6 +145,26 @@ void NdbThread_Exit(void *status);
  */
 int NdbThread_SetConcurrencyLevel(int level);
 
+/**
+ * Get thread id
+ */
+NDB_TID_TYPE NdbThread_getThreadId();
+
+/**
+ * Get thread handle
+ */
+NDB_THAND_TYPE NdbThread_getThreadHandle();
+
+/**
+ * Set Scheduler for pid
+ */
+int NdbThread_SetScheduler(NDB_THAND_TYPE threadHandle, bool rt_prio,
+                           bool high_prio);
+
+/**
+ * Lock Thread to CPU
+ */
+int NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id);
 
 #ifdef	__cplusplus
 }

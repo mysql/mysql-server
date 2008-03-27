@@ -60,6 +60,7 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_API_START_REP, &Ndbcntr::execAPI_START_REP, true);
   addRecSignal(GSN_NODE_FAILREP, &Ndbcntr::execNODE_FAILREP);
   addRecSignal(GSN_SYSTEM_ERROR , &Ndbcntr::execSYSTEM_ERROR);
+  addRecSignal(GSN_START_PERMREP, &Ndbcntr::execSTART_PERMREP);
   
   // Received signals
   addRecSignal(GSN_DUMP_STATE_ORD, &Ndbcntr::execDUMP_STATE_ORD);
@@ -105,6 +106,9 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_READ_CONFIG_CONF, &Ndbcntr::execREAD_CONFIG_CONF);
 
   addRecSignal(GSN_FSREMOVECONF, &Ndbcntr::execFSREMOVECONF);
+
+  addRecSignal(GSN_START_COPYREF, &Ndbcntr::execSTART_COPYREF);
+  addRecSignal(GSN_START_COPYCONF, &Ndbcntr::execSTART_COPYCONF);
   
   initData();
   ctypeOfStart = NodeState::ST_ILLEGAL_TYPE;

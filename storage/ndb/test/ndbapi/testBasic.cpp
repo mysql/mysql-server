@@ -532,7 +532,7 @@ int runCommit_CommitAsMuchAsPossible630(NDBT_Context* ctx, NDBT_Step* step){
 
     CHECK(hugoOps.startTransaction(pNdb) == 0);
     CHECK(hugoOps.pkReadRecord(pNdb, 2) == 0);
-    CHECK(hugoOps.execute_Commit(pNdb) == 0);
+    CHECK(hugoOps.execute_Commit(pNdb) == 626);
   } while(false);
 
   hugoOps.closeTransaction(pNdb);

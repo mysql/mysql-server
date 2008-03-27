@@ -279,6 +279,7 @@ Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
+8054: Throw away TC_KEYCONF to api and die 5 seconds later.  To test commit ack markers
 5048: Crash in execCOMMIT
 5049: SET_ERROR_INSERT_VALUE(5048)
 

@@ -30,6 +30,7 @@ INCLUDES += \
         -I$(top_srcdir)/storage/ndb/include/ndbapi \
         -I$(top_srcdir)/storage/ndb/include/util \
 	-I$(top_srcdir)/storage/ndb/include/portlib \
-	-I$(top_srcdir)/storage/ndb/include/logger
+	-I$(top_srcdir)/storage/ndb/include/logger \
+	@ZLIB_INCLUDES@
 
 #AM_LDFLAGS = @ndb_ldflags@

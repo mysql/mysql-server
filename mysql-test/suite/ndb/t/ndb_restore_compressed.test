@@ -1,0 +1,3 @@
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all dump 13001 1" >> $NDB_TOOLS_OUTPUT
+-- source suite/ndb/t/ndb_restore.test
+--exec $NDB_MGM --no-defaults --ndb-connectstring="localhost:$NDBCLUSTER_PORT" -e "all dump 13001 0" >> $NDB_TOOLS_OUTPUT

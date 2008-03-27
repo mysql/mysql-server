@@ -117,6 +117,7 @@ static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
 static uint opt_mysql_port= 0, opt_master_data;
+static char *opt_bind_addr = NULL;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static int   first_error=0;
@@ -208,6 +209,9 @@ static struct my_option my_long_options[] =
   {"autoclose", OPT_AUTO_CLOSE, "Auto close the screen on exit for Netware.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"bind-address", OPT_BIND_ADDRESS, "IP address to bind to.",
+   (uchar**) &opt_bind_addr, (uchar**) &opt_bind_addr, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"character-sets-dir", OPT_CHARSETS_DIR,
    "Directory where character sets are.", (uchar**) &charsets_dir,
    (uchar**) &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1445,6 +1449,10 @@ static int connect_to_db(char *host, char *user,char *passwd)
 #endif
   if (opt_protocol)
     mysql_options(&mysql_connection,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (opt_bind_addr)
+  {
+       mysql_options(&mysql_connection,MYSQL_OPT_BIND,opt_bind_addr);
+  }
 #ifdef HAVE_SMEM
   if (shared_memory_base_name)
     mysql_options(&mysql_connection,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);

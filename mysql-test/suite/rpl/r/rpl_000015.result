@@ -44,6 +44,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 change master to master_host='127.0.0.1',master_user='root',
 master_password='',master_port=MASTER_PORT;
 SHOW SLAVE STATUS;
@@ -85,6 +86,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 start slave;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -125,6 +127,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 drop table if exists t1;
 create table t1 (n int, PRIMARY KEY(n));
 insert into t1 values (10),(45),(90);

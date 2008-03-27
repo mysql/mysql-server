@@ -27,6 +27,7 @@
 #define MAX_NDB_NODES 49
 #define MAX_NODES     256
 #define UNDEF_NODEGROUP 0xFFFF
+#define MAX_BACKUPS   0xFFFFFFFF
 
 /**************************************************************************
  * IT SHOULD BE (MAX_NDB_NODES - 1).
@@ -52,6 +53,12 @@
  * The maximum number of local checkpoints stored at a time
  */
 #define MAX_LCP_STORED 3
+
+/**
+ * Max LCP used (the reason for keeping MAX_LCP_STORED is that we
+ *   need to restore from LCP's with lcp no == 2
+ */
+#define MAX_LCP_USED 2
 
 /**
  * The maximum number of log execution rounds at system restart
