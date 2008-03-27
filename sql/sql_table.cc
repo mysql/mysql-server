@@ -42,7 +42,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
@@ -2177,7 +2177,7 @@ int prepare_create_field(Create_field *sql_field,
     TRUE     error
 */
 
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
