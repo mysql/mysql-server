@@ -72,3 +72,4 @@ flush tables with read lock;
 unlock tables;
 drop table t1, t2;
 set session low_priority_updates=default;
+select benchmark(200, (select sin(1))) > 1000;
