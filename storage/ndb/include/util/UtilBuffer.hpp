@@ -92,6 +92,15 @@ public:
   void *get_data() const { return data; }
 
   bool empty () const { return len == 0; }
+
+  bool equal(const UtilBuffer &cmp) const {
+    if(len==0 && cmp.len==0)
+      return true;
+    else if(len!=cmp.len)
+      return false;
+    else
+      return (memcmp(get_data(), cmp.get_data(), len) == 0);
+  }
 private:
   void *data;          /* Pointer to data storage */
   size_t len;          /* Size of the stored data */

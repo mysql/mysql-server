@@ -46,10 +46,9 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   }
 
   int keys = tab.getNoOfPrimaryKeys();
-  int dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
-  int cnt = 0;
+  Uint32 dks = (2 * keys + 2) / 3; dks = (dks > max_dks ? max_dks : dks);
   
-  for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
+  for(int i = 0; i<tab.getNoOfColumns(); i++)
     if(tab.getColumn(i)->getPrimaryKey() && 
        tab.getColumn(i)->getCharset() != 0)
       keys--;
@@ -87,12 +86,12 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   } 
   else 
   {
-    for(unsigned i = 0; i<tab.getNoOfColumns(); i++)
+    for(int i = 0; i<tab.getNoOfColumns(); i++)
     {
       NdbDictionary::Column* col = tab.getColumn(i);
       if(col->getPrimaryKey() && col->getCharset() == 0)
       {
-	if(dks >= keys || (rand() % 100) > 50)
+	if((int)dks >= keys || (rand() % 100) > 50)
 	{
 	  col->setDistributionKey(true);
 	  dks--;
@@ -115,6 +114,41 @@ add_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
   return 0;
 }
 
+static
+int
+one_distribution_key(Ndb*, NdbDictionary::Table& tab, int when, void* arg)
+{
+  switch(when){
+  case 0: // Before
+    break;
+  case 1: // After
+    return 0;
+  default:
+    return 0;
+  }
+
+  int keys = tab.getNoOfPrimaryKeys();
+  int dist_key_no = rand()% keys;
+  
+  for(int i = 0; i<tab.getNoOfColumns(); i++)
+  {
+    if(tab.getColumn(i)->getPrimaryKey())
+    {
+      if (dist_key_no-- == 0)
+      {
+        tab.getColumn(i)->setDistributionKey(true);
+      }
+      else
+      {
+        tab.getColumn(i)->setDistributionKey(false);
+      }
+    }
+  }
+  ndbout << (NDBT_Table&)tab << endl;
+  
+  return 0;
+}
+
 static int
 run_create_table(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -124,6 +158,23 @@ run_create_table(NDBT_Context* ctx, NDBT_Step* step)
 			      ctx->getTab()->getName(), 
 			      false, false, 
 			      max_dks?add_distribution_key:0) == NDBT_OK)
+  {
+    return NDBT_OK;
+  }
+
+  if(GETNDB(step)->getDictionary()->getNdbError().code == 745)
+    return NDBT_OK;
+
+  return NDBT_FAILED;
+}
+
+static int
+run_create_table_smart_scan(NDBT_Context* ctx, NDBT_Step* step)
+{
+  if(NDBT_Tables::createTable(GETNDB(step), 
+			      ctx->getTab()->getName(), 
+			      false, false, 
+			      one_distribution_key) == NDBT_OK)
   {
     return NDBT_OK;
   }
@@ -347,23 +398,121 @@ run_startHint(NDBT_Context* ctx, NDBT_Step* step)
     char* start= buffer + (rand() & 7);
     char* pos= start;
     
+    int k = 0;
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
     for(int j = 0; j<tab->getNoOfColumns(); j++)
     {
       if(tab->getColumn(j)->getPartitionKey())
       {
-	ndbout_c(tab->getColumn(j)->getName());
+	//ndbout_c(tab->getColumn(j)->getName());
 	int sz = tab->getColumn(j)->getSizeInBytes();
-	int aligned_size = 4 * ((sz + 3) >> 2);
-	memset(pos, 0, aligned_size);
 	Uint32 real_size;
 	dummy.calcValue(i, j, 0, pos, sz, &real_size);
+	ptrs[k].ptr = pos;
+	ptrs[k++].len = real_size;
 	pos += (real_size + 3) & ~3;
       }
     }
+    ptrs[k].ptr = 0;
+    
     // Now we have the pk
-    NdbTransaction* pTrans= p_ndb->startTransaction(tab, start,(pos - start));
+    NdbTransaction* pTrans= p_ndb->startTransaction(tab, ptrs);
     HugoOperations ops(*tab);
     ops.setTransaction(pTrans);
+    if(ops.pkReadRecord(p_ndb, i, 1) != NDBT_OK)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    if(ops.execute_Commit(p_ndb) != 0)
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+    
+    ops.closeTransaction(p_ndb);
+  }
+  restarter.insertErrorInAllNodes(0);
+  return result;
+}
+
+static int
+run_startHint_ordered_index(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* p_ndb = GETNDB(step);
+  int records = ctx->getNumRecords();
+  const NdbDictionary::Table *tab = 
+    p_ndb->getDictionary()->getTable(ctx->getTab()->getName());
+  
+  if(!tab)
+    return NDBT_OK;
+
+  BaseString name;
+  name.assfmt("IND_%s_PK_O", tab->getName());
+  
+  const NdbDictionary::Index * idx = 
+    p_ndb->getDictionary()->getIndex(name.c_str(), tab->getName());
+  
+  if(!idx)
+  {
+    ndbout << "Failed to retreive index: " << name.c_str() << endl;
+    return NDBT_FAILED;
+  }
+
+  HugoTransactions hugoTrans(*tab, idx);
+  if (hugoTrans.loadTable(p_ndb, records) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  NdbRestarter restarter;
+  if(restarter.insertErrorInAllNodes(8050) != 0)
+    return NDBT_FAILED;
+  
+  HugoCalculator dummy(*tab);
+  int result = NDBT_OK;
+  for(int i = 0; i<records && result == NDBT_OK; i++)
+  {
+    char buffer[8000];
+    char* start= buffer + (rand() & 7);
+    char* pos= start;
+    
+    int k = 0;
+    Ndb::Key_part_ptr ptrs[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY+1];
+    for(int j = 0; j<tab->getNoOfColumns(); j++)
+    {
+      if(tab->getColumn(j)->getPartitionKey())
+      {
+        //ndbout_c(tab->getColumn(j)->getName());
+        int sz = tab->getColumn(j)->getSizeInBytes();
+        Uint32 real_size;
+        dummy.calcValue(i, j, 0, pos, sz, &real_size);
+        ptrs[k].ptr = pos;
+        ptrs[k++].len = real_size;
+        pos += (real_size + 3) & ~3;
+      }
+    }
+    ptrs[k].ptr = 0;
+    
+    // Now we have the pk, start a hinted transaction
+    NdbTransaction* pTrans= p_ndb->startTransaction(tab, ptrs);
+    
+    // Because we pass an Ordered index here, pkReadRecord will
+    // use an index scan on the Ordered index
+    HugoOperations ops(*tab, idx);
+    ops.setTransaction(pTrans);
+    /* Despite it's name, it will actually perform index scans
+     * as there is an index.
+     * Error 8050 will cause an NDBD assertion failure in 
+     * Dbtc::execDIGETPRIMCONF() if TC needs to scan a fragment
+     * which is not on the TC node
+     * So for this TC to pass with no failures we need transaction
+     * hinting and scan partition pruning on equal() to work 
+     * correctly.
+     * TODO : Get coverage of Index scan which is equal on dist
+     * key cols, but has an inequality on some other column.
+     */
     if(ops.pkReadRecord(p_ndb, i, 1) != NDBT_OK)
     {
       result = NDBT_FAILED;
@@ -417,6 +566,17 @@ TESTCASE("ordered_index_dk",
   INITIALIZER(run_create_pk_index_drop);
   INITIALIZER(run_drop_table);
 }
+TESTCASE("smart_scan", 
+	 "Ordered index operatations with distribution key")
+{
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table_smart_scan);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_index_dk);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
 TESTCASE("startTransactionHint", 
 	 "Test startTransactionHint wo/ distribution key")
 {
@@ -435,6 +595,31 @@ TESTCASE("startTransactionHint_dk",
   INITIALIZER(run_startHint);
   INITIALIZER(run_drop_table);
 }
+TESTCASE("startTransactionHint_orderedIndex",
+         "Test startTransactionHint and ordered index reads")
+{
+  TC_PROPERTY("distributionkey", (unsigned)0);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_startHint_ordered_index);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
+TESTCASE("startTransactionHint_orderedIndex_dk",
+         "Test startTransactionHint and ordered index reads with distribution key")
+{
+  TC_PROPERTY("distributionkey", (unsigned)~0);
+  TC_PROPERTY("OrderedIndex", (unsigned)1);
+  INITIALIZER(run_drop_table);
+  INITIALIZER(run_create_table);
+  INITIALIZER(run_create_pk_index);
+  INITIALIZER(run_startHint_ordered_index);
+  INITIALIZER(run_create_pk_index_drop);
+  INITIALIZER(run_drop_table);
+}
+
 NDBT_TESTSUITE_END(testPartitioning);
 
 int main(int argc, const char** argv){

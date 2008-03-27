@@ -23,12 +23,12 @@
 
 DbUtil::DbUtil(const char* _dbname,
                const char* _suffix):
+  m_mysql(NULL),
+  m_free_mysql(true),
   m_connected(false),
   m_user("root"),
   m_pass(""),
-  m_dbname(_dbname),
-  m_mysql(NULL),
-  m_free_mysql(true)
+  m_dbname(_dbname)
 {
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
@@ -50,9 +50,9 @@ DbUtil::DbUtil(const char* _dbname,
 
 
 DbUtil::DbUtil(MYSQL* mysql):
-  m_connected(true),
   m_mysql(mysql),
-  m_free_mysql(false)
+  m_free_mysql(false),
+  m_connected(true)
 {
 }
 

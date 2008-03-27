@@ -82,7 +82,7 @@ typedef struct st_grant_info
 enum tmp_table_type
 {
   NO_TMP_TABLE, NON_TRANSACTIONAL_TMP_TABLE, TRANSACTIONAL_TMP_TABLE,
-  INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE
+  INTERNAL_TMP_TABLE, SYSTEM_TMP_TABLE, TMP_TABLE_FRM_FILE_ONLY
 };
 
 /** Event on which trigger is invoked. */
@@ -309,6 +309,8 @@ typedef struct st_table_share
     return db_plugin ? plugin_data(db_plugin, handlerton*) : NULL;
   }
   enum row_type row_type;		/* How rows are stored */
+  enum ha_storage_media default_storage_media;
+  char *tablespace;
   enum tmp_table_type tmp_table;
   enum ha_choice transactional;
 

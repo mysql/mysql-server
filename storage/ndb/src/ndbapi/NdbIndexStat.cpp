@@ -18,8 +18,9 @@
 #include <NdbSqlUtil.hpp>
 #include <NdbIndexStat.hpp>
 #include <NdbTransaction.hpp>
-#include <NdbIndexScanOperation.hpp>
 #include "NdbDictionaryImpl.hpp"
+#include <NdbInterpretedCode.hpp>
+#include <NdbRecord.hpp>
 #include <my_sys.h>
 
 NdbIndexStat::NdbIndexStat(const NdbDictionary::Index* index) :
@@ -374,13 +375,99 @@ NdbIndexStat::stat_select(const Uint32* key1, Uint32 keylen1, const Uint32* key2
   return 0;
 }
 
+/** 
+ * addKeyPartInfo
+ * This method is used to build a standard representation of a 
+ * lower or upper index bound in a buffer, which can then
+ * be used to identify a range.
+ * The buffer format is :
+ *   1 word of NdbIndexScanOperation::BoundType
+ *   1 word of ATTRINFO header containing the index attrid
+ *     and the size in words of the data.
+ *   0..N words of data.
+ * The data itself is formatted as usual (e.g. 1/2 length
+ * bytes for VAR* types)
+ * For NULLs, length==0
+ */
+ 
 int
-NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOperation* op, Uint64 table_rows, Uint64* count, int flags)
+NdbIndexStat::addKeyPartInfo(const NdbRecord* record,
+                             const char* keyRecordData,
+                             Uint32 keyPartNum,
+                             const NdbIndexScanOperation::BoundType boundType,
+                             Uint32* keyStatData,
+                             Uint32& keyLength)
+{
+  char buf[256]; // For shrinking MySQLD varchars
+
+  Uint32 key_index= record->key_indexes[ keyPartNum ];
+  const NdbRecord::Attr *column= &record->columns[ key_index ];
+  
+  bool is_null= column->is_null(keyRecordData);
+  Uint32 len= 0;
+  const void *aValue= keyRecordData + column->offset;
+
+  if (!is_null)
+  {
+    bool len_ok;
+    /* Support for special mysqld varchar format in keys. */
+    if (column->flags & NdbRecord::IsMysqldShrinkVarchar)
+    {
+      len_ok= column->shrink_varchar(keyRecordData, 
+                                     len, 
+                                     buf);
+      aValue= buf;
+    }
+    else
+    {
+      len_ok= column->get_var_length(keyRecordData, len);
+    }
+    if (!len_ok) {
+      set_error(4209);
+      return -1;
+    }
+  }
+
+  /* Insert attribute header. */
+  Uint32 tIndexAttrId= column->index_attrId;
+  Uint32 sizeInWords= (len + 3) / 4;
+  AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
+  const Uint32 ahValue= ah.m_value;
+
+  if (keyLength + (2 + len) > BoundBufWords )
+  {
+    /* Something wrong, key data would be too big */
+    /* Key size is limited to 4092 bytes */
+    set_error(4207);
+    return -1;
+  }
+
+  /* Fill in key data */
+  keyStatData[ keyLength++ ]= boundType;
+  keyStatData[ keyLength++ ]= ahValue;
+  /* Zero last word prior to byte copy, in case we're not aligned */
+  keyStatData[ keyLength + sizeInWords - 1] = 0;
+  memcpy(&keyStatData[ keyLength ], aValue, len);
+
+  keyLength+= sizeInWords;
+
+  return 0;
+}
+
+int
+NdbIndexStat::records_in_range(const NdbDictionary::Index* index, 
+                               NdbTransaction* trans,
+                               const NdbRecord* key_record,
+                               const NdbRecord* result_record,
+                               const NdbIndexScanOperation::IndexBound* ib, 
+                               Uint64 table_rows, 
+                               Uint64* count, 
+                               int flags)
 {
   DBUG_ENTER("NdbIndexStat::records_in_range");
   Uint64 rows;
-  Uint32 key1[1000], keylen1;
-  Uint32 key2[1000], keylen2;
+  Uint32 key1[BoundBufWords], keylen1;
+  Uint32 key2[BoundBufWords], keylen2;
 
   if (m_cache == NULL)
     flags |= RR_UseDb | RR_NoUpdate;
@@ -388,28 +475,54 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
     flags |= RR_UseDb;
 
   if ((flags & (RR_UseDb | RR_NoUpdate)) != RR_UseDb | RR_NoUpdate) {
-    // get start and end key - assume bound is ordered, wellformed
-    Uint32 bound[1000];
-    Uint32 boundlen = op->getKeyFromSCANTABREQ(bound, 1000);
+    // get start and end key from NdbIndexBound, using NdbRecord to 
+    // get values into a standard format.
+    Uint32 maxBoundParts= (ib->low_key_count > ib->high_key_count) ? 
+      ib->low_key_count : ib->high_key_count;
 
-    keylen1 = keylen2 = 0;
-    Uint32 n = 0;
-    while (n < boundlen) {
-      Uint32 t = bound[n];
-      AttributeHeader ah(bound[n + 1]);
-      Uint32 sz = 2 + ah.getDataSize();
-      t &= 0xFFFF;      // may contain length
-      assert(t <= 4);
-      bound[n] = t;
-      if (t == 0 || t == 1 || t == 4) {
-        memcpy(&key1[keylen1], &bound[n], sz << 2);
-        keylen1 += sz;
+    keylen1= keylen2= 0;
+
+    /* Fill in keyX buffers */
+    for (Uint32 keyPartNum=0; keyPartNum < maxBoundParts; keyPartNum++)
+    {
+      if (ib->low_key_count > keyPartNum)
+      {
+        /* Set bound to LT only if it's not inclusive
+         * and this is the last key
+         */
+        NdbIndexScanOperation::BoundType boundType= 
+          NdbIndexScanOperation::BoundLE;
+        if ((! ib->low_inclusive) && 
+            (keyPartNum == (ib->low_key_count -1 )))
+          boundType= NdbIndexScanOperation::BoundLT;
+
+        if (addKeyPartInfo(key_record,
+                           ib->low_key,
+                           keyPartNum,
+                           boundType,
+                           key1, 
+                           keylen1) != 0)
+          DBUG_RETURN(-1);
       }
-      if (t == 2 || t == 3 || t == 4) {
-        memcpy(&key2[keylen2], &bound[n], sz << 2);
-        keylen2 += sz;
+      if (ib->high_key_count > keyPartNum)
+      {
+        /* Set bound to GT only if it's not inclusive
+         * and this is the last key
+         */
+        NdbIndexScanOperation::BoundType boundType= 
+          NdbIndexScanOperation::BoundGE;
+        if ((! ib->high_inclusive) && 
+            (keyPartNum == (ib->high_key_count -1)))
+          boundType= NdbIndexScanOperation::BoundGT;        
+
+        if (addKeyPartInfo(key_record,
+                           ib->high_key,
+                           keyPartNum,
+                           boundType,
+                           key2,
+                           keylen2) != 0)
+          DBUG_RETURN(-1);
       }
-      n += sz;
     }
   }
 
@@ -418,13 +531,56 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
     float tot[4] = { 0, 0, 0, 0 };   // totals of above
     int cnt, ret;
     bool forceSend = true;
-    NdbTransaction* trans = op->m_transConnection;
-    if (op->interpret_exit_last_row() == -1 ||
-        op->getValue(NdbDictionary::Column::RECORDS_IN_RANGE, (char*)out) == 0) {
-      m_error = op->getNdbError();
-      DBUG_PRINT("error", ("op:%d", op->getNdbError().code));
+    const Uint32 codeWords= 1;
+    Uint32 codeSpace[ codeWords ];
+    NdbInterpretedCode code(NULL, // No table
+                            &codeSpace[0],
+                            codeWords);
+    if ((code.interpret_exit_last_row() != 0) ||
+        (code.finalise() != 0))
+    {
+      m_error= code.getNdbError();
+      DBUG_PRINT("error", ("code: %d", m_error.code));
       DBUG_RETURN(-1);
     }
+
+    NdbIndexScanOperation* op= NULL;
+    NdbScanOperation::ScanOptions options;
+    NdbOperation::GetValueSpec extraGet;
+
+    options.optionsPresent= 
+      NdbScanOperation::ScanOptions::SO_GETVALUE | 
+      NdbScanOperation::ScanOptions::SO_INTERPRETED;
+
+    /* Read RECORDS_IN_RANGE pseudo column */
+    extraGet.column= NdbDictionary::Column::RECORDS_IN_RANGE;
+    extraGet.appStorage= (void*) out;
+    extraGet.recAttr= NULL;
+
+    options.extraGetValues= &extraGet;
+    options.numExtraGetValues= 1;
+
+    /* Add interpreted code to return on 1st row */
+    options.interpretedCode= &code;
+
+    const Uint32 keyBitmaskWords= (NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY + 31) >> 5;
+    Uint32 emptyMask[keyBitmaskWords];
+    memset(&emptyMask[0], 0, keyBitmaskWords << 2);
+
+    if (NULL == 
+        (op= trans->scanIndex(key_record,
+                              result_record,
+                              NdbOperation::LM_CommittedRead,
+                              (const unsigned char*) &emptyMask[0],
+                              ib,
+                              &options,
+                              sizeof(NdbScanOperation::ScanOptions))))
+    {
+      m_error= trans->getNdbError();
+      DBUG_PRINT("error", ("scanIndex : %d", m_error.code));
+      DBUG_RETURN(-1);
+    }
+
     if (trans->execute(NdbTransaction::NoCommit,
                        NdbOperation::AbortOnError, forceSend) == -1) {
       m_error = trans->getNdbError();
@@ -433,7 +589,9 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
       DBUG_RETURN(-1);
     }
     cnt = 0;
-    while ((ret = op->nextResult(true, forceSend)) == 0) {
+    const char* dummy_out_ptr= NULL;
+    while ((ret = op->nextResult(&dummy_out_ptr,
+                                 true, forceSend)) == 0) {
       DBUG_PRINT("info", ("frag rows=%u in=%u before=%u after=%u [error=%d]",
                           out[0], out[1], out[2], out[3],
                           (int)(out[1] + out[2] + out[3]) - (int)out[0]));
@@ -444,7 +602,7 @@ NdbIndexStat::records_in_range(const NdbDictionary::Index* index, NdbIndexScanOp
     }
     if (ret == -1) {
       m_error = op->getNdbError();
-      DBUG_PRINT("error", ("trans:%d op:%d", trans->getNdbError().code,
+      DBUG_PRINT("error nextResult ", ("trans:%d op:%d", trans->getNdbError().code,
                            op->getNdbError().code));
       DBUG_RETURN(-1);
     }

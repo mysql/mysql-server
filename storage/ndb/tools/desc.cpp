@@ -305,6 +305,17 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
 
   ndbout << "-- Per partition info -- " << endl;
   
+  const Uint32 codeWords= 1;
+  Uint32 codeSpace[ codeWords ];
+  NdbInterpretedCode code(NULL, // Table is irrelevant
+                          &codeSpace[0],
+                          codeWords);
+  if ((code.interpret_exit_last_row() != 0) ||
+      (code.finalise() != 0))
+  {
+    return;
+  }
+
   NdbConnection* pTrans = pNdb->startTransaction();
   if (pTrans == 0)
     return;
@@ -319,7 +330,7 @@ void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
     if (rs != 0)
       break;
     
-    if (pOp->interpret_exit_last_row() != 0)
+    if (pOp->setInterpretedCode(&code) != 0)
       break;
     
     Uint32 i = 0;
