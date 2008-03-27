@@ -122,9 +122,9 @@ void Dbdih::initRecords()
 
 Dbdih::Dbdih(Block_context& ctx):
   SimulatedBlock(DBDIH, ctx),
+  c_activeTakeOverList(c_takeOverPool),
   c_waitGCPProxyList(waitGCPProxyPool),
   c_waitGCPMasterList(waitGCPMasterPool)
-  ,c_activeTakeOverList(c_takeOverPool)
 {
   BLOCK_CONSTRUCTOR(Dbdih);
 
