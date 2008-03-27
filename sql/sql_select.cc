@@ -13177,6 +13177,23 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               tab->limit= select_limit;
           }
         }
+        else if (tab->type != JT_ALL)
+        {
+          /*
+            We're about to use a quick access to the table.
+            We need to change the access method so as the quick access
+            method is actually used.
+          */
+          DBUG_ASSERT(tab->select->quick);
+          tab->type=JT_ALL;
+          tab->use_quick=1;
+          tab->ref.key= -1;
+          tab->ref.key_parts=0;		// Don't use ref key.
+          tab->read_first_record= join_init_read_record;
+          /*
+            TODO: update the number of records in join->best_positions[tablenr]
+          */
+        }
       }
       used_key_parts= best_key_parts;
       order_direction= best_key_direction;
