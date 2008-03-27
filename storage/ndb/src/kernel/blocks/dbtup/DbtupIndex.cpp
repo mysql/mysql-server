@@ -158,8 +158,8 @@ Dbtup::tuxReadAttrs(Uint32 fragPtrI,
       if (opPtr.p->tupVersion == tupVersion) {
 	jam();
 	if (!opPtr.p->m_copy_tuple_location.isNull()) {
-	  req_struct.m_tuple_ptr= (Tuple_header*)
-	    c_undo_buffer.get_ptr(&opPtr.p->m_copy_tuple_location);
+	  req_struct.m_tuple_ptr=
+	    get_copy_tuple(tablePtr.p, &opPtr.p->m_copy_tuple_location);
         }
 	break;
       }
@@ -238,8 +238,8 @@ Dbtup::tuxReadPk(Uint32 fragPtrI, Uint32 pageId, Uint32 pageIndex, Uint32* dataO
       Uint32 opPtrI= req_struct.m_tuple_ptr->m_operation_ptr_i;
       Operationrec* opPtrP= c_operation_pool.getPtr(opPtrI);
       ndbassert(!opPtrP->m_copy_tuple_location.isNull());
-      req_struct.m_tuple_ptr= (Tuple_header*)
-	c_undo_buffer.get_ptr(&opPtrP->m_copy_tuple_location);
+      req_struct.m_tuple_ptr=
+	get_copy_tuple(tablePtr.p, &opPtrP->m_copy_tuple_location);
     }
     prepare_read(&req_struct, tablePtr.p, false);
     
@@ -475,7 +475,8 @@ Dbtup::execBUILDINDXREQ(Signal* signal)
     }
     // memory page format
     buildPtr.p->m_build_vs =
-      tablePtr.p->m_attributes[MM].m_no_of_varsize > 0;
+      (tablePtr.p->m_attributes[MM].m_no_of_varsize +
+       tablePtr.p->m_attributes[MM].m_no_of_dynamic) > 0;
     if (DictTabInfo::isOrderedIndex(buildReq->getIndexType())) {
       jam();
       const DLList<TupTriggerData>& triggerList = 
@@ -573,7 +574,16 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
       buildPtr.p->m_tupleNo= firstTupleNo;
       break;
     }
-    Uint32 realPageId= getRealpid(fragPtr.p, buildPtr.p->m_pageId);
+    Uint32 realPageId= getRealpidCheck(fragPtr.p, buildPtr.p->m_pageId);
+    // skip empty page
+    if (realPageId == RNIL) 
+    {
+      jam();
+      buildPtr.p->m_pageId++;
+      buildPtr.p->m_tupleNo= firstTupleNo;
+      break;
+    }
+
     c_page_pool.getPtr(pagePtr, realPageId);
     Uint32 pageState= pagePtr.p->page_state;
     // skip empty page

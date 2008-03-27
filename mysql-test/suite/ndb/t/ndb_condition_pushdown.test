@@ -1938,7 +1938,7 @@ select a,b,d from t1
 0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
 0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
 0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,
-0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2)
+0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1)
     order by b;
 --enable_query_log
 
@@ -2080,6 +2080,14 @@ select a,b,d from t1
 0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2,5,0,1,2)
     order by b;
 --enable_query_log
+
+
+# Bug 35413, NdbInterpretedCode buffer extension problem
+drop table t1;
+
+create table t1 (a int primary key, b varchar(5000) character set latin1) engine=ndb;
+insert into t1 values (0, 'I just cant beg you, any-more');
+select * from t1 where b="value";
 
 set engine_condition_pushdown = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;

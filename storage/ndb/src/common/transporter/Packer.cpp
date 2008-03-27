@@ -380,7 +380,7 @@ Packer::Packer(bool signalId, bool checksum) {
   // Set the priority
 
   preComputedWord1 = 0;
-  Protocol6::setByteOrder(preComputedWord1, 0);
+  Protocol6::setByteOrder(preComputedWord1, MY_OWN_BYTE_ORDER);
   Protocol6::setSignalIdIncluded(preComputedWord1, signalIdUsed);
   Protocol6::setCheckSumIncluded(preComputedWord1, checksumUsed);
   Protocol6::setCompressed(preComputedWord1, 0);

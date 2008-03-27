@@ -57,12 +57,14 @@ typedef struct st_key_part_info {	/* Info about a key part */
   /* 
     Number of bytes required to store the keypart value. This may be
     different from the "length" field as it also counts
-     - possible NULL-flag byte (see HA_KEY_NULL_LENGTH)
+     - possible NULL-flag byte (see HA_KEY_NULL_LENGTH) [if null_bit != 0,
+       the first byte stored at offset is 1 if null, 0 if non-null; the
+       actual value is stored from offset+1].
      - possible HA_KEY_BLOB_LENGTH bytes needed to store actual value length.
   */
   uint16 store_length;
   uint16 key_type;
-  uint16 fieldnr;			/* Fieldnum in UNIREG */
+  uint16 fieldnr;			/* Fieldnum in UNIREG (1,2,3,...) */
   uint16 key_part_flag;			/* 0 or HA_REVERSE_SORT */
   uint8 type;
   uint8 null_bit;			/* Position to null_bit */

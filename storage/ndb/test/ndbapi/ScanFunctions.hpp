@@ -136,13 +136,6 @@ ScanFunctions::scanReadFunctions(Ndb* pNdb,
       }	
     }
     
-    check = pOp->interpret_exit_ok();
-    if( check == -1 ) {
-      ERR(pTrans->getNdbError());
-      pNdb->closeTransaction(pTrans);
-      return NDBT_FAILED;
-    }
-    
     for(int a = 0; a<tab.getNoOfColumns(); a++){
       if(pOp->getValue(tab.getColumn(a)->getName()) == NULL) {
 	ERR(pTrans->getNdbError());
