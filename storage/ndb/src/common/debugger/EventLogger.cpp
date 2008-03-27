@@ -486,12 +486,15 @@ void getTextNR_CopyFragDone(QQQQ) {
   //-----------------------------------------------------------------------
   // REPORT Node Restart copied a fragment.
   //-----------------------------------------------------------------------
+  Uint32 rows = theData[4] + (Uint64(theData[5]) << 32);
+  Uint64 bytes = theData[6] + (Uint64(theData[7]) << 32);
   BaseString::snprintf(m_text, m_text_len, 
-		       "Table ID = %u, fragment ID = %u have been copied "
-		       "to Node %u", 
+		       "Table ID = %u, fragment ID = %u have been synced "
+		       "to Node %u rows: %llu bytes: %llu ", 
 		       theData[2], 
 		       theData[3], 
-		       theData[1]);
+		       theData[1],
+                       rows, bytes);
 }
 void getTextNR_CopyFragsCompleted(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -665,6 +668,12 @@ void getTextJobStatistic(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
 		       "Mean loop Counter in doJob last 8192 times = %u",
 		       theData[1]);
+}
+void getTextThreadConfigLoop(QQQQ) {
+  BaseString::snprintf(m_text, m_text_len, 
+  "8192 loops,tot %u usec,exec %u extra:loops = %u,time %u,const %u",
+		       theData[1], theData[3], theData[4], theData[5],
+                       theData[2]);
 }
 void getTextSendBytesStatistic(QQQQ) {
   BaseString::snprintf(m_text, m_text_len, 
@@ -1083,6 +1092,7 @@ const EventLoggerBase::EventRepLogLevelMatrix EventLoggerBase::matrix[] = {
   ROW(OperationReportCounters, LogLevel::llStatistic,   8, Logger::LL_INFO ), 
   ROW(TableCreated,            LogLevel::llStatistic,   7, Logger::LL_INFO ),
   ROW(JobStatistic,            LogLevel::llStatistic,   9, Logger::LL_INFO ),
+  ROW(ThreadConfigLoop,        LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(SendBytesStatistic,      LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(ReceiveBytesStatistic,   LogLevel::llStatistic,   9, Logger::LL_INFO ),
   ROW(MemoryUsage,             LogLevel::llStatistic,   5, Logger::LL_INFO ),

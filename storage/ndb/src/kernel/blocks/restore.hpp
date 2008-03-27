@@ -84,6 +84,7 @@ private:
     Uint32 m_fd;          // File pointer
     Uint32 m_file_type;   // File type
     Uint32 m_status;
+    Uint32 m_lcp_version;
 
     enum StatusFlags 
     {
@@ -141,6 +142,7 @@ private:
 
   void parse_error(Signal*, FilePtr, Uint32 line, Uint32 extra);
   int check_file_version(Signal*, Uint32 file_version);
+  void restore_lcp_conf(Signal* signal, FilePtr);
 public:
   
 private:

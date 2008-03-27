@@ -83,9 +83,10 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 stop slave;
 delete from t3;
-change master to master_log_pos=548;
+change master to master_log_pos=549;
 begin;
 select * from t2 for update;
 a
@@ -142,11 +143,12 @@ Last_IO_Errno	0
 Last_IO_Error	
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 set @my_max_relay_log_size= @@global.max_relay_log_size;
 set global max_relay_log_size=0;
 stop slave;
 delete from t3;
-change master to master_log_pos=548;
+change master to master_log_pos=549;
 begin;
 select * from t2 for update;
 a
@@ -206,6 +208,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 drop table t1,t2,t3,t4;
 set global max_relay_log_size= @my_max_relay_log_size;
 End of 5.1 tests

@@ -406,6 +406,27 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     {
       if(savedError.code==0)
 	savedError= theError;
+      /**
+       * We abort the execute here. But we still need to put the split-off
+       * operation list back into the transaction object, or we will get a
+       * memory leak.
+       */
+      if (firstSavedOp != NULL && lastSavedOp != NULL) {
+        DBUG_PRINT("info", ("Rejoining ops list after postExecute between "
+                            "%p and %p", theLastOpInList, firstSavedOp));
+        if (theFirstOpInList == NULL)
+          theFirstOpInList = firstSavedOp;
+        else
+          theLastOpInList->next(firstSavedOp);
+        theLastOpInList = lastSavedOp;
+      }
+      if (tCompletedFirstOp != NULL) {
+        tCompletedLastOp->next(theCompletedFirstOp);
+        theCompletedFirstOp = tCompletedFirstOp;
+        if (theCompletedLastOp == NULL)
+          theCompletedLastOp = tCompletedLastOp;
+      }
+
       DBUG_RETURN(-1);
     }
 

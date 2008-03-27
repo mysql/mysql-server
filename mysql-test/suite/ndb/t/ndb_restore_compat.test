@@ -1,5 +1,4 @@
 -- source include/have_ndb.inc
--- source include/not_embedded.inc
 -- source include/have_case_sensitive_file_system.inc
 
 # This test currently requires case sensitive file system as the tables
@@ -64,4 +63,24 @@ SELECT * FROM DESCRIPTION ORDER BY USERNAME;
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK DESCRIPTION | grep SHORT_VAR
 --exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d BANK DESCRIPTION | grep MEDIUM_VAR
 
+# Check backup in read-packed format
+DROP TABLE GL;
+DROP TABLE ACCOUNT;
+DROP TABLE TRANSACTION;
+DROP TABLE SYSTEM_VALUES;
+DROP TABLE ACCOUNT_TYPE;
+
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -m $MYSQL_TEST_DIR/std_data/ndb_backup_packed >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup_packed >> $NDB_TOOLS_OUTPUT
+
+SELECT * FROM GL            ORDER BY TIME,ACCOUNT_TYPE;
+SELECT * FROM ACCOUNT       ORDER BY ACCOUNT_ID;
+SELECT COUNT(*) FROM TRANSACTION;
+SELECT * FROM SYSTEM_VALUES ORDER BY SYSTEM_VALUES_ID;
+
 DROP DATABASE BANK;
+
+USE test;
+# hugo generated data...
+select a,b,hex(b0),hex(b1),hex(b2),hex(b3),b4,hex(b5),b6,hex(b7) from t1 order by 1,2;
+drop table t1;

@@ -469,9 +469,11 @@ int main(int argc, char** argv)
   globalEmulatorData.m_socket_server->startServer();
 
   //  theConfig->closeConfiguration();
-
-  globalEmulatorData.theThreadConfig->ipControlLoop();
-  
+  {
+    Uint32 inx = globalEmulatorData.theConfiguration->addThreadId(MainThread);
+    globalEmulatorData.theThreadConfig->ipControlLoop(inx);
+    globalEmulatorData.theConfiguration->removeThreadId(inx);
+  }
   NdbShutdown(NST_Normal);
 
   return NRT_Default;

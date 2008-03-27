@@ -774,6 +774,7 @@ NDBT_TestSuite::NDBT_TestSuite(const char* pname):name(pname){
    tsname = NULL;
    createAllTables = false;
    temporaryTables = false;
+   nologging = false;
 }
 
 
@@ -875,7 +876,8 @@ int NDBT_TestSuite::executeAll(Ndb_cluster_connection& con,
 	  continue;
 	}
       
-	if (NDBT_Tables::createTable(&ndb, pTab->getName(), false, false,
+	if (NDBT_Tables::createTable(&ndb, pTab->getName(), 
+                                     nologging, false,
 				     g_create_hook, this) != 0) {
 	  numTestsFail++;
 	  numTestsExecuted++;
@@ -1070,7 +1072,7 @@ void NDBT_TestSuite::execute(Ndb_cluster_connection& con,
 	continue;
       }
       
-      if (NDBT_Tables::createTable(ndb, pTab->getName(), false, false,
+      if (NDBT_Tables::createTable(ndb, pTab->getName(), nologging, false,
                                    g_create_hook, this) != 0) {
 	numTestsFail++;
 	numTestsExecuted++;
@@ -1190,6 +1192,8 @@ static char * opt_remote_mgm = NULL;
 static char * opt_testname = NULL;
 static int opt_verbose;
 static int opt_seed = 0;
+static int opt_nologging = 0;
+static int opt_temporary = 0;
 
 static struct my_option my_long_options[] =
 {
@@ -1224,6 +1228,12 @@ static struct my_option my_long_options[] =
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "verbose", 'v', "Print verbose status",
     (uchar **) &opt_verbose, (uchar **) &opt_verbose, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "temporary-tables", 'T', "Create temporary table(s)",
+    (uchar **) &opt_temporary, (uchar **) &opt_temporary, 0,
+    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "nologging", 0, "Create table(s) wo/ logging",
+    (uchar **) &opt_nologging, (uchar **) &opt_nologging, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -1303,6 +1313,8 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
   records = opt_records;
   loops = opt_loops;
   timer = opt_timer;
+  nologging = opt_nologging;
+  temporaryTables = opt_temporary;
 
   Ndb_cluster_connection con;
   if(con.connect(12, 5, 1))
@@ -1349,7 +1361,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 		<< pDict->getNdbError() << endl;
 	  return NDBT_ProgramExit(NDBT_FAILED);
 	}
-	if(NDBT_Tables::createTable(&ndb, tab_name) != 0)
+	if(NDBT_Tables::createTable(&ndb, tab_name, nologging) != 0)
 	{
 	  g_err << "ERROR1: Failed to create table " << tab_name
 		<< pDict->getNdbError() << endl;

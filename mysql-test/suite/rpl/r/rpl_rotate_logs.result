@@ -53,6 +53,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 select * from t1;
 s
 Could not break slave
@@ -134,6 +135,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 select * from t2;
 m
 34
@@ -198,6 +200,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 lock tables t3 read;
 select count(*) from t3 where n >= 4;
 count(*)

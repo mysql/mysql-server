@@ -636,7 +636,6 @@ public:
     ConnectionState apiConnectstate;
     UintR transid[2];
     UintR firstTcConnect;
-    NdbNodeBitmask m_transaction_nodes; 
     
     //---------------------------------------------------
     // Second 16 byte cache line. Hot variables.
@@ -672,26 +671,43 @@ public:
     //---------------------------------------------------
     UintR lastTcConnect;
     UintR lqhkeyreqrec;
-    AbortState abortState;
     Uint32 buddyPtr;
+    union {
+      UintR apiScanRec;
+      UintR commitAckMarker;
+    };
+
+    Uint32 no_commit_ack_markers;
+    ReturnSignal returnsignal;
+    AbortState abortState;
+
+    Uint8 indexOpReturn;
+    Uint8 triggerPending; // Used to mark waiting for a CONTINUEB
+
     Uint8 m_exec_flag;
-    Uint8 unused2;
+    Uint8 isIndexOp;      // Used to mark on-going TcKeyReq as indx table access
+
     Uint8 takeOverRec;
     Uint8 currentReplicaNo;
+    Uint8 m_commit_ack_marker_received;
+
+    Uint8 tckeyrec; // Changed from R
+
+    Uint8 tcindxrec;
+    Uint8 apiFailState; // Changed R
+    Uint8 timeOutCounter;
+    Uint8 singleUserMode;
     
+    Uint16 returncode;
+    Uint16 takeOverInd;
     //---------------------------------------------------
     // Error Handling variables. If cache line 32 bytes
     // ensures that cache line is still only read in
     // early phases.
     //---------------------------------------------------
-    union {
-      UintR apiScanRec;
-      UintR commitAckMarker;
-    };
     UintR currentTcConnect;
     BlockReference tcBlockref;
-    Uint16 returncode;
-    Uint16 takeOverInd;
+    UintR failureNr;
     
     //---------------------------------------------------
     // Second 64 byte cache line. Third 16 byte cache line
@@ -706,15 +722,8 @@ public:
     // timeOutCounter is used waiting for ABORTCONF, COMMITCONF
     // and COMPLETECONF
     //---------------------------------------------------
-    UintR failureNr;
-    Uint8 tckeyrec; // Ändrad från R
-    Uint8 tcindxrec;
-    Uint8 apiFailState; // Ändrad från R
-    Uint8 singleUserMode;
-    ReturnSignal returnsignal;
-    Uint8 timeOutCounter;
-    
     UintR tcSendArray[6];
+    NdbNodeBitmask m_transaction_nodes; 
     
     // Trigger data
     
@@ -723,12 +732,9 @@ public:
      */  
     DLFifoList<TcFiredTriggerData> theFiredTriggers;
     
-    bool triggerPending; // Used to mark waiting for a CONTINUEB
     
     // Index data
     
-    Uint8 isIndexOp;      // Used to mark on-going TcKeyReq as indx table access
-    bool indexOpReturn;
     UintR noIndexOp;     // No outstanding index ops
 
     // Index op return context
@@ -1827,8 +1833,7 @@ public:
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
-    Uint16 noOfLqhs;
-    Uint16 lqhNodeId[MAX_REPLICAS];
+    NdbNodeBitmask m_commit_ack_marker_nodes; 
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));

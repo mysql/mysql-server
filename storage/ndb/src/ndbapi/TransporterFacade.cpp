@@ -60,6 +60,21 @@ static int indexToNumber(int index)
  * Call back functions
  *****************************************************************************/
 
+void* ndb_thread_add_thread_id(void *param)
+{
+  return NULL;
+}
+
+void *ndb_thread_remove_thread_id(void *param)
+{
+  return NULL;
+}
+
+void ndb_thread_fill_thread_object(void *param, uint *len, bool server)
+{
+  *len = 0;
+}
+
 void
 reportError(void * callbackObj, NodeId nodeId,
 	    TransporterError errorCode, const char *info)
@@ -1032,15 +1047,18 @@ TransporterFacade::sendSignal(NdbApiSignal * aSignal, NodeId aNode){
 }
 
 int
-TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
+TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, 
+                                    NodeId aNode,
+                                    Uint32 prio){
   Uint32* tDataPtr = aSignal->getDataPtrSend();
+  assert(prio <= 1);
 #ifdef API_TRACE
   if(setSignalLog() && TRACE_GSN(aSignal->theVerId_signalNumber)){
     Uint32 tmp = aSignal->theSendersBlockRef;
     aSignal->theSendersBlockRef = numberToRef(tmp, theOwnId);
     LinearSectionPtr ptr[3];
     signalLogger.sendSignal(* aSignal,
-			    0,
+			    prio,
 			    tDataPtr,
 			    aNode, ptr, 0);
     signalLogger.flushSignalLog();
@@ -1051,7 +1069,7 @@ TransporterFacade::sendSignalUnCond(NdbApiSignal * aSignal, NodeId aNode){
          (aSignal->theLength <= 25) &&
          (aSignal->theReceiversBlockNumber != 0));
   SendStatus ss = theTransporterRegistry->prepareSend(aSignal, 
-						      0, 
+						      prio, 
 						      tDataPtr,
 						      aNode, 
 						      0);

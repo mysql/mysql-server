@@ -54,8 +54,8 @@ class DiGetNodesReq {
 public:
   STATIC_CONST( SignalLength = 3 );
 private:
-  Uint32 notUsed;
   Uint32 tableId;
   Uint32 hashValue;
+  Uint32 distr_key_indicator;
 };
 #endif

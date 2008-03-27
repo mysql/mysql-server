@@ -4,8 +4,7 @@
 # Purpose: mix backup/restore test for basic online alter table
 ##############################################################
 
---source include/have_multi_ndb.inc
---source include/not_embedded.inc
+--source include/have_ndb.inc
 
 ##############################
 # mix endian restore section #

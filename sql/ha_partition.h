@@ -450,7 +450,7 @@ private:
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
   void return_top_record(uchar * buf);
-  void column_bitmaps_signal();
+  void column_bitmaps_signal(uint sig_type);
 public:
   /*
     -------------------------------------------------------------------------
