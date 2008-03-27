@@ -2,6 +2,9 @@
 #
 # Check cpu of current machine and find the
 # best compiler optimization flags for gcc
+# Will return result in:
+# cpu_arg        : Type of CPU
+# check_cpu_args : Arguments for GCC compiler settings
 #
 
 check_cpu () {
@@ -33,7 +36,7 @@ check_cpu () {
 
     # parse CPU flags
     for flag in `$cpuinfo | grep '^flags' | sed -e 's/^flags.*: //' -e 's/[^a-zA-Z0-9_ ]/_/g'`; do 
-          eval cpu_flag_$flag=yes
+      eval cpu_flag_$flag=yes
     done
   else
     # Fallback when there is no /proc/cpuinfo
@@ -62,91 +65,94 @@ check_cpu () {
     Alpha*EV6*)
       cpu_arg="ev6";
       ;;
-
     # Intel ia32
     *Intel*Core*|*X[eE][oO][nN]*)
       # a Xeon is just another pentium4 ...
       # ... unless it has the "lm" (long-mode) flag set, 
       # in that case it's a Xeon with EM64T support
+      # If SSE3 support exists it is a Core2 Duo or newer
       # So is Intel Core.
-          if [ -z "$cpu_flag_lm" ]; then
-        cpu_arg="pentium4";
-          else
-        cpu_arg="nocona";
+      if [ -z "$cpu_flag_lm" ]; then
+        cpu_arg="pentium4"
+      else
+        cpu_arg="nocona"
+      fi
+      if test -z "$cpu_flag_ssse3" ; then
+        core2="no"
+      else
+        core2="yes"
       fi
       ;;
     *Pentium*4*Mobile*)
-      cpu_arg="pentium4m";
-    ;;
+      cpu_arg="pentium4m"
+      ;;
     *Pentium*4*)
-      cpu_arg="pentium4";
+      cpu_arg="pentium4"
       ;;
     *Pentium*III*Mobile*)
-      cpu_arg="pentium3m";
-    ;;
+      cpu_arg="pentium3m"
+      ;;
     *Pentium*III*)
-      cpu_arg="pentium3";
-    ;;
+      cpu_arg="pentium3"
+      ;;
     *Pentium*M*pro*)
-      cpu_arg="pentium-m";
+      cpu_arg="pentium-m"
     ;;
     *Celeron\(R\)*\ M*)
-      cpu_arg="pentium-m";
-    ;;
+      cpu_arg="pentium-m"
+      ;;
     *Celeron*Coppermine*)
       cpu_arg="pentium3"
-    ;;
+      ;;
     *Celeron\(R\)*)
       cpu_arg="pentium4"
-    ;;
+      ;;
     *Celeron*)
-      cpu_arg="pentium2";
-    ;;
-    *Athlon*64*)
-      cpu_arg="athlon64";
+      cpu_arg="pentium2"
       ;;
     *Turion*)
-      cpu_arg="athlon64";
+      cpu_arg="athlon64"
       ;;
-    *Opteron*)
-      cpu_arg="athlon64";
+    *Athlon*64*)
+      cpu_arg="athlon64"
       ;;
     *Athlon*)
-      cpu_arg="athlon";
+      cpu_arg="athlon"
       ;;
     *Opteron*)
-      cpu_arg="opteron";
+      cpu_arg="opteron"
       ;;
     # MacOSX / Intel  
     *i386*i486*)
-      cpu_arg="pentium-m";
+      cpu_arg="pentium-m"
+      ;;
+    *i386*)
+      cpu_arg="i386"
       ;;
     #Core 2 Duo  
     *Intel*Core\(TM\)2*)
-      cpu_arg="nocona";
+      cpu_arg="nocona"
       ;;
-
     # Intel ia64
     *Itanium*)
-      # Don't need to set any flags for itanium(at the moment)
-      cpu_arg="";
+      cpu_arg="itanium"
       ;;
-
-    #
+    # Solaris Sparc
+    *sparc*sun4u*)
+      cpu_arg="sparc"
+      ;;
+    # Power PC
     *ppc*)
-      cpu_arg='powerpc'
+      cpu_arg="powerpc"
       ;;
-   
     *powerpc*)
-      cpu_arg='powerpc'
+      cpu_arg="powerpc"
       ;;
-
     # unknown
     *)
-      cpu_arg="";
+      cpu_arg=""
       ;;
   esac
-
 
   if test -z "$cpu_arg" ; then
     if test "$CPUINFO" != " " ; then
@@ -176,29 +182,22 @@ check_cpu () {
   cc_minor=$2
   cc_patch=$3
   cc_comp=`expr $cc_major '*' 100 '+' $cc_minor`
-
+  
   case "$cc_ver--$cc_verno" in
     *GCC*)
         # different gcc backends (and versions) have different CPU flags
         case `gcc -dumpmachine` in
-          i?86-*)
-	    if test "$cc_comp" -lt 304
-            then
-                            check_cpu_args='-mcpu=$cpu_arg'
+          i?86-* | x86_64-*)
+	    if test "$cc_comp" -lt 304 ; then
+              check_cpu_cflags="-mcpu=${cpu_arg}"
+            elif test "$cc_comp" -ge 402 ; then
+              check_cpu_cflags="-mtune=native"
             else
-                            check_cpu_args='-mtune=$cpu_arg'
+              check_cpu_cflags="-mtune=${cpu_arg}"
             fi
             ;;
           ppc-*)
-                    check_cpu_args='-mcpu=$cpu_arg -mtune=$cpu_arg'
-            ;;
-          x86_64-*)
-	    if test "$cc_comp" -lt 304
-            then
-                            check_cpu_args='-mcpu=$cpu_arg'
-            else
-                            check_cpu_args='-mtune=$cpu_arg'
-            fi
+              check_cpu_cflags="-mcpu=${cpu_arg} -mtune=${cpu_arg}"
             ;;
           *)
             check_cpu_cflags=""
@@ -208,7 +207,7 @@ check_cpu () {
       ;;
     2.95.*)
       # GCC 2.95 doesn't expose its name in --version output
-      check_cpu_args='-m$cpu_arg'
+      check_cpu_cflags="-m${cpu_arg}"
       ;;
     *)
       check_cpu_cflags=""
@@ -219,41 +218,23 @@ check_cpu () {
   # now we check whether the compiler really understands the cpu type
   touch __test.c
 
+  if test "x$core2" = "xyes" ; then
+    cpu_arg="core2"
+  fi
   while [ "$cpu_arg" ] ; do
     printf "testing $cpu_arg ... " >&2
           
     # compile check
-    check_cpu_cflags=`eval echo $check_cpu_args`
-    if $cc -c $check_cpu_cflags __test.c 2>/dev/null; then
-            echo ok >&2
-        break;
+    eval "$cc -c $check_cpu_cflags __test.c" 2>/dev/null
+    if test "x$?" = "x0" ; then
+      echo ok >&2
+      break;
     fi
 
     echo failed >&2
     check_cpu_cflags=""
-
-    # if compile failed: check whether it supports a predecessor of this CPU
-    # this list is not complete, feel free to add further entries
-    case "$cpu_arg" in
-      # Intel ia32
-      nocona)     cpu_arg=pentium4    ;; 
-      prescott)   cpu_arg=pentium4    ;;
-      pentium4m)  cpu_arg=pentium4    ;;
-      pentium4)   cpu_arg=pentium3    ;;
-      pentium3m)  cpu_arg=pentium3    ;;
-      pentium3)   cpu_arg=pentium2    ;;
-      pentium2)   cpu_arg=pentiumpro  ;;
-      pentiumpro) cpu_arg=pentium     ;;
-      pentium)    cpu_arg=i486        ;;
-      i486)       cpu_arg=i386        ;;
-
-      # power / powerPC
-      7450)       cpu_arg=7400        ;;
-
-      *)          cpu_arg=""          ;;
-    esac
+    break;
   done
-
   rm __test.*
 }
  

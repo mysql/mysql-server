@@ -961,7 +961,7 @@ map_init_nls(EditLine *el)
 	el_action_t *map = el->el_map.key;
 
 	for (i = 0200; i <= 0377; i++)
-		if (isprint(i))
+		if (el_isprint(i))
 			map[i] = ED_INSERT;
 }
 

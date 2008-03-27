@@ -1,0 +1,163 @@
+################################################################################
+# t/partition_basic_innodb.test                                                #
+#                                                                              #
+# Purpose:                                                                     #
+#  Tests around Create Partitioned table using DATA/INDEX DIR                  #
+#        InnoDB branch                                                         #
+#                                                                              #
+#------------------------------------------------------------------------------#
+# Original Author: mleich                                                      #
+# Original Date: 2006-03-05                                                    #
+# Change Author: mattiasj                                                      #
+# Change Date: 2008-02-05                                                      #
+# Change: copied it from partition_basic_innodb.test and kept DATA DIR         #
+# Change Author: mattiasj                                                      #
+# Change Date: 2008-03-16                                                      #
+# Change: Replaced all test with alter -> myisam, since innodb does not support#
+#         DATA/INDEX DIRECTORY                                                 #
+################################################################################
+
+# NOTE: Until InnoDB supports DATA/INDEX DIR, test that a partitioned table
+#       remembers the DATA/INDEX DIR and it is used if altered to MyISAM
+#
+--echo # Will not run partition_basic_symlink on InnoDB, since it is the same
+--echo # as partition_basic, since InnoDB does not support DATA/INDEX DIR
+--echo # Will only verify that the DATA/INDEX DIR is stored and used if
+--echo # ALTER to MyISAM.
+--source include/have_innodb.inc
+# The server must support partitioning.
+--source include/have_partition.inc
+# The server must support symlink for DATA/INDEX DIRECTORY.
+--source include/have_symlink.inc
+# windows does not support symlink for DATA/INDEX DIRECTORY.
+--source include/not_windows.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+--mkdir $MYSQLTEST_VARDIR/mysql-test-data-dir
+--mkdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+eval CREATE TABLE t1 (c1 INT)
+ENGINE = InnoDB
+PARTITION BY HASH (c1)
+(PARTITION p0
+ DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
+ INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir',
+ PARTITION p1
+ DATA DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-data-dir'
+ INDEX DIRECTORY = '$MYSQLTEST_VARDIR/mysql-test-idx-dir'
+);
+--echo # Verifying .frm and .par files
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
+--echo # Verifying that there are no MyISAM files
+--error 1
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
+--error 1
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
+--error 1
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYD
+--error 1
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p0.MYI
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p1.MYD
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p1.MYI
+FLUSH TABLES;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t1;
+ALTER TABLE t1 ENGINE = MyISAM;
+--echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.frm
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1.par
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p0.MYI
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYD
+--file_exists $MYSQLTEST_VARDIR/master-data/test/t1#P#p1.MYI
+--file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p0.MYD
+--file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p0.MYI
+--file_exists $MYSQLTEST_VARDIR/mysql-test-data-dir/t1#P#p1.MYD
+--file_exists $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1#P#p1.MYI
+FLUSH TABLES;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+--rmdir $MYSQLTEST_VARDIR/mysql-test-data-dir
+--rmdir $MYSQLTEST_VARDIR/mysql-test-idx-dir
+--exit
+# here is the old test, which is tested by partition_basic_innodb
+
+#
+# NOTE: PLEASE DO NOT ADD NOT INNODB SPECIFIC TESTCASES HERE !
+#       TESTCASES WHICH MUST BE APPLIED TO ALL STORAGE ENGINES MUST BE ADDED IN
+#       THE SOURCED FILES ONLY.
+#
+# Please read the README at the end of inc/partition.pre before changing
+# any of the variables.
+#
+
+#------------------------------------------------------------------------------#
+# General not engine specific settings and requirements
+
+##### Options, for debugging support #####
+let $debug= 0;
+let $with_partitioning= 1;
+
+##### Option, for displaying files #####
+let $ls= 1;
+
+##### Number of rows for the INSERT/UPDATE/DELETE/SELECT experiments #####
+#     on partioned tables
+SET @max_row = 20;
+
+##### Execute more tests                                             #####
+let $more_trigger_tests= 0;
+let $more_pk_ui_tests= 0;
+
+# The server must support partitioning.
+--source include/have_partition.inc
+# The server must support symlink for DATA/INDEX DIRECTORY.
+--source include/have_symlink.inc
+# windows does not support symlink for DATA/INDEX DIRECTORY.
+--source include/not_windows.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+--source include/have_innodb.inc
+let $engine= 'InnoDB';
+
+##### Execute the test of "table" files
+# InnoDB has no files per PK, UI, ...
+let $do_file_tests= 0;
+
+##### Execute PRIMARY KEY tests                                      #####
+# AFAIK InnoDB clusters the table around PRIMARY KEYs.
+let $do_pk_tests= 1;
+
+##### Assign a big number smaller than the maximum value for partitions  #####
+#     and smaller than the maximum value of SIGNED INTEGER
+let $MAX_VALUE= (2147483646);
+
+# Generate the prerequisites ($variables, @variables, tables) needed
+--source suite/parts/inc/partition.pre
+
+##### Workarounds for known open engine specific bugs
+#     none
+
+#------------------------------------------------------------------------------#
+# Execute the tests to be applied to all storage engines
+--source suite/parts/inc/partition_basic_symlink.inc
+
+#------------------------------------------------------------------------------#
+# Execute storage engine specific tests
+
+#------------------------------------------------------------------------------#
+# Cleanup
+--source suite/parts/inc/partition_cleanup.inc

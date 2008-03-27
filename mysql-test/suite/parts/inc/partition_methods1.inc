@@ -44,42 +44,38 @@ let $partitioning= ;
 if ($with_partitioning)
 {
 let $partitioning= PARTITION BY HASH(f_int1) PARTITIONS 2;
---disable_query_log
 if ($with_directories)
 {
-eval SET @aux =
-'PARTITION BY HASH(f_int1) PARTITIONS 2
+let $partitioning=
+PARTITION BY HASH(f_int1) PARTITIONS 2
 (PARTITION p1 
 $data_directory 
 $index_directory,
 PARTITION p2 
 $data_directory 
-$index_directory)';
-let $partitioning= `SELECT @aux`;
+$index_directory);
 }
 }
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY KEY
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux =
-'PARTITION BY KEY(f_int1) PARTITIONS 5';
-let $partitioning= `SELECT @aux`;
+let $partitioning= 
+PARTITION BY KEY(f_int1) PARTITIONS 5;
 if ($with_directories)
 {
-eval SET @aux =
-'PARTITION BY HASH(f_int1) PARTITIONS 5
+let $partitioning= 
+PARTITION BY KEY(f_int1) PARTITIONS 5
 (PARTITION p1
 $data_directory
 $index_directory,
@@ -94,27 +90,37 @@ $data_directory
 $index_directory,
 PARTITION p5
 $data_directory
-$index_directory)';
-let $partitioning= `SELECT @aux`;
+$index_directory);
 }
 }
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux =
-'PARTITION BY LIST(MOD(f_int1,4))
+let $partitioning= 
+PARTITION BY LIST(MOD(f_int1,4))
+(PARTITION part_3 VALUES IN (-3),
+ PARTITION part_2 VALUES IN (-2),
+ PARTITION part_1 VALUES IN (-1),
+ PARTITION part_N VALUES IN (NULL),
+ PARTITION part0 VALUES IN (0),
+ PARTITION part1 VALUES IN (1),
+ PARTITION part2 VALUES IN (2),
+ PARTITION part3 VALUES IN (3));
+if ($with_directories)
+{
+let $partitioning= 
+PARTITION BY LIST(MOD(f_int1,4))
 (PARTITION part_3 VALUES IN (-3)
 $data_directory $index_directory,
  PARTITION part_2 VALUES IN (-2)
@@ -130,25 +136,33 @@ $data_directory $index_directory,
  PARTITION part2 VALUES IN (2)
 $data_directory $index_directory,
  PARTITION part3 VALUES IN (3)
-$data_directory $index_directory)';
-let $partitioning= `SELECT @aux`;
+$data_directory $index_directory);
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux = 'PARTITION BY RANGE(f_int1)
+let $partitioning= PARTITION BY RANGE(f_int1)
+(PARTITION parta VALUES LESS THAN (0),
+PARTITION partb VALUES LESS THAN ($max_row_div4),
+PARTITION partc VALUES LESS THAN ($max_row_div2),
+PARTITION partd VALUES LESS THAN ($max_row_div2 + $max_row_div4),
+PARTITION parte VALUES LESS THAN ($max_row),
+PARTITION partf VALUES LESS THAN $MAX_VALUE);
+if ($with_directories)
+{
+let $partitioning= PARTITION BY RANGE(f_int1)
 (PARTITION parta VALUES LESS THAN (0)
 $data_directory
 $index_directory,
@@ -166,26 +180,33 @@ $data_directory
 $index_directory,
 PARTITION partf VALUES LESS THAN $MAX_VALUE
 $data_directory
-$index_directory)';
-let $partitioning= `SELECT @aux`;
+$index_directory);
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY HASH
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux =
-'PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
+let $partitioning= 
+PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
+(PARTITION parta VALUES LESS THAN (0),
+PARTITION partb VALUES LESS THAN ($max_row_div4),
+PARTITION partc VALUES LESS THAN ($max_row_div2),
+PARTITION partd VALUES LESS THAN $MAX_VALUE);
+if ($with_directories)
+{
+let $partitioning= 
+PARTITION BY RANGE(f_int1 DIV 2) SUBPARTITION BY HASH(f_int1) SUBPARTITIONS 2
 (PARTITION parta VALUES LESS THAN (0)
 $data_directory
 $index_directory,
@@ -197,60 +218,81 @@ $data_directory
 $index_directory,
 PARTITION partd VALUES LESS THAN $MAX_VALUE
 $data_directory
-$index_directory)';
-let $partitioning= `SELECT @aux`;
+$index_directory);
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY RANGE -- SUBPARTITION BY KEY
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux = 'PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
+let $partitioning= PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
-$data_directory
-$index_directory
 (SUBPARTITION subpart11, SUBPARTITION subpart12),
 PARTITION part2 VALUES LESS THAN ($max_row_div4)
-$data_directory
-$index_directory
 (SUBPARTITION subpart21, SUBPARTITION subpart22),
 PARTITION part3 VALUES LESS THAN ($max_row_div2)
-$data_directory
-$index_directory
 (SUBPARTITION subpart31, SUBPARTITION subpart32),
 PARTITION part4 VALUES LESS THAN $MAX_VALUE
-$data_directory
-$index_directory
-(SUBPARTITION subpart41, SUBPARTITION subpart42))';
-let $partitioning= `SELECT @aux`;
+(SUBPARTITION subpart41, SUBPARTITION subpart42));
+if ($with_directories)
+{
+let $partitioning= PARTITION BY RANGE(f_int1) SUBPARTITION BY KEY(f_int1)
+(PARTITION part1 VALUES LESS THAN (0)
+(SUBPARTITION subpart11 $data_directory $index_directory,
+ SUBPARTITION subpart12 $data_directory $index_directory),
+PARTITION part2 VALUES LESS THAN ($max_row_div4)
+(SUBPARTITION subpart21 $data_directory $index_directory,
+ SUBPARTITION subpart22 $data_directory $index_directory),
+PARTITION part3 VALUES LESS THAN ($max_row_div2)
+(SUBPARTITION subpart31 $data_directory $index_directory,
+ SUBPARTITION subpart32 $data_directory $index_directory),
+PARTITION part4 VALUES LESS THAN $MAX_VALUE
+(SUBPARTITION subpart41 $data_directory $index_directory,
+ SUBPARTITION subpart42 $data_directory $index_directory));
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY HASH
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux =
-'PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
+let $partitioning= 
+PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
+(PARTITION part1 VALUES IN (0)
+  (SUBPARTITION sp11,
+   SUBPARTITION sp12),
+ PARTITION part2 VALUES IN (1)
+  (SUBPARTITION sp21,
+   SUBPARTITION sp22),
+ PARTITION part3 VALUES IN (2)
+  (SUBPARTITION sp31, 
+   SUBPARTITION sp32),
+ PARTITION part4 VALUES IN (NULL)
+  (SUBPARTITION sp41,
+   SUBPARTITION sp42));
+if ($with_directories)
+{
+let $partitioning= 
+PARTITION BY LIST(ABS(MOD(f_int1,3))) SUBPARTITION BY HASH(f_int1 + 1)
 (PARTITION part1 VALUES IN (0)
   $data_directory
   $index_directory
@@ -282,26 +324,33 @@ eval SET @aux =
      $index_directory,
    SUBPARTITION sp42
      $data_directory
-     $index_directory))';
-let $partitioning= `SELECT @aux`;
+     $index_directory));
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
 
 #----------- PARTITION BY LIST -- SUBPARTITION BY KEY
---disable_query_log
 if ($with_partitioning)
 {
-eval SET @aux =
-'PARTITION BY LIST(ABS(MOD(f_int1,2)))
+let $partitioning= 
+PARTITION BY LIST(ABS(MOD(f_int1,2)))
+SUBPARTITION BY KEY(f_int1) SUBPARTITIONS $sub_part_no
+(PARTITION part1 VALUES IN (0),
+ PARTITION part2 VALUES IN (1),
+ PARTITION part3 VALUES IN (NULL));
+if ($with_directories)
+{
+let $partitioning= 
+PARTITION BY LIST(ABS(MOD(f_int1,2)))
 SUBPARTITION BY KEY(f_int1) SUBPARTITIONS $sub_part_no
 (PARTITION part1 VALUES IN (0)
   $data_directory
@@ -311,17 +360,16 @@ SUBPARTITION BY KEY(f_int1) SUBPARTITIONS $sub_part_no
   $index_directory,
  PARTITION part3 VALUES IN (NULL)
   $data_directory
-  $index_directory)';
-let $partitioning= `SELECT @aux`;
+  $index_directory);
 }
+}
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval CREATE TABLE t1 (
 $column_list
 $unique
 )
 $partitioning;
---enable_query_log
 eval $insert_all;
 --source suite/parts/inc/partition_check.inc
 DROP TABLE t1;
 --source suite/parts/inc/partition_check_drop.inc
-let $with_directories= FALSE;

@@ -192,3 +192,31 @@ DROP PROCEDURE proc4;
 DROP FUNCTION  func5;
 DROP PREPARE   prep6;
 DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
+CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+UPDATE t1 SET a=1 LIMIT 1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+DELETE FROM t1 LIMIT 1;
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+CREATE PROCEDURE p1()
+BEGIN
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+UPDATE t1 SET a=1 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+END|
+CALL p1();
+Warnings:
+Warning	1592	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
+Warning	1592	Statement is not safe to log in statement format.
+DROP PROCEDURE p1;
+DROP TABLE t1;
