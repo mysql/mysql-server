@@ -75,4 +75,4 @@ INSERT INTO t1 VALUES(9223372036854775808);
 SELECT * FROM t1;
 DROP TABLE t1;
 
---# echo End of 5.0 tests
+--echo End of 5.0 tests
