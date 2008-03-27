@@ -250,7 +250,7 @@ enum enum_field_types { MYSQL_TYPE_DECIMAL, MYSQL_TYPE_TINY,
                         MYSQL_TYPE_VAR_STRING=253,
                         MYSQL_TYPE_STRING=254,
                         MYSQL_TYPE_GEOMETRY=255,
-                        MAX_NO_FIELD_TYPES // Should always be last
+                        MAX_NO_FIELD_TYPES /* Should always be last */
 };
 
 /* For backward compatibility */
@@ -379,7 +379,7 @@ struct rand_struct {
 
 enum Item_result {STRING_RESULT=0, REAL_RESULT, INT_RESULT, ROW_RESULT,
                   DECIMAL_RESULT,
-                  MAX_NO_ITEM_RESULTS // Should always be last
+                  MAX_NO_ITEM_RESULTS /* Should always be last */
 };
 
 typedef struct st_udf_args
