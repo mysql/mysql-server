@@ -34,9 +34,12 @@ typedef struct __toku_point toku_point;
 typedef struct {
     toku_point* left;  /**< Left end-point */
     toku_point* right; /**< Right end-point */
-    DB_TXN*     data;  /**< Data associated with the range */
-} toku_range;
+} toku_interval;
 
+typedef struct {
+    toku_interval ends;
+    TXNID     data;  /**< Data associated with the range */
+} toku_range;
 
 /** Export the internal representation to a sensible name */
 /*  These lines will remain. */
@@ -84,7 +87,7 @@ int toku_rt_get_allow_overlaps(toku_range_tree* tree, BOOL* allowed);
     - Other exit codes may be forwarded from underlying system calls. */
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*), 
-                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
+                   int (*data_cmp)(const TXNID,const TXNID),
                    BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
@@ -100,6 +103,13 @@ int toku_rt_create(toku_range_tree** ptree,
     - EINVAL:               If tree is NULL.
  */
 int toku_rt_close(toku_range_tree* tree);
+
+/**
+    Deletes all elements of a range tree.
+
+    \param tree             The range tree to clear.
+ */
+void toku_rt_clear(toku_range_tree* tree);
 
 /**
     Finds ranges in the range tree that overlap a query range.
@@ -133,7 +143,7 @@ int toku_rt_close(toku_range_tree* tree);
     parameter to specify whether more elements exist in the tree that overlap 
     (in excess of the requested limit of k).
  */
-int toku_rt_find(toku_range_tree* tree,toku_range* query, u_int32_t k,
+int toku_rt_find(toku_range_tree* tree,toku_interval* query, u_int32_t k,
                  toku_range** buf, u_int32_t* buflen, u_int32_t* numfound);
  
 

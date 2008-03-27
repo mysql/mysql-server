@@ -29,7 +29,6 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 
-
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
 
@@ -541,7 +540,7 @@ static int toku_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
     int r = ENOSYS;
     HANDLE_PANICKED_ENV(dbenv);
     if (env_opened(dbenv))         { return EINVAL; }
-    r = toku_ltm_set_max_locks(dbenv->i->ltm, max);
+    r = toku_ltm_set_max_locks_per_db(dbenv->i->ltm, max);
     return r;
 }
 
@@ -557,7 +556,7 @@ static int locked_env_set_lk_max(DB_ENV * env, u_int32_t lk_max) {
 
 static int toku_env_get_lk_max_locks(DB_ENV *dbenv, u_int32_t *lk_maxp) {
     HANDLE_PANICKED_ENV(dbenv);
-    return toku_ltm_get_max_locks(dbenv->i->ltm, lk_maxp);
+    return toku_ltm_get_max_locks_per_db(dbenv->i->ltm, lk_maxp);
 }
 
 static int locked_env_set_lk_max_locks(DB_ENV *dbenv, u_int32_t max) {
@@ -679,6 +678,12 @@ static int locked_env_txn_stat(DB_ENV * env, DB_TXN_STAT ** statp, u_int32_t fla
 
 static int locked_txn_begin(DB_ENV * env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
 
+static int toku_db_lt_panic(DB* db, int r);
+
+static toku_dbt_cmp toku_db_get_compare_fun(DB* db);
+
+static toku_dbt_cmp toku_db_get_dup_compare(DB* db);
+
 static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     int r = ENOSYS;
     DB_ENV* result = NULL;
@@ -728,7 +733,9 @@ static int toku_env_create(DB_ENV ** envp, u_int32_t flags) {
     result->i->errfile = 0;
 
     r = toku_ltm_create(&result->i->ltm, __toku_env_default_max_locks,
-                        toku_malloc, toku_free, toku_realloc);
+                         toku_db_lt_panic, 
+                         toku_db_get_compare_fun, toku_db_get_dup_compare, 
+                         toku_malloc, toku_free, toku_realloc);
     if (r!=0) { goto cleanup; }
 
     {
@@ -763,19 +770,25 @@ static int toku_txn_release_locks(DB_TXN* txn) {
     assert(txn);
     toku_lth* lth = txn->i->lth;
 
-    int r = 0;
+    int r = ENOSYS;
+    int first_error = 0;
     if (lth) {
         toku_lth_start_scan(lth);
         toku_lock_tree* next = toku_lth_next(lth);
-        int r2;
         while (next) {
-            r2 = toku_lt_unlock(next, txn);
-            if (r2!=0 && !r) r = r2;
+            r = toku_lt_unlock(next, toku_txn_get_txnid(txn->i->tokutxn));
+            if (!first_error && r!=0) { first_error = r; }
+            if (r == 0) {
+                r = toku_lt_remove_ref(next);
+                if (!first_error && r!=0) { first_error = r; }
+            }
             next = toku_lth_next(lth);
         }
         toku_lth_close(lth);
         txn->i->lth = NULL;
     }
+    r = first_error;
+
     return r;
 }
 
@@ -786,6 +799,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     int nosync = (flags & DB_TXN_NOSYNC)!=0;
     flags &= ~DB_TXN_NOSYNC;
     if (flags!=0) {
+        //TODO: Release locks perhaps?
 	if (txn->i) {
 	    if (txn->i->tokutxn)
 		toku_free(txn->i->tokutxn);
@@ -794,8 +808,8 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
 	toku_free(txn);
 	return EINVAL;
     }
+    int r2 = toku_txn_release_locks(txn);
     int r = toku_logger_commit(txn->i->tokutxn, nosync); // frees the tokutxn
-    int r2 = toku_txn_release_locks(txn); // release the locks after the commit (otherwise, what if we abort)
     // the toxutxn is freed, and we must free the rest. */
     if (txn->i)
         toku_free(txn->i);
@@ -812,12 +826,12 @@ static u_int32_t toku_txn_id(DB_TXN * txn) {
 
 static int toku_txn_abort(DB_TXN * txn) {
     HANDLE_PANICKED_ENV(txn->mgrp);
+    int r2 = toku_txn_release_locks(txn);
     int r = toku_logger_abort(txn->i->tokutxn);
 
-    toku_txn_release_locks(txn);
     toku_free(txn->i);
     toku_free(txn);
-    return r;
+    return r ? r : r2;
 }
 
 static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t flags);
@@ -953,26 +967,27 @@ static int toku_db_associate (DB *primary, DB_TXN *txn, DB *secondary,
 
 static int toku_db_close(DB * db, u_int32_t flags) {
     if (db->i->primary==0) {
-	// It is a primary.  Unlink all the secondaries. */
-	while (!list_empty(&db->i->associated)) {
-	    assert(list_struct(list_head(&db->i->associated),
-			       struct __toku_db_internal,
-			       associated)->primary==db);
-	    list_remove(list_head(&db->i->associated));
-	}
-    } else {
-	// It is a secondary.  Remove it from the list, (which it must be in .*/
-	if (!list_empty(&db->i->associated)) {
-	    list_remove(&db->i->associated);
-	}
+        // It is a primary.  Unlink all the secondaries. */
+        while (!list_empty(&db->i->associated)) {
+            assert(list_struct(list_head(&db->i->associated),
+                   struct __toku_db_internal, associated)->primary==db);
+            list_remove(list_head(&db->i->associated));
+        }
+    }
+    else {
+        // It is a secondary.  Remove it from the list, (which it must be in .*/
+        if (!list_empty(&db->i->associated)) {
+            list_remove(&db->i->associated);
+        }
     }
     flags=flags;
     int r = toku_close_brt(db->i->brt);
     if (r != 0)
         return r;
+    if (db->i->db_id) { toku_db_id_remove_ref(db->i->db_id); }
     if (db->i->lt) {
-        r = toku_lt_close(db->i->lt);
-        if (r!=0) return r;
+        r = toku_lt_remove_ref(db->i->lt);
+        if (r!=0) { return r; }
     }
     // printf("%s:%d %d=__toku_db_close(%p)\n", __FILE__, __LINE__, r, db);
     // Even if panicked, let's close as much as we can.
@@ -1077,8 +1092,11 @@ static inline int toku_uninitialized_swap(DBC* c, DBT* key, DBT* data,
 */
 static inline DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
     while (txn && txn->i->parent) txn = txn->i->parent;
+
     return txn;
 }
+
+static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt);
 
 static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
                                DBT* saved_key, DBT* saved_data) {
@@ -1093,6 +1111,8 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
     unsigned int brtflags;
     toku_brt_get_flags(db->i->brt, &brtflags);
     BOOL duplicates = (brtflags & TOKU_DB_DUPSORT) != 0;
+    DB_TXN* txn_anc = NULL;
+    TXNID id_anc    = 0;
 
     int r = 0;
     switch (get_flag) {
@@ -1105,8 +1125,11 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
         }
         case (DB_GET_BOTH): {
             get_both:
-            r = toku_lt_acquire_read_lock(db->i->lt, toku_txn_ancestor(txn),
-                                          key, data);
+            txn_anc = toku_txn_ancestor(txn);
+            r = toku_txn_add_lt(txn_anc, db->i->lt);
+            if (r!=0) return r;
+            id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+            r = toku_lt_acquire_read_lock(db->i->lt, db, id_anc, key, data);
             break;
         }
         case (DB_SET_RANGE): {
@@ -1256,10 +1279,15 @@ static int toku_c_get_post_lock(DBC* c, DBT* key, DBT* data, u_int32_t flag,
             break;
         }
     }
-    if (lock) r = toku_lt_acquire_range_read_lock(db->i->lt,
-                                                  toku_txn_ancestor(txn),
-                                                  key_l, data_l,
-                                                  key_r, data_r);
+    if (lock) {
+        DB_TXN* txn_anc = toku_txn_ancestor(txn);
+        r = toku_txn_add_lt(txn_anc, db->i->lt);
+        if (r!=0) { goto cleanup; }
+        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        r = toku_lt_acquire_range_read_lock(db->i->lt, db, id_anc,
+                                            key_l, data_l,
+                                            key_r, data_r);
+    }
 cleanup:
     if (saved_key->data)  toku_free(saved_key->data);
     if (saved_data->data) toku_free(saved_data->data);
@@ -1293,7 +1321,11 @@ static int toku_c_del_noassociate(DBC * c, u_int32_t flags) {
         DBT saved_data;
         r = toku_c_get_current_unconditional(c, &saved_key, &saved_data);
         if (r!=0) return r;
-        r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(c->i->txn),
+        DB_TXN* txn_anc = toku_txn_ancestor(c->i->txn);
+        r = toku_txn_add_lt(txn_anc, db->i->lt);
+        if (r!=0) { return r; }
+        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
                                        &saved_key, &saved_data);
         if (saved_key.data)  toku_free(saved_key.data);
         if (saved_data.data) toku_free(saved_data.data);
@@ -1516,7 +1548,11 @@ static int toku_db_del_noassociate(DB * db, DB_TXN * txn, DBT * key, u_int32_t f
     } 
     //Do the actual deleting.
     if (db->i->lt) {
-        r = toku_lt_acquire_range_write_lock(db->i->lt, toku_txn_ancestor(txn),
+        DB_TXN* txn_anc = toku_txn_ancestor(txn);
+        r = toku_txn_add_lt(txn_anc, db->i->lt);
+        if (r!=0) { return r; }
+        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        r = toku_lt_acquire_range_write_lock(db->i->lt, db, id_anc,
                                              key, toku_lt_neg_infinity,
                                              key, toku_lt_infinity);
         if (r!=0) return r;
@@ -1646,10 +1682,14 @@ static int toku_c_put(DBC *dbc, DBT *key, DBT *data, u_int32_t flags) {
         //Remove old pair.
         if (db->i->lt) {
             /* Acquire all write locks before  */
-            r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
+            DB_TXN* txn_anc = toku_txn_ancestor(txn);
+            r = toku_txn_add_lt(txn_anc, db->i->lt);
+            if (r!=0) { return r; }
+            TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
                                            &key_local, &data_local);
             if (r!=0) goto cleanup;
-            r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
+            r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc,
                                            &key_local, data);
             if (r!=0) goto cleanup;
         }
@@ -1954,6 +1994,7 @@ static int toku_db_lt_panic(DB* db, int r) {
 }
 
 static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
+    int r = ENOSYS;
     assert(txn && lt);
     toku_lth* lth = txn->i->lth;
     assert(lth);
@@ -1961,22 +2002,24 @@ static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt) {
     toku_lock_tree* find = toku_lth_find(lth, lt);
     if (find) {
         assert(find == lt);
-        return 0;
+        r = 0;
+        goto cleanup;
     }
-    int r = toku_lth_insert(lth, lt);
+    r = toku_lth_insert(lth, lt);
+    if (r != 0) { goto cleanup; }
+    
+    toku_lt_add_ref(lt);
+    r = 0;
+cleanup:
     return r;
 }
 
-static void toku_txn_remove_lt(DB_TXN* txn, toku_lock_tree* lt) {
-    assert(txn && lt);
-    toku_lth* lth = txn->i->lth;
-    assert(lth);
+static toku_dbt_cmp toku_db_get_compare_fun(DB* db) {
+    return db->i->brt->compare_fun;
+}
 
-    toku_lock_tree* find = toku_lth_find(lth, lt);
-    if (find) {
-        assert(find == lt);
-        toku_lth_delete(lth, lt);
-    }
+static toku_dbt_cmp toku_db_get_dup_compare(DB* db) {
+    return db->i->brt->dup_compare;
 }
 
 static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, u_int32_t flags, int mode) {
@@ -2044,20 +2087,6 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     db->i->open_flags = flags;
     db->i->open_mode = mode;
 
-    if (need_locktree) {
-        r = toku_lt_create(&db->i->lt, db, FALSE,
-                           toku_db_lt_panic, db->dbenv->i->ltm,
-                           db->i->brt->compare_fun, db->i->brt->dup_compare,
-                           toku_malloc, toku_free, toku_realloc);
-        if (r!=0) goto error_cleanup;
-        r = toku_lt_set_txn_add_lt_callback(db->i->lt, toku_txn_add_lt);
-	if (r!=0) fprintf(stderr, "%s:%d r=%d (%s)\n", __FILE__, __LINE__, r, strerror(r));
-        assert(r==0);
-        r = toku_lt_set_txn_remove_lt_callback(db->i->lt, toku_txn_remove_lt);
-        assert(r==0);
-    }
-        
-    
 
     r = toku_brt_open(db->i->brt, db->i->full_fname, fname, dbname,
 		      is_db_create, is_db_excl, is_db_unknown,
@@ -2067,20 +2096,26 @@ static int toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *db
     if (r != 0)
         goto error_cleanup;
 
-    if (db->i->lt) {
+    if (need_locktree) {
         unsigned int brtflags;
         BOOL dups;
-        /* Whether we have dups is only known starting now. */
         toku_brt_get_flags(db->i->brt, &brtflags);
         dups = (brtflags & TOKU_DB_DUPSORT || brtflags & TOKU_DB_DUP);
-        r = toku_lt_set_dups(db->i->lt, dups);
-        /* toku_lt_set_dups cannot return an error here. */
-        assert(r==0);
+
+        r = toku_db_id_create(&db->i->db_id, db->i->full_fname,
+                              db->i->database_name);
+        if (r!=0) { goto error_cleanup; }
+        r = toku_ltm_get_lt(db->dbenv->i->ltm, &db->i->lt, dups, db->i->db_id);
+        if (r!=0) { goto error_cleanup; }
     }
 
     return 0;
  
 error_cleanup:
+    if (db->i->db_id) {
+        toku_db_id_remove_ref(db->i->db_id);
+        db->i->db_id = NULL;
+    }
     if (db->i->database_name) {
         toku_free(db->i->database_name);
         db->i->database_name = NULL;
@@ -2090,7 +2125,7 @@ error_cleanup:
         db->i->full_fname = NULL;
     }
     if (db->i->lt) {
-        toku_lt_close(db->i->lt);
+        toku_lt_remove_ref(db->i->lt);
         db->i->lt = NULL;
     }
     return r;
@@ -2142,8 +2177,11 @@ static int toku_db_put_noassociate(DB * db, DB_TXN * txn, DBT * key, DBT * data,
         }
     }
     if (db->i->lt) {
-        r = toku_lt_acquire_write_lock(db->i->lt, toku_txn_ancestor(txn),
-                                       key, data);
+        DB_TXN* txn_anc = toku_txn_ancestor(txn);
+        r = toku_txn_add_lt(txn_anc, db->i->lt);
+        if (r!=0) { return r; }
+        TXNID id_anc = toku_txn_get_txnid(txn_anc->i->tokutxn);
+        r = toku_lt_acquire_write_lock(db->i->lt, db, id_anc, key, data);
         if (r!=0) return r;
     }
     r = toku_brt_insert(db->i->brt, key, data, txn ? txn->i->tokutxn : 0);
@@ -2194,33 +2232,63 @@ static int toku_db_put(DB * db, DB_TXN * txn, DBT * key, DBT * data, u_int32_t f
 
 static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
-    int r;
-    int r2;
-    char *full_name;
+    int r = ENOSYS;
+    int r2 = 0;
+    toku_db_id* db_id = NULL;
+    BOOL need_close   = TRUE;
+    char* full_name   = NULL;
+    toku_ltm* ltm     = NULL;
 
     //TODO: Verify DB* db not yet opened
+    //TODO: Verify db file not in use. (all dbs in the file must be unused)
+    r = toku_db_open(db, NULL, fname, dbname, DB_BTREE, 0, 0777);
+    if (r!=0) { goto cleanup; }
+    if (db->i->lt) {
+        /* Lock tree exists, therefore:
+           * Non-private environment (since we are using transactions)
+           * Environment will exist after db->close */
+        if (db->i->db_id) {
+            /* 'copy' the db_id */
+            db_id = db->i->db_id;
+            toku_db_id_add_ref(db_id);
+        }
+        if (db->dbenv->i->ltm) { ltm = db->dbenv->i->ltm; }
+    }
+    
     if (dbname) {
         //TODO: Verify the target db is not open
         //TODO: Use master database (instead of manual edit) when implemented.
-
-        if ((r = toku_db_open(db, NULL, fname, dbname, DB_BTREE, 0, 0777)) != 0) goto cleanup;
         r = toku_brt_remove_subdb(db->i->brt, dbname, flags);
+        if (r!=0) { goto cleanup; }
+    }
+    r = toku_db_close(db, 0);
+    need_close = FALSE;
+    if (r!=0) { goto cleanup; }
+    if (!dbname) {
+        r = find_db_file(db->dbenv, fname, &full_name);
+        if (r!=0) { goto cleanup; }
+        assert(full_name);
+        if (unlink(full_name) != 0) { r = errno; goto cleanup; }
+    }
+    if (ltm && db_id) { toku_ltm_invalidate_lt(ltm, db_id); }
+
+    r = 0;
 cleanup:
-        r2 = toku_db_close(db, 0);
-        return r ? r : r2;
-    }
-    //TODO: Verify db file not in use. (all dbs in the file must be unused)
-    r = find_db_file(db->dbenv, fname, &full_name);
-    if (r!=0) return r;
-    assert(full_name);
-    r2 = toku_db_close(db, 0);
-    if (r == 0 && r2 == 0) {
-        if (unlink(full_name) != 0) r = errno;
-    }
-    toku_free(full_name);
+    if (need_close) { r2 = toku_db_close(db, 0); }
+    if (full_name)  { toku_free(full_name); }
+    if (db_id)      { toku_db_id_remove_ref(db_id); }
     return r ? r : r2;
 }
 
+/* TODO: Either
+    -find a way for the DB_ID to survive this rename (i.e. be
+     the same before and after
+    or
+    -Go through all DB_IDs in the ltm, and rename them so we
+     have the correct unique ids.
+   TODO: Verify the DB file is not in use (either a single db file or
+         a file with multi-databases).
+*/
 static int toku_db_rename(DB * db, const char *namea, const char *nameb, const char *namec, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     if (flags!=0) return EINVAL;
@@ -2578,3 +2646,4 @@ const char *db_version(int *major, int *minor, int *patch) {
 int db_env_set_func_fsync (int (*fsync_function)(int)) {
     return toku_set_func_fsync(fsync_function);
 }
+

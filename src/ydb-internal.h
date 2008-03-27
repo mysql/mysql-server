@@ -8,6 +8,9 @@
 #include "../newbrt/brt.h"
 #include "../newbrt/list.h"
 #include "./lock_tree/locktree.h"
+#include "./lock_tree/db_id.h"
+#include "./lock_tree/idlth.h"
+#include <limits.h>
 
 struct db_header {
     int n_databases; // Or there can be >=1 named databases.  This is the count.
@@ -34,6 +37,7 @@ struct __toku_db_internal {
     int(*associate_callback)(DB*, const DBT*, const DBT*, DBT*); // For secondary, the callback function for associate.  NULL if not secondary
     int associate_is_immutable; // If this DB is a secondary then this field indicates that the index never changes due to updates.
     struct __toku_lock_tree* lt;
+    toku_db_id* db_id;
 };
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR == 1

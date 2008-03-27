@@ -16,11 +16,9 @@
 #include <brttypes.h>
 #include <rangetree.h>
 
-typedef u_int32_t uint32;
-
 typedef struct __toku_rt_forest toku_rt_forest;
 struct __toku_rt_forest {
-    DB_TXN*          hash_key;
+    TXNID          hash_key;
     toku_range_tree* self_read;
     toku_range_tree* self_write;
 };
@@ -36,8 +34,8 @@ struct __toku_rth_elt {
 typedef struct __toku_rth toku_rth;
 struct __toku_rth {
     toku_rth_elt*   buckets;
-    uint32          num_buckets;
-    uint32          num_keys;
+    u_int32_t       num_buckets;
+    u_int32_t       num_keys;
     toku_rth_elt    iter_head;
     toku_rth_elt*   iter_curr;
     BOOL            iter_is_valid;
@@ -54,15 +52,20 @@ int  toku_rth_create(toku_rth** ptable,
                      void  (*user_free)   (void*),
                      void* (*user_realloc)(void*, size_t));
 
-toku_rt_forest* toku_rth_find       (toku_rth* table, DB_TXN* key);
+toku_rt_forest* toku_rth_find       (toku_rth* table, TXNID key);
 
 void            toku_rth_start_scan (toku_rth* table);
 
 toku_rt_forest* toku_rth_next       (toku_rth* table);
 
-void            toku_rth_delete     (toku_rth* table, DB_TXN* key);
+void            toku_rth_delete     (toku_rth* table, TXNID key);
 
 void            toku_rth_close      (toku_rth* table);
 
-int             toku_rth_insert     (toku_rth* table, DB_TXN* key);
+int             toku_rth_insert     (toku_rth* table, TXNID key);
+
+void            toku_rth_clear      (toku_rth* rth);
+
+BOOL            toku_rth_is_empty   (toku_rth* rth);
+
 #endif

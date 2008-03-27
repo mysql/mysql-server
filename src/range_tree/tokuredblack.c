@@ -57,7 +57,7 @@ static struct toku_rbt_node* toku_rbt__insert(
     struct toku_rbt_node*   parent
 );
 
-static struct toku_rbt_node *toku_rbt__lookup(int, const toku_range * , struct toku_rbt_tree *, struct toku_rbt_node**);
+static struct toku_rbt_node *toku_rbt__lookup(int, const toku_interval * , struct toku_rbt_tree *, struct toku_rbt_node**);
 
 static void toku_rbt__destroy(struct toku_rbt_tree *rbinfo, struct toku_rbt_node *);
 
@@ -126,15 +126,14 @@ cleanup:
     return r;
 }
 
-void
-toku_rbt_destroy(struct toku_rbt_tree *rbinfo)
-{
-    if (rbinfo==NULL)
-        return;
+void toku_rbt_clear(struct toku_rbt_tree *rbinfo) {
+    assert(rbinfo);
+    if (rbinfo->rb_root!=RBNULL) { toku_rbt__destroy(rbinfo, rbinfo->rb_root); }
+    rbinfo->rb_root = RBNULL;
+}
 
-    if (rbinfo->rb_root!=RBNULL)
-        toku_rbt__destroy(rbinfo, rbinfo->rb_root);
-    
+void toku_rbt_destroy(struct toku_rbt_tree *rbinfo) {
+    toku_rbt_clear(rbinfo);
     rbinfo->rb_free(rbinfo);
 }
 
@@ -150,7 +149,7 @@ cleanup:
 
 int toku_rbt_lookup(
     int mode,
-    const  toku_range*  key,
+    const  toku_interval*    key,
     struct toku_rbt_tree*    rbinfo,
     struct toku_rbt_node**   pinsert_finger,
     struct toku_rbt_node**   pelement_finger,
@@ -194,7 +193,7 @@ toku_rbt__traverse(int insert, const toku_range *key, struct toku_rbt_tree *rbin
     {
         y=x;
         /* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
-        cmp=rbinfo->rb_cmp(key->left, x->key.left);
+        cmp=rbinfo->rb_cmp(key->ends.left, x->key.ends.left);
 
         if (cmp<0)
             x=x->left;
@@ -240,7 +239,7 @@ static struct toku_rbt_node* toku_rbt__insert(
     }
     else
     {
-        cmp=rbinfo->rb_cmp(z->key.left, y->key.left);
+        cmp=rbinfo->rb_cmp(z->key.ends.left, y->key.ends.left);
         if (cmp<0)
             y->left=z;
         else
@@ -339,7 +338,7 @@ static struct toku_rbt_node* toku_rbt__insert(
 /* Search for a key according to mode (see redblack.h)
 */
 static struct toku_rbt_node *
-toku_rbt__lookup(int mode, const toku_range *key, struct toku_rbt_tree *rbinfo, struct toku_rbt_node** pinsert_finger)
+toku_rbt__lookup(int mode, const toku_interval *key, struct toku_rbt_tree *rbinfo, struct toku_rbt_node** pinsert_finger)
 {
     struct toku_rbt_node *x,*y;
     int cmp = 0;
@@ -376,7 +375,7 @@ toku_rbt__lookup(int mode, const toku_range *key, struct toku_rbt_tree *rbinfo, 
     {
         y=x;
         /* printf("key=%s, RB_GET(x, key)=%s\n", key, RB_GET(x, key)); */
-        cmp=rbinfo->rb_cmp(key->left, x->key.left);
+        cmp=rbinfo->rb_cmp(key->left, x->key.ends.left);
 
 
         if (cmp<0)

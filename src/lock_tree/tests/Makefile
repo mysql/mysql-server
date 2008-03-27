@@ -107,7 +107,7 @@ RT_TLINEAR_BINS = ../../range_tree/linear.o
 RT_TLOG_BINS    = ../../range_tree/log_nooverlap.o ../../range_tree/tokuredblack.o
 RT_LOG_BINS     = ../../range_tree/log.o
 
-LT_BINS        = ../lth.o ../rth.o
+LT_BINS        = ../lth.o ../rth.o ../idlth.o ../db_id.o
 LT_OVERLAP     = ../locktree_global_readset.o
 LT_NOOVERLAP   = ../locktree_no_global_readset.o
 LT_LINEAR      = $(LT_OVERLAP)   $(LT_BINS) $(RT_LINEAR_BINS)

@@ -2,16 +2,6 @@
 
 #include "test.h"
 
-void verify_all_overlap(toku_range* query, toku_range* list, unsigned listlen) {
-    unsigned i;
-    
-    for (i = 0; i < listlen; i++) {
-        /* Range A and B overlap iff A.left <= B.right && B.left <= A.right */
-        assert(int_cmp(query->left, list[i].right) <= 0 &&
-               int_cmp(list[i].left, query->right) <= 0);
-    }
-}
-
 int nums[64 << 3];
 const size_t numlen = sizeof(nums) / sizeof(nums[0]);
 char letters[2] = {'A','B'};
@@ -20,12 +10,16 @@ toku_range_tree *tree;
 toku_range* buf;
 unsigned buflen;
 
-toku_range* init_range(toku_range* range, unsigned left, unsigned right,
-                       int data) {
+toku_interval* init_query(toku_interval* range, unsigned left, unsigned right) {
     range->left = (toku_point*)&nums[left];
     range->right = (toku_point*)&nums[right];
-    if (data < 0)   range->data = NULL;
-    else            range->data = (DB_TXN*)&letters[data];
+    return range;
+}
+
+toku_range* init_range(toku_range* range, unsigned left, unsigned right, int data) {
+    init_query(&range->ends, left, right);
+    if (data < 0)   range->data = 0;
+    else            range->data = (TXNID)letters[data];
     return range;
 }
 
@@ -46,7 +40,7 @@ void close_tree(void) {
     r = toku_rt_close(tree);    CKERR(r);
 }
 
-void runsearch(int rexpect, toku_range* query, toku_range* expect) {
+void runsearch(int rexpect, toku_interval* query, toku_range* expect) {
     int r;
     unsigned found;
     r = toku_rt_find(tree, query, 0, &buf, &buflen, &found);
@@ -54,8 +48,8 @@ void runsearch(int rexpect, toku_range* query, toku_range* expect) {
     
     if (rexpect != 0) return;
     assert(found == 1);
-    assert(int_cmp(buf[0].left, expect->left) == 0 &&
-           int_cmp(buf[0].right, expect->right) == 0 &&
+    assert(int_cmp(buf[0].ends.left, expect->ends.left) == 0 &&
+           int_cmp(buf[0].ends.right, expect->ends.right) == 0 &&
            char_cmp(buf[0].data, expect->data) == 0);
 }
 
@@ -71,7 +65,7 @@ void rundelete(int rexpect, toku_range* todelete) {
     CKERR2(r, rexpect);
 }
 
-void runlimitsearch(toku_range* query, unsigned limit, unsigned findexpect) {
+void runlimitsearch(toku_interval* query, unsigned limit, unsigned findexpect) {
     int r;
     unsigned found;
     r=toku_rt_find(tree, query, limit, &buf, &buflen, &found);  CKERR(r);

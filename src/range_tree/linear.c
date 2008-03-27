@@ -70,7 +70,7 @@ static inline int toku__rt_increase_capacity(toku_range_tree* tree,
 }
 
 static inline BOOL toku__rt_overlap(toku_range_tree* tree,
-                                    toku_range* a, toku_range* b) {
+                                    toku_interval* a, toku_interval* b) {
     assert(tree);
     assert(a);
     assert(b);
@@ -85,14 +85,14 @@ static inline BOOL toku__rt_exact(toku_range_tree* tree,
     assert(a);
     assert(b);
 
-    return (tree->end_cmp (a->left,  b->left)  == 0 &&
-            tree->end_cmp (a->right, b->right) == 0 &&
+    return (tree->end_cmp (a->ends.left,  b->ends.left)  == 0 &&
+            tree->end_cmp (a->ends.right, b->ends.right) == 0 &&
             tree->data_cmp(a->data,  b->data)  == 0);
 }
 
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*),
-                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
+                   int (*data_cmp)(const TXNID,const TXNID),
 		           BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
@@ -122,6 +122,13 @@ int toku_rt_create(toku_range_tree** ptree,
     return 0;
 }
 
+void toku_rt_clear(toku_range_tree* tree) {
+    assert(tree);
+    toku__rt_decrease_capacity(tree, 0);
+    toku_rt_invalidate_iteration(tree);
+    tree->numelements = 0;
+}
+
 int toku_rt_close(toku_range_tree* tree) {
     if (!tree)                                           return EINVAL;
     tree->free(tree->i.ranges);
@@ -129,10 +136,9 @@ int toku_rt_close(toku_range_tree* tree) {
     return 0;
 }
 
-int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
+int toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
                  toku_range** buf, u_int32_t* buflen, u_int32_t* numfound) {
     if (!tree || !query || !buf || !buflen || !numfound) return EINVAL;
-    if (query->data != NULL)                             return EINVAL;
     if (*buflen == 0)                                    return EINVAL;
     
     u_int32_t temp_numfound = 0;
@@ -140,7 +146,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
     u_int32_t i;
     
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_overlap(tree, query, &tree->i.ranges[i])) {
+        if (toku__rt_overlap(tree, query, &tree->i.ranges[i].ends)) {
             r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
             if (r != 0) return r;
             (*buf)[temp_numfound++] = tree->i.ranges[i];
@@ -166,7 +172,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     }
     else {
         for (i = 0; i < tree->numelements; i++) {
-            if (toku__rt_overlap(tree, range, &tree->i.ranges[i])) return EDOM;
+            if (toku__rt_overlap(tree, &range->ends, &tree->i.ranges[i].ends)) return EDOM;
         }
     }
     r = toku__rt_increase_capacity(tree, tree->numelements + 1);
@@ -202,8 +208,8 @@ int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
     u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i]) > 0 &&
-            (!best || tree->end_cmp(best->left, tree->i.ranges[i].left) < 0)) {
+        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i].ends) > 0 &&
+            (!best || tree->end_cmp(best->ends.left, tree->i.ranges[i].ends.left) < 0)) {
             best = &tree->i.ranges[i];
         }
     }
@@ -220,8 +226,8 @@ int toku_rt_successor (toku_range_tree* tree, toku_point* point,
     u_int32_t i;
 
     for (i = 0; i < tree->numelements; i++) {
-        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i]) < 0 &&
-            (!best || tree->end_cmp(best->left, tree->i.ranges[i].left) > 0)) {
+        if (toku__rt_p_cmp(tree, point, &tree->i.ranges[i].ends) < 0 &&
+            (!best || tree->end_cmp(best->ends.left, tree->i.ranges[i].ends.left) > 0)) {
             best = &tree->i.ranges[i];
         }
     }

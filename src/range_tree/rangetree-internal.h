@@ -1,3 +1,4 @@
+
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007-8 Tokutek Inc.  All rights reserved."
 
@@ -23,7 +24,7 @@ struct __toku_range_tree {
     int       (*end_cmp)(const toku_point*,const toku_point*);  
     /** A comparison function, as in bsearch(3), to compare the data associated
         with a range */
-    int       (*data_cmp)(const DB_TXN*,const DB_TXN*);
+    int       (*data_cmp)(const TXNID,const TXNID);
     /** Whether this tree allows ranges to overlap */
     BOOL        allow_overlaps;
     /** The number of ranges in the range tree */
@@ -45,9 +46,9 @@ struct __toku_range_tree {
  *      > 0:    Point strictly greater than the range.
  */
 static inline int toku__rt_p_cmp(toku_range_tree* tree,
-                           toku_point* point, toku_range* range) {
-    if (tree->end_cmp(point, range->left) < 0)  return -1;
-    if (tree->end_cmp(point, range->right) > 0) return 1;
+                           toku_point* point, toku_interval* interval) {
+    if (tree->end_cmp(point, interval->left) < 0)  return -1;
+    if (tree->end_cmp(point, interval->right) > 0) return 1;
     return 0;
 }
     
@@ -70,7 +71,7 @@ static inline int toku__rt_increase_buffer(toku_range_tree* tree, toku_range** b
 static inline int toku_rt_super_create(toku_range_tree** upperptree,
                    toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*),
-                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
+                   int (*data_cmp)(const TXNID,const TXNID),
                    BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),

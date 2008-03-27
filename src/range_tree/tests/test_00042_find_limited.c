@@ -2,16 +2,6 @@
 
 #include "test.h"
 
-void verify_all_overlap(toku_range* query, toku_range* list, unsigned listlen) {
-    unsigned i;
-    
-    for (i = 0; i < listlen; i++) {
-        /* Range A and B overlap iff A.left <= B.right && B.left <= A.right */
-        assert(int_cmp(query->left, list[i].right) <= 0 &&
-               int_cmp(list[i].left, query->right) <= 0);
-    }
-}
-
 int nums[200];
 char letters[2] = {'A','B'};
 
@@ -19,11 +9,16 @@ toku_range_tree *tree;
 toku_range* buf;
 unsigned buflen;
 
-toku_range* init_range(toku_range* range, int left, int right, int data) {
+toku_interval* init_query(toku_interval* range, int left, int right) {
     range->left = (toku_point*)&nums[left];
     range->right = (toku_point*)&nums[right];
-    if (data < 0)   range->data = NULL;
-    else            range->data = (DB_TXN*)&letters[data];
+    return range;
+}
+
+toku_range* init_range(toku_range* range, int left, int right, int data) {
+    init_query(&range->ends, left, right);
+    if (data < 0)   range->data = 0;
+    else            range->data = (TXNID)letters[data];
     return range;
 }
 
@@ -43,7 +38,7 @@ void close_tree(void) {
     r = toku_rt_close(tree);    CKERR(r);
 }
 
-void runsearch(int rexpect, toku_range* query, toku_range* expect) {
+void runsearch(int rexpect, toku_interval* query, toku_range* expect) {
     int r;
     unsigned found;
     r = toku_rt_find(tree, query, 0, &buf, &buflen, &found);
@@ -51,8 +46,8 @@ void runsearch(int rexpect, toku_range* query, toku_range* expect) {
     
     if (rexpect != 0) return;
     assert(found == 1);
-    assert(int_cmp(buf[0].left, expect->left) == 0 &&
-           int_cmp(buf[0].right, expect->right) == 0 &&
+    assert(int_cmp(buf[0].ends.left, expect->ends.left) == 0 &&
+           int_cmp(buf[0].ends.right, expect->ends.right) == 0 &&
            char_cmp(buf[0].data, expect->data) == 0);
 }
 
@@ -62,7 +57,7 @@ void runinsert(int rexpect, toku_range* toinsert) {
     CKERR2(r, rexpect);
 }
 
-void runlimitsearch(toku_range* query, unsigned limit, unsigned findexpect) {
+void runlimitsearch(toku_interval* query, unsigned limit, unsigned findexpect) {
     int r;
     unsigned found;
     r=toku_rt_find(tree, query, limit, &buf, &buflen, &found);  CKERR(r);
@@ -72,7 +67,7 @@ void runlimitsearch(toku_range* query, unsigned limit, unsigned findexpect) {
 }
 
 void tests(BOOL allow_overlaps) {
-    toku_range query;
+    toku_interval query;
     toku_range insert;
     /*
         Limited/Unlimited Queries
@@ -88,30 +83,30 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 6, 7, 0)); 
     runinsert(0, init_range(&insert, 8, 9, 0));
     
-    runlimitsearch(init_range(&query, 2, 7, -1), 0, 3);
-    runlimitsearch(init_range(&query, 2, 7, -1), 1, 1);
-    runlimitsearch(init_range(&query, 2, 7, -1), 2, 2);
-    runlimitsearch(init_range(&query, 2, 7, -1), 3, 3);
-    runlimitsearch(init_range(&query, 2, 7, -1), 4, 3);
+    runlimitsearch(init_query(&query, 2, 7), 0, 3);
+    runlimitsearch(init_query(&query, 2, 7), 1, 1);
+    runlimitsearch(init_query(&query, 2, 7), 2, 2);
+    runlimitsearch(init_query(&query, 2, 7), 3, 3);
+    runlimitsearch(init_query(&query, 2, 7), 4, 3);
     close_tree();
     
     /* Tree is empty (return none) */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
-    runlimitsearch(init_range(&query, 0, 0, -1), 0, 0);
+    runlimitsearch(init_query(&query, 0, 0), 0, 0);
     close_tree();
     
     /* Tree contains only elements to the left. */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
     runinsert(0, init_range(&insert, 1, 2, 0));
     runinsert(0, init_range(&insert, 3, 4, 0));
-    runlimitsearch(init_range(&query, 8, 30, -1), 0, 0);
+    runlimitsearch(init_query(&query, 8, 30), 0, 0);
     close_tree();
     
     /* Tree contains only elements to the right. */
     setup_tree(allow_overlaps, FALSE, 0, 0, 0);
     runinsert(0, init_range(&insert, 10, 20, 0));
     runinsert(0, init_range(&insert, 30, 40, 0));
-    runlimitsearch(init_range(&query, 5, 7, -1), 0, 0);
+    runlimitsearch(init_query(&query, 5, 7), 0, 0);
     close_tree();
 
     /* Tree contains only elements to the left and to the right. */
@@ -120,7 +115,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 30, 40, 0));
     runinsert(0, init_range(&insert, 70, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 60, 65, -1), 0, 0);
+    runlimitsearch(init_query(&query, 60, 65), 0, 0);
     close_tree();
     
     /* Tree contains overlaps and elements to the left. */
@@ -129,7 +124,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 30, 40, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
+    runlimitsearch(init_query(&query, 70, 95), 0, 2);
     close_tree();
 
     /* Tree contains overlaps and elements to the right. */
@@ -138,7 +133,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 130, 140, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
+    runlimitsearch(init_query(&query, 70, 95), 0, 2);
     close_tree();
 
     /* Tree contains overlaps and elements to the left and to the right. */
@@ -149,7 +144,7 @@ void tests(BOOL allow_overlaps) {
     runinsert(0, init_range(&insert, 130, 140, 0));
     runinsert(0, init_range(&insert, 60, 80, 0));
     runinsert(0, init_range(&insert, 90, 100, 0));
-    runlimitsearch(init_range(&query, 70, 95, -1), 0, 2);
+    runlimitsearch(init_query(&query, 70, 95), 0, 2);
     close_tree();
 }
 

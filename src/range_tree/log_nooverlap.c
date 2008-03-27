@@ -61,7 +61,7 @@ static inline void toku_rt_invalidate_iteration(toku_range_tree* tree) {
 //FIRST PASS
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*),
-                   int (*data_cmp)(const DB_TXN*,const DB_TXN*),
+                   int (*data_cmp)(const TXNID,const TXNID),
                    BOOL allow_overlaps,
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
@@ -100,6 +100,13 @@ int toku_rt_close(toku_range_tree* tree) {
     return 0;
 }
 
+void toku_rt_clear(toku_range_tree* tree) {
+    assert(tree);
+    toku_rbt_clear(tree->i.rbt);
+    toku_rt_invalidate_iteration(tree);
+    tree->numelements = 0;
+}
+
 /*
 5- FindOverlaps
     O(lg N+1) CMPs  Do a lookup (<=) (out found, out elementpointer)
@@ -115,12 +122,11 @@ int toku_rt_close(toku_range_tree* tree) {
                         add found to buffer
      (0)    CMPs        do a finger_successor(elementpointer) (out found, out elementpointer)
 */
-int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
+int toku_rt_find(toku_range_tree* tree, toku_interval* query, u_int32_t k,
                  toku_range** buf, u_int32_t* buflen, u_int32_t* numfound) {
     int r = ENOSYS;
 
-    if (!tree || !query || !buf || !buflen || !numfound ||
-        query->data != NULL || *buflen == 0) {
+    if (!tree || !query || !buf || !buflen || !numfound || *buflen == 0) {
         r = EINVAL; goto cleanup;
     }
     assert(!tree->allow_overlaps);
@@ -136,7 +142,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
     r = toku_rbt_lookup(RB_LULTEQ, query, tree->i.rbt, &ignore_insert, &succ_finger, &data);
     if (r!=0) { goto cleanup; }
     if (data != NULL) {
-        if (tree->end_cmp(data->right, query->left) >= 0) {
+        if (tree->end_cmp(data->ends.right, query->left) >= 0) {
             r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
             if (r!=0) { goto cleanup; }
             (*buf)[temp_numfound++] = *data;
@@ -152,7 +158,7 @@ int toku_rt_find(toku_range_tree* tree, toku_range* query, u_int32_t k,
     }
 
     while (temp_numfound < k && data != NULL) {
-        if (tree->end_cmp(data->left, query->right) > 0) { break; }
+        if (tree->end_cmp(data->ends.left, query->right) > 0) { break; }
         r = toku__rt_increase_buffer(tree, buf, buflen, temp_numfound + 1);
         if (r!=0) { goto cleanup; }
         (*buf)[temp_numfound++] = *data;
@@ -188,10 +194,10 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     struct toku_rbt_node* succ_finger   = NULL;
     toku_range*           data          = NULL;
 
-    r = toku_rbt_lookup(RB_LULTEQ, range, tree->i.rbt, &insert_finger, &succ_finger, &data);
+    r = toku_rbt_lookup(RB_LULTEQ, &range->ends, tree->i.rbt, &insert_finger, &succ_finger, &data);
     if (r!=0) { goto cleanup; }
     if (data != NULL) {
-        if (tree->end_cmp(data->right, range->left) >= 0) {
+        if (tree->end_cmp(data->ends.right, range->ends.left) >= 0) {
             r = EDOM; goto cleanup;
         }
         r = toku_rbt_finger_successor(&succ_finger, &data);
@@ -201,7 +207,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
         r = toku_rbt_lookup(RB_LUFIRST, NULL, tree->i.rbt, &ignore_insert, &succ_finger, &data);
         if (r!=0) { goto cleanup; }
     }
-    if (data != NULL && tree->end_cmp(data->left, range->right) <= 0) {
+    if (data != NULL && tree->end_cmp(data->ends.left, range->ends.right) <= 0) {
         r = EDOM; goto cleanup;
     }
     r = toku_rbt_finger_insert(range, tree->i.rbt, insert_finger);
@@ -237,12 +243,12 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     struct toku_rbt_node* delete_finger = NULL;
     toku_range*           data          = NULL;
 
-    r = toku_rbt_lookup(RB_LUEQUAL, range, tree->i.rbt,
+    r = toku_rbt_lookup(RB_LUEQUAL, &range->ends, tree->i.rbt,
                         &ignore_insert, &delete_finger, &data);
     if (r!=0) { goto cleanup; }
     if (!data ||
         tree->data_cmp(data->data, range->data)  != 0 ||
-        tree->end_cmp(data->right, range->right) != 0) {
+        tree->end_cmp(data->ends.right, range->ends.right) != 0) {
         r = EDOM; goto cleanup;
     }
 
@@ -279,12 +285,11 @@ int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
     struct toku_rbt_node* ignore_insert = NULL;
     struct toku_rbt_node* pred_finger   = NULL;
     toku_range*           data          = NULL;
-    toku_range range;
-    range.left  = point;
-    range.right = point;
-    range.data  = NULL;
+    toku_interval query;
+    query.left  = point;
+    query.right = point;
 
-    r = toku_rbt_lookup(RB_LULESS, &range, tree->i.rbt, &ignore_insert, &pred_finger, &data);
+    r = toku_rbt_lookup(RB_LULESS, &query, tree->i.rbt, &ignore_insert, &pred_finger, &data);
     if (r!=0) { goto cleanup; }
 
     if (!data) {
@@ -292,7 +297,7 @@ int toku_rt_predecessor (toku_range_tree* tree, toku_point* point,
         r = 0;
         goto cleanup;
     }
-    if (tree->end_cmp(data->right, point) < 0) {
+    if (tree->end_cmp(data->ends.right, point) < 0) {
         *wasfound = TRUE;
         *pred = *data;
         r = 0;
@@ -329,12 +334,11 @@ int toku_rt_successor (toku_range_tree* tree, toku_point* point,
     struct toku_rbt_node* ignore_insert = NULL;
     struct toku_rbt_node* succ_finger   = NULL;
     toku_range*           data          = NULL;
-    toku_range range;
-    range.left  = point;
-    range.right = point;
-    range.data  = NULL;
+    toku_interval query;
+    query.left  = point;
+    query.right = point;
 
-    r = toku_rbt_lookup(RB_LUGREAT, &range, tree->i.rbt, &ignore_insert, &succ_finger, &data);
+    r = toku_rbt_lookup(RB_LUGREAT, &query, tree->i.rbt, &ignore_insert, &succ_finger, &data);
     if (r!=0) { goto cleanup; }
 
     if (!data) {
