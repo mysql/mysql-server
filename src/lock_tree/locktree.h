@@ -24,12 +24,15 @@
 #include <rangetree.h>
 #include <lth.h>
 #include <rth.h>
+#include <idlth.h>
 
 /** Errors returned by lock trees */
 typedef enum {
     TOKU_LT_INCONSISTENT=-1,  /**< The member data are in an inconsistent 
                                    state */
 } TOKU_LT_ERROR;
+
+typedef int (*toku_dbt_cmp)(DB*,const DBT*,const DBT*);
 
 /** Convert error codes into a human-readable error message */
 char* toku_lt_strerror(TOKU_LT_ERROR r /**< Error code */) 
@@ -58,7 +61,20 @@ struct __toku_lock_tree {
     BOOL                settings_final;
     toku_range_tree*    mainread;    /**< See design document */
     toku_range_tree*    borderwrite; /**< See design document */
-    toku_rth*           rth;
+    toku_rth*           rth;         /**< Stores local(read|write)set tables */
+    /**
+        Stores a list of transactions to unlock when it is safe.
+        When we get a PUT or a GET, the comparison function is valid
+        and we can delete locks held in txns_to_unlock, even if txns_still_locked
+        is nonempty.
+    */
+    toku_rth*           txns_to_unlock; 
+    /** Stores a list of transactions that hold locks. txns_still_locked = rth - txns_to_unlock
+        rth != txns_still_locked + txns_to_unlock, we may get an unlock call for a txn that has
+        no locks in rth.
+        When txns_still_locked becomes empty, we can throw away the contents of the lock tree
+        quickly. */
+    toku_rth*           txns_still_locked;
     /** A temporary area where we store the results of various find on 
         the range trees that this lock tree owns 
 
@@ -81,10 +97,10 @@ struct __toku_lock_tree {
     BOOL                lock_escalation_allowed;
     /** Lock tree manager */
     toku_ltm* mgr;
-    /** The callback function to let a transaction add a new lock tree. */
-    int               (*lock_add_callback)(DB_TXN*, toku_lock_tree*);
-    /** The callback function to let a transaction forget a lock tree. */
-    void              (*lock_remove_callback)(DB_TXN*, toku_lock_tree*);
+    /** Function to retrieve the key compare function from the database. */
+    toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
+    /** Function to retrieve the data compare function from the database. */
+    toku_dbt_cmp (*get_dup_compare_from_db)(DB*);
     /** The key compare function */
     int               (*compare_fun)(DB*,const DBT*,const DBT*);
     /** The data compare function */
@@ -97,6 +113,14 @@ struct __toku_lock_tree {
     void              (*free)   (void*);
     /** The user realloc function */
     void*             (*realloc)(void*, size_t);
+    /** The maximum number of locks allowed for this lock tree. */
+    u_int32_t          max_locks;
+    /** The current number of locks for this lock tree. */
+    u_int32_t          curr_locks;
+    /** The number of references held by DB instances and transactions to this lock tree*/
+    u_int32_t          ref_count;
+    /** db_id associated with the lock tree */
+    toku_db_id*        db_id;
 };
 
 struct __toku_ltm {
@@ -104,8 +128,21 @@ struct __toku_ltm {
     u_int32_t          max_locks;
     /** The current number of locks for the environment. */
     u_int32_t          curr_locks;
+    /** The maximum number of locks allowed for the environment. */
+    u_int32_t          max_locks_per_db;
     /** The list of lock trees it manages. */
     toku_lth*          lth;
+    /** List of lock-tree DB mappings. Upon a request for a lock tree given
+        a DB, if an object for that DB exists in this list, then the lock tree
+        is retrieved from this list, otherwise, a new lock tree is created
+        and the new mapping of DB and Lock tree is stored here */
+    toku_idlth*        idlth;
+    /** Function to retrieve the key compare function from the database. */
+    toku_dbt_cmp (*get_compare_fun_from_db)(DB*);
+    /** Function to retrieve the data compare function from the database. */
+    toku_dbt_cmp (*get_dup_compare_from_db)(DB*);
+    /** The panic function */
+    int               (*panic)(DB*, int);
     /** The user malloc function */
     void*             (*malloc) (size_t);
     /** The user free function */
@@ -147,11 +184,9 @@ typedef struct __toku_point toku_point;
    Create a lock tree.  Should be called only inside DB->open.
 
    \param ptree          We set *ptree to the newly allocated tree.
-   \param db             This is the db that the lock tree will be performing 
-                         locking for.
    \param duplicates     Whether the db supports duplicates.
-   \param compare_fun    The key compare function.
-   \param dup_compare    The data compare function.
+   \param get_compare_fun_from_db    Accessor for the key compare function.
+   \param get_dup_compare_from_db    Accessor for the data compare function.
    \param panic          The function to cause the db to panic.  
                          i.e., godzilla_rampage()
    \param payload_capacity The maximum amount of memory to use for dbt payloads.
@@ -172,26 +207,22 @@ typedef struct __toku_point toku_point;
    If this library is ever exported to users, we will use error datas 
    instead.
  */
-int toku_lt_create(toku_lock_tree** ptree, DB* db, BOOL duplicates,
-                   int (*panic)(DB*, int),
+int toku_lt_create(toku_lock_tree** ptree, BOOL duplicates,
+                   int   (*panic)(DB*, int), 
                    toku_ltm* mgr,
-                   int (*compare_fun)(DB*,const DBT*,const DBT*),
-                   int (*dup_compare)(DB*,const DBT*,const DBT*),
+                   toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
+                   toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
                    void* (*user_malloc) (size_t),
                    void  (*user_free)   (void*),
                    void* (*user_realloc)(void*, size_t));
 
 /**
-    Set whether duplicates are allowed.
-    This can be called after create, but NOT after any locks or unlocks have
-    occurred.
-
-    \return
-    - 0 on success.
-    - EINVAL if tree is NULL
-    - EDOM   if it is too late to change. 
+    Gets a lock tree for a given DB with id db_id
 */
-int toku_lt_set_dups(toku_lock_tree* tree, BOOL duplicates);
+int toku_ltm_get_lt(toku_ltm* mgr, toku_lock_tree** ptree, 
+                    BOOL duplicates, toku_db_id* db_id);
+
+void toku_ltm_invalidate_lt(toku_ltm* mgr, toku_db_id* db_id);
 
 /**
    Closes and frees a lock tree.
@@ -234,14 +265,14 @@ int toku_lt_close(toku_lock_tree* tree);
      (tree->db is dupsort && data == NULL) or
      (tree->db is dupsort && key != data &&
        (key == toku_lt_infinity ||
-       (toku_lock_tree* tree, DB_TXN* txn, const DBT* key, const DBT* data);
+       (toku_lock_tree* tree, TXNID txn, const DBT* key, const DBT* data);
    If this library is ever exported to users, we will use EINVAL instead.
 
    In BDB, txn can actually be NULL (mixed operations with transactions and 
    no transactions). This can cause conflicts, nobody was able (so far) 
    to verify that MySQL does or does not use this.
 */
-int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
+int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
                               const DBT* key, const DBT* data);
 
 /*
@@ -288,7 +319,7 @@ int toku_lt_acquire_read_lock(toku_lock_tree* tree, DB_TXN* txn,
     no transactions). This can cause conflicts, nobody was able (so far) 
     to verify that MySQL does or does not use this.
  */
-int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
+int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB* db, TXNID txn,
                                    const DBT* key_left,  const DBT* data_left,
                                    const DBT* key_right, const DBT* data_right);
 
@@ -321,7 +352,7 @@ int toku_lt_acquire_range_read_lock(toku_lock_tree* tree, DB_TXN* txn,
         If the lock tree needs to hold onto the key or data, it will make copies
         to its local memory.
 */
-int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
                                const DBT* key, const DBT* data);
 
  //In BDB, txn can actually be NULL (mixed operations with transactions and no transactions).
@@ -373,7 +404,7 @@ int toku_lt_acquire_write_lock(toku_lock_tree* tree, DB_TXN* txn,
  *      to its local memory.
  * *** Note that txn == NULL is not supported at this time.
  */
-int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
+int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB* db, TXNID txn,
                                    const DBT* key_left,  const DBT* data_left,
                                    const DBT* key_right, const DBT* data_right);
 
@@ -393,43 +424,7 @@ int toku_lt_acquire_range_write_lock(toku_lock_tree* tree, DB_TXN* txn,
    - EINVAL      If (tree == NULL || txn == NULL).
    - EINVAL      If panicking.
  */
-int toku_lt_unlock(toku_lock_tree* tree, DB_TXN* txn);
-
-/**
-    Set a add_callback function to run after parameter checking but before
-    any locks.
-    This can be called after create, but NOT after any locks or unlocks have
-    occurred.
-
-    \param tree     The tree on whick to set the add_callback function
-    \param add_callback The add_callback function
-
-    \return
-    - 0 on success.
-    - EINVAL if tree is NULL
-    - EDOM   if it is too late to change. 
-*/
-int toku_lt_set_txn_add_lt_callback(toku_lock_tree* tree,
-                                 int (*add_callback)(DB_TXN*, toku_lock_tree*));
-
-/**
-    Set a remove_callback function to run after parameter checking but before
-    any locks.
-    This can be called after create, but NOT after any locks or unlocks have
-    occurred.
-
-    \param tree     The tree on whick to set the remove_callback function
-    \param remove_callback The remove_callback function
-
-    \return
-    - 0 on success.
-    - EINVAL if tree is NULL
-    - EDOM   if it is too late to change. 
-*/
-int toku_lt_set_txn_remove_lt_callback(toku_lock_tree* tree,
-                              void (*remove_callback)(DB_TXN*, toku_lock_tree*));
-
-
+int toku_lt_unlock(toku_lock_tree* tree, TXNID txn);
 
 /* Lock tree manager functions begin here */
 /**
@@ -447,10 +442,13 @@ int toku_lt_set_txn_remove_lt_callback(toku_lock_tree* tree,
     - May return other errors due to system calls.
 */
 int toku_ltm_create(toku_ltm** pmgr,
-                       u_int32_t max_locks,
-                       void* (*user_malloc) (size_t),
-                       void  (*user_free)   (void*),
-                       void* (*user_realloc)(void*, size_t));
+                    u_int32_t max_locks,
+                    int   (*panic)(DB*, int), 
+                    toku_dbt_cmp (*get_compare_fun_from_db)(DB*),
+                    toku_dbt_cmp (*get_dup_compare_from_db)(DB*),
+                    void* (*user_malloc) (size_t),
+                    void  (*user_free)   (void*),
+                    void* (*user_realloc)(void*, size_t));
 
 /**
     Closes and frees a lock tree manager..
@@ -479,6 +477,22 @@ int toku_ltm_close(toku_ltm* mgr);
 int toku_ltm_set_max_locks(toku_ltm* mgr, u_int32_t max_locks);
 
 /**
+    Sets the maximum number of locks for each lock tree.
+    This is a temporary function until we can complete ticket #596.
+    This will be used instead of toku_ltm_set_max_locks.
+    
+    \param mgr       The lock tree manager to which to set max_locks.
+    \param max_locks    The new maximum number of locks.
+
+    \return
+    - 0 on success.
+    - EINVAL if tree is NULL or max_locks is 0
+    - EDOM   if max_locks is less than the number of locks held by any lock tree
+         held by the manager
+*/
+int toku_ltm_set_max_locks_per_db(toku_ltm* mgr, u_int32_t max_locks);
+
+/**
     Sets the maximum number of locks on the lock tree manager.
     
     \param mgr          The lock tree manager to which to set max_locks.
@@ -490,5 +504,10 @@ int toku_ltm_set_max_locks(toku_ltm* mgr, u_int32_t max_locks);
 */
 int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks);
 
+int toku_ltm_get_max_locks_per_db(toku_ltm* mgr, u_int32_t* max_locks);
+
+void toku_lt_add_ref(toku_lock_tree* tree);
+
+int toku_lt_remove_ref(toku_lock_tree* tree);
 
 #endif

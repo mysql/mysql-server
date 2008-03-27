@@ -15,9 +15,9 @@
 #include <string.h>
 
 /* TODO: reallocate the hash lth if it grows too big. Perhaps, use toku_get_prime in newbrt/primes.c */
-const uint32 __toku_lth_init_size = 521;
+const u_int32_t __toku_lth_init_size = 521;
 
-static inline uint32 toku__lth_hash(toku_lth* lth, toku_lock_tree* key) {
+static inline u_int32_t toku__lth_hash(toku_lth* lth, toku_lock_tree* key) {
     size_t tmp = (size_t)key;
     return tmp % lth->num_buckets;
 }
@@ -64,7 +64,7 @@ cleanup:
 toku_lock_tree* toku_lth_find(toku_lth* lth, toku_lock_tree* key) {
     assert(lth && key);
 
-    uint32 index          = toku__lth_hash(lth, key);
+    u_int32_t index          = toku__lth_hash(lth, key);
     toku_lth_elt* head    = &lth->buckets[index];
     toku_lth_elt* current = head->next_in_bucket;
     while (current) {
@@ -103,7 +103,7 @@ void toku_lth_delete(toku_lth* lth, toku_lock_tree* key) {
     /* Must have elements. */
     assert(lth->num_keys);
 
-    uint32 index = toku__lth_hash(lth, key);
+    u_int32_t index = toku__lth_hash(lth, key);
     toku_lth_elt* head    = &lth->buckets[index]; 
     toku_lth_elt* prev    = head; 
     toku_lth_elt* current = prev->next_in_bucket;
@@ -129,7 +129,7 @@ int toku_lth_insert(toku_lth* lth, toku_lock_tree* key) {
     assert(lth && key);
     toku__invalidate_scan(lth);
 
-    uint32 index = toku__lth_hash(lth, key);
+    u_int32_t index = toku__lth_hash(lth, key);
 
     /* Allocate a new one. */
     toku_lth_elt* element = (toku_lth_elt*)lth->malloc(sizeof(*element));

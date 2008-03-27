@@ -8,7 +8,10 @@
 #include <assert.h>
 #include <errno.h>
 int verbose=0;
+#include <db_id.h>
 #include <lth.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 BOOL want_panic = FALSE;
 
@@ -44,6 +47,17 @@ int intcmp(DB *db __attribute__((__unused__)), const DBT* a, const DBT* b) {
 
 int dbcmp (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
+}
+
+toku_dbt_cmp compare_fun = dbcmp;
+toku_dbt_cmp dup_compare = dbcmp;
+
+toku_dbt_cmp get_compare_fun_from_db(__attribute__((unused)) DB* db) {
+    return compare_fun;
+}
+
+toku_dbt_cmp get_dup_compare_from_db(__attribute__((unused)) DB* db) {
+    return dup_compare;
 }
 
 BOOL panicked = FALSE;
@@ -133,4 +147,11 @@ void* fail_malloc(size_t size) {
         return NULL;
     }
     return malloc(size);
+}
+
+char *toku_strdup (const char *s) {
+    size_t len = strlen(s) + 1;
+    void * r = toku_malloc(len);
+    memcpy(r, s, len);
+    return r;
 }

@@ -2,22 +2,12 @@
 
 #include "test.h"
 
-void verify_all_overlap(toku_range* query, toku_range* list, unsigned listlen) {
-    unsigned i;
-    
-    for (i = 0; i < listlen; i++) {
-        /* Range A and B overlap iff A.left <= B.right && B.left <= A.right */
-        assert(int_cmp(query->left, list[i].right) <= 0 &&
-               int_cmp(list[i].left, query->right) <= 0);
-    }
-}
-
 int main(int argc, const char *argv[]) {
     int r;
     toku_range_tree *tree = NULL;
     toku_range range;
-    toku_range find_range;
-    toku_range find_all_range;
+    toku_interval find_range;
+    toku_interval find_all_range;
     int nums[1000];
     char letters[2] = {'A','B'};
     unsigned found;
@@ -34,11 +24,9 @@ int main(int argc, const char *argv[]) {
 
     find_range.left  = (toku_point*)&nums[4];
     find_range.right = (toku_point*)&nums[4];
-    find_range.data  = NULL;
 
     find_all_range.left  = (toku_point*)&nums[0];
     find_all_range.right = (toku_point*)&nums[sizeof(nums)/sizeof(nums[0]) - 1];
-    find_all_range.data  = NULL;
 
 #ifndef TOKU_RT_NOOVERLAPS
     bufsize = 2;
@@ -59,9 +47,9 @@ int main(int argc, const char *argv[]) {
     assert(found == 0);
     assert(bufsize == 2);
 
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[5];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[1];
+    range.ends.right = (toku_point*)&nums[5];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -69,9 +57,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize == 2);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -79,9 +67,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize == 2);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[3];
-    range.right = (toku_point*)&nums[7];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[3];
+    range.ends.right = (toku_point*)&nums[7];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     /* Now that we find 3, we are testing that realloc works. */
@@ -90,9 +78,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 3);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -101,9 +89,9 @@ int main(int argc, const char *argv[]) {
     verify_all_overlap(&find_range, buf, found);
     
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -113,14 +101,14 @@ int main(int argc, const char *argv[]) {
 
     /* Verify the right one is still there, and the wrong one is not there. */
     for (i = 0; i < found; i++) {
-        assert(*(int*)buf[i].left != 2 || 
-               *(int*)buf[i].right != 6 ||
-               *(char*)buf[i].data == letters[1]);
+        assert(*(int*)buf[i].ends.left != 2 || 
+               *(int*)buf[i].ends.right != 6 ||
+               (char)buf[i].data == letters[1]);
     }
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -128,9 +116,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 4);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -140,15 +128,15 @@ int main(int argc, const char *argv[]) {
 
     /* Verify the right one is still there, and the wrong one is not there. */
     for (i = 0; i < found; i++) {
-        assert(*(int*)buf[i].left != 2 || 
-               *(int*)buf[i].right != 6 ||
-               *(char*)buf[i].data == letters[0]);
+        assert(*(int*)buf[i].ends.left != 2 || 
+               *(int*)buf[i].ends.right != 6 ||
+               (char)buf[i].data == letters[0]);
     }
 
     /* Clean up. */
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[5];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[1];
+    range.ends.right = (toku_point*)&nums[5];
+    range.data = (TXNID)letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -156,9 +144,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 4);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[2];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[2];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -167,13 +155,13 @@ int main(int argc, const char *argv[]) {
     verify_all_overlap(&find_range, buf, found);
 
     /* Verify the right one is still there, and the wrong one is not there. */
-    assert(*(int*)buf[0].left == 3 &&
-           *(int*)buf[0].right == 7 &&
-           *(char*)buf[0].data == letters[0]);
+    assert(*(int*)buf[0].ends.left == 3 &&
+           *(int*)buf[0].ends.right == 7 &&
+           (char)buf[0].data == letters[0]);
 
-    range.left = (toku_point*)&nums[3];
-    range.right = (toku_point*)&nums[7];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[3];
+    range.ends.right = (toku_point*)&nums[7];
+    range.data = (TXNID)letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -201,7 +189,6 @@ int main(int argc, const char *argv[]) {
     */
     find_range.left  = (toku_point*)&nums[3];
     find_range.right = (toku_point*)&nums[4];
-    find_range.data  = NULL;
         
     r = toku_rt_create(&tree, int_cmp, char_cmp, FALSE, malloc, free, realloc);
     CKERR(r);
@@ -211,9 +198,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 2);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[3];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[1];
+    range.ends.right = (toku_point*)&nums[3];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -221,9 +208,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= 2);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[4];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[4];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -235,9 +222,9 @@ int main(int argc, const char *argv[]) {
     const uint32_t start_loop    = 100;
     const uint32_t end_loop      = 200;
     for (i = start_loop; i < end_loop; i += 4) {
-        range.left  = (toku_point*)&nums[i];
-        range.right = (toku_point*)&nums[i+2];
-        range.data  = (DB_TXN*)&letters[0];
+        range.ends.left  = (toku_point*)&nums[i];
+        range.ends.right = (toku_point*)&nums[i+2];
+        range.data  = (TXNID)letters[0];
         r = toku_rt_insert(tree, &range);   CKERR(r);
         inserted++;
     
@@ -246,17 +233,17 @@ int main(int argc, const char *argv[]) {
         assert(bufsize >= inserted);
     }
     for (i = start_loop; i < end_loop; i += 4) {
-        range.left  = (toku_point*)&nums[i];
-        range.right = (toku_point*)&nums[i+2];
-        range.data  = (DB_TXN*)&letters[0];
+        range.ends.left  = (toku_point*)&nums[i];
+        range.ends.right = (toku_point*)&nums[i+2];
+        range.data  = (TXNID)letters[0];
 
         r = toku_rt_delete(tree, &range);   CKERR(r);
     }
 
 
-    range.left = (toku_point*)&nums[4];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[4];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -265,13 +252,13 @@ int main(int argc, const char *argv[]) {
     verify_all_overlap(&find_range, buf, found);
 
     /* Verify the right one is still there, and the wrong one is not there. */
-    assert(*(int*)buf[0].left == 1 && 
-           *(int*)buf[0].right == 3 &&
-           *(char*)buf[0].data == letters[0]);
+    assert(*(int*)buf[0].ends.left == 1 && 
+           *(int*)buf[0].ends.right == 3 &&
+           (char)buf[0].data == letters[0]);
 
-    range.left = (toku_point*)&nums[4];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[4];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -279,9 +266,9 @@ int main(int argc, const char *argv[]) {
     assert(bufsize >= inserted);
     verify_all_overlap(&find_range, buf, found);
 
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[3];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[1];
+    range.ends.right = (toku_point*)&nums[3];
+    range.data = (TXNID)letters[0];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);
@@ -290,14 +277,14 @@ int main(int argc, const char *argv[]) {
     verify_all_overlap(&find_range, buf, found);
 
     /* Verify the right one is still there, and the wrong one is not there. */
-    assert(*(int*)buf[0].left == 4 && 
-           *(int*)buf[0].right == 6 &&
-           *(char*)buf[0].data == letters[1]);
+    assert(*(int*)buf[0].ends.left == 4 && 
+           *(int*)buf[0].ends.right == 6 &&
+           (char)buf[0].data == letters[1]);
 
     /* Clean up. */
-    range.left = (toku_point*)&nums[4];
-    range.right = (toku_point*)&nums[6];
-    range.data = (DB_TXN*)&letters[1];
+    range.ends.left = (toku_point*)&nums[4];
+    range.ends.right = (toku_point*)&nums[6];
+    range.data = (TXNID)letters[1];
     r = toku_rt_delete(tree, &range);   CKERR(r);
 
     r = toku_rt_find(tree, &find_range, 4, &buf, &bufsize, &found);  CKERR(r);

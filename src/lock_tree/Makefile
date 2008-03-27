@@ -31,7 +31,7 @@ LT_TLOG        = $(LT_NOOVERLAP)
 LT_LOG         = $(LT_OVERLAP)
 
 LT_BINS=$(LT_OVERLAP) $(LT_NOOVERLAP) locktree.o
-BINS=rth.o lth.o
+BINS=rth.o lth.o idlth.o db_id.o
 
 .PHONY: install logformat range_tree
 install: range_tree $(BINS) $(LT_BINS)
@@ -44,8 +44,6 @@ clean:
 	rm -rf $(BINS) $(LT_BINS)
 	rm -rf *.gcno *.gcda *.gcov
 	cd tests && make clean
-
-BINS = locktree.o rth.o lth.o
 
 locktree.o: $(LT_TLOG)
 	cp $< $@

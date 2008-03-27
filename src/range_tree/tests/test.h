@@ -45,7 +45,7 @@ int dummy_cmp(const toku_point *a __attribute__((__unused__)),
     return 0;
 }
 
-int ptr_cmp(const DB_TXN* a, const DB_TXN* b) {
+int TXNID_cmp(const TXNID a, const TXNID b) {
     return a < b ? -1 : (a != b); /* \marginpar{!?} */
 }
 
@@ -55,9 +55,9 @@ int int_cmp(const toku_point* a, const toku_point*b) {
     return x -y;
 }
 
-int char_cmp(const DB_TXN *a, const DB_TXN *b) {
-    int x = *(char*)a;
-    int y = *(char*)b;
+int char_cmp(const TXNID a, const TXNID b) {
+    int x = (char)a;
+    int y = (char)b;
     return x -y;
 }
 
@@ -83,3 +83,14 @@ void* fail_malloc(size_t size) {
     }
     return malloc(size);
 }
+
+void verify_all_overlap(toku_interval* query, toku_range* list, unsigned listlen) {
+    unsigned i;
+    
+    for (i = 0; i < listlen; i++) {
+        /* Range A and B overlap iff A.left <= B.right && B.left <= A.right */
+        assert(int_cmp(query->left, list[i].ends.right) <= 0 &&
+               int_cmp(list[i].ends.left, query->right) <= 0);
+    }
+}
+

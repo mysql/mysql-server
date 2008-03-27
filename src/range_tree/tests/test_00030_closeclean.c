@@ -27,9 +27,9 @@ void run_test (BOOL overlap_allowed) {
         );
     CKERR(r);
 
-    range.left = (toku_point*)&nums[1];
-    range.right = (toku_point*)&nums[5];
-    range.data = (DB_TXN*)&letters[0];
+    range.ends.left = (toku_point*)&nums[1];
+    range.ends.right = (toku_point*)&nums[5];
+    range.data = (TXNID)letters[0];
     r = toku_rt_insert(tree, &range);   CKERR(r);
 
     r = toku_rt_close(tree);            CKERR(r);

@@ -2,14 +2,14 @@
 
 #include "test.h"
 
-toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, DB_TXN* txn);
-toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, DB_TXN* txn);
+toku_range_tree* toku__lt_ifexist_selfwrite(toku_lock_tree* tree, TXNID txn);
+toku_range_tree* toku__lt_ifexist_selfread(toku_lock_tree* tree, TXNID txn);
 
 int r;
 toku_lock_tree* lt  = NULL;
 toku_ltm*       ltm = NULL;
 DB*             db  = (DB*)1;
-DB_TXN*         txn = (DB_TXN*)1;
+TXNID           txn = (TXNID)1;
 u_int32_t max_locks = 1000;
 BOOL duplicates = FALSE;
 int  nums[100];
@@ -24,7 +24,7 @@ DBT* data_left [2] ;
 DBT* data_right[2] ;
 
 toku_point qleft, qright;
-toku_range query;
+toku_interval query;
 toku_range* buf;
 unsigned buflen;
 unsigned numfound;
@@ -48,10 +48,13 @@ void init_query(BOOL dups) {
 
 void setup_tree(BOOL dups) {
     assert(!lt && !ltm);
-    r = toku_ltm_create(&ltm, max_locks, toku_malloc, toku_free, toku_realloc);
+    r = toku_ltm_create(&ltm, max_locks, dbpanic,
+                        get_compare_fun_from_db, get_dup_compare_from_db,
+                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(ltm);
-    r = toku_lt_create(&lt, db, dups, dbpanic, ltm, dbcmp, dbcmp,
+    r = toku_lt_create(&lt, dups, dbpanic, ltm,
+                       get_compare_fun_from_db, get_dup_compare_from_db,
                        toku_malloc, toku_free, toku_realloc);
     CKERR(r);
     assert(lt);
@@ -104,8 +107,8 @@ void lt_insert(BOOL dups, int key_l, int data_l, int key_r, int data_r) {
         assert(key_right && !data_right);
     }
 
-    r = toku_lt_acquire_range_read_lock(lt, txn, key_left,  data_left,
-                                                 key_right, data_right);
+    r = toku_lt_acquire_range_read_lock(lt, db, txn, key_left,  data_left,
+                                                     key_right, data_right);
     CKERR(r);
 }
 
@@ -125,11 +128,25 @@ void setup_payload_len(void** payload, u_int32_t* len, int val) {
     }
 }
 
+void temporarily_fake_comparison_functions(void) {
+    assert(!lt->db && !lt->compare_fun && !lt->dup_compare);
+    lt->db = db;
+    lt->compare_fun = get_compare_fun_from_db(db);
+    lt->dup_compare = get_dup_compare_from_db(db);
+}
+
+void stop_fake_comparison_functions(void) {
+    assert(lt->db && lt->compare_fun && lt->dup_compare);
+    lt->db = NULL;
+    lt->compare_fun = NULL;
+    lt->dup_compare = NULL;
+}
+
 void lt_find(BOOL dups, toku_range_tree* rt,
                         unsigned k, int key_l, int data_l,
                                     int key_r, int data_r,
-                                    DB_TXN* find_txn) {
-
+                                    TXNID find_txn) {
+temporarily_fake_comparison_functions();
     r = toku_rt_find(rt, &query, 0, &buf, &buflen, &numfound);
     CKERR(r);
     assert(numfound==k);
@@ -149,11 +166,13 @@ void lt_find(BOOL dups, toku_range_tree* rt,
     }
     unsigned i;
     for (i = 0; i < numfound; i++) {
-        if (toku__lt_point_cmp(buf[i].left,  &left ) == 0 &&
-            toku__lt_point_cmp(buf[i].right, &right) == 0 &&
-            buf[i].data == find_txn) return;
+        if (toku__lt_point_cmp(buf[i].ends.left,  &left ) == 0 &&
+            toku__lt_point_cmp(buf[i].ends.right, &right) == 0 &&
+            buf[i].data == find_txn) { goto cleanup; }
     }
     assert(FALSE);  //Crash since we didn't find it.
+cleanup:
+    stop_fake_comparison_functions();
 }
               
 
@@ -181,13 +200,13 @@ void insert_1(BOOL dups, int key_l, int key_r, int data_l, int data_r,
     
 
     setup_tree(dups);
-    r = toku_lt_acquire_range_read_lock(lt, txn, key_left,  data_left,
-                                                 key_right, data_right);
+    r = toku_lt_acquire_range_read_lock(lt, db, txn, key_left,  data_left,
+                                                     key_right, data_right);
     CKERR(r);
     close_tree();
 
     setup_tree(dups);
-    r = toku_lt_acquire_read_lock(lt, txn, key_left, data_left);
+    r = toku_lt_acquire_read_lock(lt, db, txn, key_left, data_left);
     CKERR(r);
     close_tree();
 }
@@ -220,8 +239,8 @@ void insert_2_noclose(BOOL dups, int key_l[2], int key_r[2],
     	if (kl[i]) key_left[i]   = (DBT*)kl[i];
     	if (kr[i]) key_right[i]  = (DBT*)kr[i];
     
-    	r = toku_lt_acquire_range_read_lock(lt, txn, key_left[i],  data_left[i],
-                                            key_right[i], data_right[i]);
+    	r = toku_lt_acquire_range_read_lock(lt, db, txn, key_left[i],  data_left[i],
+                                                         key_right[i], data_right[i]);
         CKERR(r);
 
     }
@@ -263,7 +282,6 @@ void runtest(BOOL dups) {
     lt_insert(dups,
               dups ? 3 : 4, 4,
               dups ? 3 : 5, 5);
-    
     rt = toku__lt_ifexist_selfread(lt, txn);
     assert(rt);
 

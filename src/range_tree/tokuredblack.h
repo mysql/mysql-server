@@ -61,7 +61,7 @@ int toku_rbt_init (
 /* Sets *pdata to NULL if not found.  (unless error) */
 int toku_rbt_lookup(
     int mode,
-    const  toku_range*  key,
+    const  toku_interval*    key,
     struct toku_rbt_tree*    rbinfo,
     struct toku_rbt_node**   pinsert_finger,
     struct toku_rbt_node**   pelement_finger,
@@ -82,6 +82,8 @@ int toku_rbt_finger_successor(struct toku_rbt_node** pfinger, toku_range** psucc
 
 void toku_rbt_destroy(struct toku_rbt_tree *);
 
+void toku_rbt_clear(struct toku_rbt_tree *);
+    
 enum nodecolour { BLACK, RED };
 
 struct toku_rbt_node
