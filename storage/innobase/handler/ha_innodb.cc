@@ -6226,6 +6226,8 @@ ha_innobase::get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list)
 		    foreign->referenced_index->name,
 		    strlen(foreign->referenced_index->name), 1);
           }
+          else
+            f_key_info.referenced_key_name= 0;
 
 	  FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
 		  thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
