@@ -134,6 +134,8 @@ function GetValue(str, key)
     var end = str.indexOf("\n", pos);
     if (str.charAt(pos) == "\"")
         pos++;
+    if (str.charAt(end-1) == "\r")
+        end--;
     if (str.charAt(end-1) == "\"")
         end--;
     return str.substring(pos, end);    
