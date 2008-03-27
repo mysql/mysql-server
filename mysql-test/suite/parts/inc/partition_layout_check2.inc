@@ -32,6 +32,11 @@ if ($do_file_tests)
 {
 # List the files belonging to the table t1
 --exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+if ($with_directories)
+{
+--exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+}
 eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2'')');
 let $file_list= `SELECT @aux`;
 }

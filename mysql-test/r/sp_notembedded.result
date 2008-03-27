@@ -70,7 +70,7 @@ c
 2
 show status like 'Qcache_hits'|
 Variable_name	Value
-Qcache_hits	0
+Qcache_hits	2
 set global query_cache_size = @x|
 flush status|
 flush query cache|

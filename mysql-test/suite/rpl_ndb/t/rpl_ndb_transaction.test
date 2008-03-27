@@ -52,13 +52,13 @@ ROLLBACK;
 BEGIN;
 INSERT INTO tmyisam VALUES (5);
 INSERT INTO tmyisam VALUES (6);
---warning 1196
+#--warning 1196
 ROLLBACK;
 
 BEGIN;
 INSERT INTO tndb VALUES (7);
 INSERT INTO tmyisam VALUES (7);
---warning 1196
+#--warning 1196
 ROLLBACK;
 
 SELECT * FROM tndb ORDER BY a;
