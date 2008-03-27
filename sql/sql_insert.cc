@@ -315,18 +315,23 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   error=0;
   id=0;
   thd->proc_info="update";
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  /*
-    let's *try* to start bulk inserts. It won't necessary
-    start them as values_list.elements should be greater than
-    some - handler dependent - threshold.
-    So we call start_bulk_insert to perform nesessary checks on
-    values_list.elements, and - if nothing else - to initialize
-    the code to make the call of end_bulk_insert() below safe.
-  */
+#ifndef EMBEDDED_LIBRARY
   if (lock_type != TL_WRITE_DELAYED)
+#endif /* EMBEDDED_LIBRARY */
+  {
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+
+    /*
+      let's *try* to start bulk inserts. It won't necessary
+      start them as values_list.elements should be greater than
+      some - handler dependent - threshold.
+      So we call start_bulk_insert to perform nesessary checks on
+      values_list.elements, and - if nothing else - to initialize
+      the code to make the call of end_bulk_insert() below safe.
+    */
     table->file->start_bulk_insert(values_list.elements);
+  }
 
   while ((values= its++))
   {
@@ -415,6 +420,9 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
     else if (table->next_number_field && info.copied)
       id=table->next_number_field->val_int();	// Return auto_increment value
 
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
     /*
       Invalidate the table in the query cache if something changed.
       For the transactional algorithm to work the invalidation must be
@@ -455,8 +463,6 @@ int mysql_insert(THD *thd,TABLE_LIST *table_list,
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   thd->next_insert_id=0;			// Reset this if wrongly used
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
   /* Reset value of LAST_INSERT_ID if no rows where inserted */
   if (!info.copied && thd->insert_id_used)
@@ -561,7 +567,12 @@ int mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       DBUG_RETURN(-1);
     }
   }
-  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  /*
+    Only call extra() handler method if we are not performing a DELAYED
+    operation. It will instead be executed by delayed insert thread.
+  */
+  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
+      (insert_table_list->lock_type != TL_WRITE_DELAYED))
     table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
 
   DBUG_RETURN(0);
@@ -930,9 +941,11 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	my_error(ER_OUT_OF_RESOURCES,MYF(0));
 	goto err1;
       }
-      tmp->table_list= *table_list;			// Needed to open table
+      /* We only need the db and table name to open tables with open_ltable() */
       tmp->table_list.db= tmp->thd.db;
+      tmp->table_list.db_length= table_list->db_length;
       tmp->table_list.alias= tmp->table_list.real_name=tmp->thd.query;
+      tmp->table_list.real_name_length= table_list->real_name_length;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,
@@ -1491,6 +1504,9 @@ bool delayed_insert::handle_inserts(void)
 
     info.ignore= row->ignore;
     info.handle_duplicates= row->dup;
+    if (info.handle_duplicates == DUP_UPDATE || 
+        info.handle_duplicates == DUP_REPLACE)
+      table->file->extra(HA_EXTRA_RETRIEVE_PRIMARY_KEY);
     if (info.ignore ||
 	info.handle_duplicates != DUP_ERROR)
     {
