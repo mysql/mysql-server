@@ -13,6 +13,8 @@
 
 SET @safe_character_set_server= @@character_set_server;
 SET @safe_collation_server= @@collation_server;
+SET @safe_character_set_client= @@character_set_client;
+SET @safe_character_set_results= @@character_set_results;
 SET character_set_server= @test_character_set;
 SET collation_server= @test_collation;
 CREATE DATABASE d1;
@@ -62,8 +64,22 @@ select a sounds like a from t1;
 select 1 from t1 order by cast(a as char(1));
 drop table t1;
 
+#
+# Bug#27580 SPACE() function collation bug?
+#
+set names utf8;
+create table t1 (
+  name varchar(10),
+  level smallint unsigned);
+show create table t1;
+insert into t1 values ('string',1);
+select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+drop table t1;
+
 DROP DATABASE d1;
 # Restore settings
 USE test;
 SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
+SET character_set_client= @safe_character_set_client;
+SET character_set_results= @safe_character_set_results;

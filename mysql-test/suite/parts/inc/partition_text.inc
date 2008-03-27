@@ -1,24 +1,12 @@
 --echo ---- Partitioning and text data type
 
---disable_query_log
-# DATA DIRECTORY
-eval SET @data_dir = 'DATA DIRECTORY =
-''/tmp''';
-let $data_directory = `select @data_dir`;
-
-#INDEX DIRECTORY
-eval SET @indx_dir = 'INDEX DIRECTORY =
-''/tmp''';
-let $index_directory = `select @indx_dir`;
---enable_query_log
-
 --error ER_BLOB_FIELD_IN_PART_FUNC_ERROR
 eval create table t1 (a text not null, primary key(a(767))) engine=$engine 
 partition by key (a) (
-partition pa1 $data_directory $index_directory max_rows=20 min_rows=2,
-partition pa2 $data_directory $index_directory max_rows=30 min_rows=3,
-partition pa3 $data_directory $index_directory max_rows=30 min_rows=4,
-partition pa4 $data_directory $index_directory max_rows=40 min_rows=2);
+partition pa1 max_rows=20 min_rows=2,
+partition pa2 max_rows=30 min_rows=3,
+partition pa3 max_rows=30 min_rows=4,
+partition pa4 max_rows=40 min_rows=2);
 
 #show create table t1;
 #insert into t1 values (repeat('a',1000)), ('b'), (repeat('a',500)), (repeat('b',64));

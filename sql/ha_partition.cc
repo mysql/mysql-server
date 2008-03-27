@@ -1028,12 +1028,19 @@ int ha_partition::repair_partitions(THD *thd)
     0                         Success
 */
 
+#ifdef WL4176_IS_DONE
 static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
                            handler *file, uint flag)
 {
   int error;
   DBUG_ENTER("handle_opt_part");
   DBUG_PRINT("enter", ("flag = %u", flag));
+
+  /*
+    TODO:
+    Rewrite the code for ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION WL4176
+  */
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
 
   if (flag == OPTIMIZE_PARTS)
     error= file->ha_optimize(thd, check_opt);
@@ -1052,6 +1059,7 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
     error= 0;
   DBUG_RETURN(error);
 }
+#endif
 
 
 /*
@@ -1072,14 +1080,22 @@ static int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt,
 int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
                                         uint flag, bool all_parts)
 {
+#ifdef WL4176_IS_DONE
   List_iterator<partition_element> part_it(m_part_info->partitions);
   uint no_parts= m_part_info->no_parts;
   uint no_subparts= m_part_info->no_subparts;
   uint i= 0;
   int error;
+#endif
   DBUG_ENTER("ha_partition::handle_opt_partitions");
   DBUG_PRINT("enter", ("all_parts %u, flag= %u", all_parts, flag));
 
+  /*
+    TODO:
+    Rewrite the code for ANALYZE/CHECK/OPTIMIZE/REPAIR PARTITION WL4176
+  */
+  DBUG_RETURN(HA_ADMIN_NOT_IMPLEMENTED);
+#ifdef WL4176_IS_DONE
   do
   {
     partition_element *part_elem= part_it++;
@@ -1110,6 +1126,7 @@ int ha_partition::handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt,
     }
   } while (++i < no_parts);
   DBUG_RETURN(FALSE);
+#endif
 }
 
 /*
@@ -1629,6 +1646,15 @@ void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   {
     (*file_array)->change_table_ptr(table_arg, share);
   } while (*(++file_array));
+  if (m_added_file && m_added_file[0])
+  {
+    /* if in middle of a drop/rename etc */
+    file_array= m_added_file;
+    do
+    {
+      (*file_array)->change_table_ptr(table_arg, share);
+    } while (*(++file_array));
+  }
 }
 
 /*

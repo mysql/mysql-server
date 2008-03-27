@@ -4354,12 +4354,12 @@ Create_func_space::create(THD *thd, Item *arg1)
   if (cs->mbminlen > 1)
   {
     uint dummy_errors;
-    sp= new (thd->mem_root) Item_string("", 0, cs);
+    sp= new (thd->mem_root) Item_string("", 0, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
     sp->str_value.copy(" ", 1, &my_charset_latin1, cs, &dummy_errors);
   }
   else
   {
-    sp= new (thd->mem_root) Item_string(" ", 1, cs);
+    sp= new (thd->mem_root) Item_string(" ", 1, cs, DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   }
 
   return new (thd->mem_root) Item_func_repeat(sp, arg1);
