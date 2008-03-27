@@ -96,6 +96,7 @@ int main(int argc, const char *argv[]) {
     }
     toku_rth_clear(rth);
     assert(toku_rth_is_empty(rth));
+    toku_rth_close(rth);
     rth = NULL;
 
     return 0;
