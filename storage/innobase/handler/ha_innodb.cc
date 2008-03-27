@@ -3545,7 +3545,19 @@ no_commit:
 			if (auto_inc > prebuilt->last_value) {
 set_max_autoinc:
 				ut_a(prebuilt->table->autoinc_increment > 0);
-				auto_inc += prebuilt->table->autoinc_increment;
+
+				ulonglong	have;
+				ulonglong	need;
+
+				/* Check for overflow conditions. */
+				need = prebuilt->table->autoinc_increment;
+				have = ~0x0ULL - auto_inc;
+
+				if (have < need) {
+					need = have;
+				}
+
+				auto_inc += need;
 
 				err = innobase_set_max_autoinc(auto_inc);
 
@@ -5105,8 +5117,15 @@ ha_innobase::create(
 
 	DBUG_ASSERT(innobase_table != 0);
 
-	if ((create_info->used_fields & HA_CREATE_USED_AUTO) &&
-	   (create_info->auto_increment_value != 0)) {
+	/* Note: We can't call update_thd() as prebuilt will not be
+	setup at this stage and so we use thd. */
+
+	/* We need to copy the AUTOINC value from the old table if
+	this is an ALTER TABLE. */
+
+	if (((create_info->used_fields & HA_CREATE_USED_AUTO)
+	    || thd_sql_command(thd) == SQLCOM_ALTER_TABLE)
+	    && create_info->auto_increment_value != 0) {
 
 		/* Query was ALTER TABLE...AUTO_INCREMENT = x; or
 		CREATE TABLE ...AUTO_INCREMENT = x; Find out a table
@@ -5856,7 +5875,7 @@ ha_innobase::info(
 	}
 
 	if (flag & HA_STATUS_AUTO && table->found_next_number_field) {
-		longlong	auto_inc;
+		ulonglong	auto_inc;
 		int		ret;
 
 		/* The following function call can the first time fail in
@@ -7207,9 +7226,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 /*=========================================*/
 						/* out: 0 or generic MySQL
 						error code */
-        longlong*	value)			/* out: the autoinc value */
+        ulonglong*	value)			/* out: the autoinc value */
 {
-	longlong	auto_inc;
+	ulonglong	auto_inc;
 	ibool		stmt_start;
 	int		mysql_error = 0;
 	dict_table_t*	innodb_table = prebuilt->table;
@@ -7260,7 +7279,9 @@ ha_innobase::innobase_read_and_init_auto_inc(
 			index, autoinc_col_name, &auto_inc);
 
 		if (error == DB_SUCCESS) {
-			++auto_inc;
+			if (auto_inc < ~0x0ULL) {
+				++auto_inc;
+			}
 			dict_table_autoinc_initialize(innodb_table, auto_inc);
 		} else {
 			ut_print_timestamp(stderr);
@@ -7313,14 +7334,14 @@ ha_innobase::innobase_get_auto_increment(
 		error = innobase_autoinc_lock();
 
 		if (error == DB_SUCCESS) {
-			ib_longlong	autoinc;
+			ulonglong	autoinc;
 
 			/* Determine the first value of the interval */
 			autoinc = dict_table_autoinc_read(prebuilt->table);
 
 			/* We need to initialize the AUTO-INC value, for
 			that we release all locks.*/
-			if (autoinc <= 0) {
+			if (autoinc == 0) {
 				trx_t*		trx;
 
 				trx = prebuilt->trx;
@@ -7339,14 +7360,11 @@ ha_innobase::innobase_get_auto_increment(
 				mysql_error = innobase_read_and_init_auto_inc(
 					&autoinc);
 
-				if (!mysql_error) {
-					/* Should have read the proper value */
-					ut_a(autoinc > 0);
-				} else {
+				if (mysql_error) {
 					error = DB_ERROR;
 				}
 			} else {
-				*value = (ulonglong) autoinc;
+				*value = autoinc;
 			}
 		/* A deadlock error during normal processing is OK
 		and can be ignored. */
@@ -7431,10 +7449,19 @@ ha_innobase::get_auto_increment(
 	/* With old style AUTOINC locking we only update the table's
 	AUTOINC counter after attempting to insert the row. */
 	if (innobase_autoinc_lock_mode != AUTOINC_OLD_STYLE_LOCKING) {
+		ulonglong	have;
+		ulonglong	need;
+
+		/* Check for overflow conditions. */
+		need = *nb_reserved_values * increment;
+		have = ~0x0ULL - *first_value;
+
+		if (have < need) {
+			need = have;
+		}
 
 		/* Compute the last value in the interval */
-		prebuilt->last_value = *first_value +
-		    (*nb_reserved_values * increment);
+		prebuilt->last_value = *first_value + need;
 
 		ut_a(prebuilt->last_value >= *first_value);
 
