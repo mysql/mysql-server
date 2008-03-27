@@ -247,28 +247,3 @@ SET GLOBAL key_cache_block_size= @bug28478_key_cache_block_size;
 DROP TABLE t1;
 
 # End of 4.1 tests
-
-#
-# Bug#35272: @@global.key_buffer_size = 4294967295 let the server crash
-#
-
-SET @save_key_buffer = @@global.key_buffer_size;
-
-# Wee try to force Out Of Memory here. key_buffer_size is ULL, so
-# on a 32 bit machine, 4GB is the most we can ask for before the
-# server complains about value/variable mismatch. At the off chance
-# of one of our 64-bit machines actually offering us 4GB, we also
-# accept "no error" (in addition to the expected "out of memory").
---error 0,ER_OUTOFMEMORY
-SET @@global.key_buffer_size = 4294967295;
-
-# on 32-bit, we get "out of range", on 64-bit, "out of memory".
---error 0,ER_WRONG_ARGUMENTS,ER_OUTOFMEMORY
---disable_warnings
-SET @@global.key_buffer_size = 9223372036854775807;
---enable_warnings
-
-# restore normal value, just in case we got the 4GB or something.
-SET @@global.key_buffer_size = @save_key_buffer;
-
---echo End of 5.1 tests
