@@ -452,6 +452,14 @@ select * from t1;
 a	b
 1	
 commit;
+begin;
+insert into t1 values (3, repeat("w", 8000));
+insert into t1 values (2, repeat("x", 10000)),
+(3, repeat("y", 5000)),
+(4, repeat("z", 15000));
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+rollback;
+commit;
 drop table t1;
 set autocommit=1;
 use test;
