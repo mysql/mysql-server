@@ -71,67 +71,51 @@ let $engine_ndb=    `SELECT @ENGINE_NDB    = 1`;
 # Note: The NDB variant with their own tb1 - tb4 tables is not ready for use.
 let $engine_ndb= 0;
 
-# Decide, if the objects are to be (re)created
-#
-# - once at the beginning of a set of testcases ('$NO_REFRESH' <> '' --> TRUE)
-#   That means the current script must not (re)create any object.
-#   It can expect, that the objects already exist.
-#
-# - per every testscript/case ('$NO_REFRESH' = '' --> FALSE)
-#   That means all objects have to be (re)created within the current script.
-#
-eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
-let $run= `SELECT @NO_REFRESH = 0`;
-if ($run)
+--disable_warnings
+DROP DATABASE IF EXISTS test1;
+--enable_warnings
+CREATE DATABASE test1;
+USE test;
+
+if ($engine_innodb)
 {
-   --disable_warnings
-   DROP DATABASE IF EXISTS test1;
-   --enable_warnings
-   CREATE DATABASE test1;
-   USE test;
-
-   # until a statement 'eval --source suite/funcs_1/include/$var_tb1.inc
-   # works we need to have similar statements for each $engine
-   if ($engine_innodb)
-   {
-       --source suite/funcs_1/include/innodb_tb1.inc
-       --source suite/funcs_1/include/innodb_tb2.inc
-       --source suite/funcs_1/include/innodb_tb3.inc
-       --source suite/funcs_1/include/innodb_tb4.inc
-       USE test1;
-       --source suite/funcs_1/include/innodb_tb2.inc
-   }
-
-   if ($engine_memory)
-   {
-      --source suite/funcs_1/include/memory_tb1.inc
-      --source suite/funcs_1/include/memory_tb2.inc
-      --source suite/funcs_1/include/memory_tb3.inc
-      --source suite/funcs_1/include/memory_tb4.inc
-      USE test1;
-      --source suite/funcs_1/include/memory_tb2.inc
-   }
-
-   if ($engine_myisam)
-   {
-      --source suite/funcs_1/include/myisam_tb1.inc
-      --source suite/funcs_1/include/myisam_tb2.inc
-      --source suite/funcs_1/include/myisam_tb3.inc
-      --source suite/funcs_1/include/myisam_tb4.inc
-      USE test1;
-      --source suite/funcs_1/include/myisam_tb2.inc
-   }
-
-   if ($engine_ndb)
-   {
-       --source suite/funcs_1/include/ndb_tb1.inc
-       --source suite/funcs_1/include/ndb_tb2.inc
-       --source suite/funcs_1/include/ndb_tb3.inc
-       --source suite/funcs_1/include/ndb_tb4.inc
-       USE test1;
-       --source suite/funcs_1/include/ndb_tb2.inc
-   }
-
-   USE test;
-   --source suite/funcs_1/include/sp_tb.inc
+    --source suite/funcs_1/include/innodb_tb1.inc
+    --source suite/funcs_1/include/innodb_tb2.inc
+    --source suite/funcs_1/include/innodb_tb3.inc
+    --source suite/funcs_1/include/innodb_tb4.inc
+    USE test1;
+    --source suite/funcs_1/include/innodb_tb2.inc
 }
+
+if ($engine_memory)
+{
+   --source suite/funcs_1/include/memory_tb1.inc
+   --source suite/funcs_1/include/memory_tb2.inc
+   --source suite/funcs_1/include/memory_tb3.inc
+   --source suite/funcs_1/include/memory_tb4.inc
+   USE test1;
+   --source suite/funcs_1/include/memory_tb2.inc
+}
+
+if ($engine_myisam)
+{
+   --source suite/funcs_1/include/myisam_tb1.inc
+   --source suite/funcs_1/include/myisam_tb2.inc
+   --source suite/funcs_1/include/myisam_tb3.inc
+   --source suite/funcs_1/include/myisam_tb4.inc
+   USE test1;
+   --source suite/funcs_1/include/myisam_tb2.inc
+}
+
+if ($engine_ndb)
+{
+    --source suite/funcs_1/include/ndb_tb1.inc
+    --source suite/funcs_1/include/ndb_tb2.inc
+    --source suite/funcs_1/include/ndb_tb3.inc
+    --source suite/funcs_1/include/ndb_tb4.inc
+    USE test1;
+    --source suite/funcs_1/include/ndb_tb2.inc
+}
+
+USE test;
+--source suite/funcs_1/include/sp_tb.inc
