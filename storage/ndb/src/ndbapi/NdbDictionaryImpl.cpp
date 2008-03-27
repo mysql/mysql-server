@@ -1479,8 +1479,9 @@ int NdbOptimizeTableHandleImpl::close()
 
 NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl(NdbDictionary::OptimizeIndexHandle &f)
   : NdbDictionary::OptimizeIndexHandle(* this),
+    m_state(NdbOptimizeIndexHandleImpl::CREATED),
     m_ndb(NULL), m_index(NULL),
-    m_facade(this), m_state(NdbOptimizeIndexHandleImpl::CREATED)
+    m_facade(this)
 {
   DBUG_ENTER("NdbOptimizeIndexHandleImpl::NdbOptimizeIndexHandleImpl");
   DBUG_VOID_RETURN;
