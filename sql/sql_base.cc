@@ -4866,7 +4866,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     the third argument set appropriately.
 */
 
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
 {
   uint counter;
   bool need_reopen;

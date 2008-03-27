@@ -419,7 +419,7 @@ cleanup:
     FALSE OK
     TRUE  error
 */
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
@@ -495,7 +495,7 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
     TRUE  Error
 */
 
-bool mysql_multi_delete_prepare(THD *thd)
+int mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxiliary_table_list.first;
