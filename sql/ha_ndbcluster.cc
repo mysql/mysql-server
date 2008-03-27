@@ -511,6 +511,7 @@ int execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   ha_ndbcluster::release_completed_operations(thd_ndb, trans);
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
+  DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::NoCommit,
                      NdbOperation::AO_IgnoreError,
                      thd_ndb->m_force_send))
@@ -535,6 +536,7 @@ int execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_ENTER("execute_commit");
   const NdbOperation *first= trans->getFirstDefinedOperation();
   thd_ndb->m_execute_count++;
+  DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Commit,
                      NdbOperation::AO_IgnoreError,
                      force_send))
@@ -566,6 +568,7 @@ int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans)
                           thd_ndb->m_force_send);
   thd_ndb->m_unsent_bytes= 0;
   thd_ndb->m_execute_count++;
+  DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   DBUG_RETURN(res);
 }
 
@@ -2239,6 +2242,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       m_thd_ndb->m_conflict_fn_usage_count= 0;
       m_thd_ndb->m_unsent_bytes= 0;
       m_thd_ndb->m_execute_count++;
+      DBUG_PRINT("info", ("execute_count: %u", m_thd_ndb->m_execute_count));
       trans->execute(NdbTransaction::Rollback);
 #ifdef FIXED_OLD_DATA_TO_ACTUALLY_CONTAIN_GOOD_DATA
       int undo_res;
@@ -5709,6 +5713,7 @@ static int ndbcluster_rollback(handlerton *hton, THD *thd, bool all)
   thd_ndb->m_conflict_fn_usage_count= 0;
   thd_ndb->m_unsent_bytes= 0;
   thd_ndb->m_execute_count++;
+  DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
   if (trans->execute(NdbTransaction::Rollback) != 0)
   {
     const NdbError err= trans->getNdbError();
@@ -7329,6 +7334,7 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_table_info(NULL),
   m_table_flags(HA_NDBCLUSTER_TABLE_FLAGS),
   m_share(0),
+  m_key_fields(NULL),
   m_part_info(NULL),
   m_user_defined_partitioning(FALSE),
   m_use_partition_pruning(FALSE),
@@ -7348,7 +7354,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_update_cannot_batch(FALSE),
   m_skip_auto_increment(TRUE),
   m_blobs_pending(0),
-  m_key_fields(NULL),
   m_blobs_buffer(0),
   m_blobs_buffer_size(0),
   m_dupkey((uint) -1),
@@ -9835,6 +9840,7 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
     }
     
     thd_ndb->m_execute_count++;
+    DBUG_PRINT("info", ("execute_count: %u", thd_ndb->m_execute_count));
     if (pTrans->execute(NdbTransaction::NoCommit,
                         NdbOperation::AbortOnError,
                         TRUE) == -1)
@@ -10203,6 +10209,8 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         If we reach the limit of ranges allowed in a single scan: stop
         here, send what we have so far, and continue when done with that.
       */
+      DBUG_PRINT("info", ("Reached the limit of ranges allowed in a single"
+                          "scan, any_real_read= TRUE"));
       if (i > NdbIndexScanOperation::MaxRangeNo)
         break;
 
@@ -10291,8 +10299,11 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
         continue;
       }
       else
+      {
         any_real_read= TRUE;
-
+        DBUG_PRINT("info", ("m_read_before_write_removal_used == FALSE, "
+                            "any_real_read= TRUE"));
+      }
       r->range_flag|= UNIQUE_RANGE;
 
       Uint32 partitionId;
