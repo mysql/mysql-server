@@ -508,7 +508,7 @@ el_gets(EditLine *el, int *nread)
 		    el->el_chared.c_redo.pos < el->el_chared.c_redo.lim) {
 			if (cmdnum == VI_DELETE_PREV_CHAR &&
 			    el->el_chared.c_redo.pos != el->el_chared.c_redo.buf
-			    && isprint((unsigned char)el->el_chared.c_redo.pos[-1]))
+			    && el_isprint((unsigned char)el->el_chared.c_redo.pos[-1]))
 				el->el_chared.c_redo.pos--;
 			else
 				*el->el_chared.c_redo.pos++ = ch;
