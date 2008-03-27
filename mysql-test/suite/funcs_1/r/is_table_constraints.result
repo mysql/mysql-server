@@ -1,0 +1,310 @@
+SHOW TABLES FROM information_schema LIKE 'TABLE_CONSTRAINTS';
+Tables_in_information_schema (TABLE_CONSTRAINTS)
+TABLE_CONSTRAINTS
+#######################################################################
+# Testcase 3.2.1.1: INFORMATION_SCHEMA tables can be queried via SELECT
+#######################################################################
+DROP VIEW      IF EXISTS test.v1;
+DROP PROCEDURE IF EXISTS test.p1;
+DROP FUNCTION  IF EXISTS test.f1;
+CREATE VIEW test.v1 AS     SELECT * FROM information_schema.TABLE_CONSTRAINTS;
+CREATE PROCEDURE test.p1() SELECT * FROM information_schema.TABLE_CONSTRAINTS;
+CREATE FUNCTION test.f1() returns BIGINT
+BEGIN
+DECLARE counter BIGINT DEFAULT NULL;
+SELECT COUNT(*) INTO counter FROM information_schema.TABLE_CONSTRAINTS;
+RETURN counter;
+END//
+# Attention: The printing of the next result sets is disabled.
+SELECT * FROM information_schema.TABLE_CONSTRAINTS;
+SELECT * FROM test.v1;
+CALL test.p1;
+SELECT test.f1();
+DROP VIEW test.v1;
+DROP PROCEDURE test.p1;
+DROP FUNCTION test.f1;
+#########################################################################
+# Testcase 3.2.10.1: INFORMATION_SCHEMA.TABLE_CONSTRAINTS layout
+#########################################################################
+DESCRIBE          information_schema.TABLE_CONSTRAINTS;
+Field	Type	Null	Key	Default	Extra
+CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_SCHEMA	varchar(64)	NO			
+CONSTRAINT_NAME	varchar(64)	NO			
+TABLE_SCHEMA	varchar(64)	NO			
+TABLE_NAME	varchar(64)	NO			
+CONSTRAINT_TYPE	varchar(64)	NO			
+SHOW CREATE TABLE information_schema.TABLE_CONSTRAINTS;
+Table	Create Table
+TABLE_CONSTRAINTS	CREATE TEMPORARY TABLE `TABLE_CONSTRAINTS` (
+  `CONSTRAINT_CATALOG` varchar(512) DEFAULT NULL,
+  `CONSTRAINT_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `CONSTRAINT_NAME` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_SCHEMA` varchar(64) NOT NULL DEFAULT '',
+  `TABLE_NAME` varchar(64) NOT NULL DEFAULT '',
+  `CONSTRAINT_TYPE` varchar(64) NOT NULL DEFAULT ''
+) ENGINE=MEMORY DEFAULT CHARSET=utf8
+SHOW COLUMNS FROM information_schema.TABLE_CONSTRAINTS;
+Field	Type	Null	Key	Default	Extra
+CONSTRAINT_CATALOG	varchar(512)	YES		NULL	
+CONSTRAINT_SCHEMA	varchar(64)	NO			
+CONSTRAINT_NAME	varchar(64)	NO			
+TABLE_SCHEMA	varchar(64)	NO			
+TABLE_NAME	varchar(64)	NO			
+CONSTRAINT_TYPE	varchar(64)	NO			
+SELECT constraint_catalog, constraint_schema, constraint_name,
+table_schema, table_name
+FROM information_schema.table_constraints
+WHERE constraint_catalog IS NOT NULL;
+constraint_catalog	constraint_schema	constraint_name	table_schema	table_name
+#########################################################################################
+# Testcase 3.2.7.2 + 3.2.7.3: INFORMATION_SCHEMA.TABLE_CONSTRAINTS accessible information
+#########################################################################################
+DROP DATABASE IF EXISTS db_datadict;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.t1 (f1 BIGINT, f2 BIGINT, f3 BIGINT, f4 BIGINT,
+f5 BIGINT, f6 BIGINT, PRIMARY KEY (f1,f2))
+ENGINE = <some_engine_type>;
+CREATE UNIQUE INDEX my_idx1 ON db_datadict.t1(f6,f1);
+CREATE UNIQUE INDEX my_idx2 ON db_datadict.t1(f3);
+CREATE TABLE db_datadict.t2 (f1 BIGINT, f2 BIGINT, f3 BIGINT, f4 BIGINT,
+f5 BIGINT, f6 BIGINT, PRIMARY KEY (f1,f2))
+ENGINE = <some_engine_type>;
+DROP   USER 'testuser1'@'localhost';
+CREATE USER 'testuser1'@'localhost';
+GRANT SELECT(f5) ON db_datadict.t1 TO 'testuser1'@'localhost';
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (f5) ON `db_datadict`.`t1` TO 'testuser1'@'localhost'
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'db_datadict'
+ORDER BY table_schema,table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	db_datadict	my_idx1	db_datadict	t1	UNIQUE
+NULL	db_datadict	my_idx2	db_datadict	t1	UNIQUE
+NULL	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
+NULL	db_datadict	PRIMARY	db_datadict	t2	PRIMARY KEY
+SHOW INDEXES FROM db_datadict.t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###
+t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###
+t1	0	my_idx1	1	f6	###	###	###	###	###	###	###
+t1	0	my_idx1	2	f1	###	###	###	###	###	###	###
+t1	0	my_idx2	1	f3	###	###	###	###	###	###	###
+SHOW INDEXES FROM db_datadict.t2;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t2	0	PRIMARY	1	f1	###	###	###	###	###	###	###
+t2	0	PRIMARY	2	f2	###	###	###	###	###	###	###
+# Establish connection testuser1 (user=testuser1)
+SHOW GRANTS FOR 'testuser1'@'localhost';
+Grants for testuser1@localhost
+GRANT USAGE ON *.* TO 'testuser1'@'localhost'
+GRANT SELECT (f5) ON `db_datadict`.`t1` TO 'testuser1'@'localhost'
+SELECT * FROM information_schema.table_constraints
+WHERE table_schema = 'db_datadict'
+ORDER BY table_schema,table_name, constraint_name;
+CONSTRAINT_CATALOG	CONSTRAINT_SCHEMA	CONSTRAINT_NAME	TABLE_SCHEMA	TABLE_NAME	CONSTRAINT_TYPE
+NULL	db_datadict	my_idx1	db_datadict	t1	UNIQUE
+NULL	db_datadict	my_idx2	db_datadict	t1	UNIQUE
+NULL	db_datadict	PRIMARY	db_datadict	t1	PRIMARY KEY
+SHOW INDEXES FROM db_datadict.t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment
+t1	0	PRIMARY	1	f1	###	###	###	###	###	###	###
+t1	0	PRIMARY	2	f2	###	###	###	###	###	###	###
+t1	0	my_idx1	1	f6	###	###	###	###	###	###	###
+t1	0	my_idx1	2	f1	###	###	###	###	###	###	###
+t1	0	my_idx2	1	f3	###	###	###	###	###	###	###
+SHOW INDEXES FROM db_datadict.t2;
+ERROR 42000: SELECT command denied to user 'testuser1'@'localhost' for table 't2'
+# Switch to connection default and close connection testuser1
+DROP USER 'testuser1'@'localhost';
+DROP DATABASE db_datadict;
+#########################################################################################
+# Testcase 3.2.1.13+3.2.1.14+3.2.1.15: INFORMATION_SCHEMA.TABLE_CONSTRAINTS modifications
+#########################################################################################
+DROP DATABASE IF EXISTS db_datadict;
+DROP TABLE IF EXISTS test.t1_my_table;
+CREATE DATABASE db_datadict;
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name LIKE 't1_my_table%';
+table_name
+CREATE TABLE test.t1_my_table
+(f1 CHAR(12), f2 TIMESTAMP, f4 BIGINT, PRIMARY KEY(f1,f2))
+DEFAULT CHARACTER SET latin1 COLLATE latin1_swedish_ci
+ENGINE = <engine_type>;
+SELECT constraint_name, table_schema, table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_table';
+constraint_name	table_schema	table_name	constraint_type
+PRIMARY	test	t1_my_table	PRIMARY KEY
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name LIKE 't1_my_table%';
+table_name
+t1_my_table
+RENAME TABLE test.t1_my_table TO test.t1_my_tablex;
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name LIKE 't1_my_table%';
+table_name
+t1_my_tablex
+SELECT table_schema,table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_schema	table_name
+test	t1_my_tablex
+RENAME TABLE test.t1_my_tablex TO db_datadict.t1_my_tablex;
+SELECT table_schema,table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_schema	table_name
+db_datadict	t1_my_tablex
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+CREATE INDEX f2 ON db_datadict.t1_my_tablex(f2);
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+DROP INDEX f2 ON db_datadict.t1_my_tablex;
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+ALTER TABLE db_datadict.t1_my_tablex ADD UNIQUE (f2);
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	f2	db_datadict	t1_my_tablex	UNIQUE
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+DROP INDEX f2 ON db_datadict.t1_my_tablex;
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+ALTER TABLE db_datadict.t1_my_tablex ADD UNIQUE my_idx (f4,f1);
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	my_idx	db_datadict	t1_my_tablex	UNIQUE
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+DROP INDEX my_idx ON db_datadict.t1_my_tablex;
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+ALTER TABLE db_datadict.t1_my_tablex ADD UNIQUE my_idx (f2);
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	my_idx	db_datadict	t1_my_tablex	UNIQUE
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	my_idx	db_datadict	t1_my_tablex	UNIQUE
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+ALTER TABLE db_datadict.t1_my_tablex
+DROP COLUMN f2;
+SELECT constraint_schema, constraint_name, table_schema,
+table_name, constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex'
+ORDER BY table_schema,table_name, constraint_name;
+constraint_schema	constraint_name	table_schema	table_name	constraint_type
+db_datadict	PRIMARY	db_datadict	t1_my_tablex	PRIMARY KEY
+SELECT table_name
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+t1_my_tablex
+DROP TABLE db_datadict.t1_my_tablex;
+SELECT table_name
+FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+CREATE TABLE db_datadict.t1_my_tablex
+ENGINE = <engine_type> AS
+SELECT 1 AS f1;
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+ALTER TABLE db_datadict.t1_my_tablex ADD PRIMARY KEY(f1);
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+t1_my_tablex
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+t1_my_tablex
+DROP DATABASE db_datadict;
+SELECT table_name FROM information_schema.table_constraints
+WHERE table_name = 't1_my_tablex';
+table_name
+########################################################################
+# Testcases 3.2.1.3-3.2.1.5 + 3.2.1.8-3.2.1.12: INSERT/UPDATE/DELETE and
+#           DDL on INFORMATION_SCHEMA tables are not supported
+########################################################################
+DROP DATABASE IF EXISTS db_datadict;
+DROP TABLE IF EXISTS db_datadict.t1;
+CREATE DATABASE db_datadict;
+CREATE TABLE db_datadict.t1 (f1 BIGINT, UNIQUE(f1))
+ENGINE = <engine_type>;
+INSERT INTO information_schema.table_constraints
+(constraint_schema, constraint_name, table_name)
+VALUES (          'mysql',       'primary',       'db');
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+INSERT INTO information_schema.table_constraints
+SELECT * FROM information_schema.table_constraints;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+UPDATE information_schema.table_constraints
+SET  table_name = 'db1' WHERE constraint_name = 'primary';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DELETE FROM information_schema.table_constraints WHERE table_name = 't1';
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+TRUNCATE information_schema.table_constraints;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+CREATE INDEX i3 ON information_schema.table_constraints(table_name);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_constraints ADD f1 INT;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE information_schema.table_constraints;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_constraints
+RENAME db_datadict.table_constraints;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+ALTER TABLE information_schema.table_constraints
+RENAME information_schema.xtable_constraints;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'information_schema'
+DROP TABLE db_datadict.t1;
+DROP DATABASE db_datadict;

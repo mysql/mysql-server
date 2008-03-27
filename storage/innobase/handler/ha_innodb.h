@@ -72,7 +72,7 @@ class ha_innobase: public handler
 	int update_thd(THD* thd);
 	int change_active_index(uint keynr);
 	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	int innobase_read_and_init_auto_inc(longlong* ret);
+	int innobase_read_and_init_auto_inc(ulonglong* ret);
 	ulong innobase_autoinc_lock();
 	ulong innobase_set_max_autoinc(ulonglong auto_inc);
 	ulong innobase_reset_autoinc(ulonglong auto_inc);

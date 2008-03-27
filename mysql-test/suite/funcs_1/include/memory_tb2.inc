@@ -1,8 +1,5 @@
 ##### suite/funcs_1/include/memory_tb2.inc
 
-set @@global.max_heap_table_size  = 4294967295;
-set @@session.max_heap_table_size = 4294967295;
-
 --disable_warnings
 drop table if exists tb2 ;
 --enable_warnings
