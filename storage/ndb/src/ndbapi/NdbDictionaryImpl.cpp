@@ -1205,9 +1205,11 @@ NdbIndexImpl::getIndexTable() const
 
 NdbOptimizeTableHandleImpl::NdbOptimizeTableHandleImpl(NdbDictionary::OptimizeTableHandle &f)
   : NdbDictionary::OptimizeTableHandle(* this),
-    m_ndb(NULL), m_table(NULL), m_trans(NULL), m_scan_op(NULL),
+    m_state(NdbOptimizeTableHandleImpl::CREATED),
+    m_ndb(NULL), m_table(NULL),
     m_table_queue(NULL), m_table_queue_first(NULL), m_table_queue_end(NULL),
-    m_facade(this), m_state(NdbOptimizeTableHandleImpl::CREATED)
+    m_trans(NULL), m_scan_op(NULL),
+    m_facade(this)
 {
 }
 

@@ -625,8 +625,8 @@ public:
   struct ApiConnectRecord {
     ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
 		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
-      theFiredTriggers(firedTriggerPool),
       isIndexOp(false),
+      theFiredTriggers(firedTriggerPool),
       theSeizedIndexOperations(seizedIndexOpPool) 
     {}
     
