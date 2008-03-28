@@ -1060,8 +1060,6 @@ i_s_compression_fill_low(
 		DBUG_RETURN(0);
 	}
 
-	buf_pool_mutex_enter();
-
 	for (uint i = 0; i < PAGE_ZIP_NUM_SSIZE - 1; i++) {
 		page_zip_stat_t*	zip_stat = &page_zip_stat[i];
 
@@ -1091,7 +1089,6 @@ i_s_compression_fill_low(
 		}
 	}
 
-	buf_pool_mutex_exit();
 	DBUG_RETURN(status);
 }
 
@@ -1179,7 +1176,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool"),
+	STRUCT_FLD(descr, "Statistics for the InnoDB compression"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
 	/* int */
@@ -1228,7 +1225,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
 
 	/* general descriptive text (for SHOW PLUGINS) */
 	/* const char* */
-	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool;"
+	STRUCT_FLD(descr, "Statistics for the InnoDB compression;"
 		   " reset cumulated counts"),
 
 	/* the plugin license (PLUGIN_LICENSE_XXX) */
