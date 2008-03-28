@@ -153,7 +153,7 @@ private:
 class binlog_trx_data {
 public:
   binlog_trx_data()
-    : m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF), at_least_one_stmt(0)
+    : at_least_one_stmt(0), m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
   {
     trans_log.end_of_file= max_binlog_cache_size;
   }
