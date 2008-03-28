@@ -16596,7 +16596,6 @@ int main(int argc, char **argv)
 {
   struct my_tests_st *fptr;
 
-  DEBUGGER_OFF;
   MY_INIT(argv[0]);
 
   load_defaults("my", client_test_load_default_groups, &argc, &argv);
