@@ -1446,8 +1446,6 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
 
             free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
             if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
-            {
-              pthread_mutex_unlock(&LOCK_plugin);
               goto error;
             }
           }
@@ -1459,10 +1457,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
         free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
         pthread_mutex_lock(&LOCK_plugin);
         if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
-        {
-          pthread_mutex_unlock(&LOCK_plugin);
           goto error;
-        }
       }
       pthread_mutex_unlock(&LOCK_plugin);
       name.length= dl.length= 0;
