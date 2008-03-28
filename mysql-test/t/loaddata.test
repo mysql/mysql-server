@@ -260,7 +260,7 @@ CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
 CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
 
 --echo
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v1
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v1
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -276,7 +276,7 @@ SELECT * FROM v1;
 DELETE FROM t1;
 
 --echo
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v2
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -293,7 +293,7 @@ DELETE FROM t1;
 
 --echo
 --error ER_LOAD_DATA_INVALID_COLUMN
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v2
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -301,7 +301,7 @@ LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v2
 
 --echo
 --error ER_NON_UPDATABLE_TABLE
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v3
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v3
   FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
