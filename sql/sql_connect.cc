@@ -701,20 +701,24 @@ static int check_connection(THD *thd)
     bzero((char*) &thd->remote, sizeof(thd->remote));
   }
   vio_keepalive(net->vio, TRUE);
+  
+  ulong server_capabilites;
   {
     /* buff[] needs to big enough to hold the server_version variable */
     char buff[SERVER_VERSION_LENGTH + SCRAMBLE_LENGTH + 64];
-    ulong client_flags = (CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB |
-			  CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION);
+    server_capabilites= CLIENT_BASIC_FLAGS;
 
     if (opt_using_transactions)
-      client_flags|=CLIENT_TRANSACTIONS;
+      server_capabilites|= CLIENT_TRANSACTIONS;
 #ifdef HAVE_COMPRESS
-    client_flags |= CLIENT_COMPRESS;
+    server_capabilites|= CLIENT_COMPRESS;
 #endif /* HAVE_COMPRESS */
 #ifdef HAVE_OPENSSL
     if (ssl_acceptor_fd)
-      client_flags |= CLIENT_SSL;       /* Wow, SSL is available! */
+    {
+      server_capabilites |= CLIENT_SSL;       /* Wow, SSL is available! */
+      server_capabilites |= CLIENT_SSL_VERIFY_SERVER_CERT;
+    }
 #endif /* HAVE_OPENSSL */
 
     end= strnmov(buff, server_version, SERVER_VERSION_LENGTH) + 1;
@@ -733,7 +737,7 @@ static int check_connection(THD *thd)
     */
     end= strmake(end, thd->scramble, SCRAMBLE_LENGTH_323) + 1;
    
-    int2store(end, client_flags);
+    int2store(end, server_capabilites);
     /* write server characteristics: up to 16 bytes allowed */
     end[2]=(char) default_charset_info->number;
     int2store(end+3, thd->server_status);
@@ -763,7 +767,7 @@ static int check_connection(THD *thd)
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
-  thd->client_capabilities=uint2korr(net->read_pos);
+  thd->client_capabilities= uint2korr(net->read_pos);
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     thd->client_capabilities|= ((ulong) uint2korr(net->read_pos+2)) << 16;
@@ -778,6 +782,11 @@ static int check_connection(THD *thd)
     thd->max_client_packet_length= uint3korr(net->read_pos+2);
     end= (char*) net->read_pos+5;
   }
+  /*
+    Disable those bits which are not supported by the server.
+    This is a precautionary measure, if the client lies. See Bug#27944.
+  */
+  thd->client_capabilities&= server_capabilites;
 
   if (thd->client_capabilities & CLIENT_IGNORE_SPACE)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
