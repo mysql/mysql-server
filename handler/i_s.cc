@@ -1344,7 +1344,9 @@ i_s_cmpmem_fill_low(
 			(ulong) (buddy_stat->relocated_usec / 1000000));
 
 		if (reset) {
-			memset(buddy_stat, 0, sizeof *buddy_stat);
+			/* This is protected by buf_pool_mutex. */
+			buddy_stat->relocated = 0;
+			buddy_stat->relocated_usec = 0;
 		}
 
 		if (schema_table_store_record(thd, table)) {
