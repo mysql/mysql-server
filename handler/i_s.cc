@@ -20,6 +20,7 @@ Created July 18, 2007 Vasil Dimov
 extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
+#include "buf0buddy.h" /* for i_s_compression_buddy */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 }
@@ -1235,6 +1236,267 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_compression_reset_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+/* Fields of the dynamic table information_schema.innodb_compression_buddy. */
+static ST_FIELD_INFO	i_s_compression_buddy_fields_info[] =
+{
+	{STRUCT_FLD(field_name,		"size"),
+	 STRUCT_FLD(field_length,	5),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Block Size"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"used"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently in Use"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"free"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Currently Available"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"relocated"),
+	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Number of Relocations"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"relocated_sec"),
+	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		"Total Duration of Relocations"),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_compression_buddy or
+innodb_compression_buddy_reset. */
+static
+int
+i_s_compression_buddy_fill_low(
+/*===========================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond,	/* in: condition (ignored) */
+	ibool		reset)	/* in: TRUE=reset cumulated counts */
+{
+	TABLE*	table	= (TABLE *) tables->table;
+	int	status	= 0;
+
+	DBUG_ENTER("i_s_compression_buddy_fill_low");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	buf_pool_mutex_enter();
+
+	for (uint x = 0; x <= BUF_BUDDY_SIZES; x++) {
+		buf_buddy_stat_t*	buddy_stat = &buf_buddy_stat[x];
+
+		table->field[0]->store(BUF_BUDDY_LOW << x);
+		table->field[1]->store(buddy_stat->used);
+		table->field[2]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
+				       ? UT_LIST_GET_LEN(buf_pool->zip_free[x])
+				       : 0);
+		table->field[3]->store((longlong) buddy_stat->relocated, true);
+		table->field[4]->store(
+			(ulong) (buddy_stat->relocated_usec / 1000000));
+
+		if (reset) {
+			memset(buddy_stat, 0, sizeof *buddy_stat);
+		}
+
+		if (schema_table_store_record(thd, table)) {
+			status = 1;
+			break;
+		}
+	}
+
+	buf_pool_mutex_exit();
+	DBUG_RETURN(status);
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_compression_buddy. */
+static
+int
+i_s_compression_buddy_fill(
+/*=======================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(i_s_compression_buddy_fill_low(thd, tables, cond, FALSE));
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_compression_buddy_reset. */
+static
+int
+i_s_compression_buddy_reset_fill(
+/*=============================*/
+				/* out: 0 on success, 1 on failure */
+	THD*		thd,	/* in: thread */
+	TABLE_LIST*	tables,	/* in/out: tables to fill */
+	COND*		cond)	/* in: condition (ignored) */
+{
+	return(i_s_compression_buddy_fill_low(thd, tables, cond, TRUE));
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_compression_buddy. */
+static
+int
+i_s_compression_buddy_init(
+/*=======================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_compression_buddy_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_compression_buddy_fields_info;
+	schema->fill_table = i_s_compression_buddy_fill;
+
+	DBUG_RETURN(0);
+}
+
+/***********************************************************************
+Bind the dynamic table information_schema.innodb_compression_buddy_reset. */
+static
+int
+i_s_compression_buddy_reset_init(
+/*=============================*/
+			/* out: 0 on success */
+	void*	p)	/* in/out: table schema object */
+{
+	DBUG_ENTER("i_s_compression_buddy_reset_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_compression_buddy_fields_info;
+	schema->fill_table = i_s_compression_buddy_reset_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_COMPRESSION_BUDDY"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_compression_buddy_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL)
+};
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy_reset =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_COMPRESSION_BUDDY_RESET"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compressed buffer pool;"
+		   " reset cumulated counts"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_compression_buddy_reset_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
