@@ -1098,6 +1098,40 @@ static inline DB_TXN* toku_txn_ancestor(DB_TXN* txn) {
 
 static int toku_txn_add_lt(DB_TXN* txn, toku_lock_tree* lt);
 
+static void toku_c_get_fix_flags(DBC* c, u_int32_t* flag) {
+    assert(c && flag);
+    DB* db  = c->dbp;
+
+    u_int32_t get_flag = get_main_cursor_flag(*flag);
+    unsigned int brtflags;
+    toku_brt_get_flags(db->i->brt, &brtflags);
+    BOOL duplicates = (brtflags & TOKU_DB_DUPSORT) != 0;
+
+    switch (get_flag) {
+        case (DB_NEXT): {
+            if (!duplicates) {
+                toku_swap_flag(flag, &get_flag, DB_NEXT_NODUP);
+            }
+            break;
+        }
+        case (DB_PREV): {
+            if (!duplicates) {
+                toku_swap_flag(flag, &get_flag, DB_PREV_NODUP);
+            }
+            break;
+        }
+        case (DB_GET_BOTH_RANGE): {
+            if (!duplicates) {
+                toku_swap_flag(flag, &get_flag, DB_GET_BOTH);
+            }
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+}
+
 static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
                                DBT* saved_key, DBT* saved_data) {
     assert(saved_key && saved_data && flag);
@@ -1124,7 +1158,6 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
             break;
         }
         case (DB_GET_BOTH): {
-            get_both:
             txn_anc = toku_txn_ancestor(txn);
             r = toku_txn_add_lt(txn_anc, db->i->lt);
             if (r!=0) return r;
@@ -1137,8 +1170,7 @@ static int toku_c_get_pre_lock(DBC* c, DBT* key, DBT* data, u_int32_t* flag,
             break;
         }
         case (DB_GET_BOTH_RANGE): {
-            if (!duplicates) {
-                toku_swap_flag(flag, &get_flag, DB_GET_BOTH); goto get_both; }
+            assert(duplicates);
             r = toku_save_original_data(saved_data, data);
             break;
         }
@@ -1302,6 +1334,7 @@ static int toku_c_get_noassociate(DBC * c, DBT * key, DBT * data, u_int32_t flag
     DBT saved_data;
 
     int r;
+    toku_c_get_fix_flags(c, &flag);
     r = toku_c_get_pre_lock(c, key, data, &flag, &saved_key, &saved_data);
     if (r!=0) return r;
     TOKUTXN txn = c->i->txn ? c->i->txn->i->tokutxn : NULL;
