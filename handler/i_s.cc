@@ -20,7 +20,7 @@ Created July 18, 2007 Vasil Dimov
 extern "C" {
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
-#include "buf0buddy.h" /* for i_s_compression_buddy */
+#include "buf0buddy.h" /* for i_s_cmpmem */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
 }
@@ -981,18 +981,18 @@ trx_i_s_common_fill_table(
 #endif
 }
 
-/* Fields of the dynamic table information_schema.innodb_compression. */
-static ST_FIELD_INFO	i_s_compression_fields_info[] =
+/* Fields of the dynamic table information_schema.innodb_cmp. */
+static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 {
-	{STRUCT_FLD(field_name,		"size"),
+	{STRUCT_FLD(field_name,		"page_size"),
 	 STRUCT_FLD(field_length,	5),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Block Size"),
+	 STRUCT_FLD(old_name,		"Compressed Page Size"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"compressed"),
+	{STRUCT_FLD(field_name,		"compress_ops"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1000,7 +1000,7 @@ static ST_FIELD_INFO	i_s_compression_fields_info[] =
 	 STRUCT_FLD(old_name,		"Total Number of Compressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"compressed_ok"),
+	{STRUCT_FLD(field_name,		"compress_ops_ok"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1009,15 +1009,16 @@ static ST_FIELD_INFO	i_s_compression_fields_info[] =
 					" Successful Compressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"compressed_sec"),
+	{STRUCT_FLD(field_name,		"compress_time"),
 	 STRUCT_FLD(field_length,	42),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Total Duration of Compressions"),
+	 STRUCT_FLD(old_name,		"Total Duration of Compressions,"
+		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"decompressed"),
+	{STRUCT_FLD(field_name,		"uncompress_ops"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1025,12 +1026,13 @@ static ST_FIELD_INFO	i_s_compression_fields_info[] =
 	 STRUCT_FLD(old_name,		"Total Number of Decompressions"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"decompressed_sec"),
+	{STRUCT_FLD(field_name,		"uncompress_time"),
 	 STRUCT_FLD(field_length,	42),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Total Duration of Decompressions"),
+	 STRUCT_FLD(old_name,		"Total Duration of Decompressions,"
+		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
@@ -1038,12 +1040,12 @@ static ST_FIELD_INFO	i_s_compression_fields_info[] =
 
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression or
-innodb_compression_reset. */
+Fill the dynamic table information_schema.innodb_cmp or
+innodb_cmp_reset. */
 static
 int
-i_s_compression_fill_low(
-/*=====================*/
+i_s_cmp_fill_low(
+/*=============*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
@@ -1053,7 +1055,7 @@ i_s_compression_fill_low(
 	TABLE*	table	= (TABLE *) tables->table;
 	int	status	= 0;
 
-	DBUG_ENTER("i_s_compression_fill_low");
+	DBUG_ENTER("i_s_cmp_fill_low");
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -1094,70 +1096,70 @@ i_s_compression_fill_low(
 }
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression. */
+Fill the dynamic table information_schema.innodb_cmp. */
 static
 int
-i_s_compression_fill(
-/*=================*/
+i_s_cmp_fill(
+/*=========*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
 	COND*		cond)	/* in: condition (ignored) */
 {
-	return(i_s_compression_fill_low(thd, tables, cond, FALSE));
+	return(i_s_cmp_fill_low(thd, tables, cond, FALSE));
 }
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression_reset. */
+Fill the dynamic table information_schema.innodb_cmp_reset. */
 static
 int
-i_s_compression_reset_fill(
-/*=======================*/
+i_s_cmp_reset_fill(
+/*===============*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
 	COND*		cond)	/* in: condition (ignored) */
 {
-	return(i_s_compression_fill_low(thd, tables, cond, TRUE));
+	return(i_s_cmp_fill_low(thd, tables, cond, TRUE));
 }
 
 /***********************************************************************
-Bind the dynamic table information_schema.innodb_compression. */
+Bind the dynamic table information_schema.innodb_cmp. */
 static
 int
-i_s_compression_init(
-/*=================*/
+i_s_cmp_init(
+/*=========*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("i_s_compression_init");
+	DBUG_ENTER("i_s_cmp_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = i_s_compression_fields_info;
-	schema->fill_table = i_s_compression_fill;
+	schema->fields_info = i_s_cmp_fields_info;
+	schema->fill_table = i_s_cmp_fill;
 
 	DBUG_RETURN(0);
 }
 
 /***********************************************************************
-Bind the dynamic table information_schema.innodb_compression_reset. */
+Bind the dynamic table information_schema.innodb_cmp_reset. */
 static
 int
-i_s_compression_reset_init(
-/*=======================*/
+i_s_cmp_reset_init(
+/*===============*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("i_s_compression_reset_init");
+	DBUG_ENTER("i_s_cmp_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = i_s_compression_fields_info;
-	schema->fill_table = i_s_compression_reset_fill;
+	schema->fields_info = i_s_cmp_fields_info;
+	schema->fill_table = i_s_cmp_reset_fill;
 
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1169,7 +1171,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_COMPRESSION"),
+	STRUCT_FLD(name, "INNODB_CMP"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1185,7 +1187,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_compression_init),
+	STRUCT_FLD(init, i_s_cmp_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -1206,7 +1208,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1218,7 +1220,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_COMPRESSION_RESET"),
+	STRUCT_FLD(name, "INNODB_CMP_RESET"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1235,7 +1237,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_compression_reset_init),
+	STRUCT_FLD(init, i_s_cmp_reset_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -1256,18 +1258,18 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_reset =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-/* Fields of the dynamic table information_schema.innodb_compression_buddy. */
-static ST_FIELD_INFO	i_s_compression_buddy_fields_info[] =
+/* Fields of the dynamic table information_schema.innodb_cmpmem. */
+static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 {
-	{STRUCT_FLD(field_name,		"size"),
+	{STRUCT_FLD(field_name,		"page_size"),
 	 STRUCT_FLD(field_length,	5),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Block Size"),
+	 STRUCT_FLD(old_name,		"Buddy Block Size"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"used"),
+	{STRUCT_FLD(field_name,		"pages_used"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1275,7 +1277,7 @@ static ST_FIELD_INFO	i_s_compression_buddy_fields_info[] =
 	 STRUCT_FLD(old_name,		"Currently in Use"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"free"),
+	{STRUCT_FLD(field_name,		"pages_free"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1283,7 +1285,7 @@ static ST_FIELD_INFO	i_s_compression_buddy_fields_info[] =
 	 STRUCT_FLD(old_name,		"Currently Available"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"relocated"),
+	{STRUCT_FLD(field_name,		"relocation_ops"),
 	 STRUCT_FLD(field_length,	21),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
@@ -1291,24 +1293,25 @@ static ST_FIELD_INFO	i_s_compression_buddy_fields_info[] =
 	 STRUCT_FLD(old_name,		"Total Number of Relocations"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
-	{STRUCT_FLD(field_name,		"relocated_sec"),
+	{STRUCT_FLD(field_name,		"relocation_time"),
 	 STRUCT_FLD(field_length,	42),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
-	 STRUCT_FLD(old_name,		"Total Duration of Relocations"),
+	 STRUCT_FLD(old_name,		"Total Duration of Relocations,"
+		    " in Seconds"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	END_OF_ST_FIELD_INFO
 };
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression_buddy or
-innodb_compression_buddy_reset. */
+Fill the dynamic table information_schema.innodb_cmpmem or
+innodb_cmpmem_reset. */
 static
 int
-i_s_compression_buddy_fill_low(
-/*===========================*/
+i_s_cmpmem_fill_low(
+/*================*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
@@ -1318,7 +1321,7 @@ i_s_compression_buddy_fill_low(
 	TABLE*	table	= (TABLE *) tables->table;
 	int	status	= 0;
 
-	DBUG_ENTER("i_s_compression_buddy_fill_low");
+	DBUG_ENTER("i_s_cmpmem_fill_low");
 
 	/* deny access to non-superusers */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -1355,70 +1358,70 @@ i_s_compression_buddy_fill_low(
 }
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression_buddy. */
+Fill the dynamic table information_schema.innodb_cmpmem. */
 static
 int
-i_s_compression_buddy_fill(
-/*=======================*/
+i_s_cmpmem_fill(
+/*============*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
 	COND*		cond)	/* in: condition (ignored) */
 {
-	return(i_s_compression_buddy_fill_low(thd, tables, cond, FALSE));
+	return(i_s_cmpmem_fill_low(thd, tables, cond, FALSE));
 }
 
 /***********************************************************************
-Fill the dynamic table information_schema.innodb_compression_buddy_reset. */
+Fill the dynamic table information_schema.innodb_cmpmem_reset. */
 static
 int
-i_s_compression_buddy_reset_fill(
-/*=============================*/
+i_s_cmpmem_reset_fill(
+/*==================*/
 				/* out: 0 on success, 1 on failure */
 	THD*		thd,	/* in: thread */
 	TABLE_LIST*	tables,	/* in/out: tables to fill */
 	COND*		cond)	/* in: condition (ignored) */
 {
-	return(i_s_compression_buddy_fill_low(thd, tables, cond, TRUE));
+	return(i_s_cmpmem_fill_low(thd, tables, cond, TRUE));
 }
 
 /***********************************************************************
-Bind the dynamic table information_schema.innodb_compression_buddy. */
+Bind the dynamic table information_schema.innodb_cmpmem. */
 static
 int
-i_s_compression_buddy_init(
-/*=======================*/
+i_s_cmpmem_init(
+/*============*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("i_s_compression_buddy_init");
+	DBUG_ENTER("i_s_cmpmem_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = i_s_compression_buddy_fields_info;
-	schema->fill_table = i_s_compression_buddy_fill;
+	schema->fields_info = i_s_cmpmem_fields_info;
+	schema->fill_table = i_s_cmpmem_fill;
 
 	DBUG_RETURN(0);
 }
 
 /***********************************************************************
-Bind the dynamic table information_schema.innodb_compression_buddy_reset. */
+Bind the dynamic table information_schema.innodb_cmpmem_reset. */
 static
 int
-i_s_compression_buddy_reset_init(
-/*=============================*/
+i_s_cmpmem_reset_init(
+/*==================*/
 			/* out: 0 on success */
 	void*	p)	/* in/out: table schema object */
 {
-	DBUG_ENTER("i_s_compression_buddy_reset_init");
+	DBUG_ENTER("i_s_cmpmem_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
-	schema->fields_info = i_s_compression_buddy_fields_info;
-	schema->fill_table = i_s_compression_buddy_reset_fill;
+	schema->fields_info = i_s_cmpmem_fields_info;
+	schema->fill_table = i_s_cmpmem_reset_fill;
 
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1430,7 +1433,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_COMPRESSION_BUDDY"),
+	STRUCT_FLD(name, "INNODB_CMPMEM"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1446,7 +1449,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_compression_buddy_init),
+	STRUCT_FLD(init, i_s_cmpmem_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -1467,7 +1470,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy =
 	STRUCT_FLD(__reserved1, NULL)
 };
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy_reset =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmpmem_reset =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -1479,7 +1482,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy_reset =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_COMPRESSION_BUDDY_RESET"),
+	STRUCT_FLD(name, "INNODB_CMPMEM_RESET"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -1496,7 +1499,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_compression_buddy_reset =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_compression_buddy_reset_init),
+	STRUCT_FLD(init, i_s_cmpmem_reset_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
