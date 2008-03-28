@@ -1664,6 +1664,14 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
       strmov(buff, "NULL");
       goto err;
     }
+
+    if (!m_allow_empty_value &&
+        res->length() == 0)
+    {
+      buff[0]= 0;
+      goto err;
+    }
+
     var->save_result.ulong_value= ((ulong)
 				   find_set(enum_names, res->c_ptr(),
 					    res->length(),
@@ -1679,10 +1687,19 @@ bool sys_var::check_set(THD *thd, set_var *var, TYPELIB *enum_names)
   else
   {
     ulonglong tmp= var->value->val_int();
-   /*
-     For when the enum is made to contain 64 elements, as 1ULL<<64 is
-     undefined, we guard with a "count<64" test.
-   */
+
+    if (!m_allow_empty_value &&
+        tmp == 0)
+    {
+      buff[0]= '0';
+      buff[1]= 0;
+      goto err;
+    }
+
+    /*
+      For when the enum is made to contain 64 elements, as 1ULL<<64 is
+      undefined, we guard with a "count<64" test.
+    */
     if (unlikely((tmp >= ((ULL(1)) << enum_names->count)) &&
                  (enum_names->count < 64)))
     {
