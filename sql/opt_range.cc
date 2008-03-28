@@ -9570,8 +9570,6 @@ static void print_sel_tree(PARAM *param, SEL_TREE *tree, key_map *tree_map,
   int idx;
   char buff[1024];
   DBUG_ENTER("print_sel_tree");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
 
   String tmp(buff,sizeof(buff),&my_charset_bin);
   tmp.length(0);
@@ -9601,8 +9599,6 @@ static void print_ror_scans_arr(TABLE *table, const char *msg,
                                 struct st_ror_scan_info **end)
 {
   DBUG_ENTER("print_ror_scans");
-  if (! _db_on_)
-    DBUG_VOID_RETURN;
 
   char buff[1024];
   String tmp(buff,sizeof(buff),&my_charset_bin);
@@ -9665,7 +9661,7 @@ static void print_quick(QUICK_SELECT_I *quick, const key_map *needed_reg)
 {
   char buf[MAX_KEY/8+1];
   DBUG_ENTER("print_quick");
-  if (! _db_on_ || !quick)
+  if (!quick)
     DBUG_VOID_RETURN;
   DBUG_LOCK_FILE;
 

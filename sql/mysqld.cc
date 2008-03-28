@@ -1071,12 +1071,9 @@ pthread_handler_t kill_server_thread(void *arg __attribute__((unused)))
 
 extern "C" sig_handler print_signal_warning(int sig)
 {
-  if (!DBUG_IN_USE)
-  {
-    if (global_system_variables.log_warnings)
-      sql_print_warning("Got signal %d from thread %ld",
-                        sig, my_thread_id());
-  }
+  if (global_system_variables.log_warnings)
+    sql_print_warning("Got signal %d from thread %ld",
+                      sig, my_thread_id());
 #ifdef DONT_REMEMBER_SIGNAL
   my_sigset(sig,print_signal_warning);		/* int. thread system calls */
 #endif
@@ -1718,7 +1715,7 @@ void end_thread(THD *thd, bool put_in_cache)
       ! abort_loop && !kill_cached_threads)
   {
     /* Don't kill the thread, just put it in cache for reuse */
-    DBUG_PRINT("info", ("Adding thread to cache"))
+    DBUG_PRINT("info", ("Adding thread to cache"));
     cached_thread_count++;
     while (!abort_loop && ! wake_thread && ! kill_cached_threads)
       (void) pthread_cond_wait(&COND_thread_cache, &LOCK_thread_count);
@@ -3622,8 +3619,6 @@ int main(int argc, char **argv)
 {
   MY_INIT(argv[0]);		// init my_sys library & pthreads
   /* ^^^  Nothing should be before this line! */
-
-  DEBUGGER_OFF;
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
