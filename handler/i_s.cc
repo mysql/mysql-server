@@ -993,7 +993,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"compress_ops"),
-	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1001,7 +1001,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"compress_ops_ok"),
-	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1010,7 +1010,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"compress_time"),
-	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1019,7 +1019,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"uncompress_ops"),
-	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1027,7 +1027,7 @@ static ST_FIELD_INFO	i_s_cmp_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"uncompress_time"),
-	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1270,7 +1270,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"pages_used"),
-	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1278,7 +1278,7 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"pages_free"),
-	 STRUCT_FLD(field_length,	21),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
@@ -1286,15 +1286,15 @@ static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"relocation_ops"),
-	 STRUCT_FLD(field_length,	21),
-	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
 	 STRUCT_FLD(old_name,		"Total Number of Relocations"),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
 	{STRUCT_FLD(field_name,		"relocation_time"),
-	 STRUCT_FLD(field_length,	42),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	0),
