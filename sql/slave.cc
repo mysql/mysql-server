@@ -3366,7 +3366,7 @@ static int exec_relay_log_event(THD* thd, RELAY_LOG_INFO* rli)
       }
 
       DBUG_PRINT("info", ("thd->options: %s",
-                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""))
+                          (thd->options & OPTION_BEGIN) ? "OPTION_BEGIN" : ""));
 
       /*
         Protect against common user error of setting the counter to 1

@@ -672,52 +672,26 @@ from the standard include directory.
 .SP 2
 .BL 20
 .LI DBUG_ENTER\ 
-Used to tell the runtime support module the name of the function
-being entered.
-The argument must be of type "pointer to character".
-The 
-DBUG_ENTER
-macro must precede all executable lines in the
-function just entered, and must come after all local declarations.
-Each 
-DBUG_ENTER
-macro must have a matching 
-DBUG_RETURN 
-or
-DBUG_VOID_RETURN
-macro 
-at the function exit points.
-DBUG_ENTER 
-macros used without a matching 
-DBUG_RETURN 
-or 
-DBUG_VOID_RETURN
-macro 
-will cause warning messages from the 
+Used to tell the runtime support module the name of the function being
+entered.  The argument must be of type "pointer to character".  The
+DBUG_ENTER macro must precede all executable lines in the function
+just entered, and must come after all local declarations.  Each
+DBUG_ENTER macro must have a matching DBUG_RETURN or DBUG_VOID_RETURN
+macro at the function exit points.  DBUG_ENTER macros used without a
+matching DBUG_RETURN or DBUG_VOID_RETURN macro will cause warning
+messages from the 
 .I dbug
 package runtime support module.
 .SP 1
 EX:\ \fCDBUG_ENTER\ ("main");\fR
 .SP 1
 .LI DBUG_RETURN\ 
-Used at each exit point of a function containing a 
-DBUG_ENTER 
-macro
-at the entry point.
-The argument is the value to return.
-Functions which return no value (void) should use the 
-DBUG_VOID_RETURN
-macro.
-It 
-is an error to have a 
-DBUG_RETURN 
-or 
-DBUG_VOID_RETURN 
-macro in a function
-which has no matching 
-DBUG_ENTER 
-macro, and the compiler will complain
-if the macros are actually used (expanded).
+Used at each exit point of a function containing a DBUG_ENTER macro at
+the entry point.  The argument is the value to return.  Functions
+which return no value (void) should use the DBUG_VOID_RETURN macro.
+It is an error to have a DBUG_RETURN or DBUG_VOID_RETURN macro in a
+function which has no matching DBUG_ENTER macro, and the compiler will
+complain if the macros are actually used (expanded).
 .SP 1
 EX:\ \fCDBUG_RETURN\ (value);\fR
 .br
@@ -727,24 +701,20 @@ EX:\ \fCDBUG_VOID_RETURN;\fR
 Used to name the current process being executed.
 A typical argument for this macro is "argv[0]", though
 it will be perfectly happy with any other string.
+Im multi-threaded environment threads may have different names.
 .SP 1
 EX:\ \fCDBUG_PROCESS\ (argv[0]);\fR
 .SP 1
 .LI DBUG_PUSH\ 
 Sets a new debugger state by pushing the current
 .B dbug
-state onto an
-internal stack and setting up the new state using the debug control
-string passed as the macro argument.
-The most common usage is to set the state specified by a debug
-control string retrieved from the argument list.
-Note that the leading "-#" in a debug control string specified
-as a command line argument must
-.B not
-be passed as part of the macro argument.
-The proper usage is to pass a pointer to the first character
-.B after
-the "-#" string.
+state onto an internal stack and setting up the new state using the
+debug control string passed as the macro argument.  The most common
+usage is to set the state specified by a debug control string
+retrieved from the argument list. If the control string is
+.I incremental,
+the new state is a copy of the old state, modified by the control
+string.
 .SP 1
 EX:\ \fCDBUG_PUSH\ (\&(argv[i][2]));\fR
 .br
@@ -755,32 +725,38 @@ EX:\ \fCDBUG_PUSH\ ("");\fR
 .LI DBUG_POP\ 
 Restores the previous debugger state by popping the state stack.
 Attempting to pop more states than pushed will be ignored and no
-warning will be given.
-The 
-DBUG_POP 
-macro has no arguments.
+warning will be given.  The DBUG_POP macro has no arguments.
 .SP 1
 EX:\ \fCDBUG_POP\ ();\fR
 .SP 1
+.LI DBUG_SET\ 
+Modifies the current debugger state on top of the stack or pushes
+a new state if the current is set to the initial settings, using
+the debug control string passed as the macro argument.  Unless
+.I incremental
+control string is used (see below), it's equivalent to a combination of
+DBUG_POP and DBUG_PUSH.
+.SP 1
+EX:\ \fCDBUG_SET\ ("d:t");\fR
+.br
+EX:\ \fCDBUG_SET\ ("+d,info");\fR
+.br
+EX:\ \fCDBUG_SET\ ("+t:-d");\fR
+.SP 1
 .LI DBUG_FILE\ 
-The 
-DBUG_FILE 
-macro is used to do explicit I/O on the debug output
-stream.
-It is used in the same manner as the symbols "stdout" and "stderr"
-in the standard I/O package.
+The DBUG_FILE macro is used to do explicit I/O on the debug output
+stream.  It is used in the same manner as the symbols "stdout" and
+"stderr" in the standard I/O package.
 .SP 1
 EX:\ \fCfprintf\ (DBUG_FILE,\ "Doing\ my\ own\ I/O!\\n");\fR
 .SP 1
 .LI DBUG_EXECUTE\ 
-The DBUG_EXECUTE macro is used to execute any arbitrary C code.
-The first argument is the debug keyword, used to trigger execution
-of the code specified as the second argument.
-This macro must be used cautiously because, like the 
-DBUG_PRINT 
-macro,
-it is automatically selected by default whenever the 'd' flag has
-no argument list (i.e., a "-#d:t" control string).
+The DBUG_EXECUTE macro is used to execute any arbitrary C code.  The
+first argument is the debug keyword, used to trigger execution of the
+code specified as the second argument.  This macro must be used
+cautiously because, like the DBUG_PRINT macro, it is automatically
+selected by default whenever the 'd' flag has no argument list (i.e.,
+a "-#d:t" control string).
 .SP 1
 EX:\ \fCDBUG_EXECUTE\ ("status",\ print_status\ ());\fR
 .SP 1
@@ -794,17 +770,40 @@ artificial delay checking for race conditions.
 .SP 1
 EX:\ \fCDBUG_EXECUTE_IF\ ("crashme",\ abort\ ());\fR
 .SP 1
-.LI DBUG_N\ 
-These macros, where N is in the range 2-5, are currently obsolete
-and will be removed in a future release.
-Use the new DBUG_PRINT macro.
+.LI DBUG_EVALUATE\ 
+The DBUG_EVALUATE macro is similar to DBUG_EXECUTE, but it can be used in
+the expression context. The first argument is the debug keyword that is used to
+choose whether the second (keyword is enabled) or the third (keyword is not
+enabled) argument is evaluated. When
+.B dbug
+is compiled off, the third argument is evaluated.
+.SP 1
+EX:\fC
+.br
+  printf("Info-debug is %s",
+.br
+         DBUG_EVALUATE\ ("info", "ON", "OFF"));\fR
+.SP 1
+.LI DBUG_EVALUATE_IF\ 
+Works like DBUG_EVALUATE macro, but the second argument is
+.B not
+evaluated, if the keyword is not explicitly listed in
+the 'd' flag. Like DBUG_EXECUTE_IF this could be used to conditionally execute
+"dangerous" actions.
+.SP 1
+EX:\fC
+.br
+    if (prepare_transaction () ||
+.br
+        DBUG_EVALUATE ("crashme", (abort (), 0), 0) ||
+.br
+        commit_transaction () )\fR
+.SP 1
 .LI DBUG_PRINT\ 
-Used to do printing via the "fprintf" library function on the
-current debug stream,
-DBUG_FILE.
-The first argument is a debug keyword, the second is a format string
-and the corresponding argument list.
-Note that the format string and argument list are all one macro argument
+Used to do printing via the "fprintf" library function on the current
+debug stream, DBUG_FILE.  The first argument is a debug keyword, the
+second is a format string and the corresponding argument list.  Note
+that the format string and argument list are all one macro argument
 and
 .B must
 be enclosed in parentheses.
@@ -816,10 +815,10 @@ EX:\ \fCDBUG_PRINT\ ("type",\ ("type\ is\ %x", type));\fR
 EX:\ \fCDBUG_PRINT\ ("stp",\ ("%x\ ->\ %s", stp, stp\ ->\ name));\fR
 .SP 1
 .LI DBUG_DUMP\ 
-Used to dump a memory block in hex via the "fprintf" library function on the
-current debug stream, DBUG_FILE.
-The first argument is a debug keyword, the second is a pointer to
-a memory to dump, the third is a number of bytes to dump.
+Used to dump a memory block in hex via the "fprintf" library function
+on the current debug stream, DBUG_FILE.  The first argument is a debug
+keyword, the second is a pointer to a memory to dump, the third is a
+number of bytes to dump.
 .SP 1
 EX: \fCDBUG_DBUG\ ("net",\ packet,\ len);\fR
 .SP 1
@@ -875,13 +874,28 @@ library. So there will be no need to disable asserts separately with NDEBUG.
 .SP 1
 EX:\ \fCDBUG_ASSERT(\ a\ >\ 0\ );\fR
 .SP 1
-.LI DBUG_OUTPUT\ 
-In multi-threaded environment disables (or enables) any
-.I dbug
-output from the current thread.
+.LI DBUG_EXPLAIN\ 
+Generates control string corresponding to the current debug state.
+The macro takes two arguments - a buffer to store the result string
+into and its length. The macro (which could be used as a function)
+returns 1 if the control string didn't fit into the buffer and was
+truncated and 0 otherwise.
 .SP 1
-EX:\ \fCDBUG_OUTPUT(\ 0\ );\fR
+EX:\fC
+.br
+  char buf[256];
+.br
+  DBUG_EXPLAIN( buf, sizeof(buf) );\fR
 .SP 1
+.LI DBUG_SET_INITIAL\ 
+.LI DBUG_EXPLAIN_INITIAL\ 
+.br
+These two macros are identical to DBUG_SET and DBUG_EXPLAIN, but they
+operate on the debug state that any new thread starts from.
+Modifying
+.I initial
+value does not affect threads that are already running. Obviously,
+these macros are only useful in the multi-threaded environment.
 .LE
 
 .SK
@@ -893,42 +907,51 @@ DEBUG CONTROL STRING
 The debug control string is used to set the state of the debugger
 via the 
 .B DBUG_PUSH 
-macro.
-This section summarizes the currently available debugger options
-and the flag characters which enable or disable them.
-Argument lists enclosed in '[' and ']' are optional.
+or
+.B DBUG_SET
+macros. Control string consists of colon separate flags.  Colons
+that are part of ':\\',  ':/', or '::' are not considered flag
+separators. A flag may take an argument or a list of arguments.
+If a control string starts from a '+' sign it works
+.I incrementally,
+that is, it can modify existing state without overriding it. In such a
+string every flag may be preceded by a '+' or '-' to enable or disable
+a corresponding option in the debugger state.  This section summarizes
+the currently available debugger options and the flag characters which
+enable or disable them.  Argument lists enclosed in '[' and ']' are
+optional.
 .SP 2
 .BL 22
 .LI a[,file]
-Redirect the debugger output stream and append it to the specified file.
-The default output stream is stderr.
-A null argument list causes output to be redirected to stdout.
-Double the colon, if you want it in the path
+Redirect the debugger output stream and append it to the specified
+file.  The default output stream is stderr.  A null argument list
+causes output to be redirected to stdout.
 .SP 1
-EX: \fCa,C::\\tmp\\log\fR
+EX: \fCa,C:\\tmp\\log\fR
 .LI A[,file]
 Like 'a[,file]' but ensure that data are written after each write
 (this typically implies flush or close/reopen). It helps to get
-a complete log file in case of crashes. This mode is implied in
+a complete log file in case of crashes. This mode is implicit in
 multi-threaded environment.
 .LI d[,keywords]
 Enable output from macros with specified keywords.
-A null list of keywords implies that all keywords are selected.
+An empty list of keywords implies that all keywords are selected.
 .LI D[,time]
 Delay for specified time after each output line, to let output drain.
 Time is given in tenths of a second (value of 10 is one second).
 Default is zero.
 .LI f[,functions]
 Limit debugger actions to the specified list of functions.
-A null list of functions implies that all functions are selected.
+An empty list of functions implies that all functions are selected.
 .LI F
 Mark each debugger output line with the name of the source file
 containing the macro causing the output.
 .LI i
-Mark each debugger output line with the PID of the current process.
+Mark each debugger output line with the PID (or thread ID) of the
+current process.
 .LI g,[functions]
 Enable profiling for the specified list of functions.
-By default profiling is enabled for all functions.
+An empty list of functions enables profiling for all functions.
 See
 .B PROFILING\ WITH\ DBUG
 below.
@@ -946,20 +969,18 @@ Like 'a[,file]' but overwrite old file, do not append.
 .LI O[,file]
 Like 'A[,file]' but overwrite old file, do not append.
 .LI p[,processes]
-Limit debugger actions to the specified processes.
-A null list implies all processes.
-This is useful for processes which run child processes.
-Note that each debugger output line can be marked with the name of
-the current process via the 'P' flag.
-The process name must match the argument passed to the
+Limit debugger actions to the specified processes.  An empty list
+implies all processes.  This is useful for processes which run child
+processes.  Note that each debugger output line can be marked with the
+name of the current process via the 'P' flag.  The process name must
+match the argument passed to the
 .B DBUG_PROCESS
 macro.
 .LI P
 Mark each debugger output line with the name of the current process.
 Most useful when used with a process which runs child processes that
-are also being debugged.
-Note that the parent process must arrange for the debugger control
-string to be passed to the child processes.
+are also being debugged.  Note that the parent process must arrange
+for the debugger control string to be passed to the child processes.
 .LI r
 Used in conjunction with the 
 .B DBUG_PUSH 
@@ -981,7 +1002,59 @@ and
 Enable function control flow tracing.
 The maximum nesting depth is specified by N, and defaults to
 200.
+.LI T
+Mark each debugger output line with the current timestamp.
+The value is printed with microsecond resolution, as returned by
+.I gettimeofday()
+system call. The actual resolution is OS- and hardware-dependent.
 .LE
+
+.SK
+.B
+MULTI-THREADED DEBUGGING
+.R
+
+.P
+When
+.I dbug
+is used in a multi-threaded environment there are few differences from a single-threaded
+case to keep in mind. This section tries to summarize them.
+.SP 2
+.BL 5
+.LI
+Every thread has its own stack of debugger states.
+.B DBUG_PUSH
+and
+.B DBUG_POP
+affect only the thread that executed them.
+.LI
+At the bottom of the stack for all threads there is the common
+.I initial
+state. Changes to this state (for example, with
+.B DBUG_SET_INITIAL
+macro) affect all new threads and all running threads that didn't
+.B DBUG_PUSH
+yet.
+.LI
+Every thread can have its own name, that can be set with
+.B DBUG_PROCESS
+macro. Thus, "-#p,name1,name2" can be used to limit the output to specific threads.
+.LI
+When printing directly to
+.B DBUG_FILE
+it may be necessary to prevent other threads from writing something between two parts
+of logically indivisible output. It is done with
+.B DBUG_LOCK_FILE
+and
+.B DBUG_UNLOCK_FILE
+macors. See the appropriate section for examples.
+.LI
+"-#o,file" and "-#O,file" are treated as "-#a,file" and "-#A,file" respectively. That is
+all writes to a file are always followed by a flush.
+.LI
+"-#i" prints not a PID but a thread id in the form of "T@nnn"
+.LE
+
 .SK
 .B
 PROFILING WITH DBUG
