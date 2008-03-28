@@ -1614,31 +1614,6 @@ public:        /* !!! Public in this patch to allow old usage */
 };
 
 
-/**
-  @class Muted_query_log_event
-
-  Pretends to log SQL queries, but doesn't actually do so.  This is
-  used internally only and never written to any binlog.
-
-  @section Muted_query_log_event_binary_format Binary Format
-
-  This log event is not stored, and thus the binary format is 0 bytes
-  long.  Note that not even the Common-Header is stored.
-*/
-class Muted_query_log_event: public Query_log_event
-{
-public:
-#ifndef MYSQL_CLIENT
-  Muted_query_log_event();
-
-  bool write(IO_CACHE* file) { return(false); };
-  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
-#else
-  Muted_query_log_event() {}
-#endif
-};
-
-
 #ifdef HAVE_REPLICATION
 
 /**

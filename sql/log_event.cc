@@ -2603,21 +2603,6 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
 
 
 /**************************************************************************
-	Muted_query_log_event methods
-**************************************************************************/
-
-#ifndef MYSQL_CLIENT
-/*
-  Muted_query_log_event::Muted_query_log_event()
-*/
-Muted_query_log_event::Muted_query_log_event()
-  :Query_log_event()
-{
-}
-#endif
-
-
-/**************************************************************************
 	Start_log_event_v3 methods
 **************************************************************************/
 
@@ -7054,7 +7039,7 @@ int Table_map_log_event::save_field_metadata()
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                          bool is_transactional, uint16 flags)
-  : Log_event(thd, 0, is_transactional),
+  : Log_event(thd, 0, true),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),
