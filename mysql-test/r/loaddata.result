@@ -261,33 +261,6 @@ SELECT * FROM t1;
 c1	c2	c3	c4
 10	1970-02-01 01:02:03	1.1e-100	1.1e+100
 DROP TABLE t1;
-CREATE TABLE t1 (a int);
-INSERT INTO t1 VALUES (1);
-SET NAMES latin1;
-SET character_set_filesystem=filename;
-select @@character_set_filesystem;
-@@character_set_filesystem
-filename
-SELECT * INTO OUTFILE 't-1' FROM t1;
-DELETE FROM t1;
-LOAD DATA INFILE 't-1' INTO TABLE t1;
-SELECT * FROM t1;
-a
-1
-DELETE FROM t1;
-SET character_set_filesystem=latin1;
-select @@character_set_filesystem;
-@@character_set_filesystem
-latin1
-LOAD DATA INFILE 't@002d1' INTO TABLE t1;
-SELECT * FROM t1;
-a
-1
-DROP TABLE t1;
-SET character_set_filesystem=default;
-select @@character_set_filesystem;
-@@character_set_filesystem
-binary
 
 # --
 # -- Bug#35469: server crash with LOAD DATA INFILE to a VIEW.
@@ -364,3 +337,30 @@ DROP VIEW v2;
 DROP VIEW v3;
 
 # -- End of Bug#35469.
+CREATE TABLE t1 (a int);
+INSERT INTO t1 VALUES (1);
+SET NAMES latin1;
+SET character_set_filesystem=filename;
+select @@character_set_filesystem;
+@@character_set_filesystem
+filename
+SELECT * INTO OUTFILE 't-1' FROM t1;
+DELETE FROM t1;
+LOAD DATA INFILE 't-1' INTO TABLE t1;
+SELECT * FROM t1;
+a
+1
+DELETE FROM t1;
+SET character_set_filesystem=latin1;
+select @@character_set_filesystem;
+@@character_set_filesystem
+latin1
+LOAD DATA INFILE 't@002d1' INTO TABLE t1;
+SELECT * FROM t1;
+a
+1
+DROP TABLE t1;
+SET character_set_filesystem=default;
+select @@character_set_filesystem;
+@@character_set_filesystem
+binary
