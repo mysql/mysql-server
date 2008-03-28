@@ -1,9 +1,5 @@
 --disable_abort_on_error
 
-# ML: Should be set outside when memory
-# set @@global.max_heap_table_size=4294967295;
-# set @@session.max_heap_table_size=4294967295;
-
 USE test;
 
 --disable_warnings

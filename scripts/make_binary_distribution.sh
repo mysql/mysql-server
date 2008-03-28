@@ -31,6 +31,7 @@
 #    "pkglibdir"     is set to the same as "libdir"
 #    "pkgincludedir" is set to the same as "includedir"
 #    "pkgdatadir"    is set to the same as "datadir"
+#    "pkgplugindir"  is set to "$pkglibdir/plugin"
 #    "pkgsuppdir"    is set to "@prefix@/support-files",
 #                    normally the same as "datadir"
 #
@@ -205,6 +206,7 @@ if [ x"$BASE_SYSTEM" != x"netware" ] ; then
     pkglibdir=@pkglibdir@ \
     pkgincludedir=@pkgincludedir@ \
     pkgdatadir=@pkgdatadir@ \
+    pkgplugindir=@pkgplugindir@ \
     pkgsuppdir=@pkgsuppdir@ \
     mandir=@mandir@ \
     infodir=@infodir@

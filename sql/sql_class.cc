@@ -253,7 +253,8 @@ const char *set_thd_proc_info(THD *thd, const char *info,
                               const unsigned int calling_line)
 {
   const char *old_info= thd->proc_info;
-  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, info));
+  DBUG_PRINT("proc_info", ("%s:%d  %s", calling_file, calling_line, 
+                           (info != NULL) ? info : "(null)"));
 #if defined(ENABLED_PROFILING) && defined(COMMUNITY_SERVER)
   thd->profiling.status_change(info, calling_function, calling_file, calling_line);
 #endif
