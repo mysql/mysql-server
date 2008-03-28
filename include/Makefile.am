@@ -26,7 +26,7 @@ pkginclude_HEADERS =	$(HEADERS_ABI) my_dbug.h m_string.h my_sys.h \
 			my_getopt.h sslopt-longopts.h my_dir.h \
 			sslopt-vars.h sslopt-case.h sql_common.h keycache.h \
 			m_ctype.h my_attribute.h $(HEADERS_GEN)
-noinst_HEADERS =	config-win.h config-netware.h \
+noinst_HEADERS =	config-win.h config-netware.h my_bit.h \
 			heap.h my_bitmap.h my_uctype.h \
 			myisam.h myisampack.h myisammrg.h ft_global.h\
 			mysys_err.h my_base.h help_start.h help_end.h \
