@@ -701,8 +701,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   error=0;
   thd_proc_info(thd, "update");
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
@@ -720,8 +718,15 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (lock_type != TL_WRITE_DELAYED && !thd->prelocked_mode)
-    table->file->ha_start_bulk_insert(values_list.elements);
+#ifndef EMBEDDED_LIBRARY
+  if (lock_type != TL_WRITE_DELAYED)
+#endif /* EMBEDDED_LIBRARY */
+  {
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+    if (!thd->prelocked_mode)
+      table->file->ha_start_bulk_insert(values_list.elements);
+  }
 
   thd->abort_on_warning= (!ignore && (thd->variables.sql_mode &
                                        (MODE_STRICT_TRANS_TABLES |
@@ -840,6 +845,9 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       table->file->print_error(my_errno,MYF(0));
       error=1;
     }
+    if (duplic != DUP_ERROR || ignore)
+      table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+
     transactional_table= table->file->has_transactions();
 
     if ((changed= (info.copied || info.deleted || info.updated)))
@@ -932,8 +940,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   table->next_number_field=0;
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
   table->auto_increment_field_not_null= FALSE;
-  if (duplic != DUP_ERROR || ignore)
-    table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   if (duplic == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -1267,7 +1273,12 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
-  if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
+  /*
+    Only call prepare_for_posistion() if we are not performing a DELAYED
+    operation. It will instead be executed by delayed insert thread.
+  */
+  if ((duplic == DUP_UPDATE || duplic == DUP_REPLACE) &&
+      (table->reginfo.lock_type != TL_WRITE_DELAYED))
     table->prepare_for_position();
   DBUG_RETURN(FALSE);
 }
