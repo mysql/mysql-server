@@ -1447,7 +1447,6 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
             free_root(tmp_root, MYF(MY_MARK_BLOCKS_FREE));
             if (plugin_add(tmp_root, &name, &dl, argc, argv, REPORT_TO_LOG))
               goto error;
-            }
           }
           plugin_dl_del(&dl); // reduce ref count
         }
