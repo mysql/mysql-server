@@ -165,6 +165,7 @@ our $exe_mysql_fix_system_tables;
 our $file_mysql_fix_privilege_tables;
 our $exe_mysqltest;
 our $exe_ndbd;
+our $exe_ndbmtd;
 our $exe_ndb_mgmd;
 our $exe_slave_mysqld;
 our $exe_im;
@@ -1569,9 +1570,18 @@ sub executable_setup_ndb () {
 				"$glob_basedir/storage/ndb",
 				"$glob_basedir/bin");
 
+  # Look for single threaded ndb
   $exe_ndbd=
     mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbd",
 			 "$ndb_path/ndbd");
+
+  # Look for multi threaded ndb
+  $exe_ndbmtd=
+    mtr_exe_maybe_exists("$ndb_path/src/kernel/ndbmtd",
+			 "$ndb_path/ndbmtd");
+  mtr_report("Found multi threaded ndbd, will be used \"round robin\"")
+    if ($exe_ndbmtd);
+
   $exe_ndb_mgm=
     mtr_exe_maybe_exists("$ndb_path/src/mgmclient/ndb_mgm",
 			 "$ndb_path/ndb_mgm");
@@ -2779,6 +2789,8 @@ sub ndb_mgmd_start ($) {
 }
 
 
+my $exe_ndbmtd_counter= 0;
+
 sub ndbd_start ($$$) {
   my $cluster= shift;
   my $idx= shift;
@@ -2800,7 +2812,15 @@ sub ndbd_start ($$$) {
 
   my $nodeid= $cluster->{'ndbds'}->[$idx]->{'nodeid'};
   my $path_ndbd_log= "$cluster->{'data_dir'}/ndb_${nodeid}.log";
-  $pid= mtr_spawn($exe_ndbd, $args, "",
+
+  my $exe= $exe_ndbd;
+  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
+  {
+    # Use ndbmtd every other time
+    $exe= $exe_ndbmtd;
+  }
+
+  $pid= mtr_spawn($exe, $args, "",
 		  $path_ndbd_log,
 		  $path_ndbd_log,
 		  "",

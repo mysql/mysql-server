@@ -25,7 +25,7 @@ libsignaldataprint_la_SOURCES = \
           CloseComReqConf.cpp PackedSignal.cpp PrepFailReqRef.cpp \
 	  GCP.cpp DictTabInfo.cpp \
 	  AlterTable.cpp AlterTab.cpp \
-	  CreateTrig.cpp AlterTrig.cpp DropTrig.cpp \
+	  CreateTrig.cpp DropTrig.cpp \
 	  FireTrigOrd.cpp TrigAttrInfo.cpp \
 	  CreateIndx.cpp AlterIndx.cpp DropIndx.cpp TcIndx.cpp \
 	  IndxKeyInfo.cpp IndxAttrInfo.cpp \
@@ -38,7 +38,12 @@ libsignaldataprint_la_SOURCES = \
           SumaImpl.cpp NdbSttor.cpp CreateFragmentation.cpp \
 	  UtilLock.cpp TuxMaint.cpp AccLock.cpp \
           LqhTrans.cpp ReadNodesConf.cpp CntrStart.cpp \
-          ScanFrag.cpp
+          ScanFrag.cpp \
+	  SchemaTrans.cpp SchemaTransImpl.cpp GetTabInfo.cpp \
+ 	  CreateTab.cpp CreateTable.cpp DropTable.cpp \
+  	  CreateTrigImpl.cpp DropTrigImpl.cpp \
+ 	  CreateIndxImpl.cpp DropIndxImpl.cpp AlterIndxImpl.cpp \
+ 	  BuildIndx.cpp BuildIndxImpl.cpp
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
