@@ -1883,7 +1883,7 @@ private:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
+  virtual bool check_and_repair(THD *thd) { return TRUE; }
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
