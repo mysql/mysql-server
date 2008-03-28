@@ -14,5 +14,7 @@ extern struct st_mysql_plugin	i_s_innodb_locks;
 extern struct st_mysql_plugin	i_s_innodb_lock_waits;
 extern struct st_mysql_plugin	i_s_innodb_compression;
 extern struct st_mysql_plugin	i_s_innodb_compression_reset;
+extern struct st_mysql_plugin	i_s_innodb_compression_buddy;
+extern struct st_mysql_plugin	i_s_innodb_compression_buddy_reset;
 
 #endif /* i_s_h */
