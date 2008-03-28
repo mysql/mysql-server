@@ -2399,32 +2399,51 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
   MY_STAT f_stat;
   String str(buff, sizeof(buff), system_charset_info), *res;
   const char *log_file_str;
-      
+  size_t path_length;
+
   if (!(res= var->value->val_str(&str)))
     goto err;
 
   log_file_str= res->c_ptr();
   bzero(&f_stat, sizeof(MY_STAT));
 
-  (void) unpack_filename(path, log_file_str);
+  path_length= unpack_filename(path, log_file_str);
+
+  if (!path_length)
+  {
+    /* File name is empty. */
+
+    goto err;
+  }
+
   if (my_stat(path, &f_stat, MYF(0)))
   {
-    /* Check if argument is a file and we have 'write' permission */
+    /*
+      A file system object exists. Check if argument is a file and we have
+      'write' permission.
+    */
+
     if (!MY_S_ISREG(f_stat.st_mode) ||
         !(f_stat.st_mode & MY_S_IWRITE))
       goto err;
+
+    return 0;
   }
-  else
-  {
-    size_t path_length;
-    /*
-      Check if directory exists and 
-      we have permission to create file & write to file
-    */
-    (void) dirname_part(path, log_file_str, &path_length);
-    if (my_access(path, (F_OK|W_OK)))
-      goto err;
-  }
+
+  /* Get dirname of the file path. */
+  (void) dirname_part(path, log_file_str, &path_length);
+
+  /* Dirname is empty if file path is relative. */
+  if (!path_length)
+    return 0;
+
+  /*
+    Check if directory exists and we have permission to create file and
+    write to file.
+  */
+  if (my_access(path, (F_OK|W_OK)))
+    goto err;
+
   return 0;
 
 err:
