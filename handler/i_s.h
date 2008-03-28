@@ -12,7 +12,7 @@ Created July 18, 2007 Vasil Dimov
 extern struct st_mysql_plugin	i_s_innodb_trx;
 extern struct st_mysql_plugin	i_s_innodb_locks;
 extern struct st_mysql_plugin	i_s_innodb_lock_waits;
-extern struct st_mysql_plugin	i_s_innodb_zip;
-extern struct st_mysql_plugin	i_s_innodb_zip_reset;
+extern struct st_mysql_plugin	i_s_innodb_compression;
+extern struct st_mysql_plugin	i_s_innodb_compression_reset;
 
 #endif /* i_s_h */

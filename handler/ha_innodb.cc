@@ -8824,8 +8824,8 @@ mysql_declare_plugin(innobase)
 i_s_innodb_trx,
 i_s_innodb_locks,
 i_s_innodb_lock_waits,
-i_s_innodb_zip,
-i_s_innodb_zip_reset
+i_s_innodb_compression,
+i_s_innodb_compression_reset
 mysql_declare_plugin_end;
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
