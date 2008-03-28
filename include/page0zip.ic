@@ -188,6 +188,7 @@ page_zip_simple_validate(
 {
 	ut_ad(page_zip);
 	ut_ad(page_zip->data);
+	ut_ad(page_zip->ssize < PAGE_ZIP_NUM_SSIZE);
 	ut_ad(page_zip_get_size(page_zip)
 	      > PAGE_DATA + PAGE_ZIP_DIR_SLOT_SIZE);
 	ut_ad(page_zip->m_start <= page_zip->m_end);
