@@ -1,0 +1,6 @@
+# Disabled by hhunger (2008-03-03) due to WL4204
+innodb_charset : Due to bug#20447
+myisam_charset : Due to bug#20477
+memory_charset : Due to bug#20447
+ndb_charset    : Due to bug#20447
+
