@@ -21,6 +21,8 @@
 #include <my_handler.h>
 #include <my_sys.h>
 
+#include "my_handler_errors.h"
+
 int ha_compare_text(CHARSET_INFO *charset_info, uchar *a, uint a_length,
 		    uchar *b, uint b_length, my_bool part_key,
 		    my_bool skip_end_space)
@@ -565,48 +567,6 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a)
 }
 
 
-/*
-  Errors a handler can give you
-*/
-
-static const char *handler_error_messages[]=
-{
-  "Didn't find key on read or update",
-  "Duplicate key on write or update",
-  "Undefined handler error 122",
-  "Someone has changed the row since it was read (while the table was locked to prevent it)",
-  "Wrong index given to function",
-  "Undefined handler error 125",
-  "Index file is crashed",
-  "Record file is crashed",
-  "Out of memory in engine",
-  "Undefined handler error 129",
-  "Incorrect file format",
-  "Command not supported by database",
-  "Old database file",
-  "No record read before update",
-  "Record was already deleted (or record file crashed)",
-  "No more room in record file",
-  "No more room in index file",
-  "No more records (read after end of file)",
-  "Unsupported extension used for table",
-  "Too big row",
-  "Wrong create options",
-  "Duplicate unique key or constraint on write or update",
-  "Unknown character set used in table",
-  "Conflicting table definitions in sub-tables of MERGE table",
-  "Table is crashed and last repair failed",
-  "Table was marked as crashed and should be repaired",
-  "Lock timed out; Retry transaction",
-  "Lock table is full;  Restart program with a larger locktable",
-  "Updates are not allowed under a read only transactions",
-  "Lock deadlock; Retry transaction",
-  "Foreign key constraint is incorrectly formed",
-  "Cannot add a child row",
-  "Cannot delete a parent row",
-  "Unknown handler error"
-};
-
 
 /*
   Register handler error messages for usage with my_error()
@@ -619,6 +579,14 @@ static const char *handler_error_messages[]=
 
 void my_handler_error_register(void)
 {
+  /*
+    If you got compilation error here about compile_time_assert array, check
+    that every HA_ERR_xxx constant has a corresponding error message in
+    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    include/my_base.h).
+  */
+  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                      HA_ERR_LAST + 1);
   my_error_register(handler_error_messages, HA_ERR_FIRST,
                     HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }

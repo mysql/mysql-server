@@ -375,6 +375,7 @@ enum ha_base_keytype {
 
 #define HA_ERR_KEY_NOT_FOUND	120	/* Didn't find key on read or update */
 #define HA_ERR_FOUND_DUPP_KEY	121	/* Dupplicate key on write */
+#define HA_ERR_INTERNAL_ERROR   122     /* Internal error */
 #define HA_ERR_RECORD_CHANGED	123	/* Uppdate with is recoverable */
 #define HA_ERR_WRONG_INDEX	124	/* Wrong index given to function */
 #define HA_ERR_CRASHED		126	/* Indexfile is crashed */
@@ -411,8 +412,8 @@ enum ha_base_keytype {
 /* NULLs are not supported in spatial index */
 #define HA_ERR_NULL_IN_SPATIAL   158
 #define HA_ERR_TABLE_DEF_CHANGED 159  /* The table changed in storage engine */
-#define HA_ERR_NO_PARTITION_FOUND 160  /* There's no partition in table for
-                                          given value */
+/* There's no partition in table for given value */
+#define HA_ERR_NO_PARTITION_FOUND 160
 #define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
 #define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr */
 /*
@@ -437,7 +438,10 @@ enum ha_base_keytype {
 #define HA_ERR_NEW_FILE	          172	 /* New file format */
 #define HA_ERR_ROWS_EVENT_APPLY   173    /* The event could not be processed
                                             no other hanlder error happened */
-#define HA_ERR_LAST               173    /* Copy of last error nr */
+#define HA_ERR_INITIALIZATION     174    /* Error during initialization */
+#define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
+#define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
+#define HA_ERR_LAST               176    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)
