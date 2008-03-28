@@ -3931,9 +3931,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       }
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      else if (!ret)
-        return FALSE;
       outer_fixed= TRUE;
+      if (!ret)
+        goto mark_non_agg_field;
     }
     else if (!from_field)
       goto error;
@@ -3945,9 +3945,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
       int ret;
       if ((ret= fix_outer_field(thd, &from_field, reference)) < 0)
         goto error;
-      else if (!ret)
-        return FALSE;
       outer_fixed= 1;
+      if (!ret)
+        goto mark_non_agg_field;
     }
 
     /*
@@ -4012,6 +4012,26 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   {
     thd->lex->current_select->non_agg_fields.push_back(this);
     marker= thd->lex->current_select->cur_pos_in_select_list;
+  }
+mark_non_agg_field:
+  if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  {
+    /*
+      Mark selects according to presence of non aggregated fields.
+      Fields from outer selects added to the aggregate function
+      outer_fields list as its unknown at the moment whether it's
+      aggregated or not.
+    */
+    if (!thd->lex->in_sum_func)
+      cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+    else
+    {
+      if (outer_fixed)
+        thd->lex->in_sum_func->outer_fields.push_back(this);
+      else if (thd->lex->in_sum_func->nest_level !=
+          thd->lex->current_select->nest_level)
+        cached_table->select_lex->full_group_by_flag|= NON_AGG_FIELD_USED;
+    }
   }
   return FALSE;
 
