@@ -17,14 +17,20 @@ show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT, b INT)
 master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t2 (c INT, d INT)
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
+master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t2)
 master-bin.000001	#	Update_rows	#	#	table_id: #
 master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 SELECT * FROM t1;
 a	b
 1	1
@@ -36,7 +42,7 @@ c	d
 2	16
 3	54
 **** On Slave ****
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=484;
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
 SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
@@ -44,7 +50,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	722
+Read_Master_Log_Pos	1133
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -59,11 +65,11 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	488
+Exec_Master_Log_Pos	762
 Relay_Log_Space	#
 Until_Condition	Master
 Until_Log_File	master-bin.000001
-Until_Log_Pos	484
+Until_Log_Pos	762
 Master_SSL_Allowed	No
 Master_SSL_CA_File	
 Master_SSL_CA_Path	

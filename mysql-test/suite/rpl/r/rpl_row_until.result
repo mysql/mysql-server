@@ -26,7 +26,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	750
+Read_Master_Log_Pos	1161
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -41,7 +41,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	317
+Exec_Master_Log_Pos	454
 Relay_Log_Space	#
 Until_Condition	Master
 Until_Log_File	master-bin.000001
@@ -72,7 +72,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	750
+Read_Master_Log_Pos	1161
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -87,7 +87,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	317
+Exec_Master_Log_Pos	454
 Relay_Log_Space	#
 Until_Condition	Master
 Until_Log_File	master-no-such-bin.000001
@@ -104,7 +104,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=728;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=1014;
 select * from t2;
 n
 1
@@ -116,7 +116,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	750
+Read_Master_Log_Pos	1161
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -131,11 +131,11 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	594
+Exec_Master_Log_Pos	868
 Relay_Log_Space	#
 Until_Condition	Relay
 Until_Log_File	slave-relay-bin.000004
-Until_Log_Pos	728
+Until_Log_Pos	1014
 Master_SSL_Allowed	No
 Master_SSL_CA_File	
 Master_SSL_CA_Path	
@@ -158,7 +158,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	750
+Read_Master_Log_Pos	1161
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -173,7 +173,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	750
+Exec_Master_Log_Pos	1161
 Relay_Log_Space	#
 Until_Condition	Master
 Until_Log_File	master-bin.000001
