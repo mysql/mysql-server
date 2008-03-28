@@ -2426,6 +2426,7 @@ pthread_handler_t handle_delayed_insert(void *arg)
       */
       di->table->file->ha_release_auto_increment();
       mysql_unlock_tables(thd, lock);
+      ha_autocommit_or_rollback(thd, 0);
       di->group_count=0;
       pthread_mutex_lock(&di->mutex);
     }
@@ -3690,13 +3691,10 @@ void select_create::abort()
   DBUG_ENTER("select_create::abort");
 
   /*
-   Disable binlog, because we "roll back" partial inserts in ::abort
-   by removing the table, even for non-transactional tables.
-  */
-  tmp_disable_binlog(thd);
-  /*
     In select_insert::abort() we roll back the statement, including
-    truncating the transaction cache of the binary log.
+    truncating the transaction cache of the binary log. To do this, we
+    pretend that the statement is transactional, even though it might
+    be the case that it was not.
 
     We roll back the statement prior to deleting the table and prior
     to releasing the lock on the table, since there might be potential
@@ -3707,7 +3705,9 @@ void select_create::abort()
     of the table succeeded or not, since we need to reset the binary
     log state.
   */
+  tmp_disable_binlog(thd);
   select_insert::abort();
+  thd->transaction.stmt.modified_non_trans_table= FALSE;
   reenable_binlog(thd);
 
 
