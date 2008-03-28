@@ -1035,7 +1035,7 @@ static void uf_blob(MI_COLUMNDEF *rec, MI_BIT_BUFF *bit_buff,
   else
   {
     ulong length=get_bits(bit_buff,rec->space_length_bits);
-    uint pack_length=(uint) (end-to)-mi_portable_sizeof_char_ptr;
+    uint pack_length=(uint) (end-to)-portable_sizeof_char_ptr;
     if (bit_buff->blob_pos+length > bit_buff->blob_end)
     {
       bit_buff->error=1;
