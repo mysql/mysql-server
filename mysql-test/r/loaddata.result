@@ -268,7 +268,7 @@ CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
 CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
 
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v1
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v1
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -288,7 +288,7 @@ c1	c2
 
 DELETE FROM t1;
 
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v2
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
@@ -308,14 +308,14 @@ c0	c1	c2
 
 DELETE FROM t1;
 
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v2
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
   LINES TERMINATED BY '\n' (c0, c2);
 ERROR HY000: Invalid column reference (v2.c0) in LOAD DATA
 
-LOAD DATA INFILE '../std_data_ln/bug35649.data' INTO TABLE v3
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v3
 FIELDS ESCAPED BY '\\'
   TERMINATED BY ','
   ENCLOSED BY '"'
