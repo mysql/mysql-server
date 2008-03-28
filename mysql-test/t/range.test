@@ -972,4 +972,50 @@ EXPLAIN SELECT a FROM t1 WHERE a='b' OR a='B';
 
 DROP TABLE t1;
 
+#
+# Bug #34731: highest possible value for INT erroneously filtered by WHERE
+#
+
+# test UNSIGNED. only occurs when indexed.
+CREATE TABLE t1 (f1 TINYINT(11) UNSIGNED NOT NULL, PRIMARY KEY (f1));
+
+INSERT INTO t1 VALUES (127),(254),(0),(1),(255);
+
+# test upper bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 256.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 255;
+
+# show we don't fiddle with lower bound on UNSIGNED
+# count 0
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < -1;
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -1;
+
+DROP TABLE t1;
+
+
+# test signed. only occurs when index.
+CREATE TABLE t1 ( f1 TINYINT(11) NOT NULL, PRIMARY KEY (f1));
+
+INSERT INTO t1 VALUES (127),(126),(0),(-128),(-127);
+
+# test upper bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 128.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 < 127;
+
+# test lower bound
+# count 5
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129;
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -129.0;
+# count 4
+SELECT SQL_NO_CACHE COUNT(*) FROM t1 WHERE f1 > -128;
+
+DROP TABLE t1;
+
 # End of 5.0 tests
