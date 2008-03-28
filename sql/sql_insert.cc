@@ -941,11 +941,10 @@ static TABLE *delayed_get_table(THD *thd,TABLE_LIST *table_list)
 	my_error(ER_OUT_OF_RESOURCES,MYF(0));
 	goto err1;
       }
-      /* We only need the db and table name to open tables with open_ltable() */
+      tmp->table_list= *table_list;			// Needed to open table
+      /* Replace volatile strings with local copies */
       tmp->table_list.db= tmp->thd.db;
-      tmp->table_list.db_length= table_list->db_length;
       tmp->table_list.alias= tmp->table_list.real_name=tmp->thd.query;
-      tmp->table_list.real_name_length= table_list->real_name_length;
       tmp->lock();
       pthread_mutex_lock(&tmp->mutex);
       if ((error=pthread_create(&tmp->thd.real_id,&connection_attrib,
