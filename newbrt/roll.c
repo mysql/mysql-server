@@ -12,8 +12,6 @@
 #include "cachetable.h"
 #include "key.h"
 
-#define ABORTIT { le=le; txn=txn; fprintf(stderr, "%s:%d (%s) not ready to go\n", __FILE__, __LINE__, __func__); abort(); }
-
 int toku_rollback_fcreate (BYTESTRING bs_fname,
 			   TOKUTXN    txn       __attribute__((__unused__))) {
     char *fname = fixup_fname(&bs_fname);
@@ -27,6 +25,37 @@ int toku_rollback_fcreate (BYTESTRING bs_fname,
     free(fname);
     return 0;
 }
+
+int toku_rollback_fclose (FILENUM filenum, BYTESTRING bs_fname, TOKUTXN txn) {
+    abort();
+    filenum=filenum;
+    bs_fname=bs_fname;
+    txn=txn;
+#if 0
+    char *fixedfname = fixup_fname(&bs_fname);
+    int fd = open(fixedfname, O_RDWR, 0);
+    assert(fd>=0);
+    BRT MALLOC(brt);
+    assert(errno==0 && brt!=0);
+    brt->database_name = fixedfname;
+    brt->h=0;
+    list_init(&brt->cursors);
+    brt->compare_fun = 0;
+    brt->dup_compare = 0;
+    brt->db = 0;
+    CACHETABLE cf;
+    int r = toku_cachetable_openfd(&cf, /*ct*/0, fd, brt);
+    assert(r==0);
+    brt->skey = brt->sval = 0;
+    brt->cf = cf;
+    toku_recover_note_cachefile(filenum, cf, brt);
+
+    printf("%s:%d Must remember to close the file again after txn %p finishes aborting\n", __FILE__, __LINE__, txn);
+    
+    return 0;
+#endif
+}
+			  
 
 //int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
 //    // All that must be done is to put the node on the freelist.
@@ -76,3 +105,4 @@ int toku_rollback_xactiontouchednonleaf(FILENUM filenum, DISKOFFARRAY array __at
     if (array.len!=0) printf("%s:%d array.len!=0 and we didn't fix up the fingerprints.\n", __FILE__, __LINE__);
     return 0;
 }
+

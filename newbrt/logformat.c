@@ -41,6 +41,9 @@ int logformat_version_number = 0;
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
+    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
+		       {"BYTESTRING", "fname", 0},
+		       NULLFIELD}},
     {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
