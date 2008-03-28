@@ -5641,3 +5641,7 @@ ER_NAME_BECOMES_EMPTY
         eng "Name '%-.64s' has become ''"
 ER_AMBIGUOUS_FIELD_TERM
 	eng "First character of the FIELDS TERMINATED string is ambiguous; please use non-optional and non-empty FIELDS ENCLOSED BY"
+
+ER_LOAD_DATA_INVALID_COLUMN
+  eng "Invalid column reference (%-.64s) in LOAD DATA"
+
