@@ -551,7 +551,7 @@ finish:
   }
 #endif
   keycache_pthread_mutex_unlock(&keycache->cache_lock);
-  return blocks;
+  DBUG_RETURN(blocks);
 }
 
 
