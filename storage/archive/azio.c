@@ -225,11 +225,17 @@ int get_byte(s)
   if (s->stream.avail_in == 0) 
   {
     errno = 0;
-    s->stream.avail_in = my_read(s->file, (uchar *)s->inbuf, AZ_BUFSIZE_READ, MYF(0));
+    s->stream.avail_in= (uInt) my_read(s->file, (uchar *)s->inbuf,
+                                       AZ_BUFSIZE_READ, MYF(0));
     if (s->stream.avail_in == 0) 
     {
       s->z_eof = 1;
-      /* if (ferror(s->file)) s->z_err = Z_ERRNO; */
+      return EOF;
+    }
+    else if (s->stream.avail_in == (uInt) -1)
+    {
+      s->z_eof= 1;
+      s->z_err= Z_ERRNO;
       return EOF;
     }
     s->stream.next_in = s->inbuf;

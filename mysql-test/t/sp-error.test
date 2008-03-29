@@ -2387,6 +2387,32 @@ call p1();
 drop procedure p1;
 
 #
+# Bug#8759 (Stored Procedures: SQLSTATE '00000' should be illegal)
+#
+
+--disable_warnings
+drop procedure if exists proc_8759;
+--enable_warnings
+
+delimiter $$;
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_8759()
+begin
+  declare should_be_illegal condition for sqlstate '00000';
+  declare continue handler for should_be_illegal set @x=0;
+end$$
+
+--error ER_SP_BAD_SQLSTATE
+create procedure proc_8759()
+begin
+  declare continue handler for sqlstate '00000' set @x=0;
+end$$
+
+delimiter ;$$
+
+
+#
 # BUG#NNNN: New bug synopsis
 #
 #--disable_warnings

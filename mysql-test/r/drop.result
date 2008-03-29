@@ -91,4 +91,31 @@ create table mysql_test.`#sql-347f_7` (f1 int);
 create table mysql_test.`#sql-347f_8` (f1 int);
 drop table mysql_test.`#sql-347f_8`;
 drop database mysql_test;
+
+# --
+# -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
+# -- exist.
+# --
+DROP DATABASE IF EXISTS mysql_test;
+CREATE DATABASE mysql_test;
+DROP TABLE mysql.proc;
+DROP DATABASE mysql_test;
+Warnings:
+Error	1146	Table 'mysql.proc' doesn't exist
+
+# --
+# -- End of Bug#29958.
+# --
+
+create database mysqltestbug26703;
+use mysqltestbug26703;
+create table `#mysql50#abc``def` ( id int );
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+ERROR 42000: Incorrect table name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+ERROR 42000: Incorrect table name '#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+use test;
+drop database mysqltestbug26703;
 End of 5.1 tests

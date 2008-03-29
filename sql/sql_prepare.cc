@@ -1415,7 +1415,7 @@ error:
 */
 
 static bool select_like_stmt_test(Prepared_statement *stmt,
-                                  bool (*specific_prepare)(THD *thd),
+                                  int (*specific_prepare)(THD *thd),
                                   ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test");
@@ -1452,7 +1452,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 static bool
 select_like_stmt_test_with_open(Prepared_statement *stmt,
                                 TABLE_LIST *tables,
-                                bool (*specific_prepare)(THD *thd),
+                                int (*specific_prepare)(THD *thd),
                                 ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test_with_open");
@@ -1638,7 +1638,7 @@ error:
     uses local tables lists.
 */
 
-static bool mysql_insert_select_prepare_tester(THD *thd)
+static int mysql_insert_select_prepare_tester(THD *thd)
 {
   SELECT_LEX *first_select= &thd->lex->select_lex;
   TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
@@ -2555,6 +2555,8 @@ void mysql_stmt_close(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_close");
 
+  thd->main_da.disable_status();
+
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
     DBUG_VOID_RETURN;
 
@@ -2565,8 +2567,6 @@ void mysql_stmt_close(THD *thd, char *packet)
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
   general_log_print(thd, thd->command, NullS);
-
-  thd->main_da.disable_status();
 
   DBUG_VOID_RETURN;
 }

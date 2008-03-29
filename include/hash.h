@@ -47,8 +47,9 @@ typedef struct st_hash {
 /* A search iterator state */
 typedef uint HASH_SEARCH_STATE;
 
-#define hash_init(A,B,C,D,E,F,G,H) _hash_init(A,B,C,D,E,F,G, H CALLER_INFO)
-my_bool _hash_init(HASH *hash, CHARSET_INFO *charset,
+#define hash_init(A,B,C,D,E,F,G,H) _hash_init(A,0,B,C,D,E,F,G,H CALLER_INFO)
+#define hash_init2(A,B,C,D,E,F,G,H,I) _hash_init(A,B,C,D,E,F,G,H,I CALLER_INFO)
+my_bool _hash_init(HASH *hash, uint growth_size,CHARSET_INFO *charset,
 		   ulong default_array_elements, size_t key_offset,
 		   size_t key_length, hash_get_key get_key,
 		   void (*free_element)(void*), uint flags CALLER_INFO_PROTO);
@@ -69,7 +70,7 @@ my_bool hash_check(HASH *hash);			/* Only in debug library */
 #define hash_clear(H) bzero((char*) (H),sizeof(*(H)))
 #define hash_inited(H) ((H)->array.buffer != 0)
 #define hash_init_opt(A,B,C,D,E,F,G,H) \
-          (!hash_inited(A) && _hash_init(A,B,C,D,E,F,G, H CALLER_INFO))
+          (!hash_inited(A) && _hash_init(A,0,B,C,D,E,F,G, H CALLER_INFO))
 
 #ifdef	__cplusplus
 }

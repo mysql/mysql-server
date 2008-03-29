@@ -1,4 +1,3 @@
-SET @NO_REFRESH = IF( '' = '', 0, 1);
 USE test;
 
 Testcase for db level:
