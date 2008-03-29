@@ -6943,7 +6943,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   switch(optid) {
   case '#':
 #ifndef DBUG_OFF
-    DBUG_PUSH(argument ? argument : default_dbug_option);
+    DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
     opt_endinfo=1;				/* unireg: memory allocation */
     break;
