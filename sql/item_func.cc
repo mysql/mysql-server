@@ -5115,7 +5115,7 @@ double Item_func_match::val_real()
     DBUG_RETURN(-1.0);
 
   if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
-    return 0.0;
+    DBUG_RETURN(0.0);
 
   if (join_key)
   {
