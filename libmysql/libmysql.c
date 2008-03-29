@@ -2444,7 +2444,7 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   my_bool res;
 
   DBUG_ENTER("execute");
-  DBUG_DUMP("packet", packet, length);
+  DBUG_DUMP("packet", (uchar*)packet, length);
 
   mysql->last_used_con= mysql;
   int4store(buff, stmt->stmt_id);		/* Send stmt id to server */
