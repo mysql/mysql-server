@@ -418,6 +418,7 @@ bool Log_to_csv_event_handler::
     A positive return value in store() means truncation.
     Still logging a message in the log in this case.
   */
+  table->field[5]->flags|= FIELDFLAG_HEX_ESCAPE;
   if (table->field[5]->store(sql_text, sql_text_len, client_cs) < 0)
     goto err;
 
@@ -1005,7 +1006,7 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 
   current_time= my_time(0);
   while (*current_handler)
-    error+= (*current_handler++)->
+    error|= (*current_handler++)->
       log_general(thd, current_time, user_host_buff,
                   user_host_len, id,
                   command_name[(uint) command].str,
@@ -4419,15 +4420,7 @@ static void print_buffer_to_nt_eventlog(enum loglevel level, char *buff,
     return an error (e.g. logging to the log tables)
 */
 
-#ifdef EMBEDDED_LIBRARY
-int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
-                       const char *format __attribute__((unused)),
-                       va_list argsi __attribute__((unused)))
-{
-  DBUG_ENTER("vprint_msg_to_log");
-  DBUG_RETURN(0);
-}
-#else /*!EMBEDDED_LIBRARY*/
+#ifndef EMBEDDED_LIBRARY
 static void print_buffer_to_file(enum loglevel level, const char *buffer)
 {
   time_t skr;

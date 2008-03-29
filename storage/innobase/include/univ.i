@@ -212,8 +212,11 @@ typedef long int		lint;
 
 #ifdef __WIN__
 typedef __int64			ib_longlong;
+typedef unsigned __int64	ib_ulonglong;
 #else
+/* Note: longlong and ulonglong come from MySQL headers. */
 typedef longlong		ib_longlong;
+typedef ulonglong               ib_ulonglong;
 #endif
 
 typedef unsigned long long int	ullint;

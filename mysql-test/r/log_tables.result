@@ -107,6 +107,17 @@ Database	Table	In_use	Name_locked
 SET GLOBAL GENERAL_LOG=ON;
 SET GLOBAL SLOW_QUERY_LOG=ON;
 truncate table mysql.general_log;
+set names binary;
+select _koi8r'тест' as test;
+test
+тест
+select * from mysql.general_log;
+event_time	user_host	thread_id	server_id	command_type	argument
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set names binary
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select _koi8r'\xD4\xC5\xD3\xD4' as test
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
+set names utf8;
+truncate table mysql.general_log;
 set names utf8;
 create table bug16905 (s char(15) character set utf8 default 'п©я┐я│я┌п╬');
 insert into bug16905 values ('п╫п╬п╡п╬п╣');

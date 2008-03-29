@@ -134,4 +134,53 @@ drop table mysql_test.`#sql-347f_8`;
 copy_file $MYSQLTEST_VARDIR/master-data/mysql_test/t1.frm $MYSQLTEST_VARDIR/master-data/mysql_test/#sql-347f_6.frm;
 drop database mysql_test;
 
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#29958: Weird message on DROP DATABASE if mysql.proc does not
+--echo # -- exist.
+--echo # --
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysql_test;
+--enable_warnings
+
+CREATE DATABASE mysql_test;
+
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.frm $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD
+--copy_file $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI
+
+DROP TABLE mysql.proc;
+
+DROP DATABASE mysql_test;
+
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.frm $MYSQLTEST_VARDIR/master-data/mysql/proc.frm
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYD $MYSQLTEST_VARDIR/master-data/mysql/proc.MYD
+--copy_file $MYSQLTEST_VARDIR/tmp/bug29958.proc.MYI $MYSQLTEST_VARDIR/master-data/mysql/proc.MYI
+
+--echo
+--echo # --
+--echo # -- End of Bug#29958.
+--echo # --
+
+###########################################################################
+
+--echo
+#
+# Bug#26703: DROP DATABASE fails if database contains a #mysql50# table with backticks
+#
+create database mysqltestbug26703;
+use mysqltestbug26703;
+create table `#mysql50#abc``def` ( id int );
+--error ER_WRONG_TABLE_NAME
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+--error ER_WRONG_TABLE_NAME
+create table `#mysql50#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (a int);
+use test;
+drop database mysqltestbug26703;
+
 --echo End of 5.1 tests

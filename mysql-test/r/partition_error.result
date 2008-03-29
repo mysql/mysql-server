@@ -1,4 +1,17 @@
 drop table if exists t1;
+CREATE TABLE t1 (a INT)
+PARTITION BY HASH (a)
+( PARTITION p0 ENGINE=MyISAM,
+PARTITION p1);
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
+CREATE TABLE t1 (a INT)
+PARTITION BY LIST (a)
+SUBPARTITION BY HASH (a)
+( PARTITION p0 VALUES IN (0)
+( SUBPARTITION s0, SUBPARTITION s1 ENGINE=MyISAM, SUBPARTITION s2),
+PARTITION p1 VALUES IN (1)
+( SUBPARTITION s3 ENGINE=MyISAM, SUBPARTITION s4, SUBPARTITION s5 ENGINE=MyISAM));
+ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 CREATE TABLE t1 (
 a int
 )

@@ -279,6 +279,8 @@ sub mtr_report_stats ($) {
 		/Failed to open log/ or
 		/Failed to open the existing master info file/ or
 		/Forcing shutdown of [0-9]* plugins/ or
+                /Can't open shared library .*\bha_example\b/ or
+                /Couldn't load plugin .*\bha_example\b/ or
 
 		# Due to timing issues, it might be that this warning
 		# is printed when the server shuts down and the
@@ -397,7 +399,10 @@ sub mtr_report_stats ($) {
 		# rpl_temporary has an error on slave that can be ignored
 		($testname eq 'rpl.rpl_temporary' and
 		 (/Slave: Can\'t find record in \'user\' Error_code: 1032/
-		 ))
+		 )) or
+
+                # Test case for Bug#31590 produces the following error:
+                /Out of sort memory; increase server sort buffer size/
 		)
             {
               next;                       # Skip these lines

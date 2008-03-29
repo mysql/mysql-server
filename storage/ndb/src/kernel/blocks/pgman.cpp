@@ -259,14 +259,14 @@ Pgman::execCONTINUEB(Signal* signal)
 // page entry
 
 Pgman::Page_entry::Page_entry(Uint32 file_no, Uint32 page_no) :
-  m_state(0),
   m_file_no(file_no),
+  m_state(0),
   m_page_no(page_no),
   m_real_page_i(RNIL),
-  m_copy_page_i(RNIL),
   m_lsn(0),
   m_last_lcp(0),
   m_dirty_count(0),
+  m_copy_page_i(RNIL),
   m_busy_count(0),
   m_requests()
 {

@@ -3430,7 +3430,7 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
     /*
       there was errors during opening tables
     */
-    const char *error= thd->main_da.message();
+    const char *error= thd->is_error() ? thd->main_da.message() : "";
     if (tables->view)
       table->field[3]->store(STRING_WITH_LEN("VIEW"), cs);
     else if (tables->schema_table)
@@ -3631,8 +3631,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         I.e. we are in SELECT FROM INFORMATION_SCHEMA.COLUMS
         rather than in SHOW COLUMNS
       */ 
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                   thd->main_da.sql_errno(), thd->main_da.message());
+      if (thd->is_error())
+        push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                     thd->main_da.sql_errno(), thd->main_da.message());
       thd->clear_error();
       res= 0;
     }
@@ -5276,8 +5277,14 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
                              f_key_info->referenced_db->length, cs);
       table->field[10]->store(f_key_info->referenced_table->str, 
                              f_key_info->referenced_table->length, cs);
-      table->field[5]->store(f_key_info->referenced_key_name->str, 
-                             f_key_info->referenced_key_name->length, cs);
+      if (f_key_info->referenced_key_name)
+      {
+        table->field[5]->store(f_key_info->referenced_key_name->str, 
+                               f_key_info->referenced_key_name->length, cs);
+        table->field[5]->set_notnull();
+      }
+      else
+        table->field[5]->set_null();
       table->field[6]->store(STRING_WITH_LEN("NONE"), cs);
       table->field[7]->store(f_key_info->update_method->str, 
                              f_key_info->update_method->length, cs);
@@ -5384,8 +5391,9 @@ ST_SCHEMA_TABLE *get_schema_table(enum enum_schema_tables schema_table_idx)
 
   @param
     thd	       	          thread handler
-  @param
-    schema_table          pointer to 'shema_tables' element
+
+  @param table_list Used to pass I_S table information(fields info, tables
+  parameters etc) and table name.
 
   @retval  \#             Pointer to created table
   @retval  NULL           Can't create table
@@ -5436,6 +5444,7 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
         DBUG_RETURN(NULL);
       break;
     case MYSQL_TYPE_DECIMAL:
+    case MYSQL_TYPE_NEWDECIMAL:
       if (!(item= new Item_decimal((longlong) fields_info->value, false)))
       {
         DBUG_RETURN(0);
@@ -5785,7 +5794,7 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 {
   ST_SCHEMA_TABLE *schema_table= get_schema_table(schema_table_idx);
   LEX_STRING db, table;
-  DBUG_ENTER("mysql_schema_select");
+  DBUG_ENTER("make_schema_select");
   DBUG_PRINT("enter", ("mysql_schema_select: %s", schema_table->table_name));
   /*
      We have to make non const db_name & table_name
@@ -5880,9 +5889,11 @@ bool get_schema_tables_result(JOIN *join,
       {
         result= 1;
         join->error= 1;
+        tab->read_record.file= table_list->table->file;
         table_list->schema_table_state= executed_place;
         break;
       }
+      tab->read_record.file= table_list->table->file;
       table_list->schema_table_state= executed_place;
     }
   }
@@ -6478,8 +6489,8 @@ ST_FIELD_INFO referential_constraints_fields_info[]=
    OPEN_FULL_TABLE},
   {"UNIQUE_CONSTRAINT_SCHEMA", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
    OPEN_FULL_TABLE},
-  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0,
-   OPEN_FULL_TABLE},
+  {"UNIQUE_CONSTRAINT_NAME", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0,
+   MY_I_S_MAYBE_NULL, 0, OPEN_FULL_TABLE},
   {"MATCH_OPTION", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"UPDATE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},
   {"DELETE_RULE", NAME_CHAR_LEN, MYSQL_TYPE_STRING, 0, 0, 0, OPEN_FULL_TABLE},

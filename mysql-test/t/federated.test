@@ -6,6 +6,9 @@ connection slave;
 DROP TABLE IF EXISTS federated.t1;
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\b` int NOT NULL default 0,
+    `a\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   DEFAULT CHARSET=latin1;
@@ -16,6 +19,9 @@ DROP TABLE IF EXISTS federated.t1;
 --error 1432
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\b` inT NOT NULL default 0,
+    `a\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -25,6 +31,9 @@ CREATE TABLE federated.t1 (
 --error 1432 
 CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\b` iNt NOT NULL default 0,
+    `a\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -34,6 +43,9 @@ CREATE TABLE federated.t1 (
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\\\b` iNT NOT NULL default 0,
+    `a\\\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -46,6 +58,9 @@ DROP TABLE federated.t1;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\\\b` Int NOT NULL default 0,
+    `a\\\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -58,6 +73,9 @@ DROP TABLE federated.t1;
 --replace_result $SLAVE_MYPORT SLAVE_PORT
 eval CREATE TABLE federated.t1 (
     `id` int(20) NOT NULL,
+    `group` int NOT NULL default 0,
+    `a\\\\b` InT NOT NULL default 0,
+    `a\\\\` int NOT NULL default 0,
     `name` varchar(32) NOT NULL default ''
     )
   ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -65,6 +83,9 @@ eval CREATE TABLE federated.t1 (
 
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+INSERT INTO federated.t1 (id, `group`) VALUES (3, 42);
+INSERT INTO federated.t1 (id, `a\\b`) VALUES (4, 23);
+INSERT INTO federated.t1 (id, `a\\`) VALUES (5, 1);
 
 SELECT * FROM federated.t1;
 DELETE FROM federated.t1;
@@ -1793,6 +1814,46 @@ drop table t1;
 connection slave;
 drop table t1;
 drop view v1;
+
+#
+# BUG#33946 - Join on Federated tables with Unique index gives error 1430
+#             from storage engine
+#
+connection slave;
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES(NULL,1),(1,NULL),(NULL,NULL),(1,1),(2,2);
+
+connection master;
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+eval CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
+CONNECTION='mysql://root@127.0.0.1:$SLAVE_MYPORT/test/t1';
+SELECT * FROM t1 WHERE a IS NULL;
+SELECT * FROM t1 WHERE a IS NOT NULL;
+SELECT * FROM t1 WHERE a=1 AND b=1;
+SELECT * FROM t1 WHERE a IS NULL AND b=1;
+SELECT * FROM t1 WHERE a IS NOT NULL AND b=1;
+DROP TABLE t1;
+
+connection slave;
+DROP TABLE t1;
+
+#
+# BUG#34788 - malformed federated connection url is not handled correctly -
+#             crashes server !
+#
+# also tests
+#
+# BUG#35509 - Federated leaks memory when connecting to localhost/default
+#             port
+#
+CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
+DROP TABLE t1;
+
+#
+# Coverage testing of CREATE SERVER.
+#
+create server 's1' foreign data wrapper 'mysql' options (port 3306);
+drop server 's1';
 
 --echo End of 5.1 tests
 source include/federated_cleanup.inc;
