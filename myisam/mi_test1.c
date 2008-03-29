@@ -647,7 +647,6 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     printf("test1 Ver 1.2 \n");
     exit(0);
   case '#':
-    DEBUGGER_ON;
     DBUG_PUSH (argument);
     break;
   case '?':
