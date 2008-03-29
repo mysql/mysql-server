@@ -8,6 +8,7 @@
 # value might be associated with these statement, which could cause
 # duplicate entry error and stop the slave.
 
+source include/have_binlog_format_statement.inc;
 source include/master-slave.inc;
 
 --disable_warnings
