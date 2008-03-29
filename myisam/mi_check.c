@@ -1935,7 +1935,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
        key++,keyinfo++)
     if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
-      return 0;
+      DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
