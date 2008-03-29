@@ -14,6 +14,9 @@ Warnings:
 Note	1051	Unknown table 't1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` int NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 DEFAULT CHARSET=latin1;
@@ -22,6 +25,9 @@ Warnings:
 Note	1051	Unknown table 't1'
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` inT NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -29,6 +35,9 @@ CONNECTION='mysql://root@127.0.0.1:@/too/many/items/federated/t1';
 ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1:@/too/many/items/federated/t1' is not in the correct format
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` iNt NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -36,6 +45,9 @@ CONNECTION='mysql://root@127.0.0.1';
 ERROR HY000: Can't create federated table. The data source connection string 'mysql://root@127.0.0.1' is not in the correct format
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` iNT NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -45,6 +57,9 @@ ERROR HY000: The foreign data source you are trying to reference does not exist.
 DROP TABLE federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` Int NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
@@ -54,16 +69,25 @@ ERROR HY000: Unable to connect to foreign data source: Access denied for user 'u
 DROP TABLE federated.t1;
 CREATE TABLE federated.t1 (
 `id` int(20) NOT NULL,
+`group` int NOT NULL default 0,
+`a\\b` InT NOT NULL default 0,
+`a\\` int NOT NULL default 0,
 `name` varchar(32) NOT NULL default ''
     )
 ENGINE="FEDERATED" DEFAULT CHARSET=latin1
 CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/federated/t1';
 INSERT INTO federated.t1 (id, name) VALUES (1, 'foo');
 INSERT INTO federated.t1 (id, name) VALUES (2, 'fee');
+INSERT INTO federated.t1 (id, `group`) VALUES (3, 42);
+INSERT INTO federated.t1 (id, `a\\b`) VALUES (4, 23);
+INSERT INTO federated.t1 (id, `a\\`) VALUES (5, 1);
 SELECT * FROM federated.t1;
-id	name
-1	foo
-2	fee
+id	group	a\\b	a\\	name
+1	0	0	0	foo
+2	0	0	0	fee
+3	42	0	0	
+4	0	23	0	
+5	0	0	1	
 DELETE FROM federated.t1;
 DROP TABLE federated.t1;
 DROP TABLE IF EXISTS federated.t2;
@@ -2066,6 +2090,34 @@ select 1 from t1 order by a;
 drop table t1;
 drop table t1;
 drop view v1;
+CREATE TABLE t1 (a INT, b INT, KEY(a,b));
+INSERT INTO t1 VALUES(NULL,1),(1,NULL),(NULL,NULL),(1,1),(2,2);
+CREATE TABLE t1 (a INT, b INT, KEY(a,b)) ENGINE=federated
+CONNECTION='mysql://root@127.0.0.1:SLAVE_PORT/test/t1';
+SELECT * FROM t1 WHERE a IS NULL;
+a	b
+NULL	NULL
+NULL	1
+SELECT * FROM t1 WHERE a IS NOT NULL;
+a	b
+1	NULL
+1	1
+2	2
+SELECT * FROM t1 WHERE a=1 AND b=1;
+a	b
+1	1
+SELECT * FROM t1 WHERE a IS NULL AND b=1;
+a	b
+NULL	1
+SELECT * FROM t1 WHERE a IS NOT NULL AND b=1;
+a	b
+1	1
+DROP TABLE t1;
+DROP TABLE t1;
+CREATE TABLE t1 (a INT) ENGINE=federated CONNECTION='mysql://@:://';
+DROP TABLE t1;
+create server 's1' foreign data wrapper 'mysql' options (port 3306);
+drop server 's1';
 End of 5.1 tests
 DROP TABLE IF EXISTS federated.t1;
 DROP DATABASE IF EXISTS federated;

@@ -600,6 +600,7 @@ Item_sum_hybrid::fix_fields(THD *thd, Item **ref)
   result_field=0;
   null_value=1;
   fix_length_and_dec();
+  item= item->real_item();
   if (item->type() == Item::FIELD_ITEM)
     hybrid_field_type= ((Item_field*) item)->field->type();
   else
@@ -1227,7 +1228,15 @@ my_decimal *Item_sum_avg::val_decimal(my_decimal *val)
     null_value=1;
     return NULL;
   }
-  sum_dec= Item_sum_sum::val_decimal(&sum_buff);
+
+  /*
+    For non-DECIMAL hybrid_type the division will be done in
+    Item_sum_avg::val_real().
+  */
+  if (hybrid_type != DECIMAL_RESULT)
+    return val_decimal_from_real(val);
+
+  sum_dec= dec_buffs + curr_dec_buff;
   int2my_decimal(E_DEC_FATAL_ERROR, count, 0, &cnt);
   my_decimal_div(E_DEC_FATAL_ERROR, val, sum_dec, &cnt, prec_increment);
   return val;
@@ -3493,6 +3502,6 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
 
 Item_func_group_concat::~Item_func_group_concat()
 {
-  if (unique_filter) 
+  if (!original && unique_filter)
     delete unique_filter;    
 }

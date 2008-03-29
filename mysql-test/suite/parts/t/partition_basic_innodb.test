@@ -51,8 +51,8 @@ let $more_pk_ui_tests= 0;
 let $engine= 'InnoDB';
 
 ##### Execute the test of "table" files
-# InnoDB has no files per PK, UI, ...
-let $do_file_tests= 0;
+# InnoDB has no files per PK, UI, ... But only .frm file
+let $do_file_tests= 1;
 
 ##### Execute PRIMARY KEY tests                                      #####
 # AFAIK InnoDB clusters the table around PRIMARY KEYs.

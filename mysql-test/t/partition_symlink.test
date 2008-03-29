@@ -2,7 +2,9 @@
 # (DATA/INDEX DIR requires symlinks)
 -- source include/have_partition.inc
 -- source include/have_symlink.inc
-# remove the not_windows line after fixing bug#30459
+# remove the not_windows line after fixing bug#33687
+# symlinks must also work for files, not only directories
+# as in --skip-symbolic-links
 -- source include/not_windows.inc
 -- disable_warnings
 DROP TABLE IF EXISTS t1;
@@ -24,6 +26,7 @@ DROP DATABASE IF EXISTS mysqltest2;
 # files, but not the other way around (any db-user can use any
 # directory or file that the mysqld-process can use, via DATA/INDEX DIR)
 # this is the security flaw that was used in bug#32091 and bug#32111
+
 -- echo # Creating two non colliding tables mysqltest2.t1 and test.t1
 -- echo # test.t1 have partitions in mysqltest2-directory!
 -- echo # user root:
@@ -39,11 +42,11 @@ connect(con1,localhost,mysqltest_1,,);
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp',
     PARTITION p2 VALUES IN (2)
   );
   -- echo # without the patch for bug#32091 this would create
@@ -74,17 +77,18 @@ connection default;
 # So it is using/blocking 2 files in (in 2 different directories
 -- echo # test that symlinks can not overwrite files when CREATE TABLE
 -- echo # user root:
+
   CREATE DATABASE mysqltest2;
   USE mysqltest2;
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp'
    );
 connection con1;
 -- echo # user mysqltest_1:
@@ -94,22 +98,22 @@ connection con1;
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2',
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp'
    );
   -- replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
   -- error 1,1
   eval CREATE TABLE t1 (a INT)
    PARTITION BY LIST (a) (
     PARTITION p0 VALUES IN (0)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/test'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/test',
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp',
     PARTITION p1 VALUES IN (1)
-     DATA DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
-     INDEX DIRECTORY '$MYSQLTEST_VARDIR/master-data/mysqltest2'
+     DATA DIRECTORY '$MYSQLTEST_VARDIR/tmp'
+     INDEX DIRECTORY '$MYSQLTEST_VARDIR/tmp'
   );
 connection default;
 -- echo # user root (cleanup):
@@ -118,4 +122,49 @@ connection default;
   DROP USER mysqltest_1@localhost;
   disconnect con1;
 
+#
+# Bug #24633 SQL MODE "NO_DIR_IN_CREATE" does not work with partitioned tables 
+#
 
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR 
+eval create table t2 (i int )
+partition by range (i)
+(
+    partition p01 values less than (1000)
+    data directory="$MYSQLTEST_VARDIR/tmp"
+    index directory="$MYSQLTEST_VARDIR/tmp"
+);
+
+set @org_mode=@@sql_mode;
+set @@sql_mode='NO_DIR_IN_CREATE';
+select @@sql_mode;
+create table t1 (i int )
+partition by range (i)
+(
+    partition p01 values less than (1000)
+    data directory='/not/existing'
+    index directory='/not/existing'
+);
+
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR 
+show create table t2;
+DROP TABLE t1, t2;
+set @@sql_mode=@org_mode;
+
+#
+# Bug 21350: Data Directory problems
+#
+-- error ER_WRONG_TABLE_NAME
+create table t1 (a int)
+partition by key (a)
+(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
+
+#
+# Insert a test that manages to create the first partition and fails with
+# the second, ensure that we clean up afterwards in a proper manner.
+#
+--error ER_WRONG_TABLE_NAME
+create table t1 (a int)
+partition by key (a)
+(partition p0,
+ partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');

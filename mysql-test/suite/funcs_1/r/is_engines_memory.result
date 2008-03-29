@@ -1,0 +1,8 @@
+SELECT * FROM information_schema.engines
+WHERE ENGINE = 'MEMORY';
+ENGINE	MEMORY
+SUPPORT	YES
+COMMENT	Hash based, stored in memory, useful for temporary tables
+TRANSACTIONS	NO
+XA	NO
+SAVEPOINTS	NO

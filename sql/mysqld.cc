@@ -518,6 +518,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+char mysql_unpacked_real_data_home[FN_REFLEN];
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -584,7 +585,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
-		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+                LOCK_connection_count;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -720,6 +722,11 @@ char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
+/**
+  Number of currently active user connections. The variable is protected by
+  LOCK_connection_count.
+*/
+uint connection_count= 0;
 
 /* Function declarations */
 
@@ -1341,6 +1348,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+  (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
@@ -1783,6 +1791,11 @@ void unlink_thd(THD *thd)
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
   thd->cleanup();
+
+  pthread_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  pthread_mutex_unlock(&LOCK_connection_count);
+
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
@@ -2512,10 +2525,6 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2552,7 +2561,6 @@ static void init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2574,9 +2582,12 @@ static void init_signals(void)
     sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
+    my_sigset(thr_kill_signal, end_thread_signal);
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
   }
+  else
+    sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -3453,6 +3464,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -4700,6 +4712,11 @@ void create_thread_to_handle_connection(THD *thd)
       thread_count--;
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+      pthread_mutex_lock(&LOCK_connection_count);
+      --connection_count;
+      pthread_mutex_unlock(&LOCK_connection_count);
+
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
@@ -4739,15 +4756,34 @@ static void create_new_thread(THD *thd)
   if (protocol_version > 9)
     net->return_errno=1;
 
-  /* don't allow too many connections */
-  if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
+  /*
+    Don't allow too many connections. We roughly check here that we allow
+    only (max_connections + 1) connections.
+  */
+
+  pthread_mutex_lock(&LOCK_connection_count);
+
+  if (connection_count >= max_connections + 1 || abort_loop)
   {
+    pthread_mutex_unlock(&LOCK_connection_count);
+
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR, 1);
     delete thd;
     DBUG_VOID_RETURN;
   }
+
+  ++connection_count;
+
+  if (connection_count > max_used_connections)
+    max_used_connections= connection_count;
+
+  pthread_mutex_unlock(&LOCK_connection_count);
+
+  /* Start a new thread to handle connection. */
+
   pthread_mutex_lock(&LOCK_thread_count);
+
   /*
     The initialization of thread_id is done in create_embedded_thd() for
     the embedded library.
@@ -4755,13 +4791,10 @@ static void create_new_thread(THD *thd)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
-  /* Start a new thread to handle connection */
   thread_count++;
 
-  if (thread_count - delayed_insert_threads > max_used_connections)
-    max_used_connections= thread_count - delayed_insert_threads;
-
   thread_scheduler.add_connection(thd);
+
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -8303,12 +8336,15 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  (void) fn_format(buff, mysql_real_data_home, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                      get_relative_path(LIBDIR), mysql_home);
+                                      get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   char *sharedir=get_relative_path(SHAREDIR);
