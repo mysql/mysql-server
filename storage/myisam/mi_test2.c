@@ -26,6 +26,7 @@
 #endif
 #include "myisamdef.h"
 #include <m_ctype.h>
+#include <my_bit.h>
 
 #define STANDARD_LENGTH 37
 #define MYISAM_KEYS 6
@@ -187,7 +188,7 @@ int main(int argc, char *argv[])
   if (use_blob)
   {
     recinfo[6].type=FIELD_BLOB;
-    recinfo[6].length=4+mi_portable_sizeof_char_ptr;
+    recinfo[6].length=4+portable_sizeof_char_ptr;
     recinfo[6].null_bit=0;
     recinfo[6].null_pos=0;
   }
