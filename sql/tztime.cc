@@ -2278,7 +2278,7 @@ my_tz_find(const String * name, TABLE_LIST *tz_tables)
 
   DBUG_ENTER("my_tz_find");
   DBUG_PRINT("enter", ("time zone name='%s'",
-                      name ? ((String *)name)->c_ptr() : "NULL"));
+                      name ? ((String *)name)->c_ptr_safe() : "NULL"));
 
   DBUG_ASSERT(!time_zone_tables_exist || tz_tables || current_thd->slave_thread);
 
