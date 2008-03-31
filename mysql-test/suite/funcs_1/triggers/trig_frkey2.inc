@@ -1,17 +1,17 @@
 #################################################################
-# This file inclde tests that address the foreign key cases of 
-# the following requirements since they are specific to innodb. 
-# Other test cases for these requirements are included in the 
+# This file inclde tests that address the foreign key cases of
+# the following requirements since they are specific to innodb.
+# Other test cases for these requirements are included in the
 # triggers_master.test file.
 #################################################################
 
 --disable_abort_on_error
 
 # OBN - The following tests are disabled until triggers are supported with forign
-#       keys in innodb (foreign keys tests dispabled - bug 11472) 
+#       keys in innodb (foreign keys tests dispabled - bug 11472)
 #################################################################################
 #Section x.x.x.3
-# Test case: Similar to 3.5.10.5 but with ten tables to see if multiple triggers 
+# Test case: Similar to 3.5.10.5 but with ten tables to see if multiple triggers
 #            can be executed at once
 let $message= Testcase x.x.x.3:;
 --source include/show_msg.inc
@@ -21,58 +21,58 @@ let $message= Testcase x.x.x.3:;
 	--enable_warnings
 
 	eval CREATE TABLE t0 (col1 char(50)) ENGINE=$engine_type;
-	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50), 
+	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50),
 		PRIMARY KEY (id)) ENGINE=$engine_type;
-	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL) ENGINE=$engine_type;
-	eval CREATE TABLE t3 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t3 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t4 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t4 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t5 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t5 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t6 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t6 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t7 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t7 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t8 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t8 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t9 (id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t9 (id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t10(id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t10(id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
-	eval CREATE TABLE t11(id INT PRIMARY KEY, f_id INT, INDEX par_ind 
-		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t11(id INT PRIMARY KEY, f_id INT, INDEX par_ind
+		(f_id), col1 char(50), FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
 
-	create trigger tr1 after update on t2 for each row 
+	create trigger tr1 after update on t2 for each row
 		insert into t0 values ('tr_t2');
-	create trigger tr2 after update on t3 for each row 
+	create trigger tr2 after update on t3 for each row
 		insert into t0 values ('tr_t3');
-	create trigger tr3 after update on t4 for each row 
+	create trigger tr3 after update on t4 for each row
 		insert into t0 values ('tr_t4');
-	create trigger tr3 after update on t5 for each row 
+	create trigger tr3 after update on t5 for each row
 		insert into t0 values ('tr_t5');
-	create trigger tr4 after update on t6 for each row 
+	create trigger tr4 after update on t6 for each row
 		insert into t0 values ('tr_t6');
-	create trigger tr5 after update on t7 for each row 
+	create trigger tr5 after update on t7 for each row
 		insert into t0 values ('tr_t7');
-	create trigger tr5 after update on t8 for each row 
+	create trigger tr5 after update on t8 for each row
 		insert into t0 values ('tr_t8');
-	create trigger tr6 after update on t9 for each row 
+	create trigger tr6 after update on t9 for each row
 		insert into t0 values ('tr_t9');
-	create trigger tr7 after update on t10 for each row 
+	create trigger tr7 after update on t10 for each row
 		insert into t0 values ('tr_t10');
-	create trigger tr8 after update on t11 for each row 
+	create trigger tr8 after update on t11 for each row
 		insert into t0 values ('tr_t11');
 
 	insert into t1 values (1,'Department A');
@@ -134,10 +134,10 @@ let $message= Testcase x.x.x.3:;
 
 
 #Section 3.5.10.5
-# Test case: Ensure that every trigger that should be activated by every possible 
-#            type of implicit update of its subject table (e.g. a FOREIGN KEY SET 
-#            DEFAULT action or an UPDATE of a view based on the subject table) 
-#            is indeed activated correctly. 
+# Test case: Ensure that every trigger that should be activated by every possible
+#            type of implicit update of its subject table (e.g. a FOREIGN KEY SET
+#            DEFAULT action or an UPDATE of a view based on the subject table)
+#            is indeed activated correctly.
 let $message= Testcase 3.5.10.5 (foreign keys):;
 --source include/show_msg.inc
 
@@ -146,11 +146,11 @@ let $message= Testcase 3.5.10.5 (foreign keys):;
 	DROP TABLE IF EXISTS t1, t2;
 	--enable_warnings
 
-	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50), 
+	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50),
 		PRIMARY KEY (id)) ENGINE=$engine_type;
-	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT, 
-		INDEX par_ind (f_id), col1 char(50), 
-		FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT,
+		INDEX par_ind (f_id), col1 char(50),
+		FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=$engine_type;
 	create trigger tr_t2 after update on t2
 		for each row set @counter=@counter+1;
@@ -191,9 +191,9 @@ let $message= Testcase 3.5.10.5 (foreign keys):;
 
 
 #Section 3.5.10.6
-# Test case: Ensure that every trigger that should be activated by every possible 
-#            type of implicit deletion from its subject table (e.g. a FOREIGN KEY 
-#            CASCADE action or a DELETE from a view based on the subject table) 
+# Test case: Ensure that every trigger that should be activated by every possible
+#            type of implicit deletion from its subject table (e.g. a FOREIGN KEY
+#            CASCADE action or a DELETE from a view based on the subject table)
 #            is indeed activated correctly.
 let $message= Testcase 3.5.10.6 (foreign keys):;
 --source include/show_msg.inc
@@ -202,11 +202,11 @@ let $message= Testcase 3.5.10.6 (foreign keys):;
 	DROP TABLE IF EXISTS t1, t2;
 	--enable_warnings
 	
-	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50), 
+	eval CREATE TABLE t1 (id INT NOT NULL, col1 char(50),
 		PRIMARY KEY (id)) ENGINE=$engine_type;
-	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT, 
-		INDEX par_ind (f_id), col1 char(50), 
-		FOREIGN KEY (f_id) REFERENCES t1(id)  
+	eval CREATE TABLE t2 (id INT PRIMARY KEY, f_id INT,
+		INDEX par_ind (f_id), col1 char(50),
+		FOREIGN KEY (f_id) REFERENCES t1(id)
 		ON DELETE CASCADE) ENGINE=$engine_type;
 
 	create trigger tr_t2 before delete on t2
