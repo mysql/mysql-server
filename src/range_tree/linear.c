@@ -90,6 +90,25 @@ static inline BOOL toku__rt_exact(toku_range_tree* tree,
             tree->data_cmp(a->data,  b->data)  == 0);
 }
 
+static inline int toku__rt_cmp(toku_range_tree* tree,
+                               toku_range* a, toku_range* b) {
+    int cmp = 0;
+    assert(tree);
+    assert(a);
+    assert(b);
+
+    cmp = tree->end_cmp(a->ends.left,  b->ends.left);
+    if (cmp!=0) { goto cleanup; }
+    cmp = tree->end_cmp(a->ends.right, b->ends.right);
+    if (cmp!=0) { goto cleanup; }
+    cmp = tree->data_cmp(a->data,  b->data);
+    if (cmp!=0) { goto cleanup; }
+
+    cmp = 0;
+cleanup:
+    return cmp;
+}
+
 int toku_rt_create(toku_range_tree** ptree,
                    int (*end_cmp)(const toku_point*,const toku_point*),
                    int (*data_cmp)(const TXNID,const TXNID),
@@ -162,6 +181,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
     if (!tree || !range)                                 return EINVAL;
 
     u_int32_t i;
+    u_int32_t move;
     int r;
 
     //EDOM cases
@@ -175,9 +195,18 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
             if (toku__rt_overlap(tree, &range->ends, &tree->i.ranges[i].ends)) return EDOM;
         }
     }
+    for (i = 0; i < tree->numelements; i++) {
+        if (toku__rt_cmp(tree, range, &tree->i.ranges[i]) > 0) { break; }
+    }
+    /* Goes in slot 'i' */
     r = toku__rt_increase_capacity(tree, tree->numelements + 1);
     if (r != 0) return r;
-    tree->i.ranges[tree->numelements++] = *range;
+    tree->numelements++;
+    /* Shift to make room. */
+    for (move = tree->numelements - 1; move > i; move--) {
+        tree->i.ranges[move] = tree->i.ranges[move - 1];
+    }
+    tree->i.ranges[i] = *range;
     toku_rt_invalidate_iteration(tree);
     return 0;
 }
@@ -185,6 +214,7 @@ int toku_rt_insert(toku_range_tree* tree, toku_range* range) {
 int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
     if (!tree || !range)                                 return EINVAL;
     u_int32_t i;
+    u_int32_t move;
     
     for (i = 0;
          i < tree->numelements &&
@@ -192,8 +222,9 @@ int toku_rt_delete(toku_range_tree* tree, toku_range* range) {
          i++) {}
     //EDOM case: Not Found
     if (i == tree->numelements) return EDOM;
-    if (i < tree->numelements - 1) {
-        tree->i.ranges[i] = tree->i.ranges[tree->numelements - 1];
+    /* Shift left. */
+    for (move = i; move < tree->numelements - 1; move++) {
+        tree->i.ranges[move] = tree->i.ranges[move + 1];        
     }
     toku__rt_decrease_capacity(tree, --tree->numelements);
     toku_rt_invalidate_iteration(tree);
