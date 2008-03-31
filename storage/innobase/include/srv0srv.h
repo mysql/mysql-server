@@ -249,11 +249,7 @@ extern srv_sys_t*	srv_sys;
 
 /* Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
-#define SRV_UNIX_FDATASYNC	1	/* This is the default; it is
-					currently mapped to a call of
-					fsync() because fdatasync() seemed
-					to corrupt files in Linux and
-					Solaris */
+#define SRV_UNIX_FSYNC		1	/* This is the default */
 #define SRV_UNIX_O_DSYNC	2
 #define SRV_UNIX_LITTLESYNC	3
 #define SRV_UNIX_NOSYNC		4

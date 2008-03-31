@@ -94,7 +94,7 @@ INSERT INTO t7 SELECT a,b FROM tt4;
 ROLLBACK;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1572;
+SHOW BINLOG EVENTS FROM 1711;
 SELECT * FROM t7 ORDER BY a,b;
 sync_slave_with_master;
 SELECT * FROM t7 ORDER BY a,b;
@@ -110,7 +110,7 @@ CREATE TEMPORARY TABLE tt7 SELECT 1;
 --query_vertical SHOW CREATE TABLE t9
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 1670;
+SHOW BINLOG EVENTS FROM 1946;
 sync_slave_with_master;
 --echo **** On Slave ****
 --query_vertical SHOW CREATE TABLE t8
@@ -227,7 +227,7 @@ ROLLBACK;
 SELECT * FROM t2 ORDER BY a;
 --replace_column 1 # 4 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /Server ver: .*, Binlog ver: .*/Server ver: #, Binlog ver: #/ /table_id: [0-9]+/table_id: #/
-SHOW BINLOG EVENTS FROM 637;
+SHOW BINLOG EVENTS FROM 949;
 sync_slave_with_master;
 SELECT * FROM t2 ORDER BY a;
 
