@@ -542,17 +542,25 @@ call p_verify_status_increment(0, 0, 0, 0);
 
 --echo # 16. A function changes non-trans-table.
 --echo #
+--echo # For row-based logging, there is an extra commit for the
+--echo # non-transactional changes saved in the transaction cache to
+--echo # the binary log. 
+--echo #
 select f1();
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(0, 0, 1, 0);
 commit;
-call p_verify_status_increment(0, 0, 0, 0);
+call p_verify_status_increment(0, 0, 1, 0);
 
 --echo # 17. Read-only statement, a function changes non-trans-table.
 --echo #
+--echo # For row-based logging, there is an extra commit for the
+--echo # non-transactional changes saved in the transaction cache to
+--echo # the binary log. 
+--echo #
 select f1() from t1;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 commit;
-call p_verify_status_increment(1, 0, 1, 0);
+call p_verify_status_increment(1, 0, 2, 0);
 
 --echo # 18. Read-write statement: UPDATE, change 0 (transactional) rows. 
 --echo #
