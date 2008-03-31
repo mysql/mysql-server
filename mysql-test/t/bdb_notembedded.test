@@ -1,0 +1,38 @@
+-- source include/not_embedded.inc
+-- source include/have_bdb.inc
+
+#
+# Bug #16206: Superfluous COMMIT event in binlog when updating BDB in autocommit mode
+#
+set autocommit=1;
+
+let $VERSION=`select version()`;
+
+reset master;
+create table bug16206 (a int);
+insert into bug16206 values(1);
+start transaction;
+insert into bug16206 values(2);
+commit;
+--replace_result $VERSION VERSION
+--replace_column 1 f 2 n 5 n
+show binlog events;
+drop table bug16206;
+
+reset master;
+create table bug16206 (a int) engine=         bdb;
+insert into bug16206 values(0);
+insert into bug16206 values(1);
+start transaction;
+insert into bug16206 values(2);
+commit;
+insert into bug16206 values(3);
+--replace_result $VERSION VERSION
+--replace_column 1 f 2 n 5 n
+show binlog events;
+drop table bug16206;
+
+set autocommit=0;
+
+
+--echo End of 5.0 tests
