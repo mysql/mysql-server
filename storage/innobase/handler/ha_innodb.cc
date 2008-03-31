@@ -7937,7 +7937,7 @@ bool ha_innobase::check_if_incompatible_data(
 	}
 
 	/* Check that row format didn't change */
-	if ((info->used_fields & HA_CREATE_USED_AUTO) &&
+	if ((info->used_fields & HA_CREATE_USED_ROW_FORMAT) &&
 		get_row_type() != info->row_type) {
 
 		return COMPATIBLE_DATA_NO;

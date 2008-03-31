@@ -2643,6 +2643,25 @@ row_sel_store_mysql_rec(
 
 			data = rec_get_nth_field(rec, offsets,
 						 templ->rec_field_no, &len);
+
+			if (UNIV_UNLIKELY(templ->type == DATA_BLOB)
+			    && len != UNIV_SQL_NULL) {
+
+				/* It is a BLOB field locally stored in the
+				InnoDB record: we MUST copy its contents to
+				prebuilt->blob_heap here because later code
+				assumes all BLOB values have been copied to a
+				safe place. */
+
+				if (prebuilt->blob_heap == NULL) {
+					prebuilt->blob_heap = mem_heap_create(
+						UNIV_PAGE_SIZE);
+				}
+
+				data = memcpy(mem_heap_alloc(
+						prebuilt->blob_heap, len),
+						data, len);
+			}
 		}
 
 		if (len != UNIV_SQL_NULL) {
@@ -3558,7 +3577,9 @@ shortcut_fails_too_big_rec:
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
-	    && trx->mysql_query_str && trx->mysql_thd) {
+	    && trx->mysql_query_str != NULL
+	    && *trx->mysql_query_str != NULL
+	    && trx->mysql_thd != NULL) {
 
 		/* Scan the MySQL query string; check if SELECT is the first
 		word there */
