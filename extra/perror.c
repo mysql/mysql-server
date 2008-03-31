@@ -13,9 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-/* Return error-text for system error messages and nisam messages */
+/* Return error-text for system error messages and handler messages */
 
-#define PERROR_VERSION "2.10"
+#define PERROR_VERSION "2.11"
 
 #include <my_global.h>
 #include <my_sys.h>
@@ -29,6 +29,10 @@
 #endif
 
 static my_bool verbose, print_all_codes;
+
+#include "../include/my_base.h"
+#include "../mysys/my_handler_errors.h"
+#include "../include/my_handler.h"
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 static my_bool ndb_code;
@@ -82,36 +86,6 @@ typedef struct ha_errors {
 
 static HA_ERRORS ha_errlist[]=
 {
-  { 120,"Didn't find key on read or update" },
-  { 121,"Duplicate key on write or update" },
-  { 123,"Someone has changed the row since it was read (while the table was locked to prevent it)" },
-  { 124,"Wrong index given to function" },
-  { 126,"Index file is crashed" },
-  { 127,"Record-file is crashed" },
-  { 128,"Out of memory" },
-  { 130,"Incorrect file format" },
-  { 131,"Command not supported by database" },
-  { 132,"Old database file" },
-  { 133,"No record read before update" },
-  { 134,"Record was already deleted (or record file crashed)" },
-  { 135,"No more room in record file" },
-  { 136,"No more room in index file" },
-  { 137,"No more records (read after end of file)" },
-  { 138,"Unsupported extension used for table" },
-  { 139,"Too big row"},
-  { 140,"Wrong create options"},
-  { 141,"Duplicate unique key or constraint on write or update"},
-  { 142,"Unknown character set used"},
-  { 143,"Conflicting table definitions in sub-tables of MERGE table"},
-  { 144,"Table is crashed and last repair failed"},
-  { 145,"Table was marked as crashed and should be repaired"},
-  { 146,"Lock timed out; Retry transaction"},
-  { 147,"Lock table is full;  Restart program with a larger locktable"},
-  { 148,"Updates are not allowed under a read only transactions"},
-  { 149,"Lock deadlock; Retry transaction"},
-  { 150,"Foreign key constraint is incorrectly formed"},
-  { 151,"Cannot add a child row"},
-  { 152,"Cannot delete a parent row"},
   { -30999, "DB_INCOMPLETE: Sync didn't finish"},
   { -30998, "DB_KEYEMPTY: Key/data deleted or never created"},
   { -30997, "DB_KEYEXIST: The key/data pair already exists"},
@@ -193,6 +167,17 @@ static const char *get_ha_error_msg(int code)
 {
   HA_ERRORS *ha_err_ptr;
 
+  /*
+    If you got compilation error here about compile_time_assert array, check
+    that every HA_ERR_xxx constant has a corresponding error message in
+    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    include/my_base.h).
+  */
+  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                      HA_ERR_LAST + 1);
+  if (code >= HA_ERR_FIRST && code <= HA_ERR_LAST)
+    return handler_error_messages[code - HA_ERR_FIRST];
+
   for (ha_err_ptr=ha_errlist ; ha_err_ptr->errcode ;ha_err_ptr++)
     if (ha_err_ptr->errcode == code)
       return ha_err_ptr->msg;
@@ -209,6 +194,8 @@ int main(int argc,char *argv[])
 
   if (get_options(&argc,&argv))
     exit(1);
+
+  my_handler_error_register();
 
   error=0;
 #ifdef HAVE_SYS_ERRLIST
@@ -290,29 +277,24 @@ int main(int argc,char *argv[])
                        (const uchar*) "Unknown Error", 13) &&
           (!unknown_error || strcmp(msg, unknown_error)))
       {
-	found=1;
+	found= 1;
 	if (verbose)
-	  printf("OS error code %3d:  %s\n",code,msg);
+	  printf("OS error code %3d:  %s\n", code, msg);
 	else
 	  puts(msg);
       }
-
+      if ((msg= get_ha_error_msg(code)))
+      {
+        found= 1;
+        if (verbose)
+          printf("MySQL error code %3d: %s\n", code, msg);
+        else
+          puts(msg);
+      }
       if (!found)
       {
-        /* Error message still not found, look in handler error codes */
-        if (!(msg=get_ha_error_msg(code)))
-        {
-	  fprintf(stderr,"Illegal error code: %d\n",code);
-	  error=1;
-        }
-        else
-        {
-          found= 1;
-          if (verbose)
-            printf("MySQL error code %3d: %s\n",code,msg);
-          else
-            puts(msg);
-        }
+        fprintf(stderr,"Illegal error code: %d\n", code);
+        error= 1;
       }
     }
   }
