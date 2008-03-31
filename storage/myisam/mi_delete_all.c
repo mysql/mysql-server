@@ -53,15 +53,18 @@ int mi_delete_all_rows(MI_INFO *info)
     since it was locked then there may be key blocks in the key cache
   */
   flush_key_blocks(share->key_cache, share->kfile, FLUSH_IGNORE_CHANGED);
+#ifdef HAVE_MMAP
+  if (share->file_map)
+    _mi_unmap_file(info);
+#endif
   if (my_chsize(info->dfile, 0, 0, MYF(MY_WME)) ||
       my_chsize(share->kfile, share->base.keystart, 0, MYF(MY_WME))  )
     goto err;
   VOID(_mi_writeinfo(info,WRITEINFO_UPDATE_KEYFILE));
 #ifdef HAVE_MMAP
-  /* Resize mmaped area */
-  rw_wrlock(&info->s->mmap_lock);
-  mi_remap_file(info, (my_off_t)0);
-  rw_unlock(&info->s->mmap_lock);
+  /* Map again */
+  if (share->file_map)
+    mi_dynmap_file(info, (my_off_t) 0);
 #endif
   allow_break();			/* Allow SIGHUP & SIGINT */
   DBUG_RETURN(0);
