@@ -60,7 +60,7 @@ let $message= trigger privilege on one db1 db level, not on db2;
         create trigger trg2_1 before INSERT  on t2 for each row
                 set new.f1 = 'trig 2_1-yes';
 	use priv2_db;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT  on t1 for each row
 		set new.f1 = 'trig1_1-yes';
 
@@ -80,7 +80,7 @@ let $message= trigger privilege on one db1 db level, not on db2;
         select f1 from priv1_db.t1 order by f1;
         insert into priv1_db.t2 (f1) values ('insert22-no');
         select f1 from priv1_db.t2 order by f1;
- 
+
 # revoke trigger priv on table level, that doesn't exists->fail
 
 let $message= revoke trigger privilege on table level (not existing);
@@ -88,7 +88,7 @@ let $message= revoke trigger privilege on table level (not existing);
        	connection default;
         select current_user;
 	use priv1_db;
-	--error 1147
+	--error ER_NONEXISTING_TABLE_GRANT
         revoke TRIGGER on priv1_db.t1 from test_yesprivs@localhost;
         show grants for test_yesprivs@localhost;
 
@@ -100,7 +100,7 @@ let $message= revoke trigger privilege on table level (not existing);
 	drop trigger trg1_1;
 	drop trigger trg2_1;
 
-# revoke the db level->create/drop/use trigger fail 
+# revoke the db level->create/drop/use trigger fail
 
         connection default;
 	select current_user;
@@ -116,7 +116,7 @@ let $message= no trigger privilege on table level for create:;
 	connection yes_privs;
         select current_user;
 	use priv1_db;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 1_1-no';
 
@@ -133,7 +133,7 @@ let $message= trigger privilege on table level for create:;
 	show triggers;
 	create trigger trg1_2 before INSERT  on t1 for each row
 		set new.f1 = 'trig 1_2-yes';
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg2_1 before INSERT  on t2 for each row
                 set new.f1 = 'trig 2_1-no';
 
@@ -157,7 +157,7 @@ let $message= trigger privilege on table level for create:;
 
 	connection yes_privs;
         select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg2_1 before INSERT  on t2 for each row
                 set new.f1 = 'trig 2_1-yes';
 
@@ -196,7 +196,7 @@ let $message= trigger privilege on table level for create:;
         select current_user;
 
 
-# general Cleanup 
+# general Cleanup
 	drop database if exists priv1_db;
 	drop database if exists priv2_db;
 	drop user test_yesprivs@localhost;

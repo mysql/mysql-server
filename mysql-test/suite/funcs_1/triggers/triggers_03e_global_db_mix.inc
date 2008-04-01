@@ -89,7 +89,7 @@ let $message= trigger privilege on user level for create:;
         use priv_db;
         show triggers;
 	select * from information_schema.triggers;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         drop trigger trg1_1;
 
         connection default;
@@ -106,7 +106,7 @@ let $message= no trigger privilege on db level for create:;
 
 	connection yes_privs;
         select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 1_1-no';
 
@@ -131,12 +131,12 @@ let $message= trigger privilege on db level for create:;
 	use priv_db;
 	create trigger trg1_2 before INSERT  on t1 for each row
 		set new.f1 = 'trig 1_2-yes';
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
 	create trigger no_priv_db.trg1_9 before insert on no_priv_db.t1
 		for each row
 		set new.f1 = 'trig 1_9-yes';
         use no_priv_db;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg1_2 before INSERT  on t1 for each row
                 set new.f1 = 'trig 1_2-no';
         create trigger priv_db.trg1_9 before UPDATE on priv_db.t1
@@ -151,7 +151,7 @@ let $message= trigger privilege on db level for create:;
 	use no_priv_db;
         insert into t1 (f1) values ('insert-yes');
         select f1 from t1 order by f1;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	drop trigger priv_db.trg1_9;
 
         connection default;
@@ -159,7 +159,7 @@ let $message= trigger privilege on db level for create:;
 	drop trigger priv_db.trg1_9;
  	revoke TRIGGER on priv_db.* from test_yesprivs@localhost;
 	use priv_db;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert-yes');
 	select f1 from t1 order by f1;
         grant TRIGGER on *.* to test_yesprivs@localhost;
@@ -168,7 +168,7 @@ let $message= trigger privilege on db level for create:;
 	connection yes_privs;
         select current_user;
 	use no_priv_db;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg1_2 before INSERT  on t1 for each row
                 set new.f1 = 'trig 1_2-no';
 
@@ -209,7 +209,7 @@ let $message= trigger privilege on db level for create:;
 	connection default;
         select current_user;
 
-# general Cleanup 
+# general Cleanup
 	drop database if exists priv_db;
 	drop database if exists no_priv_db;
         drop database if exists h1;
