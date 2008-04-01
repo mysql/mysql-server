@@ -553,3 +553,26 @@ SELECT DISTINCT a, a, b FROM t1;
 DROP TABLE t1;
 
 --echo End of 5.0 tests
+
+#
+# Bug #34928: Confusion by having Primary Key and Index
+#
+CREATE TABLE t1(a INT, b INT, c INT, d INT, e INT,
+                PRIMARY KEY(a,b,c,d,e),
+                KEY(a,b,d,c)
+);
+
+INSERT INTO t1(a, b, c) VALUES (1, 1, 1),
+                               (1, 1, 2),
+                               (1, 1, 3),
+                               (1, 2, 1),
+                               (1, 2, 2),
+                               (1, 2, 3);
+
+EXPLAIN SELECT DISTINCT a, b, d, c FROM t1;
+
+SELECT DISTINCT a, b, d, c FROM t1;
+
+DROP TABLE t1;
+
+--echo End of 5.1 tests

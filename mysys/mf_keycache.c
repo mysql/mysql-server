@@ -102,6 +102,7 @@
 */
 
 #include "mysys_priv.h"
+#include "mysys_err.h"
 #include <keycache.h>
 #include "my_static.h"
 #include <m_string.h>
@@ -431,7 +432,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       /* Allocate memory for cache page buffers */
       if ((keycache->block_mem=
 	   my_large_malloc((size_t) blocks * keycache->key_cache_block_size,
-			  MYF(MY_WME))))
+			  MYF(0))))
       {
         /*
 	  Allocate memory for blocks, hash_links and hash entries;
@@ -446,6 +447,7 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       if (blocks < 8)
       {
         my_errno= ENOMEM;
+        my_error(EE_OUTOFMEMORY, MYF(0), blocks * keycache->key_cache_block_size);
         goto err;
       }
       blocks= blocks / 4*3;

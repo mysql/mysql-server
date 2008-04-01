@@ -3395,7 +3395,7 @@ loop:
 
 	ptr = dict_accept(cs, ptr, "FOREIGN", &success);
 
-	if (!success) {
+	if (!success || !my_isspace(cs, *ptr)) {
 
 		goto loop;
 	}

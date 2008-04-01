@@ -586,37 +586,13 @@ JOIN::prepare(Item ***rref_pointer_array,
   /*
     Check if there are references to un-aggregated columns when computing 
     aggregate functions with implicit grouping (there is no GROUP BY).
-    TODO:  Add check of calculation of GROUP functions and fields:
-	   SELECT COUNT(*)+table.col1 from table1;
   */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
+      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
   {
-    if (!group_list)
-    {
-      uint flag=0;
-      List_iterator_fast<Item> it(fields_list);
-      Item *item;
-      while ((item= it++))
-      {
-	if (item->with_sum_func)
-	  flag|=1;
-	else if (!(flag & 2) && !item->const_during_execution())
-	  flag|=2;
-      }
-      if (having)
-      {
-        if (having->with_sum_func)
-          flag |= 1;
-        else if (!having->const_during_execution())
-          flag |= 2;
-      }
-      if (flag == 3)
-      {
-	my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
-	DBUG_RETURN(-1);
-      }
-    }
+    my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+               ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
+    DBUG_RETURN(-1);
   }
   {
     /* Caclulate the number of groups */
@@ -13159,6 +13135,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           tab->read_first_record= best_key_direction > 0 ?
                                   join_read_first:join_read_last;
           tab->type=JT_NEXT;           // Read with index_first(), index_next()
+          if (select && select->quick)
+          {
+            delete select->quick;
+            select->quick= 0;
+          }
           if (table->covering_keys.is_set(best_key))
           {
             table->key_read=1;
@@ -13169,14 +13150,26 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           {
             tab->ref.key= -1;
             tab->ref.key_parts= 0;
-            if (select && select->quick)
-            {
-              delete select->quick;
-              select->quick= 0;
-            }
             if (select_limit < table_records) 
               tab->limit= select_limit;
           }
+        }
+        else if (tab->type != JT_ALL)
+        {
+          /*
+            We're about to use a quick access to the table.
+            We need to change the access method so as the quick access
+            method is actually used.
+          */
+          DBUG_ASSERT(tab->select->quick);
+          tab->type=JT_ALL;
+          tab->use_quick=1;
+          tab->ref.key= -1;
+          tab->ref.key_parts=0;		// Don't use ref key.
+          tab->read_first_record= join_init_read_record;
+          /*
+            TODO: update the number of records in join->best_positions[tablenr]
+          */
         }
       }
       used_key_parts= best_key_parts;
