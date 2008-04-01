@@ -286,19 +286,20 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
   if (options->optionsPresent & ScanOptions::SO_INTERPRETED)
   {
     /* Check the program's for the same table as the
-     * operation
-     * TODO : Online alter tables that don't affect InterpretedCode objects
-     * (i.e. extra columns at end of table, new indices), should not affect
-     * pre-finalised NdbInterpretedCode objects.  How do we tell if two
-     * tables are the same except for insignificant schema changes?
+     * operation, within a major version number
+     * Perhaps NdbInterpretedCode should not contain the table
      */
-    const NdbDictionary::Table* codeTable= options->interpretedCode->getTable();
-    if ((codeTable != NULL) && 
-        (codeTable != m_currentTable))
+    const NdbDictionary::Table* codeTable= 
+      options->interpretedCode->getTable();
+    if (codeTable != NULL)
     {
-      setErrorCodeAbort(4524); // NdbInterpretedCode is for different table
-      return -1;
-    } 
+      NdbTableImpl* impl= &NdbTableImpl::getImpl(*codeTable);
+      
+      if ((impl->m_id != (int) m_attribute_record->tableId) ||
+          (table_version_major(impl->m_version) != 
+           table_version_major(m_attribute_record->tableVersion)))
+        return 4524; // NdbInterpretedCode is for different table`
+    }
 
     if ((options->interpretedCode->m_flags & 
          NdbInterpretedCode::Finalised) == 0)
@@ -697,7 +698,6 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
                                      const NdbScanOperation::ScanOptions *options,
                                      Uint32 sizeOfOptions)
 {
-  const NdbTableImpl *table_impl;       // The table schema object
   NdbBlob *lastBlob;
   int res;
   Uint32 i;
@@ -772,12 +772,15 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
     return -1;
   }
 
-  table_impl= result_record->table;
+  /* Modify NdbScanOperation vars to indicate that we're an 
+   * IndexScan
+   */
   m_type= NdbOperation::OrderedIndexScan;
-  m_currentTable= table_impl;
+  m_currentTable= result_record->table;
 
   m_key_record = key_record;
-  m_attribute_record= result_record; // Mark using NdbRecord for processIndexScanDefs
+  m_attribute_record= result_record;
+
   res= processIndexScanDefs(lock_mode, scan_flags, parallel, batch);
   if (res==-1)
     return -1;
@@ -956,7 +959,7 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
 
   /* NdbRecord defined scan, handle IndexScan specifics */
   if ( (int) m_accessTable->m_indexType ==
-       (int) NdbDictionary::Index::OrderedIndex)
+       (int) NdbDictionary::Index::OrderedIndex )
   {
     if (m_currentTable == m_accessTable){
       // Old way of scanning indexes, should not be allowed
@@ -1701,13 +1704,16 @@ int NdbScanOperation::finaliseScanOldApi()
    */
   int result= -1;
 
+  const unsigned char* emptyMask= 
+    (const unsigned char*) NdbDictionaryImpl::m_emptyMask;
+
   if (theOperationType == OpenScanRequest)
     /* Create table scan operation with an empty
      * mask for NdbRecord values
      */
     result= scanTableImpl(m_currentTable->m_ndbrecord,
                           m_savedLockModeOldApi,
-                          m_currentTable->m_emptyMask,
+                          emptyMask,
                           &options,
                           sizeof(ScanOptions));
   else
@@ -1728,7 +1734,7 @@ int NdbScanOperation::finaliseScanOldApi()
     const unsigned char * resultMask= 
       ((m_savedScanFlagsOldApi & SF_OrderBy) !=0) ? 
       m_currentTable->m_pkMask : 
-      m_currentTable->m_emptyMask;
+      emptyMask;
 
     result= isop->scanIndexImpl(m_accessTable->m_ndbrecord,
                                 m_currentTable->m_ndbrecord,
