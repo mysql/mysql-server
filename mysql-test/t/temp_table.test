@@ -191,3 +191,17 @@ truncate t1;
 insert into t1 values (42);
 select * from t1;
 drop table t1;
+
+#
+# Bug #35392: Delete all statement does not execute properly after 
+# few delete statements
+#
+CREATE TEMPORARY TABLE t1(a INT, b VARCHAR(20));
+INSERT INTO t1 VALUES(1, 'val1'), (2, 'val2'), (3, 'val3');
+DELETE FROM t1 WHERE a=1;
+SELECT count(*) FROM t1;
+DELETE FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo End of 5.1 tests

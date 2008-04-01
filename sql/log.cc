@@ -52,8 +52,6 @@ LOGGER logger;
 MYSQL_BIN_LOG mysql_bin_log;
 ulong sync_binlog_counter= 0;
 
-static Muted_query_log_event invisible_commit;
-
 static bool test_if_number(const char *str,
 			   long *res, bool allow_wildcards);
 static int binlog_init(void *p);
@@ -155,7 +153,7 @@ private:
 class binlog_trx_data {
 public:
   binlog_trx_data()
-    : m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
+    : at_least_one_stmt(0), m_pending(0), before_stmt_pos(MY_OFF_T_UNDEF)
   {
     trans_log.end_of_file= max_binlog_cache_size;
   }
@@ -188,6 +186,16 @@ public:
     reinit_io_cache(&trans_log, WRITE_CACHE, pos, 0, 0);
     if (pos < before_stmt_pos)
       before_stmt_pos= MY_OFF_T_UNDEF;
+
+    /*
+      The only valid positions that can be truncated to are at the
+      beginning of a statement. We are relying on this fact to be able
+      to set the at_least_one_stmt flag correctly. In other word, if
+      we are truncating to the beginning of the transaction cache,
+      there will be no statements in the cache, otherwhise, we will
+      have at least one statement in the transaction cache.
+     */
+    at_least_one_stmt= (pos > 0);
   }
 
   /*
@@ -212,6 +220,12 @@ public:
   }
 
   IO_CACHE trans_log;                         // The transaction cache
+
+  /**
+    Boolean that is true if there is at least one statement in the
+    transaction cache.
+  */
+  bool at_least_one_stmt;
 
 private:
   /*
@@ -1374,26 +1388,20 @@ binlog_end_trans(THD *thd, binlog_trx_data *trx_data,
       inside a stored function.
      */
     thd->binlog_flush_pending_rows_event(TRUE);
+
+    error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
+    trx_data->reset();
+
     /*
-      We write the transaction cache to the binary log if either we're
-      committing the entire transaction, or if we are doing an
-      autocommit outside a transaction.
-     */
-    if (all || !(thd->options & (OPTION_BEGIN | OPTION_NOT_AUTOCOMMIT)))
+      We need to step the table map version after writing the
+      transaction cache to disk.
+    */
+    mysql_bin_log.update_table_map_version();
+    statistic_increment(binlog_cache_use, &LOCK_status);
+    if (trans_log->disk_writes != 0)
     {
-      error= mysql_bin_log.write(thd, &trx_data->trans_log, end_ev);
-      trx_data->reset();
-      /*
-        We need to step the table map version after writing the
-        transaction cache to disk.
-      */
-      mysql_bin_log.update_table_map_version();
-      statistic_increment(binlog_cache_use, &LOCK_status);
-      if (trans_log->disk_writes != 0)
-      {
-        statistic_increment(binlog_cache_disk_use, &LOCK_status);
-        trans_log->disk_writes= 0;
-      }
+      statistic_increment(binlog_cache_disk_use, &LOCK_status);
+      trans_log->disk_writes= 0;
     }
   }
   else
@@ -1432,6 +1440,8 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   return 0;
 }
 
+#define YESNO(X) ((X) ? "yes" : "no")
+
 /**
   This function is called once after each statement.
 
@@ -1440,10 +1450,8 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 
   @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
-  @param all   true if this is the last statement before a COMMIT
-               statement; false if either this is a statement in a
-               transaction but not the last, or if this is a statement
-               not inside a BEGIN block and autocommit is on.
+  @param all   This is @c true if this is a real transaction commit, and
+               @false otherwise.
 
   @see handlerton::commit
 */
@@ -1459,26 +1467,86 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
     trx_data->reset();
     DBUG_RETURN(0);
   }
+
   /*
-    Write commit event if at least one of the following holds:
-     - the user sends an explicit COMMIT; or
-     - the autocommit flag is on, and we are not inside a BEGIN.
-    However, if the user has not sent an explicit COMMIT, and we are
-    either inside a BEGIN or run with autocommit off, then this is not
-    the end of a transaction and we should not write a commit event.
+    Decision table for committing a transaction. The top part, the
+    *conditions* represent different cases that can occur, and hte
+    bottom part, the *actions*, represent what should be done in that
+    particular case.
+
+    Real transaction        'all' was true
+
+    Statement in cache      There were at least one statement in the
+                            transaction cache
+
+    In transaction          We are inside a transaction
+
+    Stmt modified non-trans The statement being committed modified a
+                            non-transactional table
+
+    All modified non-trans  Some statement before this one in the
+                            transaction modified a non-transactional
+                            table
+
+
+    =============================  = = = = = = = = = = = = = = = =
+    Real transaction               N N N N N N N N N N N N N N N N
+    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
+    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
+    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
+    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
+
+    Action: (C)ommit/(A)ccumulate  C C - C A C - C - - - - A A - A
+    =============================  = = = = = = = = = = = = = = = =
+
+
+    =============================  = = = = = = = = = = = = = = = =
+    Real transaction               Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y Y
+    Statement in cache             N N N N N N N N Y Y Y Y Y Y Y Y
+    In transaction                 N N N N Y Y Y Y N N N N Y Y Y Y
+    Stmt modified non-trans        N N Y Y N N Y Y N N Y Y N N Y Y
+    All modified non-trans         N Y N Y N Y N Y N Y N Y N Y N Y
+
+    (C)ommit/(A)ccumulate/(-)      - - - - C C - C - - - - C C - C
+    =============================  = = = = = = = = = = = = = = = =
+
+    In other words, we commit the transaction if and only if both of
+    the following are true:
+     - We are not in a transaction and committing a statement
+
+     - We are in a transaction and one (or more) of the following are
+       true:
+
+       - A full transaction is committed
+
+         OR
+
+       - A non-transactional statement is committed and there is
+         no statement cached
+
+    Otherwise, we accumulate the statement
   */
-  if (all || !(thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+  ulonglong const in_transaction=
+    thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN);
+  DBUG_PRINT("debug",
+             ("all: %d, empty: %s, in_transaction: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+              all,
+              YESNO(trx_data->empty()),
+              YESNO(in_transaction),
+              YESNO(thd->transaction.all.modified_non_trans_table),
+              YESNO(thd->transaction.stmt.modified_non_trans_table)));
+  if (in_transaction &&
+      (all ||
+       (!trx_data->at_least_one_stmt &&
+        thd->transaction.stmt.modified_non_trans_table)) ||
+      !in_transaction && !all)
   {
     Query_log_event qev(thd, STRING_WITH_LEN("COMMIT"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     int error= binlog_end_trans(thd, trx_data, &qev, all);
     DBUG_RETURN(error);
   }
-  else
-  {
-    int error= binlog_end_trans(thd, trx_data, &invisible_commit, all);
-    DBUG_RETURN(error);
-  }
+  DBUG_RETURN(0);
 }
 
 /**
@@ -1491,10 +1559,8 @@ static int binlog_commit(handlerton *hton, THD *thd, bool all)
 
   @param hton  The binlog handlerton.
   @param thd   The client thread that executes the transaction.
-  @param all   true if this is the last statement before a COMMIT
-               statement; false if either this is a statement in a
-               transaction but not the last, or if this is a statement
-               not inside a BEGIN block and autocommit is on.
+  @param all   This is @c true if this is a real transaction rollback, and
+               @false otherwise.
 
   @see handlerton::rollback
 */
@@ -1510,21 +1576,36 @@ static int binlog_rollback(handlerton *hton, THD *thd, bool all)
     DBUG_RETURN(0);
   }
 
-  /*
-    Update the binary log with a BEGIN/ROLLBACK block if we have
-    cached some queries and we updated some non-transactional
-    table. Such cases should be rare (updating a
-    non-transactional table inside a transaction...)
-  */
-  if (unlikely(thd->transaction.all.modified_non_trans_table || 
-               (thd->options & OPTION_KEEP_LOG)))
+  DBUG_PRINT("debug", ("all: %s, all.modified_non_trans_table: %s, stmt.modified_non_trans_table: %s",
+                       YESNO(all),
+                       YESNO(thd->transaction.all.modified_non_trans_table),
+                       YESNO(thd->transaction.stmt.modified_non_trans_table)));
+  if (all && thd->transaction.all.modified_non_trans_table ||
+      !all && thd->transaction.stmt.modified_non_trans_table ||
+      (thd->options & OPTION_KEEP_LOG))
   {
+    /*
+      We write the transaction cache with a rollback last if we have
+      modified any non-transactional table. We do this even if we are
+      committing a single statement that has modified a
+      non-transactional table since it can have modified a
+      transactional table in that statement as well, which needs to be
+      rolled back on the slave.
+    */
     Query_log_event qev(thd, STRING_WITH_LEN("ROLLBACK"), TRUE, FALSE);
     qev.error_code= 0; // see comment in MYSQL_LOG::write(THD, IO_CACHE)
     error= binlog_end_trans(thd, trx_data, &qev, all);
   }
-  else
+  else if (all && !thd->transaction.all.modified_non_trans_table ||
+           !all && !thd->transaction.stmt.modified_non_trans_table)
+  {
+    /*
+      If we have modified only transactional tables, we can truncate
+      the transaction cache without writing anything to the binary
+      log.
+     */
     error= binlog_end_trans(thd, trx_data, 0, all);
+  }
   DBUG_RETURN(error);
 }
 
