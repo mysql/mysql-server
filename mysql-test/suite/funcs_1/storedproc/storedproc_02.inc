@@ -1503,16 +1503,16 @@ BEGIN
    open cur1;
    open cur2;
    BEGIN
-      declare continue handler for sqlstate '02000' set count=1;
+      declare continue handler for sqlstate '02000' set count = 1;
       fetch cur1 into newf1, newf2, newf4, newf5;
       SELECT '-1-', count, newf1, newf2, newf4, newf5;
       insert into temp1 values ('cur1_out', newf1, newf2, newf4, newf5);
-      set count= 4;
+      set count = 4;
       BEGIN
-         while count> 0 do
+         while count > 0 do
             fetch cur1 into newf1, newf2, newf4, newf5;
             SELECT '-2-', count, newf1, newf2, newf4, newf5;
-            set count = count- 1;
+            set count = count - 1;
          END while;
          SELECT '-3-', count, newf1, newf2, newf4, newf4;
       END;
