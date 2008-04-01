@@ -112,8 +112,18 @@ const NdbRecord *key_record;                    // For specifying table key
 const NdbRecord *blob_record;                   // For accessing blob
 const NdbRecord *full_record;                   // All columns, for insert
 
-/* The row is 4 bytes of primary key + space for blob handle pointer. */
-#define ROWSIZE (4 + sizeof(NdbBlob *))
+/* C struct representing the row layout */
+struct MyRow
+{
+  unsigned int myId;
+
+  /* Pointer to Blob handle for operations on the blob column
+   * Space must be left for it in the row, but a pointer to the 
+   * blob handle can also be obtained via calls to 
+   * NdbOperation::getBlobHandle()
+   */
+  NdbBlob* myText;
+};
 
 static void setup_records(Ndb *myNdb)
 {
@@ -131,11 +141,11 @@ static void setup_records(Ndb *myNdb)
     APIERROR(myDict->getNdbError());
 
   spec[0].column= col1;
-  spec[0].offset= 0;
+  spec[0].offset= offsetof(MyRow, myId);
   spec[0].nullbit_byte_offset= 0;
   spec[0].nullbit_bit_in_byte= 0;
   spec[1].column= col2;
-  spec[1].offset= 4;
+  spec[1].offset= offsetof(MyRow, myText);
   spec[1].nullbit_byte_offset= 0;
   spec[1].nullbit_bit_in_byte= 0;
 
@@ -193,17 +203,17 @@ void create_table(MYSQL &mysql)
 
 int populate(Ndb *myNdb)
 {
-  char row[ROWSIZE];
+  MyRow row;
 
   NdbTransaction *myTrans= myNdb->startTransaction();
   if (myTrans == NULL)
     APIERROR(myNdb->getNdbError());
 
-  Uint32 id= 1;
-  memcpy(&row[0], &id, 4);
-  const NdbOperation *myNdbOperation= myTrans->insertTuple(full_record, row);
+  row.myId= 1;
+  const NdbOperation *myNdbOperation= myTrans->insertTuple(full_record, (const char*) &row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
+
   NdbBlob *myBlobHandle= myNdbOperation->getBlobHandle("my_text");
   if (myBlobHandle == NULL)
     APIERROR(myNdbOperation->getNdbError());
@@ -217,7 +227,7 @@ int populate(Ndb *myNdb)
 
 int update_key(Ndb *myNdb)
 {
-  char row[ROWSIZE];
+  MyRow row;
 
   /*
     Uppercase all characters in TEXT field, using primary key operation.
@@ -229,17 +239,23 @@ int update_key(Ndb *myNdb)
   if (myTrans == NULL)
     APIERROR(myNdb->getNdbError());
 
-  Uint32 id= 1;
-  memcpy(&row[0], &id, 4);
+  row.myId= 1;
+
   const NdbOperation *myNdbOperation=
-    myTrans->updateTuple(key_record, row, blob_record, row);
+    myTrans->updateTuple(key_record, 
+                         (const char*) &row, 
+                         blob_record, 
+                         (const char*) &row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
+
   NdbBlob *myBlobHandle= myNdbOperation->getBlobHandle("my_text");
   if (myBlobHandle == NULL)
     APIERROR(myNdbOperation->getNdbError());
 
-  /* Execute NoCommit to make the blob handle active. */
+  /* Execute NoCommit to make the blob handle active so 
+   * that we can determine the actual Blob length
+   */
   if (-1 == myTrans->execute(NdbTransaction::NoCommit))
     APIERROR(myTrans->getNdbError());
 
@@ -299,7 +315,6 @@ int update_scan(Ndb *myNdb)
     updateCurrentTuple().
   */
   char buffer[10000];
-  char row[ROWSIZE];
 
   NdbTransaction *myTrans= myNdb->startTransaction();
   if (myTrans == NULL)
@@ -319,11 +334,11 @@ int update_scan(Ndb *myNdb)
   if (-1 == myTrans->execute(NdbTransaction::NoCommit))
     APIERROR(myTrans->getNdbError());
 
-  const char *out_row;
+  const MyRow *out_row;
   int res;
   for (;;)
   {
-    res= myScanOp->nextResult(&out_row, true, false);
+    res= myScanOp->nextResult((const char**)&out_row, true, false);
     if (res==1)
       break;                                    // Scan done.
     else if (res)
@@ -337,8 +352,13 @@ int update_scan(Ndb *myNdb)
     for (Uint64 j= 0; j < length; j++)
       buffer[j]= tolower(buffer[j]);
 
+    /* 'Take over' the row locks from the scan to a separate
+     * operation for updating the tuple
+     */
     const NdbOperation *myUpdateOp=
-      myScanOp->updateCurrentTuple(myTrans, blob_record, row);
+      myScanOp->updateCurrentTuple(myTrans, 
+                                   blob_record, 
+                                   (const char*)out_row);
     if (myUpdateOp == NULL)
       APIERROR(myTrans->getNdbError());
     NdbBlob *myBlobHandle2= myUpdateOp->getBlobHandle("my_text");
@@ -375,8 +395,18 @@ int myFetchHook(NdbBlob* myBlobHandle, void* arg)
 
 int fetch_key(Ndb *myNdb)
 {
-  char key_row[ROWSIZE];
-  char out_row[ROWSIZE];
+  /* Fetch a blob without specifying how many bytes
+   * to read up front, in one execution using
+   * the 'ActiveHook' mechanism.
+   * The supplied ActiveHook procedure is called when
+   * the Blob handle becomes 'active'.  At that point
+   * the length of the Blob can be obtained, and buffering
+   * arranged, and the data read requested.
+   */
+
+  /* Separate rows used to specify key and hold result */
+  MyRow key_row;
+  MyRow out_row;
 
   /*
     Fetch and show the blob field, using setActiveHook().
@@ -386,13 +416,21 @@ int fetch_key(Ndb *myNdb)
   if (myTrans == NULL)
     APIERROR(myNdb->getNdbError());
 
-  Uint32 id= 1;
-  memcpy(&key_row[0], &id, 4);
+  key_row.myId= 1;
+  out_row.myText= NULL;
   const NdbOperation *myNdbOperation=
-    myTrans->readTuple(key_record, key_row, blob_record, out_row);
+    myTrans->readTuple(key_record, 
+                       (const char*) &key_row, 
+                       blob_record, 
+                       (char*) &out_row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
-  NdbBlob *myBlobHandle= myNdbOperation->getBlobHandle("my_text");
+
+  /* This time, we'll get the blob handle from the row, because
+   * we can.  Alternatively, we could use the normal mechanism
+   * of calling getBlobHandle().
+   */
+  NdbBlob *myBlobHandle= out_row.myText;
   if (myBlobHandle == NULL)
     APIERROR(myNdbOperation->getNdbError());
   struct ActiveHookData ahd;
@@ -419,18 +457,22 @@ int fetch_key(Ndb *myNdb)
 int update2_key(Ndb *myNdb)
 {
   char buffer[10000];
-  char row[ROWSIZE];
+  MyRow row;
 
-  /* Simple setValue() update. */
+  /* Simple setValue() update specified before the
+   * Blob handle is made active
+   */
 
   NdbTransaction *myTrans= myNdb->startTransaction();
   if (myTrans == NULL)
     APIERROR(myNdb->getNdbError());
 
-  Uint32 id= 1;
-  memcpy(&row[0], &id, 4);
+  row.myId= 1;
   const NdbOperation *myNdbOperation=
-    myTrans->updateTuple(key_record, row, blob_record, row);
+    myTrans->updateTuple(key_record, 
+                         (const char*)&row, 
+                         blob_record, 
+                         (char*) &row);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
   NdbBlob *myBlobHandle= myNdbOperation->getBlobHandle("my_text");
@@ -450,17 +492,18 @@ int update2_key(Ndb *myNdb)
 
 int delete_key(Ndb *myNdb)
 {
-  char row[ROWSIZE];
+  MyRow row;
 
-  /* Deletion of blob row. */
+  /* Deletion of row containing blob via primary key. */
 
   NdbTransaction *myTrans= myNdb->startTransaction();
   if (myTrans == NULL)
     APIERROR(myNdb->getNdbError());
 
-  Uint32 id= 1;
-  memcpy(&row[0], &id, 4);
-  const NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, row, full_record);
+  row.myId= 1;
+  const NdbOperation *myNdbOperation= myTrans->deleteTuple(key_record, 
+                                                           (const char*)&row, 
+                                                           full_record);
   if (myNdbOperation == NULL)
     APIERROR(myTrans->getNdbError());
 

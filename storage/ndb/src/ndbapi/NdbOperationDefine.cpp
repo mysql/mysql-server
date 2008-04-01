@@ -1248,13 +1248,20 @@ NdbOperation::handleOperationOptions (const OperationType type,
       return 4539;
     
     /* Check the program's for the same table as the
-     * operation
+     * operation, within a major version number
+     * Perhaps NdbInterpretedCode should not contain the table
      */
     const NdbDictionary::Table* codeTable= opts->interpretedCode->getTable();
-    if ((codeTable != NULL) &&
-        (codeTable != op->m_currentTable))
-      return 4524; // NdbInterpretedCode is for different table
+    if (codeTable != NULL)
+    {
+      NdbTableImpl* impl= &NdbTableImpl::getImpl(*codeTable);
       
+      if ((impl->m_id != (int) op->m_attribute_record->tableId) ||
+          (table_version_major(impl->m_version) != 
+           table_version_major(op->m_attribute_record->tableVersion)))
+        return 4524; // NdbInterpretedCode is for different table`
+    }
+
     /* Check the program's finalised */
     if ((opts->interpretedCode->m_flags & 
          NdbInterpretedCode::Finalised) == 0)

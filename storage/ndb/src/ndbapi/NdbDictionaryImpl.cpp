@@ -455,11 +455,6 @@ NdbTableImpl::~NdbTableImpl()
     free(const_cast<unsigned char *>(m_pkMask));
     m_pkMask= 0;
   }
-
-  if (m_emptyMask != 0) {
-    free(const_cast<unsigned char *>(m_emptyMask));
-    m_emptyMask= 0;
-  }
   
   DBUG_VOID_RETURN;
 }
@@ -503,7 +498,6 @@ NdbTableImpl::init(){
   m_replicaCount= 0;
   m_ndbrecord= 0;
   m_pkMask= 0;
-  m_emptyMask= 0;
   m_min_rows = 0;
   m_max_rows = 0;
   m_tablespace_name.clear();
@@ -1359,6 +1353,10 @@ NdbEventImpl::getEventColumn(unsigned no) const
  * NdbDictionaryImpl
  */
 
+/* Initialise static */
+const Uint32 
+NdbDictionaryImpl::m_emptyMask[MAXNROFATTRIBUTESINWORDS]= {0,0,0,0};
+
 NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb)
   : NdbDictionary::Dictionary(* this), 
     m_facade(this), 
@@ -1382,6 +1380,7 @@ NdbDictionaryImpl::NdbDictionaryImpl(Ndb &ndb,
 
 NdbDictionaryImpl::~NdbDictionaryImpl()
 {
+  /* Release local table references back to the global cache */
   NdbElement_t<Ndb_local_table_info> * curr = m_localHash.m_tableHash.getNext(0);
   if(m_globalHash){
     while(curr != 0){
@@ -5113,12 +5112,15 @@ ndb_set_record_specification(Uint32 storageOffset,
 
 /* This method creates an NdbRecord for the given table or index which
  * contains all columns (except pseudo columns).
- * For an table, only the tableOrIndex parameter should be supplied.
+ * For a table, only the tableOrIndex parameter should be supplied.
  * For an index, the index 'table object' should be supplied as the
  * tableOrIndex parameter, and the underlying indexed table object
  * should be supplied as the baseTableForIndex parameter.
  * The underlying table object is required to get the correct column
  * objects to build the NdbRecord object.
+ * The record is created with all null bits packed together starting
+ * from the first word, in attrId order, followed by all attributes
+ * in attribute order.
  */
 int
 NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
@@ -5132,10 +5134,8 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
   Uint32 i;
   Uint32 numCols= tableOrIndex->m_columns.size();
   // Reserve space for Null bits at the start
-  Uint32 offset= (numCols +7) /8;
   Uint32 baseTabCols= numCols;
   unsigned char* pkMask= NULL;
-  unsigned char* emptyMask= NULL;
   bool isIndex= false;
 
   if (baseTableForIndex != NULL)
@@ -5162,20 +5162,23 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
             tableOrIndex->m_indexType != NdbDictionary::Object::UniqueHashIndex));
   }
 
+  Uint32 nullableCols= 0;
+  /* Determine number of nullable columns */
+  for (i=0; i<numCols; i++)
+  {
+    if (tableOrIndex->m_columns[i]->m_nullable)
+      nullableCols ++;
+  }
+
+  /* Offset of first byte of data in the NdbRecord */
+  Uint32 offset= (nullableCols+7) / 8;
+
   /* Allocate and zero column presence bitmasks */
   Uint32 bitMaskBytes= (baseTabCols + 7) / 8;
   pkMask=    (unsigned char*) calloc(1, bitMaskBytes);
-  emptyMask= (unsigned char*) calloc(1, bitMaskBytes);
 
   if (pkMask == NULL)
   {
-    /* Memory allocation problem */
-    m_error.code= 4000;
-    return -1;
-  }
-  if (emptyMask == NULL)
-  {
-    free(pkMask);
     /* Memory allocation problem */
     m_error.code= 4000;
     return -1;
@@ -5231,7 +5234,6 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
         if (res != 0)
         {
           free(pkMask);
-          free(emptyMask);
           DBUG_RETURN(-1);
         }
       } 
@@ -5247,18 +5249,17 @@ NdbDictionaryImpl::createDefaultNdbRecord(NdbTableImpl *tableOrIndex,
                     spec, 
                     numCols, 
                     sizeof(spec[0]), 
-                    0);  // No special flags
+                    0,              // No special flags
+                    true);          // default record
   if (rec == NULL)
   {
     free(pkMask);
-    free(emptyMask);
     DBUG_RETURN(-1);
   }
 
   /* Store in the table definition */
   tableOrIndex->m_ndbrecord= rec;
   tableOrIndex->m_pkMask= pkMask;
-  tableOrIndex->m_emptyMask = emptyMask;
 
   DBUG_RETURN(0);
 }
@@ -5351,13 +5352,23 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   return 0;
 }
 
-
+/**
+ * createRecord
+ * Create an NdbRecord object using the table implementation and
+ * RecordSpecification array passed.
+ * The table pointer may be a proper table, or the underlying
+ * table of an Index.  In any case, it is assumed that is is a
+ * global table object, which may be safely shared between
+ * multiple threads.  The responsibility for ensuring that it is
+ * a global object rests with the caller
+ */
 NdbRecord *
 NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
                                 const NdbDictionary::RecordSpecification *recSpec,
                                 Uint32 length,
                                 Uint32 elemSize,
-                                Uint32 flags)
+                                Uint32 flags,
+                                bool defaultRecord)
 {
   NdbRecord *rec= NULL;
   Uint32 numKeys, tableNumKeys, numIndexDistrKeys, min_distkey_prefix_length;
@@ -5417,25 +5428,33 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
      4. An extra Uint32 array distkey_indexes (length #distribution keys).
      5. An extra int array attrId_indexes (length max attrId)
   */
-  rec= (NdbRecord *)calloc(1, sizeof(NdbRecord) +
-                              (length-1)*sizeof(NdbRecord::Attr) +
-                              tableNumKeys*sizeof(Uint32) +
-                              tableNumDistKeys*sizeof(Uint32) +
-                              attrId_indexes_length*sizeof(int));
+  const Uint32 ndbRecBytes= sizeof(NdbRecord);
+  const Uint32 colArrayBytes= (length-1)*sizeof(NdbRecord::Attr);
+  const Uint32 tableKeyMapBytes= tableNumKeys*sizeof(Uint32);
+  const Uint32 tableDistKeyMapBytes= tableNumDistKeys*sizeof(Uint32);
+  const Uint32 attrIdMapBytes= attrId_indexes_length*sizeof(int);
+  rec= (NdbRecord *)calloc(1, ndbRecBytes +
+                              colArrayBytes +
+                              tableKeyMapBytes + 
+                              tableDistKeyMapBytes + 
+                              attrIdMapBytes);
   if (!rec)
   {
     m_error.code= 4000;
     return NULL;
   }
-  Uint32 *key_indexes= (Uint32 *)((unsigned char *)rec + sizeof(NdbRecord) +
-                                  (length-1)*sizeof(NdbRecord::Attr));
-  Uint32 *distkey_indexes= (Uint32 *)((unsigned char *)rec + sizeof(NdbRecord) +
-                                      (length-1)*sizeof(NdbRecord::Attr) +
-                                      tableNumKeys*sizeof(Uint32));
-  int *attrId_indexes = (int *)((unsigned char *)rec + sizeof(NdbRecord) +
-                                (length-1)*sizeof(NdbRecord::Attr) +
-                                tableNumKeys*sizeof(Uint32) +
-                                tableNumDistKeys*sizeof(Uint32));
+  Uint32 *key_indexes= (Uint32 *)((unsigned char *)rec + 
+                                  ndbRecBytes + 
+                                  colArrayBytes);
+  Uint32 *distkey_indexes= (Uint32 *)((unsigned char *)rec + 
+                                      ndbRecBytes + 
+                                      colArrayBytes + 
+                                      tableKeyMapBytes);
+  int *attrId_indexes = (int *)((unsigned char *)rec + 
+                                ndbRecBytes + 
+                                colArrayBytes + 
+                                tableKeyMapBytes + 
+                                tableDistKeyMapBytes);
   for (i = 0; i < attrId_indexes_length; i++)
     attrId_indexes[i] = -1;
 
@@ -5480,7 +5499,7 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
         cmp_ndbrec_attr);
 
   /*
-    Now check for the presense of primary keys, and set flags for whether
+    Now check for the presence of primary keys, and set flags for whether
     this NdbRecord can be used for insert and/or for specifying keys for
     read/update.
 
@@ -5538,6 +5557,9 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
       }
     }
   }
+  if (defaultRecord)
+    rec->flags|= NdbRecord::RecIsDefaultRec;
+
   rec->key_indexes= key_indexes;
   rec->key_index_length= tableNumKeys;
   rec->m_min_distkey_prefix_length= min_distkey_prefix_length;
@@ -5566,17 +5588,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   if (rec)
     free(rec);
   return NULL;
-}
-
-NdbRecord *
-NdbDictionaryImpl::createRecord(const NdbIndexImpl *index_impl,
-                                const NdbDictionary::RecordSpecification *recSpec,
-                                Uint32 length,
-                                Uint32 elemSize,
-                                Uint32 flags)
-{
-  return createRecord(index_impl->getIndexTable(), recSpec, length, elemSize,
-                      flags);
 }
 
 void
@@ -5693,8 +5704,227 @@ NdbRecord::Attr::put_mysqld_bitfield(char *dst_row, const char *src_buffer) cons
 void NdbDictionaryImpl::releaseRecord_impl(NdbRecord *rec)
 {
   if (rec)
-    free(rec);
+  {
+    /* Silently do nothing if they've passed the default
+     * record in (similar to null handling behaviour)
+     */
+    if (!(rec->flags & NdbRecord::RecIsDefaultRec))
+    {
+      /* For non-default records, we need to release the
+       * global table / index reference 
+       */
+      if (rec->flags & NdbRecord::RecIsIndex)
+        releaseIndexGlobal(*rec->table->m_index, 
+                           false); // Don't invalidate
+      else
+        releaseTableGlobal(*rec->table, 
+                           false); // Don't invalidate
+      
+      free(rec);
+    }
+  }
 }
+
+NdbDictionary::RecordType
+NdbDictionaryImpl::getRecordType(const NdbRecord* record)
+{
+  if (record->flags & NdbRecord::RecIsIndex)
+    return NdbDictionary::IndexAccess;
+  else
+    return NdbDictionary::TableAccess;
+}
+
+const char*
+NdbDictionaryImpl::getRecordTableName(const NdbRecord* record)
+{
+  if (!(record->flags & NdbRecord::RecIsIndex))
+  {
+    return record->table->m_externalName.c_str();
+  }
+  
+  return NULL;
+}
+
+const char*
+NdbDictionaryImpl::getRecordIndexName(const NdbRecord* record)
+{
+  if (record->flags & NdbRecord::RecIsIndex)
+  {
+    assert(record->table->m_index != NULL);
+    assert(record->table->m_index->m_facade != NULL);
+
+    return record->table->m_index->m_externalName.c_str();
+  }
+
+  return NULL;
+}
+
+bool
+NdbDictionaryImpl::getNextAttrIdFrom(const NdbRecord* record,
+                                     Uint32 startAttrId,
+                                     Uint32& nextAttrId)
+{
+  for (Uint32 i= startAttrId; i < record->m_attrId_indexes_length; i++)
+  {
+    if (record->m_attrId_indexes[i] != -1)
+    {
+      nextAttrId= i;
+      return true;
+    }
+  }
+  return false; 
+}
+
+bool
+NdbDictionaryImpl::getOffset(const NdbRecord* record,
+                             Uint32 attrId,
+                             Uint32& offset)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int) record->noOfColumns);
+
+      offset= record->columns[attrIdIndex].offset;
+      return true;
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord */
+  return false;
+}
+
+bool
+NdbDictionaryImpl::getNullBitOffset(const NdbRecord* record,
+                                    Uint32 attrId,
+                                    Uint32& nullbit_byte_offset,
+                                    Uint32& nullbit_bit_in_byte)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int) record->noOfColumns);
+
+      NdbRecord::Attr attr= record->columns[attrIdIndex];
+
+      nullbit_byte_offset= attr.nullbit_byte_offset;
+      nullbit_bit_in_byte= attr.nullbit_bit_in_byte;
+      return true;
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord */
+  return false;
+}
+
+const char*
+NdbDictionaryImpl::getValuePtr(const NdbRecord* record,
+                               const char* row,
+                               Uint32 attrId)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int) record->noOfColumns);
+
+      return row + (record->columns[attrIdIndex].offset);
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord */
+  return NULL;
+}
+
+char*
+NdbDictionaryImpl::getValuePtr(const NdbRecord* record,
+                               char* row,
+                               Uint32 attrId)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int)record->noOfColumns);
+
+      return row + (record->columns[attrIdIndex].offset);
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord */
+  return NULL;
+}
+
+bool
+NdbDictionaryImpl::isNull(const NdbRecord* record,
+                          const char* row,
+                          Uint32 attrId)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int)record->noOfColumns);
+      return record->columns[attrIdIndex].is_null(row);
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord or is not nullable */
+  return false;
+}
+
+int
+NdbDictionaryImpl::setNull(const NdbRecord* record,
+                           char* row,
+                           Uint32 attrId,
+                           bool value)
+{
+  if (attrId < record->m_attrId_indexes_length)
+  {
+    int attrIdIndex= record->m_attrId_indexes[attrId];
+    
+    if (attrIdIndex != -1)
+    {
+      assert(attrIdIndex < (int)record->noOfColumns);
+      NdbRecord::Attr attr= record->columns[attrIdIndex];
+      
+      if (record->flags & NdbRecord::IsNullable)
+      {
+        if (value)
+          *(row + attr.nullbit_byte_offset) |= 
+            (1 << attr.nullbit_bit_in_byte);
+        else
+          *(row + attr.nullbit_byte_offset) &=
+            ~(1 << attr.nullbit_bit_in_byte);
+        
+        return 0;
+      }
+    }
+  }
+  
+  /* AttrId not part of this NdbRecord or is not nullable */
+  return -1;
+}
+
+Uint32
+NdbDictionaryImpl::getRecordRowLength(const NdbRecord* record)
+{
+  return record->m_row_size;
+}
+
+
 
 int
 NdbDictInterface::create_file(const NdbFileImpl & file,
