@@ -14,8 +14,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 //
-//  ndbapi_simple_index_ndbrecord.cpp: Using secondary hash indexes in NDB API,
-//  utilising the NdbRecord interface.
+//  ndbapi_simple_index_ndbrecord.cpp: Using secondary unique hash indexes 
+//  in NDB API, utilising the NdbRecord interface.
 //
 //  Correct output from this program is (from a two-node cluster):
 //
@@ -59,6 +59,22 @@
 #define APIERROR(error) { \
   PRINT_ERROR(error.code,error.message); \
   exit(1); }
+
+/* C struct representing layout of data from table
+ * MYTABLENAME in memory
+ * This can make it easier to work with rows in the application,
+ * but is not necessary - NdbRecord can map columns to any 
+ * pattern of offsets.
+ * In this program, the same row offsets are used for columns
+ * specified as part of a key, and as part of an attribute or
+ * result.  This makes the example simpler, but is not 
+ * essential.
+ */
+struct MyTableRow
+{
+  unsigned int attr1;
+  unsigned int attr2;
+};
 
 int main(int argc, char** argv)
 {
@@ -145,7 +161,8 @@ int main(int argc, char** argv)
   /* NdbRecord for primary key lookup. */
   NdbDictionary::RecordSpecification spec[2];
   spec[0].column= col1;
-  spec[0].offset= 0;
+  spec[0].offset= offsetof(MyTableRow, attr1); 
+    // So that it goes nicely into the struct
   spec[0].nullbit_byte_offset= 0;
   spec[0].nullbit_bit_in_byte= 0;
   const NdbRecord *pk_record=
@@ -155,11 +172,11 @@ int main(int argc, char** argv)
 
   /* NdbRecord for all table attributes (insert/read). */
   spec[0].column= col1;
-  spec[0].offset= 0;
+  spec[0].offset= offsetof(MyTableRow, attr1);
   spec[0].nullbit_byte_offset= 0;
   spec[0].nullbit_bit_in_byte= 0;
   spec[1].column= col2;
-  spec[1].offset= 4;
+  spec[1].offset= offsetof(MyTableRow, attr2);
   spec[1].nullbit_byte_offset= 0;
   spec[1].nullbit_bit_in_byte= 0;
   const NdbRecord *attr_record=
@@ -169,14 +186,15 @@ int main(int argc, char** argv)
 
   /* NdbRecord for unique key lookup. */
   spec[0].column= col2;
-  spec[0].offset= 4;
+  spec[0].offset= offsetof(MyTableRow, attr2);
   spec[0].nullbit_byte_offset= 0;
   spec[0].nullbit_bit_in_byte= 0;
   const NdbRecord *key_record=
     myDict->createRecord(myIndex, spec, 1, sizeof(spec[0]));
   if (key_record == NULL)
     APIERROR(myDict->getNdbError());
-  char row[2][8];
+
+  MyTableRow row;
 
   /**************************************************************************
    * Using 5 transactions, insert 10 tuples in table: (0,0),(1,1),...,(9,9) *
@@ -186,21 +204,20 @@ int main(int argc, char** argv)
     if (myTransaction == NULL) APIERROR(myNdb->getNdbError());
 
     /*
-      Fill in rows with data. We need two rows, as the data must remain valid
-      until NdbTransaction::execute() returns.
+      We initialise the row data and pass to each insertTuple operation
+      The data is copied in the call to insertTuple and so the original
+      row object can be reused for the two operations.
     */
-    memcpy(&row[0][0], &i, 4);
-    memcpy(&row[0][4], &i, 4);
-    int value= i+5;
-    memcpy(&row[1][0], &value, 4);
-    memcpy(&row[1][4], &value, 4);
+    row.attr1= row.attr2= i;
 
     const NdbOperation *myOperation=
-      myTransaction->insertTuple(attr_record, &row[0][0]);
+      myTransaction->insertTuple(attr_record, (const char*)&row);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
+
+    row.attr1= row.attr2= i+5;
     myOperation= 
-      myTransaction->insertTuple(attr_record, &row[1][0]);
+      myTransaction->insertTuple(attr_record, (const char*)&row);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
 
@@ -220,8 +237,12 @@ int main(int argc, char** argv)
     if (myTransaction == NULL)
       APIERROR(myNdb->getNdbError());
 
-    /* Demonstrate the posibility to use OperationOptions for 
-     * the odd extra read. 
+    /* The optional OperationOptions parameter to NdbRecord methods
+     * can be used to specify extra reads of columns which are not in
+     * the NdbRecord specification, which need to be stored somewhere
+     * other than specified in the NdbRecord specification, or
+     * which cannot be specified as part of an NdbRecord (pseudo
+     * columns)
      */
     Uint32 frag;
     NdbOperation::GetValueSpec getSpec[1];
@@ -229,15 +250,21 @@ int main(int argc, char** argv)
     getSpec[0].appStorage=&frag;
 
     NdbOperation::OperationOptions options;
-    options.optionsPresent |= NdbOperation::OperationOptions::OO_GETVALUE;
+    options.optionsPresent = NdbOperation::OperationOptions::OO_GETVALUE;
     options.extraGetValues = &getSpec[0];
     options.numExtraGetValues = 1;
 
-    memcpy(&row[0][4], &i, 4);
-    unsigned char mask[1]= { 0x01 };            // Only read ATTR1
+    /* We're going to read using the secondary unique hash index
+     * Set the value of its column
+     */
+    row.attr2= i;
+
+    MyTableRow resultRow;
+
+    unsigned char mask[1]= { 0x01 };            // Only read ATTR1 into resultRow
     const NdbOperation *myOperation=
-      myTransaction->readTuple(key_record, &row[0][0],
-                               attr_record, &row[1][0],
+      myTransaction->readTuple(key_record, (const char*) &row,
+                               attr_record, (char*) &resultRow,
                                NdbOperation::LM_Read, mask,
                                &options, 
                                sizeof(NdbOperation::OperationOptions));
@@ -247,9 +274,7 @@ int main(int argc, char** argv)
     if (myTransaction->execute( NdbTransaction::Commit,
                                 NdbOperation::AbortOnError ) != -1)
     {
-      int value;
-      memcpy(&value, &row[1][0], 4);
-      printf(" %2d    %2d   (frag=%u)\n", value, i, frag);
+      printf(" %2d    %2d   (frag=%u)\n", resultRow.attr1, i, frag);
     }
 
     myNdb->closeTransaction(myTransaction);
@@ -263,13 +288,17 @@ int main(int argc, char** argv)
     if (myTransaction == NULL)
       APIERROR(myNdb->getNdbError());
 
-    memcpy(&row[0][4], &i, 4);
-    int value= i+10;
-    memcpy(&row[1][4], &value, 4);
+    /* Specify key column to lookup in secondary index */
+    row.attr2= i;
+
+    /* Specify new column value to set */
+    MyTableRow newRowData;
+    newRowData.attr2= i+10;
     unsigned char mask[1]= { 0x02 };            // Only update ATTR2
+
     const NdbOperation *myOperation=
-      myTransaction->updateTuple(key_record, &row[0][0],
-                                 attr_record, &row[1][0], mask);
+      myTransaction->updateTuple(key_record, (const char*)&row,
+                                 attr_record,(char*) &newRowData, mask);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
 
@@ -287,10 +316,9 @@ int main(int argc, char** argv)
     if (myTransaction == NULL)
       APIERROR(myNdb->getNdbError());
 
-    int value= 3;
-    memcpy(&row[0][4], &value, 4);
+    row.attr2= 3;
     const NdbOperation *myOperation=
-      myTransaction->deleteTuple(key_record, &row[0][0],
+      myTransaction->deleteTuple(key_record, (const char*) &row,
                                  attr_record);
     if (myOperation == NULL)
       APIERROR(myTransaction->getNdbError());
@@ -312,10 +340,14 @@ int main(int argc, char** argv)
       if (myTransaction == NULL)
         APIERROR(myNdb->getNdbError());
 
-      memcpy(&row[0][0], &i, 4);
+      row.attr1= i;
+      
+      /* Read using pk.  Note the same row space is used as 
+       * key and result storage space
+       */
       const NdbOperation *myOperation=
-        myTransaction->readTuple(pk_record, &row[0][0],
-                                 attr_record, &row[1][0]);
+        myTransaction->readTuple(pk_record, (const char*) &row,
+                                 attr_record, (char*) &row);
       if (myOperation == NULL)
         APIERROR(myTransaction->getNdbError());
 
@@ -326,17 +358,14 @@ int main(int argc, char** argv)
         } else {
           APIERROR(myTransaction->getNdbError());
         }
+      
+      if (i != 3) 
+        printf(" %2d    %2d\n", row.attr1, row.attr2);
 
-      if (i != 3) {
-        int value1, value2;
-        memcpy(&value1, &row[1][0], 4);
-        memcpy(&value2, &row[1][4], 4);
-        printf(" %2d    %2d\n", value1, value2);
-      }
       myNdb->closeTransaction(myTransaction);
     }
   }
-
+  
   /**************
    * Drop table *
    **************/
