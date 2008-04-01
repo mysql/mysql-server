@@ -3078,3 +3078,4 @@ ma_test_recovery.output
 test?.MA?
 dbug/tests
 storage/maria/unittest/tmp/*
+unittest/tmp/*

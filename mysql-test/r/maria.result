@@ -1663,6 +1663,88 @@ create table t3 (c1 int) pack_keys=default;
 create table t4 (c1 int) pack_keys=2;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '2' at line 1
 drop table t1, t2, t3;
+CREATE TABLE t1(a INT, b INT, KEY inx (a), UNIQUE KEY uinx (b));
+INSERT INTO t1(a,b) VALUES (1,1),(2,2),(3,3),(4,4),(5,5);
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+ALTER TABLE t1 DISABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+SELECT a FROM t1 USE INDEX (inx) WHERE a=1;
+a
+1
+SELECT b FROM t1 FORCE INDEX (uinx) WHERE b=1;
+b
+1
+SELECT b FROM t1 USE INDEX (uinx) WHERE b=1;
+b
+1
+SELECT a FROM t1 FORCE INDEX (inx,uinx) WHERE a=1;
+a
+1
+ALTER TABLE t1 ENABLE KEYS;
+SELECT a FROM t1 FORCE INDEX (inx) WHERE a=1;
+a
+1
+DROP TABLE t1;
+CREATE TABLE t1 (c1 INT, c2 INT, UNIQUE INDEX (c1), INDEX (c2));
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	0	#	#	#	8192	#	#	#	#	#	#	#		
+INSERT INTO t1 VALUES (1,1);
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+ALTER TABLE t1 DISABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+ALTER TABLE t1 ENABLE KEYS;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MARIA	10	Page	1	#	#	#	24576	#	#	#	#	#	#	#		
+# Enable keys with parallel repair
+SET @@maria_repair_threads=2;
+ALTER TABLE t1 DISABLE KEYS;
+ALTER TABLE t1 ENABLE KEYS;
+SET @@maria_repair_threads=1;
+CHECK TABLE t1 EXTENDED;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+DROP TABLE t1;
+CREATE TABLE t1 (id int NOT NULL, ref int NOT NULL, INDEX (id));
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 (id, ref) VALUES (1,3), (2,1), (3,2), (4,5), (4,4);
+INSERT INTO t1 SELECT * FROM t2;
+SELECT * FROM t1 AS a INNER JOIN t1 AS b USING (id) WHERE a.ref < b.ref;
+id	ref	ref
+4	4	5
+SELECT * FROM t1;
+id	ref
+1	3
+2	1
+3	2
+4	5
+4	4
+DELETE FROM a USING t1 AS a INNER JOIN t1 AS b USING (id) WHERE a.ref < b.ref;
+SELECT * FROM t1;
+id	ref
+1	3
+2	1
+3	2
+4	5
+DROP TABLE t1, t2;
+End of 5.0 tests
 create table t1 (a int not null, key `a` (a) key_block_size=1024);
 show create table t1;
 Table	Create Table
@@ -2272,3 +2354,12 @@ check table t1 extended;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 drop table t1;
+CREATE TABLE t1(a VARCHAR(20), FULLTEXT(a)) transactional=0;
+INSERT INTO t1 VALUES('Offside'),('City Of God');
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city of*' IN BOOLEAN MODE);
+a
+City Of God
+SELECT a FROM t1 WHERE MATCH a AGAINST ('+city (of)*' IN BOOLEAN MODE);
+a
+City Of God
+DROP TABLE t1;

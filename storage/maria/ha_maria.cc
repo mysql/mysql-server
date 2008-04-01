@@ -273,6 +273,10 @@ static void _ma_check_print_msg(HA_CHECK *param, const char *msg_type,
     definition for further use in ma_create or for a check for underlying
     table conformance in merge engine.
 
+    The caller needs to free *recinfo_out after use. Since *recinfo_out
+    and *keydef_out are allocated with a my_multi_malloc, *keydef_out
+    is freed automatically when *recinfo_out is freed.
+
   RETURN VALUE
     0  OK
     # error code
@@ -1649,9 +1653,9 @@ int ha_maria::enable_indexes(uint mode)
       param.testflag &= ~(T_REP_BY_SORT | T_QUICK);
       error= (repair(thd, param, 0) != HA_ADMIN_OK);
       /*
-         If the standard repair succeeded, clear all error messages which
-         might have been set by the first repair. They can still be seen
-         with SHOW WARNINGS then.
+        If the standard repair succeeded, clear all error messages which
+        might have been set by the first repair. They can still be seen
+        with SHOW WARNINGS then.
       */
       if (!error)
         thd->clear_error();
@@ -1974,9 +1978,17 @@ int ha_maria::index_next_same(uchar * buf,
                               const uchar *key __attribute__ ((unused)),
                               uint length __attribute__ ((unused)))
 {
+  int error;
   DBUG_ASSERT(inited == INDEX);
   ha_statistic_increment(&SSV::ha_read_next_count);
-  int error= maria_rnext_same(file, buf);
+  /*
+    TODO: Delete this loop in Maria 1.5 as versioning will ensure this never
+    happens
+  */
+  do
+  {
+    error= maria_rnext_same(file,buf);
+  } while (error == HA_ERR_RECORD_DELETED);
   table->status= error ? STATUS_NOT_FOUND : 0;
   return error;
 }

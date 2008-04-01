@@ -329,6 +329,29 @@ static my_bool write_dynamic_record(MARIA_HA *info, const uchar *record,
   DBUG_ENTER("write_dynamic_record");
 
   flag=0;
+
+  /*
+    Check if we have enough room for the new record.
+    First we do simplified check to make usual case faster.
+    Then we do more precise check for the space left.
+    Though it still is not absolutely precise, as
+    we always use MARIA_MAX_DYN_BLOCK_HEADER while it can be
+    less in the most of the cases.
+  */
+
+  if (unlikely(info->s->base.max_data_file_length -
+               info->state->data_file_length <
+               reclength + MARIA_MAX_DYN_BLOCK_HEADER))
+  {
+    if (info->s->base.max_data_file_length - info->state->data_file_length +
+        info->state->empty - info->state->del * MARIA_MAX_DYN_BLOCK_HEADER <
+        reclength + MARIA_MAX_DYN_BLOCK_HEADER)
+    {
+      my_errno=HA_ERR_RECORD_FILE_FULL;
+      DBUG_RETURN(1);
+    }
+  }
+
   do
   {
     if (_ma_find_writepos(info,reclength,&filepos,&length))
@@ -771,6 +794,37 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
   DBUG_ENTER("update_dynamic_record");
 
   flag=block_info.second_read=0;
+  /*
+    Check if we have enough room for the record.
+    First we do simplified check to make usual case faster.
+    Then we do more precise check for the space left.
+    Though it still is not absolutely precise, as
+    we always use MARIA_MAX_DYN_BLOCK_HEADER while it can be
+    less in the most of the cases.
+  */
+
+  /*
+    compare with just the reclength as we're going
+    to get some space from the old replaced record
+  */
+  if (unlikely(info->s->base.max_data_file_length -
+        info->state->data_file_length < reclength))
+  {
+    /* If new record isn't longer, we can go on safely */
+    if (info->cur_row.total_length < reclength)
+    {
+      if (info->s->base.max_data_file_length - info->state->data_file_length +
+          info->state->empty - info->state->del * MARIA_MAX_DYN_BLOCK_HEADER <
+          reclength - info->cur_row.total_length + MARIA_MAX_DYN_BLOCK_HEADER)
+      {
+        my_errno=HA_ERR_RECORD_FILE_FULL;
+        goto err;
+      }
+    }
+  }
+  /* Remember length for updated row if it's updated again */
+  info->cur_row.total_length= reclength;
+
   while (reclength > 0)
   {
     if (filepos != info->s->state.dellink)
@@ -876,6 +930,7 @@ static my_bool update_dynamic_record(MARIA_HA *info, MARIA_RECORD_POS filepos,
   if (block_info.next_filepos != HA_OFFSET_ERROR)
     if (delete_dynamic_record(info,block_info.next_filepos,1))
       goto err;
+
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(1);
@@ -1420,6 +1475,7 @@ int _ma_read_dynamic_record(MARIA_HA *info, uchar *buf,
     }
     if (block_of_record++ == 0)			/* First block */
     {
+      info->cur_row.total_length= block_info.rec_len;
       if (block_info.rec_len > (uint) info->s->base.max_pack_length)
         goto panic;
       if (info->s->base.blobs)
@@ -1752,6 +1808,7 @@ int _ma_read_rnd_dynamic_record(MARIA_HA *info,
     }
     if (block_of_record == 0)				/* First block */
     {
+      info->cur_row.total_length= block_info.rec_len;
       if (block_info.rec_len > (uint) share->base.max_pack_length)
 	goto panic;
       info->cur_row.lastpos= filepos;

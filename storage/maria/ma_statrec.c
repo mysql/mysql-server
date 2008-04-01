@@ -62,8 +62,8 @@ my_bool _ma_write_static_record(MARIA_HA *info, const uchar *record)
     {
       info->rec_cache.seek_not_done=1;		/* We have done a seek */
       if (info->s->file_write(info, record, info->s->base.reclength,
-		    info->state->data_file_length,
-		    info->s->write_flag))
+                              info->state->data_file_length,
+                              info->s->write_flag))
         goto err;
       if (info->s->base.pack_reclength != info->s->base.reclength)
       {

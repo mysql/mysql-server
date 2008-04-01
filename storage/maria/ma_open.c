@@ -686,23 +686,24 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
       share->page_type= PAGECACHE_PLAIN_PAGE;
     share->now_transactional= share->base.born_transactional;
 
-    if (share->data_file_type == DYNAMIC_RECORD)
+    /* Use pack_reclength as we don't want to modify base.pack_recklength */
+    if (share->state.header.org_data_file_type == DYNAMIC_RECORD)
     {
-    /* add bits used to pack data to pack_reclength for faster allocation */
+      /* add bits used to pack data to pack_reclength for faster allocation */
       share->base.pack_reclength+= share->base.pack_bytes;
       share->base.extra_rec_buff_size=
         (ALIGN_SIZE(MARIA_MAX_DYN_BLOCK_HEADER) + MARIA_SPLIT_LENGTH +
          MARIA_REC_BUFF_OFFSET);
     }
-    share->base.default_rec_buff_size= (max(share->base.pack_reclength,
-                                            share->base.max_key_length) +
-                                        share->base.extra_rec_buff_size);
-
     if (share->data_file_type == COMPRESSED_RECORD)
     {
       /* Need some extra bytes for decode_bytes */
-      share->base.extra_rec_buff_size= 7;
+      share->base.extra_rec_buff_size+= 7;
     }
+    share->base.default_rec_buff_size= max(share->base.pack_reclength +
+                                           share->base.extra_rec_buff_size,
+                                           share->base.max_key_length);
+
     disk_pos_assert(disk_pos + share->base.fields *MARIA_COLUMNDEF_SIZE,
                     end_pos);
     for (i= j= 0 ; i < share->base.fields ; i++)

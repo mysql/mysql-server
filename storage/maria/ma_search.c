@@ -1329,11 +1329,12 @@ int _ma_search_next(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                       info->page_changed, info->keyread_buff_used));
   DBUG_EXECUTE("key", _ma_print_key(DBUG_FILE,keyinfo->seg,key,key_length););
 
-  /* Force full read if we are at last key or if we are not on a leaf
-     and the key tree has changed since we used it last time
-     Note that even if the key tree has changed since last read, we can use
-     the last read data from the leaf if we haven't used the buffer for
-     something else.
+  /*
+    Force full read if we are at last key or if we are not on a leaf
+    and the key tree has changed since we used it last time
+    Note that even if the key tree has changed since last read, we can use
+    the last read data from the leaf if we haven't used the buffer for
+    something else.
   */
 
   if (((nextflag & SEARCH_BIGGER) && info->int_keypos >= info->int_maxpos) ||

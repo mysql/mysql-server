@@ -23,8 +23,14 @@
   inside plus subtree. max_docid could be used by any word in plus
   subtree, but it could be updated by plus-word only.
 
+  Fulltext "smarter index merge" optimization assumes that rows
+  it gets are ordered by doc_id. That is not the case when we
+  search for a word with truncation operator. It may return
+  rows in random order. Thus we may not use "smarter index merge"
+  optimization with "trunc-words".
+
   The idea is: there is no need to search for docid smaller than
-  biggest docid inside current plus subtree.
+  biggest docid inside current plus subtree or any upper plus subtree.
 
   Examples:
   +word1 word2
@@ -36,6 +42,13 @@
   +(word1 -word2) +(+word3 word4)
     share same max_docid
     max_docid updated by word3
+   +word1 word2 (+word3 word4 (+word5 word6))
+    three subexpressions (including the top-level one),
+    every one has its own max_docid, updated by its plus word.
+    but for the search word6 uses
+    max(word1.max_docid, word3.max_docid, word5.max_docid),
+    while word4 uses, accordingly,
+    max(word1.max_docid, word3.max_docid).
 */
 
 #define FT_CORE
@@ -104,14 +117,14 @@ typedef struct st_ftb_word
 /* ^^^^^^^^^^^^^^^^^^ FTB_{EXPR,WORD} common section */
   my_off_t   docid[2];             /* for index search and for scan */
   my_off_t   key_root;
-  my_off_t  *max_docid;
+  FTB_EXPR  *max_docid_expr;
   MARIA_KEYDEF *keyinfo;
   struct st_ftb_word *prev;
   float      weight;
   uint       ndepth;
   uint       len;
   uchar      off;
-  uchar       word[1];
+  uchar      word[1];
 } FTB_WORD;
 
 typedef struct st_ft_info
@@ -208,13 +221,13 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       for (tmp_expr= ftb_param->ftbe; tmp_expr->up; tmp_expr= tmp_expr->up)
         if (! (tmp_expr->flags & FTB_FLAG_YES))
           break;
-      ftbw->max_docid= &tmp_expr->max_docid;
+      ftbw->max_docid_expr= tmp_expr;
       /* fall through */
     case FT_TOKEN_STOPWORD:
       if (! ftb_param->up_quot) break;
       phrase_word= (FT_WORD *)alloc_root(&ftb_param->ftb->mem_root, sizeof(FT_WORD));
       tmp_element= (LIST *)alloc_root(&ftb_param->ftb->mem_root, sizeof(LIST));
-      phrase_word->pos= (uchar *) word;
+      phrase_word->pos= (uchar*) word;
       phrase_word->len= word_len;
       tmp_element->data= (void *)phrase_word;
       ftb_param->ftbe->phrase= list_add(ftb_param->ftbe->phrase, tmp_element);
@@ -240,7 +253,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param,
       if (info->yesno > 0) ftbe->up->ythresh++;
       ftb_param->ftbe= ftbe;
       ftb_param->depth++;
-      ftb_param->up_quot= (uchar *) info->quot;
+      ftb_param->up_quot= (uchar*) info->quot;
       break;
     case FT_TOKEN_RIGHT_PAREN:
       if (ftb_param->ftbe->document)
@@ -275,12 +288,12 @@ static int ftb_parse_query_internal(MYSQL_FTPARSER_PARAM *param,
   MYSQL_FTPARSER_BOOLEAN_INFO info;
   CHARSET_INFO *cs= ftb_param->ftb->charset;
   uchar **start= (uchar**) &query;
-  char *end= query + len;
+  uchar *end= (uchar*) query + len;
   FT_WORD w;
 
   info.prev= ' ';
   info.quot= 0;
-  while (maria_ft_get_word(cs, start, (uchar *) end, &w, &info))
+  while (maria_ft_get_word(cs, start, end, &w, &info))
     param->mysql_add_word(param, (char *) w.pos, w.len, &info);
   return(0);
 }
@@ -308,7 +321,7 @@ static int _ftb_parse_query(FTB *ftb, uchar *query, uint len,
   param->mysql_add_word= ftb_query_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= (char *) query;
+  param->doc= (char*) query;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_FULL_BOOLEAN_INFO;
@@ -329,8 +342,9 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   int subkeys=1;
   my_bool can_go_down;
   MARIA_HA *info=ftb->info;
-  uint off= 0, extra=HA_FT_WLEN+info->s->base.rec_reflength;
+  uint off, extra=HA_FT_WLEN+info->s->base.rec_reflength;
   uchar *lastkey_buf= ftbw->word+ftbw->off;
+  LINT_INIT(off);
 
   if (ftbw->flags & FTB_FLAG_TRUNC)
     lastkey_buf+=ftbw->len;
@@ -346,11 +360,17 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   else
   {
     uint sflag= SEARCH_BIGGER;
-    if (ftbw->docid[0] < *ftbw->max_docid)
+    my_off_t max_docid=0;
+    FTB_EXPR *tmp;
+
+    for (tmp= ftbw->max_docid_expr; tmp; tmp= tmp->up)
+      set_if_bigger(max_docid, tmp->max_docid);
+
+    if (ftbw->docid[0] < max_docid)
     {
       sflag|= SEARCH_SAME;
-      _ma_dpointer(info, (ftbw->word + ftbw->len + HA_FT_WLEN),
-                   *ftbw->max_docid);
+      _ma_dpointer(info, (uchar*) (ftbw->word + ftbw->len + HA_FT_WLEN),
+                   max_docid);
     }
     r= _ma_search(info, ftbw->keyinfo, lastkey_buf,
                    USE_WHOLE_KEY, sflag, ftbw->key_root);
@@ -376,7 +396,7 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
   if (!r && !ftbw->off)
   {
     r= ha_compare_text(ftb->charset,
-                       (uchar*) info->lastkey+1,
+                       info->lastkey+1,
                        info->lastkey_length-extra-1,
                        (uchar*) ftbw->word+1,
                        ftbw->len-1,
@@ -429,8 +449,8 @@ static int _ft2_search(FTB *ftb, FTB_WORD *ftbw, my_bool init_search)
     memcpy(lastkey_buf+off, info->lastkey, info->lastkey_length);
   }
   ftbw->docid[0]= info->cur_row.lastpos;
-  if (ftbw->flags & FTB_FLAG_YES)
-    *ftbw->max_docid= info->cur_row.lastpos;
+  if (ftbw->flags & FTB_FLAG_YES && !(ftbw->flags & FTB_FLAG_TRUNC))
+    ftbw->max_docid_expr->max_docid= info->cur_row.lastpos;
   return 0;
 }
 
@@ -473,7 +493,8 @@ static void _ftb_init_index_search(FT_INFO *ftb)
            ftbe->up->flags|= FTB_FLAG_TRUNC, ftbe=ftbe->up)
       {
         if (ftbe->flags & FTB_FLAG_NO ||                     /* 2 */
-             ftbe->up->ythresh - ftbe->up->yweaks >1)        /* 1 */
+            ftbe->up->ythresh - ftbe->up->yweaks >
+            (uint) test(ftbe->flags & FTB_FLAG_YES))         /* 1 */
         {
           FTB_EXPR *top_ftbe=ftbe->up;
           ftbw->docid[0]=HA_OFFSET_ERROR;
@@ -503,8 +524,9 @@ static void _ftb_init_index_search(FT_INFO *ftb)
 }
 
 
-FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr, uchar *query,
-                                 uint query_len, CHARSET_INFO *cs)
+FT_INFO * maria_ft_init_boolean_search(MARIA_HA *info, uint keynr,
+                                       uchar *query,
+                                       uint query_len, CHARSET_INFO *cs)
 {
   FTB       *ftb;
   FTB_EXPR  *ftbe;
@@ -585,7 +607,7 @@ static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
   FT_WORD *w= (FT_WORD *)phrase_param->document->data;
   LIST *phrase, *document;
-  w->pos= (uchar *) word;
+  w->pos= (uchar*) word;
   w->len= word_len;
   phrase_param->document= phrase_param->document->prev;
   if (phrase_param->phrase_length > phrase_param->document_length)
@@ -600,8 +622,8 @@ static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param,
   {
     FT_WORD *phrase_word= (FT_WORD *)phrase->data;
     FT_WORD *document_word= (FT_WORD *)document->data;
-    if (my_strnncoll(phrase_param->cs,
-                     (uchar*) phrase_word->pos, phrase_word->len,
+    if (my_strnncoll(phrase_param->cs, (uchar*) phrase_word->pos,
+                     phrase_word->len,
                      (uchar*) document_word->pos, document_word->len))
       return 0;
   }
@@ -615,11 +637,11 @@ static int ftb_check_phrase_internal(MYSQL_FTPARSER_PARAM *param,
 {
   FT_WORD word;
   MY_FTB_PHRASE_PARAM *phrase_param= param->mysql_ftparam;
-  const char *docend= document + len;
+  const uchar *docend= (uchar*) document + len;
   while (maria_ft_simple_get_word(phrase_param->cs, (uchar**) &document,
-                                  (const uchar *) docend, &word, FALSE))
+                                  docend, &word, FALSE))
   {
-    param->mysql_add_word(param, (char *) word.pos, word.len, 0);
+    param->mysql_add_word(param, (char*) word.pos, word.len, 0);
     if (phrase_param->match)
       break;
   }
@@ -663,7 +685,7 @@ static int _ftb_check_phrase(FTB *ftb, const uchar *document, uint len,
   param->mysql_add_word= ftb_phrase_add_word;
   param->mysql_ftparam= (void *)&ftb_param;
   param->cs= ftb->charset;
-  param->doc= (char *)document;
+  param->doc= (char *) document;
   param->length= len;
   param->flags= 0;
   param->mode= MYSQL_FTPARSER_WITH_STOPWORDS;
@@ -875,10 +897,10 @@ static int ftb_find_relevance_parse(MYSQL_FTPARSER_PARAM *param,
 {
   MY_FTB_FIND_PARAM *ftb_param= param->mysql_ftparam;
   FT_INFO *ftb= ftb_param->ftb;
-  char *end= doc + len;
+  uchar *end= (uchar*) doc + len;
   FT_WORD w;
   while (maria_ft_simple_get_word(ftb->charset, (uchar**) &doc,
-                                  (const uchar *) end, &w, TRUE))
+                                  end, &w, TRUE))
     param->mysql_add_word(param, (char *) w.pos, w.len, 0);
   return(0);
 }

@@ -1674,12 +1674,14 @@ static int maria_sort_records(HA_CHECK *param,
     _ma_check_print_error(param,"Not enough memory for key block");
     goto err;
   }
-  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
-					   MYF(0))))
+
+  if (!(sort_param.record=
+        (uchar*) my_malloc((uint) share->base.default_rec_buff_size, MYF(0))))
   {
     _ma_check_print_error(param,"Not enough memory for record");
     goto err;
   }
+
   fn_format(param->temp_filename,name,"", MARIA_NAME_DEXT,2+4+32);
   new_file= my_create(fn_format(param->temp_filename,
                                 param->temp_filename,"",

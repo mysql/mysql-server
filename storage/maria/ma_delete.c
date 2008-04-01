@@ -81,7 +81,7 @@ int maria_delete(MARIA_HA *info,const uchar *record)
     if (maria_is_key_active(share->state.key_map, i))
     {
       share->keyinfo[i].version++;
-      if (share->keyinfo[i].flag & HA_FULLTEXT )
+      if (share->keyinfo[i].flag & HA_FULLTEXT)
       {
         if (_ma_ft_del(info, i, old_key, record, info->cur_row.lastpos))
           goto err;

@@ -200,7 +200,8 @@ static my_bool _ma_read_pack_info(MARIA_SHARE *share, File file,
   share->pack.header_length=	uint4korr(header+4);
   share->min_pack_length=(uint) uint4korr(header+8);
   share->max_pack_length=(uint) uint4korr(header+12);
-  set_if_bigger(share->base.pack_reclength,share->max_pack_length);
+  set_if_bigger(share->base.default_rec_buff_size,
+                share->max_pack_length + 7);
   elements=uint4korr(header+16);
   intervall_length=uint4korr(header+20);
   trees=uint2korr(header+24);
@@ -605,7 +606,7 @@ static void fill_quick_table(uint16 *table, uint bits, uint max_bits,
   */
   value|= (max_bits - bits) << 8 | IS_CHAR;
 
-  for (end= table + (uint) (((uint) 1 << bits)); table < end; table++)
+  for (end= table + ((my_ptrdiff_t) 1 << bits); table < end; table++)
   {
     *table= (uint16) value;
   }

@@ -489,7 +489,7 @@ int maria_chk_key(HA_CHECK *param, register MARIA_HA *info)
 
     if ((!(param->testflag & T_SILENT)))
       printf ("- check data record references index: %d\n",key+1);
-    if (keyinfo->flag & HA_FULLTEXT)
+    if (keyinfo->flag & (HA_FULLTEXT | HA_SPATIAL))
       full_text_keys++;
     if (share->state.key_root[key] == HA_OFFSET_ERROR)
     {
@@ -1914,7 +1914,7 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
       puts("- check record links");
   }
 
-  if (!(record= (uchar*) my_malloc(share->base.pack_reclength,MYF(0))))
+  if (!(record= (uchar*) my_malloc(share->base.default_rec_buff_size, MYF(0))))
   {
     _ma_check_print_error(param,"Not enough memory for record");
     DBUG_RETURN(-1);
@@ -2199,6 +2199,121 @@ static int initialize_variables_for_repair(HA_CHECK *param,
 }
 
 
+/**
+  @brief Drop all indexes
+
+  @param[in]    param           check parameters
+  @param[in]    info            MARIA_HA handle
+  @param[in]    force           if to force drop all indexes
+
+  @return       status
+    @retval     0               OK
+    @retval     != 0            Error
+
+  @note
+    Once allocated, index blocks remain part of the key file forever.
+    When indexes are disabled, no block is freed. When enabling indexes,
+    no block is freed either. The new indexes are create from new
+    blocks. (Bug #4692)
+
+    Before recreating formerly disabled indexes, the unused blocks
+    must be freed. There are two options to do this:
+    - Follow the tree of disabled indexes, add all blocks to the
+      deleted blocks chain. Would require a lot of random I/O.
+    - Drop all blocks by clearing all index root pointers and all
+      delete chain pointers and resetting key_file_length to the end
+      of the index file header. This requires to recreate all indexes,
+      even those that may still be intact.
+    The second method is probably faster in most cases.
+
+    When disabling indexes, MySQL disables either all indexes or all
+    non-unique indexes. When MySQL [re-]enables disabled indexes
+    (T_CREATE_MISSING_KEYS), then we either have "lost" blocks in the
+    index file, or there are no non-unique indexes. In the latter case,
+    maria_repair*() would not be called as there would be no disabled
+    indexes.
+
+    If there would be more unique indexes than disabled (non-unique)
+    indexes, we could do the first method. But this is not implemented
+    yet. By now we drop and recreate all indexes when repair is called.
+
+    However, there is an exception. Sometimes MySQL disables non-unique
+    indexes when the table is empty (e.g. when copying a table in
+    mysql_alter_table()). When enabling the non-unique indexes, they
+    are still empty. So there is no index block that can be lost. This
+    optimization is implemented in this function.
+
+    Note that in normal repair (T_CREATE_MISSING_KEYS not set) we
+    recreate all enabled indexes unconditonally. We do not change the
+    key_map. Otherwise we invert the key map temporarily (outside of
+    this function) and recreate the then "seemingly" enabled indexes.
+    When we cannot use the optimization, and drop all indexes, we
+    pretend that all indexes were disabled. By the inversion, we will
+    then recrate all indexes.
+*/
+
+static int maria_drop_all_indexes(HA_CHECK *param, MARIA_HA *info,
+                                  my_bool force)
+{
+  MARIA_SHARE *share= info->s;
+  MARIA_STATE_INFO *state= &share->state;
+  uint i;
+  DBUG_ENTER("maria_drop_all_indexes");
+
+  /*
+    If any of the disabled indexes has a key block assigned, we must
+    drop and recreate all indexes to avoid losing index blocks.
+
+    If we want to recreate disabled indexes only _and_ all of these
+    indexes are empty, we don't need to recreate the existing indexes.
+  */
+  if (!force && (param->testflag & T_CREATE_MISSING_KEYS))
+  {
+    DBUG_PRINT("repair", ("creating missing indexes"));
+    for (i= 0; i < share->base.keys; i++)
+    {
+      DBUG_PRINT("repair", ("index #: %u  key_root: 0x%lx  active: %d",
+                            i, (long) state->key_root[i],
+                            maria_is_key_active(state->key_map, i)));
+      if ((state->key_root[i] != HA_OFFSET_ERROR) &&
+          !maria_is_key_active(state->key_map, i))
+      {
+        /*
+          This index has at least one key block and it is disabled.
+          We would lose its block(s) if would just recreate it.
+          So we need to drop and recreate all indexes.
+        */
+        DBUG_PRINT("repair", ("nonempty and disabled: recreate all"));
+        break;
+      }
+    }
+    if (i >= share->base.keys)
+      goto end;
+
+    /*
+      We do now drop all indexes and declare them disabled. With the
+      T_CREATE_MISSING_KEYS flag, maria_repair*() will recreate all
+      disabled indexes and enable them.
+    */
+    maria_clear_all_keys_active(state->key_map);
+    DBUG_PRINT("repair", ("declared all indexes disabled"));
+  }
+
+  /* Clear index root block pointers. */
+  for (i= 0; i < share->base.keys; i++)
+    state->key_root[i]= HA_OFFSET_ERROR;
+
+  /* Drop the delete chain. */
+  share->state.key_del=  HA_OFFSET_ERROR;
+
+  /* Reset index file length to end of index file header. */
+  info->state->key_file_length= share->base.keystart;
+
+end:
+  DBUG_RETURN(0);
+}
+
+
 /*
   Recover old table by reading each record and writing all keys
 
@@ -2225,7 +2340,6 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
                  char *name, my_bool rep_quick)
 {
   int error, got_error;
-  uint i;
   ha_rows start_records,new_header_length;
   my_off_t del;
   File new_file;
@@ -2317,9 +2431,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
       goto err;
   }
 
-  if (!(sort_param.record= (uchar *) my_malloc((uint)
-                                               share->base.pack_reclength,
-                                               MYF(0))) ||
+  if (!(sort_param.record=
+        (uchar *) my_malloc((uint)
+                            share->base.default_rec_buff_size, MYF(0))) ||
       _ma_alloc_buffer(&sort_param.rec_buff, &sort_param.rec_buff_size,
                        share->base.default_rec_buff_size))
   {
@@ -2337,24 +2451,9 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
   info->state->records=info->state->del=share->state.split=0;
   info->state->empty=0;
 
-  /*
-    Clear all keys. Note that all key blocks allocated until now remain
-    "dead" parts of the key file. (Bug #4692)
-  */
-  for (i=0 ; i < share->base.keys ; i++)
-    share->state.key_root[i]= HA_OFFSET_ERROR;
-
-  /* Drop the delete chain. */
-  share->state.key_del=  HA_OFFSET_ERROR;
-
-  /*
-    If requested, activate (enable) all keys in key_map. In this case,
-    all indexes will be (re-)built.
-  */
   if (param->testflag & T_CREATE_MISSING_KEYS)
     maria_set_all_keys_active(share->state.key_map, share->base.keys);
-
-  info->state->key_file_length=share->base.keystart;
+  maria_drop_all_indexes(param, info, TRUE);
 
   maria_lock_memory(param);			/* Everything is alloced */
 
@@ -2368,7 +2467,8 @@ int maria_repair(HA_CHECK *param, register MARIA_HA *info,
     {
       if (my_errno != HA_ERR_FOUND_DUPP_KEY)
 	goto err;
-      DBUG_DUMP("record",(uchar*) sort_param.record,share->base.pack_reclength);
+      DBUG_DUMP("record", (uchar*) sort_param.record,
+                share->base.default_rec_buff_size);
       _ma_check_print_warning(param,
                               "Duplicate key %2d for record at %10s against new record at %10s",
                               info->errkey+1,
@@ -3257,11 +3357,12 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
   double  *rec_per_key_part;
   char llbuff[22];
   MARIA_SORT_INFO sort_info;
-  ulonglong key_map= share->state.key_map;
+  ulonglong key_map;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   my_bool scan_inited= 0;
   DBUG_ENTER("maria_repair_by_sort");
+  LINT_INIT(key_map);
 
   got_error= 1;
   new_file= -1;
@@ -3338,8 +3439,9 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     }
   }
 
-  if (!(sort_param.record=(uchar*) my_malloc((uint) share->base.pack_reclength,
-                                          MYF(0))) ||
+  if (!(sort_param.record=
+        (uchar*) my_malloc((size_t) share->base.default_rec_buff_size,
+                           MYF(0))) ||
       _ma_alloc_buffer(&sort_param.rec_buff, &sort_param.rec_buff_size,
                        share->base.default_rec_buff_size))
   {
@@ -3347,16 +3449,14 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
     goto err;
   }
 
-  if (!(param->testflag & T_CREATE_MISSING_KEYS))
+  /* Optionally drop indexes and optionally modify the key_map */
+  maria_drop_all_indexes(param, info, FALSE);
+  key_map= share->state.key_map;
+  if (param->testflag & T_CREATE_MISSING_KEYS)
   {
-    /* Clear the pointers to the given rows */
-    for (i=0 ; i < share->base.keys ; i++)
-      share->state.key_root[i]= HA_OFFSET_ERROR;
-    share->state.key_del= HA_OFFSET_ERROR;
-    info->state->key_file_length=share->base.keystart;
+    /* Invert the copied key_map to recreate all disabled indexes. */
+    key_map= ~key_map;
   }
-  else
-    key_map= ~key_map;				/* Create the missing keys */
 
   param->read_cache.end_of_file= sort_info.filelength;
   sort_param.wordlist=NULL;
@@ -3374,6 +3474,10 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
        rec_per_key_part+=sort_param.keyinfo->keysegs, sort_param.key++)
   {
     sort_param.keyinfo=share->keyinfo+sort_param.key;
+    /*
+      Skip this index if it is marked disabled in the copied
+      (and possibly inverted) key_map.
+    */
     if (! maria_is_key_active(key_map, sort_param.key))
     {
       /* Remember old statistics for key */
@@ -3381,6 +3485,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 	     (char*) (share->state.rec_per_key_part +
 		      (uint) (rec_per_key_part - param->new_rec_per_key_part)),
 	     sort_param.keyinfo->keysegs*sizeof(*rec_per_key_part));
+      DBUG_PRINT("repair", ("skipping seemingly disabled index #: %u",
+                            sort_param.key));
       continue;
     }
 
@@ -3492,6 +3598,7 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
                               sort_param.notnull : NULL),
                              (ulonglong) info->state->records);
     maria_set_key_active(share->state.key_map, sort_param.key);
+    DBUG_PRINT("repair", ("set enabled index #: %u", sort_param.key));
 
     if (_ma_flush_table_files_before_swap(param, info))
       goto err;
@@ -3743,11 +3850,12 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   MARIA_SORT_INFO sort_info;
-  ulonglong key_map=share->state.key_map;
+  ulonglong key_map;
   pthread_attr_t thr_attr;
   myf sync_dir= ((share->now_transactional && !share->temporary) ?
                  MY_SYNC_DIR : 0);
   DBUG_ENTER("maria_repair_parallel");
+  LINT_INIT(key_map);
 
   got_error= 1;
   new_file= -1;
@@ -3768,19 +3876,19 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
   /*
     Quick repair (not touching data file, rebuilding indexes):
     {
-      Read  cache is (MI_CHECK *param)->read_cache using info->dfile.file.
+      Read cache is (HA_CHECK *param)->read_cache using info->dfile.file.
     }
 
     Non-quick repair (rebuilding data file and indexes):
     {
       Master thread:
 
-        Read  cache is (MI_CHECK *param)->read_cache using info->dfile.file.
-        Write cache is (MI_INFO   *info)->rec_cache  using new_file.
+        Read  cache is (HA_CHECK *param)->read_cache using info->dfile.file.
+        Write cache is (MARIA_INFO *info)->rec_cache using new_file.
 
       Slave threads:
 
-        Read  cache is new_data_cache synced to master rec_cache.
+        Read cache is new_data_cache synced to master rec_cache.
 
       The final assignment of the filedescriptor for rec_cache is done
       after the cache creation.
@@ -3843,17 +3951,14 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     info->rec_cache.file=new_file;
   }
 
-  info->update= (short) (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  if (!(param->testflag & T_CREATE_MISSING_KEYS))
+  /* Optionally drop indexes and optionally modify the key_map. */
+  maria_drop_all_indexes(param, info, FALSE);
+  key_map= share->state.key_map;
+  if (param->testflag & T_CREATE_MISSING_KEYS)
   {
-    /* Clear the pointers to the given rows */
-    for (i=0 ; i < share->base.keys ; i++)
-      share->state.key_root[i]= HA_OFFSET_ERROR;
-    share->state.key_del= HA_OFFSET_ERROR;
-    info->state->key_file_length=share->base.keystart;
+    /* Invert the copied key_map to recreate all disabled indexes. */
+    key_map= ~key_map;
   }
-  else
-    key_map= ~key_map;				/* Create the missing keys */
 
   param->read_cache.end_of_file= sort_info.filelength;
 
@@ -3892,6 +3997,10 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
     sort_param[i].key=key;
     sort_param[i].keyinfo=share->keyinfo+key;
     sort_param[i].seg=sort_param[i].keyinfo->seg;
+    /*
+      Skip this index if it is marked disabled in the copied
+      (and possibly inverted) key_map.
+    */
     if (! maria_is_key_active(key_map, key))
     {
       /* Remember old statistics for key */
@@ -5729,8 +5838,8 @@ void _ma_update_auto_increment_key(HA_CHECK *param, MARIA_HA *info,
     We have to use an allocated buffer instead of info->rec_buff as
     _ma_put_key_in_record() may use info->rec_buff
   */
-  if (!(record= (uchar*) my_malloc((uint) share->base.pack_reclength,
-				  MYF(0))))
+  if (!(record= (uchar*) my_malloc((size_t) share->base.default_rec_buff_size,
+                                   MYF(0))))
   {
     _ma_check_print_error(param,"Not enough memory for extra record");
     DBUG_VOID_RETURN;

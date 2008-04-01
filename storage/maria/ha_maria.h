@@ -157,6 +157,9 @@ public:
                                      *engine_callback,
                                      ulonglong *engine_data);
 #endif
-
+  MARIA_HA *file_ptr(void)
+  {
+    return file;
+  }
   static int implicit_commit(THD *thd);
 };

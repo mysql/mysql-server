@@ -4770,8 +4770,8 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   if (!(data= get_record_position(buff, block_size, offset, &end_of_data)))
   {
     DBUG_PRINT("error", ("Wrong directory entry in data block"));
-    my_errno= HA_ERR_WRONG_IN_RECORD;           /* File crashed */
-    DBUG_RETURN(HA_ERR_WRONG_IN_RECORD);
+    my_errno= HA_ERR_RECORD_DELETED;           /* File crashed */
+    DBUG_RETURN(HA_ERR_RECORD_DELETED);
   }
   DBUG_RETURN(_ma_read_block_record2(info, record, data, end_of_data));
 }
