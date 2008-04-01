@@ -562,7 +562,8 @@ NdbOperation::prepareSendInterpreted()
 // Now it is time to update the signal data with the relative branch jump.
     NdbApiSignal* tSignal = tNdbCall->theSignal;
     Uint32 tReadData = tSignal->readData(tNdbCall->theSignalAddress);
-    tSignal->setData(((tAddress << 16) + tReadData), tNdbCall->theSignalAddress);
+    tSignal->setData(((tAddress << 16) + (tReadData & 0xffff)), 
+                     tNdbCall->theSignalAddress);
 
     theFirstCall = theFirstCall->theNext;
     theNdb->releaseNdbCall(tNdbCall);
