@@ -1439,7 +1439,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
       mysqld for short varchar keys is correctly converted into a one-byte
       length used by Ndb kernel.
     */
-    rec= dict->createRecord(m_index[index_no].index,
+    rec= dict->createRecord(m_index[index_no].index, m_table,
                             spec, key_info->key_parts, sizeof(spec[0]),
                             ( NdbDictionary::RecMysqldShrinkVarchar |
                               NdbDictionary::RecMysqldBitfield ));
@@ -1452,7 +1452,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 
   if (m_index[index_no].unique_index)
   {
-    rec= dict->createRecord(m_index[index_no].unique_index,
+    rec= dict->createRecord(m_index[index_no].unique_index, m_table,
                             spec, key_info->key_parts, sizeof(spec[0]),
                             ( NdbDictionary::RecMysqldShrinkVarchar |
                               NdbDictionary::RecMysqldBitfield ));
@@ -1496,7 +1496,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
 
   if (m_index[index_no].unique_index)
   {
-    rec= dict->createRecord(m_index[index_no].unique_index,
+    rec= dict->createRecord(m_index[index_no].unique_index, m_table,
                             spec, key_info->key_parts, sizeof(spec[0]),
                             NdbDictionary::RecMysqldBitfield);
     if (! rec)

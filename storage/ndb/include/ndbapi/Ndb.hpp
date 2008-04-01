@@ -1059,6 +1059,7 @@ class Ndb
   friend class NdbIndexOperation;
   friend class NdbScanOperation;
   friend class NdbIndexScanOperation;
+  friend class NdbDictionary;
   friend class NdbDictionaryImpl;
   friend class NdbDictInterface;
   friend class NdbBlob;

@@ -764,6 +764,13 @@ public:
     const void *getTablespaceData() const;
     Uint32 getTablespaceDataLen() const;
 
+    /**
+     * Get default NdbRecord object for this table
+     * This NdbRecord object becomes invalid at the same time as
+     * the table object - when the ndb_cluster_connection is closed.
+     */
+    const NdbRecord* getDefaultRecord() const;
+
     /** @} *******************************************************************/
 
     /** 
@@ -1131,6 +1138,14 @@ public:
      * Get object id
      */
     virtual int getObjectId() const;
+
+    /**
+     * Get default NdbRecord object for this index
+     * This NdbRecord object becomes invalid at the same time as
+     * the index object does - when the ndb_cluster_connection 
+     * is closed.
+     */
+    const NdbRecord* getDefaultRecord() const;
 
     /** @} *******************************************************************/
 
@@ -1504,8 +1519,11 @@ public:
       Offset of data from start of a row.
       
       For reading blobs, the blob handle (NdbBlob *) will be written into the
-      row, not the actual blob data. So at least sizeof(NdbBlob *) must be
-      available in the row.
+      result row when the operation is created, not the actual blob data. 
+      So at least sizeof(NdbBlob *) must be available in the row.  Other 
+      operations do not write the blob handle into the row.
+      In any case, a blob handle can always be obtained with a call to 
+      NdbOperation/NdbScanOperation::getBlobHandle().
     */
     Uint32 offset;
     /*
@@ -1517,6 +1535,134 @@ public:
     Uint32 nullbit_bit_in_byte;
   };
 
+  /* Types of NdbRecord object */
+  enum RecordType {
+    TableAccess,
+    IndexAccess
+  };
+  
+  /*
+    Return the type of the passed NdbRecord object
+  */
+  static RecordType getRecordType(const NdbRecord* record);
+  
+  /*
+    Return the name of the table object that the NdbRecord
+    refers to.
+    This method returns Null if the NdbRecord object is not a 
+    TableAccess NdbRecord.
+  */
+  static const char* getRecordTableName(const NdbRecord* record);
+  
+  /*
+    Return the name of the index object that the NdbRecord
+    refers to.
+    This method returns Null if the NdbRecord object is not an
+    IndexAccess NdbRecord
+  */
+  static const char* getRecordIndexName(const NdbRecord* record);
+  
+  /*
+    Get the first Attribute Id specified in the NdbRecord object.
+    Returns false if no Attribute Ids are specified.
+  */
+  static bool getFirstAttrId(const NdbRecord* record, Uint32& firstAttrId);
+
+  /* Get the next Attribute Id specified in the NdbRecord object
+     after the attribute Id passed in.
+     Returns false if there are no more attribute Ids
+  */
+  static bool getNextAttrId(const NdbRecord* record, Uint32& attrId);
+
+  /* Get offset of the given attribute id's storage from the start
+     of the NdbRecord row.
+     Returns false if the attribute id is not present
+  */
+  static bool getOffset(const NdbRecord* record, Uint32 attrId, Uint32& offset);
+  
+  /* Get offset of the given attribute id's null bit from the start
+     of the NdbRecord row.
+     Returns false if the attribute is not present or if the
+     attribute is not nullable
+  */
+  static bool getNullBitOffset(const NdbRecord* record, 
+                               Uint32 attrId, 
+                               Uint32& nullbit_byte_offset,
+                               Uint32& nullbit_bit_in_byte);
+
+  /*
+    Return pointer to beginning of storage of data specified by
+    attrId.
+    This method looks up the offset of the column which is stored in
+    the NdbRecord object, and returns the value of row + offset.
+    There are row-const and non-row-const versions.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param attrId : Attribute id of column
+    @return : Pointer to start of the attribute in the row.  Null if the
+    attribute is not part of the NdbRecord definition
+  */
+  static const char* getValuePtr(const NdbRecord* record,
+                                 const char* row,
+                                 Uint32 attrId);
+  
+  static char* getValuePtr(const NdbRecord* record,
+                           char* row,
+                           Uint32 attrId);
+  
+  /*
+    Return a bool indicating whether the null bit for the given
+    column is set to true or false.
+    The location of the null bit in relation to the row pointer is
+    obtained from the passed NdbRecord object.
+    If the column is not nullable, false will be returned.
+    If the column is not part of the NdbRecord definition, false will
+    be returned.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param attrId : Attibute id of column
+    @return : true if attrId exists in NdbRecord, is nullable, and null bit
+    in row is set, false otherwise.
+  */
+  static bool isNull(const NdbRecord* record,
+                     const char* row,
+                     Uint32 attrId);
+  
+  /*
+    Set the null bit for the given column to the supplied value.
+    The offset for the null bit is obtained from the passed 
+    NdbRecord object.
+    
+    If the attrId is not part of the NdbRecord, or is not nullable
+    then an error will be returned.
+    
+    @param record : Pointer to NdbRecord object describing the row format
+    @param row : Pointer to the start of row data
+    @param atrId : Attribute id of the column
+    @param value : Value to set null bit to
+    @returns : 0 in success, -1 if the attrId is not part of the record,
+    or is not nullable
+  */
+  static int setNull(const NdbRecord* record,
+                     char* row,
+                     Uint32 attrId,
+                     bool value);
+  
+  /*
+    Return the number of bytes needed to store one row of data
+    laid out as described by the passed NdbRecord structure.
+  */
+  static Uint32 getRecordRowLength(const NdbRecord* record);
+  
+  /*
+    Return an empty column presence bitmask.
+    This bitmask can be used with any NdbRecord to specify that
+    no NdbRecord columns are to be included in the operation.
+  */
+  static const unsigned char* getEmptyBitmask();
+  
   struct AutoGrowSpecification {
     Uint32 min_free;
     Uint64 max_size;
@@ -2049,10 +2195,26 @@ public:
       Create an NdbRecord for use in index operations.
     */
     NdbRecord *createRecord(const Index *index,
+                            const Table *table,
                             const RecordSpecification *recSpec,
                             Uint32 length,
                             Uint32 elemSize,
                             Uint32 flags= 0);
+    /*
+      Create an NdbRecord for use in index operations.
+      This variant assumes that the index is for a table in 
+      the current database and schema
+    */
+    NdbRecord *createRecord(const Index *index,
+                            const RecordSpecification *recSpec,
+                            Uint32 length,
+                            Uint32 elemSize,
+                            Uint32 flags= 0);
+
+    /*
+      Free an NdbRecord object created earlier with
+      createRecord
+    */
     void releaseRecord(NdbRecord *rec);
   };
 };

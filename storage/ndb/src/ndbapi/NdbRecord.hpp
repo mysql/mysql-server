@@ -46,7 +46,10 @@ public:
       it). This is needed so that deleteTuple() can know to delete all blob
       parts.
     */
-    RecTableHasBlob= 0x10
+    RecTableHasBlob= 0x10,
+
+    /* This NdbRecord is a default NdbRecord */
+    RecIsDefaultRec= 0x20
   };
 
   /* Flag bits for individual columns in the NdbRecord. */
