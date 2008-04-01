@@ -215,9 +215,9 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	CREATE TRIGGER trg5_1 BEFORE INSERT on test.t1
 		for each row set new.f3 = '14';
 # In 5.0 names to long (more than 64 chars) were trimed without an error
-# In 5.1 an error is returned. So adding a call with the expected error 
+# In 5.1 an error is returned. So adding a call with the expected error
 # and one with a shorter name to validate proper execution
-	--error 1059
+	--error ER_TOO_LONG_IDENT
 	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ
 		BEFORE UPDATE on test.t1 for each row set new.f3 = '42';
 	CREATE TRIGGER trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX
@@ -234,7 +234,7 @@ let $message= Testcase 3.5.1.7: - need to fix;
 	--error 0, ER_TRG_DOES_NOT_EXIST
 	drop trigger trg5_1;
 	# In 5.1 the long name should generate an error that is to long
-	--error 1059
+	--error ER_TOO_LONG_IDENT
 	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ;
 	drop trigger trg_abcdefghijklmnopqrstuvwxyz1234567890ABCDEFGHIJKLMNOPQRSTUVWX;
 	drop table t1;
