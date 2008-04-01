@@ -255,11 +255,9 @@ public:
 
   /**
    * Bitmask describing PK column positions for this table
-   * Empty bitmask for this table
    * Currently used by old-Api scans to use NdbRecord API internally.
    */
   const unsigned char * m_pkMask;
-  const unsigned char * m_emptyMask;
 
   /**
    * Equality/assign
@@ -670,8 +668,8 @@ public:
   int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
   int dropTableGlobal(NdbTableImpl &);
   int dropIndexGlobal(NdbIndexImpl & impl);
-  int releaseTableGlobal(NdbTableImpl & impl, int invalidate);
-  int releaseIndexGlobal(NdbIndexImpl & impl, int invalidate);
+  int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
+  int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
 
   NdbTableImpl * getTable(const char * tableName, void **data= 0);
   NdbTableImpl * getBlobTable(const NdbTableImpl&, uint col_no);
@@ -732,13 +730,41 @@ public:
                           const NdbDictionary::RecordSpecification *recSpec,
                           Uint32 length,
                           Uint32 elemSize,
-                          Uint32 flags);
-  NdbRecord *createRecord(const NdbIndexImpl *index,
-                          const NdbDictionary::RecordSpecification *recSpec,
-                          Uint32 length,
-                          Uint32 elemSize,
-                          Uint32 flags);
+                          Uint32 flags,
+                          bool defaultRecord);
   void releaseRecord_impl(NdbRecord *rec);
+
+  static NdbDictionary::RecordType 
+  getRecordType(const NdbRecord* record);
+  static const char* getRecordTableName(const NdbRecord* record);
+  static const char* getRecordIndexName(const NdbRecord* record);
+  static bool getNextAttrIdFrom(const NdbRecord* record,
+                                Uint32 startAttrId,
+                                Uint32& nextAttrId);
+  static bool getOffset(const NdbRecord* record,
+                        Uint32 attrId,
+                        Uint32& offset);
+  static bool getNullBitOffset(const NdbRecord* record,
+                               Uint32 attrId,
+                               Uint32& nullbit_byte_offset,
+                               Uint32& nullbit_bit_in_byte);
+  static const char* getValuePtr(const NdbRecord* record,
+                                 const char* row,
+                                 Uint32 attrId);
+  static char* getValuePtr(const NdbRecord* record,
+                           char* row,
+                           Uint32 attrId);
+  static bool isNull(const NdbRecord* record,
+                     const char* row,
+                     Uint32 attrId);
+  static int setNull(const NdbRecord* record,
+                     char* row,
+                     Uint32 attrId,
+                     bool value);
+  static Uint32 getRecordRowLength(const NdbRecord* record);
+
+  /* Empty NdbRecord column mask for user convenience */
+  static const Uint32 m_emptyMask[MAXNROFATTRIBUTESINWORDS];
 
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
@@ -1169,7 +1195,7 @@ NdbDictionaryImpl::getIndexGlobal(const char * index_name,
 }
 
 inline int
-NdbDictionaryImpl::releaseTableGlobal(NdbTableImpl & impl, int invalidate)
+NdbDictionaryImpl::releaseTableGlobal(const NdbTableImpl & impl, int invalidate)
 {
   DBUG_ENTER("NdbDictionaryImpl::releaseTableGlobal");
   DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));
@@ -1180,7 +1206,7 @@ NdbDictionaryImpl::releaseTableGlobal(NdbTableImpl & impl, int invalidate)
 }
 
 inline int
-NdbDictionaryImpl::releaseIndexGlobal(NdbIndexImpl & impl, int invalidate)
+NdbDictionaryImpl::releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate)
 {
   DBUG_ENTER("NdbDictionaryImpl::releaseIndexGlobal");
   DBUG_PRINT("enter", ("internal_name: %s", impl.m_internalName.c_str()));

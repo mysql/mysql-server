@@ -17,6 +17,112 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOut.hpp>
 
+/* NdbRecord static helper methods */
+
+NdbDictionary::RecordType
+NdbDictionary::getRecordType(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordType(record);
+}
+
+const char*
+NdbDictionary::getRecordTableName(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordTableName(record);
+}
+
+const char*
+NdbDictionary::getRecordIndexName(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordIndexName(record);
+}
+
+bool
+NdbDictionary::getFirstAttrId(const NdbRecord* record,
+                              Uint32& firstAttrId)
+{
+  return NdbDictionaryImpl::getNextAttrIdFrom(record,
+                                              0,
+                                              firstAttrId);
+}
+
+bool
+NdbDictionary::getNextAttrId(const NdbRecord* record,
+                             Uint32& attrId)
+{
+  return NdbDictionaryImpl::getNextAttrIdFrom(record, 
+                                              attrId+1,
+                                              attrId);
+}
+
+bool
+NdbDictionary::getOffset(const NdbRecord* record,
+                         Uint32 attrId,
+                         Uint32& offset)
+{
+  return NdbDictionaryImpl::getOffset(record, attrId, offset);
+}
+
+bool
+NdbDictionary::getNullBitOffset(const NdbRecord* record,
+                                Uint32 attrId,
+                                Uint32& nullbit_byte_offset,
+                                Uint32& nullbit_bit_in_byte)
+{
+  return NdbDictionaryImpl::getNullBitOffset(record,
+                                             attrId,
+                                             nullbit_byte_offset,
+                                             nullbit_bit_in_byte);
+}
+
+
+const char*
+NdbDictionary::getValuePtr(const NdbRecord* record,
+            const char* row,
+            Uint32 attrId)
+{
+  return NdbDictionaryImpl::getValuePtr(record, row, attrId);
+}
+
+char*
+NdbDictionary::getValuePtr(const NdbRecord* record,
+            char* row,
+            Uint32 attrId)
+{
+  return NdbDictionaryImpl::getValuePtr(record, row, attrId);
+}
+
+bool
+NdbDictionary::isNull(const NdbRecord* record,
+       const char* row,
+       Uint32 attrId)
+{
+  return NdbDictionaryImpl::isNull(record, row, attrId);
+}
+
+int
+NdbDictionary::setNull(const NdbRecord* record,
+        char* row,
+        Uint32 attrId,
+        bool value)
+{
+  return NdbDictionaryImpl::setNull(record, row, attrId, value);
+}
+
+Uint32
+NdbDictionary::getRecordRowLength(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordRowLength(record);
+}
+
+const unsigned char* 
+NdbDictionary::getEmptyBitmask()
+{
+  return (const unsigned char*) NdbDictionaryImpl::m_emptyMask;
+}
+
+/* --- */
+
 NdbDictionary::ObjectId::ObjectId()
   : m_impl(* new NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined))
 {
@@ -764,6 +870,11 @@ NdbDictionary::Table::getForceVarPart() const {
   return m_impl.m_force_var_part;
 }
 
+const NdbRecord*
+NdbDictionary::Table::getDefaultRecord() const {
+  return m_impl.m_ndbrecord;
+}
+
 int
 NdbDictionary::Table::aggregate(NdbError& error)
 {
@@ -868,6 +979,11 @@ NdbDictionary::Index::getIndexColumn(int no) const {
     return col->getName();
   else
     return NULL;
+}
+
+const NdbRecord*
+NdbDictionary::Index::getDefaultRecord() const {
+  return m_impl.m_table->m_ndbrecord;
 }
 
 int
@@ -1607,11 +1723,123 @@ NdbDictionary::Dictionary::createRecord(const Table *table,
                                         Uint32 elemSize,
                                         Uint32 flags)
 {
-  return m_impl.createRecord(&NdbTableImpl::getImpl(*table),
-                             recSpec,
-                             length,
-                             elemSize,
-                             flags);
+  /* We want to obtain a global reference to the Table object */
+  NdbTableImpl* impl=&NdbTableImpl::getImpl(*table);
+  Ndb* myNdb= &m_impl.m_ndb;
+
+  /* Temporarily change Ndb object to use table's database 
+   * and schema 
+   */
+  BaseString currentDb(myNdb->getDatabaseName());
+  BaseString currentSchema(myNdb->getDatabaseSchemaName());
+
+  myNdb->setDatabaseName
+    (Ndb::getDatabaseFromInternalName(impl->m_internalName.c_str()).c_str());
+  myNdb->setDatabaseSchemaName
+    (Ndb::getSchemaFromInternalName(impl->m_internalName.c_str()).c_str());
+
+  /* Get global ref to table.  This is released below, or when the
+   * NdbRecord is released
+   */
+  const Table* globalTab= getTableGlobal(impl->m_externalName.c_str());
+
+  /* Restore Ndb object's DB and Schema */
+  myNdb->setDatabaseName(currentDb.c_str());
+  myNdb->setDatabaseSchemaName(currentSchema.c_str());
+
+  if (globalTab == NULL)
+    /* An error is set on the dictionary */
+    return NULL;
+  
+  NdbTableImpl* globalTabImpl= &NdbTableImpl::getImpl(*globalTab);
+  
+  assert(impl->m_id == globalTabImpl->m_id);
+  if (table_version_major(impl->m_version) != 
+      table_version_major(globalTabImpl->m_version))
+  {
+    removeTableGlobal(*globalTab, false); // Don't invalidate
+    m_impl.m_error.code= 241; //Invalid schema object version
+    return NULL;
+  }
+
+  NdbRecord* result= m_impl.createRecord(globalTabImpl,
+                                         recSpec,
+                                         length,
+                                         elemSize,
+                                         flags,
+                                         false); // Not default NdbRecord
+
+  if (!result)
+  {
+    removeTableGlobal(*globalTab, false); // Don't invalidate
+  }
+  return result;
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  /* We want to obtain a global reference to the Index's underlying
+   * table object
+   */
+  NdbTableImpl* tabImpl=&NdbTableImpl::getImpl(*table);
+  Ndb* myNdb= &m_impl.m_ndb;
+
+  /* Temporarily change Ndb object to use table's database 
+   * and schema.  Index's database and schema are not 
+   * useful for finding global table reference
+   */
+  BaseString currentDb(myNdb->getDatabaseName());
+  BaseString currentSchema(myNdb->getDatabaseSchemaName());
+
+  myNdb->setDatabaseName
+    (Ndb::getDatabaseFromInternalName(tabImpl->m_internalName.c_str()).c_str());
+  myNdb->setDatabaseSchemaName
+    (Ndb::getSchemaFromInternalName(tabImpl->m_internalName.c_str()).c_str());
+
+  /* Get global ref to index.  This is released below, or when the
+   * NdbRecord object is released
+   */
+  const Index* globalIndex= getIndexGlobal(index->getName(), *table);
+
+  /* Restore Ndb object's DB and Schema */
+  myNdb->setDatabaseName(currentDb.c_str());
+  myNdb->setDatabaseSchemaName(currentSchema.c_str());
+
+  if (globalIndex == NULL)
+    /* An error is set on the dictionary */
+    return NULL;
+  
+  NdbIndexImpl* indexImpl= &NdbIndexImpl::getImpl(*index);
+  NdbIndexImpl* globalIndexImpl= &NdbIndexImpl::getImpl(*globalIndex);
+  
+  assert(indexImpl->m_id == globalIndexImpl->m_id);
+  
+  if (table_version_major(indexImpl->m_version) != 
+      table_version_major(globalIndexImpl->m_version))
+  {
+    removeIndexGlobal(*globalIndex, false); // Don't invalidate
+    m_impl.m_error.code= 241; //Invalid schema object version
+    return NULL;
+  }
+
+  NdbRecord* result= m_impl.createRecord(globalIndexImpl->m_table,
+                                         recSpec,
+                                         length,
+                                         elemSize,
+                                         flags,
+                                         false); // Not default NdbRecord
+
+  if (!result)
+  {
+    removeIndexGlobal(*globalIndex, false); // Don't invalidate
+  }
+  return result;
 }
 
 NdbRecord *
@@ -1621,11 +1849,15 @@ NdbDictionary::Dictionary::createRecord(const Index *index,
                                         Uint32 elemSize,
                                         Uint32 flags)
 {
-  return m_impl.createRecord(&NdbIndexImpl::getImpl(*index),
-                             recSpec,
-                             length,
-                             elemSize,
-                             flags);
+  const NdbDictionary::Table *table= getTable(index->getTable());
+  if (!table)
+    return NULL;
+  return createRecord(index,
+                      table,
+                      recSpec,
+                      length,
+                      elemSize,
+                      flags);
 }
 
 void 

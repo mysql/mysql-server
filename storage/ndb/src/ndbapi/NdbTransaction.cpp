@@ -406,6 +406,27 @@ NdbTransaction::execute(ExecType aTypeOfExec,
     {
       if(savedError.code==0)
 	savedError= theError;
+      /**
+       * We abort the execute here. But we still need to put the split-off
+       * operation list back into the transaction object, or we will get a
+       * memory leak.
+       */
+      if (firstSavedOp != NULL && lastSavedOp != NULL) {
+        DBUG_PRINT("info", ("Rejoining ops list after postExecute between "
+                            "%p and %p", theLastOpInList, firstSavedOp));
+        if (theFirstOpInList == NULL)
+          theFirstOpInList = firstSavedOp;
+        else
+          theLastOpInList->next(firstSavedOp);
+        theLastOpInList = lastSavedOp;
+      }
+      if (tCompletedFirstOp != NULL) {
+        tCompletedLastOp->next(theCompletedFirstOp);
+        theCompletedFirstOp = tCompletedFirstOp;
+        if (theCompletedLastOp == NULL)
+          theCompletedLastOp = tCompletedLastOp;
+      }
+
       DBUG_RETURN(-1);
     }
 
@@ -1163,7 +1184,8 @@ NdbTransaction::getNdbOperation(const char* aTableName)
 }//NdbTransaction::getNdbOperation()
 
 /*****************************************************************************
-NdbOperation* getNdbOperation(int aTableId);
+NdbOperation* getNdbOperation(const NdbTableImpl* tab, NdbOperation* aNextOp,
+                              bool useRec)
 
 Return Value    Return a pointer to a NdbOperation object if getNdbOperation 
                 was succesful.
@@ -2258,7 +2280,7 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
       setOperationErrorCodeAbort(4287);
       return NULL;
     }
-    op= getNdbOperation(key_record->table, NULL, true);
+    op= getNdbOperation(attribute_record->table, NULL, true);
   }
   if(!op)
     return NULL;
@@ -2292,7 +2314,8 @@ NdbTransaction::setupRecordOp(NdbOperation::OperationType type,
   }
 
   /* Handle delete + blobs */
-  if (type == NdbOperation::DeleteRequest)
+  if (type == NdbOperation::DeleteRequest &&
+      (attribute_record->flags & NdbRecord::RecTableHasBlob))
   {
     /* Need to link in all the Blob handles for delete 
      * If there is a pre-read, check that no Blobs have
@@ -2570,6 +2593,11 @@ NdbTransaction::scanIndex(const NdbRecord *key_record,
                           const NdbScanOperation::ScanOptions *options,
                           Uint32 sizeOfOptions)
 {
+  /*
+    Normal scan operations are created as NdbIndexScanOperations.
+    The reason for this is that they can then share a pool of allocated
+    objects.
+  */
   NdbIndexScanOperation *op= getNdbScanOperation(key_record->table);
   if (op==NULL)
   {
