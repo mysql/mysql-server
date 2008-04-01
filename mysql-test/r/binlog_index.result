@@ -9,7 +9,7 @@ master-bin.000003	#
 master-bin.000004	#
 purge binary logs TO 'master-bin.000004';
 Warnings:
-Warning	1476	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
+Warning	1477	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
 *** must show a list starting from the 'TO' argument of PURGE ***
 show binary logs;
 Log_name	File_size
@@ -20,7 +20,7 @@ flush logs;
 flush logs;
 *** must be a warning master-bin.000001 was not found ***
 Warnings:
-Warning	1476	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
+Warning	1477	Being purged log MYSQLTEST_VARDIR/log/master-bin.000001 was not found
 *** must show one record, of the active binlog, left in the index file after PURGE ***
 show binary logs;
 Log_name	File_size
