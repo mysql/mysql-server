@@ -54,7 +54,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			procedure.h sql_class.h sql_lex.h sql_list.h \
 			sql_map.h sql_string.h unireg.h \
 			sql_error.h field.h handler.h mysqld_suffix.h \
- 			sql_profile.h \
+			sql_profile.h \
 			ha_ndbcluster.h ha_ndbcluster_cond.h \
 			ha_ndbcluster_binlog.h ha_ndbcluster_tables.h \
 			ha_partition.h rpl_constants.h \
@@ -178,6 +178,12 @@ lex_hash.h:	gen_lex_hash.cc lex.h
 udf_example_la_SOURCES= udf_example.c
 udf_example_la_LDFLAGS= -module -rpath $(pkglibdir)
 
+# We might have some stuff not built in this build, but that we want to install
+install-exec-hook:
+	$(mkinstalldirs) $(DESTDIR)$(libexecdir) $(DESTDIR)$(pkglibdir)
+	test ! -x mysqld-debug$(EXEEXT) || $(INSTALL_PROGRAM) mysqld-debug$(EXEEXT) $(DESTDIR)$(libexecdir)
+	test ! -f mysqld-debug.sym.gz   || $(INSTALL_DATA)    mysqld-debug.sym.gz   $(DESTDIR)$(pkglibdir)
+	test ! -f mysqld.sym.gz         || $(INSTALL_DATA)    mysqld.sym.gz         $(DESTDIR)$(pkglibdir)
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
