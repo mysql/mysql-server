@@ -25,7 +25,7 @@
    SESSION_STATUS
    SESSION_VARIABLES
 
-3. Some hints:
+3. Some hints for maintainers of this suite:
    - SHOW TABLES ... LIKE '<pattern>'
      does a case sensitive comparison between the tablename and
      the pattern.
@@ -43,4 +43,12 @@
      ERROR 42000: Access denied for user ... to database 'information_schema'
      DROP DATABASE INFORMATION_SCHEMA;
      ERROR 42000: Access denied for user ... to database 'INFORMATION_SCHEMA'
+   - Try to unify results by
+     --replace_result $engine_type <engine_to_be_tested>
+     if we could expect that the results for storage engine variants of a
+     test differ only in the engine names.
+     This makes future maintenance easier.
+   - Avoid the use of include/show_msg*.inc.
+     They produce "SQL" noise which annoys during server debugging and can be
+     easy replaced by "--echo ...".
 
