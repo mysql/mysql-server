@@ -13,13 +13,25 @@ enable_warnings;
 eval create database $db;
 
 connection master;
-select @@net_buffer_length, @@max_allowed_packet;
+SET @@global.max_allowed_packet=1024;
+SET @@global.net_buffer_length=1024;
+
+# Restart slave for setting to take effect
+connection slave;
+STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+
+# Reconnect to master for new setting to take effect
 disconnect master;
 
 # alas, can't use eval here; if db name changed apply the change here
 connect (master,localhost,root,,DB_NAME_OF_MAX_LENGTH_AKA_NAME_LEN_64_BYTES_____________________);
 
 connection master;
+select @@net_buffer_length, @@max_allowed_packet;
+
 create table `t1` (`f1` LONGTEXT) ENGINE=MyISAM;
 
 INSERT INTO `t1`(`f1`) VALUES ('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1023');
@@ -52,7 +64,9 @@ SET @@global.net_buffer_length=4096;
 # Restart slave for new setting to take effect
 connection slave;
 STOP SLAVE;
+source include/wait_for_slave_to_stop.inc;
 START SLAVE;
+source include/wait_for_slave_to_start.inc;
 
 # Reconnect to master for new setting to take effect
 disconnect master;
