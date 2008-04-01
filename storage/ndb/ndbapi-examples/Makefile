@@ -10,7 +10,8 @@ BIN_DIRS := 	ndbapi_simple \
 		ndbapi_blob_ndbrecord \
 		mgmapi_logevent \
 		ndbapi_simple_dual \
-		mgmapi_logevent2
+		mgmapi_logevent2 \
+		ndbapi_recattr_vs_record
 
 bins: $(patsubst %, _bins_%, $(BIN_DIRS))
 
