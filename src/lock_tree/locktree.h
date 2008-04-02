@@ -18,13 +18,14 @@
    we defer to the db panic handler. Pass in another parameter to do this.
 */
 
-#include <assert.h>
 #include <db.h>
 #include <brttypes.h>
 #include <rangetree.h>
 #include <lth.h>
 #include <rth.h>
 #include <idlth.h>
+
+#include "toku_assert.h"
 
 /** Errors returned by lock trees */
 typedef enum {

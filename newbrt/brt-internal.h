@@ -3,12 +3,16 @@
 
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
+#include "toku_assert.h"
 #include "cachetable.h"
 #include "fifo.h"
-#include "pma.h"
+#include "yerror.h"
+#include "gpma.h"
 #include "brt.h"
 #include "crc.h"
 #include "list.h"
+#include "mempool.h"
+#include "kv-pair.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -77,8 +81,9 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
-	    PMA buffer;
+	    GPMA buffer;
 	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the PMA (including the per-key overheads, but not including the overheads for the node. */
+	    struct mempool buffer_mempool;
 	} l;
     } u;
 };
@@ -101,11 +106,6 @@ struct brt_header {
     unsigned int flags;
 };
 
-enum brt_header_flags {
-    TOKU_DB_DUP = 1,
-    TOKU_DB_DUPSORT = 2,
-};
-
 struct brt {
     CACHEFILE cf;
     char *database_name;
@@ -125,7 +125,7 @@ struct brt {
 
 /* serialization code */
 void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize, int (*bt_compare)(DB *, const DBT*, const DBT*), int (*dup_compare)(DB *, const DBT *, const DBT *), DB *db, FILENUM filenum);
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsigned int flags, int nodesize);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 
@@ -160,6 +160,7 @@ extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
 static const BRTNODE null_brtnode=0;
 
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
+extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
 extern u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd);
 
@@ -191,6 +192,34 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_typ
 
 int toku_set_func_fsync (int (*fsync_function)(int));
 
+/* allocate a kv pair from a kv memory pool */
+//static inline struct kv_pair *kv_pair_malloc_mempool(const void *key, int keylen, const void *val, int vallen, struct mempool *mp) {
+//    struct kv_pair *kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
+//    if (kv)
+//        kv_pair_init(kv, key, keylen, val, vallen);
+//    return kv;
+//}
 
+int toku_brtnode_compress_kvspace (GPMA pma, struct mempool *mp);
+
+static inline struct kv_pair *brtnode_malloc_kv_pair (GPMA pma, struct mempool *mp, const void *key, unsigned int keylen, const void *val, unsigned int vallen) {
+    struct kv_pair *kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
+    if (kv == 0) {
+	if (0 == toku_brtnode_compress_kvspace (pma, mp)) {
+	    kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
+	    toku_verify_gpma(pma);
+	    assert(kv);
+	}
+    }
+    kv_pair_init(kv, key, keylen, val, vallen);
+    return kv;
+}
+
+// used for the leaf compare fun
+struct lc_pair {
+    BRT t;
+    int compare_both; // compare_both is set if it is a DUPSORT database and both keys are needed (e.g, for DB_DELETE_ANY)
+};
+int toku_brtleaf_compare_fun (u_int32_t alen __attribute__((__unused__)), void *aval, u_int32_t blen __attribute__((__unused__)), void *bval, void *lc /*this is (struct lc_pair *) cast to (void*). */) ;
 
 #endif

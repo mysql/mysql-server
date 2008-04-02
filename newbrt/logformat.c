@@ -41,9 +41,9 @@ int logformat_version_number = 0;
 const struct logtype rollbacks[] = {
     {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
-    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
-		       {"BYTESTRING", "fname", 0},
-		       NULLFIELD}},
+//    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
+//		       {"BYTESTRING", "fname", 0},
+//		       NULLFIELD}},
     {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
 			     {"BYTESTRING", "key", 0},
 			     {"BYTESTRING", "data", 0},
@@ -175,6 +175,8 @@ const struct logtype logtypes[] = {
 			      {"DISKOFF",    "old_diskoff", 0},
 			      {"DISKOFF",    "new_diskoff", 0},
 			      {"INTPAIRARRAY",   "fromto",    0},
+			      {"u_int32_t",      "old_N", 0},
+			      {"u_int32_t",      "new_N", 0},
 			      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
@@ -199,7 +201,7 @@ const struct logtype logtypes[] = {
     } })
 
 
-void fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
+static void __attribute__((format (printf, 3, 4))) fprintf2 (FILE *f1, FILE *f2, const char *format, ...) {
     va_list ap;
     int r;
     va_start(ap, format);

@@ -20,12 +20,12 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
     int r = ENOSYS;
     if (ybt->flags==DB_DBT_MALLOC) {
     domalloc:
-	ybt->data = toku_malloc(vallen);
+	ybt->data = toku_malloc((size_t)vallen);
 	if (!ybt->data && vallen > 0) { r = errno; goto cleanup; }
     } else if (ybt->flags==DB_DBT_REALLOC) {
 	if (ybt->data==0) goto domalloc;
 	/* tmp is used to prevent a memory leak if realloc fails */
-        void* tmp = toku_realloc(ybt->data, vallen);
+	void* tmp = toku_realloc(ybt->data, (size_t)vallen);
 	if (!tmp && vallen > 0) { r = errno; goto cleanup; }
         ybt->data = tmp;
     } else if (ybt->flags==DB_DBT_USERMEM) {
@@ -36,10 +36,9 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
 	void *staticptr=*staticptrp;
 	//void *old=staticptr;
 	if (staticptr==0) { 
-	    staticptr = toku_malloc(vallen);
+	    staticptr = toku_malloc((size_t)vallen);
             if (!staticptr && vallen > 0) { r = errno; goto cleanup; }
-        }
-	else {
+        } else {
 	    /* tmp is used to prevent a memory leak if realloc fails */
             void* tmp = toku_realloc(staticptr, vallen);
             if (!tmp && vallen > 0) { r = errno; goto cleanup; }
@@ -51,7 +50,7 @@ int toku_dbt_set_value (DBT *ybt, bytevec val, ITEMLEN vallen, void **staticptrp
     }
     ybt->size = vallen;
     if (ybt->size>0) {
-	memcpy(ybt->data, val, vallen);
+	memcpy(ybt->data, val, (size_t)vallen);
     }
     r = 0;
 cleanup:

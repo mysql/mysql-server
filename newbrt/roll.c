@@ -26,6 +26,7 @@ int toku_rollback_fcreate (BYTESTRING bs_fname,
     return 0;
 }
 
+#if 0
 int toku_rollback_fclose (FILENUM filenum, BYTESTRING bs_fname, TOKUTXN txn) {
     abort();
     filenum=filenum;
@@ -55,7 +56,7 @@ int toku_rollback_fclose (FILENUM filenum, BYTESTRING bs_fname, TOKUTXN txn) {
     return 0;
 #endif
 }
-			  
+#endif	
 
 //int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
 //    // All that must be done is to put the node on the freelist.

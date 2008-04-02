@@ -36,6 +36,8 @@
 #include "brt-internal.h"
 #include "key.h"
 #include "log_header.h"
+#include "kv-pair.h"
+#include "mempool.h"
 
 extern long long n_items_malloced;
 
@@ -60,8 +62,14 @@ void toku_brtnode_free (BRTNODE *nodep) {
 	toku_free(node->u.n.childinfos);
     } else {
 	if (node->u.l.buffer) // The buffer may have been freed already, in some cases.
-	    toku_pma_free(&node->u.l.buffer);
+	    toku_gpma_free(&node->u.l.buffer, 0, 0);
+
+	void *mpbase = toku_mempool_get_base(&node->u.l.buffer_mempool);
+	toku_mempool_fini(&node->u.l.buffer_mempool);
+	toku_free(mpbase);
+
     }
+
     toku_free(node);
     *nodep=0;
 }
@@ -121,8 +129,8 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 //	toku_pma_verify_fingerprint(brtnode->u.l.buffer, brtnode->rand4fingerprint, brtnode->subtree_fingerprint);
 //    }
     if (0) {
-	printf("%s:%d toku_brtnode_flush_callback %p keep_me=%d height=%d", __FILE__, __LINE__, brtnode, keep_me, brtnode->height);
-	if (brtnode->height==0) printf(" pma=%p", brtnode->u.l.buffer);
+	printf("%s:%d toku_brtnode_flush_callback %p thisnodename=%lld keep_me=%d height=%d", __FILE__, __LINE__, brtnode, (long long)brtnode->thisnodename, keep_me, brtnode->height);
+	if (brtnode->height==0) printf(" pma=%p mempool-base=%p", brtnode->u.l.buffer, brtnode->u.l.buffer_mempool.base);
 	printf("\n");
     }
     //if (modified_lsn.lsn > brtnode->lsn.lsn) brtnode->lsn=modified_lsn;
@@ -141,8 +149,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
 int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
     BRT t =(BRT)extraargs;
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize, 
-					  t->compare_fun, t->dup_compare, t->db, toku_cachefile_filenum(t->cf));
+    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize);
     if (r == 0) {
         *sizep = brtnode_size(*result);
 	*written_lsn = (*result)->disk_lsn;
@@ -202,6 +209,7 @@ int toku_unpin_brtnode (BRT brt, BRTNODE node) {
 //	node->log_lsn = toku_txn_get_last_lsn(txn);
 //	//if (node->log_lsn.lsn>33320) printf("%s:%d node%lld lsn=%lld\n", __FILE__, __LINE__, node->thisnodename, node->log_lsn.lsn);
 //    }
+    //toku_verify_counts(node);
     return toku_cachetable_unpin(brt->cf, node->thisnodename, node->dirty, brtnode_size(node));
 }
 
@@ -254,7 +262,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = 2;
+    n->layout_version = 3;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -267,10 +275,14 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	n->u.n.childinfos=0;
 	n->u.n.childkeys=0;
     } else {
-	int r = toku_pma_create(&n->u.l.buffer, t->compare_fun, t->db, toku_cachefile_filenum(t->cf), n->nodesize, 0);
-        assert(r==0);
-        toku_pma_set_dup_mode(n->u.l.buffer, t->flags & (TOKU_DB_DUP+TOKU_DB_DUPSORT));
-        toku_pma_set_dup_compare(n->u.l.buffer, t->dup_compare);
+	int r = toku_gpma_create(&n->u.l.buffer, 0);
+	assert(r==0);
+	{
+	    void *mp = toku_malloc(n->nodesize);
+	    assert(mp);
+	    toku_mempool_init(&n->u.l.buffer_mempool, mp, n->nodesize);
+	}
+
 	static int rcount=0;
 	//printf("%s:%d n PMA= %p (rcount=%d)\n", __FILE__, __LINE__, n->u.l.buffer, rcount); 
 	rcount++;
@@ -314,6 +326,88 @@ static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT 
     return 0;
 }
 
+struct move_struct {
+    TOKULOGGER logger;
+    FILENUM filenum;
+    BRTNODE from,to;
+    struct gitem last_pair_remaining_in_from;
+};
+
+int move_between_mempools (u_int32_t len, void *odata, void **ndata, void *extra) {
+    struct move_struct *ms=extra;
+    assert(ms->from->height==0);
+    assert(ms->to->height==0);
+    assert(len==(unsigned)kv_pair_size(odata));
+    void *newitem=toku_mempool_malloc(&ms->to->u.l.buffer_mempool, len, 4);
+    assert(newitem);
+    memcpy(newitem, odata, len);
+    toku_mempool_mfree(&ms->from->u.l.buffer_mempool, odata, len);
+    *ndata = newitem;
+    assert(len==(unsigned)kv_pair_size(newitem));
+    return 0;
+}
+
+int note_move_items_within_or_between (u_int32_t nitems, u_int32_t *froms, u_int32_t *tos, BRTNODE from, BRTNODE to, FILENUM filenum, TOKULOGGER logger, u_int32_t old_N, u_int32_t new_N) {
+    INTPAIRARRAY ipa;
+    MALLOC_N(nitems, ipa.array);
+    if (ipa.array==0) return errno;
+    u_int32_t i;
+    for (i=0; i<nitems; i++) {
+	ipa.array[i].a=froms[i];
+	ipa.array[i].b=tos  [i];
+    }
+    ipa.size=nitems;
+    if (logger) {
+	LSN lsn;
+	int r = toku_log_pmadistribute(logger, &lsn, 0, filenum, from->thisnodename, to->thisnodename, ipa, old_N, new_N);
+	if (r!=0) return r;
+	from->log_lsn=lsn;
+	to->log_lsn  =lsn;
+    }
+    toku_free(ipa.array);
+    return 0;
+}
+
+
+static int note_move_items_within (u_int32_t nitems, u_int32_t *froms, u_int32_t *tos, struct gitem *items __attribute__((__unused__)), u_int32_t old_N, u_int32_t new_N, void *extra)  {
+    struct move_struct *ms=extra;
+    assert(nitems>0);
+    ms->last_pair_remaining_in_from=items[nitems-1];
+    return note_move_items_within_or_between(nitems, froms, tos, ms->from, ms->from, ms->filenum, ms->logger, old_N, new_N);
+}
+
+static int note_move_items_between (u_int32_t nitems, u_int32_t *froms, u_int32_t *tos, struct gitem *items, u_int32_t old_N, u_int32_t new_N, void *extra)  {
+    struct move_struct *ms=extra;
+    int r = note_move_items_within_or_between(nitems, froms, tos, ms->from, ms->to, ms->filenum, ms->logger, old_N, new_N);
+    if (r!=0) return r;
+    u_int32_t i;
+    u_int32_t diffsize = 0;
+    u_int32_t diff_fp  = 0;
+    for (i=0; i<nitems; i++) {
+	diffsize += PMA_ITEM_OVERHEAD + items[i].len;
+	diff_fp  += toku_calccrc32_kvpair_struct(items[i].data);
+    }
+    ms->from->local_fingerprint -= ms->from->rand4fingerprint * diff_fp;
+    ms->to->local_fingerprint   += ms->to->rand4fingerprint   * diff_fp;
+    ms->from->u.l.n_bytes_in_buffer -= diffsize;
+    ms->to->u.l.n_bytes_in_buffer   += diffsize;
+    return 0;
+}
+
+struct delete_struct {
+    BRTNODE node;
+};
+
+static int brt_leaf_delete_callback (u_int32_t slotnum, u_int32_t len, void *data, void *extra) {
+    struct delete_struct *d = extra;
+    d->node->local_fingerprint     -= d->node->rand4fingerprint*toku_calccrc32_kvpair_struct(data);
+    d->node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + len;
+    toku_mempool_mfree(&d->node->u.l.buffer_mempool, data, len);
+    d->node->dirty=1;
+    // Should use slotnum for logging
+    slotnum=slotnum; //????
+    return 0;
+}
 
 static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
     BRTNODE B;
@@ -329,10 +423,46 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
     int r;
-    r = toku_pma_split(logger, filenum,
-		       node->thisnodename, node->u.l.buffer, &node->u.l.n_bytes_in_buffer, node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn,
-		       splitk,
-		       B->thisnodename,    B->u.l.buffer,    &B->u.l.n_bytes_in_buffer,    B->rand4fingerprint,    &B->local_fingerprint,    &B->log_lsn);
+    struct move_struct ms = {.logger=logger, .filenum=filenum, .from=node, .to=B};
+    //toku_verify_gpma(node->u.l.buffer);
+    GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
+		 ({
+		     struct kv_pair *p=vdata;
+		     //printf("%s:%d %d:%p ", __FILE__, __LINE__, idx, p);
+		     assert((char*)node->u.l.buffer_mempool.base<= (char*)p && (char*)p < (char*)node->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
+		 }));
+    r = toku_gpma_split(node->u.l.buffer, B->u.l.buffer, PMA_ITEM_OVERHEAD,
+			move_between_mempools,
+			note_move_items_within,
+			note_move_items_between,
+			&ms);
+    GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
+		 ({
+		     struct kv_pair *p=vdata;
+		     //printf("%s:%d %d:%p ", __FILE__, __LINE__, idx, p);
+		     assert((char*)node->u.l.buffer_mempool.base<= (char*)p && (char*)p < (char*)node->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
+		 }));
+    GPMA_ITERATE(B->u.l.buffer, idx, vlen, vdata,
+		 ({
+		     struct kv_pair *p=vdata;
+		     //printf("%s:%d %d:%p\n", __FILE__, __LINE__, idx, p);
+		     assert((char*)B->u.l.buffer_mempool.base<= (char*)p && (char*)p < (char*)B->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
+		 }));
+
+    //toku_verify_gpma(node->u.l.buffer);
+    //toku_verify_gpma(B->u.l.buffer);
+    if (splitk) {
+	memset(splitk, 0, sizeof *splitk);
+	struct kv_pair *kp=ms.last_pair_remaining_in_from.data;
+	if (node->flags&TOKU_DB_DUPSORT) {
+	    splitk->size = kv_pair_keylen(kp)+kv_pair_vallen(kp);
+	    splitk->data = kv_pair_malloc(kv_pair_key(kp), kv_pair_keylen(kp), kv_pair_val(kp), kv_pair_vallen(kp));
+	} else {
+	    splitk->size = kv_pair_keylen(kp);
+	    splitk->data = kv_pair_malloc(kv_pair_key(kp), kv_pair_keylen(kp), 0, 0);
+	}
+	splitk->flags=0;
+    }
     assert(r == 0);
     assert(node->height>0 || node->u.l.buffer!=0);
     /* Remove it from the cache table, and free its storage. */
@@ -785,9 +915,9 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     //verify_local_fingerprint_nonleaf(childb);
     //verify_local_fingerprint_nonleaf(node);
 
-    toku_verify_counts(node);
-    toku_verify_counts(childa);
-    toku_verify_counts(childb);
+    //toku_verify_counts(node);
+    //toku_verify_counts(childa);
+    //toku_verify_counts(childb);
 
     r=toku_unpin_brtnode(t, childa);
     assert(r==0);
@@ -842,7 +972,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, childnode_v);
     child=childnode_v;
     //verify_local_fingerprint_nonleaf(child);
-    toku_verify_counts(child);
+    //toku_verify_counts(child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);
     if (child->height>0 && child->u.n.n_children>0) assert(BNC_DISKOFF(child, child->u.n.n_children-1)!=0);
     if (debug) printf("%s:%d %*spush_some_brt_cmds_down to %lld\n", __FILE__, __LINE__, debug, "", child->thisnodename);
@@ -966,6 +1096,44 @@ static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE 
     return 0;
 }
 
+int toku_brtleaf_compare_fun (u_int32_t alen __attribute__((__unused__)), void *aval, u_int32_t blen __attribute__((__unused__)), void *bval, void *extra) {
+    struct lc_pair *p = extra;
+    BRT     t    = p->t;
+    DBT k1,k2;
+    int cmp = t->compare_fun (t->db,
+			      toku_fill_dbt(&k1, kv_pair_key(aval), kv_pair_keylen(aval)),
+			      toku_fill_dbt(&k2, kv_pair_key(bval), kv_pair_keylen(bval)));
+    if (cmp == 0 && p->compare_both ) {
+	return t->dup_compare(t->db,
+			      toku_fill_dbt(&k1, kv_pair_val(aval), kv_pair_vallen(aval)),
+			      toku_fill_dbt(&k2, kv_pair_val(bval), kv_pair_vallen(bval)));
+    } else {
+	return cmp;
+    }
+}
+
+int toku_brtnode_compress_kvspace (GPMA pma, struct mempool *memp) {
+    if (toku_mempool_get_frag_size(memp) == 0)
+        return -1;
+    void *newmem = toku_malloc(memp->size);
+    if (newmem == 0)
+        return -2;
+    struct mempool new_kvspace;
+    toku_mempool_init(&new_kvspace, newmem, memp->size);
+    GPMA_ITERATE(pma, idx, len, data,
+		 ({
+		     void *newdata = toku_mempool_malloc(&new_kvspace, len, 4);
+		     assert(newdata);
+		     memcpy(newdata, data, len);
+		     toku_gpma_set_at_index(pma, idx, len, newdata);
+		     toku_verify_gpma(pma);
+		 }));
+    toku_free(memp->base);
+    *memp = new_kvspace;
+    toku_verify_gpma(pma);
+    return 0;
+}
+
 static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
 			     int debug,
@@ -976,30 +1144,52 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     if  (cmd->type == BRT_INSERT) {
         DBT *k = cmd->u.id.key;
         DBT *v = cmd->u.id.val;
-        int replaced_v_size;
-        enum pma_errors pma_status = toku_pma_insert_or_replace(node->u.l.buffer,
-								k, v, &replaced_v_size,
-								logger, cmd->xid,
-								filenum, node->thisnodename, node->rand4fingerprint, &node->local_fingerprint, &node->log_lsn);
-        assert(pma_status==BRT_OK);
-        //printf("replaced_v_size=%d\n", replaced_v_size);
-        if (replaced_v_size>=0) {
-            node->u.l.n_bytes_in_buffer += v->size - replaced_v_size;
-        } else {
-            node->u.l.n_bytes_in_buffer += k->size + v->size + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
-        }
+	struct kv_pair *kv =  brtnode_malloc_kv_pair(node->u.l.buffer, &node->u.l.buffer_mempool, k->data, k->size, v->data, v->size);
+	assert(kv);
+	u_int32_t storedlen;
+	void *storeddata;
+	u_int32_t idx;
+	struct lc_pair lc = {t, node->flags & TOKU_DB_DUPSORT}; // for put operations we compare both keys if they are both there
+	int r = toku_gpma_lookup_item(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, &storedlen, &storeddata, &idx);
+				      
+	if (r==0) {
+	    // It's already there.  Note that it's gone and remove it from the mempool.
+	    node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + storedlen;
+	    node->local_fingerprint     -= node->rand4fingerprint*toku_calccrc32_kvpair_struct(storeddata);
+	    BYTESTRING okbs = { kv_pair_keylen(storeddata), kv_pair_key(storeddata) };
+	    BYTESTRING odbs = { kv_pair_vallen(storeddata), kv_pair_val(storeddata) };
+	    r = toku_log_deleteinleaf(logger, &node->log_lsn, 0, cmd->xid, filenum, node->thisnodename, idx, okbs, odbs);
+	    toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, storedlen);
+
+	    // Now put the new kv in.
+	    toku_gpma_set_at_index(node->u.l.buffer, idx, kv_pair_size(kv), kv);
+	} else {
+	    // Insert it.
+	    struct move_struct ms = {.logger=logger, .filenum=filenum, .from=node, .to=node};
+	    r = toku_gpma_insert(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, note_move_items_within, &ms, &idx);
+	    if (r!=0) return r;
+	}
+	{
+	    BYTESTRING kbs = { kv_pair_keylen(kv), kv_pair_key(kv) };
+	    BYTESTRING dbs = { kv_pair_vallen(kv), kv_pair_val(kv) };
+	    r = toku_log_insertinleaf(logger, &node->log_lsn, 0, cmd->xid, filenum, node->thisnodename, idx, kbs, dbs);
+	    if (r!=0) return r;
+	}
+	node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + kv_pair_size(kv);
+	node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair_struct(kv);
+//	printf("%s:%d rand4=%08x local_fingerprint=%08x this=%08x\n", __FILE__, __LINE__, node->rand4fingerprint, node->local_fingerprint, toku_calccrc32_kvpair_struct(kv));
+
         node->dirty = 1;
 	
 //	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 
         // If it doesn't fit, then split the leaf.
         if (toku_serialize_brtnode_size(node) > node->nodesize) {
-            int r = brtleaf_split (logger, filenum, t, node, nodea, nodeb, splitk);
+            r = brtleaf_split (logger, filenum, t, node, nodea, nodeb, splitk);
             if (r!=0) return r;
             //printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
             split_count++;
             *did_split = 1;
-            toku_verify_counts(*nodea); toku_verify_counts(*nodeb);
             if (debug) printf("%s:%d %*snodeb->thisnodename=%lld nodeb->size=%d\n", __FILE__, __LINE__, debug, "", (*nodeb)->thisnodename, (*nodeb)->nodesize);
             assert(toku_serialize_brtnode_size(*nodea)<=(*nodea)->nodesize);
             assert(toku_serialize_brtnode_size(*nodeb)<=(*nodeb)->nodesize);
@@ -1010,30 +1200,22 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
         }
         return 0;
 
-    } else if (cmd->type == BRT_DELETE) {
-        u_int32_t delta;
-        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, (DBT*)0,
-				logger, cmd->xid, node->thisnodename,
-				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
-        if (r == BRT_OK) {
-            node->u.l.n_bytes_in_buffer -= delta;
-            node->dirty = 1;
-        }
+    } else if (cmd->type == BRT_DELETE || cmd->type == BRT_DELETE_BOTH) {
+        DBT *k = cmd->u.id.key;
+        DBT *v = cmd->u.id.val;
+	struct kv_pair *kv = kv_pair_malloc(k->data, k->size, v->data, v->size);
+	struct lc_pair lc = {t, (cmd->type == BRT_DELETE_BOTH) };
+	struct move_struct ms = {.logger=logger, .filenum=filenum, .from=node, .to=node};
+	struct delete_struct dp = {node};
+        int r = toku_gpma_delete_item(node->u.l.buffer,
+				      kv_pair_size(kv), kv,
+				      toku_brtleaf_compare_fun, &lc,
+				      brt_leaf_delete_callback, &dp,
+				      note_move_items_within, &ms);
+	toku_free(kv);
         *did_split = 0;
-        return BRT_OK;
-
-    } else if (cmd->type == BRT_DELETE_BOTH) {
-        u_int32_t delta;
-        int r = toku_pma_delete(node->u.l.buffer, cmd->u.id.key, cmd->u.id.val,
-				logger, cmd->xid, node->thisnodename,
-				node->rand4fingerprint, &node->local_fingerprint, &delta, &node->log_lsn);
-        if (r == BRT_OK) {
-            node->u.l.n_bytes_in_buffer -= delta;
-            node->dirty = 1;
-        }
-        *did_split = 0;
-        return BRT_OK;
-        
+	if (r==DB_NOTFOUND) return 0;
+        return r;
     } else {
         return EINVAL;
     }
@@ -1172,11 +1354,8 @@ static int brt_nonleaf_insert_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
             assert((*nodeb)->u.n.n_children>0);
             assert(BNC_DISKOFF(*nodea, (*nodea)->u.n.n_children-1)!=0);
             assert(BNC_DISKOFF(*nodeb, (*nodeb)->u.n.n_children-1)!=0);
-            toku_verify_counts(*nodea);
-            toku_verify_counts(*nodeb);
         } else {
             assert(toku_serialize_brtnode_size(node)<=node->nodesize);
-            toku_verify_counts(node);
         }
         //if (*did_split) {
         //	verify_local_fingerprint_nonleaf(*nodea);
@@ -1243,11 +1422,8 @@ static int brt_nonleaf_delete_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
             assert((*nodeb)->u.n.n_children>0);
             assert(BNC_DISKOFF(*nodea,(*nodea)->u.n.n_children-1)!=0);
             assert(BNC_DISKOFF(*nodeb,(*nodeb)->u.n.n_children-1)!=0);
-            toku_verify_counts(*nodea);
-            toku_verify_counts(*nodeb);
         } else {
             assert(toku_serialize_brtnode_size(node)<=node->nodesize);
-            toku_verify_counts(node);
         }
         //if (*did_split) {
         //	verify_local_fingerprint_nonleaf(*nodea);
@@ -1357,7 +1533,6 @@ static int setup_initial_brt_root_node (BRT t, DISKOFF offset, TOKULOGGER logger
 	toku_free(node);
 	return r;
     }
-    toku_verify_counts(node);
 //    verify_local_fingerprint_nonleaf(node);
     toku_log_newbrtnode(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), offset, 0, t->h->nodesize, (t->flags&TOKU_DB_DUPSORT)!=0, node->rand4fingerprint);
     toku_update_brtnode_loggerlsn(node, logger);
@@ -1729,7 +1904,6 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     BNC_NBYTESINBUF(newroot, 1)=0;
     BNC_SUBTREE_FINGERPRINT(newroot, 0)=0; 
     BNC_SUBTREE_FINGERPRINT(newroot, 1)=0; 
-    toku_verify_counts(newroot);
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
     r=toku_log_newbrtnode(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
@@ -1898,8 +2072,8 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
     } else {
 	printf("%*sNode %lld nodesize=%d height=%d n_bytes_in_buffer=%d keyrange=%d %d\n",
 	       depth, "", off, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
-	PMA_ITERATE(node->u.l.buffer, key, keylen, val __attribute__((__unused__)), vallen,
-		    ( keylen=keylen, vallen=vallen, printf(" (%d)%d ", keylen, ntohl(*(int*)key))));
+	//GPMA_ITERATE(node->u.l.buffer, idx, len, data,
+	//	     ( keylen=keylen, vallen=vallen, printf(" (%d)%d ", keylen, ntohl(*(int*)key))));
 	printf("\n");
     }
     r = toku_cachetable_unpin(brt->cf, off, 0, 0);
@@ -2059,17 +2233,67 @@ static int brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, 
     return r;
 }
 
-static int brt_search_leaf_node(BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval) {
-    PMA pma = node->u.l.buffer;
-    int r = toku_pma_search(pma, search, newkey, newval);
-    return r;
+struct bessel_from_search_struct {
+    brt_search_t *search;
+};
+
+static int bessel_from_search_t (u_int32_t len __attribute__((__unused__)), void *data, void *extra) {
+    struct bessel_from_search_struct *bs = extra;
+    brt_search_t   *search=bs->search;
+    DBT x,y;
+    struct kv_pair *kv = data;
+    int cmp = search->compare(search,
+			      search->k ? toku_fill_dbt(&x, kv_pair_key(kv), kv_pair_keylen(kv)) : 0, 
+			      search->v ? toku_fill_dbt(&y, kv_pair_val(kv), kv_pair_vallen(kv)) : 0);
+    // For a left-to-right search, the search compare function returns 0 for all pairs < kv.  We want the first value that is 1.
+    // To convert it to a bessel, we have to convert the 0 to a -1.
+    // For a right-to-left search, the search compare function returns 0 for all pairs > kv, and 1 for lesser values.  We want the last value that is 1.
+    // To convert it to a bessel, we have to convert 0 to +1, and 1 to -1.
+    switch (search->direction) {
+    case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
+    case BRT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
+    }
+    assert(0);
+    return 0;
+}
+
+static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval) {
+    // Now we have to convert from brt_search_t to the bessel function with a direction.  What a pain...
+    struct bessel_from_search_struct bs = {search};
+    int direction;
+    switch (search->direction) {
+    case BRT_SEARCH_LEFT:   direction = +1; goto ok;
+    case BRT_SEARCH_RIGHT:  direction = -1; goto ok;
+    }
+    return EINVAL;  // This return and the goto are a hack to get both compile-time and run-time checking on enum
+ ok: ;
+    u_int32_t len;
+    void *    data;
+    u_int32_t idx; // Don't need this
+    int r = toku_gpma_lookup_bessel(node->u.l.buffer,
+				    bessel_from_search_t,
+				    direction,
+				    &bs,
+				    &len, &data, &idx);
+    if (r!=0) return r;
+
+    struct kv_pair *kv = data;
+    if (newkey) {
+	r = toku_dbt_set_value(newkey, kv_pair_key(kv), kv_pair_keylen(kv), &brt->skey);
+	if (r!=0) return r;
+    }
+    if (newval) {
+	r = toku_dbt_set_value(newval, kv_pair_val(kv), kv_pair_vallen(kv), &brt->sval);
+	if (r!=0) return r;
+    }
+    return 0;
 }
 
 static int brt_search_node(BRT brt, BRTNODE node, brt_search_t *search, DBT *newkey, DBT *newval, BRT_SPLIT *split, TOKULOGGER logger, DISKOFFARRAY path_to_parent) {
     if (node->height > 0)
         return brt_search_nonleaf_node(brt, node, search, newkey, newval, split, logger, path_to_parent);
     else
-        return brt_search_leaf_node(node, search, newkey, newval);
+        return brt_search_leaf_node(brt, node, search, newkey, newval);
 }
 
 int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOKULOGGER logger) {

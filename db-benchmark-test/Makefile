@@ -25,7 +25,8 @@ TARGET_BDB = db-benchmark-test-bdb
 TARGET_TDB = db-benchmark-test-tokudb
 TARGETS = $(TARGET_BDB) $(TARGET_TDB)
 
-default: $(TARGETS)
+default: build
+build: $(TARGETS)
 
 check: check-default check-xfast
 

@@ -9,6 +9,8 @@
 #include "key.h"
 #include "rbuf.h"
 #include "wbuf.h"
+#include "kv-pair.h"
+#include "mempool.h"
 
 #include <unistd.h>
 #include <stdio.h>
@@ -57,10 +59,13 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
-	PMA_ITERATE(node->u.l.buffer,
-		    key __attribute__((__unused__)), keylen,
-		    data __attribute__((__unused__)), datalen,
-		    (hsize+=PMA_ITEM_OVERHEAD+KEY_VALUE_OVERHEAD+keylen+datalen));
+	GPMA_ITERATE(node->u.l.buffer,
+		     idx, vlen, vdata,
+		     ({
+			 struct kv_pair *p=vdata;
+			 assert(vlen==sizeof(*p)+kv_pair_keylen(p)+kv_pair_vallen(p));
+			 hsize+=PMA_ITEM_OVERHEAD+KEY_VALUE_OVERHEAD+kv_pair_keylen(p)+kv_pair_vallen(p);
+		     }));
 	assert(hsize==node->u.l.n_bytes_in_buffer);
 	hsize+=4; /* the PMA size */
 	hsize+=4; /* add n entries in buffer table. */
@@ -110,12 +115,13 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     wbuf_int(&w, node->layout_version);
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
-    wbuf_int(&w, calculated_size);
-    wbuf_int(&w, node->flags);
-    wbuf_int(&w, node->height);
+    wbuf_uint(&w, calculated_size);
+    wbuf_uint(&w, node->flags);
+    wbuf_uint(&w, node->height);
     //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
     wbuf_int(&w, node->rand4fingerprint);
     wbuf_int(&w, node->local_fingerprint);
+//    printf("%s:%d wrote %08x for node %lld\n", __FILE__, __LINE__, node->local_fingerprint, (long long)node->thisnodename);
     //printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, node->local_fingerprint);
     //printf("%s:%d w.ndone=%d n_children=%d\n", __FILE__, __LINE__, w.ndone, node->n_children);
     if (node->height>0) {
@@ -169,15 +175,19 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	}
     } else {
 	//printf(" n_entries=%d\n", toku_pma_n_entries(node->u.l.buffer));
-	wbuf_int(&w, toku_pma_n_entries(node->u.l.buffer));
-	wbuf_int(&w, toku_pma_index_limit(node->u.l.buffer));
-	PMA_ITERATE_IDX(node->u.l.buffer, idx,
-			key, keylen, data, datalen,
-			({
-			    wbuf_int(&w, idx);
-			    wbuf_bytes(&w, key, keylen);
-			    wbuf_bytes(&w, data, datalen);
-			}));
+	wbuf_int(&w, toku_gpma_n_entries(node->u.l.buffer));
+	wbuf_int(&w, toku_gpma_index_limit(node->u.l.buffer));
+	GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
+		     ({
+			 struct kv_pair *p=vdata;
+			 assert((char*)node->u.l.buffer_mempool.base<= (char*)p && (char*)p < (char*)node->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
+			 int keylen=kv_pair_keylen(p);
+			 int datalen=kv_pair_vallen(p);
+			 assert(vlen==sizeof(*p)+keylen+datalen);
+			 wbuf_int(&w, idx);
+			 wbuf_bytes(&w, kv_pair_key(p), keylen);
+			 wbuf_bytes(&w, kv_pair_val(p), datalen);
+		     }));
     }
     assert(w.ndone<=w.size);
 #ifdef CRC_ATEND
@@ -205,10 +215,7 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     toku_free(buf);
 }
 
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int flags, int nodesize,
-				   int (*bt_compare)(DB *, const DBT *, const DBT *),
-				   int (*dup_compare)(DB *, const DBT *, const DBT *),
-				   DB *db, FILENUM filenum) {
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsigned int flags, int nodesize) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -262,7 +269,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=2) {
+    if (result->layout_version!=3) {
 	r=DB_BADFORMAT;
 	goto died1;
     }
@@ -278,6 +285,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
     result->height = rbuf_int(&rc);
     result->rand4fingerprint = rbuf_int(&rc);
     result->local_fingerprint = rbuf_int(&rc);
+//    printf("%s:%d read %08x\n", __FILE__, __LINE__, result->local_fingerprint);
     result->dirty = 0;
     //printf("height==%d\n", result->height);
     if (result->height>0) {
@@ -365,27 +373,32 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, int fl
 	int n_in_buf = rbuf_int(&rc);
         int index_limit = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=toku_pma_create(&result->u.l.buffer, bt_compare, db, filenum, nodesize, index_limit);
+	r=toku_gpma_create(&result->u.l.buffer, index_limit);
 	if (r!=0) {
-	    if (0) { died_21: toku_pma_free(&result->u.l.buffer); }
+	    if (0) { died_21: toku_gpma_free(&result->u.l.buffer, 0, 0); }
 	    goto died1;
 	}
-        toku_pma_set_dup_mode(result->u.l.buffer, flags);
-        toku_pma_set_dup_compare(result->u.l.buffer, dup_compare);
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
-	toku_verify_counts(result);
+	{
+	    void *mp = toku_malloc(nodesize);
+	    if (mp==0) return ENOMEM;
+	    toku_mempool_init(&result->u.l.buffer_mempool, mp, nodesize);
+	}
 
 	u_int32_t actual_sum = 0;
 	for (i=0; i<n_in_buf; i++) {
 	    bytevec key; ITEMLEN keylen; 
 	    bytevec val; ITEMLEN vallen;
 	    int idx = rbuf_int(&rc);
-	    DBT keydbt, datadbt;
 	    rbuf_bytes(&rc, &key, &keylen); /* Returns a pointer into the rbuf. */
 	    rbuf_bytes(&rc, &val, &vallen);
 	    result->u.l.n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
-	    r = toku_pma_set_at_index(result->u.l.buffer, idx, toku_fill_dbt(&keydbt, key, keylen), toku_fill_dbt(&datadbt, val, vallen));
-	    actual_sum += result->rand4fingerprint*toku_calccrc32_kvpair(key, keylen, val, vallen);
+	    struct kv_pair *pair = brtnode_malloc_kv_pair(result->u.l.buffer, &result->u.l.buffer_mempool, key, keylen, val, vallen);
+	    assert(pair);
+	    int pairlen = kv_pair_size(pair);
+	    toku_gpma_set_at_index(result->u.l.buffer, idx, pairlen, pair);
+	    actual_sum += result->rand4fingerprint*toku_calccrc32_kvpair_struct(pair);
+//	    printf("%s:%d rand4=%08x actual=%08x this=%08x expect=%08x\n", __FILE__, __LINE__, result->rand4fingerprint, actual_sum, toku_calccrc32_kvpair_struct(pair), result->local_fingerprint);
 	}
             
 	if (r!=0) goto died_21;
@@ -425,8 +438,13 @@ void toku_verify_counts (BRTNODE node) {
     if (node->height==0) {
 	assert(node->u.l.buffer);
 	unsigned int sum=0;
-	PMA_ITERATE(node->u.l.buffer, key __attribute__((__unused__)), keylen, data  __attribute__((__unused__)), datalen,
-		    sum+=(PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + keylen + datalen));
+	unsigned int count=0;
+	GPMA_ITERATE(node->u.l.buffer, idx, dlen, dvadata,
+		     ({
+			 count++;
+			 sum+=(PMA_ITEM_OVERHEAD + dlen);
+		     }));
+	assert(count==toku_gpma_n_entries(node->u.l.buffer));
 	assert(sum==node->u.l.n_bytes_in_buffer);
     } else {
 	unsigned int sum = 0;

@@ -17,6 +17,16 @@
 
 #include "brt-internal.h"
 #include "toku_assert.h"
+#include "kv-pair.h"
+
+static void gpma_verify_fingerprint (GPMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint) {
+    u_int32_t actual_fingerprint=0;
+    GPMA_ITERATE(pma, idx, len, val,
+		 actual_fingerprint+=rand4fingerprint*toku_calccrc32_kvpair_struct(val)
+		 );
+    assert(actual_fingerprint==fingerprint);
+}
+
 
 static void verify_local_fingerprint (BRTNODE node) {
     u_int32_t fp=0;
@@ -29,7 +39,7 @@ static void verify_local_fingerprint (BRTNODE node) {
 			      }));
 	assert(fp==node->local_fingerprint);
     } else {
-	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
+	gpma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
     }
 }
 

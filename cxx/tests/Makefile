@@ -13,7 +13,8 @@ else
  VGRIND=valgrind --quiet --error-exitcode=1 --leak-check=yes
 endif
 
-all: $(TARGETS)
+default: build
+build all: $(TARGETS)
 $(TARGETS): $(DBCXX)
 
 $(DBCXX):

@@ -1,12 +1,22 @@
+default: build
+
+
 TAGS: */*.c */*.h
 	etags */*.c */*.h src/lock_tree/*.c src/lock_tree/*.h src/range_tree/*.c src/range_tree/*.h
 
-SRCDIRS = newbrt src src/tests src/range_tree src/range_tree/tests src/lock_tree src/lock_tree/tests cxx cxx/tests \
-		utils db-benchmark-test db-benchmark-test-cxx
+SRCDIRS = newbrt src cxx utils db-benchmark-test db-benchmark-test-cxx
 BUILDDIRS = $(SRCDIRS) man/texi
 
-build:
-	for d in $(BUILDDIRS); do (cd $$d; $(MAKE) -k); done
+src.dir: newbrt.dir
+cxx.dir: src.dir
+db-benchmark-test.dir: src.dir
+db-benchmark-test-cxx.dir: cxx.dir
+utils.dir: src.dir
+
+%.dir:
+	cd $(patsubst %.dir, %, $@);$(MAKE) build
+
+build: $(patsubst %,%.dir, $(SRCDIRS))
 
 CHECKS = $(patsubst %,checkdir_%,$(SRCDIRS))
 
@@ -16,11 +26,7 @@ CHECKS = $(patsubst %,checkdir_%,$(SRCDIRS))
 #check:
 #	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k check); done
 
-checkdir_%: build
-	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
-checkdir_src/%: build
-	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
-checkdir_cxx/%: build
+checkdir_%:
 	cd $(patsubst checkdir_%,%,$@) ; $(MAKE) -k check
 
 check: $(CHECKS)
@@ -45,7 +51,7 @@ check-coverage: check-coverage-newbrt check-coverage-src-tests check-coverage-ut
 		check-coverage-range-tree-tests check-coverage-lock-tree-tests
 
 check-coverage-newbrt:
-	(cd newbrt; $(MAKE) -k check DTOOL="")
+	(cd newbrt; $(MAKE) -k check VGRIND="")
 check-coverage-src-tests:
 	(cd src/tests; $(MAKE) -k check.tdb VGRIND="")
 check-coverage-utils:

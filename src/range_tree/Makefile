@@ -24,8 +24,16 @@ ifneq ($(OSX),)
 CFLAGS+=-fno-common
 endif
 
+BINS = linear.o log_nooverlap.o tokuredblack.o rangetree.o #log.o 
+
+build: $(BINS)
+	cd tests;$(MAKE) build
+
+check:
+	cd tests;$(MAKE) check
+
 .PHONY: install
-install: linear.o log_nooverlap.o tokuredblack.o rangetree.o #log.o 
+install: $(BINS)
 
 clean:
 	rm -rf *.o *.gcno *.gcda *.gcov

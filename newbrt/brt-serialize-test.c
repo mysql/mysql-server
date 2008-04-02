@@ -1,8 +1,9 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "assert.h"
+#include "toku_assert.h"
 #include "brt-internal.h"
+#include "kv-pair.h"
 
 #include <fcntl.h>
 #include <string.h>
@@ -26,7 +27,7 @@ static void test_serialize(void) {
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
-    sn.layout_version = 2;
+    sn.layout_version = 3;
     sn.height = 1;
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
@@ -49,14 +50,14 @@ static void test_serialize(void) {
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
-    toku_serialize_brtnode_to(fd, sn.nodesize*20, sn.nodesize, &sn);  assert(r==0);
+    toku_serialize_brtnode_to(fd, sn.nodesize*(DISKOFF)20, (DISKOFF)sn.nodesize, &sn);  assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, nodesize*20, &dn, sn.flags, nodesize, 0, 0, 0, (FILENUM){0});
+    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, &dn, sn.flags, nodesize);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);
     assert(dn->disk_lsn.lsn==123456);
-    assert(dn->layout_version ==2);
+    assert(dn->layout_version ==3);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);
@@ -100,6 +101,8 @@ static void test_serialize(void) {
     toku_free(hello_string);
     toku_fifo_free(&BNC_BUFFER(&sn,0));
     toku_fifo_free(&BNC_BUFFER(&sn,1));
+    toku_free(sn.u.n.childinfos);
+    toku_free(sn.u.n.childkeys);
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {

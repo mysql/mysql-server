@@ -8,15 +8,17 @@
    when the memory pool no longer has free space, the allocated chunks 
    must be relocated by the application to a new memory pool. */ 
 
+#include <sys/types.h>
+
 struct mempool;
 
 typedef int (*mempool_compress_func)(struct mempool *mp, void *arg);
 
 struct mempool {
     void *base;           /* the base address of the memory */
-    int free_offset;      /* the offset of the memory pool free space */
-    int size;             /* the size of the memory */
-    int frag_size;        /* the size of the fragmented memory */
+    size_t free_offset;      /* the offset of the memory pool free space */
+    size_t size;             /* the size of the memory */
+    size_t frag_size;        /* the size of the fragmented memory */
     mempool_compress_func compress_func;
     void *compress_arg;
 };
@@ -42,7 +44,7 @@ int toku_mempool_get_size(struct mempool *mp);
 int toku_mempool_get_frag_size(struct mempool *mp);
 
 /* allocate a chunk of memory from the memory pool suitably aligned */
-void *toku_mempool_malloc(struct mempool *mp, int size, int alignment);
+void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
 
 /* free a previously allocated chunk of memory.  the free only updates
    a count of the amount of free space in the memory pool.  the memory

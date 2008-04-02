@@ -41,10 +41,10 @@ int toku_mempool_get_frag_size(struct mempool *mp) {
     return mp->frag_size;
 }
 
-void *toku_mempool_malloc(struct mempool *mp, int size, int alignment) {
+void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     assert(mp->free_offset <= mp->size);
     void *vp;
-    int offset = (mp->free_offset + (alignment-1)) & ~(alignment-1);
+    size_t offset = (mp->free_offset + (alignment-1)) & ~(alignment-1);
     if (offset + size > mp->size) {
         vp = 0;
     } else {

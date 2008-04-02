@@ -1,10 +1,9 @@
 #ifndef BRT_SEARCH_H
 #define BRT_SEARCH_H
 
-enum {
+enum brt_search_direction_e {
     BRT_SEARCH_LEFT = 1,  /* search left -> right, finds min xy as defined by the compare function */
     BRT_SEARCH_RIGHT = 2, /* search right -> left, finds max xy as defined by the compare function */
-    BRT_SEARCH_ONE = 4,   /* look into only one subtree, used for point queries */
 };
 
 struct brt_search;
@@ -20,7 +19,7 @@ typedef int (*brt_search_compare_func_t)(struct brt_search */*so*/, DBT */*x*/, 
 
 typedef struct brt_search {
     brt_search_compare_func_t compare;
-    int direction;
+    enum brt_search_direction_e direction;
     DBT *k;
     DBT *v;
     void *context;

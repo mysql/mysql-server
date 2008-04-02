@@ -46,7 +46,7 @@ STATIC_UTILS=$(patsubst %,%_static,$(UTILS))
 
 .PHONY: all clean test test_gen test_gen_hex test_load test_dump
 
-all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
+build all: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS)
 
 coverage: $(UTILS)
 
@@ -62,7 +62,7 @@ coverage: $(UTILS)
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
 
-test: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_nodup test_dupsort
+check: $(UTILS) $(BDB_UTILS) $(STATIC_UTILS) test_gen test_load test_dump test_nodup test_dupsort
 
 test-coverage: $(UTILS) test_gen test_load test_dump test_nodup test_dupsort
 

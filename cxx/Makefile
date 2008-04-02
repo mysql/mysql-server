@@ -9,7 +9,11 @@ OBJS = $(patsubst %.cpp, %.o, $(SRCS))
 
 LIBNAME = libtokudb_cxx
 
-default: install
+default: install build
+build: $(LIBNAME).a
+	cd tests; $(MAKE) build
+check:
+	cd tests; $(MAKE) check
 install: $(LIBNAME).a
 	cp $< ../lib/
 $(OBJS): ../include/db_cxx.h
@@ -19,5 +23,6 @@ $(LIBNAME).a: $(OBJS)
 	$(AR) rv $@ $(OBJS)
 clean:
 	rm -f $(OBJS) $(LIBNAME).a $(LIBNAME).so *.gcno *.gcda *.gcov
+	cd tests; $(MAKE) clean
 
 

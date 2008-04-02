@@ -23,7 +23,7 @@ typedef long long DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef u_int64_t TXNID;
 
 typedef struct {
-    int len;
+    u_int32_t len;
     char *data;
 } BYTESTRING;
 
