@@ -59,7 +59,7 @@ use My::Find;
 use My::Platform;
 
 my %running;
-my $_verbose= IS_WINDOWS;
+my $_verbose= 0;
 
 END {
   # Kill any children still running
