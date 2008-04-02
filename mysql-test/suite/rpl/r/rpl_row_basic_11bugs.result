@@ -9,6 +9,7 @@ CREATE DATABASE test_ignore;
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 test
 test_ignore
@@ -33,6 +34,7 @@ master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 test
 USE test;
