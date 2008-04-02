@@ -174,7 +174,7 @@ WHERE table_schema = 'db_datadict' ORDER BY table_name LIMIT 1;
 SELECT @table_name,@table_schema;
 #
 # SELECT INTO OUTFILE
-let $OUTFILE = $MYSQL_TMP_DIR/datadict.out;
+let $OUTFILE = $MYSQLTEST_VARDIR/tmp/datadict.out;
 --error 0,1
 remove_file $OUTFILE;
 --replace_result $OUTFILE <OUTFILE>

@@ -64,8 +64,7 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-# error 1227 is better, as it says, that not the privilege
-	--error 1142,1227
+	--error ER_TABLEACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 3.5.3.2_1-no';
 
@@ -85,7 +84,7 @@ let $message= Testcase 3.5.3.2:;
         select current_user;
 	use priv_db;
 
-        --error 1143
+        --error ER_COLUMNACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert 3.5.3.2-yes');
 	select f1 from t1 order by f1;
 
@@ -99,7 +98,7 @@ let $message= Testcase 3.5.3.6:;
 	connection no_privs;
 	use priv_db;
 
-	--error 1142,1227
+	--error ER_TABLEACCESS_DENIED_ERROR
 	drop trigger trg1_2;
 
 	connection default;
@@ -120,7 +119,7 @@ let $message= Testcase 3.5.3.6:;
 # Cleanup
 	--disable_warnings
 	connection default;
-	--error 0, 1360
+	--error 0, ER_TRG_DOES_NOT_EXIST
 	drop trigger trg1_2;
 	disconnect no_privs;
 	disconnect yes_privs;
@@ -131,8 +130,6 @@ let $message= Testcase 3.5.3.6:;
 # Test case: Ensure that use of the construct "SET NEW. <column name> = <value>"
 #            fails at CREATE TRIGGER time, if the current user does not have the
 #            UPDATE privilege on the column specified
-# Note: As a result of bug 8884 the triggers are actually created.
-#       Disabled because of bug 8884
 
 # --- 3.5.3.7a - Privs set on a global level
 let $message=Testcase 3.5.3.7a:;
