@@ -48,7 +48,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Insert into vw11 (f122, f151) values ('Test 3.5.10.1/2/3', 2);
 	Insert into vw11 (f122, f151) values ('Not in View', 3);
 	select f121, f122, f151, f163
-		from tb3 where f122 like 'Test 3.5.10.1/2/3%';
+		from tb3 where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 	select f121, f122, f151, f163 from vw11;
 	select f121, f122, f151, f163
 		from tb3 where f122 like 'Not in View';
@@ -56,7 +56,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 #Section 3.5.10.2
 	Update vw11 set f163=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%';
+		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 	select f121, f122, f151, f163 from vw11;
 
 #Section 3.5.10.3
@@ -64,7 +64,7 @@ let $message= Testcase 3.5.10.1/2/3:;
 	Select @test_var as 'before delete';
 	delete from vw11 where f151=1;
 	select f121, f122, f151, f163 from tb3
-		where f122 like 'Test 3.5.10.1/2/3%';
+		where f122 like 'Test 3.5.10.1/2/3%' order by f151;
 	select f121, f122, f151, f163 from vw11;
 	Select @test_var as 'after delete';
 
@@ -94,11 +94,11 @@ let $message= Testcase 3.5.10.4:;
 
 	set @counter= 0;
 	select @counter as 'Rows Loaded Before';
-	--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-	eval load data infile '$MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table tb_load;
+	--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+	eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t9.txt' into table tb_load;
 
 	select @counter as 'Rows Loaded After';
-	Select * from tb_load limit 10;
+	Select * from tb_load order by f1 limit 10;
 
 #Cleanup
 	--disable_warnings
@@ -157,7 +157,7 @@ let $message= Testcase 3.5.10.extra:;
 
 	set @counter=0;
 	select @counter;
-	--error 1329
+	--error ER_SP_FETCH_NO_DATA
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -233,7 +233,7 @@ let $message= Testcase y.y.y.2: Check for triggers starting triggers;
 #lock tables t1 write, t2_1 write, t2_2 write, t2_3 write, t2_4 write, t3 write;
 	insert into t1 values (1);
 #unlock tables;
-	select * from t3;
+	select * from t3 order by f1;
 
 #Cleanup
 	--disable_warnings
@@ -271,13 +271,13 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 	create trigger tr4 after insert on t4
 		for each row insert into t1 (f1) values (new.f4+1);
 
-	# OBN See bug 11896
-	--error 1442
+        # Bug#11896 Partial locking in case of recursive trigger definittions
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	insert into t1 values (1);
-	select * from t1;
-	select * from t2;
-	select * from t3;
-	select * from t4;
+	select * from t1 order by f1;
+	select * from t2 order by f2;
+	select * from t3 order by f3;
+	select * from t4 order by f4;
 
 #Cleanup
 	--disable_warnings
@@ -294,7 +294,7 @@ let $message= Testcase y.y.y.3: Circular trigger reference;
 
 #Section y.y.y.4
 # Testcase: create recursive trigger/storedprocedures conditions
-let $message= Testcase y.y.y.4: Recursive trigger/SP references (disabled bug 11889);
+let $message= Testcase y.y.y.4: Recursive trigger/SP references;
 --source include/show_msg.inc
 
 set @sql_mode='traditional';
@@ -327,7 +327,7 @@ set @sql_mode='traditional';
 
 	set @counter=0;
 	select @counter;
-	--error 1456
+	--error ER_SP_RECURSION_LIMIT
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -337,7 +337,7 @@ set @sql_mode='traditional';
 	set @@max_sp_recursion_depth= 10;
 	set @counter=0;
 	select @counter;
-	--error 1442
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -381,12 +381,12 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 
 	set autocommit=0;
 	start transaction;
-	--error 1264
+	--error ER_WARN_DATA_OUT_OF_RANGE
 	insert into t1 values (1);
 	commit;
-	select * from t1;
-	select * from t2;
-	select * from t3;
+	select * from t1 order by f1;
+	select * from t2 order by f2;
+	select * from t3 order by f3;
 #unlock tables;
 #Cleanup
 	--disable_warnings
