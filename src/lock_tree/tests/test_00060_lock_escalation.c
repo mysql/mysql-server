@@ -199,154 +199,6 @@ void lt_unlock(char ctxn) {
   CKERR(r);
 }
               
-void runtest(BOOL dups) {
-    
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_read (dups, 0, 'a', 1, 1, 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 1, 1, 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_read (dups, 0, 'b', 1, 1, 1, 1);
-    lt_insert_write(dups, DB_LOCK_NOTGRANTED, 'a', 1, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 2, 1, 4, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_write (dups, DB_LOCK_NOTGRANTED, 'b', 2, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_read (dups, 0, 'b', 3, 1, 3, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_read (dups, 0, 'b', 3, 1, 3, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'b', 1, 1);
-    lt_insert_write(dups, 0, 'b', 2, 1);
-    lt_insert_write(dups, 0, 'b', 3, 1);
-    lt_insert_write(dups, 0, 'b', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_write(dups, 0, 'a', 6, 1);
-    lt_insert_write(dups, 0, 'a', 7, 1);
-    lt_insert_write(dups, 0, 'a', 8, 1);
-    lt_insert_write(dups, 0, 'a', 9, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'b', 1, 1);
-    lt_insert_write(dups, 0, 'b', 2, 1);
-    lt_insert_write(dups, 0, 'b', 3, 1);
-    lt_insert_write(dups, 0, 'b', 4, 1);
-    lt_insert_write(dups, 0, 'b', 5, 1);
-    lt_insert_write(dups, 0, 'b', 6, 1);
-    lt_insert_write(dups, 0, 'b', 7, 1);
-    lt_insert_write(dups, 0, 'b', 8, 1);
-    lt_insert_write(dups, 0, 'b', 9, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_read (dups, 0, 'a', 3, 1, 7, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'b', 1, 1);
-    lt_insert_write(dups, 0, 'b', 2, 1);
-    lt_insert_write(dups, 0, 'b', 3, 1);
-    lt_insert_write(dups, 0, 'b', 4, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 7, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_write(dups, 0, 'a', 5, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'b', 4, 1);
-    lt_insert_write(dups, 0, 'b', 5, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 2, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    lt_insert_write(dups, 0, 'a', 4, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'b', 3, 1, 3, 1);
-    lt_unlock('a');
-    lt_insert_write(dups, 0, 'b', 3, 1);
-    lt_insert_read (dups, DB_LOCK_NOTGRANTED, 'a', 3, 1, 3, 1);
-    lt_unlock('b');
-    lt_insert_read (dups, 0, 'a', 3, 1, 3, 1);
-    close_tree();
-    /* ********************* */
-    setup_tree(dups);
-    lt_insert_write(dups, 0, 'a', 1, 1);
-    lt_insert_write(dups, 0, 'a', 3, 1);
-    lt_insert_write(dups, 0, 'b', 2, 1);
-    lt_unlock('b');
-    close_tree();
-    /* ********************* */
-}
-
-
 void run_escalation_test(BOOL dups) {
     int i = 0;
 /* ******************** */
@@ -518,6 +370,72 @@ void run_escalation_test(BOOL dups) {
     lt_insert_write(dups, 0, 'a', 14, 14);
     lt_insert_write(dups, 0, 'b', 4, 4);
     close_tree();
+/* ******************** */
+/* Test read lock escalation, no writes. */
+    setup_tree(dups);
+    assert(lt->lock_escalation_allowed);
+    for (i = 0; i < 1000; i ++) { 
+        lt_insert_read (dups, 0, 'b', i, i, i, i);
+    }
+    close_tree();
+/* ******************** */
+/* Test read lock escalation, writes of same kind. */
+    setup_tree(dups);
+    assert(lt->lock_escalation_allowed);
+    lt_insert_write(dups, 0, 'b', 5, 5);
+    lt_insert_write(dups, 0, 'b', 10, 10);
+    for (i = 0; i < 1000; i ++) {   
+        lt_insert_read (dups, 0, 'b', i, i, i, i);
+    }
+    close_tree();
+/* ******************** */
+/* Test read lock escalation, writes of other kind. */
+    setup_tree(dups);
+    assert(lt->lock_escalation_allowed);
+    lt_insert_write(dups, 0, 'a', 0, 0);
+    lt_insert_write(dups, 0, 'b', 5, 5);
+    lt_insert_write(dups, 0, 'a', 7, 7);
+    lt_insert_write(dups, 0, 'c', 10, 10);
+    lt_insert_write(dups, 0, 'a', 13, 13);
+    for (i = 0; i < 1000; i ++) {  
+        if (i % 5 == 0) { continue; }
+        lt_insert_read (dups, 0, 'a', i, i, i, i);
+    }
+    close_tree();
+/* ******************** */
+/*
+   txn A grabs 0,1,2,...,8  (9 locks) (all numbers * 10)
+   txn B grabs read lock [5,7] but grabs many there
+   txn C attempts to grab lock, escalation, and lock grab, should fail
+   lock
+*/
+/*
+    setup_tree(dups);
+    assert(lt->lock_escalation_allowed);
+    // this should grab ten locks successfully
+    for (i = 0; i < 9; i ++) { 
+        if (i == 2 || i == 5) { continue; }
+        lt_insert_write(dups, 0, 'a', i*10, i*10);
+    }
+    for (i = 0; i < 10; i++) {
+        lt_insert_read (dups, 0, 'b', 50+i, 50+i, 50+i, 50+i);
+    }
+    lt_insert_write(dups, 0, 'a', 9*10, 9*10);
+    lt_insert_read (dups, 0, 'b', 20, 20, 20, 20);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'a', 1000, 1000);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'b', 1000, 1000);
+    lt_insert_write(dups, TOKUDB_OUT_OF_LOCKS, 'c', 1000, 1000);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'a', 1000, 1000, 1000, 1000);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'b', 1000, 1000, 1000, 1000);
+    lt_insert_read(dups, TOKUDB_OUT_OF_LOCKS, 'c', 1000, 1000, 1000, 1000);
+    lt_unlock('b');
+    assert(lt->lock_escalation_allowed);
+    for (i = 100; i < 1000; i++) {
+        lt_insert_write(dups, 0, 'c', i, i);
+        assert(lt->lock_escalation_allowed);
+    }
+    close_tree();
+*/
 /* ******************** */
 }
 
