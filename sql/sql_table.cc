@@ -7261,8 +7261,14 @@ bool mysql_checksum_table(THD *thd, TABLE_LIST *tables,
               if (! thd->variables.old_mode &&
                   f->is_real_null(0))
                 continue;
-	      if ((f->type() == MYSQL_TYPE_BLOB) ||
-                  (f->type() == MYSQL_TYPE_VARCHAR))
+              enum_field_types field_type= f->type();
+              /*
+                BLOB and VARCHAR have pointers in their field, we must convert
+                to string; GEOMETRY is implemented on top of BLOB.
+              */
+	      if ((field_type == MYSQL_TYPE_BLOB) ||
+                  (field_type == MYSQL_TYPE_VARCHAR) ||
+                  (field_type == MYSQL_TYPE_GEOMETRY))
 	      {
 		String tmp;
 		f->val_str(&tmp);

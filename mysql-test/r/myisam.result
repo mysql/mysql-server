@@ -2033,4 +2033,19 @@ t1	CREATE TABLE `t1` (
   `c` char(1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
 drop table t1;
+CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t1;
+Table	Checksum
+test.t1	326284887
+CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
+INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+checksum table t2;
+Table	Checksum
+test.t2	326284887
+CREATE TABLE t3 select * from t1;
+checksum table t3;
+Table	Checksum
+test.t3	326284887
+drop table t1,t2,t3;
 End of 5.1 tests
