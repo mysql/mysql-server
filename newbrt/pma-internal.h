@@ -8,7 +8,7 @@ struct pma {
     int dup_mode;
     unsigned int N;      /* How long is the array? Always a power of two >= 4. */
     int n_pairs_present; /* How many array elements are non-null.         */
-    struct kv_pair **pairs;
+    LEAFENTRY *pairs;
     int uplgN;           /* The smallest power of two >= lg(N)            */
     double udt_step;     /* upper density threshold step */     
                          /* Each doubling decreases the density by density step.
@@ -26,10 +26,10 @@ struct pma {
     struct mempool kvspace;
 };
 
-int toku_pmainternal_count_region (struct kv_pair *pairs[], int lo, int hi);
+int toku_pmainternal_count_region (LEAFENTRY pairs[], int lo, int hi);
 void toku_pmainternal_calculate_parameters (PMA pma);
-int toku_pmainternal_smooth_region (TOKULOGGER, FILENUM, DISKOFF, struct kv_pair */*pairs*/[], int /*n*/, int /*idx*/, int /*base*/, PMA /*pma*/, int */*new_idx*/, LSN */*node_lsn*/);
-int toku_pmainternal_printpairs (struct kv_pair *pairs[], int N);
+int toku_pmainternal_smooth_region (TOKULOGGER, FILENUM, DISKOFF, LEAFENTRY/*pairs*/[], int /*n*/, int /*idx*/, int /*base*/, PMA /*pma*/, int */*new_idx*/, LSN */*node_lsn*/);
+int toku_pmainternal_printpairs (LEAFENTRY pairs[], int N);
 int toku_pmainternal_make_space_at (TOKULOGGER, FILENUM, DISKOFF, PMA pma, int idx, unsigned int *new_index, LSN *node_lsn);
 int toku_pmainternal_find (PMA pma, DBT *); // The DB is so the comparison fuction can be called.
 void toku_print_pma (PMA pma); /* useful for debugging, so keep the name short. I.e., not pmainternal_print_pma() */

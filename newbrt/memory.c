@@ -21,7 +21,7 @@ static int overflowed=0;
 static void *items[items_limit];
 static long sizes[items_limit];
 
-static void note_did_malloc (void *p, long size) {
+static void note_did_malloc (void *p, size_t size) {
     static long long count=0;
     WHEN_MEM_DEBUG(
 		   if (n_items_malloced<items_limit) { items[n_items_malloced]=p; sizes[n_items_malloced]=size; }
@@ -168,9 +168,10 @@ void *toku_malloc(size_t size) {
     //if ((long)r==0x80523f8) { printf("%s:%d %p size=%ld\n", __FILE__, __LINE__, r, size);   }
     return r;
 }
-void *toku_tagmalloc(size_t size, int typtag) {
+void *toku_tagmalloc(size_t size, enum typ_tag typtag) {
     //printf("%s:%d tagmalloc\n", __FILE__, __LINE__);
     void *r = toku_malloc(size);
+    if (!r) return 0;
     assert(size>sizeof(int));
     ((int*)r)[0] = typtag;
     return r;
@@ -216,10 +217,14 @@ char *toku_strdup (const char *s) {
 
 void toku_memory_check_all_free (void) {
     if (n_items_malloced>0) {
-	printf("n_items_malloced=%lld\n", n_items_malloced);
-	if (toku_memory_check)
-	    printf(" one item is %p size=%ld\n", items[0], sizes[0]);
-	exit(1);
+	fprintf(stderr, "n_items_malloced=%lld\n", n_items_malloced);
+	if (toku_memory_check) {
+	    int i;
+	    for (i=0; i<n_items_malloced && i< items_limit && i<10; i++) {
+		fprintf(stderr, " one item is %p size=%ld\n", items[i], sizes[i]);
+	    }
+	}
+	return;
     }
     assert(n_items_malloced==0);
 }

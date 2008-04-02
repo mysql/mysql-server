@@ -34,25 +34,25 @@ RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
-default: check.tlog
+default: build
 
-all: make_libs $(ALL_TESTS)
+all build: $(ALL_TESTS)
 
 check: check.lin check.tlog #check.log
 	@ echo $@ ok
 tests: tests.lin tests.tlog #tests.log
 	@ echo $@ ok
-tests.lin:  make_libs $(LIN_TESTS)
+tests.lin:  $(LIN_TESTS)
 	@ echo $@ ok
-check.lin:  make_libs $(RUN_LIN_TESTS)
+check.lin: $(RUN_LIN_TESTS)
 	@ echo $@ ok
-tests.tlog: make_libs $(TLOG_TESTS)
+tests.tlog: $(TLOG_TESTS)
 	@ echo $@ ok
-check.tlog: make_libs $(RUN_TLOG_TESTS)
+check.tlog: $(RUN_TLOG_TESTS)
 	@ echo $@ ok
-tests.log:  make_libs $(LOG_TESTS)
+tests.log:  $(LOG_TESTS)
 	@ echo $@ ok
-check.log:  make_libs $(RUN_LOG_TESTS)
+check.log:  $(RUN_LOG_TESTS)
 	@ echo $@ ok
 
 # Need these rule so that Make knows about all the file names
@@ -98,11 +98,6 @@ HEADERS=../rangetree.h ../rangetree-internal.h test.h
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(TLOG_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c  $(HEADERS) $(LOG_BINS)
 	cc  -DDIR=\"dir.$<.log\" $(CFLAGS) $(CPPFLAGS) $< -o $@ $(LOG_BINS)
-
-.PHONY: make_libs
-
-make_libs:
-	cd .. && make
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

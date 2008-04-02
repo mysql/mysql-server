@@ -33,14 +33,15 @@ LT_LOG         = $(LT_OVERLAP)
 LT_BINS=$(LT_OVERLAP) $(LT_NOOVERLAP) locktree.o
 BINS=rth.o lth.o idlth.o db_id.o
 
-.PHONY: install logformat range_tree
-install: range_tree $(BINS) $(LT_BINS)
+.PHONY: install logformat
 
-range_tree:
-	cd ../range_tree && make
+build: $(LT_BINS)
+	cd tests; $(MAKE) build
+
+check:
+	cd tests; $(MAKE) check
 
 clean:
-	cd ../range_tree && make clean
 	rm -rf $(BINS) $(LT_BINS)
 	rm -rf *.gcno *.gcda *.gcov
 	cd tests && make clean

@@ -10,6 +10,14 @@
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
+enum typ_tag { TYP_BRTNODE = 0xdead0001,
+	       TYP_CACHETABLE, TYP_PAIR, /* for cachetables */
+	       TYP_PMA,
+	       TYP_GPMA,
+               TYP_TOKULOGGER,
+	       TYP_TOKUTXN
+};
+
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */
 void *toku_calloc(size_t nmemb, size_t size);
 void *toku_malloc(size_t size);
@@ -17,7 +25,7 @@ void *toku_malloc(size_t size);
  * This "tag" is useful if you are debugging and run across a void* that is
  * really a (struct foo *), and you want to figure out what it is.
  */
-void *toku_tagmalloc(size_t size, int typ);
+void *toku_tagmalloc(size_t size, enum typ_tag typ);
 void toku_free(void*);
 /* toku_free_n() should be used if the caller knows the size of the malloc'd object. */
 void toku_free_n(void*, size_t size);
@@ -72,5 +80,10 @@ extern int toku_memory_check; // Set to nonzero to get a (much) slower version o
 int toku_get_n_items_malloced(void); /* How many items are malloc'd but not free'd.  May return 0 depending on the configuration of memory.c */
 void toku_print_malloced_items(void); /* Try to print some malloced-but-not-freed items.  May be a noop. */
 void toku_malloc_report (void); /* report on statistics about number of mallocs.  Maybe a no-op. */ 
+
+// For memory-debug.c  Set this to an array of integers that say which mallocs should return NULL and ENOMEM.
+// The array is terminated by a -1.
+extern int *toku_dead_mallocs;
+extern int toku_malloc_counter; // so you can reset it
 
 #endif

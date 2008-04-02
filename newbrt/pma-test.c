@@ -1149,98 +1149,6 @@ static void test_pma_split(void) {
     test_pma_split_varkey(); local_memory_check_all_free();
 }
 
-/*
- * test the toku_pma_bulk_insert function by creating n kv pairs and bulk 
- * inserting them into an empty pma.  verify that the pma contains all
- * of the kv pairs.
- */
-static void test_pma_bulk_insert_n(int n) {
-    PMA pma;
-    int r;
-    int i;
-    DBT *keys, *vals;
-
-    u_int32_t rand4fingerprint = random();
-    u_int32_t sum = 0;
-    u_int32_t expect_fingerprint = 0;
-
-    if (verbose) printf("test_pma_bulk_insert_n: %d\n", n);
-
-    r = toku_pma_create(&pma, toku_default_compare_fun, null_db, null_filenum, 0, 0);
-    assert(r == 0);
-
-    /* init n kv pairs */
-    keys = toku_malloc(n * sizeof (DBT));
-    assert(keys);
-    vals = toku_malloc(n * sizeof (DBT));
-    assert(vals);
-
-    /* init n kv pairs */
-    for (i=0; i<n; i++) {
-        char kstring[11];
-        char *k; int klen;
-        int *v; int vlen;
-
-        snprintf(kstring, sizeof kstring, "%.10d", i);
-        klen = strlen(kstring) + 1;
-        k = toku_malloc(klen);
-        assert(k);
-        strcpy(k, kstring);
-        toku_fill_dbt(&keys[i], k, klen);
-
-        vlen = sizeof (int);
-        v = toku_malloc(vlen);
-        assert(v);
-        *v = i;
-        toku_fill_dbt(&vals[i], v, vlen);
-
-	expect_fingerprint += rand4fingerprint*toku_calccrc32_kvpair (k, klen, v, vlen);
-    }
-
-    /* bulk insert n kv pairs */
-    r = toku_pma_bulk_insert(null_logger, null_filenum, (DISKOFF)0, pma, keys, vals, n, rand4fingerprint, &sum, 0);
-    assert(r == 0);
-    assert(sum==expect_fingerprint);
-    toku_pma_verify(pma);
-    toku_pma_verify_fingerprint(pma, rand4fingerprint, sum);
-
-    /* verify */
-    if (0) toku_print_pma(pma);
-    assert(n == toku_pma_n_entries(pma));
-    for (i=0; i<n; i++) {
-        DBT val;
-        toku_init_dbt(&val); val.flags = DB_DBT_MALLOC;
-        r = toku_pma_lookup(pma, &keys[i], &val);
-        assert(r == 0);
-        assert(vals[i].size == val.size);
-        assert(memcmp(vals[i].data, val.data, val.size) == 0);
-        toku_free(val.data);
-    }
-
-    /* cleanup */
-    for (i=0; i<n; i++) {
-        toku_free(keys[i].data);
-        toku_free(vals[i].data);
-    }
-
-    r = toku_pma_free(&pma);
-    assert(r == 0);
-    
-    toku_free(keys);
-    toku_free(vals);
-}
-
-static void test_pma_bulk_insert(void) {
-    test_pma_bulk_insert_n(0); local_memory_check_all_free();
-    test_pma_bulk_insert_n(1); local_memory_check_all_free();
-    test_pma_bulk_insert_n(2); local_memory_check_all_free();
-    test_pma_bulk_insert_n(3); local_memory_check_all_free();
-    test_pma_bulk_insert_n(4); local_memory_check_all_free();
-    test_pma_bulk_insert_n(5); local_memory_check_all_free();
-    test_pma_bulk_insert_n(8); local_memory_check_all_free();
-    test_pma_bulk_insert_n(32); local_memory_check_all_free();
-}
-
 static void test_pma_insert_or_replace(void) {
     PMA pma;
     int r;
@@ -2486,7 +2394,6 @@ static void pma_tests (void) {
     test_pma_cursor();            local_memory_check_all_free();
 
     test_pma_split();             local_memory_check_all_free();
-    test_pma_bulk_insert();       local_memory_check_all_free();
     test_pma_insert_or_replace(); local_memory_check_all_free();
     test_pma_delete();
     test_pma_already_there();     local_memory_check_all_free();

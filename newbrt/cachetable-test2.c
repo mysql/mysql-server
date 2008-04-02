@@ -170,7 +170,7 @@ static void test_chaining (void) {
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 
-void usage (const char *progname) {
+void __attribute__((__noreturn__)) usage (const char *progname) {
     fprintf(stderr, "Usage:\n %s [-v] [-q]\n", progname);
     exit(1);
 }

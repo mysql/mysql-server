@@ -60,7 +60,7 @@ RUN_BDB_TESTS = $(patsubst %.bdb,%.bdbrun,$(BDB_TESTS))
 RUN_ALL_TESTS = $(RUN_TDB_TESTS) $(RUN_BDB_TESTS)
 
 
-all: $(ALL_TESTS)
+all build: $(ALL_TESTS)
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)

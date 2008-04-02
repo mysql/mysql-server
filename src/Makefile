@@ -27,28 +27,36 @@ SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
+build:
+	cd range_tree;$(MAKE) build
+	cd lock_tree;$(MAKE) build
+	$(MAKE) $(LIBRARY) $(LIBNAME).a
+	cd tests;$(MAKE) build
+
 .PHONY: install
-install: locktree $(LIBRARY) $(LIBNAME).a
+install: $(LIBRARY) $(LIBNAME).a
 	cp $(LIBRARY) ../lib/
 	cp $(LIBNAME).a ../lib
 
-locktree:
-	cd lock_tree && make
-
-check: $(LIBRARY)
+check_globals: $(LIBRARY)
 	python tokuglobals.py $(LIBRARY)
+
+check_tests:
+	cd tests;$(MAKE) check
+check: $(LIBRARY) check_globals check_tests
 
 strip: $(LIBRARY)
 	strip $(LIBRARY)
 
 clean:
 	rm -rf $(LIBRARY) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
-	cd tests && make clean
-	cd lock_tree && make clean
+	cd tests && $(MAKE) clean
+	cd lock_tree && $(MAKE) clean
+	cd range_tree && $(MAKE) clean
 
 ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
 
-DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
+DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
 
 RANGETREE_BINS = range_tree/rangetree.o range_tree/tokuredblack.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)

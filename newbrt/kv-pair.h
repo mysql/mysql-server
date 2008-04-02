@@ -57,7 +57,7 @@ static inline const void *kv_pair_key_const(const struct kv_pair *pair) {
     return pair->key;
 }
 
-static inline unsigned int kv_pair_keylen(struct kv_pair *pair) {
+static inline unsigned int kv_pair_keylen(const struct kv_pair *pair) {
     return pair->keylen;
 }
 
@@ -69,7 +69,7 @@ static inline const void *kv_pair_val_const(const struct kv_pair *pair) {
     return pair->key + pair->keylen;
 }
 
-static inline unsigned int kv_pair_vallen(struct kv_pair *pair) {
+static inline unsigned int kv_pair_vallen(const struct kv_pair *pair) {
     return pair->vallen;
 }
 

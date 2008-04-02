@@ -71,24 +71,29 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     if (r!=0) return r;
     BRTNODE node=node_v;
     assert(node->height==0);
-    DBT k,v;
-    int replaced_v_size;
-    enum pma_errors pma_status =
-	toku_pma_insert_or_replace(node->u.l.buffer,
-				   toku_fill_dbt(&k, key, keylen),
-				   toku_fill_dbt(&v, val, vallen),
-				   &replaced_v_size,
-				   (TOKULOGGER)0, (TXNID)0,
-				   toku_cachefile_filenum(brt->cf),
-				   node->thisnodename, node->rand4fingerprint,
-				   &node->local_fingerprint,
-				   &node->log_lsn);
-    assert(pma_status==BRT_OK);
-    if (replaced_v_size>=0) {
-	node->u.l.n_bytes_in_buffer += v.size - replaced_v_size;
+
+    struct kv_pair *kv = kv_pair_malloc(key, keylen, val, vallen);
+    struct lc_pair  lc = {brt, node->flags & TOKU_DB_DUPSORT};
+    u_int32_t storedlen;
+    void *storeddata;
+    u_int32_t idx;
+    r = toku_gpma_lookup_item(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, &storedlen, &storeddata, &idx);
+
+    if (r==0) {
+	// It's already there.  So now we have to remove it and put the new one back in.
+	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + storedlen;
+	node->local_fingerprint     -= toku_crc32(toku_null_crc, storeddata, storedlen);
+	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, storedlen);
+	// Now put the new kv in.
+	toku_gpma_set_at_index(node->u.l.buffer, idx, kv_pair_size(kv), kv);
     } else {
-	node->u.l.n_bytes_in_buffer += k.size + v.size + KEY_VALUE_OVERHEAD + PMA_ITEM_OVERHEAD;
+	r = toku_gpma_insert(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, 0, 0, 0);
+	assert(r==0);
     }
+
+    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + kv_pair_size(kv);
+    node->local_fingerprint += toku_crc32(toku_null_crc, kv, kv_pair_size(kv));
+
     node->dirty=1;
     *subtree_fingerprint = node->local_fingerprint;
     r = toku_unpin_brtnode(brt, node_v);

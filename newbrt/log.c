@@ -494,7 +494,7 @@ int toku_fread_BYTESTRING (FILE *f, BYTESTRING *bs, u_int32_t *crc, u_int32_t *l
     int r=toku_fread_u_int32_t(f, (u_int32_t*)&bs->len, crc, len);
     if (r!=0) return r;
     bs->data = toku_malloc(bs->len);
-    int i;
+    u_int32_t i;
     for (i=0; i<bs->len; i++) {
 	r=toku_fread_u_int8_t(f, (u_int8_t*)&bs->data[i], crc, len);
 	if (r!=0) {
@@ -574,7 +574,7 @@ int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_in
     int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
     if (r!=0) return r;
     fprintf(outf, " %s={len=%d data=\"", fieldname, bs.len);
-    int i;
+    u_int32_t i;
     for (i=0; i<bs.len; i++) {
 	switch (bs.data[i]) {
 	case '"':  fprintf(outf, "\\\""); break;

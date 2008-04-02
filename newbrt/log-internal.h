@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <string.h>
 
 // Locking for the logger
 //  For most purposes we use the big ydb lock.

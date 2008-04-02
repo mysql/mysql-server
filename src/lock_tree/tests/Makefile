@@ -30,7 +30,7 @@ TLOG_TESTS = $(patsubst %.c,%.tlog,$(SRCS))
 LIN_TESTS  = $(patsubst %.c,%.lin,$(SRCS))
 TLIN_TESTS = $(patsubst %.c,%.tlin,$(SRCS))
 
-ALL_TESTS = $(LIN_TESTS) $(TLIN_TESTS) $(TLOG_TESTS) $(LOG_TESTS)
+ALL_TESTS = $(LIN_TESTS) $(TLIN_TESTS) $(TLOG_TESTS) #$(LOG_TESTS)
 
 RUN_LOG_TESTS  = $(patsubst %.log,%.logrun,$(LOG_TESTS))
 RUN_TLOG_TESTS = $(patsubst %.tlog,%.tlogrun,$(TLOG_TESTS))
@@ -40,9 +40,9 @@ RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_
 
 .PHONY: check tests default all check.lin check.tlin check.log check.tlog tests.lin tests.tlin tests.tlog tests.log
 
-default: check.tlog
+default: build
 
-all: make_libs $(ALL_TESTS)
+build all: $(ALL_TESTS)
 
 check: check.lin check.tlin check.tlog #check.log
 	@ echo $@ ok
@@ -50,19 +50,19 @@ tests: tests.lin tests.tlin tests.tlog #tests.log
 	@ echo $@ ok
 tests.lin: make_libs $(LIN_TESTS)
 	@ echo $@ ok
-check.lin: make_libs $(RUN_LIN_TESTS)
+check.lin: $(RUN_LIN_TESTS)
 	@ echo $@ ok
-tests.tlin: make_libs $(TLIN_TESTS)
+tests.tlin: $(TLIN_TESTS)
 	@ echo $@ ok
-check.tlin: make_libs $(RUN_TLIN_TESTS)
+check.tlin: $(RUN_TLIN_TESTS)
 	@ echo $@ ok
-tests.tlog: make_libs $(TLOG_TESTS)
+tests.tlog: $(TLOG_TESTS)
 	@ echo $@ ok
-check.tlog: make_libs $(RUN_TLOG_TESTS)
+check.tlog: $(RUN_TLOG_TESTS)
 	@ echo $@ ok
-tests.log: make_libs $(LOG_TESTS)
+tests.log: $(LOG_TESTS)
 	@ echo $@ ok
-check.log: make_libs $(RUN_LOG_TESTS)
+check.log: $(RUN_LOG_TESTS)
 	@ echo $@ ok
 
 # Need these rule so that Make knows about all the file names
@@ -99,8 +99,7 @@ endif
 %.tlogrun: %.tlog
 	$(MAYBEATSIGN) $(VGRIND) ./$< $(VERBVERBOSE)
 
-libs:
-	cd .. && make
+NEWBRT_BINS     = ../../../newbrt/toku_assert.o
 
 RT_LINEAR_BINS  = ../../range_tree/linear.o
 RT_TLINEAR_BINS = ../../range_tree/linear.o
@@ -115,19 +114,17 @@ LT_TLINEAR     = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLINEAR_BINS)
 LT_TLOG        = $(LT_NOOVERLAP) $(LT_BINS) $(RT_TLOG_BINS)
 LT_LOG         = $(LT_OVERLAP)   $(LT_BINS) $(RT_LOG_BINS)
 
+foo:
+	echo ../locktree.h test.h $(LT_LINEAR)
+
 %.lin: %.c ../locktree.h test.h $(LT_LINEAR)
-	cc  -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)
+	cc  -DDIR=\"dir.$<.lin\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LINEAR)  $(NEWBRT_BINS)
 %.tlin: %.c ../locktree.h test.h $(LT_TLINEAR)
-	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) -DTOKU_RT_NOOVERLAPS
+	cc  -DDIR=\"dir.$<.tlin\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLINEAR) $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS
 %.tlog: %.c ../locktree.h test.h $(LT_TLOG)
-	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    -DTOKU_RT_NOOVERLAPS
+	cc  -DDIR=\"dir.$<.tlog\" $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_TLOG)    $(NEWBRT_BINS) -DTOKU_RT_NOOVERLAPS
 %.log: %.c ../locktree.h test.h  $(LT_LOG)
-	cc  -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)
-
-.PHONY: make_libs
-
-make_libs:
-	cd .. && make
+	cc  -DDIR=\"dir.$<.log\"  $(CPPFLAGS) $(CFLAGS) $< -o $@ $(LT_LOG)     $(NEWBRT_BINS)
 
 clean:
 	rm -f $(ALL_TESTS) *.o *.gcno *.gcda *.gcov

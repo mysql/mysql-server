@@ -3,7 +3,6 @@
 
 #include "brt.h"
 #include "key.h"
-#include "pma.h"
 #include "brt-internal.h"
 #include "memory.h"
 #include "toku_assert.h"
@@ -57,7 +56,7 @@ static void brt_blackbox_test (void) {
     if (verbose) printf("test4 slow\n");
     test4(2048, 1<<15, 1);
 
-    if (verbose) toku_pma_show_stats();
+    //if (verbose) toku_pma_show_stats();
 
     test4(1<<15, 1024, 1);
 

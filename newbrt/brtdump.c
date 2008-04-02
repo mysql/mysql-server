@@ -44,9 +44,7 @@ void print_item (bytevec val, ITEMLEN len) {
 
 void dump_node (int f, DISKOFF off, struct brt_header *h) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, off, &n, h->flags, h->nodesize,
-					   toku_default_compare_fun, toku_default_compare_fun,
-					   (DB*)0, (FILENUM){0});
+    int r = toku_deserialize_brtnode_from (f, off, &n, h->flags, h->nodesize);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
@@ -105,13 +103,13 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	}
     } else {
 	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
-	printf(" items_in_buffer  =%d\n", toku_pma_n_entries(n->u.l.buffer));
-	PMA_ITERATE_IDX(n->u.l.buffer, idx, key, keylen, data, datalen,
+	printf(" items_in_buffer  =%d\n", toku_gpma_n_entries(n->u.l.buffer));
+	GPMA_ITERATE(n->u.l.buffer, idx, len, data,
 			({
 			  printf("%d: ", idx);
-			  print_item(key, keylen);
+			  print_item(kv_pair_key(data), kv_pair_keylen(data));
 			  printf(" ");
-			  print_item(data, datalen);
+			  print_item(kv_pair_val(data), kv_pair_vallen(data));
 			  printf("\n");
 			}));
     }
