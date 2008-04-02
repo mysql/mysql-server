@@ -9,11 +9,13 @@ create user mysqltest_3@localhost;
 create user mysqltest_3;
 select * from information_schema.SCHEMATA where schema_name > 'm';
 CATALOG_NAME	SCHEMA_NAME	DEFAULT_CHARACTER_SET_NAME	DEFAULT_COLLATION_NAME	SQL_PATH
+NULL	mtr	latin1	latin1_swedish_ci	NULL
 NULL	mysql	latin1	latin1_swedish_ci	NULL
 NULL	test	latin1	latin1_swedish_ci	NULL
 select schema_name from information_schema.schemata;
 schema_name
 information_schema
+mtr
 mysql
 test
 show databases like 't%';
@@ -22,6 +24,7 @@ test
 show databases;
 Database
 information_schema
+mtr
 mysql
 test
 show databases where `database` = 't%';
@@ -351,6 +354,7 @@ create view v0 (c) as select schema_name from information_schema.schemata;
 select * from v0;
 c
 information_schema
+mtr
 mysql
 test
 explain select * from v0;
