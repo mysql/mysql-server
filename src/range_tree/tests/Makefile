@@ -34,7 +34,7 @@ RUN_ALL_TESTS  = $(RUN_LIN_TESTS) $(RUN_TLOG_TESTS) $(RUN_LOG_TESTS)
 
 .PHONY: default all check tests check.lin check.tlog check.log tests.lin tests.log tests.tlog
 
-default: check
+default: check.tlog
 
 all: make_libs $(ALL_TESTS)
 
