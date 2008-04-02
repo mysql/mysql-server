@@ -25,7 +25,7 @@ err_log=
 syslog_tag_mysqld=mysqld
 syslog_tag_mysqld_safe=mysqld_safe
 
-trap '' 1 2 3 15			# we shouldn't let anyone kill us
+trap '' 1 2 3 13 15			# we shouldn't let anyone kill us
 
 umask 007
 
