@@ -694,13 +694,15 @@ static inline BOOL toku__lt_p_independent(toku_point* point, toku_interval* rang
     return point != range->left && point != range->right;
 }
 
-static inline int toku__lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
-                                    BOOL* alloc_left, BOOL* alloc_right,
-                                    u_int32_t numfound) {
+static inline int toku__lt_determine_extreme(toku_lock_tree* tree,
+                                             toku_range* to_insert,
+                                             BOOL* alloc_left, BOOL* alloc_right,
+                                             u_int32_t numfound,
+                                             u_int32_t start_at) {
     assert(to_insert && tree && alloc_left && alloc_right);
     u_int32_t i;
     assert(numfound <= tree->buflen);
-    for (i = 0; i < numfound; i++) {
+    for (i = start_at; i < numfound; i++) {
         int c;
         /* Find the extreme left end-point among overlapping ranges */
         if ((c = toku__lt_point_cmp(tree->buf[i].ends.left, to_insert->ends.left))
@@ -723,6 +725,27 @@ static inline int toku__lt_extend_extreme(toku_lock_tree* tree,toku_range* to_in
             to_insert->ends.right = tree->buf[i].ends.right;
         }
     }
+    return 0;
+}
+
+/* Find extreme given a starting point. */
+static inline int toku__lt_extend_extreme(toku_lock_tree* tree,toku_range* to_insert,
+                                          BOOL* alloc_left, BOOL* alloc_right,
+                                          u_int32_t numfound) {
+    return toku__lt_determine_extreme(tree, to_insert, alloc_left, alloc_right,
+                                      numfound, 0);
+}
+
+/* Has no starting point. */
+static inline int toku__lt_find_extreme(toku_lock_tree* tree,
+                                        toku_range* to_insert,
+                                        u_int32_t numfound) {
+    assert(numfound > 0);
+    *to_insert = tree->buf[0];
+    BOOL ignore_left = TRUE;
+    BOOL ignore_right = TRUE;
+    return toku__lt_determine_extreme(tree, to_insert, &ignore_left,
+                                      &ignore_right, numfound, 1);
     return 0;
 }
 
@@ -770,8 +793,10 @@ static inline int toku__lt_delete_overlapping_ranges(toku_lock_tree* tree,
     return 0;
 }
 
-static inline int toku__lt_free_points(toku_lock_tree* tree, toku_interval* to_insert,
-                                  u_int32_t numfound, toku_range_tree *rt) {
+static inline int toku__lt_free_points(toku_lock_tree* tree,
+                                       toku_interval* to_insert,
+                                       u_int32_t numfound,
+                                       toku_range_tree *rt) {
     assert(tree && to_insert);
     assert(numfound <= tree->buflen);
 
@@ -802,15 +827,19 @@ static inline int toku__lt_free_points(toku_lock_tree* tree, toku_interval* to_i
 /* TODO: query should be made from the to_insert instead of a parameter. */
 /* TODO: toku_query should be an object.  toku_range would contain a query and a transaction. */
 /* TODO: Toku error codes, i.e. get rid of the extra parameter for (ran out of locks) */
-/* Consolidate the new range and all the overlapping ranges */
-static inline int toku__consolidate(toku_lock_tree* tree,
-                                    toku_interval* query, toku_range* to_insert,
+/* Consolidate the new range and all the overlapping ranges
+   If found_only is TRUE, we're only consolidating existing ranges in the interval
+   specified inside of to_insert.
+*/
+static inline int toku__consolidate(toku_lock_tree* tree, BOOL found_only,
+                                    toku_range* to_insert,
                                     TXNID txn, BOOL* out_of_locks) {
     int r;
     BOOL             alloc_left    = TRUE;
     BOOL             alloc_right   = TRUE;
     toku_range_tree* selfread;
     assert(tree && to_insert && out_of_locks);
+    toku_interval* query = &to_insert->ends;
     *out_of_locks = FALSE;
 #if !defined(TOKU_RT_NOOVERLAPS)
     toku_range_tree* mainread      = tree->mainread;
@@ -822,14 +851,23 @@ static inline int toku__consolidate(toku_lock_tree* tree,
     assert(selfread);
     /* Find all overlapping ranges in the self-read */
     u_int32_t numfound;
-    r = toku_rt_find(selfread, query, 0, &tree->buf, &tree->buflen,
-                     &numfound);
+    r = toku_rt_find(selfread, query, 0, &tree->buf, &tree->buflen, &numfound);
     if (r!=0) return r;
     assert(numfound <= tree->buflen);
-    /* Find the extreme left and right point of the consolidated interval */
-    r = toku__lt_extend_extreme(tree, to_insert, &alloc_left, &alloc_right,
-                                numfound);
-    if (r!=0) return r;
+    if (found_only) {
+        /* If there is 0 or 1 found, it is already consolidated. */
+        if (numfound < 2) { return 0; }
+        /* Copy the first one, so we only consolidate existing entries. */
+        r = toku__lt_find_extreme(tree, to_insert, numfound);
+        if (r!=0) return r;
+    }
+    else {
+        /* Find the extreme left and right point of the consolidated interval */
+        r = toku__lt_extend_extreme(tree, to_insert, &alloc_left, &alloc_right,
+                                    numfound);
+        if (r!=0) return r;
+    }
+    if (found_only) { alloc_left = FALSE; alloc_right = FALSE; }
     if (!toku__lt_lock_test_incr_per_db(tree, numfound)) {
         *out_of_locks = TRUE;
         return 0;
@@ -984,7 +1022,7 @@ static inline int toku__lt_preprocess(toku_lock_tree* tree, DB* db,
 
     /* Verify left <= right, otherwise return EDOM. */
     if (toku__r_backwards(query)) { r = EDOM; goto cleanup; }
-
+    *out_of_locks = FALSE;
     r = 0;
 cleanup:
     if (r == 0) {
@@ -1367,7 +1405,7 @@ static int toku__lt_try_acquire_range_read_lock(toku_lock_tree* tree,
     toku_range  to_insert;
     toku__init_insert(&to_insert, &left, &right, txn);
     /* Consolidate the new range and all the overlapping ranges */
-    r = toku__consolidate(tree, &query, &to_insert, txn, out_of_locks);
+    r = toku__consolidate(tree, FALSE, &to_insert, txn, out_of_locks);
     if (r!=0) { goto cleanup; }
     
     r = 0;
@@ -1436,6 +1474,8 @@ static inline int toku__escalate_writes_from_border_range(toku_lock_tree* tree,
      */
     r = toku_rt_find(self_write, &query, 0, &tree->buf, &tree->buflen, &numfound);
     if (r != 0) { goto cleanup; }
+    /* Need at least two entries for this to actually help. */
+    if (numfound < 2) { goto cleanup; }
     u_int32_t i;
     for (i = 0; i < numfound; i++) {
         r = toku_rt_delete(self_write, &tree->buf[i]);
@@ -1465,47 +1505,51 @@ cleanup:
     return r;
 }
 
-static inline int toku__escalate_reads_from_border_range(toku_lock_tree* tree, 
-                                                         toku_range* border_range) {
+static int toku__lt_escalate_read_locks_in_interval(toku_lock_tree* tree,
+                                                    toku_interval* query,
+                                                    TXNID txn) {
     int r = ENOSYS;
-    if (!tree || !border_range) { r = EINVAL; goto cleanup; }
-    TXNID txn = border_range->data;
-    toku_range_tree* self_read = toku__lt_ifexist_selfread(tree, txn);
-    if (self_read == NULL) { r = 0; goto cleanup; }
-    toku_interval query = border_range->ends;
-    u_int32_t numfound = 0;
+    toku_range to_insert;
+    BOOL ignore_out_of_locks;
 
-    /*
-     * Delete all overlapping ranges
-     */
-    r = toku_rt_find(self_read, &query, 0, &tree->buf, &tree->buflen, &numfound);
-    if (r != 0) { goto cleanup; }
-    u_int32_t i;
-    u_int32_t removed = 0;
-    for (i = 0; i < numfound; i++) {
-        if (!toku__dominated(&tree->buf[i].ends, &border_range->ends)) { continue; }
-        r = toku_rt_delete(self_read, &tree->buf[i]);
-        if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
-#if !defined(TOKU_RT_NOOVERLAPS)
-        r = toku_rt_delete(tree->mainread, &tree->buf[i]);
-        if (r != 0) { r = toku__lt_panic(tree, r); goto cleanup; }
-#endif /* TOKU_RT_NOOVERLAPS */
-        removed++;
-        /*
-         * Clean up memory that is not referenced by border_range.
-         */
-        if (tree->buf[i].ends.left != tree->buf[i].ends.right &&
-            toku__lt_p_independent(tree->buf[i].ends.left, &border_range->ends)) {
-            /* Do not double free if left and right are same point. */
-            toku__p_free(tree, tree->buf[i].ends.left);
-        }
-        if (toku__lt_p_independent(tree->buf[i].ends.right, &border_range->ends)) {
-            toku__p_free(tree, tree->buf[i].ends.right);
-        }
-    }
-    
-    toku__lt_lock_decr_per_db(tree, removed);
+    toku__init_insert(&to_insert, query->left, query->right, txn);
+    r = toku__consolidate(tree, TRUE, &to_insert, txn, &ignore_out_of_locks);
+    if (r!=0) { goto cleanup; }
     r = 0;
+cleanup:
+    return r;
+}
+
+
+//TODO: Whenever comparing TXNIDs use the comparison function INSTEAD of just '!= or =='
+static int toku__lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
+    int r = ENOSYS;
+    assert(tree);
+    assert(tree->lock_escalation_allowed);
+    r = 0;
+
+    toku_point neg_infinite;
+    toku_point infinite;
+    toku_interval query;
+    toku__lt_init_full_query(tree, &query, &neg_infinite, &infinite);
+
+    toku_range_tree* border = tree->borderwrite;
+    assert(border);
+    toku_range border_range;
+    BOOL found;
+    toku_rt_start_scan(border);
+    /* Special case for zero entries in border?  Just do the 'after'? */
+    while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
+        if (border_range.data == txn) { continue; }
+        query.right = border_range.ends.left;
+        r = toku__lt_escalate_read_locks_in_interval(tree, &query, txn);
+        if (r!=0) { goto cleanup; }
+        query.left = border_range.ends.right;
+    }
+    query.right = &infinite;
+    r = toku__lt_escalate_read_locks_in_interval(tree, &query, txn);
+    if (r!=0) { goto cleanup; }
+    goto cleanup;
 cleanup:
     return r;
 }
@@ -1516,10 +1560,10 @@ cleanup:
  *     Replaces all writes that overlap with range
  *     Deletes all reads dominated by range
  */
-static int toku__lt_do_escalation(toku_lock_tree* tree) {
+static int toku__lt_escalate_write_locks(toku_lock_tree* tree) {
     int r = ENOSYS;
-    if (!tree)                          { r = EINVAL; goto cleanup; }
-    if (!tree->lock_escalation_allowed) { r = 0;      goto cleanup; }
+    assert(tree);
+    assert(tree->lock_escalation_allowed);
     toku_range_tree* border  = tree->borderwrite;
     assert(border);
     toku_range       border_range;
@@ -1537,8 +1581,25 @@ static int toku__lt_do_escalation(toku_lock_tree* tree) {
          */
         r = toku__escalate_writes_from_border_range(tree, &border_range);
         if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
-        r = toku__escalate_reads_from_border_range(tree, &border_range);
-        if (r!=0)     { r = toku__lt_panic(tree, r); goto cleanup; }
+    }
+    r = 0;
+cleanup:
+    return r;
+}
+
+static inline int toku__lt_do_escalation(toku_lock_tree* tree) {
+    int r = ENOSYS;
+    if (!tree->lock_escalation_allowed) { r = 0; goto cleanup; }
+    r = toku__lt_escalate_write_locks(tree);
+    if (r!=0) { goto cleanup; }
+
+    toku_rt_forest* forest;    
+    toku_rth_start_scan(tree->rth);
+    while ((forest = toku_rth_next(tree->rth)) != NULL) {
+        if (forest->self_read) {
+            r = toku__lt_escalate_read_locks(tree, forest->hash_key);
+            if (r!=0) { goto cleanup; }
+        }
     }
     r = 0;
 cleanup:
