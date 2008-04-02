@@ -21,6 +21,7 @@ COUNT(*)
 SHOW DATABASES;
 Database
 information_schema
+mtr
 mysql
 mysqltest
 test
