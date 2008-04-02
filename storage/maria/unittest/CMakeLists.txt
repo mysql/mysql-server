@@ -26,7 +26,7 @@ ADD_EXECUTABLE(lockman2-t lockman2-t.c)
 ADD_EXECUTABLE(ma_test_loghandler-t  
 	ma_test_loghandler-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
 ADD_EXECUTABLE(ma_test_loghandler_multigroup-t  
-	ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
+	ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c sequence_storage.c)
 ADD_EXECUTABLE(ma_test_loghandler_multithread-t  
 	ma_test_loghandler_multithread-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
 ADD_EXECUTABLE(ma_test_loghandler_pagecache-t
@@ -44,7 +44,7 @@ ADD_EXECUTABLE(ma_test_loghandler_max_lsn-t
 ADD_EXECUTABLE(ma_test_loghandler_purge-t
 	ma_test_loghandler_purge-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
 ADD_EXECUTABLE(ma_test_loghandler_readonly-t
-	ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
+	ma_test_loghandler_multigroup-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c  sequence_storage.c)
 SET_TARGET_PROPERTIES(ma_test_loghandler_readonly-t  PROPERTIES COMPILE_FLAGS "-DREADONLY_TEST")
 ADD_EXECUTABLE(ma_test_loghandler_nologs-t
 	ma_test_loghandler_nologs-t.c ma_maria_log_cleanup.c ma_loghandler_examples.c)
