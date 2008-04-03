@@ -20,8 +20,8 @@ typedef int (*gpma_renumber_callback_t)(u_int32_t nitems,  // How many things mo
 					u_int32_t *froms,  // An array of indices indicating where things moved from
 					u_int32_t *tos,    // An array of indices indicating where thigns moved to
 					struct gitem *items, // The actual items that were moved
-					u_int32_t old_N,     // The old size of the array
-					u_int32_t new_N,     // The new size of teh array
+					u_int32_t old_N,     // The old size of the target array
+					u_int32_t new_N,     // The new size of the target array
 					void *extra);        // Context
 typedef void (*gpma_free_callback_t)(u_int32_t len, void*freeme, void*extra);
 
@@ -96,7 +96,7 @@ int toku_gpma_move_inside_pma_by_renumbering (GPMA,
 int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
 		     int (*realloc_data)(u_int32_t len, void *odata, void **ndata, void *extra),
 		     gpma_renumber_callback_t rcall,
-		     gpma_renumber_callback_t rcall_across_pmas, // This one is called for everything that moved
+		     gpma_renumber_callback_t rcall_across_pmas, // This one is called for everything that moved.  It is called first (before the rcall)
 		     void *extra);
 
 void toku_verify_gpma (GPMA pma);
