@@ -440,13 +440,17 @@ void toku_verify_counts (BRTNODE node) {
 	assert(node->u.l.buffer);
 	unsigned int sum=0;
 	unsigned int count=0;
-	GPMA_ITERATE(node->u.l.buffer, idx, dlen, dvadata,
+	u_int32_t    fp=0;
+	GPMA_ITERATE(node->u.l.buffer, idx, dlen, ddata,
 		     ({
 			 count++;
 			 sum+=(PMA_ITEM_OVERHEAD + dlen);
+			 fp += toku_calccrc32_kvpair_struct(ddata);
 		     }));
 	assert(count==toku_gpma_n_entries(node->u.l.buffer));
 	assert(sum==node->u.l.n_bytes_in_buffer);
+	u_int32_t fps = node->rand4fingerprint *fp;
+	assert(fps==node->local_fingerprint);
     } else {
 	unsigned int sum = 0;
 	int i;

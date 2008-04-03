@@ -490,7 +490,7 @@ int move_indices (GPMA from, struct mempool *from_mempool,
 	struct gitem item = from->items[idx];
 	items[i]=item;
 	from->items[idx].data = 0;
-	fp += toku_crc32(toku_null_crc, item.data, item.len);
+	fp += toku_calccrc32_kvpair_struct(item.data);
 	sizediff += PMA_ITEM_OVERHEAD + item.len;
 	assert(kv_pair_size(item.data)==item.len);
     }
