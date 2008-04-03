@@ -32,7 +32,8 @@ build:
 	cd lock_tree;$(MAKE) build
 	$(MAKE) $(LIBRARY) $(LIBNAME).a
 	cd tests;$(MAKE) build
-	cp $(LIBRARY) $(LIBNAME).a ../lib/
+	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $(LIBNAME).a ../lib/; fi
+	if ! diff $(LIBRARY)  ../lib/$(LIBRARY) > /dev/null 2>&1; then cp $(LIBRARY) ../lib/; fi
 
 .PHONY: install
 install: $(LIBRARY) $(LIBNAME).a
