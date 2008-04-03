@@ -17,7 +17,7 @@ struct kv_pair {
 };
 
 /* return the size of a kv pair */
-static inline int kv_pair_size(struct kv_pair *pair) {
+static inline unsigned int kv_pair_size(struct kv_pair *pair) {
     return sizeof (struct kv_pair) + pair->keylen + pair->vallen;
 }
 

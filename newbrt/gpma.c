@@ -668,9 +668,9 @@ int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
     //toku_verify_gpma(pma);
     //toku_verify_gpma(newpma);
 
-    r = rcall(n_left, leftfroms, lefttos, leftitems, old_N, pma->N, extra);
-    if (r!=0) { goto L6; }
     r = rcall_across_pmas(n_right, rightfroms, righttos, rightitems, 0, newpma->N, extra);
+    if (r!=0) { goto L6; }
+    r = rcall(n_left, leftfroms, lefttos, leftitems, old_N, pma->N, extra);
     if (r!=0) { goto L6; }
     r=0;
     goto L6; // free all that stuff

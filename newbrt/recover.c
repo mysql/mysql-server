@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-//#define DO_VERIFY_COUNTS
+#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
 #define VERIFY_COUNTS(n) toku_verify_counts(n)
 #else
@@ -159,9 +159,10 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
 	assert(r==0);
 	n->u.l.n_bytes_in_buffer=0;
 	{
-	    void *mp = toku_malloc(n->nodesize);
+	    u_int32_t mpsize = n->nodesize + n->nodesize/4;
+	    void *mp = toku_malloc(mpsize);
 	    assert(mp);
-	    toku_mempool_init(&n->u.l.buffer_mempool, mp, n->nodesize);
+	    toku_mempool_init(&n->u.l.buffer_mempool, mp, mpsize);
 	}
 
     } else {
@@ -470,10 +471,15 @@ void toku_recover_resizepma (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_
     assert(r==0);
 }
 
-int move_indices (GPMA from, GPMA to, INTPAIRARRAY fromto,
+int move_indices (GPMA from, struct mempool *from_mempool,
+		  GPMA to,   struct mempool *to_mempool,
+		  INTPAIRARRAY fromto,
 		  u_int32_t a_rand, u_int32_t *a_fp,
 		  u_int32_t b_rand, u_int32_t *b_fp,
-		  u_int32_t *a_nbytes, u_int32_t *b_nbytes) {
+		  u_int32_t *a_nbytes, u_int32_t *b_nbytes,
+		  u_int32_t new_N) {
+    toku_verify_gpma(from);
+    toku_verify_gpma(to);
     struct gitem *MALLOC_N(fromto.size, items);
     if (items==0) return errno;
     u_int32_t i;
@@ -486,15 +492,42 @@ int move_indices (GPMA from, GPMA to, INTPAIRARRAY fromto,
 	from->items[idx].data = 0;
 	fp += toku_crc32(toku_null_crc, item.data, item.len);
 	sizediff += PMA_ITEM_OVERHEAD + item.len;
+	assert(kv_pair_size(item.data)==item.len);
     }
+    from->n_items_present -= fromto.size;
+
+    if (new_N!=toku_gpma_index_limit(to)) {
+	int r = toku_resize_gpma_exactly(to, new_N);
+	assert(r==0);
+    }
+
     for (i=0; i<fromto.size; i++) {
-	to->items[fromto.array[i].b] = items[i];
+	int to_idx = fromto.array[i].b;
+	assert(to->items[to_idx].data==0);
+	if (from==to) {
+	    to->items[to_idx] = items[i];
+	} else {
+	    void *new_data = toku_mempool_malloc(to_mempool, items[i].len, 4);
+	    if (new_data==0) {
+		int r = toku_brtnode_compress_kvspace(to, to_mempool);
+		assert(r==0);
+		new_data = toku_mempool_malloc(to_mempool, items[i].len, 4);
+		assert(new_data);
+	    }
+	    memcpy(new_data, items[i].data, items[i].len);
+	    to->items[to_idx] = (struct gitem){items[i].len, new_data};
+	    toku_mempool_mfree(from_mempool, items[i].data, items[i].len);
+	}
+	assert(kv_pair_size(to->items[to_idx].data)==to->items[to_idx].len);
     }
+    to->n_items_present += fromto.size;
     *a_fp -= a_rand * fp;
     *b_fp += b_rand * fp;
     *a_nbytes -= sizediff;
     *b_nbytes += sizediff;
     toku_free(items);
+    toku_verify_gpma(from);
+    toku_verify_gpma(to);
     return 0;
 }
 
@@ -510,24 +543,25 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
     assert(r==0);
     BRTNODE nodea = node_va;      assert(nodea->height==0);
     BRTNODE nodeb = node_vb;      assert(nodeb->height==0);
-    if (new_N!=toku_gpma_index_limit(nodeb->u.l.buffer)) {
-	r = toku_resize_gpma_exactly(nodeb->u.l.buffer, new_N);
-	assert(r==0);
-    }
     {    
 	unsigned int i;
 	//printf("{");
 	for (i=0; i<fromto.size; i++) {
 	    //printf(" {%d %d}", fromto.array[i].a, fromto.array[i].b);
 	    assert(fromto.array[i].a < toku_gpma_index_limit(nodea->u.l.buffer));
-	    assert(fromto.array[i].b < toku_gpma_index_limit(nodeb->u.l.buffer));
+	    assert(fromto.array[i].b < new_N);
 	}
 	//printf("}\n");
     }
-    r = move_indices (nodea->u.l.buffer, nodeb->u.l.buffer, fromto,
+    VERIFY_COUNTS(nodea);
+
+    r = move_indices (nodea->u.l.buffer, &nodea->u.l.buffer_mempool,
+		      nodeb->u.l.buffer, &nodeb->u.l.buffer_mempool,
+		      fromto,
 		      nodea->rand4fingerprint, &nodea->local_fingerprint,
 		      nodeb->rand4fingerprint, &nodeb->local_fingerprint,
-		      &nodea->u.l.n_bytes_in_buffer, &nodeb->u.l.n_bytes_in_buffer
+		      &nodea->u.l.n_bytes_in_buffer, &nodeb->u.l.n_bytes_in_buffer,
+		      new_N
 		      );
     // The bytes in buffer and fingerprint shouldn't change
 
