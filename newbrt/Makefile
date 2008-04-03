@@ -89,7 +89,7 @@ BINS =  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 tdb_logprint: LDFLAGS+=-lz
-tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h
+tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h log_header.h
 tdb_logprint: log_code.o memory.o log.o brt-serialize.o fifo.o gpma.o ybt.o fingerprint.o mempool.o primes.o toku_assert.o roll.o brt.o cachetable.o brt-verify.o key.o
 
 tdb-recover: LDFLAGS+=-lz

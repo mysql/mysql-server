@@ -32,6 +32,7 @@ build:
 	cd lock_tree;$(MAKE) build
 	$(MAKE) $(LIBRARY) $(LIBNAME).a
 	cd tests;$(MAKE) build
+	cp $(LIBRARY) $(LIBNAME).a ../lib/
 
 .PHONY: install
 install: $(LIBRARY) $(LIBNAME).a

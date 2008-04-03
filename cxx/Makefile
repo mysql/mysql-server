@@ -11,6 +11,7 @@ LIBNAME = libtokudb_cxx
 
 default: install build
 build: $(LIBNAME).a
+	cp $< ../lib/
 	cd tests; $(MAKE) build
 check:
 	cd tests; $(MAKE) check
