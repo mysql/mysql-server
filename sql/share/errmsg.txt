@@ -2146,14 +2146,14 @@ ER_WRONG_SUB_KEY
         cze "Chybn-Bá podèást klíèe -- není to øetìzec nebo je del¹í ne¾ délka èásti klíèe"
         dan "Forkert indeksdel. Den anvendte nøgledel er ikke en streng eller længden er større end nøglelængden"
         nla "Foutief sub-gedeelte van de zoeksleutel. De gebruikte zoeksleutel is geen onderdeel van een string of of de gebruikte lengte is langer dan de zoeksleutel"
-        eng "Incorrect sub part key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique sub keys"
+        eng "Incorrect prefix key; the used key part isn't a string, the used length is longer than the key part, or the storage engine doesn't support unique prefix keys"
         est "Vigane võtme osa. Kasutatud võtmeosa ei ole string tüüpi, määratud pikkus on pikem kui võtmeosa või tabelihandler ei toeta seda tüüpi võtmeid"
         fre "Mauvaise sous-clef. Ce n'est pas un 'string' ou la longueur dépasse celle définie dans la clef"
         ger "Falscher Unterteilschlüssel. Der verwendete Schlüsselteil ist entweder kein String, die verwendete Länge ist länger als der Teilschlüssel oder die Speicher-Engine unterstützt keine Unterteilschlüssel"
         greek "ÅóöáëìÝíï sub part key. Ôï ÷ñçóéìïðïéïýìåíï key part äåí åßíáé string Þ ôï ìÞêïò ôïõ åßíáé ìåãáëýôåñï"
         hun "Rossz alkulcs. A hasznalt kulcsresz nem karaktersorozat vagy hosszabb, mint a kulcsresz"
         ita "Sotto-parte della chiave errata. La parte di chiave utilizzata non e` una stringa o la lunghezza e` maggiore della parte di chiave."
-        jpn "Incorrect sub part key; the used key part isn't a string or the used length is longer than the key part"
+        jpn "Incorrect prefix key; the used key part isn't a string or the used length is longer than the key part"
         kor "ºÎÁ¤È®ÇÑ ¼­¹ö ÆÄÆ® Å°. »ç¿ëµÈ Å° ÆÄÆ®°¡ ½ºÆ®¸µÀÌ ¾Æ´Ï°Å³ª Å° ÆÄÆ®ÀÇ ±æÀÌ°¡ ³Ê¹« ±é´Ï´Ù."
         nor "Feil delnøkkel. Den brukte delnøkkelen er ikke en streng eller den oppgitte lengde er lengre enn nøkkel lengden"
         norwegian-ny "Feil delnykkel. Den brukte delnykkelen er ikkje ein streng eller den oppgitte lengda er lengre enn nykkellengden"
@@ -2162,7 +2162,7 @@ ER_WRONG_SUB_KEY
         rum "Componentul cheii este incorrect. Componentul folosit al cheii nu este un sir sau lungimea folosita este mai lunga decit lungimea cheii"
         rus "îÅËÏÒÒÅËÔÎÁÑ ÞÁÓÔØ ËÌÀÞÁ. éÓÐÏÌØÚÕÅÍÁÑ ÞÁÓÔØ ËÌÀÞÁ ÎÅ Ñ×ÌÑÅÔÓÑ ÓÔÒÏËÏÊ, ÕËÁÚÁÎÎÁÑ ÄÌÉÎÁ ÂÏÌØÛÅ, ÞÅÍ ÄÌÉÎÁ ÞÁÓÔÉ ËÌÀÞÁ, ÉÌÉ ÏÂÒÁÂÏÔÞÉË ÔÁÂÌÉÃÙ ÎÅ ÐÏÄÄÅÒÖÉ×ÁÅÔ ÕÎÉËÁÌØÎÙÅ ÞÁÓÔÉ ËÌÀÞÁ"
         serbian "Pogrešan pod-kljuè dela kljuèa. Upotrebljeni deo kljuèa nije string, upotrebljena dužina je veæa od dela kljuèa ili handler tabela ne podržava jedinstvene pod-kljuèeve"
-        slo "Incorrect sub part key; the used key part isn't a string or the used length is longer than the key part"
+        slo "Incorrect prefix key; the used key part isn't a string or the used length is longer than the key part"
         spa "Parte de la clave es erronea. Una parte de la clave no es una cadena o la longitud usada es tan grande como la parte de la clave"
         swe "Felaktig delnyckel. Nyckeldelen är inte en sträng eller den angivna längden är längre än kolumnlängden"
         ukr "îÅ×¦ÒÎÁ ÞÁÓÔÉÎÁ ËÌÀÞÁ. ÷ÉËÏÒÉÓÔÁÎÁ ÞÁÓÔÉÎÁ ËÌÀÞÁ ÎÅ ¤ ÓÔÒÏËÏÀ, ÚÁÄÏ×ÇÁ ÁÂÏ ×ËÁÚ¦×ÎÉË ÔÁÂÌÉÃ¦ ÎÅ Ð¦ÄÔÒÉÍÕ¤ ÕÎ¦ËÁÌØÎÉÈ ÞÁÓÔÉÎ ËÌÀÞÅÊ"
@@ -5523,6 +5523,7 @@ ER_M_BIGGER_THAN_D 42000 S1009
         ger "Für FLOAT(M,D), DOUBLE(M,D) oder DECIMAL(M,D) muss M >= D sein (Feld '%-.192s')"
 ER_WRONG_LOCK_OF_SYSTEM_TABLE
         eng "You can't combine write-locking of system tables with other tables or lock types"
+	ger "Sie können Schreibsperren auf der Systemtabelle nicht mit anderen Tabellen kombinieren"
 ER_CONNECT_TO_FOREIGN_DATA_SOURCE
         eng "Unable to connect to foreign data source: %.64s"
         ger "Kann nicht mit Fremddatenquelle verbinden: %.64s"
@@ -5584,8 +5585,7 @@ ER_VIEW_OTHER_USER
         eng "You need the SUPER privilege for creation view with '%-.192s'@'%-.192s' definer"
         ger "Sie brauchen die SUPER-Berechtigung, um einen View mit dem Definierer '%-.192s'@'%-.192s' zu erzeugen"
 ER_NO_SUCH_USER
-        eng "There is no '%-.64s'@'%-.64s' registered"
-        ger "'%-.64s'@'%-.64s' ist nicht registriert"
+        eng "The user specified as a definer ('%-.64s'@'%-.64s') does not exist"
 ER_FORBID_SCHEMA_CHANGE
         eng "Changing schema from '%-.192s' to '%-.192s' is not allowed."
         ger "Wechsel des Schemas von '%-.192s' auf '%-.192s' ist nicht erlaubt"
@@ -6121,3 +6121,8 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
+ER_LOAD_DATA_INVALID_COLUMN
+  eng "Invalid column reference (%-.64s) in LOAD DATA"
+
+ER_LOG_PURGE_NO_FILE  
+	eng "Being purged log %s was not found"

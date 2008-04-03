@@ -42,6 +42,7 @@ static void netware_init();
 
 my_bool my_init_done= 0;
 uint	mysys_usage_id= 0;              /* Incremented for each my_init() */
+ulong   my_thread_stack_size= 65536;
 
 static ulong atoi_octal(const char *str)
 {
@@ -75,6 +76,7 @@ my_bool my_init(void)
   mysys_usage_id++;
   my_umask= 0660;                       /* Default umask for new files */
   my_umask_dir= 0700;                   /* Default umask for new directories */
+  init_glob_errs();
 #if defined(THREAD) && defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
@@ -308,6 +310,54 @@ static void my_win_init(void)
 
   _tzset();
 
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+  /* The following is used by time functions */
+#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
+#define MS 10000000
+  {
+    FILETIME ft;
+    LARGE_INTEGER li, t_cnt;
+    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
+    if (QueryPerformanceFrequency((LARGE_INTEGER *)&query_performance_frequency) == 0)
+      query_performance_frequency= 0;
+    else
+    {
+      GetSystemTimeAsFileTime(&ft);
+      li.LowPart=  ft.dwLowDateTime;
+      li.HighPart= ft.dwHighDateTime;
+      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
+      QueryPerformanceCounter(&t_cnt);
+      query_performance_offset-= (t_cnt.QuadPart /
+                                  query_performance_frequency * MS +
+                                  t_cnt.QuadPart %
+                                  query_performance_frequency * MS /
+                                  query_performance_frequency);
+    }
+  }
+
   {
     /*
       Open HKEY_LOCAL_MACHINE\SOFTWARE\MySQL and set any strings found
@@ -357,29 +407,6 @@ static void my_win_init(void)
       }
 
       RegCloseKey(key_handle) ;
-    }
-  }
-
-  /* The following is used by time functions */
-#define OFFSET_TO_EPOC ((__int64) 134774 * 24 * 60 * 60 * 1000 * 1000 * 10)
-#define MS 10000000
-  {
-    FILETIME ft;
-    LARGE_INTEGER li, t_cnt;
-    DBUG_ASSERT(sizeof(LARGE_INTEGER) == sizeof(query_performance_frequency));
-    if (QueryPerformanceFrequency((LARGE_INTEGER *)
-                                  &query_performance_frequency))
-      query_performance_frequency= 0;
-    else
-    {
-      GetSystemTimeAsFileTime(&ft);
-      li.LowPart=  ft.dwLowDateTime;
-      li.HighPart= ft.dwHighDateTime;
-      query_performance_offset= li.QuadPart-OFFSET_TO_EPOC;
-      QueryPerformanceCounter(&t_cnt);
-      query_performance_offset-= (t_cnt.QuadPart / query_performance_frequency * MS +
-                                  t_cnt.QuadPart % query_performance_frequency * MS /
-                                  query_performance_frequency);
     }
   }
   DBUG_VOID_RETURN ;

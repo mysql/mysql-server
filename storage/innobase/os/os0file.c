@@ -22,8 +22,6 @@ Created 10/21/1995 Heikki Tuuri
 #include <errno.h>
 #endif /* UNIV_HOTBACKUP */
 
-#undef HAVE_FDATASYNC
-
 #ifdef POSIX_ASYNC_IO
 /* We assume in this case that the OS has standard Posix aio (at least SunOS
 2.6, HP-UX 11i and AIX 4.3 have) */
@@ -1812,6 +1810,55 @@ os_file_set_eof(
 #endif /* __WIN__ */
 }
 
+#ifndef __WIN__
+/***************************************************************************
+Wrapper to fsync(2) that retries the call on some errors.
+Returns the value 0 if successful; otherwise the value -1 is returned and
+the global variable errno is set to indicate the error. */
+
+static
+int
+os_file_fsync(
+/*==========*/
+				/* out: 0 if success, -1 otherwise */
+	os_file_t	file)	/* in: handle to a file */
+{
+	int	ret;
+	int	failures;
+	ibool	retry;
+
+	failures = 0;
+
+	do {
+		ret = fsync(file);
+
+		os_n_fsyncs++;
+
+		if (ret == -1 && errno == ENOLCK) {
+
+			if (failures % 100 == 0) {
+
+				ut_print_timestamp(stderr);
+				fprintf(stderr,
+					"  InnoDB: fsync(): "
+					"No locks available; retrying\n");
+			}
+
+			os_thread_sleep(200000 /* 0.2 sec */);
+
+			failures++;
+
+			retry = TRUE;
+		} else {
+
+			retry = FALSE;
+		}
+	} while (retry);
+
+	return(ret);
+}
+#endif /* !__WIN__ */
+
 /***************************************************************************
 Flushes the write buffers of a given file to the disk. */
 
@@ -1869,23 +1916,19 @@ os_file_flush(
 		/* If we are not on an operating system that supports this,
 		then fall back to a plain fsync. */
 
-		ret = fsync(file);
+		ret = os_file_fsync(file);
 	} else {
 		ret = fcntl(file, F_FULLFSYNC, NULL);
 
 		if (ret) {
 			/* If we are not on a file system that supports this,
 			then fall back to a plain fsync. */
-			ret = fsync(file);
+			ret = os_file_fsync(file);
 		}
 	}
-#elif HAVE_FDATASYNC
-	ret = fdatasync(file);
 #else
-	/*	fprintf(stderr, "Flushing to file %p\n", file); */
-	ret = fsync(file);
+	ret = os_file_fsync(file);
 #endif
-	os_n_fsyncs++;
 
 	if (ret == 0) {
 		return(TRUE);

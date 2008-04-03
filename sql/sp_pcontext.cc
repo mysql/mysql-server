@@ -51,6 +51,8 @@ sp_cond_check(LEX_STRING *sqlstate)
 	(c < 'A' || 'Z' < c))
       return FALSE;
   }
+  if (strcmp(sqlstate->str, "00000") == 0)
+    return FALSE;
   return TRUE;
 }
 

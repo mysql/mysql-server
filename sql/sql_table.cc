@@ -42,7 +42,7 @@ static int copy_data_between_tables(TABLE *from,TABLE *to,
 
 static bool prepare_blob_field(THD *thd, Create_field *sql_field);
 static bool check_engine(THD *, const char *, HA_CREATE_INFO *);
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
@@ -1226,8 +1226,12 @@ uint build_table_shadow_filename(char *buff, size_t bufflen,
     flags                  Flags as defined below
       WFRM_INITIAL_WRITE        If set we need to prepare table before
                                 creating the frm file
-      WFRM_CREATE_HANDLER_FILES If set we need to create the handler file as
-                                part of the creation of the frm file
+      WFRM_INSTALL_SHADOW       If set we should install the new frm
+      WFRM_KEEP_SHARE           If set we know that the share is to be
+                                retained and thus we should ensure share
+                                object is correct, if not set we don't
+                                set the new partition syntax string since
+                                we know the share object is destroyed.
       WFRM_PACK_FRM             If set we should pack the frm file and delete
                                 the frm file
 
@@ -1370,7 +1374,7 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
       goto err;
     }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-    if (part_info)
+    if (part_info && (flags & WFRM_KEEP_SHARE))
     {
       TABLE_SHARE *share= lpt->table->s;
       char *tmp_part_syntax_str;
@@ -2173,7 +2177,7 @@ int prepare_create_field(Create_field *sql_field,
     TRUE     error
 */
 
-static bool
+static int
 mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                            Alter_info *alter_info,
                            bool tmp_table,
@@ -3322,8 +3326,9 @@ bool mysql_create_table_no_lock(THD *thd,
         }
       }
     }
-    DBUG_PRINT("info", ("db_type = %d",
-                         ha_legacy_type(part_info->default_engine_type)));
+    DBUG_PRINT("info", ("db_type = %s create_info->db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(create_info->db_type)));
     if (part_info->check_partition_info(thd, &engine_type, file,
                                         create_info, TRUE))
       goto err;
@@ -3347,8 +3352,8 @@ bool mysql_create_table_no_lock(THD *thd,
         The handler assigned to the table cannot handle partitioning.
         Assign the partition handler as the handler of the table.
       */
-      DBUG_PRINT("info", ("db_type: %d",
-                          ha_legacy_type(create_info->db_type)));
+      DBUG_PRINT("info", ("db_type: %s",
+                        ha_resolve_storage_engine_name(create_info->db_type)));
       delete file;
       create_info->db_type= partition_hton;
       if (!(file= get_ha_partition(part_info)))
@@ -3511,8 +3516,36 @@ bool mysql_create_table_no_lock(THD *thd,
   thd_proc_info(thd, "creating table");
   create_info->table_existed= 0;		// Mark that table is created
 
-  if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
+#ifdef HAVE_READLINK
+  if (test_if_data_home_dir(create_info->data_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "DATA DIRECTORY");
+    goto unlock_and_end;
+  }
+  if (test_if_data_home_dir(create_info->index_file_name))
+  {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), "INDEX DIRECTORY");
+    goto unlock_and_end;
+  }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (check_partition_dirs(thd->lex->part_info))
+  {
+    goto unlock_and_end;
+  }
+#endif /* WITH_PARTITION_STORAGE_ENGINE */
+
+  if (!my_use_symdir || (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
+#endif /* HAVE_READLINK */
+  {
+    if (create_info->data_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "DATA DIRECTORY option ignored");
+    if (create_info->index_file_name)
+      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
+                   "INDEX DIRECTORY option ignored");
     create_info->data_file_name= create_info->index_file_name= 0;
+  }
   create_info->table_options=db_options;
 
   path[path_length - reg_ext_length]= '\0'; // Remove .frm extension
@@ -3775,8 +3808,9 @@ mysql_rename_table(handlerton *base, const char *old_db,
     wait_while_table_is_used()
     thd			Thread handler
     table		Table to remove from cache
-    function		HA_EXTRA_PREPARE_FOR_DELETE if table is to be deleted
-			HA_EXTRA_FORCE_REOPEN if table is not be used
+    function            HA_EXTRA_PREPARE_FOR_DROP if table is to be deleted
+                        HA_EXTRA_FORCE_REOPEN if table is not be used
+                        HA_EXTRA_PREPARE_FOR_RENAME if table is to be renamed
   NOTES
    When returning, the table will be unusable for other threads until
    the table is closed.
@@ -3828,7 +3862,7 @@ void close_cached_table(THD *thd, TABLE *table)
 {
   DBUG_ENTER("close_cached_table");
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN);
   /* Close lock if this is not got with LOCK TABLES */
   if (thd->lock)
   {
@@ -6716,7 +6750,7 @@ view_err:
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
 
-  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DELETE);
+  wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME);
   close_data_files_and_morph_locks(thd, db, table_name);
 
   error=0;
@@ -7193,7 +7227,6 @@ bool mysql_recreate_table(THD *thd, TABLE_LIST *table_list)
   table_list->table= NULL;
 
   bzero((char*) &create_info, sizeof(create_info));
-  create_info.db_type= 0;
   create_info.row_type=ROW_TYPE_NOT_USED;
   create_info.default_table_charset=default_charset_info;
   /* Force alter table to recreate table */

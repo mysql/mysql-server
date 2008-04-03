@@ -16,6 +16,7 @@
 #include "mysql_priv.h"
 #include <m_ctype.h>
 #include <my_dir.h>
+#include <my_bit.h>
 #include "slave.h"
 #include "rpl_mi.h"
 #include "sql_repl.h"
@@ -468,7 +469,7 @@ uint volatile thread_count, thread_running;
 ulonglong thd_startup_options;
 ulong back_log, connect_timeout, concurrency, server_id;
 ulong table_cache_size, table_def_size;
-ulong thread_stack, what_to_log;
+ulong what_to_log;
 ulong query_buff_size, slow_launch_time, slave_open_temp_tables;
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_net_timeout, slave_trans_retries;
@@ -518,6 +519,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+char mysql_unpacked_real_data_home[FN_REFLEN];
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -584,7 +586,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
-		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+                LOCK_connection_count;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -720,6 +723,11 @@ char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
+/**
+  Number of currently active user connections. The variable is protected by
+  LOCK_connection_count.
+*/
+uint connection_count= 0;
 
 /* Function declarations */
 
@@ -1341,6 +1349,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+  (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
@@ -1783,6 +1792,11 @@ void unlink_thd(THD *thd)
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
   thd->cleanup();
+
+  pthread_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  pthread_mutex_unlock(&LOCK_connection_count);
+
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
@@ -2379,7 +2393,7 @@ or misconfigured. This error can also be caused by malfunctioning hardware.\n",
 We will try our best to scrape up some info that will hopefully help diagnose\n\
 the problem, but since we have already crashed, something is definitely wrong\n\
 and this may fail.\n\n");
-  fprintf(stderr, "key_buffer_size=%lu\n", 
+  fprintf(stderr, "key_buffer_size=%lu\n",
           (ulong) dflt_key_cache->key_cache_mem_size);
   fprintf(stderr, "read_buffer_size=%ld\n", (long) global_system_variables.read_buff_size);
   fprintf(stderr, "max_used_connections=%lu\n", max_used_connections);
@@ -2415,7 +2429,7 @@ Attempting backtrace. You can use the following information to find out\n\
 where mysqld died. If you see no messages after this, something went\n\
 terribly wrong...\n");  
     print_stacktrace(thd ? (uchar*) thd->thread_stack : (uchar*) 0,
-                   thread_stack);
+                     my_thread_stack_size);
   }
   if (thd)
   {
@@ -2512,10 +2526,6 @@ static void init_signals(void)
   struct sigaction sa;
   DBUG_ENTER("init_signals");
 
-  if (test_flags & TEST_SIGINT)
-  {
-    my_sigset(thr_kill_signal, end_thread_signal);
-  }
   my_sigset(THR_SERVER_ALARM,print_signal_warning); // Should never be called!
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2552,7 +2562,6 @@ static void init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2574,9 +2583,12 @@ static void init_signals(void)
     sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
+    my_sigset(thr_kill_signal, end_thread_signal);
     // May be SIGINT
     sigdelset(&set, thr_kill_signal);
   }
+  else
+    sigaddset(&set,SIGINT);
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2600,9 +2612,9 @@ static void start_signal_handler(void)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&thr_attr,thread_stack*2);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&thr_attr,thread_stack);
+  pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
 #endif
 #endif
 
@@ -3453,6 +3465,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_generator, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -3797,6 +3810,13 @@ server.");
     using_update_log=1;
   }
 
+  /* call ha_init_key_cache() on all key caches to init them */
+  process_key_caches(&ha_init_key_cache);
+
+  /* Allow storage engine to give real error messages */
+  if (ha_init_errors())
+    DBUG_RETURN(1);
+
   if (plugin_init(&defaults_argc, defaults_argv,
                   (opt_noacl ? PLUGIN_INIT_SKIP_PLUGIN_TABLE : 0) |
                   (opt_help ? PLUGIN_INIT_SKIP_INITIALIZATION : 0)))
@@ -3962,9 +3982,6 @@ server.");
 
   if (opt_myisam_log)
     (void) mi_log(1);
-
-  /* call ha_init_key_cache() on all key caches to init them */
-  process_key_caches(&ha_init_key_cache);
 
 #if defined(HAVE_MLOCKALL) && defined(MCL_CURRENT) && !defined(EMBEDDED_LIBRARY)
   if (locked_in_memory && !getuid())
@@ -4155,9 +4172,9 @@ int main(int argc, char **argv)
     Peculiar things with ia64 platforms - it seems we only have half the
     stack size in reality, so we have to double it here
   */
-  pthread_attr_setstacksize(&connection_attrib,thread_stack*2);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size*2);
 #else
-  pthread_attr_setstacksize(&connection_attrib,thread_stack);
+  pthread_attr_setstacksize(&connection_attrib,my_thread_stack_size);
 #endif
 #ifdef HAVE_PTHREAD_ATTR_GETSTACKSIZE
   {
@@ -4168,15 +4185,15 @@ int main(int argc, char **argv)
     stack_size/= 2;
 #endif
     /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
-    if (stack_size && stack_size < thread_stack)
+    if (stack_size && stack_size < my_thread_stack_size)
     {
       if (global_system_variables.log_warnings)
 	sql_print_warning("Asked for %lu thread stack, but got %ld",
-			  thread_stack, (long) stack_size);
+			  my_thread_stack_size, (long) stack_size);
 #if defined(__ia64__) || defined(__ia64)
-      thread_stack= stack_size*2;
+      my_thread_stack_size= stack_size*2;
 #else
-      thread_stack= stack_size;
+      my_thread_stack_size= stack_size;
 #endif
     }
   }
@@ -4700,6 +4717,11 @@ void create_thread_to_handle_connection(THD *thd)
       thread_count--;
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+      pthread_mutex_lock(&LOCK_connection_count);
+      --connection_count;
+      pthread_mutex_unlock(&LOCK_connection_count);
+
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
@@ -4739,15 +4761,34 @@ static void create_new_thread(THD *thd)
   if (protocol_version > 9)
     net->return_errno=1;
 
-  /* don't allow too many connections */
-  if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
+  /*
+    Don't allow too many connections. We roughly check here that we allow
+    only (max_connections + 1) connections.
+  */
+
+  pthread_mutex_lock(&LOCK_connection_count);
+
+  if (connection_count >= max_connections + 1 || abort_loop)
   {
+    pthread_mutex_unlock(&LOCK_connection_count);
+
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR, 1);
     delete thd;
     DBUG_VOID_RETURN;
   }
+
+  ++connection_count;
+
+  if (connection_count > max_used_connections)
+    max_used_connections= connection_count;
+
+  pthread_mutex_unlock(&LOCK_connection_count);
+
+  /* Start a new thread to handle connection. */
+
   pthread_mutex_lock(&LOCK_thread_count);
+
   /*
     The initialization of thread_id is done in create_embedded_thd() for
     the embedded library.
@@ -4755,13 +4796,10 @@ static void create_new_thread(THD *thd)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
-  /* Start a new thread to handle connection */
   thread_count++;
 
-  if (thread_count - delayed_insert_threads > max_used_connections)
-    max_used_connections= thread_count - delayed_insert_threads;
-
   thread_scheduler.add_connection(thd);
+
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -5416,7 +5454,7 @@ enum options_mysqld
   OPT_MAX_ERROR_COUNT, OPT_MULTI_RANGE_COUNT, OPT_MYISAM_DATA_POINTER_SIZE,
   OPT_MYISAM_BLOCK_SIZE, OPT_MYISAM_MAX_EXTRA_SORT_FILE_SIZE,
   OPT_MYISAM_MAX_SORT_FILE_SIZE, OPT_MYISAM_SORT_BUFFER_SIZE,
-  OPT_MYISAM_USE_MMAP,
+  OPT_MYISAM_USE_MMAP, OPT_MYISAM_REPAIR_THREADS,
   OPT_MYISAM_STATS_METHOD,
   OPT_NET_BUFFER_LENGTH, OPT_NET_RETRY_COUNT,
   OPT_NET_READ_TIMEOUT, OPT_NET_WRITE_TIMEOUT,
@@ -5431,7 +5469,7 @@ enum options_mysqld
   OPT_SORT_BUFFER, OPT_TABLE_OPEN_CACHE, OPT_TABLE_DEF_CACHE,
   OPT_THREAD_CONCURRENCY, OPT_THREAD_CACHE_SIZE,
   OPT_TMP_TABLE_SIZE, OPT_THREAD_STACK,
-  OPT_WAIT_TIMEOUT, OPT_MYISAM_REPAIR_THREADS,
+  OPT_WAIT_TIMEOUT,
   OPT_ERROR_LOG_FILE,
   OPT_DEFAULT_WEEK_FORMAT,
   OPT_RANGE_ALLOC_BLOCK_SIZE, OPT_ALLOW_SUSPICIOUS_UDFS,
@@ -6602,10 +6640,10 @@ The minimum value for this variable is 4096.",
    (uchar**) &opt_plugin_load, (uchar**) &opt_plugin_load, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"preload_buffer_size", OPT_PRELOAD_BUFFER_SIZE,
-    "The size of the buffer that is allocated when preloading indexes",
-    (uchar**) &global_system_variables.preload_buff_size,
-    (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
-    REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
+   "The size of the buffer that is allocated when preloading indexes",
+   (uchar**) &global_system_variables.preload_buff_size,
+   (uchar**) &max_system_variables.preload_buff_size, 0, GET_ULONG,
+   REQUIRED_ARG, 32*1024L, 1024, 1024*1024*1024L, 0, 1, 0},
   {"query_alloc_block_size", OPT_QUERY_ALLOC_BLOCK_SIZE,
    "Allocation block size for query parsing and execution",
    (uchar**) &global_system_variables.query_alloc_block_size,
@@ -6749,8 +6787,8 @@ The minimum value for this variable is 4096.",
    REQUIRED_ARG, 20, 1, 16384, 0, 1, 0},
 #endif
   {"thread_stack", OPT_THREAD_STACK,
-   "The stack size for each thread.", (uchar**) &thread_stack,
-   (uchar**) &thread_stack, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
+   "The stack size for each thread.", (uchar**) &my_thread_stack_size,
+   (uchar**) &my_thread_stack_size, 0, GET_ULONG, REQUIRED_ARG,DEFAULT_THREAD_STACK,
    1024L*128L, ULONG_MAX, 0, 1024, 0},
   { "time_format", OPT_TIME_FORMAT,
     "The TIME format (for future).",
@@ -6764,12 +6802,12 @@ The minimum value for this variable is 4096.",
    (uchar**) &max_system_variables.tmp_table_size, 0, GET_ULL,
    REQUIRED_ARG, 16*1024*1024L, 1024, MAX_MEM_TABLE_SIZE, 0, 1, 0},
   {"transaction_alloc_block_size", OPT_TRANS_ALLOC_BLOCK_SIZE,
-   "Allocation block size for various transaction-related structures",
+   "Allocation block size for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_alloc_block_size,
    (uchar**) &max_system_variables.trans_alloc_block_size, 0, GET_ULONG,
    REQUIRED_ARG, QUERY_ALLOC_BLOCK_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
   {"transaction_prealloc_size", OPT_TRANS_PREALLOC_SIZE,
-   "Persistent buffer for various transaction-related structures",
+   "Persistent buffer for transactions to be stored in binary log",
    (uchar**) &global_system_variables.trans_prealloc_size,
    (uchar**) &max_system_variables.trans_prealloc_size, 0, GET_ULONG,
    REQUIRED_ARG, TRANS_ALLOC_PREALLOC_SIZE, 1024, ULONG_MAX, 0, 1024, 0},
@@ -7201,6 +7239,7 @@ SHOW_VAR status_vars[]= {
   {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
+  {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
@@ -7430,9 +7469,10 @@ static void mysql_init_variables(void)
   thread_cache.empty();
   key_caches.empty();
   if (!(dflt_key_cache= get_or_create_key_cache(default_key_cache_base.str,
-					       default_key_cache_base.length)))
+                                                default_key_cache_base.length)))
     exit(1);
-  multi_keycache_init(); /* set key_cache_hash.default_value = dflt_key_cache */
+  /* set key_cache_hash.default_value = dflt_key_cache */
+  multi_keycache_init();
 
   /* Set directory paths */
   strmake(language, LANGUAGE, sizeof(language)-1);
@@ -7447,7 +7487,7 @@ static void mysql_init_variables(void)
   master_password= master_host= 0;
   master_info_file= (char*) "master.info",
     relay_log_info_file= (char*) "relay-log.info";
-  master_ssl_key= master_ssl_cert= master_ssl_ca= 
+  master_ssl_key= master_ssl_cert= master_ssl_ca=
     master_ssl_capath= master_ssl_cipher= 0;
   report_user= report_password = report_host= 0;	/* TO BE DELETED */
   opt_relay_logname= opt_relaylog_index_name= 0;
@@ -8108,7 +8148,7 @@ mysql_getopt_value(const char *keyname, uint key_length,
     }
   }
   }
- return option->value;
+  return option->value;
 }
 
 
@@ -8303,12 +8343,15 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  (void) fn_format(buff, mysql_real_data_home, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                      get_relative_path(LIBDIR), mysql_home);
+                                      get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   char *sharedir=get_relative_path(SHAREDIR);

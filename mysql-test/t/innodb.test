@@ -2436,6 +2436,29 @@ select table_comment, data_free > 0 as data_free_is_set
   where table_schema='test' and table_name = 't1';
 drop table t1;
 
+#
+# Bug 34920 test
+#
+CONNECTION default;
+CREATE TABLE t1 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 VARCHAR(128) NOT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
+
+CREATE TABLE t2 (
+	c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+	c2 INT(10) UNSIGNED DEFAULT NULL,
+	PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+DROP TABLE t2;
+DROP TABLE t1;
+# End 34920 test
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

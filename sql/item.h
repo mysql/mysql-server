@@ -1007,6 +1007,7 @@ public:
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
+  bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
 
@@ -1264,14 +1265,7 @@ class Item_name_const : public Item
   Item *name_item;
   bool valid_args;
 public:
-  Item_name_const(Item *name_arg, Item *val):
-    value_item(val), name_item(name_arg)
-  {
-    if (!(valid_args= name_item->basic_const_item() & 
-                      value_item->basic_const_item()))
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
-    Item::maybe_null= TRUE;
-  }
+  Item_name_const(Item *name_arg, Item *val);
 
   bool fix_fields(THD *, Item **);
 
@@ -2219,6 +2213,35 @@ public:
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
+
+  // Row emulation: forwarding of ROW-related calls to ref
+  uint cols()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
+  }
+  Item* element_index(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
+  }
+  Item** addr(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
+  }
+  bool check_cols(uint c)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c) 
+                                              : Item::check_cols(c);
+  }
+  bool null_inside()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
+  }
+  void bring_value()
+  { 
+    if (ref && result_type() == ROW_RESULT)
+      (*ref)->bring_value();
+  }
+
 };
 
 

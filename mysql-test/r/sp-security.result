@@ -357,10 +357,10 @@ ERROR 42000: Access denied; you need the SUPER privilege for this operation
 use mysqltest;
 CREATE DEFINER='a @ b @ c'@localhost PROCEDURE wl2897_p3() SELECT 3;
 Warnings:
-Note	1449	There is no 'a @ b @ c'@'localhost' registered
+Note	1449	The user specified as a definer ('a @ b @ c'@'localhost') does not exist
 CREATE DEFINER='a @ b @ c'@localhost FUNCTION wl2897_f3() RETURNS INT RETURN 3;
 Warnings:
-Note	1449	There is no 'a @ b @ c'@'localhost' registered
+Note	1449	The user specified as a definer ('a @ b @ c'@'localhost') does not exist
 
 ---> connection: con1root
 use mysqltest;
@@ -420,9 +420,9 @@ DROP USER mysqltest_1@localhost;
 ---> connection: mysqltest_2_con
 use mysqltest;
 CALL bug13198_p1();
-ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does not exist
 SELECT bug13198_f1();
-ERROR HY000: There is no 'mysqltest_1'@'localhost' registered
+ERROR HY000: The user specified as a definer ('mysqltest_1'@'localhost') does not exist
 
 ---> connection: root
 DROP USER mysqltest_2@localhost;

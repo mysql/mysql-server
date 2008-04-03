@@ -1,4 +1,7 @@
 drop table if exists t1;
+create table t1 (a int) partition by list ((a/3)*10 div 1)
+(partition p0 values in (0), partition p1 values in (1));
+ERROR HY000: This partition function is not allowed
 CREATE TABLE t1 (
 d DATE NOT NULL
 )
@@ -43,15 +46,6 @@ create table t1 (a int)
 partition by key(a)
 partitions 1e+300;
 ERROR 42000: Only integers allowed as number here near '1e+300' at line 3
-create table t1 (a int)
-partition by key (a)
-(partition p0 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-ERROR 42000: Incorrect table name 'part-data'
-create table t1 (a int)
-partition by key (a)
-(partition p0,
-partition p1 DATA DIRECTORY 'part-data' INDEX DIRECTORY 'part-data');
-ERROR 42000: Incorrect table name 'part-data'
 create table t1 (a int)
 partition by list (a)
 (partition p0 values in (1));
@@ -342,7 +336,7 @@ PARTITION BY LIST (a)
 (PARTITION x1 VALUES IN (10), PARTITION x2 VALUES IN (20));
 analyze table t1;
 Table	Op	Msg_type	Msg_text
-test.t1	analyze	status	OK
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 drop table t1;
 create table t1
 (a int)
@@ -536,11 +530,9 @@ t1	CREATE TABLE `t1` (
 alter table t1
 partition by key(a)
 (partition p0, partition p1 engine=heap);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 alter table t1
 partition by key(a)
 (partition p0 engine=heap, partition p1);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 alter table t1
 engine=heap
 partition by key (a)
@@ -1045,9 +1037,7 @@ SHOW TABLE STATUS;
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Fixed	1	14	14	0	0	7	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
 ALTER TABLE t1 OPTIMIZE PARTITION p0;
-SHOW TABLE STATUS;
-Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
-t1	MyISAM	10	Fixed	1	7	7	0	1024	0	NULL	NULL	NULL	NULL	latin1_swedish_ci	NULL	partitioned	
+ERROR 42000: The storage engine for the table doesn't support optimize partition
 DROP TABLE t1;
 CREATE TABLE t1 (a int, index(a)) PARTITION BY KEY(a);
 ALTER TABLE t1 DISABLE KEYS;
@@ -1062,6 +1052,12 @@ test.t1	repair	note	The storage engine for the table doesn't support repair
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	The storage engine for the table doesn't support optimize
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	note	The storage engine for the table doesn't support check
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	note	The storage engine for the table doesn't support analyze
 drop table t1;
 drop procedure if exists mysqltest_1;
 create table t1 (a int)
@@ -1207,25 +1203,6 @@ SELECT t2.id FROM t2 WHERE t2.id IN (SELECT id FROM t1 WHERE status = 'Verified'
 id
 22589
 drop table t1, t2;
-set @org_mode=@@sql_mode;
-set @@sql_mode='NO_DIR_IN_CREATE';
-select @@sql_mode;
-@@sql_mode
-NO_DIR_IN_CREATE
-create table t1 (i int )
-partition by range (i)
-(
-partition p01 values less than (1000)
-data directory='/not/existing'
-    index directory='/not/existing'
-);
-show create table t2;
-Table	Create Table
-t2	CREATE TABLE `t2` (
-  `i` int(11) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY RANGE (i) (PARTITION p01 VALUES LESS THAN (1000) ENGINE = MyISAM) */
-DROP TABLE t1, t2;
-set @@sql_mode=@org_mode;
 create table t1 (c1 varchar(255),c2 tinyint,primary key(c1))
 partition by key (c1) partitions 10 ;
 insert into t1 values ('aaa','1') on duplicate key update c2 = c2 + 1;
@@ -1319,6 +1296,14 @@ ALTER TABLE t1 OPTIMIZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
 ALTER TABLE t1 ANALYZE PARTITION p1 EXTENDED;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'EXTENDED' at line 1
+ALTER TABLE t1 ANALYZE PARTITION p1;
+ERROR 42000: The storage engine for the table doesn't support analyze partition
+ALTER TABLE t1 CHECK PARTITION p1;
+ERROR 42000: The storage engine for the table doesn't support check partition
+ALTER TABLE t1 REPAIR PARTITION p1;
+ERROR 42000: The storage engine for the table doesn't support repair partition
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+ERROR 42000: The storage engine for the table doesn't support optimize partition
 DROP TABLE t1;
 CREATE TABLE t1 (s1 BIGINT UNSIGNED)
 PARTITION BY RANGE (s1) (
