@@ -609,6 +609,7 @@ Log_event::Log_event(const char* buf,
 #endif
   when = uint4korr(buf);
   server_id = uint4korr(buf + SERVER_ID_OFFSET);
+  data_written= uint4korr(buf + EVENT_LEN_OFFSET);
   if (description_event->binlog_version==1)
   {
     log_pos= 0;
@@ -641,7 +642,7 @@ Log_event::Log_event(const char* buf,
         binlog, so which will cause problems if the user uses this value
         in CHANGE MASTER).
       */
-    log_pos+= uint4korr(buf + EVENT_LEN_OFFSET);
+    log_pos+= data_written; /* purecov: inspected */
   }
   DBUG_PRINT("info", ("log_pos: %lu", (ulong) log_pos));
 
@@ -2142,11 +2143,13 @@ void Query_log_event::print_query_header(IO_CACHE* file,
       bool need_comma= 0;
       my_b_printf(file, "SET ");
       print_set_option(file, tmp, OPTION_NO_FOREIGN_KEY_CHECKS, ~flags2,
-                   "@@session.foreign_key_checks", &need_comma);
+                       "@@session.foreign_key_checks", &need_comma);
       print_set_option(file, tmp, OPTION_AUTO_IS_NULL, flags2,
-                   "@@session.sql_auto_is_null", &need_comma);
+                       "@@session.sql_auto_is_null", &need_comma);
       print_set_option(file, tmp, OPTION_RELAXED_UNIQUE_CHECKS, ~flags2,
-                   "@@session.unique_checks", &need_comma);
+                       "@@session.unique_checks", &need_comma);
+      print_set_option(file, tmp, OPTION_NOT_AUTOCOMMIT, ~flags2,
+                       "@@session.autocommit", &need_comma);
       my_b_printf(file,"%s\n", print_event_info->delimiter);
       print_event_info->flags2= flags2;
     }
@@ -2602,21 +2605,6 @@ Query_log_event::do_shall_skip(Relay_log_info *rli)
   DBUG_RETURN(Log_event::do_shall_skip(rli));
 }
 
-#endif
-
-
-/**************************************************************************
-	Muted_query_log_event methods
-**************************************************************************/
-
-#ifndef MYSQL_CLIENT
-/*
-  Muted_query_log_event::Muted_query_log_event()
-*/
-Muted_query_log_event::Muted_query_log_event()
-  :Query_log_event()
-{
-}
 #endif
 
 
@@ -7057,7 +7045,7 @@ int Table_map_log_event::save_field_metadata()
 #if !defined(MYSQL_CLIENT)
 Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
                                          bool is_transactional, uint16 flags)
-  : Log_event(thd, 0, is_transactional),
+  : Log_event(thd, 0, true),
     m_table(tbl),
     m_dbnam(tbl->s->db.str),
     m_dblen(m_dbnam ? tbl->s->db.length : 0),

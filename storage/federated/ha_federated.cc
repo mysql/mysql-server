@@ -794,9 +794,9 @@ static int parse_url(MEM_ROOT *mem_root, FEDERATED_SHARE *share, TABLE *table,
         goto error;
       /*
         Found that if the string is:
-user:@hostname:port/db/table
-Then password is a null string, so set to NULL
-    */
+        user:@hostname:port/db/table
+        Then password is a null string, so set to NULL
+      */
       if ((share->password[0] == '\0'))
         share->password= NULL;
     }
@@ -833,14 +833,21 @@ Then password is a null string, so set to NULL
     if ((strchr(share->table_name, '/')))
       goto error;
 
+    /*
+      If hostname is omitted, we set it to NULL. According to
+      mysql_real_connect() manual:
+      The value of host may be either a hostname or an IP address.
+      If host is NULL or the string "localhost", a connection to the
+      local host is assumed.
+    */
     if (share->hostname[0] == '\0')
       share->hostname= NULL;
-
   }
+
   if (!share->port)
   {
-    if (strcmp(share->hostname, my_localhost) == 0)
-      share->socket= (char *) MYSQL_UNIX_ADDR;
+    if (!share->hostname || strcmp(share->hostname, my_localhost) == 0)
+      share->socket= (char*) MYSQL_UNIX_ADDR;
     else
       share->port= MYSQL_PORT;
   }
@@ -1292,10 +1299,21 @@ bool ha_federated::create_where_from_key(String *to,
       {
         if (*ptr++)
         {
+          /*
+            We got "IS [NOT] NULL" condition against nullable column. We
+            distinguish between "IS NOT NULL" and "IS NULL" by flag. For
+            "IS NULL", flag is set to HA_READ_KEY_EXACT.
+          */
           if (emit_key_part_name(&tmp, key_part) ||
-              tmp.append(STRING_WITH_LEN(" IS NULL ")))
+              (ranges[i]->flag == HA_READ_KEY_EXACT ?
+               tmp.append(STRING_WITH_LEN(" IS NULL ")) :
+               tmp.append(STRING_WITH_LEN(" IS NOT NULL "))))
             goto err;
-          continue;
+          /*
+            We need to adjust pointer and length to be prepared for next
+            key part. As well as check if this was last key part.
+          */
+          goto prepare_for_next_key_part;
         }
       }
 
@@ -1403,12 +1421,18 @@ bool ha_federated::create_where_from_key(String *to,
       if (tmp.append(STRING_WITH_LEN(") ")))
         goto err;
 
+prepare_for_next_key_part:
       if (store_length >= length)
         break;
       DBUG_PRINT("info", ("remainder %d", remainder));
       DBUG_ASSERT(remainder > 1);
       length-= store_length;
-      ptr+= store_length;
+      /*
+        For nullable columns, null-byte is already skipped before, that is
+        ptr was incremented by 1. Since store_length still counts null-byte,
+        we need to subtract 1 from store_length.
+      */
+      ptr+= store_length - test(key_part->null_bit);
       if (tmp.append(STRING_WITH_LEN(" AND ")))
         goto err;
 

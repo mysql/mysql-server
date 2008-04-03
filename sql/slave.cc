@@ -415,7 +415,20 @@ terminate_slave_thread(THD *thd,
   while (*slave_running)                        // Should always be true
   {
     DBUG_PRINT("loop", ("killing slave thread"));
-    KICK_SLAVE(thd);
+
+    pthread_mutex_lock(&thd->LOCK_delete);
+#ifndef DONT_USE_THR_ALARM
+    /*
+      Error codes from pthread_kill are:
+      EINVAL: invalid signal number (can't happen)
+      ESRCH: thread already killed (can happen, should be ignored)
+    */
+    IF_DBUG(int err= ) pthread_kill(thd->real_id, thr_client_alarm);
+    DBUG_ASSERT(err != EINVAL);
+#endif
+    thd->awake(THD::NOT_KILLED);
+    pthread_mutex_unlock(&thd->LOCK_delete);
+
     /*
       There is a small chance that slave thread might miss the first
       alarm. To protect againts it, resend the signal until it reacts
@@ -2006,28 +2019,6 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
      wait for something for example inside of next_event().
    */
   pthread_mutex_lock(&rli->data_lock);
-  /*
-    This tests if the position of the end of the last previous executed event
-    hits the UNTIL barrier.
-    We would prefer to test if the position of the start (or possibly) end of
-    the to-be-read event hits the UNTIL barrier, this is different if there
-    was an event ignored by the I/O thread just before (BUG#13861 to be
-    fixed).
-  */
-  if (rli->until_condition!=Relay_log_info::UNTIL_NONE &&
-      rli->is_until_satisfied())
-  {
-    char buf[22];
-    sql_print_information("Slave SQL thread stopped because it reached its"
-                    " UNTIL position %s", llstr(rli->until_pos(), buf));
-    /*
-      Setting abort_slave flag because we do not want additional message about
-      error in query execution to be printed.
-    */
-    rli->abort_slave= 1;
-    pthread_mutex_unlock(&rli->data_lock);
-    DBUG_RETURN(1);
-  }
 
   Log_event * ev = next_event(rli);
 
@@ -2041,7 +2032,30 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
   }
   if (ev)
   {
-    int exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
+    int exec_res;
+
+    /*
+      This tests if the position of the beginning of the current event
+      hits the UNTIL barrier.
+    */
+    if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+        rli->is_until_satisfied((rli->is_in_group() || !ev->log_pos) ?
+                                rli->group_master_log_pos :
+                                ev->log_pos - ev->data_written))
+    {
+      char buf[22];
+      sql_print_information("Slave SQL thread stopped because it reached its"
+                            " UNTIL position %s", llstr(rli->until_pos(), buf));
+      /*
+        Setting abort_slave flag because we do not want additional message about
+        error in query execution to be printed.
+      */
+      rli->abort_slave= 1;
+      pthread_mutex_unlock(&rli->data_lock);
+      delete ev;
+      DBUG_RETURN(1);
+    }
+    exec_res= apply_event_and_update_pos(ev, thd, rli, TRUE);
 
     /*
       Format_description_log_event should not be deleted because it will be
@@ -2676,6 +2690,22 @@ Slave SQL thread aborted. Can't execute init_slave query");
       goto err;
     }
   }
+
+  /*
+    First check until condition - probably there is nothing to execute. We
+    do not want to wait for next event in this case.
+  */
+  pthread_mutex_lock(&rli->data_lock);
+  if (rli->until_condition != Relay_log_info::UNTIL_NONE &&
+      rli->is_until_satisfied(rli->group_master_log_pos))
+  {
+    char buf[22];
+    sql_print_information("Slave SQL thread stopped because it reached its"
+                          " UNTIL position %s", llstr(rli->until_pos(), buf));
+    pthread_mutex_unlock(&rli->data_lock);
+    goto err;
+  }
+  pthread_mutex_unlock(&rli->data_lock);
 
   /* Read queries from the IO/THREAD until this thread is killed */
 
@@ -4026,9 +4056,10 @@ end:
    has a certain bug.
    @param rli Relay_log_info which tells the master's version
    @param bug_id Number of the bug as found in bugs.mysql.com
+   @param report bool report error message, default TRUE
    @return TRUE if master has the bug, FALSE if it does not.
 */
-bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
+bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id, bool report)
 {
   struct st_version_range_for_one_bug {
     uint        bug_id;
@@ -4038,7 +4069,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
   static struct st_version_range_for_one_bug versions_for_all_bugs[]=
   {
     {24432, { 5, 0, 24 }, { 5, 0, 38 } },
-    {24432, { 5, 1, 12 }, { 5, 1, 17 } }
+    {24432, { 5, 1, 12 }, { 5, 1, 17 } },
+    {33029, { 5, 0,  0 }, { 5, 0, 58 } },
+    {33029, { 5, 1,  0 }, { 5, 1, 12 } },
   };
   const uchar *master_ver=
     rli->relay_log.description_event_for_exec->server_version_split;
@@ -4054,6 +4087,9 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
         (memcmp(introduced_in, master_ver, 3) <= 0) &&
         (memcmp(fixed_in,      master_ver, 3) >  0))
     {
+      if (!report)
+	return TRUE;
+      
       // a short message for SHOW SLAVE STATUS (message length constraints)
       my_printf_error(ER_UNKNOWN_ERROR, "master may suffer from"
                       " http://bugs.mysql.com/bug.php?id=%u"
@@ -4081,6 +4117,26 @@ bool rpl_master_has_bug(Relay_log_info *rli, uint bug_id)
                       fixed_in[0], fixed_in[1], fixed_in[2]);
       return TRUE;
     }
+  }
+  return FALSE;
+}
+
+/**
+   BUG#33029, For all 5.0 up to 5.0.58 exclusive, and 5.1 up to 5.1.12
+   exclusive, if one statement in a SP generated AUTO_INCREMENT value
+   by the top statement, all statements after it would be considered
+   generated AUTO_INCREMENT value by the top statement, and a
+   erroneous INSERT_ID value might be associated with these statement,
+   which could cause duplicate entry error and stop the slave.
+
+   Detect buggy master to work around.
+ */
+bool rpl_master_erroneous_autoinc(THD *thd)
+{
+  if (active_mi && active_mi->rli.sql_thd == thd)
+  {
+    Relay_log_info *rli= &active_mi->rli;
+    return rpl_master_has_bug(rli, 33029, FALSE);
   }
   return FALSE;
 }

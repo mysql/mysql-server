@@ -45,6 +45,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
   bool		transactional_table, safe_update, const_cond;
   bool          const_cond_result;
   ha_rows	deleted= 0;
+  bool          triggers_applicable;
   uint usable_index= MAX_KEY;
   SELECT_LEX   *select_lex= &thd->lex->select_lex;
   THD::killed_state killed_status= THD::NOT_KILLED;
@@ -102,6 +103,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     /* Error evaluating val_int(). */
     DBUG_RETURN(TRUE);
   }
+
   /*
     Test if the user wants to delete all rows and deletion doesn't have
     any side-effects (because of triggers), so we can use optimized
@@ -249,7 +251,13 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 
   init_ftfuncs(thd, select_lex, 1);
   thd_proc_info(thd, "updating");
-  if (table->triggers && 
+
+  /* NOTE: TRUNCATE must not invoke triggers. */
+
+  triggers_applicable= table->triggers &&
+                       thd->lex->sql_command != SQLCOM_TRUNCATE;
+
+  if (triggers_applicable &&
       table->triggers->has_triggers(TRG_EVENT_DELETE,
                                     TRG_ACTION_AFTER))
   {
@@ -274,7 +282,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
     if (!(select && select->skip_record())&& ! thd->is_error() )
     {
 
-      if (table->triggers &&
+      if (triggers_applicable &&
           table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                             TRG_ACTION_BEFORE, FALSE))
       {
@@ -285,7 +293,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
       if (!(error= table->file->ha_delete_row(table->record[0])))
       {
 	deleted++;
-        if (table->triggers &&
+        if (triggers_applicable &&
             table->triggers->process_triggers(thd, TRG_EVENT_DELETE,
                                               TRG_ACTION_AFTER, FALSE))
         {
@@ -411,13 +419,26 @@ cleanup:
     FALSE OK
     TRUE  error
 */
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds)
 {
   Item *fake_conds= 0;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_delete");
   List<Item> all_fields;
 
+  /*
+    Statement-based replication of DELETE ... LIMIT is not safe as order of
+    rows is not defined, so in mixed mode we go to row-based.
+
+    Note that we may consider a statement as safe if ORDER BY primary_key
+    is present. However it may confuse users to see very similiar statements
+    replicated differently.
+  */
+  if (thd->lex->current_select->select_limit)
+  {
+    thd->lex->set_stmt_unsafe();
+    thd->set_current_stmt_binlog_row_based_if_mixed();
+  }
   thd->lex->allow_sum_func= 0;
   if (setup_tables_and_check_access(thd, &thd->lex->select_lex.context,
                                     &thd->lex->select_lex.top_join_list,
@@ -474,7 +495,7 @@ extern "C" int refpos_order_cmp(void* arg, const void *a,const void *b)
     TRUE  Error
 */
 
-bool mysql_multi_delete_prepare(THD *thd)
+int mysql_multi_delete_prepare(THD *thd)
 {
   LEX *lex= thd->lex;
   TABLE_LIST *aux_tables= (TABLE_LIST *)lex->auxiliary_table_list.first;

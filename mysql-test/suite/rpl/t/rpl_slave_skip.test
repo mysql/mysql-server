@@ -26,7 +26,7 @@ save_master_pos;
 connection slave;
 
 # Stop when reaching the the first table map event.
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=484;
+START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=762;
 wait_for_slave_to_stop;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 1 # 8 # 9 # 23 # 33 # 35 # 36 #

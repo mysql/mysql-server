@@ -87,6 +87,8 @@ pkglibdir='@pkglibdir@'
 pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
 fix_path pkglibdir $pkglibdir_rel lib/mysql lib
 
+plugindir='@pkgplugindir@'
+
 pkgincludedir='@pkgincludedir@'
 fix_path pkgincludedir include/mysql include
 
@@ -123,11 +125,13 @@ include="-I$pkgincludedir"
 # Remove some options that a client doesn't have to care about
 # FIXME until we have a --cxxflags, we need to remove -Xa
 #       and -xstrconst to make --cflags usable for Sun Forte C++
+# FIXME until we have a --cxxflags, we need to remove -AC99
+#       to make --cflags usable for HP C++ (aCC)
 for remove in DDBUG_OFF DSAFEMALLOC USAFEMALLOC DSAFE_MUTEX \
               DPEDANTIC_SAFEMALLOC DUNIV_MUST_NOT_INLINE DFORCE_INIT_OF_VARS \
               DEXTRA_DEBUG DHAVE_purify O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
-              Xa xstrconst "xc99=none" \
+              Xa xstrconst "xc99=none" AC99 \
               unroll2 ip mp restrict
 do
   # The first option we might strip will always have a space before it because
@@ -158,6 +162,7 @@ Options:
         --include        [$include]
         --libs           [$libs]
         --libs_r         [$libs_r]
+        --plugindir      [$plugindir]
         --socket         [$socket]
         --port           [$port]
         --version        [$version]
@@ -174,6 +179,7 @@ while test $# -gt 0; do
         --include) echo "$include" ;;
         --libs)    echo "$libs" ;;
         --libs_r)  echo "$libs_r" ;;
+        --plugindir) echo "$plugindir" ;;
         --socket)  echo "$socket" ;;
         --port)    echo "$port" ;;
         --version) echo "$version" ;;
