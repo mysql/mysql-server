@@ -256,7 +256,7 @@ int malloc_diskblock (DISKOFF *res, BRT brt, int size, TOKULOGGER logger) {
 }
 
 u_int32_t mp_pool_size_for_nodesize (u_int32_t nodesize) {
-#if 0
+#if 1
     return nodesize+nodesize/4;
 #else
     return nodesize;
@@ -287,9 +287,10 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
 	int r = toku_gpma_create(&n->u.l.buffer, 0);
 	assert(r==0);
 	{
-	    void *mp = toku_malloc(n->nodesize);
+	    u_int32_t mpsize = mp_pool_size_for_nodesize(n->nodesize);
+	    void *mp = toku_malloc(mpsize);
 	    assert(mp);
-	    toku_mempool_init(&n->u.l.buffer_mempool, mp, mp_pool_size_for_nodesize(n->nodesize));
+	    toku_mempool_init(&n->u.l.buffer_mempool, mp, mpsize);
 	}
 
 	static int rcount=0;
