@@ -40,7 +40,7 @@ eval SHOW TABLES FROM information_schema LIKE '$is_table';
 # Ensure that the INFORMATION_SCHEMA.ENGINES table has the following columns,
 # in the following order:
 #
-# ENGINE 
+# ENGINE
 # SUPPORT
 # COMMENT
 # TRANSACTIONS
