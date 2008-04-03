@@ -2877,9 +2877,10 @@ Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
   Uint16 mm_vars= tabPtrP->m_attributes[MM].m_no_of_varsize;
   Uint16 mm_dyns= tabPtrP->m_attributes[MM].m_no_of_dynamic;
 
+  Uint32 varlen32 = 0;
   if (mm_vars || mm_dyns)
   {
-    Uint32 varlen32 = len - fixsz32;
+    varlen32 = len - fixsz32;
     if (mm_dyns == 0)
     {
       ndbassert(len > fixsz32);
@@ -2887,8 +2888,8 @@ Dbtup::update_lcp(KeyReqStruct* req_struct, const Uint32 * src, Uint32 len)
     Varpart_copy* vp = (Varpart_copy*)ptr->get_end_of_fix_part_ptr(tabPtrP);
     vp->m_len = varlen32;
     memcpy(vp->m_data, src + fixsz32, 4*varlen32);
-    req_struct->m_lcp_varpart_len = varlen32;
   }
+  req_struct->m_lcp_varpart_len = varlen32;
   ptr->m_header_bits |= (tabPtrP->m_bits & Tablerec::TR_DiskPart) ? 
     Tuple_header::DISK_PART : 0;
   req_struct->changeMask.set();
