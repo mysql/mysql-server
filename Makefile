@@ -36,14 +36,14 @@ foo:
 
 clean:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
+	rm -rf lib/*.so lib/*.a
 
 install:
 	./install.bash
 
 # maybe we should have a coverage target in each makefile
 build-coverage:
-	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage"); done
-	(cd utils; $(MAKE) clean; $(MAKE) coverage OPTFLAGS=-O0 GCOV_FLAGS="-fprofile-arcs -ftest-coverage")
+	$(MAKE) build OPTFLAGS= GCOV_FLAGS="-fprofile-arcs -ftest-coverage"
 
 # this is messy now since we dont have consistent make targets
 check-coverage: check-coverage-newbrt check-coverage-src-tests check-coverage-utils check-coverage-cxx-tests \
