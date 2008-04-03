@@ -502,7 +502,7 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a)
 {
   for (; (enum ha_base_keytype) keyseg->type != HA_KEYTYPE_END; keyseg++)
   {
-    uchar *end;
+    const uchar *end;
     if (keyseg->null_bit)
     {
       if (!*a++)
