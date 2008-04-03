@@ -14,10 +14,10 @@ flush logs;
 
 source include/show_binary_logs.inc;
 
-remove_file $MYSQLTEST_VARDIR/log/master-bin.000001;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
 
 # there must be a warning with file names
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 purge binary logs TO 'master-bin.000004';
 
 --echo *** must show a list starting from the 'TO' argument of PURGE ***
@@ -32,12 +32,11 @@ reset master;
 flush logs;
 flush logs;
 flush logs;
-remove_file $MYSQLTEST_VARDIR/log/master-bin.000001;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
 
 --echo *** must be a warning master-bin.000001 was not found ***
 let $date=`select NOW()  +  INTERVAL 1 MINUTE`;
 --disable_query_log
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval purge binary logs BEFORE '$date';
 --enable_query_log
 
@@ -55,14 +54,13 @@ flush logs;
 flush logs;
 flush logs;
 
-remove_file $MYSQLTEST_VARDIR/log/master-bin.000001;
-mkdir $MYSQLTEST_VARDIR/log/master-bin.000001;
+remove_file $MYSQLD_DATADIR/master-bin.000001;
+mkdir $MYSQLD_DATADIR/master-bin.000001;
 
 --error ER_BINLOG_PURGE_FATAL_ERR
 purge binary logs TO 'master-bin.000002';
---replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 show warnings;
-rmdir $MYSQLTEST_VARDIR/log/master-bin.000001;
+rmdir $MYSQLD_DATADIR/master-bin.000001;
 --disable_warnings
 reset master;
 --enable_warnings
