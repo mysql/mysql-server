@@ -433,7 +433,11 @@ static int shrink_pma (GPMA pma, gpma_renumber_callback_t renumberf, void *extra
     pma->N = new_N;
     //printf("Shrunk to %d\n", pma->N);
     toku_gpma_distribute(pma, 0, pma->N, pma->n_items_present, items, tos);
-    r = renumberf(pma->n_items_present, froms, tos, items, old_N, new_N, extra_for_renumberf);
+    if (renumberf) {
+	r = renumberf(pma->n_items_present, froms, tos, items, old_N, new_N, extra_for_renumberf);
+    } else {
+	r = 0;
+    }
     goto L2;
 }
 
