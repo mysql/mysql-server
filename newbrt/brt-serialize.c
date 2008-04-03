@@ -380,9 +380,10 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
 	}
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 	{
-	    void *mp = toku_malloc(nodesize);
-	    if (mp==0) return ENOMEM;
-	    toku_mempool_init(&result->u.l.buffer_mempool, mp, nodesize);
+            int mpsize = nodesize + nodesize/4;
+	    void *mp = toku_malloc(mpsize);
+	    if (mp==0) return ENOMEM; // TODO cleanup
+	    toku_mempool_init(&result->u.l.buffer_mempool, mp, mpsize);
 	}
 
 	u_int32_t actual_sum = 0;
