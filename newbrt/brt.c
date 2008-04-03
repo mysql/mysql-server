@@ -1136,11 +1136,11 @@ int toku_brtnode_compress_kvspace (GPMA pma, struct mempool *memp) {
 		     assert(newdata);
 		     memcpy(newdata, data, len);
 		     toku_gpma_set_at_index(pma, idx, len, newdata);
-		     toku_verify_gpma(pma);
+		     // toku_verify_gpma(pma);
 		 }));
     toku_free(memp->base);
     *memp = new_kvspace;
-    toku_verify_gpma(pma);
+    // toku_verify_gpma(pma);
     return 0;
 }
 
