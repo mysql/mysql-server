@@ -2182,10 +2182,10 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 sm = 5;
   ndb_mgm_get_int_parameter(p, CFG_DB_STRING_MEMORY, &sm);
   if (sm == 0)
-    sm = 5;
+    sm = 25;
   
   Uint32 sb = 0;
-  if (sm < 100)
+  if (sm <= 100)
   {
     sb = (rps * sm) / 100;
   }
