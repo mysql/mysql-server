@@ -21,8 +21,8 @@ int main (int argc, const char *argv[]) {
     const char *str=argv[1];
     assert(strcmp(str,"ok")==0);
     assert(foo());
-    assert(0x8000000000000000UL);
-    assert(0x4000000000000000UL);
+    assert(0x8000000000000000ULL);
+    assert(0x4000000000000000ULL);
     assert(argv[1]);
     return 0;
 }
