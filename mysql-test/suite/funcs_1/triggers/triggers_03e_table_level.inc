@@ -57,7 +57,7 @@ let $message= no trigger privilege on table level for create:;
         select current_user;
 	use priv_db;
 	show tables;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	create trigger trg1_1 before INSERT on t1 for each row
 		set new.f1 = 'trig 1_1-no';
 
@@ -109,7 +109,7 @@ let $message= no trigger privilege on table level for drop:;
 	connection yes_privs;
         select current_user;
 
-	--error 1142 
+	--error ER_TABLEACCESS_DENIED_ERROR
 	drop trigger trg1_2;
 
 # no trigger priv at activation time->insert fails
@@ -118,7 +118,7 @@ let $message= no trigger privilege at activation time:;
 --source include/show_msg.inc
 	connection no_privs;
 	select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
 	insert into t1 (f1) values ('insert5-no');
 	select f1 from t1 order by f1;
 
@@ -155,7 +155,7 @@ let $message= trigger privilege on table level for drop:;
 	insert into t1 (f1) values ('insert8-yes');
 	select f1 from t1 order by f1;
 
-# trigger privilege must be keep when mixinf tables with and without 
+# trigger privilege must be keep when mixinf tables with and without
 # trigger privilege
 
 let $message= switch to table without having trigger priv for it:;
@@ -172,12 +172,12 @@ let $message= use table with trigger privilege and without...:;
 --source include/show_msg.inc
         connection yes_privs;
         select current_user;
-	--error 1142
+	--error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg2_1 before INSERT  on t2 for each row
                 set new.f1 = 'trig 2_1-no';
         create trigger trg1_3 before INSERT  on t1 for each row
                 set new.f1 = 'trig 1_3-yes';
-        --error 1142
+        --error ER_TABLEACCESS_DENIED_ERROR
         create trigger trg2_2 before UPDATE  on t2 for each row
                 set new.f1 = 'trig 2_2-no';
         create trigger trg1_4 before UPDATE  on t1 for each row
@@ -193,10 +193,10 @@ let $message= use table with trigger privilege and without...:;
 
         connection yes_privs;
         select current_user;
-	--error 1360
+	--error ER_TRG_DOES_NOT_EXIST
         drop trigger trg2_1;
         drop trigger trg1_3;
-        --error 1360
+        --error ER_TRG_DOES_NOT_EXIST
         drop trigger trg2_2;
         drop trigger trg1_4;
 
@@ -210,7 +210,7 @@ let $message= use table with trigger privilege and without...:;
 	--enable_warnings
 
 
-# general Cleanup 
+# general Cleanup
 	--disable_warnings
 	drop database if exists priv_db;
 	drop user test_yesprivs@localhost;
