@@ -123,7 +123,7 @@ let $wait_timeout= 4;
 let $wait_condition= SELECT id,user,host,db,command,@time2:=time,state,info FROM INFORMATION_SCHEMA.PROCESSLIST
         WHERE TIME > @time;
 --source include/wait_condition.inc
-# 
+#
 # Expect to hit TIME > @time
 SELECT @time < @time2;
 #

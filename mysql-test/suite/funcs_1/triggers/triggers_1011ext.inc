@@ -95,8 +95,8 @@ let $message= Testcase 3.5.10.4:;
 
 	set @counter= 0;
 	select @counter as 'Rows Loaded Before';
-	--replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-	eval load data infile '$MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table tb_load;
+	--replace_result $MYSQLTEST_VARDIR <MYSQLTEST_VARDIR>
+	eval load data infile '$MYSQLTEST_VARDIR/std_data_ln/funcs_1/t9.txt' into table tb_load;
 
 	select @counter as 'Rows Loaded After';
 	Select * from tb_load order by f1 limit 10;
@@ -158,7 +158,7 @@ let $message= Testcase 3.5.10.extra:;
 
 	set @counter=0;
 	select @counter;
-	--error 1329
+	--error ER_SP_FETCH_NO_DATA
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -328,7 +328,7 @@ set @sql_mode='traditional';
 
 	set @counter=0;
 	select @counter;
-	--error 1456
+	--error ER_SP_RECURSION_LIMIT
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -338,7 +338,7 @@ set @sql_mode='traditional';
 	set @@max_sp_recursion_depth= 10;
 	set @counter=0;
 	select @counter;
-	--error 1442
+	--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
 	call trig_sp();
 	select @counter;
 	select count(*) from tb3;
@@ -382,7 +382,7 @@ let $message= Testcase y.y.y.5: Roleback of nested trigger references;
 
 	set autocommit=0;
 	start transaction;
-	--error 1264
+	--error ER_WARN_DATA_OUT_OF_RANGE
 	insert into t1 values (1);
 	commit;
 	select * from t1 order by f1;
