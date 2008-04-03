@@ -4451,8 +4451,19 @@ static my_bool translog_advance_pointer(int pages, uint16 last_page_data)
     struct st_translog_buffer *new_buffer;
     struct st_translog_buffer *old_buffer;
     buffer_end_offset= TRANSLOG_WRITE_BUFFER - log_descriptor.bc.buffer->size;
-    file_end_offset= (log_descriptor.log_file_max_size -
-                      LSN_OFFSET(log_descriptor.horizon));
+    if (likely(log_descriptor.log_file_max_size >=
+               LSN_OFFSET(log_descriptor.horizon)))
+      file_end_offset= (log_descriptor.log_file_max_size -
+                        LSN_OFFSET(log_descriptor.horizon));
+    else
+    {
+      /*
+        We already have written more then current file limit allow,
+        So we will finish this page and start new file
+      */
+      file_end_offset= (TRANSLOG_PAGE_SIZE -
+                        log_descriptor.bc.current_page_fill);
+    }
     DBUG_PRINT("info", ("offset: %lu  buffer_end_offs: %lu, "
                         "file_end_offs:  %lu",
                         (ulong) offset, (ulong) buffer_end_offset,
