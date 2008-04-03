@@ -170,7 +170,7 @@ select "--- Test 2 position test --" as "";
 --enable_query_log
 let $MYSQLD_DATADIR= `select @@datadir;`;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=416 --start-position=569 $MYSQLD_DATADIR/master-bin.000001
+--exec $MYSQL_BINLOG --short-form --local-load=$MYSQLTEST_VARDIR/tmp/ --position=416 --stop-position=569 $MYSQLD_DATADIR/master-bin.000001
 
 # These are tests for remote binlog.
 # They should return the same as previous test.
