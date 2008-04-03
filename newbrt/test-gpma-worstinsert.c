@@ -31,86 +31,98 @@ static int delete_callback (u_int32_t slotnum __attribute__((__unused__)), u_int
     return 0;
 }
 
-void test_worst_insert_up(void) {
-    int r;
-    GPMA pma;
-    r = toku_gpma_create(&pma, 0);
-    assert(r==0);
-    count_frees=0;
+static const int initial_N=1000;
+static const int N=100000;
+static const int w=6;
 
-    int i;
-    int initial_N=1000;
-    int N=100000;
-    int w=6;
-    int next_to_delete=0;
-    for (i=0; i<initial_N; i++) {
-	char buf[w+1];
-	snprintf(buf, sizeof(buf), "%0*d", w, i);
-	r = toku_gpma_insert(pma, strlen(buf)+1, strdup(buf), compare_strings, 0, rcall_ok, 0, 0);
-	assert(r==0);
-    }
-    for (; i<N; i++) {
-	char buf[w+1];
-	snprintf(buf, sizeof(buf), "%0*d", w, i);
-	r = toku_gpma_insert(pma, strlen(buf)+1, strdup(buf), compare_strings, 0, rcall_ok, 0, 0);
-	assert(r==0);
-	snprintf(buf, sizeof(buf), "%0*d", w, next_to_delete);
-	r = toku_gpma_delete_item(pma,
-				  strlen(buf)+1, buf,
-				  compare_strings, 0,
-				  delete_callback, buf,
-				  0, 0);
-    }
-    toku_gpma_free(&pma, free_callback, &verbose);
-    assert(count_frees==0);
+static void insert_n (GPMA pma, int n) {
+    char buf[w+1];
+    int l = snprintf(buf, sizeof(buf), "%0*d", w, n);
+    assert(l==w);
+    int r = toku_gpma_insert(pma, strlen(buf)+1, strdup(buf), compare_strings, 0, rcall_ok, 0, 0);
+    assert(r==0);
 }
 
-void test_worst_insert_down(void) {
+static void delete_n (GPMA pma, int n) {
+    char buf[w+1];
+    int l = snprintf(buf, sizeof(buf), "%0*d", w, n);
+    assert(l==w);
+    int r = toku_gpma_delete_item(pma,
+				  strlen(buf)+1, buf,
+				  compare_strings, 0,
+				  delete_callback, buf,
+				  0, 0);
+    if (r!=0) printf("deleted %d\n", n);
+    assert(r==0);
+}
+
+static int inum (int direction, int itemnum) {
+    switch (direction) {
+    case 1:
+	// Insert things from left to right
+	return itemnum;
+    case -1:
+	// Insert things from right to left
+	return 2*N-1-itemnum;
+    case 0:
+	// Insert things at the outer edges
+	if (itemnum%2) {
+	    return itemnum/2;
+	} else {
+	    return 2*N-1-itemnum/2;
+	}
+    default: assert(0); return 0;
+    }
+}
+
+static void test_worst_insert(int direction) {
     int r;
     GPMA pma;
     r = toku_gpma_create(&pma, 0);
     assert(r==0);
     count_frees=0;
-
     int i;
-    int initial_N=1000;
-    int N=100000;
-    int w=6;
+    int next_to_insert=0;
     int next_to_delete=0;
+    int max_size = 0;
     for (i=0; i<initial_N; i++) {
-	char buf[w+1];
-	snprintf(buf, sizeof(buf), "%0*d", w, N-1-i);
-	r = toku_gpma_insert(pma, strlen(buf)+1, strdup(buf), compare_strings, 0, rcall_ok, 0, 0);
-	assert(r==0);
+	insert_n(pma, inum(direction,next_to_insert++));
     }
     for (; i<N; i++) {
-	char buf[w+1];
-	snprintf(buf, sizeof(buf), "%0*d", w, N-1-i);
-	r = toku_gpma_insert(pma, strlen(buf)+1, strdup(buf), compare_strings, 0, rcall_ok, 0, 0);
-	assert(r==0);
-	snprintf(buf, sizeof(buf), "%0*d", w, N-1-next_to_delete);
-	r = toku_gpma_delete_item(pma,
-				  strlen(buf)+1, buf,
-				  compare_strings, 0,
-				  delete_callback, buf,
-				  0, 0);
-	assert(r==0);
-	next_to_delete++;
+	insert_n(pma, inum(direction,next_to_insert++));
+	if (i%10==0) continue; // Make the table get slowly larger
+	delete_n(pma, inum(direction, next_to_delete++));
     }
-    toku_gpma_free(&pma, free_callback, &verbose);
+    for (; i<2*N; i++) {
+	int this_size = toku_gpma_index_limit(pma);
+	if (this_size>max_size) max_size=this_size;
+	delete_n(pma, inum(direction,next_to_delete++));
+	if (i%20==0) continue; // Make the table get slowly smaller
+	insert_n(pma, inum(direction,next_to_insert++));
+    }
     assert(count_frees==0);
+    if (verbose) printf("size=%d max_size=%d\n", toku_gpma_index_limit(pma), max_size);
+    toku_gpma_free(&pma, free_callback, &verbose);
 }
 
 int main (int argc, const char *argv[]) {
     int i;
+    int which = 0;
     for (i = 1; i < argc; i++) {
         const char *arg = argv[i];
         if (0 == strcmp(arg, "-v") || 0 == strcmp(arg, "--verbose"))
             verbose = 1;
         else if (0 == strcmp(arg, "-q") || 0 == strcmp(arg, "--quiet"))
             verbose = 0;
+	else if (0 == strcmp(arg, "-a"))
+	    which = 1;
+	else if (0 == strcmp(arg, "-b"))
+	    which = 2;	    
+	else if (0 == strcmp(arg, "-c"))
+	    which = 3;
     }
-    test_worst_insert_up();
-    test_worst_insert_down();
+    if (which==0 || which==1) test_worst_insert(+1);
+    if (which==0 || which==2) test_worst_insert(-1);
+    if (which==0 || which==3) test_worst_insert( 0);
     return 0;
 }

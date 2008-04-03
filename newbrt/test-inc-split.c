@@ -47,7 +47,7 @@ BRT t;
 int fnamelen;
 char *fname;
 
-void doit (int ksize) {
+void doit (int ksize __attribute__((__unused__))) {
     DISKOFF cnodes[BRT_FANOUT], bnode, anode;
     u_int32_t fingerprints[BRT_FANOUT];
 
@@ -65,6 +65,7 @@ void doit (int ksize) {
     unlink(fname);
     r = toku_open_brt(fname, 0, 1, &t, NODESIZE, ct, null_txn, toku_default_compare_fun, null_db);
     assert(r==0);
+    toku_free(fname);
 
     for (i=0; i<BRT_FANOUT; i++) {
 	r=toku_testsetup_leaf(t, &cnodes[i]);
@@ -88,10 +89,14 @@ void doit (int ksize) {
     r = toku_testsetup_nonleaf(t, 1, &bnode, BRT_FANOUT, cnodes, fingerprints, keys, keylens);
     assert(r==0);
 
+    for (i=0; i+1<BRT_FANOUT; i++) {
+	toku_free(keys[i]);
+    }
+
     u_int32_t bfingerprint=0;
     {
 	const int magic_size = (NODESIZE-toku_testsetup_get_sersize(t, bnode))/2-25;
-	printf("magic_size=%d\n", magic_size);
+	//printf("magic_size=%d\n", magic_size);
 	char key [KSIZE];
 	int keylen = 1+snprintf(key, KSIZE, "%08d%0*d", 150002, magic_size, 0);
 	char val[1];
@@ -101,7 +106,7 @@ void doit (int ksize) {
 	keylen = 1+snprintf(key, KSIZE, "%08d%0*d", 2, magic_size-1, 0);
 	r=toku_testsetup_insert_to_nonleaf(t, bnode, BRT_INSERT, key, keylen, val, vallen, &bfingerprint);	
     }
-    printf("%lld sersize=%d\n", bnode, toku_testsetup_get_sersize(t, bnode));
+    //printf("%lld sersize=%d\n", bnode, toku_testsetup_get_sersize(t, bnode));
     // Now we have an internal node which has full children and the buffers are nearly full
 
     r = toku_testsetup_nonleaf(t, 2, &anode, 1,          &bnode, &bfingerprint,    0, 0);
@@ -134,16 +139,19 @@ void doit (int ksize) {
     r = toku_close_brt(t);          assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
-    printf("ksize=%d, unused\n", ksize);
+    //printf("ksize=%d, unused\n", ksize);
 
 }
 
 int main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__))) {
     int i;
-    doit(53); exit(0);
+    doit(53);
+    toku_malloc_cleanup();
+    exit(0);
     for (i=1; i<NODESIZE/2; i++) {
 	printf("extrasize=%d\n", i);
 	doit(i);
     }
+    toku_malloc_cleanup();
     return 0;
 }

@@ -6,6 +6,7 @@ int toku_testsetup_leaf(BRT brt, DISKOFF *diskoff) {
     int r = toku_read_and_pin_brt_header(brt->cf, &brt->h);
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, 0, (TOKULOGGER)0);
+
     *diskoff = node->thisnodename;
     r = toku_unpin_brtnode(brt, node);
     if (r!=0) return r;
@@ -22,6 +23,8 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
     if (r!=0) return r;
     toku_create_new_brtnode(brt, &node, height, (TOKULOGGER)0);
     node->u.n.n_children=n_children;
+    MALLOC_N(n_children+1, node->u.n.childinfos);
+    MALLOC_N(n_children,   node->u.n.childkeys);
     node->u.n.totalchildkeylens=0;
     node->u.n.n_bytes_in_buffers=0;
     int i;
@@ -72,7 +75,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     BRTNODE node=node_v;
     assert(node->height==0);
 
-    struct kv_pair *kv = kv_pair_malloc(key, keylen, val, vallen);
+    struct kv_pair *kv = brtnode_malloc_kv_pair(node->u.l.buffer, &node->u.l.buffer_mempool, key, keylen, val, vallen);
     struct lc_pair  lc = {brt, node->flags & TOKU_DB_DUPSORT};
     u_int32_t storedlen;
     void *storeddata;

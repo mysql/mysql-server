@@ -46,48 +46,49 @@ build default: bins libs tdb-recover tdb_logprint
 # Put these one-per-line so that if we insert a new one the svn diff can understand it better.
 # Also keep them sorted.
 REGRESSION_TESTS = \
-	ybt-test \
-	test-gpma-glassbox \
 	brt-serialize-test \
-	cachetable-test \
-	cachetable-test2 \
-	fifo-test \
-	fifo-test-exp \
-	test-gpma-blackbox \
-	test-gpma-glassbox \
-	test-gpma-worstinsert \
-	test-brt-delete-both \
 	brt-test \
+	brt-test-cursor \
+	brt-test-cursor-2 \
+	brt-test-named-db \
 	brt-test0 \
 	brt-test1 \
 	brt-test2 \
 	brt-test3 \
 	brt-test4 \
-	test-brt-overflow \
-	brt-test-named-db \
-	brt-test-cursor \
-	brt-test-cursor-2 \
-        log-test \
+	cachetable-test \
+	cachetable-test2 \
+	fifo-test \
+	fifo-test-exp \
+	list-test \
 	log-test2 \
 	log-test3 \
 	log-test4 \
 	log-test5 \
 	log-test6 \
-	test_oexcl \
 	test-assert \
-	test-primes \
-	list-test \
-	test-inc-split \
+	test-brt-delete-both \
+	test-brt-overflow \
 	test-del-inorder \
+	test-gpma-blackbox \
+	test-gpma-glassbox \
+	test-gpma-glassbox \
+	test-inc-split \
+	test-primes \
+	test_oexcl \
+	test_toku_malloc_plain_free \
+	ybt-test \
+        log-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
+# Add in the binaries that must be run in various ways.
 BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
+	test-gpma-worstinsert \
         brtdump \
         randbrt \
         randdb4 \
         tdb_logprint \
-	test_toku_malloc_plain_free \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 tdb_logprint: LDFLAGS+=-lz
@@ -108,33 +109,25 @@ log_code.c: logformat
 
 libs: log.o
 bins: $(BINS)
+# Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
 CHECKS = \
- test_oexcl \
- ybt-test \
- cachetable-test \
- cachetable-test2 \
- brt-serialize-test \
- test-brt-delete-both \
- brt-test \
- brt-test-cursor \
- brt-test-cursor-2 \
- brt-test0 \
- brt-test1 \
- brt-test2 \
- brt-test3 \
- brt-test4 \
- test-brt-overflow \
- brt-test-named-db \
- fifo-test \
- test_toku_malloc_plain_free \
- test-primes \
- list-test \
+ benchmarktest_256 \
+ test-gpma-worstinsert-a \
+ test-gpma-worstinsert-b \
+ test-gpma-worstinsert-c \
+ $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the previous line
 
 # Put check_benchmarktest_256 first because it is long-running (and therefore on the critical path, so get it started)
-check: bins check_benchmarktest_256 $(patsubst %,check_%,$(CHECKS))
+check: bins $(patsubst %,check_%,$(CHECKS))
 check_benchmarktest_256: benchmark-test
 	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
+check_test-gpma-worstinsert-a: test-gpma-worstinsert
+	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -a
+check_test-gpma-worstinsert-b: test-gpma-worstinsert
+	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -b
+check_test-gpma-worstinsert-c: test-gpma-worstinsert
+	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -c
 
 check_test-assert: test-assert
 	@# no arguments, should err
@@ -227,7 +220,7 @@ else
 endif
 
 clean:
-	rm -rf $(REGRESSION_TESTS) $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
+	rm -rf $(BINS) *.o *.bb *.bbg *.da *.gcov *.gcno *.gcda
 	rm -rf test_oexcl.c.tmp *.brt
 
 randdb4: LOADLIBES=-ldb
