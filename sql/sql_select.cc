@@ -33,6 +33,7 @@
 #include "sql_cursor.h"
 
 #include <m_ctype.h>
+#include <my_bit.h>
 #include <hash.h>
 #include <ft_global.h>
 
@@ -371,10 +372,10 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
       }
     }
     new_ref= direct_ref ?
-              new Item_direct_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used) :
-              new Item_ref(ref->context, item_ref, ref->field_name,
-                          ref->table_name, ref->alias_name_used);
+              new Item_direct_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used) :
+              new Item_ref(ref->context, item_ref, ref->table_name,
+                          ref->field_name, ref->alias_name_used);
     if (!new_ref)
       return TRUE;
     ref->outer_ref= new_ref;
@@ -585,37 +586,13 @@ JOIN::prepare(Item ***rref_pointer_array,
   /*
     Check if there are references to un-aggregated columns when computing 
     aggregate functions with implicit grouping (there is no GROUP BY).
-    TODO:  Add check of calculation of GROUP functions and fields:
-	   SELECT COUNT(*)+table.col1 from table1;
   */
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY && !group_list &&
+      select_lex->full_group_by_flag == (NON_AGG_FIELD_USED | SUM_FUNC_USED))
   {
-    if (!group_list)
-    {
-      uint flag=0;
-      List_iterator_fast<Item> it(fields_list);
-      Item *item;
-      while ((item= it++))
-      {
-	if (item->with_sum_func)
-	  flag|=1;
-	else if (!(flag & 2) && !item->const_during_execution())
-	  flag|=2;
-      }
-      if (having)
-      {
-        if (having->with_sum_func)
-          flag |= 1;
-        else if (!having->const_during_execution())
-          flag |= 2;
-      }
-      if (flag == 3)
-      {
-	my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
-                   ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
-	DBUG_RETURN(-1);
-      }
-    }
+    my_message(ER_MIX_OF_GROUP_FUNC_AND_FIELDS,
+               ER(ER_MIX_OF_GROUP_FUNC_AND_FIELDS), MYF(0));
+    DBUG_RETURN(-1);
   }
   {
     /* Caclulate the number of groups */
@@ -2989,7 +2966,9 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
 	  }
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 old->val->eq(new_fields->val, old->field->binary()))
+                 old->val->eq_by_collation(new_fields->val, 
+                                           old->field->binary(),
+                                           old->field->charset()))
 
 	{
 	  old->level= and_level;
@@ -9754,7 +9733,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->s= share;
   init_tmp_table_share(thd, share, "", 0, tmpname, tmpname);
   share->blob_field= blob_field;
-  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
+  share->blob_ptr_size= portable_sizeof_char_ptr;
   share->db_low_byte_first=1;                // True for HEAP and MyISAM
   share->table_charset= param->table_charset;
   share->primary_key= MAX_KEY;               // Indicate no primary key
@@ -10316,7 +10295,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
   table->s= share;
   share->blob_field= blob_field;
   share->fields= field_count;
-  share->blob_ptr_size= mi_portable_sizeof_char_ptr;
+  share->blob_ptr_size= portable_sizeof_char_ptr;
   setup_tmp_table_column_bitmaps(table, bitmaps);
 
   /* Create all fields and calculate the total length of record */
@@ -11183,7 +11162,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab,
         we found a row, as no new rows can be added to the result.
       */
       if (not_used_in_distinct && found_records != join->found_records)
-        return NESTED_LOOP_OK;
+        return NESTED_LOOP_NO_MORE_ROWS;
     }
     else
       join_tab->read_record.file->unlock_row();
@@ -11568,21 +11547,42 @@ join_read_key(JOIN_TAB *tab)
 }
 
 
+/*
+  ref access method implementation: "read_first" function
+
+  SYNOPSIS
+    join_read_always_key()
+      tab  JOIN_TAB of the accessed table
+
+  DESCRIPTION
+    This is "read_fist" function for the "ref" access method.
+   
+    The functon must leave the index initialized when it returns.
+    ref_or_null access implementation depends on that.
+
+  RETURN
+    0  - Ok
+   -1  - Row not found 
+    1  - Error
+*/
+
 static int
 join_read_always_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
 
+  /* Initialize the index first */
+  if (!table->file->inited)
+    table->file->ha_index_init(tab->ref.key, tab->sorted);
+ 
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
     if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
         return -1;
-  } 
-  if (!table->file->inited)
-  {
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
   }
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error=table->file->index_read_map(table->record[0],
@@ -13135,6 +13135,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           tab->read_first_record= best_key_direction > 0 ?
                                   join_read_first:join_read_last;
           tab->type=JT_NEXT;           // Read with index_first(), index_next()
+          if (select && select->quick)
+          {
+            delete select->quick;
+            select->quick= 0;
+          }
           if (table->covering_keys.is_set(best_key))
           {
             table->key_read=1;
@@ -13145,14 +13150,26 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           {
             tab->ref.key= -1;
             tab->ref.key_parts= 0;
-            if (select && select->quick)
-            {
-              delete select->quick;
-              select->quick= 0;
-            }
             if (select_limit < table_records) 
               tab->limit= select_limit;
           }
+        }
+        else if (tab->type != JT_ALL)
+        {
+          /*
+            We're about to use a quick access to the table.
+            We need to change the access method so as the quick access
+            method is actually used.
+          */
+          DBUG_ASSERT(tab->select->quick);
+          tab->type=JT_ALL;
+          tab->use_quick=1;
+          tab->ref.key= -1;
+          tab->ref.key_parts=0;		// Don't use ref key.
+          tab->read_first_record= join_init_read_record;
+          /*
+            TODO: update the number of records in join->best_positions[tablenr]
+          */
         }
       }
       used_key_parts= best_key_parts;
@@ -16478,6 +16495,14 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &top_join_list, query_type);
+  }
+  else if (where)
+  {
+    /*
+      "SELECT 1 FROM DUAL WHERE 2" should not be printed as 
+      "SELECT 1 WHERE 2": the 1st syntax is valid, but the 2nd is not.
+    */
+    str->append(STRING_WITH_LEN(" from DUAL "));
   }
 
   // Where

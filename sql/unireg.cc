@@ -328,8 +328,10 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   my_free(keybuff, MYF(0));
 
   if (opt_sync_frm && !(create_info->options & HA_LEX_CREATE_TMP_TABLE) &&
-      my_sync(file, MYF(MY_WME)))
-    goto err2;
+      (my_sync(file, MYF(MY_WME)) ||
+       my_sync_dir_by_file(file_name, MYF(MY_WME))))
+      goto err2;
+
   if (my_close(file,MYF(MY_WME)))
     goto err3;
 
@@ -979,9 +981,7 @@ static bool make_empty_rec(THD *thd, File file,enum legacy_db_type table_type,
 
     type= (Field::utype) MTYP_TYPENR(field->unireg_check);
 
-    if (field->def &&
-	(regfield->real_type() != MYSQL_TYPE_YEAR ||
-	 field->def->val_int() != 0))
+    if (field->def)
     {
       int res= field->def->save_in_field(regfield, 1);
       /* If not ok or warning of level 'note' */

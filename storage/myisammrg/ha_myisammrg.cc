@@ -877,7 +877,7 @@ int ha_myisammrg::extra(enum ha_extra_function operation)
   /* As this is just a mapping, we don't have to force the underlying
      tables to be closed */
   if (operation == HA_EXTRA_FORCE_REOPEN ||
-      operation == HA_EXTRA_PREPARE_FOR_DELETE)
+      operation == HA_EXTRA_PREPARE_FOR_DROP)
     return 0;
   return myrg_extra(file,operation,0);
 }
@@ -1102,6 +1102,12 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(STRING_WITH_LEN(" INSERT_METHOD="));
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
+  /*
+    There is no sence adding UNION clause in case there is no underlying
+    tables specified.
+  */
+  if (file->open_tables == file->end_table)
+    return;
   packet->append(STRING_WITH_LEN(" UNION=("));
 
   current_db= table->s->db.str;

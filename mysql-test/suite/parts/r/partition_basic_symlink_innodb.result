@@ -1,0 +1,32 @@
+# Will not run partition_basic_symlink on InnoDB, since it is the same
+# as partition_basic, since InnoDB does not support DATA/INDEX DIR
+# Will only verify that the DATA/INDEX DIR is stored and used if
+# ALTER to MyISAM.
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (c1 INT)
+ENGINE = InnoDB
+PARTITION BY HASH (c1)
+(PARTITION p0
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
+ INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir',
+PARTITION p1
+DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
+ INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir'
+);
+# Verifying .frm and .par files
+# Verifying that there are no MyISAM files
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (c1) (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = InnoDB, PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = InnoDB) */
+ALTER TABLE t1 ENGINE = MyISAM;
+# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+FLUSH TABLES;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int(11) DEFAULT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 /*!50100 PARTITION BY HASH (c1) (PARTITION p0 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = MyISAM, PARTITION p1 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir' INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir' ENGINE = MyISAM) */
+DROP TABLE t1;

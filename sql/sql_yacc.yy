@@ -487,6 +487,7 @@ Item* handle_sql2003_note184_exception(THD *thd, Item* left, bool equal,
   enum enum_tx_isolation tx_isolation;
   enum Cast_target cast_type;
   enum Item_udftype udf_type;
+  enum ha_choice choice;
   CHARSET_INFO *charset;
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
@@ -881,6 +882,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  OWNER_SYM
 %token  PACK_KEYS_SYM
 %token  PAGE_SYM
+%token  PAGE_CHECKSUM_SYM
 %token  PARAM_MARKER
 %token  PARSER_SYM
 %token  PARTIAL                       /* SQL-2003-N */
@@ -1021,6 +1023,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  TABLESPACE
 %token  TABLE_REF_PRIORITY
 %token  TABLE_SYM                     /* SQL-2003-R */
+%token  TABLE_CHECKSUM_SYM
 %token  TEMPORARY                     /* SQL-2003-N */
 %token  TEMPTABLE_SYM
 %token  TERMINATED
@@ -1156,6 +1159,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <ulonglong_number>
         ulonglong_num real_ulonglong_num size_number
 
+%type <choice> choice
+
 %type <p_elem_value>
         part_bit_expr
 
@@ -1211,6 +1216,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %type <interval> interval
 
 %type <interval_time_st> interval_time_st
+
+%type <interval_time_st> interval_time_stamp
 
 %type <db_type> storage_engines known_storage_engines
 
@@ -4345,6 +4352,16 @@ create_table_option:
             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
             Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
           }
+        | TABLE_CHECKSUM_SYM opt_equal ulong_num
+          {
+             Lex->create_info.table_options|= $3 ? HA_OPTION_CHECKSUM : HA_OPTION_NO_CHECKSUM;
+             Lex->create_info.used_fields|= HA_CREATE_USED_CHECKSUM;
+          }
+        | PAGE_CHECKSUM_SYM opt_equal choice
+          {
+            Lex->create_info.used_fields|= HA_CREATE_USED_PAGE_CHECKSUM;
+            Lex->create_info.page_checksum= $3;
+          }
         | DELAY_KEY_WRITE_SYM opt_equal ulong_num
           {
             Lex->create_info.table_options|= $3 ? HA_OPTION_DELAY_KEY_WRITE : HA_OPTION_NO_DELAY_KEY_WRITE;
@@ -4355,7 +4372,7 @@ create_table_option:
             Lex->create_info.row_type= $3;
             Lex->create_info.used_fields|= HA_CREATE_USED_ROW_FORMAT;
           }
-        | UNION_SYM opt_equal '(' table_list ')'
+        | UNION_SYM opt_equal '(' opt_table_list ')'
           {
             /* Move the union list to the merge_list */
             LEX *lex=Lex;
@@ -4404,11 +4421,10 @@ create_table_option:
             Lex->create_info.used_fields|= HA_CREATE_USED_KEY_BLOCK_SIZE;
             Lex->create_info.key_block_size= $3;
           }
-        | TRANSACTIONAL_SYM opt_equal ulong_num
+        | TRANSACTIONAL_SYM opt_equal choice
           {
-            Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
-            Lex->create_info.transactional= ($3 != 0 ? HA_CHOICE_YES :
-              HA_CHOICE_NO);
+	    Lex->create_info.used_fields|= HA_CREATE_USED_TRANSACTIONAL;
+            Lex->create_info.transactional= $3;
           }
         ;
 
@@ -6993,9 +7009,9 @@ function_call_nonkeyword:
               $$= new (YYTHD->mem_root) Item_func_now_local($3);
             Lex->safe_to_cache_query=0;
           }
-        | TIMESTAMP_ADD '(' interval_time_st ',' expr ',' expr ')'
+        | TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
           { $$= new (YYTHD->mem_root) Item_date_add_interval($7,$5,$3,0); }
-        | TIMESTAMP_DIFF '(' interval_time_st ',' expr ',' expr ')'
+        | TIMESTAMP_DIFF '(' interval_time_stamp ',' expr ',' expr ')'
           { $$= new (YYTHD->mem_root) Item_func_timestamp_diff($5,$7,$3); }
         | UTC_DATE_SYM optional_braces
           {
@@ -7963,22 +7979,41 @@ interval:
         | HOUR_MICROSECOND_SYM   { $$=INTERVAL_HOUR_MICROSECOND; }
         | HOUR_MINUTE_SYM        { $$=INTERVAL_HOUR_MINUTE; }
         | HOUR_SECOND_SYM        { $$=INTERVAL_HOUR_SECOND; }
-        | MICROSECOND_SYM        { $$=INTERVAL_MICROSECOND; }
         | MINUTE_MICROSECOND_SYM { $$=INTERVAL_MINUTE_MICROSECOND; }
         | MINUTE_SECOND_SYM      { $$=INTERVAL_MINUTE_SECOND; }
         | SECOND_MICROSECOND_SYM { $$=INTERVAL_SECOND_MICROSECOND; }
         | YEAR_MONTH_SYM         { $$=INTERVAL_YEAR_MONTH; }
         ;
 
+interval_time_stamp:
+	interval_time_st	{}
+	| FRAC_SECOND_SYM	{ 
+                                  $$=INTERVAL_MICROSECOND; 
+                                  /*
+                                    FRAC_SECOND was mistakenly implemented with
+                                    a wrong resolution. According to the ODBC
+                                    standard it should be nanoseconds, not
+                                    microseconds. Changing it to nanoseconds
+                                    in MySQL would mean making TIMESTAMPDIFF
+                                    and TIMESTAMPADD to return DECIMAL, since
+                                    the return value would be too big for BIGINT
+                                    Hence we just deprecate the incorrect
+                                    implementation without changing its
+                                    resolution.
+                                  */
+                                  WARN_DEPRECATED(yythd, "6.2", "FRAC_SECOND", "MICROSECOND");
+                                }
+	;
+
 interval_time_st:
           DAY_SYM         { $$=INTERVAL_DAY; }
         | WEEK_SYM        { $$=INTERVAL_WEEK; }
         | HOUR_SYM        { $$=INTERVAL_HOUR; }
-        | FRAC_SECOND_SYM { $$=INTERVAL_MICROSECOND; }
         | MINUTE_SYM      { $$=INTERVAL_MINUTE; }
         | MONTH_SYM       { $$=INTERVAL_MONTH; }
         | QUARTER_SYM     { $$=INTERVAL_QUARTER; }
         | SECOND_SYM      { $$=INTERVAL_SECOND; }
+        | MICROSECOND_SYM { $$=INTERVAL_MICROSECOND; }
         | YEAR_SYM        { $$=INTERVAL_YEAR; }
         ;
 
@@ -8286,6 +8321,11 @@ dec_num:
           DECIMAL_NUM
         | FLOAT_NUM
         ;
+
+choice:
+	ulong_num { $$= $1 != 0 ? HA_CHOICE_YES : HA_CHOICE_NO; }
+	| DEFAULT { $$= HA_CHOICE_UNDEF; }
+	;
 
 procedure_clause:
           /* empty */
@@ -10600,6 +10640,7 @@ keyword_sp:
         | ONE_SYM                  {}
         | PACK_KEYS_SYM            {}
         | PAGE_SYM                 {}
+        | PAGE_CHECKSUM_SYM	   {}
         | PARTIAL                  {}
         | PARTITIONING_SYM         {}
         | PARTITIONS_SYM           {}
@@ -10669,6 +10710,7 @@ keyword_sp:
         | SWAPS_SYM                {}
         | SWITCHES_SYM             {}
         | TABLES                   {}
+        | TABLE_CHECKSUM_SYM       {}
         | TABLESPACE               {}
         | TEMPORARY                {}
         | TEMPTABLE_SYM            {}

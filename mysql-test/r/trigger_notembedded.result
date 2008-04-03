@@ -133,9 +133,9 @@ CREATE DEFINER='mysqltest_nonexs'@'localhost'
 FOR EACH ROW
 SET @new_sum = 0;
 Warnings:
-Note	1449	There is no 'mysqltest_nonexs'@'localhost' registered
+Note	1449	The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
 INSERT INTO t1 VALUES(6);
-ERROR HY000: There is no 'mysqltest_nonexs'@'localhost' registered
+ERROR HY000: The user specified as a definer ('mysqltest_nonexs'@'localhost') does not exist
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
 trg1	INSERT	t1	SET @new_sum = 0	BEFORE	NULL		mysqltest_inv@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci

@@ -82,8 +82,8 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   uchar *disk_cache, *disk_pos, *end_pos;
   MI_INFO info,*m_info,*old_info;
   MYISAM_SHARE share_buff,*share;
-  ulong rec_per_key_part[MI_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
-  my_off_t key_root[MI_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
+  ulong rec_per_key_part[HA_MAX_POSSIBLE_KEY*MI_MAX_KEY_SEG];
+  my_off_t key_root[HA_MAX_POSSIBLE_KEY],key_del[MI_MAX_KEY_BLOCK_SIZE];
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
@@ -281,6 +281,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
     if (share->options & HA_OPTION_COMPRESS_RECORD)
       share->base.max_key_length+=2;	/* For safety */
 
+    /* Add space for node pointer */
+    share->base.max_key_length+= share->base.key_reflength;
+
     if (!my_multi_malloc(MY_WME,
 			 &share,sizeof(*share),
 			 &share->state.rec_per_key_part,sizeof(long)*key_parts,
@@ -452,7 +455,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       if (share->rec[i].type == (int) FIELD_BLOB)
       {
 	share->blobs[j].pack_length=
-	  share->rec[i].length-mi_portable_sizeof_char_ptr;;
+	  share->rec[i].length-portable_sizeof_char_ptr;
 	share->blobs[j].offset=offset;
 	j++;
       }
@@ -815,8 +818,17 @@ static void setup_key_functions(register MI_KEYDEF *keyinfo)
     keyinfo->get_key= _mi_get_pack_key;
     if (keyinfo->seg[0].flag & HA_PACK_KEY)
     {						/* Prefix compression */
+      /*
+        _mi_prefix_search() compares end-space against ASCII blank (' ').
+        It cannot be used for character sets, that do not encode the
+        blank character like ASCII does. UCS2 is an example. All
+        character sets with a fixed width > 1 or a mimimum width > 1
+        cannot represent blank like ASCII does. In these cases we have
+        to use _mi_seq_search() for the search.
+      */
       if (!keyinfo->seg->charset || use_strnxfrm(keyinfo->seg->charset) ||
-          (keyinfo->seg->flag & HA_NULL_PART))
+          (keyinfo->seg->flag & HA_NULL_PART) ||
+          (keyinfo->seg->charset->mbminlen > 1))
         keyinfo->bin_search=_mi_seq_search;
       else
         keyinfo->bin_search=_mi_prefix_search;

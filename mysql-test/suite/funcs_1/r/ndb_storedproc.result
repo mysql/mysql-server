@@ -1,8 +1,6 @@
 
 --source suite/funcs_1/storedproc/load_sp_tb.inc
 --------------------------------------------------------------------------------
-SET @@global.max_heap_table_size=4294967295;
-SET @@session.max_heap_table_size=4294967295;
 
 --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
 --------------------------------------------------------------------------------
@@ -4902,13 +4900,6 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT @x;
 END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
-CREATE PROCEDURE sp1()
-read_only:BEGIN
-SELECT @x;
-END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'read_only:BEGIN
-SELECT @x;
-END' at line 2
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 read_write:BEGIN

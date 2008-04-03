@@ -184,3 +184,14 @@ select * from t1;
 a
 42
 drop table t1;
+CREATE TEMPORARY TABLE t1(a INT, b VARCHAR(20));
+INSERT INTO t1 VALUES(1, 'val1'), (2, 'val2'), (3, 'val3');
+DELETE FROM t1 WHERE a=1;
+SELECT count(*) FROM t1;
+count(*)
+2
+DELETE FROM t1;
+SELECT * FROM t1;
+a	b
+DROP TABLE t1;
+End of 5.1 tests

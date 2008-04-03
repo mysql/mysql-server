@@ -711,7 +711,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!head[32])				// New frm file in 3.23
   {
     share->avg_row_length= uint4korr(head+34);
-    share->transactional= (ha_choice) head[39];
+    share->transactional= (ha_choice) (head[39] & 3);
+    share->page_checksum= (ha_choice) ((head[39] >> 2) & 3);
     share->row_type= (row_type) head[40];
     share->table_charset= get_charset((uint) head[38],MYF(0));
     share->null_field_first= 1;
@@ -892,26 +893,31 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             ha_legacy_type(share->db_type())));
       }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-      else
+      else if (str_db_type_length == 9 &&
+               !strncmp((char *) next_chunk + 2, "partition", 9))
       {
-        LEX_STRING pname= { C_STRING_WITH_LEN( "partition" ) };
-        if (str_db_type_length == pname.length &&
-            !strncmp((char *) next_chunk + 2, pname.str, pname.length))
-        {
-          /*
-            Use partition handler
-            tmp_plugin is locked with a local lock.
-            we unlock the old value of share->db_plugin before
-            replacing it with a globally locked version of tmp_plugin
-          */
-          plugin_unlock(NULL, share->db_plugin);
-          share->db_plugin= ha_lock_engine(NULL, partition_hton);
-          DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
-                              str_db_type_length, next_chunk + 2,
-                              ha_legacy_type(share->db_type())));
-        }
+        /*
+          Use partition handler
+          tmp_plugin is locked with a local lock.
+          we unlock the old value of share->db_plugin before
+          replacing it with a globally locked version of tmp_plugin
+        */
+        plugin_unlock(NULL, share->db_plugin);
+        share->db_plugin= ha_lock_engine(NULL, partition_hton);
+        DBUG_PRINT("info", ("setting dbtype to '%.*s' (%d)",
+                            str_db_type_length, next_chunk + 2,
+                            ha_legacy_type(share->db_type())));
       }
 #endif
+      else if (!tmp_plugin)
+      {
+        /* purecov: begin inspected */
+        error= 8;
+        my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
+        my_free(buff, MYF(0));
+        goto err;
+        /* purecov: end */
+      }
       next_chunk+= str_db_type_length + 2;
     }
     if (next_chunk + 5 < buff_end)
@@ -2200,6 +2206,8 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
                     "of MySQL and cannot be read", 
                     MYF(0), buff);
     break;
+  case 8:
+    break;
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
@@ -2447,7 +2455,9 @@ File create_frm(THD *thd, const char *name, const char *db,
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18,create_info->max_rows);
     int4store(fileinfo+22,create_info->min_rows);
+    /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
+    /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
     int2store(fileinfo+30,create_info->table_options);
     fileinfo[32]=0;				// No filename anymore
@@ -2455,9 +2465,10 @@ File create_frm(THD *thd, const char *name, const char *db,
     int4store(fileinfo+34,create_info->avg_row_length);
     fileinfo[38]= (create_info->default_table_charset ?
 		   create_info->default_table_charset->number : 0);
-    fileinfo[39]= (uchar) create_info->transactional;
+    fileinfo[39]= (uchar) ((uint) create_info->transactional |
+                           ((uint) create_info->page_checksum << 2));
     fileinfo[40]= (uchar) create_info->row_type;
-    /* Next few bytes were for RAID support */
+    /* Next few bytes where for RAID support */
     fileinfo[41]= 0;
     fileinfo[42]= 0;
     fileinfo[43]= 0;

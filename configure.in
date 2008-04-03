@@ -10,7 +10,7 @@ AC_CANONICAL_SYSTEM
 #
 # When changing major version number please also check switch statement
 # in mysqlbinlog::check_master_version().
-AM_INIT_AUTOMAKE(mysql, 5.1.24-rc)
+AM_INIT_AUTOMAKE(mysql, 5.1.25-rc)
 AM_CONFIG_HEADER([include/config.h:config.h.in])
 
 PROTOCOL_VERSION=10
@@ -23,9 +23,19 @@ NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
 # Remember that regexps needs to quote [ and ] since this is run through m4
-MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|[[a-z]]*-.*$||"`
-MYSQL_BASE_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|\.[[^.]]*$||"`
-MYSQL_VERSION_ID=`echo $MYSQL_NO_DASH_VERSION | sed -e 's|[[^0-9.]].*$||;s|$|.|' | sed -e 's/[[^0-9.]]//g; s/\./  /g; s/ \([[0-9]]\) / 0\\1 /g; s/ //g'`
+# We take some made up examples
+#
+#  VERSION                  5.1.40sp1-alpha     5.0.34a
+#  MYSQL_NO_DASH_VERSION    5.1.40sp1           5.0.34a
+#  MYSQL_NUMERIC_VERSION    5.1.40              5.0.34
+#  MYSQL_BASE_VERSION       5.1                 5.0
+#  MYSQL_VERSION_ID         50140               50034
+#
+MYSQL_NO_DASH_VERSION=`echo $VERSION | sed -e "s|-.*$||"`
+MYSQL_NUMERIC_VERSION=`echo $MYSQL_NO_DASH_VERSION | sed -e "s|[[a-z]][[a-z0-9]]*$||"`
+MYSQL_BASE_VERSION=`echo $MYSQL_NUMERIC_VERSION | sed -e "s|\.[[^.]]*$||"`
+MYSQL_VERSION_ID=`echo $MYSQL_NUMERIC_VERSION | \
+    awk -F. '{printf "%d%0.2d%0.2d", $1, $2, $3}'`
 
 # Add previous major version for debian package upgrade path
 MYSQL_PREVIOUS_BASE_VERSION=5.0
@@ -1031,8 +1041,8 @@ case $SYSTEM_TYPE in
     ;;
   *hpux11.*)
     AC_MSG_WARN([Enabling workarounds for hpux 11])
-    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
-    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DDONT_USE_FINITE -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CFLAGS="$CFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -DHAVE_BROKEN_GETPASS -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
+    CXXFLAGS="$CXXFLAGS -DHPUX11  -DSNPRINTF_RETURN_TRUNC -DHAVE_BROKEN_PREAD -D_INCLUDE_LONGLONG -DNO_FCNTL_NONBLOCK -DDO_NOT_REMOVE_THREAD_WRAPPERS -DHAVE_BROKEN_PTHREAD_COND_TIMEDWAIT"
     if test "$with_named_thread" = "no"
     then 
       AC_MSG_WARN([Using --with-named-thread=-lpthread])

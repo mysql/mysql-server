@@ -1856,10 +1856,10 @@ bool sp_process_definer(THD *thd)
     TRUE        Error
 */
 
-bool
+int
 mysql_execute_command(THD *thd)
 {
-  bool res= FALSE;
+  int res= FALSE;
   bool need_start_waiting= FALSE; // have protection against global read lock
   int  up_result= 0;
   LEX  *lex= thd->lex;
@@ -2351,15 +2351,7 @@ mysql_execute_command(THD *thd)
     /* Might have been updated in create_table_precheck */
     create_info.alias= create_table->alias;
 
-#ifndef HAVE_READLINK
-    if (create_info.data_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "DATA DIRECTORY option ignored");
-    if (create_info.index_file_name)
-      push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN, 0,
-                   "INDEX DIRECTORY option ignored");
-    create_info.data_file_name= create_info.index_file_name= NULL;
-#else
+#ifdef HAVE_READLINK
     /* Fix names if symlinked tables */
     if (append_file_to_dir(thd, &create_info.data_file_name,
 			   create_table->table_name) ||
@@ -3249,6 +3241,18 @@ end_with_restore_list:
       thd->one_shot_set|= lex->one_shot_set;
       my_ok(thd);
     }
+    else
+    {
+      /*
+        We encountered some sort of error, but no message was sent.
+        Send something semi-generic here since we don't know which
+        assignment in the list caused the error.
+      */
+      if (!thd->is_error())
+        my_error(ER_WRONG_ARGUMENTS,MYF(0),"SET");
+      goto error;
+    }
+
     break;
   }
 
@@ -5286,10 +5290,10 @@ bool check_stack_overrun(THD *thd, long margin,
   long stack_used;
   DBUG_ASSERT(thd == current_thd);
   if ((stack_used=used_stack(thd->thread_stack,(char*) &stack_used)) >=
-      (long) (thread_stack - margin))
+      (long) (my_thread_stack_size - margin))
   {
     sprintf(errbuff[0],ER(ER_STACK_OVERRUN_NEED_MORE),
-            stack_used,thread_stack,margin);
+            stack_used,my_thread_stack_size,margin);
     my_message(ER_STACK_OVERRUN_NEED_MORE,errbuff[0],MYF(0));
     thd->fatal_error();
     return 1;
@@ -6460,6 +6464,8 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
         result= 1;
       if (grant_reload(thd))
         result= 1;
+      if (servers_reload(thd))
+        result= 1; /* purecov: inspected */
     }
     if (tmp_thd)
     {
@@ -7337,6 +7343,49 @@ bool check_string_char_length(LEX_STRING *str, const char *err_msg,
   if (!no_error)
     my_error(ER_WRONG_STRING_LENGTH, MYF(0), str->str, err_msg, max_char_length);
   return TRUE;
+}
+
+
+/*
+  Check if path does not contain mysql data home directory
+  SYNOPSIS
+    test_if_data_home_dir()
+    dir                     directory
+    conv_home_dir           converted data home directory
+    home_dir_len            converted data home directory length
+
+  RETURN VALUES
+    0	ok
+    1	error  
+*/
+
+bool test_if_data_home_dir(const char *dir)
+{
+  char path[FN_REFLEN], conv_path[FN_REFLEN];
+  uint dir_len, home_dir_len= strlen(mysql_unpacked_real_data_home);
+  DBUG_ENTER("test_if_data_home_dir");
+
+  if (!dir)
+    DBUG_RETURN(0);
+
+  (void) fn_format(path, dir, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  dir_len= unpack_dirname(conv_path, dir);
+
+  if (home_dir_len < dir_len)
+  {
+    if (lower_case_file_system)
+    {
+      if (!my_strnncoll(character_set_filesystem,
+                        (const uchar*) conv_path, home_dir_len,
+                        (const uchar*) mysql_unpacked_real_data_home,
+                        home_dir_len))
+        DBUG_RETURN(1);
+    }
+    else if (!memcmp(conv_path, mysql_unpacked_real_data_home, home_dir_len))
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
 }
 
 

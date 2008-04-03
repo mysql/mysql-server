@@ -747,6 +747,7 @@ void close_handle_and_leave_table_as_lock(TABLE *table)
   table->db_stat= 0;                            // Mark file closed
   release_table_share(table->s, RELEASE_NORMAL);
   table->s= share;
+  table->file->change_table_ptr(table, table->s);
 
   DBUG_VOID_RETURN;
 }
@@ -4599,8 +4600,12 @@ int open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags)
     }
 
     if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables)
-      tables->table->reginfo.lock_type= tables->lock_type == TL_WRITE_DEFAULT ?
-        thd->update_lock_default : tables->lock_type;
+    {
+      if (tables->lock_type == TL_WRITE_DEFAULT)
+        tables->table->reginfo.lock_type= thd->update_lock_default;
+      else if (tables->table->s->tmp_table == NO_TMP_TABLE)
+        tables->table->reginfo.lock_type= tables->lock_type;
+    }
     tables->table->grant= tables->grant;
 
     /* Attach MERGE children if not locked already. */
@@ -4861,7 +4866,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
     the third argument set appropriately.
 */
 
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived)
 {
   uint counter;
   bool need_reopen;

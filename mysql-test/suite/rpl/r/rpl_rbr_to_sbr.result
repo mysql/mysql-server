@@ -18,8 +18,10 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Format_desc	1	#	Server ver: VERSION, Binlog ver: 4
 master-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 master-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+master-bin.000001	#	Query	1	#	use `test`; BEGIN
 master-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	1	#	use `test`; COMMIT
 **** On Slave ****
 SHOW SLAVE STATUS;
 Slave_IO_State	#
@@ -28,7 +30,7 @@ Master_User	root
 Master_Port	MASTER_PORT
 Connect_Retry	1
 Master_Log_File	master-bin.000001
-Read_Master_Log_Pos	457
+Read_Master_Log_Pos	594
 Relay_Log_File	#
 Relay_Log_Pos	#
 Relay_Master_Log_File	master-bin.000001
@@ -43,7 +45,7 @@ Replicate_Wild_Ignore_Table
 Last_Errno	0
 Last_Error	
 Skip_Counter	0
-Exec_Master_Log_Pos	457
+Exec_Master_Log_Pos	594
 Relay_Log_Space	#
 Until_Condition	None
 Until_Log_File	
@@ -66,6 +68,8 @@ slave-bin.000001	#	Format_desc	2	#	Server ver: VERSION, Binlog ver: 4
 slave-bin.000001	#	Query	2	#	use `test`; drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9
 slave-bin.000001	#	Query	1	#	use `test`; CREATE TABLE t1 (a INT, b LONG)
 slave-bin.000001	#	Query	1	#	use `test`; INSERT INTO t1 VALUES (1,1), (2,2)
+slave-bin.000001	#	Query	1	#	use `test`; BEGIN
 slave-bin.000001	#	Table_map	1	#	table_id: # (test.t1)
 slave-bin.000001	#	Write_rows	1	#	table_id: # flags: STMT_END_F
+slave-bin.000001	#	Query	1	#	use `test`; COMMIT
 DROP TABLE IF EXISTS t1;
