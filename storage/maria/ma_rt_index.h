@@ -41,8 +41,9 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length);
 ha_rows maria_rtree_estimate(MARIA_HA *info, uint keynr, uchar *key,
                              uint key_length, uint flag);
 
-int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo, uchar *page,
-                           uchar *key, uint key_length,
+int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
+                           uchar *page,
+                           const uchar *key, uint key_length,
                            my_off_t *new_page_offs);
 
 #endif /*HAVE_RTREE_KEYS*/

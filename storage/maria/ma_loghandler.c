@@ -4136,12 +4136,12 @@ static my_bool translog_write_parts_on_page(TRANSLOG_ADDRESS *horizon,
   do
   {
     translog_size_t len;
-    LEX_STRING *part;
-    uchar *buff;
+    LEX_CUSTRING *part;
+    const uchar *buff;
 
     DBUG_ASSERT(cur < parts->elements);
     part= parts->parts + cur;
-    buff= (uchar*) part->str;
+    buff= part->str;
     DBUG_PRINT("info", ("Part: %u  Length: %lu  left: %lu  buff: 0x%lx",
                         (uint) (cur + 1), (ulong) part->length, (ulong) left,
                         (ulong) buff));
@@ -4217,11 +4217,11 @@ translog_write_variable_record_1group_header(struct st_translog_parts *parts,
                                              uint16 header_length,
                                              uchar *chunk0_header)
 {
-  LEX_STRING *part;
+  LEX_CUSTRING *part;
   DBUG_ASSERT(parts->current != 0);     /* first part is left for header */
   part= parts->parts + (--parts->current);
   parts->total_record_length+= (translog_size_t) (part->length= header_length);
-  part->str= (char*)chunk0_header;
+  part->str= chunk0_header;
   /* puts chunk type */
   *chunk0_header= (uchar) (type | TRANSLOG_CHUNK_LSN);
   int2store(chunk0_header + 1, short_trid);
@@ -4364,7 +4364,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
                                            TRANSLOG_ADDRESS *horizon,
                                            struct st_buffer_cursor *cursor)
 {
-  LEX_STRING *part;
+  LEX_CUSTRING *part;
   uchar chunk3_header[1 + 2];
   DBUG_ENTER("translog_write_variable_record_chunk3_page");
 
@@ -4381,7 +4381,7 @@ translog_write_variable_record_chunk3_page(struct st_translog_parts *parts,
   DBUG_ASSERT(parts->current != 0);       /* first part is left for header */
   part= parts->parts + (--parts->current);
   parts->total_record_length+= (translog_size_t) (part->length= 1 + 2);
-  part->str= (char*)chunk3_header;
+  part->str= chunk3_header;
   /* Puts chunk type */
   *chunk3_header= (uchar) (TRANSLOG_CHUNK_LNGTH);
   /* Puts chunk length */
@@ -5051,10 +5051,11 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
                                           LSN base_lsn,
                                           uint lsns, uchar *compressed_LSNs)
 {
-  LEX_STRING *part;
+  LEX_CUSTRING *part;
   uint lsns_len= lsns * LSN_STORE_SIZE;
   char buffer_src[MAX_NUMBER_OF_LSNS_PER_RECORD * LSN_STORE_SIZE];
   char *buffer= buffer_src;
+  const char *cbuffer;
 
   DBUG_ENTER("translog_relative_LSN_encode");
 
@@ -5065,16 +5066,16 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
   if (part->length < lsns_len)
   {
     uint copied= part->length;
-    LEX_STRING *next_part;
+    LEX_CUSTRING *next_part;
     DBUG_PRINT("info", ("Using buffer: 0x%lx", (ulong) compressed_LSNs));
-    memcpy(buffer, (uchar*)part->str, part->length);
+    memcpy(buffer, part->str, part->length);
     next_part= parts->parts + parts->current + 1;
     do
     {
       DBUG_ASSERT(next_part < parts->parts + parts->elements);
       if ((next_part->length + copied) < lsns_len)
       {
-        memcpy(buffer + copied, (uchar*)next_part->str,
+        memcpy(buffer + copied, next_part->str,
                next_part->length);
         copied+= next_part->length;
         next_part->length= 0; next_part->str= 0;
@@ -5086,16 +5087,17 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
       else
       {
         uint len= lsns_len - copied;
-        memcpy(buffer + copied, (uchar*)next_part->str, len);
+        memcpy(buffer + copied, next_part->str, len);
         copied= lsns_len;
         next_part->str+= len;
         next_part->length-= len;
       }
     } while (copied < lsns_len);
+    cbuffer= buffer;
   }
   else
   {
-    buffer= part->str;
+    cbuffer= part->str;
     part->str+= lsns_len;
     part->length-= lsns_len;
     parts->current--;
@@ -5106,15 +5108,15 @@ static void  translog_relative_LSN_encode(struct st_translog_parts *parts,
     /* Compress */
     LSN ref;
     int economy;
-    uchar *src_ptr;
+    const uchar *src_ptr;
     uchar *dst_ptr= compressed_LSNs + (MAX_NUMBER_OF_LSNS_PER_RECORD *
                                       COMPRESSED_LSN_MAX_STORE_SIZE);
     /*
       We write the result in backward direction with no special sense or
       tricks both directions are equal in complicity
     */
-    for (src_ptr= ((uchar*) buffer) + lsns_len - LSN_STORE_SIZE;
-         src_ptr >= (uchar*) buffer;
+    for (src_ptr= cbuffer + lsns_len - LSN_STORE_SIZE;
+         src_ptr >= (const uchar*)cbuffer;
          src_ptr-= LSN_STORE_SIZE)
     {
       ref= lsn_korr(src_ptr);
@@ -5765,7 +5767,7 @@ static my_bool translog_write_fixed_record(LSN *lsn,
   /* Max number of such LSNs per record is 2 */
   uchar compressed_LSNs[MAX_NUMBER_OF_LSNS_PER_RECORD *
     COMPRESSED_LSN_MAX_STORE_SIZE];
-  LEX_STRING *part;
+  LEX_CUSTRING *part;
   int rc= 1;
   DBUG_ENTER("translog_write_fixed_record");
   DBUG_ASSERT((log_record_type_descriptor[type].rclass ==
@@ -5895,12 +5897,12 @@ my_bool translog_write_record(LSN *lsn,
                               TRN *trn, MARIA_HA *tbl_info,
                               translog_size_t rec_len,
                               uint part_no,
-                              LEX_STRING *parts_data,
+                              LEX_CUSTRING *parts_data,
                               uchar *store_share_id,
                               void *hook_arg)
 {
   struct st_translog_parts parts;
-  LEX_STRING *part;
+  LEX_CUSTRING *part;
   int rc;
   uint short_trid= trn->short_id;
   DBUG_ENTER("translog_write_record");
@@ -5935,10 +5937,10 @@ my_bool translog_write_record(LSN *lsn,
   if (unlikely(!(trn->first_undo_lsn & TRANSACTION_LOGGED_LONG_ID)))
   {
     LSN dummy_lsn;
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[6];
     int6store(log_data, trn->trid);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     trn->first_undo_lsn|= TRANSACTION_LOGGED_LONG_ID; /* no recursion */
     if (unlikely(translog_write_record(&dummy_lsn, LOGREC_LONG_TRANSACTION_ID,
@@ -7521,7 +7523,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
   if (likely(share->id == 0))
   {
     LSN lsn;
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     uchar log_data[FILEID_STORE_SIZE];
     /* Inspired by set_short_trid() of trnman.c */
     uint i= share->kfile.file % SHARE_ID_MAX + 1;
@@ -7542,7 +7544,7 @@ int translog_assign_id_to_share(MARIA_HA *tbl_info, TRN *trn)
       i= 1; /* scan the whole array */
     } while (share->id == 0);
     DBUG_PRINT("info", ("id_to_share: 0x%lx -> %u", (ulong)share, share->id));
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
       open_file_name is an unresolved name (symlinks are not resolved, datadir

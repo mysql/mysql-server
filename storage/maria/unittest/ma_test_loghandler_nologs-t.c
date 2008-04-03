@@ -40,7 +40,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   uchar long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn;
-  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+  LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
   uchar *long_buffer= malloc(LONG_BUFFER_SIZE);
 
   MY_INIT(argv[0]);

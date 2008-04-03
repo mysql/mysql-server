@@ -2733,10 +2733,10 @@ static my_bool _ma_bitmap_create_missing(MARIA_HA *info,
   {
     LSN lsn;
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     page_store(log_data + FILEID_STORE_SIZE, from);
     page_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE, page);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     /*
       We don't use info->trn so that this REDO is always executed even though

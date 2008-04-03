@@ -455,10 +455,11 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
 */
 
 #ifdef PICK_BY_PERIMETER
-static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                   uchar *key,
-                                   uint key_length, uchar *page_buf,
-                                   uint nod_flag)
+static const uchar *maria_rtree_pick_key(const MARIA_HA *info,
+                                         const MARIA_KEYDEF *keyinfo,
+                                         const uchar *key,
+                                         uint key_length, const uchar *page_buf,
+                                         uint nod_flag)
 {
   double increase;
   double best_incr;
@@ -491,22 +492,22 @@ static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 #endif /*PICK_BY_PERIMETER*/
 
 #ifdef PICK_BY_AREA
-static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                  uchar *key,
-                                  uint key_length, uchar *page_buf,
-                                  uint nod_flag)
+static const uchar *maria_rtree_pick_key(const MARIA_HA *info,
+                                         const MARIA_KEYDEF *keyinfo,
+                                         const uchar *key,
+                                         uint key_length, const uchar *page_buf,
+                                         uint nod_flag)
 {
   MARIA_SHARE *share= info->s;
   double increase;
   double best_incr= DBL_MAX;
   double area;
   double best_area;
-  uchar *best_key;
-  uchar *k= rt_PAGE_FIRST_KEY(share, page_buf, nod_flag);
-  uchar *last= rt_PAGE_END(share, page_buf);
+  const uchar *best_key= NULL;
+  const uchar *k= rt_PAGE_FIRST_KEY(share, page_buf, nod_flag);
+  const uchar *last= rt_PAGE_END(share, page_buf);
 
   LINT_INIT(best_area);
-  LINT_INIT(best_key);
 
   for (; k < last; k= rt_PAGE_NEXT_KEY(share, k, key_length, nod_flag))
   {
@@ -537,8 +538,9 @@ static uchar *maria_rtree_pick_key(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     1	Child was split
 */
 
-static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                  uchar *key,
+static int maria_rtree_insert_req(MARIA_HA *info,
+                                  const MARIA_KEYDEF *keyinfo,
+                                  const uchar *key,
                                   uint key_length, my_off_t page,
                                   my_off_t *new_page,
                                   int ins_level, int level)
@@ -565,9 +567,10 @@ static int maria_rtree_insert_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   if ((ins_level == -1 && nod_flag) ||       /* key: go down to leaf */
       (ins_level > -1 && ins_level > level)) /* branch: go down to ins_level */
   {
-    if ((k= maria_rtree_pick_key(info, keyinfo, key, key_length, page_buf,
-                                  nod_flag)) == NULL)
+    if ((k= (uchar *)maria_rtree_pick_key(info, keyinfo, key, key_length,
+                                          page_buf, nod_flag)) == NULL)
       goto err1;
+    /* k is now a pointer inside the page_buf buffer */
     switch ((res= maria_rtree_insert_req(info, keyinfo, key, key_length,
                                           _ma_kpos(nod_flag, k), new_page,
                                           ins_level, level + 1)))
@@ -639,8 +642,9 @@ err1:
     1	Root was split
 */
 
-static int maria_rtree_insert_level(MARIA_HA *info, uint keynr, uchar *key,
-                                    uint key_length, int ins_level)
+int maria_rtree_insert_level(MARIA_HA *info, uint keynr,
+                             const uchar *key,
+                             uint key_length, int ins_level)
 {
   my_off_t old_root;
   MARIA_SHARE *share= info->s;
@@ -754,7 +758,8 @@ err1:
     0	OK
 */
 
-int maria_rtree_insert(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
+int maria_rtree_insert(MARIA_HA *info, uint keynr,
+                       uchar *key, uint key_length)
 {
   int res;
   DBUG_ENTER("maria_rtree_insert");
@@ -809,7 +814,7 @@ err1:
 */
 
 static int maria_rtree_delete_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                                  uchar *key,
+                                  const uchar *key,
                                   uint key_length, my_off_t page,
                                   uint *page_size,
                                   stPageList *ReinsertList, int level)
@@ -970,7 +975,8 @@ err1:
     0	Deleted
 */
 
-int maria_rtree_delete(MARIA_HA *info, uint keynr, uchar *key, uint key_length)
+int maria_rtree_delete(MARIA_HA *info, uint keynr,
+                       uchar *key, uint key_length)
 {
   MARIA_SHARE *share= info->s;
   uint page_size;

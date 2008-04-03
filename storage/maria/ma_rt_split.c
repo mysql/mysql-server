@@ -26,7 +26,7 @@ typedef struct
 {
   double square;
   int n_node;
-  uchar *key;
+  const uchar *key;
   double *coords;
 } SplitStruct;
 
@@ -247,8 +247,8 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
   return 0;
 }
 
-int maria_rtree_split_page(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
-                           uchar *page, uchar *key,
+int maria_rtree_split_page(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
+                           uchar *page, const uchar *key,
                            uint key_length, my_off_t *new_page_offs)
 {
   MARIA_SHARE *share= info->s;

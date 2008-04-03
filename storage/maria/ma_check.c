@@ -703,7 +703,7 @@ void maria_collect_stats_nonulls_first(HA_KEYSEG *keyseg, ulonglong *notnull,
                                        const uchar *key)
 {
   uint first_null, kp;
-  first_null= ha_find_null(keyseg, (uchar*) key) - keyseg;
+  first_null= ha_find_null(keyseg, key) - keyseg;
   /*
     All prefix tuples that don't include keypart_{first_null} are not-null
     tuples (and all others aren't), increment counters for them.
@@ -755,12 +755,12 @@ int maria_collect_stats_nonulls_next(HA_KEYSEG *keyseg, ulonglong *notnull,
                       last_key that is NULL or different from corresponding
                       value in prev_key.
   */
-  ha_key_cmp(keyseg, (uchar*) prev_key, (uchar*) last_key, USE_WHOLE_KEY,
+  ha_key_cmp(keyseg, prev_key, last_key, USE_WHOLE_KEY,
              SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diffs);
   seg= keyseg + diffs[0] - 1;
 
   /* Find first NULL in last_key */
-  first_null_seg= ha_find_null(seg, (uchar*) last_key + diffs[1]) - keyseg;
+  first_null_seg= ha_find_null(seg, last_key + diffs[1]) - keyseg;
   for (kp= 0; kp < first_null_seg; kp++)
     notnull[kp]++;
 
@@ -5051,7 +5051,8 @@ static int sort_key_cmp(MARIA_SORT_PARAM *sort_param, const void *a,
 			const void *b)
 {
   uint not_used[2];
-  return (ha_key_cmp(sort_param->seg, *((uchar**) a), *((uchar**) b),
+  return (ha_key_cmp(sort_param->seg, *((uchar* const *) a),
+                     *((uchar* const *) b),
 		     USE_WHOLE_KEY, SEARCH_SAME, not_used));
 } /* sort_key_cmp */
 
@@ -5067,11 +5068,11 @@ static int sort_key_write(MARIA_SORT_PARAM *sort_param, const uchar *a)
   if (sort_info->key_block->inited)
   {
     cmp=ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
-		   (uchar*) a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
+		   a, USE_WHOLE_KEY,SEARCH_FIND | SEARCH_UPDATE,
 		   diff_pos);
     if (param->stats_method == MI_STATS_METHOD_NULLS_NOT_EQUAL)
       ha_key_cmp(sort_param->seg, (uchar*) sort_info->key_block->lastkey,
-                 (uchar*) a, USE_WHOLE_KEY,
+                 a, USE_WHOLE_KEY,
                  SEARCH_FIND | SEARCH_NULL_ARE_NOT_EQUAL, diff_pos);
     else if (param->stats_method == MI_STATS_METHOD_IGNORE_NULLS)
     {
@@ -5178,7 +5179,7 @@ static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
   MARIA_SHARE *share= sort_info->info->s;
 
   val_len=HA_FT_WLEN+share->base.rec_reflength;
-  get_key_full_length_rdonly(a_len, (uchar *)a);
+  get_key_full_length_rdonly(a_len, a);
 
   if (!ft_buf)
   {
@@ -5204,7 +5205,7 @@ static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
   get_key_full_length_rdonly(val_off, ft_buf->lastkey);
 
   if (ha_compare_text(sort_param->seg->charset,
-                      ((uchar *)a)+1,a_len-1,
+                      a+1,a_len-1,
                       (uchar*) ft_buf->lastkey+1,val_off-1, 0, 0)==0)
   {
     uchar *p;
@@ -5216,7 +5217,7 @@ static int sort_maria_ft_key_write(MARIA_SORT_PARAM *sort_param,
     }
 
     /* storing the key in the buffer. */
-    memcpy (ft_buf->buf, (char *)a+a_len, val_len);
+    memcpy (ft_buf->buf, (const char *)a+a_len, val_len);
     ft_buf->buf+=val_len;
     if (ft_buf->buf < ft_buf->end)
       return 0;
@@ -5971,7 +5972,7 @@ static ha_checksum maria_byte_checksum(const uchar *buf, uint length)
   ha_checksum crc;
   const uchar *end=buf+length;
   for (crc=0; buf != end; buf++)
-    crc=((crc << 1) + *((uchar*) buf)) +
+    crc=((crc << 1) + *buf) +
       test(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
   return crc;
 }
@@ -6355,7 +6356,7 @@ my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
       was it was at the start of the original repair (should be stored in log
       record).
     */
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[FILEID_STORE_SIZE + 8 + 8];
     LSN lsn;
 
@@ -6367,7 +6368,7 @@ my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
     /* org_key_map is used when recreating index after a load data infile */
     int8store(log_data + FILEID_STORE_SIZE + 8, param->org_key_map);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     share->now_transactional= 1;
@@ -6408,11 +6409,11 @@ my_bool write_log_record_for_repair(const HA_CHECK *param, MARIA_HA *info)
 */
 my_bool write_log_record_for_bulk_insert(MARIA_HA *info)
 {
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
   uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE];
   LSN lsn;
   lsn_store(log_data, info->trn->undo_lsn);
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
   return translog_write_record(&lsn, LOGREC_UNDO_BULK_INSERT,
                                info->trn, info,

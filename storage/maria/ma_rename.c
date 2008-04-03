@@ -67,11 +67,11 @@ int maria_rename(const char *old_name, const char *new_name)
   if (sync_dir)
   {
     LSN lsn;
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     uint old_name_len= strlen(old_name)+1, new_name_len= strlen(new_name)+1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)old_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    old_name;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= old_name_len;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *)new_name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    new_name;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= new_name_len;
     /*
       For this record to be of any use for Recovery, we need the upper

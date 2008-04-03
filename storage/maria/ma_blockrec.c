@@ -1794,7 +1794,7 @@ static my_bool write_tail(MARIA_HA *info,
   {
     /* Log changes in tail block */
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     LSN lsn;
 
     /*
@@ -1806,9 +1806,9 @@ static my_bool write_tail(MARIA_HA *info,
     page_store(log_data + FILEID_STORE_SIZE, block->page);
     dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos.rownr);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos.data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    row_pos.data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
     if (translog_write_record(&lsn,
                               (block_is_read ? LOGREC_REDO_INSERT_ROW_TAIL :
@@ -2208,7 +2208,7 @@ static my_bool extent_to_bitmap_blocks(MARIA_HA *info,
 static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
 {
   uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE];
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
   LSN lsn;
   size_t extents_length;
   uchar *extents= row->extents;
@@ -2267,9 +2267,9 @@ static my_bool free_full_pages(MARIA_HA *info, MARIA_ROW *row)
     }
     extents_count= (uint) (extents_length / ROW_EXTENT_SIZE);
     pagerange_store(log_data + FILEID_STORE_SIZE, extents_count);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) compact_extent_info;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    compact_extent_info;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extents_length;
     res= translog_write_record(&lsn, LOGREC_REDO_FREE_BLOCKS, info->trn,
                                info,
@@ -2315,14 +2315,14 @@ static my_bool free_full_page_range(MARIA_HA *info, pgcache_page_no_t page,
     /** @todo unify log_data's shape with delete_head_or_tail() */
     uchar log_data[FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
                    ROW_EXTENT_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     DBUG_ASSERT(info->trn->rec_lsn);
     pagerange_store(log_data + FILEID_STORE_SIZE, 1);
     page_store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE,
               page);
     int2store(log_data + FILEID_STORE_SIZE + PAGERANGE_STORE_SIZE +
               PAGE_STORE_SIZE, count);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     if (translog_write_record(&lsn, LOGREC_REDO_FREE_BLOCKS,
@@ -2560,7 +2560,7 @@ static my_bool write_block_record(MARIA_HA *info,
       tmp_data_used= tmp_data;
       tmp_data= info->rec_buff;
     }
-    memcpy((char*) tmp_data, (char*) field_pos, length);
+    memcpy((char*) tmp_data, field_pos, length);
     tmp_data+= length;
   }
 
@@ -2861,15 +2861,15 @@ static my_bool write_block_record(MARIA_HA *info,
   if (share->now_transactional)
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
 
     /* Log REDO changes of head page */
     page_store(log_data + FILEID_STORE_SIZE, head_block->page);
     dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                  row_pos->rownr);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) row_pos->data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    row_pos->data;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= head_length;
     if (translog_write_record(&lsn,
                               head_block_is_read ?
@@ -2944,9 +2944,9 @@ static my_bool write_block_record(MARIA_HA *info,
                        (ROW_EXTENT_SIZE + BLOCK_FILLER_SIZE + SUB_RANGE_SIZE) *
                        ROW_EXTENTS_ON_STACK];
     uchar *log_data, *log_pos;
-    LEX_STRING tmp_log_array[TRANSLOG_INTERNAL_PARTS + 2 +
-                             ROW_EXTENTS_ON_STACK];
-    LEX_STRING *log_array_pos, *log_array;
+    LEX_CUSTRING tmp_log_array[TRANSLOG_INTERNAL_PARTS + 2 +
+                               ROW_EXTENTS_ON_STACK];
+    LEX_CUSTRING *log_array_pos, *log_array;
     int error;
     translog_size_t log_entry_length= 0;
     uint ext_length, extents= 0, sub_extents= 0;
@@ -3025,7 +3025,7 @@ static my_bool write_block_record(MARIA_HA *info,
       }
     }
 
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     ext_length=  (uint) (log_pos - log_data);
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= ext_length;
     pagerange_store(log_data+ FILEID_STORE_SIZE, extents);
@@ -3081,7 +3081,7 @@ static my_bool write_block_record(MARIA_HA *info,
                    PAGE_STORE_SIZE,
                    row_pos->rownr);
 
-      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
         (LSN_STORE_SIZE + FILEID_STORE_SIZE + PAGE_STORE_SIZE +
          DIRPOS_STORE_SIZE);
@@ -3102,7 +3102,8 @@ static my_bool write_block_record(MARIA_HA *info,
                                   (translog_size_t)
                                   log_array[TRANSLOG_INTERNAL_PARTS +
                                             0].length,
-                                  TRANSLOG_INTERNAL_PARTS + 1, log_array,
+                                  TRANSLOG_INTERNAL_PARTS + 1,
+                                  (LEX_CUSTRING *)log_array,
                                   log_data + LSN_STORE_SIZE, &checksum_delta))
           goto disk_err;
       }
@@ -3124,7 +3125,7 @@ static my_bool write_block_record(MARIA_HA *info,
         log_array[TRANSLOG_INTERNAL_PARTS + 0].length+= (2 +
                                                          PAGERANGE_STORE_SIZE);
         info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].str=
-          (char *) info->cur_row.extents;
+          info->cur_row.extents;
         info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].length=
           extents_length= info->cur_row.extents_count * ROW_EXTENT_SIZE;
 
@@ -3140,7 +3141,8 @@ static my_bool write_block_record(MARIA_HA *info,
                                    row_length),
                                   TRANSLOG_INTERNAL_PARTS + 2 +
                                   row_parts_count,
-                                  log_array, log_data + LSN_STORE_SIZE,
+                                  (LEX_CUSTRING *)log_array,
+                                  log_data + LSN_STORE_SIZE,
                                   &checksum_delta))
           goto disk_err;
       }
@@ -3864,7 +3866,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
   if (res == 0) /* after our deletion, page is still not empty */
   {
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + DIRPOS_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     if (share->now_transactional)
     {
       /* Log REDO data */
@@ -3872,7 +3874,7 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
       dirpos_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE,
                    record_number);
 
-      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
       if (translog_write_record(&lsn, (head ? LOGREC_REDO_PURGE_ROW_HEAD :
                                        LOGREC_REDO_PURGE_ROW_TAIL),
@@ -3888,9 +3890,9 @@ static my_bool delete_head_or_tail(MARIA_HA *info,
     if (share->now_transactional)
     {
       uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE];
-      LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+      LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
       page_store(log_data + FILEID_STORE_SIZE, page);
-      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+      log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
       log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
       if (translog_write_record(&lsn, LOGREC_REDO_FREE_HEAD_OR_TAIL,
                                 info->trn, info,
@@ -4006,7 +4008,7 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
     pagerange_store(log_pos, info->cur_row.extents_count);
     log_pos+= PAGERANGE_STORE_SIZE;
 
-    info->log_row_parts[TRANSLOG_INTERNAL_PARTS].str= (char*) log_data;
+    info->log_row_parts[TRANSLOG_INTERNAL_PARTS].str= log_data;
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS].length=
       sizeof(log_data) - HA_CHECKSUM_STORE_SIZE;
     store_checksum_in_rec(share, checksum_delta,
@@ -4014,12 +4016,13 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
                           info->log_row_parts[TRANSLOG_INTERNAL_PARTS +
                                               0].length);
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].str=
-      (char *) info->cur_row.extents;
+      info->cur_row.extents;
     info->log_row_parts[TRANSLOG_INTERNAL_PARTS+1].length=
       extents_length= info->cur_row.extents_count * ROW_EXTENT_SIZE;
 
-    row_length= fill_insert_undo_parts(info, record, info->log_row_parts +
-                                       TRANSLOG_INTERNAL_PARTS + 2,
+    row_length= fill_insert_undo_parts(info, record,
+                                       (info->log_row_parts +
+                                        TRANSLOG_INTERNAL_PARTS + 2),
                                        &row_parts_count);
 
     if (translog_write_record(&lsn, LOGREC_UNDO_ROW_DELETE, info->trn,
@@ -4029,7 +4032,8 @@ my_bool _ma_delete_block_record(MARIA_HA *info, const uchar *record)
                                                    0].length + row_length +
                                extents_length),
                               TRANSLOG_INTERNAL_PARTS + 2 + row_parts_count,
-                              info->log_row_parts, log_data + LSN_STORE_SIZE,
+                              (LEX_CUSTRING *)info->log_row_parts,
+                              log_data + LSN_STORE_SIZE,
                               &checksum_delta))
       goto err;
   }
@@ -5269,7 +5273,8 @@ static size_t fill_insert_undo_parts(MARIA_HA *info, const uchar *record,
   start_log_parts= log_parts;
 
   /* Store null bits */
-  log_parts->str=      (char*) record;
+  /* We cast "const uchar*" to char* but won't change its pointed content */
+  log_parts->str=      (char*)record;
   log_parts->length=   share->base.null_bytes;
   row_length=          log_parts->length;
   log_parts++;
@@ -5462,6 +5467,7 @@ static size_t fill_update_undo_parts(MARIA_HA *info, const uchar *oldrec,
   {
     /* Store changed null bits */
     *field_data++=       (uchar) 255;           /* Special case */
+    /* We cast "const uchar*" to char* but won't change its pointed content */
     log_parts->str=      (char*) oldrec;
     log_parts->length=   share->base.null_bytes;
     row_length=          log_parts->length;
@@ -6485,8 +6491,7 @@ err:
 /** Execute undo of a row delete (insert the row back where it was) */
 
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header,
-                                  size_t header_length
+                                  uchar *header, size_t header_length
                                   __attribute__((unused)))
 {
   MARIA_SHARE *share= info->s;
@@ -6544,16 +6549,16 @@ my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
 
   null_bits= header;
   header+= share->base.null_bytes;
-  row.empty_bits= (uchar*) header;
+  row.empty_bits= header;
   header+= share->base.pack_bytes;
   if (share->base.max_field_lengths)
   {
     row.field_lengths_length= uint2korr(header);
-    row.field_lengths= (uchar*) header + 2 ;
+    row.field_lengths= header + 2 ;
     header+= 2 + row.field_lengths_length;
   }
   if (share->base.blobs)
-    row.blob_length= ma_get_length((uchar**) &header);
+    row.blob_length= ma_get_length(&header);
 
   /* We need to build up a record (without blobs) in rec_buff */
   if (!(record= my_malloc(share->base.reclength, MYF(MY_WME))))
@@ -6729,13 +6734,13 @@ err:
 */
 
 my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header,
-                                  size_t header_length
+                                  uchar *header, size_t header_length
                                   __attribute__((unused)))
 {
   MARIA_SHARE *share= info->s;
   MARIA_RECORD_POS record_pos;
-  const uchar *field_length_data, *field_length_data_end, *extent_info;
+  uchar *field_length_data;
+  const uchar *field_length_data_end, *extent_info;
   uchar *current_record, *orig_record;
   pgcache_page_no_t page;
   ha_checksum checksum_delta;
@@ -6768,7 +6773,7 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
     Set header to point to old field values, generated by
     fill_update_undo_parts()
   */
-  field_length_header= ma_get_length((uchar**) &header);
+  field_length_header= ma_get_length(&header);
   field_length_data= header;
   header+= field_length_header;
   field_length_data_end= header;
@@ -6795,14 +6800,14 @@ my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
 
   while (field_length_data < field_length_data_end)
   {
-    uint field_nr= ma_get_length((uchar**) &field_length_data), field_length;
+    uint field_nr= ma_get_length(&field_length_data), field_length;
     MARIA_COLUMNDEF *column= share->columndef + field_nr;
     uchar *orig_field_pos= orig_record + column->offset;
 
     bitmap_set_bit(&info->changed_fields, field_nr);
     if (field_nr >= share->base.fixed_not_null_fields)
     {
-      if (!(field_length= ma_get_length((uchar**) &field_length_data)))
+      if (!(field_length= ma_get_length(&field_length_data)))
       {
         /* Null field or empty field */
         bfill(orig_field_pos, column->fill_length,

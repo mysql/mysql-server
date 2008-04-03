@@ -22,7 +22,7 @@
 /* Fetch a key-page in memory */
 
 uchar *_ma_fetch_keypage(register MARIA_HA *info,
-                         MARIA_KEYDEF *keyinfo __attribute__ ((unused)),
+                         const MARIA_KEYDEF *keyinfo __attribute__ ((unused)),
                          my_off_t pos, enum pagecache_page_lock lock,
                          int level, uchar *buff,
                          int return_buffer __attribute__ ((unused)),
@@ -85,7 +85,8 @@ uchar *_ma_fetch_keypage(register MARIA_HA *info,
 /* Write a key-page on disk */
 
 int _ma_write_keypage(register MARIA_HA *info,
-                      register MARIA_KEYDEF *keyinfo __attribute__((unused)),
+                      register const MARIA_KEYDEF *keyinfo
+                      __attribute__((unused)),
 		      my_off_t pos, enum pagecache_page_lock lock,
                       int level, uchar *buff)
 {
@@ -209,7 +210,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   {
     LSN lsn;
     uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     my_off_t page;
 
     /* Store address of deleted page */
@@ -220,7 +221,7 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
            old_link / block_size);
     page_store(log_data + FILEID_STORE_SIZE + PAGE_STORE_SIZE, page);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
     if (translog_write_record(&lsn, LOGREC_REDO_INDEX_FREE_PAGE,

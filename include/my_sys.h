@@ -802,7 +802,7 @@ extern my_bool init_dynamic_array2(DYNAMIC_ARRAY *array,uint element_size,
 extern my_bool init_dynamic_array(DYNAMIC_ARRAY *array,uint element_size,
                                   uint init_alloc,uint alloc_increment
                                   CALLER_INFO_PROTO);
-extern my_bool insert_dynamic(DYNAMIC_ARRAY *array,uchar * element);
+extern my_bool insert_dynamic(DYNAMIC_ARRAY *array, const uchar * element);
 extern uchar *alloc_dynamic(DYNAMIC_ARRAY *array);
 extern uchar *pop_dynamic(DYNAMIC_ARRAY*);
 extern my_bool set_dynamic(DYNAMIC_ARRAY *array,uchar * element,uint array_index);

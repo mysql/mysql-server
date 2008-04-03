@@ -220,14 +220,15 @@ static int really_execute_checkpoint(void)
       of its argument, so we must not pass it record_pieces directly,
       otherwise we would later not know what memory pieces to my_free().
     */
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 5];
     log_array[TRANSLOG_INTERNAL_PARTS + 0].str=
       checkpoint_start_log_horizon_char;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= total_rec_length=
       sizeof(checkpoint_start_log_horizon_char);
     for (i= 0; i < (sizeof(record_pieces)/sizeof(record_pieces[0])); i++)
     {
-      log_array[TRANSLOG_INTERNAL_PARTS + 1 + i]= record_pieces[i];
+      log_array[TRANSLOG_INTERNAL_PARTS + 1 + i]=
+        *(LEX_CUSTRING *)&record_pieces[i];
       total_rec_length+= (translog_size_t) record_pieces[i].length;
     }
     if (unlikely(translog_write_record(&lsn, LOGREC_CHECKPOINT,

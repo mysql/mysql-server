@@ -61,9 +61,9 @@ int maria_delete_all_rows(MARIA_HA *info)
       This record will be used by Recovery to finish the deletion if it
       crashed. We force it to have a complete history in the log.
     */
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     uchar log_data[FILEID_STORE_SIZE];
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     if (unlikely(translog_write_record(&lsn, LOGREC_REDO_DELETE_ALL,
                                        info->trn, info, 0,

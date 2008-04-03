@@ -654,15 +654,15 @@ struct st_maria_handler
 }
 
 #define get_key_full_length(length,key) \
-  { if (*(uchar*) (key) != 255)            \
-    length= ((uint) *(uchar*) ((key)++))+1; \
+  { if (*(const uchar*) (key) != 255)            \
+    length= ((uint) *(const uchar*) ((key)++))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; (key)+=3; } \
 }
 
 #define get_key_full_length_rdonly(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= ((uint) *(uchar*) ((key)))+1; \
+{ if (*(const uchar*) (key) != 255) \
+    length= ((uint) *(const uchar*) ((key)))+1; \
   else \
   { length=mi_uint2korr((key)+1)+3; } \
 }
@@ -858,7 +858,7 @@ extern int _ma_prefix_search(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                              uchar *page, const uchar *key, uint key_len,
                              uint comp_flag, uchar ** ret_pos, uchar *buff,
                              my_bool *was_last_key);
-extern my_off_t _ma_kpos(uint nod_flag, uchar *after_key);
+extern my_off_t _ma_kpos(uint nod_flag, const uchar *after_key);
 extern void _ma_kpointer(MARIA_HA *info, uchar *buff, my_off_t pos);
 extern MARIA_RECORD_POS _ma_dpos(MARIA_HA *info, uint nod_flag,
                                  const uchar *after_key);
@@ -893,11 +893,13 @@ extern my_off_t _ma_transparent_recpos(MARIA_HA *info, my_off_t pos);
 extern my_off_t _ma_transaction_keypos_to_recpos(MARIA_HA *info, my_off_t pos);
 extern my_off_t _ma_transaction_recpos_to_keypos(MARIA_HA *info, my_off_t pos);
 
-extern uchar *_ma_fetch_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+extern uchar *_ma_fetch_keypage(MARIA_HA *info,
+                                const MARIA_KEYDEF *keyinfo,
                                 my_off_t page, enum pagecache_page_lock lock,
                                 int level, uchar *buff, int return_buffer,
                                 MARIA_PINNED_PAGE **page_link);
-extern int _ma_write_keypage(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
+extern int _ma_write_keypage(MARIA_HA *info,
+                             const MARIA_KEYDEF *keyinfo,
                              my_off_t page, enum pagecache_page_lock lock,
                              int level, uchar *buff);
 extern int _ma_dispose(MARIA_HA *info, my_off_t pos, my_bool page_not_read);

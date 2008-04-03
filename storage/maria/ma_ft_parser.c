@@ -85,7 +85,7 @@ my_bool maria_ft_boolean_check_syntax_string(const uchar *str)
   uint i, j;
 
   if (!str ||
-      (strlen((char *) str) + 1 != sizeof(ft_boolean_syntax)) ||
+      (strlen((const char *) str) + 1 != sizeof(ft_boolean_syntax)) ||
       (str[0] != ' ' && str[1] != ' '))
     return 1;
   for (i=0; i<sizeof(ft_boolean_syntax); i++)
@@ -215,7 +215,7 @@ uchar maria_ft_simple_get_word(CHARSET_INFO *cs, uchar **start,
     {
       if (doc >= end)
         DBUG_RETURN(0);
-      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      mbl= cs->cset->ctype(cs, &ctype, doc, end);
       if (true_word_char(ctype, *doc))
         break;
     }
@@ -223,7 +223,7 @@ uchar maria_ft_simple_get_word(CHARSET_INFO *cs, uchar **start,
     mwc= length= 0;
     for (word->pos= doc; doc < end; length++, doc+= (mbl > 0 ? mbl : 1))
     {
-      mbl= cs->cset->ctype(cs, &ctype, (uchar*)doc, (uchar*)end);
+      mbl= cs->cset->ctype(cs, &ctype, doc, end);
       if (true_word_char(ctype, *doc))
         mwc= 0;
       else if (!misc_word_char(*doc) || mwc)

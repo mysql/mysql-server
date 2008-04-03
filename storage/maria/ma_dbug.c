@@ -70,7 +70,7 @@ void _ma_print_key(FILE *stream, register HA_KEYSEG *keyseg,
       }
       break;
     case HA_KEYTYPE_INT8:
-      VOID(fprintf(stream,"%d",(int) *((signed char*) key)));
+      VOID(fprintf(stream,"%d",(int) *((const signed char*) key)));
       key=end;
       break;
     case HA_KEYTYPE_SHORT_INT:

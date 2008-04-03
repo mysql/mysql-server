@@ -180,7 +180,7 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
   {
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    KEY_NR_STORE_SIZE + PAGE_STORE_SIZE], *log_pos;
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     struct st_msg_to_write_hook_for_undo_key msg;
     enum translog_record_type log_type= LOGREC_UNDO_KEY_DELETE;
 
@@ -207,9 +207,9 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
       This is because the row may be inserted at a different place when
       we exceute the undo
     */
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) key_buff;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_buff;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
 
     msg.root= &share->state.key_root[keynr];
@@ -1377,7 +1377,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 9 + 7], *log_pos;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   MARIA_SHARE *share= info->s;
   uint translog_parts;
   uint offset= (uint) (key_pos - buff);
@@ -1403,7 +1403,7 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, changed_length);
     log_pos+= 3;
     translog_parts= 2;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char *) buff + offset;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= changed_length;
   }
 
@@ -1416,14 +1416,14 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, page_length);
     int4store(log_pos+3, crc);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
     changed_length+= 7;
     translog_parts++;
   }
 #endif
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,

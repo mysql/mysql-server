@@ -75,7 +75,7 @@ uint _ma_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
   if (ftsi->seg->flag & HA_VAR_LENGTH_PART)
   {
     uint pack_length= (ftsi->seg->bit_start);
-    ftsi->len= (pack_length == 1 ? (uint) *(uchar*) ftsi->pos :
+    ftsi->len= (pack_length == 1 ? (uint) * ftsi->pos :
                 uint2korr(ftsi->pos));
     ftsi->pos+= pack_length;			 /* Skip VARCHAR length */
     DBUG_RETURN(1);
@@ -107,6 +107,7 @@ uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const uchar *record,
   parser= info->s->keyinfo[keynr].parser;
   while (_ma_ft_segiterator(&ftsi))
   {
+    /** @todo this casts ftsi.pos (const) to non-const */
     if (ftsi.pos)
       if (maria_ft_parse(parsed, (uchar *)ftsi.pos, ftsi.len, parser, param,
                          mem_root))
@@ -182,8 +183,8 @@ int _ma_ft_cmp(MARIA_HA *info, uint keynr, const uchar *rec1, const uchar *rec2)
   {
     if ((ftsi1.pos != ftsi2.pos) &&
         (!ftsi1.pos || !ftsi2.pos ||
-         ha_compare_text(cs, (uchar*) ftsi1.pos,ftsi1.len,
-                         (uchar*) ftsi2.pos,ftsi2.len,0,0)))
+         ha_compare_text(cs, ftsi1.pos,ftsi1.len,
+                         ftsi2.pos,ftsi2.len,0,0)))
       DBUG_RETURN(THOSE_TWO_DAMN_KEYS_ARE_REALLY_DIFFERENT);
   }
   DBUG_RETURN(GEE_THEY_ARE_ABSOLUTELY_IDENTICAL);

@@ -30,7 +30,7 @@ int ma_commit(TRN *trn)
 {
   int res;
   LSN commit_lsn;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS];
   DBUG_ENTER("ma_commit");
 
   if (trn->undo_lsn == 0) /* no work done, rollback (cheaper than commit) */

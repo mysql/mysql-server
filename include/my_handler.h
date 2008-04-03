@@ -58,22 +58,22 @@ typedef struct st_HA_KEYSEG		/* Key-portion */
 } HA_KEYSEG;
 
 #define get_key_length(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= (uint) *(uchar*) ((key)++); \
+{ if (*(const uchar*) (key) != 255) \
+    length= (uint) *(const uchar*) ((key)++); \
   else \
   { length= mi_uint2korr((key)+1); (key)+=3; } \
 }
 
 #define get_key_length_rdonly(length,key) \
-{ if (*(uchar*) (key) != 255) \
-    length= ((uint) *(uchar*) ((key))); \
+{ if (*(const uchar*) (key) != 255) \
+    length= ((uint) *(const uchar*) ((key))); \
   else \
   { length= mi_uint2korr((key)+1); } \
 }
 
 #define get_key_pack_length(length,length_pack,key) \
-{ if (*(uchar*) (key) != 255) \
-  { length= (uint) *(uchar*) ((key)++); length_pack= 1; }\
+{ if (*(const uchar*) (key) != 255) \
+  { length= (uint) *(const uchar*) ((key)++); length_pack= 1; }\
   else \
   { length=mi_uint2korr((key)+1); (key)+= 3; length_pack= 3; } \
 }
@@ -109,7 +109,7 @@ extern int ha_key_cmp(register HA_KEYSEG *keyseg, register const uchar *a,
 		      register const uchar *b, uint key_length, uint nextflag,
 		      uint *diff_pos);
 
-extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, uchar *a);
+extern HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a);
 extern void my_handler_error_register(void);
 extern void my_handler_error_unregister(void);
 /*

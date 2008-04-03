@@ -82,10 +82,10 @@ struct st_maria_handler;
 #define ha_checksum_store(T,A) int4store(T,A)
 #define fileid_korr(P) uint2korr(P)
 #define page_korr(P)   uint5korr(P)
-#define dirpos_korr(P) (*(uchar *) (P))
+#define dirpos_korr(P) (*(const uchar *) (P))
 #define pagerange_korr(P) uint2korr(P)
-#define clr_type_korr(P) (*(uchar *) (P))
-#define key_nr_korr(P) (*(uchar *) (P))
+#define clr_type_korr(P) (*(const uchar *) (P))
+#define key_nr_korr(P) (*(const uchar *) (P))
 #define ha_checksum_korr(P) uint4korr(P)
 
 /*
@@ -276,7 +276,7 @@ extern my_bool
 translog_write_record(LSN *lsn, enum translog_record_type type, TRN *trn,
                       MARIA_HA *tbl_info,
                       translog_size_t rec_len, uint part_no,
-                      LEX_STRING *parts_data, uchar *store_share_id,
+                      LEX_CUSTRING *parts_data, uchar *store_share_id,
                       void *hook_arg);
 
 extern void translog_destroy();
@@ -352,8 +352,8 @@ struct st_translog_parts
   uint current;
   /* total number of elements in parts */
   uint elements;
-  /* array of parts (LEX_STRING) */
-  LEX_STRING *parts;
+  /* array of parts */
+  LEX_CUSTRING *parts;
 };
 
 typedef my_bool(*prewrite_rec_hook) (enum translog_record_type type,

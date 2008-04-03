@@ -243,9 +243,9 @@ my_bool _ma_apply_redo_bitmap_new_page(MARIA_HA *info, LSN lsn,
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header);
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header, size_t length);
+                                  uchar *header, size_t length);
 my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
-                                  const uchar *header, size_t length);
+                                  uchar *header, size_t length);
 my_bool _ma_apply_undo_bulk_insert(MARIA_HA *info, LSN undo_lsn);
 
 my_bool write_hook_for_redo(enum translog_record_type type,

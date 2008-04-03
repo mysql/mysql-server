@@ -209,7 +209,7 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   {
     mid= (start+end)/2;
     if ((flag=ha_key_cmp(keyinfo->seg,(uchar*) page+(uint) mid*totlength,
-                         (uchar*) key, key_len, comp_flag, not_used))
+                         key, key_len, comp_flag, not_used))
         >= 0)
       end=mid;
     else
@@ -217,7 +217,7 @@ int _ma_bin_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
   }
   if (mid != start)
     flag=ha_key_cmp(keyinfo->seg, (uchar*) page+(uint) start*totlength,
-                    (uchar*) key, key_len, comp_flag, not_used);
+                    key, key_len, comp_flag, not_used);
   if (flag < 0)
     start++;                    /* point at next, bigger key */
   *ret_pos= (page + (uint) start * totlength);
@@ -284,7 +284,7 @@ int _ma_seq_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
                   length, (long) page, (long) end));
       DBUG_RETURN(MARIA_FOUND_WRONG_KEY);
     }
-    if ((flag= ha_key_cmp(keyinfo->seg, (uchar*) t_buff,(uchar*) key,
+    if ((flag= ha_key_cmp(keyinfo->seg, t_buff, key,
                           key_len,comp_flag, not_used)) >= 0)
       break;
 #ifdef EXTRA_DEBUG
@@ -584,7 +584,7 @@ int _ma_prefix_search(MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 
         /* Get pos to a key_block */
 
-my_off_t _ma_kpos(uint nod_flag, uchar *after_key)
+my_off_t _ma_kpos(uint nod_flag, const uchar *after_key)
 {
   after_key-=nod_flag;
   switch (nod_flag) {
@@ -1634,7 +1634,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
     if (sort_order)                             /* SerG */
     {
       while (key < end &&
-             sort_order[* (uchar*) key] == sort_order[* (uchar*) prev_key])
+             sort_order[*key] == sort_order[*prev_key])
       {
         key++; prev_key++;
       }
@@ -1716,7 +1716,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
           if (sort_order)                       /* SerG */
           {
             while (key < end &&
-                   sort_order[*(uchar*) key] == sort_order[*(uchar*) org_key])
+                   sort_order[*key] == sort_order[*org_key])
             {
               key++; org_key++;
             }
@@ -1801,7 +1801,7 @@ _ma_calc_var_pack_key_length(MARIA_KEYDEF *keyinfo, uint nod_flag,
         if (sort_order)                         /* SerG */
         {
           while (key < key_end &&
-                 sort_order[*(uchar*) key] == sort_order[*(uchar*) next_key])
+                 sort_order[*key] == sort_order[*next_key])
           {
             key++; next_key++;
           }

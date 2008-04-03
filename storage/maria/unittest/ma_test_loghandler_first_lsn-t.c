@@ -39,7 +39,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   uchar long_tr_id[6];
   PAGECACHE pagecache;
   LSN lsn, first_lsn, theor_lsn;
-  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+  LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
 

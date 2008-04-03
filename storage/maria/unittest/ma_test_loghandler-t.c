@@ -160,7 +160,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   PAGECACHE pagecache;
   LSN lsn, lsn_base, first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
-  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 3];
+  LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 3];
   struct st_translog_scanner_data scanner;
   int rc;
 

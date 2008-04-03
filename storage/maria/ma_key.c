@@ -95,7 +95,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     {
       if (keyseg->bit_length)
       {
-        uchar bits= get_rec_bits((uchar*) record + keyseg->bit_pos,
+        uchar bits= get_rec_bits(record + keyseg->bit_pos,
                                  keyseg->bit_start, keyseg->bit_length);
         *key++= (char) bits;
         length--;
@@ -108,7 +108,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     {
       if (type != HA_KEYTYPE_NUM)
       {
-        length= (uint) cs->cset->lengthsp(cs, (char*) pos, length);
+        length= (uint) cs->cset->lengthsp(cs, (const char*)pos, length);
       }
       else
       {
@@ -126,7 +126,7 @@ uint _ma_make_key(register MARIA_HA *info, uint keynr, uchar *key,
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint pack_length= (keyseg->bit_start == 1 ? 1 : 2);
-      uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
+      uint tmp_length= (pack_length == 1 ? (uint) *pos :
                         uint2korr(pos));
       pos+= pack_length;			/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
@@ -513,10 +513,10 @@ ulonglong ma_retrieve_auto_increment(const uchar *key, uint8 key_type)
 
   switch (key_type) {
   case HA_KEYTYPE_INT8:
-    s_value= (longlong) *(char*)key;
+    s_value= (longlong) *(const char*)key;
     break;
   case HA_KEYTYPE_BINARY:
-    value=(ulonglong)  *(uchar*) key;
+    value=(ulonglong)  *key;
     break;
   case HA_KEYTYPE_SHORT_INT:
     s_value= (longlong) sint2korr(key);

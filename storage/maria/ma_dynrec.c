@@ -318,7 +318,11 @@ my_bool _ma_delete_dynamic_record(MARIA_HA *info,
 }
 
 
-	/* Write record to data-file */
+/**
+  Write record to data-file.
+
+  @todo it's cheating: it casts "const uchar*" to uchar*.
+*/
 
 static my_bool write_dynamic_record(MARIA_HA *info, const uchar *record,
                                     ulong reclength)
@@ -943,7 +947,8 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
                   register const uchar *from)
 {
   uint		length,new_length,flag,bit,i;
-  uchar		*pos,*end,*startpos,*packpos;
+  const uchar   *pos,*end;
+  uchar         *startpos,*packpos;
   enum en_fieldtype type;
   reg3 MARIA_COLUMNDEF *column;
   MARIA_BLOB	*blob;
@@ -984,7 +989,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((uchar*) from, maria_zero_string, length) == 0)
+	if (memcmp(from, maria_zero_string, length) == 0)
 	  flag|=bit;
 	else
 	{
@@ -995,7 +1000,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
       else if (type == FIELD_SKIP_ENDSPACE ||
 	       type == FIELD_SKIP_PRESPACE)
       {
-	pos= (uchar*) from; end= (uchar*) from + length;
+	pos= from; end= from + length;
 	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > from && *(end-1) == ' ')
@@ -1032,7 +1037,7 @@ uint _ma_rec_pack(MARIA_HA *info, register uchar *to,
 	uint tmp_length;
         if (pack_length == 1)
         {
-          tmp_length= (uint) *(uchar*) from;
+          tmp_length= (uint) *from;
           *to++= *from;
         }
         else
@@ -1080,7 +1085,8 @@ my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
                       ha_checksum checksum)
 {
   uint		length,new_length,flag,bit,i;
-  uchar		*pos,*end,*packpos,*to;
+  const uchar   *pos,*end;
+  uchar         *packpos,*to;
   enum en_fieldtype type;
   reg3 MARIA_COLUMNDEF *column;
   DBUG_ENTER("_ma_rec_check");
@@ -1107,7 +1113,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
       }
       else if (type == FIELD_SKIP_ZERO)
       {
-	if (memcmp((uchar*) record, maria_zero_string, length) == 0)
+	if (memcmp(record, maria_zero_string, length) == 0)
 	{
 	  if (!(flag & bit))
 	    goto err;
@@ -1118,7 +1124,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
       else if (type == FIELD_SKIP_ENDSPACE ||
 	       type == FIELD_SKIP_PRESPACE)
       {
-	pos= (uchar*) record; end= (uchar*) record + length;
+	pos= record; end= record + length;
 	if (type == FIELD_SKIP_ENDSPACE)
 	{					/* Pack trailing spaces */
 	  while (end > record && *(end-1) == ' ')
@@ -1155,7 +1161,7 @@ my_bool _ma_rec_check(MARIA_HA *info,const uchar *record, uchar *rec_buff,
 	uint tmp_length;
         if (pack_length == 1)
         {
-          tmp_length= (uint) *(uchar*) record;
+          tmp_length= (uint) *record;
           to+= 1+ tmp_length;
           continue;
         }

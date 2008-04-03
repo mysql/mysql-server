@@ -67,7 +67,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   PAGECACHE pagecache;
   LSN lsn;
   my_off_t file_size;
-  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+  LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
 
   MY_INIT(argv[0]);
 

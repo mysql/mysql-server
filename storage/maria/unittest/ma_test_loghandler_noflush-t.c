@@ -41,7 +41,7 @@ int main(int argc __attribute__((unused)), char *argv[])
   PAGECACHE pagecache;
   LSN first_lsn;
   TRANSLOG_HEADER_BUFFER rec;
-  LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+  LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
   translog_size_t len;
 
   MY_INIT(argv[0]);

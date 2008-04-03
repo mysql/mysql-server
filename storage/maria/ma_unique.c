@@ -106,7 +106,7 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const uchar *record)
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint pack_length=  keyseg->bit_start;
-      uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
+      uint tmp_length= (pack_length == 1 ? (uint) *pos :
                         uint2korr(pos));
       pos+= pack_length;			/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
@@ -130,7 +130,7 @@ ha_checksum _ma_unique_hash(MARIA_UNIQUEDEF *def, const uchar *record)
     else
       while (pos != end)
 	crc=((crc << 8) +
-	     (((uchar)  *(uchar*) pos++))) +
+	     (((uchar)  *pos++))) +
 	  (crc >> (8*sizeof(ha_checksum)-8));
   }
   return crc;
@@ -181,8 +181,8 @@ my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const uchar *a, const uchar *b,
       uint pack_length= keyseg->bit_start;
       if (pack_length == 1)
       {
-        a_length= (uint) *(uchar*) pos_a++;
-        b_length= (uint) *(uchar*) pos_b++;
+        a_length= (uint) *pos_a++;
+        b_length= (uint) *pos_b++;
       }
       else
       {
@@ -215,8 +215,8 @@ my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const uchar *a, const uchar *b,
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2)
     {
-      if (ha_compare_text(keyseg->charset, (uchar *) pos_a, a_length,
-                          (uchar *) pos_b, b_length, 0, 1))
+      if (ha_compare_text(keyseg->charset, pos_a, a_length,
+                          pos_b, b_length, 0, 1))
         return 1;
     }
     else

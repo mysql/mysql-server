@@ -71,7 +71,7 @@ typedef TRANSLOG_ADDRESS LSN;
   } while (0)
 
 /* Unpacks LSN from the buffer (P) */
-#define lsn_korr(P) MAKE_LSN(uint3korr(P), uint4korr((char*)(P) + 3))
+#define lsn_korr(P) MAKE_LSN(uint3korr(P), uint4korr((const char*)(P) + 3))
 
 /* what we need to add to LSN to increase it on one file */
 #define LSN_ONE_FILE ((int64)0x100000000LL)

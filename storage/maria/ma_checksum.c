@@ -67,7 +67,7 @@ ha_checksum _ma_checksum(MARIA_HA *info, const uchar *record)
     {
       uint pack_length= column->fill_length;
       if (pack_length == 1)
-        length= (ulong) *(uchar*) pos;
+        length= (ulong) *pos;
       else
         length= uint2korr(pos);
       pos+= pack_length;                        /* Skip length information */

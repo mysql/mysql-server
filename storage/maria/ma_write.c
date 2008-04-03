@@ -399,7 +399,7 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   {
     uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
                    KEY_NR_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
     struct st_msg_to_write_hook_for_undo_key msg;
 
     /* Save if we need to write a clr record */
@@ -408,9 +408,9 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                   keyinfo->key_nr);
     key_length+= share->rec_reflength;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char*) key_buff;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_buff;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
 
     msg.root= root;
@@ -779,13 +779,13 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
 #if HA_FT_MAXLEN >= 127
       blen= mi_uint2korr(b); b+=2;
 #else
-      blen= *(uchar*) b++;
+      blen= *b++;
 #endif
       get_key_length(alen,a);
       DBUG_ASSERT(info->ft1_to_ft2==0);
       if (alen == blen &&
-          ha_compare_text(keyinfo->seg->charset, (uchar*) a, alen,
-                          (uchar*) b, blen, 0, 0) == 0)
+          ha_compare_text(keyinfo->seg->charset, a, alen,
+                          b, blen, 0, 0) == 0)
       {
         /* Yup. converting */
         info->ft1_to_ft2=(DYNAMIC_ARRAY *)
@@ -804,7 +804,7 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
           */
           b+=blen+ft2len+2;
           for (a=anc_buff+a_length ; b < a ; b+=ft2len+2)
-            insert_dynamic(info->ft1_to_ft2, (uchar*) b);
+            insert_dynamic(info->ft1_to_ft2, b);
 
           /* fixing the page's length - it contains only one key now */
           _ma_store_page_used(share, anc_buff, share->keypage_header + blen +
@@ -1653,7 +1653,7 @@ static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE
                  +1];
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
   MARIA_SHARE *share= info->s;
   DBUG_ENTER("_ma_log_new");
   DBUG_PRINT("enter", ("page: %lu", (ulong) page));
@@ -1676,11 +1676,11 @@ static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
   log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE*2 + KEY_NR_STORE_SIZE]=
     (uchar) root_page;
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
 
   page_length-= LSN_STORE_SIZE;
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *) buff + LSN_STORE_SIZE;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + LSN_STORE_SIZE;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= page_length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX_NEW_PAGE,
@@ -1703,7 +1703,7 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 6], *log_pos;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
   uint offset= (uint) (key_pos - buff);
   DBUG_ENTER("_ma_log_change");
   DBUG_PRINT("enter", ("page: %lu", (ulong) page));
@@ -1719,9 +1719,9 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
   log_pos[3]= KEY_OP_CHANGE;
   int2store(log_pos+4, length);
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char *) buff + offset;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -1760,7 +1760,7 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+3+3+3+3+2];
   uchar *log_pos;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
   uint offset= (uint) (key_pos - buff);
   uint translog_parts, extra_length;
   DBUG_ENTER("_ma_log_split");
@@ -1829,7 +1829,7 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
       key_pos+= data_length;
 
     translog_parts= 2;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) key_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= extra_length;
   }
 
@@ -1845,13 +1845,13 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
       log_pos+= 2;
       data_length= changed_length;
     }
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    (char*) data;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    data;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= data_length;
     translog_parts++;
     extra_length+= data_length;
   }
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -1892,7 +1892,7 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 12], *log_pos;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
   uint offset= (uint) (key_pos - buff);
   uint diff_length= org_length + move_length - new_length;
   uint translog_parts, extra_length;
@@ -1949,12 +1949,12 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
     log_pos[0]= KEY_OP_CHANGE;
     int2store(log_pos+1, key_length);
     log_pos+= 3;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (char*) key_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
     translog_parts= 2;
     extra_length= key_length;
   }
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
   DBUG_RETURN(translog_write_record(&lsn, LOGREC_REDO_INDEX,
@@ -1984,7 +1984,7 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 3+5+3+3+3];
   uchar *log_pos;
-  LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
   uint key_offset;
   uint translog_parts, extra_length;
   DBUG_ENTER("_ma_log_key_middle");
@@ -2026,10 +2026,10 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
   int2store(log_pos+3, data_changed_first);
   log_pos+= 5;
 
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char *) log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos -
                                                          log_data);
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    ((char*) buff +
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    (buff +
                                                   info->s->keypage_header);
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= data_changed_first;
   translog_parts= 2;
@@ -2054,11 +2054,11 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
     int2store(log_pos+1, key_length);
     log_pos+= 3;
 
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=    (char*) start_log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=    start_log_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + 2].length= (uint) (log_pos -
                                                            start_log_pos);
 
-    log_array[TRANSLOG_INTERNAL_PARTS + 3].str=    (char*) key_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].str=    key_pos;
     log_array[TRANSLOG_INTERNAL_PARTS + 3].length= key_length;
     translog_parts+=2;
     extra_length+= (uint) (log_array[TRANSLOG_INTERNAL_PARTS + 2].length +

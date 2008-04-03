@@ -93,8 +93,8 @@
  Returns 0 on success.
 */
 
-int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
-                        uint nextflag)
+int maria_rtree_key_cmp(HA_KEYSEG *keyseg, const uchar *b, const uchar *a,
+                        uint key_length, uint nextflag)
 {
   for (; (int) key_length > 0; keyseg += 2 )
   {
@@ -153,7 +153,7 @@ int maria_rtree_key_cmp(HA_KEYSEG *keyseg, uchar *b, uchar *a, uint key_length,
 end:
   if (nextflag & MBR_DATA)
   {
-    uchar *end= a + keyseg->length;
+    const uchar *end= a + keyseg->length;
     do
     {
       if (*a++ != *b++)
@@ -263,7 +263,8 @@ double maria_rtree_rect_volume(HA_KEYSEG *keyseg, uchar *a, uint key_length)
   Creates an MBR as an array of doubles.
 */
 
-int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
+int maria_rtree_d_mbr(const HA_KEYSEG *keyseg, const uchar *a,
+                      uint key_length, double *res)
 {
   for (; (int)key_length > 0; keyseg += 2)
   {
@@ -352,8 +353,9 @@ int maria_rtree_d_mbr(HA_KEYSEG *keyseg, uchar *a, uint key_length, double *res)
   Result is written to c
 */
 
-int maria_rtree_combine_rect(HA_KEYSEG *keyseg, uchar* a, uchar* b, uchar* c,
-		       uint key_length)
+int maria_rtree_combine_rect(const HA_KEYSEG *keyseg, const uchar* a,
+                             const uchar* b, uchar* c,
+                             uint key_length)
 {
   for ( ; (int) key_length > 0 ; keyseg += 2)
   {
@@ -531,7 +533,8 @@ double maria_rtree_overlapping_area(HA_KEYSEG *keyseg, uchar* a, uchar* b,
   can return 'inf' as a result.
 */
 
-double maria_rtree_area_increase(HA_KEYSEG *keyseg, uchar *a, uchar *b,
+double maria_rtree_area_increase(const HA_KEYSEG *keyseg, const uchar *a,
+                                 const uchar *b,
                                  uint key_length, double *ab_area)
 {
   double a_area= 1.0;
@@ -737,15 +740,16 @@ double maria_rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 /*
   Calculates key page total MBR= MBR(key1) + MBR(key2) + ...
 */
-int maria_rtree_page_mbr(MARIA_HA *info, HA_KEYSEG *keyseg, uchar *page_buf,
+int maria_rtree_page_mbr(const MARIA_HA *info, const HA_KEYSEG *keyseg,
+                         const uchar *page_buf,
                          uchar *c, uint key_length)
 {
   MARIA_SHARE *share= info->s;
   uint inc= 0;
   uint k_len= key_length;
   uint nod_flag= _ma_test_if_nod(share, page_buf);
-  uchar *k;
-  uchar *last= rt_PAGE_END(share, page_buf);
+  const uchar *k;
+  const uchar *last= rt_PAGE_END(share, page_buf);
 
   for (; (int)key_length > 0; keyseg += 2)
   {

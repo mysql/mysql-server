@@ -140,7 +140,7 @@ void writer(int num)
   for (i= 0; i < ITERATIONS; i++)
   {
     uint len= get_len();
-    LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
     lens[num][i]= len;
 
     int2store(long_tr_id, num);
@@ -306,7 +306,7 @@ int main(int argc __attribute__((unused)),
 
   srand(122334817L);
   {
-    LEX_STRING parts[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING parts[TRANSLOG_INTERNAL_PARTS + 1];
     uchar long_tr_id[6]=
     {
       0x11, 0x22, 0x33, 0x44, 0x55, 0x66

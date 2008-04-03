@@ -1146,7 +1146,7 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 
 /* Optimized store functions for Intel x86 */
 #if defined(__i386__) && !defined(_WIN64)
-#define sint2korr(A)	(*((int16 *) (A)))
+#define sint2korr(A)	(*((const int16 *) (A)))
 #define sint3korr(A)	((int32) ((((uchar) (A)[2]) & 128) ? \
 				  (((uint32) 255L << 24) | \
 				   (((uint32) (uchar) (A)[2]) << 16) |\
@@ -1155,8 +1155,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
 				  (((uint32) (uchar) (A)[2]) << 16) |\
 				  (((uint32) (uchar) (A)[1]) << 8) | \
 				  ((uint32) (uchar) (A)[0])))
-#define sint4korr(A)	(*((long *) (A)))
-#define uint2korr(A)	(*((uint16 *) (A)))
+#define sint4korr(A)	(*((const long *) (A)))
+#define uint2korr(A)	(*((const uint16 *) (A)))
 #ifdef HAVE_purify
 #define uint3korr(A)	(uint32) (((uint32) ((uchar) (A)[0])) +\
 				  (((uint32) ((uchar) (A)[1])) << 8) +\
@@ -1168,9 +1168,9 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
     Please, note, uint3korr reads 4 bytes (not 3) !
     It means, that you have to provide enough allocated space !
 */
-#define uint3korr(A)	(long) (*((unsigned int *) (A)) & 0xFFFFFF)
+#define uint3korr(A)	(long) (*((const unsigned int *) (A)) & 0xFFFFFF)
 #endif
-#define uint4korr(A)	(*((uint32 *) (A)))
+#define uint4korr(A)	(*((const uint32 *) (A)))
 #define uint5korr(A)	((ulonglong)(((uint32) ((uchar) (A)[0])) +\
 				    (((uint32) ((uchar) (A)[1])) << 8) +\
 				    (((uint32) ((uchar) (A)[2])) << 16) +\
@@ -1182,8 +1182,8 @@ typedef char		bool;	/* Ordinary boolean values 0 1 */
                                      (((uint32)    ((uchar) (A)[3])) << 24)) + \
                          (((ulonglong) ((uchar) (A)[4])) << 32) +       \
                          (((ulonglong) ((uchar) (A)[5])) << 40))
-#define uint8korr(A)	(*((ulonglong *) (A)))
-#define sint8korr(A)	(*((longlong *) (A)))
+#define uint8korr(A)	(*((const ulonglong *) (A)))
+#define sint8korr(A)	(*((const longlong *) (A)))
 #define int2store(T,A)	*((uint16*) (T))= (uint16) (A)
 #define int3store(T,A)  do { *(T)=  (uchar) ((A));\
                             *(T+1)=(uchar) (((uint) (A) >> 8));\
@@ -1208,17 +1208,17 @@ typedef union {
 } doubleget_union;
 #define doubleget(V,M)	\
 do { doubleget_union _tmp; \
-     _tmp.m[0] = *((long*)(M)); \
-     _tmp.m[1] = *(((long*) (M))+1); \
+     _tmp.m[0] = *((const long*)(M)); \
+     _tmp.m[1] = *(((const long*) (M))+1); \
      (V) = _tmp.v; } while(0)
-#define doublestore(T,V) do { *((long *) T) = ((doubleget_union *)&V)->m[0]; \
-			     *(((long *) T)+1) = ((doubleget_union *)&V)->m[1]; \
+#define doublestore(T,V) do { *((long *) T) = ((const doubleget_union *)&V)->m[0]; \
+			     *(((long *) T)+1) = ((const doubleget_union *)&V)->m[1]; \
                          } while (0)
-#define float4get(V,M)   do { *((float *) &(V)) = *((float*) (M)); } while(0)
+#define float4get(V,M)   do { *((float *) &(V)) = *((const float*) (M)); } while(0)
 #define float8get(V,M)   doubleget((V),(M))
-#define float4store(V,M) memcpy((uchar*) V,(uchar*) (&M),sizeof(float))
-#define floatstore(T,V)  memcpy((uchar*)(T), (uchar*)(&V),sizeof(float))
-#define floatget(V,M)    memcpy((uchar*) &V,(uchar*) (M),sizeof(float))
+#define float4store(V,M) memcpy((uchar*) V,(const uchar*) (&M),sizeof(float))
+#define floatstore(T,V)  memcpy((uchar*)(T), (const uchar*)(&V),sizeof(float))
+#define floatget(V,M)    memcpy((uchar*) &V,(const uchar*) (M),sizeof(float))
 #define float8store(V,M) doublestore((V),(M))
 #endif /* __i386__ */
 

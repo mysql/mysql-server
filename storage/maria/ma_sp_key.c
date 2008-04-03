@@ -37,14 +37,14 @@ uint _ma_sp_make_key(register MARIA_HA *info, uint keynr, uchar *key,
   HA_KEYSEG *keyseg;
   MARIA_KEYDEF *keyinfo = &info->s->keyinfo[keynr];
   uint len = 0;
-  uchar *pos;
+  const uchar *pos;
   uint dlen;
   uchar *dptr;
   double mbr[SPDIMS * 2];
   uint i;
 
   keyseg = &keyinfo->seg[-1];
-  pos = (uchar*)record + keyseg->start;
+  pos = record + keyseg->start;
 
   dlen = _ma_calc_blob_length(keyseg->bit_start, pos);
   memcpy_fixed(&dptr, pos + keyseg->bit_start, sizeof(char*));

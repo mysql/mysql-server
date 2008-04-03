@@ -2556,7 +2556,7 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
             and thus execute the first REDO (finding it in "a complete
             group"). To prevent that:
           */
-          LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS];
+          LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS];
           LSN lsn;
           if (translog_write_record(&lsn, LOGREC_INCOMPLETE_GROUP,
                                     trn, NULL, 0,
@@ -3170,9 +3170,9 @@ void _ma_tmp_disable_logging_for_table(MARIA_HA *info,
   if (log_incomplete)
   {
     uchar log_data[FILEID_STORE_SIZE];
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 1];
     LSN lsn;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    (char*) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
     translog_write_record(&lsn, LOGREC_INCOMPLETE_LOG,
                           &dummy_transaction_object, info,

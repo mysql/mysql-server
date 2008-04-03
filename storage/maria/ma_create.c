@@ -990,7 +990,7 @@ int maria_create(const char *name, enum data_file_type datafile_type,
       not log 1 KB of mostly zeroes if this is a small table.
     */
     char empty_string[]= "";
-    LEX_STRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
+    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 4];
     translog_size_t total_rec_length= 0;
     uint k;
     LSN lsn;
@@ -1009,17 +1009,17 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     log_data[0]= test(flags & HA_DONT_TOUCH_DATA);
     int2store(log_data + 1, kfile_size_before_extension);
     int2store(log_data + 1 + 2, share.base.keystart);
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= (char *)name;
+    log_array[TRANSLOG_INTERNAL_PARTS + 0].str= name;
     /* we store the end-zero, for Recovery to just pass it to my_create() */
     log_array[TRANSLOG_INTERNAL_PARTS + 0].length=
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 0].str) + 1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= (char *) log_data;
+    log_array[TRANSLOG_INTERNAL_PARTS + 1].str= log_data;
     /* symlink description is also needed for re-creation by Recovery: */
-    log_array[TRANSLOG_INTERNAL_PARTS + 2].str= (char *)
+    log_array[TRANSLOG_INTERNAL_PARTS + 2].str=
       (ci->data_file_name ? ci->data_file_name : empty_string);
     log_array[TRANSLOG_INTERNAL_PARTS + 2].length=
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 2].str) + 1;
-    log_array[TRANSLOG_INTERNAL_PARTS + 3].str= (char *)
+    log_array[TRANSLOG_INTERNAL_PARTS + 3].str=
       (ci->index_file_name ? ci->index_file_name : empty_string);
     log_array[TRANSLOG_INTERNAL_PARTS + 3].length=
       strlen(log_array[TRANSLOG_INTERNAL_PARTS + 3].str) + 1;
