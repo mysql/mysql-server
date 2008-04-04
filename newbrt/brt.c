@@ -38,6 +38,7 @@
 #include "log_header.h"
 #include "kv-pair.h"
 #include "mempool.h"
+#include "leafentry.h"
 
 extern long long n_items_malloced;
 
@@ -348,7 +349,7 @@ int move_between_mempools (u_int32_t len, void *odata, void **ndata, void *extra
     assert(ms->from->height==0);
     assert(ms->to->height==0);
     assert(len==(unsigned)kv_pair_size(odata));
-    void *newitem=toku_mempool_malloc(&ms->to->u.l.buffer_mempool, len, 4);
+    void *newitem=mempool_malloc_from_gpma(ms->to->u.l.buffer, &ms->to->u.l.buffer_mempool, len);
     assert(newitem);
     memcpy(newitem, odata, len);
     toku_mempool_mfree(&ms->from->u.l.buffer_mempool, odata, len);
@@ -1120,28 +1121,6 @@ int toku_brtleaf_compare_fun (u_int32_t alen __attribute__((__unused__)), void *
     } else {
 	return cmp;
     }
-}
-
-int toku_brtnode_compress_kvspace (GPMA pma, struct mempool *memp) {
-    if (toku_mempool_get_frag_size(memp) == 0)
-        return -1;
-    void *newmem = toku_malloc(memp->size);
-    if (newmem == 0)
-        return -2;
-    struct mempool new_kvspace;
-    toku_mempool_init(&new_kvspace, newmem, memp->size);
-    GPMA_ITERATE(pma, idx, len, data,
-		 ({
-		     void *newdata = toku_mempool_malloc(&new_kvspace, len, 4);
-		     assert(newdata);
-		     memcpy(newdata, data, len);
-		     toku_gpma_set_at_index(pma, idx, len, newdata);
-		     // toku_verify_gpma(pma);
-		 }));
-    toku_free(memp->base);
-    *memp = new_kvspace;
-    // toku_verify_gpma(pma);
-    return 0;
 }
 
 static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,

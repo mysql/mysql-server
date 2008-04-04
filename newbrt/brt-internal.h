@@ -13,6 +13,7 @@
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
+#include "leafentry.h"
 
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
@@ -200,17 +201,8 @@ int toku_set_func_fsync (int (*fsync_function)(int));
 //    return kv;
 //}
 
-int toku_brtnode_compress_kvspace (GPMA pma, struct mempool *mp);
-
 static inline struct kv_pair *brtnode_malloc_kv_pair (GPMA pma, struct mempool *mp, const void *key, unsigned int keylen, const void *val, unsigned int vallen) {
-    struct kv_pair *kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
-    if (kv == 0) {
-	if (0 == toku_brtnode_compress_kvspace (pma, mp)) {
-	    kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
-	    toku_verify_gpma(pma);
-	    assert(kv);
-	}
-    }
+    struct kv_pair *kv = mempool_malloc_from_gpma(pma, mp, sizeof (struct kv_pair) + keylen + vallen);
     kv_pair_init(kv, key, keylen, val, vallen);
     return kv;
 }

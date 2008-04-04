@@ -507,13 +507,7 @@ int move_indices (GPMA from, struct mempool *from_mempool,
 	if (from==to) {
 	    to->items[to_idx] = items[i];
 	} else {
-	    void *new_data = toku_mempool_malloc(to_mempool, items[i].len, 4);
-	    if (new_data==0) {
-		int r = toku_brtnode_compress_kvspace(to, to_mempool);
-		assert(r==0);
-		new_data = toku_mempool_malloc(to_mempool, items[i].len, 4);
-		assert(new_data);
-	    }
+	    void *new_data = mempool_malloc_from_gpma(to, to_mempool, items[i].len);
 	    memcpy(new_data, items[i].data, items[i].len);
 	    to->items[to_idx] = (struct gitem){items[i].len, new_data};
 	    toku_mempool_mfree(from_mempool, items[i].data, items[i].len);
