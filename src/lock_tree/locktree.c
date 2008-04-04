@@ -533,7 +533,7 @@ static inline int toku__lt_borderwrite_conflict(toku_lock_tree* tree, TXNID self
     if (r!=0) return r;
     assert(numfound <= query_size);
     if      (numfound == 2) *conflict = TOKU_YES_CONFLICT;
-    else if (numfound == 0 || buf[0].data == self) *conflict = TOKU_NO_CONFLICT;
+    else if (numfound == 0 || !toku__lt_txn_cmp(buf[0].data, self)) *conflict = TOKU_NO_CONFLICT;
     else {
         *conflict = TOKU_MAYBE_CONFLICT;
         *peer = buf[0].data;
@@ -581,7 +581,7 @@ static inline int toku__lt_meets(toku_lock_tree* tree, toku_interval* query,
 static inline int toku__lt_meets_peer(toku_lock_tree* tree, toku_interval* query, 
                                        toku_range_tree* rt, BOOL is_homogenous,
                                        TXNID self, BOOL* met) {
-    assert(tree && query && rt && self && met);
+    assert(tree && query && rt && met);
     assert(query->left == query->right || is_homogenous);
 
     const u_int32_t query_size = is_homogenous ? 1 : 2;
@@ -594,7 +594,7 @@ static inline int toku__lt_meets_peer(toku_lock_tree* tree, toku_interval* query
     r = toku_rt_find(rt, query, query_size, &buf, &buflen, &numfound);
     if (r!=0) return r;
     assert(numfound <= query_size);
-    *met = numfound == 2 || (numfound == 1 && buf[0].data != self);
+    *met = numfound == 2 || (numfound == 1 && toku__lt_txn_cmp(buf[0].data, self));
     return 0;
 }
 
@@ -613,7 +613,6 @@ static inline int toku__lt_check_borderwrite_conflict(toku_lock_tree* tree,
     r = toku__lt_borderwrite_conflict(tree, txn, query, &conflict, &peer);
     if (r!=0) return r;
     if (conflict == TOKU_MAYBE_CONFLICT) {
-        assert(peer);
         peer_selfwrite = toku__lt_ifexist_selfwrite(tree, peer);
         if (!peer_selfwrite) return toku__lt_panic(tree, TOKU_LT_INCONSISTENT);
 
@@ -1062,12 +1061,12 @@ static inline int toku__lt_expand_border(toku_lock_tree* tree, toku_range* to_in
                                    BOOL  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
     int r;
-    if      (found_p && pred->data == to_insert->data) {
+    if      (found_p && !toku__lt_txn_cmp(pred->data, to_insert->data)) {
         r = toku_rt_delete(tree->borderwrite, pred);
         if (r!=0) return r;
         to_insert->ends.left = pred->ends.left;
     }
-    else if (found_s && succ->data == to_insert->data) {
+    else if (found_s && !toku__lt_txn_cmp(succ->data, to_insert->data)) {
         r = toku_rt_delete(tree->borderwrite, succ);
         if (r!=0) return r;
         to_insert->ends.right = succ->ends.right;
@@ -1080,7 +1079,7 @@ static inline int toku__lt_split_border(toku_lock_tree* tree, toku_range* to_ins
                                    BOOL  found_p,    BOOL  found_s) {
     assert(tree && to_insert && pred && succ);
     int r;
-    assert(tree->buf[0].data != to_insert->data);
+    assert(toku__lt_txn_cmp(tree->buf[0].data, to_insert->data));
     if (!found_s || !found_p) return toku__lt_panic(tree, TOKU_LT_INCONSISTENT);
 
     r = toku_rt_delete(tree->borderwrite, &tree->buf[0]);
@@ -1142,7 +1141,7 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
     assert(numfound <= query_size);
 
     /* No updated needed in borderwrite: we return right away. */
-    if (numfound == 1 && tree->buf[0].data == to_insert->data) return 0;
+    if (numfound == 1 && !toku__lt_txn_cmp(tree->buf[0].data, to_insert->data)) return 0;
 
     /* Find predecessor and successors */
     toku_range pred;
@@ -1155,7 +1154,7 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
     if (r!=0) return toku__lt_panic(tree, r);
     
     if (numfound == 0) {
-        if (found_p && found_s && pred.data == succ.data) {
+        if (found_p && found_s && !toku__lt_txn_cmp(pred.data, succ.data)) {
             return toku__lt_panic(tree, TOKU_LT_INCONSISTENT); }
         r = toku__lt_expand_border(tree, to_insert, &pred,   &succ,
                                                       found_p, found_s);
@@ -1424,7 +1423,7 @@ static inline int toku__lt_write_range_conflicts_reads(toku_lock_tree* tree,
     toku_rt_forest* forest;
     
     while ((forest = toku_rth_next(tree->rth)) != NULL) {
-        if (forest->self_read != NULL && forest->hash_key != txn) {
+        if (forest->self_read != NULL && toku__lt_txn_cmp(forest->hash_key, txn)) {
             r = toku__lt_meets_peer(tree, query, forest->self_read, TRUE, txn,
                             &met);
             if (r!=0) { goto cleanup; }
@@ -1540,7 +1539,7 @@ static int toku__lt_escalate_read_locks(toku_lock_tree* tree, TXNID txn) {
     toku_rt_start_scan(border);
     /* Special case for zero entries in border?  Just do the 'after'? */
     while ((r = toku_rt_next(border, &border_range, &found)) == 0 && found) {
-        if (border_range.data == txn) { continue; }
+        if (!toku__lt_txn_cmp(border_range.data, txn)) { continue; }
         query.right = border_range.ends.left;
         r = toku__lt_escalate_read_locks_in_interval(tree, &query, txn);
         if (r!=0) { goto cleanup; }
@@ -1896,7 +1895,7 @@ static inline int toku__sweep_border(toku_lock_tree* tree, toku_range* range) {
     
     /*  If none exists or data is not ours (we have already deleted the real
         overlapping range), continue to the end of the loop (i.e., return) */
-    if (!numfound || buf[0].data != range->data) return 0;
+    if (!numfound || toku__lt_txn_cmp(buf[0].data, range->data)) return 0;
     assert(numfound == 1);
 
     /* Delete s from borderwrite */
@@ -1912,13 +1911,13 @@ static inline int toku__sweep_border(toku_lock_tree* tree, toku_range* range) {
     r = toku__lt_get_border(tree, TRUE, &pred, &succ, &found_p, &found_s,
                              &buf[0]);
     if (r!=0) return r;
-    if (found_p && found_s && pred.data == succ.data &&
-        pred.data == buf[0].data) { 
+    if (found_p && found_s && !toku__lt_txn_cmp(pred.data, succ.data) &&
+        !toku__lt_txn_cmp(pred.data, buf[0].data)) { 
         return toku__lt_panic(tree, TOKU_LT_INCONSISTENT); }
 
     /* If both found and pred.data=succ.data, merge pred and succ (expand?)
        free_points */
-    if (!found_p || !found_s || pred.data != succ.data) return 0;
+    if (!found_p || !found_s || toku__lt_txn_cmp(pred.data, succ.data)) return 0;
 
     r = toku_rt_delete(borderwrite, &pred);
     if (r!=0) return r;
