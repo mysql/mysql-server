@@ -1488,6 +1488,13 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   };
 
 struct KeyReqStruct {
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  KeyReqStruct() {
+    memset(this, 0xf3, sizeof(* this));
+  }
+#endif
+  
 /**
  * These variables are used as temporary storage during execution of the
  * TUPKEYREQ signal.

@@ -3289,10 +3289,35 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   
   if (m_use_write)
   {
-    /* Using write, the only user-visible cols we write are in the write_set */
-    user_cols_written_bitmap= table->write_set;
+    const uchar *mask;
+#ifdef HAVE_NDB_BINLOG
+    /*
+      The use of table->write_set is tricky here. This is done as a temporary
+      workaround for BUG#22045.
+
+      There is some confusion on the precise meaning of write_set in write_row,
+      with REPLACE INTO and replication SQL thread having different opinions.
+      There is work on the way to sort that out, but until then we need to
+      implement different semantics depending on whether we are in the slave
+      SQL thread or not.
+
+      SQL thread -> use the write_set for writeTuple().
+      otherwise (REPLACE INTO) -> do not use write_set.
+    */
+    if (thd->slave_thread)
+    {
+      user_cols_written_bitmap= table->write_set;
+      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+    }
+    else
+#endif
+    {
+      user_cols_written_bitmap= NULL;
+      mask= NULL;
+    }
+
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
-                          (char *)record, (uchar *)(table->write_set->bitmap),
+                          (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
   }
   else
