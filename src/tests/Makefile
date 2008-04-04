@@ -51,7 +51,10 @@ TDB_CPPFLAGS = -I../../include
 SRCS = $(sort $(wildcard *.c))
 
 TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
-BDB_TESTS = $(patsubst %.c,%.bdb,$(SRCS))
+BDB_DONTRUN = bug627
+BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
+foobdb:
+	echo $(BDB_TESTS)
 
 ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
 

@@ -36,7 +36,16 @@ void do_627 (void) {
     r=c2->c_get(c2, dbt_init(&a, "a", 2), dbt_init_malloc(&b), DB_SET); CKERR(r);
     free(b.data);
     
-    r=c1->c_del(c1, 0); assert(r==DB_LOCK_NOTGRANTED);
+    // This causes all hell to break loose in BDB 4.6, so we just cannot run this under BDB.
+    //     PANIC: Invalid argument
+    //     Expected DB_LOCK_NOTGRANTED, got DB_RUNRECOVERY: Fatal error, run database recovery
+    //     bug627.bdb: bug627.c:44: do_627: Assertion `r==(-30994)' failed.
+    //     Aborted
+    r=c1->c_del(c1, 0);
+    if (r!=DB_LOCK_NOTGRANTED) {
+	fprintf(stderr, "Expected DB_LOCK_NOTGRANTED, got %s\n", db_strerror(r));
+    }
+    assert(r==DB_LOCK_NOTGRANTED);
 
     r=c1->c_close(c1); CKERR(r);
     r=t1->commit(t1, 0);    assert(r==0);
