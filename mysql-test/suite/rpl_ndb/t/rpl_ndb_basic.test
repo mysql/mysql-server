@@ -294,7 +294,7 @@ select b00 from t1;
 --connection slave
 select b00 from t1;
 
---connection master;
+--connection master
 DROP TABLE t1;
 
 # BUG#22045: Got error 839 'Illegal null attribute' from NDBCLUSTER when 'Replace Into'.
