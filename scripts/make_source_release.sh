@@ -52,12 +52,31 @@ tar -zxf ${MYSQL_ARCHIVE}
 
 # get InnoDB sources
 cd ${MYSQL_DIR}/storage
-rm -fr innobase
+mv innobase innobase.orig
 # XXX this must export a specific tag, not the latest revision, but
 # we do not yet have tags.
 svn export ${INNODB_SVN_REPO}/branches/zip innobase
 # "steal" MySQL's ./COPYING (GPLv2)
 cp -v ../COPYING innobase/
+# Hack the autotools files so users can compile by using ./configure and
+# make without having autotools installed. This has the drawback that if
+# users build dynamic (ha_innodb.so) on i386 it will (probably) be compiled
+# with PIC and thus it will be slower. If we do not do this, MySQL's configure
+# will not parse @INNODB_CFLAGS@ and @INNODB_DYNAMIC_CFLAGS@ when creating
+# innobase/Makefile from innobase/Makefile.in and subsequently compilation
+# will fail on the user's machine with an error like (if he does not have
+# autotools):
+# gcc: @INNODB_CFLAGS@: No such file or directory
+# In the long run we could inject INNODB_DYNAMIC_CFLAGS="-prefer-non-pic"
+# into branches/5.1/plug.in so it will be included in standard MySQL
+# distributions.
+cp innobase.orig/plug.in innobase/plug.in
+sed -i '' \
+	-e 's/\$(INNODB_CFLAGS)//g' \
+	-e 's/\$(INNODB_DYNAMIC_CFLAGS)/-DMYSQL_DYNAMIC_PLUGIN/g' \
+	innobase/Makefile.am
+
+rm -fr innobase.orig
 
 # remove unnecessary files
 cd innobase
