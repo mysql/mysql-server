@@ -21,15 +21,19 @@ if ($no_debug)
    --disable_query_log
 }
 
+# Get the MySQL Servers datadir without ending slash
+let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
+#echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
+
 if ($do_file_tests)
 {
 # List the files belonging to the table t1
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
+--exec ls $MYSQLD_DATADIR/test/t1* > $MYSQLD_DATADIR/test/tmp2 || true
 if ($with_directories)
 {
---exec ls $MYSQLTEST_VARDIR/tmp/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 || true
+--exec ls $MYSQLTEST_VARDIR/tmp/t1* >> $MYSQLD_DATADIR/test/tmp2 || true
 }
-eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2'')');
+eval SET @aux = CONCAT('load_file(''$MYSQLD_DATADIR','/test/tmp2'')');
 let $file_list= `SELECT @aux`;
 }
 if (!$do_file_tests)
@@ -61,7 +65,7 @@ if ($found_garbage)
    }
    # Do a manual cleanup, because the following tests should not suffer from
    # remaining files
-   --exec rm -f $MYSQLTEST_VARDIR/master-data/test/t1* || true
+   --exec rm -f $MYSQLD_DATADIR/test/t1* || true
    if ($with_directories)
    {
 	   --exec rm -f $MYSQLTEST_VARDIR/tmp/t1* || true
