@@ -73,6 +73,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
 				    toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
     if (r!=0) return r;
     BRTNODE node=node_v;
+    toku_verify_counts(node);
     assert(node->height==0);
 
     struct kv_pair *kv = brtnode_malloc_kv_pair(node->u.l.buffer, &node->u.l.buffer_mempool, key, keylen, val, vallen);
@@ -85,7 +86,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     if (r==0) {
 	// It's already there.  So now we have to remove it and put the new one back in.
 	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + storedlen;
-	node->local_fingerprint     -= toku_crc32(toku_null_crc, storeddata, storedlen);
+	node->local_fingerprint     -= node->rand4fingerprint*toku_calccrc32_kvpair_struct(storeddata);
 	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, storedlen);
 	// Now put the new kv in.
 	toku_gpma_set_at_index(node->u.l.buffer, idx, kv_pair_size(kv), kv);
@@ -95,10 +96,13 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     }
 
     node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + kv_pair_size(kv);
-    node->local_fingerprint += toku_crc32(toku_null_crc, kv, kv_pair_size(kv));
+    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair_struct(kv);
 
     node->dirty=1;
     *subtree_fingerprint = node->local_fingerprint;
+
+    toku_verify_counts(node);
+
     r = toku_unpin_brtnode(brt, node_v);
     return r;
 }
