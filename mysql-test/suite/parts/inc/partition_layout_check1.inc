@@ -25,23 +25,27 @@ if ($no_debug)
 # Clean the table holding the definition of t1
 DELETE FROM t0_definition;
 
+# Get the MySQL Servers datadir without ending slash
+let $MYSQLD_DATADIR= `select LEFT(@@datadir, LENGTH(@@datadir)-1)`;
+#echo MYSQLD_DATADIR: $MYSQLD_DATADIR;
+
 # Dump the current definition of the table t1 to tmp1
 # This complicated method - let another mysqltest collect the output - is used
 # because of two reasons
 # - SHOW CREATE TABLE t1 is at least currently most probably more reliable than
 #   the corresponding SELECT on the INFORMATION_SCHEMA
 # - SHOW CREATE TABLE .. cannot write its out put into a file like SELECT
---exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLTEST_VARDIR/master-data/test/tmp1 2>&1 || true
+--exec echo "SHOW CREATE TABLE t1;" | $MYSQL_TEST > $MYSQLD_DATADIR/test/tmp1 2>&1 || true
 if ($do_file_tests)
 {
 # List the files belonging to the table t1
---exec ls $MYSQLTEST_VARDIR/master-data/test/t1* > $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+--exec ls $MYSQLD_DATADIR/test/t1* > $MYSQLD_DATADIR/test/tmp2 2>&1 || true
 if ($with_directories)
 {
---exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
---exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $MYSQLTEST_VARDIR/master-data/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysql-test-data-dir/t1* >> $MYSQLD_DATADIR/test/tmp2 2>&1 || true
+--exec ls $MYSQLTEST_VARDIR/mysql-test-idx-dir/t1* >> $MYSQLD_DATADIR/test/tmp2 2>&1 || true
 }
-eval SET @aux = CONCAT('load_file(''$MYSQLTEST_VARDIR','/master-data/test/tmp2''
+eval SET @aux = CONCAT('load_file(''$MYSQLD_DATADIR','/test/tmp2''
 )');
 let $file_list= `SELECT @aux`;
 }
@@ -52,7 +56,7 @@ let $file_list= '--- not determined ---';
 
 # Insert the current definition of the table t1 into t0_definition
 eval INSERT INTO t0_definition SET state = 'old',
-     create_command = load_file('$MYSQLTEST_VARDIR/master-data/test/tmp1'),
+     create_command = load_file('$MYSQLD_DATADIR/test/tmp1'),
      file_list      = $file_list;
 
 # Print the create table statement into the protocol
@@ -64,9 +68,9 @@ if ($do_file_tests)
    if ($ls)
    {
       # Print the list of files into the protocol
-      eval SELECT REPLACE(file_list,'$MYSQLTEST_VARDIR','\$MYSQLTEST_VARDIR')
-                  AS "unified filelist"
-           FROM t0_definition WHERE state = 'old';
+      replace_result $MYSQLD_DATADIR MYSQLD_DATADIR $MYSQLTEST_VARDIR MYSQLTEST_VARDIR;
+      SELECT file_list AS "unified filelist"
+       FROM t0_definition WHERE state = 'old';
    }
 }
 --enable_query_log
