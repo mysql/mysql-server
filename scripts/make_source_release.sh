@@ -34,9 +34,9 @@ INNODB_SVN_REPO="https://svn.innodb.com/svn/innodb"
 
 REMOVE_FILES="
 revert_gen.sh
-scripts/build-plugin.sh
 scripts/dynconfig
 scripts/export.sh
+scripts/make_binary_release.sh
 scripts/make_source_release.sh
 "
 
