@@ -1519,8 +1519,8 @@ static my_bool translog_create_new_file()
   if (translog_write_file_header())
     DBUG_RETURN(1);
 
-  if (ma_control_file_write_and_force(LSN_IMPOSSIBLE, file_no,
-                                      CONTROL_FILE_UPDATE_ONLY_LOGNO))
+  if (ma_control_file_write_and_force(last_checkpoint_lsn, file_no,
+                                      max_trid_in_control_file))
   {
     translog_stop_writing();
     DBUG_RETURN(1);
@@ -3697,7 +3697,7 @@ my_bool translog_init_with_table(const char *directory,
                 log_descriptor.open_files.elements);
 
     if (ma_control_file_write_and_force(checkpoint_lsn, start_file_num,
-                                        CONTROL_FILE_UPDATE_ALL))
+                                        max_trid_in_control_file))
       DBUG_RETURN(1);
     /* assign buffer 0 */
     translog_start_buffer(log_descriptor.buffers, &log_descriptor.bc, 0);

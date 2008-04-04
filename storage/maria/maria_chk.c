@@ -37,11 +37,11 @@ SET_STACK_SIZE(9000)			/* Minimum stack size for program */
 static uint decode_bits;
 static char **default_argv;
 static const char *load_default_groups[]= { "maria_chk", 0 };
-static const char *set_collation_name, *opt_tmpdir;
+static const char *set_collation_name, *opt_tmpdir, *opt_log_dir;
 static CHARSET_INFO *set_collation;
 static int stopwords_inited= 0;
 static MY_TMPDIR maria_chk_tmpdir;
-static my_bool opt_transaction_logging, opt_debug;
+static my_bool opt_transaction_logging, opt_debug, opt_require_control_file;
 
 static const char *type_names[]=
 {
@@ -97,7 +97,7 @@ int main(int argc, char **argv)
   int error;
   MY_INIT(argv[0]);
 
-  maria_data_root= (char *)".";
+  opt_log_dir= maria_data_root= (char *)".";
   maria_chk_init(&check_param);
   check_param.opt_lock_memory= 1;		/* Lock memory if possible */
   check_param.using_global_keycache = 0;
@@ -110,20 +110,30 @@ int main(int argc, char **argv)
     If we are doing a repair, user may want to store this repair into the log
     so that the log has a complete history and can be used to replay.
   */
-  if (opt_transaction_logging && (check_param.testflag & T_REP_ANY) &&
-      (ma_control_file_create_or_open() ||
-       init_pagecache(maria_log_pagecache,
-                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
-                      TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
-       translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
-                     0, 0, maria_log_pagecache,
-                     TRANSLOG_DEFAULT_FLAGS, 0)))
+  if (opt_transaction_logging && (check_param.testflag & T_REP_ANY))
   {
-    _ma_check_print_error(&check_param,
-                          "Can't initialize transaction logging. Run "
-                          "recovery with switch --skip-transaction-log");
-    error= 1;
-    argc= 1;                                    /* Force loop out */
+    if (ma_control_file_open(FALSE) ||
+        init_pagecache(maria_log_pagecache,
+                       TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                       TRANSLOG_PAGE_SIZE, MY_WME) == 0 ||
+        translog_init(opt_log_dir, TRANSLOG_FILE_SIZE,
+                      0, 0, maria_log_pagecache,
+                      TRANSLOG_DEFAULT_FLAGS, 0))
+    {
+      _ma_check_print_error(&check_param,
+                            "Can't initialize transaction logging. Run "
+                            "recovery with switch --skip-transaction-log");
+      error= 1;
+      goto end;
+    }
+  }
+  else
+  {
+    if (ma_control_file_open(FALSE) && opt_require_control_file)
+    {
+      error= 1;
+      goto end;
+    }
   }
 
   while (--argc >= 0)
@@ -156,6 +166,7 @@ int main(int argc, char **argv)
       VOID(fflush(stdout));
     }
   }
+end:
   if (check_param.total_files > 1)
   {					/* Only if descript */
     char buff[22],buff2[22];
@@ -183,7 +194,8 @@ enum options_mc {
   OPT_SORT_KEY_BLOCKS, OPT_DECODE_BITS, OPT_FT_MIN_WORD_LEN,
   OPT_FT_MAX_WORD_LEN, OPT_FT_STOPWORD_FILE,
   OPT_MAX_RECORD_LENGTH, OPT_AUTO_CLOSE, OPT_STATS_METHOD, OPT_TRANSACTION_LOG,
-  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN
+  OPT_SKIP_SAFEMALLOC, OPT_ZEROFILL_KEEP_LSN, OPT_REQUIRE_CONTROL_FILE,
+  OPT_LOG_DIR, OPT_DATADIR
 };
 
 static struct my_option my_long_options[] =
@@ -249,6 +261,13 @@ static struct my_option my_long_options[] =
    (uchar**) &check_param.keys_in_use,
    (uchar**) &check_param.keys_in_use,
    0, GET_ULL, REQUIRED_ARG, -1, 0, 0, 0, 0, 0},
+  {"datadir", OPT_DATADIR,
+   "Path for control file (and logs if --log-dir not used).",
+   (uchar**) &maria_data_root, 0, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
+  {"log-dir", OPT_LOG_DIR,
+   "Path for log files.",
+   (uchar**) &opt_log_dir, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"max-record-length", OPT_MAX_RECORD_LENGTH,
    "Skip rows bigger than this if maria_chk can't allocate memory to hold it",
    (uchar**) &check_param.max_record_length,
@@ -274,6 +293,10 @@ static struct my_option my_long_options[] =
   {"sort-recover", 'n',
    "Force recovering with sorting even if the temporary file was very big.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  { "require-control-file", OPT_REQUIRE_CONTROL_FILE,
+    "Abort if cannot find control file",
+    (uchar**)&opt_require_control_file, 0, 0, GET_BOOL, NO_ARG,
+    0, 0, 0, 0, 0, 0},
 #ifdef DEBUG
   {"start-check-pos", OPT_START_CHECK_POS,
    "No help available.",

@@ -54,7 +54,8 @@ uint trnman_decrement_locked_tables(TRN *trn);
 uint trnman_has_locked_tables(TRN *trn);
 void trnman_reset_locked_tables(TRN *trn, uint locked_tables);
 TRN *trnman_recreate_trn_from_recovery(uint16 shortid, TrID longid);
-TRN *trnman_get_any_trn();
+TRN *trnman_get_any_trn(void);
+TrID trnman_get_max_trid(void);
 #define TRANSID_SIZE		6
 #define transid_store(dst, id) int6store(dst,id)
 #define transid_korr(P) uint6korr(P)

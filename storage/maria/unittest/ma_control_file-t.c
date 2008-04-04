@@ -42,36 +42,39 @@
 char file_name[FN_REFLEN];
 
 /* The values we'll set and expect the control file module to return */
-LSN expect_checkpoint_lsn;
+LSN    expect_checkpoint_lsn;
 uint32 expect_logno;
+TrID   expect_max_trid;
 
 static int delete_file(myf my_flags);
 /*
   Those are test-specific wrappers around the module's API functions: after
   calling the module's API functions they perform checks on the result.
 */
-static int close_file(); /* wraps ma_control_file_end */
-static int create_or_open_file(); /* wraps ma_control_file_open_or_create */
-static int write_file(); /* wraps ma_control_file_write_and_force */
+static int close_file(void); /* wraps ma_control_file_end */
+/* wraps ma_control_file_open_or_create */
+static int open_file(void);
+/* wraps ma_control_file_write_and_force */
+static int write_file(LSN checkpoint_lsn, uint32 logno, TrID trid);
 
 /* Tests */
-static int test_one_log();
-static int test_five_logs();
-static int test_3_checkpoints_and_2_logs();
-static int test_binary_content();
-static int test_start_stop();
-static int test_2_open_and_2_close();
-static int test_bad_magic_string();
-static int test_bad_checksum();
-static int test_bad_hchecksum();
-static int test_future_size();
-static int test_bad_blocksize();
-static int test_bad_size();
+static int test_one_log(void);
+static int test_five_logs_and_max_trid(void);
+static int test_3_checkpoints_and_2_logs(void);
+static int test_binary_content(void);
+static int test_start_stop(void);
+static int test_2_open_and_2_close(void);
+static int test_bad_magic_string(void);
+static int test_bad_checksum(void);
+static int test_bad_hchecksum(void);
+static int test_future_size(void);
+static int test_bad_blocksize(void);
+static int test_bad_size(void);
 
 /* Utility */
-static int verify_module_values_match_expected();
-static int verify_module_values_are_impossible();
-static void usage();
+static int verify_module_values_match_expected(void);
+static int verify_module_values_are_impossible(void);
+static void usage(void);
 static void get_options(int argc, char *argv[]);
 
 /*
@@ -83,10 +86,10 @@ static void get_options(int argc, char *argv[]);
 */
 
 #define RET_ERR_UNLESS(expr) \
-  {if (!(expr)) {diag("line %d: failure: '%s'", __LINE__, #expr); return 1;}}
+  {if (!(expr)) {diag("line %d: failure: '%s'", __LINE__, #expr); assert(0);return 1;}}
 
 
-/* Used to ignore error messages from ma_control_file_create_or_open */
+/* Used to ignore error messages from ma_control_file_open() */
 
 static int my_ignore_message(uint error __attribute__((unused)),
                              const char *str __attribute__((unused)),
@@ -101,13 +104,13 @@ int (*default_error_handler_hook)(uint my_err, const char *str,
                                   myf MyFlags) = 0;
 
 
-/* like ma_control_file_create_or_open(), but without error messages */
+/* like ma_control_file_open(), but without error messages */
 
-static CONTROL_FILE_ERROR local_ma_control_file_create_or_open(void)
+static CONTROL_FILE_ERROR local_ma_control_file_open(void)
 {
   CONTROL_FILE_ERROR error;
   error_handler_hook= my_ignore_message;
-  error= ma_control_file_create_or_open();
+  error= ma_control_file_open(TRUE);
   error_handler_hook= default_error_handler_hook;
   return error;
 }
@@ -133,7 +136,8 @@ int main(int argc,char *argv[])
 
   diag("Tests of normal conditions");
   ok(0 == test_one_log(), "test of creating one log");
-  ok(0 == test_five_logs(), "test of creating five logs");
+  ok(0 == test_five_logs_and_max_trid(),
+     "test of creating five logs and many transactions");
   ok(0 == test_3_checkpoints_and_2_logs(),
      "test of creating three checkpoints and two logs");
   ok(0 == test_binary_content(), "test of the binary content of the file");
@@ -163,19 +167,20 @@ static int delete_file(myf my_flags)
   my_delete(file_name, my_flags);
   expect_checkpoint_lsn= LSN_IMPOSSIBLE;
   expect_logno= FILENO_IMPOSSIBLE;
+  expect_max_trid= 0;
 
   return 0;
 }
 
 /*
-  Verifies that global values last_checkpoint_lsn and last_logno (belonging
-  to the module) match what we expect.
+  Verifies that global values last_checkpoint_lsn, last_logno,
+  max_trid_in_control_file (belonging to the module) match what we expect.
 */
-static int verify_module_values_match_expected()
+static int verify_module_values_match_expected(void)
 {
   RET_ERR_UNLESS(last_logno == expect_logno);
-  RET_ERR_UNLESS(last_checkpoint_lsn ==
-                 expect_checkpoint_lsn);
+  RET_ERR_UNLESS(last_checkpoint_lsn == expect_checkpoint_lsn);
+  RET_ERR_UNLESS(max_trid_in_control_file == expect_max_trid);
   return 0;
 }
 
@@ -184,16 +189,16 @@ static int verify_module_values_match_expected()
   Verifies that global values last_checkpoint_lsn and last_logno (belonging
   to the module) are impossible (this is used when the file has been closed).
 */
-static int verify_module_values_are_impossible()
+static int verify_module_values_are_impossible(void)
 {
   RET_ERR_UNLESS(last_logno == FILENO_IMPOSSIBLE);
-  RET_ERR_UNLESS(last_checkpoint_lsn ==
-                 LSN_IMPOSSIBLE);
+  RET_ERR_UNLESS(last_checkpoint_lsn == LSN_IMPOSSIBLE);
+  RET_ERR_UNLESS(max_trid_in_control_file == 0);
   return 0;
 }
 
 
-static int close_file()
+static int close_file(void)
 {
   /* Simulate shutdown */
   ma_control_file_end();
@@ -202,94 +207,81 @@ static int close_file()
   return 0;
 }
 
-static int create_or_open_file()
+static int open_file(void)
 {
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(local_ma_control_file_open() == CONTROL_FILE_OK);
   /* Check that the module reports expected information */
   RET_ERR_UNLESS(verify_module_values_match_expected() == 0);
   return 0;
 }
 
-static int write_file(const LSN checkpoint_lsn,
-                      uint32 logno,
-                      uint objs_to_write)
+static int write_file(LSN checkpoint_lsn, uint32 logno, TrID trid)
 {
-  RET_ERR_UNLESS(ma_control_file_write_and_force(checkpoint_lsn, logno,
-                                             objs_to_write) == 0);
+  RET_ERR_UNLESS(ma_control_file_write_and_force(checkpoint_lsn, logno, trid)
+                 == 0);
   /* Check that the module reports expected information */
   RET_ERR_UNLESS(verify_module_values_match_expected() == 0);
   return 0;
 }
 
-static int test_one_log()
+static int test_one_log(void)
 {
-  uint objs_to_write;
-
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   expect_logno= 123;
-  RET_ERR_UNLESS(write_file(LSN_IMPOSSIBLE,
-                            expect_logno,
-                            objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(last_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
-static int test_five_logs()
+static int test_five_logs_and_max_trid(void)
 {
-  uint objs_to_write;
   uint i;
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   expect_logno= 100;
+  expect_max_trid= ULL(14111978111);
   for (i= 0; i<5; i++)
   {
     expect_logno*= 3;
-    RET_ERR_UNLESS(write_file(LSN_IMPOSSIBLE, expect_logno,
-                              objs_to_write) == 0);
+    RET_ERR_UNLESS(write_file(last_checkpoint_lsn, expect_logno,
+                              expect_max_trid) == 0);
   }
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
-static int test_3_checkpoints_and_2_logs()
+static int test_3_checkpoints_and_2_logs(void)
 {
-  uint objs_to_write;
   /*
     Simulate one checkpoint, one log creation, two checkpoints, one
     log creation.
   */
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   expect_checkpoint_lsn= MAKE_LSN(5, 10000);
-  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
-                            expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
 
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   expect_logno= 17;
-  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
-                            expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
 
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
   expect_checkpoint_lsn= MAKE_LSN(17, 20000);
-  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
-                            expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
 
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LSN;
   expect_checkpoint_lsn= MAKE_LSN(17, 45000);
-  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
-                            expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
 
-  objs_to_write= CONTROL_FILE_UPDATE_ONLY_LOGNO;
   expect_logno= 19;
-  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn,
-                            expect_logno, objs_to_write) == 0);
+  RET_ERR_UNLESS(write_file(expect_checkpoint_lsn, expect_logno,
+                            max_trid_in_control_file) == 0);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
-static int test_binary_content()
+static int test_binary_content(void)
 {
   uint i;
   int fd;
@@ -310,7 +302,7 @@ static int test_binary_content()
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_read(fd, buffer, 45, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   i= uint3korr(buffer + 34 );
   RET_ERR_UNLESS(i == LSN_FILE_NO(last_checkpoint_lsn));
   i= uint4korr(buffer + 37);
@@ -321,35 +313,35 @@ static int test_binary_content()
   return 0;
 }
 
-static int test_start_stop()
+static int test_start_stop(void)
 {
   /* TEST5: Simulate start/nothing/stop/start/nothing/stop/start */
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
-static int test_2_open_and_2_close()
+static int test_2_open_and_2_close(void)
 {
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
 
-static int test_bad_magic_string()
+static int test_bad_magic_string(void)
 {
   uchar buffer[4];
   int fd;
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 
   /* Corrupt magic string */
@@ -361,22 +353,22 @@ static int test_bad_magic_string()
                            MYF(MY_FNABP |  MY_WME)) == 0);
 
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
              CONTROL_FILE_BAD_MAGIC_STRING);
   /* Restore magic string */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 4, 0, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
-static int test_bad_checksum()
+static int test_bad_checksum(void)
 {
   uchar buffer[4];
   int fd;
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 
   /* Corrupt checksum */
@@ -387,7 +379,7 @@ static int test_bad_checksum()
   buffer[0]+= 3; /* mangle checksum */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 30, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
                  CONTROL_FILE_BAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
@@ -398,22 +390,22 @@ static int test_bad_checksum()
 }
 
 
-static int test_bad_blocksize()
+static int test_bad_blocksize(void)
 {
   maria_block_size<<= 1;
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
                  CONTROL_FILE_WRONG_BLOCKSIZE);
   /* Restore blocksize */
   maria_block_size>>= 1;
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
   return 0;
 }
 
 
-static int test_future_size()
+static int test_future_size(void)
 {
   /*
     Here we check ability to add fields only so we can use
@@ -455,18 +447,18 @@ static int test_future_size()
                            CF_CHANGEABLE_TOTAL_SIZE + 2,
                            0, MYF(MY_FNABP |  MY_WME)) == 0);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 
   return(0);
 }
 
-static int test_bad_hchecksum()
+static int test_bad_hchecksum(void)
 {
   uchar buffer[4];
   int fd;
 
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 
   /* Corrupt checksum */
@@ -477,7 +469,7 @@ static int test_bad_hchecksum()
   buffer[0]+= 3; /* mangle checksum */
   RET_ERR_UNLESS(my_pwrite(fd, buffer, 1, 26, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
                  CONTROL_FILE_BAD_HEAD_CHECKSUM);
   /* Restore checksum */
   buffer[0]-= 3;
@@ -488,7 +480,7 @@ static int test_bad_hchecksum()
 }
 
 
-static int test_bad_size()
+static int test_bad_size(void)
 {
   uchar buffer[]=
     "123456789012345678901234567890123456789012345678901234567890123456";
@@ -501,20 +493,20 @@ static int test_bad_size()
                           MYF(MY_WME))) >= 0);
   RET_ERR_UNLESS(my_write(fd, buffer, 10, MYF(MY_FNABP |  MY_WME)) == 0);
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
                  CONTROL_FILE_TOO_SMALL);
   for (i= 0; i < 8; i++)
   {
     RET_ERR_UNLESS(my_write(fd, buffer, 66, MYF(MY_FNABP |  MY_WME)) == 0);
   }
   /* Check that control file module sees the problem */
-  RET_ERR_UNLESS(local_ma_control_file_create_or_open() ==
+  RET_ERR_UNLESS(local_ma_control_file_open() ==
                  CONTROL_FILE_TOO_BIG);
   RET_ERR_UNLESS(my_close(fd, MYF(MY_WME)) == 0);
 
   /* Leave a correct control file */
   RET_ERR_UNLESS(delete_file(MYF(MY_WME)) == 0);
-  RET_ERR_UNLESS(create_or_open_file() == CONTROL_FILE_OK);
+  RET_ERR_UNLESS(open_file() == CONTROL_FILE_OK);
   RET_ERR_UNLESS(close_file() == 0);
 
   return 0;
@@ -535,7 +527,7 @@ static struct my_option my_long_options[] =
 };
 
 
-static void version()
+static void version(void)
 {
   printf("ma_control_file_test: unit test for the control file "
          "module of the Maria storage engine. Ver 1.0 \n");
@@ -575,7 +567,7 @@ static void get_options(int argc, char *argv[])
 } /* get options */
 
 
-static void usage()
+static void usage(void)
 {
   printf("Usage: %s [options]\n\n", my_progname);
   my_print_help(my_long_options);

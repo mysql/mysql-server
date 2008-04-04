@@ -2768,7 +2768,7 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_tmpdir= &mysql_tmpdir_list;             /* For REDO */
-  res= maria_init() || ma_control_file_create_or_open() ||
+  res= maria_init() || ma_control_file_open(TRUE) ||
     !init_pagecache(maria_pagecache,
                     (size_t) pagecache_buffer_size, pagecache_division_limit,
                     pagecache_age_threshold, maria_block_size, 0) ||

@@ -2509,6 +2509,14 @@ static uint end_of_redo_phase(my_bool prepare_for_undo_phase)
 
   llstr(max_long_trid, llbuf);
   tprint(tracef, "Maximum transaction long id seen: %s\n", llbuf);
+  llstr(max_trid_in_control_file, llbuf);
+  tprint(tracef, "Maximum transaction long id seen in control file: %s\n",
+         llbuf);
+  /*
+    If logs were deleted, or lost, trid in control file is needed to set
+    trnman's generator:
+  */
+  set_if_bigger(max_long_trid, max_trid_in_control_file);
   if (prepare_for_undo_phase && trnman_init(max_long_trid))
     return -1;
 
