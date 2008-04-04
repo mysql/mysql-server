@@ -748,9 +748,12 @@ ha_ndbcluster::clear_extended_column_set(uchar *mask)
 }
 
 uchar *
-ha_ndbcluster::copy_column_set(MY_BITMAP *bitmap)
+ha_ndbcluster::copy_column_set(const MY_BITMAP *bitmap)
 {
-  bitmap_copy(&m_bitmap, bitmap);
+  if (bitmap)
+    bitmap_copy(&m_bitmap, bitmap);
+  else
+    bitmap_set_all(&m_bitmap);
   uchar *mask= (uchar *)m_bitmap_buf;
   clear_extended_column_set(mask);
   return mask;
@@ -3368,8 +3371,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
     if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
     {
-      mask= user_cols_written_bitmap ?
-        copy_column_set(user_cols_written_bitmap) : NULL;
+      mask= copy_column_set(user_cols_written_bitmap);
       if (m_user_defined_partitioning)
         request_partition_function_value(mask);
       if (table_share->primary_key == MAX_KEY)
