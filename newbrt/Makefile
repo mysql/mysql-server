@@ -164,6 +164,7 @@ pma.o: gpma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../i
 test-gpma-glassbox.o: test-gpma-glassbox.c gpma.h gpma-internal.h toku_assert.h memory.h
 test-gpma-glassbox: test-gpma-glassbox.o toku_assert.o memory-debug.o gpma.o
 test-gpma-blackbox: test-gpma-blackbox.o toku_assert.o memory.o gpma.o
+test-gpma-blackbox.o: test-gpma-blackbox.c gpma.h memory.h toku_assert.h
 test-gpma-worstinsert: test-gpma-worstinsert.o toku_assert.o memory.o gpma.o
 test-gpma-worstinsert.o test-gpma-blackbox.o: gpma.h memory.h toku_assert.h
 gpma.o: gpma.c gpma.h
