@@ -2293,15 +2293,20 @@ static int toku_db_remove(DB * db, const char *fname, const char *dbname, u_int3
         r = toku_brt_remove_subdb(db->i->brt, dbname, flags);
         if (r!=0) { goto cleanup; }
     }
-    r = toku_db_close(db, 0);
-    need_close = FALSE;
-    if (r!=0) { goto cleanup; }
     if (!dbname) {
         r = find_db_file(db->dbenv, fname, &full_name);
         if (r!=0) { goto cleanup; }
         assert(full_name);
+	r = toku_db_close(db, 0);
+	need_close = FALSE;
+	if (r!=0) { goto cleanup; }
         if (unlink(full_name) != 0) { r = errno; goto cleanup; }
+    } else {
+	r = toku_db_close(db, 0);
+	need_close = FALSE;
+	if (r!=0) { goto cleanup; }
     }
+
     if (ltm && db_id) { toku_ltm_invalidate_lt(ltm, db_id); }
 
     r = 0;
