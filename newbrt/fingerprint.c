@@ -26,7 +26,7 @@ u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp) {
 				 kv_pair_val_const(kvp), kv_pair_vallen(kvp));
 }
 
-u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, const void *val, int vallen) {
+u_int32_t toku_calccrc32_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen) {
     unsigned char type_c = type;
     unsigned int a = htonl(xid>>32);
     unsigned int b = htonl(xid&0xffffffff);

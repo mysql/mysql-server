@@ -25,7 +25,7 @@ struct mempool {
 
 /* initialize the memory pool with the base address and size of a
    contiguous chunk of memory */
-void toku_mempool_init(struct mempool *mp, void *base, int size);
+void toku_mempool_init(struct mempool *mp, void *base, size_t size);
 
 /* finalize the memory pool */
 void toku_mempool_fini(struct mempool *mp);

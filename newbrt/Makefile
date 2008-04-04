@@ -34,6 +34,8 @@ CFLAGS = -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -W
 LDFLAGS = $(OPTFLAGS) -g $(GCOV_FLAGS) $(PROF_FLAGS) 
 CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
 
+leafentry.o: CFLAGS+=-Wconversion
+
 ifdef BRT_FANOUT
 CPPFLAGS += -DBRT_FANOUT=$(BRT_FANOUT)
 endif
