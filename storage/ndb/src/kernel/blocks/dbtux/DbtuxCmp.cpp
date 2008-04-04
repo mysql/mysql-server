@@ -53,7 +53,8 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
         ndbrequire(ah(searchKey).getAttributeId() == descAttr.m_primaryAttrId);
         ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = ah(searchKey).getDataSize();
+        const unsigned bytes1 = ah(searchKey).getByteSize();
+        const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
         const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
@@ -61,7 +62,7 @@ Dbtux::cmpSearchKey(const Frag& frag, unsigned& start, ConstData searchKey, Cons
         const Uint32* const p1 = &searchKey[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
         const bool full = (maxlen == MaxAttrDataSize);
-        ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
+        ret = (*cmp)(0, p1, bytes1, p2, bytes2, full);
         if (ret != 0) {
           jam();
           break;
@@ -138,7 +139,8 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
         const DescAttr& descAttr = descEnt.m_descAttr[index];
         ndbrequire(ah(entryData).getAttributeId() == descAttr.m_primaryAttrId);
         // sizes
-        const unsigned size1 = ah(boundInfo).getDataSize();
+        const unsigned bytes1 = ah(boundInfo).getByteSize();
+        const unsigned bytes2 = min(ah(entryData).getByteSize(), len2 << 2);
         const unsigned size2 = min(ah(entryData).getDataSize(), len2);
         len2 -= size2;
         // compare
@@ -146,7 +148,7 @@ Dbtux::cmpScanBound(const Frag& frag, unsigned idir, ConstData boundInfo, unsign
         const Uint32* const p1 = &boundInfo[AttributeHeaderSize];
         const Uint32* const p2 = &entryData[AttributeHeaderSize];
         const bool full = (maxlen == MaxAttrDataSize);
-        int ret = (*cmp)(0, p1, size1 << 2, p2, size2 << 2, full);
+        int ret = (*cmp)(0, p1, bytes1, p2, bytes2, full);
         if (ret != 0) {
           jam();
           return ret;
