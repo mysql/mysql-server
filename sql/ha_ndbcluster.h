@@ -583,7 +583,7 @@ private:
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
   uchar *get_row_buffer();
   void clear_extended_column_set(uchar *mask);
-  uchar *copy_column_set(MY_BITMAP *bitmap);
+  uchar *copy_column_set(const MY_BITMAP *bitmap);
 
   int get_blob_values(NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
