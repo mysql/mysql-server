@@ -58,7 +58,7 @@ clean:
 
 ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
 
-DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
+DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/leafentry.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
 
 RANGETREE_BINS = range_tree/rangetree.o range_tree/tokuredblack.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
