@@ -1333,7 +1333,7 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 }
 
 int ha_tokudb::write_row(uchar * record) {
-    TOKUDB_DBUG_ENTER("write_row");
+    TOKUDB_DBUG_ENTER("ha::write_row");
     DBT row, prim_key, key;
     int error;
 
@@ -1576,15 +1576,18 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 */
 
 int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT * prim_key) {
-    TOKUDB_DBUG_ENTER("remove_key");
+    TOKUDB_DBUG_ENTER("ha_tokudb::remove_key");
     int error;
     DBT key;
     DBUG_PRINT("enter", ("index: %d", keynr));
+    DBUG_PRINT("primary", ("index: %d", primary_key));
+    DBUG_DUMP("prim_key", (uchar *) prim_key->data, prim_key->size);
 
 
     if (keynr == active_index && cursor)
         error = cursor->c_del(cursor, 0);
     else if (keynr == primary_key || ((table->key_info[keynr].flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)) {  // Unique key
+        DBUG_PRINT("Unique key", ("index: %d", keynr));
         DBUG_ASSERT(keynr == primary_key || prim_key->data != key_buff2);
         error = key_file[keynr]->del(key_file[keynr], trans, keynr == primary_key ? prim_key : create_key(&key, keynr, key_buff2, record), 0);
     } else {
@@ -1597,6 +1600,7 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
         DBC *tmp_cursor;
         if (!(error = key_file[keynr]->cursor(key_file[keynr], trans, &tmp_cursor, 0))) {
             if (!(error = tmp_cursor->c_get(tmp_cursor, create_key(&key, keynr, key_buff2, record), prim_key, DB_GET_BOTH))) { 
+                DBUG_DUMP("cget key", (uchar *) key.data, key.size);
                 error = tmp_cursor->c_del(tmp_cursor, 0);
             }
             int result = tmp_cursor->c_close(tmp_cursor);
@@ -1610,7 +1614,11 @@ int ha_tokudb::remove_key(DB_TXN * trans, uint keynr, const uchar * record, DBT 
 /* Delete all keys for new_record */
 int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_record, DBT * prim_key, key_map * keys) {
     int result = 0;
+/* VL
     for (uint keynr = 0; keynr < table_share->keys + test(hidden_primary_key); keynr++) {
+*/
+    for (uint keynr = table_share->keys + test(hidden_primary_key); keynr > 0; keynr--) {
+keynr--;
         if (keys->is_set(keynr)) {
             int new_error = remove_key(trans, keynr, record, prim_key);
             if (new_error) {
@@ -1618,12 +1626,13 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_recor
                 break;          // Let rollback correct things
             }
         }
+keynr++;
     }
     return result;
 }
 
 int ha_tokudb::delete_row(const uchar * record) {
-    TOKUDB_DBUG_ENTER("delete_row");
+    TOKUDB_DBUG_ENTER("ha_tokudb::delete_row");
     int error;
     DBT row, prim_key;
     key_map keys = table_share->keys_in_use;
@@ -1722,6 +1731,7 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
         row = &current_row;
     }
     unpack_row(buf, row);
+    DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size);
     TOKUDB_DBUG_RETURN(0);
 }
 
@@ -1920,6 +1930,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_rnd_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
+    DBUG_DUMP("last_key", (uchar *) last_key.data, last_key.size);
     TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, primary_key, &row, &last_key, 1));
 }
 
