@@ -47,10 +47,10 @@ SELECT *
 FROM information_schema.collations
 ORDER BY collation_name;
 COLLATION_NAME	CHARACTER_SET_NAME	ID	IS_DEFAULT	IS_COMPILED	SORTLEN
-armscii8_bin	armscii8	64		Yes	1
-armscii8_general_ci	armscii8	32	Yes	Yes	1
-ascii_bin	ascii	65		Yes	1
-ascii_general_ci	ascii	11	Yes	Yes	1
+armscii8_bin	armscii8	64			0
+armscii8_general_ci	armscii8	32	Yes		0
+ascii_bin	ascii	65			0
+ascii_general_ci	ascii	11	Yes		0
 big5_bin	big5	84		Yes	1
 big5_chinese_ci	big5	1	Yes	Yes	1
 binary	binary	63	Yes	Yes	1
@@ -58,26 +58,27 @@ cp1250_bin	cp1250	66		Yes	1
 cp1250_croatian_ci	cp1250	44		Yes	1
 cp1250_czech_cs	cp1250	34		Yes	2
 cp1250_general_ci	cp1250	26	Yes	Yes	1
-cp1251_bin	cp1251	50		Yes	1
-cp1251_bulgarian_ci	cp1251	14		Yes	1
-cp1251_general_ci	cp1251	51	Yes	Yes	1
-cp1251_general_cs	cp1251	52		Yes	1
-cp1251_ukrainian_ci	cp1251	23		Yes	1
-cp1256_bin	cp1256	67		Yes	1
-cp1256_general_ci	cp1256	57	Yes	Yes	1
-cp1257_bin	cp1257	58		Yes	1
-cp1257_general_ci	cp1257	59	Yes	Yes	1
-cp1257_lithuanian_ci	cp1257	29		Yes	1
-cp850_bin	cp850	80		Yes	1
-cp850_general_ci	cp850	4	Yes	Yes	1
-cp852_bin	cp852	81		Yes	1
-cp852_general_ci	cp852	40	Yes	Yes	1
-cp866_bin	cp866	68		Yes	1
-cp866_general_ci	cp866	36	Yes	Yes	1
+cp1250_polish_ci	cp1250	99		Yes	1
+cp1251_bin	cp1251	50			0
+cp1251_bulgarian_ci	cp1251	14			0
+cp1251_general_ci	cp1251	51	Yes		0
+cp1251_general_cs	cp1251	52			0
+cp1251_ukrainian_ci	cp1251	23			0
+cp1256_bin	cp1256	67			0
+cp1256_general_ci	cp1256	57	Yes		0
+cp1257_bin	cp1257	58			0
+cp1257_general_ci	cp1257	59	Yes		0
+cp1257_lithuanian_ci	cp1257	29			0
+cp850_bin	cp850	80			0
+cp850_general_ci	cp850	4	Yes		0
+cp852_bin	cp852	81			0
+cp852_general_ci	cp852	40	Yes		0
+cp866_bin	cp866	68			0
+cp866_general_ci	cp866	36	Yes		0
 cp932_bin	cp932	96		Yes	1
 cp932_japanese_ci	cp932	95	Yes	Yes	1
-dec8_bin	dec8	69		Yes	1
-dec8_swedish_ci	dec8	3	Yes	Yes	1
+dec8_bin	dec8	69			0
+dec8_swedish_ci	dec8	3	Yes		0
 eucjpms_bin	eucjpms	98		Yes	1
 eucjpms_japanese_ci	eucjpms	97	Yes	Yes	1
 euckr_bin	euckr	85		Yes	1
@@ -86,20 +87,20 @@ gb2312_bin	gb2312	86		Yes	1
 gb2312_chinese_ci	gb2312	24	Yes	Yes	1
 gbk_bin	gbk	87		Yes	1
 gbk_chinese_ci	gbk	28	Yes	Yes	1
-geostd8_bin	geostd8	93		Yes	1
-geostd8_general_ci	geostd8	92	Yes	Yes	1
-greek_bin	greek	70		Yes	1
-greek_general_ci	greek	25	Yes	Yes	1
-hebrew_bin	hebrew	71		Yes	1
-hebrew_general_ci	hebrew	16	Yes	Yes	1
-hp8_bin	hp8	72		Yes	1
-hp8_english_ci	hp8	6	Yes	Yes	1
-keybcs2_bin	keybcs2	73		Yes	1
-keybcs2_general_ci	keybcs2	37	Yes	Yes	1
-koi8r_bin	koi8r	74		Yes	1
-koi8r_general_ci	koi8r	7	Yes	Yes	1
-koi8u_bin	koi8u	75		Yes	1
-koi8u_general_ci	koi8u	22	Yes	Yes	1
+geostd8_bin	geostd8	93			0
+geostd8_general_ci	geostd8	92	Yes		0
+greek_bin	greek	70			0
+greek_general_ci	greek	25	Yes		0
+hebrew_bin	hebrew	71			0
+hebrew_general_ci	hebrew	16	Yes		0
+hp8_bin	hp8	72			0
+hp8_english_ci	hp8	6	Yes		0
+keybcs2_bin	keybcs2	73			0
+keybcs2_general_ci	keybcs2	37	Yes		0
+koi8r_bin	koi8r	74			0
+koi8r_general_ci	koi8r	7	Yes		0
+koi8u_bin	koi8u	75			0
+koi8u_general_ci	koi8u	22	Yes		0
 latin1_bin	latin1	47		Yes	1
 latin1_danish_ci	latin1	15		Yes	1
 latin1_general_ci	latin1	48		Yes	1
@@ -113,20 +114,20 @@ latin2_croatian_ci	latin2	27		Yes	1
 latin2_czech_cs	latin2	2		Yes	4
 latin2_general_ci	latin2	9	Yes	Yes	1
 latin2_hungarian_ci	latin2	21		Yes	1
-latin5_bin	latin5	78		Yes	1
-latin5_turkish_ci	latin5	30	Yes	Yes	1
-latin7_bin	latin7	79		Yes	1
-latin7_estonian_cs	latin7	20		Yes	1
-latin7_general_ci	latin7	41	Yes	Yes	1
-latin7_general_cs	latin7	42		Yes	1
-macce_bin	macce	43		Yes	1
-macce_general_ci	macce	38	Yes	Yes	1
-macroman_bin	macroman	53		Yes	1
-macroman_general_ci	macroman	39	Yes	Yes	1
+latin5_bin	latin5	78			0
+latin5_turkish_ci	latin5	30	Yes		0
+latin7_bin	latin7	79			0
+latin7_estonian_cs	latin7	20			0
+latin7_general_ci	latin7	41	Yes		0
+latin7_general_cs	latin7	42			0
+macce_bin	macce	43			0
+macce_general_ci	macce	38	Yes		0
+macroman_bin	macroman	53			0
+macroman_general_ci	macroman	39	Yes		0
 sjis_bin	sjis	88		Yes	1
 sjis_japanese_ci	sjis	13	Yes	Yes	1
-swe7_bin	swe7	82		Yes	1
-swe7_swedish_ci	swe7	10	Yes	Yes	1
+swe7_bin	swe7	82			0
+swe7_swedish_ci	swe7	10	Yes		0
 tis620_bin	tis620	89		Yes	1
 tis620_thai_ci	tis620	18	Yes	Yes	4
 ucs2_bin	ucs2	90		Yes	1
@@ -190,6 +191,7 @@ cp1250_bin	cp1250
 cp1250_croatian_ci	cp1250
 cp1250_czech_cs	cp1250
 cp1250_general_ci	cp1250
+cp1250_polish_ci	cp1250
 cp1251_bin	cp1251
 cp1251_bulgarian_ci	cp1251
 cp1251_general_ci	cp1251
@@ -214,6 +216,7 @@ eucjpms_bin	eucjpms
 eucjpms_japanese_ci	eucjpms
 euckr_bin	euckr
 euckr_korean_ci	euckr
+filename	filename
 gb2312_bin	gb2312
 gb2312_chinese_ci	gb2312
 gbk_bin	gbk
