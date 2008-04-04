@@ -194,7 +194,7 @@ void test_split_internal (const char *strings[],
 	    *ndata = data; // Don't have to do anything
 	    return 0;
 	}
-	int did_n_left=-1;
+	int did_n_left=-1, did_n_right=-1;
 	int rcall0 (u_int32_t nitems, u_int32_t *froms, u_int32_t *tos,  struct gitem *items, u_int32_t old_N, u_int32_t new_N, void *extra) {
 	    //printf("%s:%d old_N=%d new_N=%d\n", __FILE__, __LINE__, old_N, new_N);
 	    assert(old_N==current_estimate_of_N);
@@ -203,6 +203,8 @@ void test_split_internal (const char *strings[],
 	    u_int32_t j;
 	    if (expect_n_left>=0) assert(nitems==(u_int32_t)expect_n_left);
 	    did_n_left=nitems;
+	    //printf("did_n_left=%d nitems=%d n_strings=%d\n", did_n_left, nitems, n_strings);
+	    assert(did_n_left+nitems==n_strings);
 	    //printf("inner moved:"); for (j=0; j<nitems; j++) printf(" %d->%d", froms[j], tos[j]); printf("\n");
 	    for (j=0; j<nitems; j++) {
 		if (expect_froms_left) assert(expect_froms_left[j]==froms[j]);
@@ -221,7 +223,6 @@ void test_split_internal (const char *strings[],
 	    assert(extra==0);
 	    u_int32_t j;
 	    if (expect_n_right>=0) assert(nitems==(u_int32_t)expect_n_right);
-	    assert(did_n_left+nitems==n_strings);
 	    //printf("outer moved:"); for (j=0; j<nitems; j++) printf(" %d->%d", froms[j], tos[j]); printf("\n");
 	    for (j=0; j<nitems; j++) {
 		if (expect_froms_right) assert(expect_froms_right[j]==froms[j]);
@@ -232,6 +233,7 @@ void test_split_internal (const char *strings[],
 		    assert(strcmp(items[j-1].data, items[j].data)<0);
 		}
 	    }
+	    did_n_right = nitems;
 	    return 0;
 	}
 	r = toku_gpma_split(pma1, pma2, 1, do_realloc, rcall0, rcall1, 0);
