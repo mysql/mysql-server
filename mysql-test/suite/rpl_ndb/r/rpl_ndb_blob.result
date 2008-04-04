@@ -146,3 +146,53 @@ S	testtttttttttt	t1	8fc937d303ee7e4795c0b964d4066cedd6d74cfd	11	12	13	14	15
 S	testttttttttttt	t1	a5229e9f8977bc99afc3b3627c56f083e97e01bd	21	22	23	24	25
 S	testtttttttttttt	t1	0820e6ad3eeb06ea60e5e04d0bfe36f286b91098	31	32	33	34	35
 drop table t1;
+create table t1 (a int primary key,
+b varchar(100) default 'b',
+c varchar(100),
+d text,
+e text) engine=ndbcluster;
+insert into t1 values (1, 'b1', 'c1', 'd1', 'e1');
+insert into t1 (a) values (2);
+insert into t1 (a, b, d) values (3, 'b3', 'd3');
+replace into t1 values (5, 'b5', 'c5', 'd5', 'e5');
+replace into t1 (a) values (6);
+replace into t1 (a, c, e) values (7, 'c7', 'e7');
+select * from t1 order by a;
+a	b	c	d	e
+1	b1	c1	d1	e1
+2	b	NULL	NULL	NULL
+3	b3	NULL	d3	NULL
+5	b5	c5	d5	e5
+6	b	NULL	NULL	NULL
+7	b	c7	NULL	e7
+select * from t1 order by a;
+a	b	c	d	e
+1	b1	c1	d1	e1
+2	b	NULL	NULL	NULL
+3	b3	NULL	d3	NULL
+5	b5	c5	d5	e5
+6	b	NULL	NULL	NULL
+7	b	c7	NULL	e7
+replace into t1 (a) values (1);
+replace into t1 (a, b, d) values (2, 'b2x', 'd2x');
+replace into t1 (a, c, e) values (3, 'c3x', 'e3x');
+replace into t1 (a, b, c, d, e) values (5, 'b5x', 'c5x', 'd5x', 'e5x');
+replace into t1 (a) values (6);
+replace into t1 (a, e) values (7, 'e7x');
+select * from t1 order by a;
+a	b	c	d	e
+1	b	NULL	NULL	NULL
+2	b2x	NULL	d2x	NULL
+3	b	c3x	NULL	e3x
+5	b5x	c5x	d5x	e5x
+6	b	NULL	NULL	NULL
+7	b	NULL	NULL	e7x
+select * from t1 order by a;
+a	b	c	d	e
+1	b	NULL	NULL	NULL
+2	b2x	NULL	d2x	NULL
+3	b	c3x	NULL	e3x
+5	b5x	c5x	d5x	e5x
+6	b	NULL	NULL	NULL
+7	b	NULL	NULL	e7x
+drop table t1;
