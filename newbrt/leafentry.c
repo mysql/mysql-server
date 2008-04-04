@@ -141,8 +141,8 @@ static u_int32_t crc_uint32_t (u_int32_t crc, u_int32_t v) {
 }
 
 static u_int32_t crc_uint64_t (u_int32_t crc, u_int64_t v) {
-    crc = crc_uint32_t (crc, v>>32);
-    crc = crc_uint32_t (crc, v&0xffffffff);
+    crc = crc_uint32_t (crc, (u_int32_t)(v>>32));
+    crc = crc_uint32_t (crc, (u_int32_t)(v&0xffffffff));
     return crc;
 }
 
@@ -193,9 +193,9 @@ int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp) {
     toku_mempool_init(&new_kvspace, newmem, memp->size);
     GPMA_ITERATE(pma, idx, len, data,
 		 ({
-		     void *newdata = toku_mempool_malloc(&new_kvspace, len, 4);
+		     void *newdata = toku_mempool_malloc(&new_kvspace, (size_t)len, 4);
 		     assert(newdata);
-		     memcpy(newdata, data, len);
+		     memcpy(newdata, data, (size_t)len);
 		     toku_gpma_set_at_index(pma, idx, len, newdata);
 		     // toku_verify_gpma(pma);
 		 }));
@@ -206,7 +206,7 @@ int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp) {
 }
 
 
-void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, u_int32_t size) {
+void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size) {
     void *v = toku_mempool_malloc(mp, size, 4);
     if (v==0) {
 	if (0 == toku_gpma_compress_kvspace(pma, mp)) {
@@ -224,8 +224,8 @@ int le_committed (ITEMLEN klen, bytevec kval, ITEMLEN dlen, bytevec dval, GPMA p
     ce=(struct contents_committed*)&le->contents[0];
     ce->keylen = klen;
     ce->vallen = dlen;
-    memcpy(&ce->data[0], kval, klen);
-    memcpy(&ce->data[klen], dval, dlen);
+    memcpy(&ce->data[0], kval, (size_t)klen);
+    memcpy(&ce->data[klen], dval, (size_t)dlen);
     *result=le;
     return 0;
 }

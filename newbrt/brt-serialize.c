@@ -117,10 +117,10 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, calculated_size);
     wbuf_uint(&w, node->flags);
-    wbuf_uint(&w, node->height);
+    wbuf_int(&w,  node->height);
     //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
-    wbuf_int(&w, node->rand4fingerprint);
-    wbuf_int(&w, node->local_fingerprint);
+    wbuf_uint(&w, node->rand4fingerprint);
+    wbuf_uint(&w, node->local_fingerprint);
 //    printf("%s:%d wrote %08x for node %lld\n", __FILE__, __LINE__, node->local_fingerprint, (long long)node->thisnodename);
     //printf("%s:%d local_fingerprint=%8x\n", __FILE__, __LINE__, node->local_fingerprint);
     //printf("%s:%d w.ndone=%d n_children=%d\n", __FILE__, __LINE__, w.ndone, node->n_children);
@@ -133,11 +133,11 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	    for (i=0; i<node->u.n.n_children; i++) {
 		subtree_fingerprint += BNC_SUBTREE_FINGERPRINT(node, i);
 	    }
-	    wbuf_int(&w, subtree_fingerprint);
+	    wbuf_uint(&w, subtree_fingerprint);
 	}
 	wbuf_int(&w, node->u.n.n_children);
 	for (i=0; i<node->u.n.n_children; i++) {
-	    wbuf_int(&w, BNC_SUBTREE_FINGERPRINT(node, i));
+	    wbuf_uint(&w, BNC_SUBTREE_FINGERPRINT(node, i));
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
@@ -175,16 +175,16 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
 	}
     } else {
 	//printf(" n_entries=%d\n", toku_pma_n_entries(node->u.l.buffer));
-	wbuf_int(&w, toku_gpma_n_entries(node->u.l.buffer));
-	wbuf_int(&w, toku_gpma_index_limit(node->u.l.buffer));
+	wbuf_uint(&w, toku_gpma_n_entries(node->u.l.buffer));
+	wbuf_uint(&w, toku_gpma_index_limit(node->u.l.buffer));
 	GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
 		     ({
 			 struct kv_pair *p=vdata;
 			 assert((char*)node->u.l.buffer_mempool.base<= (char*)p && (char*)p < (char*)node->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
-			 int keylen=kv_pair_keylen(p);
-			 int datalen=kv_pair_vallen(p);
+			 u_int32_t keylen=kv_pair_keylen(p);
+			 u_int32_t datalen=kv_pair_vallen(p);
 			 assert(vlen==sizeof(*p)+keylen+datalen);
-			 wbuf_int(&w, idx);
+			 wbuf_uint(&w, idx);
 			 wbuf_bytes(&w, kv_pair_key(p), keylen);
 			 wbuf_bytes(&w, kv_pair_val(p), datalen);
 		     }));
@@ -194,14 +194,14 @@ void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node) 
     wbuf_int(&w, crc32(toku_null_crc, w.buf, w.ndone)); 
 #endif
 #ifdef CRC_INCR
-    wbuf_int(&w, w.crc32);
+    wbuf_uint(&w, w.crc32);
 #endif
 
-    memset(w.buf+w.ndone, 0, size-w.ndone); // fill with zeros
+    memset(w.buf+w.ndone, 0, (size_t)(size-w.ndone)); // fill with zeros
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
-	ssize_t r=pwrite(fd, w.buf, size, off); // write the whole buffer, including the zeros
+	ssize_t r=pwrite(fd, w.buf, (size_t)size, off); // write the whole buffer, including the zeros
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
 	assert(r==size);
     }

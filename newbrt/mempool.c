@@ -5,9 +5,9 @@
 #include "toku_assert.h"
 #include <stdio.h>
 
-void toku_mempool_init(struct mempool *mp, void *base, int size) {
+void toku_mempool_init(struct mempool *mp, void *base, size_t size) {
     // printf("mempool_init %p %p %d\n", mp, base, size);
-    assert(base != 0 && size >= 0);
+    assert(base != 0 && size<(1U<<31)); // used to be assert(size >= 0), but changed to size_t so now let's make sure it's not more than 2GB...
     mp->base = base;
     mp->size = size;
     mp->free_offset = 0;

@@ -39,7 +39,7 @@ static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
 }
 
 /* Write a character. */
-static inline void wbuf_char (struct wbuf *w, int ch) {
+static inline void wbuf_char (struct wbuf *w, unsigned int ch) {
     assert(w->ndone<w->size);
     w->buf[w->ndone++]=ch;
 #ifdef CRC_INCR

@@ -162,7 +162,7 @@ static const BRTNODE null_brtnode=0;
 
 extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
 extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
-extern u_int32_t toku_calccrc32_cmd (int type, TXNID xid, const void *key, int keylen, const void *val, int vallen);
+extern u_int32_t toku_calccrc32_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd);
 
 // How long is the pivot key?

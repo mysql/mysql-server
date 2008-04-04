@@ -42,7 +42,7 @@ int le_provdel  (ITEMLEN klen, bytevec kval, ITEMLEN dlen, bytevec dval, struct 
 int le_provpair (ITEMLEN klen, bytevec kval, ITEMLEN dlen, bytevec dval, struct mempool *mp, LEAFENTRY *result);
 
 int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp);
-void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, u_int32_t size);
+void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size);
 
 #endif
 
