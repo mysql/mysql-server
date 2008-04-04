@@ -354,6 +354,7 @@ NdbOperation::repack_read(Uint32 len)
   TcKeyReq * const tcKeyReq = CAST_PTR(TcKeyReq, theTCREQ->getDataPtrSend());
   Uint32 cols = m_currentTable->m_columns.size();
 
+  /* Build bitmask for ATTRINFO in TCKEYREQ signal */
   Uint32 *ptr = tcKeyReq->attrInfo;
   for (i = 0; len && i < 5; i++, len--)
   {
@@ -365,10 +366,14 @@ NdbOperation::repack_read(Uint32 len)
       return save;
     }
     mask.set(id);
+    /* check==0 if cols are in ascending attrId order
+     * as (id-maxId) == 0
+     */
     maxId = (id > maxId) ? id : maxId;
     check |= (id - maxId);
   }
 
+  /* Build bitmask for ATTRINFO in extra ATTRINFO signals */
   Uint32 cnt = 0;
   while (len)
   {
@@ -387,6 +392,9 @@ NdbOperation::repack_read(Uint32 len)
       
       mask.set(id);
 
+      /* check==0 if cols are in ascending attrId order
+       * as (id-maxId) == 0
+       */
       maxId = (id > maxId) ? id : maxId;
       check |= (id - maxId);
     }
@@ -396,6 +404,10 @@ NdbOperation::repack_read(Uint32 len)
   const bool all = cols == save;
   if (check == 0)
   {
+    /* AttrInfos are in ascending order, ok to use READ_ALL
+     * or READ_PACKED
+     * (Correct NdbRecAttrs will be used when data is received)
+     */
     assert(1+ MAXNROFATTRIBUTESINWORDS <= TcKeyReq::MaxAttrInfo);
     
     theNdb->releaseSignals(cnt, theFirstATTRINFO, theCurrentATTRINFO);
@@ -745,7 +757,9 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       (tOpType == DeleteRequest && 
        m_attribute_row != NULL)) // Read as part of delete
   {
-    Uint32 column_count= 0;
+    Bitmask<MAXNROFATTRIBUTESINWORDS> readMask;
+    Uint32 requestedCols= 0;
+    Uint32 maxAttrId= 0;
     for (Uint32 i= 0; i<attr_rec->noOfColumns; i++)
     {
       const NdbRecord::Attr *col;
@@ -753,12 +767,14 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       col= &attr_rec->columns[i];
       Uint32 attrId= col->attrId;
 
-      if (!(attrId & AttributeHeader::PSEUDO) &&
-          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+      /* Pseudo columns not allowed for NdbRecord */
+      assert(! (attrId & AttributeHeader::PSEUDO));
+
+      if (!BitmaskImpl::get(MAXNROFATTRIBUTESINWORDS,
                             m_read_mask, attrId))
         continue;
 
-      /* Blob head reads were defined as extra GetValues, 
+      /* Blob head reads are defined as extra GetValues, 
        * processed below, not here.
        */
       if (unlikely(col->flags & NdbRecord::IsBlob))
@@ -767,21 +783,56 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       if (col->flags & NdbRecord::IsDisk)
         no_disk_flag= 0;
 
-      /*
-        Read the column.
-      */
-      res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
-                                       attrId, 0,
-                                       &attrInfoPtr, &remain);
-      if(res)
-        return res;
-      column_count++;
+      if (attrId > maxAttrId)
+        maxAttrId= attrId;
+
+      readMask.set(attrId);
+      requestedCols++;
     }
-    theReceiver.m_record.m_column_count= column_count;
+    theReceiver.m_record.m_column_count= requestedCols;
+
+    /* Are there any columns to read via NdbRecord? */
+    if (requestedCols > 0)
+    {
+      bool all= (requestedCols == m_currentTable->m_columns.size());
+
+      if (all)
+      {
+        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                         AttributeHeader::READ_ALL,
+                                         requestedCols,
+                                         &attrInfoPtr,
+                                         &remain);
+        if (res)
+          return res;
+      }
+      else
+      {
+        /* How many bitmask words are significant? */
+        Uint32 sigBitmaskWords= (maxAttrId>>5) + 1;
+        
+        res= insertATTRINFOHdr_NdbRecord(aTC_ConnectPtr, aTransId,
+                                         AttributeHeader::READ_PACKED,
+                                         sigBitmaskWords << 2,
+                                         &attrInfoPtr,
+                                         &remain);
+        if (res)
+          return res;
+        
+        res= insertATTRINFOData_NdbRecord(aTC_ConnectPtr, aTransId,
+                                          (const char*) &readMask.rep.data[0],
+                                          sigBitmaskWords << 2,
+                                          &attrInfoPtr,
+                                          &remain);
+        if (res)
+          return res;
+      }
+    }
 
     /* Handle any additional getValue(). 
      * Note : This includes extra getValue()s to read Blob
      * header + inline data
+     * Disk flag set when getValues were processed.
      */
     const NdbRecAttr *ra= theReceiver.theFirstRecAttr;
     while (ra)
@@ -834,8 +885,10 @@ NdbOperation::buildSignalsNdbRecord(Uint32 aTC_ConnectPtr,
       col= &attr_rec->columns[i];
       Uint32 attrId= col->attrId;
 
-      if (!(attrId & AttributeHeader::PSEUDO) &&
-          !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
+      /* Pseudo columns not allowed for NdbRecord */
+      assert(! (attrId & AttributeHeader::PSEUDO));
+
+      if (!BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
                             m_read_mask, attrId))
         continue;
 

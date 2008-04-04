@@ -102,6 +102,10 @@ public:
       to dig into Table object for every attribute fetch/store.
     */
     Uint32 maxSize;
+    /*
+      Alignment information for the attribute, duplicated from column info
+    */
+    Uint32 orgAttrSize;
     /* Number of bits in a bitfield. */
     Uint32 bitCount;
 

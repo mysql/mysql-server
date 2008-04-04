@@ -628,11 +628,6 @@ private:
   /* NdbRecord for accessing tuple by hidden Uint64 primary key. */
   NdbRecord *m_ndb_hidden_key_record;
 
-  /*
-    Special NdbRecord for ndb_get_table_statistics(), reading lots of
-    pseudo-columns.
-  */
-  NdbRecord *m_ndb_statistics_record;
   /* Bitmap used for NdbRecord operation column mask. */
   MY_BITMAP m_bitmap;
   my_bitmap_map m_bitmap_buf[(NDB_MAX_ATTRIBUTES_IN_TABLE +
