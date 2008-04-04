@@ -919,10 +919,10 @@ static inline int toku__consolidate(toku_lock_tree* tree, BOOL found_only,
 
 static inline void toku__lt_init_full_query(toku_lock_tree* tree, toku_interval* query,
                                       toku_point* left, toku_point* right) {
-    toku__init_point(left,  tree,       (DBT*)toku_lt_neg_infinity,
-                      tree->duplicates ? (DBT*)toku_lt_neg_infinity : NULL);
-    toku__init_point(right, tree,       (DBT*)toku_lt_infinity,
-                      tree->duplicates ? (DBT*)toku_lt_infinity : NULL);
+    DBT* neg_inf_dups = tree->duplicates ? (DBT*)toku_lt_neg_infinity : NULL;
+    DBT* pos_inf_dups = tree->duplicates ? (DBT*)toku_lt_infinity     : NULL;
+    toku__init_point(left,  tree, (DBT*)toku_lt_neg_infinity, neg_inf_dups);
+    toku__init_point(right, tree, (DBT*)toku_lt_infinity,     pos_inf_dups);
     toku__init_query(query, left, right);
 }
 
