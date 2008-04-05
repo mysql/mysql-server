@@ -135,12 +135,17 @@ test-bt:
 	-cd mysql-test ; MTR_BUILD_THREAD=auto \
 	    @PERL@ ./mysql-test-run.pl --comment=normal+rowrepl --force --timer \
 	        --skip-ndbcluster --mysqld=--binlog-format=row
-	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --comment=ps+rowrepl+NDB --force --timer \
-	        --ps-protocol --mysqld=--binlog-format=row
-	-cd mysql-test ; MTR_BUILD_THREAD=auto \
-	    @PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
-	        --with-ndbcluster-only
+	-if [ -e bin/ndbd -o -e storage/ndb/src/kernel/ndbd ] ; then \
+	  cd mysql-test ; \
+	    MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=ps+rowrepl+NDB --force --timer \
+	          --ps-protocol --mysqld=--binlog-format=row ; \
+	    MTR_BUILD_THREAD=auto \
+	      @PERL@ ./mysql-test-run.pl --comment=NDB            --force --timer \
+	          --with-ndbcluster-only ; \
+	else \
+	  echo "no program found for 'ndbcluster' tests - skipped testing" ; \
+	fi
 	-if [ -e bin/mysqltest_embedded -o -e libmysqld/examples/mysqltest_embedded ] ; then \
 	  cd mysql-test ; MTR_BUILD_THREAD=auto \
 	      @PERL@ ./mysql-test-run.pl --comment=embedded --force --timer \
