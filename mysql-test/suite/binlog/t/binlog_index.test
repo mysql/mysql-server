@@ -13,11 +13,11 @@ flush logs;
 flush logs;
 
 source include/show_binary_logs.inc;
-
 let $MYSQLD_DATADIR= `select @@datadir`;
 remove_file $MYSQLD_DATADIR/master-bin.000001;
 
 # there must be a warning with file names
+replace_regex /\.[\\\/]master/master/;
 purge binary logs TO 'master-bin.000004';
 
 --echo *** must show a list starting from the 'TO' argument of PURGE ***
@@ -37,6 +37,7 @@ remove_file $MYSQLD_DATADIR/master-bin.000001;
 --echo *** must be a warning master-bin.000001 was not found ***
 let $date=`select NOW()  +  INTERVAL 1 MINUTE`;
 --disable_query_log
+replace_regex /\.[\\\/]master/master/;
 eval purge binary logs BEFORE '$date';
 --enable_query_log
 
@@ -59,6 +60,7 @@ mkdir $MYSQLD_DATADIR/master-bin.000001;
 
 --error ER_BINLOG_PURGE_FATAL_ERR
 purge binary logs TO 'master-bin.000002';
+replace_regex /\.[\\\/]master/master/;
 show warnings;
 rmdir $MYSQLD_DATADIR/master-bin.000001;
 --disable_warnings
