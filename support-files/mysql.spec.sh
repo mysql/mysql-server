@@ -336,6 +336,8 @@ BuildMySQL "--enable-shared \
 		--with-innodb \
 %if %{CLUSTER_BUILD}
 		--with-ndbcluster \
+%else
+		--without-ndbcluster \
 %endif
 		--with-archive-storage-engine \
 		--with-csv-storage-engine \
@@ -343,6 +345,8 @@ BuildMySQL "--enable-shared \
 		--with-blackhole-storage-engine \
 %if %{FEDERATED_BUILD}
 		--with-federated-storage-engine \
+%else
+		--without-federated-storage-engine \
 %endif
 	        --with-partition \
 	        --with-big-tables \
