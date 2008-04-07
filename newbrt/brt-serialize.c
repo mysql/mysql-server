@@ -215,7 +215,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
     int i;
     u_int32_t datasize;
     int r;
-    if (errno!=0) {
+    if (result==0) {
 	r=errno;
 	if (0) { died0: toku_free(result); }
 	return r;
@@ -234,7 +234,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
     }
     rc.buf=toku_malloc(datasize);
     //printf("%s:%d errno=%d\n", __FILE__, __LINE__, errno);
-    if (errno!=0) {
+    if (rc.buf==0) {
 	if (0) { died1: toku_free(rc.buf); }
 	r=errno;
 	goto died0;
