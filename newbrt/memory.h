@@ -10,7 +10,7 @@
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
-enum typ_tag { TYP_BRTNODE = 3735879681U, //0xdead0001,
+enum typ_tag { TYP_BRTNODE = 0xdead0001,
 	       TYP_CACHETABLE, TYP_PAIR, /* for cachetables */
 	       TYP_PMA,
 	       TYP_GPMA,
