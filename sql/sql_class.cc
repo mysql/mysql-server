@@ -2093,6 +2093,8 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
         // This case should never be choosen
 	DBUG_ASSERT(0);
 	op= 0;
+      default:
+        break;
       }
     }
     cache->store(val_item);
