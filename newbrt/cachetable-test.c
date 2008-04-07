@@ -203,7 +203,7 @@ static void test_nested_pin (void) {
     CACHEFILE f;
     int i0, i1;
     int r;
-    void *vv;
+    void *vv,*vv2;
     char fname[] = "test_ct.dat";
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -221,12 +221,14 @@ static void test_nested_pin (void) {
     assert(i0==0);
     r = toku_cachetable_unpin(f, 1, 0, test_object_size);
     assert(r==0);
+    r = toku_cachetable_maybe_get_and_pin(f, 1, &vv2);
+    assert(r==0);
+    assert(vv2==vv);
+    r = toku_cachetable_unpin(f, 1, 0, test_object_size);
     r = toku_cachetable_put(f, 2, &i1, test_object_size, flush_n, fetch_n, f2);
-    assert(r!=0); // previously pinned, we shouldn't be able to put.
+    assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
     r = toku_cachetable_unpin(f, 1, 0, test_object_size);
     assert(r==0);
-    r = toku_cachetable_put(f, 2, &i1, test_object_size, flush_n, fetch_n, f2);
-    assert(r==0); // now it is unpinned, we can put it.
 
     r = toku_cachefile_close(&f); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
