@@ -668,6 +668,15 @@ NdbScanFilter::getInterpretedCode() const
   return m_impl.m_code;
 }
 
+NdbOperation*
+NdbScanFilter::getNdbOperation() const
+{
+  /* Return associated NdbOperation (or NULL
+   * if we don't have one)
+   */
+  return m_impl.m_associated_op;
+}
+
 #if 0
 int
 main(void){

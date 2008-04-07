@@ -220,6 +220,15 @@ public:
    */
   const NdbInterpretedCode* getInterpretedCode() const;
 
+  /**
+   * Get NdbScanFilter's associated NdbScanOperation
+   * 
+   * Where the NdbScanFilter was constructed with an NdbOperation
+   * this method can be used to obtain a pointer to the NdbOperation
+   * object.
+   * For other NdbScanFilter objects it will return NULL
+   */
+  NdbOperation * getNdbOperation() const;
 private:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
   friend class NdbScanFilterImpl;
