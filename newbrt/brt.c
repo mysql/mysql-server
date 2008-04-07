@@ -1890,16 +1890,16 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
     t->db = db;
     {
 	int fd = open(fname, O_RDWR, 0777);
-	r = errno;
 	if (fd==-1) {
+	    r = errno;
             if (errno==ENOENT) {
                 if (!is_create) {
                     t->database_name=0;
                     goto died0a;
                 }
                 fd = open(fname, O_RDWR | O_CREAT, 0777);
-                r = errno;
                 if (fd==-1) {
+		    r = errno;
                     t->database_name=0;
                     goto died0a;
                 }
