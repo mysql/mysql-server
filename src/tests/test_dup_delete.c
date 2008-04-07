@@ -106,7 +106,7 @@ void test_dup_delete(int n, int dup_mode) {
         int k = htonl(n/2);
         DBT key, val;
         r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
-        assert(r != 0);
+        assert(r == DB_NOTFOUND);
     }
 
     /* verify all dups are removed using a cursor */

@@ -45,6 +45,7 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     assert(mp->free_offset <= mp->size);
     void *vp;
     size_t offset = (mp->free_offset + (alignment-1)) & ~(alignment-1);
+    //printf("mempool_malloc size=%ld base=%p free_offset=%ld mp->size=%ld offset=%ld\n", size, mp->base, mp->free_offset, mp->size, offset);
     if (offset + size > mp->size) {
         vp = 0;
     } else {
@@ -54,11 +55,14 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
     assert(mp->free_offset <= mp->size);
     assert(((long)vp & (alignment-1)) == 0);
     assert(vp == 0 || (mp->base <= vp && vp + size <= mp->base + mp->size)); 
+    //printf("mempool returning %p\n", vp);
     return vp;
 }
 
+// if vp is null then we are freeing something, but not specifying what.  The data won't be freed until compression is done.
 void toku_mempool_mfree(struct mempool *mp, void *vp, int size) {
-    assert(size >= 0 && mp->base <= vp && vp + size <= mp->base + mp->size); 
+    assert(size >= 0);
+    if (vp) assert(toku_mempool_inrange(mp, vp, size));
     mp->frag_size += size;
     assert(mp->frag_size <= mp->size);
 }

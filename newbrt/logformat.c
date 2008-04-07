@@ -39,23 +39,38 @@ struct logtype {
 int logformat_version_number = 0;
 
 const struct logtype rollbacks[] = {
-    {"fcreate", 'F', FA{{"BYTESTRING", "fname", 0},
+    {"fcreate", 'F', FA{{"TXNID", "xid", 0},
+			{"BYTESTRING", "fname", 0},
 			NULLFIELD}},
+    {"cmdinsert", 'i', FA{{"TXNID", "xid", 0},
+			  {"FILENUM", "filenum", 0},
+			  {"BYTESTRING", "key", 0},
+			  {"BYTESTRING", "data", 0},
+			  NULLFIELD}},
+    {"cmddeleteboth", 'D', FA{{"TXNID", "xid", 0},
+			      {"FILENUM", "filenum", 0},
+			      {"BYTESTRING", "key", 0},
+			      {"BYTESTRING", "data", 0},
+			      NULLFIELD}},
+    {"cmddelete", 'd', FA{{"TXNID", "xid", 0},
+			  {"FILENUM", "filenum", 0},
+			  {"BYTESTRING", "key", 0},
+			  NULLFIELD}},
 //    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
 //		       {"BYTESTRING", "fname", 0},
 //		       NULLFIELD}},
-    {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
-			     {"BYTESTRING", "key", 0},
-			     {"BYTESTRING", "data", 0},
-			     NULLFIELD}},
-    {"insertatleaf", 'i', FA{{"FILENUM", "filenum", 0}, // Note an insert for rollback.   The insert takes place in a leaf.
-			     {"BYTESTRING", "key", 0},
-			     {"BYTESTRING", "data", 0},
-			     NULLFIELD}},
-    {"xactiontouchednonleaf", 'n', FA{{"FILENUM", "filenum", 0},
-				      {"DISKOFFARRAY", "parents", 0},
-				      {"DISKOFF", "diskoff", 0},
-				      NULLFIELD}},
+//    {"deleteatleaf", 'd', FA{{"FILENUM", "filenum", 0}, // Note a delete for rollback.   The delete takes place in a leaf.
+//			     {"BYTESTRING", "key", 0},
+//			     {"BYTESTRING", "data", 0},
+//			     NULLFIELD}},
+//    {"insertatleaf", 'i', FA{{"FILENUM", "filenum", 0}, // Note an insert for rollback.   The insert takes place in a leaf.
+//			     {"BYTESTRING", "key", 0},
+//			     {"BYTESTRING", "data", 0},
+//			     NULLFIELD}},
+//    {"xactiontouchednonleaf", 'n', FA{{"FILENUM", "filenum", 0},
+//				      {"DISKOFFARRAY", "parents", 0},
+//				      {"DISKOFF", "diskoff", 0},
+//				      NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
@@ -152,13 +167,29 @@ const struct logtype logtypes[] = {
 			     {"u_int32_t",  "oldfingerprint", "%08x"},
 			     {"u_int32_t",  "newfingerprint", "%08x"},
 			     NULLFIELD}},
-    {"insertinleaf", 'I', FA{{"TXNID",      "txnid", 0},
-			     {"FILENUM",    "filenum", 0},
-			     {"DISKOFF",    "diskoff", 0},
-			     {"u_int32_t",  "pmaidx", 0},
-			     {"BYTESTRING", "key", 0},
-			     {"BYTESTRING", "data", 0},
-			     NULLFIELD}},
+//    {"insertinleaf", 'I', FA{{"TXNID",      "txnid", 0},
+//			     {"FILENUM",    "filenum", 0},
+//			     {"DISKOFF",    "diskoff", 0},
+//			     {"u_int32_t",  "pmaidx", 0},
+//			     {"BYTESTRING", "key", 0},
+//			     {"BYTESTRING", "data", 0},
+//			     NULLFIELD}},
+//    {"replaceleafentry", 'L', FA{{"FILENUM", "filenum", 0},
+//				 {"DISKOFF", "diskoff", 0},
+//				 {"u_int32_t", "pmaidx", 0},
+//				 {"LEAFENTRY", "oldleafentry", 0},
+//				 {"LEAFENTRY", "newleafentry", 0},
+//				 NULLFIELD}},
+    {"insertleafentry", 'I', FA{{"FILENUM", "filenum", 0},
+				 {"DISKOFF", "diskoff", 0},
+				 {"u_int32_t", "pmaidx", 0},
+				 {"LEAFENTRY", "newleafentry", 0},
+				 NULLFIELD}},
+    {"deleteleafentry", 'D', FA{{"FILENUM", "filenum", 0},
+				{"DISKOFF", "diskoff", 0},
+				{"u_int32_t", "pmaidx", 0},
+				{"LEAFENTRY", "oldleafentry", 0},
+				NULLFIELD}},
     {"deleteinleaf", 'd', FA{{"TXNID",      "txnid", 0},
 			     {"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
@@ -257,6 +288,9 @@ void generate_log_struct (void) {
 			       fprintf(hf, "  %-16s %s;\n", ft->type, ft->name));
 		     fprintf(hf, "};\n");
 		     fprintf(hf, "int toku_rollback_%s (", lt->name);
+		     DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
+		     fprintf(hf, "TOKUTXN txn);\n");
+		     fprintf(hf, "int toku_commit_%s (", lt->name);
 		     DO_FIELDS(ft, lt, fprintf(hf, "%s %s,", ft->type, ft->name));
 		     fprintf(hf, "TOKUTXN txn);\n");
 		 }));

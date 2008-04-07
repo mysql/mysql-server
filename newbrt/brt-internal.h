@@ -160,8 +160,8 @@ extern CACHEKEY* toku_calculate_root_offset_pointer (BRT brt);
 
 static const BRTNODE null_brtnode=0;
 
-extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
-extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
+//extern u_int32_t toku_calccrc32_kvpair (const void *key, int keylen, const void *val, int vallen);
+//extern u_int32_t toku_calccrc32_kvpair_struct (const struct kv_pair *kvp);
 extern u_int32_t toku_calccrc32_cmd (u_int32_t type, TXNID xid, const void *key, u_int32_t keylen, const void *val, u_int32_t vallen);
 extern u_int32_t toku_calccrc32_cmdstruct (BRT_CMD cmd);
 
@@ -193,25 +193,17 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, DISKOFF diskoff, enum brt_cmd_typ
 
 int toku_set_func_fsync (int (*fsync_function)(int));
 
-/* allocate a kv pair from a kv memory pool */
-//static inline struct kv_pair *kv_pair_malloc_mempool(const void *key, int keylen, const void *val, int vallen, struct mempool *mp) {
-//    struct kv_pair *kv = toku_mempool_malloc(mp, sizeof (struct kv_pair) + keylen + vallen, 4);
-//    if (kv)
-//        kv_pair_init(kv, key, keylen, val, vallen);
-//    return kv;
-//}
-
-static inline struct kv_pair *brtnode_malloc_kv_pair (GPMA pma, struct mempool *mp, const void *key, unsigned int keylen, const void *val, unsigned int vallen) {
-    struct kv_pair *kv = mempool_malloc_from_gpma(pma, mp, sizeof (struct kv_pair) + keylen + vallen);
-    kv_pair_init(kv, key, keylen, val, vallen);
-    return kv;
-}
-
-// used for the leaf compare fun
-struct lc_pair {
+// These two go together to do lookups in a brtnode using the keys in a command.
+struct cmd_leafval_bessel_extra {
     BRT t;
-    int compare_both; // compare_both is set if it is a DUPSORT database and both keys are needed (e.g, for DB_DELETE_ANY)
+    BRT_CMD cmd;
+    int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
-int toku_brtleaf_compare_fun (u_int32_t alen __attribute__((__unused__)), void *aval, u_int32_t blen __attribute__((__unused__)), void *bval, void *lc /*this is (struct lc_pair *) cast to (void*). */) ;
+int toku_cmd_leafval_bessel (u_int32_t dlen, void *leafentry, void *extra);
+
+int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
+
+int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp);
+void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size);
 
 #endif

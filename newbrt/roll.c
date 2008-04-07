@@ -12,7 +12,14 @@
 #include "cachetable.h"
 #include "key.h"
 
-int toku_rollback_fcreate (BYTESTRING bs_fname,
+int toku_commit_fcreate (TXNID xid __attribute__((__unused__)),
+			 BYTESTRING bs_fname __attribute__((__unused__)),
+			 TOKUTXN    txn       __attribute__((__unused__))) {
+    return 0;
+}
+
+int toku_rollback_fcreate (TXNID xid __attribute__((__unused__)),
+			   BYTESTRING bs_fname,
 			   TOKUTXN    txn       __attribute__((__unused__))) {
     char *fname = fixup_fname(&bs_fname);
     char *directory = txn->logger->directory;
@@ -26,84 +33,62 @@ int toku_rollback_fcreate (BYTESTRING bs_fname,
     return 0;
 }
 
-#if 0
-int toku_rollback_fclose (FILENUM filenum, BYTESTRING bs_fname, TOKUTXN txn) {
-    abort();
-    filenum=filenum;
-    bs_fname=bs_fname;
-    txn=txn;
-#if 0
-    char *fixedfname = fixup_fname(&bs_fname);
-    int fd = open(fixedfname, O_RDWR, 0);
-    assert(fd>=0);
-    BRT MALLOC(brt);
-    assert(errno==0 && brt!=0);
-    brt->database_name = fixedfname;
-    brt->h=0;
-    list_init(&brt->cursors);
-    brt->compare_fun = 0;
-    brt->dup_compare = 0;
-    brt->db = 0;
-    CACHETABLE cf;
-    int r = toku_cachetable_openfd(&cf, /*ct*/0, fd, brt);
-    assert(r==0);
-    brt->skey = brt->sval = 0;
-    brt->cf = cf;
-    toku_recover_note_cachefile(filenum, cf, brt);
-
-    printf("%s:%d Must remember to close the file again after txn %p finishes aborting\n", __FILE__, __LINE__, txn);
-    
-    return 0;
-#endif
-}
-#endif	
-
-//int toku_rollback_newbrtnode (struct logtype_newbrtnode *le, TOKUTXN txn) {
-//    // All that must be done is to put the node on the freelist.
-//    // Since we don't have a freelist right now, we don't have anything to do.
-//    // We'll fix this later (See #264)
-//    le=le;
-//    txn=txn;
-//    return 0;
-//}
-
-int toku_rollback_insertatleaf (FILENUM filenum, BYTESTRING key,BYTESTRING data, TOKUTXN txn) {
+int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
+    //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
     assert(r==0);
     DBT key_dbt,data_dbt;
-    r = toku_brt_delete_both(brt,
-			     toku_fill_dbt(&key_dbt, key.data, key.len),
-			     toku_fill_dbt(&data_dbt, data.data, data.len),
-			     0);
-    return r;
+    BRT_CMD_S brtcmd = { BRT_COMMIT_BOTH, xid,
+			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+				toku_fill_dbt(&data_dbt, data.data, data.len)}};
+    return toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
 }
 
-int toku_rollback_deleteatleaf (FILENUM filenum, BYTESTRING key, BYTESTRING data,TOKUTXN txn) {
+int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
     assert(r==0);
+    //printf("%s:%d aborting insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     DBT key_dbt,data_dbt;
-    r = toku_brt_insert(brt,
-			toku_fill_dbt(&key_dbt, key.data, key.len),
-			toku_fill_dbt(&data_dbt, data.data, data.len),
-			0); // Do the insertion unconditionally
-    return r;
+    BRT_CMD_S brtcmd = { BRT_ABORT_BOTH, xid,
+			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+				toku_fill_dbt(&data_dbt, data.data, data.len)}};
+    return toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
 }
 
-int toku_rollback_xactiontouchednonleaf(FILENUM filenum, DISKOFFARRAY array __attribute__((__unused__)), DISKOFF diskoff, TOKUTXN txn) {
+int toku_commit_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    return toku_commit_cmdinsert(xid, filenum, key, data, txn);
+}
+
+int toku_rollback_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    return toku_rollback_cmdinsert(xid, filenum, key, data, txn);
+}
+
+int toku_commit_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
     CACHEFILE cf;
     BRT brt;
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
     assert(r==0);
-    r = toku_brt_nonleaf_expunge_xaction(brt,  diskoff, txn->txnid64);
-    assert(r==0);
-    //printf("%s:%d node=%lld has Rollback parents = {", __FILE__, __LINE__, (long long)diskoff);
-    //int i; for (i=0; i<array.len; i++) printf(" %lld", array.array[i]);
-    //printf("}\n");
-    if (array.len!=0) printf("%s:%d array.len!=0 and we didn't fix up the fingerprints.\n", __FILE__, __LINE__);
-    return 0;
+    //printf("%s:%d aborting delete %s %s\n", __FILE__, __LINE__, key.data, data.data);
+    DBT key_dbt,data_dbt;
+    BRT_CMD_S brtcmd = { BRT_COMMIT_ANY, xid,
+			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+				toku_init_dbt(&data_dbt)}};
+    return toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
 }
 
+int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
+    CACHEFILE cf;
+    BRT brt;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf, &brt);
+    assert(r==0);
+    //printf("%s:%d aborting delete %s %s\n", __FILE__, __LINE__, key.data, data.data);
+    DBT key_dbt,data_dbt;
+    BRT_CMD_S brtcmd = { BRT_ABORT_ANY, xid,
+			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
+				toku_init_dbt(&data_dbt)}};
+    return toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
+}

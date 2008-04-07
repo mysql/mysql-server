@@ -178,6 +178,7 @@ static void verify_items (DB_ENV *env, DB *db) {
 	snprintf(hello, sizeof(hello), "hello%d.%d", kv, dv);
 	snprintf(there, sizeof(hello), "there%d", dv);
 	k2.data  = hello; k2.size=strlen(hello)+1;
+	printf("kv=%d dv=%d\n", kv, dv);
 	r=db->get(db, txn,  &k2, &v2, 0);
 	assert(r==0);
 	assert(strcmp(v2.data, there)==0);

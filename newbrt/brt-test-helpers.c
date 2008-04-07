@@ -76,27 +76,38 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     toku_verify_counts(node);
     assert(node->height==0);
 
-    struct kv_pair *kv = brtnode_malloc_kv_pair(node->u.l.buffer, &node->u.l.buffer_mempool, key, keylen, val, vallen);
-    struct lc_pair  lc = {brt, node->flags & TOKU_DB_DUPSORT};
+    u_int32_t lesize, disksize;
+    LEAFENTRY tmp_leafentry;
+    r = le_committed(keylen, key, vallen, val, &lesize, &disksize, &tmp_leafentry);
+
+    LEAFENTRY leafentry = mempool_malloc_from_gpma(node->u.l.buffer, &node->u.l.buffer_mempool, lesize);
+    memcpy(leafentry, tmp_leafentry, lesize);
+    toku_free(tmp_leafentry);
+
     u_int32_t storedlen;
     void *storeddata;
     u_int32_t idx;
-    r = toku_gpma_lookup_item(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, &storedlen, &storeddata, &idx);
+    DBT keydbt,valdbt;
+    BRT_CMD_S cmd = {BRT_INSERT, 0, .u.id={toku_fill_dbt(&keydbt, key, keylen),
+					   toku_fill_dbt(&valdbt, val, vallen)}};
+    struct cmd_leafval_bessel_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
+    r = toku_gpma_lookup_bessel(node->u.l.buffer, toku_cmd_leafval_bessel, 0, &be, &storedlen, &storeddata, &idx);
+
 
     if (r==0) {
 	// It's already there.  So now we have to remove it and put the new one back in.
-	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + storedlen;
-	node->local_fingerprint     -= node->rand4fingerprint*toku_calccrc32_kvpair_struct(storeddata);
+	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(storeddata);
+	node->local_fingerprint     -= node->rand4fingerprint*toku_le_crc(storeddata);
 	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, storedlen);
 	// Now put the new kv in.
-	toku_gpma_set_at_index(node->u.l.buffer, idx, kv_pair_size(kv), kv);
+	toku_gpma_set_at_index(node->u.l.buffer, idx, lesize, leafentry);
     } else {
-	r = toku_gpma_insert(node->u.l.buffer, kv_pair_size(kv), kv, toku_brtleaf_compare_fun, &lc, 0, 0, 0);
+	r = toku_gpma_insert_bessel(node->u.l.buffer, lesize, leafentry, toku_cmd_leafval_bessel, &be, 0, 0, 0);
 	assert(r==0);
     }
 
-    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + kv_pair_size(kv);
-    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair_struct(kv);
+    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + disksize;
+    node->local_fingerprint += node->rand4fingerprint*toku_le_crc(leafentry);
 
     node->dirty=1;
     *subtree_fingerprint = node->local_fingerprint;

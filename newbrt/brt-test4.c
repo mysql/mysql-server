@@ -42,6 +42,7 @@ static void test4 (int nodesize, int count, int memcheck) {
 	snprintf(val,100,"there%d",i);
 	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
     }
+    r = toku_verify_brt(t); assert(r==0);
     r = toku_close_brt(t);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     toku_memory_check_all_free();
@@ -53,6 +54,9 @@ static void test4 (int nodesize, int count, int memcheck) {
 }
 
 static void brt_blackbox_test (void) {
+    test4(2048, 1<<14, 1);
+    return;
+
     if (verbose) printf("test4 slow\n");
     test4(2048, 1<<15, 1);
 

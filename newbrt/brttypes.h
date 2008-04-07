@@ -27,11 +27,6 @@ typedef struct {
     char *data;
 } BYTESTRING;
 
-typedef struct {
-    int len;
-    DISKOFF *array;
-} DISKOFFARRAY;
-
 /* Make the LSN be a struct instead of an integer so that we get better type checking. */
 typedef struct __toku_lsn { u_int64_t lsn; } LSN;
 #define ZERO_LSN ((LSN){0})
@@ -79,8 +74,12 @@ typedef struct cachefile *CACHEFILE;
 enum brt_cmd_type {
     BRT_NONE = 0,
     BRT_INSERT = 1,
-    BRT_DELETE = 2,
+    BRT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called BRT_DELETE.
     BRT_DELETE_BOTH = 3,
+    BRT_ABORT_ANY = 4,   // Abort any commands on any matching key.
+    BRT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
+    BRT_COMMIT_ANY  = 6,
+    BRT_COMMIT_BOTH = 7
 };
 
 /* tree commands */
