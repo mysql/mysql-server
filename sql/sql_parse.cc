@@ -3301,6 +3301,7 @@ end_with_restore_list:
         can free its locks if LOCK TABLES locked some tables before finding
         that it can't lock a table in its list
       */
+      ha_autocommit_or_rollback(thd, 1);
       end_active_trans(thd);
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
