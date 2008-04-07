@@ -221,6 +221,7 @@ log-test6 log-test5 log-test4 log-test3 log-test2 log-test: log.o memory.o leafe
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 mempool.o: toku_assert.h mempool.h
+leafentry.o: brttypes.h crc.h leafentry.h memory.h toku_assert.h
 toku_assert.o: toku_assert.h
 
 brt-serialize-test: brt-serialize-test.o brt-serialize.o leafentry.o memory.o fifo.o gpma.o key.o ybt.o brt.o cachetable.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o 
