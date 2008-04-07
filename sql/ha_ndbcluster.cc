@@ -2969,8 +2969,6 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   
   if (m_use_write)
   {
-    const NdbRecord *key_rec;
-    const uchar *key_row;
     uchar *mask;
 
 #ifdef HAVE_NDB_BINLOG
@@ -2988,36 +2986,19 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
         otherwise (REPLACE INTO) -> do not use write_set.
     */
     if (thd->slave_thread)
+    {
       user_cols_written_bitmap= table->write_set;
+      mask= (uchar *)(user_cols_written_bitmap->bitmap);
+    }
     else
 #endif
+    {
       user_cols_written_bitmap= NULL;
-
-    if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
-    {
-      mask= copy_column_set(user_cols_written_bitmap);
-      if (m_user_defined_partitioning)
-        request_partition_function_value(mask);
-      if (table_share->primary_key == MAX_KEY)
-        request_hidden_key(mask);
-    }
-    else
-      mask= user_cols_written_bitmap ?
-        (uchar *)(user_cols_written_bitmap->bitmap) : NULL;
-
-    if (table_share->primary_key == MAX_KEY)
-    {
-      key_rec= m_ndb_hidden_key_record;
-      key_row= &row[offset_hidden_key()];
-    }
-    else
-    {
-      key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
-      key_row= row;
+      mask= NULL;
     }
 
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
-                          (char *)record, (uchar *)(table->write_set->bitmap),
+                          (char *)record, mask,
                           poptions, sizeof(NdbOperation::OperationOptions));
   }
   else
