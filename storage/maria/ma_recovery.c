@@ -3089,7 +3089,8 @@ static int close_all_tables(void)
       print_preamble();
     for (count= 0, list_element= maria_open_list ;
          list_element ; count++, (list_element= list_element->next))
-      fprintf(stderr, "tables to flush:");
+      ;
+    fprintf(stderr, "tables to flush:");
     recovery_message_printed= REC_MSG_FLUSH;
   }
   /*

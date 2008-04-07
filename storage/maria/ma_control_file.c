@@ -117,7 +117,7 @@ my_bool maria_multi_threaded= FALSE;
 /** @brief if currently doing a recovery */
 my_bool maria_in_recovery= FALSE;
 
-/*
+/**
   Control file is less then  512 bytes (a disk sector),
   to be as atomic as possible
 */
@@ -463,7 +463,14 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
   uint32 sum;
   DBUG_ENTER("ma_control_file_write_and_force");
 
-  DBUG_ASSERT(control_file_fd >= 0); /* must be open */
+  if ((last_checkpoint_lsn == checkpoint_lsn) &&
+      (last_logno == logno) &&
+      (max_trid_in_control_file == trid))
+    DBUG_RETURN(0); /* no need to write */
+
+  if (control_file_fd < 0)
+    DBUG_RETURN(1);
+
 #ifndef DBUG_OFF
   if (maria_multi_threaded)
     translog_lock_handler_assert_owner();
@@ -473,14 +480,22 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
   int4store(buffer + CF_FILENO_OFFSET, logno);
   transid_store(buffer + CF_MAX_TRID_OFFSET, trid);
 
-  /*
-    Clear unknown part of changeable part, if bigger than ours.
-    Other option would be to remember the original values in the file
-    and copy them here, but this should be safer.
-   */
   if (cf_changeable_size > CF_CHANGEABLE_TOTAL_SIZE)
+  {
+    /*
+      More room than needed for us. Must be a newer version. Clear part which
+      we cannot maintain, so that any future version notices we didn't
+      maintain its extra data.
+    */
     bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE,
           cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE);
+  }
+  else
+  {
+    /* not enough room for what we need to store: enlarge */
+    cf_changeable_size= CF_CHANGEABLE_TOTAL_SIZE;
+  }
+  /* Note that the create-time portion is not touched */
 
   /* Checksum is stored first */
   compile_time_assert(CF_CHECKSUM_OFFSET == 0);
@@ -488,11 +503,6 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
                    cf_changeable_size - CF_CHECKSUM_SIZE);
   int4store(buffer, sum);
 
-  /**
-    @todo BUG by reusing the cf_changeable_size of the old control file (from
-    an old server), it does not write the new parts featured by the running
-    server (like max_trid), is it expected?
-  */
   if (my_pwrite(control_file_fd, buffer, cf_changeable_size,
                 cf_create_time_size, MYF(MY_FNABP |  MY_WME)) ||
       my_sync(control_file_fd, MYF(MY_WME)))
