@@ -164,13 +164,13 @@ static void test_multiple_dbs (void) {
 static void test_multiple_dbs_many (void) {
     enum { MANYN = 16 };
     int i, r;
-    const char *name = "test.brt";
+    const char *name = "test_mdbm.brt";
     CACHETABLE ct;
     BRT trees[MANYN];
     if (verbose) printf("test_multiple_dbs_many:\n");
     toku_memory_check_all_free();
     unlink(name);
-    r = toku_brt_create_cachetable(&ct, MANYN+4, ZERO_LSN, NULL_LOGGER);     assert(r==0);
+    r = toku_brt_create_cachetable(&ct, (MANYN+4), ZERO_LSN, NULL_LOGGER);     assert(r==0);
     for (i=0; i<MANYN; i++) {
 	char dbname[20];
 	snprintf(dbname, 20, "db%d", i);

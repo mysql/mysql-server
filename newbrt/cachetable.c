@@ -345,7 +345,7 @@ again:
 	}
 	/* All were pinned. */
 	//printf("All are pinned\n");
-	r = 1;
+	return 0; // Don't indicate an error code.  Instead let memory get overfull.
     }
 
     if (4 * t->n_in_table < t->table_size)
@@ -400,10 +400,10 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
 	    }
 	}
     }
-    if (maybe_flush_some(cachefile->cachetable, size)) 
-        return -2;
+    int r;
+    if ((r=maybe_flush_some(cachefile->cachetable, size))) return r;
     // flushing could change the result from hashit()
-    int r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
+    r = cachetable_insert_at(cachefile, hashit(cachefile->cachetable, key), key, value, size, flush_callback, fetch_callback, extraargs, 1, ZERO_LSN);
     return r;
 }
 
@@ -422,12 +422,12 @@ int toku_cachetable_get_and_pin(CACHEFILE cachefile, CACHEKEY key, void**value, 
 	    return 0;
 	}
     }
-    if (maybe_flush_some(t, 1)) return -2;
+    int r;
+    if ((r=maybe_flush_some(t, 1))) return r;
     // Note.  hashit(t,key) may have changed as a result of flushing.
     {
 	void *toku_value; 
         long size = 1; // compat
-	int r;
 	LSN written_lsn;
 	WHEN_TRACE_CT(printf("%s:%d CT: fetch_callback(%lld...)\n", __FILE__, __LINE__, key));
 	if ((r=fetch_callback(cachefile, key, &toku_value, &size, extraargs, &written_lsn))) {
