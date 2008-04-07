@@ -16,7 +16,7 @@ int main (int argc, const char *argv[]) {
 
     r=db_env_create(&env, 0); CKERR(r);
     env->set_errfile(env, stderr);
-    r=env->set_lg_max(env, 16000); CKERR(r);
+    r=env->set_lg_max(env, 20000); CKERR(r);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
 
     r=db_create(&db, env, 0); CKERR(r);
