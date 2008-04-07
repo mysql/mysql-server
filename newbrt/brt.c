@@ -83,13 +83,7 @@ void toku_brtnode_free (BRTNODE *nodep) {
 }
 
 static long brtnode_size(BRTNODE node) {
-    long size;
-    assert(node->tag == TYP_BRTNODE);
-    if (node->height > 0)
-        size = node->u.n.n_bytes_in_buffers;
-    else
-        size = node->u.l.n_bytes_in_buffer;
-    return size;
+    return toku_serialize_brtnode_size(node);
 }
 
 static void toku_update_brtnode_loggerlsn(BRTNODE node, TOKULOGGER logger) {
