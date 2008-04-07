@@ -28,7 +28,7 @@ INNODB_VER="1.0.a1"
 MYSQL_DIR="mysql-${MYSQL_VER}"
 MYSQL_ARCHIVE="${MYSQL_DIR}.tar.gz"
 
-INNODB_DIR="innodb-${MYSQL_BRANCH}-${INNODB_VER}"
+INNODB_DIR="innodb-${INNODB_VER}-${MYSQL_BRANCH}"
 
 INNODB_SVN_REPO="https://svn.innodb.com/svn/innodb"
 
