@@ -2820,7 +2820,7 @@ NdbIndexScanOperation::ndbrecord_insert_bound(const NdbRecord *key_record,
   /* Insert attribute header. */
   Uint32 tIndexAttrId= column->index_attrId;
   Uint32 sizeInWords= (len + 3) / 4;
-  AttributeHeader ah(tIndexAttrId, sizeInWords << 2);
+  AttributeHeader ah(tIndexAttrId, len);
   const Uint32 ahValue= ah.m_value;
   const bool aligned= (UintPtr(aValue) & 3) == 0;
 

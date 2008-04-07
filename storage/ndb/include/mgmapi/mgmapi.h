@@ -314,6 +314,17 @@ extern "C" {
   };
 #endif
 
+  struct ndb_mgm_severity {
+    enum ndb_mgm_event_severity category;
+    unsigned int value;
+  };
+
+  struct ndb_mgm_loglevel {
+    enum ndb_mgm_event_category category;
+    unsigned int value;
+  };
+
+
   /***************************************************************************/
   /**
    * @name Functions: Error Handling
@@ -596,7 +607,7 @@ extern "C" {
   const char * ndb_mgm_get_node_status_string(enum ndb_mgm_node_status status);
 
   const char * ndb_mgm_get_event_severity_string(enum ndb_mgm_event_severity);
-  ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
+  enum ndb_mgm_event_category ndb_mgm_match_event_category(const char *);
   const char * ndb_mgm_get_event_category_string(enum ndb_mgm_event_category);
 #endif
 
@@ -1170,13 +1181,8 @@ extern "C" {
   int ndb_mgm_filter_clusterlog(NdbMgmHandle h,
 				enum ndb_mgm_clusterlog_level s,
 				int e, struct ndb_mgm_reply* r)
-  { return ndb_mgm_set_clusterlog_severity_filter(h,(ndb_mgm_event_severity)s,
+  { return ndb_mgm_set_clusterlog_severity_filter(h,(enum ndb_mgm_event_severity)s,
 						  e,r); }
-  struct ndb_mgm_severity {
-    enum ndb_mgm_event_severity category;
-    unsigned int value;
-  };
-  
   inline
   const unsigned int * ndb_mgm_get_logfilter(NdbMgmHandle h)
   { return ndb_mgm_get_clusterlog_severity_filter_old(h); }
@@ -1186,11 +1192,6 @@ extern "C" {
 				      enum ndb_mgm_event_category c,
 				      int l, struct ndb_mgm_reply* r)
   { return ndb_mgm_set_clusterlog_loglevel(h,n,c,l,r); }
-
-  struct ndb_mgm_loglevel {
-    enum ndb_mgm_event_category category;
-    unsigned int value;
-  };
 
   inline
   const unsigned int * ndb_mgm_get_loglevel_clusterlog(NdbMgmHandle h)

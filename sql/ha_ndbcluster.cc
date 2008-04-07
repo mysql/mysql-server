@@ -649,7 +649,7 @@ ha_ndbcluster::copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record)
   memcpy(row, record, table->s->reclength);
   return row;
 }
-  
+
 int g_get_ndb_blobs_value(NdbBlob *ndb_blob, void *arg)
 {
   ha_ndbcluster *ha= (ha_ndbcluster *)arg;
@@ -2928,6 +2928,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT)
     table->timestamp_field->set_time();
 
+
   /*
      Setup OperationOptions
    */
@@ -2964,27 +2965,57 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     key_row= record;
   }
 
-  /*
-    We do not use the table->write_set here.
-    The reason is that for REPLACE INTO t(a), the write_set is passed with
-    only column 'a' enabled.
-    But it is wrong not to write all columns in REPLACE, since REPLACE is
-    the same as DELETE+INSERT (ie. not writing all columns risks loosing
-    default values).
-  */
-  /*
-    ToDo: Actually, we have to use the write set, since otherwise replication
-    fails. Replication seems to rely on being able to replicate an update with
-    a write_row() with only some bits set in write_set, leaving other fields
-    intact.
-    This means that we now suffer from BUG#22045... :-/
-  */
   const MY_BITMAP *user_cols_written_bitmap;
   
   if (m_use_write)
   {
-    /* Using write, the only user-visible cols we write are in the write_set */
-    user_cols_written_bitmap= table->write_set;
+    const NdbRecord *key_rec;
+    const uchar *key_row;
+    uchar *mask;
+
+#ifdef HAVE_NDB_BINLOG
+    /*
+      The use of table->write_set is tricky here. This is done as a temporary
+      workaround for BUG#22045.
+
+      There is some confusion on the precise meaning of write_set in write_row,
+      with REPLACE INTO and replication SQL thread having different opinions.
+      There is work on the way to sort that out, but until then we need to
+      implement different semantics depending on whether we are in the slave
+      SQL thread or not.
+
+        SQL thread -> use the write_set for writeTuple().
+        otherwise (REPLACE INTO) -> do not use write_set.
+    */
+    if (thd->slave_thread)
+      user_cols_written_bitmap= table->write_set;
+    else
+#endif
+      user_cols_written_bitmap= NULL;
+
+    if (table_share->primary_key == MAX_KEY || m_user_defined_partitioning)
+    {
+      mask= copy_column_set(user_cols_written_bitmap);
+      if (m_user_defined_partitioning)
+        request_partition_function_value(mask);
+      if (table_share->primary_key == MAX_KEY)
+        request_hidden_key(mask);
+    }
+    else
+      mask= user_cols_written_bitmap ?
+        (uchar *)(user_cols_written_bitmap->bitmap) : NULL;
+
+    if (table_share->primary_key == MAX_KEY)
+    {
+      key_rec= m_ndb_hidden_key_record;
+      key_row= &row[offset_hidden_key()];
+    }
+    else
+    {
+      key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
+      key_row= row;
+    }
+
     op= trans->writeTuple(key_rec, (const char *)key_row, m_ndb_record,
                           (char *)record, (uchar *)(table->write_set->bitmap),
                           poptions, sizeof(NdbOperation::OperationOptions));

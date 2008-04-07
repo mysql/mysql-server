@@ -565,6 +565,7 @@ private:
   }
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
+  
 
   int get_blob_values(const NdbOperation *ndb_op, uchar *dst_record,
                       const MY_BITMAP *bitmap);
