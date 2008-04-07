@@ -2837,8 +2837,23 @@ int ha_ndbcluster::write_row(uchar *record)
   for (i= 0; i < table_share->fields; i++) 
   {
     Field *field= table->field[i];
+    /*
+      The use of table->write_set is tricky here. This is done as a temporary
+      workaround for BUG#22045.
+
+      There is some confusion on the precise meaning of write_set in write_row,
+      with REPLACE INTO and replication SQL thread having different opinions.
+      There is work on the way to sort that out, but until then we need to
+      implement different semantics depending on whether we are in the slave
+      SQL thread or not.
+
+        SQL thread -> use the write_set for writeTuple().
+        otherwise (REPLACE INTO) -> do not use write_set.
+    */
     if (!(field->flags & PRI_KEY_FLAG) &&
-	(bitmap_is_set(table->write_set, i) || !m_use_write) &&
+	(bitmap_is_set(table->write_set, i) ||
+         !m_use_write ||
+         !thd->slave_thread) &&
         set_ndb_value(op, field, i, record-table->record[0], &set_blob_value))
     {
       m_skip_auto_increment= TRUE;

@@ -381,6 +381,27 @@ create table t1 (
 insert into t1 values(1, '');
 select * from t1;
 commit;
+
+# -- bug #35593 Memory leak in failed NDB execute() with blobs.
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+# Force a deadlock.
+
+connection con2;
+begin;
+insert into t1 values (3, repeat("w", 8000));
+
+connection con1;
+--error 1205
+insert into t1 values (2, repeat("x", 10000)),
+                      (3, repeat("y", 5000)),
+                      (4, repeat("z", 15000));
+rollback;
+
+connection con2;
+commit;
+
 drop table t1;
 
 # -- bug #5349 --
