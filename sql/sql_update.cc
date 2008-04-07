@@ -853,7 +853,9 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 			 Item **conds, uint order_num, ORDER *order)
 {
   Item *fake_conds= 0;
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
   TABLE *table= table_list->table;
+#endif
   List<Item> all_fields;
   SELECT_LEX *select_lex= &thd->lex->select_lex;
   DBUG_ENTER("mysql_prepare_update");
