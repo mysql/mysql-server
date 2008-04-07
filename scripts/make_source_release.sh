@@ -40,8 +40,6 @@ scripts/make_binary_release.sh
 scripts/make_source_release.sh
 "
 
-MD5_CMD="md5"
-
 # get MySQL sources
 # pick one mirror from http://dev.mysql.com/downloads/mirrors.html
 #wget ftp://ftp.easynet.be/mysql/Downloads/MySQL-${MYSQL_BRANCH}/${MYSQL_ARCHIVE}
@@ -91,10 +89,5 @@ cd storage
 mv innobase ${INNODB_DIR}
 tar -cf - ${INNODB_DIR} |gzip -9 > ../../${INNODB_DIR}.tar.gz
 tar -cf - ${INNODB_DIR} |bzip2   > ../../${INNODB_DIR}.tar.bz2
-
-cd ../..
-
-${MD5_CMD} ${INNODB_DIR}.tar.gz
-${MD5_CMD} ${INNODB_DIR}.tar.bz2
 
 # EOF
