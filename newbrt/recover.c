@@ -21,7 +21,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define DO_VERIFY_COUNTS
+//#define DO_VERIFY_COUNTS
 #ifdef DO_VERIFY_COUNTS
 #define VERIFY_COUNTS(n) toku_verify_counts(n)
 #else
@@ -390,7 +390,7 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     toku_free_BYTESTRING(fname);
 }
 
-void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
+void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, LEAFENTRY newleafentry) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -401,24 +401,83 @@ void toku_recover_insertinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     BRTNODE node = node_v;
     assert(node->height==0);
     VERIFY_COUNTS(node);
-    struct kv_pair *kvp = brtnode_malloc_kv_pair(node->u.l.buffer, &node->u.l.buffer_mempool, keybs.data, keybs.len, databs.data, databs.len);
-    assert(pair);
-    toku_gpma_set_at_index(node->u.l.buffer, pmaidx, kv_pair_size(kvp), kvp);
-    node->local_fingerprint += node->rand4fingerprint*toku_calccrc32_kvpair(keybs.data, keybs.len, databs.data, databs.len);
-//    printf("%s:%d local_fingerprint=%08x (this=%08x)\n", __FILE__, __LINE__, node->local_fingerprint, toku_calccrc32_kvpair(keybs.data, keybs.len, databs.data, databs.len));
-    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + keybs.len + databs.len; 
-
-//    PMA_ITERATE_IDX(node->u.l.buffer, idx, skey, keylen __attribute__((__unused__)), sdata, datalen __attribute__((__unused__)),
-//		    printf("%d: %s %s\n", idx, (char*)skey, (char*)sdata));
-
-    VERIFY_COUNTS(node);
-
     node->log_lsn = lsn;
+    {
+	int memsize = leafentry_memsize(newleafentry);
+	void *mem = mempool_malloc_from_gpma(node->u.l.buffer, &node->u.l.buffer_mempool, memsize);
+	memcpy(mem, newleafentry, memsize);
+	toku_gpma_set_at_index(node->u.l.buffer, pmaidx, memsize, mem);
+	node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + leafentry_disksize(newleafentry);
+	node->local_fingerprint += node->rand4fingerprint * toku_le_crc(newleafentry);
+    }
     r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
     assert(r==0);
-    toku_free_BYTESTRING(keybs);
-    toku_free_BYTESTRING(databs);
+    toku_free_LEAFENTRY(newleafentry);
 }
+
+void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, LEAFENTRY oldleafentry) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    assert(r==0);
+    void *node_v;
+    assert(pair->brt);
+    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+    assert(r==0);
+    BRTNODE node = node_v;
+    assert(node->height==0);
+    VERIFY_COUNTS(node);
+    node->log_lsn = lsn;
+    {
+	u_int32_t len; void *data;
+	r=toku_gpma_get_from_index(node->u.l.buffer, pmaidx, &len, &data);
+	assert(r==0);
+	assert(len==leafentry_memsize(oldleafentry));
+	assert(memcmp(oldleafentry, data, len)==0);
+	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(data);
+	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(data);
+	toku_mempool_mfree(&node->u.l.buffer_mempool, data, len);
+	toku_gpma_clear_at_index(node->u.l.buffer, pmaidx);
+    }
+    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+    assert(r==0);
+    toku_free_LEAFENTRY(oldleafentry);
+}
+
+//void toku_recover_replaceleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, LEAFENTRY oldleafentry, LEAFENTRY newleafentry) {
+//    struct cf_pair *pair = NULL;
+//    int r = find_cachefile(filenum, &pair);
+//    assert(r==0);
+//    void *node_v;
+//    assert(pair->brt);
+//    r = toku_cachetable_get_and_pin(pair->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, pair->brt);
+//    assert(r==0);
+//    BRTNODE node = node_v;
+//    assert(node->height==0);
+//    VERIFY_COUNTS(node);
+//    node->log_lsn = lsn;
+//    {
+//	u_int32_t len; void *data;
+//	r=toku_gpma_get_from_index(node->u.l.buffer, pmaidx, &len, &data);
+//	assert(r==0);
+//	assert(len==leafentry_memsize(oldleafentry));
+//	assert(memcmp(oldleafentry, data, len)==0);
+//	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(data);
+//	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(data);
+//	toku_mempool_mfree(&node->u.l.buffer_mempool, data, len);
+//    }
+//    {
+//	int memsize = leafentry_memsize(newleafentry);
+//	void *mem = mempool_malloc_from_gpma(node->u.l.buffer, &node->u.l.buffer_mempool, memsize);
+//	memcpy(mem, newleafentry, memsize);
+//	toku_gpma_set_at_index(node->u.l.buffer, pmaidx, memsize, mem);
+//	node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + leafentry_disksize(newleafentry);
+//	node->local_fingerprint += node->rand4fingerprint * toku_le_crc(newleafentry);
+//    }
+//    r = toku_cachetable_unpin(pair->cf, diskoff, 1, toku_serialize_brtnode_size(node));
+//    assert(r==0);
+//    toku_free_LEAFENTRY(oldleafentry);
+//    toku_free_LEAFENTRY(newleafentry);
+//}
 
 void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKOFF diskoff, u_int32_t pmaidx, BYTESTRING keybs, BYTESTRING databs) {
     struct cf_pair *pair = NULL;
@@ -440,7 +499,8 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
 	}
     }
     toku_gpma_clear_at_index(node->u.l.buffer, pmaidx);
-    node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(keybs.data, keybs.len, databs.data, databs.len);
+    assert(!"kvpair");
+    //node->local_fingerprint -= node->rand4fingerprint*toku_calccrc32_kvpair(keybs.data, keybs.len, databs.data, databs.len);
     node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + KEY_VALUE_OVERHEAD + keybs.len + databs.len; 
     VERIFY_COUNTS(node);
     node->log_lsn = lsn;
@@ -449,7 +509,6 @@ void toku_recover_deleteinleaf (LSN lsn, TXNID UU(txnid), FILENUM filenum, DISKO
     toku_free_BYTESTRING(keybs);
     toku_free_BYTESTRING(databs);
 }
-
 // a newbrtnode should have been done before this
 void toku_recover_resizepma (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t oldsize __attribute__((__unused__)), u_int32_t newsize) {
     struct cf_pair *pair = NULL;
@@ -490,9 +549,9 @@ int move_indices (GPMA from, struct mempool *from_mempool,
 	struct gitem item = from->items[idx];
 	items[i]=item;
 	from->items[idx].data = 0;
-	fp += toku_calccrc32_kvpair_struct(item.data);
-	sizediff += PMA_ITEM_OVERHEAD + item.len;
-	assert(kv_pair_size(item.data)==item.len);
+	fp += toku_le_crc(item.data);
+	sizediff += PMA_ITEM_OVERHEAD + leafentry_disksize(item.data);
+	assert(leafentry_memsize(item.data)==item.len);
     }
     from->n_items_present -= fromto.size;
 
@@ -512,7 +571,7 @@ int move_indices (GPMA from, struct mempool *from_mempool,
 	    to->items[to_idx] = (struct gitem){items[i].len, new_data};
 	    toku_mempool_mfree(from_mempool, items[i].data, items[i].len);
 	}
-	assert(kv_pair_size(to->items[to_idx].data)==to->items[to_idx].len);
+	assert(leafentry_memsize(to->items[to_idx].data)==to->items[to_idx].len);
     }
     to->n_items_present += fromto.size;
     *a_fp -= a_rand * fp;
@@ -520,8 +579,8 @@ int move_indices (GPMA from, struct mempool *from_mempool,
     *a_nbytes -= sizediff;
     *b_nbytes += sizediff;
     toku_free(items);
-    toku_verify_gpma(from);
-    toku_verify_gpma(to);
+    //toku_verify_gpma(from);
+    //toku_verify_gpma(to);
     return 0;
 }
 

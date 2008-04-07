@@ -2663,6 +2663,9 @@ char *db_strerror(int error) {
     if (error==DB_BADFORMAT) {
 	return "Database Bad Format (probably a corrupted database)";
     }
+    if (error==DB_NOTFOUND) {
+	return "Not found";
+    }
 
     static char unknown_result[100];    // Race condition if two threads call this at the same time. However even in a bad case, it should be some sort of null-terminated string.
     errorstr = unknown_result;

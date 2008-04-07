@@ -343,10 +343,19 @@ int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbu
 }
 
 int toku_logger_commit (TOKUTXN txn, int nosync) {
+    // printf("%s:%d committing\n", __FILE__, __LINE__);
     // panic handled in log_commit
     int r = toku_log_commit(txn->logger, (LSN*)0, (txn->parent==0) && !nosync, txn->txnid64); // exits holding neither of the tokulogger locks.
-    if (r!=0) goto free_and_return;
-    if (txn->parent!=0) {
+    if (r!=0) {
+	struct roll_entry *item;
+    broken:
+	while ((item=txn->newest_logentry)) {
+	    txn->newest_logentry = item->prev;
+	    rolltype_dispatch(item, toku_free_rolltype_);
+	    toku_free(item);
+	}
+	r = 0;
+    } else if (txn->parent!=0) {
 	// Append the list to the front.
 	if (txn->oldest_logentry) {
 	    // There are some entries, so link them in.
@@ -357,18 +366,23 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	    txn->parent->oldest_logentry = txn->oldest_logentry;
 	}
 	txn->newest_logentry = txn->oldest_logentry = 0;
-    }
- free_and_return:
-    {
+	r = 0;
+    } else {
+	// do the commit calls and free everything
+	// we do the commit calls in reverse order too.
 	struct roll_entry *item;
+	//printf("%s:%d abort\n", __FILE__, __LINE__);
 	while ((item=txn->newest_logentry)) {
 	    txn->newest_logentry = item->prev;
+	    rolltype_dispatch_assign(item, toku_commit_, r, txn);
+	    if (r!=0) goto broken;
 	    rolltype_dispatch(item, toku_free_rolltype_);
 	    toku_free(item);
 	}
-	list_remove(&txn->live_txns_link);
-	toku_free(txn);
+	r = 0;
     }
+    list_remove(&txn->live_txns_link);
+    toku_free(txn);
     return r;
 }
 
@@ -402,7 +416,7 @@ int toku_logger_log_fcreate (TOKUTXN txn, const char *fname, int mode) {
     BYTESTRING bs = { .len=strlen(fname), .data = strdup(fname) };
     int r = toku_log_fcreate (txn->logger, (LSN*)0, 0, toku_txn_get_txnid(txn), bs, mode);
     if (r!=0) return r;
-    r = toku_logger_save_rollback_fcreate(txn, bs);
+    r = toku_logger_save_rollback_fcreate(txn, toku_txn_get_txnid(txn), bs);
     return r;
 }
 
@@ -569,23 +583,30 @@ int toku_logprint_u_int32_t (FILE *outf, FILE *inf, const char *fieldname, u_int
     return 0;
     
 }
-int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
-    BYTESTRING bs;
-    int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
-    if (r!=0) return r;
-    fprintf(outf, " %s={len=%d data=\"", fieldname, bs.len);
+
+void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data) {
+    fprintf(outf, "{len=%d data=\"", len);
     u_int32_t i;
-    for (i=0; i<bs.len; i++) {
-	switch (bs.data[i]) {
+    for (i=0; i<len; i++) {
+	switch (data[i]) {
 	case '"':  fprintf(outf, "\\\""); break;
 	case '\\': fprintf(outf, "\\\\"); break;
 	case '\n': fprintf(outf, "\\n");  break;
 	default:
-	    if (isprint(bs.data[i])) fprintf(outf, "%c", bs.data[i]);
-	    else fprintf(outf, "\\%03o", bs.data[i]);
+	    if (isprint(data[i])) fprintf(outf, "%c", data[i]);
+	    else fprintf(outf, "\\%03o", (unsigned char)(data[i]));
 	}
     }
     fprintf(outf, "\"}");
+    
+}
+
+int toku_logprint_BYTESTRING (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *format __attribute__((__unused__))) {
+    BYTESTRING bs;
+    int r = toku_fread_BYTESTRING(inf, &bs, crc, len);
+    if (r!=0) return r;
+    fprintf(outf, " %s=", fieldname);
+    toku_print_BYTESTRING(outf, bs.len, bs.data);
     toku_free(bs.data);
     return 0;
 }
@@ -671,6 +692,7 @@ int toku_abort_logentry_commit (struct logtype_commit *le __attribute__((__unuse
 }
 
 int toku_logger_abort(TOKUTXN txn) {
+    //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
     struct roll_entry *item;
@@ -770,7 +792,8 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags) {
 	    
 	    //printf("%s:%d file=%s firstlsn=%lld checkpoint_lsns={%lld %lld}\n", __FILE__, __LINE__, all_logs[i], (long long)earliest_lsn_seen.lsn, (long long)logger->checkpoint_lsns[0].lsn, (long long)logger->checkpoint_lsns[1].lsn);
 	    if ((earliest_lsn_seen.lsn <= logger->checkpoint_lsns[0].lsn)&&
-		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)) {
+		(earliest_lsn_seen.lsn <= logger->checkpoint_lsns[1].lsn)&&
+		(earliest_lsn_seen.lsn <= oldest_live_txn_lsn.lsn)) {
 		break;
 	    }
 	}

@@ -42,6 +42,15 @@ int toku_gpma_insert (GPMA,
 		      gpma_renumber_callback_t renumberf, void*extra_for_renumberf,   // if anything gets renumbered, let the caller know
 		      u_int32_t *indexp // Where did the item get stored?
 		      );
+// Use a bessel function to determine where to insert the data.
+// Puts the new value between the rightmost -1 and the leftmost +1.
+// Requires:  Nothing in the pma returns 0.
+int toku_gpma_insert_bessel (GPMA pma,
+			     u_int32_t len, void *data,
+			     gpma_besselfun_t, void *extra_for_besself,
+			     gpma_renumber_callback_t renumberf, void*extra_for_renumberf,   // if anything gets renumbered, let the caller know
+			     u_int32_t *indexp // Where did the item get stored?
+			     );			     
 
 // Delete anything for which the besselfun is zero.  The besselfun must be monotonically increasing compared to the comparison function.
 // That is, if two othings compare to be < then their besselfun's must yield <=, and if the compare to be = their besselfuns must be =, and if they are > then their besselfuns must be >=
@@ -69,7 +78,8 @@ int toku_gpma_delete_item (GPMA,
 int toku_gpma_lookup_item (GPMA, u_int32_t len, void *data, gpma_compare_fun_t compf, void*extra, u_int32_t *resultlen, void **resultdata, u_int32_t *idx);
 
 // Lookup something according to the besselfun.
-// If direction==0 then return something for which the besselfun is zero (or return DB_NOTFOUND).
+// If direction==0 then return something for which the besselfun is zero (or return DB_NOTFOUND and set the idx to point at the spot where the item would go.  That spot may already have an element in it, or it may be off the end.)
+//   If more than one value is zero, return the leftmost such value.
 // If direction>0  then return the first thing for which the besselfun is positive (or return DB_NOTFOUND).
 // If direction<0  then return the last thing for which the besselfun is negative (or return DB_NOTFOUND).
 int toku_gpma_lookup_bessel (GPMA, gpma_besselfun_t, int direction, void*extra, u_int32_t *len, void **data, u_int32_t *idx);

@@ -19,15 +19,6 @@
 #include "toku_assert.h"
 #include "kv-pair.h"
 
-static void gpma_verify_fingerprint (GPMA pma, u_int32_t rand4fingerprint, u_int32_t fingerprint) {
-    u_int32_t actual_fingerprint=0;
-    GPMA_ITERATE(pma, idx, len, val,
-		 actual_fingerprint+=rand4fingerprint*toku_calccrc32_kvpair_struct(val)
-		 );
-    assert(actual_fingerprint==fingerprint);
-}
-
-
 static void verify_local_fingerprint (BRTNODE node) {
     u_int32_t fp=0;
     int i;
@@ -39,8 +30,33 @@ static void verify_local_fingerprint (BRTNODE node) {
 			      }));
 	assert(fp==node->local_fingerprint);
     } else {
-	gpma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->local_fingerprint);
+	toku_verify_counts(node);
     }
+}
+
+static int compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
+    DBT x,y;
+    int cmp = brt->compare_fun(brt->db,
+			       toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
+			       toku_fill_dbt(&y, kv_pair_key(b), kv_pair_keylen(b)));
+    if (cmp==0 && (brt->flags & TOKU_DB_DUPSORT)) {
+	cmp = brt->dup_compare(brt->db,
+			       toku_fill_dbt(&x, kv_pair_val(a), kv_pair_vallen(a)),
+			       toku_fill_dbt(&y, kv_pair_val(b), kv_pair_vallen(b)));
+    }
+    return cmp;
+}
+static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
+    DBT x,y;
+    int cmp = brt->compare_fun(brt->db,
+			       toku_fill_dbt(&x, le_any_key(a), le_any_keylen(a)),
+			       toku_fill_dbt(&y, le_any_key(b), le_any_keylen(b)));
+    if (cmp==0 && (brt->flags & TOKU_DB_DUPSORT)) {
+	cmp = brt->dup_compare(brt->db,
+			       toku_fill_dbt(&x, le_any_val(a), le_any_vallen(a)),
+			       toku_fill_dbt(&y, le_any_val(b), le_any_vallen(b)));
+    }
+    return cmp;
 }
 
 int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) {
@@ -56,7 +72,7 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
     verify_local_fingerprint(node);
     if (node->height>0) {
 	int i;
-	for (i=0; i< node->u.n.n_children-1; i++) {
+	for (i=0; i< node->u.n.n_children; i++) {
 	    bytevec thislorange,thishirange;
 	    ITEMLEN thislolen,  thishilen;
 	    if (node->u.n.n_children==0 || i==0) {
@@ -89,8 +105,14 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 		toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, 0);
 	    }
 	}
+	//if (lorange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)lorange);
+	//if (hirange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)hirange);
+	for (i=0; i<node->u.n.n_children-2; i++) {
+	    assert(compare_pairs(brt, node->u.n.childkeys[i], node->u.n.childkeys[i+1])<0);
+	}
 	for (i=0; i<node->u.n.n_children; i++) {
 	    if (i>0) {
+		//printf(" %s:%d i=%d %p v=%s\n", __FILE__, __LINE__, i, node->u.n.childkeys[i-1], (char*)kv_pair_key(node->u.n.childkeys[i-1]));
 		if (lorange) assert(toku_keycompare(lorange,lolen, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]))<0);
 		if (hirange) assert(toku_keycompare(kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]), hirange, hilen)<=0);
 	    }
@@ -103,6 +125,16 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
                                             recurse);
 	    }
 	}
+    } else {
+	// Make sure that they are in increasing order.
+	void *prev=0;
+	GPMA_ITERATE(node->u.l.buffer, idx, dlen, data,
+		     ({
+			 if (prev==0)
+			     prev=data;
+			 else
+			     assert(compare_leafentries(brt, prev, data)<0);
+		     }));
     }
     if ((r = toku_cachetable_unpin(brt->cf, off, 0, 0))) return r;
     return result;

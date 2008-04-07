@@ -44,7 +44,7 @@ void doit (void) {
     assert(r==0);
 
     u_int32_t fingerprint=0;
-    r = toku_testsetup_insert_to_nonleaf(t, nodeb, BRT_DELETE, "hello", 6, 0, 0, &fingerprint);
+    r = toku_testsetup_insert_to_nonleaf(t, nodeb, BRT_DELETE_ANY, "hello", 6, 0, 0, &fingerprint);
     assert(r==0);
 
     r = toku_testsetup_root(t, nodeb);

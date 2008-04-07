@@ -49,7 +49,7 @@ void do_test_abort2 (void) {
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
 
-    printf("%s:%d\n", __FILE__, __LINE__);
+    //printf("%s:%d\n", __FILE__, __LINE__);
 
     // Now do a few inserts that abort.
     r=db_env_create(&env, 0); assert(r==0);
@@ -78,17 +78,17 @@ void do_test_abort2 (void) {
     r=txn->abort(txn); CKERR(r);
 
 
-    printf("%s:%d\n", __FILE__, __LINE__);
+    //printf("%s:%d\n", __FILE__, __LINE__);
     //r=db->close(db,0); CKERR(r); r=env->close(env, 0); CKERR(r); return;
 
     // Don't do a lookup on "hello7", because that will force things out of the buffer.
     r=db->close(db, 0); CKERR(r);
-    printf("%s:%d\n", __FILE__, __LINE__);
+    //printf("%s:%d\n", __FILE__, __LINE__);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, 0777); CKERR(r);
-    r=txn->abort(txn); CKERR(r);
-    printf("%s:%d\n", __FILE__, __LINE__);
+    r=txn->commit(txn, 0); CKERR(r);
+    //printf("%s:%d\n", __FILE__, __LINE__);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     {
@@ -96,7 +96,7 @@ void do_test_abort2 (void) {
 	memset(&data, 0, sizeof(data));
 	r = db->get(db, txn, dbt_init(&key, "hello7", strlen("hello7")+1), &data, 0);
 	CKERR(r);
-	printf("data is %s\n", (char*)data.data);
+	//printf("data is %s\n", (char*)data.data);
 	assert(((char*)data.data)[0]=='0');
     }
     r=txn->abort(txn); CKERR(r);

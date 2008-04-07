@@ -96,10 +96,12 @@ void test_db_put_aborts (void) {
 	    key.size=4;
 	    data.data="now";
 	    data.size=4;
-	    r=db->put(db, tid, &key, &data, 0);
+	    r=db->put(db, tid2, &key, &data, 0);
 	    CKERR(r);
 	}
+	//printf("%s:%d aborting\n", __FILE__, __LINE__);
 	r=tid->abort(tid);        assert(r==0);
+	//printf("%s:%d committing\n", __FILE__, __LINE__);
 	r=tid2->commit(tid2,0);   assert(r==0);
     }
     // The database should exist
@@ -109,6 +111,7 @@ void test_db_put_aborts (void) {
 	assert(r==0);
     }
     // But the item should not be in it.
+    if (1)
     {
 	DB_TXN *tid;
 	r=env->txn_begin(env, 0, &tid, 0); assert(r==0);
@@ -121,6 +124,15 @@ void test_db_put_aborts (void) {
 	    r=db->get(db, tid, &key, &data, 0);
 	    assert(r!=0);
 	    assert(r==DB_NOTFOUND);
+	}	    
+	{
+	    DBT key,data;
+	    memset(&key, 0, sizeof(key));
+	    memset(&data, 0, sizeof(data));
+	    key.data="bye";
+	    key.size=4;
+	    r=db->get(db, tid, &key, &data, 0);
+	    CKERR(r);
 	}	    
 	r=tid->commit(tid,0);        assert(r==0);
     }

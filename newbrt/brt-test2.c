@@ -10,7 +10,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static void test2 (int memcheck) {
+static void test2 (int memcheck, int limit) {
     BRT t;
     int r;
     int i;
@@ -24,7 +24,7 @@ static void test2 (int memcheck) {
     r = toku_open_brt(fname, 0, 1, &t, 1024, ct, null_txn, toku_default_compare_fun, null_db);
     if (verbose) printf("%s:%d did setup\n", __FILE__, __LINE__);
     assert(r==0);
-    for (i=0; i<4096; i++) {
+    for (i=0; i<limit; i++) { // 4096
 	DBT k,v;
 	char key[100],val[100];
 	snprintf(key,100,"hello%d",i);
@@ -42,6 +42,7 @@ static void test2 (int memcheck) {
 	}
     }
     if (verbose) printf("%s:%d inserted\n", __FILE__, __LINE__);
+    r = toku_verify_brt(t); assert(r==0);
     r = toku_close_brt(t);              assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
     toku_memory_check_all_free();
@@ -50,10 +51,12 @@ static void test2 (int memcheck) {
 
 int main (int argc , const char *argv[]) {
     default_parse_args(argc, argv);
-    if (verbose) printf("test2 checking memory\n");
+//    if (verbose) printf("test2 checking memory\n");
 //    test2(1);
     if (verbose) printf("test2 faster\n");
-    test2(0);
+    test2(0, 2);
+    test2(0, 212);
+    test2(0, 4096);
     toku_malloc_cleanup();
     if (verbose) printf("test1 ok\n");
     return 0;

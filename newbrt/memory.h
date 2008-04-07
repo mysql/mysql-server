@@ -10,12 +10,13 @@
 
 /* Generally: errno is set to 0 or a value to indicate problems. */
 
-enum typ_tag { TYP_BRTNODE = 0xdead0001,
+enum typ_tag { TYP_BRTNODE = 3735879681, //0xdead0001,
 	       TYP_CACHETABLE, TYP_PAIR, /* for cachetables */
 	       TYP_PMA,
 	       TYP_GPMA,
                TYP_TOKULOGGER,
-	       TYP_TOKUTXN
+	       TYP_TOKUTXN,
+	       TYP_LEAFENTRY
 };
 
 /* Everything should call toku_malloc() instead of malloc(), and toku_calloc() instead of calloc() */

@@ -70,6 +70,9 @@ int toku_logprint_u_int32_t       (FILE *outf, FILE *inf, const char *fieldname,
 int toku_logprint_LOGGEDBRTHEADER (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 int toku_logprint_INTPAIRARRAY    (FILE *outf, FILE *inf, const char *fieldname, u_int32_t *crc, u_int32_t *len, const char *); 
 
+// Useful thing for printing a bytestring.
+void toku_print_BYTESTRING (FILE *outf, u_int32_t len, char *data);
+
 int toku_read_and_print_logmagic (FILE *f, u_int32_t *version);
 
 TXNID toku_txn_get_txnid (TOKUTXN);
@@ -109,9 +112,6 @@ static inline int toku_copy_BYTESTRING(BYTESTRING *target, BYTESTRING val) {
 }
 static inline void toku_free_BYTESTRING(BYTESTRING val) {
     toku_free(val.data);
-}
-static inline void toku_free_DISKOFFARRAY(DISKOFFARRAY val) {
-    toku_free(val.array);
 }
 
 static inline int toku_copy_LOGGEDBRTHEADER(LOGGEDBRTHEADER *target, LOGGEDBRTHEADER val) {

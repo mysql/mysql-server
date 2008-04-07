@@ -62,7 +62,12 @@ struct fileid {
 
 struct cachefile {
     CACHEFILE next;
-    int refcount; /* CACHEFILEs are shared. Use a refcount to decide when to really close it. */
+    u_int64_t refcount; /* CACHEFILEs are shared. Use a refcount to decide when to really close it.
+			 * The reference count is one for every open DB.
+			 * Plus one for every commit/rollback record.  (It would be harder to keep a count for every open transaction,
+			 * because then we'd have to figure out if the transaction was already counted.  If we simply use a count for
+			 * every record in the transaction, we'll be ok.  Hence we use a 64-bit counter to make sure we don't run out.
+			 */
     int fd;       /* Bug: If a file is opened read-only, then it is stuck in read-only.  If it is opened read-write, then subsequent writers can write to it too. */
     CACHETABLE cachetable;
     struct fileid fileid;

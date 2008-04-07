@@ -86,11 +86,14 @@ u_int32_t toku_gpma_index_limit(GPMA pma) {
 }
 
 // If direction==0 then find any match for which the bessel gives 0.   *found is set to 1 iff something with 0.  The return value is the place where the zero is (if found), or the place where it would go (if there's a value there, then that value goes after the zero.)
+//     If more than one value returns 0, return the left most such value.
 // If direction>0 then find the first match for which bessel gives >0.  *found is set to 1 iff something with >0.  The return value is the index of the leftmost such value (if found).  In the not-found case, all items are <=0 and the return value is pma->N.
 // If direction<0 then find the last match for which bessel gives <0.   *found is set to 1 iff something with <0.  The return value is the index of the rightmost such value (if found).  In the not-found case, all items are >=0 and the return value is 0.
 u_int32_t toku_gpma_find_index_bes (GPMA pma, gpma_besselfun_t besf, int direction, void *extra, int *found) {
     if (direction==0) {
 	int lo=0, hi=pma->N;
+	int foundone = 0;
+	u_int32_t foundidx = 0;
 	while (lo<hi) {
 	    int mi = (lo+hi)/2;
 	    int look = mi;
@@ -102,8 +105,10 @@ u_int32_t toku_gpma_find_index_bes (GPMA pma, gpma_besselfun_t besf, int directi
 		int cmp = besf(pma->items[look].len, pma->items[look].data, extra);
 		if (cmp==0) {
 		    /* We found a match. */
-		    *found=1;
-		    return look;
+		    foundone = 1;
+		    foundidx=look;
+		    /* But keep looking to the left. */
+		    hi=mi;
 		} else if (cmp>0) {
 		    hi=mi;
 		} else {
@@ -111,8 +116,9 @@ u_int32_t toku_gpma_find_index_bes (GPMA pma, gpma_besselfun_t besf, int directi
 		}
 	    }
 	}
-	*found = 0;
-	return lo;
+	*found = foundone;
+	if (foundone) return foundidx;
+	else return lo;
     } else if (direction<0) {
 	// Find the rightmost negative value.
 
@@ -371,15 +377,12 @@ int toku_make_space_at (GPMA pma, u_int32_t idx, u_int32_t *newidx, gpma_renumbe
     return toku_gpma_smooth_region (pma, lo, hi, count, idx, newidx, rcall, extra, pma->N);
 }
 
-int toku_gpma_insert(GPMA pma,
-		     u_int32_t len, void*data,
-		     gpma_compare_fun_t compare,  void *extra_for_compare,
-		     gpma_renumber_callback_t rcall, void*extra_for_rcall, // if anything gets renumbered, let the caller know
-		     u_int32_t *idxp
-		     ) {
-    int found;
-    u_int32_t idx = toku_gpma_find_index(pma, len, data, compare, extra_for_compare, &found);
-    if (found) return DB_KEYEXIST;
+static int finish_insert (GPMA pma,
+			  u_int32_t len, void*data,
+			  gpma_renumber_callback_t rcall, void*extra_for_rcall, // if anything gets renumbered, let the caller know
+			  u_int32_t idx,
+			  u_int32_t *idxp //  store idx into *idxp (but only do it when we succeed.)
+			  ) {
     assert(idx<=toku_gpma_index_limit(pma));
     if (idx==toku_gpma_index_limit(pma) || pma->items[idx].data) {
 	u_int32_t newidx;
@@ -394,6 +397,32 @@ int toku_gpma_insert(GPMA pma,
     if (idxp) *idxp=idx;
     return 0;
 }
+
+
+int toku_gpma_insert(GPMA pma,
+		     u_int32_t len, void*data,
+		     gpma_compare_fun_t compare,  void *extra_for_compare,
+		     gpma_renumber_callback_t rcall, void*extra_for_rcall, // if anything gets renumbered, let the caller know
+		     u_int32_t *idxp
+		     ) {
+    int found;
+    u_int32_t idx = toku_gpma_find_index(pma, len, data, compare, extra_for_compare, &found);
+    if (found) return DB_KEYEXIST;
+    return finish_insert(pma, len, data, rcall, extra_for_rcall, idx, idxp);
+}
+
+int toku_gpma_insert_bessel (GPMA pma,
+			     u_int32_t len, void *data,
+			     gpma_besselfun_t besf, void *extra_for_besself,
+			     gpma_renumber_callback_t renumberf, void*extra_for_renumberf,   // if anything gets renumbered, let the caller know
+			     u_int32_t *indexp // Where did the item get stored?
+			     ) {
+    int found;
+    u_int32_t idx = toku_gpma_find_index_bes(pma, besf, 0, extra_for_besself, &found);
+    if (found) return DB_KEYEXIST;
+    return finish_insert(pma, len, data, renumberf, extra_for_renumberf, idx, indexp);
+}
+
 
 inline int toku_max_int (int a, int b) {
     return a<b ? b : a;
@@ -520,9 +549,13 @@ int toku_gpma_delete_bessel (GPMA pma,
     // Now we know the range and how many items will be deleted.
     for (i=minidx; i<=maxidx; i++) {
 	if (pma->items[i].data) {
-	    r = deletef(i, pma->items[i].len, pma->items[i].data, extra_for_deletef);
-	    pma->items[i].data = 0;
-	    if (r!=0) return r;
+	    if (deletef) {
+		r = deletef(i, pma->items[i].len, pma->items[i].data, extra_for_deletef);
+		pma->items[i].data = 0;
+		if (r!=0) return r;
+	    } else {
+		pma->items[i].data = 0;
+	    }
 	}
     }
     // Now we must find a region that is sufficiently densely packed and spread things out.
@@ -566,10 +599,10 @@ int toku_gpma_lookup_item (GPMA pma,
 int toku_gpma_lookup_bessel(GPMA pma, gpma_besselfun_t besf, int direction, void*extra, u_int32_t *resultlen, void **resultdata, u_int32_t *idxp) {
     int found;
     u_int32_t idx = toku_gpma_find_index_bes(pma, besf, direction, extra, &found);
+    if (idxp) *idxp=idx;
     if (found) {
 	*resultlen =pma->items[idx].len;
 	*resultdata=pma->items[idx].data;
-	if (idxp) *idxp=idx;
 	return 0;
     } else {
 	return DB_NOTFOUND;
@@ -699,7 +732,7 @@ void toku_gpma_set_at_index (GPMA pma, u_int32_t idx, u_int32_t len, void *data)
 
 void toku_gpma_clear_at_index (GPMA pma, u_int32_t idx) {
     assert(idx<pma->N);
-    if (pma->items[idx].data==0) {
+    if (pma->items[idx].data) {
 	pma->n_items_present--;
     }
     pma->items[idx].data = 0;

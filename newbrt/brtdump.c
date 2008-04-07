@@ -86,8 +86,12 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 			     switch ((enum brt_cmd_type)typ) {
 			     case BRT_NONE: printf("NONE"); goto ok;
 			     case BRT_INSERT: printf("INSERT"); goto ok;
-			     case BRT_DELETE: printf("DELETE"); goto ok;
+			     case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
 			     case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
+			     case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+			     case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
+			     case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+			     case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
 			     }
 			     printf("HUH?");
 			 ok:
@@ -105,13 +109,10 @@ void dump_node (int f, DISKOFF off, struct brt_header *h) {
 	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
 	printf(" items_in_buffer  =%d\n", toku_gpma_n_entries(n->u.l.buffer));
 	GPMA_ITERATE(n->u.l.buffer, idx, len, data,
-			({
-			  printf("%d: ", idx);
-			  print_item(kv_pair_key(data), kv_pair_keylen(data));
-			  printf(" ");
-			  print_item(kv_pair_val(data), kv_pair_vallen(data));
-			  printf("\n");
-			}));
+		     ({
+			 print_leafentry(stdout, data);
+			 printf("\n");
+		     }));
     }
 }
 
