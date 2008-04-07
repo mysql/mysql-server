@@ -97,3 +97,41 @@ pk	apk	data
 4	1	NULL
 drop table t1;
 End of 5.0 tests.
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY,
+c2 INT NOT NULL DEFAULT 3,
+c3 INT NULL DEFAULT 7,
+c4 INT NOT NULL
+) ENGINE = NDB;
+REPLACE INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DELETE FROM t1;
+INSERT INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DROP TABLE t1;
+CREATE TABLE t1(c1 INT NOT NULL,
+c2 INT NOT NULL DEFAULT 3,
+c3 INT NULL DEFAULT 7,
+c4 INT NOT NULL
+) ENGINE = NDB;
+REPLACE INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DELETE FROM t1;
+INSERT INTO t1 (c1) VALUES (5);
+Warnings:
+Warning	1364	Field 'c4' doesn't have a default value
+SELECT * FROM t1;
+c1	c2	c3	c4
+5	3	7	0
+DROP TABLE t1;
