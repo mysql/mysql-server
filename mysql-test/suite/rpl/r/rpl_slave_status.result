@@ -4,21 +4,21 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
-stop slave;
-change master to master_user='rpl',master_password='rpl';
-start slave;
-drop table if exists t1;
-create table t1 (n int);
-insert into t1 values (1);
-select * from t1;
+GRANT REPLICATION SLAVE ON *.* TO rpl@127.0.0.1 IDENTIFIED BY 'rpl';
+STOP SLAVE;
+CHANGE MASTER TO master_user='rpl',master_password='rpl';
+START SLAVE;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1 (n int);
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1;
 n
 1
-delete from mysql.user where user='rpl';
-flush privileges;
-stop slave;
-start slave;
-show slave status;
+DELETE FROM mysql.user WHERE user='rpl';
+FLUSH PRIVILEGES;
+STOP SLAVE;
+START SLAVE;
+SHOW SLAVE STATUS;
 Slave_IO_State	#
 Master_Host	127.0.0.1
 Master_User	rpl
@@ -57,6 +57,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
-drop table t1;
-delete from mysql.user where user='rpl';
-drop table t1;
+DROP TABLE t1;
+DELETE FROM mysql.user WHERE user='rpl';
+DROP TABLE t1;
