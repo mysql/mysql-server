@@ -132,6 +132,8 @@ extern "C" {
     NDB_LE_ReceiveBytesStatistic = 41,
     /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
     NDB_LE_MemoryUsage = 50,
+    /** NDB_MGM_EVENT_CATEGORY_STATISTIC */
+    NDB_LE_ThreadConfigLoop = 68,
 
     /** NDB_MGM_EVENT_CATEGORY_ERROR */
     NDB_LE_TransporterError = 42,
@@ -188,9 +190,7 @@ extern "C" {
     NDB_LE_StartReport = 60,
 
     /* 61 (used in upcoming patch) */
-    /* 62-67 used */
-    /* 68 (used in upcoming patch) */
-
+    /* 62-68 used */
     /** NDB_MGM_EVENT_SEVERITY_WARNING */
     NDB_LE_SubscriptionStatus = 69
 

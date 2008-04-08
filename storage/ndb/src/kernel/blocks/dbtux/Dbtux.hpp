@@ -547,6 +547,8 @@ private:
   void execCONTINUEB(Signal* signal);
   void execSTTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
+  void execNODE_STATE_REP(Signal* signal);
+
   // utils
   void setKeyAttrs(const Frag& frag);
   void readKeyAttrs(const Frag& frag, TreeEnt ent, unsigned start, Data keyData);

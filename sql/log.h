@@ -327,7 +327,8 @@ public:
   }
   void set_max_size(ulong max_size_arg);
   void signal_update();
-  void wait_for_update(THD* thd, bool master_or_slave);
+  void wait_for_update_relay_log(THD* thd);
+  int  wait_for_update_bin_log(THD* thd, const struct timespec * timeout);
   void set_need_start_event() { need_start_event = 1; }
   void init(bool no_auto_events_arg, ulong max_size);
   void init_pthread_objects();

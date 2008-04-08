@@ -50,6 +50,8 @@
 #include <NdbOut.hpp>
 #include <NdbTick.h>
 
+#include <signaldata/TakeOver.hpp>
+
 // used during shutdown for reporting current startphase
 // accessed from Emulator.cpp, NdbShutdown()
 Uint32 g_currentStartPhase;
@@ -461,6 +463,7 @@ void Ndbcntr::execDIH_RESTARTCONF(Signal* signal)
   //cmasterDihId = signal->theData[0];
   c_start.m_lastGci = signal->theData[1];
   ctypeOfStart = NodeState::ST_SYSTEM_RESTART;
+  cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
 }//Ndbcntr::execDIH_RESTARTCONF()
@@ -472,6 +475,7 @@ void Ndbcntr::execDIH_RESTARTREF(Signal* signal)
 {
   jamEntry();
   ctypeOfStart = NodeState::ST_INITIAL_START;
+  cdihStartType = ctypeOfStart;
   ph2ALab(signal);
   return;
 }//Ndbcntr::execDIH_RESTARTREF()
@@ -582,6 +586,7 @@ Ndbcntr::StartRecord::reset(){
   m_waiting.clear();
   m_withLog.clear();
   m_withoutLog.clear();
+  m_waitTO.clear();
   m_lastGci = m_lastGciNodeId = 0;
   m_startPartialTimeout = ~0;
   m_startPartitionedTimeout = ~0;
@@ -597,6 +602,7 @@ Ndbcntr::execCNTR_START_CONF(Signal * signal){
 
   cnoStartNodes = conf->noStartNodes;
   ctypeOfStart = (NodeState::StartType)conf->startType;
+  cdihStartType = ctypeOfStart;
   c_start.m_lastGci = conf->startGci;
   cmasterNodeId = conf->masterNodeId;
   NdbNodeBitmask tmp; 
@@ -631,6 +637,7 @@ void
 Ndbcntr::execCNTR_START_REP(Signal* signal){
   jamEntry();
   Uint32 nodeId = signal->theData[0];
+
   c_startedNodes.set(nodeId);
   c_start.m_starting.clear(nodeId);
 
@@ -640,7 +647,18 @@ Ndbcntr::execCNTR_START_REP(Signal* signal){
   for(Uint32 i = 0; i<ALL_BLOCKS_SZ; i++){
     sendSignal(ALL_BLOCKS[i].Ref, GSN_NODE_START_REP, signal, 1, JBB);
   }
-  
+
+  signal->theData[0] = nodeId;
+  execSTART_PERMREP(signal);
+}
+
+void
+Ndbcntr::execSTART_PERMREP(Signal* signal)
+{
+  Uint32 nodeId = signal->theData[0];
+  c_startedNodes.set(nodeId);
+  c_start.m_starting.clear(nodeId);
+
   if(!c_start.m_starting.isclear()){
     jam();
     return;
@@ -764,12 +782,42 @@ void
 Ndbcntr::startWaitingNodes(Signal * signal){
 
 #if ! PARALLELL_NR
+  if (!c_start.m_waitTO.isclear())
+  {
+    jam();
+
+    {
+      char buf[100];
+      ndbout_c("starting (TO) %s", c_start.m_waitTO.getText(buf));
+    }
+
+    /**
+     * TO during SR
+     *   this can run in parallel (nowadays :-)
+     */
+    NodeReceiverGroup rg(NDBCNTR, c_start.m_waitTO);
+    c_start.m_starting.bitOR(c_start.m_waitTO);
+    c_start.m_waiting.bitANDC(c_start.m_waitTO);
+    c_start.m_waitTO.clear();
+
+    /**
+     * They are stuck in CntrWaitRep::ZWAITPOINT_4_1
+     *   have all meta data ok...but needs START_COPYREQ
+     */
+    CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->waitPoint = CntrWaitRep::ZWAITPOINT_4_2_TO;
+    sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+    return;
+  }
+
   const Uint32 nodeId = c_start.m_waiting.find(0);
   const Uint32 Tref = calcNdbCntrBlockRef(nodeId);
   ndbrequire(nodeId != c_start.m_waiting.NotFound);
 
   NodeState::StartType nrType = NodeState::ST_NODE_RESTART;
-  if(c_start.m_withoutLog.get(nodeId)){
+  if(c_start.m_withoutLog.get(nodeId))
+  {
     jam();
     nrType = NodeState::ST_INITIAL_NODE_RESTART;
   }
@@ -1058,12 +1106,65 @@ void Ndbcntr::waitpoint41Lab(Signal* signal)
 /* RECEIVE A WAIT REPORT FROM THE MASTER*/
 /*--------------------------------------*/
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_4_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_4_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), 
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
   }//if
   return;
 }//Ndbcntr::waitpoint41Lab()
+
+void
+Ndbcntr::waitpoint42To(Signal* signal)
+{
+  jam();
+  
+  /**
+   * This is a ugly hack
+   * To "easy" enable TO during SR
+   *   a better solution would be to move "all" start handling 
+   *   from DIH to cntr...which knows what's going on
+   */
+  cdihStartType = NodeState::ST_SYSTEM_RESTART;
+  ctypeOfStart = NodeState::ST_NODE_RESTART;
+
+  /**
+   * This is immensely ugly...but makes TUX work (yuck)
+   */
+  {
+    NodeStateRep* rep = (NodeStateRep*)signal->getDataPtrSend();
+    rep->nodeState = getNodeState();
+    rep->nodeState.masterNodeId = cmasterNodeId;
+    rep->nodeState.setNodeGroup(c_nodeGroup);
+    rep->nodeState.starting.restartType = NodeState::ST_NODE_RESTART;
+
+    sendSignal(DBTUX_REF, GSN_NODE_STATE_REP, signal,
+               NodeStateRep::SignalLength, JBB);
+  }
+
+  /**
+   * We were forced to perform TO
+   */
+  StartCopyReq* req = (StartCopyReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->senderData = RNIL;
+  req->flags = StartCopyReq::WAIT_LCP;
+  req->startingNodeId = getOwnNodeId();
+  sendSignal(DBDIH_REF, GSN_START_COPYREQ, signal, 
+             StartCopyReq::SignalLength, JBB);
+}
+
+void
+Ndbcntr::execSTART_COPYREF(Signal* signal)
+{
+
+}
+
+void
+Ndbcntr::execSTART_COPYCONF(Signal* signal)
+{
+  sendSttorry(signal);  
+}
+
 
 /*******************************/
 /*  NDB_STARTCONF              */
@@ -1072,10 +1173,38 @@ void Ndbcntr::execNDB_STARTCONF(Signal* signal)
 {
   jamEntry();
 
+  NdbNodeBitmask tmp;
+  if (signal->getLength() >= 1 + NdbNodeBitmask::Size)
+  {
+    jam();
+    tmp.assign(NdbNodeBitmask::Size, signal->theData+1);
+    if (!c_start.m_starting.equal(tmp))
+    {
+      /**
+       * Some nodes has been "excluded" from SR
+       */
+      char buf0[100], buf1[100];
+      ndbout_c("execNDB_STARTCONF: changing from %s to %s",
+               c_start.m_starting.getText(buf0),
+               tmp.getText(buf1));
+      
+      NdbNodeBitmask waiting = c_start.m_starting;
+      waiting.bitANDC(tmp);
+
+      c_start.m_waiting.bitOR(waiting);
+      c_start.m_waitTO.bitOR(waiting);
+      
+      c_start.m_starting.assign(tmp);
+      cnoStartNodes = c_start.m_starting.count();
+    }
+  }
+
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   signal->theData[0] = getOwnNodeId();
-  signal->theData[1] = ZWAITPOINT_4_2;
-  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
+  signal->theData[1] = CntrWaitRep::ZWAITPOINT_4_2;
+  c_start.m_starting.copyto(NdbNodeBitmask::Size, signal->theData+2);
+  sendSignal(rg, GSN_CNTR_WAITREP, signal, 2 + NdbNodeBitmask::Size, 
+             JBB);
   return;
 }//Ndbcntr::execNDB_STARTCONF()
 
@@ -1156,7 +1285,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     req->senderRef = reference();
     req->nodeId = getOwnNodeId();
     req->internalStartPhase = cinternalStartphase;
-    req->typeOfStart = ctypeOfStart;
+    req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
     
     //#define TRACE_STTOR
@@ -1178,7 +1307,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
     /* WHEN THE MASTER HAS FINISHED HIS WORK*/
     /*--------------------------------------*/
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_5_2;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_5_2;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), 
 	       GSN_CNTR_WAITREP, signal, 2, JBB);
     return;
@@ -1210,7 +1339,7 @@ void Ndbcntr::waitpoint52Lab(Signal* signal)
     req->senderRef = reference();
     req->nodeId = getOwnNodeId();
     req->internalStartPhase = cinternalStartphase;
-    req->typeOfStart = ctypeOfStart;
+    req->typeOfStart = cdihStartType;
     req->masterNodeId = cmasterNodeId;
 #ifdef TRACE_STTOR
     ndbout_c("sending NDB_STTOR(%d) to DIH", cinternalStartphase);
@@ -1236,7 +1365,7 @@ void Ndbcntr::ph6ALab(Signal* signal)
   NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
   rg.m_nodes.clear(getOwnNodeId());
   signal->theData[0] = getOwnNodeId();
-  signal->theData[1] = ZWAITPOINT_5_1;
+  signal->theData[1] = CntrWaitRep::ZWAITPOINT_5_1;
   sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
 
   waitpoint51Lab(signal);
@@ -1285,14 +1414,14 @@ void Ndbcntr::waitpoint61Lab(Signal* signal)
       NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
       rg.m_nodes.clear(getOwnNodeId());
       signal->theData[0] = getOwnNodeId();
-      signal->theData[1] = ZWAITPOINT_6_2;
+      signal->theData[1] = CntrWaitRep::ZWAITPOINT_6_2;
       sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
       sendSttorry(signal);
     }
   } else {
     jam();
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_6_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_6_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), GSN_CNTR_WAITREP, signal, 2, JBB);
   }
 }
@@ -1331,14 +1460,14 @@ void Ndbcntr::waitpoint71Lab(Signal* signal)
       NodeReceiverGroup rg(NDBCNTR, c_start.m_starting);
       rg.m_nodes.clear(getOwnNodeId());
       signal->theData[0] = getOwnNodeId();
-      signal->theData[1] = ZWAITPOINT_7_2;
+      signal->theData[1] = CntrWaitRep::ZWAITPOINT_7_2;
       sendSignal(rg, GSN_CNTR_WAITREP, signal, 2, JBB);
       sendSttorry(signal);
     }
   } else {
     jam();
     signal->theData[0] = getOwnNodeId();
-    signal->theData[1] = ZWAITPOINT_7_1;
+    signal->theData[1] = CntrWaitRep::ZWAITPOINT_7_1;
     sendSignal(calcNdbCntrBlockRef(cmasterNodeId), GSN_CNTR_WAITREP, signal, 2, JBB);
   }
 }
@@ -1367,42 +1496,47 @@ void Ndbcntr::ph8ALab(Signal* signal)
 /*******************************/
 void Ndbcntr::execCNTR_WAITREP(Signal* signal) 
 {
-  Uint16 twaitPoint;
-
   jamEntry();
-  twaitPoint = signal->theData[1];
+  CntrWaitRep* rep = (CntrWaitRep*)signal->getDataPtr();
+
+  Uint32 twaitPoint = rep->waitPoint;
   switch (twaitPoint) {
-  case ZWAITPOINT_4_1:
+  case CntrWaitRep::ZWAITPOINT_4_1:
     jam();
     waitpoint41Lab(signal);
     break;
-  case ZWAITPOINT_4_2:
+  case CntrWaitRep::ZWAITPOINT_4_2:
     jam();
+    c_start.m_starting.assign(NdbNodeBitmask::Size, signal->theData + 2);
     sendSttorry(signal);
     break;
-  case ZWAITPOINT_5_1:
+  case CntrWaitRep::ZWAITPOINT_5_1:
     jam();
     waitpoint51Lab(signal);
     break;
-  case ZWAITPOINT_5_2:
+  case CntrWaitRep::ZWAITPOINT_5_2:
     jam();
     waitpoint52Lab(signal);
     break;
-  case ZWAITPOINT_6_1:
+  case CntrWaitRep::ZWAITPOINT_6_1:
     jam();
     waitpoint61Lab(signal);
     break;
-  case ZWAITPOINT_6_2:
+  case CntrWaitRep::ZWAITPOINT_6_2:
     jam();
     sendSttorry(signal);
     break;
-  case ZWAITPOINT_7_1:
+  case CntrWaitRep::ZWAITPOINT_7_1:
     jam();
     waitpoint71Lab(signal);
     break;
-  case ZWAITPOINT_7_2:
+  case CntrWaitRep::ZWAITPOINT_7_2:
     jam();
     sendSttorry(signal);
+    break;
+  case CntrWaitRep::ZWAITPOINT_4_2_TO:
+    jam();
+    waitpoint42To(signal);
     break;
   default:
     jam();
@@ -1456,6 +1590,7 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   c_start.m_waiting.bitANDC(allFailed);
   c_start.m_withLog.bitANDC(allFailed);
   c_start.m_withoutLog.bitANDC(allFailed);
+  c_start.m_waitTO.bitANDC(allFailed);
   c_clusterNodes.bitANDC(allFailed);
   c_startedNodes.bitANDC(allFailed);
 
@@ -2014,6 +2149,8 @@ void Ndbcntr::sendNdbSttor(Signal* signal)
 	   cinternalStartphase, 
 	   getBlockName( refToBlock(ndbBlocksPtr.p->blockref)));
 #endif
+  if (refToBlock(ndbBlocksPtr.p->blockref) == DBDIH)
+    req->typeOfStart = cdihStartType;
   sendSignal(ndbBlocksPtr.p->blockref, GSN_NDB_STTOR, signal, 22, JBB);
   cndbBlocksCount++;
 }//Ndbcntr::sendNdbSttor()
@@ -2917,6 +3054,8 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
 		 ref,
 		 currentBlockIndex);
 #endif
+        if (refToBlock(ref) == DBDIH)
+          signal->theData[7] = cntr.cdihStartType;
 	
 	cntr.sendSignal(ref, GSN_STTOR, signal, 8, JBB);
 	

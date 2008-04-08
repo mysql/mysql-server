@@ -27,6 +27,9 @@
 #ifndef TransporterRegistry_H
 #define TransporterRegistry_H
 
+#if defined(HAVE_EPOLL_CREATE)
+#include <sys/epoll.h>
+#endif
 #include "TransporterDefinitions.hpp"
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
@@ -273,7 +276,7 @@ public:
   Transporter* get_transporter(NodeId nodeId);
   NodeId get_localNodeId() { return localNodeId; };
 
-
+  void remove_from_epoll(NodeId node_id);
   struct in_addr get_connect_address(NodeId node_id) const;
 protected:
   
@@ -294,6 +297,20 @@ private:
   int nSCITransporters;
   int nSHMTransporters;
 
+#if defined(HAVE_EPOLL_CREATE)
+  typedef Bitmask<MAX_NTRANSPORTERS/32> TransporterMask;
+
+  int m_epoll_fd;
+  struct epoll_event *m_epoll_events;
+  bool change_epoll(TCP_Transporter *t, bool add);
+  void get_tcp_data(TCP_Transporter *t);
+
+  /**
+   * Bitmask of transporters that has data "carried over" since
+   *   last performReceive
+   */
+  TransporterMask m_has_data_transporters;
+#endif
   /**
    * Arrays holding all transporters in the order they are created
    */

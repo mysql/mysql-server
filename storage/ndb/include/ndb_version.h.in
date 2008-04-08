@@ -18,6 +18,12 @@
 
 #include <ndb_types.h>
 
+/**
+ * This is updated each time a version of backup/lcp format is changed
+ *   when it's updated, it's set to version that made the change
+ */
+#define NDB_BACKUP_VERSION NDB_MAKE_VERSION(6,3,11)
+
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
 #define NDB_VERSION_BUILD @NDB_VERSION_BUILD@
@@ -92,6 +98,7 @@ Uint32 ndbGetOwnVersion();
 
 #define NDBD_MICRO_GCP_62 NDB_MAKE_VERSION(6,2,5)
 #define NDBD_MICRO_GCP_63 NDB_MAKE_VERSION(6,3,2)
+#define NDBD_RAW_LCP MAKE_VERSION(6,3,11)
 
 static
 inline
@@ -159,6 +166,17 @@ ndb_check_prep_copy_frag_version(Uint32 version)
   }
     
   return 0;
+}
+
+#define NDBD_PNR NDB_MAKE_VERSION(6,3,8)
+
+static 
+inline
+int
+ndb_pnr(Uint32 version)
+{
+  return 
+    version == NDB_VERSION_D || version >= NDBD_PNR;
 }
 
 #define NDBD_SUMA_DICT_LOCK_62 NDB_MAKE_VERSION(6,2,14)

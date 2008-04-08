@@ -13,9 +13,15 @@ Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_number_of_data_nodes	#
+Ndb_number_of_ready_data_nodes	#
+Ndb_connect_count	#
+Ndb_execute_count	#
+Ndb_conflict_fn_max	#
+Ndb_conflict_fn_old	#
 SHOW GLOBAL VARIABLES LIKE 'ndb%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
+ndb_batch_size	#
 ndb_cache_check_time	#
 ndb_connectstring	#
 ndb_extra_logging	#
@@ -23,8 +29,14 @@ ndb_force_send	#
 ndb_index_stat_cache_entries	#
 ndb_index_stat_enable	#
 ndb_index_stat_update_freq	#
+ndb_log_update_as_write	#
+ndb_log_updated_only	#
+ndb_optimization_delay	#
+ndb_optimized_node_selection	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
+ndb_table_no_logging	#
+ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#

@@ -212,14 +212,25 @@ socketServerThread_C(void* _ss){
 }
 
 void
-SocketServer::startServer(){
+SocketServer::startServer()
+{
+  char thread_object[THREAD_CONTAINER_SIZE];
+  uint len;
+
   m_threadLock.lock();
   if(m_thread == 0 && m_stopThread == false){
-    m_thread = NdbThread_Create(socketServerThread_C,
+    ndb_thread_fill_thread_object((void*)thread_object, &len, TRUE);
+    m_thread = NdbThread_CreateWithFunc(socketServerThread_C,
 				(void**)this,
 				32768,
 				"NdbSockServ",
-				NDB_THREAD_PRIO_LOW);
+				NDB_THREAD_PRIO_LOW,
+                                ndb_thread_add_thread_id,
+                                thread_object,
+                                len,
+                                ndb_thread_remove_thread_id,
+                                thread_object,
+                                len);
   }
   m_threadLock.unlock();
 }

@@ -470,6 +470,7 @@ ErrorBundle ErrorCodes[] = {
   { 1347, DMEC, AE, "Backup failed to allocate table memory (check configuration)" },
   { 1348, DMEC, AE, "Backup failed to allocate file record (check configuration)" },
   { 1349, DMEC, AE, "Backup failed to allocate attribute record (check configuration)" },
+  { 1350, DMEC, TR, "Backup failed: file already exists (use 'START BACKUP <backup id>')" },
   { 1329, DMEC, AE, "Backup during software upgrade not supported" },
 
   /**
