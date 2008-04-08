@@ -1,0 +1,8 @@
+
+#
+# This test is executed once after each test to check the servers
+# for unexpected warnings found in the servers error log
+#
+--disable_query_log
+call mtr.check_warnings();
+--enable_query_log
