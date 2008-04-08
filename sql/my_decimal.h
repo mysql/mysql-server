@@ -114,6 +114,14 @@ public:
   bool sign() const { return decimal_t::sign; }
   void sign(bool s) { decimal_t::sign= s; }
   uint precision() const { return intg + frac; }
+
+  /** Swap two my_decimal values */
+  void swap(my_decimal &rhs)
+  {
+    swap_variables(my_decimal, *this, rhs);
+    /* Swap the buffer pointers back */
+    swap_variables(decimal_digit_t *, buf, rhs.buf);
+  }
 };
 
 

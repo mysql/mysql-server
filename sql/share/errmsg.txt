@@ -6120,3 +6120,9 @@ ER_NO_FORMAT_DESCRIPTION_EVENT_BEFORE_BINLOG_STATEMENT
   eng "The BINLOG statement of type `%s` was not preceded by a format description BINLOG statement."
 ER_SLAVE_CORRUPT_EVENT
   eng "Corrupted replication event was detected"
+
+ER_NEED_REPREPARE
+  eng "Prepared statement needs to be re-prepared"
+
+ER_PS_REBIND
+  eng "Prepared statement result set has changed, a rebind needed"
