@@ -19,6 +19,7 @@ class Ndb_internal
 {
 private:
   friend class NdbEventBuffer;
+  friend class BackupRestore;
   Ndb_internal() {}
   virtual ~Ndb_internal() {}
   static int send_event_report(Ndb *ndb, Uint32 *data, Uint32 length)

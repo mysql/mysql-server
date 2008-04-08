@@ -126,7 +126,7 @@ public:
 
   void setRetryMax(int retryMax = 100) { m_retryMax = retryMax; }
   
-  Uint32 m_latest_gci;
+  Uint64 m_latest_gci;
 
   void setStatsLatency(NDBT_Stats* stats) { m_stats_latency = stats; }
 

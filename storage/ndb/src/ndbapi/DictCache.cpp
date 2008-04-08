@@ -338,7 +338,7 @@ GlobalDictCache::invalidate_all()
 }
 
 void
-GlobalDictCache::release(NdbTableImpl * tab, int invalidate)
+GlobalDictCache::release(const NdbTableImpl * tab, int invalidate)
 {
   DBUG_ENTER("GlobalDictCache::release");
   DBUG_PRINT("enter", ("tab: %p  internal_name: %s",

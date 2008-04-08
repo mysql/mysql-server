@@ -34,6 +34,7 @@ Adjust:  971022  UABMNST   First version.
 #include <Ndb.hpp>
 #include "NdbImpl.hpp"
 #include <NdbOut.hpp>
+#include "NdbBlob.hpp"
 
 #include <AttributeHeader.hpp>
 #include <signaldata/TcKeyReq.hpp>
@@ -517,119 +518,58 @@ NdbOperation::getKeyFromTCREQ(Uint32* data, Uint32 & size)
 }
 
 int
-NdbOperation::handle_distribution_key(const Uint64* value, Uint32 len)
+NdbOperation::handle_distribution_key(const NdbColumnImpl* tAttrInfo,
+                                      const Uint64* value, Uint32 len)
 {
-  if(theDistrKeyIndicator_ == 1 || 
-     (theNoOfTupKeyLeft > 0 && m_accessTable->m_noOfDistributionKeys > 1))
-  {
-    return 0;
-  }
+  DBUG_ENTER("NdbOperation::handle_distribution_key");
+
+  if (theDistrKeyIndicator_ == 1)
+    DBUG_RETURN(0);
+
+  if (theNoOfTupKeyLeft > 0 || m_accessTable->m_noOfDistributionKeys > 1)
+    DBUG_RETURN(0);
   
+  DBUG_DUMP("value", (const uchar*)value, len << 2);
+
   if(m_accessTable->m_noOfDistributionKeys == 1)
   {
-    setPartitionHash(value, len);
-  }
-  else if(theTCREQ->readSignalNumber() == GSN_TCKEYREQ)
-  {
-    // No support for combined distribution key and scan
-
-    /**
-     * Copy distribution key to linear memory
-     */
-    NdbColumnImpl* const * cols = m_accessTable->m_columns.getBase();
+    Ndb::Key_part_ptr ptrs[2];
+    ptrs[0].ptr = value;
+    ptrs[0].len = len;
+    ptrs[1].ptr = 0;
+    
     Uint64 tmp[1000];
-
-    Uint32 chunk = 8;
-    Uint32* dst = (Uint32*)tmp;
-    NdbApiSignal* tSignal = theTCREQ;
-    Uint32* src = ((TcKeyReq*)tSignal->getDataPtrSend())->keyInfo;
-    if(tSignal->readSignalNumber() == GSN_SCAN_TABREQ)
+    Uint32 hashValue;
+    int ret = Ndb::computeHash(&hashValue, 
+                               m_currentTable,
+                               ptrs, tmp, sizeof(tmp));
+    
+    if (ret == 0)
     {
-      tSignal = tSignal->next();
-      src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-      chunk = KeyInfo::DataLength;
+      setPartitionId(m_currentTable->getPartitionId(hashValue));
     }
-
-    for(unsigned i = m_accessTable->m_columns.size(); i>0; cols++, i--)
+#ifdef VM_TRACE
+    else
     {
-      if (!(* cols)->getPrimaryKey())
-	continue;
-      
-      NdbColumnImpl* tAttrInfo = * cols;
-      Uint32 sizeInBytes;
-      switch(tAttrInfo->m_arrayType){
-      default:
-      case NDB_ARRAYTYPE_FIXED:
-	sizeInBytes = tAttrInfo->m_attrSize * tAttrInfo->m_arraySize;
-	break;
-      case NDB_ARRAYTYPE_SHORT_VAR:
-	sizeInBytes = 1 + *(char*)src;
-	break;
-      case NDB_ARRAYTYPE_MEDIUM_VAR:
-	sizeInBytes = 2 + uint2korr((char*)src);
-	break;
-      }
-      
-      Uint32 currLen = (sizeInBytes + 3) >> 2;
-      if (tAttrInfo->getDistributionKey())
-      {
-	while (currLen >= chunk)
-	{
-	  memcpy(dst, src, 4*chunk);
-	  dst += chunk;
-	  tSignal = tSignal->next();
-	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-	  currLen -= chunk;
-	  chunk = KeyInfo::DataLength;
-	}
-
-	memcpy(dst, src, 4*currLen);
-	dst += currLen;
-	src += currLen;
-	chunk -= currLen;
-      }
-      else
-      {
-	while (currLen >= chunk)
-	{
-	  tSignal = tSignal->next();
-	  src = ((KeyInfo*)tSignal->getDataPtrSend())->keyData;
-	  currLen -= chunk;
-	  chunk = KeyInfo::DataLength;
-	}
-	
-	src += currLen;
-	chunk -= currLen;
-      }
+      ndbout << "Err: " << ret << endl;
+      assert(false);
     }
-    setPartitionHash(tmp, dst - (Uint32*)tmp);
+#endif
   }
-  return 0;
-}
-
-void
-NdbOperation::setPartitionHash(Uint32 value)
-{
-  union {
-    Uint32 tmp32;
-    Uint64 tmp64;
-  };
-
-  tmp32 = value;
-  setPartitionHash(&tmp64, 1);
-}
-
-void
-NdbOperation::setPartitionHash(const Uint64* value, Uint32 len)
-{
-  Uint32 buf[4];
-  md5_hash(buf, value, len);
-  setPartitionId(buf[1]);
+  DBUG_RETURN(0);
 }
 
 void
 NdbOperation::setPartitionId(Uint32 value)
 {
+  if (theStatus == UseNdbRecord)
+  {
+    /* Method not allowed for NdbRecord, use OperationOptions or 
+       ScanOptions structure instead */
+    setErrorCodeAbort(4515);
+    return; // TODO : Consider adding int rc for error
+  }
+
   theDistributionKey = value;
   theDistrKeyIndicator_ = 1;
   DBUG_PRINT("info", ("NdbOperation::setPartitionId: %u",

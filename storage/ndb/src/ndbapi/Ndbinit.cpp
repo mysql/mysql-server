@@ -119,6 +119,8 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
     }
   }
 
+  theImpl->m_ndb_cluster_connection.link_ndb_object(this);
+
   DBUG_VOID_RETURN;
 }
 
@@ -160,6 +162,8 @@ Ndb::~Ndb()
     theCommitAckSignal = NULL;
   }
 
+  theImpl->m_ndb_cluster_connection.unlink_ndb_object(this);
+
   delete theImpl;
 
 #ifdef POORMANSPURIFY
@@ -192,6 +196,8 @@ NdbWaiter::~NdbWaiter(){
 NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
 		 Ndb& ndb)
   : m_ndb(ndb),
+    m_next_ndb_object(0),
+    m_prev_ndb_object(0),
     m_ndb_cluster_connection(ndb_cluster_connection->m_impl),
     m_transporter_facade(ndb_cluster_connection->m_impl.m_transporter_facade),
     m_dictionary(ndb),
