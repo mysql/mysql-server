@@ -20,6 +20,7 @@
 
 #ifndef EXTRACT_DEFINITIONS
 #include "maria_def.h"
+#include "ma_checkpoint.h"
 #endif
 
 /*
@@ -487,8 +488,14 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
       we cannot maintain, so that any future version notices we didn't
       maintain its extra data.
     */
-    bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE,
-          cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE);
+    uint zeroed= cf_changeable_size - CF_CHANGEABLE_TOTAL_SIZE;
+    char msg[150];
+    bzero(buffer + CF_CHANGEABLE_TOTAL_SIZE, zeroed);
+    my_snprintf(msg, sizeof(msg),
+                "Control file must be from a newer version; zero-ing out %u"
+                " unknown bytes in control file at offset %u", zeroed,
+                cf_changeable_size + cf_create_time_size);
+    ma_message_no_user(ME_JUST_WARNING, msg);
   }
   else
   {
@@ -512,6 +519,7 @@ int ma_control_file_write_and_force(LSN checkpoint_lsn, uint32 logno,
   last_logno= logno;
   max_trid_in_control_file= trid;
 
+  cf_changeable_size= CF_CHANGEABLE_TOTAL_SIZE; /* no more warning */
   DBUG_RETURN(0);
 }
 

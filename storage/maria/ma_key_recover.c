@@ -611,20 +611,20 @@ uint _ma_apply_redo_index_new_page(MARIA_HA *info, LSN lsn,
   header+= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
   length-= PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE + 1;
 
-  /* free_page is 0 if we shouldn't set key_del */
-  if (free_page)
-  {
-    if (free_page != IMPOSSIBLE_PAGE_NO)
-      share->state.key_del= (my_off_t) free_page * share->block_size;
-    else
-      share->state.key_del= HA_OFFSET_ERROR;
-  }
   file_size= (my_off_t) (root_page + 1) * share->block_size;
-
-  /* If root page */
-  if (page_type_flag &&
-      cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
-    share->state.key_root[key_nr]= file_size - share->block_size;
+  if (cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
+  {
+    /* free_page is 0 if we shouldn't set key_del */
+    if (free_page)
+    {
+      if (free_page != IMPOSSIBLE_PAGE_NO)
+        share->state.key_del= (my_off_t) free_page * share->block_size;
+      else
+        share->state.key_del= HA_OFFSET_ERROR;
+    }
+    if (page_type_flag)     /* root page */
+      share->state.key_root[key_nr]= file_size - share->block_size;
+  }
 
   if (file_size > info->state->key_file_length)
   {
@@ -723,7 +723,9 @@ uint _ma_apply_redo_index_free_page(MARIA_HA *info,
                           STATE_NOT_SORTED_PAGES | STATE_NOT_ZEROFILLED |
                           STATE_NOT_MOVABLE);
 
-  share->state.key_del= (my_off_t) page * share->block_size;
+  if (cmp_translog_addr(lsn, share->state.is_of_horizon) >= 0)
+    share->state.key_del= (my_off_t) page * share->block_size;
+
   old_link=  ((free_page != IMPOSSIBLE_PAGE_NO) ?
               (my_off_t) free_page * share->block_size :
               HA_OFFSET_ERROR);
