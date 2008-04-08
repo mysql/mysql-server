@@ -262,6 +262,74 @@ void rand(Uint32 dst[], Uint32 len)
 }
 
 static
+int checkCopyField(const Uint32 totalTests)
+{
+  ndbout << "Testing : Checking Bitmaskimpl::copyField";
+
+  const Uint32 numWords= 95;
+  const Uint32 maxBitsToCopy= (numWords * 32);
+  
+  Uint32 sourceBuf[numWords];
+  Uint32 targetTest[numWords];
+  Uint32 targetCopy[numWords];
+
+  rand(sourceBuf, maxBitsToCopy);
+  
+  /* Set both target buffers to the same random values */
+  rand(targetTest, maxBitsToCopy);
+  for (Uint32 i=0; i<maxBitsToCopy; i++)
+    BitmaskImpl::set(numWords, targetCopy, i, 
+                     BitmaskImpl::get(numWords, targetTest, i));
+
+  if (!cmp(targetTest, targetCopy, maxBitsToCopy))
+  {
+    ndbout_c("copyField :: Initial setup mismatch");
+    return -1;
+  }
+
+  for (Uint32 test=0; test < totalTests; test++)
+  {
+    Uint32 len= rand() % maxBitsToCopy;
+    Uint32 slack= maxBitsToCopy - len;
+    Uint32 srcPos= slack ? rand() % slack : 0;
+    Uint32 dstPos= slack ? rand() % slack : 0;
+
+    if (BITMASK_DEBUG)
+      ndbout_c("copyField :: Running test with len=%u, srcPos=%u, dstPos=%u, "
+               "srcOff=%u, dstOff=%u",
+               len, srcPos, dstPos, srcPos & 31, dstPos & 31);
+
+    /* Run the copy */
+    BitmaskImpl::copyField(targetCopy, dstPos, sourceBuf, srcPos, len);
+
+    /* Do the equivalent action */
+    for (Uint32 i=0; i< len; i++)
+      BitmaskImpl::set(numWords, targetTest, dstPos + i,
+                       BitmaskImpl::get(numWords, sourceBuf, srcPos+i));
+
+    bool fail= false;
+    /* Compare results */
+    for (Uint32 i=0; i<maxBitsToCopy; i++)
+    {
+      if (BitmaskImpl::get(numWords, targetCopy, i) !=
+          BitmaskImpl::get(numWords, targetTest, i))
+      {
+        ndbout_c("copyField :: Mismatch at bit %u, should be %u but is %u",
+                 i, 
+                 BitmaskImpl::get(numWords, targetTest, i),
+                 BitmaskImpl::get(numWords, targetCopy, i));
+        fail=true;
+      }
+    }
+
+    if (fail)
+      return -1;
+  }
+
+  return 0;
+}
+
+static
 int checkNoTramplingGetSetField(const Uint32 totalTests)
 {
   const Uint32 numWords= 67;
@@ -590,6 +658,9 @@ testBitmask()
   int res= 0;
 
   if ((res= checkNoTramplingGetSetField(100 /* totalTests */)) != 0)
+    return res;
+
+  if ((res= checkCopyField(1000)) != 0)
     return res;
 
   if ((res= simple(rand() % 33, // position

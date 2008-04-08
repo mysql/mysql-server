@@ -5689,6 +5689,13 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
     return -1;
   }
 
+  if (col->m_attrId & AttributeHeader::PSEUDO)
+  {
+    /* Pseudo columns not supported by NdbRecord */
+    m_error.code= 4523;
+    return -1;
+  }
+
   if (col->m_indexSourced)
   {
     // Attempt to pass an index column to createRecord...
@@ -5702,6 +5709,7 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   recCol->index_attrId= ~0;
   recCol->offset= recSpec->offset;
   recCol->maxSize= col->m_attrSize*col->m_arraySize;
+  recCol->orgAttrSize= col->m_orgAttrSize;
   if (recCol->offset+recCol->maxSize > rec->m_row_size)
     rec->m_row_size= recCol->offset+recCol->maxSize;
   /* Round data size to whole words + 4 bytes of AttributeHeader. */
@@ -6008,8 +6016,10 @@ NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
     for (i= 0; i<noOfColumns; i++)
     {
       Uint32 attrId= columns[i].attrId;
-      if (!(attrId & AttributeHeader::PSEUDO) &&
-          src[attrId>>3] & (1 << (attrId&7)))
+
+      assert(!(attrId & AttributeHeader::PSEUDO));
+
+      if (src[attrId>>3] & (1 << (attrId&7)))
         BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
     }
   }
@@ -6018,8 +6028,10 @@ NdbRecord::copyMask(Uint32 *dst, const unsigned char *src) const
     for (i= 0; i<noOfColumns; i++)
     {
       Uint32 attrId= columns[i].attrId;
-      if (!(attrId & AttributeHeader::PSEUDO))
-        BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
+      
+      assert(!(attrId & AttributeHeader::PSEUDO));
+
+      BitmaskImpl::set((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5, dst, attrId);
     }
   }
 }
