@@ -47,7 +47,11 @@ clean:
 
 # A hack to make gprof work.  See #515.
 ifeq ($(PROF_FLAGS),-pg)
-OFILES = ../src/ydb.o ../src/errors.o ../src/elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/pma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../src/lock_tree/locktree.o ../src/lock_tree/rth.o ../src/lock_tree/lth.o ../src/range_tree/rangetree.o ../src/range_tree/tokuredblack.o
+OFILES = \
+	../src/ydb.o ../src/errors.o ../src/elocks.o \
+	../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/leafentry.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o \
+	../src/lock_tree/locktree.o ../src/lock_tree/rth.o ../src/lock_tree/lth.o ../src/lock_tree/idlth.o ../src/lock_tree/db_id.o \
+	../src/range_tree/rangetree.o ../src/range_tree/tokuredblack.o 
 db-benchmark-test-tokudb: db-benchmark-test.c
 	$(CC) $(CFLAGS) $(TDB_CPPFLAGS) $(OFILES) -lz $< -o $@ -DDIRSUF=tokudb
 else
