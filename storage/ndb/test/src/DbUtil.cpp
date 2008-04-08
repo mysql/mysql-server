@@ -23,8 +23,6 @@
 
 DbUtil::DbUtil(const char* _dbname,
                const char* _suffix):
-  m_user("root"),
-  m_pass(""),
   m_mysql(NULL),
   m_free_mysql(true),
   m_connected(false),
