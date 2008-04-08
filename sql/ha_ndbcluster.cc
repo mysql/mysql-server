@@ -154,11 +154,7 @@ HASH ndbcluster_open_tables;
 
 static uchar *ndbcluster_get_key(NDB_SHARE *share, size_t *length,
                                 my_bool not_used __attribute__((unused)));
-static
-NdbRecord *
-ndb_get_table_statistics_ndbrecord(NDBDICT *, const NDBTAB *);
-static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*, const NDBTAB *, 
-                                    struct Ndb_statistics *);
+
 static int ndb_get_table_statistics(ha_ndbcluster*, bool, Ndb*,
                                     const NdbRecord *, struct Ndb_statistics *);
 
@@ -1618,11 +1614,6 @@ ha_ndbcluster::add_table_ndb_record(NDBDICT *dict)
     ERR_RETURN(dict->getNdbError());
   m_ndb_record= rec;
 
-  rec= ndb_get_table_statistics_ndbrecord(dict, m_table);
-  if (! rec)
-    ERR_RETURN(dict->getNdbError());
-  m_ndb_statistics_record= rec;
-
   DBUG_RETURN(0);
 }
 
@@ -1969,11 +1960,6 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
     {
       dict->releaseRecord(m_ndb_hidden_key_record);
       m_ndb_hidden_key_record= NULL;
-    }
-    if (m_ndb_statistics_record != NULL)
-    {
-      dict->releaseRecord(m_ndb_statistics_record);
-      m_ndb_statistics_record= NULL;
     }
     if (m_table->getObjectStatus() == NdbDictionary::Object::Invalid)
       invalidate_indexes= 1;
@@ -7341,7 +7327,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_table(NULL),
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
-  m_ndb_statistics_record(0),
   m_table_info(NULL),
   m_table_flags(HA_NDBCLUSTER_TABLE_FLAGS),
   m_share(0),
@@ -9068,7 +9053,11 @@ uint ndb_get_commitcount(THD *thd, char *dbname, char *tabname,
   {
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), tabname);
     if (ndbtab_g.get_table() == 0
-        || ndb_get_table_statistics(NULL, FALSE, ndb, ndbtab_g.get_table(), &stat))
+        || ndb_get_table_statistics(NULL, 
+                                    FALSE, 
+                                    ndb, 
+                                    ndbtab_g.get_table()->getDefaultRecord(),
+                                    &stat))
     {
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
@@ -9719,7 +9708,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
       DBUG_RETURN(my_errno= HA_ERR_OUT_OF_MEM);
     }
     if (int err= ndb_get_table_statistics(this, TRUE, ndb,
-                                          m_ndb_statistics_record, &stat))
+                                          m_ndb_record, &stat))
     {
       DBUG_RETURN(err);
     }
@@ -9754,36 +9743,6 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat)
   DBUG_RETURN(0);
 }
 
-static
-NdbRecord *
-ndb_get_table_statistics_ndbrecord(NDBDICT *dict, const NDBTAB *table)
-{
-  NdbDictionary::RecordSpecification spec[5];
-  spec[0].column= NdbDictionary::Column::ROW_COUNT;
-  spec[0].offset= offsetof(struct ndb_table_statistics_row, rows);
-  spec[0].nullbit_byte_offset= 0;
-  spec[0].nullbit_bit_in_byte= 0;
-  spec[1].column= NdbDictionary::Column::COMMIT_COUNT;
-  spec[1].offset= offsetof(struct ndb_table_statistics_row, commits);
-  spec[1].nullbit_byte_offset= 0;
-  spec[1].nullbit_bit_in_byte= 0;
-  spec[2].column= NdbDictionary::Column::ROW_SIZE;
-  spec[2].offset= offsetof(struct ndb_table_statistics_row, size);
-  spec[2].nullbit_byte_offset= 0;
-  spec[2].nullbit_bit_in_byte= 0;
-  spec[3].column= NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
-  spec[3].offset= offsetof(struct ndb_table_statistics_row, fixed_mem);
-  spec[3].nullbit_byte_offset= 0;
-  spec[3].nullbit_bit_in_byte= 0;
-  spec[4].column= NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
-  spec[4].offset= offsetof(struct ndb_table_statistics_row, var_mem);
-  spec[4].nullbit_byte_offset= 0;
-  spec[4].nullbit_bit_in_byte= 0;
-
-  return dict->createRecord(table, spec,
-                            sizeof(spec)/sizeof(spec[0]), sizeof(spec[0]), 0);
-}
-
 static 
 int
 ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
@@ -9796,7 +9755,11 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
   int retries= 10;
   int reterr= 0;
   int retry_sleep= 30 * 1000; /* 30 milliseconds */
-  const char *row;
+  const char *dummyRowPtr;
+  const Uint32 extraCols= 5;
+  NdbOperation::GetValueSpec extraGets[extraCols];
+  Uint64 rows, commits, fixed_mem, var_mem;
+  Uint32 size;
 #ifndef DBUG_OFF
   char buff[22], buff2[22], buff3[22], buff4[22];
 #endif
@@ -9804,6 +9767,22 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
 
   DBUG_ASSERT(record != 0);
   
+  /* We use the passed in NdbRecord just to get access to the
+     table, we mask out any/all columns it may have and add
+     our reads as extraGets.  This is necessary as they are
+     all pseudo-columns
+  */
+  extraGets[0].column= NdbDictionary::Column::ROW_COUNT;
+  extraGets[0].appStorage= &rows;
+  extraGets[1].column= NdbDictionary::Column::COMMIT_COUNT;
+  extraGets[1].appStorage= &commits;
+  extraGets[2].column= NdbDictionary::Column::ROW_SIZE;
+  extraGets[2].appStorage= &size;
+  extraGets[3].column= NdbDictionary::Column::FRAGMENT_FIXED_MEMORY;
+  extraGets[3].appStorage= &fixed_mem;
+  extraGets[4].column= NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY;
+  extraGets[4].appStorage= &var_mem;
+
   const Uint32 codeWords= 1;
   Uint32 codeSpace[ codeWords ];
   NdbInterpretedCode code(NULL, // Table is irrelevant
@@ -9836,13 +9815,16 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
 
     NdbScanOperation::ScanOptions options;
     options.optionsPresent= NdbScanOperation::ScanOptions::SO_BATCH |
+                            NdbScanOperation::ScanOptions::SO_GETVALUE |
                             NdbScanOperation::ScanOptions::SO_INTERPRETED;
     /* Set batch_size=1, as we need only one row per fragment. */
     options.batch= 1;
+    options.extraGetValues= &extraGets[0];
+    options.numExtraGetValues= extraCols;
     options.interpretedCode= &code;
 
     if ((pOp= pTrans->scanTable(record, NdbOperation::LM_CommittedRead,
-                                NULL, 
+                                empty_mask,
                                 &options,
                                 sizeof(NdbScanOperation::ScanOptions))) == NULL)
     {
@@ -9860,18 +9842,15 @@ ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
       goto retry;
     }
     
-    while ((check= pOp->nextResult(&row, TRUE, TRUE)) == 0)
+    while ((check= pOp->nextResult(&dummyRowPtr, TRUE, TRUE)) == 0)
     {
-      /* NDB API ensures proper alignment of rows to make the cast valid. */
-      const ndb_table_statistics_row *stat=
-        (const ndb_table_statistics_row *)row;
-      DBUG_PRINT("info", ("nextResult stat->rows: %d  stat->commits: %d",
-                          (int)stat->rows, (int)stat->commits));
-      sum_rows+= stat->rows;
-      sum_commits+= stat->commits;
-      if (sum_row_size < stat->size)
-        sum_row_size= stat->size;
-      sum_mem+= stat->fixed_mem + stat->var_mem;
+      DBUG_PRINT("info", ("nextResult rows: %d  commits: %d",
+                          (int)rows, (int)commits));
+      sum_rows+= rows;
+      sum_commits+= commits;
+      if (sum_row_size < size)
+        sum_row_size= size;
+      sum_mem+= fixed_mem + var_mem;
       count++;
     }
     
@@ -9931,27 +9910,6 @@ retry:
   DBUG_PRINT("exit", ("failed, reterr: %u, NdbError %u(%s)", reterr,
                       error.code, error.message));
   DBUG_RETURN(reterr);
-}
-
-/*
-  Query cache stuff
-*/
-static 
-int
-ndb_get_table_statistics(ha_ndbcluster* file, bool report_error, Ndb* ndb,
-                         const NDBTAB *ndbtab,
-                         struct Ndb_statistics *ndbstat)
-{
-  NDBDICT *dict= ndb->getDictionary();
-  NdbRecord *rec= ndb_get_table_statistics_ndbrecord(dict, ndbtab);
-  if (!rec)
-  {
-    DBUG_ENTER("ndb_get_table_statistics");
-    ERR_RETURN(dict->getNdbError());
-  }
-  int res= ndb_get_table_statistics(file, report_error, ndb, rec, ndbstat);
-  dict->releaseRecord(rec);
-  return res;
 }
 
 /**
@@ -10836,7 +10794,8 @@ pthread_handler_t ndb_util_thread_func(void *arg __attribute__((unused)))
         Ndb_table_guard ndbtab_g(ndb->getDictionary(), share->table_name);
         if (ndbtab_g.get_table() &&
             ndb_get_table_statistics(NULL, FALSE, ndb,
-                                     ndbtab_g.get_table(), &stat) == 0)
+                                     ndbtab_g.get_table()->getDefaultRecord(), 
+                                     &stat) == 0)
         {
 #ifndef DBUG_OFF
           char buff[22], buff2[22];

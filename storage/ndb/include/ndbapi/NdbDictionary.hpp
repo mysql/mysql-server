@@ -1581,6 +1581,9 @@ public:
       Note that even when creating an NdbRecord for an index, the column
       pointers must be to columns obtained from the underlying table, not
       from the index itself.
+      Note that pseudo columns cannot be used as part of a RecordSpecification.
+      To read pesudo column values, use the extra get value and set value 
+      APIs.
     */
     const Column *column;
     /*
