@@ -109,7 +109,10 @@ void do_abort_delete_first(int N) {
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     do_abort_delete_first(10);
+    int r=system("../../newbrt/brtdump " ENVDIR "/foo.db");
+    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
     do_abort_delete_first(1000);
-    system("../../newbrt/brtdump " ENVDIR "/foo.db");
+    int r=system("../../newbrt/brtdump " ENVDIR "/foo.db");
+    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
     return 0;
 }
