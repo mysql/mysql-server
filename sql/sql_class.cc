@@ -359,6 +359,10 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return thd->strmake(str.ptr(), str.length());
 }
 
+Metadata_version_observer::~Metadata_version_observer()
+{
+}
+
 /**
   Clear this diagnostics area. 
 
@@ -2767,7 +2771,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
               handler_tables == 0 && derived_tables == 0 &&
               lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED);
+              prelocked_mode == NON_PRELOCKED &&
+              m_metadata_observer == NULL);
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
@@ -2871,6 +2876,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
     first_successful_insert_id_in_prev_stmt;
   backup->first_successful_insert_id_in_cur_stmt= 
     first_successful_insert_id_in_cur_stmt;
+  backup->m_metadata_observer= m_metadata_observer;
 
   if ((!lex->requires_prelocking() || is_update_query(lex->sql_command)) &&
       !current_stmt_binlog_row_based)
@@ -2890,6 +2896,7 @@ void THD::reset_sub_statement_state(Sub_statement_state *backup,
   cuted_fields= 0;
   transaction.savepoints= 0;
   first_successful_insert_id_in_cur_stmt= 0;
+  m_metadata_observer= 0;
 }
 
 
@@ -2938,6 +2945,7 @@ void THD::restore_sub_statement_state(Sub_statement_state *backup)
   */
   examined_row_count+= backup->examined_row_count;
   cuted_fields+=       backup->cuted_fields;
+  m_metadata_observer= backup->m_metadata_observer;
 }
 
 
