@@ -41,3 +41,45 @@ set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
 
+disconnect con1;
+
+#
+# Bug #35732: read-only blocks SELECT statements in InnoDB
+#
+# Test 1: read only mode
+GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+connect(con1, localhost, test, , test);
+
+connection default;
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0), (1);
+SET GLOBAL read_only=1;
+
+connection con1;
+SELECT * FROM t1;
+BEGIN;
+SELECT * FROM t1;
+COMMIT;
+
+connection default;
+SET GLOBAL read_only=0;
+
+#
+# Test 2: global read lock
+#
+FLUSH TABLES WITH READ LOCK;
+
+connection con1;
+SELECT * FROM t1;
+BEGIN;
+SELECT * FROM t1;
+COMMIT;
+
+connection default;
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP USER test@localhost;
+
+disconnect con1;
+
+--echo echo End of 5.1 tests 
