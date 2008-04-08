@@ -2399,7 +2399,6 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   String expanded_query;
   uchar *packet_end= packet + packet_length;
   Prepared_statement *stmt;
-  bool error;
   bool open_cursor;
   DBUG_ENTER("mysql_stmt_execute");
 
@@ -3242,7 +3241,9 @@ Prepared_statement::reprepare()
   {
     swap_prepared_statement(copy);
     swap_parameter_array(param_array, copy->param_array, param_count);
+#ifndef DBUG_OFF
     is_reprepared= TRUE;
+#endif
     /*
       Clear possible warnigns during re-prepare, it has to be completely
       transparent to the user. We use mysql_reset_errors() since
@@ -3274,11 +3275,6 @@ end:
 
 bool Prepared_statement::validate_metadata(Prepared_statement *copy)
 {
-  List_iterator_fast<Item> it_org(lex->select_lex.item_list);
-  List_iterator_fast<Item> it_new(copy->lex->select_lex.item_list);
-  Item *item_org;
-  Item *item_new;
-
   /**
     If this is an SQL prepared statement or EXPLAIN,
     return FALSE -- the metadata of the original SELECT,
