@@ -153,5 +153,5 @@ drop function bug14233_1;
 drop function bug14233_2;
 drop procedure bug14233_3;
 # Assert: These should show nothing.
-show procedure status;
-show function status;
+show procedure status where db=DATABASE();
+show function status where db=DATABASE();
