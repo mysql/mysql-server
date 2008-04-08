@@ -1021,7 +1021,7 @@ sub mysqldump_arguments ($) {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=_%s", $group_suffix);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $group_suffix);
   client_debug_arg($args, "mysqldump-$group_suffix");
   return mtr_args2str($exe, @$args);
 }
