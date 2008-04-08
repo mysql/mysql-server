@@ -296,7 +296,7 @@ select b00 from t1;
 --connection slave
 select b00 from t1;
 
-connection master;
+--connection master
 DROP TABLE t1;
 
 -- source include/master-slave-end.inc

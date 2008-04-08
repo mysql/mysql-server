@@ -82,10 +82,8 @@ class DictUnlockOrd {
   friend class Dbdih;
   friend class Suma;
 public:
-  STATIC_CONST( SignalLengthDict = 2 );
-  STATIC_CONST( SignalLengthDih  = 2 );
-  STATIC_CONST( SignalLengthSuma = 4 );
-private:
+  STATIC_CONST( SignalLength = 4 );
+
   Uint32 lockPtr;
   Uint32 lockType;
   Uint32 senderData;

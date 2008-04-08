@@ -19,6 +19,37 @@
 #include <util/BaseString.hpp>
 #include <mgmapi.h>
 #include <ndb_types.h>
+#include <NdbMutex.h>
+#include <NdbThread.h>
+
+enum ThreadTypes
+{
+  WatchDogThread = 1,
+  SocketServerThread = 2,
+  SocketClientThread = 3,
+  NdbfsThread = 4,
+  MainThread = 5,
+  NotInUse = 6
+};
+
+#define MAX_NDB_THREADS 256
+#define NO_LOCK_CPU 65535
+
+struct ThreadInfo
+{
+  NDB_TID_TYPE threadId;
+  NDB_THAND_TYPE threadHandle;
+  enum ThreadTypes type;
+};
+
+class Configuration;
+
+struct ThreadContainer
+{
+  Configuration *conf;
+  enum ThreadTypes type;
+  Uint32 index;
+};
 
 class ConfigRetriever;
 
@@ -37,7 +68,37 @@ public:
   void closeConfiguration(bool end_session= true);
   
   Uint32 lockPagesInMainMemory() const;
-  
+
+  int schedulerExecutionTimer() const;
+  void schedulerExecutionTimer(int value);
+
+  int schedulerSpinTimer() const;
+  void schedulerSpinTimer(int value);
+
+  bool realtimeScheduler() const;
+  void realtimeScheduler(bool realtime_on);
+
+  Uint32 executeLockCPU() const;
+  void executeLockCPU(Uint32 value);
+
+  Uint32 maintLockCPU() const;
+  void maintLockCPU(Uint32 value);
+
+  void setAllRealtimeScheduler();
+  void setAllLockCPU(bool exec_thread);
+  int setLockCPU(NDB_TID_TYPE threadId,
+                 enum ThreadTypes type,
+                 bool exec_thread,
+                 bool init);
+  int setRealtimeScheduler(NDB_THAND_TYPE threadHandle,
+                           enum ThreadTypes type,
+                           bool real_time,
+                           bool init);
+  Uint32 addThreadId(enum ThreadTypes type);
+  void removeThreadId(Uint32 index);
+  void yield_main(Uint32 thread_index, bool start);
+  void initThreadArray();
+
   int timeBetweenWatchDogCheck() const ;
   void timeBetweenWatchDogCheck(int value);
   
@@ -84,7 +145,15 @@ private:
   Uint32 _maxErrorLogs;
   Uint32 _lockPagesInMainMemory;
   Uint32 _timeBetweenWatchDogCheck;
+  Uint32 _schedulerExecutionTimer;
+  Uint32 _schedulerSpinTimer;
+  Uint32 _realtimeScheduler;
+  Uint32 _executeLockCPU;
+  Uint32 _maintLockCPU;
   Uint32 _timeBetweenWatchDogCheckInitial;
+
+  Vector<struct ThreadInfo> threadInfo;
+  NdbMutex *threadIdMutex;
 
   ndb_mgm_configuration * m_ownConfig;
   ndb_mgm_configuration * m_clusterConfig;

@@ -133,6 +133,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -507,6 +508,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -581,6 +583,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -656,6 +659,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -807,6 +811,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -893,6 +898,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -979,6 +985,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -1272,6 +1279,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -1646,6 +1654,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -1720,6 +1729,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -1795,6 +1805,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -1946,6 +1957,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2032,6 +2044,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2118,6 +2131,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -2411,6 +2425,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 
 ***** Testing Altering table def scenario *****
@@ -2785,6 +2800,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 
 ****************************************
 * columns in master at middle of table *
@@ -2859,6 +2875,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 5, test.t10 has type 254
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -2934,6 +2951,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1535
 Last_SQL_Error	Table definition on master and slave does not match: Column 2 type mismatch - received type 252, test.t11 has type 15
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 
@@ -3085,6 +3103,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1091
 Last_SQL_Error	Error 'Can't DROP 'c7'; check that column/key exists' on query. Default database: 'test'. Query: 'ALTER TABLE t14 DROP COLUMN c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -3171,6 +3190,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1054
 Last_SQL_Error	Error 'Unknown column 'c7' in 't15'' on query. Default database: 'test'. Query: 'ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 
@@ -3257,6 +3277,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1072
 Last_SQL_Error	Error 'Key column 'c6' doesn't exist in table' on query. Default database: 'test'. Query: 'CREATE INDEX part_of_c6 ON t16 (c6)'
+Master_Bind	0.0.0.0
 STOP SLAVE;
 RESET SLAVE;
 

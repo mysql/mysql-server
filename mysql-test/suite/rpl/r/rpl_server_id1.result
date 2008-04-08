@@ -32,7 +32,7 @@ Last_Errno	#
 Last_Error	#
 Skip_Counter	0
 Exec_Master_Log_Pos	0
-Relay_Log_Space	106
+Relay_Log_Space	107
 Until_Condition	None
 Until_Log_File	
 Until_Log_Pos	0
@@ -45,6 +45,7 @@ Master_SSL_Key
 Seconds_Behind_Master	NULL
 Master_SSL_Verify_Server_Cert	No
 Last_IO_Errno	1593
-Last_IO_Error	Fatal error: The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
+Last_IO_Error	The slave I/O thread stops because master and slave have equal MySQL server ids; these ids must be different for replication to work (or the --replicate-same-server-id option must be used on slave but this does not always make sense; please check the manual before using it).
 Last_SQL_Errno	#
 Last_SQL_Error	#
+Master_Bind	0.0.0.0

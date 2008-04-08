@@ -25,7 +25,6 @@
 #include "ha_ndbcluster_connection.h"
 
 /* options from from mysqld.cc */
-extern my_bool opt_ndb_optimized_node_selection;
 extern const char *opt_ndbcluster_connectstring;
 extern ulong opt_ndb_wait_connected;
 extern ulong opt_ndb_cluster_connection_pool;
@@ -39,6 +38,11 @@ static pthread_mutex_t g_ndb_cluster_connection_pool_mutex;
 
 int ndbcluster_connect(int (*connect_callback)(void))
 {
+#ifndef EMBEDDED_LIBRARY
+  const char mysqld_name[]= "mysqld";
+#else
+  const char mysqld_name[]= "libmysqld";
+#endif
   int res;
   DBUG_ENTER("ndbcluster_connect");
   // Set connectstring if specified
@@ -56,11 +60,12 @@ int ndbcluster_connect(int (*connect_callback)(void))
   }
   {
     char buf[128];
-    my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu", server_id);
+    my_snprintf(buf, sizeof(buf), "%s --server-id=%lu",
+                mysqld_name, server_id);
     g_ndb_cluster_connection->set_name(buf);
   }
   g_ndb_cluster_connection->set_optimized_node_selection
-    (opt_ndb_optimized_node_selection);
+    (global_system_variables.ndb_optimized_node_selection & 1);
 
   // Create a Ndb object to open the connection  to NDB
   if ( (g_ndb= new Ndb(g_ndb_cluster_connection, "sys")) == 0 )
@@ -118,12 +123,12 @@ int ndbcluster_connect(int (*connect_callback)(void))
       }
       {
         char buf[128];
-        my_snprintf(buf, sizeof(buf), "mysqld --server-id=%lu (connection %u)",
-                    server_id, i+1);
+        my_snprintf(buf, sizeof(buf), "%s --server-id=%lu (connection %u)",
+                    mysqld_name, server_id, i+1);
         g_ndb_cluster_connection_pool[i]->set_name(buf);
       }
       g_ndb_cluster_connection_pool[i]->set_optimized_node_selection
-        (opt_ndb_optimized_node_selection);
+        (global_system_variables.ndb_optimized_node_selection & 1);
     }
   }
 

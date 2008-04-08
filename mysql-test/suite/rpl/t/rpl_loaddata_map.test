@@ -35,7 +35,7 @@ eval load data infile '$MYSQLTEST_VARDIR/tmp/bug30435_5k.txt' into table t2;
 select count(*) from t2 /* 5 000 */;
 
 # the binglog will show fragmented Append_block events
---let $binlog_start=106
+--let $binlog_start=107
 --replace_column 2 # 4 # 5 #
 --replace_regex /\/\* xid=.* \*\//\/* XID *\// /file_id=[0-9]+/file_id=#/ /block_len=[0-9]+/block_len=#/
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR $binlog_start <binlog_start>

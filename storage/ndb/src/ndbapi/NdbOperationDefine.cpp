@@ -475,8 +475,8 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 {
   DBUG_ENTER("NdbOperation::setValue");
   DBUG_PRINT("enter", ("col: %s  op:%d  val: 0x%lx",
-                       tAttrInfo->m_name.c_str(), theOperationType,
-                       (long) aValuePassed));
+                       tAttrInfo ? tAttrInfo->m_name.c_str() : "NULL",
+                       theOperationType, (long) aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;
@@ -658,6 +658,13 @@ NdbOperation::setAnyValue(Uint32 any_value)
 
   setErrorCodeAbort(4000);
   return -1;
+}
+
+int
+NdbOperation::setOptimize(Uint32 options)
+{
+  return setValue(&NdbColumnImpl::getImpl(*NdbDictionary::Column::OPTIMIZE),
+                  (const char*)&options);
 }
 
 /* Non-const variant of getBlobHandle - can return existing blob
@@ -1275,6 +1282,12 @@ NdbOperation::handleOperationOptions (const OperationType type,
     /* Any operation can have an ANYVALUE set */
     op->m_any_value = opts->anyValue;
     op->m_use_any_value = 1;
+  }
+
+  if (opts->optionsPresent & OperationOptions::OO_CUSTOMDATA)
+  {
+    /* Set the operation's customData ptr */
+    op->m_customData = opts->customData;
   }
 
   return 0;

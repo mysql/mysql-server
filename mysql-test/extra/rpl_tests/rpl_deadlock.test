@@ -82,7 +82,7 @@ show slave status;
 
 stop slave;
 delete from t3;
-change master to master_log_pos=548; # the BEGIN log event
+change master to master_log_pos=549; # the BEGIN log event
 begin;
 select * from t2 for update; # hold lock
 start slave;
@@ -107,7 +107,7 @@ set global max_relay_log_size=0;
 # This is really copy-paste of 2) of above
 stop slave;
 delete from t3;
-change master to master_log_pos=548;
+change master to master_log_pos=549;
 begin;
 select * from t2 for update;
 start slave;

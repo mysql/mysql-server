@@ -70,6 +70,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 ==== Clean Up ====
 drop table t1;
 create table t1(a int primary key);
@@ -126,5 +127,6 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
+Master_Bind	0.0.0.0
 ==== Clean Up ====
 drop table t1;

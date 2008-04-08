@@ -2580,7 +2580,7 @@ MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
  ***************************************************************************/
 
 int
-MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
+MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted, Uint32 input_backupId)
 {
   SignalSender ss(theFacade);
   ss.lock(); // lock will be released on exit
@@ -2598,8 +2598,15 @@ MgmtSrvr::startBackup(Uint32& backupId, int waitCompleted)
 
   SimpleSignal ssig;
   BackupReq* req = CAST_PTR(BackupReq, ssig.getDataPtrSend());
-  ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
-	   BackupReq::SignalLength);
+  if(input_backupId > 0)
+  {
+    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+	     BackupReq::SignalLength);
+    req->inputBackupId = input_backupId;
+  }
+  else
+    ssig.set(ss, TestOrd::TraceAPI, BACKUP, GSN_BACKUP_REQ, 
+	     BackupReq::SignalLength - 1);
   
   req->senderData = 19;
   req->backupDataLen = 0;
@@ -3063,7 +3070,7 @@ int MgmtSrvr::connect_to_self(const char * bindaddress)
   return 0;
 }
 
-template class MutexVector<unsigned short>;
+template class MutexVector<NodeId>;
 template class MutexVector<Ndb_mgmd_event_service::Event_listener>;
 template class Vector<EventSubscribeReq>;
 template class MutexVector<EventSubscribeReq>;

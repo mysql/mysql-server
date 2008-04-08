@@ -10,6 +10,7 @@
 ##############################################################
 
 -- source include/have_multi_ndb.inc
+# test uses mysqlslap, hence not in embedded
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
 

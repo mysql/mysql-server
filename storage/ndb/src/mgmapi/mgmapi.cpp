@@ -2083,9 +2083,10 @@ ndb_mgm_start(NdbMgmHandle handle, int no_of_nodes, const int * node_list)
  *****************************************************************************/
 extern "C"
 int 
-ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
+ndb_mgm_start_backup2(NdbMgmHandle handle, int wait_completed,
 		     unsigned int* _backup_id,
-		     struct ndb_mgm_reply* /*reply*/) 
+		     struct ndb_mgm_reply*, /*reply*/
+		     unsigned int input_backupId) 
 {
   SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_start_backup");
   const ParserRow<ParserDummy> start_backup_reply[] = {
@@ -2099,6 +2100,8 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 
   Properties args;
   args.put("completed", wait_completed);
+  if(input_backupId > 0)
+    args.put("backupid", input_backupId);
   const Properties *reply;
   { // start backup can take some time, set timeout high
     Uint64 old_timeout= handle->timeout;
@@ -2122,6 +2125,16 @@ ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
 
   delete reply;
   return 0;
+}
+
+extern "C"
+int 
+ndb_mgm_start_backup(NdbMgmHandle handle, int wait_completed,
+		     unsigned int* _backup_id,
+		     struct ndb_mgm_reply* /*reply*/)
+{
+  struct ndb_mgm_reply reply;
+  return ndb_mgm_start_backup2(handle, wait_completed, _backup_id, &reply, 0);
 }
 
 extern "C"
@@ -2743,6 +2756,7 @@ int ndb_mgm_report_event(NdbMgmHandle handle, Uint32 *data, Uint32 length)
   prop = ndb_mgm_call(handle, reply, "report event", &args);
   DBUG_CHECK_REPLY(handle, prop, -1);
 
+  delete prop;
   DBUG_RETURN(0);
 }
 

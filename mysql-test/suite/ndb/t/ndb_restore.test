@@ -1,6 +1,5 @@
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
--- source include/not_embedded.inc
 
 --disable_warnings
 use test;
@@ -183,6 +182,8 @@ drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c,t10_c;
 # Bug #30667
 # ndb table discovery does not work correcly with information schema
 # - prior to bug fix this would yeild no output and a warning
+# (priviliges differ on embedded and server so replace)
+--replace_column 18 #
 select * from information_schema.columns where table_name = "t1_c";
 
 # random output order??

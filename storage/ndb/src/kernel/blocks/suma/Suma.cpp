@@ -286,50 +286,38 @@ Suma::execSTTOR(Signal* signal) {
   jamEntry();                            
 
   DBUG_ENTER("Suma::execSTTOR");
-  const Uint32 startphase  = signal->theData[1];
-  const Uint32 typeOfStart = signal->theData[7];
+  m_startphase  = signal->theData[1];
+  m_typeOfStart = signal->theData[7];
 
   DBUG_PRINT("info",("startphase = %u, typeOfStart = %u",
-		     startphase, typeOfStart));
+		     m_startphase, m_typeOfStart));
 
-  if(startphase == 3)
+  if(m_startphase == 3)
   {
     jam();
     ndbrequire((m_tup = (Dbtup*)globalData.getBlock(DBTUP)) != 0);
-    signal->theData[0] = reference();
-    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
-    DBUG_VOID_RETURN;
   }
 
-  if(startphase == 5)
+  if(m_startphase == 5)
   {
+    jam();
+
     if (ERROR_INSERTED(13029)) /* Hold startphase 5 */
     {
       sendSignalWithDelay(SUMA_REF, GSN_STTOR, signal,
                           30, signal->getLength());
       DBUG_VOID_RETURN;
     }
-
-    getNodeGroupMembers(signal);
-    if (typeOfStart == NodeState::ST_NODE_RESTART ||
-	typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
-    {
-      jam();
-
-      send_dict_lock_req(signal);
-      return;
-    }
-    else
-    {
-      jam();
-      c_startup.m_restart_server_node_id = 0;
-    }
+    
+    signal->theData[0] = reference();
+    sendSignal(NDBCNTR_REF, GSN_READ_NODESREQ, signal, 1, JBB);
+    DBUG_VOID_RETURN;
   }
   
-  if(startphase == 7)
+  if(m_startphase == 7)
   {
-    if (typeOfStart != NodeState::ST_NODE_RESTART &&
-	typeOfStart != NodeState::ST_INITIAL_NODE_RESTART)
+    if (m_typeOfStart != NodeState::ST_NODE_RESTART &&
+	m_typeOfStart != NodeState::ST_INITIAL_NODE_RESTART)
     {
       for( Uint32 i = 0; i < c_no_of_buckets; i++)
       {
@@ -359,7 +347,7 @@ Suma::execSTTOR(Signal* signal) {
     else
       m_gcp_complete_rep_count = 0; // I contribute 1 gcp complete rep
     
-    if(typeOfStart == NodeState::ST_INITIAL_START &&
+    if(m_typeOfStart == NodeState::ST_INITIAL_START &&
        c_masterNodeId == getOwnNodeId())
     {
       jam();
@@ -374,7 +362,7 @@ Suma::execSTTOR(Signal* signal) {
     }
   }//if
   
-  if(startphase == 100)
+  if(m_startphase == 100)
   {
     /**
      * Allow API's to connect
@@ -383,10 +371,10 @@ Suma::execSTTOR(Signal* signal) {
     return;
   }
 
-  if(startphase == 101)
+  if(m_startphase == 101)
   {
-    if (typeOfStart == NodeState::ST_NODE_RESTART ||
-	typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+    if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
+	m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
     {
       /**
        * Handover code here
@@ -512,7 +500,7 @@ Suma::execSUMA_START_ME_CONF(Signal* signal)
     ord->senderData = 0;
     ord->senderRef = reference();
     sendSignal(calcDictBlockRef(c_masterNodeId),
-               GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLengthSuma, JBB);
+               GSN_DICT_UNLOCK_ORD, signal, DictUnlockOrd::SignalLength, JBB);
   }
   c_startup.m_restart_server_node_id= 0;
 }
@@ -582,6 +570,18 @@ Suma::execREAD_NODESCONF(Signal* signal){
   
   c_masterNodeId = conf->masterNodeId;
   
+  getNodeGroupMembers(signal);
+  if (m_typeOfStart == NodeState::ST_NODE_RESTART ||
+      m_typeOfStart == NodeState::ST_INITIAL_NODE_RESTART)
+  {
+    jam();
+    
+    send_dict_lock_req(signal);
+
+    return;
+  }
+
+  c_startup.m_restart_server_node_id = 0;    
   sendSTTORRY(signal);
 }
 
@@ -1439,7 +1439,6 @@ Suma::sendSubIdRef(Signal* signal,
 	     CreateSubscriptionIdRef::SignalLength,
 	     JBB);
   
-  releaseSections(signal);
   DBUG_VOID_RETURN;
 }
 
@@ -1697,9 +1696,11 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   key.m_subscriptionId = req->subscriptionId;
   key.m_subscriptionKey = req->subscriptionKey;
 
+  SectionHandle handle(this, signal);
   if(!c_subscriptions.find(subPtr, key))
   {
     jam();
+    releaseSections(handle);
     sendSubSyncRef(signal, 1407);
     return;
   }
@@ -1712,8 +1713,8 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   if(!list.seize(syncPtr))
   {
     jam();
+    releaseSections(handle);
     sendSubSyncRef(signal, 1416);
-    return;
   }
   
   new (syncPtr.p) Ptr<SyncRecord>;
@@ -1726,12 +1727,13 @@ Suma::execSUB_SYNC_REQ(Signal* signal)
   {
     jam();
     syncPtr.p->m_tableList.append(&subPtr.p->m_tableId, 1);
-    if(signal->getNoOfSections() > 0){
+    if(handle.m_cnt > 0)
+    {
       SegmentedSectionPtr ptr;
-      signal->getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
-      LocalDataBuffer<15> attrBuf(c_dataBufferPool,syncPtr.p->m_attributeList);
+      handle.getSection(ptr, SubSyncReq::ATTRIBUTE_LIST);
+      LocalDataBuffer<15> attrBuf(c_dataBufferPool, syncPtr.p->m_attributeList);
       append(attrBuf, ptr, getSectionSegmentPool());
-      releaseSections(signal);
+      releaseSections(handle);
     }
   }
 
@@ -1743,7 +1745,6 @@ Suma::sendSubSyncRef(Signal* signal, Uint32 errCode){
   jam();
   SubSyncRef * ref= (SubSyncRef *)signal->getDataPtrSend();
   ref->errorCode = errCode;
-  releaseSections(signal);
   sendSignal(signal->getSendersBlockRef(), 
 	     GSN_SUB_SYNC_REF, 
 	     signal, 
@@ -1840,15 +1841,16 @@ Suma::execGET_TABINFO_CONF(Signal* signal){
   if(!assembleFragments(signal)){
     return;
   }
-
+  
+  SectionHandle handle(this, signal);
   GetTabInfoConf* conf = (GetTabInfoConf*)signal->getDataPtr();
   Uint32 tableId = conf->tableId;
   TablePtr tabPtr;
   c_tablePool.getPtr(tabPtr, conf->senderData);
   SegmentedSectionPtr ptr;
-  signal->getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
+  handle.getSection(ptr, GetTabInfoConf::DICT_TAB_INFO);
   ndbrequire(tabPtr.p->parseTable(ptr, *this));
-  releaseSections(signal);
+  releaseSections(handle);
 
   /**
    * We need to gather fragment info
@@ -2444,7 +2446,6 @@ Suma::sendSubStartRef(Signal* signal, Uint32 dstref, Uint32 data, Uint32 err)
   ref->senderRef = reference();
   ref->senderData = data;
   ref->errorCode = err;
-  releaseSections(signal);
   sendSignal(dstref, GSN_SUB_START_REF, signal,
 	     SubStartRef::SignalLength, JBB);
 }
@@ -3865,7 +3866,6 @@ Suma::execALTER_TAB_REQ(Signal *signal)
 {
   jamEntry();
   DBUG_ENTER("Suma::execALTER_TAB_REQ");
-  ndbassert(signal->getNoOfSections() == 1);
 
   AlterTabReq * const req = (AlterTabReq*)signal->getDataPtr();
   Uint32 senderRef= req->senderRef;
@@ -3886,14 +3886,20 @@ Suma::execALTER_TAB_REQ(Signal *signal)
   // dict coordinator sends info to API
   
   // Copy DICT_TAB_INFO to local buffer
+  SectionHandle handle(this, signal->theData[AlterTabReq::SignalLength]);
   SegmentedSectionPtr tabInfoPtr;
-  signal->getSection(tabInfoPtr, AlterTabReq::DICT_TAB_INFO);
+  handle.getSection(tabInfoPtr, 0);
+  handle.clear();
+#ifndef DBUG_OFF
+  ndbout_c("DICT_TAB_INFO in SUMA,  tabInfoPtr.sz = %d", tabInfoPtr.sz);
+  SimplePropertiesSectionReader reader(handle.m_ptr[0],
+				       getSectionSegmentPool());
+  reader.printAll(ndbout);
+#endif
   copy(b_dti_buf, tabInfoPtr);
   LinearSectionPtr lptr[3];
   lptr[0].p = b_dti_buf;
   lptr[0].sz = tabInfoPtr.sz;
-
-  releaseSections(signal);
 
   const Uint64 gci = get_current_gci(signal);
   SubTableData * data = (SubTableData*)signal->getDataPtrSend();
@@ -4211,7 +4217,6 @@ Suma::sendSubRemoveRef(Signal* signal,
   ref->subscriptionId = req.subscriptionId;
   ref->subscriptionKey = req.subscriptionKey;
   ref->errorCode = errCode;
-  releaseSections(signal);
   sendSignal(signal->getSendersBlockRef(), GSN_SUB_REMOVE_REF, 
 	     signal, SubRemoveRef::SignalLength, JBB);
   DBUG_VOID_RETURN;
@@ -4574,6 +4579,8 @@ Suma::execSUMA_HANDOVER_REQ(Signal* signal)
   Uint32 start_gci = (gci > new_gci ? gci : new_gci);
   // mark all active buckets really belonging to restarting SUMA
 
+  c_alive_nodes.set(nodeId);
+  
   Bucket_mask tmp;
   for( Uint32 i = 0; i < c_no_of_buckets; i++) 
   {

@@ -148,15 +148,6 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
     fprintf(output, " Copy Node: Table: %d\n", theData[1]);
     return true;
     break;
-  case DihContinueB::ZSTART_TAKE_OVER:
-    fprintf(output, " Start Take Over: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3]);
-    return true;
-    break;
-  case DihContinueB::ZCHECK_START_TAKE_OVER:
-    fprintf(output, " Check Start Take Over\n");
-    return true;
-    break;
   case DihContinueB::ZTO_START_COPY_FRAG:
     fprintf(output, " To Start Copy Frag: TakeOverPtr: %d\n", theData[1]);
     return true;
@@ -189,19 +180,9 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
             theData[1], theData[2], theData[3]);
      return true;
      break;
-  case DihContinueB::ZSEND_END_TO:
-     fprintf(output, " Send End Take Over: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3]);
-     return true;
-     break;
   case DihContinueB::ZSEND_ADD_FRAG:
      fprintf(output, " Send Add Fragment: TakeOverPtr: %d, startNode: %d, toNode: %d\n",
             theData[1], theData[2], theData[3]);
-     return true;
-     break;
-  case DihContinueB::ZSEND_CREATE_FRAG:
-     fprintf(output, " Send Create Fragment: TakeOverPtr: %d, storedType: %d, start Gci: %d, startNode: %d, toNode: %d\n",
-            theData[1], theData[2], theData[3], theData[4], theData[5]);
      return true;
      break;
   case DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE:
