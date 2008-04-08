@@ -106,8 +106,7 @@ static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE 
     // We only call this function if we have reason to believe that the child's fingerprint did change.
     BNC_SUBTREE_FINGERPRINT(node,childnum_of_node)=sum;
     node->dirty=1;
-    toku_log_changechildfingerprint(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
-    toku_update_brtnode_loggerlsn(node, logger);
+    toku_log_changechildfingerprint(logger, &node->log_lsn, 0, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
 }
 
 // If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
@@ -507,7 +506,7 @@ static int log_and_save_brtenq(TOKULOGGER logger, BRT t, BRTNODE node, int child
     u_int32_t new_fingerprint = old_fingerprint + fdiff;
     //printf("%s:%d node=%lld fingerprint old=%08x new=%08x diff=%08x xid=%lld\n", __FILE__, __LINE__, (long long)node->thisnodename, old_fingerprint, new_fingerprint, fdiff, (long long)xid);
     *fingerprint = new_fingerprint;
-    int r = toku_log_brtenq(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs, old_fingerprint, new_fingerprint);
+    int r = toku_log_brtenq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, xid, type, keybs, databs, old_fingerprint, new_fingerprint);
     if (r!=0) return r;
     return 0;
 }
@@ -567,7 +566,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 		u_int32_t delta = toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
 		u_int32_t new_from_fingerprint = old_from_fingerprint - node->rand4fingerprint*delta;
 		if (r!=0) return r;
-		r = toku_log_brtdeq(logger, (LSN*)0, 0, fnum, node->thisnodename, n_children_in_a, xid, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
+		r = toku_log_brtdeq(logger, &node->log_lsn, 0, fnum, node->thisnodename, n_children_in_a, xid, type, keybs, databs, old_from_fingerprint, new_from_fingerprint);
 		if (r!=0) return r;
 		r = log_and_save_brtenq(logger, t, B, targchild, xid, type, key, keylen, data, datalen, &B->local_fingerprint);
 		r = toku_fifo_enq(to_htab, key, keylen, data, datalen, type, xid);
@@ -732,7 +731,7 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
     {
 	BYTESTRING keybs  = { .len=k->size, .data=(char*)k->data };
 	BYTESTRING databs = { .len=v->size, .data=(char*)v->data };
-	int r = toku_log_brtdeq(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
+	int r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
 				cmd->xid, cmd->type, keybs, databs, old_fingerprint, new_fingerprint);
 	assert(r==0);
     }
@@ -823,7 +822,7 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
 		     BYTESTRING databs = { .len = svallen,  .data = (char*)sval };
 		     u_int32_t old_fingerprint   = node->local_fingerprint;
 		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calccrc32_cmd(type, xid, skey, skeylen, sval, svallen);
-		     r = toku_log_brtdeq(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
+		     r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum,
 					 xid, type, keybs, databs, old_fingerprint, new_fingerprint);
 		     node->local_fingerprint = new_fingerprint;
 		 }));
