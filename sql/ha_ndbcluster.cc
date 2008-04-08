@@ -7409,7 +7409,6 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   m_table(NULL),
   m_ndb_record(0),
   m_ndb_hidden_key_record(0),
-  m_ndb_statistics_record(0),
   m_table_info(NULL),
   m_table_flags(HA_NDBCLUSTER_TABLE_FLAGS),
   m_share(0),
