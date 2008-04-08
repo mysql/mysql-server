@@ -218,14 +218,23 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_ALTER_EVENT]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_DROP_EVENT]=     CF_CHANGES_DATA;
 
-  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
-  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT;
+  sql_command_flags[SQLCOM_UPDATE]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_UPDATE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_INSERT]=	    CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_INSERT_SELECT]=  CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DELETE]=         CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_DELETE_MULTI]=   CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE]=        CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_REPLACE_SELECT]= CF_CHANGES_DATA | CF_HAS_ROW_COUNT |
+                                            CF_REEXECUTION_FRAGILE;
+  sql_command_flags[SQLCOM_SELECT]=         CF_REEXECUTION_FRAGILE;
 
   sql_command_flags[SQLCOM_SHOW_STATUS_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STATUS]=      CF_STATUS_COMMAND;
