@@ -339,6 +339,21 @@ select * from t2 order by id;
 drop trigger kaboom;
 drop table t1;
 
+#bug#31874
+
+create table t1 (
+  a int not null primary key,
+  b int
+) engine = ndb;
+insert into t1 values (7,2),(8,3),(10,4);
+
+update t1 set b = 5 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+delete from t1 where a in (7,8) or a >= 10;
+select * from t1 order by a;
+
+drop table t1;
+
 #bug#35137 - self join + mrr
 
 create table t1 (a int primary key, b int, key b_idx (b)) engine ndb;
@@ -350,4 +365,27 @@ on (two.b = one.b)
 where one.a in (3, 4) 
 order by a;
 
+drop table t1;
+
+create table t1 (a varchar(1536) not null,
+                 b varchar(1536) not null,
+                 c int, primary key (a,b)) engine=ndb;
+insert into t1 values ('a', 'a', 1), ('b', 'b', 2), ('c', 'c', 3),
+                      ('d', 'd', 4), ('e', 'e', 5), ('f', 'f', 6),
+                      ('g', 'g', 7), ('h', 'h', 8), ('i', 'i', 9),
+                      ('j', 'j', 10), ('k', 'k', 11), ('l', 'l', 12),
+                      ('m', 'm', 13), ('n', 'n', 14), ('o', 'o', 15),
+                      ('p', 'p', 16), ('q', 'q', 17), ('r', 'r', 18),
+                      ('s', 's', 19), ('t', 't', 20), ('u', 'u', 21),
+                      ('v', 'v', 22), ('w', 'w', 23), ('x', 'x', 24);
+select * from t1
+ where (a >= 'aa' and b >= 'x' and a <= 'c' and b <= 'c')
+    or (a = 'd')
+    or (a = 'e')
+    or (a = 'f')
+    or (a > 'g' and a < 'ii')
+    or (a >= 'j' and b >= 'x' and a <= 'k' and b <= 'k')
+    or (a = 'm' and b = 'm')
+    or (a = 'v')
+    order by a asc, b asc;
 drop table t1;

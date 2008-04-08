@@ -83,14 +83,14 @@ public:
   /**
    * Update ptr to first element in list
    *
-   * Return i
+   * Return true if ok, false if empty
    */
   bool first(Ptr<T> &) const ;
 
   /**
    * Update ptr to first element in list
    *
-   * Return i
+   * Return true if ok, false if empty
    */
   bool last(Ptr<T> &) const ;
 

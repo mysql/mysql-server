@@ -245,7 +245,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) NOT NULL,
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
-) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+) /*!50100 STORAGE MEMORY */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
 
 DROP TABLE test.t1;
 DROP TABLE test.t2;

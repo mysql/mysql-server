@@ -2719,14 +2719,14 @@ Lgman::execute_undo_record(Signal* signal)
       {
         if (0)
         {
-          const Uint32 * base = ptr - len + 1;
+	  const Uint32 * base = ptr - len + 1;
           Uint32 lcp = base[0];
           Uint32 tableId = base[1] >> 16;
           Uint32 fragId = base[1] & 0xFFFF;
 
-          ndbout_c("NOT! ignoring lcp: %u tab: %u frag: %u", 
-                   lcp, tableId, fragId);
-        }
+	  ndbout_c("NOT! ignoring lcp: %u tab: %u frag: %u", 
+		   lcp, tableId, fragId);
+	}
       }
 
       if(m_latest_lcp == 0 || 

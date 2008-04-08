@@ -1,0 +1,22 @@
+-- source include/have_ndb.inc
+-- source include/not_embedded.inc
+
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -b 1 -n 1 -p 1 -m -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
+--exec $NDB_TOOLS_DIR/ndb_restore --no-defaults -e -b 1 -n 2 -p 1 -r $MYSQL_TEST_DIR/std_data/ndb_backup51_dd >> $NDB_TOOLS_OUTPUT
+
+select * from information_schema.columns
+where table_name = "t1";
+show create table t1;
+--exec $NDB_TOOLS_DIR/ndb_desc --no-defaults -d test t1 | grep 'ST='
+select * from t1 order by a1;
+drop table t1;
+
+ALTER TABLESPACE ts
+DROP DATAFILE 'datafile.dat'
+ENGINE NDB;
+
+drop tablespace ts
+engine ndb;
+
+drop logfile group lg
+engine ndb;

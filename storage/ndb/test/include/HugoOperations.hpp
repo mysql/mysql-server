@@ -119,6 +119,7 @@ protected:
   void deallocRows();
 
   Vector<NDBT_ResultRow*> rows;
+  Vector<NdbIndexScanOperation*> indexScans;
   HugoCalculator calc;
 
   Vector<BaseString> savedRecords;

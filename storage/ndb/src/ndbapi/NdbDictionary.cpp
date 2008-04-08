@@ -17,6 +17,112 @@
 #include "NdbDictionaryImpl.hpp"
 #include <NdbOut.hpp>
 
+/* NdbRecord static helper methods */
+
+NdbDictionary::RecordType
+NdbDictionary::getRecordType(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordType(record);
+}
+
+const char*
+NdbDictionary::getRecordTableName(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordTableName(record);
+}
+
+const char*
+NdbDictionary::getRecordIndexName(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordIndexName(record);
+}
+
+bool
+NdbDictionary::getFirstAttrId(const NdbRecord* record,
+                              Uint32& firstAttrId)
+{
+  return NdbDictionaryImpl::getNextAttrIdFrom(record,
+                                              0,
+                                              firstAttrId);
+}
+
+bool
+NdbDictionary::getNextAttrId(const NdbRecord* record,
+                             Uint32& attrId)
+{
+  return NdbDictionaryImpl::getNextAttrIdFrom(record, 
+                                              attrId+1,
+                                              attrId);
+}
+
+bool
+NdbDictionary::getOffset(const NdbRecord* record,
+                         Uint32 attrId,
+                         Uint32& offset)
+{
+  return NdbDictionaryImpl::getOffset(record, attrId, offset);
+}
+
+bool
+NdbDictionary::getNullBitOffset(const NdbRecord* record,
+                                Uint32 attrId,
+                                Uint32& nullbit_byte_offset,
+                                Uint32& nullbit_bit_in_byte)
+{
+  return NdbDictionaryImpl::getNullBitOffset(record,
+                                             attrId,
+                                             nullbit_byte_offset,
+                                             nullbit_bit_in_byte);
+}
+
+
+const char*
+NdbDictionary::getValuePtr(const NdbRecord* record,
+            const char* row,
+            Uint32 attrId)
+{
+  return NdbDictionaryImpl::getValuePtr(record, row, attrId);
+}
+
+char*
+NdbDictionary::getValuePtr(const NdbRecord* record,
+            char* row,
+            Uint32 attrId)
+{
+  return NdbDictionaryImpl::getValuePtr(record, row, attrId);
+}
+
+bool
+NdbDictionary::isNull(const NdbRecord* record,
+       const char* row,
+       Uint32 attrId)
+{
+  return NdbDictionaryImpl::isNull(record, row, attrId);
+}
+
+int
+NdbDictionary::setNull(const NdbRecord* record,
+        char* row,
+        Uint32 attrId,
+        bool value)
+{
+  return NdbDictionaryImpl::setNull(record, row, attrId, value);
+}
+
+Uint32
+NdbDictionary::getRecordRowLength(const NdbRecord* record)
+{
+  return NdbDictionaryImpl::getRecordRowLength(record);
+}
+
+const unsigned char* 
+NdbDictionary::getEmptyBitmask()
+{
+  return (const unsigned char*) NdbDictionaryImpl::m_emptyMask;
+}
+
+/* --- */
+
 NdbDictionary::ObjectId::ObjectId()
   : m_impl(* new NdbDictObjectImpl(NdbDictionary::Object::TypeUndefined))
 {
@@ -289,6 +395,33 @@ NdbDictionary::Column::StorageType
 NdbDictionary::Column::getStorageType() const
 {
   return (StorageType)m_impl.m_storageType;
+}
+
+int
+NdbDictionary::Column::getBlobVersion() const
+{
+  return m_impl.getBlobVersion();
+}
+
+void
+NdbDictionary::Column::setBlobVersion(int blobVersion)
+{
+  m_impl.setBlobVersion(blobVersion);
+}
+
+void 
+NdbDictionary::Column::setDynamic(bool val){
+  m_impl.m_dynamic = val;
+}
+
+bool 
+NdbDictionary::Column::getDynamic() const {
+  return m_impl.m_dynamic;
+}
+
+bool
+NdbDictionary::Column::getIndexSourced() const {
+  return m_impl.m_indexSourced;
 }
 
 /*****************************************************************
@@ -737,6 +870,11 @@ NdbDictionary::Table::getForceVarPart() const {
   return m_impl.m_force_var_part;
 }
 
+const NdbRecord*
+NdbDictionary::Table::getDefaultRecord() const {
+  return m_impl.m_ndbrecord;
+}
+
 int
 NdbDictionary::Table::aggregate(NdbError& error)
 {
@@ -749,6 +887,30 @@ NdbDictionary::Table::validate(NdbError& error)
   return m_impl.validate(error);
 }
 
+Uint32
+NdbDictionary::Table::getPartitionId(Uint32 hashValue) const
+{
+  switch (m_impl.m_fragmentType){
+  case NdbDictionary::Object::FragAllSmall:
+  case NdbDictionary::Object::FragAllMedium:
+  case NdbDictionary::Object::FragAllLarge:
+  case NdbDictionary::Object::FragSingle:
+  case NdbDictionary::Object::DistrKeyLin:
+  {
+    Uint32 fragmentId = hashValue & m_impl.m_hashValueMask;
+    if(fragmentId < m_impl.m_hashpointerValue) 
+      fragmentId = hashValue & ((m_impl.m_hashValueMask << 1) + 1);
+    return fragmentId;
+  }
+  case NdbDictionary::Object::DistrKeyHash:
+  {
+    Uint32 cnt = m_impl.m_fragmentCount;
+    return hashValue % (cnt ? cnt : 1);
+  }
+  default:
+    return 0;
+  }
+}
 
 /*****************************************************************
  * Index facade
@@ -819,6 +981,11 @@ NdbDictionary::Index::getIndexColumn(int no) const {
     return NULL;
 }
 
+const NdbRecord*
+NdbDictionary::Index::getDefaultRecord() const {
+  return m_impl.m_table->m_ndbrecord;
+}
+
 int
 NdbDictionary::Index::addColumn(const Column & c){
   NdbColumnImpl* col = new NdbColumnImpl;
@@ -828,6 +995,9 @@ NdbDictionary::Index::addColumn(const Column & c){
     return -1;
   }
   (* col) = NdbColumnImpl::getImpl(c);
+
+  col->m_indexSourced=true;
+
   if (m_impl.m_columns.push_back(col))
   {
     return -1;
@@ -1481,9 +1651,18 @@ NdbDictionary::Dictionary::dropTable(const char * name){
   return m_impl.dropTable(name);
 }
 
+bool
+NdbDictionary::Dictionary::supportedAlterTable(const Table & f,
+					       const Table & t)
+{
+  return m_impl.supportedAlterTable(NdbTableImpl::getImpl(f),
+                                    NdbTableImpl::getImpl(t));
+}
+
 int
-NdbDictionary::Dictionary::alterTable(const Table & t){
-  return m_impl.alterTable(NdbTableImpl::getImpl(t));
+NdbDictionary::Dictionary::alterTable(const Table & f, const Table & t)
+{
+  return m_impl.alterTable(NdbTableImpl::getImpl(f), NdbTableImpl::getImpl(t));
 }
 
 int
@@ -1535,6 +1714,156 @@ NdbDictionary::Dictionary::removeTableGlobal(const Table &ndbtab,
                                              int invalidate) const
 {
   return m_impl.releaseTableGlobal(NdbTableImpl::getImpl(ndbtab), invalidate);
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  /* We want to obtain a global reference to the Table object */
+  NdbTableImpl* impl=&NdbTableImpl::getImpl(*table);
+  Ndb* myNdb= &m_impl.m_ndb;
+
+  /* Temporarily change Ndb object to use table's database 
+   * and schema 
+   */
+  BaseString currentDb(myNdb->getDatabaseName());
+  BaseString currentSchema(myNdb->getDatabaseSchemaName());
+
+  myNdb->setDatabaseName
+    (Ndb::getDatabaseFromInternalName(impl->m_internalName.c_str()).c_str());
+  myNdb->setDatabaseSchemaName
+    (Ndb::getSchemaFromInternalName(impl->m_internalName.c_str()).c_str());
+
+  /* Get global ref to table.  This is released below, or when the
+   * NdbRecord is released
+   */
+  const Table* globalTab= getTableGlobal(impl->m_externalName.c_str());
+
+  /* Restore Ndb object's DB and Schema */
+  myNdb->setDatabaseName(currentDb.c_str());
+  myNdb->setDatabaseSchemaName(currentSchema.c_str());
+
+  if (globalTab == NULL)
+    /* An error is set on the dictionary */
+    return NULL;
+  
+  NdbTableImpl* globalTabImpl= &NdbTableImpl::getImpl(*globalTab);
+  
+  assert(impl->m_id == globalTabImpl->m_id);
+  if (table_version_major(impl->m_version) != 
+      table_version_major(globalTabImpl->m_version))
+  {
+    removeTableGlobal(*globalTab, false); // Don't invalidate
+    m_impl.m_error.code= 241; //Invalid schema object version
+    return NULL;
+  }
+
+  NdbRecord* result= m_impl.createRecord(globalTabImpl,
+                                         recSpec,
+                                         length,
+                                         elemSize,
+                                         flags,
+                                         false); // Not default NdbRecord
+
+  if (!result)
+  {
+    removeTableGlobal(*globalTab, false); // Don't invalidate
+  }
+  return result;
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const Table *table,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  /* We want to obtain a global reference to the Index's underlying
+   * table object
+   */
+  NdbTableImpl* tabImpl=&NdbTableImpl::getImpl(*table);
+  Ndb* myNdb= &m_impl.m_ndb;
+
+  /* Temporarily change Ndb object to use table's database 
+   * and schema.  Index's database and schema are not 
+   * useful for finding global table reference
+   */
+  BaseString currentDb(myNdb->getDatabaseName());
+  BaseString currentSchema(myNdb->getDatabaseSchemaName());
+
+  myNdb->setDatabaseName
+    (Ndb::getDatabaseFromInternalName(tabImpl->m_internalName.c_str()).c_str());
+  myNdb->setDatabaseSchemaName
+    (Ndb::getSchemaFromInternalName(tabImpl->m_internalName.c_str()).c_str());
+
+  /* Get global ref to index.  This is released below, or when the
+   * NdbRecord object is released
+   */
+  const Index* globalIndex= getIndexGlobal(index->getName(), *table);
+
+  /* Restore Ndb object's DB and Schema */
+  myNdb->setDatabaseName(currentDb.c_str());
+  myNdb->setDatabaseSchemaName(currentSchema.c_str());
+
+  if (globalIndex == NULL)
+    /* An error is set on the dictionary */
+    return NULL;
+  
+  NdbIndexImpl* indexImpl= &NdbIndexImpl::getImpl(*index);
+  NdbIndexImpl* globalIndexImpl= &NdbIndexImpl::getImpl(*globalIndex);
+  
+  assert(indexImpl->m_id == globalIndexImpl->m_id);
+  
+  if (table_version_major(indexImpl->m_version) != 
+      table_version_major(globalIndexImpl->m_version))
+  {
+    removeIndexGlobal(*globalIndex, false); // Don't invalidate
+    m_impl.m_error.code= 241; //Invalid schema object version
+    return NULL;
+  }
+
+  NdbRecord* result= m_impl.createRecord(globalIndexImpl->m_table,
+                                         recSpec,
+                                         length,
+                                         elemSize,
+                                         flags,
+                                         false); // Not default NdbRecord
+
+  if (!result)
+  {
+    removeIndexGlobal(*globalIndex, false); // Don't invalidate
+  }
+  return result;
+}
+
+NdbRecord *
+NdbDictionary::Dictionary::createRecord(const Index *index,
+                                        const RecordSpecification *recSpec,
+                                        Uint32 length,
+                                        Uint32 elemSize,
+                                        Uint32 flags)
+{
+  const NdbDictionary::Table *table= getTable(index->getTable());
+  if (!table)
+    return NULL;
+  return createRecord(index,
+                      table,
+                      recSpec,
+                      length,
+                      elemSize,
+                      flags);
+}
+
+void 
+NdbDictionary::Dictionary::releaseRecord(NdbRecord *rec)
+{
+  m_impl.releaseRecord_impl(rec);
 }
 
 void NdbDictionary::Dictionary::putTable(const NdbDictionary::Table * table)
@@ -1705,9 +2034,9 @@ NdbDictionary::Dictionary::createEvent(const Event & ev)
 }
 
 int 
-NdbDictionary::Dictionary::dropEvent(const char * eventName)
+NdbDictionary::Dictionary::dropEvent(const char * eventName, int force)
 {
-  return m_impl.dropEvent(eventName);
+  return m_impl.dropEvent(eventName, force);
 }
 
 const NdbDictionary::Event *
@@ -1717,6 +2046,18 @@ NdbDictionary::Dictionary::getEvent(const char * eventName)
   if(t)
     return t->m_facade;
   return 0;
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list)
+{
+  return m_impl.listEvents(list);
+}
+
+int
+NdbDictionary::Dictionary::listEvents(List& list) const
+{
+  return m_impl.listEvents(list);
 }
 
 int
@@ -1844,11 +2185,11 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     break;
   case NdbDictionary::Column::Blob:
     out << "Blob(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ")";
+        << "," << col.getStripeSize() << ")";
     break;
   case NdbDictionary::Column::Text:
     out << "Text(" << col.getInlineSize() << "," << col.getPartSize()
-        << ";" << col.getStripeSize() << ";" << csname << ")";
+        << "," << col.getStripeSize() << ";" << csname << ")";
     break;
   case NdbDictionary::Column::Time:
     out << "Time";
@@ -1930,6 +2271,21 @@ operator<<(NdbOut& out, const NdbDictionary::Column& col)
     out << " ST=" << (int)col.getStorageType() << "?";
     break;
   }
+
+  if (col.getAutoIncrement())
+    out << " AUTO_INCR";
+
+  switch (col.getType()) {
+  case NdbDictionary::Column::Blob:
+  case NdbDictionary::Column::Text:
+    out << " BV=" << col.getBlobVersion();
+    break;
+  default:
+    break;
+  }
+
+  if(col.getDynamic())
+    out << " DYNAMIC";
 
   return out;
 }

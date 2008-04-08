@@ -65,6 +65,7 @@
 
 struct Opts {
   my_bool abort_on_error;
+  int blob_version;
   int loglevel;
   uint loop;
   uint maxops;
@@ -104,7 +105,6 @@ static const char* g_csname = "latin1_swedish_ci";
 
 static uint g_blobinlinesize = 256;
 static uint g_blobpartsize = 2000;
-static uint g_blobstripesize = 2;
 static const uint g_maxblobsize = 100000;
 
 static NdbEventOperation* g_evt_op = 0;
@@ -208,6 +208,9 @@ struct Col {
   bool nullable;
   uint length;
   uint size;
+  uint inlinesize;
+  uint partsize;
+  uint stripesize;
   bool isblob() const {
     return
       type == NdbDictionary::Column::Text ||
@@ -215,14 +218,29 @@ struct Col {
   }
 };
 
+// put var* pk first
 static const Col g_col[] = {
-  { 0, "pk1", NdbDictionary::Column::Unsigned, true, false, 1, 4 },
-  { 1, "pk2", NdbDictionary::Column::Char, true, false,  g_charlen, g_charlen },
-  { 2, "seq", NdbDictionary::Column::Unsigned,  false, false, 1, 4 },
-  { 3, "cc1", NdbDictionary::Column::Char, false, true, g_charlen, g_charlen },
-  { 4, "tx1", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 5, "tx2", NdbDictionary::Column::Text, false, true, 0, 0 },
-  { 6, "bl1", NdbDictionary::Column::Blob, false, true, 0, 0 } // tinyblob
+  { 0, "pk2", NdbDictionary::Column::Varchar,
+       true, false,
+       g_charlen, 1 + g_charlen, 0, 0, 0  },
+  { 1, "seq", NdbDictionary::Column::Unsigned,
+       false, true,
+       1, 4, 0, 0, 0  },
+  { 2, "pk1", NdbDictionary::Column::Unsigned,
+       true, false,
+       1, 4, 0, 0, 0  },
+  { 3, "cc1", NdbDictionary::Column::Char,
+       false, true,
+       g_charlen, g_charlen, 0, 0, 0  },
+  { 4, "tx1", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 0 }, // V2 distribution
+  { 5, "tx2", NdbDictionary::Column::Text,
+       false, true,
+       0, 0, g_blobinlinesize, g_blobpartsize, 4 },
+  { 6, "bl1", NdbDictionary::Column::Blob, // tinyblob
+       false, true,
+       0, 0, g_blobinlinesize, 0, 0 }
 };
 
 static const uint g_maxcol = sizeof(g_col)/sizeof(g_col[0]);
@@ -304,26 +322,27 @@ createtable(Tab& t)
     NdbDictionary::Column col(c.name);
     col.setType(c.type);
     col.setPrimaryKey(c.pk);
-    if (! c.pk)
-      col.setNullable(true);
-    col.setLength(c.length);
+    col.setNullable(c.nullable);
     switch (c.type) {
     case NdbDictionary::Column::Unsigned:
       break;
     case NdbDictionary::Column::Char:
+    case NdbDictionary::Column::Varchar:
       col.setLength(c.length);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Text:
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(g_blobpartsize);
-      col.setStripeSize(g_blobstripesize);
+      col.setBlobVersion(g_opts.blob_version);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(g_opts.blob_version == 1 ? 4 : c.stripesize);
       col.setCharset(cs);
       break;
     case NdbDictionary::Column::Blob:
-      col.setInlineSize(g_blobinlinesize);
-      col.setPartSize(0);
-      col.setStripeSize(0);
+      col.setBlobVersion(g_opts.blob_version);
+      col.setInlineSize(c.inlinesize);
+      col.setPartSize(c.partsize);
+      col.setStripeSize(g_opts.blob_version == 1 ? 4 : c.stripesize);
       break;
     default:
       assert(false);
@@ -345,9 +364,10 @@ createtable(Tab& t)
     chkdb((g_op = g_con->getNdbOperation(t.tabname)) != 0);
     chkdb(g_op->insertTuple() == 0);
     Uint32 pk1;
-    char pk2[g_charlen + 1];
+    char pk2[1 + g_charlen + 1];
     pk1 = g_maxpk;
-    sprintf(pk2, "%-*u", g_charlen, pk1);
+    sprintf(pk2 + 1, "%-u", pk1);
+    *(uchar*)pk2 = strlen(pk2 + 1);
     chkdb(g_op->equal("pk1", (char*)&pk1) == 0);
     chkdb(g_op->equal("pk2", (char*)&pk2[0]) == 0);
     chkdb(g_con->execute(Commit) == 0);
@@ -452,7 +472,7 @@ dropevents(bool force = false)
 
 struct Data {
   struct Txt { char* val; uint len; };
-  union Ptr { Uint32* u32; char* ch; Txt* txt; void* v; };
+  union Ptr { Uint32* u32; char* ch; uchar* uch; Txt* txt; void* v; };
   Uint32 pk1;
   char pk2[g_charlen + 1];
   Uint32 seq;
@@ -472,9 +492,9 @@ struct Data {
     memset(cc1, 0, sizeof(cc1));
     tx1.val = tx2.val = bl1.val = 0;
     tx1.len = tx2.len = bl1.len = 0;
-    ptr[0].u32 = &pk1;
-    ptr[1].ch = pk2;
-    ptr[2].u32 = &seq;
+    ptr[0].ch = pk2;
+    ptr[1].u32 = &seq;
+    ptr[2].u32 = &pk1;
     ptr[3].ch = cc1;
     ptr[4].txt = &tx1;
     ptr[5].txt = &tx2;
@@ -508,6 +528,16 @@ cmpcol(const Col& c, const Data& d1, const Data& d2)
     case NdbDictionary::Column::Char:
       if (memcmp(d1.ptr[i].ch, d2.ptr[i].ch, c.size) != 0)
         return 1;
+      break;
+    case NdbDictionary::Column::Varchar:
+      {
+        uint l1 = d1.ptr[i].uch[0];
+        uint l2 = d2.ptr[i].uch[0];
+        if (l1 != l2)
+          return 1;
+        if (memcmp(d1.ptr[i].ch, d2.ptr[i].ch, l1) != 0)
+          return 1;
+      }
       break;
     case NdbDictionary::Column::Text:
     case NdbDictionary::Column::Blob:
@@ -557,6 +587,16 @@ operator<<(NdbOut& out, const Data& d)
             break;
           n--;
         }
+        out << "'" << buf << "'";
+      }
+      break;
+    case NdbDictionary::Column::Varchar:
+      {
+        char buf[g_charlen + 1];
+        uint l = d.ptr[i].uch[0];
+        assert(l <= g_charlen);
+        memcpy(buf, &d.ptr[i].ch[1], l);
+        buf[l] = 0;
         out << "'" << buf << "'";
       }
       break;
@@ -617,7 +657,7 @@ struct Op { // single or composite
   uint num_com;
   Data data[2]; // 0-post 1-pre
   bool match; // matched to event
-  Uint32 gci; // defined for com op and event
+  Uint64 gci; // defined for com op and event
   void init(Kind a_kind, Type a_type = UNDEF) {
     kind = a_kind;
     assert(kind == OP || kind == EV);
@@ -1189,16 +1229,17 @@ static int
 waitgci(uint ngci)
 {
   ll1("waitgci " << ngci);
-  Uint32 gci[2];
+  Uint64 gci[2];
   uint i = 0;
   while (1) {
     chkdb((g_con = g_ndb->startTransaction()) != 0);
     { // forced to exec a dummy op
       Tab& t = tab(0); // use first table
       Uint32 pk1;
-      char pk2[g_charlen + 1];
+      char pk2[1 + g_charlen + 1];
       pk1 = g_maxpk;
-      sprintf(pk2, "%-*u", g_charlen, pk1);
+      sprintf(pk2 + 1, "%-u", pk1);
+      *(uchar*)pk2 = strlen(pk2 + 1);
       chkdb((g_op = g_con->getNdbOperation(t.tabname)) != 0);
       chkdb(g_op->readTuple() == 0);
       chkdb(g_op->equal("pk1", (char*)&pk1) == 0);
@@ -1206,7 +1247,7 @@ waitgci(uint ngci)
       chkdb(g_con->execute(Commit) == 0);
       g_op = 0;
     }
-    gci[i] = g_con->getGCI();
+    g_con->getGCI(&gci[i]);
     g_ndb->closeTransaction(g_con);
     g_con = 0;
     if (i == 1 && gci[0] + ngci <= gci[1]) {
@@ -1314,6 +1355,19 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
       {
         char* p = d.ptr[i].ch;
         sprintf(p, "%-*u", g_charlen, pk1);
+      }
+      break;
+    case NdbDictionary::Column::Varchar:
+      {
+        char* p = &d.ptr[i].ch[1];
+        sprintf(p, "%-u", pk1);
+        uint len = pk1 % g_charlen;
+        uint j = strlen(p);
+        while (j < len) {
+          p[j] = 'a' + j % 26;
+          j++;
+        }
+        d.ptr[i].uch[0] = len;
       }
       break;
     default:
@@ -1554,7 +1608,7 @@ selecttables()
       cnt++;
     }
   }
-  ll1("use " << cnt << "/" << maxrun() << " tables in this loop");
+  ll0("selecttables: use " << cnt << "/" << maxrun() << " in this loop");
 }
 
 static void
@@ -1564,7 +1618,7 @@ makeops()
   for (uint i = 0; i < maxrun(); i++)
     if (! run(i).skip)
       makeops(run(i));
-  ll1("makeops: used recs = " << g_usedops << " com recs = " << g_gciops);
+  ll0("makeops: used records = " << g_usedops);
 }
 
 static int
@@ -1667,7 +1721,9 @@ runops()
       op = op->next_op;
     }
     chkdb(g_con->execute(Commit) == 0);
-    gci_op[i][pk1]->gci = com_op->gci = g_con->getGCI();
+    Uint64 val;
+    g_con->getGCI(&val);
+    gci_op[i][pk1]->gci = com_op->gci = val;
     ll2("commit: " << run(i).tabname << " gci=" << com_op->gci);
     g_ndb->closeTransaction(g_con);
     g_con = 0;
@@ -2236,6 +2292,9 @@ my_long_options[] =
   { "use-table", 1017, "Use existing tables",
     (uchar **)&g_opts.use_table, (uchar **)&g_opts.use_table, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "blob-version", 1018, "Blob version 1 or 2 (default 2)",
+    (uchar**)&g_opts.blob_version, (uchar**)&g_opts.blob_version, 0,
+    GET_INT, REQUIRED_ARG, 2, 0, 0, 0, 0, 0 },
   { 0, 0, 0,
     0, 0, 0,
     GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0 }
@@ -2288,6 +2347,9 @@ checkopts()
   }
   if (g_opts.maxpk > g_maxpk ||
       g_opts.maxtab > g_maxtab) {
+    return -1;
+  }
+  if (g_opts.blob_version < 1 || g_opts.blob_version > 2) {
     return -1;
   }
   return 0;

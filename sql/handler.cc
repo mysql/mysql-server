@@ -1956,6 +1956,17 @@ THD *handler::ha_thd(void) const
 }
 
 
+/**
+   Get tablespace name from handler 
+   Returns the tablespace name associated
+   with the table or NULL if not defined
+*/
+const 
+char* handler::get_tablespace_name()
+{
+  return table->s->tablespace;
+}
+
 /** @brief
   Open database-handler.
 
@@ -3466,7 +3477,7 @@ int ha_create_table(THD *thd, const char *path,
   init_tmp_table_share(thd, &share, db, 0, table_name, path);
   if (open_table_def(thd, &share, 0) ||
       open_table_from_share(thd, &share, "", 0, (uint) READ_ALL, 0, &table,
-                            TRUE))
+                            OTM_CREATE))
     goto err;
 
   if (update_create_info)
@@ -3535,7 +3546,7 @@ int ha_create_table_from_engine(THD* thd, const char *db, const char *name)
   {
     DBUG_RETURN(3);
   }
-  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, FALSE))
+  if (open_table_from_share(thd, &share, "" ,0, 0, 0, &table, OTM_OPEN))
   {
     free_table_share(&share);
     DBUG_RETURN(3);
