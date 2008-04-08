@@ -18,20 +18,17 @@
 # and is part of the translation of the Bourne shell script with the
 # same name.
 
+package mtr_match;
 use strict;
 
-sub mtr_match_prefix ($$);
-sub mtr_match_extension ($$);
-sub mtr_match_any_exact ($$);
+use base qw(Exporter);
+our @EXPORT= qw(mtr_match_prefix
+                mtr_match_extension
+                mtr_match_substring);
 
-##############################################################################
 #
-#  
-#
-##############################################################################
-
 # Match a prefix and return what is after the prefix
-
+#
 sub mtr_match_prefix ($$) {
   my $string= shift;
   my $prefix= shift;
@@ -47,8 +44,9 @@ sub mtr_match_prefix ($$) {
 }
 
 
+#
 # Match extension and return the name without extension
-
+#
 sub mtr_match_extension ($$) {
   my $file= shift;
   my $ext=  shift;
@@ -64,8 +62,9 @@ sub mtr_match_extension ($$) {
 }
 
 
+#
 # Match a substring anywere in a string
-
+#
 sub mtr_match_substring ($$) {
   my $string= shift;
   my $substring= shift;

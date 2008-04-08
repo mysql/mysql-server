@@ -25,6 +25,7 @@ use base qw(Exporter);
 our @EXPORT= qw(collect_option collect_test_cases);
 
 use mtr_report;
+use mtr_match;
 
 # Options used for the collect phase
 our $start_from;
@@ -55,7 +56,6 @@ use IO::File();
 use My::Config;
 use My::Platform;
 
-require "mtr_match.pl";
 require "mtr_misc.pl";
 
 # Precompiled regex's for tests to do or skip
@@ -425,7 +425,7 @@ sub collect_one_suite($)
 
     if (@combinations)
     {
-      print " - adding combinations\n";
+      print " - adding combinations for $suite\n";
       #print_testcases(@cases);
 
       my @new_cases;
