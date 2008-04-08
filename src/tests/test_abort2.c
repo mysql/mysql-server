@@ -8,9 +8,9 @@
 #include <sys/stat.h>
 #include "test.h"
 
-DB_ENV *env;
-DB *db;
-DB_TXN *txn;
+static DB_ENV *env;
+static DB *db;
+static DB_TXN *txn;
 
 void insert (int i, int j) {
     char hello[30], there[230];
