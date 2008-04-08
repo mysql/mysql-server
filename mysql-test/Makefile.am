@@ -28,7 +28,7 @@ nobase_test_DATA = lib/mtr_cases.pm \
 	lib/mtr_gcov.pl \
 	lib/mtr_gprof.pl \
 	lib/mtr_io.pl \
-	lib/mtr_match.pl \
+	lib/mtr_match.pm \
 	lib/mtr_misc.pl \
 	lib/mtr_process.pl \
 	lib/mtr_report.pm \
