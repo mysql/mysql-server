@@ -16,3 +16,33 @@ ERROR HY000: The MySQL server is running with the --read-only option so it canno
 set global read_only=0;
 drop table table_11733 ;
 drop user test@localhost;
+GRANT CREATE, SELECT, DROP ON *.* TO test@localhost;
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (0), (1);
+SET GLOBAL read_only=1;
+SELECT * FROM t1;
+a
+0
+1
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+COMMIT;
+SET GLOBAL read_only=0;
+FLUSH TABLES WITH READ LOCK;
+SELECT * FROM t1;
+a
+0
+1
+BEGIN;
+SELECT * FROM t1;
+a
+0
+1
+COMMIT;
+UNLOCK TABLES;
+DROP TABLE t1;
+DROP USER test@localhost;
+echo End of 5.1 tests 
