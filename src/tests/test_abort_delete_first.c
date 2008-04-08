@@ -8,13 +8,12 @@
 
 #include <db.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include "test.h"
 
 static DB_ENV *env;
 static DB *db;
 static DB_TXN *txn;
-
-// Got a different problem when N=1000.  
 
 void insert (int i) {
     char hello[30], there[30];
@@ -50,7 +49,7 @@ void find (int i) {
     CKERR(r);
 }
 
-void find_first (int i) {
+void find_first_or_last (int i, int cflag) {
     int r;
     DBC *cursor;
     DBT key, val;
@@ -59,7 +58,7 @@ void find_first (int i) {
 
     r = db->cursor(db, txn, &cursor, 0);
     CKERR(r);
-    r = cursor->c_get(cursor, &key, &val, DB_FIRST);
+    r = cursor->c_get(cursor, &key, &val, cflag);
     assert(r==0);
     
     char hello[30], there[30];
@@ -68,9 +67,13 @@ void find_first (int i) {
 
     assert(strcmp(hello, key.data)==0);
     assert(strcmp(there, val.data)==0);
+
+    r = cursor->c_close(cursor);
 }
 
-void do_abort_delete_first(int N) {
+void do_abort_delete_first_or_last(int N,
+				   int first // 1 for first, 0 for last
+				   ) {
     int r,i;
     system("rm -rf " ENVDIR);
     r=mkdir(ENVDIR, 0777);       assert(r==0);
@@ -94,25 +97,35 @@ void do_abort_delete_first(int N) {
 
     // Now delete a bunch of stuff and see if we can do DB_FIRST
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
-    for (i=0; i<N-1; i++) {
-	delete(i);
+    if (first) {
+	for (i=0; i<N-1; i++) {
+	    delete(i);
+	}
+	find(i);
+	find_first_or_last(i, DB_FIRST);
+    } else {
+	for (i=1; i<N; i++) {
+	    delete(i);
+	}
+	find_first_or_last(0, DB_LAST);
     }
-    find(i);
-    find_first(i);
-    r=txn->commit(txn, 0); CKERR(r);
 
+    r=txn->commit(txn, 0); CKERR(r);
 
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
+#ifdef TOKUDB
+    r=system("../../newbrt/brtdump " ENVDIR "/foo.db > /dev/null");
+    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
+#endif
 }
 
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
-    do_abort_delete_first(10);
-    int r=system("../../newbrt/brtdump " ENVDIR "/foo.db");
-    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
-    do_abort_delete_first(1000);
-    int r=system("../../newbrt/brtdump " ENVDIR "/foo.db");
-    assert(WIFEXITED(r) && WEXITSTATUS(r)==0);
+    int f;
+    for (f=0; f<2; f++) {
+	do_abort_delete_first_or_last(10, f);
+	do_abort_delete_first_or_last(1000,f);
+    }
     return 0;
 }
