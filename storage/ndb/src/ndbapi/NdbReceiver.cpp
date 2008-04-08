@@ -250,6 +250,21 @@ NdbReceiver::copyout(NdbReceiver & dstRec){
   return start;
 }
 
+/**
+ * pad
+ * This function determines how much 'padding' should be applied
+ * to the passed in pointer and bitPos to get to the start of a 
+ * field with the passed in alignment.
+ * The rules are : 
+ *   - First bit field is 32-bit aligned
+ *   - Subsequent bit fields are packed in the next available bits
+ *   - 8 and 16 bit aligned fields are packed in the next available
+ *     word (but not necessarily word aligned.
+ *   - 32, 64 and 128 bit aligned fields are packed in the next
+ *     aligned 32-bit word.
+ * This algorithm is used to unpack a stream of fields packed by the code
+ * in src/kernel/blocks/dbtup/DbtupRoutines::read_packed()
+ */
 static
 inline
 const Uint8*
@@ -274,22 +289,39 @@ charpad:
   }
 }
 
+/**
+ * handle_packed_bit
+ * This function copies the bitfield of length len, offset pos from
+ * word-aligned ptr _src to memory starting at the byte ptr dst.
+ */
 static
 void
-handle_packed_bit(const Uint8* _src, Uint32 pos, Uint32 len, NdbRecAttr* curr)
+handle_packed_bit(const char* _src, Uint32 pos, Uint32 len, char* _dst)
 {
   Uint32 * src = (Uint32*)_src;
-  Uint32 * dst = (Uint32*)curr->aRef();
-  assert((UintPtr(dst) & 3) == 0);
   assert((UintPtr(src) & 3) == 0);
-  BitmaskImpl::getField(1 + ((len + 31) >> 5), src, pos, len, dst);
+
+  /* Convert char* to aligned Uint32* and some byte offset */
+  UintPtr uiPtr= UintPtr((Uint32*)_dst);
+  Uint32 dstByteOffset= uiPtr & 3;
+  Uint32* dst= (Uint32*) (uiPtr - dstByteOffset); 
+
+  BitmaskImpl::copyField(dst, dstByteOffset << 3,
+                         src, pos, len);
 }
 
+
+/**
+ * receive_packed_recattr
+ * Receive a packed stream of field values, whose presence and nullness
+ * is indicated by a leading bitmap into a list of NdbRecAttr objects
+ * Return the number of words read from the input stream.
+ */
 Uint32
-NdbReceiver::receive_packed(NdbRecAttr** recAttr, 
-			    Uint32 bmlen, 
-			    const Uint32* aDataPtr, 
-			    Uint32 aLength)
+NdbReceiver::receive_packed_recattr(NdbRecAttr** recAttr, 
+                                    Uint32 bmlen, 
+                                    const Uint32* aDataPtr, 
+                                    Uint32 aLength)
 {
   NdbRecAttr* currRecAttr = *recAttr;
   const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
@@ -321,7 +353,8 @@ NdbReceiver::receive_packed(NdbRecAttr** recAttr,
       switch(align){
       case DictTabInfo::aBit: // Bit
         src = pad(src, 0, 0);
-	handle_packed_bit(src, bitPos, len, currRecAttr);
+	handle_packed_bit((const char*)src, bitPos, len, 
+                          currRecAttr->aRef());
 	src += 4 * ((bitPos + len) >> 5);
 	bitPos = (bitPos + len) & 31;
         goto next;
@@ -355,6 +388,28 @@ err:
   abort();
 }
 
+
+/* Set NdbRecord field to non-NULL value. */
+static void assignToRec(const NdbRecord::Attr *col,
+                        char *row,
+                        const Uint8 *src,
+                        Uint32 byteSize)
+{
+  /* Set NULLable attribute to "not NULL". */
+  if (col->flags & NdbRecord::IsNullable)
+    row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
+
+  memcpy(&row[col->offset], src, byteSize);
+}
+
+/* Set NdbRecord field to NULL. */
+static void setRecToNULL(const NdbRecord::Attr *col,
+                         char *row)
+{
+  assert(col->flags & NdbRecord::IsNullable);
+  row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
+}
+
 int
 NdbReceiver::get_range_no() const
 {
@@ -370,6 +425,148 @@ NdbReceiver::get_range_no() const
          4);
   return range_no;
 }
+
+/**
+ * handle_bitfield_ndbrecord
+ * Packed bitfield handling for NdbRecord - also deals with 
+ * mapping the bitfields into MySQLD format if necessary.
+ */
+static void
+handle_bitfield_ndbrecord(const NdbRecord::Attr* col,
+                          const Uint8*& src,
+                          Uint32& bitPos,
+                          Uint32& len,
+                          char* row)
+{
+  /* Clear nullbit in row */
+  row[col->nullbit_byte_offset] &=
+    ~(1 << col->nullbit_bit_in_byte);
+
+  char* dest;
+  Uint64 mysqldSpace;
+
+  /* For MySqldBitField, we read it as normal into a local on the 
+   * stack and then use the put_mysqld_bitfield function to rearrange
+   * and write it to the row
+   */
+  bool isMDBitfield= (col->flags & NdbRecord::IsMysqldBitfield) != 0;
+
+  if (isMDBitfield)
+  {
+    assert(len <= 64);
+    dest= (char*) &mysqldSpace;
+  }
+  else
+    dest= row + col->offset;
+  
+  /* Copy bitfield to memory starting at dest */
+  src = pad(src, 0, 0);
+  handle_packed_bit((const char*)src, bitPos, len, dest); 
+  src += 4 * ((bitPos + len) >> 5);
+  bitPos = (bitPos + len) & 31;
+  
+  if (isMDBitfield)
+    /* Rearrange bitfield from stack to row storage */
+    col->put_mysqld_bitfield(row, dest);
+}
+
+
+/**
+ * receive_packed_ndbrecord
+ * Receive a packed stream of field values, whose presence and nullness
+ * is indicated by a leading bitmap, into an NdbRecord row.
+ * Return the number of words consumed from the input stream.
+ */
+Uint32
+NdbReceiver::receive_packed_ndbrecord(Uint32 bmlen, 
+                                      const Uint32* aDataPtr,
+                                      char* row)
+{
+  const Uint8 *src = (Uint8*)(aDataPtr + bmlen);
+  Uint32 bitPos = 0;
+  const NdbRecord* rec= m_record.m_ndb_record;
+  const Uint32 maxAttrId= rec->columns[rec->noOfColumns -1].attrId;
+  const Uint32 bmSize= bmlen << 5;
+
+  /* Use bitmap to determine which columns have been sent */
+  for (Uint32 i = 0, attrId = 0; 
+       (i < bmSize) && (attrId <= maxAttrId);
+       i++, attrId++)
+  {
+    if (BitmaskImpl::get(bmlen, aDataPtr, i))
+    {
+      /* Found bit in column presence bitmask, get corresponding
+       * Attr struct from NdbRecord
+       */
+      assert(attrId < rec->m_attrId_indexes_length);
+      assert((Uint32) rec->m_attrId_indexes[attrId] 
+             < rec->noOfColumns);
+      const NdbRecord::Attr* col= &rec->columns[rec->m_attrId_indexes[attrId]];
+
+      assert((col->flags & NdbRecord::IsBlob) == 0);
+
+      /* If col is nullable, check for null and 
+       * set bit
+       */ 
+      if (col->flags & NdbRecord::IsNullable)
+      {
+	if (BitmaskImpl::get(bmlen, aDataPtr, ++i))
+	{
+          setRecToNULL(col, m_record.m_row);
+
+          // Next column...
+	  continue;
+	}
+      }
+      
+      Uint32 align = col->orgAttrSize;
+      Uint32 sz = col->maxSize;
+      Uint32 len = col->bitCount;
+      Uint32 arrayType = 
+        (col->flags & NdbRecord::IsVar1ByteLen)? 
+        NDB_ARRAYTYPE_SHORT_VAR :
+        (
+         (col->flags & NdbRecord::IsVar2ByteLen)?
+         NDB_ARRAYTYPE_MEDIUM_VAR : 
+         NDB_ARRAYTYPE_FIXED);
+
+      switch(align){
+      case DictTabInfo::aBit: // Bit
+        handle_bitfield_ndbrecord(col,
+                                  src,
+                                  bitPos,
+                                  len,
+                                  row);
+        continue; // Next column
+      default:
+        src = pad(src, align, bitPos);
+      }
+      switch(arrayType){
+      case NDB_ARRAYTYPE_FIXED:
+        break;
+      case NDB_ARRAYTYPE_SHORT_VAR:
+        sz = 1 + src[0];
+        break;
+      case NDB_ARRAYTYPE_MEDIUM_VAR:
+	sz = 2 + src[0] + 256 * src[1];
+        break;
+      default:
+        abort();
+      }
+      
+      bitPos = 0;
+      assignToRec(col,
+                  row,
+                  src,
+                  sz);
+
+      src += sz;
+    }
+  }
+
+  return ((Uint32*)pad(src, 0, bitPos)) - aDataPtr;
+}
+
 
 int
 NdbReceiver::get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
@@ -392,26 +589,6 @@ NdbReceiver::get_keyinfo20(Uint32 & scaninfo, Uint32 & length,
   return 0;
 }
 
-/* Set NdbRecord field to non-NULL value. */
-static void assignToRec(const NdbRecord::Attr *col,
-                        char *row,
-                        const Uint32 *src,
-                        Uint32 byteSize)
-{
-  /* Set NULLable attribute to "not NULL". */
-  if (col->flags & NdbRecord::IsNullable)
-    row[col->nullbit_byte_offset]&= ~(1 << col->nullbit_bit_in_byte);
-
-  memcpy(&row[col->offset], src, byteSize);
-}
-
-/* Set NdbRecord field to NULL. */
-static void setRecToNULL(const NdbRecord::Attr *col,
-                         char *row)
-{
-  assert(col->flags & NdbRecord::IsNullable);
-  row[col->nullbit_byte_offset]|= 1 << col->nullbit_bit_in_byte;
-}
 
 int
 NdbReceiver::getScanAttrData(const char * & data, Uint32 & size, Uint32 & pos) const
@@ -450,15 +627,17 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   Uint32 exp= m_expected_result_length;
   Uint32 tmp= m_received_result_length + aLength;
   Uint32 origLength=aLength;
-  const NdbRecord *rec= (m_using_ndb_record? m_record.m_ndb_record : NULL);
-    // BEWARE : *rec may be invalid in RecAttr only case
   NdbRecAttr* currRecAttr = theCurrentRecAttr;
-  Uint32 rec_pos= 0;
   Uint32 save_pos= 0;
-  Uint32 column_count= 0;
 
-  bool ndbrecord_part_done=!m_using_ndb_record;
+  bool ndbrecord_part_done= !m_using_ndb_record;
+  bool isScan= (m_type == NDB_SCANRECEIVER);
 
+  /* Read words from the incoming signal train.
+   * The length passed in is enough for one row, either as an individual
+   * read op, or part of a scan.  When there are no more words, we're at
+   * the end of the row
+   */
   while (aLength > 0)
   {
     AttributeHeader ah(* aDataPtr++);
@@ -470,120 +649,85 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
     {
       /* Special case for RANGE_NO, which is received first and is
        * stored just after the row. */
-      if (attrId==AttributeHeader::RANGE_NO)
+      if (attrId == AttributeHeader::RANGE_NO)
       {
         assert(m_record.m_read_range_no);
         assert(attrSize==4);
         memcpy(m_record.m_row+m_record.m_ndb_record->m_row_size, aDataPtr++, 4);
         aLength--;
-        continue;
+        continue; // Next
       }
 
-      /*
-        Skip all not returned columns.
-        The rows should be returned in the same order as we requested them
-        (which is in any case in attribute ID order).
-      */
-      while (rec_pos < rec->noOfColumns &&
-             rec->columns[rec_pos].attrId < attrId)
-        rec_pos++;
-
-      /*
-        To support extra getValue(), there may be extra attribute data after
-        all NdbRecord columns have been fetched. But the fast path is for pure
-        NdbRecord operation, with no extra getValue().
-      */
-      if (unlikely(column_count >= m_record.m_column_count))
+      /* Normal case for all NdbRecord primary key, index key, table scan
+       * and index scan reads.  Extract all requested columns from packed
+       * format into the row.
+       */
+      if (attrId == AttributeHeader::READ_PACKED)
       {
-        if (m_type == NDB_SCANRECEIVER)
-        {
-          /* For scans, save the data and copy to NdbRecAttr in nextResult(). */
-          save_pos+= sizeof(Uint32);
-          memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
-                 &attrSize, sizeof(Uint32));
-          if (attrSize > 0)
-          {
-            save_pos+= attrSize;
-            memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
-                   aDataPtr, attrSize);
-          }
+        Uint32 len= receive_packed_ndbrecord(attrSize >> 2, // Bitmap length
+                                             aDataPtr,
+                                             m_record.m_row);
+        aDataPtr+= len;
+        aLength-= len;
+        continue;  // Next
+      }
 
-          Uint32 sizeInWords= (attrSize+3)>>2;
-          aDataPtr+= sizeInWords;
-          aLength-= sizeInWords;
-          continue;
-        }
-        else
+      /* If we get here then we must have 'extra getValues' - columns
+       * requested outwith the normal NdbRecord + bitmask mechanism.
+       * This could be : pseudo columns, columns read via an old-Api 
+       * scan, or just some extra columns added by the user to an 
+       * NdbRecord operation.
+       * If the extra values are part of a scan then they get copied
+       * to a special area after the end of the normal row data.  
+       * When the user calls NdbScanOperation.nextResult() they will
+       * be copied into the correct NdbRecAttr objects.
+       * If the extra values are not part of a scan then they are
+       * put into their NdbRecAttr objects now.
+       */
+      if (isScan)
+      {
+        /* For scans, we save the extra information at the end of the
+         * row buffer, in reverse order.  When nextResult() is called,
+         * this data is copied into the correct NdbRecAttr objects.
+         */
+        
+        /* Save this extra getValue */
+        save_pos+= sizeof(Uint32);
+        memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
+               &attrSize, sizeof(Uint32));
+        if (attrSize > 0)
         {
-          assert(theCurrentRecAttr != NULL);
-          assert(theCurrentRecAttr->attrId() == attrId);
-          /* Handle extra attributes requested with getValue(). */
-          /* This implies that we've finished with the NdbRecord part
-             of the read, so move onto NdbRecAttr */
-          ndbrecord_part_done=true;
+          save_pos+= attrSize;
+          memcpy(m_record.m_row + m_record.m_row_offset - save_pos,
+                 aDataPtr, attrSize);
         }
+        
+        Uint32 sizeInWords= (attrSize+3)>>2;
+        aDataPtr+= sizeInWords;
+        aLength-= sizeInWords;
+        continue; // Next
       }
       else
       {
-        column_count++;
-
-        const NdbRecord::Attr *col= &rec->columns[rec_pos];
-
-        /* We should never get back an attribute not originally requested. */
-        assert(rec_pos < rec->noOfColumns && col->attrId == attrId);
-
-        /* Blobs heads are read with getValue(), not using NdbRecord. */
-        assert((col->flags & NdbRecord::IsBlob) == 0);
-        /*
-          The fast path is for a plain offset/length column (not
-          mysqld-format bit field).
-        */
-        if (likely(!(col->flags & NdbRecord::IsMysqldBitfield)))
-        {
-          if (attrSize == 0)
-          {
-            setRecToNULL(col, m_record.m_row);
-          }
-          else
-          {
-            assert(attrSize <= col->maxSize);
-            Uint32 sizeInWords= (attrSize+3)>>2;
-            /* Not sure how to deal with this, shouldn't happen. */
-            if (unlikely(sizeInWords > aLength))
-            {
-              sizeInWords= aLength;
-              attrSize= 4*aLength;
-            }
-
-            assignToRec(col, m_record.m_row, aDataPtr, attrSize);
-            aDataPtr+= sizeInWords;
-            aLength-= sizeInWords;
-          }
-        }
-        else
-        {
-          /* Mysqld format bitfield. */
-          if (attrSize == 0)
-          {
-            setRecToNULL(col, m_record.m_row);
-          }
-          else
-          {
-            assert(attrSize == col->maxSize);
-            Uint32 sizeInWords= (attrSize+3)>>2;
-            if (col->flags & NdbRecord::IsNullable)
-              m_record.m_row[col->nullbit_byte_offset]&=
-                ~(1 << col->nullbit_bit_in_byte);
-            col->put_mysqld_bitfield(m_record.m_row, (const char *)aDataPtr);
-            aDataPtr+= sizeInWords;
-            aLength-= sizeInWords;
-          }
-        }
-        rec_pos++;
+        /* Not a scan, so extra information is added to RecAttrs in
+         * the 'normal' way.
+         */
+        assert(theCurrentRecAttr != NULL);
+        assert(theCurrentRecAttr->attrId() == attrId);
+        /* Handle extra attributes requested with getValue(). */
+        /* This implies that we've finished with the NdbRecord part
+           of the read, so move onto NdbRecAttr */
+        ndbrecord_part_done=true;
+        // Fall through to RecAttr handling
       }
     } // / if (!ndbrecord_part_done)
     
-    // Any NdbRecAttr parts to work on?
+    /* If we get here then there are some attribute values to be
+     * read into the attached list of NdbRecAttrs.
+     * This occurs for old-Api primary and unique index keyed operations
+     * and for NdbRecord primary and unique index keyed operations
+     * using 'extra GetValues'.
+     */
     if (ndbrecord_part_done)
     {
       // We've processed the NdbRecord part of the TRANSID_AI, if
@@ -594,7 +738,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       {
         assert(!m_using_ndb_record);
         NdbRecAttr* tmp = currRecAttr;
-        Uint32 len = receive_packed(&tmp, attrSize>>2, aDataPtr, origLength); 
+        Uint32 len = receive_packed_recattr(&tmp, attrSize>>2, aDataPtr, origLength);
         aDataPtr += len;
         aLength -= len;
         currRecAttr = tmp;
@@ -602,6 +746,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
       }
       /**
        * Skip over missing attributes
+       * TODO : How can this happen?
        */
       while(currRecAttr && currRecAttr->attrId() != attrId){
             currRecAttr = currRecAttr->next();
@@ -640,6 +785,7 @@ NdbReceiver::execTRANSID_AI(const Uint32* aDataPtr, Uint32 aLength)
   m_received_result_length = tmp;
 
   if (m_using_ndb_record) {
+    /* Move onto next row in scan buffer */
     m_record.m_row+= m_record.m_row_offset;
   }
 
