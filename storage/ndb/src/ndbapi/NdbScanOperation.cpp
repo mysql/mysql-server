@@ -177,6 +177,10 @@ NdbScanOperation::addInterpretedCode(Uint32 aTC_ConnectPtr,
   Uint32 *attrInfoPtr= theATTRINFOptr;
   Uint32 remain= AttrInfo::MaxSignalLength - theAI_LenInCurrAI;
   const NdbInterpretedCode *code= m_interpreted_code;
+  /* Any disk access? */
+  m_no_disk_flag &= 
+    !(code->m_flags & NdbInterpretedCode::UsesDisk);
+
 
   /* Main program size depends on whether there's subroutines */
   mainProgramWords= code->m_first_sub_instruction_pos ?
@@ -319,80 +323,37 @@ NdbScanOperation::handleScanOptions(const ScanOptions *options)
   return 0;
 }
 
-/* scanTableImpl is called from NdbTransaction::scanTable() to 
- * define a scan operation
+/**
+ * generatePackedReadAIs
+ * This method is adds AttrInfos to the current signal train to perform
+ * a packed read of the requested columns.
+ * It is used by table scan and index scan.
  */
 int
-NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
-                                NdbOperation::LockMode lock_mode,
-                                const unsigned char *result_mask,
-                                const NdbScanOperation::ScanOptions *options,
-                                Uint32 sizeOfOptions)
+NdbScanOperation::generatePackedReadAIs(const NdbRecord *result_record,
+                                        bool needAllKeys,
+                                        bool& haveBlob)
 {
-  NdbBlob *lastBlob;
-  Uint32 column_count;
-  int res;
-  bool haveBlob= false;
-  Uint32 scan_flags = 0;
-  Uint32 parallel = 0;
-  Uint32 batch = 0;
+  Bitmask<MAXNROFATTRIBUTESINWORDS> readMask;
+  Uint32 columnCount= 0;
+  Uint32 maxAttrId= 0;
 
-  if (options != NULL)
-  {
-    /* Check options size for versioning... */
-    if (unlikely((sizeOfOptions !=0) &&
-                 (sizeOfOptions != sizeof(ScanOptions))))
-    {
-      /* Handle different sized ScanOptions
-       * Probably smaller is old version, larger is new version
-       */
-      
-      /* No other versions supported currently */
-      setErrorCodeAbort(4298);
-      /* Invalid or unsupported ScanOptions structure */
-      return -1;
-    }
-    
-    /* Process some initial ScanOptions - most are 
-     * handled later
-     */
-    if (options->optionsPresent & ScanOptions::SO_SCANFLAGS)
-      scan_flags = options->scan_flags;
-    if (options->optionsPresent & ScanOptions::SO_PARALLEL)
-      parallel = options->parallel;
-    if (options->optionsPresent & ScanOptions::SO_BATCH)
-      batch = options->batch;
-  }
-#if 0 // ToDo: this breaks optimize index, but maybe there is a better solution
-  if (result_record->flags & NdbRecord::RecIsIndex)
-  {
-    setErrorCodeAbort(4340);
-    return -1;
-  }
-#endif
-
-  /* Process scan definition info */
-  res= processTableScanDefs(lock_mode, scan_flags, parallel, batch);
-  if (res == -1)
-    return -1;
-
-  result_record->copyMask(m_read_mask, result_mask);
-
-  lastBlob= NULL;
-  column_count= 0;
+  haveBlob= false;
+  
   for (Uint32 i= 0; i<result_record->noOfColumns; i++)
   {
-    const NdbRecord::Attr *col;
-    Uint32 ah;
-    Uint32 attrId;
+    const NdbRecord::Attr *col= &result_record->columns[i];
+    Uint32 attrId= col->attrId;
 
-    col= &result_record->columns[i];
+    assert(!(attrId & AttributeHeader::PSEUDO));
 
-    /* Skip column if result_mask says so. But cannot mask pseudo columns. */
-    attrId= col->attrId;
-    if (!(attrId & AttributeHeader::PSEUDO) &&
-        !BitmaskImpl::get((NDB_MAX_ATTRIBUTES_IN_TABLE+31)>>5,
-                          m_read_mask, attrId))
+    /* Skip column if result_mask says so and we don't need
+     * to read it 
+     */
+    if ((!BitmaskImpl::get(MAXNROFATTRIBUTESINWORDS,
+                           m_read_mask, attrId)) 
+        &&
+        !(needAllKeys && col->flags & NdbRecord::IsKey))
       continue;
 
     /* Blob reads are handled with a getValue() in NdbBlob.cpp. */
@@ -403,20 +364,72 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
       continue;
     }
 
-    AttributeHeader::init(&ah, attrId, 0);
-    res= insertATTRINFO(ah);
-    if (res==-1)
-      return -1;
-
     if (col->flags & NdbRecord::IsDisk)
       m_no_disk_flag= false;
-    column_count++;
+
+    if (attrId > maxAttrId)
+      maxAttrId= attrId;
+
+    readMask.set(attrId);
+    columnCount++;
   }
-  theReceiver.m_record.m_column_count= column_count;
+
+  theReceiver.m_record.m_column_count= columnCount;
+
+  int result= 0;
+
+  /* Are there any columns to read via NdbRecord? 
+   * Old Api scans, and new Api scans which only read via extra getvalues
+   * may have no 'NdbRecord reads'
+   */
+  if (columnCount > 0)
+  {
+    Uint32 ah;
+    bool all= (columnCount == m_currentTable->m_columns.size());
+    
+    if (all)
+    {
+      AttributeHeader::init(&ah, AttributeHeader::READ_ALL, columnCount);
+      result= insertATTRINFO(ah);
+    }
+    else
+    {
+      /* How many bitmask words are significant? */
+      Uint32 sigBitmaskWords= (maxAttrId>>5) + 1;
+      
+      AttributeHeader::init(&ah, AttributeHeader::READ_PACKED, 4*sigBitmaskWords);
+      result= insertATTRINFO(ah); // Header
+      if (result != -1)
+        result= insertATTRINFOloop(&readMask.rep.data[0], 
+                                   sigBitmaskWords); // Bitmask
+    }
+  }
+
+  return result;
+}
+
+/**
+ * scanImpl
+ * This method is called by scanTableImpl() and scanIndexImpl() and
+ * performs most of the signal building tasks that both scan
+ * types share
+ */
+inline int
+NdbScanOperation::scanImpl(const unsigned char *result_mask,
+                           const NdbScanOperation::ScanOptions *options,
+                           bool needAllKeys)
+{
+  bool haveBlob= false;
+
+  m_attribute_record->copyMask(m_read_mask, result_mask);
+
+  /* Add AttrInfos for packed read of cols in result_record */
+  if (generatePackedReadAIs(m_attribute_record,
+                            needAllKeys,
+                            haveBlob) != 0)
+    return -1;
 
   theInitialReadSize= theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
-  theStatus= NdbOperation::UseNdbRecord;
-  m_attribute_record= result_record;
 
   /* Handle any getValue() calls made against the old API. */
   if (m_scanUsingOldApi)
@@ -462,6 +475,67 @@ NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
   
   return 0;
 }
+
+
+int
+NdbScanOperation::scanTableImpl(const NdbRecord *result_record,
+                                NdbOperation::LockMode lock_mode,
+                                const unsigned char *result_mask,
+                                const NdbScanOperation::ScanOptions *options,
+                                Uint32 sizeOfOptions)
+{
+  int res;
+  Uint32 scan_flags = 0;
+  Uint32 parallel = 0;
+  Uint32 batch = 0;
+
+  if (options != NULL)
+  {
+    /* Check options size for versioning... */
+    if (unlikely((sizeOfOptions !=0) &&
+                 (sizeOfOptions != sizeof(ScanOptions))))
+    {
+      /* Handle different sized ScanOptions
+       * Probably smaller is old version, larger is new version
+       */
+      
+      /* No other versions supported currently */
+      setErrorCodeAbort(4298);
+      /* Invalid or unsupported ScanOptions structure */
+      return -1;
+    }
+    
+    /* Process some initial ScanOptions - most are 
+     * handled later
+     */
+    if (options->optionsPresent & ScanOptions::SO_SCANFLAGS)
+      scan_flags = options->scan_flags;
+    if (options->optionsPresent & ScanOptions::SO_PARALLEL)
+      parallel = options->parallel;
+    if (options->optionsPresent & ScanOptions::SO_BATCH)
+      batch = options->batch;
+  }
+#if 0 // ToDo: this breaks optimize index, but maybe there is a better solution
+  if (result_record->flags & NdbRecord::RecIsIndex)
+  {
+    setErrorCodeAbort(4340);
+    return -1;
+  }
+#endif
+
+  m_attribute_record= result_record;
+
+  /* Process scan definition info */
+  res= processTableScanDefs(lock_mode, scan_flags, parallel, batch);
+  if (res == -1)
+    return -1;
+
+  theStatus= NdbOperation::UseNdbRecord;
+
+  /* Call generic scan code */
+  return scanImpl(result_mask, options);
+}
+
 
 /*
   Compare two rows on some prefix of the index.
@@ -706,11 +780,8 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
                                      const NdbScanOperation::ScanOptions *options,
                                      Uint32 sizeOfOptions)
 {
-  NdbBlob *lastBlob;
   int res;
   Uint32 i;
-  Uint32 column_count;
-  bool haveBlob= false;
   Uint32 scan_flags = 0;
   Uint32 parallel = 0;
   Uint32 batch = 0;
@@ -793,112 +864,26 @@ NdbIndexScanOperation::scanIndexImpl(const NdbRecord *key_record,
   if (res==-1)
     return -1;
 
-  result_record->copyMask(m_read_mask, result_mask);
-
   /* Fix theStatus as set in processIndexScanDefs(). */
   theStatus= NdbOperation::UseNdbRecord;
-
-  lastBlob= NULL;
-  column_count= 0;
-  for (i= 0; i<result_record->noOfColumns; i++)
+  
+  /* Call generic scan code */
+  res= scanImpl(result_mask, 
+                options, 
+                (scan_flags & NdbScanOperation::SF_OrderBy)); // needAllKeys
+  if (!res)
   {
-    const NdbRecord::Attr *col;
-    Uint32 ah;
-    Uint32 attrId;
-
-    col= &result_record->columns[i];
-
     /*
-      Skip column if result_mask says so.
-      But cannot mask pseudo columns, nor key columns in ordered scans.
-    */
-    attrId= col->attrId;
-    if ( result_mask &&
-         !(attrId & AttributeHeader::PSEUDO) &&
-         !( (scan_flags & NdbScanOperation::SF_OrderBy) &&
-            (col->flags & NdbRecord::IsKey) ) &&
-         !(result_mask[attrId>>3] & (1<<(attrId & 7))) )
+     * Set up first key bound, if present
+     * Extra bounds (MRR) can be added later
+     */
+    if (bound != NULL)
     {
-      continue;
+      res= setBound(key_record, *bound);
     }
-
-    /* Create blob handle for any blob column. */
-    if (unlikely(col->flags & NdbRecord::IsBlob))
-    {
-      m_keyInfo= 1;          // Need keyinfo for blob scan
-      haveBlob= true;
-      continue;
-    }
-
-    AttributeHeader::init(&ah, attrId, 0);
-    res= insertATTRINFO(ah);
-    if (res==-1)
-      return -1;
-
-    if (col->flags & NdbRecord::IsDisk)
-      m_no_disk_flag= false;
-    column_count++;
   }
-  theReceiver.m_record.m_column_count= column_count;
-
-  theInitialReadSize= theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
-
-  /* Handle any getValue() calls made against the old API. */
-  if (m_scanUsingOldApi)
-  {
-    if (handleScanGetValuesOldApi() !=0)
-      return -1;
-  }
-
-  /* Handle remaining scan options and other extras
-   * Always called for old style API 
-   */
-  if (options != NULL)
-  {
-    if (handleScanOptions(options) != 0)
-      return -1;
-  }
-
-  /*
-   * Set up first key bound, if present
-   * Extra bounds (MRR) can be added later
-   */
-  if (bound != NULL)
-  {
-    setBound(key_record, *bound);
-  }
-
-  /* Get Blob handles for this scan unless it's using the
-   * old Api.  Old Api scans set up Blob values in the
-   * getBlobHandle() call
-   */
-  if (unlikely(haveBlob) && !m_scanUsingOldApi)
-  {
-    if (getBlobHandlesNdbRecord(m_transConnection) == -1)
-      return -1;
-  }
-
-  /* Add interpreted code words to ATTRINFO signal
-   * chain as necessary
-   */
-  if (m_interpreted_code != NULL)
-  {
-    if (addInterpretedCode(theNdbCon->theTCConPtr,
-                           theNdbCon->theTransactionId) == -1)
-      return -1;
-  }
-
-  /* Scan is now mostly defined, so let's start preparing
-   * the signals and the receiver.
-   * Extra signals can be linked in when :
-   *  - Bounds are added
-   */
-  if (prepareSendScan(theNdbCon->theTCConPtr, 
-                      theNdbCon->theTransactionId) == -1)
-    /* Error code should be set */
-    return -1;
-
-  return 0;
+  
+  return res;
 } // ::scanIndexImpl();
 
 
@@ -2342,6 +2327,12 @@ NdbScanOperation::getBlobHandle(Uint32 anAttrId)
                                      m_currentTable->getColumn(anAttrId));
 }
 
+/** 
+ * getValue_NdbRecord_scan
+ * This variant is called when the ScanOptions::GETVALUE mechanism is
+ * used to add extra GetValues to an NdbRecord defined scan.
+ * It is not used for supporting old-Api scans
+ */
 NdbRecAttr*
 NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
                                           char* aValue)
@@ -2351,6 +2342,10 @@ NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
   Uint32 ah;
   NdbRecAttr *ra;
   DBUG_PRINT("info", ("Column: %u", attrInfo->m_attrId));
+
+  m_no_disk_flag &= 
+    (attrInfo->m_storageType == NDB_STORAGETYPE_MEMORY);
+
   AttributeHeader::init(&ah, attrInfo->m_attrId, 0);
   res= insertATTRINFO(ah);
   if (res==-1)
@@ -2366,6 +2361,14 @@ NdbScanOperation::getValue_NdbRecord_scan(const NdbColumnImpl* attrInfo,
   DBUG_RETURN(ra);
 }
 
+/**
+ * getValue_NdbRecAttr_scan
+ * This variant is called when the old Api getValue() method is called
+ * against a ScanOperation.  It adds a RecAttr object to the scan.
+ * Signals to request that the value be read are added when the old Api
+ * scan is finalised.
+ * This method is not used to process ScanOptions::GETVALUE extra gets
+ */
 NdbRecAttr*
 NdbScanOperation::getValue_NdbRecAttr_scan(const NdbColumnImpl* attrInfo,
                                            char* aValue)
