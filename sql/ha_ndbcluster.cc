@@ -2969,8 +2969,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   
   if (m_use_write)
   {
-    uchar *mask;
-
+    const uchar *mask;
 #ifdef HAVE_NDB_BINLOG
     /*
       The use of table->write_set is tricky here. This is done as a temporary
@@ -2982,8 +2981,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
       implement different semantics depending on whether we are in the slave
       SQL thread or not.
 
-        SQL thread -> use the write_set for writeTuple().
-        otherwise (REPLACE INTO) -> do not use write_set.
+      SQL thread -> use the write_set for writeTuple().
+      otherwise (REPLACE INTO) -> do not use write_set.
     */
     if (thd->slave_thread)
     {
