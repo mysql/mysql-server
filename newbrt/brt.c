@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <unistd.h>
 
 #include "toku_assert.h"
@@ -255,6 +256,23 @@ u_int32_t mp_pool_size_for_nodesize (u_int32_t nodesize) {
 #endif
 }
 
+
+// Simple LCG random number generator.  Not high quality, but good enough.
+static int r_seeded=0;
+static uint32_t rstate=1;
+static inline void mysrandom (int s) {
+    rstate=s;
+    r_seeded=1;
+}
+static inline uint32_t myrandom (void) {
+    if (!r_seeded) {
+	struct timeval tv;
+	gettimeofday(&tv, 0);
+	mysrandom(tv.tv_sec);
+    }
+    rstate = (279470275ull*(uint64_t)rstate)%4294967291ull;
+    return rstate;
+}
 
 static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) {
     n->tag = TYP_BRTNODE;
@@ -1435,7 +1453,7 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	    
 	while (1) {
 	    int   vallen   = le_any_vallen(storeddata);
-	    void *save_val = toku_memdup(le_any_val(storeddata), storedlen);
+	    void *save_val = toku_memdup(le_any_val(storeddata), vallen);
 
 	    r = brt_leaf_apply_cmd_once(t, node, cmd, logger, idx, storedlen, storeddata);
 	    if (r!=0) return r;
@@ -2351,7 +2369,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 	printf("%*sNode %lld nodesize=%d height=%d n_bytes_in_buffer=%d keyrange=%d %d\n",
 	       depth, "", off, node->nodesize, node->height, node->u.l.n_bytes_in_buffer, lorange ? ntohl(*(int*)lorange) : 0, hirange ? ntohl(*(int*)hirange) : 0);
 	//GPMA_ITERATE(node->u.l.buffer, idx, len, data,
-	//	     ( keylen=keylen, vallen=vallen, printf(" (%d)%d ", keylen, ntohl(*(int*)key))));
+	//	     printf(" (%d)%u ", len, *(int*)le_any_key(data)));
 	printf("\n");
     }
     r = toku_cachetable_unpin(brt->cf, off, 0, 0);
@@ -2533,8 +2551,8 @@ int pair_leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
 }
 
 int pair_leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
-			       u_int32_t klen, void *kval,
-			       u_int32_t clen, void *cval,
+				    u_int32_t klen, void *kval,
+				    u_int32_t clen, void *cval,
 				    brt_search_t *be) {
     return pair_leafval_bessel_le_committed(klen, kval, clen, cval, be);
 }
@@ -2563,7 +2581,7 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
  ok: ;
     u_int32_t len;
     void *    data;
-    u_int32_t idx; // Don't need this
+    u_int32_t idx;
     int r = toku_gpma_lookup_bessel(node->u.l.buffer,
 				    bessel_from_search_t,
 				    direction,
@@ -2574,8 +2592,26 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
     LEAFENTRY le = data;
     if (le_is_provdel(le)) {
 	// Provisionally deleted stuff is gone.
-	return DB_NOTFOUND;
+	// So we need to scan in the direction to see if we can find something
+	while (1) {
+	    switch (search->direction) {
+	    case BRT_SEARCH_LEFT:
+		idx++;
+		if (idx>toku_gpma_index_limit(node->u.l.buffer)) return DB_NOTFOUND;
+		break;
+	    case BRT_SEARCH_RIGHT:
+		if (idx==0) return DB_NOTFOUND;
+		idx--;
+		break;
+	    }
+	    if (!toku_gpma_valididx(node->u.l.buffer, idx)) continue;
+	    r = toku_gpma_get_from_index(node->u.l.buffer, idx, &len, &data);
+	    assert(r==0); // we just validated the index
+	    le = data;
+	    if (!le_is_provdel(le)) goto got_a_good_value;
+	}
     }
+ got_a_good_value:
     if (newkey) {
 	r = toku_dbt_set_value(newkey, le_latest_key(le), le_latest_keylen(le), &brt->skey);
 	if (r!=0) return r;

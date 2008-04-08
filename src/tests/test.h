@@ -50,7 +50,7 @@ DBT *dbt_init_malloc(DBT *dbt) {
     return dbt;
 }
 
-// Simle LCG random number generator.  Not high quality, but good enough.
+// Simple LCG random number generator.  Not high quality, but good enough.
 static uint32_t rstate=1;
 static inline void mysrandom (int s) {
     rstate=s;

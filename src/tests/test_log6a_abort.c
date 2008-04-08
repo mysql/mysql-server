@@ -21,19 +21,44 @@
 // ENVDIR is defined in the Makefile
 
 // How many iterations are we going to do insertions and deletions.  This is a bound to the number of distinct keys in the DB.
-#define N 10000
+#define N 1000
 
 int n_keys_mentioned=0;
 int random_keys_mentioned[N];
 
 DB *pending_i, *pending_d, *committed;
 
+// Keep track of what's in the committed database separately
+struct pair {int x,y;};
+
+void insert_in_mem (int x, int y, int *count, struct pair *pairs) {
+    assert(*count<N);
+    pairs[(*count)++]=(struct pair){x,y};
+}
+void delete_in_mem (int x, int *count, struct pair *pairs) {
+    int i;
+    for (i=0; i<*count; i++) {
+	if (pairs[i].x==x) {
+	    pairs[i]=pairs[--(*count)];
+	    return;
+	}
+    }
+}
+
+static int         com_count=0, pend_count=0, peni_count=0;
+static struct pair com_data[N], pend_data[N], peni_data[N];
+
 void insert_pending(int key, int val, DB_TXN *bookx) {
     DBT keyd,datad;
+    //printf("IP %u,%u\n", key,val);
+
+    insert_in_mem(key, val, &peni_count, peni_data);
     pending_i->put(pending_i, bookx,
 		   dbt_init(&keyd, &key, sizeof(key)),
 		   dbt_init(&datad, &val, sizeof(val)),
 		   0);
+
+    delete_in_mem(key, &pend_count, pend_data);
     pending_d->del(pending_d, bookx,
 		   dbt_init(&keyd, &key, sizeof(key)),
 		   0);
@@ -66,8 +91,13 @@ static void delete_a_random_item (DB *db, DB_TXN *tid, DB_TXN *bookx) {
     //printf("Delete %u\n", rand);
     dbt_init(&keyd, &rand, sizeof(rand));
     dbt_init(&vald, &rand, sizeof(rand));
+
     pending_i->del(pending_i, bookx, &keyd, 0);
-    pending_i->put(pending_d, bookx, &keyd, &vald, 0);
+    delete_in_mem(rand, &peni_count, peni_data);
+
+    pending_d->put(pending_d, bookx, &keyd, &vald, 0);
+    insert_in_mem(rand, rand, &pend_count, pend_data);
+
     db->del(db, tid, &keyd, DB_DELETE_ANY);
 }
 
@@ -80,6 +110,7 @@ static void commit_items (DB_ENV *env, int i) {
     DBT k,v;
     memset(&k,0,sizeof(k));
     memset(&v,0,sizeof(v));
+    //printf("%d items in peni\n", peni_count);
     while (cursor->c_get(cursor, &k, &v, DB_FIRST)==0) {
 	assert(k.size==4);
 	assert(v.size==4);
@@ -87,6 +118,7 @@ static void commit_items (DB_ENV *env, int i) {
 	int vi=*(int*)v.data;
 	//printf(" put %u %u\n", ki, vi);
 	r=committed->put(committed, txn, dbt_init(&k, &ki, sizeof(ki)), dbt_init(&v, &vi, sizeof(vi)), 0);
+	insert_in_mem(ki, vi, &com_count, com_data);
 	assert(r==0);
 	r=pending_i->del(pending_i, txn, &k, 0);
 	assert(r==0);
@@ -105,6 +137,7 @@ static void commit_items (DB_ENV *env, int i) {
 	assert(ki==vi);
 	//printf(" del %u\n", ki);
 	committed->del(committed, txn, dbt_init(&k, &ki, sizeof(ki)), DB_AUTO_COMMIT);
+	delete_in_mem(ki, &com_count, com_data);
 	// ignore result from that del
 	r=pending_d->del(pending_d, txn, &k, 0);
 	assert(r==0);
@@ -149,6 +182,10 @@ static void abort_items (DB_ENV *env) {
     r=txn->commit(txn, 0); assert(r==0);
 }
 
+int compare_pairs (const void *a, const void *b) {
+    return memcmp(a,b,4);
+}
+
 static void verify_items (DB_ENV *env, DB *db) {
     DB_TXN *txn;
     int r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
@@ -168,9 +205,14 @@ static void verify_items (DB_ENV *env, DB *db) {
 
     r = committed->cursor(committed, txn, &cursor, 0);
     assert(r==0);
+    qsort(com_data, com_count, sizeof(com_data[0]), compare_pairs);
+    int curscount=0;
+    //printf(" count=%d\n", com_count);
     while (cursor->c_get(cursor, &k, &v, DB_NEXT)==0) {
 	int kv=*(int*)k.data;
 	int dv=*(int*)v.data;
+	//printf(" sorted com_data[%d]=%d, cursor got %d\n", curscount, com_data[curscount].x, kv);
+	assert(com_data[curscount].x==kv);
 	DBT k2,v2;
 	memset(&k2, 0, sizeof(k2));
 	memset(&v2, 0, sizeof(v2));
@@ -178,11 +220,13 @@ static void verify_items (DB_ENV *env, DB *db) {
 	snprintf(hello, sizeof(hello), "hello%d.%d", kv, dv);
 	snprintf(there, sizeof(hello), "there%d", dv);
 	k2.data  = hello; k2.size=strlen(hello)+1;
-	printf("kv=%d dv=%d\n", kv, dv);
+	//printf("committed: %u,%u\n", kv, dv);
 	r=db->get(db, txn,  &k2, &v2, 0);
 	assert(r==0);
 	assert(strcmp(v2.data, there)==0);
+	curscount++;
     }
+    assert(curscount==com_count);
     r=cursor->c_close(cursor);
     assert(r==0);
 
