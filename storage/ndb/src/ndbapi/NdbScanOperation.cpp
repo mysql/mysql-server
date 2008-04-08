@@ -1733,7 +1733,7 @@ int NdbScanOperation::finaliseScanOldApi()
      */
     const unsigned char * resultMask= 
       ((m_savedScanFlagsOldApi & SF_OrderBy) !=0) ? 
-      m_currentTable->m_pkMask : 
+      m_accessTable->m_pkMask : 
       emptyMask;
 
     result= isop->scanIndexImpl(m_accessTable->m_ndbrecord,
