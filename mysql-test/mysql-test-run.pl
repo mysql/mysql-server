@@ -11,7 +11,6 @@
 #  See the "MySQL Test framework manual" for more information
 #  http://dev.mysql.com/doc/mysqltest/en/index.html
 #
-#  Please keep the test framework tools identical in all versions!
 #
 ##############################################################################
 
@@ -51,11 +50,11 @@ use My::Options;
 use My::Find;
 use mtr_cases;
 use mtr_report;
+use mtr_match;
 
 require "lib/mtr_process.pl";
 require "lib/mtr_io.pl";
 require "lib/mtr_gcov.pl";
-require "lib/mtr_match.pl";
 require "lib/mtr_misc.pl";
 require "lib/mtr_unique.pl";
 
@@ -330,7 +329,7 @@ sub command_line_setup {
 
              # Test case authoring
              'record'                   => \$opt_record,
-             'check-testcases'          => \$opt_check_testcases,
+             'check-testcases!'         => \$opt_check_testcases,
              'mark-progress'            => \$opt_mark_progress,
 
              # Extra options used when starting mysqld
@@ -1984,17 +1983,48 @@ sub initialize_servers {
 
 
 #
-# Copy the reference database into selected datadir
+# Remove all newline characters expect after semicolon
 #
-sub copy_install_db ($) {
-  my $path_data_dir=  shift;
+sub sql_to_bootstrap {
+  my ($sql) = @_;
+  my @lines= split(/\n/, $sql);
+  my $result= "\n";
+  my $delimiter= ';';
 
-  # Don't install over another db
-  mtr_error("There is already an installed db in '$path_data_dir'")
-    if -d $path_data_dir;
+  foreach my $line (@lines) {
 
-  # copy the installed db into place
-  copytree("$opt_vardir/install.db", $path_data_dir);
+    # Change current delimiter if line starts with "delimiter"
+    if ( $line =~ /^delimiter (.*)/ ) {
+      my $new= $1;
+      # Remove old delimiter from end of new
+      $new=~ s/\Q$delimiter\E$//;
+      $delimiter = $new;
+      mtr_debug("changed delimiter to $delimiter");
+      # No need to add the delimiter to result
+      next;
+    }
+
+    # Add newline if line ends with $delimiter
+    # and convert the current delimiter to semicolon
+    if ( $line =~ /\Q$delimiter\E$/ ){
+      $line =~ s/\Q$delimiter\E$/;/;
+      $result.= "$line\n";
+      mtr_debug("Added default delimiter");
+      next;
+    }
+
+    # Remove comments starting with --
+    if ( $line =~ /^\s*--/ ) {
+      mtr_debug("Discarded $line");
+      next;
+    }
+
+    # Default, just add the line without newline
+    # but with a space as separator
+    $result.= "$line ";
+
+  }
+  return $result;
 }
 
 
@@ -2072,6 +2102,10 @@ sub mysql_install_db {
   # Create mtr database
   mtr_tofile($bootstrap_sql_file,
 	     "CREATE DATABASE mtr;\n");
+
+  # Add help tables and data for warning detection and supression
+  mtr_tofile($bootstrap_sql_file,
+             sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
@@ -2169,11 +2203,12 @@ sub do_before_run_mysqltest($)
 }
 
 
-sub run_check_testcase_all($$)
+sub check_testcase($$)
 {
   my ($tinfo, $mode)= @_;
   my $result;
 
+  # Parallell( mysqlds(), run_check_testcase, check_testcase_failed );
   foreach my $mysqld ( mysqlds() )
   {
     if ( defined $mysqld->{'proc'} )
@@ -2352,7 +2387,7 @@ sub run_testcase ($) {
 
   if ( $opt_check_testcases )
   {
-    run_check_testcase_all($tinfo, "before")
+    check_testcase($tinfo, "before")
   }
 
   my $test= start_mysqltest($tinfo);
@@ -2380,11 +2415,20 @@ sub run_testcase ($) {
 
       if ( $res == 0 )
       {
-	mtr_report_test_passed($tinfo, $opt_timer);
+	if ( $opt_warnings and check_warnings($tinfo) )
+	{
+	  # Found unexpected warnings
+	  report_failure_and_restart($tinfo);
+	  $res= 1;
+	}
+	else
+	{
+	  mtr_report_test_passed($tinfo, $opt_timer);
+	}
 
 	if ( $opt_check_testcases )
 	{
-	  if (run_check_testcase_all($tinfo, "after"))
+	  if (check_testcase($tinfo, "after"))
 	  {
 	    # Stop all servers that are known to be running
 	    stop_all_servers();
@@ -2484,6 +2528,93 @@ sub run_testcase ($) {
 }
 
 
+# Run include/check-warnings.test
+#
+# RETURN VALUE
+#  0 OK
+#  1 Check failed
+#
+sub run_check_warnings ($$) {
+  my $tinfo=    shift;
+  my $mysqld=   shift;
+
+  my $name= "warnings-".$mysqld->name();
+  my $tname= $tinfo->{name};
+
+  my $args;
+  mtr_init_args(\$args);
+
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+
+  mtr_add_arg($args, "--silent");
+  mtr_add_arg($args, "--skip-safemalloc");
+  mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
+
+  my $errfile= "$opt_vardir/tmp/$name.err";
+  my $res= My::SafeProcess->run
+    (
+     name          => $name,
+     path          => $exe_mysqltest,
+     error         => $errfile,
+     output        => $errfile,
+     args          => \$args,
+    );
+
+  if ( $res == 0 )
+  {
+    my $report= mtr_grab_file($errfile);
+    if ($report ne "OK\nOK\n")
+    {
+      # Log to var/log/warnings file
+      mtr_tofile("$opt_vardir/log/warnings",
+               $tname."\n",
+               $report);
+
+      $res= 1;
+      $tinfo->{'warnings'}.= $report;
+
+    }
+  }
+  elsif ( $res == 62 )
+  {
+    # One of the features needed to run check_warnings.test was not
+    # available, check skipped
+    $res= 0;
+  }
+  elsif ( $res )
+  {
+    mtr_report("\nCould not execute 'check-warnings' for testcase '$tname':");
+    mtr_printfile($errfile);
+    $res= 0; # Ignore error
+  }
+  return $res;
+}
+
+
+#
+# Loop through our list of processes and check the error log
+# for unexepcted errors and warnings
+#
+sub check_warnings ($) {
+  my ($tinfo)= @_;
+  my $res= 0;
+
+  # Clear previous warnings
+  $tinfo->{warnings}= undef;
+
+  # Parallell( mysqlds(), run_check_warning, check_warning_failed);
+  foreach my $mysqld ( mysqlds() )
+  {
+    if (run_check_warnings($tinfo, $mysqld)){
+      $res= 1;
+      mtr_report();
+    }
+  }
+  return $res;
+}
+
+
 #
 # Loop through our list of processes and look for and entry
 # with the provided pid, if found check for the file indicating
@@ -2568,6 +2699,11 @@ sub after_test_failure ($) {
       mtr_debug("Removing '$backup_dir'");
     }
   }
+
+  # Remove all files in var/tmp
+  rmtree($opt_tmpdir);
+  mkpath($opt_tmpdir);
+
 }
 
 
@@ -3064,7 +3200,8 @@ sub start_servers($) {
     }
 
     # Copy datadir from installed system db
-    copy_install_db($datadir) unless -d $datadir;
+    copytree("$opt_vardir/install.db", $datadir)
+      unless -d $datadir;
 
     # Write start of testcase to log file
     mark_log($mysqld->value('log-error'), $tinfo);
@@ -3144,17 +3281,11 @@ sub run_check_testcase ($$$) {
   my $args;
   mtr_init_args(\$args);
 
-  mtr_add_arg($args, "--no-defaults");
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
+
   mtr_add_arg($args, "--silent");
   mtr_add_arg($args, "--skip-safemalloc");
-  mtr_add_arg($args, "--tmpdir=%s", $opt_tmpdir);
-  mtr_add_arg($args, "--character-sets-dir=%s", $path_charsetsdir);
-
-  mtr_add_arg($args, "--socket=%s", $mysqld->value('socket'));
-  mtr_add_arg($args, "--port=%d", $mysqld->value('port'));
-  mtr_add_arg($args, "--database=test");
-  mtr_add_arg($args, "--user=%s", $opt_user);
-  mtr_add_arg($args, "--password=");
 
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
@@ -3177,12 +3308,12 @@ sub run_check_testcase ($$$) {
     mtr_report("\nThe check of testcase '$tname' failed, this is the\n",
 	       "diff between before and after:\n");
     # Test failed, display the report mysqltest has created
-    mtr_printfile("$opt_vardir/tmp/$name.err");
+    mtr_printfile($errfile);
   }
   elsif ( $res )
   {
     mtr_report("\nCould not execute 'check-testcase' $mode testcase '$tname':");
-    mtr_printfile("$opt_vardir/tmp/$name.err");
+    mtr_printfile($errfile);
     mtr_report();
   }
   return $res;

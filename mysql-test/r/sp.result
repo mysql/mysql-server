@@ -1322,7 +1322,7 @@ end;
 end if;
 end loop;
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	ip	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 test	opp	PROCEDURE	root@localhost	0000-00-00 00:00:00	0000-00-00 00:00:00	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
@@ -1335,7 +1335,7 @@ i	p
 drop table t3|
 drop procedure opp|
 drop procedure ip|
-show procedure status like '%p%'|
+show procedure status where name like '%p%' and db='test'|
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 drop table if exists t3|
 create table t3 ( f bigint unsigned not null )|
@@ -1945,12 +1945,12 @@ drop procedure bug2260|
 drop procedure if exists bug2267_1|
 create procedure bug2267_1()
 begin
-show procedure status;
+show procedure status where db='test';
 end|
 drop procedure if exists bug2267_2|
 create procedure bug2267_2()
 begin
-show function status;
+show function status where db='test';
 end|
 drop procedure if exists bug2267_3|
 create procedure bug2267_3()
@@ -1977,7 +1977,7 @@ call bug2267_3()|
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 bug2267_1		CREATE DEFINER=`root`@`localhost` PROCEDURE `bug2267_1`()
 begin
-show procedure status;
+show procedure status where db='test';
 end	latin1	latin1_swedish_ci	latin1_swedish_ci
 call bug2267_4()|
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation

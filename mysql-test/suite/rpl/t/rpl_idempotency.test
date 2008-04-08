@@ -7,6 +7,10 @@ source include/have_innodb.inc;
 connection slave;
 source include/have_innodb.inc;
 
+# Add supression for expected warning(s) in slaves error log
+call mtr.add_supression("Slave: Can\'t find record in \'t1\' Error_code: 1032");
+call mtr.add_supression("Slave: Cannot add or update a child row: a foreign key constraint fails .* Error_code: 1452");
+
 connection master;
 CREATE TABLE t1 (a INT PRIMARY KEY);
 CREATE TABLE t2 (a INT);
@@ -393,15 +397,13 @@ sync_slave_with_master;
 #connection slave;
 set global slave_exec_mode='STRICT';
 
-
 # cleanup for bug#31609 tests
 
 connection master;
 set @@session.binlog_format= @save_binlog_format;
 drop table t1,t2,ti2,ti1;
 
-sync_slave_with_master;
-
+--source include/master-slave-end.inc
 
 --echo *** end of tests
 

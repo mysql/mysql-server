@@ -142,13 +142,13 @@ use db2;
 alter procedure q modifies sql data;
 drop procedure q;
 use test;
-select type,db,name from mysql.proc;
+select type,db,name from mysql.proc where db like 'db%';
 type	db	name
 FUNCTION	db1_secret	db
 PROCEDURE	db1_secret	stamp
 drop database db1_secret;
 drop database db2;
-select type,db,name from mysql.proc;
+select type,db,name from mysql.proc where db like 'db%';
 type	db	name
 delete from mysql.user where user='user1' or user='user2';
 delete from mysql.user where user='' and host='%';
