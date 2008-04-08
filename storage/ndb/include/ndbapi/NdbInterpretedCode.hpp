@@ -16,7 +16,6 @@
 #ifndef NdbInterpretedCode_H
 #define NdbInterpretedCode_H
 
-#include <ndb_global.h>
 #include <ndb_types.h>
 #include <ndbapi_limits.h>
 
