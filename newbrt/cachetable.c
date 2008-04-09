@@ -72,7 +72,6 @@ struct cachefile {
     CACHETABLE cachetable;
     struct fileid fileid;
     FILENUM filenum;
-    BRT brt;
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
@@ -97,14 +96,11 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn,
 }
 
 // What cachefile goes with particular fd?
-int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT *brt) {
+int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf) {
     CACHEFILE extant;
     for (extant = t->cachefiles; extant; extant=extant->next) {
 	if (extant->filenum.fileid==filenum.fileid) {
 	    *cf = extant;
-	    assert(extant->brt);
-	    assert(extant->brt->cf==extant);
-	    *brt = extant->brt;
 	    return 0;
 	}
     }
@@ -112,7 +108,7 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf, BRT
 }
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
-int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, BRT brt) {
+int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
     int r;
     CACHEFILE extant;
     FILENUM max_filenum_in_use={0};
@@ -141,17 +137,16 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, BRT brt) {
 	newcf->fd = fd;
 	newcf->cachetable = t;
 	newcf->fileid = fileid;
-	newcf->brt    = brt;
 	t->cachefiles = newcf;
 	*cf = newcf;
 	return 0;
     }
 }
 
-int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode, BRT brt) {
+int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
     int fd = open(fname, flags, mode);
     if (fd<0) return errno;
-    return toku_cachetable_openfd (cf, t, fd, brt);
+    return toku_cachetable_openfd (cf, t, fd);
 }
 
 static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
@@ -165,6 +160,11 @@ static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
 }
 
 static int cachefile_flush_and_remove (CACHEFILE cf);
+
+// Increment the reference count
+void toku_cachefile_refup (CACHEFILE cf) {
+    cf->refcount++;
+}
 
 int toku_cachefile_close (CACHEFILE *cfp) {
     CACHEFILE cf = *cfp;

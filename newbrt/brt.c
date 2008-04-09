@@ -167,6 +167,7 @@ void toku_brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void 
     assert(!h->dirty); // shouldn't be dirty once it is unpinned.
     if (write_me) {
 	toku_serialize_brt_header_to(toku_cachefile_fd(cachefile), h);
+	toku_serialize_fifo_at(toku_cachefile_fd(cachefile), h->unused_memory, h->fifo);
     }
     if (!keep_me) {
 	if (h->n_named_roots>0) {
@@ -177,31 +178,36 @@ void toku_brtheader_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void 
 	    toku_free(h->names);
 	    toku_free(h->roots);
 	}
+	toku_fifo_free(&h->fifo);
 	toku_free(h);
     }
 }
 
 int toku_brtheader_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **headerp_v, long *sizep __attribute__((unused)), void*extraargs __attribute__((__unused__)), LSN *written_lsn) {
+    int r;
     struct brt_header **h = (struct brt_header **)headerp_v;
     assert(nodename==0);
-    int r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, h);
+    if ((r = toku_deserialize_brtheader_from(toku_cachefile_fd(cachefile), nodename, h))) return r;
+    if ((r = toku_deserialize_fifo_at(toku_cachefile_fd(cachefile), (*h)->unused_memory, &(*h)->fifo))) return r;
+    //printf("%s:%d fifo=%p\nn", __FILE__, __LINE__, (*h)->fifo);
     written_lsn->lsn = 0; // !!! WRONG.  This should be stored or kept redundantly or something.
-    return r;
+    return 0;
 }
 
 int toku_read_and_pin_brt_header (CACHEFILE cf, struct brt_header **header) {
     void *header_p;
     //fprintf(stderr, "%s:%d read_and_pin_brt_header(...)\n", __FILE__, __LINE__);
     int r = toku_cachetable_get_and_pin(cf, 0, &header_p, NULL,
-				   toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+					toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (r!=0) return r;
     *header = header_p;
     return 0;
 }
 
 int toku_unpin_brt_header (BRT brt) {
-    int r = toku_cachetable_unpin(brt->cf, 0, brt->h->dirty, 0);
-    brt->h->dirty=0;
+    int dirty = brt->h->dirty;
+    brt->h->dirty=0; // Unpinning it may make it go way.
+    int r = toku_cachetable_unpin(brt->cf, 0, dirty, 0);
     brt->h=0;
     return r;
 }
@@ -1178,14 +1184,13 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
     return 0;
 }
 
-static int apply_cmd_to_le_both (TXNID xid,
+static int apply_cmd_to_le_both (TXNID xid __attribute__((__unused__)),
 				 u_int32_t klen, void *kval,
 				 u_int32_t clen, void *cval,
 				 u_int32_t plen, void *pval,
 				 BRT_CMD cmd,
 				 u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
     // keep the committed value for rollback.
-    assert(cmd->xid == xid); // provisional things must match the cmd.  (Others should already be committed or aborted)
     assert(cmd->u.id.key->size == klen);
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
@@ -1216,13 +1221,12 @@ static int apply_cmd_to_le_both (TXNID xid,
     assert(0);
     return 0;
 }
-static int apply_cmd_to_le_provdel (TXNID xid,
+static int apply_cmd_to_le_provdel (TXNID xid __attribute__((__unused__)),
 				    u_int32_t klen, void *kval,
 				    u_int32_t clen, void *cval,
 				    BRT_CMD cmd,
 				    u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
     // keep the committed value for rollback
-    assert(cmd->xid == xid); // provisional things must match the cmd.  (Others should already be committed or aborted)
     assert(cmd->u.id.key->size == klen);
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
@@ -1255,13 +1259,11 @@ static int apply_cmd_to_le_provdel (TXNID xid,
     return 0;
 }
 
-static int apply_cmd_to_le_provpair (TXNID xid,
+static int apply_cmd_to_le_provpair (TXNID xid __attribute__((__unused__)),
 				     u_int32_t klen, void *kval,
 				     u_int32_t plen , void *pval,
 				     BRT_CMD cmd,
 				     u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
-    assert(cmd->xid == xid); // provisional things must match the cmd.  (Others should already be committed or aborted)
-
     assert(cmd->u.id.key->size == klen);
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
@@ -1925,7 +1927,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             } else
                 goto died0a;
 	}
-	r=toku_cachetable_openfd(&t->cf, cachetable, fd, t);
+	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
         if (r != 0) goto died0a;
 	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
@@ -1957,6 +1959,7 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 	    t->h->nodesize=t->nodesize;
 	    t->h->freelist=-1;
 	    t->h->unused_memory=2*t->nodesize;
+	    toku_fifo_create(&t->h->fifo);
 	    if (dbname) {
 		t->h->unnamed_root = -1;
 		t->h->n_named_roots = 1;
@@ -2216,35 +2219,34 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     return 0;
 }
 
-int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
-    void *node_v;
-    BRTNODE node;
-    CACHEKEY *rootp;
-    int result;
+int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger) {
     int r;
-    int did_split; BRTNODE nodea=0, nodeb=0;
+    struct brt_header *h;
+    r = toku_read_and_pin_brt_header(cf, &h);
+    if (r!=0) return r;
+    r = toku_fifo_enq_cmdstruct(h->fifo, cmd);
+    if (r!=0) return r;
+    {
+	BYTESTRING keybs = {.len=cmd->u.id.key->size, .data=cmd->u.id.key->data};
+	BYTESTRING valbs = {.len=cmd->u.id.val->size, .data=cmd->u.id.val->data};
+	r = toku_log_enqrootentry(logger, (LSN*)0, 0, toku_cachefile_filenum(cf), cmd->xid, cmd->type, keybs, valbs);
+	if (r!=0) return r;
+    }
+    h->dirty = 0;
+    r = toku_cachetable_unpin(cf, 0, 1, 0);
+    return 0;
+}
+
+
+static int push_something(BRT brt, BRTNODE *nodep, CACHEKEY *rootp, BRT_CMD cmd, TOKULOGGER logger) {
+    int did_split = 0;
+    BRTNODE nodea=0, nodeb=0;
     DBT splitk;
-    int debug = toku_brt_debug_mode;//strcmp(key,"hello387")==0;
-    //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
-    if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
-	if (0) { died0: toku_unpin_brt_header(brt); }
-	return r;
-    }
-    rootp = toku_calculate_root_offset_pointer(brt);
-    if (debug) printf("%s:%d Getting %lld\n", __FILE__, __LINE__, *rootp);
-    if ((r=toku_cachetable_get_and_pin(brt->cf, *rootp, &node_v, NULL, 
-				  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt))) {
-	goto died0;
-    }
-    //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
-    node=node_v;
-    if (debug) printf("%s:%d node inserting\n", __FILE__, __LINE__);
-    did_split = 0;
-    result = brtnode_put_cmd(brt, node, cmd,
+    int result = brtnode_put_cmd(brt, *nodep, cmd,
 			     &did_split, &nodea, &nodeb, &splitk,
-			     debug,
+			     0,
 			     logger);
-    if (debug) printf("%s:%d did_insert\n", __FILE__, __LINE__);
+    int r;
     if (did_split) {
 	// node is unpinned, so now we have to proceed to update the root with a new node.
 
@@ -2252,18 +2254,49 @@ int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
 	//printf("Did split, splitkey=%s\n", splitkey);
 	if (nodeb->height>0) assert(BNC_DISKOFF(nodeb,nodeb->u.n.n_children-1)!=0);
 	assert(nodeb->nodesize>0);
-        r = brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, &node);
+        r = brt_init_new_root(brt, nodea, nodeb, splitk, rootp, logger, nodep);
         assert(r == 0);
     } else {
-	if (node->height>0)
-	    assert(node->u.n.n_children<=TREE_FANOUT);
+	if ((*nodep)->height>0)
+	    assert((*nodep)->u.n.n_children<=TREE_FANOUT);
     }
-    r = toku_unpin_brtnode(brt, node);
-    assert(r==0);
-    r = toku_unpin_brt_header(brt);
-    assert(r == 0);
     //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
     return result;
+}
+
+int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger) {
+    void *node_v;
+    BRTNODE node;
+    CACHEKEY *rootp;
+    int r;
+    //assert(0==toku_cachetable_assert_all_unpinned(brt->cachetable));
+    if ((r = toku_read_and_pin_brt_header(brt->cf, &brt->h))) {
+	if (0) { died0: toku_unpin_brt_header(brt); }
+	return r;
+    }
+    rootp = toku_calculate_root_offset_pointer(brt);
+    if ((r=toku_cachetable_get_and_pin(brt->cf, *rootp, &node_v, NULL, 
+				  toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt))) {
+	goto died0;
+    }
+    //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
+    node=node_v;
+    // push the fifo stuff
+    {
+	DBT okey,odata;
+	BRT_CMD_S ocmd;
+	while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
+	    if ((r = push_something(brt, &node, rootp, &ocmd, logger))) return r;
+	    r = toku_fifo_deq(brt->h->fifo);
+	    assert(r==0);
+	}
+    }
+    if ((r = push_something(brt, &node, rootp, cmd, logger))) return r;
+    r = toku_unpin_brtnode(brt, node);
+    assert(r == 0);
+    r = toku_unpin_brt_header(brt);
+    assert(r == 0);
+    return 0;
 }
 
 int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
@@ -2271,6 +2304,7 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     if (txn) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
 	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
+	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmdinsert(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
     }
@@ -2299,6 +2333,7 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
     int r;
     if (txn) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
+	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
 	if (r!=0) return r;
     }
@@ -2313,6 +2348,7 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     if (txn) {
 	BYTESTRING keybs  = {key->size, toku_memdup(key->data, key->size)};
 	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
+	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddeleteboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
     }
@@ -2643,6 +2679,17 @@ int toku_brt_search(BRT brt, brt_search_t *search, DBT *newkey, DBT *newval, TOK
     assert(rr == 0);
 
     BRTNODE node = node_v;
+
+    // push the fifo sutff
+    {
+	DBT okey,odata;
+	BRT_CMD_S ocmd;
+	while (0==toku_fifo_peek_cmdstruct(brt->h->fifo, &ocmd,  &okey, &odata)) {
+	    if ((r = push_something(brt, &node, rootp, &ocmd, logger))) return r;
+	    r = toku_fifo_deq(brt->h->fifo);
+	    assert(r==0);
+	}
+    }
 
     for (;;) {
         BRT_SPLIT split; brt_split_init(&split);

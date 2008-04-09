@@ -126,7 +126,7 @@ tdb_logprint.o: log-internal.h brttypes.h yerror.h log.h kv-pair.h log_header.h
 tdb_logprint: $(OFILES)
 
 tdb-recover: LDFLAGS+=-lz
-recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h
+recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 tdb-recover: $(OFILES)
 
 roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h gpma.h
