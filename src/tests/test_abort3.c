@@ -35,7 +35,11 @@ static void delete (int i) {
     int r = db->del(db, txn,
 		    dbt_init(&key,  hello, strlen(hello)+1),
 		    DB_DELETE_ANY);
+#ifdef TOKUDB
     assert(r==0);
+#else
+    assert(r==DB_NOTFOUND || r==0);
+#endif
 }
 
 static void lookup (int i, int expect, int expectj) {
@@ -91,6 +95,63 @@ void test_abort3 (void) {
     r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
     lookup(2, 0, 5);
     r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(3, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+    
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(3, 1);
+    lookup(3, 0, 1);
+    r=txn->abort(txn); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    lookup(3, 0, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(4, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+    
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    delete(4);
+    lookup(4, DB_NOTFOUND, -1);
+    r=txn->abort(txn); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    lookup(4, 0, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(5, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+    
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(5, 1);
+    lookup(5, 0, 1);
+    delete(5);
+    lookup(5, DB_NOTFOUND, -1);
+    r=txn->abort(txn); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    lookup(5, 0, 0);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    r=txn->commit(txn, 0); CKERR(r);
+    
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    insert(6, 0);
+    lookup(6, 0, 0);
+    delete(6);
+    lookup(6, DB_NOTFOUND, -1);
+    r=txn->abort(txn); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    lookup(6, DB_NOTFOUND, -1);
+    r=txn->commit(txn, 0); CKERR(r);
+
 
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
