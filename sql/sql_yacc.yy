@@ -1277,7 +1277,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
         single_multi table_wild_list table_wild_one opt_wild
         union_clause union_list
         precision subselect_start opt_and charset
-        subselect_end select_var_list select_var_list_init help opt_len
+        subselect_end select_var_list select_var_list_init help opt_field_length field_length
         opt_extended_describe
         prepare prepare_src execute deallocate
         statement sp_suid
@@ -4628,7 +4628,7 @@ field_spec:
         ;
 
 type:
-          int_type opt_len field_options { $$=$1; }
+          int_type opt_field_length field_options { $$=$1; }
         | real_type opt_precision field_options { $$=$1; }
         | FLOAT_SYM float_options field_options { $$=MYSQL_TYPE_FLOAT; }
         | BIT_SYM
@@ -4636,46 +4636,42 @@ type:
             Lex->length= (char*) "1";
             $$=MYSQL_TYPE_BIT;
           }
-        | BIT_SYM '(' NUM ')'
+        | BIT_SYM field_length
           {
-            Lex->length= $3.str;
             $$=MYSQL_TYPE_BIT;
           }
         | BOOL_SYM
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_TINY;
           }
         | BOOLEAN_SYM
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_TINY;
           }
-        | char '(' NUM ')' opt_binary
+        | char field_length opt_binary
           {
-            Lex->length=$3.str;
             $$=MYSQL_TYPE_STRING;
           }
         | char opt_binary
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_STRING;
           }
-        | nchar '(' NUM ')' opt_bin_mod
+        | nchar field_length opt_bin_mod
           {
-            Lex->length=$3.str;
             $$=MYSQL_TYPE_STRING;
             Lex->charset=national_charset_info;
           }
         | nchar opt_bin_mod
           {
-            Lex->length=(char*) "1";
+            Lex->length= (char*) "1";
             $$=MYSQL_TYPE_STRING;
             Lex->charset=national_charset_info;
           }
-        | BINARY '(' NUM ')'
+        | BINARY field_length
           {
-            Lex->length=$3.str;
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_STRING;
           }
@@ -4685,30 +4681,27 @@ type:
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_STRING;
           }
-        | varchar '(' NUM ')' opt_binary
+        | varchar field_length opt_binary
           {
-            Lex->length=$3.str;
             $$= MYSQL_TYPE_VARCHAR;
           }
-        | nvarchar '(' NUM ')' opt_bin_mod
+        | nvarchar field_length opt_bin_mod
           {
-            Lex->length=$3.str;
             $$= MYSQL_TYPE_VARCHAR;
             Lex->charset=national_charset_info;
           }
-        | VARBINARY '(' NUM ')'
+        | VARBINARY field_length
           {
-            Lex->length=$3.str;
             Lex->charset=&my_charset_bin;
             $$= MYSQL_TYPE_VARCHAR;
           }
-        | YEAR_SYM opt_len field_options
+        | YEAR_SYM opt_field_length field_options
           { $$=MYSQL_TYPE_YEAR; }
         | DATE_SYM
           { $$=MYSQL_TYPE_DATE; }
         | TIME_SYM
           { $$=MYSQL_TYPE_TIME; }
-        | TIMESTAMP opt_len
+        | TIMESTAMP opt_field_length
           {
             if (YYTHD->variables.sql_mode & MODE_MAXDB)
               $$=MYSQL_TYPE_DATETIME;
@@ -4728,7 +4721,7 @@ type:
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_TINY_BLOB;
           }
-        | BLOB_SYM opt_len
+        | BLOB_SYM opt_field_length
           {
             Lex->charset=&my_charset_bin;
             $$=MYSQL_TYPE_BLOB;
@@ -4764,7 +4757,7 @@ type:
           { $$=MYSQL_TYPE_MEDIUM_BLOB; }
         | TINYTEXT opt_binary
           { $$=MYSQL_TYPE_TINY_BLOB; }
-        | TEXT_SYM opt_len opt_binary
+        | TEXT_SYM opt_field_length opt_binary
           { $$=MYSQL_TYPE_BLOB; }
         | MEDIUMTEXT opt_binary
           { $$=MYSQL_TYPE_MEDIUM_BLOB; }
@@ -4854,8 +4847,8 @@ real_type:
 float_options:
           /* empty */
           { Lex->dec=Lex->length= (char*)0; }
-        | '(' NUM ')'
-          { Lex->length=$2.str; Lex->dec= (char*)0; }
+        | field_length
+          { Lex->dec= (char*)0; }
         | precision
           {}
         ;
@@ -4885,10 +4878,16 @@ field_option:
         | ZEROFILL { Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; }
         ;
 
-opt_len:
-          /* empty */ { Lex->length=(char*) 0; /* use default length */ }
-        | '(' NUM ')' { Lex->length= $2.str; }
+opt_field_length:
+          /* empty */  { Lex->length=(char*) 0; /* use default length */ }
+        | field_length {}
         ;
+
+field_length:
+        '(' LONG_NUM ')'      { Lex->length= $2.str; }
+        | '(' ULONGLONG_NUM ')' { Lex->length= $2.str; }
+        | '(' DECIMAL_NUM ')'   { Lex->length= $2.str; }
+        | '(' NUM ')'           { Lex->length= $2.str; };
 
 opt_precision:
           /* empty */ {}
@@ -7450,11 +7449,11 @@ in_sum_expr:
         ;
 
 cast_type:
-          BINARY opt_len
+          BINARY opt_field_length
           { $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
-        | CHAR_SYM opt_len opt_binary
+        | CHAR_SYM opt_field_length opt_binary
           { $$=ITEM_CAST_CHAR; Lex->dec= 0; }
-        | NCHAR_SYM opt_len
+        | NCHAR_SYM opt_field_length
           { $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
         | SIGNED_SYM
           { $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
