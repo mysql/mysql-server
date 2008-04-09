@@ -63,6 +63,7 @@
 #define MAX_MBWIDTH		3		/* Max multibyte sequence */
 #define MAX_FIELD_CHARLENGTH	255
 #define MAX_FIELD_VARCHARLENGTH	65535
+#define MAX_FIELD_BLOBLENGTH UINT_MAX32     /* cf field_blob::get_length() */
 #define CONVERT_IF_BIGGER_TO_BLOB 512		/* Used for CREATE ... SELECT */
 
 /* Max column width +1 */
