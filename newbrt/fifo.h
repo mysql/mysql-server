@@ -44,6 +44,4 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
             } \
         })
 
-int toku_fifo_expunge_xaction(FIFO fifo, TXNID xid,  int (*callback_on_delete)(bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, int type, TXNID xid, void*), void*arg);
-
 #endif

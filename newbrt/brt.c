@@ -3080,44 +3080,6 @@ int toku_brt_height_of_root(BRT brt, int *height) {
     return 0;
 }
 
-struct callpair {
-    BRTNODE node;
-    int childnum;
-};
-static int note_removal (bytevec key, ITEMLEN keylen, bytevec data, ITEMLEN datalen, int type, TXNID xid, void*cpairv) {
-    struct callpair *cpair = cpairv;
-    BRTNODE node = cpair->node;
-    //printf("%s:%d Removed %s,%s fingerprint was %08x ", __FILE__, __LINE__, (char*)key, (char*)data, node->local_fingerprint);
-    int  childnum = cpair->childnum; 
-    u_int32_t old_fingerprint = node->local_fingerprint;
-    u_int32_t diff            = node->rand4fingerprint*toku_calccrc32_cmd(type, xid, key, keylen, data, datalen);
-    node->local_fingerprint = old_fingerprint - diff;
-    //printf("is %08x diff=%08x (addr=%p)\n", node->local_fingerprint, diff, &node->local_fingerprint);
-    u_int32_t countdiff = keylen+datalen+KEY_VALUE_OVERHEAD+BRT_CMD_OVERHEAD;
-    BNC_NBYTESINBUF(node,childnum) -= countdiff;
-    node->u.n.n_bytes_in_buffers -= countdiff;
-    return 0;
-}
-
-int toku_brt_nonleaf_expunge_xaction(BRT brt, DISKOFF diskoff, TXNID xid) {
-    void *node_v;
-    int r = toku_cachetable_get_and_pin(brt->cf, diskoff, &node_v, NULL, toku_brtnode_flush_callback, toku_brtnode_fetch_callback, brt);
-    assert(r==0);
-    if (r!=0) return r;
-    BRTNODE node = node_v;
-    verify_local_fingerprint_nonleaf(node);
-    //printf("%s:%d node->local_fingerprint=%08x\n", __FILE__, __LINE__, node->local_fingerprint);
-    int i;
-    r=0;
-    for (i=0; i<node->u.n.n_children; i++) {
-	struct callpair pair = { node, i };
-	int r3 = toku_fifo_expunge_xaction(BNC_BUFFER(node, i), xid, note_removal, &pair);
-	if (r==0) r=r3;
-    }
-    int r2 = toku_cachetable_unpin(brt->cf, diskoff, 1, toku_serialize_brtnode_size(node));
-    return r ? r : r2;
-}
-
 int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp);
 void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size);
 
