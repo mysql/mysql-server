@@ -65,7 +65,7 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 			 LEAFENTRY le=vdata;
 			 hsize+= PMA_ITEM_OVERHEAD + leafentry_disksize(le);
 		     }));
-	assert(hsize==node->u.l.n_bytes_in_buffer);
+	assert(hsize<=node->u.l.n_bytes_in_buffer);
 	hsize+=4; /* the PMA size */
 	hsize+=4; /* add n entries in buffer table. */
 	return size+hsize;
@@ -87,11 +87,17 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=(4 /* n_entries in buffer table. */
 		 +4); /* the pma size */
 	result+=node->u.l.n_bytes_in_buffer;
+#if 0
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
 	    if (result!=slowresult) printf("%s:%d result=%d slowresult=%d\n", __FILE__, __LINE__, result, slowresult);
 	    assert(result==slowresult);
 	}
+#else
+        unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
+        if (result != slowresult)
+            result = slowresult;
+#endif
     }
     return result;
 }
