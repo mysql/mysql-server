@@ -23,10 +23,18 @@ BEGIN
     WHERE table_schema='test';
 
   -- Show "mysql" database, tables and columns
-  SELECT table_name, table_type, engine FROM INFORMATION_SCHEMA.TABLES
-    WHERE table_schema='mysql';
-  SELECT * FROM INFORMATION_SCHEMA.COLUMNS
-    WHERE table_schema='mysql';
+  SELECT CONCAT(table_schema, '.', table_name) AS tables_in_mysql
+    FROM INFORMATION_SCHEMA.TABLES
+      WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
+        ORDER BY tables_in_mysql;
+  SELECT CONCAT(table_schema, '.', table_name) AS columns_in_mysql,
+  	 column_name, ordinal_position, column_default, is_nullable,
+         data_type, character_maximum_length, character_octet_length,
+         numeric_precision, numeric_scale, character_set_name,
+         collation_name, column_type, column_key, extra, column_comment
+    FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE table_schema='mysql' AND table_name != 'ndb_apply_status'
+        ORDER BY columns_in_mysql;
 
   -- Checksum system tables to make sure they have been properly
   -- restored after test
