@@ -208,7 +208,7 @@ INSERT INTO global_supressions VALUES
 -- Procedure that uses the above created tables to check
 -- the servers error log for warnings
 --
-CREATE DEFINER=root@localhost PROCEDURE check_warnings()
+CREATE DEFINER=root@localhost PROCEDURE check_warnings(OUT result INT)
 BEGIN
 
   -- Don't write these queries to binlog
@@ -225,6 +225,7 @@ BEGIN
     FROM information_schema.global_variables
       WHERE variable_name='LOG_ERROR';
 
+  SET @@session.max_allowed_packet= 1024*1024*1024;
   SET @text= load_file(@log_error);
   -- select @text;
 
@@ -269,8 +270,11 @@ BEGIN
     SELECT line as log_error
         FROM suspect_lines WHERE supressed=0;
     SELECT * FROM test_supressions;
+    -- Return 2 -> check failed
+    SELECT 2 INTO result;
   ELSE
-    SELECT "OK";
+    -- Return 0 -> OK
+    SELECT 0 INTO RESULT;
   END IF;
 
   -- Cleanup for next test

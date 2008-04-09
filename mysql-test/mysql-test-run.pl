@@ -2568,22 +2568,16 @@ sub run_check_warnings ($$) {
   if ( $res == 0 )
   {
     my $report= mtr_grab_file($errfile);
-    if ($report ne "OK\nOK\n")
-    {
-      # Log to var/log/warnings file
-      mtr_tofile("$opt_vardir/log/warnings",
+    # Log to var/log/warnings file
+    mtr_tofile("$opt_vardir/log/warnings",
                $tname."\n",
                $report);
 
-      $res= 1;
-      $tinfo->{'warnings'}.= $report;
-
-    }
+    $res= 1;
+    $tinfo->{'warnings'}.= $report;
   }
-  elsif ( $res == 62 )
-  {
-    # One of the features needed to run check_warnings.test was not
-    # available, check skipped
+  elsif ( $res == 62 ) {
+    # Test case was ok and called "skip"
     $res= 0;
   }
   elsif ( $res )

@@ -19,7 +19,7 @@ BEGIN
   SELECT * FROM INFORMATION_SCHEMA.SCHEMATA;
 
   -- The test database should not contain any tables
-  SELECT table_name FROM INFORMATION_SCHEMA.TABLES
+  SELECT table_name AS tables_in_test FROM INFORMATION_SCHEMA.TABLES
     WHERE table_schema='test';
 
   -- Show "mysql" database, tables and columns
