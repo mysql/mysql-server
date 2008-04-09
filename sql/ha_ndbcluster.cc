@@ -220,6 +220,7 @@ SHOW_VAR ndb_status_variables[]= {
   {"number_of_ready_data_nodes",
    (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG},
   {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG},
+  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
