@@ -41,5 +41,8 @@ source include/wait_for_slave_to_stop.inc;
 --replace_column 1 # 8 # 9 # 23 # 33 #                                          
 query_vertical show slave status;
 
-# no clean-up is needed
+#
+# Cleanup
+#
+SET GLOBAL debug="";
 
