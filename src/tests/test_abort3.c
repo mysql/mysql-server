@@ -1,0 +1,103 @@
+/* Try to exercise all the cases for the leafcommands in brt.c
+ */
+
+
+#include <db.h>
+#include <sys/stat.h>
+#include "test.h"
+
+static DB_ENV *env;
+static DB *db;
+static DB_TXN *txn;
+
+#ifndef TOKUDB
+#define DB_YESOVERWRITE 0
+#endif
+
+static void insert (int i, int j) {
+    char hello[30], there[30];
+    DBT key,data;
+    if (verbose) printf("Insert %d\n", i);
+    snprintf(hello, sizeof(hello), "hello%d", i);
+    snprintf(there, sizeof(there), "there%d", j);
+    int r = db->put(db, txn,
+		    dbt_init(&key,  hello, strlen(hello)+1),
+		    dbt_init(&data, there, strlen(there)+1),
+		    DB_YESOVERWRITE);
+    CKERR(r);
+}
+
+static void delete (int i) {
+    char hello[30];
+    DBT key;
+    if (verbose) printf("delete %d\n", i);
+    snprintf(hello, sizeof(hello), "hello%d", i);
+    int r = db->del(db, txn,
+		    dbt_init(&key,  hello, strlen(hello)+1),
+		    DB_DELETE_ANY);
+    assert(r==0);
+}
+
+static void lookup (int i, int expect, int expectj) {
+    char hello[30], there[30];
+    DBT key,data;
+    snprintf(hello, sizeof(hello), "hello%d", i);
+    memset(&data, 0, sizeof(data));
+    if (verbose) printf("Looking up %d (expecting %s)\n", i, expect==0 ? "to find" : "not to find");
+    int r = db->get(db, txn,
+		    dbt_init(&key,  hello, strlen(hello)+1),
+		    &data,
+		    0);
+    assert(expect==r);
+    if (expect==0) {
+	CKERR(r);
+	snprintf(there, sizeof(there), "there%d", expectj);
+	assert(data.size==strlen(there)+1);
+	assert(strcmp(data.data, there)==0);
+    }
+}
+
+void test_abort3 (void) {
+    int r;
+    system("rm -rf " ENVDIR);
+    r=mkdir(ENVDIR, 0777);       assert(r==0);
+
+    r=db_env_create(&env, 0); assert(r==0);
+    env->set_errfile(env, stderr);
+    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
+    r=db_create(&db, env, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
+    r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
+    insert(0, 0);
+    r=txn->commit(txn, 0);    assert(r==0);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    delete(0);
+    delete(1);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    lookup(1, DB_NOTFOUND, -1);
+    insert(2, 3);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);    
+    insert(2, 4);
+    insert(2, 5);
+    lookup(2, 0, 5);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=env->txn_begin(env, 0, &txn, 0);    CKERR(r);
+    lookup(2, 0, 5);
+    r=txn->commit(txn, 0); CKERR(r);
+
+    r=db->close(db, 0); CKERR(r);
+    r=env->close(env, 0); CKERR(r);
+}
+
+int main (int argc, const char *argv[]) {
+    parse_args(argc, argv);
+    test_abort3();
+    return 0;
+}
