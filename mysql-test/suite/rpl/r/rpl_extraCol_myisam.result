@@ -458,6 +458,7 @@ Last_IO_Errno	#
 Last_IO_Error	#
 Last_SQL_Errno	1364
 Last_SQL_Error	Could not execute Write_rows event on table test.t9; Field 'e' doesn't have a default value, Error_code: 1364; handler error HA_ERR_ROWS_EVENT_APPLY; the event's master log master-bin.000001, end_log_pos 331
+Master_Bind	0.0.0.0
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;
 *** Create t10 on slave  ***
