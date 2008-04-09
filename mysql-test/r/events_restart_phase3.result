@@ -1,6 +1,0 @@
-use events_test;
-select @@event_scheduler;
-@@event_scheduler
-ON
-drop table execution_log;
-drop database events_test;
