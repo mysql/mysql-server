@@ -3264,6 +3264,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   
   if (m_use_write)
   {
+    uchar *mask;
+
 #ifdef HAVE_NDB_BINLOG
     /*
       The use of table->write_set is tricky here. This is done as a temporary
