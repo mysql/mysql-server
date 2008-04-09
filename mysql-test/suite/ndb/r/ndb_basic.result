@@ -15,7 +15,7 @@ Ndb_config_from_port	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_connect_count	#
-Ndb_cluster_connection_pool     #
+Ndb_cluster_connection_pool	#
 Ndb_execute_count	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_old	#
