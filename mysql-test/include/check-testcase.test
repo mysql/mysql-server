@@ -7,58 +7,9 @@
 # In that way its possible to check that a testcase does not have
 # any unwanted side affects.
 #
-
-# Dump all global variables except those
-# that are supposed to change
-show global variables where Variable_name != 'timestamp';
-
-# Dump all databases, there should be none
-# except those that was created during bootstrap
-show databases;
-
-# The test database should not contain any tables
-show tables from test;
-
-# Dump the "mysql" database and its tables
-use mysql;
-show tables;
-show create table columns_priv;
-show create table db;
-show create table func;
-show create table help_category;
-show create table help_keyword;
-show create table help_relation;
-show create table help_relation;
-show create table host;
-show create table proc;
-show create table procs_priv;
-show create table tables_priv;
-show create table time_zone;
-show create table time_zone_leap_second;
-show create table time_zone_name;
-show create table time_zone_transition;
-show create table time_zone_transition_type;
-show create table user;
-
-# Select data from system tables to make sure they have been properly
-# restored after test
-select * from columns_priv;
-select * from db order by host, db, user;
-select * from func;
-select * from help_category;
-select * from help_keyword;
-select * from help_relation;
-select * from help_relation;
-select * from host;
-select * from proc;
-select * from procs_priv;
-select * from tables_priv;
-select * from time_zone;
-select * from time_zone_leap_second;
-select * from time_zone_name;
-select * from time_zone_transition;
-select * from time_zone_transition_type;
-select * from user;
+--disable_query_log
+call mtr.check_testcase();
+--enable_query_log
 
 
 

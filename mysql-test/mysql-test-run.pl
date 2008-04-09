@@ -145,7 +145,7 @@ my $opt_mtr_build_thread= $ENV{'MTR_BUILD_THREAD'} || "auto";
 
 my $opt_record;
 my $opt_report_features;
-our $opt_check_testcases;
+our $opt_check_testcases= 1;
 my $opt_mark_progress;
 
 my $opt_sleep;
@@ -2106,6 +2106,10 @@ sub mysql_install_db {
   # Add help tables and data for warning detection and supression
   mtr_tofile($bootstrap_sql_file,
              sql_to_bootstrap(mtr_grab_file("include/mtr_warnings.sql")));
+
+  # Add procedures for checking server is restored after testcase
+  mtr_tofile($bootstrap_sql_file,
+             sql_to_bootstrap(mtr_grab_file("include/mtr_check.sql")));
 
   # Log bootstrap command
   my $path_bootstrap_log= "$opt_vardir/log/bootstrap.log";
