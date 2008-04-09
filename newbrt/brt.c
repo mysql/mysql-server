@@ -1553,7 +1553,6 @@ static int brt_nonleaf_put_cmd_child_node (BRT t, BRTNODE node, BRT_CMD cmd,
     }
     if (child_did_split) {
         if (0) printf("brt_nonleaf_insert child_split %p\n", child);
-        //        assert(cmd->type <= BRT_DELETE_BOTH);
         r = handle_split_of_child(t, node, childnum,
                                   childa, childb, &childsplitk,
                                   did_split, nodea, nodeb, splitk,
