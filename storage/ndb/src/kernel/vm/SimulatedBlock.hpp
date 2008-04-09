@@ -219,7 +219,11 @@ protected:
   void EXECUTE_DIRECT(Uint32 block, 
 		      Uint32 gsn, 
 		      Signal* signal, 
-		      Uint32 len);
+		      Uint32 len
+#ifdef VM_TRACE
+                      , bool is_thread_safe = false
+#endif
+);
   
   class SectionSegmentPool& getSectionSegmentPool();
   void releaseSections(struct SectionHandle&);
@@ -807,7 +811,12 @@ void
 SimulatedBlock::EXECUTE_DIRECT(Uint32 block, 
 			       Uint32 gsn, 
 			       Signal* signal, 
-			       Uint32 len){
+			       Uint32 len
+#ifdef VM_TRACE
+                               , bool is_thread_safe
+#endif
+)
+{
   signal->setLength(len);
 #ifdef VM_TRACE
   if(globalData.testOn){
@@ -821,6 +830,13 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   }
 #endif
   SimulatedBlock* b = globalData.getBlock(block);
+  /**
+   * In multithreaded NDB, blocks run in different threads, and EXECUTE_DIRECT
+   * (unlike sendSignal() is generally not thread-safe.
+   * So only allow EXECUTE_DIRECT between blocks that run in the same thread,
+   * unless caller explicitly marks it as being thread safe (eg NDBFS).
+   */
+  ndbassert(is_thread_safe || b->getThreadId() == getThreadId());
 #ifdef VM_TRACE_TIME
   Uint32 us1, us2;
   Uint64 ms1, ms2;
