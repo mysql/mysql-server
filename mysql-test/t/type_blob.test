@@ -537,10 +537,12 @@ CREATE TABLE b15776 (a year(-2));
 ## For timestamp, we silently rewrite widths to 14 or 19.
 CREATE TABLE b15776 (a timestamp(4294967294));
 DROP TABLE b15776;
---error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a timestamp(4294967295));
+DROP TABLE b15776;
 --error ER_TOO_BIG_DISPLAYWIDTH
 CREATE TABLE b15776 (a timestamp(4294967296));
+--error ER_PARSE_ERROR
+CREATE TABLE b15776 (a timestamp(-1));
 --error ER_PARSE_ERROR
 CREATE TABLE b15776 (a timestamp(-2));
 
