@@ -13,7 +13,7 @@
 show global variables where Variable_name != 'timestamp';
 
 # Dump all databases, there should be none
-# except mysql, test and information_schema
+# except those that was created during bootstrap
 show databases;
 
 # The test database should not contain any tables
