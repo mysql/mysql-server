@@ -105,21 +105,24 @@ sub squeeze($) {
 	return(rtrim(ltrim($string)));
 }
 
-if ($#ARGV != 0) {
-	die "usage: $0 path/to/mysqlbug\n";
+if ($#ARGV != 1) {
+	die "usage: $0 target-arch path/to/mysqlbug\n";
 }
 
-open(F, $ARGV[0]) ||
-	die "Error opening $ARGV[0]: $!\n";
+my $mysqlbug = $ARGV[1];
+my $arch = squeeze($ARGV[0]);
+
+open(F, $mysqlbug) ||
+	die "Error opening $mysqlbug: $!\n";
 read(F, $buffer, 131072) ||
-	die "Error reading file $ARGV[0]: $!\n";
+	die "Error reading file $mysqlbug: $!\n";
 close(F);
 
 my @matched = grep(/^CONFIGURE_LINE=/, split(/\n/, $buffer));
 
 # Check for no match
 if ($#matched == -1 ) {
-	die "CONFIGURE_LINE= not found in : $ARGV[0]\n";
+	die "CONFIGURE_LINE= not found in : $mysqlbug\n";
 # Check if more than one line matched
 } elsif ($#matched > 0) {
 	die "Error: $#matched matches for CONFIGURE_LINE= found.\n";
@@ -135,6 +138,11 @@ foreach my $var (@environment) {
 	if (defined($ENV{$var})) {
 		$mapped{$var} = "$var=" . $ENV{$var};
 	}
+}
+
+# We don't compile with the PIC flag for i386.
+if ($arch =~ /^i[3456]86$/) {
+	$mapped{"--with-pic"} = "--without-pic";
 }
 
 # Set the value to "" for the parameters to be removed.

@@ -17,7 +17,9 @@
 #        the tar file. e.g. innodb-5.1-1.0.b1.tar.gz when extracted should
 #        have a top level directory named "innodb-5.1-1.0.b1".
 #
-# 4.     path to the target mysqlbug file or '-', if the third param is
+# 4.     Target architecture e.g., i386 or amd64
+#
+# 5.     path to the target mysqlbug file or '-', if the third param is
 #        '-' then all options following it are passed to the configure command.
 #
 # Note: The mysqlbug file is normally located in the bin directory where you
@@ -36,18 +38,20 @@ strlen()
 
 INNODIR="storage/innobase"
 DYNTMPFILE="/tmp/configure.$$"
-DYNCONFIG="$INNODIR/scripts/dynconfig"
+#DYNCONFIG="$INNODIR/scripts/dynconfig"
+DYNCONFIG="$HOME/scripts/dynconfig"
 SVN_REPO="https://svn.innodb.com/svn/innodb"
 SVN_REPO_STRLEN=`strlen $SVN_REPO`
 
 if [ $# -lt 4 ]; then
-    echo>&2 "Usage: $0 mysql-source-dir build-dir innosrc (/path/to/mysqlbug | - followed by configure options)"
+    echo>&2 "Usage: $0 mysql-source-dir build-dir innosrc target-arch (/path/to/mysqlbug | - followed by configure options)"
     exit 1
 fi
 
 SRC=$1; shift
 BLD=$1; shift
 SVN=$1; shift
+ARH=$1; shift
 CFL=$1; shift
 
 # These can be overridden with environment variables.
@@ -108,7 +112,7 @@ if [ "$CFL" != "-" ]; then
 	trap "{ rm -f $DYNTMPFILE; }" EXIT SIGINT SIGTERM
 
 	# Generate storage/innobase/Makefile and other prerequisites
-	$DYNCONFIG $CFL > $DYNTMPFILE
+	$DYNCONFIG $ARH $CFL > $DYNTMPFILE
 
 	if [ $? -ne 0 ]; then
 		echo "dynconfig failed to get config parameters: $CONFIGURE"
