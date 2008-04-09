@@ -48,10 +48,16 @@ while ($i)
 --enable_query_log
 --enable_result_log
 
-SHOW GLOBAL STATUS LIKE 'com_select';
+let $before= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
 
 --change_user
 
-SHOW GLOBAL STATUS LIKE 'com_select';
+let $after= query_get_value(SHOW GLOBAL STATUS LIKE 'com_select',Value,1);
+
+if (`select $after != $before`){
+  SHOW GLOBAL STATUS LIKE 'com_select';
+  die The value of com_select changed during change_user;
+}
+echo Value of com_select did not change;
 
 # End of 5.1 tests
