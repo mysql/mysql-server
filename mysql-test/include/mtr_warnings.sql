@@ -210,6 +210,9 @@ INSERT INTO global_supressions VALUES
 --
 CREATE DEFINER=root@localhost PROCEDURE check_warnings()
 BEGIN
+
+  -- Don't write these queries to binlog
+  SET SQL_LOG_BIN=0;
   --
   -- Load the server .err file into "error_log" table
   --
