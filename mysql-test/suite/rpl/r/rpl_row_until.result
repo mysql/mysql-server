@@ -106,7 +106,7 @@ Last_IO_Error	#
 Last_SQL_Errno	0
 Last_SQL_Error	
 Master_Bind	0.0.0.0
-start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=1015;
+start slave until relay_log_file='slave-relay-bin.000004', relay_log_pos=1014;
 select * from t2;
 n
 1
