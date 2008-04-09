@@ -66,9 +66,6 @@ int toku_brt_get_fd(BRT, int *);
 
 int toku_brt_height_of_root(BRT, int *height); // for an open brt, return the current height.
 
-// Special hack for recovery
-int toku_brt_nonleaf_expunge_xaction(BRT brt, DISKOFF diskoff, TXNID xid);
-
 enum brt_header_flags {
     TOKU_DB_DUP = 1,
     TOKU_DB_DUPSORT = 2,

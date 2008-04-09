@@ -62,7 +62,6 @@ REGRESSION_TESTS = \
 	cachetable-test \
 	cachetable-test2 \
 	fifo-test \
-	fifo-test-exp \
 	list-test \
 	log-test2 \
 	log-test3 \
@@ -213,7 +212,7 @@ brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
 memory.o: memory.h
 primes.o: primes.h toku_assert.h
-fifo-test-exp fifo-test: fifo.o memory.o toku_assert.o ybt.o
+fifo-test: fifo.o memory.o toku_assert.o ybt.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
 brt-bigtest: memory.o ybt.o brt.o gpma.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h brt-search.h ../include/db.h
