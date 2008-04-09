@@ -20,6 +20,7 @@
 #include <ndb_version.h>
 #include <SimpleProperties.hpp>
 #include <signaldata/DictTabInfo.hpp>
+#include <signaldata/SchemaTrans.hpp>
 #include <signaldata/CreateTable.hpp>
 #include <signaldata/ReadNodesConf.hpp>
 #include <signaldata/NodeFailRep.hpp>
@@ -1253,7 +1254,7 @@ void Ndbcntr::ph5ALab(Signal* signal)
       /* MASTER CNTR IS RESPONSIBLE FOR       */
       /* CREATING SYSTEM TABLES               */
       /*--------------------------------------*/
-      createSystableLab(signal, 0);
+      beginSchemaTransLab(signal);
       return;
     case NodeState::ST_SYSTEM_RESTART:
       jam();
@@ -1635,26 +1636,26 @@ void Ndbcntr::execNODE_FAILREP(Signal* signal)
   NodeFailRep * rep = (NodeFailRep *)&signal->theData[0];  
   rep->masterNodeId = cmasterNodeId;
 
-  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBTC_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBLQH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDIH_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
-  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal, 
-	     NodeFailRep::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_NODE_FAILREP, signal,
+             NodeFailRep::SignalLength, JBB);
   
   sendSignal(BACKUP_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(SUMA_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   sendSignal(QMGR_REF, GSN_NODE_FAILREP, signal,
-	     NodeFailRep::SignalLength, JBB);
+             NodeFailRep::SignalLength, JBB);
 
   if (c_stopRec.stopReq.senderRef)
   {
@@ -1808,11 +1809,65 @@ void Ndbcntr::systemErrorLab(Signal* signal, int line)
 /*       |  :  |   :             |                   v                       */
 /*       | 2048|   0             |                   v                       */
 /*---------------------------------------------------------------------------*/
+
+void Ndbcntr::beginSchemaTransLab(Signal* signal)
+{
+  c_schemaTransId = reference();
+
+  SchemaTransBeginReq* req =
+    (SchemaTransBeginReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->transId = c_schemaTransId;
+  req->requestInfo = 0;
+  sendSignal(DBDICT_REF, GSN_SCHEMA_TRANS_BEGIN_REQ, signal,
+      SchemaTransBeginReq::SignalLength, JBB);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF(Signal* signal)
+{
+  const SchemaTransBeginConf* conf =
+    (SchemaTransBeginConf*)signal->getDataPtr();
+  ndbrequire(conf->transId == c_schemaTransId);
+  c_schemaTransKey = conf->transKey;
+
+  createSystableLab(signal, 0);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_BEGIN_REF(Signal* signal)
+{
+  ndbrequire(false);
+}
+
+void Ndbcntr::endSchemaTransLab(Signal* signal)
+{
+  SchemaTransEndReq* req =
+    (SchemaTransEndReq*)signal->getDataPtrSend();
+  req->clientRef = reference();
+  req->transId = c_schemaTransId;
+  req->requestInfo = 0;
+  req->transKey = c_schemaTransKey;
+  req->flags = 0;
+  sendSignal(DBDICT_REF, GSN_SCHEMA_TRANS_END_REQ, signal,
+      SchemaTransEndReq::SignalLength, JBB);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_END_CONF(Signal* signal)
+{
+  c_schemaTransId = 0;
+  c_schemaTransKey = RNIL;
+  startInsertTransactions(signal);
+}
+
+void Ndbcntr::execSCHEMA_TRANS_END_REF(Signal* signal)
+{
+  ndbrequire(false);
+}
+
 void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
 {
   if (index >= g_sysTableCount) {
     ndbassert(index == g_sysTableCount);
-    startInsertTransactions(signal);
+    endSchemaTransLab(signal);
     return;
   }
   const SysTable& table = *g_sysTableList[index];
@@ -1859,8 +1914,11 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   ptr[0].sz = length;
 
   CreateTableReq* const req = (CreateTableReq*)signal->getDataPtrSend();
-  req->senderData = index;
-  req->senderRef = reference();
+  req->clientRef = reference();
+  req->clientData = index;
+  req->requestInfo = 0;
+  req->transId = c_schemaTransId;
+  req->transKey = c_schemaTransKey;
   sendSignal(DBDICT_REF, GSN_CREATE_TABLE_REQ, signal,
 	     CreateTableReq::SignalLength, JBB, ptr, 1);
   return;
@@ -1876,8 +1934,9 @@ void Ndbcntr::execCREATE_TABLE_REF(Signal* signal)
 void Ndbcntr::execCREATE_TABLE_CONF(Signal* signal) 
 {
   jamEntry();
-  CreateTableConf * const conf = (CreateTableConf*)signal->getDataPtrSend();
+  const CreateTableConf* conf = (const CreateTableConf*)signal->getDataPtr();
   //csystabId = conf->tableId;
+  ndbrequire(conf->transId == c_schemaTransId);
   ndbrequire(conf->senderData < g_sysTableCount);
   const SysTable& table = *g_sysTableList[conf->senderData];
   table.tableId = conf->tableId;
@@ -3114,7 +3173,7 @@ void
 UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
   
   if(cntr.getNodeInfo(cntr.cmasterNodeId).m_version >= MAKE_VERSION(3,5,0)){
-    jam();
+    jamNoBlock();
     return;
   }
 

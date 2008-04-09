@@ -319,12 +319,6 @@ public:
     TriggerEvent::Value triggerEvent;
     
     /**
-     * Attribute mask, defines what attributes are to be monitored
-     * Can be seen as a compact representation of SQL column name list
-     */
-    Bitmask<MAXNROFATTRIBUTESINWORDS> attributeMask;
-
-    /**
      * Next ptr (used in pool/list)
      */
     union {
@@ -398,6 +392,16 @@ public:
      * Used for scrapping in case of node failure
      */
     Uint32 nodeId;
+
+    /**
+     * Trigger type, defines what the trigger is used for
+     */
+    TriggerType::Value triggerType;
+
+    /**
+     * Trigger type, defines what the trigger is used for
+     */
+    TriggerEvent::Value triggerEvent;
 
     /**
      * Trigger attribute info, primary key value(s)
@@ -947,8 +951,7 @@ public:
       NF_TAKEOVER          = 0x1,
       NF_CHECK_SCAN        = 0x2,
       NF_CHECK_TRANSACTION = 0x4,
-      NF_CHECK_DROP_TAB    = 0x8,
-      NF_NODE_FAIL_BITS    = 0xF // All bits...
+      NF_NODE_FAIL_BITS    = 0x7 // All bits...
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
@@ -972,14 +975,17 @@ public:
     enum {
       TR_ENABLED      = 1 << 0,
       TR_DROPPING     = 1 << 1,
-      TR_STORED_TABLE = 1 << 2
+      TR_STORED_TABLE = 1 << 2,
+      TR_PREPARED     = 1 << 3
     };
     Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
     Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
     Uint8 get_storedTable() const { return (m_flags & TR_STORED_TABLE) != 0; }
+    Uint8 get_prepared()    const { return (m_flags & TR_PREPARED)     != 0; }
     void set_enabled(Uint8 f)     { f ? m_flags |= (Uint16)TR_ENABLED      : m_flags &= ~(Uint16)TR_ENABLED; }
     void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
     void set_storedTable(Uint8 f) { f ? m_flags |= (Uint16)TR_STORED_TABLE : m_flags &= ~(Uint16)TR_STORED_TABLE; }
+    void set_prepared(Uint8 f)    { f ? m_flags |= (Uint16)TR_PREPARED : m_flags &= ~(Uint16)TR_PREPARED; }
 
     Uint8 noOfKeyAttr;
     Uint8 hasCharAttr;
@@ -991,13 +997,13 @@ public:
 	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion));
     }
 
-    Uint32 getErrorCode(Uint32 schemaVersion) const;
+    bool checkTablePrepared(Uint32 schemaVersion, Uint32 transId1) const {
+      return get_prepared() && !get_dropping() && 
+	(table_version_major(schemaVersion) == table_version_major(currentSchemaVersion)) &&
+        (transId1 >> 20) == DBUTIL; // wl3600_todo use schema trans id instead
+    }
 
-    struct DropTable {
-      Uint32 senderRef;
-      Uint32 senderData;
-      SignalCounter waitDropTabCount;
-    } dropTable;
+    Uint32 getErrorCode(Uint32 schemaVersion) const;
   };
   typedef Ptr<TableRecord> TableRecordPtr;
 
@@ -1328,6 +1334,7 @@ private:
   void execTCROLLBACKREQ(Signal* signal);
   void execTC_HBREP(Signal* signal);
   void execTC_SCHVERREQ(Signal* signal);
+  void execTAB_COMMITREQ(Signal* signal);
   void execSCAN_TABREQ(Signal* signal);
   void execSCAN_TABINFO(Signal* signal);
   void execSCAN_FRAGCONF(Signal* signal);
@@ -1345,16 +1352,16 @@ private:
 
   void execABORT_ALL_REQ(Signal* signal);
 
-  void execCREATE_TRIG_REQ(Signal* signal);
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
   void execFIRE_TRIG_ORD(Signal* signal);
   void execTRIG_ATTRINFO(Signal* signal);
-  void execCREATE_INDX_REQ(Signal* signal);
-  void execDROP_INDX_REQ(Signal* signal);
+  void execCREATE_INDX_IMPL_REQ(Signal* signal);
+  void execDROP_INDX_IMPL_REQ(Signal* signal);
   void execTCINDXREQ(Signal* signal);
   void execINDXKEYINFO(Signal* signal);
   void execINDXATTRINFO(Signal* signal);
-  void execALTER_INDX_REQ(Signal* signal);
+  void execALTER_INDX_IMPL_REQ(Signal* signal);
 
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
@@ -1365,8 +1372,6 @@ private:
   void execCREATE_TAB_REQ(Signal* signal);
   void execPREP_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REF(Signal* signal);
-  void execWAIT_DROP_TAB_CONF(Signal* signal);
   void checkWaitDropTabFailedLqh(Signal*, Uint32 nodeId, Uint32 tableId);
   void execALTER_TAB_REQ(Signal* signal);
   void set_timeout_value(Uint32 timeOut);

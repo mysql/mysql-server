@@ -175,7 +175,8 @@ private:
   
   Uint32        traceId;
   Uint8         logModes[NO_OF_BLOCKS];
-  
+ 
+public:
   inline bool
   logMatch(BlockNumber bno, LogMode mask)
   {

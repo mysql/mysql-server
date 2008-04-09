@@ -30,6 +30,9 @@ void Ndbcntr::initData()
   cnoWaitrep = 0;
   // Records with constant sizes
   ndbBlocksRec = new NdbBlocksRec[ZSIZE_NDB_BLOCKS_REC];
+  // schema trans
+  c_schemaTransId = 0;
+  c_schemaTransKey = 0;
 }//Ndbcntr::initData()
 
 void Ndbcntr::initRecords() 
@@ -76,6 +79,10 @@ Ndbcntr::Ndbcntr(Block_context& ctx):
   addRecSignal(GSN_GETGCICONF, &Ndbcntr::execGETGCICONF);
   addRecSignal(GSN_DIH_RESTARTCONF, &Ndbcntr::execDIH_RESTARTCONF);
   addRecSignal(GSN_DIH_RESTARTREF, &Ndbcntr::execDIH_RESTARTREF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_CONF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_BEGIN_REF, &Ndbcntr::execSCHEMA_TRANS_BEGIN_REF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_CONF, &Ndbcntr::execSCHEMA_TRANS_END_CONF);
+  addRecSignal(GSN_SCHEMA_TRANS_END_REF, &Ndbcntr::execSCHEMA_TRANS_END_REF);
   addRecSignal(GSN_CREATE_TABLE_REF, &Ndbcntr::execCREATE_TABLE_REF);
   addRecSignal(GSN_CREATE_TABLE_CONF, &Ndbcntr::execCREATE_TABLE_CONF);
   addRecSignal(GSN_NDB_STTORRY, &Ndbcntr::execNDB_STTORRY);

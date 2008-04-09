@@ -27,6 +27,7 @@ class ThreadConfig
 public:
   ThreadConfig();
   ~ThreadConfig();
+  void init(EmulatorData *emulatorData);
 
   void ipControlLoop(Uint32 thread_index);
 

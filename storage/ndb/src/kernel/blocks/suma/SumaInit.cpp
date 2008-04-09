@@ -22,7 +22,8 @@ Suma::Suma(Block_context& ctx) :
   SimulatedBlock(SUMA, ctx),
   c_tables(c_tablePool),
   c_subscriptions(c_subscriptionPool),
-  c_gcp_list(c_gcp_pool)
+  c_gcp_list(c_gcp_pool),
+  m_current_gci(~(Uint64)0)
 {
   BLOCK_CONSTRUCTOR(Suma);
 
@@ -87,6 +88,8 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_DI_FCOUNTCONF, &Suma::execDI_FCOUNTCONF);
   addRecSignal(GSN_DI_FCOUNTREF, &Suma::execDI_FCOUNTREF);
   addRecSignal(GSN_DIGETPRIMCONF, &Suma::execDIGETPRIMCONF);
+  addRecSignal(GSN_CHECKNODEGROUPSCONF, &Suma::execCHECKNODEGROUPSCONF);
+  addRecSignal(GSN_GCP_PREPARE, &Suma::execGCP_PREPARE);
 
   /**
    * Scan interface
@@ -108,10 +111,10 @@ Suma::Suma(Block_context& ctx) :
   addRecSignal(GSN_TRIG_ATTRINFO, &Suma::execTRIG_ATTRINFO);
   addRecSignal(GSN_FIRE_TRIG_ORD, &Suma::execFIRE_TRIG_ORD);
 
-  addRecSignal(GSN_CREATE_TRIG_REF, &Suma::execCREATE_TRIG_REF);
-  addRecSignal(GSN_CREATE_TRIG_CONF, &Suma::execCREATE_TRIG_CONF);
-  addRecSignal(GSN_DROP_TRIG_REF, &Suma::execDROP_TRIG_REF);
-  addRecSignal(GSN_DROP_TRIG_CONF, &Suma::execDROP_TRIG_CONF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_REF, &Suma::execCREATE_TRIG_IMPL_REF);
+  addRecSignal(GSN_CREATE_TRIG_IMPL_CONF, &Suma::execCREATE_TRIG_IMPL_CONF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_REF, &Suma::execDROP_TRIG_IMPL_REF);
+  addRecSignal(GSN_DROP_TRIG_IMPL_CONF, &Suma::execDROP_TRIG_IMPL_CONF);
   
   addRecSignal(GSN_SUB_GCP_COMPLETE_REP, 
 	       &Suma::execSUB_GCP_COMPLETE_REP);

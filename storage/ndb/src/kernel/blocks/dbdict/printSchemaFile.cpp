@@ -27,6 +27,7 @@ static bool allflag = false;
 static bool checkonly = false;
 static bool equalcontents = false;
 static bool okquiet = false;
+static bool transok = false;
 
 static void 
 usage()
@@ -37,6 +38,7 @@ usage()
     << "-c      check only (return status 1 on error)" << endl
     << "-e      check also that the files have identical contents" << endl
     << "-q      no output if file is ok" << endl
+    << "-t      non-zero trans key is not error (has active trans)" << endl
     << "Example: " << progname << " -ceq ndb_*_fs/D[12]/DBDICT/P0.SchemaLog" << endl;
 }
 
@@ -164,21 +166,33 @@ print(const char * filename, const SchemaFile * xsf, Uint32 sz)
     for (Uint32 i = 0; i < NDB_SF_PAGE_ENTRIES; i++) {
       SchemaFile::TableEntry te = sf->TableEntries[i];
       Uint32 j = n * NDB_SF_PAGE_ENTRIES + i;
+      bool entryerr = false;
+      if (! transok && te.m_transId != 0) {
+        ndbout << filename << ": entry " << j << ": active transaction, transId: " << hex << te.m_transId << endl;
+        entryerr = true;
+        retcode = 1;
+      }
+      const Uint32 num_unused = sizeof(te.m_unused) / sizeof(te.m_unused[0]);
+      for (Uint32 k = 0; k < num_unused; k++) {
+        if (te.m_unused[k] != 0) {
+          ndbout << filename << ": entry " << j << ": garbage in unused word " << k << ": " << te.m_unused[k] << endl;
+          entryerr = true;
+          retcode = 1;
+        }
+      }
       if (allflag ||
           (te.m_tableState != SchemaFile::INIT &&
-           te.m_tableState != SchemaFile::DROP_TABLE_COMMITTED)) {
-        if (! checkonly)
+           te.m_tableState != SchemaFile::DROP_TABLE_COMMITTED) ||
+          entryerr) {
+        if (! checkonly || entryerr)
           ndbout << "Table " << j << ":"
                  << " State = " << te.m_tableState 
 		 << " version = " << table_version_major(te.m_tableVersion)
 		 << "(" << table_version_minor(te.m_tableVersion) << ")"
                  << " type = " << te.m_tableType
                  << " noOfWords = " << te.m_info_words
-                 << " gcp: " << te.m_gcp << endl;
-      }
-      if (te.m_unused[0] != 0 || te.m_unused[1] != 0 || te.m_unused[2] != 0) {
-        ndbout << filename << ": entry " << j << " garbage in m_unused[3]" << endl;
-        retcode = 1;
+                 << " gcp: " << te.m_gcp
+                 << " transId: " << hex << te.m_transId << endl;
       }
     }
   }
@@ -201,6 +215,8 @@ NDB_COMMAND(printSchemafile,
       equalcontents = true;
     if (strchr(argv[1], 'q') != 0)
       okquiet = true;
+    if (strchr(argv[1], 't') != 0)
+      transok = true;
     if (strchr(argv[1], 'h') != 0 || strchr(argv[1], '?') != 0) {
       usage();
       return 0;

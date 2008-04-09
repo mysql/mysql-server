@@ -40,10 +40,15 @@
 #define RG_DATAMEM              3
 
 /**
+ * Records for job buffers (multi-threaded ndbd only).
+ */
+#define RG_JOBBUFFER            4
+
+/**
  * 
  */
 #define RG_RESERVED             0
-#define RG_COUNT                4
+#define RG_COUNT                5
 
 /**
  * Record types
@@ -62,5 +67,7 @@
 
 #define RT_DBTUP_PAGE              MAKE_TID( 1, RG_DATAMEM)
 #define RT_DBTUP_PAGE_MAP          MAKE_TID( 2, RG_DATAMEM)
+
+#define RT_JOB_BUFFER              MAKE_TID( 1, RG_JOBBUFFER)
 
 #endif
