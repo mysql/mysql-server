@@ -14,8 +14,8 @@
 # 3.     an SVN repository URL or path to a tar.gz file that contains
 #        the plugin source. The tar file should be named such that the
 #        top level directory in the archive is reflected in the name of
-#        the tar file. e.g. innodb-5.1-1.0.b1.tar.gz when extracted should
-#        have a top level directory named "innodb-5.1-1.0.b1".
+#        the tar file. e.g. innodb-1.0-5.1.tar.gz when extracted should
+#        have a top level directory named "innodb-1.0-5.1".
 #
 # 4.     Target architecture e.g., i386 or amd64
 #
