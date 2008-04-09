@@ -390,6 +390,12 @@ protected:
   int addInterpretedCode(Uint32 aTC_ConncetPtr,
                          Uint64 aTransId);
   int handleScanOptions(const ScanOptions *options);
+  int generatePackedReadAIs(const NdbRecord *reseult_record,
+                            bool needAllKeys,
+                            bool& haveBlob);
+  int scanImpl(const unsigned char* result_mask,
+               const NdbScanOperation::ScanOptions *options,
+               bool needAllKeys= false);
   int scanTableImpl(const NdbRecord *result_record,
                     NdbOperation::LockMode lock_mode,
                     const unsigned char *result_mask,
