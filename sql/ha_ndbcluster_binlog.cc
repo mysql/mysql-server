@@ -815,9 +815,10 @@ static int ndbcluster_create_ndb_apply_status_table(THD *thd)
                    " end_pos BIGINT UNSIGNED NOT NULL, "
                    " PRIMARY KEY USING HASH (server_id) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[5]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
                                 701,
                                 702,
+                                721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
@@ -876,9 +877,10 @@ static int ndbcluster_create_schema_table(THD *thd)
                    " type INT UNSIGNED NOT NULL,"
                    " PRIMARY KEY USING HASH (db,name) ) ENGINE=NDB CHARACTER SET latin1");
 
-  const int no_print_error[5]= {ER_TABLE_EXISTS_ERROR,
+  const int no_print_error[6]= {ER_TABLE_EXISTS_ERROR,
                                 701,
                                 702,
+                                721, // Table already exist
                                 4009,
                                 0}; // do not print error 701 etc
   run_query(thd, buf, end, no_print_error, TRUE);
