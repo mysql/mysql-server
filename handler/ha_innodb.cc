@@ -201,6 +201,12 @@ static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
   /* check_func */ NULL, /* update_func */ NULL,
   /* default */ TRUE);
 
+static MYSQL_THDVAR_BOOL(strict_mode,
+  PLUGIN_VAR_NOCMDARG,
+  "Use strict mode when evaluating create options.",
+  NULL, NULL, FALSE);
+
+
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table, 
                                         MEM_ROOT *mem_root)
@@ -5220,6 +5226,170 @@ create_clustered_index_when_no_primary(
 }
 
 /*********************************************************************
+Validates the create options. We may build on this function
+in future. For now, it checks two specifiers:
+KEY_BLOCK_SIZE and ROW_FORMAT
+If innodb_strict_mode is not set then this function is a no-op */
+static
+ibool
+create_options_are_valid(
+/*=====================*/
+					/* out: TRUE if valid. */
+	THD*		thd,		/* in: connection thread. */
+	TABLE*		form,		/* in: information on table
+					columns and indexes */
+	HA_CREATE_INFO*	create_info)	/* in: create info. */
+{
+	ibool 	kbs_specified	= FALSE;
+	ibool	ret		= TRUE;
+
+
+	ut_ad(thd != NULL);
+
+	/* If innodb_strict_mode is not set don't do any validation. */
+	if (!(THDVAR(thd, strict_mode))) {
+		return(TRUE);
+	}
+
+	ut_ad(form != NULL);
+	ut_ad(create_info != NULL);
+
+	/* First check if KEY_BLOCK_SIZE was specified. */
+	if (create_info->key_block_size
+	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
+
+		kbs_specified = TRUE;
+		switch (create_info->key_block_size) {
+		case 1:
+		case 2:
+		case 4:
+		case 8:
+		case 16:
+			/* Valid value. */
+			break;
+		default:
+			push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+					    ER_ILLEGAL_HA_CREATE_OPTION,
+					    "InnoDB: invalid"
+					    " KEY_BLOCK_SIZE = %lu."
+					    " Valid values are"
+					    " [1, 2, 4, 8, 16]",
+					    create_info->key_block_size);
+			ret = FALSE;
+		}
+	}
+	
+	/* If KEY_BLOCK_SIZE was specified, check for its
+	dependencies. */
+	if (kbs_specified && !srv_file_per_table) {
+		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: KEY_BLOCK_SIZE"
+			     " requires innodb_file_per_table.");
+		ret = FALSE;
+	}
+
+	if (kbs_specified && srv_file_format < DICT_TF_FORMAT_ZIP) {
+		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+			     ER_ILLEGAL_HA_CREATE_OPTION,
+			     "InnoDB: KEY_BLOCK_SIZE"
+			     " requires innodb_file_format > 0.");
+		ret = FALSE;
+	}
+
+	/* Now check for ROW_FORMAT specifier. */
+	if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
+		switch (form->s->row_type) {
+			const char* row_format_name;
+		case ROW_TYPE_COMPRESSED:
+		case ROW_TYPE_DYNAMIC:
+			row_format_name
+				= form->s->row_type == ROW_TYPE_COMPRESSED
+				? "COMPRESSED"
+				: "DYNAMIC";
+
+			/* These two ROW_FORMATs require
+			srv_file_per_table and srv_file_format */
+			if (!srv_file_per_table) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s"
+					" requires innodb_file_per_table.",
+					row_format_name);
+					ret = FALSE;
+
+			}
+
+			if (srv_file_format < DICT_TF_FORMAT_ZIP) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: ROW_FORMAT=%s"
+					" requires innodb_file_format > 0.",
+					row_format_name);
+					ret = FALSE;
+			}
+
+			/* Cannot specify KEY_BLOCK_SIZE with
+			ROW_FORMAT = DYNAMIC.
+			However, we do allow COMPRESSED to be
+			specified with KEY_BLOCK_SIZE. */
+			if (kbs_specified
+			    && form->s->row_type == ROW_TYPE_DYNAMIC) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: cannot specify"
+					" ROW_FORMAT = DYNAMIC with"
+					" KEY_BLOCK_SIZE.");
+					ret = FALSE;
+			}
+
+			break;
+
+		case ROW_TYPE_REDUNDANT:
+		case ROW_TYPE_COMPACT:
+		case ROW_TYPE_DEFAULT:
+			/* Default is COMPACT. */
+			row_format_name
+				= form->s->row_type == ROW_TYPE_REDUNDANT
+				? "REDUNDANT"
+				: "COMPACT";
+
+			/* Cannot specify KEY_BLOCK_SIZE with these
+			format specifiers. */
+			if (kbs_specified) {
+				push_warning_printf(
+					thd,
+					MYSQL_ERROR::WARN_LEVEL_ERROR,
+					ER_ILLEGAL_HA_CREATE_OPTION,
+					"InnoDB: cannot specify"
+					" ROW_FORMAT = %s with"
+					" KEY_BLOCK_SIZE.",
+					row_format_name);
+					ret = FALSE;
+			}
+
+			break;
+
+		default:
+			push_warning(thd,
+				     MYSQL_ERROR::WARN_LEVEL_ERROR,
+				     ER_ILLEGAL_HA_CREATE_OPTION,
+				     "InnoDB: invalid ROW_FORMAT specifier.");
+			ret = FALSE;
+
+		}
+	}
+
+	return(ret);
+}
+
+/*********************************************************************
 Update create_info.  Used in SHOW CREATE TABLE et al. */
 UNIV_INTERN
 void
@@ -5315,6 +5485,12 @@ ha_innobase::create(
 	/* Create the table definition in InnoDB */
 
 	flags = 0;
+
+	/* Validate create options if innodb_strict_mode is set. */
+	if (!create_options_are_valid(thd, form, create_info)) {
+		error = ER_ILLEGAL_HA_CREATE_OPTION;
+		goto cleanup;
+	}
 
 	if (create_info->key_block_size
 	    || (create_info->used_fields & HA_CREATE_USED_KEY_BLOCK_SIZE)) {
@@ -8708,6 +8884,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(replication_delay),
   MYSQL_SYSVAR(status_file),
+  MYSQL_SYSVAR(strict_mode),
   MYSQL_SYSVAR(support_xa),
   MYSQL_SYSVAR(sync_spin_loops),
   MYSQL_SYSVAR(table_locks),
