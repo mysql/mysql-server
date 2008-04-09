@@ -532,8 +532,8 @@ u_int32_t le_latest_keylen (LEAFENTRY le) {
 void* latest_val_le_committed (u_int32_t UU(keylen), void *UU(key), u_int32_t UU(vallen), void *UU(val)) {
     return val;
 }
-void* latest_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *cval, u_int32_t UU(plen), void *UU(pval)) {
-    return cval;
+void* latest_val_le_both (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval), u_int32_t UU(plen), void *pval) {
+    return pval;
 }
 void* latest_val_le_provdel (TXNID UU(xid), u_int32_t UU(klen), void *UU(kval), u_int32_t UU(clen), void *UU(cval)) {
     return 0; // for provisional delete, there is no *latest* key, so return NULL
