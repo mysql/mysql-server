@@ -1124,10 +1124,10 @@ int leafval_bessel_le_committed (u_int32_t klen, void *kval,
 
 int leafval_bessel_le_both (TXNID xid __attribute__((__unused__)),
 			    u_int32_t klen, void *kval,
-			    u_int32_t clen, void *cval,
-			    u_int32_t plen __attribute__((__unused__)), void *pval __attribute__((__unused__)),
+			    u_int32_t clen __attribute__((__unused__)), void *cval __attribute__((__unused__)),
+			    u_int32_t plen, void *pval,
 			    struct cmd_leafval_bessel_extra *be) {
-    return leafval_bessel_le_committed(klen, kval, clen, cval, be);
+    return leafval_bessel_le_committed(klen, kval, plen, pval, be);
 }
 
 int leafval_bessel_le_provdel (TXNID xid __attribute__((__unused__)),
