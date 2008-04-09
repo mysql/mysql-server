@@ -12575,22 +12575,55 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   ApiConnectRecord * const regApiPtr = transPtr.p;
 
   // Acccumulate attribute data
-  if (!saveTRANSID_AI(signal,
-		      indexOp, 
-                      transIdAI->getData(), 
-                      signal->getLength() - TransIdAI::HeaderLength)) {
-    jam();
-    // Failed to allocate space for TransIdAI
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-    
-    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4000;
-    tcIndxRef->errorData = 0;
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
-    return;
+  SectionHandle handle(this, signal);
+  bool longSignal = (handle.m_cnt == 1);
+  if (longSignal)
+  {
+    SegmentedSectionPtr dataPtr;
+    Uint32 dataLen;
+    ndbrequire(handle.getSection(dataPtr, 0));
+    dataLen = dataPtr.sz;
+
+    SectionSegment * ptrP = dataPtr.p;
+    while (dataLen > NDB_SECTION_SEGMENT_SZ)
+    {
+      if (!saveTRANSID_AI(signal, indexOp, &ptrP->theData[0],
+                          NDB_SECTION_SEGMENT_SZ))
+      {
+        releaseSections(handle);
+        goto save_error;
+      }
+      dataLen -= NDB_SECTION_SEGMENT_SZ;
+      ptrP = g_sectionSegmentPool.getPtr(ptrP->m_nextSegment);
+    }
+    if (!saveTRANSID_AI(signal, indexOp, &ptrP->theData[0], dataLen))
+    {
+      releaseSections(handle);
+      goto save_error;
+    }
+
+    releaseSections(handle);
+  }
+  else
+  {
+    if (!saveTRANSID_AI(signal,
+                        indexOp,
+                        transIdAI->getData(),
+                        signal->getLength() - TransIdAI::HeaderLength)) {
+    save_error:
+      jam();
+      // Failed to allocate space for TransIdAI
+      TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
+
+      tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
+      tcIndxRef->transId[0] = regApiPtr->transid[0];
+      tcIndxRef->transId[1] = regApiPtr->transid[1];
+      tcIndxRef->errorCode = 4000;
+      tcIndxRef->errorData = 0;
+      sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal,
+                 TcKeyRef::SignalLength, JBB);
+      return;
+    }
   }
 
   switch(indexOp->indexOpState) {
