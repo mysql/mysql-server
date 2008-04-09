@@ -174,8 +174,11 @@ private:
   
   bool nextResult() const { return m_current_row < m_result_rows; }
   NdbRecAttr* copyout(NdbReceiver&);
-  Uint32 receive_packed(NdbRecAttr**, Uint32 bmlen, 
-                        const Uint32* aDataPtr, Uint32 aLength);
+  Uint32 receive_packed_recattr(NdbRecAttr**, Uint32 bmlen, 
+                                const Uint32* aDataPtr, Uint32 aLength);
+  Uint32 receive_packed_ndbrecord(Uint32 bmlen,
+                                  const Uint32* aDataPtr,
+                                  char* row);
   /* get_row() returns the next available row during NdbRecord scans. */
   const char *get_row();
   /*
