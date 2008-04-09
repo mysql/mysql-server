@@ -12606,24 +12606,24 @@ void Dbtc::execTRANSID_AI(Signal* signal)
   }
   else
   {
-  if (!saveTRANSID_AI(signal,
-		      indexOp, 
-                      transIdAI->getData(), 
-                      signal->getLength() - TransIdAI::HeaderLength)) {
-  save_error:
-    jam();
-    // Failed to allocate space for TransIdAI
-    TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
-    
-    tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
-    tcIndxRef->transId[0] = regApiPtr->transid[0];
-    tcIndxRef->transId[1] = regApiPtr->transid[1];
-    tcIndxRef->errorCode = 4000;
-    tcIndxRef->errorData = 0;
-    sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal, 
-	       TcKeyRef::SignalLength, JBB);
-    return;
-  }
+    if (!saveTRANSID_AI(signal,
+                        indexOp,
+                        transIdAI->getData(),
+                        signal->getLength() - TransIdAI::HeaderLength)) {
+    save_error:
+      jam();
+      // Failed to allocate space for TransIdAI
+      TcKeyRef * const tcIndxRef = (TcKeyRef *)signal->getDataPtrSend();
+
+      tcIndxRef->connectPtr = indexOp->tcIndxReq.senderData;
+      tcIndxRef->transId[0] = regApiPtr->transid[0];
+      tcIndxRef->transId[1] = regApiPtr->transid[1];
+      tcIndxRef->errorCode = 4000;
+      tcIndxRef->errorData = 0;
+      sendSignal(regApiPtr->ndbapiBlockref, GSN_TCINDXREF, signal,
+                 TcKeyRef::SignalLength, JBB);
+      return;
+    }
   }
 
   switch(indexOp->indexOpState) {
