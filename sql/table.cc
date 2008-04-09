@@ -916,7 +916,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         /* purecov: begin inspected */
         error= 8;
         my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), name.str);
-        my_free(buff, MYF(0));
         goto err;
         /* purecov: end */
       }
