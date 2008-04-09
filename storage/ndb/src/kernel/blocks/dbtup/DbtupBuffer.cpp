@@ -243,10 +243,10 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     /**
      * BACKUP/SUMA/LQH run in our thread, so we can EXECUTE_DIRECT().
      *
-     * The UTIL block is in another thread (in multi-threaded ndbd), so must
-     * use sendSignal().
+     * The UTIL/TC blocks are in another thread (in multi-threaded ndbd), so
+     * must use sendSignal().
      */
-    if (block != DBUTIL)
+    if (block != DBUTIL && block != DBTC)
     {
       EXECUTE_DIRECT(block, GSN_TRANSID_AI, signal, 3 + ToutBufIndex);
       jamEntry();
