@@ -202,6 +202,7 @@ SHOW_VAR ndb_status_variables[]= {
   {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
 //{"number_of_replicas",  (char*) &g_ndb_status.number_of_replicas,   SHOW_LONG},
   {"number_of_data_nodes",(char*) &g_ndb_status.number_of_data_nodes, SHOW_LONG},
+  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
