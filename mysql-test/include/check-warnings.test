@@ -4,5 +4,9 @@
 # for unexpected warnings found in the servers error log
 #
 --disable_query_log
-call mtr.check_warnings();
+call mtr.check_warnings(@result);
+if (`select @result = 0`){
+  skip OK;
+}
+echo Found warnings;
 --enable_query_log
