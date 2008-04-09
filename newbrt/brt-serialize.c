@@ -27,7 +27,7 @@ static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokulea
 					    4+   // localfingerprint
 					    4);  // crc32 at the end
 
-static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
+static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
     unsigned int size=brtnode_header_overhead;
     if (node->height>0) {
 	unsigned int hsize=0;
@@ -35,17 +35,13 @@ static unsigned int toku_serialize_brtnode_size_slow(BRTNODE node) {
 	int i;
 	size+=4; /* n_children */
 	size+=4; /* subtree fingerprint. */
+	size+=4*(node->u.n.n_children-1); /* key lengths*/
+	if (node->flags & TOKU_DB_DUPSORT) size += 4*(node->u.n.n_children-1);
 	for (i=0; i<node->u.n.n_children-1; i++) {
-	    size+=4;
-            if (node->flags & TOKU_DB_DUPSORT) size += 4;
 	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
-	for (i=0; i<node->u.n.n_children; i++) {
-	    size+=8; // diskoff
-	    size+=4; // subsum
-	}
+	size+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
 	int n_buffers = node->u.n.n_children;
-	size+=4; /* n_entries */
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (i=0; i< n_buffers; i++) {
 	    FIFO_ITERATE(BNC_BUFFER(node,i),
@@ -87,17 +83,11 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=(4 /* n_entries in buffer table. */
 		 +4); /* the pma size */
 	result+=node->u.l.n_bytes_in_buffer;
-#if 0
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
 	    if (result!=slowresult) printf("%s:%d result=%d slowresult=%d\n", __FILE__, __LINE__, result, slowresult);
 	    assert(result==slowresult);
 	}
-#else
-        unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
-        if (result != slowresult)
-            result = slowresult;
-#endif
     }
     return result;
 }
@@ -106,7 +96,10 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
-    unsigned int calculated_size = toku_serialize_brtnode_size(node);
+    unsigned int calculated_size = toku_serialize_brtnode_size_slow(node);
+    if (calculated_size!=toku_serialize_brtnode_size(node)) {
+	printf("Sizes don't match: %d %d\n", calculated_size, toku_serialize_brtnode_size(node));
+    }
     assert(calculated_size<=size);
     //char buf[size];
     char *MALLOC_N(size,buf);
