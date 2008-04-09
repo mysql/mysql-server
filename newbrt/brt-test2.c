@@ -55,6 +55,7 @@ int main (int argc , const char *argv[]) {
 //    test2(1);
     if (verbose) printf("test2 faster\n");
     test2(0, 2);
+    test2(0, 27);
     test2(0, 212);
     test2(0, 4096);
     toku_malloc_cleanup();

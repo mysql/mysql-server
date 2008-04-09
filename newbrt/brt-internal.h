@@ -105,6 +105,8 @@ struct brt_header {
     char  **names;
     DISKOFF *roots;
     unsigned int flags;
+    
+    FIFO fifo; // all the abort and commit commands.  If the header gets flushed to disk, we write the fifo contents beyond the unused_memory.
 };
 
 struct brt {
@@ -122,6 +124,7 @@ struct brt {
     DB *db;           // To pass to the compare fun
 
     void *skey,*sval; /* Used for DBT return values. */
+
 };
 
 /* serialization code */
@@ -136,6 +139,9 @@ int toku_serialize_brt_header_size (struct brt_header *h);
 int toku_serialize_brt_header_to (int fd, struct brt_header *h);
 int toku_serialize_brt_header_to_wbuf (struct wbuf *, struct brt_header *h);
 int toku_deserialize_brtheader_from (int fd, DISKOFF off, struct brt_header **brth);
+
+int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo); // Write a fifo into a disk, without worrying about fitting it into a block.  This write is done at the end of the file.
+int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo);
 
 void toku_brtnode_free (BRTNODE *node);
 
@@ -202,6 +208,7 @@ struct cmd_leafval_bessel_extra {
 int toku_cmd_leafval_bessel (u_int32_t dlen, void *leafentry, void *extra);
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
+int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
 
 int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp);
 void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size);

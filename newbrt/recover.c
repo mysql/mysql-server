@@ -113,6 +113,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     h->freelist = header.freelist;
     h->unused_memory = header.unused_memory;
     h->n_named_roots = header.n_named_roots;
+    r=toku_fifo_create(&h->fifo);
+    assert(r==0);
     if ((signed)header.n_named_roots==-1) {
 	h->unnamed_root = header.u.one.root;
     } else {
@@ -193,6 +195,50 @@ static void recover_setup_node (FILENUM filenum, DISKOFF diskoff, CACHEFILE *cf,
     BRTNODE node = node_v;
     *resultnode = node;
     *cf = pair->cf;
+}
+
+void toku_recover_deqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    assert(r==0);
+    void *h_v;
+    r = toku_cachetable_get_and_pin(pair->cf, 0, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    assert(r==0);
+    struct brt_header *h=h_v;
+    bytevec storedkey,storeddata;
+    ITEMLEN storedkeylen, storeddatalen;
+    TXNID storedxid;
+    u_int32_t storedtype;
+    r = toku_fifo_peek(h->fifo, &storedkey, &storedkeylen, &storeddata, &storeddatalen, &storedtype, &storedxid);
+    assert(r==0);
+    assert(storedkeylen==key.len);
+    assert(storeddatalen==val.len);
+    assert(memcmp(storedkey, key.data, key.len)==0);
+    assert(memcmp(storeddata, val.data, val.len)==0);
+    assert(typ==storedtype);
+    assert(xid==storedxid);
+    r = toku_fifo_deq(h->fifo);
+    assert(r==0);
+    r = toku_cachetable_unpin(pair->cf, 0, 1, 0);
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(val.data);
+}
+
+void toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
+    struct cf_pair *pair = NULL;
+    int r = find_cachefile(filenum, &pair);
+    assert(r==0);
+    void *h_v;
+    r = toku_cachetable_get_and_pin(pair->cf, 0, &h_v, NULL, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
+    assert(r==0);
+    struct brt_header *h=h_v;
+    r = toku_fifo_enq(h->fifo, key.data, key.len, val.data, val.len, typ, xid); 
+    assert(r==0);
+    r = toku_cachetable_unpin(pair->cf, 0, 1, 0);
+    assert(r==0);
+    toku_free(key.data);
+    toku_free(val.data);
 }
 
 void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t childnum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING data, u_int32_t oldfingerprint, u_int32_t newfingerprint) {
@@ -382,7 +428,7 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     brt->compare_fun = 0;
     brt->dup_compare = 0;
     brt->db = 0;
-    int r = toku_cachetable_openfd(&cf, ct, fd, brt);
+    int r = toku_cachetable_openfd(&cf, ct, fd);
     assert(r==0);
     brt->skey = brt->sval = 0;
     brt->cf=cf;
