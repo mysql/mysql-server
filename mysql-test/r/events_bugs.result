@@ -736,3 +736,4 @@ select name from mysql.event where name = 'p' and sql_mode = @full_mode;
 name
 drop event e1;
 DROP DATABASE events_test;
+SET GLOBAL event_scheduler= 'ON';
