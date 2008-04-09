@@ -370,13 +370,16 @@ APZJobBuffer::clear()
  */
 void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
 
-void FastScheduler::dumpSignalMemory(FILE * output)
+void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
 {
   SignalT<25> signalT;
   Signal &signal= *(Signal*)&signalT;
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
+
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
 
   fprintf(output, "\n");
  
@@ -454,6 +457,41 @@ print_restart(FILE * output, Signal* signal, Uint32 aLevel)
 					 &signal->theData[0]);
 }
 
+void
+FastScheduler::traceDumpPrepare()
+{
+  /* No-operation in single-threaded ndbd. */
+}
+
+Uint32
+FastScheduler::traceDumpGetNumThreads()
+{
+  return 1;                     // Single-threaded ndbd scheduler
+}
+
+bool
+FastScheduler::traceDumpGetJam(Uint32 thr_no, Uint32 & jamBlockNumber,
+                               const Uint32 * & thrdTheEmulatedJam,
+                               Uint32 & thrdTheEmulatedJamIndex)
+{
+  /* Single threaded ndbd scheduler, no threads. */
+  assert(thr_no == 0);
+
+#ifdef NO_EMULATED_JAM
+  jamBlockNumber = 0;
+  thrdTheEmulatedJam = NULL;
+  thrdTheEmulatedJamIndex = 0;
+#else
+  const EmulatedJamBuffer *jamBuffer =
+    (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
+  thrdTheEmulatedJam = jamBuffer->theEmulatedJam;
+  thrdTheEmulatedJamIndex = jamBuffer->theEmulatedJamIndex;
+  jamBlockNumber = jamBuffer->theEmulatedJamBlockNumber;
+#endif
+  return true;
+}
+
+
 /**
  * This method used to be a Cmvmi member function
  * but is now a "ordinary" function"
@@ -510,3 +548,33 @@ FastScheduler::reportThreadConfigLoop(Uint32 expired_time,
   execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
 }
 
+/* Dummy functions for single-threaded ndbd. */
+void
+mt_mem_manager_lock()
+{
+}
+
+void
+mt_mem_manager_unlock()
+{
+}
+
+void
+mt_receive_lock()
+{
+}
+
+void
+mt_receive_unlock()
+{
+}
+
+void
+mt_send_lock(void *dummy, NodeId nodeId)
+{
+}
+
+void
+mt_send_unlock(void *dummy, NodeId nodeId)
+{
+}

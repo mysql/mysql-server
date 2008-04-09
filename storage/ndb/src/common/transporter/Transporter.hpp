@@ -91,6 +91,9 @@ public:
     m_transporter_registry.set_status_overloaded(remoteNodeId, val);
   }
   
+  virtual bool hasDataToSend() const = 0;
+  virtual bool doSend() = 0;
+
 protected:
   Transporter(TransporterRegistry &,
 	      TransporterType,

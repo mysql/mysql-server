@@ -1848,8 +1848,6 @@ public:
     Uint8 m_disk_table;
 
     Uint32 usageCount;
-    NdbNodeBitmask waitingTC;
-    NdbNodeBitmask waitingDIH;
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
 
@@ -2165,16 +2163,15 @@ private:
   void execALTER_TAB_REQ(Signal* signal);
   void execALTER_TAB_CONF(Signal* signal);
 
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_REQ(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REQ(Signal* signal);
 
-  void execDROP_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_REQ(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_REQ(Signal* signal);
 
   void execPREP_DROP_TAB_REQ(Signal* signal);
-  void execWAIT_DROP_TAB_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
 
   void execLQH_ALLOCREQ(Signal* signal);

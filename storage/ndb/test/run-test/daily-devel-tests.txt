@@ -252,3 +252,7 @@ max-time: 600
 cmd: testBasic
 args: -n PkRead T1
 
+# dict trans
+max-time: 1800
+cmd: testDict
+args: -n SchemaTrans -l 1

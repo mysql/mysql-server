@@ -23,8 +23,8 @@
 #include <signaldata/AccScan.hpp>
 #include <signaldata/CopyActive.hpp>
 #include <signaldata/CopyFrag.hpp>
-#include <signaldata/CreateTrig.hpp>
-#include <signaldata/DropTrig.hpp>
+#include <signaldata/CreateTrigImpl.hpp>
+#include <signaldata/DropTrigImpl.hpp>
 #include <signaldata/EmptyLcp.hpp>
 #include <signaldata/EventReport.hpp>
 #include <signaldata/ExecFragReq.hpp>
@@ -1879,7 +1879,8 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   
   Uint32 errCode = 0;
   errCode = checkDropTabState(tabPtr.p->tableStatus, GSN_PREP_DROP_TAB_REQ);
-  if(errCode != 0){
+  if(errCode != 0)
+  {
     jam();
 
     PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
@@ -1893,15 +1894,6 @@ Dblqh::execPREP_DROP_TAB_REQ(Signal* signal){
   }
   
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_ONGOING;
-  tabPtr.p->waitingTC.clear();
-  tabPtr.p->waitingDIH.clear();
-  
-  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
-  conf->tableId = tabPtr.i;
-  conf->senderRef = reference();
-  conf->senderData = senderData;
-  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
-	     PrepDropTabConf::SignalLength, JBB);
   
   signal->theData[0] = ZPREP_DROP_TABLE;
   signal->theData[1] = tabPtr.i;
@@ -1916,6 +1908,9 @@ Dblqh::checkDropTab(Signal* signal){
   TablerecPtr tabPtr;
   tabPtr.i = signal->theData[1];
   ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
+
+  Uint32 senderRef = signal->theData[2];
+  Uint32 senderData = signal->theData[3];
   
   ndbrequire(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING);
   
@@ -1951,89 +1946,12 @@ Dblqh::checkDropTab(Signal* signal){
   
   tabPtr.p->tableStatus = Tablerec::PREP_DROP_TABLE_DONE;
 
-  WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtrSend();
+  PrepDropTabConf * conf = (PrepDropTabConf*)signal->getDataPtrSend();
   conf->tableId = tabPtr.i;
   conf->senderRef = reference();
-  for(Uint32 i = 1; i<MAX_NDB_NODES; i++){
-    if(tabPtr.p->waitingTC.get(i)){
-      tabPtr.p->waitingTC.clear(i);
-      sendSignal(calcTcBlockRef(i), GSN_WAIT_DROP_TAB_CONF, signal,
-		 WaitDropTabConf::SignalLength, JBB);
-    }
-    if(tabPtr.p->waitingDIH.get(i)){
-      tabPtr.p->waitingDIH.clear(i);
-      sendSignal(calcDihBlockRef(i), GSN_WAIT_DROP_TAB_CONF, signal,
-		 WaitDropTabConf::SignalLength, JBB);
-    }
-  }
-}
-
-void
-Dblqh::execWAIT_DROP_TAB_REQ(Signal* signal){
-  jamEntry();
-  WaitDropTabReq * req = (WaitDropTabReq*)signal->getDataPtr();
-  
-  TablerecPtr tabPtr;
-  tabPtr.i = req->tableId;
-  ptrCheckGuard(tabPtr, ctabrecFileSize, tablerec);
-  
-  Uint32 senderRef = req->senderRef;
-  Uint32 nodeId = refToNode(senderRef);
-  Uint32 blockNo = refToBlock(senderRef);
-
-  if(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_ONGOING){
-    jam();
-    switch(blockNo){
-    case DBTC:
-      tabPtr.p->waitingTC.set(nodeId);
-      break;
-    case DBDIH:
-      tabPtr.p->waitingDIH.set(nodeId);
-      break;
-    default:
-      ndbrequire(false);
-    }
-    return;
-  }
-
-  if(tabPtr.p->tableStatus == Tablerec::PREP_DROP_TABLE_DONE){
-    jam();
-    WaitDropTabConf * conf = (WaitDropTabConf*)signal->getDataPtrSend();
-    conf->tableId = tabPtr.i;
-    conf->senderRef = reference();
-    sendSignal(senderRef, GSN_WAIT_DROP_TAB_CONF, signal,
-	       WaitDropTabConf::SignalLength, JBB);
-    return;
-  }
-
-  WaitDropTabRef * ref = (WaitDropTabRef*)signal->getDataPtrSend();
-  ref->tableId = tabPtr.i;
-  ref->senderRef = reference();
-
-  bool ok = false;
-  switch(tabPtr.p->tableStatus){
-  case Tablerec::TABLE_DEFINED:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::IllegalTableState;
-    break;
-  case Tablerec::NOT_DEFINED:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::NoSuchTable;
-    break;
-  case Tablerec::ADD_TABLE_ONGOING:
-    ok = true;
-    ref->errorCode = WaitDropTabRef::IllegalTableState;
-    break;
-  case Tablerec::PREP_DROP_TABLE_ONGOING:
-  case Tablerec::PREP_DROP_TABLE_DONE:
-    // Should have been take care of above
-    ndbrequire(false);
-  }
-  ndbrequire(ok);
-  ref->tableStatus = tabPtr.p->tableStatus;
-  sendSignal(senderRef, GSN_WAIT_DROP_TAB_REF, signal,
-	     WaitDropTabRef::SignalLength, JBB);
-  return;
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+	     PrepDropTabConf::SignalLength, JBB);
 }
 
 void
@@ -2161,30 +2079,36 @@ void
 Dblqh::execALTER_TAB_REQ(Signal* signal)
 {
   jamEntry();
-  AlterTabReq* const req = (AlterTabReq*)signal->getDataPtr();
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
-  const Uint32 changeMask = req->changeMask;
   const Uint32 tableId = req->tableId;
   const Uint32 tableVersion = req->tableVersion;
-  const Uint32 gci = req->gci;
+  const Uint32 newTableVersion = req->newTableVersion;
   AlterTabReq::RequestType requestType =
     (AlterTabReq::RequestType) req->requestType;
 
   TablerecPtr tablePtr;
   tablePtr.i = tableId;
   ptrCheckGuard(tablePtr, ctabrecFileSize, tablerec);
-  tablePtr.p->schemaVersion = tableVersion;
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    tablePtr.p->schemaVersion = newTableVersion;
+    break;
+  case AlterTabReq::AlterTableRevert:
+    tablePtr.p->schemaVersion = tableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
 
   // Request handled successfully
-  AlterTabConf * conf = (AlterTabConf*)signal->getDataPtrSend();
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
   conf->senderRef = reference();
   conf->senderData = senderData;
-  conf->changeMask = changeMask;
-  conf->tableId = tableId;
-  conf->tableVersion = tableVersion;
-  conf->gci = gci;
-  conf->requestType = requestType;
+  conf->connectPtr = RNIL;
   sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal,
 	     AlterTabConf::SignalLength, JBB);
 }
@@ -2978,6 +2902,10 @@ void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
     lqhKeyConf->connectPtr = tcConnectptr.i;
     if(Thostptr.i == 0 || Thostptr.i == getOwnNodeId())
     {
+      /**
+       * This EXECUTE_DIRECT is multi-thread safe, as we only get here
+       * for RESTORE block.
+       */
       EXECUTE_DIRECT(refToBlock(atcBlockref), GSN_LQHKEYCONF,
 		     signal, LqhKeyConf::SignalLength);
     }
@@ -10057,9 +9985,10 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
   if(connectedToNode){
     jam();
     
-    if(nodeId != getOwnNodeId()){
-      jam();
-      
+    /* KEYINFO20 is only sent to API, so cannot have nodeId == own nodeId. */
+    ndbrequire(nodeId != getOwnNodeId());
+
+    {
       if(keyLen <= KeyInfo20::DataLength || !longable) {
 	while(keyLen > KeyInfo20::DataLength){
 	  jam();
@@ -10082,11 +10011,6 @@ Uint32 Dblqh::sendKeyinfo20(Signal* signal,
 		 JBB, ptr, 1);
       return keyLen;
     }
-    
-    EXECUTE_DIRECT(refToBlock(ref), GSN_KEYINFO20, signal, 
-		   KeyInfo20::HeaderLength + keyLen);
-    jamEntry();
-    return keyLen;
   }
   
   /** 
@@ -12232,6 +12156,15 @@ void Dblqh::execGCP_SAVEREQ(Signal* signal)
 
   if (unlikely(refToNode(signal->getSendersBlockRef()) != getOwnNodeId()))
   {
+    /**
+     * This code is only run during upgrade from pre-micro-gcp version.
+     *
+     * During startup, we make sure not to allow starting multi-threaded
+     * NDBD while such an upgrade is taking place. So the EXECUTE_DIRECT()
+     * below, which would be cross-thread in multi-threaded NDBD, is thus
+     * safe since it never runs in the non-safe case.
+     */
+    ndbassert(!isMultiThreaded());
     jam();
     ndbassert(!ndb_check_micro_gcp
               (getNodeInfo(refToNode
@@ -12823,7 +12756,7 @@ void Dblqh::execFSREADREF(Signal* signal)
     jam();
     break;
   case LogFileOperationRecord::READ_SR_INVALIDATE_PAGES:
-    jam()
+    jam();
     break;
   default:
     jam();
@@ -19760,57 +19693,57 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
 
 // Trigger signals
 void
-Dblqh::execCREATE_TRIG_REQ(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_REQ, signal,
-             CreateTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_CREATE_TRIG_IMPL_REQ, signal,
+             CreateTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_CONF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_CONF, signal,
-             CreateTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_CONF, signal,
+             CreateTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execCREATE_TRIG_REF(Signal* signal)
+Dblqh::execCREATE_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_REF, signal,
-             CreateTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_CREATE_TRIG_IMPL_REF, signal,
+             CreateTrigImplRef::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REQ(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBTUP_REF, GSN_DROP_TRIG_REQ, signal,
-             DropTrigReq::SignalLength, JBB);
+  sendSignal(DBTUP_REF, GSN_DROP_TRIG_IMPL_REQ, signal,
+             DropTrigImplReq::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_CONF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_CONF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_CONF, signal,
-             DropTrigConf::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_CONF, signal,
+             DropTrigImplConf::SignalLength, JBB);
 }
 
 void
-Dblqh::execDROP_TRIG_REF(Signal* signal)
+Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
 {
   jamEntry();
 
-  sendSignal(DBDICT_REF, GSN_DROP_TRIG_REF, signal,
-             DropTrigRef::SignalLength, JBB);
+  sendSignal(DBDICT_REF, GSN_DROP_TRIG_IMPL_REF, signal,
+             DropTrigImplRef::SignalLength, JBB);
 }
 
 Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){
