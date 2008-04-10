@@ -98,7 +98,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     int i;
     unsigned int calculated_size = toku_serialize_brtnode_size_slow(node);
     if (calculated_size!=toku_serialize_brtnode_size(node)) {
-	printf("Sizes don't match: %d %d\n", calculated_size, toku_serialize_brtnode_size(node));
+	//printf("Sizes don't match: %d %d\n", calculated_size, toku_serialize_brtnode_size(node));
     }
     assert(calculated_size<=size);
     //char buf[size];
