@@ -895,7 +895,7 @@ Warning	1287	The syntax 'TIMESTAMP(4294967294)' is deprecated and will be remove
 DROP TABLE b15776;
 CREATE TABLE b15776 (a timestamp(4294967295));
 Warnings:
-Warning	1287	'TIMESTAMP(4294967295)' is deprecated; use 'TIMESTAMP' instead
+Warning	1287	The syntax 'TIMESTAMP(4294967295)' is deprecated and will be removed in MySQL 5.2. Please use 'TIMESTAMP' instead
 DROP TABLE b15776;
 CREATE TABLE b15776 (a timestamp(4294967296));
 ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
