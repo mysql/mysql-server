@@ -990,7 +990,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
     }
-    DBUG_ASSERT (next_chunk <= buff_end);
     if (share->mysql_version >= MYSQL_VERSION_TABLESPACE_IN_FRM)
     {
       /*
@@ -1002,7 +1001,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       if (next_chunk >= buff_end)
       {
         DBUG_PRINT("error", ("Found no field extra info"));
-        goto err;
       }
       else
       {
@@ -1027,12 +1025,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         field_extra_info= next_chunk + format_section_header_size + tablespace_len + 1;
         next_chunk+= format_section_len;
       }
-    }
-    DBUG_ASSERT (next_chunk <= buff_end);
-    if (next_chunk > buff_end)
-    {
-      DBUG_PRINT("error", ("Buffer overflow in field extra info"));
-      goto err;
     }
   }
   share->key_block_size= uint2korr(head+62);
