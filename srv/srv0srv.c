@@ -89,7 +89,7 @@ UNIV_INTERN char*	srv_arch_dir	= NULL;
 dictionary tables are in the system tablespace 0 */
 UNIV_INTERN my_bool	srv_file_per_table;
 /* The file format to use on new *.ibd files. */
-UNIV_INTERN uint	srv_file_format;
+UNIV_INTERN uint	srv_file_format = 0;
 #if DICT_TF_FORMAT_51
 # error "DICT_TF_FORMAT_51 must be 0!"
 #endif
