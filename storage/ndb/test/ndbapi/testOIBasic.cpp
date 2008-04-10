@@ -3334,12 +3334,6 @@ BSet::setbnd(Par par) const
       const BVal& bval = *m_bval[j2];
       CHK(bval.setbnd(par) == 0);
     }
-    // duplicate
-    if (urandom(5) == 0) {
-      uint j3 = urandom(m_bvals);
-      const BVal& bval = *m_bval[j3];
-      CHK(bval.setbnd(par) == 0);
-    }
   }
   return 0;
 }
