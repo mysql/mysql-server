@@ -1,0 +1,140 @@
+############## mysql-test\t\concurrent_insert_basic.test #######################
+#                                                                              #
+# Variable Name: concurrent_insert                                             #
+# Scope: GLOBAL                                                                #
+# Access Type: Dynamic                                                         #
+# Data Type: Boolean & Numeric                                                 #
+# Default Value: 1                                                             #
+# Valid Values: 0,1 & 2                                                        #
+#                                                                              #
+#                                                                              #
+# Creation Date: 2008-03-07                                                    #
+# Author:  Salman Rawala                                                       #
+#                                                                              #
+# Description: Test Cases of Dynamic System Variable "concurrent_insert"       #
+#              that checks functionality of this variable                      #
+#                                                                              #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                           #
+#    server-system-variables.html#option_mysqld_concurrent_insert              #
+#                                                                              #
+################################################################################
+
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+#########################
+#   Creating new table  #
+#########################
+
+--echo ## Creating new table ##
+CREATE TABLE t1
+(
+name varchar(30)
+);
+
+--echo '#--------------------FN_DYNVARS_018_01-------------------------#'
+####################################################################
+#    Setting initial value of concurrent_insert to 1  
+#    concurrent_insert = 1 means Enables concurrent insert 
+#    for MyISAM tables that don't have holes
+####################################################################
+
+--echo ## Setting initial value of variable to 1 ##
+SET @@global.concurrent_insert = 1;
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');	
+INSERT into t1(name) values('Record_3');
+
+--echo ## locking table ##
+lock table t1 read local;
+
+--echo ## Creating new connection to insert some rows in table ## 
+connect (test_con1,localhost,root,,);
+connection test_con1;
+
+--echo ## New records should come at the end of all rows ##
+INSERT into t1(name) values('Record_4');	
+SELECT * from t1;
+
+
+--echo ## unlocking tables ##
+connection default;
+unlock tables;
+
+--echo ## deleting record to create hole in table ## 
+DELETE from t1 where name ='Record_2';
+
+
+--echo '#--------------------FN_DYNVARS_018_02-------------------------#'
+####################################################################
+#    Setting initial value of concurrent_insert to 1  
+#    concurrent_insert = 1 and trying to insert some values  
+#    in MyISAM tables that have holes
+####################################################################
+
+# lock table and connect with connection1
+#lock table t1 read local;
+#connection test_con1;
+
+# setting value of concurrent_insert to 1
+#SET @@global.concurrent_insert=1;
+
+#INSERT into t1(name) values('Record_7');
+#SELECT * from t1;
+
+#connection default;
+#unlock tables;
+
+#SELECT * from t1;
+#INSERT into t1(name) values('Record_6');
+
+# On inserting rows in hole while the value of concurrent_insert is 1
+# MySQL server hangs.
+
+
+
+--echo '#--------------------FN_DYNVARS_018_03-------------------------#'
+###############################################################################
+#    Setting value of concurrent_insert to 2 to verify values after inserting
+#    it into table with holes
+#    concurrent_insert = 2 means Enables concurrent insert 
+#    for MyISAM tables that have holes but inserts values at the end of all rows
+###############################################################################
+
+--echo ## lock table and connect with connection1 ##
+lock table t1 read local;
+connection test_con1;
+
+--echo ## setting value of concurrent_insert to 2 ##
+SET @@global.concurrent_insert=2;
+
+--echo ## Inserting record in table, record should go at the end of the table ##
+INSERT into t1(name) values('Record_5');
+SELECT * from t1;
+SELECT @@concurrent_insert;
+
+--echo ## Switching to default connection ##
+connection default;
+
+--echo ## Unlocking table ##
+unlock tables;
+
+SELECT * from t1;
+
+--echo ## Inserting new row, this should go in the hole ##
+INSERT into t1(name) values('Record_6');
+SELECT * from t1;
+
+--echo ## connection test_con1 ##
+
+DELETE from t1 where name ='Record_3';
+SELECT * from t1;
+
+--echo ## Dropping table ##
+DROP table t1;
+
+--echo ## Disconnecting connection ##
+disconnect test_con1;
+

@@ -1287,6 +1287,8 @@ mysql-test/funcs_1.tar
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/lib/init_db.sql
+mysql-test/linux_sys_vars.inc
+mysql-test/load_sysvars.inc
 mysql-test/mtr
 mysql-test/mysql-test-run
 mysql-test/mysql-test-run-shell
@@ -1399,6 +1401,7 @@ mysql-test/t/index_merge.load
 mysql-test/t/tmp.test
 mysql-test/var
 mysql-test/var/*
+mysql-test/windows_sys_vars.inc
 mysql.kdevprj
 mysql.proj
 mysql_priv.h

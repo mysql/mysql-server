@@ -1,0 +1,36 @@
+drop table if exists t1;
+## Creating new table t1 ##
+CREATE TABLE t1
+(
+id INT NOT NULL auto_increment,
+PRIMARY KEY (id),
+rollno int NOT NULL,
+name VARCHAR(30)
+);
+FLUSH STATUS;
+'#--------------------FN_DYNVARS_055_01-------------------------#'
+## Setting initial value of variable to 131072 ##
+SET @@global.key_buffer_size = 131072;
+## Creating two new connections ##
+'#--------------------FN_DYNVARS_055_02-------------------------#'
+## Connecting with connection test_con1 ##
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+131072
+## Inserting some rows in table ##
+INSERT into t1(rollno, name) values(1, 'Record_1');
+INSERT into t1(rollno, name) values(2, 'Record_2');
+INSERT into t1(rollno, name) values(1, 'Record_3');
+INSERT into t1(rollno, name) values(3, 'Record_4');
+INSERT into t1(rollno, name) values(1, 'Record_5');
+INSERT into t1(rollno, name) values(3, 'Record_6');
+INSERT into t1(rollno, name) values(4, 'Record_7');
+INSERT into t1(rollno, name) values(4, 'Record_8');
+INSERT into t1(rollno, name) values(4, 'Record_9');
+INSERT into t1(rollno, name) values(4, 'Record_10');
+## Verifying status of reading & writing variables ##
+## Switching to connection test_con2 ##
+## Verifying status of reading & writing variables ##
+## Dropping table ##
+DROP table if exists t1;
+## Disconnecting both the connections ##

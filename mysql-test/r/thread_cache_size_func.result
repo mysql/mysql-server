@@ -1,0 +1,68 @@
+SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
+FLUSH STATUS;
+'# Test1#'
+SET @@GLOBAL.thread_cache_size=3;
+Saving threads cached, threads created values
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	0
+0 Expected
+'#Old value for thread_cache'#
+** Connecting conn1 using username 'root' **
+** Connecting conn2 using username 'root' **
+** Connecting conn3 using username 'root' **
+** Connecting conn4 using username 'root' **
+Saving threads cached, threads created values
+Threads Created Difference
+4
+4 Expected
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	0
+0 Expected
+** Connection default **
+** Disconnecting conn1,conn2,conn3,conn4 **
+'#new  values for thread cache after disconnecting'#
+Saving threads cached, threads created values
+Threads Created Difference
+0
+0 Expected
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	3
+3 Expected
+SET @@GLOBAL.thread_cache_size=1;
+Saving threads cached, threads created values
+Threads Created Difference
+0
+0 Expected
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	3
+1 Expected
+Bug: The number of threads cached should have decreased with cache size decrease.
+** Connecting conn1 using username 'root' **
+** Connecting conn2 using username 'root' **
+Saving threads cached, threads created values
+Threads Created Difference
+0
+1 Expected
+Bug: The number of threads created should have increased because the cache should have 1 thread only
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	1
+0 Expected
+Bug: The number of threads created should have decreased because atleast 1 new connection came in
+** Connection default **
+** Disconnecting conn1,conn2 **
+'#new status values for thread cache'#
+Saving threads cached, threads created values
+Threads Created Difference
+0
+0 Expected
+SHOW STATUS LIKE 'Threads_cached';
+Variable_name	Value
+Threads_cached	1
+1 Expected
+Saving threads cached, threads created values
+SET @@GLOBAL.thread_cache_size = @global_thread_cache_size;
