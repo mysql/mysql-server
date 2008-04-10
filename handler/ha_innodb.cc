@@ -8901,6 +8901,45 @@ struct st_mysql_sys_var
 	void* value;
 };
 
+struct param_mapping
+{
+	const char*	server;		/* Parameter name in the server. */
+	const char*	plugin;		/* Paramater name in the plugin. */
+};
+
+/********************************************************************
+Match the parameters from the static and dynamic versions. */
+static
+bool
+innobase_match_parameter(
+/*=====================*/
+					/* out: true if names match */
+	const char*	from_server,	/* in: variable name from server */
+	const char*	from_plugin)	/* in: variable name from plugin */
+{
+	static const param_mapping param_map[] = {
+		{"use_adaptive_hash_indexes", "adaptive_hash_index"}
+	};
+
+	if (strcmp(from_server, from_plugin) == 0) {
+		return(true);
+	}
+
+	const param_mapping*	param = param_map;
+	int	n_elems = sizeof(param_map) / sizeof(param_map[0]);
+
+	for (int i = 0; i < n_elems; ++i, ++param) {
+
+		if (strcmp(param->server, from_server) == 0
+		    && strcmp(param->plugin, from_plugin) == 0) {
+
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /********************************************************************
 Copy InnoDB system variables from the static InnoDB to the dynamic
 plugin. */
@@ -8915,11 +8954,11 @@ innodb_plugin_init(void)
 # endif
 	switch (builtin_innobase_plugin) {
 	case 0:
-		return(TRUE);
+		return(true);
 	case MYSQL_STORAGE_ENGINE_PLUGIN:
 		break;
 	default:
-		return(FALSE);
+		return(false);
 	}
 
 	/* Copy the system variables. */
@@ -8929,30 +8968,24 @@ innodb_plugin_init(void)
 	struct st_mysql_sys_var** w = innobase_system_variables;
 
 	for (; *v; v++, w++) {
-		if (UNIV_UNLIKELY(!*w)) {
+		if (!*w) {
 			fprintf(stderr, "InnoDB: unknown parameter %s,0x%x\n",
 				(*v)->name, (*v)->flags);
-			return(FALSE);
-		}
-
-		if (UNIV_UNLIKELY(strcmp((*v)->name, (*w)->name))) {
+			return(false);
+		} else if (!innobase_match_parameter((*v)->name, (*w)->name)) {
 			/* Skip the destination parameter, since it doesn't
 			exist in the source. */
 			v--;
 			continue;
-		}
-
-		if (UNIV_UNLIKELY(((*v)->flags ^ (*w)->flags))
-		    & ~PLUGIN_VAR_READONLY) {
+		/* Ignore changes that affect the READONLY flag. */
+		} else if (((*v)->flags ^ (*w)->flags) & ~PLUGIN_VAR_READONLY) {
 			fprintf(stderr,
 				"InnoDB: parameter mismatch:"
 				" %s,%s,0x%x,0x%x\n",
 				(*v)->name, (*w)->name,
 				(*v)->flags, (*w)->flags);
-			return(FALSE);
-		}
-
-		if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
+			return(false);
+		} else if ((*v)->flags & PLUGIN_VAR_THDLOCAL) {
 			/* Do not copy session variables. */
 			continue;
 		}
@@ -8979,7 +9012,7 @@ innodb_plugin_init(void)
 		(*v)->value = (*w)->value;
 	}
 
-	return(TRUE);
+	return(true);
 }
 #endif /* MYSQL_DYNAMIC_PLUGIN */
 
