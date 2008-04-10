@@ -1,0 +1,18 @@
+SET @start_value = @@global.general_log_file;
+SELECT @start_value;
+@start_value
+test.log
+'#---------------------FN_DYNVARS_004_01-------------------------#'
+SET @@global.general_log_file = DEFAULT;
+SELECT RIGHT(@@global.general_log_file,10) AS log_file;
+log_file
+master.log
+'#--------------------FN_DYNVARS_004_02------------------------#'
+SET @@global.general_log_file = mytest.log;
+ERROR 42000: Variable 'general_log_file' can't be set to the value of 'log'
+'#----------------------FN_DYNVARS_004_03------------------------#'
+SELECT @@global.general_log_file = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='general_log_file';
+@@global.general_log_file = VARIABLE_VALUE
+1

@@ -1,0 +1,39 @@
+
+# save
+SET @global_slow_query_log = @@global.slow_query_log;
+SET @global_log_output = @@global.log_output;
+###############################################################################
+# Begin the functionality testing for slow_query_log                          #
+###############################################################################
+
+SET @@session.long_query_time=1;
+
+SET @@global.log_output = 'TABLE';
+
+#=========================================
+--echo '----When slow_query_log = OFF----'
+#=========================================
+
+SET @@global.slow_query_log = OFF;
+TRUNCATE mysql.slow_log;
+SELECT sleep(2);
+
+SELECT count(*) FROM mysql.slow_log;
+
+#=========================================
+--echo '----When slow_query_log = ON-----'
+#=========================================
+
+SET @@global.slow_query_log = ON;
+TRUNCATE mysql.slow_log;
+SELECT sleep(2);
+
+SELECT count(*) FROM mysql.slow_log;
+
+#restore
+SET @@global.log_output = @global_log_output;
+SET @global.slow_query_log = @global_slow_query_log;
+
+###############################################################################
+# End of the functionality test for slow_query_log                            #
+###############################################################################
