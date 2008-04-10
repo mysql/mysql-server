@@ -281,7 +281,7 @@ int mi_lock_database(MI_INFO *info, int lock_type)
 			(THR_WRITE_CONCURRENT_INSERT was used)
 */
 
-void mi_get_status(void* param, int concurrent_insert)
+void mi_get_status(void* param, my_bool concurrent_insert)
 {
   MI_INFO *info=(MI_INFO*) param;
   DBUG_ENTER("mi_get_status");

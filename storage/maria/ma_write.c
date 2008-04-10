@@ -403,7 +403,6 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
     struct st_msg_to_write_hook_for_undo_key msg;
 
     /* Save if we need to write a clr record */
-    info->key_write_undo_lsn[keyinfo->key_nr]= info->trn->undo_lsn;
     lsn_store(log_data, info->trn->undo_lsn);
     key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
                   keyinfo->key_nr);

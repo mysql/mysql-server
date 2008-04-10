@@ -715,7 +715,7 @@ const char **ha_tina::bas_ext() const
   for CSV engine. For more details see mysys/thr_lock.c
 */
 
-void tina_get_status(void* param, int concurrent_insert)
+void tina_get_status(void* param, my_bool concurrent_insert)
 {
   ha_tina *tina= (ha_tina*) param;
   tina->get_status();

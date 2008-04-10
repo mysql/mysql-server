@@ -255,7 +255,7 @@ int maria_lock_database(MARIA_HA *info, int lock_type)
 			(THR_WRITE_CONCURRENT_INSERT was used)
 */
 
-void _ma_get_status(void* param, int concurrent_insert)
+void _ma_get_status(void* param, my_bool concurrent_insert)
 {
   MARIA_HA *info=(MARIA_HA*) param;
   DBUG_ENTER("_ma_get_status");

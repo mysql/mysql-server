@@ -87,9 +87,9 @@ sub run_tests
   # make the unit test fail during 'make test'. $nr_tests must be right.
   #
 
-  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 4;  #
-  $nr_tests+= run_repair_tests(0, 0, 0, 0, 1) * 4; # called 4 times
-  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 4;   #
+  $nr_tests+= run_check_tests(0, 0, 0, 0, 1) * 5;  #
+  $nr_tests+= run_repair_tests(0, 0, 0, 0, 1) * 5; # called 4 times
+  $nr_tests+= run_pack_tests(0, 0, 0, 0, 1) * 5;   #
   $nr_tests+= run_tests_on_warnings_and_errors(0, 0, 0, 1);
   $nr_tests+= run_ma_test_recovery(0, 1);
   $nr_tests+= run_tests_on_clrs(0, 0, 1);
@@ -185,6 +185,19 @@ sub run_tests
   run_repair_tests($suffix, $opt_silent, "-M -T", $opt_verbose, 0);
   run_pack_tests($suffix, $opt_silent, "-M -T", $opt_verbose, 0);
 
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with block row format, transactions and versioning\n";
+  }
+  run_check_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+  run_repair_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+  run_pack_tests($suffix, $opt_silent, "-M -T -C", $opt_verbose, 0);
+
+
+  if ($opt_verbose)
+  {
+    print "\nRunning tests with warnings and recovery\n";
+  }
   run_tests_on_warnings_and_errors($suffix, $opt_silent, $opt_verbose, 0);
   run_ma_test_recovery($opt_verbose, 0);
   run_tests_on_clrs($suffix, $opt_verbose, 0);
@@ -523,7 +536,6 @@ sub ok
   if ($verbose)
   {
     print " " x (62 - $len);
-    print " ";
   }
   $err= $?;
   if ((!$err && !$expected_error) ||

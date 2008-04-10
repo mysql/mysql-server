@@ -1,0 +1,59 @@
+#
+# Testing insert and select on a table with two threads
+# using locking
+#
+
+-- source include/have_maria.inc
+
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+connect (con1,localhost,root,,);
+connection con1;
+
+create table t1 (i int) engine=maria;
+show create table t1;
+lock tables t1 write concurrent;
+insert into t1 values (1);
+insert into t1 values (2);
+/* should see 1 and 2 */
+select i from t1;
+
+connect (con2,localhost,root,,);
+connection con2;
+/* should see nothing */
+select i from t1;
+lock tables t1 write concurrent;
+insert into t1 values (3);
+insert into t1 values (4);
+/* should see 3 and 4 */
+select i from t1;
+unlock tables;
+lock tables t1 write concurrent;
+insert into t1 values (5);
+/* should see 3, 4 and 5 */
+select i from t1;
+
+connection con1;
+insert into t1 values (6);
+/* Should see 1, 2, 6 */
+select i from t1;
+unlock tables;
+lock tables t1 write concurrent;
+/* Should see 1, 2, 3, 4 and 6 */
+select i from t1;
+
+connection con2;
+/* should see 3, 4, 5 */
+select i from t1;
+unlock tables;
+/* should see 1, 2, 3, 4, 5, 6 */
+select i from t1;
+
+connection con1;
+unlock tables;
+/* should see 1, 2, 3, 4, 5, 6 */
+select i from t1;
+
+drop table t1;

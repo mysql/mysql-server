@@ -118,10 +118,6 @@ static MARIA_HA *maria_clone_internal(MARIA_SHARE *share, int mode,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.maria_rtree_recursion_state,
                        share->have_rtree ? 1024 : 0,
-                       &info.key_write_undo_lsn,
-                       (uint) (sizeof(LSN) * share->base.keys),
-                       &info.key_delete_undo_lsn,
-                       (uint) (sizeof(LSN) * share->base.keys),
                        &changed_fields_bitmap,
                        bitmap_buffer_size(share->base.fields),
 		       NullS))
@@ -780,26 +776,29 @@ MARIA_HA *maria_open(const char *name, int mode, uint open_flags)
     {
       share->concurrent_insert=
 	((share->options & (HA_OPTION_READ_ONLY_DATA | HA_OPTION_TMP_TABLE |
-			   HA_OPTION_COMPRESS_RECORD |
-			   HA_OPTION_TEMP_COMPRESS_RECORD)) ||
+                            HA_OPTION_COMPRESS_RECORD |
+                            HA_OPTION_TEMP_COMPRESS_RECORD)) ||
 	 (open_flags & HA_OPEN_TMP_TABLE) ||
-         share->data_file_type == BLOCK_RECORD ||
+         (share->data_file_type == BLOCK_RECORD &&
+          !share->now_transactional) ||
 	 share->have_rtree) ? 0 : 1;
       if (share->concurrent_insert)
       {
-	share->lock.get_status=_ma_get_status;
-	share->lock.copy_status=_ma_copy_status;
-        /**
-           @todo RECOVERY
-           INSERT DELAYED and concurrent inserts are currently disabled for
-           transactional tables; when enabled again, we should re-evaluate
-           what problems the call to _ma_update_status() by
-           thr_reschedule_write_lock() can do (it may hurt Checkpoint as it
-           would be without intern_lock, and it modifies the state).
-        */
-	share->lock.update_status=_ma_update_status;
-	share->lock.restore_status=_ma_restore_status;
-	share->lock.check_status=_ma_check_status;
+        if (share->data_file_type == BLOCK_RECORD)
+        {
+          share->lock.get_status=    _ma_block_get_status;
+          share->lock.update_status= _ma_block_update_status;
+          share->lock.check_status=  _ma_block_check_status;
+          share->lock.allow_multiple_concurrent_insert= 1;
+        }
+        else
+        {
+          share->lock.get_status=    _ma_get_status;
+          share->lock.copy_status=   _ma_copy_status;
+          share->lock.update_status= _ma_update_status;
+          share->lock.restore_status=_ma_restore_status;
+          share->lock.check_status=  _ma_check_status;
+        }
       }
     }
 #endif

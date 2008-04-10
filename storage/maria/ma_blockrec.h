@@ -63,13 +63,12 @@
 
 #define PAGE_TYPE_MASK 7
 enum en_page_type { UNALLOCATED_PAGE, HEAD_PAGE, TAIL_PAGE, BLOB_PAGE, MAX_PAGE_TYPE };
+#define PAGE_CAN_BE_COMPACTED   128             /* Bit in PAGE_TYPE */
 
 #define PAGE_TYPE_OFFSET        LSN_SIZE
 #define DIR_COUNT_OFFSET        (LSN_SIZE+PAGE_TYPE_SIZE)
 #define DIR_FREE_OFFSET         (DIR_COUNT_OFFSET+DIR_COUNT_SIZE)
 #define EMPTY_SPACE_OFFSET      (DIR_FREE_OFFSET+DIR_FREE_SIZE)
-
-#define PAGE_CAN_BE_COMPACTED   128             /* Bit in PAGE_TYPE */
 
 /* Bits used for flag uchar (one byte, first in record) */
 #define ROW_FLAG_TRANSID                1
@@ -174,7 +173,8 @@ my_bool _ma_write_abort_block_record(MARIA_HA *info);
 my_bool _ma_compare_block_record(register MARIA_HA *info,
                                  register const uchar *record);
 void    _ma_compact_block_page(uchar *buff, uint block_size, uint rownr,
-                               my_bool extend_block);
+                               my_bool extend_block, TrID min_read_from,
+                               uint min_row_length);
 TRANSLOG_ADDRESS
 maria_page_get_lsn(uchar *page, pgcache_page_no_t page_no, uchar* data_ptr);
 
@@ -243,9 +243,9 @@ my_bool _ma_apply_redo_bitmap_new_page(MARIA_HA *info, LSN lsn,
 my_bool _ma_apply_undo_row_insert(MARIA_HA *info, LSN undo_lsn,
                                   const uchar *header);
 my_bool _ma_apply_undo_row_delete(MARIA_HA *info, LSN undo_lsn,
-                                  uchar *header, size_t length);
+                                  const uchar *header, size_t length);
 my_bool _ma_apply_undo_row_update(MARIA_HA *info, LSN undo_lsn,
-                                  uchar *header, size_t length);
+                                  const uchar *header, size_t length);
 my_bool _ma_apply_undo_bulk_insert(MARIA_HA *info, LSN undo_lsn);
 
 my_bool write_hook_for_redo(enum translog_record_type type,
@@ -272,3 +272,7 @@ my_bool write_hook_for_undo_bulk_insert(enum translog_record_type type,
 my_bool write_hook_for_file_id(enum translog_record_type type,
                                TRN *trn, MARIA_HA *tbl_info, LSN *lsn,
                                void *hook_arg);
+void _ma_block_get_status(void* param, my_bool concurrent_insert);
+void _ma_block_update_status(void *param);
+void _ma_block_restore_status(void *param);
+my_bool _ma_block_check_status(void *param);

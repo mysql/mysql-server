@@ -435,6 +435,7 @@ static MARIA_HA *open_maria_file(char *name,int mode)
     DBUG_RETURN(0);
   }
   VOID(maria_lock_database(isam_file,F_WRLCK));
+  maria_ignore_trids(isam_file);
   DBUG_RETURN(isam_file);
 }
 
@@ -1083,7 +1084,7 @@ static int get_statistic(PACK_MRG_INFO *mrg,HUFF_COUNTS *huff_counts)
     }
     else if (error != HA_ERR_RECORD_DELETED)
     {
-      VOID(fprintf(stderr, "Got error %d while reading rows", error));
+      VOID(fprintf(stderr, "Got error %d while reading rows\n", error));
       break;
     }
 

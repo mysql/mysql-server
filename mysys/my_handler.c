@@ -629,6 +629,8 @@ static const char *handler_error_messages[]=
   "Got a fatal error during initialzaction of handler",
   "File to short; Expected more data in file",
   "Read page with wrong checksum"
+  "Could not apply row event",
+  "Row is not visible by the current transaction",
 };
 
 

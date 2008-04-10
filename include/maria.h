@@ -391,6 +391,7 @@ typedef struct st_maria_sort_param
 
 /* functions in maria_check */
 void maria_chk_init(HA_CHECK *param);
+void maria_chk_init_for_check(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_status(HA_CHECK *param, MARIA_HA *info);
 int maria_chk_del(HA_CHECK *param, MARIA_HA *info, ulonglong test_flag);
 int maria_chk_size(HA_CHECK *param, MARIA_HA *info);
@@ -432,6 +433,8 @@ int maria_assign_to_pagecache(MARIA_HA *info, ulonglong key_map,
 void maria_change_pagecache(PAGECACHE *old_key_cache,
 			    PAGECACHE *new_key_cache);
 int maria_preload(MARIA_HA *info, ulonglong key_map, my_bool ignore_leaves);
+void maria_versioning(MARIA_HA *info, my_bool versioning);
+void maria_ignore_trids(MARIA_HA *info);
 
 /* fulltext functions */
 FT_INFO *maria_ft_init_search(uint,void *, uint, uchar *, uint,

@@ -315,7 +315,13 @@ TRN *trnman_new_trn(pthread_mutex_t *mutex, pthread_cond_t *cond,
   pthread_mutex_unlock(&LOCK_trn_list);
 
   if (unlikely(!trn->min_read_from))
-    trn->min_read_from= trn->trid;
+  {
+    /*
+      We are the only transaction. Set min_read_from so that we can read
+      our own rows
+    */
+    trn->min_read_from= trn->trid + 1;
+  }
 
   trn->commit_trid= 0;
   trn->rec_lsn= trn->undo_lsn= trn->first_undo_lsn= 0;
@@ -534,9 +540,19 @@ int trnman_can_read_from(TRN *trn, TrID trid)
   LF_REQUIRE_PINS(3);
 
   if (trid < trn->min_read_from)
-    return 1; /* can read */
-  if (trid > trn->trid)
-    return 0; /* cannot read */
+    return 1; /* Row is visible by all transactions in the system */
+
+  if (trid >= trn->trid)
+  {
+    /*
+      We have now two cases
+      trid > trn->trid, in which case the row is from a new transaction
+      and not visible, in which case we should return 0.
+      trid == trn->trid in which case the row is from the current transaction
+      and we should return 1
+    */
+    return trid == trn->trid;
+  }
 
   found= lf_hash_search(&trid_to_committed_trn, trn->pins, &trid, sizeof(trid));
   if (found == NULL)

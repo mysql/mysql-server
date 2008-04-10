@@ -250,7 +250,8 @@ static int lock_control_file(const char *name)
     @retval 1      Error (in which case the file is left closed)
 */
 
-CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing)
+CONTROL_FILE_ERROR ma_control_file_open(my_bool create_if_missing,
+                                        my_bool print_error)
 {
   uchar buffer[CF_MAX_SIZE];
   char name[FN_REFLEN], errmsg_buff[256];
@@ -423,9 +424,10 @@ ok:
   DBUG_RETURN(0);
 
 err:
-  my_printf_error(HA_ERR_INITIALIZATION,
-                  "Error when trying to use maria control file '%s': %s", 0,
-                  name, errmsg);
+  if (print_error)
+    my_printf_error(HA_ERR_INITIALIZATION,
+                    "Got error '%s' when trying to use maria control file "
+                    "'%s'", 0, errmsg, name);
   ma_control_file_end(); /* will unlock file if needed */
   DBUG_RETURN(error);
 }

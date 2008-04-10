@@ -184,7 +184,6 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
     struct st_msg_to_write_hook_for_undo_key msg;
     enum translog_record_type log_type= LOGREC_UNDO_KEY_DELETE;
 
-    info->key_delete_undo_lsn[keynr]= info->trn->undo_lsn;
     lsn_store(log_data, info->trn->undo_lsn);
     key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, keynr);
     log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE;

@@ -432,10 +432,11 @@ typedef struct st_maria_row
   MARIA_RECORD_POS *tail_positions;
   ha_checksum checksum;
   LSN orig_undo_lsn;			/* Lsn at start of row insert */
+  TrID trid;                            /* Transaction id for current row */
   uchar *empty_bits, *field_lengths;
   uint *null_field_lengths;             /* All null field lengths */
   ulong *blob_lengths;                  /* Length for each blob */
-  ulong base_length, min_length, normal_length, char_length, varchar_length;
+  ulong min_length, normal_length, char_length, varchar_length;
   ulong blob_length, head_length, total_length;
   size_t extents_buffer_length;         /* Size of 'extents' buffer */
   uint field_lengths_length;            /* Length of data in field_lengths */
@@ -470,12 +471,10 @@ struct st_maria_handler
   DYNAMIC_ARRAY pinned_pages;
   /* accumulate indexfile changes between write's */
   TREE *bulk_insert;
-  LEX_STRING *log_row_parts;		/* For logging */
+  LEX_CUSTRING *log_row_parts;		/* For logging */
   DYNAMIC_ARRAY *ft1_to_ft2;		/* used only in ft1->ft2 conversion */
   MEM_ROOT      ft_memroot;             /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param;	/* share info between init/deinit */
-  LSN   *key_write_undo_lsn;            /* Pointer to undo for each key */
-  LSN   *key_delete_undo_lsn;           /* Pointer to undo for each key */
   uchar *buff;				/* page buffer */
   uchar *keyread_buff;                   /* Buffer for last key read */
   uchar *lastkey, *lastkey2;		/* Last used search key */
@@ -510,6 +509,8 @@ struct st_maria_handler
   IO_CACHE rec_cache;			/* When cacheing records */
   LIST open_list;
   MY_BITMAP changed_fields;
+  ulong row_base_length;                /* Length of row header */
+  uint row_flag;                        /* Flag to store in row header */
   uint opt_flag;			/* Optim. for space/speed */
   uint update;				/* If file changed since open */
   int lastinx;				/* Last used index */
@@ -608,9 +609,9 @@ struct st_maria_handler
 #define _ma_store_keynr(share, x, nr) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE]= (nr)
 #define _ma_get_keynr(share, x) ((uchar) x[(share)->keypage_header - KEYPAGE_KEYID_SIZE - KEYPAGE_FLAG_SIZE - KEYPAGE_USED_SIZE])
 #define _ma_store_transid(buff, transid) \
-  int6store((buff) + LSN_STORE_SIZE, (transid))
+  transid_store((buff) + LSN_STORE_SIZE, (transid))
 #define _ma_korr_transid(buff) \
-  uint6korr((buff) + LSN_STORE_SIZE)
+  transid_korr((buff) + LSN_STORE_SIZE)
 #define _ma_get_keypage_flag(share,x) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]
 #define _ma_store_keypage_flag(share,x,flag) x[(share)->keypage_header - KEYPAGE_USED_SIZE - KEYPAGE_FLAG_SIZE]= (flag)
 
@@ -1042,7 +1043,7 @@ my_bool _ma_cmp_dynamic_unique(MARIA_HA *info, MARIA_UNIQUEDEF *def,
                                const uchar *record, MARIA_RECORD_POS pos);
 my_bool _ma_unique_comp(MARIA_UNIQUEDEF *def, const uchar *a, const uchar *b,
                         my_bool null_are_equal);
-void _ma_get_status(void *param, int concurrent_insert);
+void _ma_get_status(void *param, my_bool concurrent_insert);
 void _ma_update_status(void *param);
 void _ma_restore_status(void *param);
 void _ma_copy_status(void *to, void *from);
@@ -1148,4 +1149,5 @@ extern my_bool maria_flush_log_for_page(uchar *page,
 extern my_bool maria_flush_log_for_page_none(uchar *page,
                                              pgcache_page_no_t page_no,
                                              uchar *data_ptr);
+void maria_concurrent_inserts(MARIA_HA *info, my_bool concurrent_insert);
 extern PAGECACHE *maria_log_pagecache;

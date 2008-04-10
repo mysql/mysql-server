@@ -951,7 +951,8 @@ int ha_maria::check(THD * thd, HA_CHECK_OPT * check_opt)
                                               0)))))
     return HA_ADMIN_ALREADY_DONE;
 
-  error= maria_chk_status(&param, file);                // Not fatal
+  maria_chk_init_for_check(&param, file);
+  (void) maria_chk_status(&param, file);                // Not fatal
   error= maria_chk_size(&param, file);
   if (!error)
     error|= maria_chk_del(&param, file, param.testflag);
@@ -2768,7 +2769,7 @@ static int ha_maria_init(void *p)
   maria_hton->flags= HTON_CAN_RECREATE | HTON_SUPPORT_LOG_TABLES;
   bzero(maria_log_pagecache, sizeof(*maria_log_pagecache));
   maria_tmpdir= &mysql_tmpdir_list;             /* For REDO */
-  res= maria_init() || ma_control_file_open(TRUE) ||
+  res= maria_init() || ma_control_file_open(TRUE, TRUE) ||
     !init_pagecache(maria_pagecache,
                     (size_t) pagecache_buffer_size, pagecache_division_limit,
                     pagecache_age_threshold, maria_block_size, 0) ||

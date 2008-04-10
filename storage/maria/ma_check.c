@@ -99,7 +99,10 @@ static my_bool create_new_data_handle(MARIA_SORT_PARAM *param, File new_file);
 static my_bool _ma_flush_table_files_before_swap(HA_CHECK *param,
                                                  MARIA_HA *info);
 static TrID max_trid_in_system(void);
+static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid);
 
+
+/* Initialize check param with default values */
 
 void maria_chk_init(HA_CHECK *param)
 {
@@ -121,9 +124,30 @@ void maria_chk_init(HA_CHECK *param)
   param->stats_method= MI_STATS_METHOD_NULLS_NOT_EQUAL;
 }
 
+
+/* Initialize check param and maria handler for check of table */
+
+void maria_chk_init_for_check(HA_CHECK *param, MARIA_HA *info)
+{
+  param->not_visible_rows_found= 0;
+  param->max_found_trid= 0;
+
+  /*
+    Set up transaction handler so that we can see all rows. When rows is read
+    we will check the found id against param->max_tried
+  */
+  if (!ma_control_file_inited())
+    param->max_trid= 0;                 /* Give warning for first trid found */
+  else
+    param->max_trid= max_trid_in_system();
+
+  maria_ignore_trids(info);
+}
+
+
 	/* Check the status flags for the table */
 
-int maria_chk_status(HA_CHECK *param, register MARIA_HA *info)
+int maria_chk_status(HA_CHECK *param, MARIA_HA *info)
 {
   MARIA_SHARE *share= info->s;
 
@@ -1600,19 +1624,22 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
     if (length < share->base.min_block_length)
     {
       _ma_check_print_error(param,
-                            "Page %9s:  Row %3u is too short (%d bytes)",
-                            llstr(page, llbuff), row, length);
+                            "Page %9s:  Row %3u is too short "
+                            "(%d of min %d bytes)",
+                            llstr(page, llbuff), row, length,
+                            (uint) share->base.min_block_length);
       DBUG_RETURN(1);
     }
     flag= (uint) (uchar) page_buff[pos];
     if (flag & ~(ROW_FLAG_ALL))
       _ma_check_print_error(param,
-                            "Page %9s: Row %3u has wrong flag: %d",
+                            "Page %9s: Row %3u has wrong flag: %u",
                             llstr(page, llbuff), row, flag);
 
     DBUG_PRINT("info", ("rowid: %s  page: %lu  row: %u",
                         llstr(ma_recordpos(page, row), llbuff),
                         (ulong) page, row));
+    info->cur_row.trid= 0;
     if (_ma_read_block_record2(info, record, page_buff+pos,
                                page_buff+pos+length))
     {
@@ -1623,6 +1650,10 @@ static my_bool check_head_page(HA_CHECK *param, MARIA_HA *info, uchar *record,
         DBUG_RETURN(1);
       continue;
     }
+    set_if_bigger(param->max_found_trid, info->cur_row.trid);
+    if (info->cur_row.trid > param->max_trid)
+      _ma_check_print_not_visible_error(param, info->cur_row.trid);
+
     if (share->calc_checksum)
     {
       ha_checksum checksum= (*share->calc_checksum)(info, record);
@@ -2070,6 +2101,11 @@ int maria_chk_data_link(HA_CHECK *param, MARIA_HA *info, my_bool extend)
            llstr(param->empty, llbuff),llstr(param->link_used, llbuff2));
     if (param->lost)
       printf("Lost space:   %12s", llstr(param->lost, llbuff));
+    if (param->max_found_trid)
+    {
+      printf("Max trans. id: %11s\n",
+             llstr(param->max_found_trid, llbuff));
+    }
   }
   my_free((uchar*) record,MYF(0));
   DBUG_RETURN (error);
@@ -2196,6 +2232,16 @@ static int initialize_variables_for_repair(HA_CHECK *param,
                     share->base.min_block_length);
     sort_info->max_records= (ha_rows) (sort_info->filelength / rec_length);
   }
+
+  /* Set up transaction handler so that we can see all rows */
+  if (!ma_control_file_inited())
+    param->max_trid= 0;                 /* Give warning for first trid found */
+  else
+    param->max_trid= max_trid_in_system();
+
+  maria_ignore_trids(info);
+  /* Don't write transid's during repair */
+  maria_versioning(info, 0);
   return 0;
 }
 
@@ -3143,7 +3189,7 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
        pos+= block_size, page++)
   {
     uchar *buff;
-    uint page_type;
+    enum en_page_type page_type;
 
     /* Ignore bitmap pages */
     if ((page % share->bitmap.pages_covered) == 0)
@@ -3159,8 +3205,8 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
                             llstr(pos, llbuff), my_errno);
       goto err;
     }
-    page_type= buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK;
-    switch ((enum en_page_type) page_type) {
+    page_type= (enum en_page_type) (buff[PAGE_TYPE_OFFSET] & PAGE_TYPE_MASK);
+    switch (page_type) {
     case UNALLOCATED_PAGE:
       if (zero_lsn)
         bzero(buff, block_size);
@@ -3192,7 +3238,10 @@ static my_bool maria_zerofill_data(HA_CHECK *param, MARIA_HA *info,
       if (max_entry != 0)
       {
         dir= dir_entry_pos(buff, block_size, max_entry - 1);
-        _ma_compact_block_page(buff, block_size, max_entry -1, 0);
+        _ma_compact_block_page(buff, block_size, max_entry -1, 0,
+                               page_type == HEAD_PAGE ? ~(TrID) 0 : 0,
+                               page_type == HEAD_PAGE ?
+                               share->base.min_block_length : 0);
 
         /* Zerofille the not used part */
         offset= uint2korr(dir) + uint2korr(dir+2);
@@ -4456,8 +4505,15 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
           It requires a reliable data_file_length so we set it.
         */
         info->state->data_file_length= sort_info->filelength;
+        info->cur_row.trid= 0;
         flag= _ma_scan_block_record(info, sort_param->record,
                                     info->cur_row.nextpos, 1);
+        set_if_bigger(param->max_found_trid, info->cur_row.trid);
+        if (info->cur_row.trid > param->max_trid)
+        {
+          _ma_check_print_not_visible_error(param, info->cur_row.trid);
+          flag= HA_ERR_ROW_NOT_VISIBLE;
+        }
       }
       if (!flag)
       {
@@ -6462,4 +6518,26 @@ static TrID max_trid_in_system(void)
   TrID id= trnman_get_max_trid(); /* 0 if transac manager not initialized */
   /* 'id' may be far bigger, if last shutdown is old */
   return max(id, max_trid_in_control_file);
+}
+
+
+static void _ma_check_print_not_visible_error(HA_CHECK *param, TrID used_trid)
+{
+  char buff[22], buff2[22];
+  if (!param->not_visible_rows_found++)
+  {
+    if (!ma_control_file_inited())
+    {
+      _ma_check_print_warning(param,
+                              "Found row with transaction id %s but no maria_control_file was specified.  The table may be corrupted",
+                              llstr(used_trid, buff));
+    }
+    else
+    {
+      _ma_check_print_error(param,
+                            "Found row with transaction id %s when max transaction id according to maria_control_file is %s",
+                            llstr(used_trid, buff),
+                            llstr(param->max_trid, buff2));
+    }
+  }
 }

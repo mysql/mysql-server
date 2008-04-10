@@ -1,3 +1,4 @@
+drop table if exists t1;
 select @@global.maria_page_checksum;
 @@global.maria_page_checksum
 1
