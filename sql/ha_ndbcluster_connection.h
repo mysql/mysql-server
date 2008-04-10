@@ -20,3 +20,6 @@ Ndb_cluster_connection *ndb_get_cluster_connection();
 ulonglong ndb_get_latest_trans_gci();
 void ndb_set_latest_trans_gci(ulonglong val);
 int ndb_has_node_id(uint id);
+
+/* options from from mysqld.cc */
+extern ulong opt_ndb_cluster_connection_pool;
