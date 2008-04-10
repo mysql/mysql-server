@@ -211,7 +211,7 @@ static int update_status_variables(Thd_ndb *thd_ndb,
   return 0;
 }
 
-SHOW_VAR ndb_status_variables[]= {
+SHOW_VAR ndb_status_variables_dynamic[]= {
   {"cluster_node_id",     (char*) &g_ndb_status.cluster_node_id,      SHOW_LONG},
   {"config_from_host",    (char*) &g_ndb_status.connected_host,       SHOW_CHAR_PTR},
   {"config_from_port",    (char*) &g_ndb_status.connected_port,       SHOW_LONG},
@@ -220,8 +220,12 @@ SHOW_VAR ndb_status_variables[]= {
   {"number_of_ready_data_nodes",
    (char*) &g_ndb_status.number_of_ready_data_nodes,                  SHOW_LONG},
   {"connect_count",      (char*) &g_ndb_status.connect_count,         SHOW_LONG},
-  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
   {"execute_count",      (char*) &g_ndb_status.execute_count,         SHOW_LONG},
+  {NullS, NullS, SHOW_LONG}
+};
+
+SHOW_VAR ndb_status_variables_fixed[]= {
+  {"cluster_connection_pool",(char*) &opt_ndb_cluster_connection_pool, SHOW_LONG},
   {NullS, NullS, SHOW_LONG}
 };
 
@@ -12321,12 +12325,12 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
   SHOW_VAR *st_var;
   {
     char *mem= (char*)sql_alloc(sizeof(struct st_ndb_status) +
-                                sizeof(ndb_status_variables));
+                                sizeof(ndb_status_variables_dynamic));
     st= new (mem) st_ndb_status;
     st_var= (SHOW_VAR*)(mem + sizeof(struct st_ndb_status));
-    memcpy(st_var, &ndb_status_variables, sizeof(ndb_status_variables));
+    memcpy(st_var, &ndb_status_variables_dynamic, sizeof(ndb_status_variables_dynamic));
     int i= 0;
-    SHOW_VAR *tmp= &(ndb_status_variables[0]);
+    SHOW_VAR *tmp= &(ndb_status_variables_dynamic[0]);
     for (; tmp->value; tmp++, i++)
       st_var[i].value= mem + (tmp->value - (char*)&g_ndb_status);
   }
@@ -12342,6 +12346,7 @@ static int show_ndb_vars(THD *thd, SHOW_VAR *var, char *buff)
 
 SHOW_VAR ndb_status_variables_export[]= {
   {"Ndb",          (char*) &show_ndb_vars,                 SHOW_FUNC},
+  {"Ndb",          (char*) &ndb_status_variables_fixed,    SHOW_ARRAY},
   {"Ndb_conflict", (char*) &ndb_status_conflict_variables, SHOW_ARRAY},
   {NullS, NullS, SHOW_LONG}
 };
