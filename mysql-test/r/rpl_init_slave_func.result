@@ -1,0 +1,47 @@
+stop slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+reset master;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+'#--------------------FN_DYNVARS_037_01-------------------------#'
+SET @@global.init_slave = "SET @a = 10";
+'connect (con1,localhost,root,,)'
+'connection con1'
+SELECT @@global.init_slave;
+@@global.init_slave
+SET @a = 10
+'connection master'
+'#--------------------FN_DYNVARS_037_02-------------------------#'
+'check if value in slave opt file is executed'
+'connection slave'
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	set global max_connections=500
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	500
+reset master;
+'check if value in slave opt file doesnt apply to master'
+'connection master'
+show variables like 'init_slave';
+Variable_name	Value
+init_slave	SET @a = 10
+show variables like 'max_connections';
+Variable_name	Value
+max_connections	151
+'connection slave'
+'try creating a temporary variable in init_slave'
+SET @@global.init_slave = "SET @a=5";
+stop slave;
+reset slave;
+drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
+start slave;
+SHOW VARIABLES LIKE 'init_slave';
+Variable_name	Value
+init_slave	SET @a=5
+SELECT @a;
+@a
+NULL
+'Bug#35365 SET statement in init_slave not execute if slave is restarted'
+set global max_connections= default;
