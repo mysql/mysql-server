@@ -531,7 +531,7 @@ Item *create_func_cast(Item *a, Cast_target cast_type,
       ulong decoded_size;
       errno= 0;
       decoded_size= strtoul(c_len, NULL, 10);
-      if (errno != 0)
+      if ((errno != 0) || (decoded_size > MAX_FIELD_BLOBLENGTH))
       {
         my_error(ER_TOO_BIG_DISPLAYWIDTH, MYF(0), "cast as char", MAX_FIELD_BLOBLENGTH);
         return NULL;
