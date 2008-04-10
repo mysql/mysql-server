@@ -1,0 +1,97 @@
+
+
+################## mysql-test\t\warning_count_basic.test ######################
+#                                                                             #
+# Variable Name: warning_count                                                #
+# Scope: Session                                                              #
+# Access Type: Static                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable warning_count             #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_057_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+SELECT COUNT(@@SESSION.warning_count);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_057_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.warning_count=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@SESSION.warning_count);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_057_03----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT @@SESSION.warning_count = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='warning_count';
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.warning_count);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='warning_count';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_057_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without SESSION point to same variable #
+################################################################################
+SELECT @@warning_count = @@SESSION.warning_count;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_057_05----------------------#'
+################################################################################
+#   Check if warning_count can be accessed with and without @@ sign            #
+################################################################################
+
+SELECT COUNT(@@warning_count);
+--echo 1 Expected
+SELECT COUNT(@@local.warning_count);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.warning_count);
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@GLOBAL.warning_count);
+--echo Expected error 'Variable is a SESSION variable'
+
+--error ER_BAD_FIELD_ERROR
+SELECT COUNT(warning_count = @@GLOBAL.warning_count);
+--echo Expected error 'Readonly variable'
+
+

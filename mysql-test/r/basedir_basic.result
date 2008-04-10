@@ -1,0 +1,53 @@
+'#---------------------BS_STVARS_001_01----------------------#'
+SELECT COUNT(@@GLOBAL.basedir);
+COUNT(@@GLOBAL.basedir)
+1
+1 Expected
+'#---------------------BS_STVARS_001_02----------------------#'
+SET @@GLOBAL.basedir=1;
+ERROR HY000: Variable 'basedir' is a read only variable
+Expected error 'Read only variable'
+SELECT COUNT(@@GLOBAL.basedir);
+COUNT(@@GLOBAL.basedir)
+1
+1 Expected
+'#---------------------BS_STVARS_001_03----------------------#'
+SELECT @@GLOBAL.basedir = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='basedir';
+@@GLOBAL.basedir = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.basedir);
+COUNT(@@GLOBAL.basedir)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='basedir';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------BS_STVARS_001_04----------------------#'
+SELECT @@basedir = @@GLOBAL.basedir;
+@@basedir = @@GLOBAL.basedir
+1
+1 Expected
+'#---------------------BS_STVARS_001_05----------------------#'
+SELECT COUNT(@@basedir);
+COUNT(@@basedir)
+1
+1 Expected
+SELECT COUNT(@@local.basedir);
+ERROR HY000: Variable 'basedir' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.basedir);
+ERROR HY000: Variable 'basedir' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.basedir);
+COUNT(@@GLOBAL.basedir)
+1
+1 Expected
+SELECT basedir = @@SESSION.basedir;
+ERROR 42S22: Unknown column 'basedir' in 'field list'
+Expected error 'Readonly variable'
