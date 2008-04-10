@@ -115,6 +115,36 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
+/* List of animal names representing file format. */
+const char* file_format_name_map[] = {
+	"Antelope",
+	"Barracuda",
+	"Cheetah",
+	"Dragon",
+	"Elk",
+	"Fox",
+	"Gazelle",
+	"Hornet",
+	"Impala",
+	"Jaguar",
+	"Kangaroo",
+	"Leopard",
+	"Moose",
+	"Nautilus",
+	"Ocelot",
+	"Porpoise",
+	"Quail",
+	"Rabbit",
+	"Shark",
+	"Tiger",
+	"Urchin",
+	"Viper",
+	"Whale",
+	"Xenops",
+	"Yak",
+	"Zebra"
+};
+
 static long innobase_mirrored_log_groups, innobase_log_files_in_group,
 	innobase_log_buffer_size,
 	innobase_additional_mem_pool_size, innobase_file_io_threads,
@@ -129,6 +159,7 @@ are determined in innobase_init below: */
 static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
 static char*	innobase_log_group_home_dir		= NULL;
+static char*	innobase_file_format_name		= NULL;
 /* The following has a misleading name: starting from 4.0.5, this also
 affects Windows: */
 static char*	innobase_unix_file_flush_method		= NULL;
@@ -180,6 +211,49 @@ static int innobase_release_savepoint(handlerton *hton, THD* thd,
 static handler *innobase_create_handler(handlerton *hton,
                                         TABLE_SHARE *table,
                                         MEM_ROOT *mem_root);
+
+/****************************************************************
+Validate the file format name and return its corresponding id. */
+static
+uint
+file_format_name_lookup(
+/*====================*/
+					/* out: valid file format id*/
+	const char*	format_name);	/* in: pointer to file format name */
+
+/*****************************************************************
+Check if it is a valid file format. This function is registered as
+a callback with MySQL. */
+static
+int
+innodb_file_format_check(
+/*=====================*/
+						/* out: 0 for valid file
+						format */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value);	/* in: incoming string */
+
+/********************************************************************
+Update the global variable using the "saved" value. This functions is
+registered as a callback with MySQL. */
+static
+bool
+innodb_file_format_update(
+/*======================*/
+							/* out: should never
+							fail since it is 
+							already validated */
+	THD*				thd,		/* in: thread handle */
+	struct st_mysql_sys_var*	var,		/* in: pointer to 
+							system variable */
+	void*				var_ptr,	/* out: where the 
+							formal string goes */
+	void*				save);		/* in: immediate result
+							from check function */
 
 /********************************************************************
 Return alter table flags supported in an InnoDB database. */
@@ -1550,6 +1624,7 @@ innobase_init(
 	int		err;
 	bool		ret;
 	char		*default_path;
+	uint		format_id;
 
 	DBUG_ENTER("innobase_init");
         handlerton *innobase_hton= (handlerton *)p;
@@ -1731,6 +1806,25 @@ innobase_init(
 						MYF(MY_ALLOW_ZERO_PTR));
 		goto error;
 	}
+
+	/* Validate the file format by animal name */
+	if (innobase_file_format_name != NULL) {
+
+		format_id = file_format_name_lookup(innobase_file_format_name);
+
+		if (format_id > DICT_TF_FORMAT_MAX) {
+
+			sql_print_error("InnoDB: wrong innodb_file_format.");
+
+			my_free(internal_innobase_data_file_path,
+				MYF(MY_ALLOW_ZERO_PTR));
+			goto error;
+		}
+	}
+
+	srv_file_format = format_id;
+	innobase_file_format_name =
+		(char*) file_format_name_map[srv_file_format];
 
 	/* --------------------------------------------------*/
 
@@ -5293,7 +5387,8 @@ create_options_are_valid(
 		push_warning(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
 			     ER_ILLEGAL_HA_CREATE_OPTION,
 			     "InnoDB: KEY_BLOCK_SIZE"
-			     " requires innodb_file_format > 0.");
+			     " requires innodb_file_format >"
+			     " Antelope.");
 		ret = FALSE;
 	}
 
@@ -5328,7 +5423,8 @@ create_options_are_valid(
 					MYSQL_ERROR::WARN_LEVEL_ERROR,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_format > 0.",
+					" requires innodb_file_format >"
+					" Antelope.",
 					row_format_name);
 					ret = FALSE;
 			}
@@ -5542,7 +5638,8 @@ ha_innobase::create(
 			push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
 				     ER_ILLEGAL_HA_CREATE_OPTION,
 				     "InnoDB: KEY_BLOCK_SIZE"
-				     " requires innodb_file_format=1.");
+				     " requires innodb_file_format >"
+				     " Antelope.");
 			flags = 0;
 		}
 
@@ -5612,7 +5709,8 @@ ha_innobase::create(
 					MYSQL_ERROR::WARN_LEVEL_WARN,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: ROW_FORMAT=%s"
-					" requires innodb_file_format>0.",
+					" requires innodb_file_format >"
+					" Antelope.",
 					row_format_name);
 			} else {
 				flags |= DICT_TF_COMPACT
@@ -8628,6 +8726,119 @@ ha_innobase::check_if_incompatible_data(
 	return(COMPATIBLE_DATA_YES);
 }
 
+/****************************************************************
+Validate the file format name and return its corresponding id. */
+static
+uint
+file_format_name_lookup(
+/*====================*/
+					/* out: valid file format id*/
+	const char*	format_name)	/* in: pointer to file format name */
+{
+	uint	format_id;
+	char*	endp;
+
+	ut_a(format_name != NULL);
+
+	/* The format name can contain the format id itself instead of
+	the name and we check for that. */
+	format_id = (uint) strtoul(format_name, &endp, 10);
+
+	/* Check for valid parse. */
+	if (*endp == '\0' && *format_name != '\0') {
+
+		if (format_id <= DICT_TF_FORMAT_MAX) {
+
+			return(format_id);
+		}
+	} else {
+
+		for (format_id = 0; format_id <= DICT_TF_FORMAT_MAX;
+		     format_id++) {
+			const char*	name;
+
+			name = file_format_name_map[format_id];
+
+			if (!innobase_strcasecmp(format_name, name)) {
+
+				return(format_id);
+			}
+		}
+	}
+
+	return(DICT_TF_FORMAT_MAX + 1);
+}
+
+/*****************************************************************
+Check if it is a valid file format. This function is registered as
+a callback with MySQL. */
+static
+int
+innodb_file_format_check(
+/*=====================*/
+						/* out: 0 for valid file
+						format */
+	THD*				thd,	/* in: thread handle */
+	struct st_mysql_sys_var*	var,	/* in: pointer to system
+						variable */
+	void*				save,	/* out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/* in: incoming string */
+{
+	char		buff[STRING_BUFFER_USUAL_SIZE];
+	const char*	file_format_input;
+	int		len = sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	file_format_input = value->val_str(value, buff, &len);
+
+	if (file_format_input != NULL) {
+
+		uint	format_id;
+
+		format_id = file_format_name_lookup(file_format_input);
+
+		if (format_id <= DICT_TF_FORMAT_MAX) {
+
+			*(uint*) save = format_id;
+			return(0);
+		}
+	}
+
+	return(1);
+}
+
+/********************************************************************
+Update the global variable using the "saved" value. This functions is
+registered as a callback with MySQL. */
+static
+bool
+innodb_file_format_update(
+/*======================*/
+							/* out: should never
+							fail since it is 
+							already validated */
+	THD*				thd,		/* in: thread handle */
+	struct st_mysql_sys_var*	var,		/* in: pointer to 
+							system variable */
+	void*				var_ptr,	/* out: where the 
+							formal string goes */
+	void*				save)		/* in: immediate result
+							from check function */
+{
+	ut_a(var_ptr != NULL);
+	ut_a(save != NULL);
+	ut_a((*(uint*) save) <= DICT_TF_FORMAT_MAX);
+
+	srv_file_format = *(uint*) save;
+
+	(*(char**) var_ptr) = (char*) file_format_name_map[srv_file_format];
+
+	return(true);
+}
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -8679,10 +8890,11 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
   "Stores each InnoDB table to an .ibd file in the database dir.",
   NULL, NULL, FALSE);
 
-static MYSQL_SYSVAR_UINT(file_format, srv_file_format,
+static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
-  NULL, NULL, DICT_TF_FORMAT_51, DICT_TF_FORMAT_51, DICT_TF_FORMAT_MAX, 0);
+  (mysql_var_check_func) &innodb_file_format_check, 
+  (mysql_var_update_func) &innodb_file_format_update, "Antelope");
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
   PLUGIN_VAR_OPCMDARG,
