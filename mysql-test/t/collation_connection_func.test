@@ -1,0 +1,95 @@
+############## mysql-test\t\collation_connection_func.test  ###################
+#                                                                             #
+# Variable Name: collation_connection                                         #
+# Scope: GLOBAL | SESSION                                                     #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable collation_connection     #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#--------------------FN_DYNVARS_015_01-------------------------#'
+######################################################################
+# Check if setting collation_connection is changed in new connection # 
+######################################################################
+SET @global_collation_connection = @@global.collation_connection;
+SET @session_collation_connection = @@session.collation_connection;
+
+SET @@global.collation_connection = latin1_danish_ci;
+--echo 'connect (con1,localhost,root,,,,)'
+connect (con1,localhost,root,,,,);
+--echo 'connection con1'
+connection con1;
+SELECT @@global.collation_connection;
+SELECT @@session.collation_connection;
+disconnect con1;
+
+--echo '#--------------------FN_DYNVARS_015_02-------------------------#'
+###########################################################
+# Begin the functionality Testing of collation_connection #
+###########################################################
+
+--echo 'connection default'
+connection default;
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#==============================================================================
+--echo '----check if collation_connection update character_set_connection---'
+#==============================================================================
+
+SET @@session.collation_connection = utf8_spanish_ci;
+SELECT @@collation_connection, @@character_set_database;
+
+#==============================================================================
+--echo '---check if collation_connection works for literal string comparision--'
+#==============================================================================
+SET @@session.collation_connection = latin1_swedish_ci;
+SELECT 'mysql'='MySql';
+SELECT _latin2'mysql' COLLATE latin2_general_ci='MySql';
+SELECT _utf8'mysql'=_utf8'MySql' COLLATE utf8_unicode_ci;
+
+SET @@session.collation_connection = latin1_general_cs;
+SELECT 'mysql'='MySql';
+SELECT _latin2'mysql'COLLATE latin2_general_ci='MySql';
+--Error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT _utf8'mysql'COLLATE utf8_danish_ci=_utf8'MySql'COLLATE utf8_unicode_ci;
+
+#==============================================================================
+--echo '---collation_connection does not effect comparision with column---'
+#==============================================================================
+# fill table with some test data
+CREATE TABLE t1(a CHAR(20)CHARACTER SET latin1 COLLATE latin1_german2_ci);
+INSERT INTO t1 VALUES('Müller');
+
+
+SET @@session.collation_connection = latin2_hungarian_ci;
+SELECT * FROM t1 WHERE a='Müller';
+
+SET @@session.collation_connection = latin1_general_cs;
+SELECT * FROM t1 WHERE a='müller';
+
+--echo 'check if string literal collation is used';
+SELECT * FROM t1 WHERE a='müller' COLLATE latin1_general_cs;
+SELECT * FROM t1 WHERE a='müller' COLLATE latin1_german1_ci;
+
+# clean up
+DROP TABLE t1;
+SET @@global.collation_connection = @global_collation_connection;
+SET @@session.collation_connection = @session_collation_connection;
+#########################################################
+# End of functionality Testing for collation_connection #
+#########################################################

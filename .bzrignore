@@ -3020,3 +3020,6 @@ mysql-test/.DS_Store
 libmysqld/sql_profile.cc
 mysql-test/suite/funcs_1.tar.zip
 mysql-test/reg.log
+mysql-test/linux_sys_vars.inc
+mysql-test/load_sysvars.inc
+mysql-test/windows_sys_vars.inc

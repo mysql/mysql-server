@@ -1,0 +1,101 @@
+
+
+################## mysql-test\t\sql_auto_is_null_basic.test ###################
+#                                                                             #
+# Variable Name: sql_auto_is_null                                             #
+# Scope: Session                                                              #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable sql_auto_is_null          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_044_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+--echo 1 Expected
+
+--echo '#---------------------BS_STVARS_044_02----------------------#'
+#
+# Test case for Bug #35433
+#
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+
+#--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@SESSION.sql_auto_is_null=1;
+--ECHO "BUG:It should give error on setting this variable as it is readonly variable"
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_044_03----------------------#'
+#################################################################
+# Check if the value in SESSION Table matches value in variable #
+#################################################################
+
+SELECT @@SESSION.sql_auto_is_null = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sql_auto_is_null';
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_044_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without SESSION point to same variable #
+################################################################################
+SELECT @@sql_auto_is_null = @@SESSION.sql_auto_is_null;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_044_05----------------------#'
+################################################################################
+#   Check if sql_auto_is_null can be accessed with and without @@ sign         #
+################################################################################
+
+SELECT COUNT(@@sql_auto_is_null);
+--echo 1 Expected
+SELECT COUNT(@@local.sql_auto_is_null);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.sql_auto_is_null);
+--echo 1 Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@GLOBAL.sql_auto_is_null);
+--echo Expected error 'Variable is a SESSION variable'
+
+--error ER_BAD_FIELD_ERROR
+SELECT COUNT(sql_auto_is_null = @@GLOBAL.sql_auto_is_null);
+--echo Expected error 'Readonly variable'
+
+

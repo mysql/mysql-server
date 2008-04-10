@@ -1,0 +1,73 @@
+drop table if exists t1;
+## Creating new table ##
+CREATE TABLE t1
+(
+name varchar(30)
+);
+'#--------------------FN_DYNVARS_018_01-------------------------#'
+## Setting initial value of variable to 1 ##
+SET @@global.concurrent_insert = 1;
+INSERT into t1(name) values('Record_1');
+INSERT into t1(name) values('Record_2');
+INSERT into t1(name) values('Record_3');
+## locking table ##
+lock table t1 read local;
+## Creating new connection to insert some rows in table ## 
+## New records should come at the end of all rows ##
+INSERT into t1(name) values('Record_4');
+SELECT * from t1;
+name
+Record_1
+Record_2
+Record_3
+Record_4
+## unlocking tables ##
+unlock tables;
+## deleting record to create hole in table ## 
+DELETE from t1 where name ='Record_2';
+'#--------------------FN_DYNVARS_018_02-------------------------#'
+'#--------------------FN_DYNVARS_018_03-------------------------#'
+## lock table and connect with connection1 ##
+lock table t1 read local;
+## setting value of concurrent_insert to 2 ##
+SET @@global.concurrent_insert=2;
+## Inserting record in table, record should go at the end of the table ##
+INSERT into t1(name) values('Record_5');
+SELECT * from t1;
+name
+Record_1
+Record_3
+Record_4
+Record_5
+SELECT @@concurrent_insert;
+@@concurrent_insert
+2
+## Switching to default connection ##
+## Unlocking table ##
+unlock tables;
+SELECT * from t1;
+name
+Record_1
+Record_3
+Record_4
+Record_5
+## Inserting new row, this should go in the hole ##
+INSERT into t1(name) values('Record_6');
+SELECT * from t1;
+name
+Record_1
+Record_6
+Record_3
+Record_4
+Record_5
+## connection test_con1 ##
+DELETE from t1 where name ='Record_3';
+SELECT * from t1;
+name
+Record_1
+Record_6
+Record_4
+Record_5
+## Dropping table ##
+DROP table t1;
+## Disconnecting connection ##

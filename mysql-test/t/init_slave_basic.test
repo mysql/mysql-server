@@ -1,0 +1,153 @@
+###################### mysql-test\t\init_slave_basic.test #####################
+#                                                                             #
+# Variable Name: init_slave                                                   #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author:  Rizwan                                                             #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable init_slave               #
+#              that checks the behavior of this variable in the following ways#
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+############################################
+##       START OF init_slave TESTS        ##
+############################################
+
+#############################################################
+#                 Save initial value                        #
+#############################################################
+# save using implicit session scope
+SET @global_start_value = @@global.init_slave;
+SELECT @global_start_value AS INIT_VALUE;
+
+--echo '#--------------------FN_DYNVARS_037_01------------------#'
+###############################################################################
+#       Test Variable access and assignment with and without @@               #
+###############################################################################
+# select without @@
+--error ER_BAD_FIELD_ERROR
+SELECT init_slave;
+# access using no scope specified
+SELECT @@init_slave;
+# assign value without @@
+SET @@global.init_slave='SET autocomit=0';
+SELECT @@global.init_slave;
+# using another syntax for accessing session variable
+SET global init_slave='SET autocomit=0';
+# accessing variable with scope the wrong way
+--Error ER_BAD_FIELD_ERROR
+SELECT global init_slave;
+--Error ER_PARSE_ERROR
+SELECT @@global init_slave;
+
+
+--echo '#--------------------FN_DYNVARS_037_02-------------------------#'
+################################################################
+#     Check the DEFAULT value of init_slave for global         #
+################################################################
+SET @@global.init_slave = 'SET join_buffer_size=8200';
+SET @@global.init_slave = DEFAULT;
+SELECT @@global.init_slave;
+
+--echo '#--------------------FN_DYNVARS_037_03-------------------------#'
+######################################################################
+#     see if it is accessable using session scope                    #
+######################################################################
+--Error ER_GLOBAL_VARIABLE
+SET @@session.init_slave = '';
+--Error ER_GLOBAL_VARIABLE
+SET @@init_slave = "";
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.init_slave;
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@local.init_slave;
+
+--echo '#--------------------FN_DYNVARS_037_04-------------------------#'
+#######################################################################
+#     Change the value of init_slave to a valid value                 #
+#######################################################################
+
+SET @@global.init_slave="";
+SELECT @@global.init_slave;
+
+SET @@global.init_slave='SELECT 1,"abc"';
+SELECT @@global.init_slave;
+
+SET @@global.init_slave='SET @a="b"';
+SELECT @@global.init_slave;
+
+SET @@global.init_slave="SET autocomit=1;REVOKE ALL ON INFORMATION_SCHEMA.*";
+SELECT @@global.init_slave;
+
+SET @@global.init_slave='SHOW VARIABLES';
+SELECT @@global.init_slave;
+
+SET @@global.init_slave = NULL;
+SELECT @@global.init_slave;
+
+#any string is accepted as valid value as its is not verified/compiled 
+# untill runtime
+SET @@global.init_slave='abc 123 +-*/';
+SELECT @@global.init_slave;
+
+SET @@global.init_slave=this_will_give_syntax_error;
+SELECT @@global.init_slave;
+
+SET @@global.init_slave = init_slave;
+SELECT @@global.init_slave;
+
+--echo '#--------------------FN_DYNVARS_037_05-------------------------#'
+#########################################################################
+#     Change the value of init_slave to an invalid value for global     #
+#########################################################################
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = true;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = false;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = 1.1;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = 0;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = 1;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.init_slave = -1;
+
+SET @@global.init_slave = ON;
+SELECT @@global.init_slave;
+
+
+--echo '#--------------------FN_DYNVARS_037_06-------------------------#'
+##############################################################################
+#     Check if the value in GLOBAL Table matches value in variable           #
+##############################################################################
+
+SELECT @@global.init_slave = (SELECT VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='init_slave') AS res;
+
+####################################
+#     Restore initial value        #
+####################################
+SET @@global.init_slave = @global_start_value;
+SELECT @@global.init_slave;
+
+###################################################
+#                 END OF init_slave TESTS         #
+###################################################

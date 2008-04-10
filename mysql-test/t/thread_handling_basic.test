@@ -1,0 +1,107 @@
+
+
+################## mysql-test\t\thread_handling_basic.test ####################
+#                                                                             #
+# Variable Name: thread_handling                                              #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-02-07                                                   #
+# Author : Sharique Abdullah                                                      #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable thread_handling           #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--echo '#---------------------BS_STVARS_051_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.thread_handling);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_051_02----------------------#'
+#
+# Test case for Bug #35433
+#
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.thread_handling=1;
+
+--ECHO Expected error  ER_INCORRECT_GLOBAL_LOCAL_VAR
+
+SELECT COUNT(@@GLOBAL.thread_handling);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_051_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.thread_handling = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='thread_handling';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.thread_handling);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='thread_handling';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_051_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@thread_handling = @@GLOBAL.thread_handling;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_051_05----------------------#'
+################################################################################
+#   Check if thread_handling can be accessed with and without @@ sign          #
+################################################################################
+
+SELECT COUNT(@@thread_handling);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.thread_handling);
+--echo Bug:Variable is global so it can not be accessed by local there should be error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.thread_handling);
+--ECHO Bug:Variable is global so it can not be accessed by session there should be error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.thread_handling);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT thread_handling = @@SESSION.thread_handling;
+--echo Expected error 'Readonly variable'
+
+

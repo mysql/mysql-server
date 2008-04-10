@@ -1,0 +1,84 @@
+SET @global_start_value = @@global.innodb_thread_sleep_delay;
+SELECT @global_start_value;
+@global_start_value
+10000
+'#--------------------FN_DYNVARS_046_01------------------------#'
+SET @@global.innodb_thread_sleep_delay = 0;
+SET @@global.innodb_thread_sleep_delay = DEFAULT;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10000
+'#---------------------FN_DYNVARS_046_02-------------------------#'
+SET innodb_thread_sleep_delay = 1;
+ERROR HY000: Variable 'innodb_thread_sleep_delay' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@innodb_thread_sleep_delay;
+@@innodb_thread_sleep_delay
+10000
+SELECT local.innodb_thread_sleep_delay;
+ERROR 42S02: Unknown table 'local' in field list
+SET global innodb_thread_sleep_delay = 0;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+0
+'#--------------------FN_DYNVARS_046_03------------------------#'
+SET @@global.innodb_thread_sleep_delay = 0;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+0
+SET @@global.innodb_thread_sleep_delay = 1;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1
+SET @@global.innodb_thread_sleep_delay = 4294967295;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+4294967295
+'#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_thread_sleep_delay = -1;
+SELECT @@global.innodb_autoextend_increment;
+@@global.innodb_autoextend_increment
+8
+SET @@global.innodb_thread_sleep_delay = "T";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+SELECT @@global.innodb_autoextend_increment;
+@@global.innodb_autoextend_increment
+8
+SET @@global.innodb_thread_sleep_delay = "Y";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+SELECT @@global.innodb_autoextend_increment;
+@@global.innodb_autoextend_increment
+8
+SET @@global.innodb_thread_sleep_delay = 1001;
+SELECT @@global.innodb_autoextend_increment;
+@@global.innodb_autoextend_increment
+8
+'#----------------------FN_DYNVARS_046_05------------------------#'
+SELECT @@global.innodb_thread_sleep_delay = VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_thread_sleep_delay';
+@@global.innodb_thread_sleep_delay = VARIABLE_VALUE
+1
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1001
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME='innodb_thread_sleep_delay';
+VARIABLE_VALUE
+1001
+'#---------------------FN_DYNVARS_046_06-------------------------#'
+SET @@global.innodb_thread_sleep_delay = OFF;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1001
+SET @@global.innodb_thread_sleep_delay = ON;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1001
+'#---------------------FN_DYNVARS_046_07----------------------#'
+SET @@global.innodb_thread_sleep_delay = TRUE;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+1
+SET @@global.innodb_thread_sleep_delay = FALSE;
+SELECT @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+0
