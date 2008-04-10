@@ -9623,7 +9623,7 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
         and 19 as length of 4.1 compatible representation.  Silently 
         shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
       */
-	  DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
+      DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
       if (length != UINT_MAX)  /* avoid overflow; is safe because of min() */
         length= ((length+1)/2)*2;
       length= min(length, MAX_DATETIME_COMPRESSED_WIDTH);
