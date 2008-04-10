@@ -2406,15 +2406,13 @@ sub run_testcase ($) {
     mtr_verbose("Got $proc");
 
     # ----------------------------------------------------
-    # Stop the test case timer
-    # ----------------------------------------------------
-    $test_timeout_proc->kill();
-
-    # ----------------------------------------------------
     # Was it the test program that exited
     # ----------------------------------------------------
     if ($proc eq $test)
     {
+      # Stop the test case timer
+      $test_timeout_proc->kill();
+
       my $res= $test->exit_status();
 
       if ( $res == 0 )
@@ -2487,6 +2485,11 @@ sub run_testcase ($) {
     {
       next;
     }
+
+    # ----------------------------------------------------
+    # Stop the test case timer
+    # ----------------------------------------------------
+    $test_timeout_proc->kill();
 
     # ----------------------------------------------------
     # It's not mysqltest that has exited, kill it
