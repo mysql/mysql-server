@@ -26,6 +26,7 @@
 ####################################################################
 
 --echo ## --file_exists var/master-data/my_slow_test.log ##
---file_exists var/master-data/my_slow_test.log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--file_exists $MYSQLTEST_VARDIR/master-data/my_slow_test.log
 
 --echo ## This case should pass because we have set this filename in opt file ##

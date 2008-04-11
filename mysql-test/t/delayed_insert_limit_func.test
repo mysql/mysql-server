@@ -25,6 +25,8 @@
 # Setup
 #
 
+--source include/not_embedded.inc
+
 --echo Creating connection con0
 connect (con0,localhost,root,,);
 --echo Creating connection con1

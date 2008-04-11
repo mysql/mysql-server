@@ -26,6 +26,8 @@
 # Setup
 #
 
+--source include/not_embedded.inc
+
 SET @global_thread_cache_size = @@GLOBAL.thread_cache_size;
 
 FLUSH STATUS;
