@@ -3,8 +3,7 @@
 -- source include/not_embedded.inc
 
 --disable_warnings
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
+drop table if exists t1,t2;
 --enable_warnings
 
 # operations allowed while cluster is in single user mode
@@ -102,6 +101,8 @@ insert into t1 select * from t2;
 # Bug #27710 Creating unique index fails during single user mode
 # - prior to bugfix this would fail
 create unique index new_index on t1 (b,c);
+
+drop table t2;
 
 # test some sql on other mysqld
 --connection server2
