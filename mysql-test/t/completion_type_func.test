@@ -84,7 +84,7 @@ COMMIT;
 
 --echo ## Inserting rows should give error here because connection should ##
 --echo ## disconnect after using COMMIT ##
---Error 2006,2013
+--Error 2006,2013,1053
 INSERT into t1(name) values('Record_4');
 
 --echo ## Creating new connection test_con2 ##
