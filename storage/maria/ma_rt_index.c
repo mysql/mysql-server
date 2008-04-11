@@ -128,9 +128,10 @@ static int maria_rtree_find_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
         if (after_key < last)
         {
-          info->int_keypos= info->buff;
-          info->int_maxpos= info->buff + (last - after_key);
-          memcpy(info->buff, after_key, last - after_key);
+          uchar *keyread_buff= info->keyread_buff;
+          info->int_keypos= keyread_buff;
+          info->int_maxpos= keyread_buff + (last - after_key);
+          memcpy(keyread_buff, after_key, last - after_key);
           info->keyread_buff_used= 0;
         }
         else
@@ -346,9 +347,10 @@ static int maria_rtree_get_req(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
 
       if (after_key < last)
       {
+        uchar *keyread_buff= info->keyread_buff;
         info->int_keypos= (uchar*) saved_key;
-        memcpy(info->buff, page_buf, keyinfo->block_length);
-        info->int_maxpos= rt_PAGE_END(share, info->buff);
+        memcpy(keyread_buff, page_buf, keyinfo->block_length);
+        info->int_maxpos= rt_PAGE_END(share, keyread_buff);
         info->keyread_buff_used= 0;
       }
       else
@@ -415,12 +417,13 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
 {
   my_off_t root;
   MARIA_KEYDEF *keyinfo= info->s->keyinfo + keynr;
+  uchar *keyread_buff= info->keyread_buff;
 
   if (!info->keyread_buff_used)
   {
     uint k_len= keyinfo->keylength - info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(info->int_keypos) */
-    uchar *key= info->buff + *(int*)info->int_keypos + k_len +
+    uchar *key= keyread_buff + *(int*)info->int_keypos + k_len +
                  info->s->base.rec_reflength;
     /* rt_PAGE_NEXT_KEY(key) */
     uchar *after_key= key + k_len + info->s->base.rec_reflength;
@@ -429,7 +432,7 @@ int maria_rtree_get_next(MARIA_HA *info, uint keynr, uint key_length)
     info->lastkey_length= k_len + info->s->base.rec_reflength;
     memcpy(info->lastkey, key, k_len + info->s->base.rec_reflength);
 
-    *(int*)info->int_keypos= key - info->buff;
+    *(int*)info->int_keypos= key - keyread_buff;
     if (after_key >= info->int_maxpos)
     {
       info->keyread_buff_used= 1;
