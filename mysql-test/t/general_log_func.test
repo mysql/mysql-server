@@ -46,7 +46,8 @@ name VARCHAR(30)
 SET @@global.general_log = OFF;
 SELECT @@general_log;
 
---copy_file var/log/master.log var/log/master-test.log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--copy_file $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test.log
 
 --echo ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_1');
@@ -66,7 +67,8 @@ INSERT into t1(name) values('Record_2');
 SET @@global.general_log = ON;
 SELECT @@general_log;
 
---copy_file var/log/master.log var/log/master-test-1.log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--copy_file $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test-1.log
 
 --echo ## Inserting some Records & Verifying output in log ##
 INSERT into t1(name) values('Record_3');

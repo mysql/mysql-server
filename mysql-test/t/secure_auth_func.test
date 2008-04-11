@@ -29,6 +29,8 @@
 # Setup
 #
 
+--source include/not_embedded.inc
+
 #
 # Save initial value
 #

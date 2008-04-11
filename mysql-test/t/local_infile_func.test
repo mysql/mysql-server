@@ -62,7 +62,7 @@ create table t1(a int);
 
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 eval LOAD DATA LOCAL INFILE
-'$MYSQL_TEST_DIR/std_data/numbers.txt' INTO TABLE test.t1;
+'var/std_data_ln/numbers.txt' INTO TABLE test.t1;
 
 SELECT count(*) from t1;
 
@@ -79,7 +79,7 @@ create table t1(a int);
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 --Error ER_NOT_ALLOWED_COMMAND
 eval LOAD DATA LOCAL INFILE
-'$MYSQL_TEST_DIR/std_data/numbers.txt' INTO TABLE test.t1;
+'var/std_data_ln/numbers.txt' INTO TABLE test.t1;
 
 SELECT count(*) from t1;
 
