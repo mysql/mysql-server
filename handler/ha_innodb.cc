@@ -245,12 +245,12 @@ bool
 innodb_file_format_update(
 /*======================*/
 							/* out: should never
-							fail since it is 
+							fail since it is
 							already validated */
 	THD*				thd,		/* in: thread handle */
-	struct st_mysql_sys_var*	var,		/* in: pointer to 
+	struct st_mysql_sys_var*	var,		/* in: pointer to
 							system variable */
-	void*				var_ptr,	/* out: where the 
+	void*				var_ptr,	/* out: where the
 							formal string goes */
 	void*				save);		/* in: immediate result
 							from check function */
@@ -1820,6 +1820,10 @@ innobase_init(
 				MYF(MY_ALLOW_ZERO_PTR));
 			goto error;
 		}
+	} else {
+		/* Set it to the default file format id. Though this
+		should never happen. */
+		format_id = 0;
 	}
 
 	srv_file_format = format_id;
@@ -8818,12 +8822,12 @@ bool
 innodb_file_format_update(
 /*======================*/
 							/* out: should never
-							fail since it is 
+							fail since it is
 							already validated */
 	THD*				thd,		/* in: thread handle */
-	struct st_mysql_sys_var*	var,		/* in: pointer to 
+	struct st_mysql_sys_var*	var,		/* in: pointer to
 							system variable */
-	void*				var_ptr,	/* out: where the 
+	void*				var_ptr,	/* out: where the
 							formal string goes */
 	void*				save)		/* in: immediate result
 							from check function */
@@ -8893,7 +8897,7 @@ static MYSQL_SYSVAR_BOOL(file_per_table, srv_file_per_table,
 static MYSQL_SYSVAR_STR(file_format, innobase_file_format_name,
   PLUGIN_VAR_RQCMDARG,
   "File format to use for new tables in .ibd files.",
-  (mysql_var_check_func) &innodb_file_format_check, 
+  (mysql_var_check_func) &innodb_file_format_check,
   (mysql_var_update_func) &innodb_file_format_update, "Antelope");
 
 static MYSQL_SYSVAR_ULONG(flush_log_at_trx_commit, srv_flush_log_at_trx_commit,
