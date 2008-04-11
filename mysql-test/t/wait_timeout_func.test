@@ -19,6 +19,8 @@
 #                                                                             #
 ###############################################################################
 
+--source include/not_embedded.inc
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
