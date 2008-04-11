@@ -21,14 +21,14 @@
 MYSQL_BRANCH="5.1"
 MYSQL_VER="${MYSQL_BRANCH}.23-rc"
 
-INNODB_VER="1.0.a1"
+INNODB_VER="1.0.0"
 
 # end of changeable variables
 
 MYSQL_DIR="mysql-${MYSQL_VER}"
 MYSQL_ARCHIVE="${MYSQL_DIR}.tar.gz"
 
-INNODB_DIR="innodb-${INNODB_VER}-${MYSQL_BRANCH}"
+INNODB_DIR="innodb_plugin-${INNODB_VER}-${MYSQL_BRANCH}"
 
 INNODB_SVN_REPO="https://svn.innodb.com/svn/innodb"
 
@@ -39,6 +39,7 @@ scripts/export.sh
 scripts/make_binary_release.sh
 scripts/make_source_release.sh
 "
+REMOVE_DIRS="scripts"
 
 # get MySQL sources
 # pick one mirror from http://dev.mysql.com/downloads/mirrors.html
@@ -51,9 +52,7 @@ tar -zxf ${MYSQL_ARCHIVE}
 # get InnoDB sources
 cd ${MYSQL_DIR}/storage
 mv innobase innobase.orig
-# XXX this must export a specific tag, not the latest revision, but
-# we do not yet have tags.
-svn export ${INNODB_SVN_REPO}/branches/zip innobase
+svn export ${INNODB_SVN_REPO}/tags/${INNODB_DIR} innobase
 # "steal" MySQL's ./COPYING (GPLv2)
 cp -v ../COPYING innobase/
 # Hack the autotools files so users can compile by using ./configure and
@@ -76,18 +75,19 @@ sed -i '' \
 
 rm -fr innobase.orig
 
-# remove unnecessary files
+# remove unnecessary files and directories
+# avoid rm -fr, too dangerous
 cd innobase
 rm ${REMOVE_FILES}
+rmdir ${REMOVE_DIRS}
 
 # create InnoDB's Makefile.in
 cd ../..
 ./BUILD/autorun.sh
 
-# create archives
+# create archive
 cd storage
 mv innobase ${INNODB_DIR}
 tar -cf - ${INNODB_DIR} |gzip -9 > ../../${INNODB_DIR}.tar.gz
-tar -cf - ${INNODB_DIR} |bzip2   > ../../${INNODB_DIR}.tar.bz2
 
 # EOF
