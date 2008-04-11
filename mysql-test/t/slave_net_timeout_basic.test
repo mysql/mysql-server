@@ -23,6 +23,7 @@
 #                                                                             #
 ###############################################################################
 
+--source include/not_embedded.inc
 --source include/load_sysvars.inc
 ###########################################################
 #           START OF slave_net_timeout TESTS              #

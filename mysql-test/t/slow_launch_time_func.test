@@ -24,6 +24,8 @@
 # Setup
 #
 
+--source include/not_embedded.inc
+
 SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
 
 

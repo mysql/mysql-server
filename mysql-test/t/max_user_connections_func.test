@@ -26,6 +26,8 @@
 # Setup
 #
 
+--source include/not_embedded.inc
+
 SET @default_max_user_connections = @@max_user_connections;
 
 

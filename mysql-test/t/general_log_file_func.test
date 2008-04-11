@@ -50,7 +50,8 @@ INSERT into t1(name) values('Record_3');
 INSERT into t1(name) values('Record_4');
 
 --echo ## Verifying general log file ##
---file_exists var/master-data/mysql-test.log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--file_exists $MYSQLTEST_VARDIR/master-data/mysql-test.log
 
 --echo ## Dropping table ##
 DROP TABLE t1;
