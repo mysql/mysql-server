@@ -1,5 +1,5 @@
-/* Test to see if delete works right with dupsort. */
-/* Try to exercise all the cases for the leafcommands in brt.c
+/* Test to see if delete works right with dupsort.
+ * The issue is that things might look OK before the commit, but bad after the commit.
  */
 
 #include <db.h>
