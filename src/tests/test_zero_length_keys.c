@@ -136,12 +136,18 @@ int main(int argc, const char *argv[]) {
 
     parse_args(argc, argv);
   
+#define TFILE __FILE__ ".tktrace"
+    unlink(TFILE);
+    SET_TRACE_FILE(TFILE);
+
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
     test_insert_zero_length(32, 0, "test0");
     test_insert_zero_length_keys(32, 0, "test0keys");
     test_insert_zero_length_keys(32, DB_DUP+DB_DUPSORT, "test0keys_dupsort");
+
+    CLOSE_TRACE_FILE();
 
     return 0;
 }

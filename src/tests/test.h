@@ -72,3 +72,11 @@ int int_dbt_cmp(DB *db, const DBT *a, const DBT *b) {
 }
 
 typedef enum __toku_bool { FALSE=0, TRUE=1} BOOL;
+
+#ifdef USE_TDB
+#define SET_TRACE_FILE(x) toku_set_trace_file(x)
+#define CLOSE_TRACE_FILE(x) toku_close_trace_file()
+#else
+#define SET_TRACE_FILE(x) ((void)0)
+#define CLOSE_TRACE_FILE(x) ((void)0)
+#endif

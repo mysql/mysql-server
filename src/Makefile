@@ -2,6 +2,7 @@
 #   make OSX=OSX
 
 LIBNAME=libtokudb
+TLIBNAME=libtokudbtrace
 
 EXPORTMAP = -Wl,--version-script=export.map
 VISIBILITY = -fvisibility=hidden
@@ -18,11 +19,13 @@ CFLAGS+= $(VISIBILITY) $(PROF_FLAGS)
 
 ifneq ($(OSX),)
 LIBRARY=$(LIBNAME).dylib
+TLIBRARY=$(TLIBNAME).dylib
 SHARED=-dynamiclib
 RPATHNAME=-install_name @rpath/$(LIBRARY)
 CFLAGS+=-fno-common
 else
 LIBRARY=$(LIBNAME).so
+TLIBRARY=$(TLIBNAME).so
 SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
@@ -30,15 +33,21 @@ endif
 build:
 	cd range_tree;$(MAKE) build
 	cd lock_tree;$(MAKE) build
-	$(MAKE) $(LIBRARY) $(LIBNAME).a
+	$(MAKE) $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
 	cd tests;$(MAKE) build
 	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $(LIBNAME).a ../lib/; fi
 	if ! diff $(LIBRARY)  ../lib/$(LIBRARY) > /dev/null 2>&1; then cp $(LIBRARY) ../lib/; fi
+	if ! diff $(TLIBNAME).a ../lib/$(TLIBNAME).a >/dev/null 2>&1; then cp $(TLIBNAME).a ../lib/; fi
+	if ! diff $(TLIBRARY)  ../lib/$(TLIBRARY) > /dev/null 2>&1; then cp $(TLIBRARY) ../lib/; fi
+
+local: $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
 
 .PHONY: install
-install: $(LIBRARY) $(LIBNAME).a
+install: $(LIBRARY) $(LIBNAME).a $(TLIBRARY) $(TLIBNAME).a
 	cp $(LIBRARY) ../lib/
 	cp $(LIBNAME).a ../lib
+	cp $(TLIBRARY) ../lib/
+	cp $(TLIBNAME).a ../lib
 
 check_globals: $(LIBRARY)
 	python tokuglobals.py $(LIBRARY)
@@ -51,14 +60,19 @@ strip: $(LIBRARY)
 	strip $(LIBRARY)
 
 clean:
-	rm -rf $(LIBRARY) $(LIBNAME).a *.o *.gcno *.gcda *.gcov
+	rm -rf $(LIBRARY) $(LIBNAME).a $(TLIBRARY) $(TLIBNAME).a *.o *.gcno *.gcda *.gcov
 	cd tests && $(MAKE) clean
 	cd lock_tree && $(MAKE) clean
 	cd range_tree && $(MAKE) clean
 
-ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
+ydbtrace.o ydb.o: ../include/db.h ../newbrt/cachetable.h ../newbrt/brt.h ../newbrt/log.c
+ydbtrace.o tdbtrace.o: tdbtrace.h
+ydbtrace.o: ydb.c
+	$(CC) $(CFLAGS) $(CPPFLAGS) -DTOKUTRACE -c -o $@ $<
 
 DBBINS = ydb.o errors.o elocks.o ../newbrt/brt.o ../newbrt/brt-serialize.o ../newbrt/brt-verify.o ../newbrt/cachetable.o ../newbrt/fifo.o ../newbrt/key.o ../newbrt/leafentry.o ../newbrt/memory.o ../newbrt/mempool.o ../newbrt/gpma.o ../newbrt/ybt.o ../newbrt/primes.o ../newbrt/log.o ../newbrt/fingerprint.o ../newbrt/log_code.o ../newbrt/roll.o ../newbrt/toku_assert.o ../newbrt/recover.o
+
+TDBBINS = tdbtrace.o $(patsubst ydb.o,ydbtrace.o,$(DBBINS))
 
 RANGETREE_BINS = range_tree/rangetree.o range_tree/tokuredblack.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
@@ -71,3 +85,11 @@ $(LIBNAME).a: $(DBBINS) $(LOCKTREE_BINS)
 	$(AR) rv $@ $^
 
 $(LIBNAME).a(ydb.o): ydb.o
+
+$(TLIBRARY): $(TDBBINS) $(LOCKTREE_BINS)
+	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
+
+$(TLIBNAME).a: $(TDBBINS) $(LOCKTREE_BINS)
+	$(AR) rv $@ $^
+
+$(TLIBNAME).a(ydbtrace.o): ydbtrace.o

@@ -13,7 +13,6 @@
 
 #include "test.h"
 
-
 void test_env_open_flags(int env_open_flags, int expectr) {
     if (verbose) printf("test_env_open_flags:%d\n", env_open_flags);
 
@@ -38,6 +37,10 @@ int main(int argc, const char *argv[]) {
     system("rm -rf " ENVDIR);
     mkdir(ENVDIR, 0777);
 
+#ifdef USE_TDB
+    toku_set_trace_file(ENVDIR "/trace.tktrace");
+#endif
+
     /* test flags */
     test_env_open_flags(0, ENOENT);
 #ifdef TOKUDB
@@ -48,6 +51,10 @@ int main(int argc, const char *argv[]) {
     test_env_open_flags(DB_PRIVATE+DB_CREATE+DB_INIT_MPOOL, 0);
     test_env_open_flags(DB_PRIVATE+DB_RECOVER, EINVAL);
     test_env_open_flags(DB_PRIVATE+DB_CREATE+DB_INIT_MPOOL+DB_RECOVER, EINVAL);
+
+#ifdef USE_TDB
+    toku_close_trace_file();
+#endif
 
     return 0;
 }

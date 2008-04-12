@@ -21,11 +21,11 @@ static pthread_mutex_t ydb_big_lock = PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP;
 static pthread_mutex_t ydb_big_lock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-void toku_ydb_lock() {
+void toku_ydb_lock(void) {
     int r = pthread_mutex_lock(&ydb_big_lock);   assert(r == 0);
 }
 
-void toku_ydb_unlock() {
+void toku_ydb_unlock(void) {
     int r = pthread_mutex_unlock(&ydb_big_lock); assert(r == 0);
 }
 
