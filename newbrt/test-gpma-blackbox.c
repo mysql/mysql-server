@@ -340,6 +340,53 @@ void test_delete (void) {
     test_delete_n(300);
 }
 
+void test_delete_at (void) {
+    GPMA pma;
+    int r = toku_gpma_create(&pma, 0);
+    assert(r==0);
+    int i, j;
+    int N=20;
+    char *strings[N];
+    for (i=0; i<N; i++) {
+	char str[6];
+	snprintf(str, 6, "%05d", i);
+	strings[i]=strdup(str);
+	r = toku_gpma_insert(pma, 6, strings[i], compare_strings, 0, rcall_ok, strings[i], 0);
+	assert(r==0);
+	//printf("insert, N=%d\n", toku_gpma_index_limit(pma));
+    }
+    u_int32_t max_limit = toku_gpma_index_limit(pma);
+    u_int32_t min_limit = max_limit;
+    u_int32_t prev_limit = max_limit;
+    u_int32_t resultlen, idx;
+    void *resultdata;
+    for (j=0; j<N; j++) {
+	r = toku_gpma_lookup_item(pma, 6, strings[j], compare_strings, 0, &resultlen, &resultdata, &idx);
+	assert(r==0);
+	assert(resultlen==6);
+	assert(0==strcmp(resultdata, strings[j]));
+	r = toku_gpma_delete_at_index(pma, idx, 0, 0);
+	assert(r==0);
+	u_int32_t this_limit = toku_gpma_index_limit(pma);
+	if (this_limit<min_limit) min_limit=this_limit;
+	assert(this_limit<=prev_limit);
+	prev_limit=this_limit;
+	//printf("delete, N=%d\n", this_limit);
+
+	for (i=0; i<=j; i++) {
+	    r = toku_gpma_lookup_item(pma, 6, strings[i], compare_strings, 0, &resultlen, &resultdata, &idx);
+	    assert(r==DB_NOTFOUND);
+	}
+	for (i=j+1; i<N; i++) {
+	    r = toku_gpma_lookup_item(pma, 6, strings[i], compare_strings, 0, &resultlen, &resultdata, &idx);
+	    assert(r==0);
+	    assert(resultlen==6);
+	    assert(0==strcmp(resultdata, strings[i]));
+	}
+    }
+    assert(min_limit<max_limit);
+}
+
 static int compare_this_string (u_int32_t dlen, void *dval, void *extra) {
     assert(dlen==1+strlen(dval));
     return strcmp(dval, extra);
@@ -393,6 +440,7 @@ int main (int argc, const char *argv[]) {
     test_insert_A();
     test_split();
     test_delete();
+    test_delete_at();
     test_bes();
     toku_malloc_cleanup();
     return 0;

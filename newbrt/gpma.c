@@ -512,6 +512,14 @@ int toku_smooth_deleted_region (GPMA pma, u_int32_t minidx, u_int32_t maxidx, gp
     }
 }
 
+int toku_gpma_delete_at_index (GPMA pma, u_int32_t index,
+			       gpma_renumber_callback_t renumberf,
+			       void *extra_for_renumberf) {
+    toku_gpma_clear_at_index(pma, index);
+    return toku_smooth_deleted_region(pma, index, index, renumberf, extra_for_renumberf);
+}
+
+
 int toku_gpma_delete_bessel (GPMA pma,
 			     gpma_besselfun_t besself,           void*extra_for_besself,
 			     gpma_delete_callback_t deletef,     void*extra_for_deletef,  // for each deleted item, let the caller know
