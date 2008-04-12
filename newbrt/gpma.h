@@ -52,6 +52,12 @@ int toku_gpma_insert_bessel (GPMA pma,
 			     u_int32_t *indexp // Where did the item get stored?
 			     );			     
 
+// Delete a particular index, and rebalance the tree.
+int toku_gpma_delete_at_index (GPMA pma, u_int32_t index,
+			       gpma_renumber_callback_t renumberf,
+			       void *extra_for_renumberf);
+			       
+
 // Delete anything for which the besselfun is zero.  The besselfun must be monotonically increasing compared to the comparison function.
 // That is, if two othings compare to be < then their besselfun's must yield <=, and if the compare to be = their besselfuns must be =, and if they are > then their besselfuns must be >=
 // Note the delete_callback would be responsible for calling free on the object.
@@ -97,6 +103,7 @@ int toku_gpma_get_from_index (GPMA, u_int32_t idx, u_int32_t *len, void **data);
 
 // Whatever is in the slot gets overwritten.  Watch out that you free the thing before overwriting it.
 void toku_gpma_set_at_index (GPMA, u_int32_t idx, u_int32_t len, void*data);
+// Clears the item at a particular index without rebalancing the PMA.
 void toku_gpma_clear_at_index (GPMA, u_int32_t idx);
 
 int toku_gpma_move_inside_pma_by_renumbering (GPMA,
