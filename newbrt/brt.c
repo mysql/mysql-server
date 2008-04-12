@@ -1357,21 +1357,17 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     
     if (le) {
 	// It's there, note that it's gone and remove it from the mempool
-	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(le);
-	node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
-	
+
 	r = toku_log_deleteleafentry(logger, &node->log_lsn, 0, filenum, node->thisnodename, idx, le);
 	if (r!=0) return r;
 
-	BRT_CMD_S cmd2 = *cmd;
-	DBT val_from_lekey;
-	cmd2.u.id.val = toku_fill_dbt(&val_from_lekey, le_latest_val(le), le_latest_vallen(le));
-	struct cmd_leafval_bessel_extra be = {t, &cmd2, 1}; // always compare both in this mode, if the value is there
 	struct move_struct ms = {.logger=logger, .filenum=filenum, .from=node, .to=node};
-	toku_gpma_delete_bessel(node->u.l.buffer,
-				toku_cmd_leafval_bessel, &be,
-				0, 0,
-				note_move_items_within, &ms);
+	r = toku_gpma_delete_at_index(node->u.l.buffer, idx, note_move_items_within, &ms);
+	if (r!=0) return r;
+
+	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(le);
+	node->local_fingerprint     -= node->rand4fingerprint * toku_le_crc(le);
+
 	toku_mempool_mfree(&node->u.l.buffer_mempool, 0, storedlen); // Must pass 0, since le may be no good any more.
     }
     if (newdata) {
