@@ -3494,7 +3494,7 @@ buf_get_latched_pages_number(void)
 	for (b = UT_LIST_GET_FIRST(buf_pool->zip_clean); b;
 	     b = UT_LIST_GET_NEXT(list, b)) {
 		ut_a(buf_page_get_state(b) == BUF_BLOCK_ZIP_PAGE);
-		ut_a(buf_page_get_io_fix(b) == BUF_IO_NONE);
+		ut_a(buf_page_get_io_fix(b) != BUF_IO_WRITE);
 
 		if (b->buf_fix_count != 0
 		    || buf_page_get_io_fix(b) != BUF_IO_NONE) {
