@@ -28,6 +28,16 @@ const char *toku_copyright_string = "Copyright (c) 2007, 2008 Tokutek Inc.  All 
 #include "log.h"
 #include "memory.h"
 
+#ifdef TOKUTRACE
+ #define DB_ENV_CREATE_FUN db_env_create_toku10
+ #define DB_CREATE_FUN db_create_toku10
+#else
+ #define DB_ENV_CREATE_FUN db_env_create
+ #define DB_CREATE_FUN db_create
+ int toku_set_trace_file (char *fname __attribute__((__unused__))) { return 0; }
+ int toku_close_trace_file (void) { return 0; } 
+#endif
+
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
 
@@ -761,7 +771,7 @@ cleanup:
     return r;
 }
 
-int db_env_create(DB_ENV ** envp, u_int32_t flags) {
+int DB_ENV_CREATE_FUN (DB_ENV ** envp, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_env_create(envp, flags); toku_ydb_unlock(); return r;
 }
 
@@ -2646,7 +2656,7 @@ static int toku_db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
     return 0;
 }
 
-int db_create(DB ** db, DB_ENV * env, u_int32_t flags) {
+int DB_CREATE_FUN (DB ** db, DB_ENV * env, u_int32_t flags) {
     toku_ydb_lock(); int r = toku_db_create(db, env, flags); toku_ydb_unlock(); return r;
 }
 

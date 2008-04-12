@@ -282,6 +282,8 @@ char *db_strerror(int) __attribute__((__visibility__("default")));
 const char *db_version(int*,int *,int *) __attribute__((__visibility__("default")));
 int log_compare (const DB_LSN*, const DB_LSN *) __attribute__((__visibility__("default")));
 int db_env_set_func_fsync (int (*)(int)) __attribute__((__visibility__("default")));
+int toku_set_trace_file (char *fname) __attribute__((__visibility__("default")));
+int toku_close_trace_file (void) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif
