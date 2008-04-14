@@ -14,8 +14,8 @@ user_limits     : Bug#23921 random failure of user_limits.test
 concurrent_innodb        : BUG#21579 2006-08-11 mleich innodb_concurrent random failures with varying differences
 federated_transactions   : Bug#29523 Transactions do not work
 lowercase_table3         : Bug#32667 lowercase_table3.test reports to error log
-innodb_mysql         : Bug#32724: innodb_mysql.test fails randomly
 ctype_create         : Bug#32965 main.ctype_create fails
 status               : Bug#32966 main.status fails
 ps_ddl               : Bug#12093 2007-12-14 pending WL#4165 / WL#4166
 csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows NULL columns in CSV tables
+cast                 : Bug#35594 2008-03-27 main.cast fails on Windows2003-64
