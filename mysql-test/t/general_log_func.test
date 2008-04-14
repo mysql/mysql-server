@@ -54,7 +54,8 @@ INSERT into t1(name) values('Record_1');
 INSERT into t1(name) values('Record_2');
 
 --echo ## There should be no difference, case should pass ##
---diff_files var/log/master.log var/log/master-test.log
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--diff_files $MYSQLTEST_VARDIR/log/master.log $MYSQLTEST_VARDIR/log/master-test.log
 
 
 --echo '#--------------------FN_DYNVARS_018_01-------------------------#'
