@@ -2,7 +2,7 @@
 # Write file to make mysql-test-run.pl expect crash and restart
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 
---exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/my.cnf shutdown
+--exec $MYSQLADMIN --defaults-file=$MYSQLTEST_VARDIR/my.cnf --shutdown-timeout=60 shutdown
 
 # Call script that will poll the server waiting for it to be gone
 --source include/wait_until_disconnected.inc
