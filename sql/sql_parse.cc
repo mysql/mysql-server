@@ -3301,6 +3301,7 @@ end_with_restore_list:
         can free its locks if LOCK TABLES locked some tables before finding
         that it can't lock a table in its list
       */
+      ha_autocommit_or_rollback(thd, 1);
       end_active_trans(thd);
       thd->options&= ~(OPTION_TABLE_LOCK);
     }
@@ -4304,20 +4305,6 @@ create_sp_error:
       }
       break;
     }
-#ifdef NOT_USED
-  case SQLCOM_SHOW_STATUS_PROC:
-    {
-      res= sp_show_status_routine(thd, TYPE_ENUM_PROCEDURE,
-                                  (lex->wild ? lex->wild->ptr() : NullS));
-      break;
-    }
-  case SQLCOM_SHOW_STATUS_FUNC:
-    {
-      res= sp_show_status_routine(thd, TYPE_ENUM_FUNCTION,
-                                  (lex->wild ? lex->wild->ptr() : NullS));
-      break;
-    }
-#endif
 #ifndef DBUG_OFF
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_FUNC_CODE:
