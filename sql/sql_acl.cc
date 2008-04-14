@@ -558,6 +558,8 @@ my_bool acl_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type=tables[1].lock_type=tables[2].lock_type=TL_READ;
+  tables[0].skip_temporary= tables[1].skip_temporary=
+    tables[2].skip_temporary= TRUE;
 
   if (simple_open_n_lock_tables(thd, tables))
   {
@@ -3537,7 +3539,8 @@ my_bool grant_reload(THD *thd)
   tables[0].next_local= tables[0].next_global= tables+1;
   tables[1].next_local= tables[1].next_global= tables+2;
   tables[0].lock_type= tables[1].lock_type= tables[2].lock_type= TL_READ;
-
+  tables[0].skip_temporary= tables[1].skip_temporary=
+    tables[2].skip_temporary= TRUE;
   /*
     To avoid deadlocks we should obtain table locks before
     obtaining LOCK_grant rwlock.
