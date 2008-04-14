@@ -487,6 +487,12 @@ int main(int argc __attribute__((unused)),
   }
   my_delete(file1_name, MYF(0));
 
+  /*
+    workaround until we know why it crashes randomly on some machine
+    (BUG#22320).
+  */
+  sleep(2);
+
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
   DBUG_PRINT("info", ("Program end"));
 
