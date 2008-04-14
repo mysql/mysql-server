@@ -99,6 +99,6 @@ INSERT into t1(name) values('Record_8');
 INSERT into t1(name) values('Record_9');
 ROLLBACK;
 
---Error 2006,2013
+--Error 2006,2013,1053
 INSERT into t1(name) values('Record_4');
 
