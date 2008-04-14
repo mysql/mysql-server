@@ -3007,6 +3007,17 @@ sub server_need_restart {
     }
   }
 
+  # Temporary re-enable the "always restart slave" hack
+  # this should be removed asap, but will require that each rpl
+  # testcase cleanup better after itself - ie. stop and reset
+  # replication
+  # Use the "#!use-slave-opt" marker to detect that this is a "slave"
+  # server
+  if ( $server->option("#!use-slave-opt") ){
+    mtr_verbose_restart($server, "Always restart slave(s)");
+    return 1;
+  }
+
   my $is_mysqld= grep ($server eq $_, mysqlds());
   if ($is_mysqld)
   {
