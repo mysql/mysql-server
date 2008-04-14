@@ -2633,7 +2633,7 @@ sub check_expected_crash_and_restart {
     my $expect_file= "$opt_vardir/tmp/".$mysqld->name().".expect";
     if ( -f $expect_file )
     {
-      mtr_verbose("Crash was expected, file $expect_file exists");
+      mtr_report("Crash was expected, file '$expect_file' exists");
       # Start server with same settings as last time
       mysqld_start($mysqld, $mysqld->{'started_opts'});
       unlink($expect_file);
