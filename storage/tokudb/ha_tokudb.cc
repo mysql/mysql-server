@@ -522,9 +522,10 @@ static bool tokudb_show_logs(THD * thd, stat_print_fn * stat_print) {
     *root_ptr = &show_logs_root;
     all_logs = free_logs = 0;
 
-    if ((error = db_env->log_archive(db_env, &all_logs, DB_ARCH_ABS | DB_ARCH_LOG)) || (error = db_env->log_archive(db_env, &free_logs, DB_ARCH_ABS))) {
+    error = db_env->log_archive(db_env, &all_logs, 0);
+    if (error) {
         DBUG_PRINT("error", ("log_archive failed (error %d)", error));
-        db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
+        db_env->err(db_env, error, "log_archive");
         if (error == DB_NOTFOUND)
             error = 0;          // No log files
         goto err;
@@ -570,23 +571,25 @@ void tokudb_cleanup_log_files(void) {
     char **names;
     int error;
 
-    // by HF. Sometimes it crashes. TODO - find out why
+    // QQQ by HF. Sometimes it crashes. TODO - find out why
 #ifndef EMBEDDED_LIBRARY
     /* XXX: Probably this should be done somewhere else, and
      * should be tunable by the user. */
     if ((error = db_env->txn_checkpoint(db_env, 0, 0, 0)))
         my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
 #endif
-    if ((error = db_env->log_archive(db_env, &names, DB_ARCH_ABS)) != 0) {
+    if ((error = db_env->log_archive(db_env, &names, 0)) != 0) {
         DBUG_PRINT("error", ("log_archive failed (error %d)", error));
-        db_env->err(db_env, error, "log_archive: DB_ARCH_ABS");
+        db_env->err(db_env, error, "log_archive");
         DBUG_VOID_RETURN;
     }
 
     if (names) {
         char **np;
-        for (np = names; *np; ++np)
-            my_delete(*np, MYF(MY_WME));
+        for (np = names; *np; ++np) {
+            printf("%d:%s:%d:delete:%s\n", my_tid(), __FILE__, __LINE__, *np);
+            // my_delete(*np, MYF(MY_WME));
+        }
 
         free(names);
     }
