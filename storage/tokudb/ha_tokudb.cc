@@ -69,6 +69,7 @@ typedef struct st_tokudb_trx_data {
 #define TOKUDB_DEBUG_ERROR 16
 #define TOKUDB_DEBUG_TXN 32
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
+#define TOKUDB_DEBUG_SAVE_TRACE 128
 
 #define TOKUDB_DBUG_ENTER(f) \
 { \
@@ -675,6 +676,126 @@ static int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * sav
     return a < b ? -1 : (a > b ? 1 : 0);
 }
 
+/*
+    Things that are required for ALL data types:
+        key_part->field->null_bit
+        key_part->length
+        key_part->field->packed_col_length(...)
+            DEFAULT: virtual uint packed_col_length(const uchar *to, uint length)
+                { return length;}
+            All integer types use this.
+            String types MIGHT use different one, espescially the varchars
+        key_part->field->pack_cmp(...)
+            DEFAULT: virtual int pack_cmp(...)
+                { return cmp(a,b); }
+            All integer types use the obvious one.
+            Assume X byte bytestream, int =:
+            ((u_int64_t)((u_int8_t)bytes[0])) << 0 | 
+            ((u_int64_t)((u_int8_t)bytes[1])) << 8 | 
+            ((u_int64_t)((u_int8_t)bytes[2])) << 16 | 
+            ((u_int64_t)((u_int8_t)bytes[3])) << 24 | 
+            ((u_int64_t)((u_int8_t)bytes[4])) << 32 | 
+            ((u_int64_t)((u_int8_t)bytes[5])) << 40 | 
+            ((u_int64_t)((u_int8_t)bytes[6])) << 48 | 
+            ((u_int64_t)((u_int8_t)bytes[7])) << 56
+            If the integer type is < 8 bytes, just skip the unneeded ones.
+            Then compare the integers in the obvious way.
+        Strings:
+            Empty space differences at end are ignored.
+            i.e. delete all empty space at end first, and then compare.
+    Possible prerequisites:
+        key_part->field->cmp
+            NO DEFAULT
+*/
+
+typedef enum {
+    TOKUTRACE_SIGNED_INTEGER   = 0,
+    TOKUTRACE_UNSIGNED_INTEGER = 1,
+    TOKUTRACE_CHAR = 2
+} tokutrace_field_type;
+
+typedef struct {
+    tokutrace_field_type    type;
+    bool                    null_bit;
+    u_int32_t               length;
+} tokutrace_field;
+
+typedef struct {
+    u_int16_t           version;
+    u_int32_t           num_fields;
+    tokutrace_field     fields[0];
+} tokutrace_cmp_fun;
+
+static int tokutrace_db_get_cmp_byte_stream(DB* db, DBT* byte_stream) {
+    int r      = ENOSYS;
+    void* data = NULL;
+    KEY* key   = NULL;
+    if (byte_stream->flags != DB_DBT_MALLOC) { return EINVAL; }
+    bzero((void *) &byte_stream, sizeof(*byte_stream));
+
+    u_int32_t num_fields = 0;
+    if (!db->app_private) { num_fields = 1; }
+    else {
+        key = (KEY*)db->app_private;
+        num_fields = key->key_parts;
+    }
+    size_t need_size = sizeof(tokutrace_cmp_fun) +
+                       num_fields * sizeof(tokutrace_field);
+
+    data = my_malloc(need_size, MYF(MY_FAE | MY_ZEROFILL | MY_WME));
+    if (!data) { return ENOMEM; }
+
+    tokutrace_cmp_fun* info = (tokutrace_cmp_fun*)data;
+    info->version     = 1;
+    info->num_fields  = num_fields;
+    
+    if (!db->app_private) {
+        info->fields[0].type     = TOKUTRACE_UNSIGNED_INTEGER;
+        info->fields[0].null_bit = false;
+        info->fields[0].length   = 40 / 8;
+        goto finish;
+    }
+    assert(db->app_private);
+    assert(key);
+    u_int32_t i;
+    for (i = 0; i < num_fields; i++) {
+        info->fields[i].null_bit = key->key_part[i].null_bit;
+        info->fields[i].length   = key->key_part[i].length;
+        enum_field_types type    = key->key_part[i].field->type();
+        switch (type) {
+#ifdef HAVE_LONG_LONG
+            case (MYSQL_TYPE_LONGLONG):
+#endif
+            case (MYSQL_TYPE_LONG):
+            case (MYSQL_TYPE_INT24):
+            case (MYSQL_TYPE_SHORT):
+            case (MYSQL_TYPE_TINY): {
+                /* Integer */
+                Field_num* field = static_cast<Field_num*>(key->key_part[i].field);
+                if (field->unsigned_flag) {
+                    info->fields[i].type = TOKUTRACE_UNSIGNED_INTEGER; }
+                else {
+                    info->fields[i].type = TOKUTRACE_SIGNED_INTEGER; }
+                break;
+            }
+            default: {
+                fprintf(stderr, "Cannot save cmp function for type %d.\n", type);
+                r = ENOSYS;
+                goto cleanup;
+            }
+        }
+    }
+finish:
+    byte_stream->data = data;
+    byte_stream->size = need_size;
+    r = 0;
+cleanup:
+    if (r!=0) {
+        if (data) { my_free(data, MYF(0)); }
+    }
+    return r;
+}
+
 static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * saved_key) {
     assert(file->app_private != 0);
     KEY *key = (KEY *) file->app_private;
@@ -837,6 +958,7 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         printf("%d:%s:%d:tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", my_tid(), __FILE__, __LINE__, this, share, share->file, table, table->s, share->use_count);
     if (!share->use_count++) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
+        DBT cmp_byte_stream;
 
         if ((error = db_create(&file, db_env, 0))) {
             free_share(share, table, hidden_primary_key, 1);
@@ -847,9 +969,24 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
         }
         share->file = file;
 
-        file->set_bt_compare(file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
         if (!hidden_primary_key)
             file->app_private = (void *) (table_share->key_info + table_share->primary_key);
+        if (tokudb_debug & TOKUDB_DEBUG_SAVE_TRACE) {
+            bzero((void *) &cmp_byte_stream, sizeof(cmp_byte_stream));
+            cmp_byte_stream.flags = DB_DBT_MALLOC;
+            if ((error = tokutrace_db_get_cmp_byte_stream(file, &cmp_byte_stream))) {
+                free_share(share, table, hidden_primary_key, 1);
+                my_free((char *) rec_buff, MYF(0));
+                my_free(alloc_ptr, MYF(0));
+                my_errno = error;
+                TOKUDB_DBUG_RETURN(1);
+            }
+            file->set_bt_compare(file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
+            my_free(cmp_byte_stream.data, MYF(0));
+        }
+        else
+            file->set_bt_compare(file, (hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_packed_key));
+        
         char newname[strlen(name) + 32];
         make_name(newname, name, "main");
         fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
@@ -880,8 +1017,21 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 make_name(newname, name, part);
                 fn_format(name_buff, newname, "", 0, MY_UNPACK_FILENAME);
                 key_type[i] = table->key_info[i].flags & HA_NOSAME ? DB_NOOVERWRITE : DB_YESOVERWRITE;
-                (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
                 (*ptr)->app_private = (void *) (table_share->key_info + i);
+                if (tokudb_debug & TOKUDB_DEBUG_SAVE_TRACE) {
+                    bzero((void *) &cmp_byte_stream, sizeof(cmp_byte_stream));
+                    cmp_byte_stream.flags = DB_DBT_MALLOC;
+                    if ((error = tokutrace_db_get_cmp_byte_stream(*ptr, &cmp_byte_stream))) {
+                        __close(1);
+                        my_errno = error;
+                        TOKUDB_DBUG_RETURN(1);
+                    }
+                    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);
+                    my_free(cmp_byte_stream.data, MYF(0));
+                }
+                else
+                    (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);    
+                my_free(cmp_byte_stream.data, MYF(0));
                 if (!(table->key_info[i].flags & HA_NOSAME)) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
