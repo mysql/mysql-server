@@ -354,11 +354,6 @@ int main(int argc __attribute__((unused)),
 
   DBUG_PRINT("info", ("file1 (%d) closed", file1.file));
   DBUG_PRINT("info", ("Program end"));
-  /*
-    workaround until we know why it crashes randomly on some machine
-    (BUG#22320).
-  */
-  sleep(2);
   } /* SKIP_BIG_TESTS */
   my_end(0);
 
