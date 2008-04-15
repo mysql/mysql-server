@@ -114,6 +114,7 @@ SET @@character_set_client = utf8 + latin2;
 ##############################################################################
 #     Change the value of character_set_client to a valid value for session  #
 ##############################################################################
+--Error 0,ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_client = big5;
 SELECT @@character_set_client;
 SET @@character_set_client = dec8;
