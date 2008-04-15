@@ -470,8 +470,18 @@ int main(int argc __attribute__((unused)),
   pthread_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
+    /*
+      workaround until we know why it crashes randomly on some machine
+      (BUG#22320).
+    */
+    sleep(1);
     if ((error= pthread_cond_wait(&COND_thread_count,&LOCK_thread_count)))
       diag("COND_thread_count: %d from pthread_cond_wait\n",error);
+    /*
+      workaround until we know why it crashes randomly on some machine
+      (BUG#22320).
+    */
+    sleep(1);
   }
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
