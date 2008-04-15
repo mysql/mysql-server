@@ -122,4 +122,5 @@ SET @@global.ft_boolean_syntax=DEFAULT;
 #########################################################
 # End of functionality Testing for ft_boolean_syntax    #
 #########################################################
+DROP TABLE articles;
 
