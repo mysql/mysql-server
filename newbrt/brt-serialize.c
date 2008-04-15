@@ -96,10 +96,12 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
-    unsigned int calculated_size = toku_serialize_brtnode_size_slow(node);
+    unsigned int calculated_size = toku_serialize_brtnode_size(node);
+#if 0
     if (calculated_size!=toku_serialize_brtnode_size(node)) {
 	//printf("Sizes don't match: %d %d\n", calculated_size, toku_serialize_brtnode_size(node));
     }
+#endif
     assert(calculated_size<=size);
     //char buf[size];
     char *MALLOC_N(size,buf);
