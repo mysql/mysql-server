@@ -95,6 +95,7 @@ void test_abort3 (void) {
     r=db->close(db, 0); CKERR(r);
 
     r=db_create(&db, env, 0); CKERR(r);
+    r=db->set_flags(db, DB_DUPSORT);
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, 0777); CKERR(r);
     lookup(0, 0, 1);
