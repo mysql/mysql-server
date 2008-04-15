@@ -141,6 +141,7 @@ SHOW STATUS LIKE 'Key_writes';
 SHOW STATUS LIKE 'Key_write_requests';
 select count(*) from t1;
 
+DROP PROCEDURE sp_addRecords;
 DROP TABLE t1;
 
 ####################################################

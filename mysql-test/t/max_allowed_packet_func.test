@@ -20,6 +20,8 @@
 ###############################################################################
 
 
+let $start_global_value = `SELECT @@global.max_allowed_packet`;
+--echo $start_global_value
 
 --disable_warnings
 drop table if exists t1;
@@ -80,5 +82,9 @@ connection test_con1;
 --Error 0,ER_NET_PACKET_TOO_LARGE
 INSERT into t1(name) values("aaassssssssddddddddffffffgggggggg, askdlfjalsdkjfalksdjflaksdjfalkjdflaksjdflakjdflajsflajflajdfalsjfdlajfladjslfajdflajdsflajsflakjsdfla;kjflsdjkf;aljfa;lkdsfjla;sjlkajffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllllakjsdffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffa;;;;;;;;;;;;;;;;;;;;;;;;;;;dsklfjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjkljffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffdkskkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk");
 
+eval SET @@global.max_allowed_packet = $start_global_value;
+
 --echo ## Server disconnects after this case and error occurs that Server ##
 --echo ## has gone away ##
+
+

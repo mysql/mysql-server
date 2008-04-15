@@ -105,3 +105,4 @@ id	title	body
 9	Database Security	Configuring MySQL for ...
 'Bug#35361: Different syntax does not produce result as default operators'
 SET @@global.ft_boolean_syntax=DEFAULT;
+DROP TABLE articles;

@@ -4,6 +4,7 @@
 
 
 
+--Error 0,ER_UNKNOWN_CHARACTER_SET
 eval SET $charset_variable = big5;
 eval SELECT $charset_variable;
 eval SET $charset_variable = dec8;
