@@ -1,7 +1,7 @@
 #
 # This auxiliary file is used by collation variables
 #
-
+--Error 0,ER_UNKNOWN_CHARACTER_SET
 eval SET $collation_variable = big5_chinese_ci;
 eval SELECT $collation_variable;
 eval SET $collation_variable = big5_bin;

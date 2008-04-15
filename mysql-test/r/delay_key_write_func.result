@@ -63,4 +63,5 @@ Key_write_requests	9
 select count(*) from t1;
 count(*)
 9
+DROP PROCEDURE sp_addRecords;
 DROP TABLE t1;
