@@ -19,6 +19,7 @@
 #                                                                              #
 ################################################################################
 
+SET @save_div_precision_increment = @@global.div_presision_increment;
 
 --disable_warnings
 drop table if exists t1;
@@ -118,7 +119,7 @@ drop table t1;
 disconnect test_con1;
 disconnect test_con2;
 
-
+SET @@global.div_prescision_increment = @save_div_precision_increment;
 
 
 
