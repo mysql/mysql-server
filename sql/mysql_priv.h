@@ -695,7 +695,7 @@ const char *set_thd_proc_info(THD *thd, const char *info,
   prepare matches the type of the object we obtained from the
   table definition cache.
 
-  @sa check_and_update_metadata_version()
+  @sa check_and_update_table_version()
   @sa Execute_observer
   @sa Prepared_statement::reprepare()
 */
