@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#!/usr/bin/env perl
 
 #
 #  A driver program to test DBUG features - runs tests (shell commands)

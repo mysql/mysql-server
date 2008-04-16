@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+#!/usr/bin/env perl
 
 use Getopt::Long;
 use File::Copy;
@@ -7,6 +7,7 @@ use File::Basename;
 use Digest::MD5;
 
 $|= 1;
+$^W = 1; # warnings, because env cannot parse 'perl -w'
 $VER= "1.2";
 
 $opt_version= 0;
@@ -243,6 +244,7 @@ sub main
     exit(1);
   }
 
+  close(MY_LOG);
   # also note that maria_chk -dvv shows differences for ma_test2 in UNDO phase,
   # this is normal: removing records does not shrink the data/key file,
   # does not put back the "analyzed,optimized keys"(etc) index state.
