@@ -1031,7 +1031,6 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 }
                 else
                     (*ptr)->set_bt_compare(*ptr, tokudb_cmp_packed_key);    
-                my_free(cmp_byte_stream.data, MYF(0));
                 if (!(table->key_info[i].flags & HA_NOSAME)) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
