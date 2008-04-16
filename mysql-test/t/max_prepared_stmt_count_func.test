@@ -147,4 +147,6 @@ DROP PREPARE stmt1;
 DROP PREPARE stmt2;
 DROP PREPARE stmt3;
 
+DROP PROCEDURE sp_checkstmts;
+
 SET @@global.max_prepared_stmt_count = @global_max_prepared_stmt_count;
