@@ -22,6 +22,12 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
+--source include/have_big5.inc
+--source include/have_ujis.inc
+--source include/have_sjis.inc
+--source include/have_utf8.inc
+--source include/have_uds.inc
+--source include/have_ucs2.inc
 
 --source include/load_sysvars.inc
 ###################################################
@@ -114,7 +120,6 @@ SET @@character_set_client = utf8 + latin2;
 ##############################################################################
 #     Change the value of character_set_client to a valid value for session  #
 ##############################################################################
---Error 0,ER_UNKNOWN_CHARACTER_SET
 SET @@character_set_client = big5;
 SELECT @@character_set_client;
 SET @@character_set_client = dec8;
