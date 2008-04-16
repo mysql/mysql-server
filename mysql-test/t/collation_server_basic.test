@@ -22,6 +22,11 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
+--source include/have_big5.inc
+--source include/have_ujis.inc
+--source include/have_sjis.inc
+--source include/have_utf8.inc
+--source include/have_uds.inc
 
 --source include/load_sysvars.inc
 
