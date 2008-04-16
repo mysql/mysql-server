@@ -45,7 +45,7 @@
   At most 1 instance of this class is active at a time, in which
   case THD::m_metadata_observer is not NULL.
 
-  @sa check_and_update_metadata_version() for details of the
+  @sa check_and_update_table_version() for details of the
   version tracking algorithm 
 
   @sa Execute_observer for details of how we detect that
@@ -847,7 +847,7 @@ public:
     to avoid spurious ER_NEED_REPREPARE errors -- system and
     INFORMATION_SCHEMA tables are not subject to metadata version
     tracking.
-    @sa check_and_update_metadata_version()
+    @sa check_and_update_table_version()
   */
   Metadata_version_observer *m_metadata_observer;
 
@@ -983,25 +983,6 @@ public:
   bool enable_slow_log;
   bool last_insert_id_used;
   SAVEPOINT *savepoints;
-  /**
-    When inside a substatement (a stored function or trigger
-    statement), clear the metadata observer in THD, if any.
-    Remember the value of the observer here, to be able
-    to restore it when leaving the substatement.
-
-    We reset the observer to suppress errors when a substatement
-    uses temporary tables. If a temporary table does not exist
-    at start of the main statement, it's not prelocked
-    and thus is not validated with other prelocked tables.
-
-    Later on, when the temporary table is opened, metadata
-    versions mismatch, expectedly.
-
-    The proper solution for the problem is to re-validate tables
-    of substatements (Bug#12257, Bug#27011, Bug#32868, Bug#33000),
-    but it's not implemented yet.
-  */
-  Metadata_version_observer *m_metadata_observer;
 };
 
 
