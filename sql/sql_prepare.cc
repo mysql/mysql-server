@@ -1481,6 +1481,43 @@ error:
 
 
 /**
+  Validate and prepare for execution CALL statement expressions.
+
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
+  @param value_list         list of expressions
+
+  @retval FALSE             success
+  @retval TRUE              error, error message is set in THD
+*/
+
+static bool mysql_test_call_fields(Prepared_statement *stmt,
+                                   TABLE_LIST *tables,
+                                   List<Item> *value_list)
+{
+  DBUG_ENTER("mysql_test_call_fields");
+
+  List_iterator<Item> it(*value_list);
+  THD *thd= stmt->thd;
+  Item *item;
+
+  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE) ||
+      open_normal_and_derived_tables(thd, tables, 0))
+    goto err;
+
+  while ((item= it++))
+  {
+    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+        item->check_cols(1))
+      goto err;
+  }
+  DBUG_RETURN(FALSE);
+err:
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
   Check internal SELECT of the prepared command.
 
   @param stmt                      prepared statement
@@ -1600,6 +1637,17 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     select_lex->context.resolve_in_select_list= TRUE;
 
     res= select_like_stmt_test(stmt, 0, 0);
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    /*
+      Check that the source table exist, and also record
+      its metadata version. Even though not strictly necessary,
+      we validate metadata of all CREATE TABLE statements,
+      which keeps metadata validation code simple.
+    */
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+      DBUG_RETURN(TRUE);
   }
 
   /* put tables back for PS rexecuting */
@@ -1838,7 +1886,21 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_DELETE:
     res= mysql_test_delete(stmt, tables);
     break;
-
+  /* The following allow WHERE clause, so they must be tested like SELECT */
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TRIGGERS:
+  case SQLCOM_SHOW_EVENTS:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SELECT:
     res= mysql_test_select(stmt, tables);
     if (res == 2)
@@ -1863,6 +1925,9 @@ static bool check_prepared_statement(Prepared_statement *stmt)
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
     break;
 
+  case SQLCOM_CALL:
+    res= mysql_test_call_fields(stmt, tables, &lex->value_list);
+    break;
   case SQLCOM_SET_OPTION:
     res= mysql_test_set_fields(stmt, tables, &lex->var_list);
     break;
@@ -1912,7 +1977,6 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_DROP_INDEX:
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
-  case SQLCOM_CALL:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
@@ -3063,6 +3127,26 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   DBUG_RETURN(error);
 }
 
+
+/**
+  Assign parameter values either from variables, in case of SQL PS
+  or from the execute packet.
+
+  @param expanded_query  a container with the original SQL statement.
+                         '?' placeholders will be replaced with
+                         their values in case of success.
+                         The result is used for logging and replication
+  @param packet          pointer to execute packet.
+                         NULL in case of SQL PS
+  @param packet_end      end of the packet. NULL in case of SQL PS
+
+  @todo Use a paremeter source class family instead of 'if's, and
+  support stored procedure variables.
+
+  @retval TRUE an error occurred when assigning a parameter (likely
+          a conversion error or out of memory, or malformed packet)
+  @retval FALSE success
+*/
 
 bool
 Prepared_statement::set_parameters(String *expanded_query,

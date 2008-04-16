@@ -1336,7 +1336,7 @@ struct TABLE_LIST
     (if any) with values obtained from the current table
     definition cache element.
 
-    @sa check_and_update_metadata_version()
+    @sa check_and_update_table_version()
   */
   inline
   bool is_metadata_version_equal(TABLE_SHARE *s) const
@@ -1349,7 +1349,7 @@ struct TABLE_LIST
     Record the value of metadata version of the corresponding
     table definition cache element in this parse tree node.
 
-    @sa check_and_update_metadata_version()
+    @sa check_and_update_table_version()
   */
   inline
   void set_metadata_version(TABLE_SHARE *s)
