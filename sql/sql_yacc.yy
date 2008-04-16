@@ -3577,20 +3577,30 @@ create2:
         | LIKE table_ident
           {
             THD *thd= YYTHD;
+            TABLE_LIST *src_table;
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!lex->select_lex.add_table_to_list(thd, $2, NULL, 0, TL_READ))
+            src_table= lex->select_lex.add_table_to_list(thd, $2, NULL, 0,
+                                                         TL_READ);
+            if (! src_table)
               MYSQL_YYABORT;
+            /* CREATE TABLE ... LIKE is not allowed for views. */
+            src_table->required_type= FRMTYPE_TABLE;
           }
         | '(' LIKE table_ident ')'
           {
             THD *thd= YYTHD;
+            TABLE_LIST *src_table;
             LEX *lex= thd->lex;
 
             lex->create_info.options|= HA_LEX_CREATE_TABLE_LIKE;
-            if (!lex->select_lex.add_table_to_list(thd, $3, NULL, 0, TL_READ))
+            src_table= lex->select_lex.add_table_to_list(thd, $3, NULL, 0,
+                                                         TL_READ);
+            if (! src_table)
               MYSQL_YYABORT;
+            /* CREATE TABLE ... LIKE is not allowed for views. */
+            src_table->required_type= FRMTYPE_TABLE;
           }
         ;
 
