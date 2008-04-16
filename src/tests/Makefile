@@ -55,6 +55,8 @@ TDB_TESTS = $(patsubst %.c,%.tdb,$(SRCS))
 BDB_DONTRUN = bug627 test_abort1
 BDB_TESTS = $(patsubst %.c,%.bdb,$(filter-out $(patsubst %,%.c,$(BDB_DONTRUN)),$(SRCS)))
 
+TDB_TESTS_THAT_SHOULD_FAIL = test_groupcommit_count
+
 ALL_TESTS = $(TDB_TESTS) $(BDB_TESTS)
 
 RUN_TDB_TESTS = $(patsubst %.tdb,%.tdbrun,$(TDB_TESTS))
@@ -118,8 +120,10 @@ endif
 %.bdbrun: %.bdb ../libtokudb.$(LIBEXT)
 	$(MAYBEATSIGN) $(UNSETTOKUENV) ./$< $(VERBVERBOSE)
 %.tdbrun: %.tdb ../libtokudb.$(LIBEXT)
-	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE)
+	$(MAYBEATSIGN) $(SETTOKUENV) $(VGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTERR)
 	@ touch $@
+# Any test that should fail, we invert the result by using MAYBEINVERTERR
+$(patsubst %,%.tdbrun,$(TDB_TESTS_THAT_SHOULD_FAIL)): MAYBEINVERTERR=;test $$? -ne 0
 
 # Don't include log2 log3 log4 log5 etc since they are covered by all.recover
 
