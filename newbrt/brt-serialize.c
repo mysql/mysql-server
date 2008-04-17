@@ -200,7 +200,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     {
 	ssize_t r=pwrite(fd, w.buf, (size_t)node->nodesize, off); // write the whole buffer, including the zeros
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
-	assert(r==node->nodesize);
+	assert(r==(ssize_t)node->nodesize);
     }
 
     if (calculated_size!=w.ndone)
