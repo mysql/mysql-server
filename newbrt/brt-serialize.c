@@ -18,6 +18,7 @@
 
 
 static const int brtnode_header_overhead = (8+   // magic "tokunode" or "tokuleaf"
+					    4+   // nodesize
 					    8+   // checkpoint number
 					    4+   // block size
 					    4+   // data size
@@ -92,7 +93,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
     return result;
 }
 
-void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node) {
+void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     //printf("%s:%d serializing\n", __FILE__, __LINE__);
     struct wbuf w;
     int i;
@@ -102,13 +103,13 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
 	//printf("Sizes don't match: %d %d\n", calculated_size, toku_serialize_brtnode_size(node));
     }
 #endif
-    assert(calculated_size<=size);
+    //assert(calculated_size<=size);
     //char buf[size];
-    char *MALLOC_N(size,buf);
+    char *MALLOC_N(node->nodesize,buf);
     //toku_verify_counts(node);
-    assert(size>0);
-    wbuf_init(&w, buf, size);
+    //assert(size>0);
     //printf("%s:%d serializing %lld w height=%d p0=%p\n", __FILE__, __LINE__, off, node->height, node->mdicts[0]);
+    wbuf_init(&w, buf, node->nodesize);
     wbuf_literal_bytes(&w, "toku", 4);
     if (node->height==0) wbuf_literal_bytes(&w, "leaf", 4);
     else wbuf_literal_bytes(&w, "node", 4);
@@ -116,6 +117,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     wbuf_ulonglong(&w, node->log_lsn.lsn);
     //printf("%s:%d %lld.calculated_size=%d\n", __FILE__, __LINE__, off, calculated_size);
     wbuf_uint(&w, calculated_size);
+    wbuf_int(&w, node->nodesize);
     wbuf_uint(&w, node->flags);
     wbuf_int(&w,  node->height);
     //printf("%s:%d %lld rand=%08x sum=%08x height=%d\n", __FILE__, __LINE__, node->thisnodename, node->rand4fingerprint, node->subtree_fingerprint, node->height);
@@ -192,13 +194,13 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     wbuf_uint(&w, w.crc32);
 #endif
 
-    memset(w.buf+w.ndone, 0, (size_t)(size-w.ndone)); // fill with zeros
+    memset(w.buf+w.ndone, 0, (size_t)(node->nodesize-w.ndone)); // fill with zeros
 
     //write_now: printf("%s:%d Writing %d bytes\n", __FILE__, __LINE__, w.ndone);
     {
-	ssize_t r=pwrite(fd, w.buf, (size_t)size, off); // write the whole buffer, including the zeros
+	ssize_t r=pwrite(fd, w.buf, (size_t)node->nodesize, off); // write the whole buffer, including the zeros
 	if (r<0) printf("r=%ld errno=%d\n", (long)r, errno);
-	assert(r==size);
+	assert(r==node->nodesize);
     }
 
     if (calculated_size!=w.ndone)
@@ -206,11 +208,11 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, DISKOFF size, BRTNODE node)
     assert(calculated_size==w.ndone);
 
     //printf("%s:%d wrote %d bytes for %lld size=%lld\n", __FILE__, __LINE__, w.ndone, off, size);
-    assert(w.ndone<=size);
+    assert(w.ndone<=node->nodesize);
     toku_free(buf);
 }
 
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsigned int flags, int nodesize) {
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
     TAGMALLOC(BRTNODE, result);
     struct rbuf rc;
     int i;
@@ -264,7 +266,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=3) {
+    if (result->layout_version!=4) {
 	r=DB_BADFORMAT;
 	goto died1;
     }
@@ -274,9 +276,9 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
 	unsigned int stored_size = rbuf_int(&rc);
 	if (stored_size!=datasize) { r=DB_BADFORMAT; goto died1; }
     }
-    result->nodesize = nodesize; // How to compute the nodesize?
+    result->nodesize = rbuf_int(&rc);
     result->thisnodename = off;
-    result->flags = rbuf_int(&rc); assert(result->flags == (unsigned int) flags);
+    result->flags = rbuf_int(&rc);
     result->height = rbuf_int(&rc);
     result->rand4fingerprint = rbuf_int(&rc);
     result->local_fingerprint = rbuf_int(&rc);
@@ -375,7 +377,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsign
 	}
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
 	{
-            int mpsize = nodesize + nodesize/4;
+            int mpsize = result->nodesize + result->nodesize/4;
 	    void *mp = toku_malloc(mpsize);
 	    if (mp==0) return ENOMEM; // TODO cleanup
 	    toku_mempool_init(&result->u.l.buffer_mempool, mp, mpsize);

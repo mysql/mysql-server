@@ -172,7 +172,7 @@ static void test0 (void) {
     expectN(7);
     expectN(6);
     expectN(1);
-    r=toku_cachefile_close(&f);
+    r=toku_cachefile_close(&f, 0);
     assert(r==0);
     r=toku_cachetable_close(&t);
     assert(r==0);
@@ -230,7 +230,7 @@ static void test_nested_pin (void) {
     r = toku_cachetable_unpin(f, 1, 0, test_object_size);
     assert(r==0);
 
-    r = toku_cachefile_close(&f); assert(r==0);
+    r = toku_cachefile_close(&f, 0); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
     
 }
@@ -289,9 +289,9 @@ static void test_multi_filehandles (void) {
     r = toku_cachetable_maybe_get_and_pin(f1, 2, &v); assert(r==0);
     assert((unsigned long)v==125);
     
-    r = toku_cachefile_close(&f1); assert(r==0);
-    r = toku_cachefile_close(&f2); assert(r==0);
-    r = toku_cachefile_close(&f3); assert(r==0);
+    r = toku_cachefile_close(&f1, 0); assert(r==0);
+    r = toku_cachefile_close(&f2, 0); assert(r==0);
+    r = toku_cachefile_close(&f3, 0); assert(r==0);
     r = toku_cachetable_close(&t); assert(r==0);
 }
 
@@ -398,7 +398,7 @@ static void test_dirty() {
     assert(dirty == 1);
     assert(pinned == 0);
      
-    r = toku_cachefile_close(&f);
+    r = toku_cachefile_close(&f, 0);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);
@@ -459,7 +459,7 @@ static void test_size_resize() {
     r = toku_cachetable_unpin(f, key, CACHETABLE_CLEAN, new_size);
     assert(r == 0);
 
-    r = toku_cachefile_close(&f);
+    r = toku_cachefile_close(&f, 0);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);
@@ -517,7 +517,7 @@ static void test_size_flush() {
         assert(r == 0);
     }
     
-    r = toku_cachefile_close(&f);
+    r = toku_cachefile_close(&f, 0);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);
@@ -606,7 +606,7 @@ static void test_rename (void) {
 	}
     }
 
-    r = toku_cachefile_close(&f);
+    r = toku_cachefile_close(&f, 0);
     assert(r == 0);
     r = toku_cachetable_close(&t);
     assert(r == 0);

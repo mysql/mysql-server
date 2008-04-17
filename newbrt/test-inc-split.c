@@ -136,7 +136,7 @@ void doit (int ksize __attribute__((__unused__))) {
     r = toku_testsetup_root(t, anode);
     assert(r==0);
 
-    r = toku_close_brt(t);          assert(r==0);
+    r = toku_close_brt(t, 0);       assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
     //printf("ksize=%d, unused\n", ksize);

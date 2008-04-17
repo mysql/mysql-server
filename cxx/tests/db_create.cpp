@@ -20,6 +20,7 @@ int dbcreate(char *dbfile, char *dbname, int dbflags, int argc, char *argv[]) {
     r = db->open(0, dbfile, dbname, DB_BTREE, DB_CREATE, 0777);
     if (r != 0) {
         printf("db->open %s(%s) %d %s\n", dbfile, dbname, r, db_strerror(r));
+	db->close(0);  delete db;
         env->close(0); delete env;
         return 1;
     }

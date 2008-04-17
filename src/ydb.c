@@ -342,6 +342,9 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 	    toku_logger_close(&env->i->logger);
 	    goto died1;
 	}
+    } else {
+	r = toku_logger_close(&env->i->logger); // if no logging system, then kill the logger
+	assert(r==0);
     }
 
     unused_flags &= ~DB_INIT_MPOOL; // we always init an mpool.
@@ -364,7 +367,7 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
     r = toku_brt_create_cachetable(&env->i->cachetable, env->i->cachetable_size, ZERO_LSN, env->i->logger);
     if (r!=0) goto died2;
 
-    toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
+    if (env->i->logger) toku_logger_set_cachetable(env->i->logger, env->i->cachetable);
 
     return 0;
 }
@@ -990,7 +993,7 @@ static int toku_db_close(DB * db, u_int32_t flags) {
         }
     }
     flags=flags;
-    int r = toku_close_brt(db->i->brt);
+    int r = toku_close_brt(db->i->brt, db->dbenv->i->logger);
     if (r != 0)
         return r;
     if (db->i->db_id) { toku_db_id_remove_ref(db->i->db_id); }

@@ -40,7 +40,7 @@ void doit (void) {
     r = toku_brt_lookup(t, toku_fill_dbt(&k, "a", 2), toku_init_dbt(&v));
     assert(r==DB_NOTFOUND);
 
-    r = toku_close_brt(t);              assert(r==0);
+    r = toku_close_brt(t, 0);           assert(r==0);
     r = toku_cachetable_close(&ct);     assert(r==0);
 }
 
@@ -48,5 +48,6 @@ int main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     doit();
     if (verbose) printf("test ok\n");
+    toku_malloc_cleanup();
     return 0;
 }

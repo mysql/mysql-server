@@ -8,6 +8,7 @@
 #include "toku_assert.h"
 #include "yerror.h"
 #include "brt-internal.h"
+#include "log_header.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -72,6 +73,7 @@ struct cachefile {
     CACHETABLE cachetable;
     struct fileid fileid;
     FILENUM filenum;
+    char *fname;
 };
 
 int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER logger) {
@@ -108,7 +110,7 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf) {
 }
 
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
-int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
+int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fname) {
     int r;
     CACHEFILE extant;
     FILENUM max_filenum_in_use={0};
@@ -137,6 +139,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
 	newcf->fd = fd;
 	newcf->cachetable = t;
 	newcf->fileid = fileid;
+	newcf->fname  = fname ? toku_strdup(fname) : 0;
 	t->cachefiles = newcf;
 	*cf = newcf;
 	return 0;
@@ -146,7 +149,7 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd) {
 int toku_cachetable_openf (CACHEFILE *cf, CACHETABLE t, const char *fname, int flags, mode_t mode) {
     int fd = open(fname, flags, mode);
     if (fd<0) return errno;
-    return toku_cachetable_openfd (cf, t, fd);
+    return toku_cachetable_openfd (cf, t, fd, fname);
 }
 
 static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
@@ -166,7 +169,7 @@ void toku_cachefile_refup (CACHEFILE cf) {
     cf->refcount++;
 }
 
-int toku_cachefile_close (CACHEFILE *cfp) {
+int toku_cachefile_close (CACHEFILE *cfp, TOKULOGGER logger) {
     CACHEFILE cf = *cfp;
     assert(cf->refcount>0);
     cf->refcount--;
@@ -177,6 +180,13 @@ int toku_cachefile_close (CACHEFILE *cfp) {
 	assert(r == 0);
         cf->fd = -1;
         cf->cachetable->cachefiles = remove_cf_from_list(cf, cf->cachetable->cachefiles);
+	if (logger) {
+	    assert(cf->fname);
+	    BYTESTRING bs = {.len=strlen(cf->fname), .data=cf->fname};
+	    r = toku_log_cfclose(logger, 0, 0, bs, cf->filenum);
+	}
+	if (cf->fname)
+	    toku_free(cf->fname);
 	toku_free(cf);
 	*cfp=0;
 	return r;

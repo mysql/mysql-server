@@ -83,7 +83,7 @@ static void test_multiple_brt_cursor_dbts(int n, DB *db) {
         assert(r == 0);
     }
 
-    r = toku_close_brt(brt);
+    r = toku_close_brt(brt, 0);
     assert(r==0);
 
     r = toku_cachetable_close(&ct);
