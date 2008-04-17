@@ -313,26 +313,62 @@ NdbOperation::getValue(const NdbDictionary::Column* col, char* aValue)
 int
 NdbOperation::equal(const char* anAttrName, const char* aValuePassed)
 {
-  return equal_impl(m_accessTable->getColumn(anAttrName), aValuePassed);
+  const NdbColumnImpl* col = m_accessTable->getColumn(anAttrName);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return -1;
+  }
+  else
+  {
+    return equal_impl(col, aValuePassed);
+  }
 }
 
 int
 NdbOperation::equal(Uint32 anAttrId, const char* aValuePassed)
 {
-  return equal_impl(m_accessTable->getColumn(anAttrId), aValuePassed);
+    const NdbColumnImpl* col = m_accessTable->getColumn(anAttrId);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return -1;
+  }
+  else
+  {
+    return equal_impl(col, aValuePassed);
+  }
 }
 
 int
 NdbOperation::setValue(const char* anAttrName, const char* aValuePassed)
 {
-  return setValue(m_currentTable->getColumn(anAttrName), aValuePassed);
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrName);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return -1;
+  }
+  else
+  {
+    return setValue(col, aValuePassed);
+  }
 }
 
 
 int
 NdbOperation::setValue(Uint32 anAttrId, const char* aValuePassed)
 {
-  return setValue(m_currentTable->getColumn(anAttrId), aValuePassed);
+  const NdbColumnImpl* col = m_currentTable->getColumn(anAttrId);
+  if (col == NULL)
+  {
+    setErrorCode(4004);
+    return -1;
+  }
+  else
+  {
+    return setValue(col, aValuePassed);
+  }
 }
 
 NdbBlob*
