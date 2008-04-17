@@ -16,7 +16,7 @@ struct OMS {
 
 
 /*
-    Questions:
+    Questions/issues:
         1-  Do we really need to wrap items in an OMITEM<ITEM_TYPE> container?
             I assume yes.. for example, the ITEM_TYPE could be a DBT,
             and the OMITEM<DBT*> would also hold the index (plus maybe additional stuff).
@@ -35,6 +35,7 @@ struct OMS {
             so its a parameter to the functoins that use comparisons.
         6-  Do we need some way of 'loading' an order maintenance structure?
             i.e. use these tags for the following items instead of 'inserting' over and over.
+        7-  The tag might not be able to be just 64 bits, is it ok to use 2 64 bit ints?
 */
 
 template <typename ITEM_TYPE, typename EXTRA_RENUMBER, typename EXTRA_CMP>
