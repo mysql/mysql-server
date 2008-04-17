@@ -71,10 +71,11 @@ typedef struct st_tokudb_trx_data {
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
 #define TOKUDB_DEBUG_SAVE_TRACE 128
 
-#define TOKUDB_DBUG_ENTER(f) \
+#define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
-    if (tokudb_debug & TOKUDB_DEBUG_ENTER) \
-        printf("%d:%s:%d:%s\n", my_tid(), __FILE__, __LINE__, __FUNCTION__); \
+    if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
+        printf("%d:%s:%d:" f "\n", my_tid(), __FILE__, __LINE__, ##__VA_ARGS__); \
+    } \
 } \
     DBUG_ENTER(f);
 
@@ -83,8 +84,20 @@ typedef struct st_tokudb_trx_data {
 { \
     int rr = (r); \
     if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) \
-        printf("%d:%s:%d:%s:return:%d\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, rr); \
+        printf("%d:%s:%d:%s:return %d\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, rr); \
     DBUG_RETURN(rr); \
+}
+
+#define TOKUDB_DBUG_DUMP(s, p, len) \
+{ \
+    if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
+        printf("%d:%s:%d:%s:%s", my_tid(), __FILE__, __LINE__, __FUNCTION__, s); \
+        uint i; \
+        for (i=0; i<len; i++) { \
+            printf("%2.2x", ((uchar*)p)[i]); \
+        } \
+        printf("\n"); \
+    } \
 }
 
 const char *ha_tokudb_ext = ".tokudb";
@@ -796,9 +809,7 @@ cleanup:
     return r;
 }
 
-static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * saved_key) {
-    assert(file->app_private != 0);
-    KEY *key = (KEY *) file->app_private;
+static int tokudb_compare_two_keys(KEY *key, const DBT * new_key, const DBT * saved_key, bool cmp_prefix) {
     uchar *new_key_ptr = (uchar *) new_key->data;
     uchar *saved_key_ptr = (uchar *) saved_key->data;
     KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
@@ -831,47 +842,26 @@ static int tokudb_cmp_packed_key(DB * file, const DBT * new_key, const DBT * sav
         saved_key_ptr    += saved_key_field_length;
         saved_key_length -= saved_key_field_length;
     }
-    return key_length - saved_key_length;
+    return cmp_prefix ? 0 : key_length - saved_key_length;
+}
+
+static int tokudb_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->app_private;
+    return tokudb_compare_two_keys(key, keya, keyb, false);
+}
+
+static int tokudb_cmp_primary_key(DB *file, const DBT *keya, const DBT *keyb) {
+    assert(file->app_private != 0);
+    KEY *key = (KEY *) file->api_internal;
+    return tokudb_compare_two_keys(key, keya, keyb, false);
 }
 
 //TODO: QQQ Only do one direction for prefix.
-//TODO: QQQ Combine this and previous function.
-static int tokudb_prefix_cmp_packed_key(DB * file, const DBT * new_key, const DBT * saved_key) {
+static int tokudb_prefix_cmp_packed_key(DB *file, const DBT *keya, const DBT *keyb) {
     assert(file->app_private != 0);
     KEY *key = (KEY *) file->app_private;
-    uchar *new_key_ptr = (uchar *) new_key->data;
-    uchar *saved_key_ptr = (uchar *) saved_key->data;
-    KEY_PART_INFO *key_part = key->key_part, *end = key_part + key->key_parts;
-    uint key_length = new_key->size;
-    uint saved_key_length = saved_key->size;
-
-    //DBUG_DUMP("key_in_index", saved_key_ptr, saved_key->size);
-    for (; key_part != end && (int) key_length > 0 && (int) saved_key_length > 0; key_part++) {
-        int cmp;
-        uint new_key_field_length;
-        uint saved_key_field_length;
-        if (key_part->null_bit) {
-            assert(new_key_ptr   < (uchar *) new_key->data   + new_key->size);
-            assert(saved_key_ptr < (uchar *) saved_key->data + saved_key->size);
-            if (*new_key_ptr != *saved_key_ptr) {
-                return ((int) *new_key_ptr - (int) *saved_key_ptr); }
-            saved_key_ptr++;
-            key_length--;
-            saved_key_length--;
-            if (!*new_key_ptr++) { continue; }
-        }
-        new_key_field_length     = key_part->field->packed_col_length(new_key_ptr,   key_part->length);
-        saved_key_field_length   = key_part->field->packed_col_length(saved_key_ptr, key_part->length);
-        assert(      key_length >= new_key_field_length);
-        assert(saved_key_length >= saved_key_field_length);
-        if ((cmp = key_part->field->pack_cmp(new_key_ptr, saved_key_ptr, key_part->length, 0)))
-            return cmp;
-        new_key_ptr      += new_key_field_length;
-        key_length       -= new_key_field_length;
-        saved_key_ptr    += saved_key_field_length;
-        saved_key_length -= saved_key_field_length;
-    }
-    return 0;
+    return tokudb_compare_two_keys(key, keya, keyb, true);
 }
 
 #if 0
@@ -908,7 +898,7 @@ static bool tokudb_key_cmp(TABLE * table, KEY * key_info, const uchar * key, uin
 #endif
 
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::open");
+    TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s", this, name);
     TOKUDB_OPEN();
 
     char name_buff[FN_REFLEN];
@@ -1034,6 +1024,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
                 if (!(table->key_info[i].flags & HA_NOSAME)) {
                     DBUG_PRINT("info", ("Setting DB_DUP+DB_DUPSORT for key %u", i));
                     (*ptr)->set_flags(*ptr, DB_DUP + DB_DUPSORT);
+                    (*ptr)->api_internal = file->app_private;
+                    (*ptr)->set_dup_compare(*ptr, hidden_primary_key ? tokudb_cmp_hidden_key : tokudb_cmp_primary_key);
                 }
                 if ((error = (*ptr)->open(*ptr, 0, name_buff, NULL, DB_BTREE, open_flags + DB_AUTO_COMMIT, 0))) {
                     __close(1);
@@ -1075,13 +1067,13 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
 }
 
 int ha_tokudb::close(void) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::close");
+    TOKUDB_DBUG_ENTER("ha_tokudb::close %p", this);
     TOKUDB_CLOSE();
     TOKUDB_DBUG_RETURN(__close(0));
 }
 
 int ha_tokudb::__close(int mutex_is_locked) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::__close");
+    TOKUDB_DBUG_ENTER("ha_tokudb::__close %p", this);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         printf("%d:%s:%d:close:%p\n", my_tid(), __FILE__, __LINE__, this);
     my_free(rec_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -1490,7 +1482,7 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
 }
 
 int ha_tokudb::write_row(uchar * record) {
-    TOKUDB_DBUG_ENTER("ha::write_row");
+    TOKUDB_DBUG_ENTER("ha_tokudb::write_row");
     DBT row, prim_key, key;
     int error;
 
@@ -1816,7 +1808,7 @@ int ha_tokudb::delete_row(const uchar * record) {
 }
 
 int ha_tokudb::index_init(uint keynr, bool sorted) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_init");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_init %p %d", this, keynr);
     int error;
     DBUG_PRINT("enter", ("table: '%s'  key: %d", table_share->table_name.str, keynr));
 
@@ -1838,7 +1830,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
 }
 
 int ha_tokudb::index_end() {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_end");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_end %p", this);
     int error = 0;
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
@@ -1864,9 +1856,12 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
     if (keynr != primary_key) {
         /* We only found the primary key.  Now we have to use this to find the row data */
         if (key_read && found_key) {
+            TOKUDB_DBUG_DUMP("key=", found_key->data, found_key->size);
             unpack_key(buf, found_key, keynr);
-            if (!hidden_primary_key)
+            if (!hidden_primary_key) {
+                TOKUDB_DBUG_DUMP("row=", row->data, row->size);
                 unpack_key(buf, row, primary_key);
+            }
             TOKUDB_DBUG_RETURN(0);
         }
         DBT key;
@@ -1881,6 +1876,8 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
             TOKUDB_DBUG_RETURN(error == DB_NOTFOUND ? HA_ERR_CRASHED : error);
         }
         row = &current_row;
+        TOKUDB_DBUG_DUMP("key=", key.data, key.size);
+        TOKUDB_DBUG_DUMP("row=", row->data, row->size);
     }
     unpack_row(buf, row);
     if (found_key) { DBUG_DUMP("read row key", (uchar *) found_key->data, found_key->size); }
@@ -1899,15 +1896,6 @@ int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint k
 }
 
 //TODO: QQQ Function to tell if a key+keylen is the entire key (loop through the schema), see comparison function for ideas.
-
-int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_read");
-    DBT row;
-    int error;
-
-    table->in_use->status_var.ha_read_key_count++;
-    bzero((void *) &row, sizeof(row));
-    pack_key(&last_key, active_index, key_buff, key, key_len);
 /*
 if (full_key) {
     switch (find_flag) {
@@ -1969,6 +1957,16 @@ Note that sometimes if not found, will need things like DB_FIRST or DB_LAST
 TODO: QQQ maybe need to pass true/1 as last parameter of read_row (this would make it
 return END_OF_FILE instead of just NOT_FOUND
 */
+
+int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_read %p find %d", this, find_flag);
+    TOKUDB_DBUG_DUMP("key=", key, key_len);
+    DBT row;
+    int error;
+
+    table->in_use->status_var.ha_read_key_count++;
+    bzero((void *) &row, sizeof(row));
+    pack_key(&last_key, active_index, key_buff, key, key_len);
 
     switch (find_flag) {
     case HA_READ_KEY_EXACT:
@@ -2084,7 +2082,7 @@ int ha_tokudb::index_next(uchar * buf) {
 }
 
 int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same");
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this);
     DBT row;
     int error;
     statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
@@ -2214,7 +2212,7 @@ void ha_tokudb::position(const uchar * record) {
 }
 
 int ha_tokudb::info(uint flag) {
-    TOKUDB_DBUG_ENTER("ha_tokudb::info");
+    TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld %ld", this, flag, share->rows, changed_rows);
     if (flag & HA_STATUS_VARIABLE) {
         // Just to get optimizations right
         stats.records = share->rows + changed_rows;
@@ -2234,6 +2232,7 @@ int ha_tokudb::info(uint flag) {
 
 
 int ha_tokudb::extra(enum ha_extra_function operation) {
+    TOKUDB_DBUG_ENTER("extra %p %d", this, operation);
     switch (operation) {
     case HA_EXTRA_RESET_STATE:
         reset();
@@ -2253,7 +2252,7 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
     default:
         break;
     }
-    return 0;
+    TOKUDB_DBUG_RETURN(0);
 }
 
 int ha_tokudb::reset(void) {
