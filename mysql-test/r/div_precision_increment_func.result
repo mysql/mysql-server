@@ -77,3 +77,4 @@ id	name	salary	income_tax
 ## Dropping table t1 ##
 drop table t1;
 ## Disconnection both the connections ##
+SET @@global.div_precision_increment = 4;
