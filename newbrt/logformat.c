@@ -509,6 +509,17 @@ void generate_rollbacks (void) {
 		    fprintf(cf, "  txn->newest_logentry = v;\n");
 		    fprintf(cf, "  return 0;\n}\n");
 	    }));
+    DO_ROLLBACKS(lt, ({
+		fprintf2(cf, hf, "int toku_logger_rollback_fsize_%s (", lt->name);
+		int count=0;
+		DO_FIELDS(ft, lt, fprintf2(cf, hf, "%s%s %s", (count++>0)?", ":"", ft->type, ft->name));
+		fprintf(hf, ");\n");
+		fprintf(cf, ") {\n");
+		fprintf(cf, "  return 1 // the cmd");
+		DO_FIELDS(ft, lt, 
+			  fprintf(cf, "\n         + toku_logsizeof_%s(%s)", ft->type, ft->name));
+		fprintf(cf, ";\n}\n");
+	    }));
 }
 
 
