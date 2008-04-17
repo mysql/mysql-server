@@ -651,11 +651,17 @@ static const char *ha_tokudb_exts[] = {
     NullS
 };
 
+/* 
+ *  returns NULL terminated file extension string
+ */
 const char **ha_tokudb::bas_ext() const {
     return ha_tokudb_exts;
 }
 
-// QQQ what do these flags do?
+//
+// Returns a bit mask of capabilities of the key or its part specified by 
+// the arguments. The capabilities are defined in sql/handler.h.
+//
 ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
     for (uint i = all_parts ? 0 : part; i <= part; i++) {
@@ -897,6 +903,17 @@ static bool tokudb_key_cmp(TABLE * table, KEY * key_info, const uchar * key, uin
 }
 #endif
 
+//
+// Creates and opens a handle to a table which already exists in a tokudb
+// database.
+// Parameters:
+//      [in]   name - table name
+//             mode - seems to specify if table is read only
+//             test_if_locked - unused
+// Returns:
+//      0 on success
+//      1 on error
+//
 int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_DBUG_ENTER("ha_tokudb::open %p %s", this, name);
     TOKUDB_OPEN();
@@ -1066,6 +1083,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     TOKUDB_DBUG_RETURN(0);
 }
 
+//
+// Closes a handle to a table. 
+//
 int ha_tokudb::close(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::close %p", this);
     TOKUDB_CLOSE();
@@ -1448,6 +1468,7 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
 /** @brief
     Return an estimated of the number of rows in the table.
     Used when sorting to allocate buffers and by the optimizer.
+    This is used in filesort.cc. 
 */
 ha_rows ha_tokudb::estimate_rows_upper_bound() {
     return share->rows + HA_TOKUDB_EXTRA_ROWS;
@@ -1481,6 +1502,14 @@ bool ha_tokudb::check_if_incompatible_data(HA_CREATE_INFO * info, uint table_cha
     return COMPATIBLE_DATA_YES;
 }
 
+//
+// Stores a row in the table, called when handling an INSERT query
+// Parameters:
+//      [in]    record - a row in MySQL format
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::write_row(uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::write_row");
     DBT row, prim_key, key;
@@ -1648,6 +1677,15 @@ int ha_tokudb::restore_keys(DB_TXN * trans, key_map * changed_keys, uint primary
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// Updates a row in the table, called when handling an UPDATE query
+// Parameters:
+//      [in]    old_row - row to be updated, in MySQL format
+//      [in]    new_row - new row, in MySQL format
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     TOKUDB_DBUG_ENTER("update_row");
     DBT prim_key, key, old_prim_key;
@@ -1775,6 +1813,14 @@ int ha_tokudb::remove_keys(DB_TXN * trans, const uchar * record, DBT * new_recor
     return result;
 }
 
+//
+// Stores a row in the table, called when handling a DELETE query
+// Parameters:
+//      [in]    record - row to be deleted, in MySQL format
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::delete_row(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_row");
     int error;
@@ -1807,6 +1853,15 @@ int ha_tokudb::delete_row(const uchar * record) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// Initializes local cursor on DB with index keynr
+// Parameters:
+//          keynr - key (index) number
+//          sorted - 1 if result MUST be sorted according to index
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::index_init(uint keynr, bool sorted) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_init %p %d", this, keynr);
     int error;
@@ -1829,6 +1884,9 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// closes the local cursor
+//
 int ha_tokudb::index_end() {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_end %p", this);
     int error = 0;
@@ -1884,9 +1942,23 @@ int ha_tokudb::read_row(int error, uchar * buf, uint keynr, DBT * row, DBT * fou
     TOKUDB_DBUG_RETURN(0);
 }
 
-/*
-  This is only used to read whole keys
-*/
+//
+// This is only used to read whole keys
+// According to InnoDB handlerton: Positions an index cursor to the index 
+// specified in keynr. Fetches the row if any
+// Parameters:
+//      [out]        buf - buffer for the  returned row
+//                   keynr - index to use
+//      [in]         key - key value, according to InnoDB, if NULL, 
+//                              position cursor at start or end of index,
+//                              not sure if this is done now
+//                     key_len - length of key
+//                     find_flag - according to InnoDB, search flags from my_base.h
+// Returns:
+//      0 on success
+//      HA_ERR_KEY_NOT_FOUND if not found (per InnoDB), 
+//      error otherwise
+//
 int ha_tokudb::index_read_idx(uchar * buf, uint keynr, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_read_idx");
     table->in_use->status_var.ha_read_key_count++;
@@ -1958,6 +2030,24 @@ TODO: QQQ maybe need to pass true/1 as last parameter of read_row (this would ma
 return END_OF_FILE instead of just NOT_FOUND
 */
 
+//
+// According to InnoDB handlerton: Positions an index cursor to the index 
+// specified in keynr. Fetches the row if any
+// Parameters:
+//      [out]       buf - buffer for the  returned row
+//                    keynr - index to use
+//      [in]         key - key value, according to InnoDB, if NULL, 
+//                              position cursor at start or end of index,
+//                              not sure if this is done now
+//                    key_len - length of key
+//                    find_flag - according to InnoDB, search flags from my_base.h
+// Returns:
+//      0 on success
+//      HA_ERR_KEY_NOT_FOUND if not found (per InnoDB), 
+//          we seem to return HA_ERR_END_OF_FILE if find_flag != HA_READ_KEY_EXACT
+//          TODO: investigate this for correctness
+//      error otherwise
+//
 int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_rkey_function find_flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_read %p find %d", this, find_flag);
     TOKUDB_DBUG_DUMP("key=", key, key_len);
@@ -1969,7 +2059,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     pack_key(&last_key, active_index, key_buff, key, key_len);
 
     switch (find_flag) {
-    case HA_READ_KEY_EXACT:
+    case HA_READ_KEY_EXACT: /* Find first record else error */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0) {
             DBT orig_key;
@@ -1978,7 +2068,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
                 error = DB_NOTFOUND;
         }
         break;
-    case HA_READ_AFTER_KEY:
+    case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0) {
             DBT orig_key;
@@ -1992,17 +2082,17 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             }
         }
         break;
-    case HA_READ_BEFORE_KEY:
+    case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0)
             error = cursor->c_get(cursor, &last_key, &row, DB_PREV);
         else if (error == DB_NOTFOUND)
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
         break;
-    case HA_READ_KEY_OR_NEXT:
+    case HA_READ_KEY_OR_NEXT: /* Record or next record */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         break;
-    case HA_READ_KEY_OR_PREV:
+    case HA_READ_KEY_OR_PREV: /* Record or previous */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0) {
             DBT orig_key; 
@@ -2013,7 +2103,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         else if (error == DB_NOTFOUND)
             error = cursor->c_get(cursor, &last_key, &row, DB_LAST);
         break;
-    case HA_READ_PREFIX_LAST_OR_PREV:
+    case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         error = cursor->c_get(cursor, &last_key, &row, DB_SET_RANGE);
         if (error == 0) {
             DBT orig_key;
@@ -2073,6 +2163,15 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 }
 #endif
 
+//
+// Reads the next row from the active index (cursor) into buf, and advances cursor
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     DBT row;
@@ -2081,6 +2180,17 @@ int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_NEXT), buf, active_index, &row, &last_key, 1));
 }
 
+//
+// Reads the next row matching to the key, on success, advances cursor
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+//      [in]     key - key value
+//                keylen - length of key
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same %p", this);
     DBT row;
@@ -2104,6 +2214,15 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     TOKUDB_DBUG_RETURN(error);
 }
 
+//
+// Reads the previous row from the active index (cursor) into buf, and advances cursor
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     DBT row;
@@ -2112,6 +2231,15 @@ int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_PREV), buf, active_index, &row, &last_key, 1));
 }
 
+//
+// Reads the first row from the active index (cursor) into buf, and advances cursor
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_first");
     DBT row;
@@ -2120,6 +2248,15 @@ int ha_tokudb::index_first(uchar * buf) {
     TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_FIRST), buf, active_index, &row, &last_key, 1));
 }
 
+//
+// Reads the last row from the active index (cursor) into buf, and advances cursor
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_last");
     DBT row;
@@ -2128,19 +2265,43 @@ int ha_tokudb::index_last(uchar * buf) {
     TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 0));
 }
 
+//
+// Initialize a scan of the table (which is why index_init is called on primary_key)
+// Parameters:
+//          scan - unused
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::rnd_init(bool scan) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_init");
     current_row.flags = DB_DBT_REALLOC;
     TOKUDB_DBUG_RETURN(index_init(primary_key, 0));
 }
 
+//
+// End a scan of the table
+//
 int ha_tokudb::rnd_end() {
     return index_end();
 }
 
+//
+// Read the next row in a table scan
+// Parameters:
+//      [out]   buf - buffer for the next row, in MySQL format
+// Returns:
+//      0 on success
+//      HA_ERR_END_OF_FILE if not found
+//      error otherwise
+//
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     DBT row;
+    //
+    // The reason we do not just call index_next is that index_next 
+    // increments a different variable than we do here
+    //
     statistic_increment(table->in_use->status_var.ha_read_rnd_next_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
     DBUG_DUMP("last_key", (uchar *) last_key.data, last_key.size);
@@ -2167,6 +2328,18 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
     return to;
 }
 
+//
+// Retrieves a row with based on the reference pos
+// Parameters:
+//      [out]   buf - buffer for the row
+//      [in]    pos - primary key value of the row, according to 
+//                    Understanding MySQL Internals, interpretation of pos is 
+//                    up to the storage engine
+// Returns:
+//      0 on success
+//      HA_ERR_KEY_NOT_FOUND if not found
+//      error otherwise
+//
 int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     TOKUDB_DBUG_ENTER("ha_tokudb::rnd_pos");
     DBT db_pos;
@@ -2211,6 +2384,12 @@ void ha_tokudb::position(const uchar * record) {
     DBUG_VOID_RETURN;
 }
 
+//
+// Per InnoDB: Returns statistics information of the table to the MySQL interpreter,
+// in various fields of the handle object. 
+// Return:
+//      0, always success
+//
 int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld %ld", this, flag, share->rows, changed_rows);
     if (flag & HA_STATUS_VARIABLE) {
@@ -2230,7 +2409,9 @@ int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_RETURN(0);
 }
 
-
+//
+//  Per InnoDB: Tells something additional to the handler about how to do things.
+//
 int ha_tokudb::extra(enum ha_extra_function operation) {
     TOKUDB_DBUG_ENTER("extra %p %d", this, operation);
     switch (operation) {
@@ -2276,7 +2457,14 @@ int ha_tokudb::reset(void) {
   If not, we have to start a master transaction if there doesn't exist
   one from before.
 */
-
+//
+// Parameters:
+//      [in]    thd - handle to the user thread
+//              lock_type - the type of lock
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::external_lock");
     int error = 0;
@@ -2483,6 +2671,16 @@ static int rmall(const char *dname) {
     return error;
 }
 
+//
+// Creates a new table
+// Parameters:
+//      [in]    name - table name
+//      [in]    form - info on table, columns and indexes
+//      [in]    create_info - more info on table, CURRENTLY UNUSED
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_info) {
     TOKUDB_DBUG_ENTER("ha_tokudb::create");
     char name_buff[FN_REFLEN];
@@ -2575,7 +2773,14 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     TOKUDB_DBUG_RETURN(error);
 }
 
-
+//
+// Drops table
+// Parameters:
+//      [in]    name - name of table to be deleted
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::delete_table(const char *name) {
     TOKUDB_DBUG_ENTER("ha_tokudb::delete_table");
     int error;
@@ -2611,6 +2816,15 @@ int ha_tokudb::delete_table(const char *name) {
 }
 
 
+//
+// renames table from "from" to "to"
+// Parameters:
+//      [in]    name - old name of table
+//      [in]    to - new name of table
+// Returns:
+//      0 on success
+//      error otherwise
+//
 int ha_tokudb::rename_table(const char *from, const char *to) {
     int error;
 #if 0 // QQQ single file per table
@@ -2640,7 +2854,7 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
 
 
 /*
-  How many seeks it will take to read through the table
+  Returns estimate on number of seeks it will take to read through the table
   This is to be comparable to the number returned by records_in_range so
   that we can decide if we should scan the table or use keys.
 */
@@ -2649,6 +2863,9 @@ double ha_tokudb::scan_time() {
     return rows2double(stats.records / 3);
 }
 
+//
+// Estimates the number of index records in a range.
+//
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range * end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
 #if 0 // QQQ need key_range

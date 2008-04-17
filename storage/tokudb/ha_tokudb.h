@@ -69,21 +69,38 @@ public:
         return "BTREE";
     }
     const char **bas_ext() const;
+
+    //
+    // Returns a bit mask of capabilities of storage engine. Capabilities 
+    // defined in sql/handler.h
+    //
     ulonglong table_flags(void) const {
         return int_table_flags;
     } 
     ulong index_flags(uint inx, uint part, bool all_parts) const;
 
+    //
+    // Returns limit on the number of keys imposed by tokudb.
+    //
     uint max_supported_keys() const {
         return MAX_KEY - 1;
     } 
+
     uint extra_rec_buf_length() const {
         return TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH;
     } 
     ha_rows estimate_rows_upper_bound();
+
+    //
+    // Returns the limit on the key length imposed by tokudb.
+    //
     uint max_supported_key_length() const {
         return UINT_MAX32;
     } 
+
+    //
+    // Returns limit on key part length imposed by tokudb.
+    //
     uint max_supported_key_part_length() const {
         return UINT_MAX32;
     } 
