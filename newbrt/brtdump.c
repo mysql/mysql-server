@@ -42,9 +42,9 @@ void print_item (bytevec val, ITEMLEN len) {
     printf("\"");
 }
 
-void dump_node (int f, DISKOFF off, struct brt_header *h) {
+void dump_node (int f, DISKOFF off) {
     BRTNODE n;
-    int r = toku_deserialize_brtnode_from (f, off, &n, h->flags, h->nodesize);
+    int r = toku_deserialize_brtnode_from (f, off, &n);
     assert(r==0);
     assert(n!=0);
     printf("brtnode\n");
@@ -124,7 +124,7 @@ int main (int argc, const char *argv[]) {
     dump_header(f, &h);
     DISKOFF off;
     for (off=h->nodesize; off<h->unused_memory; off+=h->nodesize) {
-	dump_node(f, off, h);
+	dump_node(f, off);
     }
     return 0;
 }

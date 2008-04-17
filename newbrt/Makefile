@@ -178,7 +178,7 @@ check-fanout:
 		let BRT_FANOUT=BRT_FANOUT+1; \
 	done
 
-log-test log-test2 log-test3 log-test4 log-test5 log-test6 benchmark-test brt-test brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder: LDFLAGS+=-lz
+log-test log-test2 log-test3 log-test4 log-test5 log-test6 benchmark-test brt-test brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder cachetable-test cachetable-test2: LDFLAGS+=-lz
 # pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
 BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h gpma.h brt.h brt-search.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
@@ -228,10 +228,10 @@ test_toku_malloc_plain_free: memory.o toku_assert.o
 
 
 cachetable-test.o: cachetable.h memory.h 
-cachetable-test: cachetable.o memory.o cachetable-test.o primes.o toku_assert.o
+cachetable-test: $(OFILES)
 
 cachetable-test2.o: cachetable.h memory.h
-cachetable-test2: cachetable.o memory.o cachetable-test2.o primes.o toku_assert.o
+cachetable-test2: $(OFILES)
 
 benchmark-test: $(OFILES)
 benchmark-test.o: brt.h brt-search.h ../include/db.h

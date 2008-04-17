@@ -26,7 +26,7 @@ typedef long long CACHEKEY;
 int toku_create_cachetable(CACHETABLE */*result*/, long size_limit, LSN initial_lsn, TOKULOGGER);
 
 int toku_cachetable_openf (CACHEFILE *,CACHETABLE, const char */*fname*/, int flags, mode_t mode);
-int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/);
+int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/, const char */*fname (used for logging)*/);
 
 typedef void (cachetable_flush_func_t)(CACHEFILE, CACHEKEY key, void*value, long size, BOOL write_me, BOOL keep_me, LSN modified_lsn, BOOL rename_p);
 typedef cachetable_flush_func_t *CACHETABLE_FLUSH_FUNC_T;
@@ -61,7 +61,7 @@ int toku_cachetable_rename (CACHEFILE cachefile, CACHEKEY oldkey, CACHEKEY newke
 //int cachetable_fsync_all (CACHETABLE); /* Flush everything to disk, but keep it in cache. */
 int toku_cachetable_close (CACHETABLE*); /* Flushes everything to disk, and destroys the cachetable. */
 
-int toku_cachefile_close (CACHEFILE*);
+int toku_cachefile_close (CACHEFILE*, TOKULOGGER);
 //int cachefile_flush (CACHEFILE); /* Flush everything related to the VOID* to disk and free all memory.  Don't destroy the cachetable. */
 
 void toku_cachefile_refup (CACHEFILE cfp); // Increment the reference count.  Use close to decrement it.

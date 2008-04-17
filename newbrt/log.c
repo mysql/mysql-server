@@ -353,6 +353,8 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	    txn->newest_logentry = item->prev;
 	    rolltype_dispatch(item, toku_free_rolltype_);
 	    toku_free(item);
+	    toku_logger_rollback_malloc_size -= sizeof(*item);
+	    toku_logger_rollback_malloc_count --;
 	}
 	r = 0;
     } else if (txn->parent!=0) {
@@ -378,6 +380,8 @@ int toku_logger_commit (TOKUTXN txn, int nosync) {
 	    if (r!=0) goto broken;
 	    rolltype_dispatch(item, toku_free_rolltype_);
 	    toku_free(item);
+	    toku_logger_rollback_malloc_size -= sizeof(*item);
+	    toku_logger_rollback_malloc_count --;
 	}
 	r = 0;
     }
@@ -704,6 +708,8 @@ int toku_logger_abort(TOKUTXN txn) {
 	if (r!=0) return r;
 	rolltype_dispatch(item, toku_free_rolltype_);
 	toku_free(item);
+	toku_logger_rollback_malloc_size -= sizeof(*item);
+	toku_logger_rollback_malloc_count --;
     }
     list_remove(&txn->live_txns_link);
     toku_free(txn);

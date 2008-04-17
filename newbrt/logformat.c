@@ -147,6 +147,12 @@ const struct logtype logtypes[] = {
 			{"BYTESTRING", "fname", 0},
 			{"FILENUM",    "filenum", 0},
 			NULLFIELD}},
+    {"brtclose",   'e', FA{{"BYTESTRING", "fname", 0},   // brtclose is logged when a particular brt is closed
+			   {"FILENUM",    "filenum", 0},
+			   NULLFIELD}},
+    {"cfclose",   'o', FA{{"BYTESTRING", "fname", 0},     // cfclose is logged when a cachefile actually closes ("cfclose" means cache file close)
+			  {"FILENUM",    "filenum", 0},
+			  NULLFIELD}},
     {"brtdeq",       'U', FA{{"FILENUM",    "filenum", 0},
 			     {"DISKOFF",    "diskoff", 0},
 			     {"u_int32_t",  "childnum", 0},
@@ -269,7 +275,7 @@ void generate_enum_internal (char *enum_name, char *enum_prefix, const struct lo
 		    count++;
 		    fprintf(hf, "\n");
 		    fprintf(hf,"    %s_%-16s = '%c'", enum_prefix, lt->name, cmd);
-		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d Command %d (%c) was used twice (second time for %s)\n", __FILE__, __LINE__, cmd, cmd, lt->name); abort(); }
+		    if (used_cmds[cmd]!=0) { fprintf(stderr, "%s:%d: error: Command %d (%c) was used twice (second time for %s)\n", __FILE__, __LINE__, cmd, cmd, lt->name); abort(); }
 		    used_cmds[cmd]=1;
 		}));
     fprintf(hf, "\n};\n\n");
@@ -387,11 +393,11 @@ void generate_log_writer (void) {
 			fprintf(cf, "  wbuf_int(&wbuf, buflen);\n");
 			fprintf(cf, "  wbuf_char(&wbuf, '%c');\n", 0xff&lt->command_and_flags);
 			fprintf(cf, "  ml_lock(&logger->input_lock);\n");
+			fprintf(cf, "  logger->lsn.lsn++;\n");
 			fprintf(cf, "  LSN lsn = logger->lsn;\n");
 			fprintf(cf, "  wbuf_LSN(&wbuf, lsn);\n");
 			fprintf(cf, "  lbytes->lsn = lsn;\n");
 			fprintf(cf, "  if (lsnp) *lsnp=logger->lsn;\n");
-			fprintf(cf, "  logger->lsn.lsn++;\n");
 			DO_FIELDS(ft, lt,
 				  fprintf(cf, "  wbuf_%s(&wbuf, %s);\n", ft->type, ft->name));
 			fprintf(cf, "  int r= toku_logger_finish(logger, lbytes, &wbuf, do_fsync);\n");
@@ -486,12 +492,15 @@ void generate_logprint (void) {
 }
 
 void generate_rollbacks (void) {
+    fprintf(cf, "       u_int64_t toku_logger_rollback_malloc_size=0, toku_logger_rollback_malloc_count=0;\n");
+    fprintf(hf, "extern u_int64_t toku_logger_rollback_malloc_size,   toku_logger_rollback_malloc_count;\n");
     DO_ROLLBACKS(lt, ({
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
 		    fprintf(cf, "  struct roll_entry *v = toku_malloc(sizeof(*v));\n");
+		    fprintf(cf, "  toku_logger_rollback_malloc_count++; toku_logger_rollback_malloc_size+=sizeof(*v);\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
 		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));

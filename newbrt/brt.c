@@ -139,7 +139,7 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
     assert(brtnode->thisnodename==nodename);
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
-	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode->nodesize, brtnode);
+	toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode);
     }
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (!keep_me) {
@@ -148,10 +148,9 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, DISKOFF nodename, void *b
     //printf("%s:%d n_items_malloced=%lld\n", __FILE__, __LINE__, n_items_malloced);
 }
 
-int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*extraargs, LSN *written_lsn) {
-    BRT t =(BRT)extraargs;
+int toku_brtnode_fetch_callback (CACHEFILE cachefile, DISKOFF nodename, void **brtnode_pv, long *sizep, void*UU(extraargs), LSN *written_lsn) {
     BRTNODE *result=(BRTNODE*)brtnode_pv;
-    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result, t->flags, t->nodesize);
+    int r = toku_deserialize_brtnode_from(toku_cachefile_fd(cachefile), nodename, result);
     if (r == 0) {
         *sizep = brtnode_size(*result);
 	*written_lsn = (*result)->disk_lsn;
@@ -286,7 +285,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = 3;
+    n->layout_version = 4;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -1892,12 +1891,18 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
 
     assert(is_create || !only_create);
     assert(!load_flags || !only_create);
+    t->fname = toku_strdup(fname_in_env);
+    if (t->fname==0) {
+	r = errno;
+	if (0) { died00: if (t->fname) toku_free(t->fname); t->fname=0; }
+	goto died0;
+    }
     if (dbname) {
 	malloced_name = toku_strdup(dbname);
 	if (malloced_name==0) {
 	    r = ENOMEM;
 	    if (0) { died0a: if(malloced_name) toku_free(malloced_name); }
-	    goto died0;
+	    goto died00;
 	}
     }
     t->database_name = malloced_name;
@@ -1922,12 +1927,12 @@ int toku_brt_open(BRT t, const char *fname, const char *fname_in_env, const char
             } else
                 goto died0a;
 	}
-	r=toku_cachetable_openfd(&t->cf, cachetable, fd);
+	r=toku_cachetable_openfd(&t->cf, cachetable, fd, fname_in_env);
         if (r != 0) goto died0a;
 	toku_logger_log_fopen(txn, fname_in_env, toku_cachefile_filenum(t->cf));
     }
     if (r!=0) {
-	if (0) { died1: toku_cachefile_close(&t->cf); }
+	if (0) { died1: toku_cachefile_close(&t->cf, toku_txn_logger(txn)); }
         t->database_name = 0;
 	goto died0a;
     }
@@ -2116,7 +2121,7 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
     return r;
 }
 
-int toku_close_brt (BRT brt) {
+int toku_close_brt (BRT brt, TOKULOGGER logger) {
     int r;
     while (!list_empty(&brt->cursors)) {
 	BRT_CURSOR c = list_struct(list_pop(&brt->cursors), struct brt_cursor, cursors_link);
@@ -2124,11 +2129,19 @@ int toku_close_brt (BRT brt) {
 	if (r!=0) return r;
     }
     if (brt->cf) {
+	if (logger) {
+	    assert(brt->fname);
+	    BYTESTRING bs = {.len=strlen(brt->fname), .data=brt->fname};
+	    LSN lsn;
+	    r = toku_log_brtclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
+	    if (r!=0) return r;
+	}
         assert(0==toku_cachefile_count_pinned(brt->cf, 1)); // For the brt, the pinned count should be zero.
         //printf("%s:%d closing cachetable\n", __FILE__, __LINE__);
-        if ((r = toku_cachefile_close(&brt->cf))!=0) return r;
+        if ((r = toku_cachefile_close(&brt->cf, logger))!=0) return r;
     }
     if (brt->database_name) toku_free(brt->database_name);
+    if (brt->fname) toku_free(brt->fname);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }
     toku_free(brt);

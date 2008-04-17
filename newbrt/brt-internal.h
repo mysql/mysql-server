@@ -111,6 +111,7 @@ struct brt_header {
 
 struct brt {
     CACHEFILE cf;
+    char *fname; // the filename
     char *database_name;
     // The header is shared.  It is also ephemeral.
     struct brt_header *h;
@@ -128,8 +129,8 @@ struct brt {
 };
 
 /* serialization code */
-void toku_serialize_brtnode_to(int fd, DISKOFF off, DISKOFF size, BRTNODE node);
-int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode, unsigned int flags, int nodesize);
+void toku_serialize_brtnode_to(int fd, DISKOFF off, BRTNODE node);
+int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
 

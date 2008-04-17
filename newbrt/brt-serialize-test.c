@@ -27,7 +27,7 @@ static void test_serialize(void) {
     sn.thisnodename = sn.nodesize*20;
     sn.disk_lsn.lsn = 789;
     sn.log_lsn.lsn  = 123456;
-    sn.layout_version = 3;
+    sn.layout_version = 4;
     sn.height = 1;
     sn.rand4fingerprint = randval;
     sn.local_fingerprint = 0;
@@ -50,14 +50,14 @@ static void test_serialize(void) {
     BNC_NBYTESINBUF(&sn, 1) = 1*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
     sn.u.n.n_bytes_in_buffers = 3*(BRT_CMD_OVERHEAD+KEY_VALUE_OVERHEAD+2+5);
 
-    toku_serialize_brtnode_to(fd, sn.nodesize*(DISKOFF)20, (DISKOFF)sn.nodesize, &sn);  assert(r==0);
+    toku_serialize_brtnode_to(fd, sn.nodesize*(DISKOFF)20, &sn);  assert(r==0);
 
-    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, &dn, sn.flags, nodesize);
+    r = toku_deserialize_brtnode_from(fd, nodesize*(DISKOFF)20, &dn);
     assert(r==0);
 
     assert(dn->thisnodename==nodesize*20);
     assert(dn->disk_lsn.lsn==123456);
-    assert(dn->layout_version ==3);
+    assert(dn->layout_version ==4);
     assert(dn->height == 1);
     assert(dn->rand4fingerprint==randval);
     assert(dn->u.n.n_children==2);

@@ -44,7 +44,7 @@ int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING
 				toku_fill_dbt(&data_dbt, data.data, data.len)}};
     r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
     if (r!=0) return r;
-    return toku_cachefile_close(&cf);
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
 }
 
 int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
@@ -58,7 +58,7 @@ int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRI
 				toku_fill_dbt(&data_dbt, data.data, data.len)}};
     r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
     if (r!=0) return r;
-    return toku_cachefile_close(&cf);
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
 }
 
 int toku_commit_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
@@ -80,7 +80,7 @@ int toku_commit_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN tx
 				toku_init_dbt(&data_dbt)}};
     r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
     if (r!=0) return r;
-    return toku_cachefile_close(&cf);
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
 }
 
 int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
@@ -94,5 +94,5 @@ int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN 
 				toku_init_dbt(&data_dbt)}};
     r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
     if (r!=0) return r;
-    return toku_cachefile_close(&cf);
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
 }

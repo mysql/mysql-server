@@ -41,7 +41,7 @@ static void setup (void) {
 
 static void shutdown (void) {
     int r;
-    r = toku_close_brt(t); assert(r==0);
+    r = toku_close_brt(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 }
 static void long_long_to_array (unsigned char *a, unsigned long long l) {
