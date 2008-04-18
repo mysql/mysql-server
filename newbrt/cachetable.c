@@ -113,7 +113,7 @@ int toku_cachefile_of_filenum (CACHETABLE t, FILENUM filenum, CACHEFILE *cf) {
 int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fname) {
     int r;
     CACHEFILE extant;
-    FILENUM max_filenum_in_use={0};
+    static FILENUM next_filenum_to_use={0};
     struct stat statbuf;
     struct fileid fileid;
     memset(&fileid, 0, sizeof(fileid));
@@ -122,7 +122,6 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
     fileid.st_dev = statbuf.st_dev;
     fileid.st_ino = statbuf.st_ino;
     for (extant = t->cachefiles; extant; extant=extant->next) {
-	if (max_filenum_in_use.fileid<extant->filenum.fileid) max_filenum_in_use=extant->filenum;
 	if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
 	    r = close(fd);
             assert(r == 0);
@@ -131,9 +130,16 @@ int toku_cachetable_openfd (CACHEFILE *cf, CACHETABLE t, int fd, const char *fna
 	    return 0;
 	}
     }
+ try_again:
+    for (extant = t->cachefiles; extant; extant=extant->next) {
+	if (next_filenum_to_use.fileid==extant->filenum.fileid) {
+	    next_filenum_to_use.fileid++;
+	    goto try_again;
+	}
+    }
     {
 	CACHEFILE MALLOC(newcf);
-	newcf->filenum.fileid = 1+max_filenum_in_use.fileid;
+	newcf->filenum.fileid = next_filenum_to_use.fileid++;
 	newcf->next = t->cachefiles;
 	newcf->refcount = 1;
 	newcf->fd = fd;

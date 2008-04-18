@@ -112,9 +112,11 @@ int toku_gpma_move_inside_pma_by_renumbering (GPMA,
 
 int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
 		     int (*realloc_data)(u_int32_t len, void *odata, void **ndata, void *extra),
+		     void *extra_realloc,
 		     gpma_renumber_callback_t rcall,
-		     gpma_renumber_callback_t rcall_across_pmas, // This one is called for everything that moved.  It is called first (before the rcall)
-		     void *extra);
+		     void *extra_rcall,
+		     gpma_renumber_callback_t rcall_across_pmas, // This one is called for everything that moved.  It is called first (before the rcall).  The old_N is the size of pma before resizing.
+		     void *extra_rcall_across);
 
 void toku_verify_gpma (GPMA pma);
 

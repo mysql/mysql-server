@@ -458,10 +458,9 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 		     assert((char*)node->u.l.buffer_mempool.base<= p && p < (char*)node->u.l.buffer_mempool.base+node->u.l.buffer_mempool.size );
 		 }));
     r = toku_gpma_split(node->u.l.buffer, B->u.l.buffer, PMA_ITEM_OVERHEAD,
-			move_between_mempools,
-			note_move_items_within,
-			note_move_items_between,
-			&ms);
+			move_between_mempools,	 &ms,
+			note_move_items_within,  &ms,
+			note_move_items_between, &ms);
     GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
 		 ({
 		     char *p=vdata;

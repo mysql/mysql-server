@@ -623,9 +623,11 @@ int toku_gpma_lookup_bessel(GPMA pma, gpma_besselfun_t besf, int direction, void
 // If an error code is returned, then the pmas are likely to be all messed up.  Probably all you can do is close them.
 int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
 		     int (*realloc_data)(u_int32_t olen, void *odata, void **ndata, void *extra),
+		     void *extra_realloc,
 		     gpma_renumber_callback_t rcall,
+		     void *extra_rcall,
 		     gpma_renumber_callback_t rcall_across_pmas, // This one is called for everything that moved
-		     void *extra) {
+		     void *extra_rcall_across) {
     unsigned long totalweight=0;
     u_int32_t old_N = pma->N;
     {
@@ -686,7 +688,7 @@ int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
     for (i=0; i<n_right; i++) {
 	void *ndata;
 	//printf("%s:%d len=%d\n", __FILE__, __LINE__, rightitems[i].len);
-	r = realloc_data (rightitems[i].len, rightitems[i].data, &ndata, extra);
+	r = realloc_data (rightitems[i].len, rightitems[i].data, &ndata, extra_realloc);
 	if (r!=0) { goto L6; } // At this point the PMA is all messed up, and there is no easy way to put it all back together again.
 	rightitems[i].data=ndata;
     }
@@ -709,10 +711,11 @@ int toku_gpma_split (GPMA pma, GPMA newpma, u_int32_t overhead,
     //toku_verify_gpma(pma);
     //toku_verify_gpma(newpma);
 
-    r = rcall_across_pmas(n_right, rightfroms, righttos, rightitems, 0, newpma->N, extra);
+    r = rcall_across_pmas(n_right, rightfroms, righttos, rightitems, old_N, newpma->N, extra_rcall_across);
     if (r!=0) { goto L6; }
-    r = rcall(n_left, leftfroms, lefttos, leftitems, old_N, pma->N, extra);
+    r = rcall(n_left, leftfroms, lefttos, leftitems, old_N, pma->N, extra_rcall);
     if (r!=0) { goto L6; }
+
     r=0;
     goto L6; // free all that stuff
 }
