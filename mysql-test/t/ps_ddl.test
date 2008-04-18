@@ -104,6 +104,7 @@ prepare stmt from "select * from t1";
 --echo Part 4: TABLE -> NOTHING transitions
 --echo =====================================================================
 
+--echo # Test 4-a: select ... from <table>
 create table t1 (a int);
 
 prepare stmt from "select * from t1";
@@ -120,6 +121,25 @@ call p_verify_reprepare_count(0);
 execute stmt;
 call p_verify_reprepare_count(0);
 deallocate prepare stmt;
+
+--echo # Test 4-b: TABLE -> NOTHING by renaming the table
+create table t1 (a int);
+prepare stmt from "select * from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+rename table t1 to t2;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop table t2;
 
 --echo =====================================================================
 --echo Part 5: TABLE -> TABLE (DDL) transitions
@@ -143,10 +163,10 @@ call p_verify_reprepare_count(0);
 drop table t1;
 deallocate prepare stmt;
 
+
 --echo =====================================================================
 --echo Part 6: TABLE -> TABLE (TRIGGER) transitions
 --echo =====================================================================
-
 
 --echo # Test 6-a: adding a relevant trigger
 
@@ -414,6 +434,7 @@ deallocate prepare stmt;
 --echo Part 8: TABLE -> TEMPORARY TABLE transitions
 --echo =====================================================================
 
+--echo # Test 8-a: base table used recreated as temporary table
 create table t1 (a int);
 
 prepare stmt from "select * from t1";
@@ -429,6 +450,25 @@ call p_verify_reprepare_count(0);
 
 drop table t1;
 deallocate prepare stmt;
+
+--echo # Test 8-b: temporary table has precedence over base table with same name
+create table t1 (a int);
+prepare stmt from 'select count(*) from t1';
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+create temporary table t1 AS SELECT 1;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop temporary table t1;
+drop table t1;
+
 
 --echo =====================================================================
 --echo Part 9: TABLE -> VIEW transitions
@@ -471,6 +511,7 @@ deallocate prepare stmt;
 --echo Part 11: TEMPORARY TABLE -> TABLE transitions
 --echo =====================================================================
 
+--echo # Test 11-a: temporary table replaced by base table
 create table t1 (a int);
 insert into t1 (a) value (1);
 create temporary table t1 (a int);
@@ -487,6 +528,27 @@ call p_verify_reprepare_count(1);
 select * from t1;
 drop table t1;
 deallocate prepare stmt;
+
+
+--echo # Test 11-b: temporary table has precedence over base table with same name
+--echo #            temporary table disappears
+create table t1 (a int);
+create temporary table t1 as select 1 as a;
+prepare stmt from "select count(*) from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop temporary table t1;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop table t1;
+
 
 --echo =====================================================================
 --echo Part 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL) transitions
@@ -1354,13 +1416,15 @@ deallocate prepare stmt_sp;
 --echo Ensure that metadata validation is performed for every type of
 --echo SQL statement where it is needed.
 --echo =====================================================================
+
+--echo #
+--echo # SQLCOM_SELECT
+--echo #
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 create table t1 (a int);
---echo #
---echo # SQLCOM_SELECT
---echo #
 prepare stmt from "select 1 as res from dual where (1) in (select * from t1)";
 drop table t1;
 create table t1 (x int);
@@ -1368,16 +1432,16 @@ execute stmt;
 drop table t1;
 deallocate prepare stmt;
 call p_verify_reprepare_count(1);
+
 --echo #
 --echo # SQLCOM_CREATE_TABLE
 --echo #
+
 --disable_warnings
 drop table if exists t1;
 drop table if exists t2;
 --enable_warnings
-
 create table t1 (a int);
-
 prepare stmt from 'create table t2 as select * from t1';
 execute stmt;
 drop table t2;
@@ -1385,6 +1449,7 @@ execute stmt;
 drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
+# Base table with name of table to be created exists
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
 call p_verify_reprepare_count(1);
@@ -1392,6 +1457,7 @@ call p_verify_reprepare_count(1);
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# Temporary table with name of table to be created exists
 create temporary table t2 (a int);
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
@@ -1406,7 +1472,23 @@ drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# View with name of table to be created exists
+# Attention:
+#    We cannot print the error message because it contains a random filename.
+#    Example: 1050: Table '<some_path>/var/tmp/#sql_6979_0' already exists
+#    Therefore we mangle it via
+#    "--error ER_TABLE_EXISTS_ERROR,9999" (9999 is currently not used)
+#    to "Got one of the listed errors".
+create view t2 as select 1;
+--error ER_TABLE_EXISTS_ERROR,9999
+execute stmt;
+call p_verify_reprepare_count(1);
+--error ER_TABLE_EXISTS_ERROR,9999
+execute stmt;
+call p_verify_reprepare_count(0);
+drop view t2;
 drop table t1;
+# Table to be used recreated (drop,create) with different layout
 create table t1 (x varchar(20));
 execute stmt;
 call p_verify_reprepare_count(1);
@@ -1415,6 +1497,14 @@ drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# Table to be used has a modified (alter table) layout
+alter table t1 add column y decimal(10,3);
+execute stmt;
+call p_verify_reprepare_count(1);
+select * from t2;
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
 drop table t1;
 deallocate prepare stmt;
 --echo # XXX: no validation of the first table in case of
@@ -1445,8 +1535,46 @@ call p_verify_reprepare_count(1);
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t1;
+drop temporary table t2;
 drop table t2;
 deallocate prepare stmt;
+
+create table t1 (a int);
+prepare stmt from "create table t2 like t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+# Table to be used does not exist
+drop table t1;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+# Table to be used recreated (drop,create) with different layout
+create table t1 (x char(17));
+execute stmt;
+call p_verify_reprepare_count(1);
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+# Table to be used has a modified (alter table) layout
+alter table t1 add column y time;
+execute stmt;
+call p_verify_reprepare_count(1);
+select * from t2;
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t1;
+drop table t2;
+deallocate prepare stmt;
+
 
 --echo #
 --echo # SQLCOM_UPDATE
