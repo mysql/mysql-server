@@ -1,5 +1,6 @@
-let $message= --source suite/funcs_1/storedproc/cleanup_sp_tb.inc;
---source include/show_msg80.inc
+--echo
+--echo --source suite/funcs_1/storedproc/cleanup_sp_tb.inc
+--echo --------------------------------------------------------------------------------
 
 # called both to cleanup possibly existing data before and after the SP tests
 
