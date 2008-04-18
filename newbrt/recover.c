@@ -63,8 +63,31 @@ void toku_recover_cleanup (void) {
 void toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 }
 
+void create_dir_from_file (const char *fname) {
+    int i;
+    char *tmp=toku_strdup(fname);
+    char ch;
+    for (i=0; (ch=fname[i]); i++) {
+	if (ch=='/') {
+	    if (i>0) {
+		tmp[i]=0;
+		mode_t oldu = umask(0);
+		int r = mkdir(tmp, 0700);
+		if (r!=0 && errno!=EEXIST) {
+		    printf("error: %s\n", strerror(errno));
+		}
+		assert (r==0 || (errno==EEXIST));
+		umask(oldu);
+		tmp[i]=ch;
+	    }
+	}
+    }
+    toku_free(tmp);
+}
+
 void toku_recover_fcreate (LSN UU(lsn), TXNID UU(txnid),BYTESTRING fname,u_int32_t mode) {
     char *fixed_fname = fixup_fname(&fname);
+    create_dir_from_file(fixed_fname);
     int fd = creat(fixed_fname, mode);
     assert(fd>=0);
     toku_free(fixed_fname);
@@ -122,7 +145,7 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     }
     toku_cachetable_put(pair->cf, 0, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
     if (pair->brt) {
-	free(pair->brt->h);
+	toku_free(pair->brt->h);
     }  else {
 	MALLOC(pair->brt);
 	pair->brt->cf = pair->cf;
@@ -682,6 +705,7 @@ void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, 
     }
     VERIFY_COUNTS(nodea);
 
+    assert(toku_gpma_index_limit(nodea->u.l.buffer)==old_N);
     r = move_indices (nodea->u.l.buffer, &nodea->u.l.buffer_mempool,
 		      nodeb->u.l.buffer, &nodeb->u.l.buffer_mempool,
 		      fromto,
