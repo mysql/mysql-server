@@ -202,7 +202,7 @@ gpma.o: gpma.c gpma.h
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
-cachetable.o: cachetable.h hashfun.h memory.h
+cachetable.o: brttypes.h cachetable.h hashfun.h memory.h primes.h toku_assert.h $(BRT_INTERNAL_H_INCLUDES) log_header.h
 brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 brt-test: ybt.o brt.o fifo.o gpma.o leafentry.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 logformat: logformat.o toku_assert.o

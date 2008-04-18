@@ -406,6 +406,7 @@ int toku_cachetable_put(CACHEFILE cachefile, CACHEKEY key, void*value, long size
 		// In practice, the functions better be the same.
 		assert(p->flush_callback==flush_callback);
 		assert(p->fetch_callback==fetch_callback);
+		p->pinned++; /* Already present.  But increment the pin count. */
 		return -1; /* Already present. */
 	    }
 	}
