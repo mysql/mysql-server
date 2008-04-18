@@ -71,10 +71,13 @@ typedef struct st_tokudb_trx_data {
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
 #define TOKUDB_DEBUG_SAVE_TRACE 128
 
+#define TOKUDB_TRACE(f, ...) \
+    printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
+
 #define TOKUDB_DBUG_ENTER(f, ...)      \
 { \
     if (tokudb_debug & TOKUDB_DEBUG_ENTER) { \
-        printf("%d:%s:%d:" f "\n", my_tid(), __FILE__, __LINE__, ##__VA_ARGS__); \
+        TOKUDB_TRACE(f "\n", ##__VA_ARGS__); \
     } \
 } \
     DBUG_ENTER(__FUNCTION__);
@@ -83,14 +86,15 @@ typedef struct st_tokudb_trx_data {
 #define TOKUDB_DBUG_RETURN(r) \
 { \
     int rr = (r); \
-    if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) \
-        printf("%d:%s:%d:%s:return %d\n", my_tid(), __FILE__, __LINE__, __FUNCTION__, rr); \
+    if ((tokudb_debug & TOKUDB_DEBUG_RETURN) || (rr != 0 && (tokudb_debug & TOKUDB_DEBUG_ERROR))) { \
+        TOKUDB_TRACE("%s:return %d\n", __FUNCTION__, rr); \
+    } \
     DBUG_RETURN(rr); \
 }
 
 #define TOKUDB_DBUG_DUMP(s, p, len) \
 { \
-    printf("%d:%s:%d:%s:%s", my_tid(), __FILE__, __LINE__, __FUNCTION__, s); \
+    TOKUDB_TRACE("%s:%s", __FUNCTION__, s); \
     uint i;                                                             \
     for (i=0; i<len; i++) {                                             \
         printf("%2.2x", ((uchar*)p)[i]);                                \
@@ -101,7 +105,8 @@ typedef struct st_tokudb_trx_data {
 const char *ha_tokudb_ext = ".tokudb";
 
 //static my_bool tokudb_shared_data = FALSE;
-static u_int32_t tokudb_init_flags = DB_PRIVATE | DB_RECOVER;
+static u_int32_t tokudb_init_flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | 
+    DB_CREATE | DB_THREAD | DB_PRIVATE | DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 //static ulong tokudb_log_buffer_size = 0;
@@ -219,7 +224,8 @@ static int tokudb_init_func(void *p) {
     r = db_env->set_flags(db_env, tokudb_env_flags, 1);
     if (r) { // QQQ
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
-            printf("%d:%s:%d:WARNING: flags %x r %d\n", my_tid(), __FILE__, __LINE__, tokudb_env_flags, r); // goto error;
+            TOKUDB_TRACE("%s:WARNING: flags=%x r=%d\n", __FUNCTION__, tokudb_env_flags, r); 
+        // goto error;
     }
 
     // config error handling
@@ -264,7 +270,7 @@ static int tokudb_init_func(void *p) {
     r = db_env->get_cachesize(db_env, &gbytes, &bytes, &parts);
     if (r == 0) 
         if (tokudb_debug & TOKUDB_DEBUG_INIT) 
-            printf("%d:%s:%d:tokudb_cache_size %lld\n", my_tid(), __FILE__, __LINE__, ((unsigned long long) gbytes << 30) + bytes);
+            TOKUDB_TRACE("%s:tokudb_cache_size=%lld\n", __FUNCTION__, ((unsigned long long) gbytes << 30) + bytes);
 
 #if 0
     // QQQ config the logs
@@ -290,12 +296,17 @@ static int tokudb_init_func(void *p) {
         }
     }
 
-    if ((r = db_env->open(db_env, tokudb_home, 
-                          tokudb_init_flags | DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_THREAD, 
-                          0666))) {
+    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
+
+    r = db_env->open(db_env, tokudb_home, tokudb_init_flags, 0666);
+
+    if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env opened:return=%d\n", __FUNCTION__, r);
+
+    if (r) {
         DBUG_PRINT("info", ("env->open %d\n", r));
         goto error;
     }
+
     DBUG_RETURN(FALSE);
 
 error:
@@ -597,7 +608,7 @@ void tokudb_cleanup_log_files(void) {
         for (np = names; *np; ++np) {
 #if 1
             if (tokudb_debug)
-                printf("%d:%s:%d:TBD delete:%s\n", my_tid(), __FILE__, __LINE__, *np);
+                TOKUDB_TRACE("%s:cleanup:%s\n", __FUNCTION__, *np);
 #else
             my_delete(*np, MYF(MY_WME));
 #endif
