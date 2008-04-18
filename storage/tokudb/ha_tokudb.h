@@ -27,18 +27,63 @@ private:
     THR_LOCK_DATA lock;         ///< MySQL lock
     TOKUDB_SHARE *share;        ///< Shared lock info
 
-    DBT last_key, current_row;
+    //
+    // last key returned by ha_tokudb's cursor
+    //
+    DBT last_key;
+    //
+    // current row pointed to by ha_tokudb's cursor
+    // TODO: make sure current_row gets set properly
+    //
+    DBT current_row;
     void *alloc_ptr;
     uchar *rec_buff;
     uchar *key_buff, *key_buff2, *primary_key_buff;
-    DB *file, **key_file;
+
+    //
+    // DB that is indexed on the primary key
+    //
+    DB *file;
+    //
+    // array of all DB's that make up table, includes DB that
+    // is indexed on the primary key
+    //
+    DB **key_file;
+
+    //
+    // transaction used by ha_tokudb's cursor
+    //
     DB_TXN *transaction;
+    //
+    // array that holds put_flags for each database. So, when doing a
+    // key_file[i]->put, key_type[i] gets passed in for flags
+    //
     u_int32_t *key_type;
+    //
+    // instance of cursor being used for init_xxx and rnd_xxx functions
+    //
     DBC *cursor;
+    //
+    // flags that are returned in table_flags()
+    //
     ulong int_table_flags;
     ulong alloced_rec_buff_length;
+    //
+    // count on the number of rows that gets changed, such as when write_row occurs
+    //
     ulong changed_rows;
-    uint primary_key, last_dup_key, hidden_primary_key, version;
+    //
+    // index into key_file that holds DB* that is indexed on
+    // the primary_key. this->key_file[primary_index] == this->file
+    //
+    uint primary_key;
+    uint last_dup_key;
+    //
+    // if set to 0, then the primary key is not hidden
+    // if non-zero (not necessarily 1), primary key is hidden
+    //
+    uint hidden_primary_key;
+    uint version;
     bool key_read, using_ignore;
     bool fix_rec_buff_for_blob(ulong length);
 #define TOKUDB_HIDDEN_PRIMARY_KEY_LENGTH 5 // QQQ why 5?

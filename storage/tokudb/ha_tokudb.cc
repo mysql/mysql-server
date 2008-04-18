@@ -649,7 +649,7 @@ static void make_name(char *newname, const char *tablename, const char *dictname
 ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg)
 :  
     handler(hton, table_arg), alloc_ptr(0), rec_buff(0), file(0),
-    // QQQ what do these flags do?
+    // flags defined in sql\handler.h
     int_table_flags(HA_REC_NOT_IN_SEQ | HA_FAST_KEY_READ | HA_NULL_IN_KEY | HA_CAN_INDEX_BLOBS | HA_PRIMARY_KEY_IN_READ_INDEX | 
                     HA_FILE_BASED | HA_CAN_GEOMETRY | HA_AUTO_PART_KEY | HA_TABLE_SCAN_ON_INDEX), 
     changed_rows(0), last_dup_key((uint) - 1), version(0), using_ignore(0) {
@@ -1079,9 +1079,9 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     ref_length = share->ref_length;     // If second open
     pthread_mutex_unlock(&share->mutex);
 
-    transaction = 0;
-    cursor = 0;
-    key_read = 0;
+    transaction = NULL;
+    cursor = NULL;
+    key_read = false;
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
     share->fixed_length_row = !(table_share->db_create_options & HA_OPTION_PACK_RECORD);
 
@@ -1180,6 +1180,12 @@ int ha_tokudb::pack_row(DBT * row, const uchar * record, bool new_row) {
     return 0;
 }
 
+//
+// take the row passed in as a DBT*, and convert it into a row in MySQL format in record
+// Parameters:
+//      [out]   record - row in MySQL format
+//      [in]    row - row stored in DBT to be converted
+//
 void ha_tokudb::unpack_row(uchar * record, DBT * row) {
     if (share->fixed_length_row)
         memcpy(record, (void *) row->data, table_share->reclength + hidden_primary_key);
@@ -1322,7 +1328,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
 
 int ha_tokudb::read_last() {
     int do_commit = 0;
-    if (transaction == 0) {
+    if (transaction == NULL) {
         int r = db_env->txn_begin(db_env, 0, &transaction, 0);
         assert(r == 0);
         do_commit = 1;
@@ -1334,7 +1340,7 @@ int ha_tokudb::read_last() {
     if (do_commit) {
         int r = transaction->commit(transaction, 0);
         assert(r == 0);
-        transaction = 0;
+        transaction = NULL;
     }
     return error;
 }
@@ -1385,7 +1391,7 @@ void ha_tokudb::get_status() {
 
         if (!(share->status & STATUS_ROW_COUNT_INIT) && share->status_block) {
             share->org_rows = share->rows = table_share->max_rows ? table_share->max_rows : HA_TOKUDB_MAX_ROWS;
-            DB_TXN *transaction = 0;
+            DB_TXN *transaction = NULL;
             int r = db_env->txn_begin(db_env, 0, &transaction, 0);
             if (r == 0) {
                 r = share->status_block->cursor(share->status_block, transaction, &cursor, 0);
@@ -1410,9 +1416,9 @@ void ha_tokudb::get_status() {
                     cursor->c_close(cursor);
                 }
                 r = transaction->commit(transaction, 0);
-                transaction = 0;
+                transaction = NULL;
             }
-            cursor = 0;
+            cursor = NULL;
         }
         share->status |= STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT;
         pthread_mutex_unlock(&share->mutex);
@@ -1888,7 +1894,7 @@ int ha_tokudb::index_init(uint keynr, bool sorted) {
     DBUG_ASSERT(keynr <= table->s->keys);
     DBUG_ASSERT(key_file[keynr]);
     if ((error = key_file[keynr]->cursor(key_file[keynr], transaction, &cursor, table->reginfo.lock_type > TL_WRITE_ALLOW_READ ? 0 : 0)))
-        cursor = 0;             // Safety
+        cursor = NULL;             // Safety
     bzero((void *) &last_key, sizeof(last_key));
     TOKUDB_DBUG_RETURN(error);
 }
@@ -1902,7 +1908,7 @@ int ha_tokudb::index_end() {
     if (cursor) {
         DBUG_PRINT("enter", ("table: '%s'", table_share->table_name.str));
         error = cursor->c_close(cursor);
-        cursor = 0;
+        cursor = NULL;
     }
     active_index = MAX_KEY;
     TOKUDB_DBUG_RETURN(error);
@@ -2489,7 +2495,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     if (lock_type != F_UNLCK) {
         if (!trx->tokudb_lock_count++) {
             DBUG_ASSERT(trx->stmt == 0);
-            transaction = 0;    // Safety
+            transaction = NULL;    // Safety
             /* First table lock, start transaction */
             if ((thd->options & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN | OPTION_TABLE_LOCK)) && !trx->all) {
                 /* QQQ We have to start a master transaction */
@@ -2534,7 +2540,7 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
                 error = trx->stmt->commit(trx->stmt, 0);
                 if (tokudb_debug & TOKUDB_DEBUG_TXN)
                     printf("%d:%s:%d:commit:%p:%d\n", my_tid(), __FILE__, __LINE__, trx->stmt, error);
-                trx->stmt = transaction = 0;
+                trx->stmt = transaction = NULL;
             }
         }
     }
