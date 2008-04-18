@@ -681,7 +681,7 @@ int move_indices (GPMA from, struct mempool *from_mempool,
     return 0;
 }
 
-void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, INTPAIRARRAY fromto, u_int32_t old_N __attribute__((__unused__)), u_int32_t new_N) {
+void toku_recover_pmadistribute (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, INTPAIRARRAY fromto, u_int32_t old_N, u_int32_t new_N) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
