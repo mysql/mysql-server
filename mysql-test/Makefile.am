@@ -71,6 +71,7 @@ dist-hook:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(distdir)/std_data
+        $(INSTALL_DATA) $(srcdir)/std_data/*.txt $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(distdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(distdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(distdir)/std_data/ndb_backup51_data_be
@@ -125,6 +126,7 @@ install-data-local:
 	$(INSTALL_DATA) $(srcdir)/std_data/*.frm $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.MY* $(DESTDIR)$(testdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/*.cnf $(DESTDIR)$(testdir)/std_data
+        $(INSTALL_DATA) $(srcdir)/std_data/*.txt $(distdir)/std_data
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup50/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup50
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51
 	$(INSTALL_DATA) $(srcdir)/std_data/ndb_backup51_data_be/BACKUP* $(DESTDIR)$(testdir)/std_data/ndb_backup51_data_be
