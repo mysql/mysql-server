@@ -105,8 +105,14 @@ typedef struct st_tokudb_trx_data {
 const char *ha_tokudb_ext = ".tokudb";
 
 //static my_bool tokudb_shared_data = FALSE;
-static u_int32_t tokudb_init_flags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | 
-    DB_CREATE | DB_THREAD | DB_PRIVATE | DB_RECOVER;
+static u_int32_t tokudb_init_flags = 
+    DB_CREATE | DB_THREAD | DB_PRIVATE | 
+    DB_INIT_LOCK | 
+    DB_INIT_LOG | 
+    DB_INIT_MPOOL |
+    DB_INIT_TXN | 
+    DB_INIT_LOG |
+    DB_RECOVER;
 static u_int32_t tokudb_env_flags = DB_LOG_AUTOREMOVE;
 //static u_int32_t tokudb_lock_type = DB_LOCK_DEFAULT;
 //static ulong tokudb_log_buffer_size = 0;
@@ -190,8 +196,10 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->savepoint_rollback = tokudb_rollback_to_savepoint;
     tokudb_hton->savepoint_release = tokudb_release_savepoint;
 #endif
-    tokudb_hton->commit = tokudb_commit;
-    tokudb_hton->rollback = tokudb_rollback;
+    if (tokudb_init_flags & DB_INIT_TXN) {
+        tokudb_hton->commit = tokudb_commit;
+        tokudb_hton->rollback = tokudb_rollback;
+    }
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
@@ -427,7 +435,8 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
     TOKUDB_DBUG_ENTER("tokudb_end");
     int error = 0;
     if (db_env) {
-        tokudb_cleanup_log_files();
+        if (tokudb_init_flags & DB_INIT_LOG)
+            tokudb_cleanup_log_files();
         error = db_env->close(db_env, 0);       // Error is logged
         db_env = 0;
     }
@@ -2482,6 +2491,9 @@ int ha_tokudb::reset(void) {
 //
 int ha_tokudb::external_lock(THD * thd, int lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::external_lock");
+    // QQQ this is here to allow experiments without transactions
+    if ((tokudb_init_flags & DB_INIT_TXN) == 0) 
+        TOKUDB_DBUG_RETURN(0);
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
     if (!trx) {
@@ -3053,6 +3065,8 @@ static MYSQL_SYSVAR_STR(data_dir, tokudb_data_dir, PLUGIN_VAR_READONLY, "TokuDB 
 
 static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Version", NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0, 0);
+
 #if 0
 
 static MYSQL_SYSVAR_ULONG(cache_parts, tokudb_cache_parts, PLUGIN_VAR_READONLY, "Sets TokuDB set_cache_parts", NULL, NULL, 0, 0, ~0L, 0);
@@ -3065,7 +3079,6 @@ static MYSQL_SYSVAR_STR(home, tokudb_home, PLUGIN_VAR_READONLY, "Sets TokuDB env
 
 // this is really a u_int32_t
 //? use MYSQL_SYSVAR_SET
-static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, DB_PRIVATE | DB_RECOVER, 0, ~0, 0);
 
 // this looks to be unused
 static MYSQL_SYSVAR_LONG(lock_scan_time, tokudb_lock_scan_time, PLUGIN_VAR_READONLY, "Tokudb Lock Scan Time (UNUSED)", NULL, NULL, 0, 0, ~0L, 0);
@@ -3091,11 +3104,11 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(debug),
     MYSQL_SYSVAR(commit_sync),
     MYSQL_SYSVAR(version),
+    MYSQL_SYSVAR(init_flags),
 #if 0
     MYSQL_SYSVAR(cache_parts),
     MYSQL_SYSVAR(env_flags),
     MYSQL_SYSVAR(home),
-    MYSQL_SYSVAR(init_flags),
     MYSQL_SYSVAR(lock_scan_time),
     MYSQL_SYSVAR(lock_type),
     MYSQL_SYSVAR(log_buffer_size),
