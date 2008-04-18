@@ -385,6 +385,8 @@ void test_delete_at (void) {
 	}
     }
     assert(min_limit<max_limit);
+    for (i=0; i<N; i++) toku_free(strings[i]);
+    toku_gpma_free(&pma, 0, 0);
 }
 
 static int compare_this_string (u_int32_t dlen, void *dval, void *extra) {
