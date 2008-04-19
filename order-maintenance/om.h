@@ -3,108 +3,204 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-/* Each of these C++ templated items can be wrapped with a simple header that uses pure C. */
-template <typename ITEM_TYPE, typename EXTRA_RENUMBER>
-struct OMS {
-    /* Stuff */
-    OMSITEM* foo;    
-};
+/* I'm writing this in C to demonstrate how it is used.  We can implement it
+   later either using void*s
+   or templates under the hood. */
 
-/* The actual header would be written entirely in C, using wrapper functions, this is just a starting example. */
+/* I've made the following assumptions which very well might be wrong.
 
-/* The templated functions are static and inline so the wrapper C functions don't add any overhead. */
-
-
-/*
-    Questions/issues:
-        1-  Do we really need to wrap items in an OMITEM<ITEM_TYPE> container?
-            I assume yes.. for example, the ITEM_TYPE could be a DBT,
-            and the OMITEM<DBT*> would also hold the index (plus maybe additional stuff).
-        2-  For a single OMS, do we need to support CHANGING the renumberf function?
-            i.e. won't it be the same function for every insert for a given OMS?
-            I'm assuming the renumberf function stays the same, so I provide it just
-            once in the constructor.
-            Actually, if the function is constant, and only the 'extra' can differ,
-            it can be a template parameter and be even faster.
-        3-  Similarly to #2, will the 'extra info' to the renumberf function ever change?
-            I'm assuming it stays the same for the duration of an OMS,
-            and am passing it to the constructor.
-        4-  For 'insert_in_appropriate place', I know the comparison function is not always available
-            So I'm giving it as a parameter to that function.
-        5-  Extra info to the comparison function.  This can change (for the lock tree),
-            so its a parameter to the functoins that use comparisons.
-        6-  Do we need some way of 'loading' an order maintenance structure?
-            i.e. use these tags for the following items instead of 'inserting' over and over.
-        7-  The tag might not be able to be just 64 bits, is it ok to use 2 64 bit ints?
-       
-       
-        What we don't understand:
-        *   A separate order maintenance structure for each node, or for each leaf? (Emailed)
-        *   >When we insert a key-value pair into a BRT leaf, we need to log enough information to rebuild the leaf after a crash.
-            >And at the time of recovery, we don't have a comparison function.
-            What is involved in rebuilding a node?
-                Our guess is that the only thing necessary is:
-                    1-Recreate _which_ elements were stored in it.
-                    2-Recreate the _order_ of the elements stored in it.
-                Is there anything else?
-                If that's it, it explains why we don't need an OMS for each node (just for each leaf).
-                Nodes only require #1, and when the elements are recreated the order doesn't matter (and can even change).
-            Is our guess correct?
-        *   forwards backwards idea?
-        *   
-        
-        1-  What does the PMA hold?  Does it hold pointers to DBTs, or it actually holds
-            the DBTs and their data in-line?
-        2-  What is being logged, and why is it being logged that way?
-            Do we just store old and new slots in the PMA?
-            If so, what does that actually give us?
-            Do we just serialize to disk by storing things in order?
-        3-  Logging:  Do we really need to log ALL changes to tags,
-            or only enough to 'reconstruct' the OMS such that we have a comparison function?
-            First case gives us O(log n), second makes O(1) possible.
-            (First case may be possible with O(1) but we'd have to devise a new algorithm)
-        
+    1:  We are storing key/value pairs, not just keys.
+    1a: We want to abstract a key/value pair to an OMITEM.
+    2:  OMITEM will NOT support telling you the index number (for now).
+    2a: Indexs (for purposes of logging) will be retrieved by an output
+        parameter.
+    3:  The CALLER of the OMS functions own the memory of the DBTs.
+        The OM structure will copy the OMITEM, but
+        key.data and value.data will be owned by the caller
+        responsibility for freeing/etc belongs to the caller.
+        Should not free anything till its been removed from teh OMS.
+    4:  I don't know what to call it so I'm just calling it 'oms_blah'
+    5:  We do not need to do multiple interleaving iterations.
+    5a: If we do, we need to change prototypes, perhaps pass a status object along.
+    6:  For inserting (with search), it will not replace already existing items
+        it will just report that it was already inside.
 */
 
-template <typename ITEM_TYPE, typename EXTRA_RENUMBER, typename EXTRA_CMP>
-static inline int toku_oms_create(OMS<ITEM_TYPE, EXTRA_RENUMBER, EXTRA_CMP>** poms,
-                                  void (*renumberf)(OMITEM<ITEM_TYPE>*, u_int64_t old_index, u_int64_t new_index, EXTRA_RENUMBER* extra_for_renumberf),
-                                  /* Additional parameters to pass to the callback function. */
-                                  EXTRA_RENUMBER* extra_for_renumberf);
+/* This is my guess of what an OMITEM should be. */
+typedef struct {
+    DBT key;
+    DBT value;
+} OMITEM;
 
-template <typename ITEM_TYPE, typename EXTRA_RENUMBER, typename EXTRA_CMP>
-static inline int toku_oms_close(OMS<ITEM_TYPE, EXTRA_RENUMBER, EXTRA_CMP>* oms);
+/*
+    Create an empty OMS.
 
-static inline int toku_oms_insert(OMS* oms,             /* The order maintenance structure. */
+    Possible Error codes
+        0
+        ENOMEM
+    Will assert ptree, db, cmp are NOT NULL.
+*/
+int oms_create(OMS** ptree,
+               DB* db, int (*cmp)(DB*, const OMITEM*, const OMITEM*));
 
-template <typename ITEM_TYPE, typename EXTRA_RENUMBER, typename EXTRA_CMP>
-static inline int toku_oms_insert(OMS<ITEM_TYPE, EXTRA_RENUMBER, EXTRA_CMP>* oms,                     /* The order maintenance structure. */
-                                  OMITEM<ITEM_TYPE>* prev_omi,  /* Pass in NULL if the new item is at the head, otherwise pass in the predecessor. */
-                                  DATA_ITEM* item);             /* The user-provided data item. */
+/*
+    Create an OMS containing the elements in a presorted array.
 
+    Possible Error codes
+        0
+        ENOMEM
+    Will assert ptree, db, cmp, items are NOT NULL.
+*/
+int oms_create_from_presorted_array(OMS** ptree, DB* db,
+                                  int (*cmp)(DB*, const OMITEM*, const OMITEM*),
+                                  OMITEM* items, u_int32_t num_items);
 
-template <typename ITEM_TYPE, typename EXTRA_RENUMBER, typename EXTRA_CMP>
-static inline int toku_oms_delete(OMS<ITEM_TYPE, EXTRA_RENUMBER, EXTRA_CMP>* oms,   /* The order maintenance structure. */
-                                  OMSITEM<ITEM_TYPE>* to_remove);                   /* The user-provided data item. */
+/*
+    Create an OMS containing presorted elements accessed by an iterator.
 
+    Possible Error codes
+        0
+        ENOMEM
+    Will assert ptree is NOT NULL.
 
-/* This will use the comparison function to find the appropriate location,
-   and then call toku_oms_insert with the appropriate predecessor. */
-static inline int toku_oms_insert_appropriately(OMS<ITEM_TYPE, EXTRA_RENUMBER, EXTRA_CMP>* oms,                     /* The order maintenance structure. */
-                                                DATA_ITEM* item,
-                                                void (*cmp)(EXTRA_CMP* extra_for_cmp, ITEM_TYPE*, ITEM_TYPE*),
-                                                /* Additional parameters to pass to the comparison function. */
-                                                EXTRA_CMP*      extra_for_cmp);
+    NOTE: I'm using void* here cause I don't know what the parameters should be.
+    In the actual implementation I will use the real data types.
+    We can also change the iterator type, i.e. make it return int
+    and we get next via an output parameter.
 
+    Note: May just be a wrapper for oms_create_presorted_array.
 
-/* Example wrapper */
-extern "C" {
-    int toku_node_node_oms_insert(toku_node_oms* oms,
-                                  toku_node_omsitem* prev_omi,
-                                  DBT* item) {
-        return toku_oms_insert<toku_node_omsitem, DBT, int, DB>(oms, prev_omi, item);
-    }
-}
+    Will assert ptree, db, cmp, items are NOT NULL.
+*/
+int oms_create_from_presorted_iterator(OMS** ptree, DB* db,
+                                  int (*cmp)(DB*, const OMITEM*, const OMITEM*),
+                                  OMITEM* (*get_next)(void* param));
+
+/*
+    Close/free an OMS.
+    Note: This will not free key.data/value.data for entries inside.
+    Those should be freed immediately before or after calling oms_destroy.
+
+    Will assert tree is NOT NULL.
+*/
+void oms_destroy(OMS* tree);
+
+/*
+    NOTE: USES THE COMPARISON FUNCTION
+    Initializes iteration over the tree.
+    if start is NULL, we start at the head, otherwise we search for it.
+    Searching requires a comparison function!
+
+    Will assert tree is NOT NULL.
+
+    if not found, it will allow you to find 
+*/
+void oms_init_iteration(OMS* tree, OMITEM* start);
+
+/*
+    Initializes iteration over the tree.
+    if start is NULL, we start at the head, otherwise we search for it.
+    Searching requires a comparison function!
+
+    Will assert tree is NOT NULL.
+
+    Possible error codes
+        0
+        ERANGE: If start_index >= the number of elements in the structure
+*/
+int oms_init_iteration_at(OMS* tree, u_int32_t start_index);
+
+/*
+    Gets the next item in the tree.
+    When you go off the end, it returns NULL, as will subsequent calls.
+
+    Use oms_init_iteration(_at) to reset the iterator.
+*/
+OMITEM* oms_get_next(OMS* tree);
+
+/*
+    NOTE: USES THE COMPARISON FUNCTION
+    Insert an item at the appropriate place.
+
+    Will assert tree, item, and already_exists are NOT NULL.
+    already_exists is an out parameter.
+    If the exact OMITEM is already there, it will NOT be replaced,
+    but we will report that.
+    Reports the index it was found at.
+
+    Possible error codes:
+        0
+        ENOMEM
+        DB_KEYEXIST:    If it already exists in the structure.
+*/
+int oms_insert(OMS* tree, OMITEM* item, u_int32_t* index);
+
+/*
+    Insert an item at a given index.
+
+    Will assert tree, item, and already_exists are NOT NULL.
+    already_exists is an out parameter.
+    If the exact OMITEM is already there, it will NOT be replaced,
+    but we will report that.
+
+    Possible error codes:
+        0
+        ENOMEM
+*/
+int oms_insert_at(OMS* tree, OMITEM* item, u_int32_t index);
+
+/*
+    NOTE: USES THE COMPARISON FUNCTION
+    Deletes a given item.
+
+    Will assert tree, item, and found are NOT NULL.
+    Reports the index it was found at.
+    Possible error codes:
+        0
+        DB_NOTFOUND
+*/
+int oms_delete(OMS* tree, OMITEM* item, u_int32_t* index);
+
+/*
+    Deletes the item at a given index.
+
+    Possible error codes:
+        0
+        ERANGE: If index >= num elements in the structure
+*/
+int oms_delete_at(OMS* tree, u_int32_t index);
+
+/*
+    I don't know what kind of 'finds' we need here.
+*/
+int oms_find(OMS* tree, OMITEM* item, u_int32_t find_flags);
+
+/*
+    Creates 2 new trees caused by splitting the current one evently.
+    Reports the split index.
+    Does NOT free the old one.
+*/
+int oms_split_evenly(OMS* tree, OMS** pleft_tree, OMS** pright_tree,
+                     u_int32_t* index);
+
+/*
+    Creates 2 new trees caused by splitting the current one at the
+    given index.  (0..index-1) are in left, (index..end) are in right.
+    Does NOT free the old one.
+*/
+int oms_split_at(OMS* tree, OMS** pleft_tree, OMS** pright_tree,
+                 u_int32_t index);
+ 
+
+/*
+    Creates one tree from merging 2 of them.
+    Does not free the old one.
+    reports the 'split index' that you would use to undo the operation.
+*/
+int oms_merge(OMS** ptree, OMS* left_tree, OMS* right_tree, u_int32_t* index);
+
+u_int32_t oms_get_num_elements(OMS* tree);
+
 
 
 #endif  /* #ifndef OM_H */
