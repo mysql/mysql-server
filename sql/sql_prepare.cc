@@ -116,6 +116,39 @@ public:
 #endif
 };
 
+/**
+  If a metadata changed, report a respective error to trigger
+  re-prepare of a prepared statement.
+*/
+
+class Execute_observer: public Metadata_version_observer
+{
+public:
+  virtual bool check_metadata_change(THD *thd);
+  /** Set to TRUE if metadata of some used table has changed since prepare */
+  bool m_invalidated;
+};
+
+/**
+  Push an error to the error stack and return TRUE for now.
+  In future we must take special care of statements like CREATE
+  TABLE ... SELECT.  Should we re-prepare such statements every
+  time?
+*/
+
+bool
+Execute_observer::check_metadata_change(THD *thd)
+{
+  bool save_thd_no_warnings_for_error= thd->no_warnings_for_error;
+  DBUG_ENTER("Execute_observer::notify_about_metadata_change");
+
+  thd->no_warnings_for_error= TRUE;
+  my_error(ER_NEED_REPREPARE, MYF(0));
+  thd->no_warnings_for_error= save_thd_no_warnings_for_error;
+  m_invalidated= TRUE;
+  DBUG_RETURN(TRUE);
+}
+
 /****************************************************************************/
 
 /**
@@ -156,20 +189,27 @@ public:
   bool set_name(LEX_STRING *name);
   inline void close_cursor() { delete cursor; cursor= 0; }
   inline bool is_in_use() { return flags & (uint) IS_IN_USE; }
+  inline bool is_protocol_text() const { return protocol == &thd->protocol_text; }
   bool prepare(const char *packet, uint packet_length);
-  bool execute(String *expanded_query, bool open_cursor);
+  bool execute_loop(String *expanded_query,
+                    bool open_cursor,
+                    uchar *packet_arg, uchar *packet_end_arg);
   /* Destroy this statement */
   void deallocate();
 private:
-  /**
-    Store the parsed tree of a prepared statement here.
-  */
-  LEX main_lex;
   /**
     The memory root to allocate parsed tree elements (instances of Item,
     SELECT_LEX and other classes).
   */
   MEM_ROOT main_mem_root;
+private:
+  bool set_db(const char *db, uint db_length);
+  bool set_parameters(String *expanded_query,
+                      uchar *packet, uchar *packet_end);
+  bool execute(String *expanded_query, bool open_cursor);
+  bool reprepare();
+  bool validate_metadata(Prepared_statement  *copy);
+  void swap_prepared_statement(Prepared_statement *copy);
 };
 
 
@@ -941,6 +981,55 @@ static bool emb_insert_params_with_log(Prepared_statement *stmt,
 
 #endif /*!EMBEDDED_LIBRARY*/
 
+/**
+  Setup data conversion routines using an array of parameter
+  markers from the original prepared statement.
+  Move the parameter data of the original prepared
+  statement to the new one.
+
+  Used only when we re-prepare a prepared statement.
+  There are two reasons for this function to exist:
+
+  1) In the binary client/server protocol, parameter metadata
+  is sent only at first execute. Consequently, if we need to
+  reprepare a prepared statement at a subsequent execution,
+  we may not have metadata information in the packet.
+  In that case we use the parameter array of the original
+  prepared statement to setup parameter types of the new
+  prepared statement.
+
+  2) In the binary client/server protocol, we may supply
+  long data in pieces. When the last piece is supplied,
+  we assemble the pieces and convert them from client
+  character set to the connection character set. After
+  that the parameter value is only available inside
+  the parameter, the original pieces are lost, and thus
+  we can only assign the corresponding parameter of the
+  reprepared statement from the original value.
+
+  @param[out]  param_array_dst  parameter markers of the new statement
+  @param[in]   param_array_src  parameter markers of the original
+                                statement
+  @param[in]   param_count      total number of parameters. Is the
+                                same in src and dst arrays, since
+                                the statement query is the same
+
+  @return this function never fails
+*/
+
+static void
+swap_parameter_array(Item_param **param_array_dst,
+                     Item_param **param_array_src,
+                     uint param_count)
+{
+  Item_param **dst= param_array_dst;
+  Item_param **src= param_array_src;
+  Item_param **end= param_array_dst + param_count;
+
+  for (; dst < end; ++src, ++dst)
+    (*dst)->set_param_type_and_swap_value(*src);
+}
+
 
 /**
   Assign prepared statement parameters from user variables.
@@ -1264,7 +1353,7 @@ error:
 */
 
 static int mysql_test_select(Prepared_statement *stmt,
-                             TABLE_LIST *tables, bool text_protocol)
+                             TABLE_LIST *tables)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
@@ -1300,7 +1389,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   */
   if (unit->prepare(thd, 0, 0))
     goto error;
-  if (!lex->describe && !text_protocol)
+  if (!lex->describe && !stmt->is_protocol_text())
   {
     /* Make copy of item list, as change_columns may change it */
     List<Item> fields(lex->select_lex.item_list);
@@ -1387,6 +1476,43 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   }
   DBUG_RETURN(FALSE);
 error:
+  DBUG_RETURN(TRUE);
+}
+
+
+/**
+  Validate and prepare for execution CALL statement expressions.
+
+  @param stmt               prepared statement
+  @param tables             list of tables used in this query
+  @param value_list         list of expressions
+
+  @retval FALSE             success
+  @retval TRUE              error, error message is set in THD
+*/
+
+static bool mysql_test_call_fields(Prepared_statement *stmt,
+                                   TABLE_LIST *tables,
+                                   List<Item> *value_list)
+{
+  DBUG_ENTER("mysql_test_call_fields");
+
+  List_iterator<Item> it(*value_list);
+  THD *thd= stmt->thd;
+  Item *item;
+
+  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE) ||
+      open_normal_and_derived_tables(thd, tables, 0))
+    goto err;
+
+  while ((item= it++))
+  {
+    if (!item->fixed && item->fix_fields(thd, it.ref()) ||
+        item->check_cols(1))
+      goto err;
+  }
+  DBUG_RETURN(FALSE);
+err:
   DBUG_RETURN(TRUE);
 }
 
@@ -1511,6 +1637,17 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
     select_lex->context.resolve_in_select_list= TRUE;
 
     res= select_like_stmt_test(stmt, 0, 0);
+  }
+  else if (lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
+  {
+    /*
+      Check that the source table exist, and also record
+      its metadata version. Even though not strictly necessary,
+      we validate metadata of all CREATE TABLE statements,
+      which keeps metadata validation code simple.
+    */
+    if (open_normal_and_derived_tables(stmt->thd, lex->query_tables, 0))
+      DBUG_RETURN(TRUE);
   }
 
   /* put tables back for PS rexecuting */
@@ -1708,8 +1845,7 @@ static bool mysql_test_insert_select(Prepared_statement *stmt,
     TRUE              error, error message is set in THD (but not sent)
 */
 
-static bool check_prepared_statement(Prepared_statement *stmt,
-                                     bool text_protocol)
+static bool check_prepared_statement(Prepared_statement *stmt)
 {
   THD *thd= stmt->thd;
   LEX *lex= stmt->lex;
@@ -1750,9 +1886,23 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_DELETE:
     res= mysql_test_delete(stmt, tables);
     break;
-
+  /* The following allow WHERE clause, so they must be tested like SELECT */
+  case SQLCOM_SHOW_DATABASES:
+  case SQLCOM_SHOW_TABLES:
+  case SQLCOM_SHOW_TRIGGERS:
+  case SQLCOM_SHOW_EVENTS:
+  case SQLCOM_SHOW_OPEN_TABLES:
+  case SQLCOM_SHOW_FIELDS:
+  case SQLCOM_SHOW_KEYS:
+  case SQLCOM_SHOW_COLLATIONS:
+  case SQLCOM_SHOW_CHARSETS:
+  case SQLCOM_SHOW_VARIABLES:
+  case SQLCOM_SHOW_STATUS:
+  case SQLCOM_SHOW_TABLE_STATUS:
+  case SQLCOM_SHOW_STATUS_PROC:
+  case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SELECT:
-    res= mysql_test_select(stmt, tables, text_protocol);
+    res= mysql_test_select(stmt, tables);
     if (res == 2)
     {
       /* Statement and field info has already been sent */
@@ -1775,6 +1925,9 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
     break;
 
+  case SQLCOM_CALL:
+    res= mysql_test_call_fields(stmt, tables, &lex->value_list);
+    break;
   case SQLCOM_SET_OPTION:
     res= mysql_test_set_fields(stmt, tables, &lex->var_list);
     break;
@@ -1824,7 +1977,6 @@ static bool check_prepared_statement(Prepared_statement *stmt,
   case SQLCOM_DROP_INDEX:
   case SQLCOM_ROLLBACK:
   case SQLCOM_TRUNCATE:
-  case SQLCOM_CALL:
   case SQLCOM_DROP_VIEW:
   case SQLCOM_REPAIR:
   case SQLCOM_ANALYZE:
@@ -1867,8 +2019,8 @@ static bool check_prepared_statement(Prepared_statement *stmt,
     break;
   }
   if (res == 0)
-    DBUG_RETURN(text_protocol? FALSE : (send_prep_stmt(stmt, 0) ||
-                                        thd->protocol->flush()));
+    DBUG_RETURN(stmt->is_protocol_text() ?
+                FALSE : (send_prep_stmt(stmt, 0) || thd->protocol->flush()));
 error:
   DBUG_RETURN(TRUE);
 }
@@ -2309,11 +2461,9 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   ulong flags= (ulong) packet[4];
   /* Query text for binary, general or slow log, if any of them is open */
   String expanded_query;
-#ifndef EMBEDDED_LIBRARY
   uchar *packet_end= packet + packet_length;
-#endif
   Prepared_statement *stmt;
-  bool error;
+  bool open_cursor;
   DBUG_ENTER("mysql_stmt_execute");
 
   packet+= 9;                               /* stmt_id + 5 bytes of flags */
@@ -2338,44 +2488,12 @@ void mysql_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   sp_cache_flush_obsolete(&thd->sp_proc_cache);
   sp_cache_flush_obsolete(&thd->sp_func_cache);
 
-#ifndef EMBEDDED_LIBRARY
-  if (stmt->param_count)
-  {
-    uchar *null_array= packet;
-    if (setup_conversion_functions(stmt, &packet, packet_end) ||
-        stmt->set_params(stmt, null_array, packet, packet_end,
-                         &expanded_query))
-      goto set_params_data_err;
-  }
-#else
-  /*
-    In embedded library we re-install conversion routines each time
-    we set params, and also we don't need to parse packet.
-    So we do it in one function.
-  */
-  if (stmt->param_count && stmt->set_params_data(stmt, &expanded_query))
-    goto set_params_data_err;
-#endif
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+  open_cursor= test(flags & (ulong) CURSOR_TYPE_READ_ONLY);
 
-  /*
-    If the free_list is not empty, we'll wrongly free some externally
-    allocated items when cleaning up after validation of the prepared
-    statement.
-  */
-  DBUG_ASSERT(thd->free_list == NULL);
+  stmt->execute_loop(&expanded_query, open_cursor, packet, packet_end);
 
-  error= stmt->execute(&expanded_query,
-                       test(flags & (ulong) CURSOR_TYPE_READ_ONLY));
-  if (!(specialflag & SPECIAL_NO_PRIOR))
-    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
   DBUG_VOID_RETURN;
 
-set_params_data_err:
-  my_error(ER_WRONG_ARGUMENTS, MYF(0), "mysql_stmt_execute");
-  reset_stmt_params(stmt);
-  DBUG_VOID_RETURN;
 }
 
 
@@ -2421,24 +2539,8 @@ void mysql_sql_stmt_execute(THD *thd)
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
-  /*
-    If the free_list is not empty, we'll wrongly free some externally
-    allocated items when cleaning up after validation of the prepared
-    statement.
-  */
-  DBUG_ASSERT(thd->free_list == NULL);
+  (void) stmt->execute_loop(&expanded_query, FALSE, NULL, NULL);
 
-  if (stmt->set_params_from_vars(stmt, lex->prepared_stmt_params,
-                                 &expanded_query))
-    goto set_params_data_err;
-
-  (void) stmt->execute(&expanded_query, FALSE);
-
-  DBUG_VOID_RETURN;
-
-set_params_data_err:
-  my_error(ER_WRONG_ARGUMENTS, MYF(0), "EXECUTE");
-  reset_stmt_params(stmt);
   DBUG_VOID_RETURN;
 }
 
@@ -2742,7 +2844,7 @@ Select_fetch_protocol_binary::send_data(List<Item> &fields)
 ****************************************************************************/
 
 Prepared_statement::Prepared_statement(THD *thd_arg, Protocol *protocol_arg)
-  :Statement(&main_lex, &main_mem_root,
+  :Statement(0, &main_mem_root,
              INITIALIZED, ++thd_arg->statement_id_counter),
   thd(thd_arg),
   result(thd_arg),
@@ -2813,7 +2915,11 @@ Prepared_statement::~Prepared_statement()
     like Item_param, don't free everything until free_items()
   */
   free_items();
-  delete lex->result;
+  if (lex)
+  {
+    delete lex->result;
+    delete (st_lex_local *) lex;
+  }
   free_root(&main_mem_root, MYF(0));
   DBUG_VOID_RETURN;
 }
@@ -2847,6 +2953,34 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
   name.length= name_arg->length;
   name.str= (char*) memdup_root(mem_root, name_arg->str, name_arg->length);
   return name.str == 0;
+}
+
+
+/**
+  Remember the current database.
+
+  We must reset/restore the current database during execution of
+  a prepared statement since it affects execution environment:
+  privileges, @@character_set_database, and other.
+
+  @return Returns an error if out of memory.
+*/
+
+bool
+Prepared_statement::set_db(const char *db_arg, uint db_length_arg)
+{
+  /* Remember the current database. */
+  if (db_arg && db_length_arg)
+  {
+    db= this->strmake(db_arg, db_length_arg);
+    db_length= db_length_arg;
+  }
+  else
+  {
+    db= NULL;
+    db_length= 0;
+  }
+  return db_arg != NULL && db == NULL;
 }
 
 /**************************************************************************
@@ -2890,6 +3024,12 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   status_var_increment(thd->status_var.com_stmt_prepare);
 
+  if (! (lex= new (mem_root) st_lex_local))
+    DBUG_RETURN(TRUE);
+
+  if (set_db(thd->db, thd->db_length))
+    DBUG_RETURN(TRUE);
+
   /*
     alloc_query() uses thd->memroot && thd->query, so we should call
     both of backup_statement() and backup_query_arena() here.
@@ -2917,19 +3057,6 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   lex->set_trg_event_type_for_tables();
 
-  /* Remember the current database. */
-
-  if (thd->db && thd->db_length)
-  {
-    db= this->strmake(thd->db, thd->db_length);
-    db_length= thd->db_length;
-  }
-  else
-  {
-    db= NULL;
-    db_length= 0;
-  }
-
   /*
     While doing context analysis of the query (in check_prepared_statement)
     we allocate a lot of additional memory: for open tables, JOINs, derived
@@ -2953,7 +3080,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
 
   if (error == 0)
-    error= check_prepared_statement(this, name.str != 0);
+    error= check_prepared_statement(this);
 
   /*
     Currently CREATE PROCEDURE/TRIGGER/EVENT are prohibited in prepared
@@ -2999,6 +3126,310 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   }
   DBUG_RETURN(error);
 }
+
+
+/**
+  Assign parameter values either from variables, in case of SQL PS
+  or from the execute packet.
+
+  @param expanded_query  a container with the original SQL statement.
+                         '?' placeholders will be replaced with
+                         their values in case of success.
+                         The result is used for logging and replication
+  @param packet          pointer to execute packet.
+                         NULL in case of SQL PS
+  @param packet_end      end of the packet. NULL in case of SQL PS
+
+  @todo Use a paremeter source class family instead of 'if's, and
+  support stored procedure variables.
+
+  @retval TRUE an error occurred when assigning a parameter (likely
+          a conversion error or out of memory, or malformed packet)
+  @retval FALSE success
+*/
+
+bool
+Prepared_statement::set_parameters(String *expanded_query,
+                                   uchar *packet, uchar *packet_end)
+{
+  bool is_sql_ps= packet == NULL;
+
+  if (is_sql_ps)
+  {
+    /* SQL prepared statement */
+    if (set_params_from_vars(this, thd->lex->prepared_stmt_params,
+                                   expanded_query))
+      goto set_params_data_err;
+  }
+  else if (param_count)
+  {
+#ifndef EMBEDDED_LIBRARY
+    uchar *null_array= packet;
+    if (setup_conversion_functions(this, &packet, packet_end) ||
+        set_params(this, null_array, packet, packet_end,
+                   expanded_query))
+      goto set_params_data_err;
+#else
+  /*
+    In embedded library we re-install conversion routines each time
+    we set params, and also we don't need to parse packet.
+    So we do it in one function.
+  */
+    if (set_params_data(this, expanded_query))
+      goto set_params_data_err;
+#endif
+  }
+  return FALSE;
+set_params_data_err:
+  my_error(ER_WRONG_ARGUMENTS, MYF(0),
+           is_sql_ps ? "EXECUTE" : "mysql_stmt_execute");
+  reset_stmt_params(this);
+  return TRUE;
+}
+
+
+/**
+  Execute a prepared statement. Re-prepare it a limited number
+  of times if necessary.
+
+  Try to execute a prepared statement. If there is a metadata
+  validation error, prepare a new copy of the prepared statement,
+  swap the old and the new statements, and try again.
+  If there is a validation error again, repeat the above, but
+  perform no more than MAX_REPREPARE_ATTEMPTS.
+
+  @note We have to try several times in a loop since we
+  release metadata locks on tables after prepared statement
+  prepare. Therefore, a DDL statement may sneak in between prepare
+  and execute of a new statement. If this happens repeatedly
+  more than MAX_REPREPARE_ATTEMPTS times, we give up.
+
+  In future we need to be able to keep the metadata locks between
+  prepare and execute, but right now open_and_lock_tables(), as
+  well as close_thread_tables() are buried deep inside
+  execution code (mysql_execute_command()).
+
+  @return TRUE if an error, FALSE if success
+  @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
+                   or some general error
+  @retval  FALSE   successfully executed the statement, perhaps
+                   after having reprepared it a few times.
+*/
+
+bool
+Prepared_statement::execute_loop(String *expanded_query,
+                                 bool open_cursor,
+                                 uchar *packet,
+                                 uchar *packet_end)
+{
+  const int MAX_REPREPARE_ATTEMPTS= 3;
+  Execute_observer execute_observer;
+  bool error;
+  int reprepare_attempt= 0;
+
+  if (set_parameters(expanded_query, packet, packet_end))
+    return TRUE;
+
+reexecute:
+  execute_observer.m_invalidated= FALSE;
+
+  /*
+    If the free_list is not empty, we'll wrongly free some externally
+    allocated items when cleaning up after validation of the prepared
+    statement.
+  */
+  DBUG_ASSERT(thd->free_list == NULL);
+
+  /*
+    Install the metadata observer. If some metadata version is
+    different from prepare time and an observer is installed,
+    the observer method will be invoked to push an error into
+    the error stack.
+  */
+  if (sql_command_flags[lex->sql_command] &
+      CF_REEXECUTION_FRAGILE)
+  {
+    thd->m_metadata_observer= &execute_observer;
+  }
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(),QUERY_PRIOR);
+
+  error= execute(expanded_query, open_cursor) || thd->is_error();
+
+  if (!(specialflag & SPECIAL_NO_PRIOR))
+    my_pthread_setprio(pthread_self(), WAIT_PRIOR);
+
+  thd->m_metadata_observer= 0;
+
+  if (error && !thd->is_fatal_error && !thd->killed &&
+      execute_observer.m_invalidated &&
+      reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
+  {
+    thd->clear_error();
+
+    error= reprepare();
+
+    if (! error)                                /* Success */
+      goto reexecute;
+  }
+  reset_stmt_params(this);
+
+  return error;
+}
+
+
+/**
+  Reprepare this prepared statement.
+
+  Currently this is implemented by creating a new prepared
+  statement, preparing it with the original query and then
+  swapping the new statement and the original one.
+
+  @retval  TRUE   an error occurred. Possible errors include
+                  incompatibility of new and old result set
+                  metadata
+  @retval  FALSE  success, the statement has been reprepared
+*/
+
+bool
+Prepared_statement::reprepare()
+{
+  char saved_cur_db_name_buf[NAME_LEN+1];
+  LEX_STRING saved_cur_db_name=
+    { saved_cur_db_name_buf, sizeof(saved_cur_db_name_buf) };
+  LEX_STRING stmt_db_name= { db, db_length };
+  Prepared_statement *copy;
+  bool cur_db_changed;
+  bool error= TRUE;
+
+  status_var_increment(thd->status_var.com_stmt_reprepare);
+
+  copy= new Prepared_statement(thd, &thd->protocol_text);
+
+  if (! copy)
+    return TRUE;
+
+  if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
+                          &cur_db_changed))
+    goto end;
+
+  error= (name.str && copy->set_name(&name) ||
+          copy->prepare(query, query_length) ||
+          validate_metadata(copy));
+
+  if (cur_db_changed)
+    mysql_change_db(thd, &saved_cur_db_name, TRUE);
+
+  if (! error)
+  {
+    swap_prepared_statement(copy);
+    swap_parameter_array(param_array, copy->param_array, param_count);
+#ifndef DBUG_OFF
+    is_reprepared= TRUE;
+#endif
+    /*
+      Clear possible warnigns during re-prepare, it has to be completely
+      transparent to the user. We use mysql_reset_errors() since
+      there were no separate query id issued for re-prepare.
+    */
+    mysql_reset_errors(thd, TRUE);
+  }
+end:
+  delete copy;
+  return error;
+}
+
+
+/**
+  Validate statement result set metadata (if the statement returns
+  a result set).
+
+  Currently we only check that the number of columns of the result
+  set did not change.
+  This is a helper method used during re-prepare.
+
+  @param[in]  copy  the re-prepared prepared statement to verify
+                    the metadata of
+
+  @retval TRUE  error, ER_PS_NEED_REBIND is reported
+  @retval FALSE statement return no or compatible metadata
+*/
+
+
+bool Prepared_statement::validate_metadata(Prepared_statement *copy)
+{
+  /**
+    If this is an SQL prepared statement or EXPLAIN,
+    return FALSE -- the metadata of the original SELECT,
+    if any, has not been sent to the client.
+  */
+  if (is_protocol_text() || lex->describe)
+    return FALSE;
+
+  if (lex->select_lex.item_list.elements !=
+      copy->lex->select_lex.item_list.elements)
+  {
+    /** Column counts mismatch. */
+    my_error(ER_PS_REBIND, MYF(0));
+    return TRUE;
+  }
+
+  return FALSE;
+}
+
+
+/**
+  Replace the original prepared statement with a prepared copy.
+
+  This is a private helper that is used as part of statement
+  reprepare
+
+  @return This function does not return any errors.
+*/
+
+void
+Prepared_statement::swap_prepared_statement(Prepared_statement *copy)
+{
+  Statement tmp_stmt;
+
+  /* Swap memory roots. */
+  swap_variables(MEM_ROOT, main_mem_root, copy->main_mem_root);
+
+  /* Swap the arenas */
+  tmp_stmt.set_query_arena(this);
+  set_query_arena(copy);
+  copy->set_query_arena(&tmp_stmt);
+
+  /* Swap the statement parent classes */
+  tmp_stmt.set_statement(this);
+  set_statement(copy);
+  copy->set_statement(&tmp_stmt);
+
+  /* Swap ids back, we need the original id */
+  swap_variables(ulong, id, copy->id);
+  /* Swap mem_roots back, they must continue pointing at the main_mem_roots */
+  swap_variables(MEM_ROOT *, mem_root, copy->mem_root);
+  /*
+    Swap the old and the new parameters array. The old array
+    is allocated in the old arena.
+  */
+  swap_variables(Item_param **, param_array, copy->param_array);
+  /* Swap flags: this is perhaps unnecessary */
+  swap_variables(uint, flags, copy->flags);
+  /* Swap names, the old name is allocated in the wrong memory root */
+  swap_variables(LEX_STRING, name, copy->name);
+  /* Ditto */
+  swap_variables(char *, db, copy->db);
+
+  DBUG_ASSERT(db_length == copy->db_length);
+  DBUG_ASSERT(param_count == copy->param_count);
+  DBUG_ASSERT(thd == copy->thd);
+  last_error[0]= '\0';
+  last_errno= 0;
+  /* Do not swap protocols, the copy always has protocol_text */
+}
+
 
 /**
   Execute a prepared statement.
@@ -3162,10 +3593,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   DBUG_ASSERT(! (error && cursor));
 
   if (! cursor)
-  {
     cleanup_stmt();
-    reset_stmt_params(this);
-  }
 
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
