@@ -1956,9 +1956,11 @@ static BOOL WINAPI console_event_handler( DWORD type )
        between main thread doing initialization and CTRL-C thread doing
        cleanup, which can result into crash.
      */
+#ifndef EMBEDDED_LIBRARY
      if(hEventShutdown)
        kill_mysql();
      else
+#endif
        sql_print_warning("CTRL-C ignored during startup");
      DBUG_RETURN(TRUE);
   }
