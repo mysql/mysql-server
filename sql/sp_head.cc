@@ -1068,6 +1068,7 @@ sp_head::execute(THD *thd)
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
+  Metadata_version_observer *save_metadata_observer= thd->m_metadata_observer;
 
   Object_creation_ctx *saved_creation_ctx;
 
@@ -1135,6 +1136,25 @@ sp_head::execute(THD *thd)
   thd->variables.sql_mode= m_sql_mode;
   save_abort_on_warning= thd->abort_on_warning;
   thd->abort_on_warning= 0;
+  /**
+    When inside a substatement (a stored function or trigger
+    statement), clear the metadata observer in THD, if any.
+    Remember the value of the observer here, to be able
+    to restore it when leaving the substatement.
+
+    We reset the observer to suppress errors when a substatement
+    uses temporary tables. If a temporary table does not exist
+    at start of the main statement, it's not prelocked
+    and thus is not validated with other prelocked tables.
+
+    Later on, when the temporary table is opened, metadata
+    versions mismatch, expectedly.
+
+    The proper solution for the problem is to re-validate tables
+    of substatements (Bug#12257, Bug#27011, Bug#32868, Bug#33000),
+    but it's not implemented yet.
+  */
+  thd->m_metadata_observer= 0;
 
   /*
     It is also more efficient to save/restore current thd->lex once when
@@ -1297,6 +1317,7 @@ sp_head::execute(THD *thd)
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
   thd->abort_on_warning= save_abort_on_warning;
+  thd->m_metadata_observer= save_metadata_observer;
 
   thd->stmt_arena= old_arena;
   state= EXECUTED;
