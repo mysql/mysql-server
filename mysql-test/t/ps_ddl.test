@@ -104,6 +104,7 @@ prepare stmt from "select * from t1";
 --echo Part 4: TABLE -> NOTHING transitions
 --echo =====================================================================
 
+--echo # Test 4-a: select ... from <table>
 create table t1 (a int);
 
 prepare stmt from "select * from t1";
@@ -120,6 +121,25 @@ call p_verify_reprepare_count(0);
 execute stmt;
 call p_verify_reprepare_count(0);
 deallocate prepare stmt;
+
+--echo # Test 4-b: TABLE -> NOTHING by renaming the table
+create table t1 (a int);
+prepare stmt from "select * from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+rename table t1 to t2;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop table t2;
 
 --echo =====================================================================
 --echo Part 5: TABLE -> TABLE (DDL) transitions
@@ -143,10 +163,10 @@ call p_verify_reprepare_count(0);
 drop table t1;
 deallocate prepare stmt;
 
+
 --echo =====================================================================
 --echo Part 6: TABLE -> TABLE (TRIGGER) transitions
 --echo =====================================================================
-
 
 --echo # Test 6-a: adding a relevant trigger
 
@@ -181,7 +201,7 @@ select @message;
 # Unrelated trigger: reprepare may or may not happen, implementation dependent
 create trigger t1_bd before delete on t1 for each row
   set @message= old.a;
-  
+
 set @val=5;
 execute stmt using @val;
 call p_verify_reprepare_count(1);
@@ -229,7 +249,7 @@ execute stmt using @val;
 call p_verify_reprepare_count(1);
 select @message;
 
---ehco Test 6-e: removing a relevant trigger
+--echo Test 6-e: removing a relevant trigger
 
 drop trigger t1_bi;
 
@@ -338,7 +358,7 @@ call p_verify_reprepare_count(0);
 --echo #
 --echo # Sic: the insert went into t3, even though the view now
 --echo # points at t2. This is because neither the merged view
---echo #  nor its prelocking list are affected by view DDL 
+--echo #  nor its prelocking list are affected by view DDL
 --echo # The binary log is of course wrong, since it is not
 --echo # using prepared statements
 --echo #
@@ -367,7 +387,7 @@ set @var=2;
 --echo # Since the dependent table is tracked in the prelocked
 --echo # list of the prepared statement, invalidation happens
 --echo # and the statement is re-prepared. This is an unnecessary
---echo # side effect, since the statement that *is* dependent 
+--echo # side effect, since the statement that *is* dependent
 --echo # on t2 definition is inside the trigger, and it is currently
 --echo # not reprepared (see the previous test case).
 execute stmt using @var;
@@ -378,7 +398,7 @@ drop table t1,t2;
 
 --echo # Test 7-e: dependent TABLE TRIGGER has changed
 create table t1 (a int);
-create trigger t1_ai after insert on t1 for each row 
+create trigger t1_ai after insert on t1 for each row
   insert into t2 (a) values (new.a);
 create table t2 (a int unique);
 create trigger t2_ai after insert on t2 for each row
@@ -414,6 +434,7 @@ deallocate prepare stmt;
 --echo Part 8: TABLE -> TEMPORARY TABLE transitions
 --echo =====================================================================
 
+--echo # Test 8-a: base table used recreated as temporary table
 create table t1 (a int);
 
 prepare stmt from "select * from t1";
@@ -429,6 +450,25 @@ call p_verify_reprepare_count(0);
 
 drop table t1;
 deallocate prepare stmt;
+
+--echo # Test 8-b: temporary table has precedence over base table with same name
+create table t1 (a int);
+prepare stmt from 'select count(*) from t1';
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+create temporary table t1 AS SELECT 1;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop temporary table t1;
+drop table t1;
+
 
 --echo =====================================================================
 --echo Part 9: TABLE -> VIEW transitions
@@ -471,6 +511,7 @@ deallocate prepare stmt;
 --echo Part 11: TEMPORARY TABLE -> TABLE transitions
 --echo =====================================================================
 
+--echo # Test 11-a: temporary table replaced by base table
 create table t1 (a int);
 insert into t1 (a) value (1);
 create temporary table t1 (a int);
@@ -487,6 +528,27 @@ call p_verify_reprepare_count(1);
 select * from t1;
 drop table t1;
 deallocate prepare stmt;
+
+
+--echo # Test 11-b: temporary table has precedence over base table with same name
+--echo #            temporary table disappears
+create table t1 (a int);
+create temporary table t1 as select 1 as a;
+prepare stmt from "select count(*) from t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+drop temporary table t1;
+execute stmt;
+call p_verify_reprepare_count(1);
+execute stmt;
+call p_verify_reprepare_count(0);
+
+deallocate prepare stmt;
+drop table t1;
+
 
 --echo =====================================================================
 --echo Part 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL) transitions
@@ -674,7 +736,7 @@ drop procedure p1;
 create procedure p1(out x int) select max(a) from t2 into x;
 --echo # XXX: bug. The prelocked list is not invalidated
 --echo # and we keep opening table t1, whereas the procedure
---ehco # is now referring to table t2
+--echo # is now referring to table t2
 --error ER_VIEW_INVALID
 execute stmt;
 call p_verify_reprepare_count(0);
@@ -702,7 +764,7 @@ execute stmt;
 call p_verify_reprepare_count(1);
 execute stmt;
 --echo # Test 18-d: dependent TABLE has changed
-drop view v2; 
+drop view v2;
 create table v2 as select * from t1;
 execute stmt;
 call p_verify_reprepare_count(1);
@@ -854,7 +916,7 @@ execute stmt;
 drop table t1;
 create table t1 (a1 int, a2 int);
 
---echo # t1 has changed, and it's does not lead to reprepare 
+--echo # t1 has changed, and it's does not lead to reprepare
 execute stmt;
 
 alter table t1 drop column b;
@@ -881,7 +943,7 @@ drop table t1;
 create table t1 (a1 int, a2 int);
 insert into t1 values (1, 10), (2, 20), (3, 30);
 
---echo # t1 has changed, and it's does not lead to reprepare 
+--echo # t1 has changed, and it's does not lead to reprepare
 execute stmt;
 
 alter table t1 add column b varchar(50) default NULL;
@@ -1190,16 +1252,16 @@ insert into t_27430_2 values
   (1234, 3),
   (1234, 4);
 
-prepare stmt from 
+prepare stmt from
  "select oref, a, a in (select a from t_27430_1 where oref=t_27430_2.oref) Z from t_27430_2";
 
-execute stmt; 
+execute stmt;
 call p_verify_reprepare_count(0);
 
 drop table t_27430_1, t_27430_2;
 
 create table t_27430_1 (a int, oref int, key(a));
-insert into t_27430_1 values 
+insert into t_27430_1 values
   (1, 1),
   (1, NULL),
   (2, 3),
@@ -1237,7 +1299,7 @@ insert into t_27690_1 values (1,1),(2,2);
 create table v_27690_1 as select * from t_27690_1;
 create table v_27690_2 as select * from t_27690_1;
 
-prepare stmt from "select * from v_27690_1, v_27690_2"; 
+prepare stmt from "select * from v_27690_1, v_27690_2";
 
 execute stmt;
 execute stmt;
@@ -1327,17 +1389,17 @@ drop procedure p_12093_unrelated;
 connection default;
 
 --echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST 
+--error ER_SP_DOES_NOT_EXIST
 execute stmt_sf;
 --echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST 
+--error ER_SP_DOES_NOT_EXIST
 execute stmt_sp;
 
 --echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST 
+--error ER_SP_DOES_NOT_EXIST
 execute stmt_sf;
 --echo # XXX: bug
---error ER_SP_DOES_NOT_EXIST 
+--error ER_SP_DOES_NOT_EXIST
 execute stmt_sp;
 call p_verify_reprepare_count(0);
 
@@ -1351,16 +1413,18 @@ deallocate prepare stmt_sp;
 
 
 --echo =====================================================================
---echo Ensure that metadata validation is performed for every type of 
+--echo Ensure that metadata validation is performed for every type of
 --echo SQL statement where it is needed.
 --echo =====================================================================
+
+--echo #
+--echo # SQLCOM_SELECT
+--echo #
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 create table t1 (a int);
---echo #
---echo # SQLCOM_SELECT
---echo #
 prepare stmt from "select 1 as res from dual where (1) in (select * from t1)";
 drop table t1;
 create table t1 (x int);
@@ -1368,16 +1432,16 @@ execute stmt;
 drop table t1;
 deallocate prepare stmt;
 call p_verify_reprepare_count(1);
+
 --echo #
 --echo # SQLCOM_CREATE_TABLE
 --echo #
+
 --disable_warnings
 drop table if exists t1;
 drop table if exists t2;
 --enable_warnings
-
 create table t1 (a int);
-
 prepare stmt from 'create table t2 as select * from t1';
 execute stmt;
 drop table t2;
@@ -1385,6 +1449,7 @@ execute stmt;
 drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
+# Base table with name of table to be created exists
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
 call p_verify_reprepare_count(1);
@@ -1392,6 +1457,7 @@ call p_verify_reprepare_count(1);
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# Temporary table with name of table to be created exists
 create temporary table t2 (a int);
 --error ER_TABLE_EXISTS_ERROR
 execute stmt;
@@ -1406,7 +1472,23 @@ drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# View with name of table to be created exists
+# Attention:
+#    We cannot print the error message because it contains a random filename.
+#    Example: 1050: Table '<some_path>/var/tmp/#sql_6979_0' already exists
+#    Therefore we mangle it via
+#    "--error ER_TABLE_EXISTS_ERROR,9999" (9999 is currently not used)
+#    to "Got one of the listed errors".
+create view t2 as select 1;
+--error ER_TABLE_EXISTS_ERROR,9999
+execute stmt;
+call p_verify_reprepare_count(1);
+--error ER_TABLE_EXISTS_ERROR,9999
+execute stmt;
+call p_verify_reprepare_count(0);
+drop view t2;
 drop table t1;
+# Table to be used recreated (drop,create) with different layout
 create table t1 (x varchar(20));
 execute stmt;
 call p_verify_reprepare_count(1);
@@ -1415,13 +1497,21 @@ drop table t2;
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t2;
+# Table to be used has a modified (alter table) layout
+alter table t1 add column y decimal(10,3);
+execute stmt;
+call p_verify_reprepare_count(1);
+select * from t2;
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
 drop table t1;
 deallocate prepare stmt;
 --echo # XXX: no validation of the first table in case of
 --echo # CREATE TEMPORARY TABLE. This is a shortcoming of the current code,
 --echo # but since validation is not strictly necessary, nothing is done
 --echo # about it.
---echo # Will be fixed as part of work on Bug#21431 "Incomplete support of 
+--echo # Will be fixed as part of work on Bug#21431 "Incomplete support of
 --echo # temporary tables"
 create table t1 (a int);
 insert into t1 (a) values (1);
@@ -1445,8 +1535,46 @@ call p_verify_reprepare_count(1);
 execute stmt;
 call p_verify_reprepare_count(0);
 drop table t1;
+drop temporary table t2;
 drop table t2;
 deallocate prepare stmt;
+
+create table t1 (a int);
+prepare stmt from "create table t2 like t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+# Table to be used does not exist
+drop table t1;
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+--error ER_NO_SUCH_TABLE
+execute stmt;
+call p_verify_reprepare_count(0);
+# Table to be used recreated (drop,create) with different layout
+create table t1 (x char(17));
+execute stmt;
+call p_verify_reprepare_count(1);
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t2;
+# Table to be used has a modified (alter table) layout
+alter table t1 add column y time;
+execute stmt;
+call p_verify_reprepare_count(1);
+select * from t2;
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+drop table t1;
+drop table t2;
+deallocate prepare stmt;
+
 
 --echo #
 --echo # SQLCOM_UPDATE
@@ -1697,12 +1825,12 @@ drop table t1;
 deallocate prepare stmt;
 
 --echo #
---echo # SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_LOGS, 
+--echo # SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_LOGS,
 --echo # SQLCOM_SHOW_ENGINE_MUTEX, SQLCOM_SHOW_PROCESSLIST
 --echo #
 
 --echo # Currently can not have a where clause, need to be covered
---echo # with tests 
+--echo # with tests
 
 --disable_warnings
 drop table if exists t1;
@@ -1932,7 +2060,7 @@ prepare stmt from "alter view v1 as select 2";
 drop view v1;
 
 --echo # Cleanup
---echo # 
+--echo #
 --disable_warnings
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3, v1, v2;

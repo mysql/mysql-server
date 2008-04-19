@@ -35,6 +35,7 @@ Part 3: NOTHING -> VIEW transitions
 =====================================================================
 Part 4: TABLE -> NOTHING transitions
 =====================================================================
+# Test 4-a: select ... from <table>
 create table t1 (a int);
 prepare stmt from "select * from t1";
 execute stmt;
@@ -59,6 +60,32 @@ call p_verify_reprepare_count(0);
 SUCCESS
 
 deallocate prepare stmt;
+# Test 4-b: TABLE -> NOTHING by renaming the table
+create table t1 (a int);
+prepare stmt from "select * from t1";
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+a
+call p_verify_reprepare_count(0);
+SUCCESS
+
+rename table t1 to t2;
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt;
+drop table t2;
 =====================================================================
 Part 5: TABLE -> TABLE (DDL) transitions
 =====================================================================
@@ -192,6 +219,7 @@ SUCCESS
 select @message;
 @message
 new trigger: 11
+Test 6-e: removing a relevant trigger
 drop trigger t1_bi;
 set @val=12;
 execute stmt using @val;
@@ -338,7 +366,7 @@ SUCCESS
 #
 # Sic: the insert went into t3, even though the view now
 # points at t2. This is because neither the merged view
-#  nor its prelocking list are affected by view DDL 
+#  nor its prelocking list are affected by view DDL
 # The binary log is of course wrong, since it is not
 # using prepared statements
 #
@@ -380,7 +408,7 @@ set @var=2;
 # Since the dependent table is tracked in the prelocked
 # list of the prepared statement, invalidation happens
 # and the statement is re-prepared. This is an unnecessary
-# side effect, since the statement that *is* dependent 
+# side effect, since the statement that *is* dependent
 # on t2 definition is inside the trigger, and it is currently
 # not reprepared (see the previous test case).
 execute stmt using @var;
@@ -398,7 +426,7 @@ a	comment
 drop table t1,t2;
 # Test 7-e: dependent TABLE TRIGGER has changed
 create table t1 (a int);
-create trigger t1_ai after insert on t1 for each row 
+create trigger t1_ai after insert on t1 for each row
 insert into t2 (a) values (new.a);
 create table t2 (a int unique);
 create trigger t2_ai after insert on t2 for each row
@@ -444,6 +472,7 @@ deallocate prepare stmt;
 =====================================================================
 Part 8: TABLE -> TEMPORARY TABLE transitions
 =====================================================================
+# Test 8-a: base table used recreated as temporary table
 create table t1 (a int);
 prepare stmt from "select * from t1";
 execute stmt;
@@ -462,6 +491,37 @@ SUCCESS
 
 drop table t1;
 deallocate prepare stmt;
+# Test 8-b: temporary table has precedence over base table with same name
+create table t1 (a int);
+prepare stmt from 'select count(*) from t1';
+execute stmt;
+count(*)
+0
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+count(*)
+0
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create temporary table t1 AS SELECT 1;
+execute stmt;
+count(*)
+1
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+count(*)
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt;
+drop temporary table t1;
+drop table t1;
 =====================================================================
 Part 9: TABLE -> VIEW transitions
 =====================================================================
@@ -503,6 +563,7 @@ deallocate prepare stmt;
 =====================================================================
 Part 11: TEMPORARY TABLE -> TABLE transitions
 =====================================================================
+# Test 11-a: temporary table replaced by base table
 create table t1 (a int);
 insert into t1 (a) value (1);
 create temporary table t1 (a int);
@@ -524,6 +585,38 @@ a
 1
 drop table t1;
 deallocate prepare stmt;
+# Test 11-b: temporary table has precedence over base table with same name
+#            temporary table disappears
+create table t1 (a int);
+create temporary table t1 as select 1 as a;
+prepare stmt from "select count(*) from t1";
+execute stmt;
+count(*)
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+count(*)
+1
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop temporary table t1;
+execute stmt;
+count(*)
+0
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+count(*)
+0
+call p_verify_reprepare_count(0);
+SUCCESS
+
+deallocate prepare stmt;
+drop table t1;
 =====================================================================
 Part 12: TEMPORARY TABLE -> TEMPORARY TABLE (DDL) transitions
 =====================================================================
@@ -740,6 +833,7 @@ drop procedure p1;
 create procedure p1(out x int) select max(a) from t2 into x;
 # XXX: bug. The prelocked list is not invalidated
 # and we keep opening table t1, whereas the procedure
+# is now referring to table t2
 execute stmt;
 ERROR HY000: View 'test.v1' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 call p_verify_reprepare_count(0);
@@ -1007,7 +1101,7 @@ prepare stmt from "alter table t1 add column b int";
 execute stmt;
 drop table t1;
 create table t1 (a1 int, a2 int);
-# t1 has changed, and it's does not lead to reprepare 
+# t1 has changed, and it's does not lead to reprepare
 execute stmt;
 alter table t1 drop column b;
 execute stmt;
@@ -1030,7 +1124,7 @@ test.t1	repair	status	OK
 drop table t1;
 create table t1 (a1 int, a2 int);
 insert into t1 values (1, 10), (2, 20), (3, 30);
-# t1 has changed, and it's does not lead to reprepare 
+# t1 has changed, and it's does not lead to reprepare
 execute stmt;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -1333,7 +1427,7 @@ insert into t_27430_2 values
 (2, 2),
 (1234, 3),
 (1234, 4);
-prepare stmt from 
+prepare stmt from
 "select oref, a, a in (select a from t_27430_1 where oref=t_27430_2.oref) Z from t_27430_2";
 execute stmt;
 oref	a	Z
@@ -1346,7 +1440,7 @@ SUCCESS
 
 drop table t_27430_1, t_27430_2;
 create table t_27430_1 (a int, oref int, key(a));
-insert into t_27430_1 values 
+insert into t_27430_1 values
 (1, 1),
 (1, NULL),
 (2, 3),
@@ -1500,14 +1594,14 @@ drop procedure p_12093;
 deallocate prepare stmt_sf;
 deallocate prepare stmt_sp;
 =====================================================================
-Ensure that metadata validation is performed for every type of 
+Ensure that metadata validation is performed for every type of
 SQL statement where it is needed.
 =====================================================================
-drop table if exists t1;
-create table t1 (a int);
 #
 # SQLCOM_SELECT
 #
+drop table if exists t1;
+create table t1 (a int);
 prepare stmt from "select 1 as res from dual where (1) in (select * from t1)";
 drop table t1;
 create table t1 (x int);
@@ -1566,6 +1660,18 @@ call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
+create view t2 as select 1;
+execute stmt;
+Got one of the listed errors
+call p_verify_reprepare_count(1);
+SUCCESS
+
+execute stmt;
+Got one of the listed errors
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop view t2;
 drop table t1;
 create table t1 (x varchar(20));
 execute stmt;
@@ -1580,13 +1686,25 @@ call p_verify_reprepare_count(0);
 SUCCESS
 
 drop table t2;
+alter table t1 add column y decimal(10,3);
+execute stmt;
+call p_verify_reprepare_count(1);
+SUCCESS
+
+select * from t2;
+x	y
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
 drop table t1;
 deallocate prepare stmt;
 # XXX: no validation of the first table in case of
 # CREATE TEMPORARY TABLE. This is a shortcoming of the current code,
 # but since validation is not strictly necessary, nothing is done
 # about it.
-# Will be fixed as part of work on Bug#21431 "Incomplete support of 
+# Will be fixed as part of work on Bug#21431 "Incomplete support of
 # temporary tables"
 create table t1 (a int);
 insert into t1 (a) values (1);
@@ -1631,6 +1749,56 @@ SUCCESS
 execute stmt;
 Warnings:
 Note	1050	Table 't2' already exists
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t1;
+drop temporary table t2;
+drop table t2;
+deallocate prepare stmt;
+create table t1 (a int);
+prepare stmt from "create table t2 like t1";
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t2;
+drop table t1;
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+execute stmt;
+ERROR 42S02: Table 'test.t1' doesn't exist
+call p_verify_reprepare_count(0);
+SUCCESS
+
+create table t1 (x char(17));
+execute stmt;
+call p_verify_reprepare_count(1);
+SUCCESS
+
+drop table t2;
+execute stmt;
+call p_verify_reprepare_count(0);
+SUCCESS
+
+drop table t2;
+alter table t1 add column y time;
+execute stmt;
+call p_verify_reprepare_count(1);
+SUCCESS
+
+select * from t2;
+x	y
+drop table t2;
+execute stmt;
 call p_verify_reprepare_count(0);
 SUCCESS
 
@@ -1839,11 +2007,11 @@ Variable_name	Value
 drop table t1;
 deallocate prepare stmt;
 #
-# SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_LOGS, 
+# SQLCOM_SHOW_ENGINE_STATUS, SQLCOM_SHOW_ENGINE_LOGS,
 # SQLCOM_SHOW_ENGINE_MUTEX, SQLCOM_SHOW_PROCESSLIST
 #
 # Currently can not have a where clause, need to be covered
-# with tests 
+# with tests
 drop table if exists t1;
 create table t1 (a int);
 prepare stmt from "show engine all status where (1) in (select * from t1)";
@@ -2035,7 +2203,7 @@ prepare stmt from "alter view v1 as select 2";
 ERROR HY000: This command is not supported in the prepared statement protocol yet
 drop view v1;
 # Cleanup
-# 
+#
 drop temporary table if exists t1, t2, t3;
 drop table if exists t1, t2, t3, v1, v2;
 drop procedure if exists p_verify_reprepare_count;
