@@ -997,11 +997,10 @@ call p1();
 # Altering trigger forcing it use different set of tables
 drop trigger t1_bi;
 create trigger t1_bi after insert on t1 for each row insert into t3 values (new.id);
-# Until we implement proper mechanism for invalidation of PS/SP when table
-# or SP's are changed these two statements will fail with 'Table ... was
-# not locked' error (this mechanism should be based on the new TDC).
---error ER_NO_SUCH_TABLE 
 execute stmt1;
+# Until we implement proper mechanism for invalidation of SP statements
+# invoked whenever a table used in SP changes, this statement will fail with
+# 'Table ...  does not exist' error.
 --error ER_NO_SUCH_TABLE 
 call p1();
 deallocate prepare stmt1;

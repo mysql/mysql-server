@@ -23,6 +23,53 @@
 #include "log.h"
 #include "rpl_tblmap.h"
 
+/**
+  An abstract interface that can be used to take an action when
+  the locking module notices that a table version has changed
+  since the last execution. "Table" here may refer to any kind of
+  table -- a base table, a temporary table, a view or an
+  information schema table.
+
+  When we open and lock tables for execution of a prepared
+  statement, we must verify that they did not change
+  since statement prepare. If some table did change, the statement
+  parse tree *may* be no longer valid, e.g. in case it contains
+  optimizations that depend on table metadata.
+
+  This class provides an abstract interface (a method) that is
+  invoked when such a situation takes place.
+  The implementation of the interface in most cases simply
+  reports an error, but the exact details depend on the nature of
+  the SQL statement.
+
+  At most 1 instance of this class is active at a time, in which
+  case THD::m_metadata_observer is not NULL.
+
+  @sa check_and_update_table_version() for details of the
+  version tracking algorithm 
+
+  @sa Execute_observer for details of how we detect that
+  a metadata change is fatal and a re-prepare is necessary
+
+  @sa Open_tables_state::m_metadata_observer for the life cycle
+  of metadata observers.
+*/
+
+class Metadata_version_observer
+{
+protected:
+  virtual ~Metadata_version_observer();
+public:
+  /**
+    Check if a change of metadata is OK. In future
+    the signature of this method may be extended to accept the old
+    and the new versions, but since currently the check is very
+    simple, we only need the THD to report an error.
+  */
+  virtual bool check_metadata_change(THD *thd)= 0;
+};
+
+
 class Relay_log_info;
 
 class Query_log_event;
@@ -406,6 +453,7 @@ typedef struct system_status_var
   ulong filesort_scan_count;
   /* Prepared statements and binary protocol */
   ulong com_stmt_prepare;
+  ulong com_stmt_reprepare;
   ulong com_stmt_execute;
   ulong com_stmt_send_long_data;
   ulong com_stmt_fetch;
@@ -436,7 +484,7 @@ void free_tmp_table(THD *thd, TABLE *entry);
 
 /* The following macro is to make init of Query_arena simpler */
 #ifndef DBUG_OFF
-#define INIT_ARENA_DBUG_INFO is_backup_arena= 0
+#define INIT_ARENA_DBUG_INFO is_backup_arena= 0; is_reprepared= FALSE;
 #else
 #define INIT_ARENA_DBUG_INFO
 #endif
@@ -452,6 +500,7 @@ public:
   MEM_ROOT *mem_root;                   // Pointer to current memroot
 #ifndef DBUG_OFF
   bool is_backup_arena; /* True if this arena is used for backup. */
+  bool is_reprepared;
 #endif
   /*
     The states relfects three diffrent life cycles for three
@@ -789,6 +838,20 @@ class Open_tables_state
 {
 public:
   /**
+    As part of class THD, this member is set during execution
+    of a prepared statement. When it is set, it is used
+    by the locking subsystem to report a change in table metadata.
+
+    When Open_tables_state part of THD is reset to open
+    a system or INFORMATION_SCHEMA table, the member is cleared
+    to avoid spurious ER_NEED_REPREPARE errors -- system and
+    INFORMATION_SCHEMA tables are not subject to metadata version
+    tracking.
+    @sa check_and_update_table_version()
+  */
+  Metadata_version_observer *m_metadata_observer;
+
+  /**
     List of regular tables in use by this thread. Contains temporary and
     base tables that were opened with @see open_tables().
   */
@@ -891,6 +954,7 @@ public:
     extra_lock= lock= locked_tables= 0;
     prelocked_mode= NON_PRELOCKED;
     state_flags= 0U;
+    m_metadata_observer= NULL;
   }
 };
 
@@ -2778,6 +2842,7 @@ public:
 #define CF_STATUS_COMMAND	4
 #define CF_SHOW_TABLE_COMMAND	8
 #define CF_WRITE_LOGS_COMMAND  16
+#define CF_REEXECUTION_FRAGILE 32
 
 /* Functions in sql_class.cc */
 

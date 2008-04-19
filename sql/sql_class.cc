@@ -360,6 +360,10 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
   return thd->strmake(str.ptr(), str.length());
 }
 
+Metadata_version_observer::~Metadata_version_observer()
+{
+}
+
 /**
   Clear this diagnostics area. 
 
@@ -2769,7 +2773,8 @@ void THD::restore_backup_open_tables_state(Open_tables_state *backup)
   DBUG_ASSERT(open_tables == 0 && temporary_tables == 0 &&
               handler_tables == 0 && derived_tables == 0 &&
               lock == 0 && locked_tables == 0 &&
-              prelocked_mode == NON_PRELOCKED);
+              prelocked_mode == NON_PRELOCKED &&
+              m_metadata_observer == NULL);
   set_open_tables_state(backup);
   DBUG_VOID_RETURN;
 }
