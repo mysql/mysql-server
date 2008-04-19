@@ -249,4 +249,25 @@ set global slow_query_log_file= NULL;
 ERROR 42000: Variable 'slow_query_log_file' can't be set to the value of 'NULL'
 set global general_log_file= @old_general_log_file;
 set global slow_query_log_file= @old_slow_query_log_file;
+
+# --
+# -- Bug#32748: Inconsistent handling of assignments to
+# -- general_log_file/slow_query_log_file.
+# --
+
+SET @general_log_file_saved = @@global.general_log_file;
+SET @slow_query_log_file_saved = @@global.slow_query_log_file;
+
+SET GLOBAL general_log_file = 'bug32748.query.log';
+SET GLOBAL slow_query_log_file = 'bug32748.slow.log';
+
+SHOW VARIABLES LIKE '%log_file';
+Variable_name	Value
+general_log_file	bug32748.query.log
+slow_query_log_file	bug32748.slow.log
+
+SET GLOBAL general_log_file = @general_log_file_saved;
+SET GLOBAL slow_query_log_file = @slow_query_log_file_saved;
+
+# -- End of Bug#32748.
 End of 5.1 tests
