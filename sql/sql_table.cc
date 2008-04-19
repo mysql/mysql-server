@@ -4776,9 +4776,6 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_ENTER("mysql_create_like_table");
 
 
-  /* CREATE TABLE ... LIKE is not allowed for views. */
-  src_table->required_type= FRMTYPE_TABLE;
-
   /*
     By opening source table we guarantee that it exists and no concurrent
     DDL operation will mess with it. Later we also take an exclusive
