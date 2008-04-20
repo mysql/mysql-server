@@ -1,20 +1,20 @@
-#if !defined(OM_H)
-#define OM_H
+#if !defined(OMT_H)
+#define OMT_H
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-// Order Maintenance Array (OMA)
+// Order Maintenance Array (OMT)
 //
 // Maintains a collection of totally ordered values, where each value has an integer weight.
-// The OMA is a mutable datatype.
+// The OMT is a mutable datatype.
 //
 // The Abstraction:
 //
-// An OMA is a vector of values, $V$, where $|V|$ is the length of the vector.
+// An OMT is a vector of values, $V$, where $|V|$ is the length of the vector.
 // The vector is numbered from $0$ to $|V|-1$.
 // Each value has a weight.  The weight of the $i$th element is denoted $w(V_i)$.
 //
-// We can create a new OMA, which is the empty vector.
+// We can create a new OMT, which is the empty vector.
 //
 // We can insert a new element $x$ into slot $i$, changing $V$ into $V'$ where
 //  $|V'|=1+|V|$       and
@@ -38,12 +38,12 @@
 //
 // When looking up a value using a Heaviside function, we get the value and its index.
 //
-// We can also split an OMA into two OMAs, splitting the weight of the values evenly.
+// We can also split an OMT into two OMTs, splitting the weight of the values evenly.
 // Find a value $j$ such that the values to the left of $j$ have about the same total weight as the values to the right of $j$.
-// The resulting two OMAs contain the values to the left of $j$ and the values to the right of $j$ respectively.
-// All of the values from the original OMA go into one of the new OMAs.
+// The resulting two OMTs contain the values to the left of $j$ and the values to the right of $j$ respectively.
+// All of the values from the original OMT go into one of the new OMTs.
 // If the weights of the values don't split exactly evenly, then the implementation has the freedom to choose whether
-//  the new left OMA or the new right OMA is larger.
+//  the new left OMT or the new right OMT is larger.
 //
 // Performance:
 //  Insertion and deletion should run with $O(\log |V|)$ time and $O(\log |V|)$ calls to the Heaviside function.
@@ -51,52 +51,72 @@
 //
 // The programming API:
 
-typedef struct value *OMAVALUE; // A slight improvement over using void*.
-typedef struct oma *OMA;
+typedef struct value *OMTVALUE; // A slight improvement over using void*.
+typedef struct oma *OMT;
 
-int toku_oma_create (OMA *omap);
-// Effect: Create an empty OMA.  Stores it in *omap.
+int toku_oma_create (OMT *omap);
+// Effect: Create an empty OMT.  Stores it in *omap.
+// Requires: omap != NULL
 // Returns:
 //   0        success
 //   ENOMEM   out of memory (and doesn't modify *omap)
 // Performance: constant time.
 
-int toku_oma_create_from_sorted_array(OMA* omap, OMAVALUE *values, u_int32_t numvalues);
-// Effect: Create a OMA containing values.  The number of values is in numvalues.
-//  Stores the new OMA in *omap.
+int toku_oma_create_from_sorted_array(OMT* omap, OMTVALUE *values, u_int32_t numvalues);
+// Effect: Create a OMT containing values.  The number of values is in numvalues.
+//  Stores the new OMT in *omap.
+// Requires: omap != NULL
+// Requires: values != NULL
 // Returns:
 //   0        success
 //   ENOMEM   out of memory (and doesn't modify *omap)
 // Performance:  time=O(numvalues)
+// Rational:     Normally to insert N values takes O(N lg N) amortized time.
+//               If the N values are known in advance, are sorted, and
+//               the structure is empty, we can batch insert them much faster.
+// Hack:         Can be temporarily implemented in O(numvalues * lg numvalues)
+//               by wrapping toku_oma_create and repeated toku_oma_insert_at
+//               until we have time to implement properly.
 
-void toku_oma_destroy(OMA *omap);
-// Effect:  Destroy an OMA, freeing all its memory.
-//   Does not free the OMAVALUEs stored in the OMA.
+void toku_oma_destroy(OMT *omap);
+// Effect:  Destroy an OMT, freeing all its memory.
+//   Does not free the OMTVALUEs stored in the OMT.
 //   Those values may be freed before or after calling toku_oma_destroy.
 //   Also sets *omap=NULL.
+// Requires: omap != NULL
+// Requires: *omap != NULL
 // Rationale:  The usage is to do something like
 //   toku_oma_destroy(&s->oma);
 // and now s->oma will have a NULL pointer instead of a dangling freed pointer.
 // Rationale: Returns no values since free() cannot fail.
+// Rationale: Does not free the OMTVALUEs to reduce complexity.
 // Performance:  time=O(toku_oma_size(*omap))
 
-u_int32_t toku_oma_size(OMA V);
+u_int32_t toku_oma_size(OMT V);
 // Effect: return |V|.
+// Requires: V != NULL
 // Performance:  time=O(1)
 
-int toku_oma_iterate(OMA oma, int (*f)(OMAVALUE, u_int32_t, void*), void*v);
+int toku_oma_iterate(OMT oma, int (*f)(OMTVALUE, u_int32_t, void*), void*v);
 // Effect:  Iterate over the values of the oma, from left to right, calling f on each value.
 //  The second argument passed to f is the index of the value.
 //  The third argument passed to f is v.
 //  The indices run from 0 (inclusive) to toku_oma_size(oma) (exclusive).
+// Requires: oma != NULL
+// Requires: f != NULL
 // Returns:
 //  If f ever returns nonzero, then the iteration stops, and the value returned by f is returned by toku_oma_iterate.
 //  If f always returns zero, then toku_oma_iterate returns 0.
 // Requires:  Don't modify oma while running.  (E.g., f may not insert or delete values form oma.)
 // Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in oma.
+// Rational: Although the functional iterator requires defining another function (as opposed to C++ style iterator), it is much easier to read.
 
-int toku_oma_insert_at(OMA oma, OMAVALUE value, u_int32_t index);
-// Effect: Insert value into the position at index, moving everything to the right up one slot.
+int toku_oma_insert_at(OMT oma, OMTVALUE value, u_int32_t index);
+// Effect: Increases indexes of all items at slot >= index by 1.
+//         Insert value into the position at index.
+// Requires: oma != NULL
+// Requires: value != NULL
+//
 // Returns:
 //   0         success
 //   ERANGE    if index>toku_oma_size(oma)
@@ -105,63 +125,90 @@ int toku_oma_insert_at(OMA oma, OMAVALUE value, u_int32_t index);
 // Performance: time=O(\log N) amortized time.
 // Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_oma_insert(OMA oma, OMAVALUE value, int(*h)(OMAVALUE, void*v), void *v, u_int32_t* index);
-// Effect:  Insert value into the OMA.
+int toku_oma_insert(OMT oma, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t* index);
+// Effect:  Insert value into the OMT.
 //   If there is some i such that $h(V_i, v)=0$ then returns DB_KEYEXIST.
-//   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.  Then this has the same effect as
-//    oma_insert_at(tree, vlaue, i);
+//   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.
+//      If no such i exists, then let i be |V|
+//   Then this has the same effect as
+//    oma_insert_at(tree, value, i);
+//   i is stored in *index
+// Requires: oma != NULL
+// Requires: value != NULL
+// Requires: index != NULL
 // Requires:  The signum of h must be monotonically increasing.
 // Returns:
 //    0            success
 //    DB_KEYEXIST  the key is present (h was equal to zero for some value)
 //    ENOMEM      
 // On nonzero return, oma is unchanged.
+// On nonzero non-DB_KEYEXIST return, *index is unchanged.
 // Performance: time=O(\log N) amortized.
+// Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-int toku_oma_delete_at(OMA oma, u_int32_t index);
+int toku_oma_delete_at(OMT oma, u_int32_t index);
 // Effect: Delete the item in slot index.
+//         Decreases indexes of all items at slot >= index by 1.
+// Requires: oma != NULL
 // Returns
 //     0            success
-//     ERANGE       if index out of range
-//     ENOMEM
+//     ERANGE       if index>=toku_oma_size(oma)
 // On error, oma is unchanged.
 // Rationale: To delete an item, first find its index using toku_oma_find, then delete it.
 // Performance: time=O(\log N) amortized.
 
 
-int toku_oma_find_index (OMA V, u_int32_t i, VALUE *v);
+int toku_oma_find_index (OMT V, u_int32_t i, VALUE *v);
 // Effect: Set *v=V_i
-// Returns 0 on success
-//    ERANGE   if i out of range (and doesn't modify v)
+// Requires: oma != NULL
+// Requires: v   != NULL
+// Returns
+//    0             success
+//    ERANGE        if i out of range
+// On nonzero return, *v is unchanged.
 // Performance: time=O(\log N)
 
-int toku_oma_find(OMA V, int (*h)(VALUE, void*extra), void*extra, int direction, VALUE *value, u_int32_t *index);
+int toku_oma_find(OMT V, int (*h)(VALUE, void*extra), void*extra, int direction, VALUE *value, u_int32_t *index);
 // Effect:
 //  If direction==0 then find the smallest i such that h(V_i,extra)==0. 
-//  If direction>0 then find the smallest i such that h(V_i,extra)>0.
-//  If direction<0 then find the largest i such that h(V_i,extra)<0.
-//    If no such vlaue is found, then return DB_NOTFOUND,
-//    otherwise return 0 and set *value=V_i and set *index=i.
+//  If direction >0 then find the smallest i such that h(V_i,extra)>0.
+//  If direction <0 then find the largest  i such that h(V_i,extra)<0.
+//  store V_i in *value
+//  store i in *index
+// Requires: V != NULL
+// Requires: h != NULL
+// Requires: value != NULL
+// Requires: index != NULL
+// Returns
+//    0             success
+//    DB_NOTFOUND   no such value is found.
+// On nonzero return, *value and *index are unchanged.
 // Performance: time=O(\log N)
 
-int toku_oma_split_at(OMA oma, OMA *newoma, u_itn32_t index);
-// Effect: Create a new OMA, storing it in *newoma.
+int toku_oma_split_at(OMT oma, OMT *newoma, u_int32_t index);
+// Effect: Create a new OMT, storing it in *newoma.
 //  The values to the right of index (starting at index) are moved to *newoma.
-// Returns 0 on success,
-//   ERANGE if index out of range
-//   ENOMEM
+// Requires: oma != NULL
+// Requires: newoma != NULL
+// Returns
+//    0             success,
+//    ERANGE        if index >= toku_oma_size(oma)
+//    ENOMEM
 // On nonzero return, oma and *newoma are unmodified.
 // Performance: time=O(n)
 // Rationale:  We don't need a split-evenly operation.  We need to split items so that their total sizes
 //  are even, and other similar splitting criteria.  It's easy to split evenly by calling toku_oma_size(), and dividing by two.
  
-int toku_oma_merge(OMA leftoma, OMA rightoma, OMA *newoma);
+int toku_oma_merge(OMT leftoma, OMT rightoma, OMT *newoma);
 // Effect: Appends leftoma and rightoma to produce a new oma.
 //  Sets *newoma to the new oma.
 //  leftoma and rightoma are left unchanged.
+// Requires: leftoma != NULL
+// Requires: rightoma != NULL
+// Requires: newoma != NULL
 // Returns 0 on success
 //   ENOMEM on out of memory.
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
 
-#endif  /* #ifndef OM_H */
+#endif  /* #ifndef OMT_H */
