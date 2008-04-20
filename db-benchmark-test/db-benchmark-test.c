@@ -32,6 +32,9 @@ int noserial = 0; // Don't do the serial stuff
 int norandom = 0; // Don't do the random stuff
 int items_per_transaction = DEFAULT_ITEMS_PER_TRANSACTION;
 int items_per_iteration   = DEFAULT_ITEMS_TO_INSERT_PER_ITERATION;
+int do_transactions = 0;
+int n_insertions_since_txn_began=0;
+int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 
 #define STRINGIFY2(s) #s
 #define STRINGIFY(s) STRINGIFY2(s)
@@ -43,8 +46,6 @@ DB_ENV *dbenv;
 DB *db;
 DB_TXN *tid=0;
 
-int do_transactions = 0;
-int n_insertions_since_txn_began=0;
 
 void setup (void) {
     int r;
@@ -79,8 +80,7 @@ void setup (void) {
     }
 
     {
-	int flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL | (do_transactions ? (DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK): 0);
-	r = dbenv->open(dbenv, dbdir, flags, 0644);
+	r = dbenv->open(dbenv, dbdir, env_open_flags, 0644);
 	assert(r == 0);
     }
 
@@ -228,6 +228,9 @@ int print_usage (const char *argv0) {
     fprintf(stderr, "    --noserial         causes the serial insertions to be skipped\n");
     fprintf(stderr, "    --xcount N         how many insertions per transaction (default=%d)\n", DEFAULT_ITEMS_PER_TRANSACTION);
     fprintf(stderr, "    --periter N      how many insertions per iteration (default=%d)\n", DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
+    fprintf(stderr, "    --DB_INIT_TXN (1|0) turn on or turn off the DB_INIT_TXN env_open_flag\n");
+    fprintf(stderr, "    --DB_INIT_LOG (1|0) turn on or turn off the DB_INIT_LOG env_open_flag\n");
+    fprintf(stderr, "    --DB_INIT_LOCK (1|0) turn on or turn off the DB_INIT_LOCK env_open_flag\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
@@ -243,6 +246,29 @@ int main (int argc, const char *argv[]) {
             break;
         if (strcmp(arg, "-x") == 0) {
             do_transactions = 1;
+            env_open_flags += DB_INIT_TXN | DB_INIT_LOG | DB_INIT_LOCK;
+            continue;
+        }
+        if (strcmp(arg, "--DB_INIT_TXN") == 0) {
+            if (i+1 >= argc) return print_usage(argv[0]);
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_TXN;
+            else
+                env_open_flags &= ~DB_INIT_TXN;
+            continue;
+        }
+        if (strcmp(arg, "--DB_INIT_LOG") == 0) {
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_LOG;
+            else
+                env_open_flags &= ~DB_INIT_LOG;
+            continue;
+        }
+        if (strcmp(arg, "--DB_INIT_LOCK") == 0) {
+            if (atoi(argv[++i]))
+                env_open_flags |= DB_INIT_LOCK;
+            else
+                env_open_flags &= ~DB_INIT_LOCK;
             continue;
         }
 	if (strcmp(arg, "--noserial") == 0) {
@@ -280,7 +306,7 @@ int main (int argc, const char *argv[]) {
         }
         if (strcmp(arg, "--pagesize") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
-            pagesize = atoi(argv[++i]);
+           pagesize = atoi(argv[++i]);
             continue;
         }
         if (strcmp(arg, "--dupsort") == 0) {
