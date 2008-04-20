@@ -3,204 +3,165 @@
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-/* I'm writing this in C to demonstrate how it is used.  We can implement it
-   later either using void*s
-   or templates under the hood. */
+// Order Maintenance Array (OMA)
+//
+// Maintains a collection of totally ordered values, where each value has an integer weight.
+// The OMA is a mutable datatype.
+//
+// The Abstraction:
+//
+// An OMA is a vector of values, $V$, where $|V|$ is the length of the vector.
+// The vector is numbered from $0$ to $|V|-1$.
+// Each value has a weight.  The weight of the $i$th element is denoted $w(V_i)$.
+//
+// We can create a new OMA, which is the empty vector.
+//
+// We can insert a new element $x$ into slot $i$, changing $V$ into $V'$ where
+//  $|V'|=1+|V|$       and
+//
+//   V'_j = V_j       if $j<i$
+//          x         if $j=i$
+//          V_{j-1}   if $j>i$.
+//
+// We can specify $i$ using a kind of function instead of as an integer.
+// Let $b$ be a function mapping from values to nonzero integers, such that
+// the signum of $b$ is monotically increasing.
+// We can specify $i$ as the minimum integer such that $b(V_i)>0$.
+//
+// We look up a value using its index, or using a Heaviside function.
+// For lookups, we allow $b$ to be zero for some values, and again the signum of $b$ must be monotonically increasing.
+// When lookup up values, we can look up
+//  $V_i$ where $i$ is the minimum integer such that $b(V_i)=0$.   (With a special return code if no such value exists.)
+//      (Rationale:  Ordinarily we want $i$ to be unique.  But for various reasons we want to allow multiple zeros, and we want the smallest $i$ in that case.)
+//  $V_i$ where $i$ is the minimum integer such that $b(V_i)>0$.   (Or an indication that no such value exists.)
+//  $V_i$ where $i$ is the maximum integer such that $b(V_i)<0$.   (Or an indication that no such value exists.)
+//
+// When looking up a value using a Heaviside function, we get the value and its index.
+//
+// We can also split an OMA into two OMAs, splitting the weight of the values evenly.
+// Find a value $j$ such that the values to the left of $j$ have about the same total weight as the values to the right of $j$.
+// The resulting two OMAs contain the values to the left of $j$ and the values to the right of $j$ respectively.
+// All of the values from the original OMA go into one of the new OMAs.
+// If the weights of the values don't split exactly evenly, then the implementation has the freedom to choose whether
+//  the new left OMA or the new right OMA is larger.
+//
+// Performance:
+//  Insertion and deletion should run with $O(\log |V|)$ time and $O(\log |V|)$ calls to the Heaviside function.
+//  The memory required is O(|V|).
+//
+// The programming API:
 
-/* I've made the following assumptions which very well might be wrong.
+typedef struct value *OMAVALUE; // A slight improvement over using void*.
+typedef struct oma *OMA;
 
-    1:  We are storing key/value pairs, not just keys.
-    1a: We want to abstract a key/value pair to an OMITEM.
-    2:  OMITEM will NOT support telling you the index number (for now).
-    2a: Indexs (for purposes of logging) will be retrieved by an output
-        parameter.
-    3:  The CALLER of the OMS functions own the memory of the DBTs.
-        The OM structure will copy the OMITEM, but
-        key.data and value.data will be owned by the caller
-        responsibility for freeing/etc belongs to the caller.
-        Should not free anything till its been removed from teh OMS.
-    4:  I don't know what to call it so I'm just calling it 'oms_blah'
-    5:  We do not need to do multiple interleaving iterations.
-    5a: If we do, we need to change prototypes, perhaps pass a status object along.
-    6:  For inserting (with search), it will not replace already existing items
-        it will just report that it was already inside.
-*/
+int toku_oma_create (OMA *omap);
+// Effect: Create an empty OMA.  Stores it in *omap.
+// Returns:
+//   0        success
+//   ENOMEM   out of memory (and doesn't modify *omap)
+// Performance: constant time.
 
-/* This is my guess of what an OMITEM should be. */
-typedef struct {
-    DBT key;
-    DBT value;
-} OMITEM;
+int toku_oma_create_from_sorted_array(OMA* omap, OMAVALUE *values, u_int32_t numvalues);
+// Effect: Create a OMA containing values.  The number of values is in numvalues.
+//  Stores the new OMA in *omap.
+// Returns:
+//   0        success
+//   ENOMEM   out of memory (and doesn't modify *omap)
+// Performance:  time=O(numvalues)
 
-/*
-    Create an empty OMS.
+void toku_oma_destroy(OMA *omap);
+// Effect:  Destroy an OMA, freeing all its memory.
+//   Does not free the OMAVALUEs stored in the OMA.
+//   Those values may be freed before or after calling toku_oma_destroy.
+//   Also sets *omap=NULL.
+// Rationale:  The usage is to do something like
+//   toku_oma_destroy(&s->oma);
+// and now s->oma will have a NULL pointer instead of a dangling freed pointer.
+// Rationale: Returns no values since free() cannot fail.
+// Performance:  time=O(toku_oma_size(*omap))
 
-    Possible Error codes
-        0
-        ENOMEM
-    Will assert ptree, db, cmp are NOT NULL.
-*/
-int oms_create(OMS** ptree,
-               DB* db, int (*cmp)(DB*, const OMITEM*, const OMITEM*));
+u_int32_t toku_oma_size(OMA V);
+// Effect: return |V|.
+// Performance:  time=O(1)
 
-/*
-    Create an OMS containing the elements in a presorted array.
+int toku_oma_iterate(OMA oma, int (*f)(OMAVALUE, u_int32_t, void*), void*v);
+// Effect:  Iterate over the values of the oma, from left to right, calling f on each value.
+//  The second argument passed to f is the index of the value.
+//  The third argument passed to f is v.
+//  The indices run from 0 (inclusive) to toku_oma_size(oma) (exclusive).
+// Returns:
+//  If f ever returns nonzero, then the iteration stops, and the value returned by f is returned by toku_oma_iterate.
+//  If f always returns zero, then toku_oma_iterate returns 0.
+// Requires:  Don't modify oma while running.  (E.g., f may not insert or delete values form oma.)
+// Performance: time=O(i+\log N) where i is the number of times f is called, and N is the number of elements in oma.
 
-    Possible Error codes
-        0
-        ENOMEM
-    Will assert ptree, db, cmp, items are NOT NULL.
-*/
-int oms_create_from_presorted_array(OMS** ptree, DB* db,
-                                  int (*cmp)(DB*, const OMITEM*, const OMITEM*),
-                                  OMITEM* items, u_int32_t num_items);
+int toku_oma_insert_at(OMA oma, OMAVALUE value, u_int32_t index);
+// Effect: Insert value into the position at index, moving everything to the right up one slot.
+// Returns:
+//   0         success
+//   ERANGE    if index>toku_oma_size(oma)
+//   ENOMEM
+// On error, oma is unchanged.
+// Performance: time=O(\log N) amortized time.
+// Rationale: Some future implementation may be O(\log N) worst-case time, but O(\log N) amortized is good enough for now.
 
-/*
-    Create an OMS containing presorted elements accessed by an iterator.
+int toku_oma_insert(OMA oma, OMAVALUE value, int(*h)(OMAVALUE, void*v), void *v, u_int32_t* index);
+// Effect:  Insert value into the OMA.
+//   If there is some i such that $h(V_i, v)=0$ then returns DB_KEYEXIST.
+//   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.  Then this has the same effect as
+//    oma_insert_at(tree, vlaue, i);
+// Requires:  The signum of h must be monotonically increasing.
+// Returns:
+//    0            success
+//    DB_KEYEXIST  the key is present (h was equal to zero for some value)
+//    ENOMEM      
+// On nonzero return, oma is unchanged.
+// Performance: time=O(\log N) amortized.
 
-    Possible Error codes
-        0
-        ENOMEM
-    Will assert ptree is NOT NULL.
+int toku_oma_delete_at(OMA oma, u_int32_t index);
+// Effect: Delete the item in slot index.
+// Returns
+//     0            success
+//     ERANGE       if index out of range
+//     ENOMEM
+// On error, oma is unchanged.
+// Rationale: To delete an item, first find its index using toku_oma_find, then delete it.
+// Performance: time=O(\log N) amortized.
 
-    NOTE: I'm using void* here cause I don't know what the parameters should be.
-    In the actual implementation I will use the real data types.
-    We can also change the iterator type, i.e. make it return int
-    and we get next via an output parameter.
 
-    Note: May just be a wrapper for oms_create_presorted_array.
+int toku_oma_find_index (OMA V, u_int32_t i, VALUE *v);
+// Effect: Set *v=V_i
+// Returns 0 on success
+//    ERANGE   if i out of range (and doesn't modify v)
+// Performance: time=O(\log N)
 
-    Will assert ptree, db, cmp, items are NOT NULL.
-*/
-int oms_create_from_presorted_iterator(OMS** ptree, DB* db,
-                                  int (*cmp)(DB*, const OMITEM*, const OMITEM*),
-                                  OMITEM* (*get_next)(void* param));
+int toku_oma_find(OMA V, int (*h)(VALUE, void*extra), void*extra, int direction, VALUE *value, u_int32_t *index);
+// Effect:
+//  If direction==0 then find the smallest i such that h(V_i,extra)==0. 
+//  If direction>0 then find the smallest i such that h(V_i,extra)>0.
+//  If direction<0 then find the largest i such that h(V_i,extra)<0.
+//    If no such vlaue is found, then return DB_NOTFOUND,
+//    otherwise return 0 and set *value=V_i and set *index=i.
+// Performance: time=O(\log N)
 
-/*
-    Close/free an OMS.
-    Note: This will not free key.data/value.data for entries inside.
-    Those should be freed immediately before or after calling oms_destroy.
-
-    Will assert tree is NOT NULL.
-*/
-void oms_destroy(OMS* tree);
-
-/*
-    NOTE: USES THE COMPARISON FUNCTION
-    Initializes iteration over the tree.
-    if start is NULL, we start at the head, otherwise we search for it.
-    Searching requires a comparison function!
-
-    Will assert tree is NOT NULL.
-
-    if not found, it will allow you to find 
-*/
-void oms_init_iteration(OMS* tree, OMITEM* start);
-
-/*
-    Initializes iteration over the tree.
-    if start is NULL, we start at the head, otherwise we search for it.
-    Searching requires a comparison function!
-
-    Will assert tree is NOT NULL.
-
-    Possible error codes
-        0
-        ERANGE: If start_index >= the number of elements in the structure
-*/
-int oms_init_iteration_at(OMS* tree, u_int32_t start_index);
-
-/*
-    Gets the next item in the tree.
-    When you go off the end, it returns NULL, as will subsequent calls.
-
-    Use oms_init_iteration(_at) to reset the iterator.
-*/
-OMITEM* oms_get_next(OMS* tree);
-
-/*
-    NOTE: USES THE COMPARISON FUNCTION
-    Insert an item at the appropriate place.
-
-    Will assert tree, item, and already_exists are NOT NULL.
-    already_exists is an out parameter.
-    If the exact OMITEM is already there, it will NOT be replaced,
-    but we will report that.
-    Reports the index it was found at.
-
-    Possible error codes:
-        0
-        ENOMEM
-        DB_KEYEXIST:    If it already exists in the structure.
-*/
-int oms_insert(OMS* tree, OMITEM* item, u_int32_t* index);
-
-/*
-    Insert an item at a given index.
-
-    Will assert tree, item, and already_exists are NOT NULL.
-    already_exists is an out parameter.
-    If the exact OMITEM is already there, it will NOT be replaced,
-    but we will report that.
-
-    Possible error codes:
-        0
-        ENOMEM
-*/
-int oms_insert_at(OMS* tree, OMITEM* item, u_int32_t index);
-
-/*
-    NOTE: USES THE COMPARISON FUNCTION
-    Deletes a given item.
-
-    Will assert tree, item, and found are NOT NULL.
-    Reports the index it was found at.
-    Possible error codes:
-        0
-        DB_NOTFOUND
-*/
-int oms_delete(OMS* tree, OMITEM* item, u_int32_t* index);
-
-/*
-    Deletes the item at a given index.
-
-    Possible error codes:
-        0
-        ERANGE: If index >= num elements in the structure
-*/
-int oms_delete_at(OMS* tree, u_int32_t index);
-
-/*
-    I don't know what kind of 'finds' we need here.
-*/
-int oms_find(OMS* tree, OMITEM* item, u_int32_t find_flags);
-
-/*
-    Creates 2 new trees caused by splitting the current one evently.
-    Reports the split index.
-    Does NOT free the old one.
-*/
-int oms_split_evenly(OMS* tree, OMS** pleft_tree, OMS** pright_tree,
-                     u_int32_t* index);
-
-/*
-    Creates 2 new trees caused by splitting the current one at the
-    given index.  (0..index-1) are in left, (index..end) are in right.
-    Does NOT free the old one.
-*/
-int oms_split_at(OMS* tree, OMS** pleft_tree, OMS** pright_tree,
-                 u_int32_t index);
+int toku_oma_split_at(OMA oma, OMA *newoma, u_itn32_t index);
+// Effect: Create a new OMA, storing it in *newoma.
+//  The values to the right of index (starting at index) are moved to *newoma.
+// Returns 0 on success,
+//   ERANGE if index out of range
+//   ENOMEM
+// On nonzero return, oma and *newoma are unmodified.
+// Performance: time=O(n)
+// Rationale:  We don't need a split-evenly operation.  We need to split items so that their total sizes
+//  are even, and other similar splitting criteria.  It's easy to split evenly by calling toku_oma_size(), and dividing by two.
  
-
-/*
-    Creates one tree from merging 2 of them.
-    Does not free the old one.
-    reports the 'split index' that you would use to undo the operation.
-*/
-int oms_merge(OMS** ptree, OMS* left_tree, OMS* right_tree, u_int32_t* index);
-
-u_int32_t oms_get_num_elements(OMS* tree);
-
-
+int toku_oma_merge(OMA leftoma, OMA rightoma, OMA *newoma);
+// Effect: Appends leftoma and rightoma to produce a new oma.
+//  Sets *newoma to the new oma.
+//  leftoma and rightoma are left unchanged.
+// Returns 0 on success
+//   ENOMEM on out of memory.
+// On error, nothing is modified.
+// Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
 
 #endif  /* #ifndef OM_H */
