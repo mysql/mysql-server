@@ -20,7 +20,8 @@ use strict;
 
 use base qw(Exporter);
 our @EXPORT= qw(IS_CYGWIN IS_WINDOWS IS_WIN32PERL
-		native_path posix_path mixed_path);
+		native_path posix_path mixed_path
+                check_socket_path_length);
 
 BEGIN {
   if ($^O eq "cygwin") {
@@ -47,6 +48,15 @@ BEGIN {
   }
   else {
     eval 'sub IS_WINDOWS { 0 }';
+  }
+}
+
+BEGIN {
+  if (eval "use IO::Socket::UNIX; 1") {
+    eval 'sub HAVE_UNIX_SOCKET { 1 }';
+  }
+  else {
+    eval 'sub HAVE_UNIX_SOCKET { 0 }';
   }
 }
 
@@ -90,6 +100,34 @@ sub posix_path {
   return $path;
 }
 
+
+sub check_socket_path_length {
+  my ($path)= @_;
+  my $truncated= 0;
+
+  if (HAVE_UNIX_SOCKET){
+    require IO::Socket::UNIX;
+
+    my $sock = new IO::Socket::UNIX
+    (
+     Local => $path,
+     Listen => 1,
+    ) or die $!;
+    if ($path ne $sock->hostpath()){
+      # Path was truncated
+      $truncated= 1;
+      # Output diagnostic messages
+      print "path: '$path', length: ", length($path) ,"\n";
+      print "hostpath: '", $sock->hostpath(),
+	"', length: ", length($sock->hostpath()), "\n";
+    }
+    $sock= undef;
+    unlink($path);
+    return $truncated;
+  };
+  # All paths OK!
+  return $truncated;
+}
 
 
 1;
