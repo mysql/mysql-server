@@ -916,7 +916,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	    toku_free(item);
 	}
 	assert(txn->rollentry_resident_bytecount==0);
-	assert(w.ndone==bufsize);
+	assert((ssize_t)w.ndone==bufsize);
 	txn->oldest_logentry = txn->newest_logentry = 0;
 	if (txn->rollentry_fd<0) {
 	    const char filenamepart[] = "/__rolltmp.XXXXXX";
@@ -930,7 +930,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	}
 	ssize_t r = write_it(txn->rollentry_fd, buf, w.ndone);
 	if (r<0) return r;
-	assert(r==w.ndone);
+	assert(r==(ssize_t)w.ndone);
 	txn->rollentry_filesize+=w.ndone;
 	toku_free(buf);
     }
@@ -945,7 +945,7 @@ int toku_read_rollback_backwards(int fd, off_t at, struct roll_entry **item, off
     assert(at>=n_bytes);
     unsigned char *buf = toku_malloc(n_bytes);
     if (buf==0) return errno;
-    if ((sr=pread(fd, buf, n_bytes, at-n_bytes))!=n_bytes) { assert(sr<0); return errno; }
+    if ((sr=pread(fd, buf, n_bytes, at-n_bytes))!=(ssize_t)n_bytes) { assert(sr<0); return errno; }
     int r = toku_parse_rollback(buf, n_bytes, item);
     if (r!=0) return r;
     (*new_at) -= n_bytes;
