@@ -37,7 +37,7 @@ static char *file1_name= (char*)"page_cache_test_file_1";
 static PAGECACHE_FILE file1;
 static pthread_cond_t COND_thread_count;
 static pthread_mutex_t LOCK_thread_count;
-static uint thread_count;
+static uint thread_count= 0;
 static PAGECACHE pagecache;
 
 static uint number_of_readers= 5;
@@ -214,7 +214,7 @@ int main(int argc __attribute__((unused)),
 #if defined(__WIN__)
   default_dbug_option= "d:t:i:O,\\test_pagecache_consist.trace";
 #else
-  default_dbug_option= "d:t:i:o,/tmp/test_pagecache_consist.trace";
+  default_dbug_option= "d:t:i:O,/tmp/test_pagecache_consist.trace";
 #endif
   if (argc > 1)
   {
@@ -335,8 +335,8 @@ int main(int argc __attribute__((unused)),
   pthread_mutex_lock(&LOCK_thread_count);
   while (thread_count)
   {
-    if ((error= pthread_cond_wait(&COND_thread_count,&LOCK_thread_count)))
-      diag("COND_thread_count: %d from pthread_cond_wait\n",error);
+    if ((error= pthread_cond_wait(&COND_thread_count, &LOCK_thread_count)))
+      diag("COND_thread_count: %d from pthread_cond_wait\n", error);
   }
   pthread_mutex_unlock(&LOCK_thread_count);
   DBUG_PRINT("info", ("thread ended"));
