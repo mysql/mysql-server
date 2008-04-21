@@ -3871,6 +3871,7 @@ void do_shutdown_server(struct st_command *command)
     if (timeout == 0)
       die("Illegal argument for timeout: '%s'", ds_timeout.str);
   }
+  dynstr_free(&ds_timeout);
 
   /* Get the servers pid_file name and use it to read pid */
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
@@ -3897,6 +3898,8 @@ void do_shutdown_server(struct st_command *command)
     }
     DBUG_PRINT("info", ("Read pid %d from '%s'", pid, ds_pidfile_name.str));
     my_close(fd, MYF(0));
+
+    dynstr_free(&ds_pidfile_name);
   }
   DBUG_PRINT("info", ("Got pid %d", pid));
 
