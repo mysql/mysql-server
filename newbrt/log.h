@@ -157,4 +157,6 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result);
 int tokudb_recover(const char *datadir, const char *logdir);
 int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 
+int toku_maybe_spill_rollbacks (TOKUTXN txn);
+
 #endif

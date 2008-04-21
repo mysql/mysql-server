@@ -77,6 +77,7 @@ const struct logtype rollbacks[] = {
 const struct logtype logtypes[] = {
     {"checkpoint", 'x', FA{NULLFIELD}},
     {"commit", 'C', FA{{"TXNID", "txnid", 0},NULLFIELD}},
+    {"xabort", 'q', FA{{"TXNID", "txnid", 0},NULLFIELD}},
     {"xbegin", 'b', FA{{"TXNID", "parenttxnid", 0},NULLFIELD}},
 #if 0
     {"tl_delete", 'D', FA{{"FILENUM", "filenum", 0}, // tl logentries can be used, by themselves, to rebuild the whole DB from scratch.
@@ -325,6 +326,7 @@ void generate_log_struct (void) {
     DO_ROLLBACKS(lt, fprintf(hf,"    struct rolltype_%s %s;\n", lt->name, lt->name));
     fprintf(hf, "  } u;\n");
     fprintf(hf, "  struct roll_entry *prev; /* for in-memory list of log entries.  Threads from newest to oldest. */\n");
+    fprintf(hf, "  struct roll_entry *next; /* Points to a newer logentry.  Needed for flushing to disk, since we want to write the oldest one first. */\n");
     fprintf(hf, "};\n");
 
 }
@@ -492,34 +494,91 @@ void generate_logprint (void) {
 }
 
 void generate_rollbacks (void) {
-    fprintf(cf, "       u_int64_t toku_logger_rollback_malloc_size=0, toku_logger_rollback_malloc_count=0;\n");
+    fprintf(cf,        "u_int64_t toku_logger_rollback_malloc_size=0, toku_logger_rollback_malloc_count=0;\n");
     fprintf(hf, "extern u_int64_t toku_logger_rollback_malloc_size,   toku_logger_rollback_malloc_count;\n");
     DO_ROLLBACKS(lt, ({
 		    fprintf2(cf, hf, "int toku_logger_save_rollback_%s (TOKUTXN txn", lt->name);
 		    DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
 		    fprintf(hf, ");\n");
 		    fprintf(cf, ") {\n");
+		    {
+			int count=0;
+			fprintf(cf, "  u_int32_t rollback_fsize = toku_logger_rollback_fsize_%s(", lt->name);
+			DO_FIELDS(ft, lt, fprintf(cf, "%s%s", (count++>0)?", ":"", ft->name));
+			fprintf(cf, ");\n");
+		    }
 		    fprintf(cf, "  struct roll_entry *v = toku_malloc(sizeof(*v));\n");
-		    fprintf(cf, "  toku_logger_rollback_malloc_count++; toku_logger_rollback_malloc_size+=sizeof(*v);\n");
+		    fprintf(cf, "  toku_logger_rollback_malloc_count++; toku_logger_rollback_malloc_size+=rollback_fsize;\n");
 		    fprintf(cf, "  if (v==0) return errno;\n");
 		    fprintf(cf, "  v->cmd = %d;\n", lt->command_and_flags&0xff);
 		    DO_FIELDS(ft, lt, fprintf(cf, "  v->u.%s.%s = %s;\n", lt->name, ft->name, ft->name));
 		    fprintf(cf, "  v->prev = txn->newest_logentry;\n");
+		    fprintf(cf, "  v->next = 0;\n");
 		    fprintf(cf, "  if (txn->oldest_logentry==0) txn->oldest_logentry=v;\n");
+		    fprintf(cf, "  else txn->newest_logentry->next = v;\n");
 		    fprintf(cf, "  txn->newest_logentry = v;\n");
-		    fprintf(cf, "  return 0;\n}\n");
+		    fprintf(cf, "  txn->rollentry_resident_bytecount += rollback_fsize;\n");
+		    fprintf(cf, "  return toku_maybe_spill_rollbacks(txn);\n}\n");
 	    }));
+
     DO_ROLLBACKS(lt, ({
-		fprintf2(cf, hf, "int toku_logger_rollback_fsize_%s (", lt->name);
+		fprintf2(cf, hf, "void toku_logger_rollback_wbufwrite_%s (struct wbuf *wbuf", lt->name);
+		DO_FIELDS(ft, lt, fprintf2(cf, hf, ", %s %s", ft->type, ft->name));
+		fprintf2(cf, hf, ")");
+		fprintf(hf, ";\n");
+		fprintf(cf, " {\n");
+		fprintf(cf, "  u_int32_t ndone_at_start = wbuf->ndone;\n");
+		fprintf(cf, "  wbuf_char(wbuf, '%c');\n", 0xff&lt->command_and_flags);
+		DO_FIELDS(ft, lt, fprintf(cf, "  wbuf_%s(wbuf, %s);\n", ft->type, ft->name));
+		fprintf(cf, "  wbuf_int(wbuf, 4+wbuf->ndone - ndone_at_start);\n");
+		fprintf(cf, "}\n");
+	    }));
+    fprintf2(cf, hf, "void toku_logger_rollback_wbufwrite (struct wbuf *wbuf, struct roll_entry *r)");
+    fprintf(hf, ";\n");
+    fprintf(cf, " {\n  switch (r->cmd) {\n");
+    DO_ROLLBACKS(lt, ({
+		fprintf(cf, "    case RT_%s: toku_logger_rollback_wbufwrite_%s(wbuf", lt->name, lt->name);
+		DO_FIELDS(ft, lt, fprintf(cf, ", r->u.%s.%s", lt->name, ft->name));
+		fprintf(cf, "); return;\n");
+	    }));
+    fprintf(cf, "  }\n  assert(0);\n");
+    fprintf(cf, "}\n");
+    DO_ROLLBACKS(lt, ({
+		fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize_%s (", lt->name);
 		int count=0;
 		DO_FIELDS(ft, lt, fprintf2(cf, hf, "%s%s %s", (count++>0)?", ":"", ft->type, ft->name));
 		fprintf(hf, ");\n");
 		fprintf(cf, ") {\n");
-		fprintf(cf, "  return 1 // the cmd");
+		fprintf(cf, "  return 1 /* the cmd*/\n");
+		fprintf(cf, "         + 4 /* the int at the end saying the size */");
 		DO_FIELDS(ft, lt, 
 			  fprintf(cf, "\n         + toku_logsizeof_%s(%s)", ft->type, ft->name));
 		fprintf(cf, ";\n}\n");
 	    }));
+    fprintf2(cf, hf, "u_int32_t toku_logger_rollback_fsize(struct roll_entry *item)");
+    fprintf(hf, ";\n");
+    fprintf(cf, "{\n  switch(item->cmd) {\n");
+    DO_ROLLBACKS(lt, ({
+		fprintf(cf, "    case RT_%s: return toku_logger_rollback_fsize_%s(", lt->name, lt->name);
+		int count=0;
+		DO_FIELDS(ft, lt, fprintf(cf, "%sitem->u.%s.%s", (count++>0)?", ":"", lt->name, ft->name));
+		fprintf(cf, ");\n");
+	    }));
+    fprintf(cf, "  }\n  assert(0);\n  return 0;\n");
+    fprintf(cf, "}\n");
+
+    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, u_int32_t n_bytes, struct roll_entry **itemp)");
+    fprintf(hf, ";\n");
+    fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item = toku_malloc(sizeof(*item));\n  item->cmd=buf[0];\n");
+    fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
+    fprintf(cf, "  switch(item->cmd) {\n");
+    DO_ROLLBACKS(lt, ({
+		fprintf(cf, "  case RT_%s:\n", lt->name);
+		DO_FIELDS(ft, lt, fprintf(cf, "  rbuf_%s(&rc, &item->u.%s.%s);\n", ft->type, lt->name, ft->name));
+		fprintf(cf, "    *itemp = item;\n");
+		fprintf(cf, "    return 0;\n");
+	    }));
+    fprintf(cf, "  }\n  return EINVAL;\n}\n");
 }
 
 

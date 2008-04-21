@@ -4,6 +4,7 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 #include "toku_assert.h"
+#include "memory.h"
 
 struct rbuf {
     unsigned char *buf;
@@ -51,4 +52,23 @@ static inline DISKOFF rbuf_diskoff (struct rbuf *r) {
     unsigned i1 = rbuf_int(r);
     return ((unsigned long long)(i0)<<32) | ((unsigned long long)(i1));
 }
+
+static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
+    *txnid = rbuf_ulonglong(r);
+}
+
+static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {
+    filenum->fileid = rbuf_int(r);
+}
+
+// Don't try to use the same space, malloc it
+static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
+    bs->len  = rbuf_int(r);
+    u_int32_t newndone = r->ndone + bs->len;
+    assert(newndone < r->size);
+    bs->data = toku_memdup(&r->buf[r->ndone], (size_t)bs->len);
+    assert(bs->data);
+    r->ndone = newndone;
+}
+
 #endif
