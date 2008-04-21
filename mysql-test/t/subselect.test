@@ -3259,5 +3259,17 @@ GROUP BY a4;
 
 DROP TABLE t1, t2, t3, t4;
 
+#
+# BUG#36139 "float, zerofill, crash with subquery"
+#
+create table t1 (a float(5,4) zerofill);
+create table t2 (a float(5,4),b float(2,0));
+
+select t1.a from t1 where   
+  t1.a= (select b from t2 limit 1) and not
+  t1.a= (select a from t2 limit 1) ;
+
+drop table t1;
+
 --echo End of 5.0 tests.
 
