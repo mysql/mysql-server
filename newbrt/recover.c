@@ -62,6 +62,8 @@ void toku_recover_cleanup (void) {
 
 void toku_recover_commit (LSN UU(lsn), TXNID UU(txnid)) {
 }
+void toku_recover_xabort (LSN UU(lsn), TXNID UU(txnid)) {
+}
 
 void create_dir_from_file (const char *fname) {
     int i;

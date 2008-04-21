@@ -82,6 +82,10 @@ struct tokutxn {
     LSN        first_lsn; /* The first lsn in the transaction. */
     struct roll_entry *oldest_logentry,*newest_logentry; /* Only logentries with rollbacks are here. There is a list going from newest to oldest. */
     struct list live_txns_link;
+    size_t     rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
+    char      *rollentry_filename;
+    int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
+    off_t      rollentry_filesize;   // How many bytes are in the rollentry.
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync);
@@ -136,3 +140,5 @@ static inline char *fixup_fname(BYTESTRING *f) {
     fname[f->len]=0;
     return fname;
 }
+
+int toku_read_rollback_backwards(int fd, off_t at, struct roll_entry **item, off_t *new_at);

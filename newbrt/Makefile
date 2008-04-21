@@ -130,7 +130,7 @@ tdb-recover: $(OFILES)
 
 roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h gpma.h
 
-log_code.o: log_header.h wbuf.h log-internal.h
+log_code.o: log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h: log_code.c
 	@echo generated log_code.c so log_header.c was also generated
 log_code.c: logformat

@@ -74,7 +74,7 @@ foo:
 	echo ALL_TESTS: $(ALL_TESTS)
 
 .PHONY: check check.bdb check.tdb
-check: check.bdb check.tdb test_db_assoc3.tdbrun_wasbad
+check: check.tdb test_db_assoc3.tdbrun_wasbad check.bdb
 	@ echo ok $@
 tests: tests.bdb tests.tdb
 	@ echo ok $@
