@@ -268,7 +268,7 @@ enum enum_commands {
   Q_WRITE_FILE, Q_COPY_FILE, Q_PERL, Q_DIE, Q_EXIT, Q_SKIP,
   Q_CHMOD_FILE, Q_APPEND_FILE, Q_CAT_FILE, Q_DIFF_FILES,
   Q_SEND_QUIT, Q_CHANGE_USER, Q_MKDIR, Q_RMDIR,
-  Q_SHUTDOWN, Q_KILL_SERVER,
+  Q_SEND_SHUTDOWN, Q_SHUTDOWN_SERVER,
 
   Q_UNKNOWN,			       /* Unknown command.   */
   Q_COMMENT,			       /* Comments, ignored. */
@@ -360,8 +360,8 @@ const char *command_names[]=
   "change_user",
   "mkdir",
   "rmdir",
-  "shutdown",
-  "kill_server",
+  "send_shutdown",
+  "shutdown_server",
 
   0
 };
@@ -2056,9 +2056,9 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   static DYNAMIC_STRING ds_col;
   static DYNAMIC_STRING ds_row;
   const struct command_arg query_get_value_args[] = {
-    "query", ARG_STRING, TRUE, &ds_query, "Query to run",
-    "column name", ARG_STRING, TRUE, &ds_col, "Name of column",
-    "row number", ARG_STRING, TRUE, &ds_row, "Number for row"
+    {"query", ARG_STRING, TRUE, &ds_query, "Query to run"},
+    {"column name", ARG_STRING, TRUE, &ds_col, "Name of column"},
+    {"row number", ARG_STRING, TRUE, &ds_row, "Number for row"}
   };
 
   DBUG_ENTER("var_set_query_get_value");
@@ -2821,7 +2821,7 @@ void do_mkdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg mkdir_args[] = {
-    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to create"}
   };
   DBUG_ENTER("do_mkdir");
 
@@ -2851,7 +2851,7 @@ void do_rmdir(struct st_command *command)
   int error;
   static DYNAMIC_STRING ds_dirname;
   const struct command_arg rmdir_args[] = {
-    "dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"
+    {"dirname", ARG_STRING, TRUE, &ds_dirname, "Directory to remove"}
   };
   DBUG_ENTER("do_rmdir");
 
@@ -3817,7 +3817,7 @@ void do_set_charset(struct st_command *command)
 int query_get_string(MYSQL* mysql, const char* query,
                      int column, DYNAMIC_STRING* ds)
 {
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
 
   if (mysql_query(mysql,query) || !(res=mysql_store_result(mysql)))
@@ -3842,27 +3842,27 @@ int query_get_string(MYSQL* mysql, const char* query,
   NOTE! Currently only works with local server
 
   SYNOPSIS
-  do_kill_server()
+  do_shutdown_server()
   command  called command
 
   DESCRIPTION
-  kill_server [<timeout>]
+  shutdown [<timeout>]
 
 */
 
-void do_kill_server(struct st_command *command)
+void do_shutdown_server(struct st_command *command)
 {
   int timeout=60, pid;
-  DYNAMIC_STRING* ds_pidfile_name;
+  DYNAMIC_STRING ds_pidfile_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
-  const struct command_arg kill_args[] = {
-    "timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"
+  const struct command_arg shutdown_args[] = {
+    {"timeout", ARG_STRING, FALSE, &ds_timeout, "Timeout before killing server"}
   };
-  DBUG_ENTER("do_kill_server");
+  DBUG_ENTER("do_shutdown_server");
 
-  check_command_args(command, command->first_argument,
-                     kill_args, sizeof(kill_args)/sizeof(struct command_arg),
+  check_command_args(command, command->first_argument, shutdown_args,
+                     sizeof(shutdown_args)/sizeof(struct command_arg),
                      ' ');
 
   if (ds_timeout.length)
@@ -3874,7 +3874,7 @@ void do_kill_server(struct st_command *command)
 
   /* Get the servers pid_file name and use it to read pid */
   if (query_get_string(mysql, "SHOW VARIABLES LIKE 'pid_file'", 1,
-                       ds_pidfile_name))
+                       &ds_pidfile_name))
     die("Failed to get pid_file from server");
 
   /* Read the pid from the file */
@@ -3882,8 +3882,8 @@ void do_kill_server(struct st_command *command)
     int fd;
     char buff[32];
 
-    if ((fd= my_open(ds_pidfile_name->str, O_RDONLY, MYF(0))) < 0)
-      die("Failed to open file '%s'", ds_pidfile_name->str);
+    if ((fd= my_open(ds_pidfile_name.str, O_RDONLY, MYF(0))) < 0)
+      die("Failed to open file '%s'", ds_pidfile_name.str);
     if (my_read(fd, (uchar*)&buff,
                 sizeof(buff), MYF(0)) <= 0){
       my_close(fd, MYF(0));
@@ -3895,13 +3895,13 @@ void do_kill_server(struct st_command *command)
       my_close(fd, MYF(0));
       die("pid file was empty");
     }
-    DBUG_PRINT("info", ("Read pid %d from '%s'", pid, ds_pidfile_name->str));
+    DBUG_PRINT("info", ("Read pid %d from '%s'", pid, ds_pidfile_name.str));
     my_close(fd, MYF(0));
   }
   DBUG_PRINT("info", ("Got pid %d", pid));
 
-  /* Tell server to shutdown */
-  if (mysql_shutdown(&cur_con->mysql, SHUTDOWN_DEFAULT))
+  /* Tell server to shutdown if timeout > 0*/
+  if (timeout && mysql_shutdown(&cur_con->mysql, SHUTDOWN_DEFAULT))
     die("mysql_shutdown failed");
 
   /* Check that server dies */
@@ -7311,13 +7311,13 @@ int main(int argc, char **argv)
       case Q_PING:
         handle_command_error(command, mysql_ping(&cur_con->mysql));
         break;
-      case Q_SHUTDOWN:
+      case Q_SEND_SHUTDOWN:
         handle_command_error(command,
                              mysql_shutdown(&cur_con->mysql,
                                             SHUTDOWN_DEFAULT));
         break;
-      case Q_KILL_SERVER:
-        do_kill_server(command);
+      case Q_SHUTDOWN_SERVER:
+        do_shutdown_server(command);
         break;
       case Q_EXEC:
 	do_exec(command);
