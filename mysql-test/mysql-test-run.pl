@@ -606,6 +606,15 @@ sub command_line_setup {
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
+  # On some operating systems, there is a limit to the length of a
+  # UNIX domain socket's path far below PATH_MAX.
+  # Don't allow that to happen
+  if (check_socket_path_length("$opt_tmpdir/testsocket.sock")){
+    mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
+	      "truncated and thus not possible to use for connection to ",
+	      "MySQL Server. Set a shorter with --tmpdir=<path> option");
+  }
+
   # --------------------------------------------------------------------------
   # fast option
   # --------------------------------------------------------------------------
@@ -734,17 +743,6 @@ sub command_line_setup {
   {
     $opt_user= "root"; # We want to do FLUSH xxx commands
   }
-
-  # On QNX, /tmp/dir/master.sock and /tmp/dir//master.sock seem to be
-  # considered different, so avoid the extra slash (/) in the socket
-  # paths.
-  my $sockdir = $opt_tmpdir;
-  $sockdir =~ s|/+$||;
-
-  # On some operating systems, there is a limit to the length of a
-  # UNIX domain socket's path far below PATH_MAX, so try to avoid long
-  # socket path names.
-  $sockdir = tempdir(CLEANUP => 0) if ( length($sockdir) >= 70 );
 
   $path_testlog=         "$opt_vardir/log/mysqltest.log";
   $path_current_testlog= "$opt_vardir/log/current_test";
@@ -1186,6 +1184,7 @@ sub environment_setup {
   $ENV{'MYSQL_TEST_DIR'}=     $glob_mysql_test_dir;
   $ENV{'MYSQLTEST_VARDIR'}=   $opt_vardir;
   $ENV{'DEFAULT_MASTER_PORT'}= $mysqld_variables{'master-port'} || 3306;
+  $ENV{'MYSQL_TMP_DIR'}=      $opt_tmpdir;
 
   # ----------------------------------------------------
   # Setup env for NDB
