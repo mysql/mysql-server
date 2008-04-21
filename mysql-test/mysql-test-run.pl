@@ -606,15 +606,6 @@ sub command_line_setup {
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
-  # On some operating systems, there is a limit to the length of a
-  # UNIX domain socket's path far below PATH_MAX.
-  # Don't allow that to happen
-  if (check_socket_path_length("$opt_tmpdir/testsocket.sock")){
-    mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
-	      "truncated and thus not possible to use for connection to ",
-	      "MySQL Server. Set a shorter with --tmpdir=<path> option");
-  }
-
   # --------------------------------------------------------------------------
   # fast option
   # --------------------------------------------------------------------------
@@ -1438,6 +1429,15 @@ sub setup_vardir() {
   if ($opt_tmpdir ne "$opt_vardir/tmp"){
     mtr_report(" - symlinking 'var/tmp' to '$opt_tmpdir'");
     symlink($opt_tmpdir, "$opt_vardir/tmp");
+  }
+
+  # On some operating systems, there is a limit to the length of a
+  # UNIX domain socket's path far below PATH_MAX.
+  # Don't allow that to happen
+  if (check_socket_path_length("$opt_tmpdir/testsocket.sock")){
+    mtr_error("Socket path '$opt_tmpdir' too long, it would be ",
+	      "truncated and thus not possible to use for connection to ",
+	      "MySQL Server. Set a shorter with --tmpdir=<path> option");
   }
 
   # copy all files from std_data into var/std_data
