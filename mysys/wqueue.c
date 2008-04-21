@@ -67,6 +67,9 @@ void wqueue_add_to_queue(WQUEUE *wqueue, struct st_my_thread_var *thread)
     thread->next= last->next;
     last->next= thread;
   }
+#ifndef DBUG_OFF
+  thread->prev= NULL; /* force segfault if used */
+#endif
   wqueue->last_thread= thread;
 }
 
@@ -156,9 +159,6 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
   {
     /* release first waiting for write lock */
     pthread_cond_signal(&next->suspend);
-#ifndef DBUG_OFF
-    next->prev= NULL; /* force segfault if used */
-#endif
     if (next == last)
       wqueue->last_thread= NULL;
     else
@@ -170,9 +170,6 @@ void wqueue_release_one_locktype_from_queue(WQUEUE *wqueue)
   {
     thread= next;
     next= thread->next;
-#ifndef DBUG_OFF
-    thread->prev= NULL; /* force segfault if used */
-#endif
     if (thread->lock_type == MY_PTHREAD_LOCK_WRITE)
     {
       /* skip waiting for write lock */
