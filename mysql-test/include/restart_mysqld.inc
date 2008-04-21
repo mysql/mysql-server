@@ -6,7 +6,7 @@ EOF
 
 # Send shutdown to the connected server and give
 # it 10 seconds to die before zapping it
-kill_server 10;
+shutdown_server 10;
 
 
 # Turn on reconnect
