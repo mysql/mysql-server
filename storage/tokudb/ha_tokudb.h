@@ -36,9 +36,40 @@ private:
     // TODO: make sure current_row gets set properly
     //
     DBT current_row;
+    //
+    // pointer used for multi_alloc of key_buff, key_buff2, primary_key_buff
+    //
     void *alloc_ptr;
+    //
+    // buffer used to temporarily store a "packed row" 
+    // data pointer of a DBT will end up pointing to this
+    // see pack_row for usage
+    //
     uchar *rec_buff;
-    uchar *key_buff, *key_buff2, *primary_key_buff;
+    //
+    // number of bytes allocated in rec_buff
+    //
+    ulong alloced_rec_buff_length;
+    //
+    // buffer used to temporarily store a "packed key" 
+    // data pointer of a DBT will end up pointing to this
+    //
+    uchar *key_buff; 
+    //
+    // buffer used to temporarily store a "packed key" 
+    // data pointer of a DBT will end up pointing to this
+    // This is used in functions that require the packing
+    // of more than one key
+    //
+    uchar *key_buff2; 
+    //
+    // buffer used to temporarily store a "packed key" 
+    // data pointer of a DBT will end up pointing to this
+    // currently this is only used for a primary key in
+    // the function update_row, hence the name. It 
+    // does not carry any state throughout the class.
+    //
+    uchar *primary_key_buff;
 
     //
     // DB that is indexed on the primary key
@@ -67,7 +98,6 @@ private:
     // flags that are returned in table_flags()
     //
     ulong int_table_flags;
-    ulong alloced_rec_buff_length;
     //
     // count on the number of rows that gets changed, such as when write_row occurs
     //
