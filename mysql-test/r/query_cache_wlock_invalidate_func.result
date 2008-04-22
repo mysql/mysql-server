@@ -54,7 +54,7 @@ LOCK TABLE t1 WRITE;
 SET @startTime = NOW();
 SELECT * FROM t1;
 SET @endTime = NOW();
-SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime));
+SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime)) >= 2;
 SELECT @TimeDifference;|
 ** Connection con0 **
 Sleeping 2 Seconds before unlock
@@ -66,7 +66,7 @@ id	value
 2	val2
 3	val3
 @TimeDifference
-2
+1
 Testing for value OFF
 ** Connection con0 **
 SET SESSION query_cache_wlock_invalidate = OFF;
