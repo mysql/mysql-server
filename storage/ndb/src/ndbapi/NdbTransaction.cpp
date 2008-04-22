@@ -524,14 +524,14 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
          * We behave rather similarly in both places.
          * Hitting this is certainly a bug though...
          */
-        g_eventLogger.error("WARNING: Timeout in executeNoBlobs() waiting for "
-                            "response from NDB data nodes. This should NEVER "
-                            "occur. You have likely hit a NDB Bug. Please "
-                            "file a bug.");
+        g_eventLogger->error("WARNING: Timeout in executeNoBlobs() waiting for "
+                             "response from NDB data nodes. This should NEVER "
+                             "occur. You have likely hit a NDB Bug. Please "
+                             "file a bug.");
         DBUG_PRINT("error",("This timeout should never occure, execute()"));
-        g_eventLogger.error("Forcibly trying to rollback txn (%p"
-                            ") to try to clean up data node resources.",
-                            this);
+        g_eventLogger->error("Forcibly trying to rollback txn (%p"
+                             ") to try to clean up data node resources.",
+                             this);
         executeNoBlobs(NdbTransaction::Rollback);
         theError.code = 4012;
         theError.status= NdbError::PermanentError;
@@ -935,7 +935,7 @@ NdbTransaction::sendROLLBACK()      // Send a TCROLLBACKREQ signal;
     tSignal.setData(tTransId2, 3);
     if(theError.code == 4012)
     {
-      g_eventLogger.error("Sending TCROLLBACKREQ with Bad flag");
+      g_eventLogger->error("Sending TCROLLBACKREQ with Bad flag");
       tSignal.setLength(tSignal.getLength() + 1); // + flags
       tSignal.setData(0x1, 4); // potentially bad data
     }
