@@ -371,8 +371,8 @@ static void my_win_init(void)
       DWORD index= 0;
       DWORD type;
       char key_name[256], key_data[1024];
-      size_t key_name_len= sizeof(key_name) - 1;
-      size_t key_data_len= sizeof(key_data) - 1;
+      DWORD key_name_len= sizeof(key_name) - 1;
+      DWORD key_data_len= sizeof(key_data) - 1;
 
       while ((ret= RegEnumValue(key_handle, index++,
                                 key_name, &key_name_len,
