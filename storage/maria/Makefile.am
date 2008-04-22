@@ -63,7 +63,7 @@ maria_dump_log_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmaria.a \
                         $(top_builddir)/mysys/libmysys.a \
 			$(top_builddir)/dbug/libdbug.a \
 			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
-maria_dump_log_SOURCES= ma_loghandler.c
+maria_dump_log_SOURCES= ma_loghandler.c unittest/ma_loghandler_examples.c
 maria_dump_log_CPPFLAGS= -DMARIA_DUMP_LOG
 noinst_PROGRAMS =	ma_test1 ma_test2 ma_test3 ma_rt_test ma_sp_test
 noinst_HEADERS =	maria_def.h ma_rt_index.h ma_rt_key.h ma_rt_mbr.h \
