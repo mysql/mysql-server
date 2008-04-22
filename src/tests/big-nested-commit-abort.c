@@ -3,8 +3,8 @@
  *  Four Tests:
  *     big child aborts, parent aborts
  *     big child aborts, parent commits
- *     big child commits, parent aborts
- *     big child commits, parent commits (This test)
+ *     big child commits, parent aborts  (This test)
+ *     big child commits, parent commits
  */
 
 #include <db.h>
@@ -60,10 +60,10 @@ void test_commit_commit (void) {
 	lookup(i, 0, i);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
-    r=xparent->commit(xparent, 0); CKERR(r);
+    r=xparent->abort(xparent); CKERR(r);
     r=env->txn_begin(env, 0, &xchild, 0); CKERR(r);
     for (i=0; i<200000; i++) {
-	lookup(i, 0, i);
+	lookup(i, DB_NOTFOUND, 0);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
 }
