@@ -96,6 +96,8 @@ sub check_socket_path_length {
   my ($path)= @_;
   my $truncated= 0;
 
+  return 0 if IS_WINDOWS;
+
   require IO::Socket::UNIX;
 
   my $sock = new IO::Socket::UNIX
