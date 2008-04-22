@@ -2,9 +2,9 @@
  * can commit properly. 
  *  Four Tests:
  *     big child aborts, parent aborts
- *     big child aborts, parent commits
+ *     big child aborts, parent commits (This test)
  *     big child commits, parent aborts
- *     big child commits, parent commits (This test)
+ *     big child commits, parent commits
  */
 
 #include <db.h>
@@ -15,12 +15,12 @@ static DB_ENV *env;
 static DB *db;
 static DB_TXN *xchild, *xparent;
 
-static void insert (int i) {
+static void insert (int i, int j) {
     char hello[30], there[30];
     DBT key,data;
     if (verbose) printf("Insert %d\n", i);
     snprintf(hello, sizeof(hello), "hello%d", i);
-    snprintf(there, sizeof(there), "there%d", i);
+    snprintf(there, sizeof(there), "there%d", j);
     int r = db->put(db, xchild,
 		    dbt_init(&key,  hello, strlen(hello)+1),
 		    dbt_init(&data, there, strlen(there)+1),
@@ -47,23 +47,30 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
-void test_commit_commit (void) {
+int N = 200000;
+
+void test_abort_commit (void) {
     int i, r;
+    r=env->txn_begin(env, 0, &xchild, 0); CKERR(r);
+    for (i=0; i<N/2; i++) {
+	insert(i*2,i*4+1);
+    }
+    r=xchild->commit(xchild, 0); CKERR(r);
     r=env->txn_begin(env, 0, &xparent, 0);  CKERR(r);
     r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
-	insert(i);
+    for (i=0; i<N; i++) {
+	insert(i, i);
     }
     r=xchild->abort(xchild); CKERR(r);
     r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
-	lookup(i, DB_NOTFOUND, i);
+    for (i=0; i<N; i++) {
+	lookup(i, (i%2==0)?0:DB_NOTFOUND, i*2+1);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
     r=xparent->commit(xparent, 0); CKERR(r);
     r=env->txn_begin(env, 0, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
-	lookup(i, DB_NOTFOUND, i);
+    for (i=0; i<N; i++) {
+	lookup(i, (i%2==0)?0:DB_NOTFOUND, i*2+1);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
 }
@@ -75,14 +82,13 @@ void setup (void) {
     r=mkdir(ENVDIR, 0777);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->set_lk_max_locks(env, 200000); CKERR(r);
+    r=env->set_lk_max_locks(env, N); CKERR(r);
 #ifndef TOKUDB
-    r=env->set_lk_max_objects(env, 200000); CKERR(r);
+    r=env->set_lk_max_objects(env, N); CKERR(r);
 #endif
     env->set_errfile(env, stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-    r=db->set_flags(db, DB_DUPSORT);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, 0777); CKERR(r);
@@ -98,7 +104,7 @@ void shutdown (void) {
 int main (int argc, const char *argv[]) {
     parse_args(argc, argv);
     setup();
-    test_commit_commit();
+    test_abort_commit();
     shutdown();
     return 0;
 }
