@@ -136,7 +136,7 @@ send
 SET @startTime = NOW();
 SELECT * FROM t1;
 SET @endTime = NOW();
-SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime));
+SET @TimeDifference = TIME_TO_SEC(TIMEDIFF(@endTime, @startTime)) >= 2;
 SELECT @TimeDifference;|
 
 delimiter ;|

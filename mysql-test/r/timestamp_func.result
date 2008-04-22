@@ -24,10 +24,10 @@ SET @ts_old = @@SESSION.timestamp;
 Changing time zone
 SET time_zone = 'MET';
 SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old AS 'Timestamp Difference';
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
 Timestamp Difference
 1
-1 Expected
+>=1 Expected
 ** Cleanup **
 ** Connection default **
 Disconnecting Connections con0, con1
