@@ -87,7 +87,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb";
 my $opt_suites;
 
-our $opt_verbose= 1;  # Verbose output, enable with --verbose
+our $opt_verbose= 0;  # Verbose output, enable with --verbose
 our $opt_verbose_restart= 0;  # Verbose output for restarts
 
 our $exe_mysql;
