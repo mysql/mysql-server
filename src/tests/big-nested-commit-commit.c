@@ -47,22 +47,24 @@ static void lookup (int i, int expect, int expectj) {
     }
 }
 
+int N = 50000;
+
 void test_commit_commit (void) {
     int i, r;
     r=env->txn_begin(env, 0, &xparent, 0);  CKERR(r);
     r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
+    for (i=0; i<N; i++) {
 	insert(i);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
     r=env->txn_begin(env, xparent, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
+    for (i=0; i<N; i++) {
 	lookup(i, 0, i);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
     r=xparent->commit(xparent, 0); CKERR(r);
     r=env->txn_begin(env, 0, &xchild, 0); CKERR(r);
-    for (i=0; i<200000; i++) {
+    for (i=0; i<N; i++) {
 	lookup(i, 0, i);
     }
     r=xchild->commit(xchild, 0); CKERR(r);
@@ -75,9 +77,9 @@ void setup (void) {
     r=mkdir(ENVDIR, 0777);       CKERR(r);
 
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->set_lk_max_locks(env, 200000); CKERR(r);
+    r=env->set_lk_max_locks(env, N); CKERR(r);
 #ifndef TOKUDB
-    r=env->set_lk_max_objects(env, 200000); CKERR(r);
+    r=env->set_lk_max_objects(env, N); CKERR(r);
 #endif
     env->set_errfile(env, stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, 0777); CKERR(r);

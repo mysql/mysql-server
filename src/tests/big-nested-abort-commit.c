@@ -11,6 +11,8 @@
 #include <sys/stat.h>
 #include "test.h"
 
+int N = 50000;
+
 static DB_ENV *env;
 static DB *db;
 static DB_TXN *xchild, *xparent;
@@ -46,8 +48,6 @@ static void lookup (int i, int expect, int expectj) {
 	assert(strcmp(data.data, there)==0);
     }
 }
-
-int N = 200000;
 
 void test_abort_commit (void) {
     int i, r;
