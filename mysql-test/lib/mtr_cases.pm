@@ -55,6 +55,7 @@ use File::Basename;
 use IO::File();
 use My::Config;
 use My::Platform;
+use My::Find;
 
 require "mtr_misc.pl";
 
@@ -248,11 +249,20 @@ sub collect_one_suite($)
   my $suitedir= "$::glob_mysql_test_dir"; # Default
   if ( $suite ne "main" )
   {
-    $suitedir= mtr_path_exists("$suitedir/suite/$suite",
-			       "$suitedir/$suite");
+    if ( -d $suite ){
+      $suitedir= $suite;
+    }
+    else
+    {
+      $suitedir= my_find_dir($::basedir,
+			     ["mysql-test/suite",
+			      "mysql-test",
+			      # Look in storage engine specific suite dirs
+			      "storage/*/mysql-test-suites"
+			     ],
+			     [$suite]);
+    }
     mtr_verbose("suitedir: $suitedir");
-
-
   }
 
   my $testdir= "$suitedir/t";

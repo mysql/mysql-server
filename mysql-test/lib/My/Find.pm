@@ -169,6 +169,12 @@ sub my_find_paths {
   #print "paths: @paths\n";
 
   # -------------------------------------------------------
+  # Glob all paths to expand wildcards
+  # -------------------------------------------------------
+  @paths= map { glob("$_") } @paths;
+  #print "paths: @paths\n";
+
+  # -------------------------------------------------------
   # Return the list of paths
   # -------------------------------------------------------
   return @paths;
