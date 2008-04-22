@@ -2202,7 +2202,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         error = HA_ERR_UNSUPPORTED;
         break;
     }
-    error = read_row(error, buf, active_index, &row, 0, find_flag != HA_READ_KEY_EXACT);
+    error = read_row(error, buf, active_index, &row, &last_key, find_flag != HA_READ_KEY_EXACT);
     if (error && (tokudb_debug & TOKUDB_DEBUG_ERROR))
         printf("%d:%s:%d:error:%d:%d\n", my_tid(), __FILE__, __LINE__, error, find_flag);
     TOKUDB_DBUG_RETURN(error);
