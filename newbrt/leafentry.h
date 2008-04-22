@@ -27,12 +27,8 @@
  * The case of a committed pair and a provisional pair can be represented by a committed pair, since it doesn't matter whether the transction aborts or commits, the value is the same.
  */
 
-#include "mempool.h"
 #include "brttypes.h"
-#include "gpma.h"
 #include "rbuf.h"
-
-typedef struct leafentry *LEAFENTRY;
 
 u_int32_t toku_le_crc(LEAFENTRY v);
 

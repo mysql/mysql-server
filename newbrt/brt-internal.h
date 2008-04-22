@@ -7,7 +7,6 @@
 #include "cachetable.h"
 #include "fifo.h"
 #include "yerror.h"
-#include "gpma.h"
 #include "brt.h"
 #include "crc.h"
 #include "list.h"
@@ -15,15 +14,21 @@
 #include "kv-pair.h"
 #include "leafentry.h"
 
+typedef LEAFENTRY OMTVALUE;
+
+#include "omt.h"
+
 #ifndef BRT_FANOUT
 #define BRT_FANOUT 16
 #endif
 enum { TREE_FANOUT = BRT_FANOUT };
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { PMA_ITEM_OVERHEAD = 4 };
+enum { OMT_ITEM_OVERHEAD = 0 }; /* No overhead for the OMT item.  The PMA needed to know the idx, but the OMT doesn't. */
 enum { BRT_CMD_OVERHEAD = (1     // the type
 			   + 8)  // the xid
 };
+enum { LE_OVERHEAD_BOUND = 9 }; // the type and xid
+
 enum { BRT_DEFAULT_NODE_SIZE = 1 << 20 };
 
 struct nodeheader_in_file {
@@ -57,7 +62,7 @@ struct brtnode {
     //      When we checkpoint:  Create a checkpoint record, and cause every dirty node to be written to disk.  The new checkpoint record is *not* incorporated into the disk_lsn of the written nodes.
     //      While we are checkpointing, someone may modify a dirty node that has not yet been written.   In that case, when we unpin the node, we make the new copy (because the disk_lsn<checkpoint_lsn), just as we would usually.
     //
-    int     layout_version; // What version of the data structure? (version 2 adds the xid to the brt cmds)
+    int    layout_version; // What version of the data structure? (version 2 adds the xid to the brt cmds)
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     u_int32_t rand4fingerprint;
     u_int32_t local_fingerprint; /* For leaves this is everything in the buffer.  For nonleaves, this is everything in the buffers, but does not include child subtree fingerprints. */
@@ -82,7 +87,7 @@ struct brtnode {
 						         However, in the absense of duplicate keys, child 1's keys *are* > childkeys[0]. */
         } n;
 	struct leaf {
-	    GPMA buffer;
+	    OMT buffer;
 	    unsigned int n_bytes_in_buffer; /* How many bytes to represent the PMA (including the per-key overheads, but not including the overheads for the node. */
 	    struct mempool buffer_mempool;
 	} l;
@@ -186,6 +191,7 @@ struct brt_cursor {
     void *skey, *sval;
 };
 
+// logs the memory allocation, but not the creation of the new node
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, TOKULOGGER logger);
 int toku_unpin_brtnode (BRT brt, BRTNODE node) ;
 unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
@@ -206,12 +212,12 @@ struct cmd_leafval_bessel_extra {
     BRT_CMD cmd;
     int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
-int toku_cmd_leafval_bessel (u_int32_t dlen, void *leafentry, void *extra);
+int toku_cmd_leafval_bessel (LEAFENTRY leafentry, void *extra);
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
 int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
 
-int toku_gpma_compress_kvspace (GPMA pma, struct mempool *memp);
-void *mempool_malloc_from_gpma(GPMA pma, struct mempool *mp, size_t size);
+int toku_omt_compress_kvspace (OMT omt, struct mempool *memp);
+void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
 
 #endif

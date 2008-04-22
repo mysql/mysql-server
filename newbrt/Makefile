@@ -72,22 +72,18 @@ REGRESSION_TESTS = \
 	test-brt-delete-both \
 	test-brt-overflow \
 	test-del-inorder \
-	test-gpma-blackbox \
-	test-gpma-glassbox \
-	test-gpma-glassbox \
-	test-gpma-leftmost-dup \
 	test-inc-split \
 	test-primes \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	ybt-test \
         log-test \
+        omt-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 # Add in the binaries that must be run in various ways.
 BINS =  $(REGRESSION_TESTS) \
         benchmark-test \
-	test-gpma-worstinsert \
         brtdump \
         randbrt \
         randdb4 \
@@ -99,7 +95,7 @@ OFILES = \
   brt-verify.o \
   brt.o \
   cachetable.o \
-  fifo.o gpma.o \
+  fifo.o \
   fingerprint.o \
   key.o \
   leafentry.o \
@@ -107,6 +103,7 @@ OFILES = \
   log_code.o \
   memory.o \
   mempool.o \
+  omt.o \
   primes.o \
   recover.o \
   roll.o \
@@ -128,7 +125,7 @@ tdb-recover: LDFLAGS+=-lz
 recover.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h
 tdb-recover: $(OFILES)
 
-roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h gpma.h
+roll.o: log_header.h log-internal.h log.h yerror.h brttypes.h kv-pair.h memory.h key.h cachetable.h omt.h
 
 log_code.o: log_header.h wbuf.h log-internal.h rbuf.h
 log_header.h: log_code.c
@@ -141,9 +138,6 @@ bins: $(BINS)
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
 CHECKS = \
  benchmarktest_256 \
- test-gpma-worstinsert-a \
- test-gpma-worstinsert-b \
- test-gpma-worstinsert-c \
  $(REGRESSION_TESTS) \
 # This line intentially kept commented so I can have a \ on the previous line
 
@@ -151,12 +145,6 @@ CHECKS = \
 check: bins $(patsubst %,check_%,$(CHECKS))
 check_benchmarktest_256: benchmark-test
 	$(VGRIND) ./benchmark-test $(VERBVERBOSE) --valsize 256 --verify 1
-check_test-gpma-worstinsert-a: test-gpma-worstinsert
-	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -a
-check_test-gpma-worstinsert-b: test-gpma-worstinsert
-	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -b
-check_test-gpma-worstinsert-c: test-gpma-worstinsert
-	$(VGRIND) ./test-gpma-worstinsert $(VERBVERBOSE) -c
 
 check_test-assert: test-assert
 	@# no arguments, should err
@@ -179,34 +167,24 @@ check-fanout:
 	done
 
 log-test log-test2 log-test3 log-test4 log-test5 log-test6 benchmark-test brt-test brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 test-brt-delete-both brt-serialize-test brtdump test-inc-split test-del-inorder cachetable-test cachetable-test2: LDFLAGS+=-lz
-# pma: PROF_FLAGS=-fprofile-arcs -ftest-coverage
 
-BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h gpma.h brt.h brt-search.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
+HFILES = $(wildcard *.h)
+BRT_INTERNAL_H_INCLUDES = brt-internal.h cachetable.h fifo.h omt.h brt.h brt-search.h brttypes.h yerror.h ybt.h log.h ../include/db.h kv-pair.h memory.h crc.h mempool.h leafentry.h
 key.o: brttypes.h key.h
 list-test: list-test.o toku_assert.o
-test-brt-delete-both: ybt.o brt.o fifo.o gpma.o memory.o leafentry.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+test-brt-delete-both: ybt.o brt.o fifo.o omt.o memory.o leafentry.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 test-inc-split: $(TEST_OFILES)
 brt-test-helpers.o: $(BRT_INTERNAL_H_INCLUDES) toku_assert.h
 test-del-inorder: $(TEST_OFILES)
-# pma-test.o: $(BRT_INTERNAL_H_INCLUDES) pma-internal.h gpma.h list.h mempool.h
-# pma-test: pma.o memory.o key.o ybt.o log.o mempool.o fingerprint.o brt-serialize.o fifo.o primes.o toku_assert.o log_code.o  roll.o brt.o cachetable.o brt-verify.o
-pma.o: gpma.h yerror.h pma-internal.h memory.h key.h ybt.h brttypes.h log.h ../include/db.h log_header.h
-test-gpma-glassbox.o: test-gpma-glassbox.c gpma.h gpma-internal.h toku_assert.h memory.h
-test-gpma-glassbox: test-gpma-glassbox.o toku_assert.o memory-debug.o gpma.o
-test-gpma-blackbox: test-gpma-blackbox.o toku_assert.o memory.o gpma.o
-test-gpma-worstinsert: test-gpma-worstinsert.o toku_assert.o memory.o gpma.o
-test-gpma-leftmost-dup: test-gpma-leftmost-dup.o toku_assert.o memory.o gpma.o
-test-gpma-worstinsert.o test-gpma-blackbox.o test-gpma-leftmost-dup.o: gpma.h memory.h toku_assert.h
-: gpma.h memory.h toku_assert.h
-gpma.o: gpma.c gpma.h
+omt.o: $(HFILES)
 ybt.o: ybt.h brttypes.h ../include/db.h
 ybt-test: ybt-test.o ybt.o memory.o toku_assert.o
 ybt-test.o: ybt.h ../include/db.h
 cachetable.o: brttypes.h cachetable.h hashfun.h memory.h primes.h toku_assert.h $(BRT_INTERNAL_H_INCLUDES) log_header.h
-brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 brt-test: ybt.o brt.o fifo.o gpma.o leafentry.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
+brt-test0 brt-test1 brt-test2 brt-test3 brt-test4 brt-test5 test-brt-overflow brt-test-named-db brt-test-cursor brt-test-cursor-2 brt-test: ybt.o brt.o fifo.o omt.o leafentry.o memory.o brt-serialize.o cachetable.o ybt.o key.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o
 log.o: log_header.h log-internal.h log.h wbuf.h crc.h brttypes.h $(BRT_INTERNAL_H_INCLUDES)
 logformat: logformat.o toku_assert.o
-brt-test0.o brt-test1.o brt-test2.o brt-test3.o brt-test4.o brt-test5.o test-brt-overflow.h brt-test-named-db.o brt-test-cursor.o brt-test-cursor-2.o brt-test.o brt.o: brt.h brt-search.h ../include/db.h fifo.h gpma.h brttypes.h cachetable.h memory.h $(BRT_INTERNAL_H_INCLUDES)
+brt-test0.o brt-test1.o brt-test2.o brt-test3.o brt-test4.o brt-test5.o test-brt-overflow.h brt-test-named-db.o brt-test-cursor.o brt-test-cursor-2.o brt-test.o brt.o: brt.h brt-search.h ../include/db.h fifo.h omt.h brttypes.h cachetable.h memory.h $(BRT_INTERNAL_H_INCLUDES)
 brt-serialize-test.o: $(BRT_INTERNAL_H_INCLUDES)
 brt.o: $(BRT_INTERNAL_H_INCLUDES) key.h log_header.h
 fifo.o: fifo.h brttypes.h 
@@ -214,16 +192,18 @@ memory.o: memory.h
 primes.o: primes.h toku_assert.h
 fifo-test: fifo.o memory.o toku_assert.o ybt.o
 brt-serialize.o: $(BRT_INTERNAL_H_INCLUDES) key.h wbuf.h rbuf.h
-brt-bigtest: memory.o ybt.o brt.o gpma.o cachetable.o key.o fifo.o brt-serialize.o
+brt-bigtest: memory.o ybt.o brt.o omt.o cachetable.o key.o fifo.o brt-serialize.o
 brt-bigtest.o: brt.h brt-search.h ../include/db.h
-log-test6 log-test5 log-test4 log-test3 log-test2 log-test: log.o memory.o leafentry.o toku_assert.o roll.o log_code.o brt-serialize.o brt.o cachetable.o gpma.o ybt.o fifo.o key.o fingerprint.o brt-verify.o mempool.o primes.o
+log-test6 log-test5 log-test4 log-test3 log-test2 log-test: log.o memory.o leafentry.o toku_assert.o roll.o log_code.o brt-serialize.o brt.o cachetable.o omt.o ybt.o fifo.o key.o fingerprint.o brt-verify.o mempool.o primes.o
 brt-verify.o: $(BRT_INTERNAL_H_INCLUDES)
 fingerprint.o: $(BRT_INTERNAL_H_INCLUDES)
 mempool.o: toku_assert.h mempool.h
 leafentry.o: brttypes.h crc.h leafentry.h memory.h toku_assert.h
 toku_assert.o: toku_assert.h
+omt-test.o: toku_assert.h memory.h toku_assert.h ../include/db.h brttypes.h
+omt-test: omt-test.o omt.o memory.o toku_assert.o
 
-brt-serialize-test: brt-serialize-test.o brt-serialize.o leafentry.o memory.o fifo.o gpma.o key.o ybt.o brt.o cachetable.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o 
+brt-serialize-test: brt-serialize-test.o brt-serialize.o leafentry.o memory.o fifo.o omt.o key.o ybt.o brt.o cachetable.o primes.o toku_assert.o log.o mempool.o brt-verify.o fingerprint.o log_code.o roll.o 
 test_toku_malloc_plain_free: memory.o toku_assert.o
 
 

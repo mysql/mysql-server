@@ -3,7 +3,6 @@
 
 #include "brt.h"
 #include "key.h"
-#include "gpma.h"
 #include "brt-internal.h"
 #include "memory.h"
 #include "toku_assert.h"

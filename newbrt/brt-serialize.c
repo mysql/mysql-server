@@ -3,7 +3,6 @@
 
 #define _XOPEN_SOURCE 500
 
-//#include "pma.h"
 #include "toku_assert.h"
 #include "brt-internal.h"
 #include "key.h"
@@ -56,14 +55,15 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
-	GPMA_ITERATE(node->u.l.buffer,
-		     idx, vlen, vdata,
-		     ({
-			 LEAFENTRY le=vdata;
-			 hsize+= PMA_ITEM_OVERHEAD + leafentry_disksize(le);
-		     }));
+	int addupsize (LEAFENTRY le, u_int32_t UU(idx), void *vp) {
+	    unsigned int *ip=vp;
+	    (*ip) += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+	    return 0;
+	}
+	toku_omt_iterate(node->u.l.buffer,
+			 addupsize,
+			 &hsize);
 	assert(hsize<=node->u.l.n_bytes_in_buffer);
-	hsize+=4; /* the PMA size */
 	hsize+=4; /* add n entries in buffer table. */
 	return size+hsize;
     }
@@ -81,8 +81,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
 	result+=node->u.n.n_bytes_in_buffers;
     } else {
-	result+=(4 /* n_entries in buffer table. */
-		 +4); /* the pma size */
+	result+=4; /* n_entries in buffer table. */
 	result+=node->u.l.n_bytes_in_buffer;
 	if (toku_memory_check) {
 	    unsigned int slowresult = toku_serialize_brtnode_size_slow(node);
@@ -177,14 +176,13 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 	}
     } else {
 	//printf("%s:%d writing node %lld n_entries=%d\n", __FILE__, __LINE__, node->thisnodename, toku_gpma_n_entries(node->u.l.buffer));
-	wbuf_uint(&w, toku_gpma_n_entries(node->u.l.buffer));
-	wbuf_uint(&w, toku_gpma_index_limit(node->u.l.buffer));
-	GPMA_ITERATE(node->u.l.buffer, idx, vlen, vdata,
-		     ({
-			 //printf(" %s:%d idx=%d\n", __FILE__, __LINE__, idx);
-			 wbuf_uint(&w, idx);
-			 wbuf_LEAFENTRY(&w, vdata);
-		     }));
+	wbuf_uint(&w, toku_omt_size(node->u.l.buffer));
+	int wbufwriteleafentry (LEAFENTRY le, u_int32_t UU(idx), void *v) {
+	    struct wbuf *thisw=v;
+	    wbuf_LEAFENTRY(thisw, le);
+	    return 0;
+	}
+	toku_omt_iterate(node->u.l.buffer, wbufwriteleafentry, &w);
     }
     assert(w.ndone<=w.size);
 #ifdef CRC_ATEND
@@ -266,7 +264,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=4) {
+    if (result->layout_version!=5) {
 	r=DB_BADFORMAT;
 	goto died1;
     }
@@ -368,11 +366,10 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	}
     } else {
 	int n_in_buf = rbuf_int(&rc);
-        int index_limit = rbuf_int(&rc);
 	result->u.l.n_bytes_in_buffer = 0;
-	r=toku_gpma_create(&result->u.l.buffer, index_limit);
+	r=toku_omt_create(&result->u.l.buffer);
 	if (r!=0) {
-	    if (0) { died_21: toku_gpma_free(&result->u.l.buffer, 0, 0); }
+	    if (0) { died_21: toku_omt_destroy(&result->u.l.buffer); }
 	    goto died1;
 	}
 	//printf("%s:%d r PMA= %p\n", __FILE__, __LINE__, result->u.l.buffer); 
@@ -388,18 +385,15 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	for (i=0; i<n_in_buf; i++) {
 	    LEAFENTRY tmp_le;
 	    //printf("%s:%d reading %dth item\n", __FILE__, __LINE__, i);
-	    int idx = rbuf_int(&rc);
-	    //printf("%s:%d idx=%d\n", __FILE__, __LINE__, idx);
 	    u_int32_t memsize, disksize;
 	    rbuf_LEAFENTRY(&rc, &memsize, &disksize, &tmp_le);
-	    LEAFENTRY le = mempool_malloc_from_gpma(result->u.l.buffer, &result->u.l.buffer_mempool, memsize);
+	    LEAFENTRY le = mempool_malloc_from_omt(result->u.l.buffer, &result->u.l.buffer_mempool, memsize);
 	    assert(le);
 	    memcpy(le, tmp_le, memsize);
 	    toku_free(tmp_le);
 	    assert(disksize==leafentry_disksize(le));
-	    result->u.l.n_bytes_in_buffer += disksize + PMA_ITEM_OVERHEAD;
-	    //printf("idx=%d\n", idx);
-	    toku_gpma_set_at_index(result->u.l.buffer, idx, memsize, le);
+	    result->u.l.n_bytes_in_buffer += disksize + OMT_ITEM_OVERHEAD;
+	    toku_omt_insert_at(result->u.l.buffer, le, i);
 	    actual_sum += result->rand4fingerprint*toku_le_crc(le);
 	    //printf("%s:%d rand4=%08x fp=%08x \n", __FILE__, __LINE__, result->rand4fingerprint, actual_sum);
 	}
@@ -440,18 +434,26 @@ void toku_verify_counts (BRTNODE node) {
     /*foo*/
     if (node->height==0) {
 	assert(node->u.l.buffer);
-	unsigned int sum=0;
-	unsigned int count=0;
-	u_int32_t    fp=0;
-	GPMA_ITERATE(node->u.l.buffer, idx, dlen, ddata,
-		     ({
-			 count++;
-			 sum+= PMA_ITEM_OVERHEAD + leafentry_disksize(ddata); // use the disk size, not the memory size.
-			 fp += toku_le_crc(ddata);
-		     }));
-	assert(count==toku_gpma_n_entries(node->u.l.buffer));
-	assert(sum==node->u.l.n_bytes_in_buffer);
-	u_int32_t fps = node->rand4fingerprint *fp;
+	struct sum_info {
+	    unsigned int dsum;
+	    unsigned int msum;
+	    unsigned int count;
+	    u_int32_t    fp;
+	} sum_info = {0,0,0,0};
+	int sum_item (LEAFENTRY le, u_int32_t UU(idx), void *vsi) {
+	    struct sum_info *si = vsi;
+	    si->count++;
+	    si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+	    si->msum += leafentry_memsize(le);
+	    si->fp  += toku_le_crc(le);
+	    return 0;
+	}
+	toku_omt_iterate(node->u.l.buffer, sum_item, &sum_info);
+	assert(sum_info.count==toku_omt_size(node->u.l.buffer));
+	assert(sum_info.dsum==node->u.l.n_bytes_in_buffer);
+	assert(sum_info.msum == node->u.l.buffer_mempool.free_offset - node->u.l.buffer_mempool.frag_size);
+
+	u_int32_t fps = node->rand4fingerprint * sum_info.fp;
 	assert(fps==node->local_fingerprint);
     } else {
 	unsigned int sum = 0;

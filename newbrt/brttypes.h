@@ -98,4 +98,6 @@ typedef struct brt_cmd BRT_CMD_S, *BRT_CMD;
 
 #define UU(x) x __attribute__((__unused__))
 
+typedef struct leafentry *LEAFENTRY;
+
 #endif
