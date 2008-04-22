@@ -44,7 +44,7 @@
 #include <sys/processor.h> // For system informatio
 #endif
 
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 extern NdbMutex * theShutdownMutex;
 
 void catchsigs(bool ignore); // for process signal handling
@@ -180,8 +180,8 @@ int reportShutdown(class Configuration *config, int error_exit, int restart)
 
   { // Log event
     const EventReport * const eventReport = (EventReport *)&theData[0];
-    g_eventLogger.log(eventReport->getEventType(), theData, length,
-		      eventReport->getNodeId(), 0);
+    g_eventLogger->log(eventReport->getEventType(), theData, length,
+                       eventReport->getNodeId(), 0);
   }
 
   for (unsigned n = 0; n < config->m_mgmds.size(); n++)
@@ -208,13 +208,13 @@ handle_error:
       BaseString tmp(ndb_mgm_get_latest_error_msg(h));
       tmp.append(" : ");
       tmp.append(ndb_mgm_get_latest_error_desc(h));
-      g_eventLogger.warning("Unable to report shutdown reason to %s: %s",
-			    config->m_mgmds[n].c_str(), tmp.c_str());
+      g_eventLogger->warning("Unable to report shutdown reason to %s: %s",
+                             config->m_mgmds[n].c_str(), tmp.c_str());
     }
     else
     {
-      g_eventLogger.error("Unable to report shutdown reason to %s",
-			  config->m_mgmds[n].c_str());
+      g_eventLogger->error("Unable to report shutdown reason to %s",
+                           config->m_mgmds[n].c_str());
     }
 do_next:
     if (h)
@@ -230,14 +230,14 @@ int main(int argc, char** argv)
 {
   NDB_INIT(argv[0]);
   // Print to stdout/console
-  g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("ndbd");
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_INFO);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_CRITICAL);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_WARNING);
+  g_eventLogger->createConsoleHandler();
+  g_eventLogger->setCategory("ndbd");
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_INFO);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_CRITICAL);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
+  g_eventLogger->enable(Logger::LL_ON, Logger::LL_WARNING);
 
-  g_eventLogger.m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
+  g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
   globalEmulatorData.create();
 
@@ -278,21 +278,21 @@ int main(int argc, char** argv)
     int filedes[2];
     if (pipe(filedes))
     {
-      g_eventLogger.error("pipe() failed with errno=%d (%s)",
-			  errno, strerror(errno));
+      g_eventLogger->error("pipe() failed with errno=%d (%s)",
+                           errno, strerror(errno));
       return 1;
     }
     else
     {
       if (!(child_info_file_w= fdopen(filedes[1],"w")))
       {
-	g_eventLogger.error("fdopen() failed with errno=%d (%s)",
-			    errno, strerror(errno));
+        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
+                             errno, strerror(errno));
       }
       if (!(child_info_file_r= fdopen(filedes[0],"r")))
       {
-	g_eventLogger.error("fdopen() failed with errno=%d (%s)",
-			    errno, strerror(errno));
+        g_eventLogger->error("fdopen() failed with errno=%d (%s)",
+                             errno, strerror(errno));
       }
     }
 
@@ -319,7 +319,7 @@ int main(int argc, char** argv)
     if(WIFEXITED(status)){
       switch(WEXITSTATUS(status)){
       case NRT_Default:
-	g_eventLogger.info("Angel shutting down");
+        g_eventLogger->info("Angel shutting down");
 	reportShutdown(theConfig, 0, 0);
 	exit(0);
 	break;
@@ -360,7 +360,7 @@ int main(int argc, char** argv)
       else
       {
 	signum = 127;
-	g_eventLogger.info("Unknown exit reason. Stopped.");
+        g_eventLogger->info("Unknown exit reason. Stopped.");
       }
       if(theConfig->stopOnError()){
 	/**
@@ -381,25 +381,25 @@ int main(int argc, char** argv)
       /**
        * Error shutdown && stopOnError()
        */
-      g_eventLogger.alert("Ndbd has failed %u consecutive startups. "
-			  "Not restarting", failed_startups);
+      g_eventLogger->alert("Ndbd has failed %u consecutive startups. "
+                           "Not restarting", failed_startups);
       reportShutdown(theConfig, error_exit, 0);
       exit(0);
     }
     failed_startup_flag = false;
     reportShutdown(theConfig, error_exit, 1);
-    g_eventLogger.info("Ndb has terminated (pid %d) restarting", child);
+    g_eventLogger->info("Ndb has terminated (pid %d) restarting", child);
     theConfig->fetch_configuration();
   }
 
   if (child >= 0)
-    g_eventLogger.info("Angel pid: %d ndb pid: %d", getppid(), getpid());
+    g_eventLogger->info("Angel pid: %d ndb pid: %d", getppid(), getpid());
   else if (child > 0)
-    g_eventLogger.info("Ndb pid: %d", getpid());
+    g_eventLogger->info("Ndb pid: %d", getpid());
   else
-    g_eventLogger.info("Ndb started in foreground");
+    g_eventLogger->info("Ndb started in foreground");
 #else
-  g_eventLogger.info("Ndb started");
+  g_eventLogger->info("Ndb started");
 #endif
   theConfig->setupConfiguration();
   systemInfo(* theConfig, * theConfig->m_logLevel); 
@@ -511,19 +511,19 @@ systemInfo(const Configuration & config, const LogLevel & logLevel){
 #endif
   
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 0){
-    g_eventLogger.info("NDB Cluster -- DB node %d", globalData.ownId);
-    g_eventLogger.info("%s --", NDB_VERSION_STRING);
+    g_eventLogger->info("NDB Cluster -- DB node %d", globalData.ownId);
+    g_eventLogger->info("%s --", NDB_VERSION_STRING);
     if (config.get_mgmd_host())
-      g_eventLogger.info("Configuration fetched at %s port %d",
-			 config.get_mgmd_host(), config.get_mgmd_port());
+      g_eventLogger->info("Configuration fetched at %s port %d",
+                          config.get_mgmd_host(), config.get_mgmd_port());
 #ifdef NDB_SOLARIS // ok
-    g_eventLogger.info("NDB is running on a machine with %d processor(s) at %d MHz",
-		       processor, speed);
+    g_eventLogger->info("NDB is running on a machine with %d processor(s) at %d MHz",
+                        processor, speed);
 #endif
   }
   if(logLevel.getLogLevel(LogLevel::llStartUp) > 3){
     Uint32 t = config.timeBetweenWatchDogCheck();
-    g_eventLogger.info("WatchDog timer is set to %d ms", t);
+    g_eventLogger->info("WatchDog timer is set to %d ms", t);
   }
 
 }
@@ -601,7 +601,7 @@ catchsigs(bool ignore){
 extern "C"
 void 
 handler_shutdown(int signum){
-  g_eventLogger.info("Received signal %d. Performing stop.", signum);
+  g_eventLogger->info("Received signal %d. Performing stop.", signum);
   childReportError(0);
   childReportSignal(signum);
   globalData.theRestartFlag = perform_stop;
@@ -627,7 +627,7 @@ handler_error(int signum){
     while(true)
       NdbSleep_MilliSleep(10);
   thread_id= my_thread_id();
-  g_eventLogger.info("Received signal %d. Running error handler.", signum);
+  g_eventLogger->info("Received signal %d. Running error handler.", signum);
   childReportSignal(signum);
   // restart the system
   char errorData[64], *info= 0;
@@ -648,5 +648,5 @@ handler_sigusr1(int signum)
     failed_startups++;
     failed_startup_flag = true;
   }
-  g_eventLogger.info("Angel received ndbd startup failure count %u.", failed_startups);
+  g_eventLogger->info("Angel received ndbd startup failure count %u.", failed_startups);
 }

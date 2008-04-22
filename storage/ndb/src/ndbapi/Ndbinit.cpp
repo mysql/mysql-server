@@ -35,7 +35,7 @@
 #include "NdbEventOperationImpl.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 Ndb::Ndb( Ndb_cluster_connection *ndb_cluster_connection,
 	  const char* aDataBase , const char* aSchema)
@@ -142,7 +142,7 @@ Ndb::~Ndb()
   for (NdbEventOperationImpl *op= theImpl->m_ev_op; op; op=op->m_next)
   {
     if (op->m_state == NdbEventOperation::EO_EXECUTING && op->stop())
-      g_eventLogger.error("stopping NdbEventOperation failed in Ndb destructor");
+      g_eventLogger->error("stopping NdbEventOperation failed in Ndb destructor");
     op->m_magic_number= 0;
   }
   doDisconnect();
