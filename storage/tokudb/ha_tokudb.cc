@@ -2618,6 +2618,8 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
 
 int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
     TOKUDB_DBUG_ENTER("ha_tokudb::start_stmt");
+    if (!(tokudb_init_flags & DB_INIT_TXN)) 
+        TOKUDB_DBUG_RETURN(0);
     int error = 0;
     tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
     DBUG_ASSERT(trx);
