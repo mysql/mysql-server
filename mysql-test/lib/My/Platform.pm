@@ -51,15 +51,6 @@ BEGIN {
   }
 }
 
-BEGIN {
-  if (eval "use IO::Socket::UNIX; 1") {
-    eval 'sub HAVE_UNIX_SOCKET { 1 }';
-  }
-  else {
-    eval 'sub HAVE_UNIX_SOCKET { 0 }';
-  }
-}
-
 
 #
 # native_path
@@ -105,27 +96,27 @@ sub check_socket_path_length {
   my ($path)= @_;
   my $truncated= 0;
 
-  if (HAVE_UNIX_SOCKET){
-    require IO::Socket::UNIX;
+  require IO::Socket::UNIX;
 
-    my $sock = new IO::Socket::UNIX
-    (
-     Local => $path,
-     Listen => 1,
-    ) or die $!;
-    if ($path ne $sock->hostpath()){
-      # Path was truncated
-      $truncated= 1;
-      # Output diagnostic messages
-      print "path: '$path', length: ", length($path) ,"\n";
-      print "hostpath: '", $sock->hostpath(),
-	"', length: ", length($sock->hostpath()), "\n";
-    }
-    $sock= undef;
-    unlink($path);
-    return $truncated;
-  };
-  # All paths OK!
+  my $sock = new IO::Socket::UNIX
+  (
+   Local => $path,
+   Listen => 1,
+  );
+  if (!defined $sock){
+    # Could not create a UNIX domain socket
+    return 0; # Ok, will not be used by mysqld either    
+  }
+  if ($path ne $sock->hostpath()){
+    # Path was truncated
+    $truncated= 1;
+    # Output diagnostic messages
+    print "path: '$path', length: ", length($path) ,"\n";
+    print "hostpath: '", $sock->hostpath(),
+	  "', length: ", length($sock->hostpath()), "\n";
+  }
+  $sock= undef; # Close socket
+  unlink($path); # Remove the physical file
   return $truncated;
 }
 
