@@ -24,7 +24,7 @@
 #include <OutputStream.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 Transporter::Transporter(TransporterRegistry &t_reg,
 			 TransporterType _type,
@@ -204,14 +204,14 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
       DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
 			   m_type, remote_transporter_type));
       NDB_CLOSE_SOCKET(sockfd);
-      g_eventLogger.error("Incompatible configuration: transporter type "
-			  "mismatch with node %d", nodeId);
+      g_eventLogger->error("Incompatible configuration: transporter type "
+                           "mismatch with node %d", nodeId);
       DBUG_RETURN(false);
     }
   }
   else if (m_type == tt_SHM_TRANSPORTER)
   {
-    g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+    g_eventLogger->warning("Unable to verify transporter compatability with node %d", nodeId);
   }
 
   {
