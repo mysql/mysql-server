@@ -56,6 +56,8 @@ const struct logtype rollbacks[] = {
 			  {"FILENUM", "filenum", 0},
 			  {"BYTESTRING", "key", 0},
 			  NULLFIELD}},
+    {"rollinclude", 'I', FA{{"BYTESTRING", "fname", 0},
+                            NULLFIELD}},
 //    {"fclose", 'c', FA{{"FILENUM", "filenum", 0},
 //		       {"BYTESTRING", "fname", 0},
 //		       NULLFIELD}},
