@@ -19,7 +19,9 @@
 #                                                                             #
 ###############################################################################
 
+--source include/not_embedded.inc
 --source include/have_innodb.inc
+
 --echo '#--------------------FN_DYNVARS_048_01-------------------------#'
 ####################################################################
 # Check if setting innodb_table_locks is changed in new connection # 

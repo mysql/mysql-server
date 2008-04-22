@@ -64,8 +64,8 @@ SET @ts_old = @@SESSION.timestamp;
 --echo Changing time zone
 SET time_zone = 'MET';
 SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old AS 'Timestamp Difference';
---echo 1 Expected
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+--echo >=1 Expected
 
 #
 # Cleanup
