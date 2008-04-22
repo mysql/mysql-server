@@ -31,13 +31,13 @@
 #include <mgmapi_internal.h>
 #include <md5_hash.hpp>
 
-#include <EventLogger.hpp>
-EventLogger g_eventLogger;
-
 #include <NdbMutex.h>
 #ifdef VM_TRACE
 NdbMutex *ndb_print_state_mutex= NULL;
 #endif
+
+#include <EventLogger.hpp>
+extern EventLogger *g_eventLogger;
 
 static int g_ndb_connection_count = 0;
 
@@ -285,13 +285,46 @@ Ndb_cluster_connection_impl(const char *
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
 
+  NdbMutex_Lock(g_ndb_connection_mutex);
+  if(g_ndb_connection_count++ == 0){
+    NdbDictionary::Column::FRAGMENT= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
+    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
+    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
+      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
+    NdbDictionary::Column::ROW_COUNT= 
+      NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
+    NdbDictionary::Column::COMMIT_COUNT= 
+      NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
+    NdbDictionary::Column::ROW_SIZE=
+      NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
+    NdbDictionary::Column::RANGE_NO= 
+      NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
+    NdbDictionary::Column::DISK_REF= 
+      NdbColumnImpl::create_pseudo("NDB$DISK_REF");
+    NdbDictionary::Column::RECORDS_IN_RANGE= 
+      NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
+    NdbDictionary::Column::ROWID= 
+      NdbColumnImpl::create_pseudo("NDB$ROWID");
+    NdbDictionary::Column::ROW_GCI= 
+      NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
+    NdbDictionary::Column::ANY_VALUE= 
+      NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
+    NdbDictionary::Column::COPY_ROWID= 
+      NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
+
+    g_eventLogger->createConsoleHandler();
+    g_eventLogger->setCategory("NdbApi");
+    g_eventLogger->enable(Logger::LL_ON, Logger::LL_ERROR);
+
+  }
+  NdbMutex_Unlock(g_ndb_connection_mutex);
+
   if (!m_event_add_drop_mutex)
     m_event_add_drop_mutex= NdbMutex_Create();
   m_new_delete_ndb_mutex = NdbMutex_Create();
-  
-  g_eventLogger.createConsoleHandler();
-  g_eventLogger.setCategory("NdbApi");
-  g_eventLogger.enable(Logger::LL_ON, Logger::LL_ERROR);
+
 
   m_connect_thread= 0;
   m_connect_callback= 0;
@@ -327,36 +360,6 @@ Ndb_cluster_connection_impl(const char *
       new TransporterFacade(m_main_connection->m_impl.m_globalDictCache);
   }
 
-  NdbMutex_Lock(g_ndb_connection_mutex);
-  if(g_ndb_connection_count++ == 0){
-    NdbDictionary::Column::FRAGMENT= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT");
-    NdbDictionary::Column::FRAGMENT_FIXED_MEMORY= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_FIXED_MEMORY");
-    NdbDictionary::Column::FRAGMENT_VARSIZED_MEMORY= 
-      NdbColumnImpl::create_pseudo("NDB$FRAGMENT_VARSIZED_MEMORY");
-    NdbDictionary::Column::ROW_COUNT= 
-      NdbColumnImpl::create_pseudo("NDB$ROW_COUNT");
-    NdbDictionary::Column::COMMIT_COUNT= 
-      NdbColumnImpl::create_pseudo("NDB$COMMIT_COUNT");
-    NdbDictionary::Column::ROW_SIZE=
-      NdbColumnImpl::create_pseudo("NDB$ROW_SIZE");
-    NdbDictionary::Column::RANGE_NO= 
-      NdbColumnImpl::create_pseudo("NDB$RANGE_NO");
-    NdbDictionary::Column::DISK_REF= 
-      NdbColumnImpl::create_pseudo("NDB$DISK_REF");
-    NdbDictionary::Column::RECORDS_IN_RANGE= 
-      NdbColumnImpl::create_pseudo("NDB$RECORDS_IN_RANGE");
-    NdbDictionary::Column::ROWID= 
-      NdbColumnImpl::create_pseudo("NDB$ROWID");
-    NdbDictionary::Column::ROW_GCI= 
-      NdbColumnImpl::create_pseudo("NDB$ROW_GCI");
-    NdbDictionary::Column::ANY_VALUE= 
-      NdbColumnImpl::create_pseudo("NDB$ANY_VALUE");
-    NdbDictionary::Column::COPY_ROWID= 
-      NdbColumnImpl::create_pseudo("NDB$COPY_ROWID");
-  }
-  NdbMutex_Unlock(g_ndb_connection_mutex);
 
   DBUG_VOID_RETURN;
 }
@@ -429,6 +432,7 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
 
     delete NdbDictionary::Column::COPY_ROWID;
     NdbDictionary::Column::COPY_ROWID = 0;
+    
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 

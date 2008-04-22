@@ -20,8 +20,10 @@
 #include <NdbCondition.h>
 #include <NdbSleep.h>
 
-static NdbTableImpl f_invalid_table;
-static NdbTableImpl f_altered_table;
+static NdbTableImpl * f_invalid_table = 0;
+static NdbTableImpl * f_altered_table = 0;
+
+static int ndb_dict_cache_count = 0;
 
 Ndb_local_table_info *
 Ndb_local_table_info::create(NdbTableImpl *table_impl, Uint32 sz)
@@ -93,11 +95,29 @@ GlobalDictCache::GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::GlobalDictCache");
   m_tableHash.createHashTable();
   m_waitForTableCondition = NdbCondition_Create();
+  if (f_invalid_table == NULL)
+    f_invalid_table = new NdbTableImpl();
+  if (f_altered_table == NULL)
+    f_altered_table = new NdbTableImpl();
+  ndb_dict_cache_count++;
   DBUG_VOID_RETURN;
 }
 
 GlobalDictCache::~GlobalDictCache(){
   DBUG_ENTER("GlobalDictCache::~GlobalDictCache");
+  if (--ndb_dict_cache_count == 0)
+  {
+    if (f_invalid_table)
+    {
+      delete f_invalid_table;
+      f_invalid_table = 0;
+    }
+    if (f_altered_table)
+    {
+      delete f_altered_table;
+      f_altered_table = 0;
+    }
+  }
   NdbElement_t<Vector<TableVersion> > * curr = m_tableHash.getNext(0);
   while(curr != 0){
     Vector<TableVersion> * vers = curr->theData;
@@ -254,7 +274,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
   TableVersion & ver = vers->back();
   if(ver.m_status != RETREIVING || 
      !(ver.m_impl == 0 || 
-       ver.m_impl == &f_invalid_table || ver.m_impl == &f_altered_table) || 
+       ver.m_impl == f_invalid_table || ver.m_impl == f_altered_table) || 
      ver.m_version != 0 || 
      ver.m_refCount == 0){
     abort();
@@ -271,7 +291,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
     ver.m_version = tab->m_version;
     ver.m_status = OK;
   } 
-  else if (ver.m_impl == &f_invalid_table) 
+  else if (ver.m_impl == f_invalid_table) 
   {
     DBUG_PRINT("info", ("Table DROPPED invalid"));
     ver.m_impl = tab;
@@ -279,7 +299,7 @@ GlobalDictCache::put(const char * name, NdbTableImpl * tab)
     ver.m_status = DROPPED;
     ver.m_impl->m_status = NdbDictionary::Object::Invalid;    
   }
-  else if(ver.m_impl == &f_altered_table)
+  else if(ver.m_impl == f_altered_table)
   {
     DBUG_PRINT("info", ("Table DROPPED altered"));
     ver.m_impl = tab;
@@ -440,7 +460,7 @@ GlobalDictCache::alter_table_rep(const char * name,
 
     if(i == sz - 1 && ver.m_status == RETREIVING)
     {
-      ver.m_impl = altered ? &f_altered_table : &f_invalid_table;
+      ver.m_impl = altered ? f_altered_table : f_invalid_table;
       DBUG_VOID_RETURN;
     } 
   }

@@ -43,7 +43,7 @@ extern "C" {
 }
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 enum ndbd_options {
   OPT_INITIAL = NDB_STD_OPTIONS_LAST,

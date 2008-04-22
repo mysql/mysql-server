@@ -23,7 +23,7 @@ libgeneral_la_SOURCES = \
 	    NdbSqlUtil.cpp new.cpp \
             uucode.c random.c version.c \
             strdup.c \
-            ConfigValues.cpp ndb_init.c basestring_vsnprintf.c \
+            ConfigValues.cpp ndb_init.cpp basestring_vsnprintf.c \
             Bitmask.cpp \
 	    ndb_rand.c
 
