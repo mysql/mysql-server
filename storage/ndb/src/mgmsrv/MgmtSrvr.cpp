@@ -102,7 +102,7 @@ MgmtSrvr::logLevelThread_C(void* m)
   return 0;
 }
 
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 #ifdef NOT_USED
 static NdbOut&
@@ -223,7 +223,7 @@ MgmtSrvr::startEventLog()
 {
   NdbMutex_Lock(m_configMutex);
 
-  g_eventLogger.setCategory("MgmSrvr");
+  g_eventLogger->setCategory("MgmSrvr");
 
   ndb_mgm_configuration_iterator 
     iter(* _config->m_configValues, CFG_SECTION_NODE);
@@ -250,7 +250,7 @@ MgmtSrvr::startEventLog()
 		   clusterLog);
   }
   errStr[0]='\0';
-  if(!g_eventLogger.addHandler(logdest, &err, sizeof(errStr), errStr)) {
+  if(!g_eventLogger->addHandler(logdest, &err, sizeof(errStr), errStr)) {
     ndbout << "Warning: could not add log destination \""
            << logdest.c_str() << "\". Reason: ";
     if(err)
@@ -266,7 +266,7 @@ MgmtSrvr::startEventLog()
 void
 MgmtSrvr::stopEventLog()
 {
-  g_eventLogger.close();
+  g_eventLogger->close();
 }
 
 bool
@@ -274,21 +274,21 @@ MgmtSrvr::setEventLogFilter(int severity, int enable)
 {
   Logger::LoggerLevel level = (Logger::LoggerLevel)severity;
   if (enable > 0) {
-    g_eventLogger.enable(level);
+    g_eventLogger->enable(level);
   } else if (enable == 0) {
-    g_eventLogger.disable(level);
-  } else if (g_eventLogger.isEnable(level)) {
-    g_eventLogger.disable(level);
+    g_eventLogger->disable(level);
+  } else if (g_eventLogger->isEnable(level)) {
+    g_eventLogger->disable(level);
   } else {
-    g_eventLogger.enable(level);
+    g_eventLogger->enable(level);
   }
-  return g_eventLogger.isEnable(level);
+  return g_eventLogger->isEnable(level);
 }
 
 bool 
 MgmtSrvr::isEventLogFilterEnabled(int severity) 
 {
-  return g_eventLogger.isEnable((Logger::LoggerLevel)severity);
+  return g_eventLogger->isEnable((Logger::LoggerLevel)severity);
 }
 
 int MgmtSrvr::translateStopRef(Uint32 errCode)
@@ -693,11 +693,11 @@ int MgmtSrvr::okToSendTo(NodeId nodeId, bool unCond)
 
 void report_unknown_signal(SimpleSignal *signal)
 {
-  g_eventLogger.error("Unknown signal received. SignalNumber: "
-		      "%i from (%d, %x)",
-		      signal->readSignalNumber(),
-		      refToNode(signal->header.theSendersBlockRef),
-		      refToBlock(signal->header.theSendersBlockRef));
+  g_eventLogger->error("Unknown signal received. SignalNumber: "
+                       "%i from (%d, %x)",
+                       signal->readSignalNumber(),
+                       refToNode(signal->header.theSendersBlockRef),
+                       refToBlock(signal->header.theSendersBlockRef));
 }
 
 /*****************************************************************************
@@ -2012,13 +2012,13 @@ MgmtSrvr::handleReceivedSignal(NdbApiSignal* signal)
     break;
 
   default:
-    g_eventLogger.error("Unknown signal received. SignalNumber: "
-			"%i from (%d, %x)",
-			gsn,
-			refToNode(signal->theSendersBlockRef),
-			refToBlock(signal->theSendersBlockRef));
+    g_eventLogger->error("Unknown signal received. SignalNumber: "
+                         "%i from (%d, %x)",
+                         gsn,
+                         refToNode(signal->theSendersBlockRef),
+                         refToBlock(signal->theSendersBlockRef));
   }
-  
+
   if (theWaitState == NO_WAIT) {
     NdbCondition_Signal(theMgmtWaitForResponseCondPtr);
   }
@@ -2367,11 +2367,12 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       ndb_error_string(res, buf, sizeof(buf));
       error_string.appfmt("Cluster refused allocation of id %d. Error: %d (%s).",
 			  save_id_found, res, buf);
-      g_eventLogger.warning("Cluster refused allocation of id %d. "
-                            "Connection from ip %s. "
-                            "Returned error string \"%s\"", save_id_found,
-                            inet_ntoa(((struct sockaddr_in *)(client_addr))->sin_addr),
-                            error_string.c_str());
+      g_eventLogger->warning("Cluster refused allocation of id %d. "
+                             "Connection from ip %s. "
+                             "Returned error string \"%s\"", save_id_found,
+                             inet_ntoa(((struct sockaddr_in *)
+                                        (client_addr))->sin_addr),
+                             error_string.c_str());
       DBUG_RETURN(false);
     }
   }
@@ -2411,9 +2412,9 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
     
     char tmp_str[128];
     m_reserved_nodes.getText(tmp_str);
-    g_eventLogger.info("Mgmt server state: nodeid %d reserved for ip %s, "
-                       "m_reserved_nodes %s.",
-                       id_found, get_connect_address(id_found), tmp_str);
+    g_eventLogger->info("Mgmt server state: nodeid %d reserved for ip %s, "
+                        "m_reserved_nodes %s.",
+                        id_found, get_connect_address(id_found), tmp_str);
     DBUG_RETURN(true);
   }
 
@@ -2509,14 +2510,14 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
 
   if (log_event || error_code == NDB_MGM_ALLOCID_CONFIG_MISMATCH)
   {
-    g_eventLogger.warning("Allocate nodeid (%d) failed. Connection from ip %s."
-                          " Returned error string \"%s\"",
-                          *nodeId,
-                          client_addr != 0
-                          ? inet_ntoa(((struct sockaddr_in *)
-                                       (client_addr))->sin_addr)
-                          : "<none>",
-                          error_string.c_str());
+    g_eventLogger->warning("Allocate nodeid (%d) failed. Connection from ip %s."
+			   " Returned error string \"%s\"",
+			   *nodeId,
+			   client_addr != 0
+			   ? inet_ntoa(((struct sockaddr_in *)
+					(client_addr))->sin_addr)
+			   : "<none>",
+			   error_string.c_str());
 
     NodeBitmask connected_nodes2;
     get_connected_nodes(connected_nodes2);
@@ -2534,11 +2535,11 @@ MgmtSrvr::alloc_node_id(NodeId * nodeId,
       }
     }
     if (tmp_connected.length() > 0)
-      g_eventLogger.info("Mgmt server state: node id's %s connected but not reserved", 
-			 tmp_connected.c_str());
+      g_eventLogger->info("Mgmt server state: node id's %s connected but not reserved", 
+			  tmp_connected.c_str());
     if (tmp_not_connected.length() > 0)
-      g_eventLogger.info("Mgmt server state: node id's %s not connected but reserved",
-			 tmp_not_connected.c_str());
+      g_eventLogger->info("Mgmt server state: node id's %s not connected but reserved",
+			  tmp_not_connected.c_str());
   }
   DBUG_RETURN(false);
 }
@@ -2570,8 +2571,8 @@ MgmtSrvr::eventReport(const Uint32 * theData, Uint32 len)
   NodeId nodeId = eventReport->getNodeId();
   Ndb_logevent_type type = eventReport->getEventType();
   // Log event
-  g_eventLogger.log(type, theData, len, nodeId, 
-		    &m_event_listner[0].m_logLevel);  
+  g_eventLogger->log(type, theData, len, nodeId, 
+                     &m_event_listner[0].m_logLevel);
   m_event_listner.log(type, theData, len, nodeId);
 }
 
@@ -2769,8 +2770,8 @@ MgmtSrvr::Allocated_resources::~Allocated_resources()
 
     char tmp_str[128];
     m_mgmsrv.m_reserved_nodes.getText(tmp_str);
-    g_eventLogger.info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
-		       get_nodeid(), tmp_str);
+    g_eventLogger->info("Mgmt server state: nodeid %d freed, m_reserved_nodes %s.",
+                        get_nodeid(), tmp_str);
   }
 }
 
@@ -2786,8 +2787,8 @@ MgmtSrvr::Allocated_resources::is_timed_out(NDB_TICKS tick)
 {
   if (m_alloc_timeout && tick > m_alloc_timeout)
   {
-    g_eventLogger.info("Mgmt server state: nodeid %d timed out.",
-                       get_nodeid());
+    g_eventLogger->info("Mgmt server state: nodeid %d timed out.",
+                        get_nodeid());
     return true;
   }
   return false;
