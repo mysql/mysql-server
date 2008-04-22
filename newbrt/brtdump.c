@@ -107,12 +107,13 @@ void dump_node (int f, DISKOFF off) {
 	}
     } else {
 	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
-	printf(" items_in_buffer  =%d\n", toku_gpma_n_entries(n->u.l.buffer));
-	GPMA_ITERATE(n->u.l.buffer, idx, len, data,
-		     ({
-			 print_leafentry(stdout, data);
-			 printf("\n");
-		     }));
+	printf(" items_in_buffer  =%d\n", toku_omt_size(n->u.l.buffer));
+	int print_le(LEAFENTRY le, u_int32_t UU(idx), void *UU(v)) {
+	    print_leafentry(stdout, le);
+	    printf("\n");
+	    return 0;
+	}
+	toku_omt_iterate(n->u.l.buffer, print_le, 0);
     }
 }
 

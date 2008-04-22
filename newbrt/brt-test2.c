@@ -30,6 +30,7 @@ static void test2 (int memcheck, int limit) {
 	snprintf(key,100,"hello%d",i);
 	snprintf(val,100,"there%d",i);
 	toku_brt_insert(t, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), null_txn);
+	r = toku_verify_brt(t); assert(r==0);
 	//printf("%s:%d did insert %d\n", __FILE__, __LINE__, i);
 	if (0) {
 	    brt_flush(t);

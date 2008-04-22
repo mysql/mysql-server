@@ -80,33 +80,32 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     LEAFENTRY tmp_leafentry;
     r = le_committed(keylen, key, vallen, val, &lesize, &disksize, &tmp_leafentry);
 
-    LEAFENTRY leafentry = mempool_malloc_from_gpma(node->u.l.buffer, &node->u.l.buffer_mempool, lesize);
+    LEAFENTRY leafentry = mempool_malloc_from_omt(node->u.l.buffer, &node->u.l.buffer_mempool, lesize);
     memcpy(leafentry, tmp_leafentry, lesize);
     toku_free(tmp_leafentry);
 
-    u_int32_t storedlen;
-    void *storeddata;
+    LEAFENTRY storeddata;
     u_int32_t idx;
     DBT keydbt,valdbt;
     BRT_CMD_S cmd = {BRT_INSERT, 0, .u.id={toku_fill_dbt(&keydbt, key, keylen),
 					   toku_fill_dbt(&valdbt, val, vallen)}};
     struct cmd_leafval_bessel_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
-    r = toku_gpma_lookup_bessel(node->u.l.buffer, toku_cmd_leafval_bessel, 0, &be, &storedlen, &storeddata, &idx);
+    r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, &storeddata, &idx);
 
 
     if (r==0) {
 	// It's already there.  So now we have to remove it and put the new one back in.
-	node->u.l.n_bytes_in_buffer -= PMA_ITEM_OVERHEAD + leafentry_disksize(storeddata);
+	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
 	node->local_fingerprint     -= node->rand4fingerprint*toku_le_crc(storeddata);
-	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, storedlen);
+	toku_mempool_mfree(&node->u.l.buffer_mempool, storeddata, leafentry_memsize(storeddata));
 	// Now put the new kv in.
-	toku_gpma_set_at_index(node->u.l.buffer, idx, lesize, leafentry);
+	toku_omt_set_at(node->u.l.buffer, leafentry, idx);
     } else {
-	r = toku_gpma_insert_bessel(node->u.l.buffer, lesize, leafentry, toku_cmd_leafval_bessel, &be, 0, 0, 0);
+	r = toku_omt_insert(node->u.l.buffer, leafentry, toku_cmd_leafval_bessel, &be, 0);
 	assert(r==0);
     }
 
-    node->u.l.n_bytes_in_buffer += PMA_ITEM_OVERHEAD + disksize;
+    node->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + disksize;
     node->local_fingerprint += node->rand4fingerprint*toku_le_crc(leafentry);
 
     node->dirty=1;

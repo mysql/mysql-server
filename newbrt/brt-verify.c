@@ -127,14 +127,15 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	}
     } else {
 	// Make sure that they are in increasing order.
-	void *prev=0;
-	GPMA_ITERATE(node->u.l.buffer, idx, dlen, data,
-		     ({
-			 if (prev==0)
-			     prev=data;
-			 else
-			     assert(compare_leafentries(brt, prev, data)<0);
-		     }));
+	int check_increasing (LEAFENTRY v, u_int32_t idx, void *vprevp) {
+	    LEAFENTRY *prevp = vprevp;
+	    if (idx>0) 
+		assert(compare_leafentries(brt, *prevp, v)<0);
+	    *prevp=v;
+	    return 0;
+	}
+	LEAFENTRY prev=0;
+	toku_omt_iterate(node->u.l.buffer, check_increasing, &prev);
     }
     if ((r = toku_cachetable_unpin(brt->cf, off, 0, 0))) return r;
     return result;
