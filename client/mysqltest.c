@@ -3820,19 +3820,44 @@ int query_get_string(MYSQL* mysql, const char* query,
   MYSQL_RES *res= NULL;
   MYSQL_ROW row;
 
-  if (mysql_query(mysql,query) || !(res=mysql_store_result(mysql)))
+  if (mysql_query(mysql, query))
     die("'%s' failed: %d %s", query,
         mysql_errno(mysql), mysql_error(mysql));
-  if (!(row=mysql_fetch_row(res)) || !row[column])
+  if ((res= mysql_store_result(mysql)) == NULL)
+    die("Failed to store result: %d %s",
+        mysql_errno(mysql), mysql_error(mysql));
+
+  if ((row= mysql_fetch_row(res)) == NULL)
   {
     mysql_free_result(res);
     ds= 0;
     return 1;
   }
-  init_dynamic_string(ds, row[1], strlen(row[column]), 32);
+  init_dynamic_string(ds, (row[column] ? row[column] : "NULL"), ~0, 32);
   mysql_free_result(res);
   return 0;
 }
+
+
+static int my_kill(int pid, int sig)
+{
+#ifdef __WIN__
+  HANDLE proc;
+  if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
+    return -1;
+  if (sig == 0)
+  {
+    CloseHandle(proc);
+    return 0;
+  }
+  (void)TerminateProcess(proc, 201);
+  CloseHandle(proc);
+  return 1;
+#else
+  return kill(pid, sig);
+#endif
+}
+
 
 
 /*
@@ -3885,31 +3910,28 @@ void do_shutdown_server(struct st_command *command)
 
     if ((fd= my_open(ds_pidfile_name.str, O_RDONLY, MYF(0))) < 0)
       die("Failed to open file '%s'", ds_pidfile_name.str);
+    dynstr_free(&ds_pidfile_name);
+
     if (my_read(fd, (uchar*)&buff,
                 sizeof(buff), MYF(0)) <= 0){
       my_close(fd, MYF(0));
       die("pid file was empty");
     }
-
-    pid= atoi(buff);
-    if (pid == 0){
-      my_close(fd, MYF(0));
-      die("pid file was empty");
-    }
-    DBUG_PRINT("info", ("Read pid %d from '%s'", pid, ds_pidfile_name.str));
     my_close(fd, MYF(0));
 
-    dynstr_free(&ds_pidfile_name);
+    pid= atoi(buff);
+    if (pid == 0)
+      die("Pidfile didn't contain a valid number");
   }
   DBUG_PRINT("info", ("Got pid %d", pid));
 
   /* Tell server to shutdown if timeout > 0*/
-  if (timeout && mysql_shutdown(&cur_con->mysql, SHUTDOWN_DEFAULT))
+  if (timeout && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
     die("mysql_shutdown failed");
 
   /* Check that server dies */
   while(timeout--){
-    if (kill(0, pid) < 0){
+    if (my_kill(0, pid) < 0){
       DBUG_PRINT("info", ("Sleeping, timeout: %d", timeout));
       break;
     }
@@ -3919,7 +3941,7 @@ void do_shutdown_server(struct st_command *command)
 
   /* Kill the server */
   DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-  (void)kill(9, pid);
+  (void)my_kill(9, pid);
 
   DBUG_VOID_RETURN;
 
