@@ -30,7 +30,7 @@
 #include "dbtup/Dbtup.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 #include <record_types.hpp>
 
@@ -2434,9 +2434,9 @@ Lgman::find_log_head_in_file(Signal* signal,
     infoEvent("Undo head - %s page: %d lsn: %lld",
 	      fs->get_filename(file_ptr.p->m_fd), 
 	      tail, file_ptr.p->m_online.m_lsn);
-    g_eventLogger.info("Undo head - %s page: %d lsn: %lld",
-		       fs->get_filename(file_ptr.p->m_fd), 
-		       tail, file_ptr.p->m_online.m_lsn);
+    g_eventLogger->info("Undo head - %s page: %d lsn: %lld",
+                        fs->get_filename(file_ptr.p->m_fd),
+                        tail, file_ptr.p->m_online.m_lsn);
     
     for(files.prev(file_ptr); !file_ptr.isNull(); files.prev(file_ptr))
     {
@@ -2444,9 +2444,9 @@ Lgman::find_log_head_in_file(Signal* signal,
 		fs->get_filename(file_ptr.p->m_fd), 
 		file_ptr.p->m_online.m_lsn);
 
-      g_eventLogger.info("   - next - %s(%lld)", 
-			 fs->get_filename(file_ptr.p->m_fd), 
-			 file_ptr.p->m_online.m_lsn);
+      g_eventLogger->info("   - next - %s(%lld)", 
+                          fs->get_filename(file_ptr.p->m_fd),
+                          file_ptr.p->m_online.m_lsn);
     }
   }
   
@@ -3001,17 +3001,17 @@ Lgman::stop_run_undo_log(Signal* signal)
 	m_file_pool.getPtr(tf, tail.m_ptr_i);
 	m_file_pool.getPtr(hf,  ptr.p->m_file_pos[HEAD].m_ptr_i);
 	infoEvent("Logfile group: %d ", ptr.p->m_logfile_group_id);
-	g_eventLogger.info("Logfile group: %d ", ptr.p->m_logfile_group_id);
+        g_eventLogger->info("Logfile group: %d ", ptr.p->m_logfile_group_id);
 	infoEvent("  head: %s page: %d",
-		  fs->get_filename(hf.p->m_fd), 
-		  ptr.p->m_file_pos[HEAD].m_idx);
-	g_eventLogger.info("  head: %s page: %d",
-			   fs->get_filename(hf.p->m_fd), 
-			   ptr.p->m_file_pos[HEAD].m_idx);
+                  fs->get_filename(hf.p->m_fd),
+                  ptr.p->m_file_pos[HEAD].m_idx);
+        g_eventLogger->info("  head: %s page: %d",
+                            fs->get_filename(hf.p->m_fd),
+                            ptr.p->m_file_pos[HEAD].m_idx);
 	infoEvent("  tail: %s page: %d",
 		  fs->get_filename(tf.p->m_fd), tail.m_idx);
-	g_eventLogger.info("  tail: %s page: %d",
-			   fs->get_filename(tf.p->m_fd), tail.m_idx);
+        g_eventLogger->info("  tail: %s page: %d",
+                            fs->get_filename(tf.p->m_fd), tail.m_idx);
       }
     }
     
@@ -3033,7 +3033,7 @@ Lgman::stop_run_undo_log(Signal* signal)
   }
   
   infoEvent("Flushing page cache after undo completion");
-  g_eventLogger.info("Flushing page cache after undo completion");
+  g_eventLogger->info("Flushing page cache after undo completion");
 
   /**
    * Start flushing pages (local, LCP)
@@ -3098,7 +3098,7 @@ Lgman::execEND_LCP_CONF(Signal* signal)
     ptr.p->m_last_synced_lsn = last_lsn;
   
   infoEvent("Flushing complete");
-  g_eventLogger.info("Flushing complete");
+  g_eventLogger->info("Flushing complete");
 
   signal->theData[0] = reference();
   sendSignal(DBLQH_REF, GSN_START_RECCONF, signal, 1, JBB);

@@ -43,7 +43,7 @@
 #include <SafeCounter.hpp>
 
 // Used here only to print event reports on stdout/console.
-EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
 Cmvmi::Cmvmi(Block_context& ctx) :
@@ -241,8 +241,8 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   // Print the event info
-  g_eventLogger.log(eventReport->getEventType(), 
-		    signal->theData, signal->getLength(), 0, 0);
+  g_eventLogger->log(eventReport->getEventType(), 
+                     signal->theData, signal->getLength(), 0, 0);
   
   return;
 }//execEVENT_REP()
@@ -421,7 +421,7 @@ void Cmvmi::execSTTOR(Signal* signal)
     {
       int res = NdbMem_MemLockAll(0);
       if(res != 0){
-	g_eventLogger.warning("Failed to memlock pages");
+        g_eventLogger->warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
       }
     }
@@ -854,12 +854,12 @@ Cmvmi::execSTART_ORD(Signal* signal) {
       int res = NdbMem_MemLockAll(1);
       if(res != 0)
       {
-	g_eventLogger.warning("Failed to memlock pages");
+        g_eventLogger->warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
       }
       else
       {
-	g_eventLogger.info("Locked future allocations");
+        g_eventLogger->info("Locked future allocations");
       }
     }
     
@@ -1027,15 +1027,15 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   {
     SubscriberPtr ptr;
     subscribers.first(ptr);  
-    g_eventLogger.info("List subscriptions:");
+    g_eventLogger->info("List subscriptions:");
     while(ptr.i != RNIL)
     {
-      g_eventLogger.info("Subscription: %u, nodeId: %u, ref: 0x%x",
-                         ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
+      g_eventLogger->info("Subscription: %u, nodeId: %u, ref: 0x%x",
+                          ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
       for(Uint32 i = 0; i < LogLevel::LOGLEVEL_CATEGORIES; i++)
       {
         Uint32 level = ptr.p->logLevel.getLogLevel((LogLevel::EventCategory)i);
-        g_eventLogger.info("Category %u Level %u", i, level);
+        g_eventLogger->info("Category %u Level %u", i, level);
       }
       subscribers.next(ptr);
     }

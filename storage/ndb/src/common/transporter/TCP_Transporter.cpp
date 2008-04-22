@@ -21,7 +21,7 @@
 #include <NdbSleep.h>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 // End of stuff to be moved
 
 #ifdef NDB_WIN32
@@ -175,8 +175,8 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
 		 (char*)&val, sizeof(val)) < 0)
   {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("setsockopt(%s, %d) errno: %d %s", 
-                        optname, val, errno, strerror(errno));
+    g_eventLogger->error("setsockopt(%s, %d) errno: %d %s",
+                         optname, val, errno, strerror(errno));
 #endif
   }
   
@@ -186,8 +186,8 @@ set_get(NDB_SOCKET_TYPE fd, int level, int optval, const char *optname,
       actual != val)
   {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("setsockopt(%s, %d) - actual %d default: %d", 
-                        optname, val, actual, defval);
+    g_eventLogger->error("setsockopt(%s, %d) - actual %d default: %d",
+                         optname, val, actual, defval);
 #endif
   }
 }
@@ -225,7 +225,7 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
   if(ioctlsocket(socket, FIONBIO, &ul))
   {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("Set non-blocking server error3: %d", InetErrno);
+    g_eventLogger->error("Set non-blocking server error3: %d", InetErrno);
 #endif
   }//if
   return true;
@@ -239,13 +239,13 @@ TCP_Transporter::setSocketNonBlocking(NDB_SOCKET_TYPE socket){
   flags = fcntl(socket, F_GETFL, 0);
   if (flags < 0) {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("Set non-blocking server error1: %s", strerror(InetErrno));
+    g_eventLogger->error("Set non-blocking server error1: %s", strerror(InetErrno));
 #endif
   }//if
   flags |= NDB_NONBLOCK;
   if (fcntl(socket, F_SETFL, flags) == -1) {
 #ifdef DEBUG_TRANSPORTER
-    g_eventLogger.error("Set non-blocking server error2: %s", strerror(InetErrno));
+    g_eventLogger->error("Set non-blocking server error2: %s", strerror(InetErrno));
 #endif
   }//if
   return true;
@@ -378,12 +378,13 @@ TCP_Transporter::doSend() {
 
       // Send failed
 #if defined DEBUG_TRANSPORTER
-      g_eventLogger.error("Send Failure(disconnect==%d) to node = %d nBytesSent = %d "
-	       "errno = %d strerror = %s",
-	       DISCONNECT_ERRNO(InetErrno, nBytesSent),
-	       remoteNodeId, nBytesSent, InetErrno, 
-	       (char*)ndbstrerror(InetErrno));
-#endif   
+      g_eventLogger->error("Send Failure(disconnect==%d) to node = %d "
+                           "nBytesSent = %d "
+                           "errno = %d strerror = %s",
+                           DISCONNECT_ERRNO(InetErrno, nBytesSent),
+                           remoteNodeId, nBytesSent, InetErrno,
+                           (char*)ndbstrerror(InetErrno));
+#endif
       if(DISCONNECT_ERRNO(InetErrno, nBytesSent)){
 	doDisconnect();
 	report_disconnect(InetErrno);
@@ -413,12 +414,12 @@ TCP_Transporter::doReceive() {
       
       if(receiveBuffer.sizeOfData > receiveBuffer.sizeOfBuffer){
 #ifdef DEBUG_TRANSPORTER
-	g_eventLogger.error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
-	g_eventLogger.error("nBytesRead = %d", nBytesRead);
+        g_eventLogger->error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+                             receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+        g_eventLogger->error("nBytesRead = %d", nBytesRead);
 #endif
-	g_eventLogger.error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
-		 receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
+        g_eventLogger->error("receiveBuffer.sizeOfData(%d) > receiveBuffer.sizeOfBuffer(%d)",
+                             receiveBuffer.sizeOfData, receiveBuffer.sizeOfBuffer);
 	report_error(TE_INVALID_MESSAGE_LENGTH);
 	return 0;
       }
@@ -434,11 +435,11 @@ TCP_Transporter::doReceive() {
       return nBytesRead;
     } else {
 #if defined DEBUG_TRANSPORTER
-      g_eventLogger.error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
-	       "errno = %d strerror = %s",
-	       DISCONNECT_ERRNO(InetErrno, nBytesRead),
-	       remoteNodeId, nBytesRead, InetErrno, 
-	       (char*)ndbstrerror(InetErrno));
+      g_eventLogger->error("Receive Failure(disconnect==%d) to node = %d nBytesSent = %d "
+                           "errno = %d strerror = %s",
+                           DISCONNECT_ERRNO(InetErrno, nBytesRead),
+                           remoteNodeId, nBytesRead, InetErrno,
+                           (char*)ndbstrerror(InetErrno));
 #endif   
       if(DISCONNECT_ERRNO(InetErrno, nBytesRead)){
 	// The remote node has closed down

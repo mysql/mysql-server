@@ -44,7 +44,7 @@
 #include "ndb_internal.hpp"
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 static Gci_container_pod g_empty_gci_container;
 
@@ -1220,8 +1220,8 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
   Uint32 minpos = m_min_gci_index;
   Uint32 maxpos = m_max_gci_index;
 
-  g_eventLogger.info("Flushing incomplete GCI:s < %u/%u",
-                     Uint32(gci >> 32), Uint32(gci));
+  g_eventLogger->info("Flushing incomplete GCI:s < %u/%u",
+                      Uint32(gci >> 32), Uint32(gci));
   while (minpos != maxpos && array[minpos] < gci)
   {
     Gci_container* tmp = find_bucket(array[minpos]);
@@ -1929,11 +1929,11 @@ NdbEventBuffer::execSUB_GCP_COMPLETE_REP(const SubGcpCompleteRep * const rep,
         goto do_complete;
       }
       /** out of order something */
-      g_eventLogger.info("out of order bucket: %d gci: %u/%u minGCI: %u/%u m_latestGCI: %u/%u",
-                         (int)(bucket-(Gci_container*)m_active_gci.getBase()),
-                         Uint32(gci >> 32), Uint32(gci),
-                         Uint32(minGCI >> 32), Uint32(minGCI),
-                         Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
+      g_eventLogger->info("out of order bucket: %d gci: %u/%u minGCI: %u/%u m_latestGCI: %u/%u",
+                          (int)(bucket-(Gci_container*)m_active_gci.getBase()),
+                          Uint32(gci >> 32), Uint32(gci),
+                          Uint32(minGCI >> 32), Uint32(minGCI),
+                          Uint32(m_latestGCI >> 32), Uint32(m_latestGCI));
       bucket->m_state = Gci_container::GC_COMPLETE;
       bucket->m_gcp_complete_rep_count = 1; // Prevent from being reused
       m_latest_complete_GCI = gci;
@@ -1957,9 +1957,9 @@ NdbEventBuffer::complete_outof_order_gcis()
   Uint64 stop_gci = m_latest_complete_GCI;
 
   Uint64 start_gci = array[minpos];
-  g_eventLogger.info("complete_outof_order_gcis from: %u/%u to: %u/%u",
-                     Uint32(start_gci >> 32), Uint32(start_gci),
-                     Uint32(stop_gci >> 32), Uint32(stop_gci));
+  g_eventLogger->info("complete_outof_order_gcis from: %u/%u to: %u/%u",
+                      Uint32(start_gci >> 32), Uint32(start_gci),
+                      Uint32(stop_gci >> 32), Uint32(stop_gci));
 
   assert(start_gci <= stop_gci);
   do

@@ -41,7 +41,7 @@ void childAbort(int code, Uint32 currentStartPhase);
 extern "C" {
   extern void (* ndb_new_handler)();
 }
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 extern my_bool opt_core;
 // instantiated and updated in NdbcntrMain.cpp
 extern Uint32 g_currentStartPhase;
@@ -155,26 +155,26 @@ NdbShutdown(NdbShutdownType type,
     
     switch(type){
     case NST_Normal:
-      g_eventLogger.info("Shutdown initiated");
+      g_eventLogger->info("Shutdown initiated");
       break;
     case NST_Watchdog:
-      g_eventLogger.info("Watchdog %s system", shutting);
+      g_eventLogger->info("Watchdog %s system", shutting);
       break;
     case NST_ErrorHandler:
-      g_eventLogger.info("Error handler %s system", shutting);
+      g_eventLogger->info("Error handler %s system", shutting);
       break;
     case NST_ErrorHandlerSignal:
-      g_eventLogger.info("Error handler signal %s system", shutting);
+      g_eventLogger->info("Error handler signal %s system", shutting);
       break;
     case NST_ErrorHandlerStartup:
-      g_eventLogger.info("Error handler startup %s system", shutting);
+      g_eventLogger->info("Error handler startup %s system", shutting);
       break;
     case NST_Restart:
-      g_eventLogger.info("Restarting system");
+      g_eventLogger->info("Restarting system");
       break;
     default:
-      g_eventLogger.info("Error handler %s system (unknown type: %u)",
-			 shutting, (unsigned)type);
+      g_eventLogger->info("Error handler %s system (unknown type: %u)",
+                          shutting, (unsigned)type);
       type = NST_ErrorHandler;
       break;
     }
@@ -189,7 +189,7 @@ NdbShutdown(NdbShutdownType type,
       /**
        * Very serious, don't attempt to free, just die!!
        */
-      g_eventLogger.info("Watchdog shutdown completed - %s", exitAbort);
+      g_eventLogger->info("Watchdog shutdown completed - %s", exitAbort);
       if (opt_core)
       {
 	childAbort(-1,g_currentStartPhase);
@@ -248,7 +248,7 @@ NdbShutdown(NdbShutdownType type,
       // Signal parent that error occured during startup
       if (type == NST_ErrorHandlerStartup)
 	kill(getppid(), SIGUSR1);
-      g_eventLogger.info("Error handler shutdown completed - %s", exitAbort);
+      g_eventLogger->info("Error handler shutdown completed - %s", exitAbort);
       if (opt_core)
       {
 	childAbort(-1,g_currentStartPhase);
@@ -266,7 +266,7 @@ NdbShutdown(NdbShutdownType type,
       childExit(restartType,g_currentStartPhase);
     }
     
-    g_eventLogger.info("Shutdown completed - exiting");
+    g_eventLogger->info("Shutdown completed - exiting");
   } else {
     /**
      * Shutdown is already in progress
@@ -276,7 +276,7 @@ NdbShutdown(NdbShutdownType type,
      * If this is the watchdog, kill system the hard way
      */
     if (type== NST_Watchdog){
-      g_eventLogger.info("Watchdog is killing system the hard way");
+      g_eventLogger->info("Watchdog is killing system the hard way");
 #if defined VM_TRACE
       childAbort(-1,g_currentStartPhase);
 #else

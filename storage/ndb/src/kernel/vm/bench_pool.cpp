@@ -416,7 +416,7 @@ void test_wo(Uint32 cnt, Uint32 loop)
 }
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 int
 main(int argc, char **argv)

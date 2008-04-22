@@ -40,7 +40,7 @@
 #include <NdbSqlUtil.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 #define ljamEntry() jamEntryLine(30000 + __LINE__)
 #define ljam() jamLine(30000 + __LINE__)
@@ -710,9 +710,9 @@ SimulatedBlock::allocRecordAligned(const char * type, size_t s, size_t n, void *
       *unaligned_buffer = p;
       p = (void *)(((UintPtr)p + over_alloc) & ~(UintPtr)(over_alloc));
 #ifdef VM_TRACE
-      g_eventLogger.info("'%s' (%u) %llu %llu, alignment correction %u bytes",
-                         type, align, (Uint64)p, (Uint64)p+n*s,
-                         (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
+      g_eventLogger->info("'%s' (%u) %llu %llu, alignment correction %u bytes",
+                          type, align, (Uint64)p, (Uint64)p+n*s,
+                          (Uint32)((UintPtr)p - (UintPtr)*unaligned_buffer));
 #endif
     }
   }
