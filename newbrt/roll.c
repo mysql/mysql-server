@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <inttypes.h>
+#include <sys/stat.h>
 #include <unistd.h>
 
 #include "log_header.h"
@@ -95,4 +96,62 @@ int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN 
     r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
     if (r!=0) return r;
     return toku_cachefile_close(&cf, toku_txn_logger(txn));
+}
+
+int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
+    while (filesize>0) {
+        int r;
+        struct roll_entry *item;
+        r = toku_read_rollback_backwards(fd, filesize, &item, &filesize);
+        if (r!=0) { return r; }
+        r = toku_commit_rollback_item(txn, item);
+        if (r!=0) { return r; }
+    }
+    return 0;
+}
+
+int toku_rollback_fileentries (int fd, off_t filesize, TOKUTXN txn) {
+    while (filesize>0) {
+        int r;
+        struct roll_entry *item;
+        r = toku_read_rollback_backwards(fd, filesize, &item, &filesize);
+        if (r!=0) { return r; }
+        r = toku_abort_rollback_item(txn, item);
+        if (r!=0) { return r; }
+    }
+    return 0;
+}
+
+int toku_commit_rollinclude (BYTESTRING bs,TOKUTXN txn) {
+    int r;
+    char *fname = fixup_fname(&bs);
+    int fd = open(fname, O_RDONLY);
+    assert(fd>=0);
+    struct stat statbuf;
+    r = fstat(fd, &statbuf);
+    assert(r==0);
+    r = toku_commit_fileentries(fd, statbuf.st_size, txn);
+    assert(r==0);
+    r = close(fd);
+    assert(r==0);
+    unlink(fname);
+    free(fname);
+    return 0;
+}
+
+int toku_rollback_rollinclude (BYTESTRING bs,TOKUTXN txn) {
+    int r;
+    char *fname = fixup_fname(&bs);
+    int fd = open(fname, O_RDONLY);
+    assert(fd>=0);
+    struct stat statbuf;
+    r = fstat(fd, &statbuf);
+    assert(r==0);
+    r = toku_rollback_fileentries(fd, statbuf.st_size, txn);
+    assert(r==0);
+    r = close(fd);
+    assert(r==0);
+    unlink(fname);
+    free(fname);
+    return 0;
 }
