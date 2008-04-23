@@ -7227,21 +7227,10 @@ void Dbtc::execNODE_FAILREP(Signal* signal)
       }//if
     }//if
     
-    if (getOwnNodeId() != tnewMasterId)
-    {
-      jam();
-      /**
-       * Only master does takeover currently
-       */
-      hostptr.p->m_nf_bits &= ~HostRecord::NF_TAKEOVER;
-    }
-    else
-    {
-      jam();
-      signal->theData[0] = hostptr.i;
-      sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
-    }
-
+    jam();
+    signal->theData[0] = hostptr.i;
+    sendSignal(cownref, GSN_TAKE_OVERTCREQ, signal, 1, JBB);
+    
     checkScanActiveInFailedLqh(signal, 0, hostptr.i);
     checkWaitDropTabFailedLqh(signal, hostptr.i, 0); // nodeid, tableid
     nodeFailCheckTransactions(signal, 0, hostptr.i);
@@ -7264,6 +7253,14 @@ Dbtc::checkNodeFailComplete(Signal* signal,
     nfRep->failedNodeId = hostptr.i;
     sendSignal(cdihblockref, GSN_NF_COMPLETEREP, signal, 
 	       NFCompleteRep::SignalLength, JBB);
+  }
+
+  CRASH_INSERTION(8058);
+  if (ERROR_INSERTED(8059))
+  {
+    signal->theData[0] = 9999;
+    sendSignalWithDelay(numberToRef(CMVMI, hostptr.i), 
+                        GSN_NDB_TAMPER, signal, 100, 1);
   }
 }
 
@@ -7333,30 +7330,44 @@ Dbtc::nodeFailCheckTransactions(Signal* signal,
   Ptr<ApiConnectRecord> transPtr;
   Uint32 TtcTimer = ctcTimer;
   Uint32 TapplTimeout = c_appl_timeout_value;
-  for (transPtr.i = transPtrI; transPtr.i < capiConnectFilesize; transPtr.i++)
+  Uint32 RT_BREAK = 64;
+  Uint32 endPtrI = transPtrI + RT_BREAK;
+  if (endPtrI > capiConnectFilesize)
+  {
+    endPtrI = capiConnectFilesize;
+  }
+
+  for (transPtr.i = transPtrI; transPtr.i < endPtrI; transPtr.i++)
   {
     ptrCheckGuard(transPtr, capiConnectFilesize, apiConnectRecord); 
     if (transPtr.p->m_transaction_nodes.get(failedNodeId))
     {
       jam();
-      
+
       // Force timeout regardless of state      
       c_appl_timeout_value = 1;
       setApiConTimer(transPtr.i, TtcTimer - 2, __LINE__);
       timeOutFoundLab(signal, transPtr.i, ZNODEFAIL_BEFORE_COMMIT);
       c_appl_timeout_value = TapplTimeout;
+      
+      transPtr.i++;
+      break;
     }
-    
-    // Send CONTINUEB to continue later
+  }
+  
+  if (transPtr.i == capiConnectFilesize)
+  {
+    jam();
+    checkNodeFailComplete(signal, failedNodeId, 
+                          HostRecord::NF_CHECK_TRANSACTION);
+  }
+  else
+  {
     signal->theData[0] = TcContinueB::ZNF_CHECK_TRANSACTIONS;
-    signal->theData[1] = transPtr.i + 1; // Check next
+    signal->theData[1] = transPtr.i;
     signal->theData[2] = failedNodeId;
     sendSignal(cownref, GSN_CONTINUEB, signal, 3, JBB);
-    return;
   }
-
-  checkNodeFailComplete(signal, failedNodeId, 
-			HostRecord::NF_CHECK_TRANSACTION);
 }
 
 
@@ -7379,7 +7390,23 @@ void Dbtc::execTAKE_OVERTCCONF(Signal* signal)
   if (signal->getSendersBlockRef() != reference())
   {
     jam();
-    return;
+    /**
+     * Node should be in queue
+     */
+    Uint32 i = 0;
+    Uint32 end = tcNodeFailptr.p->queueIndex;
+    for (; i<end; i++)
+    {
+      jam();
+      if (tcNodeFailptr.p->queueList[i] == hostptr.i)
+      {
+        jam();
+        break;
+      }
+    }
+    ndbrequire(i != end);
+    tcNodeFailptr.p->queueList[i] = tcNodeFailptr.p->queueList[end-1];
+    tcNodeFailptr.p->queueIndex = end - 1;
   }
   
   checkNodeFailComplete(signal, hostptr.i, HostRecord::NF_TAKEOVER);
@@ -7391,7 +7418,9 @@ void Dbtc::execTAKE_OVERTCREQ(Signal* signal)
   tfailedNodeId = signal->theData[0];
   tcNodeFailptr.i = 0;
   ptrAss(tcNodeFailptr, tcFailRecord);
-  if (tcNodeFailptr.p->failStatus != FS_IDLE) {
+  if (tcNodeFailptr.p->failStatus != FS_IDLE ||
+      cmasterNodeId != getOwnNodeId())
+  {
     jam();
     /*------------------------------------------------------------*/
     /*       WE CAN CURRENTLY ONLY HANDLE ONE TAKE OVER AT A TIME */
@@ -7445,6 +7474,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   jamEntry();
   LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
   
+  CRASH_INSERTION(8060);
+
   tcNodeFailptr.i = lqhTransConf->tcRef;
   ptrCheckGuard(tcNodeFailptr, 1, tcFailRecord);
   tnodeid = lqhTransConf->lqhNodeId;
@@ -7515,6 +7546,8 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
 void Dbtc::nodeTakeOverCompletedLab(Signal* signal) 
 {
   Uint32 guard0;
+
+  CRASH_INSERTION(8061);
 
   hostptr.i = tnodeid;
   ptrCheckGuard(hostptr, chostFilesize, hostRecord);
@@ -7623,6 +7656,8 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
   }//if
   tcNodeFailptr.p->takeOverProcState[TtakeOverInd] = ZTAKE_OVER_IDLE;
   tcNodeFailptr.p->completedTakeOver++;
+
+  CRASH_INSERTION(8062);
 
   if (tcNodeFailptr.p->completedTakeOver == cnoParallelTakeOver) {
     jam();
