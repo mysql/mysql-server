@@ -245,10 +245,9 @@ void test_fetch_verify (void) {
     u_int32_t i;
     int r;
     OMTVALUE v = (OMTVALUE)&i;
-    OMTVALUE oldv;
+    OMTVALUE oldv = v;
     assert(length == toku_omt_size(omt));
     for (i = 0; i < length; i++) {
-        oldv = v;
         assert(oldv!=values[i]);
         v = NULL;
         r = toku_omt_fetch(omt, i, &v);
@@ -266,7 +265,6 @@ void test_fetch_verify (void) {
         assert(v == values[i]);
         assert(v->number == values[i]->number);
     }
-    oldv = v;
     for (i = length; i < length*2; i++) {
         v = oldv;
         r = toku_omt_fetch(omt, i, &v);
@@ -388,6 +386,69 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     test_close(close);
 }
 
+int insert_helper(OMTVALUE value, void* extra_insert) {
+    OMTVALUE to_insert = (OMTVALUE)extra_insert;
+    assert(to_insert);
+
+    if (value->number < to_insert->number) return -1;
+    if (value->number > to_insert->number) return +1;
+    return 0;
+}
+
+void test_create_insert(enum close_when_done close) {
+    u_int32_t i = 0;
+
+    u_int32_t* perm = NULL;
+    MALLOC_N(length, perm);
+    assert(perm);
+
+    permute_array(perm, length);
+
+    test_create(KEEP_WHEN_DONE);
+    int r;
+    u_int32_t size = length;
+    length = 0;
+    while (length < size) {
+        u_int32_t choice = perm[length];
+        OMTVALUE to_insert = &nums[choice];
+        u_int32_t idx = UINT32_MAX;
+
+        assert(length==toku_omt_size(omt));
+        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
+        CKERR(r);
+        assert(idx <= length);
+        if (idx > 0) {
+            assert(to_insert->number > values[idx-1]->number);
+        }
+        if (idx < length) {
+            assert(to_insert->number < values[idx]->number);
+        }
+        length++;
+        assert(length==toku_omt_size(omt));
+        /* Make room */
+        for (i = length-1; i > idx; i--) {
+            values[i] = values[i-1];
+        }
+        values[idx] = to_insert;
+        test_fetch_verify();
+        test_iterate_verify();
+
+        idx = UINT32_MAX;
+        r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
+        CKERR2(r, DB_KEYEXIST);
+        assert(idx < length);
+        assert(values[idx]->number == to_insert->number);
+        assert(length==toku_omt_size(omt));
+
+        test_iterate_verify();
+        test_fetch_verify();
+    }
+
+    toku_free(perm);
+
+    test_close(close);
+}
+
 void test_create_delete_at(enum create_type create_choice, enum close_when_done close) {
     u_int32_t i = 0;
     int r = ENOSYS;
@@ -421,7 +482,7 @@ void test_create_delete_at(enum create_type create_choice, enum close_when_done 
     test_close(close);
 }
 
-void test_create_array(enum create_type create_choice, enum rand_type rand_choice) {
+void init_values(enum rand_type rand_choice) {
     if (rand_choice == TEST_RANDOM) {
         init_distinct_random_values(random_seed, 100);
     }
@@ -432,18 +493,28 @@ void test_create_array(enum create_type create_choice, enum rand_type rand_choic
         init_identity_values(random_seed, 100);
     }
     else assert(FALSE);
+}
+
+void test_create_array(enum create_type create_choice, enum rand_type rand_choice) {
     /* ********************************************************************** */
+    init_values(rand_choice);
     test_create_from_sorted_array(     create_choice, CLOSE_WHEN_DONE);
     test_create_from_sorted_array_size(create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
+    init_values(rand_choice);
     test_create_fetch_verify(          create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
+    init_values(rand_choice);
     test_create_iterate_verify(        create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
+    init_values(rand_choice);
     test_create_set_at(                create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
+    init_values(rand_choice);
     test_create_delete_at(             create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
+    init_values(rand_choice);
+    test_create_insert(                               CLOSE_WHEN_DONE);
 }
 
 typedef struct {
@@ -653,15 +724,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 //   ENOMEM on out of memory.
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
-
-int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index);
-// Effect:  Insert value into the OMT.
-//   If there is some i such that $h(V_i, v)=0$ then returns DB_KEYEXIST.
-//   Otherwise, let i be the minimum value such that $h(V_i, v)>0$.
-//      If no such i exists, then let i be |V|
-//   Then this has the same effect as
-//    omt_insert_at(tree, value, i);
-//   If index!=NULL then i is stored in *index
 
 */
 

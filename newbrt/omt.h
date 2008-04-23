@@ -202,8 +202,9 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
     The signus of the h must be monotonically increasing.
     Given a function of the following form, A is the element
     returned for direction>0, B is the element returned
-    for direction<0, and C is the element returned for
-    direction==0 (see find_zero).
+    for direction<0, C is the element returned for
+    direction==0 (see find_zero) (with a return of 0), and D is the element
+    returned for direction==0 (see find_zero) with a return of DB_NOTFOUND.
     If any of A, B, or C are not found, then asking for the
     associated direction will return DB_NOTFOUND.
     See find_zero for more information.
@@ -212,9 +213,11 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 
     -...-
         A
+         D
 
     +...+
     B
+    D
 
     0...0
     C
@@ -227,6 +230,7 @@ int toku_omt_find(OMT V, int (*h)(OMTVALUE, void*extra), void*extra, int directi
 
     -...-+...+
         AB
+         D
 
     -...-0...0+...+
         AC    B
