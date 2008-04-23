@@ -19,6 +19,8 @@
 #                                                                             #
 ###############################################################################
 
+#due to lost connection on win64
+--source include/not_windows.inc
 
 let $start_global_value = `SELECT @@global.max_allowed_packet`;
 --echo $start_global_value

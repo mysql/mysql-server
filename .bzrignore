@@ -1324,6 +1324,7 @@ mysql-test/r/im_client_port.log
 mysql-test/r/index_merge_load.result
 mysql-test/r/isam.err
 mysql-test/r/lowercase_table2.err
+mysql-test/r/max_allowed_packet_func.result
 mysql-test/r/multi_update.err
 mysql-test/r/mysql_protocols.err
 mysql-test/r/mysqlbinlog.err

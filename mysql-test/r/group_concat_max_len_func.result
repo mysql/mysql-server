@@ -1,3 +1,4 @@
+SET @save = @@global.group_concat_max_len;
 drop table if exists t1;
 ## Creating new table t1 ##
 CREATE TABLE t1
@@ -75,3 +76,4 @@ id	rollno	group_concat(name)
 ## Dropping table t1 ##
 DROP table t1;
 ## Disconnecting both the connection ##
+SET @@group_concat_max_len = @save;
