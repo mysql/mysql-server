@@ -5015,7 +5015,7 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
         c_EMPTY_LCP_REQ_Counter.setWaitingFor(specNodePtr.i);
         if (!(ERROR_INSERTED(7209) && specNodePtr.i == getOwnNodeId()))
         {
-          sendEMPTY_LCP_REQ(signal, specNodePtr.i);
+          sendEMPTY_LCP_REQ(signal, specNodePtr.i, 0);
         }
         else
         {
@@ -11494,7 +11494,7 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
       CLEAR_ERROR_INSERT_VALUE;
       EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtr();
       req->senderRef = reference();
-      sendEMPTY_LCP_REQ(signal, getOwnNodeId());
+      sendEMPTY_LCP_REQ(signal, getOwnNodeId(), 0);
     }
     
     return;
