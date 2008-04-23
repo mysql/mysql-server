@@ -94,7 +94,7 @@ static int verify_in_mempool(LEAFENTRY le, u_int32_t UU(idx), void *vmp) {
     assert(toku_mempool_inrange(mp, le, leafentry_memsize(le)));
     return 0;
 }
-static void verify_all_in_mempool(BRTNODE node) {
+void toku_verify_all_in_mempool(BRTNODE node) {
     if (node->height==0) {
 	toku_omt_iterate(node->u.l.buffer, verify_in_mempool, &node->u.l.buffer_mempool);
     }
@@ -292,7 +292,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = 5;
+    n->layout_version = BRT_LAYOUT_VERSION;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
@@ -375,10 +375,11 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     //printf("%s:%d B is at %lld nodesize=%d\n", __FILE__, __LINE__, B->thisnodename, B->nodesize);
     assert(node->height>0 || node->u.l.buffer!=0);
 
-    verify_all_in_mempool(node);
+    toku_verify_all_in_mempool(node);
 
-    LEAFENTRY *MALLOC_N(toku_omt_size(node->u.l.buffer), leafentries);
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
+    LEAFENTRY *MALLOC_N(n_leafentries, leafentries);
+    assert(leafentries);
     toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
     u_int32_t break_at = 0;
     {
@@ -423,8 +424,8 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 
     toku_free(leafentries);
 
-    verify_all_in_mempool(node);
-    verify_all_in_mempool(B);
+    toku_verify_all_in_mempool(node);
+    toku_verify_all_in_mempool(B);
 
     toku_omt_destroy(&old_omt);
 
@@ -945,6 +946,7 @@ static int push_some_brt_cmds_down (BRT t, BRTNODE node, int childnum,
     if (r!=0) return r;
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, childnode_v);
     child=childnode_v;
+    assert(child->thisnodename!=0);
     //verify_local_fingerprint_nonleaf(child);
     VERIFY_NODE(child);
     //printf("%s:%d height=%d n_bytes_in_buffer = {%d, %d, %d, ...}\n", __FILE__, __LINE__, child->height, child->n_bytes_in_buffer[0], child->n_bytes_in_buffer[1], child->n_bytes_in_buffer[2]);

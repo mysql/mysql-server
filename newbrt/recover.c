@@ -175,7 +175,7 @@ void toku_recover_newbrtnode (LSN lsn, FILENUM filenum,DISKOFF diskoff,u_int32_t
     n->thisnodename = diskoff;
     n->log_lsn = n->disk_lsn  = lsn;
     //printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
-    n->layout_version = 5;
+    n->layout_version = BRT_LAYOUT_VERSION;
     n->height         = height;
     n->rand4fingerprint = rand4fingerprint;
     n->flags = is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
@@ -488,6 +488,13 @@ void toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     toku_free_BYTESTRING(fname);
 }
 
+static int fill_buf (LEAFENTRY le, u_int32_t idx, void *varray) {
+    LEAFENTRY *array=varray;
+    array[idx]=le;
+    return 0;
+}
+
+
 // The memory for the new node should have already been allocated.
 void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISKOFF new_diskoff, u_int32_t old_n, u_int32_t new_n, u_int32_t new_node_size, u_int32_t new_rand4, u_int8_t is_dup_sort) {
     struct cf_pair *pair = NULL;
@@ -500,22 +507,76 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISK
     assert(oldn->height==0);
 
     TAGMALLOC(BRTNODE, newn);
+    assert(newn);
+    //printf("%s:%d leafsplit %p (%lld) %p (%lld)\n", __FILE__, __LINE__, oldn, old_diskoff, newn, new_diskoff);
+
     newn->nodesize     = new_node_size;
     newn->thisnodename = new_diskoff;
     newn->log_lsn = newn->disk_lsn  = lsn;
     //printf("%s:%d %p->disk_lsn=%"PRId64"\n", __FILE__, __LINE__, n, n->disk_lsn.lsn);
-    newn->layout_version = 4;
+    newn->layout_version = BRT_LAYOUT_VERSION;
     newn->height         = 0;
     newn->rand4fingerprint = new_rand4;
     newn->flags = is_dup_sort ? TOKU_DB_DUPSORT : 0; // Don't have TOKU_DB_DUP ???
-    newn->local_fingerprint = 0; // nothing there yet
     newn->dirty = 1;
+
+    {
+	u_int32_t mpsize = newn->nodesize + newn->nodesize/4;
+	void *mp = toku_malloc(mpsize);
+	assert(mp);
+	toku_mempool_init(&newn->u.l.buffer_mempool, mp, mpsize);
+    }
 
     assert(toku_omt_size(oldn->u.l.buffer)==old_n);
 
-    r = toku_omt_split_at(oldn->u.l.buffer, &newn->u.l.buffer, new_n);
-    
-    
+    u_int32_t n_leafentries = old_n;
+    LEAFENTRY *MALLOC_N(n_leafentries, leafentries);
+    assert(leafentries);
+    toku_omt_iterate(oldn->u.l.buffer, fill_buf, leafentries);
+    {
+	u_int32_t i;
+	u_int32_t new_fp = 0, new_size = 0;
+	for (i=new_n; i<n_leafentries; i++) {
+	    LEAFENTRY oldle = leafentries[i];
+	    LEAFENTRY newle = toku_mempool_malloc(&newn->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
+	    assert(newle);
+	    new_fp   += toku_le_crc(oldle);
+	    new_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
+	    memcpy(newle, oldle, leafentry_memsize(oldle));
+	    toku_mempool_mfree(&oldn->u.l.buffer_mempool, oldle, leafentry_memsize(oldle));
+	    leafentries[i] = newle;
+	}
+	toku_omt_destroy(&oldn->u.l.buffer);
+	r = toku_omt_create_from_sorted_array(&newn->u.l.buffer, leafentries+new_n, n_leafentries-new_n);
+	assert(r==0);
+	newn->u.l.n_bytes_in_buffer = new_size;
+	newn->local_fingerprint     = newn->rand4fingerprint * new_fp;
+    }
+    {
+	u_int32_t i;
+	u_int32_t old_fp = 0, old_size = 0;
+	for (i=0; i<new_n; i++) {
+	    LEAFENTRY oldle = leafentries[i];
+	    old_fp   += toku_le_crc(oldle);
+	    old_size += OMT_ITEM_OVERHEAD + leafentry_disksize(oldle);
+	}
+	r = toku_omt_create_from_sorted_array(&oldn->u.l.buffer, leafentries,      new_n);
+	oldn->u.l.n_bytes_in_buffer = old_size;
+	oldn->local_fingerprint     = oldn->rand4fingerprint * old_fp;
+    }
+    toku_free(leafentries);
+    //r = toku_omt_split_at(oldn->u.l.buffer, &newn->u.l.buffer, new_n);
+
+    toku_verify_all_in_mempool(oldn);    toku_verify_counts(oldn);
+    toku_verify_all_in_mempool(newn);    toku_verify_counts(newn);
+
+    toku_cachetable_put(pair->cf, new_diskoff, newn, toku_serialize_brtnode_size(newn), toku_brtnode_flush_callback, toku_brtnode_fetch_callback, 0);
+    newn->log_lsn = lsn;
+    r = toku_cachetable_unpin(pair->cf, new_diskoff, 1, toku_serialize_brtnode_size(newn));
+    assert(r==0);
+    oldn->log_lsn = lsn;
+    r = toku_cachetable_unpin(pair->cf, old_diskoff, 1, toku_serialize_brtnode_size(oldn));
+    assert(r==0);
 }
 
 void toku_recover_insertleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t idx, LEAFENTRY newleafentry) {

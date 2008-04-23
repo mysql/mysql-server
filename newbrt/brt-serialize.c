@@ -236,8 +236,8 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
     rc.buf=toku_malloc(datasize);
     //printf("%s:%d errno=%d\n", __FILE__, __LINE__, errno);
     if (rc.buf==0) {
-	if (0) { died1: toku_free(rc.buf); }
 	r=errno;
+	if (0) { died1: toku_free(rc.buf); }
 	goto died0;
     }
     rc.size=datasize;
@@ -264,7 +264,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	}
     }
     result->layout_version    = rbuf_int(&rc);
-    if (result->layout_version!=5) {
+    if (result->layout_version!=BRT_LAYOUT_VERSION) {
 	r=DB_BADFORMAT;
 	goto died1;
     }

@@ -1,4 +1,9 @@
-/* A simple case to see if recovery works. */
+// A simple case to see if recovery works.
+//   Create a file (foo.db) in a transaction and commit.
+//   Insert some random key-value pairs in a transaciton an dcommit.
+//   Close the environments, delete foo.db, and then 
+//   run recovery.
+//   Verify that the data is present.
 
 #include <db.h>
 #include <stdlib.h>

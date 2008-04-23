@@ -220,4 +220,8 @@ int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
 int toku_omt_compress_kvspace (OMT omt, struct mempool *memp);
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
 
+void toku_verify_all_in_mempool(BRTNODE node);
+
+#define BRT_LAYOUT_VERSION 5
+
 #endif

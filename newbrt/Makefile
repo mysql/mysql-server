@@ -63,11 +63,13 @@ REGRESSION_TESTS = \
 	cachetable-test2 \
 	fifo-test \
 	list-test \
+	log-test \
 	log-test2 \
 	log-test3 \
 	log-test4 \
 	log-test5 \
 	log-test6 \
+	omt-test \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \
@@ -77,8 +79,6 @@ REGRESSION_TESTS = \
 	test_oexcl \
 	test_toku_malloc_plain_free \
 	ybt-test \
-        log-test \
-        omt-test \
 # This line intentially kept commented so I can have a \ on the end of the previous line
 
 # Add in the binaries that must be run in various ways.
