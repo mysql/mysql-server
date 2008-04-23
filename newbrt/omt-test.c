@@ -172,6 +172,8 @@ void test_create_insert_at_almost_random(enum close_when_done close) {
     test_create(KEEP_WHEN_DONE);
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
     CKERR2(r, ERANGE);
+    r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
+    CKERR2(r, ERANGE);
     for (i = 0; i < length/2; i++) {
         assert(size==toku_omt_size(omt));
         r = toku_omt_insert_at(omt, values[i], i);
@@ -182,6 +184,8 @@ void test_create_insert_at_almost_random(enum close_when_done close) {
         assert(++size==toku_omt_size(omt));
     }
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
+    CKERR2(r, ERANGE);
+    r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
     CKERR2(r, ERANGE);
     assert(size==toku_omt_size(omt));
     test_close(close);
@@ -195,6 +199,8 @@ void test_create_insert_at_sequential(enum close_when_done close) {
     test_create(KEEP_WHEN_DONE);
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
     CKERR2(r, ERANGE);
+    r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
+    CKERR2(r, ERANGE);
     for (i = 0; i < length; i++) {
         assert(size==toku_omt_size(omt));
         r = toku_omt_insert_at(omt, values[i], i);
@@ -202,6 +208,8 @@ void test_create_insert_at_sequential(enum close_when_done close) {
         assert(++size==toku_omt_size(omt));
     }
     r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+1);
+    CKERR2(r, ERANGE);
+    r = toku_omt_insert_at(omt, values[0], toku_omt_size(omt)+2);
     CKERR2(r, ERANGE);
     assert(size==toku_omt_size(omt));
     test_close(close);
@@ -294,7 +302,12 @@ void test_iterate_verify(void) {
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
     r = toku_omt_iterate(omt, iterate_helper, NULL);
-    CKERR2(r, iterate_helper_error_return);
+    if (!length) {
+        CKERR2(r, 0);
+    }
+    else {
+        CKERR2(r, iterate_helper_error_return);
+    }
 }
 
 void test_create_iterate_verify(enum create_type create_choice, enum close_when_done close) {
@@ -303,6 +316,25 @@ void test_create_iterate_verify(enum create_type create_choice, enum close_when_
     test_close(close);
 }
 
+
+void permute_array(u_int32_t* arr, u_int32_t len) {
+    //
+    // create a permutation of 0...size-1
+    //
+    u_int32_t i = 0;
+    for (i = 0; i < len; i++) {
+        arr[i] = i;
+    }
+    for (i = 0; i < len - 1; i++) {
+        u_int32_t choices = len - i;
+        u_int32_t choice  = random() % choices;
+        if (choice != i) {
+            u_int32_t temp = arr[i];
+            arr[i]      = arr[choice];
+            arr[choice] = temp;
+        }
+    }
+}
 
 void test_create_set_at(enum create_type create_choice, enum close_when_done close) {
     u_int32_t i = 0;
@@ -319,21 +351,8 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     MALLOC_N(length, old_values);
     assert(old_values);
     
-    //
-    // permute an array that holds elements 0...length-1
-    //
-    for (i = 0; i < length; i++) {
-        perm[i] = i;
-    }
-    for (i = 0; i < length - 1; i++) {
-        u_int32_t choices = length - i;
-        u_int32_t choice  = random() % choices;
-        if (choice != i) {
-            u_int32_t temp = perm[i];
-            perm[i]      = perm[choice];
-            perm[choice] = temp;
-        }
-    }
+    permute_array(perm, length);
+
     //
     // These are going to be the new values
     //
@@ -343,11 +362,10 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
         values[i] = &old_nums[i];
     }
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    //
-    // 
-    //
     int r;
     r = toku_omt_set_at (omt, values[0], length);
+    CKERR2(r,ERANGE);    
+    r = toku_omt_set_at (omt, values[0], length+1);
     CKERR2(r,ERANGE);    
     for (i = 0; i < length; i++) {
         u_int32_t choice = perm[i];
@@ -360,12 +378,45 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     }
     r = toku_omt_set_at (omt, values[0], length);
     CKERR2(r,ERANGE);    
+    r = toku_omt_set_at (omt, values[0], length+1);
+    CKERR2(r,ERANGE);    
 
     test_close(close);
 
 }
 
+void test_create_delete_at(enum create_type create_choice, enum close_when_done close) {
+    u_int32_t i = 0;
+    int r = ENOSYS;
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
+    assert(length == toku_omt_size(omt));
+    r = toku_omt_delete_at(omt, length);
+    CKERR2(r,ERANGE);
+    assert(length == toku_omt_size(omt));
+    r = toku_omt_delete_at(omt, length+1);
+    CKERR2(r,ERANGE);
+    while (length > 0) {
+        assert(length == toku_omt_size(omt));
+        u_int32_t index_to_delete = random()%length;
+        r = toku_omt_delete_at(omt, index_to_delete);
+        CKERR(r);
+        for (i = index_to_delete+1; i < length; i++) {
+            values[i-1] = values[i];
+        }
+        length--;
+        test_fetch_verify();
+        test_iterate_verify();
+    }
+    assert(length == 0);
+    assert(length == toku_omt_size(omt));
+    r = toku_omt_delete_at(omt, length);
+    CKERR2(r, ERANGE);
+    assert(length == toku_omt_size(omt));
+    r = toku_omt_delete_at(omt, length+1);
+    CKERR2(r, ERANGE);
+    test_close(close);
+}
 
 void test_create_array(enum create_type create_choice, enum rand_type rand_choice) {
     if (rand_choice == TEST_RANDOM) {
@@ -387,6 +438,8 @@ void test_create_array(enum create_type create_choice, enum rand_type rand_choic
     test_create_iterate_verify(        create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
     test_create_set_at(                create_choice, CLOSE_WHEN_DONE);
+    /* ********************************************************************** */
+    test_create_delete_at(             create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
 }
 
@@ -607,9 +660,5 @@ int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v,
 //    omt_insert_at(tree, value, i);
 //   If index!=NULL then i is stored in *index
 
-int toku_omt_delete_at(OMT omt, u_int32_t index);
-// Effect: Delete the item in slot index.
-//         Decreases indexes of all items at slot >= index by 1.
-
-
 */
+
