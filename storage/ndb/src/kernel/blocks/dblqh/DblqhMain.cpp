@@ -7624,6 +7624,22 @@ void Dblqh::lqhTransNextLab(Signal* signal)
        *
        * now scan markers
        */
+      if (ERROR_INSERTED(5050))
+      {
+        ndbout_c("send ZSCAN_MARKERS with 5s delay and killing master");
+        CLEAR_ERROR_INSERT_VALUE;
+        signal->theData[0] = ZSCAN_MARKERS;
+        signal->theData[1] = tcNodeFailptr.i;
+        signal->theData[2] = 0;
+        signal->theData[3] = RNIL;
+        sendSignalWithDelay(cownref, GSN_CONTINUEB, signal, 5000, 4);
+        
+        signal->theData[0] = 9999;
+        sendSignal(numberToRef(CMVMI, 
+                               refToNode(tcNodeFailptr.p->newTcBlockref)), 
+                   GSN_NDB_TAMPER, signal, 1, JBB);
+        return;
+      }
       scanMarkers(signal, tcNodeFailptr.i, 0, RNIL);
       return;
     }//if
@@ -7709,6 +7725,20 @@ Dblqh::scanMarkers(Signal* signal,
   tcNodeFailPtr.i = tcNodeFail;
   ptrCheckGuard(tcNodeFailPtr, ctcNodeFailrecFileSize, tcNodeFailRecord);
   const Uint32 crashedTcNodeId = tcNodeFailPtr.p->oldNodeId;
+
+  if (tcNodeFailPtr.p->tcFailStatus == TcNodeFailRecord::TC_STATE_BREAK)
+  {
+    jam();
+    
+    /* ----------------------------------------------------------------------
+     *  AN INTERRUPTION TO THIS NODE FAIL HANDLING WAS RECEIVED AND A NEW 
+     *  TC HAVE BEEN ASSIGNED TO TAKE OVER THE FAILED TC. PROBABLY THE OLD 
+     *  NEW TC HAVE FAILED.
+     * ---------------------------------------------------------------------- */
+    tcNodeFailptr = tcNodeFailPtr;
+    lqhTransNextLab(signal);
+    return;
+  }
   
   CommitAckMarkerIterator iter;
   if(i == RNIL){
