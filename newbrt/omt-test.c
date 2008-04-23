@@ -241,37 +241,37 @@ void test_create_from_sorted_array_size(enum create_type create_choice, enum clo
     test_close(close);
 }    
 
-void test_fetch_verify (void) {
+void test_fetch_verify (OMT omtree, OMTVALUE* val, u_int32_t len ) {
     u_int32_t i;
     int r;
     OMTVALUE v = (OMTVALUE)&i;
     OMTVALUE oldv = v;
-    assert(length == toku_omt_size(omt));
-    for (i = 0; i < length; i++) {
-        assert(oldv!=values[i]);
+    assert(len == toku_omt_size(omtree));
+    for (i = 0; i < len; i++) {
+        assert(oldv!=val[i]);
         v = NULL;
-        r = toku_omt_fetch(omt, i, &v);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
-        assert(v == values[i]);
-        assert(v->number == values[i]->number);
+        assert(v == val[i]);
+        assert(v->number == val[i]->number);
 
         v = oldv;
-        r = toku_omt_fetch(omt, i, &v);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR(r);
         assert(v != NULL);
         assert(v != oldv);
-        assert(v == values[i]);
-        assert(v->number == values[i]->number);
+        assert(v == val[i]);
+        assert(v->number == val[i]->number);
     }
-    for (i = length; i < length*2; i++) {
+    for (i = len; i < len*2; i++) {
         v = oldv;
-        r = toku_omt_fetch(omt, i, &v);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR2(r, ERANGE);
         assert(v == oldv);
         v = NULL;
-        r = toku_omt_fetch(omt, i, &v);
+        r = toku_omt_fetch(omtree, i, &v);
         CKERR2(r, ERANGE);
         assert(v == NULL);
     }
@@ -279,28 +279,29 @@ void test_fetch_verify (void) {
 
 void test_create_fetch_verify(enum create_type create_choice, enum close_when_done close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    test_fetch_verify();
+    test_fetch_verify(omt, values, length);
     test_close(close);
 }
 
 static int iterate_helper_error_return = 1;
 
 int iterate_helper(OMTVALUE v, u_int32_t idx, void* extra) {
-    if (extra != (void*)omt) return iterate_helper_error_return;
+    if (extra == NULL) return iterate_helper_error_return;
+    OMTVALUE* vals = (OMTVALUE *)extra;
     assert(v != NULL);
-    assert(v == values[idx]);
-    assert(v->number == values[idx]->number);
+    assert(v == vals[idx]);
+    assert(v->number == vals[idx]->number);
     return 0;
 }
 
-void test_iterate_verify(void) {
+void test_iterate_verify(OMT omtree, OMTVALUE* vals, u_int32_t len) {
     int r;
     iterate_helper_error_return = 0;
-    r = toku_omt_iterate(omt, iterate_helper, (void*)omt);
+    r = toku_omt_iterate(omtree, iterate_helper, (void*)vals);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
-    r = toku_omt_iterate(omt, iterate_helper, NULL);
-    if (!length) {
+    r = toku_omt_iterate(omtree, iterate_helper, NULL);
+    if (!len) {
         CKERR2(r, 0);
     }
     else {
@@ -310,7 +311,7 @@ void test_iterate_verify(void) {
 
 void test_create_iterate_verify(enum create_type create_choice, enum close_when_done close) {
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
-    test_iterate_verify();
+    test_iterate_verify(omt, values, length);
     test_close(close);
 }
 
@@ -371,8 +372,8 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
         nums[choice].number = (u_int32_t)random();
         r = toku_omt_set_at (omt, values[choice], choice);
         CKERR(r);
-        test_iterate_verify();
-        test_fetch_verify();
+        test_iterate_verify(omt, values, length);
+        test_fetch_verify(omt, values, length);
     }
     r = toku_omt_set_at (omt, values[0], length);
     CKERR2(r,ERANGE);    
@@ -430,8 +431,8 @@ void test_create_insert(enum close_when_done close) {
             values[i] = values[i-1];
         }
         values[idx] = to_insert;
-        test_fetch_verify();
-        test_iterate_verify();
+        test_fetch_verify(omt, values, length);
+        test_iterate_verify(omt, values, length);
 
         idx = UINT32_MAX;
         r = toku_omt_insert(omt, to_insert, insert_helper, to_insert, &idx);
@@ -440,8 +441,8 @@ void test_create_insert(enum close_when_done close) {
         assert(values[idx]->number == to_insert->number);
         assert(length==toku_omt_size(omt));
 
-        test_iterate_verify();
-        test_fetch_verify();
+        test_iterate_verify(omt, values, length);
+        test_fetch_verify(omt, values, length);
     }
 
     toku_free(perm);
@@ -469,8 +470,8 @@ void test_create_delete_at(enum create_type create_choice, enum close_when_done 
             values[i-1] = values[i];
         }
         length--;
-        test_fetch_verify();
-        test_iterate_verify();
+        test_fetch_verify(omt, values, length);
+        test_iterate_verify(omt, values, length);
     }
     assert(length == 0);
     assert(length == toku_omt_size(omt));
@@ -481,6 +482,38 @@ void test_create_delete_at(enum create_type create_choice, enum close_when_done 
     CKERR2(r, ERANGE);
     test_close(close);
 }
+
+void test_split_merge(enum create_type create_choice, enum close_when_done close) {
+    int r = ENOSYS;
+    u_int32_t i = 0;
+    OMT left_split = NULL;
+    OMT right_split = NULL;
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+
+    for (i = 0; i < length; i++) {
+        r = toku_omt_split_at(omt, &right_split, i);
+        CKERR(r);
+        left_split = omt;
+        omt = NULL;
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(right_split) == length - i);
+        test_fetch_verify(left_split, values, i);
+        test_iterate_verify(left_split, values, i);
+        test_fetch_verify(right_split, &values[i], length - i);
+        test_iterate_verify(right_split, &values[i], length - i);
+
+        r = toku_omt_merge(left_split,right_split,&omt);
+        CKERR(r);
+        left_split = NULL;
+        right_split = NULL;
+        assert(toku_omt_size(omt) == length);
+        test_fetch_verify(omt, values, length);
+        test_iterate_verify(omt, values, length);
+    }
+    test_close(close);
+}
+
 
 void init_values(enum rand_type rand_choice) {
     if (rand_choice == TEST_RANDOM) {
@@ -515,6 +548,12 @@ void test_create_array(enum create_type create_choice, enum rand_type rand_choic
     /* ********************************************************************** */
     init_values(rand_choice);
     test_create_insert(                               CLOSE_WHEN_DONE);
+    /* ********************************************************************** */
+    init_values(rand_choice);
+    test_create_delete_at(             create_choice, CLOSE_WHEN_DONE);
+    /* ********************************************************************** */
+    init_values(rand_choice);
+    test_split_merge(                  create_choice, CLOSE_WHEN_DONE);
 }
 
 typedef struct {
