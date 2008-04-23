@@ -125,7 +125,7 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index);
 // Effect:  Replaces the item at index with value.
 // Returns:
 //   0       success
-//   ERANGE
+//   ERANGE    if index>=toku_omt_size(omt)
 // On error, omt i sunchanged.
 // Performance: time=O(\log N)
 // Rationale: The BRT needs to be able to replace a value with another copy of the same value (allocated in a different location)
@@ -164,7 +164,7 @@ int toku_omt_fetch (OMT V, u_int32_t i, OMTVALUE *v);
 // Requires: v   != NULL
 // Returns
 //    0             success
-//    ERANGE        if i out of range
+//    ERANGE        if index>=toku_omt_size(omt)
 // On nonzero return, *v is unchanged.
 // Performance: time=O(\log N)
 

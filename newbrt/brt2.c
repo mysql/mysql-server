@@ -219,7 +219,7 @@ static void initialize_brtnode (BRT t, BRTNODE n, DISKOFF nodename, int height) 
     n->thisnodename = nodename;
     n->disk_lsn.lsn = 0; // a new one can always be 0.
     n->log_lsn = n->disk_lsn;
-    n->layout_version = 5;
+    n->layout_version = BRT_LAYOUT_VERSION;
     n->height       = height;
     n->rand4fingerprint = random();
     n->local_fingerprint = 0;
