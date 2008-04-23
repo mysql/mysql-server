@@ -83,16 +83,13 @@
 #include <signaldata/ApiBroadcast.hpp>
 #include <signaldata/DictLock.hpp>
 
-#include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
-
 #include <signaldata/DropObj.hpp>
 #include <signaldata/CreateObj.hpp>
 #include <signaldata/BackupLockTab.hpp>
 #include <SLList.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 #include <signaldata/SchemaTrans.hpp>
 #include <DebuggerNames.hpp>
@@ -15246,14 +15243,14 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     if (c_outstanding_sub_startstop)
     {
       jam();
-      g_eventLogger.info("refing dict lock to %u", refToNode(req.userRef));
+      g_eventLogger->info("refing dict lock to %u", refToNode(req.userRef));
       err = DictLockRef::TooManyRequests;
       goto ref;
     }
     
     c_sub_startstop_lock.set(refToNode(req.userRef));
     
-    g_eventLogger.info("granting dict lock to %u", refToNode(req.userRef));
+    g_eventLogger->info("granting dict lock to %u", refToNode(req.userRef));
     DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
     conf->userPtr = req.userPtr;
     conf->lockType = req.lockType;
@@ -15365,7 +15362,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   if (ord->lockType ==  DictLockReq::SumaStartMe)
   {
     jam();
-    g_eventLogger.info("clearing dict lock for %u", refToNode(ord->senderRef));
+    g_eventLogger->info("clearing dict lock for %u", refToNode(ord->senderRef));
     c_sub_startstop_lock.clear(refToNode(ord->senderRef));
     return;
   }
