@@ -491,6 +491,14 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
     for (i = 0; i < length; i++) {
+        r = toku_omt_split_at(omt, &right_split, length+1);
+        CKERR2(r,ERANGE);
+        r = toku_omt_split_at(omt, &right_split, length+2);
+        CKERR2(r,ERANGE);
+
+        //
+        // test successful split
+        //
         r = toku_omt_split_at(omt, &right_split, i);
         CKERR(r);
         left_split = omt;
@@ -502,7 +510,21 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
         test_iterate_verify(left_split, values, i);
         test_fetch_verify(right_split, &values[i], length - i);
         test_iterate_verify(right_split, &values[i], length - i);
+        //
+        // verify that new OMT's cannot do bad splits
+        //
+        r = toku_omt_split_at(left_split, &omt, i+1);
+        CKERR2(r,ERANGE);
+        r = toku_omt_split_at(left_split, &omt, i+2);
+        CKERR2(r,ERANGE);
+        r = toku_omt_split_at(right_split, &omt, length - i + 1);
+        CKERR2(r,ERANGE);
+        r = toku_omt_split_at(right_split, &omt, length - i + 1);
+        CKERR2(r,ERANGE);
 
+        //
+        // test merge
+        //
         r = toku_omt_merge(left_split,right_split,&omt);
         CKERR(r);
         left_split = NULL;
@@ -747,37 +769,4 @@ int main(int argc, const char *argv[]) {
     cleanup_globals();
     return 0;
 }
-
-/*
-UNTESTED COMPLETELY:
-
-int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t index);
-// Effect: Create a new OMT, storing it in *newomt.
-//  The values to the right of index (starting at index) are moved to *newomt.
-Tests
-    *   Split at 0
-    *   Split at 1
-    *   Split at ~half
-    *   Split at toku_omt_size(omt)-1 (right ends up with 1 element)
-    *   Split at toku_omt_size(omt) (right ends up empty)
-    *   Split at toku_omt_size(omt)+1  (ERANGE)
-    *   Split at toku_omt_size(omt)+2  (ERANGE)
- 
-int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
-// Effect: Appends leftomt and rightomt to produce a new omt.
-//  Sets *newomt to the new omt.
-//  On success, leftomt and rightomt destroyed,.
-// Returns 0 on success
-//   ENOMEM on out of memory.
-// On error, nothing is modified.
-// Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
-
-Tests
-    *   Left tree is empty.
-    *   Right tree is empty.
-    *   |left tree|  = 1
-    *   |right tree| = 1
-    *   |left tree|  = half   |right tree| = half
-
-*/
 
