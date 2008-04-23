@@ -143,17 +143,20 @@ int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index) {
     return 0;
 }
 
-
 int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index) {
     int r;
     u_int32_t idx;
 
-    r = toku_omt_find(omt, h, v, +1, NULL, &idx);
-    if (r==DB_NOTFOUND) idx=toku_omt_size(omt);
-    else if (r!=0) return r;
+    r = toku_omt_find_zero(omt, h, v, NULL, &idx);
+    if (r==0) {
+        if (index) *index = idx;
+        return DB_KEYEXIST;
+    }
+    if (r!=DB_NOTFOUND) return r;
 
-    if ((r = toku_omt_insert_at(omt, value, idx)))      return r;
+    if ((r = toku_omt_insert_at(omt, value, idx))) return r;
     if (index) *index = idx;
+
     return 0;
 }
 
