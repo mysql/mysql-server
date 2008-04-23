@@ -233,8 +233,7 @@ void test_create_from_sorted_array_size(enum create_type create_choice, enum clo
     test_close(close);
 }    
 
-void test_create_fetch_verify(enum create_type create_choice, enum close_when_done close) {
-    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+void test_fetch_verify (void) {
     u_int32_t i;
     int r;
     OMTVALUE v = (OMTVALUE)&i;
@@ -270,6 +269,11 @@ void test_create_fetch_verify(enum create_type create_choice, enum close_when_do
         CKERR2(r, ERANGE);
         assert(v == NULL);
     }
+}
+
+void test_create_fetch_verify(enum create_type create_choice, enum close_when_done close) {
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+    test_fetch_verify();
     test_close(close);
 }
 
@@ -283,19 +287,85 @@ int iterate_helper(OMTVALUE v, u_int32_t idx, void* extra) {
     return 0;
 }
 
-void test_create_iterate_verify(enum create_type create_choice, enum close_when_done close) {
-    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+void test_iterate_verify(void) {
     int r;
-
     iterate_helper_error_return = 0;
     r = toku_omt_iterate(omt, iterate_helper, (void*)omt);
     CKERR(r);
     iterate_helper_error_return = 0xFEEDABBA;
     r = toku_omt_iterate(omt, iterate_helper, NULL);
     CKERR2(r, iterate_helper_error_return);
+}
 
+void test_create_iterate_verify(enum create_type create_choice, enum close_when_done close) {
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+    test_iterate_verify();
     test_close(close);
 }
+
+
+void test_create_set_at(enum create_type create_choice, enum close_when_done close) {
+    u_int32_t i = 0;
+
+    struct value*   old_nums   = NULL;
+    MALLOC_N(length, old_nums);
+    assert(nums);
+
+    u_int32_t* perm = NULL;
+    MALLOC_N(length, perm);
+    assert(perm);
+
+    OMTVALUE* old_values = NULL;
+    MALLOC_N(length, old_values);
+    assert(old_values);
+    
+    //
+    // permute an array that holds elements 0...length-1
+    //
+    for (i = 0; i < length; i++) {
+        perm[i] = i;
+    }
+    for (i = 0; i < length - 1; i++) {
+        u_int32_t choices = length - i;
+        u_int32_t choice  = random() % choices;
+        if (choice != i) {
+            u_int32_t temp = perm[i];
+            perm[i]      = perm[choice];
+            perm[choice] = temp;
+        }
+    }
+    //
+    // These are going to be the new values
+    //
+    for (i = 0; i < length; i++) {
+        old_nums[i] = nums[i];
+        old_values[i] = &old_nums[i];        
+        values[i] = &old_nums[i];
+    }
+    test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
+    //
+    // 
+    //
+    int r;
+    r = toku_omt_set_at (omt, values[0], length);
+    CKERR2(r,ERANGE);    
+    for (i = 0; i < length; i++) {
+        u_int32_t choice = perm[i];
+        values[choice] = &nums[choice];
+        nums[choice].number = (u_int32_t)random();
+        r = toku_omt_set_at (omt, values[choice], choice);
+        CKERR(r);
+        test_iterate_verify();
+        test_fetch_verify();
+    }
+    r = toku_omt_set_at (omt, values[0], length);
+    CKERR2(r,ERANGE);    
+
+    test_close(close);
+
+}
+
+
 
 void test_create_array(enum create_type create_choice, enum rand_type rand_choice) {
     if (rand_choice == TEST_RANDOM) {
@@ -315,6 +385,8 @@ void test_create_array(enum create_type create_choice, enum rand_type rand_choic
     test_create_fetch_verify(          create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
     test_create_iterate_verify(        create_choice, CLOSE_WHEN_DONE);
+    /* ********************************************************************** */
+    test_create_set_at(                create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
 }
 
@@ -525,9 +597,6 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 //   ENOMEM on out of memory.
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
-
-int toku_omt_set_at (OMT omt, OMTVALUE value, u_int32_t index);
-// Effect:  Replaces the item at index with value.
 
 int toku_omt_insert(OMT omt, OMTVALUE value, int(*h)(OMTVALUE, void*v), void *v, u_int32_t *index);
 // Effect:  Insert value into the OMT.
