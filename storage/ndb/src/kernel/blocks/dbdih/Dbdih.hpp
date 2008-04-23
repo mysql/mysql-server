@@ -1399,6 +1399,9 @@ private:
     Uint32 m_masterLcpDihRef;
     bool   m_MASTER_LCPREQ_Received;
     Uint32 m_MASTER_LCPREQ_FailedNodeId;
+
+    Uint32 m_lastLCP_COMPLETE_REP_id;
+    Uint32 m_lastLCP_COMPLETE_REP_ref;
   } c_lcpState;
   
   /*------------------------------------------------------------------------*/
