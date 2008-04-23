@@ -715,6 +715,14 @@ UNTESTED COMPLETELY:
 int toku_omt_split_at(OMT omt, OMT *newomt, u_int32_t index);
 // Effect: Create a new OMT, storing it in *newomt.
 //  The values to the right of index (starting at index) are moved to *newomt.
+Tests
+    *   Split at 0
+    *   Split at 1
+    *   Split at ~half
+    *   Split at toku_omt_size(omt)-1 (right ends up with 1 element)
+    *   Split at toku_omt_size(omt) (right ends up empty)
+    *   Split at toku_omt_size(omt)+1  (ERANGE)
+    *   Split at toku_omt_size(omt)+2  (ERANGE)
  
 int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 // Effect: Appends leftomt and rightomt to produce a new omt.
@@ -724,6 +732,13 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomt);
 //   ENOMEM on out of memory.
 // On error, nothing is modified.
 // Performance: time=O(n) is acceptable, but one can imagine implementations that are O(\log n) worst-case.
+
+Tests
+    *   Left tree is empty.
+    *   Right tree is empty.
+    *   |left tree|  = 1
+    *   |right tree| = 1
+    *   |left tree|  = half   |right tree| = half
 
 */
 
