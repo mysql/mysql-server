@@ -9,20 +9,25 @@ DROP DATABASE IF EXISTS db_storedproc_1;
 CREATE DATABASE db_storedproc;
 CREATE DATABASE db_storedproc_1;
 USE db_storedproc;
-create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t1;
-create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t2;
-create table t3(f1 char(20),f2 char(20),f3 integer) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t3.txt' into table t3;
-create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t4;
+create table t1(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t1;
+create table t2(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t2;
+create table t3(f1 char(20),f2 char(20),f3 integer) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t3.txt' into table t3;
+create table t4(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t4;
 USE db_storedproc_1;
-create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t6;
+create table t6(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t6;
 USE db_storedproc;
-create table t7 (f1 char(20), f2 char(25), f3 date, f4 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t7;
+create table t7 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t7;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -34,8 +39,9 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t8 (f1 char(20), f2 char(25), f3 date, f4 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t7.txt' into table t8;
+create table t8 (f1 char(20), f2 char(25), f3 date, f4 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t7.txt' into table t8;
 Warnings:
 Warning	1265	Data truncated for column 'f3' at row 1
 Warning	1265	Data truncated for column 'f3' at row 2
@@ -47,12 +53,14 @@ Warning	1265	Data truncated for column 'f3' at row 7
 Warning	1265	Data truncated for column 'f3' at row 8
 Warning	1265	Data truncated for column 'f3' at row 9
 Warning	1265	Data truncated for column 'f3' at row 10
-create table t9(f1 int, f2 char(25), f3 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t9.txt' into table t9;
-create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t10;
-create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int) engine = innodb;
-load data infile 'MYSQL_TEST_DIR/suite/funcs_1/data/t4.txt' into table t11;
+create table t9(f1 int, f2 char(25), f3 int) engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t9.txt' into table t9;
+create table t10(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t10;
+create table t11(f1 char(20),f2 char(25),f3 date,f4 int,f5 char(25),f6 int)
+engine = <engine_to_be_tested>;
+load data infile '<MYSQLTEST_VARDIR>/std_data_ln/funcs_1/t4.txt' into table t11;
 
 Section 3.1.6 - Privilege Checks:
 --------------------------------------------------------------------------------
@@ -79,6 +87,7 @@ BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
 END//
 ERROR 42000: Access denied for user 'user_1'@'localhost' to database 'db_storedproc_1'
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 GRANT CREATE ROUTINE ON db_storedproc_1.* TO 'user_1'@'localhost';
@@ -90,6 +99,7 @@ CREATE PROCEDURE sp1(v1 char(20))
 BEGIN
 SELECT * from db_storedproc_1.t6 where t6.f2= 'xyz';
 END//
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 DROP USER 'user_1'@'localhost';
@@ -115,6 +125,7 @@ CREATE FUNCTION fn1(v1 int) returns int
 BEGIN
 return v1;
 END//
+USE db_storedproc_1;
 	
 root@localhost	db_storedproc_1
 drop user 'user_1'@'localhost';
