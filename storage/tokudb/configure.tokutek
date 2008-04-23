@@ -3,25 +3,33 @@
 # create the Makefile from the Makefile.tokutek template and some
 # command line parameters
 
+
 tokudb=/usr/local/tokudb
 tokudb_version=`basename $tokudb`
 mysql=/usr/local/mysql
 libdir=/usr/local/mysql/lib
+
+function usage() {
+    echo "configure.tokutek"
+    echo "--with-tokudb=$tokudb"
+    echo "--tokudb_version=$tokudb_version"
+    echo "--with-mysql=$mysql"
+    echo "--libdir=$libdir"
+}
 
 while [ $# -gt 0 ] ; do
     arg=$1; shift
     if [[ $arg =~ "--with-tokudb=(.*)" ]] ; then
 	tokudb=${BASH_REMATCH[1]}
 	tokudb_version=`basename $tokudb`
-    fi
-    if [[ $arg =~ "--with-mysql=(.*)" ]] ; then
+    elif [[ $arg =~ "--with-mysql=(.*)" ]] ; then
         mysql=${BASH_REMATCH[1]}
-    fi
-    if [[ $arg =~ "--libdir=(.*)" ]] ; then
+    elif [[ $arg =~ "--libdir=(.*)" ]] ; then
         libdir=${BASH_REMATCH[1]}
-    fi
-    if [[ $arg =~ "--tokudb_version=(.*)" ]] ; then
+    elif [[ $arg =~ "--tokudb_version=(.*)" ]] ; then
 	tokudb_version=${BASH_REMATCH[1]}
+    else
+	usage; exit 1
     fi
 done
 
