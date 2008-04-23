@@ -38,8 +38,8 @@ SET @ts_old = @@SESSION.timestamp;
 --echo waiting 1 sec
 --sleep 1
 SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old AS 'Timestamp Difference';
---echo 1 Expected
+SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
+--echo 1 means >=1 expected is true
 
 
 #
@@ -51,8 +51,8 @@ SET @ts_old = @@SESSION.timestamp;
 --echo waiting 4 sec
 --sleep 4
 SET @ts_new = @@SESSION.timestamp;
-SELECT @ts_new - @ts_old AS 'Timestamp Difference';
---echo 4 Expected
+SELECT @ts_new - @ts_old >= 4 AS 'Timestamp Difference';
+--echo 1 means >=4 expected is true
 
 --echo '#-----------------------------FN_DYNVARS_179_02---------------------#'
 #
@@ -65,7 +65,7 @@ SET @ts_old = @@SESSION.timestamp;
 SET time_zone = 'MET';
 SET @ts_new = @@SESSION.timestamp;
 SELECT @ts_new - @ts_old >= 1 AS 'Timestamp Difference';
---echo >=1 Expected
+--echo 1 means >=1 expected is true
 
 #
 # Cleanup
