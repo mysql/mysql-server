@@ -1293,18 +1293,6 @@ sub remove_stale_vardir () {
   mtr_error("No, don't remove the vardir when running with --extern")
     if using_extern();
 
-  my $tmpdir= "$opt_vardir/tmp";
-  if ( -l $tmpdir)
-  {
-    # var/tmp is a symlink
-    mtr_verbose("Removing " . readlink($tmpdir));
-    rmtree(readlink($tmpdir));
-
-    # Remove the "tmp" symlink
-    mtr_verbose("unlink($tmpdir)");
-    unlink($tmpdir);
-  }
-
   mtr_verbose("opt_vardir: $opt_vardir");
   if ( $opt_vardir eq $default_vardir )
   {
@@ -1425,11 +1413,9 @@ sub setup_vardir() {
   mkpath("$opt_vardir/log");
   mkpath("$opt_vardir/run");
 
-  mkpath($opt_tmpdir);
-  if ($opt_tmpdir ne "$opt_vardir/tmp"){
-    mtr_report(" - symlinking 'var/tmp' to '$opt_tmpdir'");
-    symlink($opt_tmpdir, "$opt_vardir/tmp");
-  }
+  # Create var/tmp and tmp - they might be different
+  mkpath("$opt_vardir/tmp");
+  mkpath($opt_tmpdir) if ($opt_tmpdir ne "$opt_vardir/tmp");
 
   # On some operating systems, there is a limit to the length of a
   # UNIX domain socket's path far below PATH_MAX.
@@ -2716,10 +2702,13 @@ sub after_test_failure ($) {
     }
   }
 
-  # Remove all files in the tmpdir
-  rmtree($opt_tmpdir);
-  mkpath($opt_tmpdir);
-
+  # Remove all files in tmp and var/tmp
+  rmtree("$opt_vardir/tmp");
+  mkpath("$opt_vardir/tmp");
+  if ($opt_tmpdir ne "$opt_vardir/tmp"){
+    rmtree($opt_tmpdir);
+    mkpath($opt_tmpdir);
+  }
 }
 
 
