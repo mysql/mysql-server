@@ -53,7 +53,7 @@
 #include <../dbdih/Dbdih.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
 //#define NODEFAIL_DEBUG
@@ -2670,8 +2670,8 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       else
       {
         jam();
-        g_eventLogger.warning("Node %u failed in report_sub_start_conf",
-                              nodeId);
+        g_eventLogger->warning("Node %u failed in report_sub_start_conf",
+                               nodeId);
         sendSubStartRef(signal,
                         senderRef, senderData, SubStartRef::NodeDied);
 
@@ -3798,8 +3798,8 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     {
       char buf[100];
       c_subscriber_nodes.getText(buf);
-      g_eventLogger.error("c_gcp_list.seize() failed: gci: %d nodes: %s",
-                          gci, buf);
+      g_eventLogger->error("c_gcp_list.seize() failed: gci: %d nodes: %s",
+                           gci, buf);
     }
   }
   
@@ -4062,9 +4062,9 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   
   if(gcp.isNull())
   {
-    g_eventLogger.warning("ACK wo/ gcp record (gci: %u/%u) ref: %.8x from: %.8x",
-                          Uint32(gci >> 32), Uint32(gci),
-                          senderRef, signal->getSendersBlockRef());
+    g_eventLogger->warning("ACK wo/ gcp record (gci: %u/%u) ref: %.8x from: %.8x",
+                           Uint32(gci >> 32), Uint32(gci),
+                           senderRef, signal->getSendersBlockRef());
   }
   else
   {

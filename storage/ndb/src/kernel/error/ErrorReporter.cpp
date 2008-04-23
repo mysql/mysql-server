@@ -39,7 +39,7 @@ static void dumpJam(FILE* jamStream,
 		    const Uint32 thrdTheEmulatedJam[],
                     Uint32 aBlockNumber);
 
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 const char*
 ErrorReporter::formatTimeStampString(){
   TimeModule DateTime;          /* To create "theDateTimeString" */
@@ -214,8 +214,8 @@ ErrorReporter::handleError(int messageID,
 {
   WriteMessage(messageID, problemData, objRef);
 
-  g_eventLogger.info(problemData);
-  g_eventLogger.info(objRef);
+  g_eventLogger->info(problemData);
+  g_eventLogger->info(objRef);
 
   childReportError(messageID);
 
