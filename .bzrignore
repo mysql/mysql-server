@@ -3020,3 +3020,4 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
+mysql-test/r/max_allowed_packet_func.result
