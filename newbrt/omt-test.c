@@ -381,8 +381,11 @@ void test_create_set_at(enum create_type create_choice, enum close_when_done clo
     r = toku_omt_set_at (omt, values[0], length+1);
     CKERR2(r,ERANGE);    
 
-    test_close(close);
+    toku_free(perm);
+    toku_free(old_values);
+    toku_free(old_nums);
 
+    test_close(close);
 }
 
 void test_create_delete_at(enum create_type create_choice, enum close_when_done close) {
