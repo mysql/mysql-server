@@ -27,6 +27,8 @@ EXTRA_DIST =		FINISH.sh \
 			compile-alpha-cxx \
 			compile-alpha-debug \
 			compile-amd64-debug-max \
+			compile-amd64-gcov \
+			compile-amd64-gprof \
 			compile-amd64-max \
 			compile-amd64-max-sci \
 			compile-darwin-mwcc \
@@ -54,6 +56,8 @@ EXTRA_DIST =		FINISH.sh \
 			compile-pentium-valgrind-max \
 			compile-pentium64-debug \
 			compile-pentium64-debug-max \
+			compile-pentium64-gcov \
+			compile-pentium64-gprof \
 			compile-pentium64-max-sci \
 			compile-pentium64-valgrind-max \
 			compile-ppc \
@@ -61,6 +65,10 @@ EXTRA_DIST =		FINISH.sh \
 			compile-ppc-debug-max \
 			compile-ppc-debug-max-no-ndb \
 			compile-ppc-max \
+			compile-solaris-amd64 \
+			compile-solaris-amd64-debug \
+			compile-solaris-amd64-forte \
+			compile-solaris-amd64-forte-debug \
 			compile-solaris-sparc \
 			compile-solaris-sparc-debug \
 			compile-solaris-sparc-forte \
