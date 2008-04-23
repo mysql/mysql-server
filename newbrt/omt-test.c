@@ -23,21 +23,21 @@ int verbose=0;
 void parse_args (int argc, const char *argv[]) {
     const char *argv0=argv[0];
     while (argc>1) {
-	int resultcode=0;
-	if (strcmp(argv[1], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[1], "-q")==0) {
-	    verbose = 0;
-	} else if (strcmp(argv[1], "-h")==0) {
-	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-h]\n", argv0);
-	    exit(resultcode);
-	} else {
-	    resultcode=1;
-	    goto do_usage;
-	}
-	argc--;
-	argv++;
+        int resultcode=0;
+        if (strcmp(argv[1], "-v")==0) {
+            verbose++;
+        } else if (strcmp(argv[1], "-q")==0) {
+            verbose = 0;
+        } else if (strcmp(argv[1], "-h")==0) {
+        do_usage:
+            fprintf(stderr, "Usage:\n%s [-v|-h]\n", argv0);
+            exit(resultcode);
+        } else {
+            resultcode=1;
+            goto do_usage;
+        }
+        argc--;
+        argv++;
     }
 }
 /* End ".h like" stuff. */
