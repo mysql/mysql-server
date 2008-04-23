@@ -243,7 +243,7 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 tupmem = 0;
   if (ndb_mgm_get_int_parameter(p, CFG_TUP_PAGE, &tupmem))
   {
-    g_eventLogger.alert("Failed to get CFG_TUP_PAGE parameter from "
+    g_eventLogger->alert("Failed to get CFG_TUP_PAGE parameter from "
                         "config, exiting.");
     return -1;
   }
@@ -276,9 +276,9 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     size = sizeof(ndb_mgm_param_info);
     ndb_mgm_get_db_parameter_info(CFG_DB_SGA, &sga, &size);
 
-    g_eventLogger.alert("Malloc (%lld bytes) for %s and %s failed, exiting",
-                        Uint64(shared_mem + tupmem) * 32768,
-                        dm.m_name, sga.m_name);
+    g_eventLogger->alert("Malloc (%lld bytes) for %s and %s failed, exiting",
+                         Uint64(shared_mem + tupmem) * 32768,
+                         dm.m_name, sga.m_name);
     return -1;
   }
 
