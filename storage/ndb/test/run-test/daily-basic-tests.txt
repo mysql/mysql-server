@@ -1106,3 +1106,25 @@ max-time: 600
 cmd: test_event
 args: -n Bug35208 T1
 
+# 2008-04-22
+max-time: 1500
+cmd: testNodeRestart
+args: -n MNF -l 15 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36199 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36246 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36247 T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36276 T1
+
+# EOF

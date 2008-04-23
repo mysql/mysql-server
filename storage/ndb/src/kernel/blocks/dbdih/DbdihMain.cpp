@@ -4841,37 +4841,47 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
   c_lcpState.m_participatingDIH.clear(failedNodePtr.i);
   c_lcpState.m_participatingLQH.clear(failedNodePtr.i);
 
-  if(c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(failedNodePtr.i)){
+  bool wf = c_MASTER_LCPREQ_Counter.isWaitingFor(failedNodePtr.i);
+
+  if(c_lcpState.m_LCP_COMPLETE_REP_Counter_DIH.isWaitingFor(failedNodePtr.i))
+  {
     jam();
     LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
     rep->nodeId = failedNodePtr.i;
     rep->lcpId = SYSFILE->latestLCP_ID;
     rep->blockNo = DBDIH;
     sendSignal(reference(), GSN_LCP_COMPLETE_REP, signal, 
-	       LcpCompleteRep::SignalLength, JBB);
+               LcpCompleteRep::SignalLength, JBB);
   }
-
-  /**
-   * Check if we'r waiting for the failed node's LQH to complete
-   *
-   * Note that this is ran "before" LCP master take over
-   */
-  if(c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId)){
+   
+  bool lcp_complete_rep = false;
+  if (!wf)
+  {
     jam();
-
-    LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
-    rep->nodeId  = nodeId;
-    rep->lcpId   = SYSFILE->latestLCP_ID;
-    rep->blockNo = DBLQH;
-    sendSignal(reference(), GSN_LCP_COMPLETE_REP, signal, 
-	       LcpCompleteRep::SignalLength, JBB);
-
-    if(c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId)){
+ 
+    /**
+     * Check if we'r waiting for the failed node's LQH to complete
+     *
+     * Note that this is ran "before" LCP master take over
+     */
+    if(c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(nodeId)){
       jam();
-      /**
-       * Make sure we're ready to accept it
-       */
-      c_lcpState.m_LAST_LCP_FRAG_ORD.clearWaitingFor(nodeId);
+      
+      lcp_complete_rep = true;
+      LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
+      rep->nodeId  = nodeId;
+      rep->lcpId   = SYSFILE->latestLCP_ID;
+      rep->blockNo = DBLQH;
+      sendSignal(reference(), GSN_LCP_COMPLETE_REP, signal, 
+                 LcpCompleteRep::SignalLength, JBB);
+      
+      if(c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(nodeId)){
+        jam();
+        /**
+         * Make sure we're ready to accept it
+         */
+        c_lcpState.m_LAST_LCP_FRAG_ORD.clearWaitingFor(nodeId);
+      }
     }
   }
   
@@ -4897,7 +4907,9 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
 	       StartLcpConf::SignalLength, JBB);
   }//if
   
-  if (c_EMPTY_LCP_REQ_Counter.isWaitingFor(failedNodePtr.i)) {
+dosend:
+  if (c_EMPTY_LCP_REQ_Counter.isWaitingFor(failedNodePtr.i))
+  {
     jam();
     EmptyLcpConf * const rep = (EmptyLcpConf *)&signal->theData[0];
     rep->senderNodeId = failedNodePtr.i;
@@ -4908,8 +4920,14 @@ void Dbdih::failedNodeLcpHandling(Signal* signal, NodeRecordPtr failedNodePtr)
     rep->idle = true;
     sendSignal(reference(), GSN_EMPTY_LCP_CONF, signal, 
 	       EmptyLcpConf::SignalLength, JBB);
-  }//if
-
+  }
+  else if (!c_EMPTY_LCP_REQ_Counter.done() && lcp_complete_rep)
+  {
+    jam();
+    c_EMPTY_LCP_REQ_Counter.setWaitingFor(failedNodePtr.i);
+    goto dosend;
+  }
+  
   if (c_MASTER_LCPREQ_Counter.isWaitingFor(failedNodePtr.i)) {
     jam();
     MasterLCPRef * const ref = (MasterLCPRef *)&signal->theData[0];
@@ -4983,19 +5001,35 @@ Dbdih::startLcpMasterTakeOver(Signal* signal, Uint32 nodeId){
   
   c_lcpMasterTakeOverState.set(LMTOS_WAIT_EMPTY_LCP, __LINE__);
   
-  if(c_EMPTY_LCP_REQ_Counter.done()){
-    jam();
-    c_lcpState.m_LAST_LCP_FRAG_ORD.clearWaitingFor();
-
-    EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
-    req->senderRef = reference();
-    sendLoopMacro(EMPTY_LCP_REQ, sendEMPTY_LCP_REQ, RNIL);
-    ndbrequire(!c_EMPTY_LCP_REQ_Counter.done());
-  } else {
-    /**
-     * Node failure during master take over...
-     */
-    g_eventLogger->info("Nodefail during master take over (old: %d)", oldNode);
+  EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  {
+    NodeRecordPtr specNodePtr;
+    specNodePtr.i = cfirstAliveNode;
+    do {
+      jam();
+      ptrCheckGuard(specNodePtr, MAX_NDB_NODES, nodeRecord);
+      if (!c_EMPTY_LCP_REQ_Counter.isWaitingFor(specNodePtr.i))
+      {
+        jam();
+        c_EMPTY_LCP_REQ_Counter.setWaitingFor(specNodePtr.i);
+        if (!(ERROR_INSERTED(7209) && specNodePtr.i == getOwnNodeId()))
+        {
+          sendEMPTY_LCP_REQ(signal, specNodePtr.i);
+        }
+        else
+        {
+          ndbout_c("NOT sending EMPTY_LCP_REQ to %u", specNodePtr.i);
+        }
+        
+        if (c_lcpState.m_LAST_LCP_FRAG_ORD.isWaitingFor(specNodePtr.i))
+        {
+          jam();
+          c_lcpState.m_LAST_LCP_FRAG_ORD.clearWaitingFor();
+        }
+      }
+      specNodePtr.i = specNodePtr.p->nextNode;
+    } while (specNodePtr.i != RNIL);
   }
   
   NodeRecordPtr nodePtr;
@@ -5877,6 +5911,9 @@ void Dbdih::execEMPTY_LCP_CONF(Signal* signal)
   const EmptyLcpConf * const conf = (EmptyLcpConf *)&signal->theData[0];
   Uint32 nodeId = conf->senderNodeId;
 
+  CRASH_INSERTION(7206);
+
+
   if(!conf->idle){
     jam();
     if (conf->tableId < c_lcpMasterTakeOverState.minTableId) {
@@ -5956,6 +5993,25 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   jamEntry();
   const BlockReference newMasterBlockref = req->masterRef;
 
+  CRASH_INSERTION(7205);
+
+  if (ERROR_INSERTED(7207))
+  {
+    jam();
+    SET_ERROR_INSERT_VALUE(7208);
+    sendSignalWithDelay(reference(), GSN_MASTER_LCPREQ, signal,
+			500, signal->getLength());
+    return;
+  }
+  
+  if (ERROR_INSERTED(7208))
+  {
+    jam();
+    signal->theData[0] = 9999;
+    sendSignal(numberToRef(CMVMI, refToNode(newMasterBlockref)), 
+               GSN_NDB_TAMPER, signal, 1, JBB);
+  }
+  
   if (newMasterBlockref != cmasterdihref)
   {
     jam();
@@ -5977,6 +6033,11 @@ void Dbdih::execMASTER_LCPREQ(Signal* signal)
   if(newMasterBlockref != cmasterdihref){
     jam();
     ndbrequire(0);
+  }
+
+  if (ERROR_INSERTED(7209))
+  {
+    SET_ERROR_INSERT_VALUE(7210);
   }
   
   sendMASTER_LCPCONF(signal);
@@ -6317,12 +6378,22 @@ void Dbdih::execMASTER_LCPREF(Signal* signal)
 {
   const MasterLCPRef * const ref = (MasterLCPRef *)&signal->theData[0];
   jamEntry();
-  receiveLoopMacro(MASTER_LCPREQ, ref->senderNodeId);
+
+  Uint32 senderNodeId = ref->senderNodeId;
+  Uint32 failedNodeId = ref->failedNodeId;
+  
+  if (c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.isWaitingFor(senderNodeId))
+  {
+    jam();
+    c_lcpState.m_LCP_COMPLETE_REP_Counter_LQH.clearWaitingFor(senderNodeId);
+  }
+
+  receiveLoopMacro(MASTER_LCPREQ, senderNodeId);
   /*-------------------------------------------------------------------------*/
   // We have now received all responses and are ready to take over the LCP
   // protocol as master.
   /*-------------------------------------------------------------------------*/
-  MASTER_LCPhandling(signal, ref->failedNodeId);
+  MASTER_LCPhandling(signal, failedNodeId);
 }//Dbdih::execMASTER_LCPREF()
 
 void Dbdih::MASTER_LCPhandling(Signal* signal, Uint32 failedNodeId) 
@@ -11051,7 +11122,15 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
       signal->theData[1] = tabPtr.i;
       sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
       
-      checkLcpAllTablesDoneInLqh(__LINE__);
+      bool ret = checkLcpAllTablesDoneInLqh(__LINE__);
+      if (ret && ERROR_INSERTED(7209))
+      {
+        jam();
+        
+        signal->theData[0] = 9999;
+        sendSignal(numberToRef(CMVMI, cmasterNodeId), 
+                   GSN_NDB_TAMPER, signal, 1, JBB);
+      }
     }
   }
 
@@ -11394,12 +11473,30 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
   CRASH_INSERTION2(7027, isMaster());
   CRASH_INSERTION2(7018, !isMaster());
 
-  if(c_lcpState.lcpStatus == LCP_TAB_COMPLETED){
+  if(c_lcpState.lcpStatus == LCP_TAB_COMPLETED)
+  {
     /**
      * We'r done
      */
+
+    if (ERROR_INSERTED(7209))
+    {
+      signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
+      sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+      return;
+    }
+    
     c_lcpState.setLcpStatus(LCP_TAB_SAVED, __LINE__);
     sendLCP_COMPLETE_REP(signal);
+
+    if (ERROR_INSERTED(7210))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+      EmptyLcpReq* req = (EmptyLcpReq*)signal->getDataPtr();
+      req->senderRef = reference();
+      sendEMPTY_LCP_REQ(signal, getOwnNodeId());
+    }
+    
     return;
   }
 
@@ -11411,13 +11508,28 @@ void Dbdih::checkLcpCompletedLab(Signal* signal)
 void
 Dbdih::sendLCP_COMPLETE_REP(Signal* signal){
   jam();
-  LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
-  rep->nodeId = getOwnNodeId();
-  rep->lcpId = SYSFILE->latestLCP_ID;
-  rep->blockNo = DBDIH;
-  
-  sendSignal(c_lcpState.m_masterLcpDihRef, GSN_LCP_COMPLETE_REP, signal, 
-	     LcpCompleteRep::SignalLength, JBB);
+
+  /**
+   * Quick and dirty fix for bug#36276 dont save
+   * LCP_COMPLETE_REP to same node same LCP twice
+   */
+  bool alreadysent = 
+    c_lcpState.m_lastLCP_COMPLETE_REP_id == SYSFILE->latestLCP_ID &&
+    c_lcpState.m_lastLCP_COMPLETE_REP_ref == c_lcpState.m_masterLcpDihRef;
+
+  if (!alreadysent)
+  {
+    LcpCompleteRep * rep = (LcpCompleteRep*)signal->getDataPtrSend();
+    rep->nodeId = getOwnNodeId();
+    rep->lcpId = SYSFILE->latestLCP_ID;
+    rep->blockNo = DBDIH;
+    
+    sendSignal(c_lcpState.m_masterLcpDihRef, GSN_LCP_COMPLETE_REP, signal, 
+               LcpCompleteRep::SignalLength, JBB);
+
+    c_lcpState.m_lastLCP_COMPLETE_REP_id = SYSFILE->latestLCP_ID;
+    c_lcpState.m_lastLCP_COMPLETE_REP_ref = c_lcpState.m_masterLcpDihRef;
+  }
 
   /**
    * Say that an initial node restart does not need to be redone
@@ -12680,7 +12792,7 @@ void Dbdih::initCommonData()
   c_lcpState.ctimer = 0;
   c_lcpState.immediateLcpStart = false;
   c_lcpState.m_MASTER_LCPREQ_Received = false;
-    
+  c_lcpState.m_lastLCP_COMPLETE_REP_ref = 0;
   cmasterdihref = 0;
   cmasterNodeId = 0;
   cmasterState = MASTER_IDLE;
