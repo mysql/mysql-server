@@ -296,7 +296,8 @@ static int split_maria_rtree_node(SplitStruct *node, int n_entries,
 */
 
 static my_bool _ma_log_rt_split(MARIA_HA *info,
-                                my_off_t page, const uchar *buff,
+                                my_off_t page,
+                                const uchar *buff __attribute__((unused)),
                                 const uchar *key_with_nod_flag,
                                 uint full_length,
                                 const uchar *log_internal_copy,
