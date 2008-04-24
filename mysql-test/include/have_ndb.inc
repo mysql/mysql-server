@@ -5,10 +5,10 @@
 
 disable_result_log;
 disable_query_log;
+
 --error 0, 1109
 select @have_ndb:= count(*) from information_schema.engines where engine='ndbcluster' and support in ('YES', 'DEFAULT', 'ENABLED');
-enable_query_log;
-enable_result_log;
+
 
 if ($mysql_errno){
   # For backward compatibility, implement old fashioned way
@@ -21,15 +21,23 @@ if (!`select @have_ndb`){
   skip Need ndb engine;
 }
 
-# cleanup
+#
+# Wait until mysqld has connected properly to cluster
+#
+source include/ndb_not_readonly.inc;
 
-disable_query_log;
+#
+# cleanup
+#
+
 disable_warnings;
 --error 0,1051
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9,t10;
 flush tables;
 flush status;
 enable_warnings;
+
 enable_query_log;
+enable_result_log;
 
 
