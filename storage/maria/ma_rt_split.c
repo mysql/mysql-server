@@ -327,6 +327,7 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
   int2store(log_pos, full_length);
   log_pos+= 2;
   int2store(log_pos, log_internal_copy_length);
+  log_pos+= 2;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
   log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data) - 7;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    log_internal_copy;
@@ -346,14 +347,16 @@ static my_bool _ma_log_rt_split(MARIA_HA *info,
   {
     int page_length= _ma_get_page_used(share, buff);
     ha_checksum crc;
+    uchar *check_start= log_pos;
     crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
-    log_pos+= 2;
     log_pos[0]= KEY_OP_CHECK;
-    int2store(log_pos + 1, page_length);
-    int4store(log_pos + 3, crc);
-    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    log_pos;
+    log_pos++;
+    int2store(log_pos, page_length);
+    log_pos+= 2;
+    int4store(log_pos, crc);
+    log_pos+= 4;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str=    check_start;
     log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
-    extra_length+= 7;
     translog_parts++;
   }
 #endif

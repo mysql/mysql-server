@@ -1,4 +1,4 @@
--- require r/have_maria.require
 disable_query_log;
-show variables like "have_maria";
+--require r/true.require
+select (support = 'YES' or support = 'DEFAULT') as `TRUE` from information_schema.engines where engine = 'maria';
 enable_query_log;

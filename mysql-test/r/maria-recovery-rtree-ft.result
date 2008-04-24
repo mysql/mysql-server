@@ -139,25 +139,6 @@ mysqltest.t1	check	status	OK
 Checksum-check
 ok
 use mysqltest;
-flush table t2;
-* copied t2 for comparison
-flush table t1;
-* copied t1 for comparison
-lock tables t1 write, t2 write;
-select count(*) from t1;
-count(*)
-1080
-delete from t1;
-select count(*) from t1;
-count(*)
-782
-select count(*) from t2;
-count(*)
-720
-delete from t2;
-select count(*) from t2;
-count(*)
-0
 SET SESSION debug="+d,maria_flush_whole_log,maria_crash";
 * crashing mysqld intentionally
 set global maria_checkpoint_interval=1;
