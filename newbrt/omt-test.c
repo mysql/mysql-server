@@ -545,14 +545,15 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
 
 
 void init_values(enum rand_type rand_choice) {
+    const u_int32_t test_size = 100;
     if (rand_choice == TEST_RANDOM) {
-        init_distinct_random_values(random_seed, 100);
+        init_distinct_random_values(random_seed, test_size);
     }
     else if (rand_choice == TEST_SORTED) {
-        init_distinct_sorted_values(random_seed, 100);
+        init_distinct_sorted_values(random_seed, test_size);
     }
     else if (rand_choice == TEST_IDENTITY) {
-        init_identity_values(random_seed, 100);
+        init_identity_values(       random_seed, test_size);
     }
     else assert(FALSE);
 }
