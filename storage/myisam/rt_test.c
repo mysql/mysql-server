@@ -105,7 +105,7 @@ static int run_test(const char *filename)
   int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 3000;*/
   int rec_length=0;
   int uniques=0;
-  int i;
+  int i, max_i;
   int error;
   int row_count=0;
   uchar record[MAX_REC_LENGTH];
@@ -194,7 +194,7 @@ static int run_test(const char *filename)
     create_record(record,i);
     
     bzero((char*) read_record,MAX_REC_LENGTH);
-    error=mi_rkey(file,read_record,0,record+1,0,HA_READ_MBR_EQUAL);
+    error=mi_rkey(file,read_record,0,record+1,HA_WHOLE_KEY,HA_READ_MBR_EQUAL);
     
     if (error && error!=HA_ERR_KEY_NOT_FOUND)
     {
@@ -233,7 +233,8 @@ static int run_test(const char *filename)
 
   if (!silent)
     printf("- Updating rows with position\n");
-  for (i=0; i < (nrecords - nrecords/4) ; i++)
+  /* We are looking for nrecords-necords/2 non-deleted records */
+  for (i=0, max_i= nrecords - nrecords/2; i < max_i ; i++)
   {
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
@@ -241,7 +242,11 @@ static int run_test(const char *filename)
     if (error)
     {
       if (error==HA_ERR_RECORD_DELETED)
+      {
+        printf("found deleted record\n");
+        max_i++; /* don't count such record */
         continue;
+      }
       printf("pos: %2d  mi_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
     }
@@ -266,7 +271,8 @@ static int run_test(const char *filename)
   create_record(record, nrecords*4/5);
   print_record(record,0,"  search for\n");
   
-  if ((error=mi_rkey(file,read_record,0,record+1,0,HA_READ_MBR_INTERSECT)))
+  if ((error=mi_rkey(file,read_record,0,record+1,HA_WHOLE_KEY,
+                     HA_READ_MBR_INTERSECT)))
   {
     printf("mi_rkey: %3d  errno: %3d\n",error,my_errno);
     goto err;

@@ -14,6 +14,8 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #include "maria_def.h"
+#include "trnman.h"
+#include "ma_key_recover.h"
 
 #ifdef HAVE_RTREE_KEYS
 #include "ma_rt_index.h"
@@ -31,25 +33,25 @@
 
 int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
                         const uchar *key,
-                        uint key_length, uchar *page_buf,
+                        uint key_length, uchar *page_buf, my_off_t page,
                         my_off_t *new_page)
 {
   MARIA_SHARE *share= info->s;
-  uint page_size= _ma_get_page_used(share, page_buf);
+  uint page_size= _ma_get_page_used(share, page_buf), added_len;
   uint nod_flag= _ma_test_if_nod(share, page_buf);
+  uchar *key_pos= rt_PAGE_END(share, page_buf);
   DBUG_ENTER("maria_rtree_add_key");
 
   if (page_size + key_length + share->base.rec_reflength <=
-      keyinfo->block_length)
+      (uint16)(keyinfo->block_length - KEYPAGE_CHECKSUM_SIZE))
   {
     /* split won't be necessary */
     if (nod_flag)
     {
       /* save key */
       DBUG_ASSERT(_ma_kpos(nod_flag, key) < info->state->key_file_length);
-      memcpy(rt_PAGE_END(share, page_buf), key - nod_flag,
-             key_length + nod_flag);
-      page_size+= key_length + nod_flag;
+      memcpy(key_pos, key - nod_flag, key_length + nod_flag);
+      added_len= key_length + nod_flag;
     }
     else
     {
@@ -58,16 +60,19 @@ int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
                            share->base.rec_reflength) <
                   info->state->data_file_length +
                   share->base.pack_reclength);
-      memcpy(rt_PAGE_END(share, page_buf), key, key_length +
-                                         share->base.rec_reflength);
-      page_size+= key_length + share->base.rec_reflength;
+      memcpy(key_pos, key, key_length + share->base.rec_reflength);
+      added_len= key_length + share->base.rec_reflength;
     }
+    page_size+= added_len;
     _ma_store_page_used(share, page_buf, page_size);
+    if (share->now_transactional &&
+        _ma_log_add(info, page, page_buf, key_pos - page_buf,
+                    key_pos, added_len, added_len, 0))
+      DBUG_RETURN(-1);
     DBUG_RETURN(0);
   }
-
-  DBUG_RETURN(maria_rtree_split_page(info, keyinfo, page_buf, key, key_length,
-                                     new_page) ? -1 : 1);
+  DBUG_RETURN(maria_rtree_split_page(info, keyinfo, page, page_buf, key,
+                                     key_length, new_page) ? -1 : 1);
 }
 
 
@@ -76,10 +81,11 @@ int maria_rtree_add_key(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,
 */
 
 int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
-		     uint key_length, uint nod_flag)
+                           uint key_length, uint nod_flag, my_off_t page)
 {
   MARIA_SHARE *share= info->s;
   uint16 page_size= _ma_get_page_used(share, page_buf);
+  uint key_length_with_nod_flag;
   uchar *key_start;
 
   key_start= key - nod_flag;
@@ -88,15 +94,20 @@ int maria_rtree_delete_key(MARIA_HA *info, uchar *page_buf, uchar *key,
 
   memmove(key_start, key + key_length, page_size - key_length -
 	  (key - page_buf));
-  page_size-= key_length + nod_flag;
-
+  key_length_with_nod_flag= key_length + nod_flag;
+  page_size-= key_length_with_nod_flag;
   _ma_store_page_used(share, page_buf, page_size);
+  if (share->now_transactional &&
+      _ma_log_delete(info, page, page_buf, key_start, 0,
+                     key_length_with_nod_flag))
+
+    return -1;
   return 0;
 }
 
 
 /*
-  Calculate and store key MBR
+  Calculate and store key MBR into *key.
 */
 
 int maria_rtree_set_key_mbr(MARIA_HA *info, const MARIA_KEYDEF *keyinfo,

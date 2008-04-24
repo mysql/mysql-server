@@ -45,27 +45,25 @@ static int _ma_ck_write_btree(register MARIA_HA *info, uint keynr,uchar *key,
 static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
                                        uchar *key, uint key_length,
                                        my_off_t *root, uint comp_flag);
-static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
-                           uint page_length, uint key_nr, my_bool root_page);
-static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint length);
-static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, const uchar *buff,
                              uint org_length, uint new_length,
-                             uchar *key_pos,
+                             const uchar *key_pos,
                              uint key_length, int move_length,
                              enum en_key_op prefix_or_suffix,
-                             uchar *data, uint data_length,
+                             const uchar *data, uint data_length,
                              uint changed_length);
-static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page,
+                                  const uchar *buff,
                                   uint org_length, uint new_length,
-                                  uchar *key_pos, uint key_length,
+                                  const uchar *key_pos, uint key_length,
                                   int move_length);
-static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page,
+                                  const uchar *buff,
                                   uint new_length,
                                   uint data_added_first,
                                   uint data_changed_first,
                                   uint data_deleted_last,
-                                  uchar *key_pos,
+                                  const uchar *key_pos,
                                   uint key_length, int move_length);
 
 /*
@@ -396,57 +394,9 @@ static int _ma_ck_write_btree_with_log(MARIA_HA *info, MARIA_KEYDEF *keyinfo,
   error= _ma_ck_real_write_btree(info, keyinfo, key, key_length, &new_root,
                                  comp_flag);
   if (!error && share->now_transactional)
-  {
-    uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                   KEY_NR_STORE_SIZE];
-    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-    struct st_msg_to_write_hook_for_undo_key msg;
-
-    /* Save if we need to write a clr record */
-    info->key_write_undo_lsn[keyinfo->key_nr]= info->trn->undo_lsn;
-    lsn_store(log_data, info->trn->undo_lsn);
-    key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
-                  keyinfo->key_nr);
-    key_length+= share->rec_reflength;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_buff;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
-
-    msg.root= root;
-    msg.value= new_root;
-    msg.auto_increment= 0;
-    if (share->base.auto_key == ((uint)keyinfo->key_nr + 1))
-    {
-      const HA_KEYSEG *keyseg= keyinfo->seg;
-      uchar *to= key_buff;
-      if (keyseg->flag & HA_SWAP_KEY)
-      {
-        /* We put key from log record to "data record" packing format... */
-        uchar reversed[HA_MAX_KEY_BUFF];
-        uchar *key_ptr= to;
-        uchar *key_end= key_ptr + keyseg->length;
-        to= reversed + keyseg->length;
-        do
-        {
-          *--to= *key_ptr++;
-        } while (key_ptr != key_end);
-      }
-      /* ... so that we can read it with: */
-      msg.auto_increment=
-        ma_retrieve_auto_increment(to, keyseg->type);
-      /* and write_hook_for_undo_key_insert() will pick this. */
-    }
-
-    if (translog_write_record(&lsn, LOGREC_UNDO_KEY_INSERT,
-                              info->trn, info,
-                              (translog_size_t)
-                              log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
-                              key_length,
-                              TRANSLOG_INTERNAL_PARTS + 2, log_array,
-                              log_data + LSN_STORE_SIZE, &msg))
-      error= -1;
-  }
+    error=
+      _ma_write_undo_key_insert(info, keyinfo, key_buff, key_length,
+                                root, new_root, &lsn);
   else
   {
     *root= new_root;
@@ -778,6 +728,12 @@ int _ma_insert(register MARIA_HA *info, register MARIA_KEYDEF *keyinfo,
       DBUG_ASSERT((*b & 128) == 0);
 #if HA_FT_MAXLEN >= 127
       blen= mi_uint2korr(b); b+=2;
+      When you enable this code, as part of the MyISAM->Maria merge of
+ChangeSet@1.2562, 2008-04-09 07:41:40+02:00, serg@janus.mylan +9 -0
+  restore ft2 functionality, fix bugs.
+      Then this will enable two-level fulltext index, which is not totally
+      recoverable yet.
+      So remove this text and inform Guilhem so that he fixes the issue.
 #else
       blen= *b++;
 #endif
@@ -1636,6 +1592,63 @@ void maria_end_bulk_insert(MARIA_HA *info)
   Dedicated functions that generate log entries
 ****************************************************************************/
 
+
+int _ma_write_undo_key_insert(MARIA_HA *info,
+                              const MARIA_KEYDEF *keyinfo,
+                              const uchar *key, uint key_length,
+                              my_off_t *root, my_off_t new_root, LSN *res_lsn)
+{
+  MARIA_SHARE *share= info->s;
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                 KEY_NR_STORE_SIZE];
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  struct st_msg_to_write_hook_for_undo_key msg;
+
+  /* Save if we need to write a clr record */
+  info->key_write_undo_lsn[keyinfo->key_nr]= info->trn->undo_lsn;
+  lsn_store(log_data, info->trn->undo_lsn);
+  key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE,
+               keyinfo->key_nr);
+  key_length+= share->rec_reflength;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
+
+  msg.root= root;
+  msg.value= new_root;
+  msg.auto_increment= 0;
+  if (share->base.auto_key == ((uint)keyinfo->key_nr + 1))
+  {
+    const HA_KEYSEG *keyseg= keyinfo->seg;
+    if (keyseg->flag & HA_SWAP_KEY)
+    {
+      /* We put key from log record to "data record" packing format... */
+      uchar reversed[HA_MAX_KEY_BUFF];
+      const uchar *key_ptr= key, *key_end= key + keyseg->length;
+      uchar *to= reversed + keyseg->length;
+      do
+      {
+        *--to= *key_ptr++;
+      } while (key_ptr != key_end);
+      key= to;
+    }
+    /* ... so that we can read it with: */
+    msg.auto_increment=
+      ma_retrieve_auto_increment(key, keyseg->type);
+    /* and write_hook_for_undo_key_insert() will pick this. */
+  }
+
+  return translog_write_record(res_lsn, LOGREC_UNDO_KEY_INSERT,
+                               info->trn, info,
+                               (translog_size_t)
+                               log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
+                               key_length,
+                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                               log_data + LSN_STORE_SIZE, &msg) ? -1 : 0;
+}
+
+
 /**
   @brief Log creation of new page
 
@@ -1647,8 +1660,8 @@ void maria_end_bulk_insert(MARIA_HA *info)
   @retval 0    ok
 */
 
-static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
-                           uint page_length, uint key_nr, my_bool root_page)
+my_bool _ma_log_new(MARIA_HA *info, my_off_t page, const uchar *buff,
+                    uint page_length, uint key_nr, my_bool root_page)
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE * 2 + KEY_NR_STORE_SIZE
@@ -1698,15 +1711,15 @@ static my_bool _ma_log_new(MARIA_HA *info, my_off_t page, uchar *buff,
    Log when some part of the key page changes
 */
 
-static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint length)
+my_bool _ma_log_change(MARIA_HA *info, my_off_t page, const uchar *buff,
+                       const uchar *key_pos, uint length)
 {
   LSN lsn;
-  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 6], *log_pos;
-  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-  uint offset= (uint) (key_pos - buff);
+  uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 6 + 7], *log_pos;
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 3];
+  uint offset= (uint) (key_pos - buff), translog_parts, extra_length= 0;
   DBUG_ENTER("_ma_log_change");
-  DBUG_PRINT("enter", ("page: %lu", (ulong) page));
+  DBUG_PRINT("enter", ("page: %lu length: %u", (ulong) page, length));
 
   DBUG_ASSERT(info->s->now_transactional);
 
@@ -1720,15 +1733,33 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
   int2store(log_pos+4, length);
 
   log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data);
-  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    buff + offset;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= sizeof(log_data) - 7;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_pos;
   log_array[TRANSLOG_INTERNAL_PARTS + 1].length= length;
+  translog_parts= 2;
+
+#ifdef EXTRA_DEBUG_KEY_CHANGES
+  {
+    int page_length= _ma_get_page_used(info->s, buff);
+    ha_checksum crc;
+    crc= my_checksum(0, buff + LSN_STORE_SIZE, page_length - LSN_STORE_SIZE);
+    log_pos+= 6;
+    log_pos[0]= KEY_OP_CHECK;
+    int2store(log_pos+1, page_length);
+    int4store(log_pos+3, crc);
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].str= (char *) log_pos;
+    log_array[TRANSLOG_INTERNAL_PARTS + translog_parts].length= 7;
+    extra_length+= 7;
+    translog_parts++;
+  }
+#endif
 
   if (translog_write_record(&lsn, LOGREC_REDO_INDEX,
                             info->trn, info,
-                            (translog_size_t) (sizeof(log_data) + length),
-                            TRANSLOG_INTERNAL_PARTS + 2, log_array,
-                            log_data, NULL))
+                            (translog_size_t) (sizeof(log_data) - 7 + length +
+                                               extra_length),
+                            TRANSLOG_INTERNAL_PARTS + translog_parts,
+                            log_array, log_data, NULL))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
 }
@@ -1750,11 +1781,11 @@ static my_bool _ma_log_change(MARIA_HA *info, my_off_t page, uchar *buff,
 
 */
 
-static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, const uchar *buff,
                              uint org_length, uint new_length,
-                             uchar *key_pos, uint key_length, int move_length,
-                             enum en_key_op prefix_or_suffix,
-                             uchar *data, uint data_length,
+                             const uchar *key_pos, uint key_length,
+                             int move_length, enum en_key_op prefix_or_suffix,
+                             const uchar *data, uint data_length,
                              uint changed_length)
 {
   LSN lsn;
@@ -1885,9 +1916,10 @@ static my_bool _ma_log_split(MARIA_HA *info, my_off_t page, uchar *buff,
    @retval  1  error
 */
 
-static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page,
+                                  const uchar *buff,
                                   uint org_length, uint new_length,
-                                  uchar *key_pos, uint key_length,
+                                  const uchar *key_pos, uint key_length,
                                   int move_length)
 {
   LSN lsn;
@@ -1973,12 +2005,13 @@ static my_bool _ma_log_del_prefix(MARIA_HA *info, my_off_t page, uchar *buff,
    data deleted last. Old changed key may be part of page
 */
 
-static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
+static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page,
+                                  const uchar *buff,
                                   uint new_length,
                                   uint data_added_first,
                                   uint data_changed_first,
                                   uint data_deleted_last,
-                                  uchar *key_pos,
+                                  const uchar *key_pos,
                                   uint key_length, int move_length)
 {
   LSN lsn;
@@ -2084,7 +2117,7 @@ static my_bool _ma_log_key_middle(MARIA_HA *info, my_off_t page, uchar *buff,
 */
 
 static my_bool _ma_log_middle(MARIA_HA *info, my_off_t page,
-                              uchar *buff,
+                              const uchar *buff,
                               uint data_added_first, uint data_changed_first,
                               uint data_deleted_last)
 {

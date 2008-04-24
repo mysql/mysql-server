@@ -70,7 +70,6 @@ extern int _ma_flush_table_files(MARIA_HA *info, uint flush_data_or_index,
 int main(int argc,char *argv[])
 {
   MY_INIT(argv[0]);
-  my_init();
   get_options(argc,argv);
   maria_data_root= (char *)".";
   /* Maria requires that we always have a page cache */

@@ -267,7 +267,7 @@ static void get_options(int *argc,char ***argv)
   if (!opt_apply)
     opt_apply_undo= FALSE;
 
-  if ((opt_display_only + opt_apply) != 1)
+  if (((opt_display_only + opt_apply) != 1) || (*argc > 0))
   {
     usage();
     exit(1);
