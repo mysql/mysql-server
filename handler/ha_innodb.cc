@@ -5782,6 +5782,13 @@ ha_innobase::info(
 			n_rows++;
 		}
 
+		/* Fix bug#29507: TRUNCATE shows too many rows affected.
+		Do not show the estimates for TRUNCATE command. */
+		if (thd_sql_command(user_thd) == SQLCOM_TRUNCATE) {
+
+			n_rows = 0;
+		}
+
 		stats.records = (ha_rows)n_rows;
 		stats.deleted = 0;
 		stats.data_file_length = ((ulonglong)
