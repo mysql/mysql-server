@@ -33,9 +33,6 @@ static int underflow(MARIA_HA *info,MARIA_KEYDEF *keyinfo,
 static uint remove_key(MARIA_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block, MARIA_KEY_PARAM *s_temp);
-static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint changed_length,
-                              uint move_length);
 
 /* @breif Remove a row from a MARIA table */
 
@@ -177,58 +174,8 @@ int _ma_ck_delete(register MARIA_HA *info, uint keynr, uchar *key,
                           &new_root);
 
   if (!res && share->now_transactional)
-  {
-    uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
-                   KEY_NR_STORE_SIZE + PAGE_STORE_SIZE], *log_pos;
-    LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
-    struct st_msg_to_write_hook_for_undo_key msg;
-    enum translog_record_type log_type= LOGREC_UNDO_KEY_DELETE;
-
-    info->key_delete_undo_lsn[keynr]= info->trn->undo_lsn;
-    lsn_store(log_data, info->trn->undo_lsn);
-    key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, keynr);
-    log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE;
-
-    if (new_root != share->state.key_root[keynr])
-    {
-      my_off_t page;
-      page= ((new_root == HA_OFFSET_ERROR) ? IMPOSSIBLE_PAGE_NO :
-             new_root / share->block_size);
-      page_store(log_pos, page);
-      log_pos+= PAGE_STORE_SIZE;
-      log_type= LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
-    }
-
-    /* Log also position to row */
-    key_length+= share->rec_reflength;
-
-    /*
-      Note that for delete key, we don't log the reference to the record.
-      This is because the row may be inserted at a different place when
-      we exceute the undo
-    */
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
-    log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key_buff;
-    log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
-
-    msg.root= &share->state.key_root[keynr];
-    msg.value= new_root;
-    /*
-      set autoincrement to 1 if this is an auto_increment key
-      This is only used if we are now in a rollback of a duplicate key
-    */
-    msg.auto_increment= share->base.auto_key == keynr + 1;
-
-    if (translog_write_record(&lsn, log_type,
-                              info->trn, info,
-                              (translog_size_t)
-                              log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
-                              key_length,
-                              TRANSLOG_INTERNAL_PARTS + 2, log_array,
-                              log_data + LSN_STORE_SIZE, &msg))
-      res= -1;
-  }
+    res= _ma_write_undo_key_delete(info, keynr, key_buff, key_length,
+                                   new_root, &lsn);
   else
   {
     share->state.key_root[keynr]= new_root;
@@ -1371,9 +1318,9 @@ static uint remove_key(MARIA_KEYDEF *keyinfo, uint nod_flag,
 
 */
 
-static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
-                              uchar *key_pos, uint changed_length,
-                              uint move_length)
+my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, const uchar *buff,
+                       const uchar *key_pos, uint changed_length,
+                       uint move_length)
 {
   LSN lsn;
   uchar log_data[FILEID_STORE_SIZE + PAGE_STORE_SIZE + 9 + 7], *log_pos;
@@ -1435,4 +1382,63 @@ static my_bool _ma_log_delete(MARIA_HA *info, my_off_t page, uchar *buff,
                             log_array, log_data, NULL))
     DBUG_RETURN(1);
   DBUG_RETURN(0);
+}
+
+
+/****************************************************************************
+  Logging of undos
+****************************************************************************/
+
+int _ma_write_undo_key_delete(MARIA_HA *info, uint keynr,
+                              const uchar *key, uint key_length,
+                              my_off_t new_root, LSN *res_lsn)
+{
+  MARIA_SHARE *share= info->s;
+  uchar log_data[LSN_STORE_SIZE + FILEID_STORE_SIZE +
+                 KEY_NR_STORE_SIZE + PAGE_STORE_SIZE], *log_pos;
+  LEX_CUSTRING log_array[TRANSLOG_INTERNAL_PARTS + 2];
+  struct st_msg_to_write_hook_for_undo_key msg;
+  enum translog_record_type log_type= LOGREC_UNDO_KEY_DELETE;
+
+  info->key_delete_undo_lsn[keynr]= info->trn->undo_lsn;
+  lsn_store(log_data, info->trn->undo_lsn);
+  key_nr_store(log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE, keynr);
+  log_pos= log_data + LSN_STORE_SIZE + FILEID_STORE_SIZE + KEY_NR_STORE_SIZE;
+
+  /**
+    @todo BUG if we had concurrent insert/deletes, reading state's key_root
+    like this would be unsafe.
+  */
+  if (new_root != share->state.key_root[keynr])
+  {
+    my_off_t page;
+    page= ((new_root == HA_OFFSET_ERROR) ? IMPOSSIBLE_PAGE_NO :
+           new_root / share->block_size);
+    page_store(log_pos, page);
+    log_pos+= PAGE_STORE_SIZE;
+    log_type= LOGREC_UNDO_KEY_DELETE_WITH_ROOT;
+  }
+
+  /* Log also position to row */
+  key_length+= share->rec_reflength;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].str=    log_data;
+  log_array[TRANSLOG_INTERNAL_PARTS + 0].length= (uint) (log_pos - log_data);
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].str=    key;
+  log_array[TRANSLOG_INTERNAL_PARTS + 1].length= key_length;
+
+  msg.root= &share->state.key_root[keynr];
+  msg.value= new_root;
+  /*
+    set autoincrement to 1 if this is an auto_increment key
+    This is only used if we are now in a rollback of a duplicate key
+  */
+  msg.auto_increment= share->base.auto_key == keynr + 1;
+
+  return translog_write_record(res_lsn, log_type,
+                               info->trn, info,
+                               (translog_size_t)
+                               log_array[TRANSLOG_INTERNAL_PARTS + 0].length +
+                               key_length,
+                               TRANSLOG_INTERNAL_PARTS + 2, log_array,
+                               log_data + LSN_STORE_SIZE, &msg) ? -1 : 0;
 }

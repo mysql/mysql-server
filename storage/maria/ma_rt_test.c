@@ -17,7 +17,12 @@
 /* Written by Alex Barkov who has a shared copyright to this code */
 
 
-#include "maria.h"
+#include "maria_def.h"
+#include "ma_control_file.h"
+#include "ma_loghandler.h"
+#include "ma_checkpoint.h"
+#include "trnman.h"
+#include <my_getopt.h>
 
 #ifdef HAVE_RTREE_KEYS
 
@@ -27,11 +32,13 @@
 #define ndims 2
 #define KEYALG HA_KEY_ALG_RTREE
 
-static int read_with_pos(MARIA_HA * file, int silent);
+static int read_with_pos(MARIA_HA * file);
 static void create_record(uchar *record,uint rownr);
 static void create_record1(uchar *record,uint rownr);
 static void print_record(uchar * record,my_off_t offs,const char * tail);
 static  int run_test(const char *filename);
+static void get_options(int argc, char *argv[]);
+static void usage();
 
 static double rt_data[]=
 {
@@ -79,10 +86,32 @@ static double rt_data[]=
   -1
 };
 
-int main(int argc __attribute__((unused)),char *argv[] __attribute__((unused)))
+static int silent= 0, testflag= 0, transactional= 0,
+  die_in_middle_of_transaction= 0, checkpoint= 0, create_flag= 0;
+static enum data_file_type record_type= DYNAMIC_RECORD;
+
+int main(int argc, char *argv[])
 {
   MY_INIT(argv[0]);
-  maria_init();
+  get_options(argc, argv);
+  maria_data_root= (char *)".";
+  /* Maria requires that we always have a page cache */
+  if (maria_init() ||
+      (init_pagecache(maria_pagecache, maria_block_size * 16, 0, 0,
+                      maria_block_size, MY_WME) == 0) ||
+      ma_control_file_open(TRUE) ||
+      (init_pagecache(maria_log_pagecache,
+                      TRANSLOG_PAGECACHE_SIZE, 0, 0,
+                      TRANSLOG_PAGE_SIZE, MY_WME) == 0) ||
+      translog_init(maria_data_root, TRANSLOG_FILE_SIZE,
+                    0, 0, maria_log_pagecache,
+                    TRANSLOG_DEFAULT_FLAGS, 0) ||
+      (transactional && (trnman_init(0) || ma_checkpoint_init(0))))
+  {
+    fprintf(stderr, "Error in initialization\n");
+    exit(1);
+  }
+
   exit(run_test("rt_test"));
 }
 
@@ -97,16 +126,14 @@ static int run_test(const char *filename)
   HA_KEYSEG      keyseg[20];
   key_range	range;
 
-  int silent=0;
   int opt_unique=0;
-  int create_flag=0;
   int key_type=HA_KEYTYPE_DOUBLE;
   int key_length=8;
   int null_fields=0;
   int nrecords=sizeof(rt_data)/(sizeof(double)*4);/* 3000;*/
   int rec_length=0;
   int uniques=0;
-  int i;
+  int i, max_i;
   int error;
   int row_count=0;
   uchar record[MAX_REC_LENGTH];
@@ -152,9 +179,10 @@ static int run_test(const char *filename)
 
   bzero((char*) &create_info,sizeof(create_info));
   create_info.max_rows=10000000;
+  create_info.transactional= transactional;
 
   if (maria_create(filename,
-                   DYNAMIC_RECORD,
+                   record_type,
                    1,            /*  keys   */
                    keyinfo,
                    1+2*ndims+opt_unique, /* columns */
@@ -166,7 +194,11 @@ static int run_test(const char *filename)
 
   if (!(file=maria_open(filename,2,HA_OPEN_ABORT_IF_LOCKED)))
     goto err;
-
+  maria_begin(file);
+  if (testflag == 1)
+    goto end;
+  if (checkpoint == 1 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
   if (!silent)
     printf("- Writing key:s\n");
 
@@ -186,7 +218,7 @@ static int run_test(const char *filename)
     }
   }
 
-  if ((error=read_with_pos(file,silent)))
+  if ((error=read_with_pos(file)))
     goto err;
 
   if (!silent)
@@ -198,7 +230,7 @@ static int run_test(const char *filename)
     create_record(record,i);
 
     bzero((char*) read_record,MAX_REC_LENGTH);
-    error=maria_rkey(file,read_record,0,record+1,0,HA_READ_MBR_EQUAL);
+    error=maria_rkey(file,read_record,0,record+1,HA_WHOLE_KEY,HA_READ_MBR_EQUAL);
 
     if (error && error!=HA_ERR_KEY_NOT_FOUND)
     {
@@ -213,13 +245,25 @@ static int run_test(const char *filename)
     print_record(read_record,maria_position(file),"\n");
   }
 
+  if (checkpoint == 2 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
+
+  if (testflag == 2)
+    goto end;
+
   if (!silent)
     printf("- Deleting rows\n");
+  if (maria_scan_init(file))
+  {
+    fprintf(stderr, "maria_scan_init failed\n");
+    goto err;
+  }
+
   for (i=0; i < nrecords/4; i++)
   {
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
-    error=maria_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
+    error=maria_scan(file,read_record);
     if (error)
     {
       printf("pos: %2d  maria_rrnd: %3d  errno: %3d\n",i,error,my_errno);
@@ -234,18 +278,39 @@ static int run_test(const char *filename)
       goto err;
     }
   }
+  maria_scan_end(file);
+
+  if (testflag == 3)
+    goto end;
+  if (checkpoint == 3 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
+    goto err;
 
   if (!silent)
     printf("- Updating rows with position\n");
-  for (i=0; i < (nrecords - nrecords/4) ; i++)
+  if (maria_scan_init(file))
+  {
+    fprintf(stderr, "maria_scan_init failed\n");
+    goto err;
+  }
+
+  /* We are looking for nrecords-necords/2 non-deleted records */
+  for (i=0, max_i= nrecords - nrecords/2; i < max_i ; i++)
   {
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
-    error=maria_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
+    error=maria_scan(file,read_record);
     if (error)
     {
       if (error==HA_ERR_RECORD_DELETED)
+      {
+        printf("found deleted record\n");
+        /*
+          In BLOCK_RECORD format, maria_scan() never returns deleted records,
+          while in DYNAMIC format it can. Don't count such record:
+        */
+        max_i++;
         continue;
+      }
       printf("pos: %2d  maria_rrnd: %3d  errno: %3d\n",i,error,my_errno);
       goto err;
     }
@@ -261,8 +326,19 @@ static int run_test(const char *filename)
     }
   }
 
-  if ((error=read_with_pos(file,silent)))
+  if (testflag == 4)
+    goto end;
+  if (checkpoint == 4 && ma_checkpoint_execute(CHECKPOINT_MEDIUM, FALSE))
     goto err;
+
+  if (maria_scan_init(file))
+  {
+    fprintf(stderr, "maria_scan_init failed\n");
+    goto err;
+  }
+  if ((error=read_with_pos(file)))
+    goto err;
+  maria_scan_end(file);
 
   if (!silent)
     printf("- Test maria_rkey then a sequence of maria_rnext_same\n");
@@ -270,7 +346,8 @@ static int run_test(const char *filename)
   create_record(record, nrecords*4/5);
   print_record(record,0,"  search for\n");
 
-  if ((error=maria_rkey(file,read_record,0,record+1,0,HA_READ_MBR_INTERSECT)))
+  if ((error=maria_rkey(file,read_record,0,record+1,HA_WHOLE_KEY,
+                        HA_READ_MBR_INTERSECT)))
   {
     printf("maria_rkey: %3d  errno: %3d\n",error,my_errno);
     goto err;
@@ -330,6 +407,34 @@ static int run_test(const char *filename)
   hrows= maria_records_in_range(file,0, &range, (key_range*) 0);
   printf("     %ld rows\n", (long) hrows);
 
+end:
+  maria_scan_end(file);
+  if (die_in_middle_of_transaction)
+  {
+    /* see similar code in ma_test2.c for comments */
+    switch (die_in_middle_of_transaction) {
+    case 1:
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA | MARIA_FLUSH_INDEX,
+                            FLUSH_RELEASE, FLUSH_RELEASE);
+      break;
+    case 2:
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
+      break;
+    case 3:
+      break;
+    case 4:
+      _ma_flush_table_files(file, MARIA_FLUSH_DATA, FLUSH_RELEASE,
+                            FLUSH_RELEASE);
+      if (translog_flush(file->trn->undo_lsn))
+        goto err;
+      break;
+    }
+    printf("Dying on request without maria_commit()/maria_close()\n");
+    exit(0);
+  }
+  if (maria_commit(file))
+    goto err;
   if (maria_close(file)) goto err;
   maria_end();
   my_end(MY_CHECK_ERROR);
@@ -343,7 +448,7 @@ err:
 
 
 
-static int read_with_pos (MARIA_HA * file,int silent)
+static int read_with_pos (MARIA_HA * file)
 {
   int error;
   int i;
@@ -355,7 +460,7 @@ static int read_with_pos (MARIA_HA * file,int silent)
   {
     my_errno=0;
     bzero((char*) read_record,MAX_REC_LENGTH);
-    error=maria_rrnd(file,read_record,i == 0 ? 0L : HA_OFFSET_ERROR);
+    error=maria_scan(file,read_record);
     if (error)
     {
       if (error==HA_ERR_END_OF_FILE)
@@ -465,6 +570,86 @@ static void create_record(uchar *record, uint rownr)
       float8store(pos,data[i]);
       pos+=8;
    }
+}
+
+
+static struct my_option my_long_options[] =
+{
+  {"checkpoint", 'H', "Checkpoint at specified stage", (uchar**) &checkpoint,
+   (uchar**) &checkpoint, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"checksum", 'c', "Undocumented",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+#ifndef DBUG_OFF
+  {"debug", '#', "Undocumented",
+   0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
+  {"help", '?', "Display help and exit",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"row-fixed-size", 'S', "Fixed size records",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"rows-in-block", 'M', "Store rows in block format",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"silent", 's', "Undocumented",
+   (uchar**) &silent, (uchar**) &silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
+   0, 0},
+  {"testflag", 't', "Stop test at specified stage", (uchar**) &testflag,
+   (uchar**) &testflag, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"test-undo", 'A',
+   "Abort hard. Used for testing recovery with undo",
+   (uchar**) &die_in_middle_of_transaction,
+   (uchar**) &die_in_middle_of_transaction,
+   0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"transactional", 'T',
+   "Test in transactional mode. (Only works with block format)",
+   (uchar**) &transactional, (uchar**) &transactional, 0, GET_BOOL, NO_ARG,
+   0, 0, 0, 0, 0, 0},
+  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+
+static my_bool
+get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
+	       char *argument __attribute__((unused)))
+{
+  switch(optid) {
+  case 'c':
+    create_flag|= HA_CREATE_CHECKSUM | HA_CREATE_PAGE_CHECKSUM;
+    break;
+  case 'M':
+    record_type= BLOCK_RECORD;
+    break;
+  case 'S':
+    record_type= STATIC_RECORD;
+    break;
+  case '#':
+    DBUG_PUSH(argument);
+    break;
+  case '?':
+    usage();
+    exit(1);
+  }
+  return 0;
+}
+
+
+/* Read options */
+
+static void get_options(int argc, char *argv[])
+{
+  int ho_error;
+
+  if ((ho_error=handle_options(&argc, &argv, my_long_options, get_one_option)))
+    exit(ho_error);
+
+  return;
+} /* get options */
+
+
+static void usage()
+{
+  printf("Usage: %s [options]\n\n", my_progname);
+  my_print_help(my_long_options);
+  my_print_variables(my_long_options);
 }
 
 #else

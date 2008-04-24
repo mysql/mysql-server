@@ -4442,7 +4442,16 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
     for (;;)
     {
       int flag;
-
+      /*
+        Assume table is transactional and it had LSN pages in the
+        cache. Repair has flushed them, left data pages stay in
+        cache, and disabled transactionality (so share's current page
+        type is PLAIN); page cache would assert if it finds a cached LSN page
+        while _ma_scan_block_record() requested a PLAIN page. So we use
+        UNKNOWN.
+      */
+      enum pagecache_page_type save_page_type= share->page_type;
+      share->page_type= PAGECACHE_READ_UNKNOWN_PAGE;
       if (info != sort_info->new_info)
       {
         /* Safe scanning */
@@ -4459,6 +4468,7 @@ static int sort_get_next_record(MARIA_SORT_PARAM *sort_param)
         flag= _ma_scan_block_record(info, sort_param->record,
                                     info->cur_row.nextpos, 1);
       }
+      share->page_type= save_page_type;
       if (!flag)
       {
 	if (sort_param->calc_checksum)

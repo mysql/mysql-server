@@ -393,16 +393,6 @@ int maria_create(const char *name, enum data_file_type datafile_type,
     length= real_length_diff= 0;
     min_key_length= key_length= pointer;
 
-    if ((keydef->flag & (HA_SPATIAL | HA_FULLTEXT) &&
-         ci->transactional))
-    {
-      my_errno= HA_ERR_UNSUPPORTED;
-      my_message(HA_ERR_UNSUPPORTED,
-                 "Maria can't yet handle SPATIAL or FULLTEXT keys in "
-                 "transactional mode. For now use TRANSACTIONAL=0", MYF(0));
-      goto err_no_lock;
-    }
-
     if (keydef->flag & HA_SPATIAL)
     {
 #ifdef HAVE_SPATIAL

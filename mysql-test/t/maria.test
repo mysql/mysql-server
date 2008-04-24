@@ -1411,18 +1411,6 @@ show create table t1;
 drop table t1;
 
 #
-# Show that we can't yet create fulltext or spatial index with Maria
-#
---error 138
-create table t1 (s varchar(25), fulltext(s)) TRANSACTIONAL= 1;
-drop table if exists t1;
-
---error 138
-create table t1 ( fid int not null auto_increment primary key,
-g geometry not null, spatial key(g));
-drop table if exists t1;
-
-#
 # Test warning on log file size truncates
 #
 

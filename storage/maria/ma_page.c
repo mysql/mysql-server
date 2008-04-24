@@ -172,7 +172,8 @@ int _ma_write_keypage(register MARIA_HA *info,
   @param page_not_read  1 if page has not yet been read
 
   @note
-    The page at 'pos' must have been read with a write lock
+    The page at 'pos' must have been read with a write lock.
+    This function does logging (unlike _ma_new()).
 
   @return
   @retval  0    ok
@@ -282,6 +283,10 @@ int _ma_dispose(register MARIA_HA *info, my_off_t pos, my_bool page_not_read)
   @param  page_link	Pointer to page in page cache if read. One can
                         check if this is used by checking if
                         page_link->changed != 0
+
+  @note Logging of this is left to the caller (so that the "new"ing and the
+  first changes done to this new page can be logged as one single entry - one
+  single _ma_log_new()) call).
 
   @return
     HA_OFFSET_ERROR     File is full or page read error
