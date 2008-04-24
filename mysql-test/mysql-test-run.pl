@@ -892,6 +892,11 @@ sub command_line_setup {
   $opt_tmpdir=       "$opt_vardir/tmp" unless $opt_tmpdir;
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
+  # If more than one parallel run, use a subdir of the selected tmpdir
+  if ($thread_num && $opt_parallel > 1) {
+    $opt_tmpdir.= "/".$thread_num;
+   }
+
   # --------------------------------------------------------------------------
   # fast option
   # --------------------------------------------------------------------------
