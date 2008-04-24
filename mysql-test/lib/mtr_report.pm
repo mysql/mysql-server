@@ -434,7 +434,7 @@ sub _timestamp {
 sub mtr_report (@) {
   if (defined $verbose)
   {
-    print join(" ", @_), "\n";
+    print $name, join(" ", @_), "\n";
   }
 }
 
