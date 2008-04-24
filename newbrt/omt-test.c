@@ -490,7 +490,7 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
     OMT right_split = NULL;
     test_create_from_sorted_array(create_choice, KEEP_WHEN_DONE);
 
-    for (i = 0; i < length; i++) {
+    for (i = 0; i <= length; i++) {
         r = toku_omt_split_at(omt, &right_split, length+1);
         CKERR2(r,ERANGE);
         r = toku_omt_split_at(omt, &right_split, length+2);
@@ -504,7 +504,6 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
         left_split = omt;
         omt = NULL;
         assert(toku_omt_size(left_split) == i);
-        assert(toku_omt_size(left_split) == i);
         assert(toku_omt_size(right_split) == length - i);
         test_fetch_verify(left_split, values, i);
         test_iterate_verify(left_split, values, i);
@@ -515,12 +514,20 @@ void test_split_merge(enum create_type create_choice, enum close_when_done close
         //
         r = toku_omt_split_at(left_split, &omt, i+1);
         CKERR2(r,ERANGE);
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(right_split) == length - i);
         r = toku_omt_split_at(left_split, &omt, i+2);
         CKERR2(r,ERANGE);
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(right_split) == length - i);
         r = toku_omt_split_at(right_split, &omt, length - i + 1);
         CKERR2(r,ERANGE);
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(right_split) == length - i);
         r = toku_omt_split_at(right_split, &omt, length - i + 1);
         CKERR2(r,ERANGE);
+        assert(toku_omt_size(left_split) == i);
+        assert(toku_omt_size(right_split) == length - i);
 
         //
         // test merge
@@ -570,9 +577,6 @@ void test_create_array(enum create_type create_choice, enum rand_type rand_choic
     /* ********************************************************************** */
     init_values(rand_choice);
     test_create_insert(                               CLOSE_WHEN_DONE);
-    /* ********************************************************************** */
-    init_values(rand_choice);
-    test_create_delete_at(             create_choice, CLOSE_WHEN_DONE);
     /* ********************************************************************** */
     init_values(rand_choice);
     test_split_merge(                  create_choice, CLOSE_WHEN_DONE);
