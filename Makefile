@@ -7,6 +7,15 @@ TAGS: */*.c */*.h
 SRCDIRS = newbrt src cxx utils db-benchmark-test db-benchmark-test-cxx
 BUILDDIRS = $(SRCDIRS) man/texi
 
+CSCOPE_SRCDIRS=$(SRCDIRS) buildheader include
+CSCOPE_DIRS =$(shell find $(CSCOPE_SRCDIRS) -type d '('  -path '*/.*'  -prune -o -print ')')
+CSCOPE_FILES=$(shell find $(CSCOPE_DIRS) -maxdepth 1 -type f -name "*.[ch]")
+cscope.files: $(CSCOPE_DIRS)
+	@echo "$(CSCOPE_FILES)" | tr " " "\n" > $@ # Very long command line quieted.
+
+cscope.out: cscope.files $(CSCOPE_FILES)
+	cscobe -b
+
 src.dir: newbrt.dir
 cxx.dir: src.dir
 db-benchmark-test.dir: src.dir
@@ -37,6 +46,7 @@ foo:
 clean:
 	for d in $(SRCDIRS); do (cd $$d; $(MAKE) -k clean); done
 	rm -rf lib/*.so lib/*.a
+	rm -rf cscope.files cscope.out
 
 install:
 	./install.bash
