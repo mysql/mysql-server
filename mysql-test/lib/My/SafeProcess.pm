@@ -65,7 +65,7 @@ END {
   # Kill any children still running
   for my $proc (values %running){
     if ( $proc->is_child($$) ){
-      print "Killing: $proc\n";
+      #print "Killing: $proc\n";
       $proc->kill();
     }
   }
@@ -461,8 +461,8 @@ sub wait_one {
     return 1;
   }
 
-  warn "wait_one: expected pid $pid but got $retpid"
-    unless( $retpid == $pid );
+  #warn "wait_one: expected pid $pid but got $retpid"
+  #  unless( $retpid == $pid );
 
   $self->_collect();
   return 0;
