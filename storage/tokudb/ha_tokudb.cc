@@ -1155,13 +1155,19 @@ ulong ha_tokudb::max_row_length(const uchar * buf) {
 }
 
 /*
-  Pack a row for storage.
-  If the row is of fixed length, just store the  row 'as is'.
-  If not, we will generate a packed row suitable for storage.
-  This will only fail if we don't have enough memory to pack the row,
-  which may only happen in rows with blobs, as the default row length is
-  pre-allocated.
 */
+//
+// take the row passed in as a DBT*, and convert it into a row in MySQL format in record
+// Pack a row for storage.
+// If the row is of fixed length, just store the  row 'as is'.
+// If not, we will generate a packed row suitable for storage.
+// This will only fail if we don't have enough memory to pack the row,
+// which may only happen in rows with blobs, as the default row length is
+// pre-allocated.
+// Parameters:
+//      [out]   row - row stored in DBT to be converted
+//      [in]    record - row in MySQL format
+//
 
 int ha_tokudb::pack_row(DBT * row, const uchar * record, bool new_row) {
     uchar *ptr;
@@ -1221,7 +1227,14 @@ void ha_tokudb::unpack_row(uchar * record, DBT * row) {
     }
 }
 
-/* Store the key and the primary key into the row */
+//
+// Store the key and the primary key into the row
+// Parameters:
+//      [out]   record - key stored in MySQL format
+//      [in]    key - key stored in DBT to be converted
+//              index -index into key_file that represents the DB 
+//                  unpacking a key of
+//
 void ha_tokudb::unpack_key(uchar * record, DBT * key, uint index) {
     KEY *key_info = table->key_info + index;
     KEY_PART_INFO *key_part = key_info->key_part, *end = key_part + key_info->key_parts;
