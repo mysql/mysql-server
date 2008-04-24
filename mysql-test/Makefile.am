@@ -46,7 +46,7 @@ dist-hook:
 		$(distdir)/std_data \
 		$(distdir)/std_data/ndb_backup50_data_be $(distdir)/std_data/ndb_backup50_data_le \
 		$(distdir)/lib \
-		$(distdir)/funcs_1
+		$(distdir)/std_data/funcs_1
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(distdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(distdir)/t
 	-$(INSTALL_DATA) $(srcdir)/t/*.imtest $(distdir)/t
@@ -80,7 +80,7 @@ install-data-local:
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_be \
 		$(DESTDIR)$(testdir)/std_data/ndb_backup50_data_le \
 		$(DESTDIR)$(testdir)/lib \
-		$(DESTDIR)$(testdir)/funcs_1
+		$(DESTDIR)$(testdir)/std_data/funcs_1
 	$(INSTALL_DATA) $(srcdir)/README $(DESTDIR)$(testdir)
 	-$(INSTALL_DATA) $(srcdir)/t/*.def $(DESTDIR)$(testdir)/t
 	$(INSTALL_DATA) $(srcdir)/t/*.test $(DESTDIR)$(testdir)/t
