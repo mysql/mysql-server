@@ -55,6 +55,7 @@ void dump_node (int f, DISKOFF off) {
     printf(" disk_lsn    =%" PRId64 "\n", n->disk_lsn.lsn);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
+    printf(" layout_version=%d\n", n->layout_version);
     printf(" rand4fp     =%08x\n", n->rand4fingerprint);
     printf(" localfp     =%08x\n", n->local_fingerprint);
     if (n->height>0) {
