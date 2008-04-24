@@ -109,7 +109,7 @@ uint _ma_ft_parse(TREE *parsed, MARIA_HA *info, uint keynr, const uchar *record,
   {
     /** @todo this casts ftsi.pos (const) to non-const */
     if (ftsi.pos)
-      if (maria_ft_parse(parsed, ftsi.pos, ftsi.len, parser, param,
+      if (maria_ft_parse(parsed, (uchar *)ftsi.pos, ftsi.len, parser, param,
                          mem_root))
         DBUG_RETURN(1);
   }
