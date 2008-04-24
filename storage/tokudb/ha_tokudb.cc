@@ -2123,7 +2123,6 @@ return END_OF_FILE instead of just NOT_FOUND
 // specified in keynr. Fetches the row if any
 // Parameters:
 //      [out]       buf - buffer for the  returned row
-//                    keynr - index to use
 //      [in]         key - key value, according to InnoDB, if NULL, 
 //                              position cursor at start or end of index,
 //                              not sure if this is done now
@@ -2415,12 +2414,15 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
 }
 
 //
-// Retrieves a row with based on the reference pos
+// Retrieves a row with based on the primary key saved in pos
+// rnd_pos(), along ha_tokudb::with position(), is used for non-sequential queries.
+// the format of pos is such that position() saves a primary key in the format,
+// and rnd_pos extracts the primary key in that format
+// After extracting the primery key, rnd_pos proceeds to do a query
 // Parameters:
 //      [out]   buf - buffer for the row
-//      [in]    pos - primary key value of the row, according to 
-//                    Understanding MySQL Internals, interpretation of pos is 
-//                    up to the storage engine
+//      [in]    pos - primary key value of the row, this buffer is created
+//                      in ha_tokudb::position()
 // Returns:
 //      0 on success
 //      HA_ERR_KEY_NOT_FOUND if not found
@@ -2456,6 +2458,14 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
   nothing
 */
 
+//
+// Saves the primary key in a format that will be interpreted by rnd_pos()
+// rnd_pos(), along ha_tokudb::with position(), is used for non-sequential queries.
+// the format of pos is such that position() saves a primary key in the format,
+// and rnd_pos extracts the primary key in that format
+// Parameters:
+//      [out]   record - buffer storing the primary key
+//
 void ha_tokudb::position(const uchar * record) {
     TOKUDB_DBUG_ENTER("ha_tokudb::position");
     DBT key;
