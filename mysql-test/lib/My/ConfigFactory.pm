@@ -416,7 +416,7 @@ sub post_fix_mysql_cluster_section {
 
   # Add a [mysl_cluster.<suffix>] section for each
   # defined [cluster_config.<suffix>] section
-  foreach my $group ( $config->like('cluster_config\.\w*') )
+  foreach my $group ( $config->like('cluster_config\.\w*$') )
   {
     my @urls;
     # Generate ndb_connectstring for this cluster
@@ -497,7 +497,7 @@ sub run_generate_sections_from_cluster_config {
   my @options= ('ndb_mgmd', 'ndbd',
 		'mysqld', 'ndbapi');
 
-  foreach my $group ( $config->like('cluster_config\.\w*') ) {
+  foreach my $group ( $config->like('cluster_config\.\w*$') ) {
 
     # Keep track of current index per process type
     my %idxes;
@@ -580,7 +580,7 @@ sub new_config {
 
 
   $self->run_section_rules($config,
-			   'cluster_config\.\w*',
+			   'cluster_config\.\w*$',
 			   @cluster_config_rules);
   $self->run_generate_sections_from_cluster_config($config);
 
