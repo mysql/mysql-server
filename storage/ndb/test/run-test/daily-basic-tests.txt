@@ -1111,4 +1111,9 @@ max-time: 300
 cmd: testNodeRestart
 args: -n Bug36276 T1
 
-# EOF
+# 2008-04-25
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug36245 T1
+
+# EOF 2008-04-25
