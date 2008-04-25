@@ -201,6 +201,15 @@ INSERT INTO global_supressions VALUES
  ("Slave: Can't DROP 'c7'.* 1091"),
  ("Slave: Key column 'c6'.* 1072"),
 
+ /* Test case for Bug#31590 in order_by.test produces the following error */
+ ("Out of sort memory; increase server sort buffer size"),
+
+ /* Special case for Bug #26402 in show_check.test
+    - Question marks are not valid file name parts on Windows. Ignore
+      this error message.
+  */
+ ("Can't find file: '.\\\\test\\\\\\?{8}.frm'"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

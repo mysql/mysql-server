@@ -2252,6 +2252,9 @@ sub sql_to_bootstrap {
       next;
     }
 
+    # Replace @HOSTNAME with localhost
+    $line=~ s/\'\@HOSTNAME\@\'/localhost/;
+
     # Default, just add the line without newline
     # but with a space as separator
     $result.= "$line ";
@@ -2306,24 +2309,40 @@ sub mysql_install_db {
   # ----------------------------------------------------------------------
   my $bootstrap_sql_file= "$opt_vardir/tmp/bootstrap.sql";
 
-  # Use the mysql database for system tables
-  mtr_tofile($bootstrap_sql_file, "use mysql\n");
+  if (-f "$path_sql_dir/mysql_system_tables.sql")
+  {
+    # Use the mysql database for system tables
+    mtr_tofile($bootstrap_sql_file, "use mysql\n");
 
-  # Add the offical mysql system tables
-  # for a production system
-  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
-			 $bootstrap_sql_file);
+    # Add the offical mysql system tables
+    # for a production system
+    mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
+			   $bootstrap_sql_file);
 
-  # Add the mysql system tables initial data
-  # for a production system
-  mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables_data.sql",
-			 $bootstrap_sql_file);
+    # Add the mysql system tables initial data
+    # for a production system
+    mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables_data.sql",
+			   $bootstrap_sql_file);
 
-  # Add test data for timezone - this is just a subset, on a real
-  # system these tables will be populated either by mysql_tzinfo_to_sql
-  # or by downloading the timezone table package from our website
-  mtr_appendfile_to_file("$path_sql_dir/mysql_test_data_timezone.sql",
-			 $bootstrap_sql_file);
+    # Add test data for timezone - this is just a subset, on a real
+    # system these tables will be populated either by mysql_tzinfo_to_sql
+    # or by downloading the timezone table package from our website
+    mtr_appendfile_to_file("$path_sql_dir/mysql_test_data_timezone.sql",
+			   $bootstrap_sql_file);
+
+  }
+  else
+  {
+    # Install db from init_db.sql that exist in early 5.1 and 5.0
+    # versions of MySQL
+    my $init_file= "$basedir/mysql-test/lib/init_db.sql";
+    mtr_report(" - from '$init_file'");
+    my $text= mtr_grab_file($init_file) or
+      mtr_error("Can't open '$init_file': $!");
+
+    mtr_tofile($bootstrap_sql_file,
+	       sql_to_bootstrap($text));
+  }
 
   # Fill help tables, just an empty file when running from bk repo
   # but will be replaced by a real fill_help_tables.sql when
@@ -4002,7 +4021,7 @@ Options to control what engine/variation to run
 
   config|defaults-file=<config template> Use fixed config template for all
                         tests
-  extra_defaults_file=<config template> Extra config template to add to
+  defaults_extra_file=<config template> Extra config template to add to
                         all generated configs
 
 Options to control directories to use

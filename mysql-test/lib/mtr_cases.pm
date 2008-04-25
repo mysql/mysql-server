@@ -46,7 +46,7 @@ sub collect_option {
   my ($opt, $value)= @_;
 
   # Convert - to _ in option name
-  $opt =~ s/-/_/;
+  $opt =~ s/-/_/g;
   no strict 'refs';
   ${$opt}= $value;
 }

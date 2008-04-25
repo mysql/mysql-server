@@ -27,7 +27,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_failed mtr_report_test_skipped
-		mtr_report_stats mtr_report_test);
+		mtr_report_test);
 
 use mtr_match;
 require "mtr_io.pl";
@@ -35,6 +35,7 @@ require "mtr_io.pl";
 my $tot_real_time= 0;
 
 our $timestamp= 0;
+our $timediff= 1;
 our $name;
 our $verbose;
 our $verbose_restart= 0;
@@ -44,7 +45,7 @@ sub report_option {
   my ($opt, $value)= @_;
 
   # Convert - to _ in option name
-  $opt =~ s/-/_/;
+  $opt =~ s/-/_/g;
   no strict 'refs';
   ${$opt}= $value;
 
@@ -318,20 +319,20 @@ sub mtr_report_stats ($) {
   # Print a list of check_testcases that failed(if any)
   if ( $::opt_check_testcases )
   {
-    my @check_testcases= ();
+    my %check_testcases;
 
     foreach my $tinfo (@$tests)
     {
       if ( defined $tinfo->{'check_testcase_failed'} )
       {
-	push(@check_testcases, $tinfo->{'name'});
+	$check_testcases{$tinfo->{'name'}}= 1;
       }
     }
 
-    if ( @check_testcases )
+    if ( keys %check_testcases )
     {
       print "Check of testcase failed for: ";
-      print join(" ", @check_testcases);
+      print join(" ", keys %check_testcases);
       print "\n\n";
     }
   }
@@ -420,13 +421,29 @@ sub mtr_print_header () {
 
 use Time::localtime;
 
+use Time::HiRes qw(gettimeofday);
+
+my $t0= gettimeofday();
+
 sub _timestamp {
   return "" unless $timestamp;
 
+  my $diff;
+  if ($timediff){
+    my $t1= gettimeofday();
+    my $elapsed= $t1 - $t0;
+
+    $diff= sprintf(" +%02.3f", $elapsed);
+
+    # Save current time for next lap
+    $t0= $t1;
+
+  }
+
   my $tm= localtime();
-  return sprintf("%02d%02d%02d %2d:%02d:%02d ",
+  return sprintf("%02d%02d%02d %2d:%02d:%02d%s ",
 		 $tm->year % 100, $tm->mon+1, $tm->mday,
-		 $tm->hour, $tm->min, $tm->sec);
+		 $tm->hour, $tm->min, $tm->sec, $diff);
 }
 
 
