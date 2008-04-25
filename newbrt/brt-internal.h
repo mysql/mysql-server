@@ -131,6 +131,7 @@ struct brt {
 
     void *skey,*sval; /* Used for DBT return values. */
 
+    OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
 };
 
 /* serialization code */

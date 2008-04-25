@@ -2070,7 +2070,7 @@ error:
 
 // This one has no env
 int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *newbrt, int nodesize, CACHETABLE cachetable, TOKUTXN txn,
-	      int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
+		   int (*compare_fun)(DB*,const DBT*,const DBT*), DB *db) {
     BRT brt;
     int r;
     const int only_create = 0;

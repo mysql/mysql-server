@@ -362,6 +362,8 @@ static void cleanup_txn (TOKUTXN txn) {
     }
 
     list_remove(&txn->live_txns_link);
+    assert(toku_omt_size(txn->used_open_brtcachefile_pairs)==0);
+    toku_omt_destroy(&txn->used_open_brtcachefile_pairs);
     toku_free(txn);
 
     return;
@@ -467,7 +469,12 @@ int toku_logger_txn_begin (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER 
     TAGMALLOC(TOKUTXN, result);
     if (result==0) return errno;
     int r =toku_log_xbegin(logger, &result->first_lsn, 0, parent_tokutxn ? parent_tokutxn->txnid64 : 0);
-    if (r!=0) { toku_logger_panic(logger, r);  return r; }
+    if (r!=0) { toku_logger_panic(logger, r);  toku_free(result); return r; }
+    if ((r=toku_omt_create(&result->used_open_brtcachefile_pairs))!=0) {
+	toku_logger_panic(logger, r);
+	toku_free(result);
+	return r;
+    }
     result->txnid64 = result->first_lsn.lsn;
     result->logger = logger;
     result->parent = parent_tokutxn;
