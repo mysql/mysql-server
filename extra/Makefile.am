@@ -46,6 +46,7 @@ $(top_builddir)/include/sql_state.h: $(top_builddir)/include/mysqld_error.h
 
 bin_PROGRAMS =		replace perror resolveip my_print_defaults \
 			resolve_stack_dump mysql_waitpid innochecksum
+			
 noinst_PROGRAMS =	charset2html
 EXTRA_PROGRAMS =	comp_err
 EXTRA_DIST =		CMakeLists.txt
