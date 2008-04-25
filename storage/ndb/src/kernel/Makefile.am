@@ -63,7 +63,7 @@ LIBS= \
               $(top_builddir)/dbug/libdbuglt.la \
               $(top_builddir)/mysys/libmysyslt.la \
               $(top_builddir)/strings/libmystringslt.la \
-              $(top_builddir)/zlib/libzlt.la @NDB_SCI_LIBS@ 
+              $(top_builddir)/zlib/libzlt.la @M_LIBS@ @NDB_SCI_LIBS@ 
 
 ndbd_LDADD = $(LIBS) vm/libsched.a
 ndbmtd_LDADD = $(LIBS) vm/libsched_mt.a
