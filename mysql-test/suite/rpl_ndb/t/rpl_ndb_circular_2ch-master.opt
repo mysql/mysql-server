@@ -1,0 +1,1 @@
+--slave-num=2 --server-id=1 --log-bin -log-slave-updates
