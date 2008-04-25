@@ -19,7 +19,6 @@ AC_DEFUN([MYSQL_CHECK_ZLIB_DIR], [
 save_CPPFLAGS="$CPPFLAGS"
 save_LIBS="$LIBS"
 CPPFLAGS="$ZLIB_INCLUDES $CPPFLAGS"
-LIBS="$LIBS $ZLIB_LIBS"
 if test X"$with_server" = Xno
 then
   zlibsym=zlibVersion

@@ -88,9 +88,9 @@ mysqlmanager_LDADD=	@CLIENT_EXTRA_LDFLAGS@ \
 			liboptions.la \
 			libnet.a \
 			$(top_builddir)/vio/libvio.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/strings/libmystrings.a \
-			$(top_builddir)/dbug/libdbug.a \
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/strings/libmystringslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
 			@openssl_libs@ @yassl_libs@ @ZLIB_LIBS@
 
 EXTRA_DIST =		WindowsService.cpp WindowsService.h IMService.cpp \
