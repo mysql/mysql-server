@@ -14,7 +14,7 @@
 #include "kv-pair.h"
 #include "leafentry.h"
 
-typedef LEAFENTRY OMTVALUE;
+typedef void* OMTVALUE;
 
 #include "omt.h"
 
@@ -212,7 +212,7 @@ struct cmd_leafval_bessel_extra {
     BRT_CMD cmd;
     int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
-int toku_cmd_leafval_bessel (LEAFENTRY leafentry, void *extra);
+int toku_cmd_leafval_bessel (OMTVALUE leafentry, void *extra);
 
 int toku_brt_root_put_cmd(BRT brt, BRT_CMD cmd, TOKULOGGER logger);
 int toku_cachefile_root_put_cmd (CACHEFILE cf, BRT_CMD cmd, TOKULOGGER logger);
