@@ -25,7 +25,9 @@ LDADD =			$(top_builddir)/strings/libmystringslt.la \
 pkglib_LTLIBRARIES =	libmysys.la
 libmysys_la_LDFLAGS = 	-static
 libmysys_la_SOURCES = 
-libmysys_la_LIBADD =	$(top_builddir)/mysys/libmysyslt.la
+# This can't be listed here as $(top_builddir)/mysys/libmysyslt.la
+# or it breaks make's dependency track for -j builds
+libmysys_la_LIBADD =	libmysyslt.la
 # Force C++ linking - dummy.cxx doesn't have to exist with EXTRA in the name
 nodist_EXTRA_libmysys_la_SOURCES = dummy.cxx
 
