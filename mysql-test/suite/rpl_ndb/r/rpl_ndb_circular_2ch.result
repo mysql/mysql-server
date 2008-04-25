@@ -97,5 +97,6 @@ COUNT(*)	SUM(a)	b
 100	64100	master1
 100	64000	slave
 
-DELETE FROM t1;
+DROP TABLE t1;
+DROP TABLE t1;
 
