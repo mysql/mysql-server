@@ -2967,8 +2967,7 @@ sub run_tests () {
   mtr_print_line();
 
   if ( ! $glob_debugger and
-       ! $opt_extern and
-       ! $glob_use_embedded_server )
+       ! $opt_extern )
   {
     stop_all_servers();
   }
@@ -3588,10 +3587,6 @@ sub run_testcase ($) {
       return 1;
     }
   }
-  elsif ($glob_use_embedded_server)
-  {
-    run_master_init_script($tinfo);
-  }
 
   # ----------------------------------------------------------------------
   # If --start-and-exit or --start-dirty given, stop here to let user manually
@@ -3605,6 +3600,13 @@ sub run_testcase ($) {
   }
 
   {
+    if ($glob_use_embedded_server)
+    {
+      # Run any master init script before
+      # starting mysqltest_embedded
+      run_master_init_script($tinfo);
+    }
+
     do_before_run_mysqltest($tinfo);
 
     my $res= run_mysqltest($tinfo);
@@ -3753,8 +3755,7 @@ sub report_failure_and_restart ($) {
   mtr_report("Aborting: $tinfo->{'name'} failed in $test_mode mode. ");
   mtr_report("To continue, re-run with '--force'.");
   if ( ! $glob_debugger and
-       ! $opt_extern and
-       ! $glob_use_embedded_server )
+       ! $opt_extern )
   {
     stop_all_servers();
   }
@@ -4831,10 +4832,7 @@ sub run_report_features () {
   $tinfo->{'comment'} = 'report server features';
   run_mysqltest($tinfo);
 
-  if ( ! $glob_use_embedded_server )
-  {
-    stop_all_servers();
-  }
+  stop_all_servers();
 }
 
 
