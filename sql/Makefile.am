@@ -43,7 +43,6 @@ mysqld_LDADD =		libndb.la \
 			@MYSQLD_EXTRA_LDFLAGS@ \
 			@pstack_libs@ \
 			@mysql_plugin_libs@ \
-			@CRYPT_LIBS@ \
 			$(LDADD)  $(CXXLDFLAGS) $(WRAPLIBS) @LIBDL@ \
 			$(yassl_libs) $(openssl_libs) @MYSQLD_EXTRA_LIBS@
 
