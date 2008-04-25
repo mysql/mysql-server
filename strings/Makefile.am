@@ -16,7 +16,15 @@
 # This file is public domain and comes with NO WARRANTY of any kind
 
 INCLUDES =		-I$(top_builddir)/include -I$(top_srcdir)/include
-pkglib_LIBRARIES =	libmystrings.a
+pkglib_LTLIBRARIES =	libmystrings.la
+libmystrings_la_LDFLAGS =   -static
+libmystrings_la_SOURCES = 
+# Force C++ linking - dummy.cxx doesn't have to exist with EXTRA in the name
+nodist_EXTRA_libmystrings_la_SOURCES = dummy.cxx
+libmystrings_la_LIBADD = $(top_builddir)/strings/libmystringslt.la
+
+
+noinst_LTLIBRARIES =	libmystringslt.la
 
 # Exact one of ASSEMBLER_X
 if ASSEMBLER_x86
@@ -37,7 +45,7 @@ CSRCS		= strxmov.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.
 endif
 endif
 
-libmystrings_a_SOURCES = $(ASRCS) $(CSRCS)
+libmystringslt_la_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
 CLEANFILES = str_test uctypedump test_decimal
 # Default charset definitions
@@ -55,9 +63,8 @@ EXTRA_DIST =		ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc
 			strnmov-sparc.s strstr-sparc.s strxmov-sparc.s \
 			t_ctype.h my_strchr.c CMakeLists.txt
 
-libmystrings_a_LIBADD=
-conf_to_src_SOURCES = conf_to_src.c xml.c ctype.c bcmp.c
-conf_to_src_LDADD=
+conf_to_src_SOURCES = conf_to_src.c 
+conf_to_src_LDADD= libmystringslt.la
 #force static linking of conf_to_src - essential when linking against
 #custom installation of libc
 conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
@@ -68,15 +75,15 @@ conf_to_src_LDFLAGS= @NOINST_LDFLAGS@
 
 FLAGS=$(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) @NOINST_LDFLAGS@
 
-str_test: str_test.c $(pkglib_LIBRARIES)
-	$(LINK) $(FLAGS) -DMAIN $(INCLUDES) $(srcdir)/str_test.c $(LDADD) $(pkglib_LIBRARIES)
+str_test: str_test.c $(noinst_LTLIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN $(INCLUDES) $(srcdir)/str_test.c $(LDADD) $(noinst_LTLIBRARIES)
 
 uctypedump: uctypedump.c
 	$(LINK) $(INCLUDES) $(srcdir)/uctypedump.c
 
-test_decimal$(EXEEXT): decimal.c $(pkglib_LIBRARIES)
+test_decimal$(EXEEXT): decimal.c $(noinst_LTLIBRARIES)
 	$(CP) $(srcdir)/decimal.c ./test_decimal.c
-	$(LINK) $(FLAGS) -DMAIN  ./test_decimal.c $(LDADD) $(pkglib_LIBRARIES)
+	$(LINK) $(FLAGS) -DMAIN  ./test_decimal.c $(LDADD) $(noinst_LTLIBRARIES)
 	$(RM) -f ./test_decimal.c
 
 # Don't update the files from bitkeeper
