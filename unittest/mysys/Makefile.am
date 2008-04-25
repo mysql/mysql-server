@@ -20,7 +20,7 @@ LDADD 		= $(top_builddir)/unittest/mytap/libmytap.a \
 		  $(top_builddir)/mysys/libmysyslt.la \
 		  $(top_builddir)/dbug/libdbuglt.la \
 		  $(top_builddir)/strings/libmystringslt.la \
-		  @M_LIBS@ @ZLIB_LIBS@
+		  @ZLIB_LIBS@
 
 noinst_PROGRAMS  = bitmap-t base64-t my_atomic-t
 
