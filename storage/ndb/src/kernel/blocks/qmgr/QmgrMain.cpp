@@ -2633,28 +2633,37 @@ void Qmgr::execNDB_FAILCONF(Signal* signal)
     progError(__LINE__, 0, buf);
     systemErrorLab(signal, __LINE__);
   }//if
-  if (cpresident == getOwnNodeId()) {
-    jam();
-    /** 
-     * Prepare a NFCompleteRep and send to all connected API's
-     * They can then abort all transaction waiting for response from 
-     * the failed node
-     */
-    NFCompleteRep * const nfComp = (NFCompleteRep *)&signal->theData[0];
-    nfComp->blockNo = QMGR_REF;
-    nfComp->nodeId = getOwnNodeId();
-    nfComp->failedNodeId = failedNodePtr.i;
 
-    for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
-      jam();
-      ptrAss(nodePtr, nodeRec);
-      if (nodePtr.p->phase == ZAPI_ACTIVE){
-        jam();
-        sendSignal(nodePtr.p->blockRef, GSN_NF_COMPLETEREP, signal, 
-                   NFCompleteRep::SignalLength, JBA);
-      }//if
-    }//for
+  if (cpresident == getOwnNodeId()) 
+  {
+    jam();
+    
+    CRASH_INSERTION(936);
   }
+
+  /** 
+   * Prepare a NFCompleteRep and send to all connected API's
+   * They can then abort all transaction waiting for response from 
+   * the failed node
+   *
+   * NOTE: This is sent from all nodes, as otherwise we would need
+   *       take-over if cpresident dies befor sending this
+   */
+  NFCompleteRep * const nfComp = (NFCompleteRep *)&signal->theData[0];
+  nfComp->blockNo = QMGR_REF;
+  nfComp->nodeId = getOwnNodeId();
+  nfComp->failedNodeId = failedNodePtr.i;
+  
+  for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) 
+  {
+    jam();
+    ptrAss(nodePtr, nodeRec);
+    if (nodePtr.p->phase == ZAPI_ACTIVE){
+      jam();
+      sendSignal(nodePtr.p->blockRef, GSN_NF_COMPLETEREP, signal, 
+                 NFCompleteRep::SignalLength, JBA);
+    }//if
+  }//for
   return;
 }//Qmgr::execNDB_FAILCONF()
 
@@ -3705,9 +3714,17 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       jam();
       NdbNodeBitmask::set(nodeFail->theNodes, ccommitFailedNodes[i]);
     }//if	
-    sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
-	       NodeFailRep::SignalLength, JBB);
-
+    
+    if (ERROR_INSERTED(936))
+    {
+      sendSignalWithDelay(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
+                          200, NodeFailRep::SignalLength);
+    }
+    else
+    {
+      sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
+                 NodeFailRep::SignalLength, JBB);
+    }
     guard0 = cnoCommitFailedNodes - 1;
     arrGuard(guard0, MAX_NDB_NODES);
     /**--------------------------------------------------------------------
