@@ -37,9 +37,9 @@ EXTRA_PROGRAMS = testBitmask
 testBitmask_SOURCES =  testBitmask.cpp
 testBitmask_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/dbug/libdbuglt.la \
+         $(top_builddir)/mysys/libmysyslt.la \
+         $(top_builddir)/strings/libmystringslt.la
 
 testBitmask.cpp : Bitmask.cpp
 	rm -f testBitmask.cpp

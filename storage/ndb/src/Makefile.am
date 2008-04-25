@@ -25,6 +25,9 @@ libndbclient_la_LDFLAGS = -version-info @NDB_SHARED_LIB_VERSION@ @NDB_LD_VERSION
 
 libndbclient_la_LIBADD =  \
               ndbapi/libndbapi.la \
+              $(top_builddir)/strings/libmystringslt.la \
+              $(top_builddir)/mysys/libmysyslt.la \
+              $(top_builddir)/dbug/libdbuglt.la \
               common/transporter/libtransporter.la   \
               common/debugger/libtrace.la     \
               common/debugger/signaldata/libsignaldataprint.la \
@@ -32,7 +35,7 @@ libndbclient_la_LIBADD =  \
               common/mgmcommon/libmgmsrvcommon.la \
               common/logger/liblogger.la       \
               common/portlib/libportlib.la      \
-              common/util/libgeneral.la 
+              common/util/libgeneral.la  @ZLIB_LIBS@
 
 windoze-dsp: libndbclient.dsp
 

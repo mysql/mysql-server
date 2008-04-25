@@ -34,55 +34,55 @@ pkglib_LIBRARIES =	libmyisam.a
 bin_PROGRAMS =		myisamchk myisamlog myisampack myisam_ftdump
 myisamchk_DEPENDENCIES=	$(LIBRARIES)
 myisamchk_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 myisamlog_DEPENDENCIES=	$(LIBRARIES)
 myisamlog_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 myisampack_DEPENDENCIES=$(LIBRARIES)
 myisampack_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 noinst_PROGRAMS =	mi_test1 mi_test2 mi_test3 rt_test sp_test #ft_test1 ft_eval
 noinst_HEADERS =	myisamdef.h rt_index.h rt_key.h rt_mbr.h sp_defs.h \
 			fulltext.h ftdefs.h ft_test1.h ft_eval.h \
 			ha_myisam.h
 mi_test1_DEPENDENCIES=	$(LIBRARIES)
 mi_test1_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 mi_test2_DEPENDENCIES=	$(LIBRARIES)
 mi_test2_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 mi_test3_DEPENDENCIES=	$(LIBRARIES)
 mi_test3_LDADD=		@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 #ft_test1_DEPENDENCIES=	$(LIBRARIES)
 #ft_eval_DEPENDENCIES=	$(LIBRARIES)
 myisam_ftdump_DEPENDENCIES=	$(LIBRARIES)
 myisam_ftdump_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 rt_test_DEPENDENCIES=	$(LIBRARIES)
 rt_test_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 sp_test_DEPENDENCIES=	$(LIBRARIES)
 sp_test_LDADD =			@CLIENT_EXTRA_LDFLAGS@ libmyisam.a \
-			$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a @ZLIB_LIBS@
+			$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la @ZLIB_LIBS@ @M_LIBS@
 libmyisam_a_SOURCES =	mi_open.c mi_extra.c mi_info.c mi_rkey.c \
 			mi_rnext.c mi_rnext_same.c \
 			mi_search.c mi_page.c mi_key.c mi_locking.c \
