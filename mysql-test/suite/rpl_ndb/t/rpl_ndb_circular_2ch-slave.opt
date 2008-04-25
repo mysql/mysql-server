@@ -1,1 +1,0 @@
---server-id=2 --log-bin --log-slave-updates --skip-slave-start

@@ -1,0 +1,27 @@
+!include ../my.cnf
+
+[mysqld.1]
+log-slave-updates
+innodb
+
+[mysqld.2]
+log-slave-updates
+innodb
+
+[mysqld.3]
+log-slave-updates
+innodb
+
+[mysqld.4]
+log-slave-updates
+innodb
+
+[ENV]
+SLAVE_MYPORT1=		@mysqld.3.port
+SLAVE_MYSOCK1=		@mysqld.3.socket
+
+SLAVE_MYPORT2=		@mysqld.4.port
+SLAVE_MYSOCK2=		@mysqld.4.socket
+
+
+
