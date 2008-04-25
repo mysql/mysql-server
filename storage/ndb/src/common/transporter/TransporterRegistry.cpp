@@ -279,9 +279,14 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
   }
 
   // setup transporter (transporter responsible for closing sockfd)
-  t->connect_server(sockfd);
+  bool res = t->connect_server(sockfd);
 
-  DBUG_RETURN(true);
+  if (res && performStates[nodeId] != TransporterRegistry::CONNECTING)
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(res);
 }
 
 bool

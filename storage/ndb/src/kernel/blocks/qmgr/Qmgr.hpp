@@ -421,6 +421,7 @@ private:
   Uint16 cnoPrepFailedNodes;
   Uint16 cnoCommitFailedNodes;
   Uint16 cactivateApiCheck;
+  Uint16 c_allow_api_connect;
   UintR chbApiDelay;
 
   UintR ccommitFailureNr;
