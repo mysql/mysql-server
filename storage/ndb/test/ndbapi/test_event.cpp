@@ -2075,7 +2075,184 @@ runBug33793(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+static
+int
+cc(Ndb_cluster_connection** ctx, Ndb** ndb)
+{
+  Ndb_cluster_connection* xncc = new Ndb_cluster_connection;
+  int ret;
+  if ((ret = xncc->connect(30, 1, 0)) != 0)
+  {
+    delete xncc;
+    return NDBT_FAILED;
+  }
 
+  if ((ret = xncc->wait_until_ready(30, 10)) != 0)
+  {
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  Ndb* xndb = new Ndb(xncc, "TEST_DB");
+  if (xndb->init() != 0)
+  {
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  if (xndb->waitUntilReady(30) != 0)
+  {
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  * ctx = xncc;
+  * ndb = xndb;
+  return 0;
+}
+
+static
+NdbEventOperation*
+op(Ndb* xndb, const NdbDictionary::Table * table)
+{
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp;
+  pOp = xndb->createEventOperation(buf);
+  if ( pOp == NULL )
+  {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return 0;
+  }
+
+  int n_columns= table->getNoOfColumns();
+  NdbRecAttr* recAttr[1024];
+  NdbRecAttr* recAttrPre[1024];
+  for (int i = 0; i < n_columns; i++) {
+    recAttr[i]    = pOp->getValue(table->getColumn(i)->getName());
+    recAttrPre[i] = pOp->getPreValue(table->getColumn(i)->getName());
+  }
+
+  return pOp;
+}
+
+int
+runBug34853(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  NdbRestarter res;
+
+  if (res.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  Ndb_cluster_connection* xncc;
+  Ndb* xndb;
+
+  if (cc(&xncc, &xndb))
+  {
+    return NDBT_FAILED;
+  }
+
+  NdbEventOperation* pOp = op(xndb, ctx->getTab());
+  if (pOp == 0)
+  {
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  int api = xncc->node_id();
+  int nodeId = res.getDbNodeId(rand() % res.getNumDbNodes());
+  ndbout_c("stopping %u", nodeId);
+  res.restartOneDbNode(nodeId,
+                       /** initial */ false,
+                       /** nostart */ true,
+                       /** abort   */ true);
+
+  ndbout_c("waiting for %u", nodeId);
+  res.waitNodesNoStart(&nodeId, 1);
+
+  int dump[2];
+  dump[0] = 9004;
+  dump[1] = api;
+  res.dumpStateOneNode(nodeId, dump, 2);
+  res.startNodes(&nodeId, 1);
+  ndbout_c("waiting cluster");
+  res.waitClusterStarted();
+
+  if (pOp->execute())
+  { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  xndb->dropEventOperation(pOp);
+
+  ndbout_c("stopping %u", nodeId);
+  res.restartOneDbNode(nodeId,
+                       /** initial */ false,
+                       /** nostart */ true,
+                       /** abort   */ true);
+
+  ndbout_c("waiting for %u", nodeId);
+  res.waitNodesNoStart(&nodeId, 1);
+
+  dump[0] = 71;
+  dump[1] = 7;
+  res.dumpStateOneNode(nodeId, dump, 2);
+  res.startNodes(&nodeId, 1);
+  ndbout_c("waiting node sp 7");
+  res.waitNodesStartPhase(&nodeId, 1, 6);
+
+  delete xndb;
+  delete xncc;
+
+  NdbSleep_SecSleep(5); // 3 seconds to open connections. i.e 5 > 3
+
+  dump[0] = 71;
+  res.dumpStateOneNode(nodeId, dump, 1);
+
+  res.waitClusterStarted();
+
+  if (cc(&xncc, &xndb))
+  {
+    return NDBT_FAILED;
+  }
+
+  pOp = op(xndb, ctx->getTab());
+  if (pOp == 0)
+  {
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  if (pOp->execute())
+  { // This starts changes to "start flowing"
+    g_err << "execute operation execution failed: \n";
+    g_err << pOp->getNdbError().code << " "
+	  << pOp->getNdbError().message << endl;
+    delete xndb;
+    delete xncc;
+    return NDBT_FAILED;
+  }
+
+  xndb->dropEventOperation(pOp);
+  delete xndb;
+  delete xncc;
+  return NDBT_OK;
+}
 
 /** Telco 6.2 **/
 
@@ -2500,6 +2677,11 @@ TESTCASE("Bug33793", ""){
   INITIALIZER(runCreateEvent);
   STEP(runEventListenerUntilStopped);
   STEP(runBug33793);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Bug34853", ""){
+  INITIALIZER(runCreateEvent);
+  INITIALIZER(runBug34853);
   FINALIZER(runDropEvent);
 }
 TESTCASE("Bug35208", ""){
