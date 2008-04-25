@@ -1,3 +1,0 @@
--O max_binlog_size=4096
---config-file-template=../rpl_1slave_base.cnf
-
