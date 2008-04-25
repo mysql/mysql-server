@@ -21,7 +21,9 @@ libmystrings_la_LDFLAGS =   -static
 libmystrings_la_SOURCES = 
 # Force C++ linking - dummy.cxx doesn't have to exist with EXTRA in the name
 nodist_EXTRA_libmystrings_la_SOURCES = dummy.cxx
-libmystrings_la_LIBADD = $(top_builddir)/strings/libmystringslt.la
+# This can't be listed here as $(top_builddir)/strings/libmystingslt.la
+# or it breaks make's dependency track for -j builds
+libmystrings_la_LIBADD = libmystringslt.la
 
 
 noinst_LTLIBRARIES =	libmystringslt.la
