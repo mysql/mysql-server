@@ -172,7 +172,9 @@ SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
 --connection master
 DROP TABLE t1;
 --connection slave
-DROP TABLE t1;
+--disable_warings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
 --echo
 
 # End of test 5.1
