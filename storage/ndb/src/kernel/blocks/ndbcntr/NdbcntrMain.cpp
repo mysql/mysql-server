@@ -2235,6 +2235,7 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == 71)
   {
+#ifdef ERROR_INSERT
     if (signal->getLength() == 2)
     {
       c_error_insert_extra = signal->theData[1];
@@ -2244,6 +2245,7 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
     {
       CLEAR_ERROR_INSERT_VALUE;
     }
+#endif
   }
 
 }//Ndbcntr::execDUMP_STATE_ORD()
