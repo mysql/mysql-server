@@ -95,9 +95,9 @@ sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
-		$(top_builddir)/mysys/libmysys.a \
-		$(top_builddir)/strings/libmystrings.a \
-		$(top_builddir)/dbug/libdbug.a \
+		$(top_builddir)/mysys/libmysyslt.la \
+		$(top_builddir)/strings/libmystringslt.la \
+		$(top_builddir)/dbug/libdbuglt.la \
 		$(top_builddir)/vio/libvio.a \
                 @NDB_SCI_LIBS@ \
 		@mysql_plugin_libs@ \
