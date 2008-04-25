@@ -14,7 +14,7 @@ cscope.files: $(CSCOPE_DIRS)
 	@echo "$(CSCOPE_FILES)" | tr " " "\n" > $@ # Very long command line quieted.
 
 cscope.out: cscope.files $(CSCOPE_FILES)
-	cscobe -b
+	cscope -b
 
 src.dir: newbrt.dir
 cxx.dir: src.dir
