@@ -33,7 +33,7 @@ SUBDIRS =		. include @docs_dirs@ @zlib_dir@ \
 DIST_SUBDIRS =		. include Docs zlib \
 			cmd-line-utils sql-common scripts \
 			pstack \
-			strings mysys dbug extra regex libmysql libmysql_r client unittest storage plugin \
+			strings mysys dbug mysys/tests extra regex libmysql libmysql_r client unittest storage plugin \
 			vio sql man tests \
 			netware libmysqld \
 			mysql-test support-files sql-bench server-tools \

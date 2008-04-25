@@ -3022,3 +3022,14 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
+mysys/tests/test_base64
+mysys/tests/test_bitmap
+mysys/tests/test_gethwaddr
+mysys/tests/test_io_cache
+mysys/tests/test_priority_queue
+mysys/tests/test_thr_alarm
+mysys/tests/test_thr_lock
+mysys/tests/test_vsnprintf
+mysys/tests/testhash
+mysys/tests/.deps/test_charset.Tpo
+mysys/tests/.deps/test_dir.Tpo

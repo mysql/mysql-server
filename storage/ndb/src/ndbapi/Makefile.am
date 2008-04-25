@@ -68,9 +68,10 @@ include $(top_srcdir)/storage/ndb/config/common.mk.am
 include $(top_srcdir)/storage/ndb/config/type_ndbapi.mk.am
 
 ndberror_check_LDFLAGS = \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/dbug/libdbuglt.la \
+         $(top_builddir)/mysys/libmysyslt.la \
+         $(top_builddir)/strings/libmystringslt.la \
+         $(top_builddir)/zlib/libzlt.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
