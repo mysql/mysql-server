@@ -127,7 +127,8 @@ int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, b
 	}
     } else {
 	// Make sure that they are in increasing order.
-	int check_increasing (LEAFENTRY v, u_int32_t idx, void *vprevp) {
+	int check_increasing (OMTVALUE lev, u_int32_t idx, void *vprevp) {
+	    LEAFENTRY v=lev;
 	    LEAFENTRY *prevp = vprevp;
 	    if (idx>0) 
 		assert(compare_leafentries(brt, *prevp, v)<0);

@@ -55,7 +55,8 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
-	int addupsize (LEAFENTRY le, u_int32_t UU(idx), void *vp) {
+	int addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
+	    LEAFENTRY le=lev;
 	    unsigned int *ip=vp;
 	    (*ip) += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
 	    return 0;
@@ -177,7 +178,8 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
     } else {
 	//printf("%s:%d writing node %lld n_entries=%d\n", __FILE__, __LINE__, node->thisnodename, toku_gpma_n_entries(node->u.l.buffer));
 	wbuf_uint(&w, toku_omt_size(node->u.l.buffer));
-	int wbufwriteleafentry (LEAFENTRY le, u_int32_t UU(idx), void *v) {
+	int wbufwriteleafentry (OMTVALUE lev, u_int32_t UU(idx), void *v) {
+	    LEAFENTRY le=lev;
 	    struct wbuf *thisw=v;
 	    wbuf_LEAFENTRY(thisw, le);
 	    return 0;
@@ -440,7 +442,8 @@ void toku_verify_counts (BRTNODE node) {
 	    unsigned int count;
 	    u_int32_t    fp;
 	} sum_info = {0,0,0,0};
-	int sum_item (LEAFENTRY le, u_int32_t UU(idx), void *vsi) {
+	int sum_item (OMTVALUE lev, u_int32_t UU(idx), void *vsi) {
+	    LEAFENTRY le=lev;
 	    struct sum_info *si = vsi;
 	    si->count++;
 	    si->dsum += OMT_ITEM_OVERHEAD + leafentry_disksize(le);
