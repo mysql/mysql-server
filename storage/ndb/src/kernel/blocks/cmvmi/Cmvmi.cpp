@@ -433,6 +433,7 @@ void Cmvmi::execSTTOR(Signal* signal)
     globalData.activateSendPacked = 1;
     sendSTTORRY(signal);
   } else if (theStartPhase == 8){
+#ifdef ERROR_INSERT
     if (ERROR_INSERTED(9004))
     {
       Uint32 len = signal->getLength();
@@ -451,6 +452,7 @@ void Cmvmi::execSTTOR(Signal* signal)
                           signal, 100, len);
       return;
     }
+#endif
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   }
