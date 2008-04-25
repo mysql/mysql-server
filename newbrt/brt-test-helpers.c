@@ -84,16 +84,17 @@ int toku_testsetup_insert_to_leaf (BRT brt, DISKOFF diskoff, char *key, int keyl
     memcpy(leafentry, tmp_leafentry, lesize);
     toku_free(tmp_leafentry);
 
-    LEAFENTRY storeddata;
+    OMTVALUE storeddatav;
     u_int32_t idx;
     DBT keydbt,valdbt;
     BRT_CMD_S cmd = {BRT_INSERT, 0, .u.id={toku_fill_dbt(&keydbt, key, keylen),
 					   toku_fill_dbt(&valdbt, val, vallen)}};
     struct cmd_leafval_bessel_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
-    r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, &storeddata, &idx);
+    r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be, &storeddatav, &idx);
 
 
     if (r==0) {
+	LEAFENTRY storeddata=storeddatav;
 	// It's already there.  So now we have to remove it and put the new one back in.
 	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(storeddata);
 	node->local_fingerprint     -= node->rand4fingerprint*toku_le_crc(storeddata);

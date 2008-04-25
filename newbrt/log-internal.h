@@ -1,5 +1,6 @@
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
+#include "brt-internal.h"
 #include "log.h"
 #include "toku_assert.h"
 #include "list.h"
@@ -73,6 +74,11 @@ struct tokulogger {
 int toku_logger_find_next_unused_log_file(const char *directory, long long *result);
 int toku_logger_find_logfiles (const char *directory, char ***resultp);
 
+struct brtcachefile_pair {
+    BRT brt;
+    CACHEFILE cf;
+};
+
 struct tokutxn {
     enum typ_tag tag;
     u_int64_t txnid64; /* this happens to be the first lsn */
@@ -86,6 +92,7 @@ struct tokutxn {
     char      *rollentry_filename;
     int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
     off_t      rollentry_filesize;   // How many bytes are in the rollentry.
+    OMT        used_open_brtcachefile_pairs; // a collection of the brts that we touched and which are still open.
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync);

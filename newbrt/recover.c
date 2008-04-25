@@ -9,11 +9,12 @@
 
 #include "cachetable.h"
 #include "key.h"
+#include "brt-internal.h"
 #include "log-internal.h"
 #include "log_header.h"
 #include "toku_assert.h"
 #include "kv-pair.h"
-#include "omt.h"
+
 
 #include <fcntl.h>
 #include <stdlib.h>
@@ -488,7 +489,8 @@ void toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     toku_free_BYTESTRING(fname);
 }
 
-static int fill_buf (LEAFENTRY le, u_int32_t idx, void *varray) {
+static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
+    LEAFENTRY le=lev;
     LEAFENTRY *array=varray;
     array[idx]=le;
     return 0;
@@ -530,7 +532,7 @@ void toku_recover_leafsplit (LSN lsn, FILENUM filenum, DISKOFF old_diskoff, DISK
     assert(toku_omt_size(oldn->u.l.buffer)==old_n);
 
     u_int32_t n_leafentries = old_n;
-    LEAFENTRY *MALLOC_N(n_leafentries, leafentries);
+    OMTVALUE *MALLOC_N(n_leafentries, leafentries);
     assert(leafentries);
     toku_omt_iterate(oldn->u.l.buffer, fill_buf, leafentries);
     {
@@ -619,15 +621,16 @@ void toku_recover_deleteleafentry (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_
     VERIFY_COUNTS(node);
     node->log_lsn = lsn;
     {
-	LEAFENTRY data;
+	OMTVALUE data;
 	r=toku_omt_fetch(node->u.l.buffer, idx, &data);
 	assert(r==0);
 	u_int32_t  len = leafentry_memsize(oldleafentry);
-	assert(leafentry_memsize(data)==len);
+	LEAFENTRY le=data;
+	assert(leafentry_memsize(le)==len);
 	assert(memcmp(oldleafentry, data, len)==0);
-	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(data);
-	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(data);
-	toku_mempool_mfree(&node->u.l.buffer_mempool, data, len);
+	node->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + leafentry_disksize(le);
+	node->local_fingerprint -= node->rand4fingerprint * toku_le_crc(le);
+	toku_mempool_mfree(&node->u.l.buffer_mempool, le, len);
 	r = toku_omt_delete_at(node->u.l.buffer, idx);
 	assert(r==0);
     }

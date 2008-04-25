@@ -89,7 +89,8 @@ static long brtnode_size(BRTNODE node) {
 }
 
 
-static int verify_in_mempool(LEAFENTRY le, u_int32_t UU(idx), void *vmp) {
+static int verify_in_mempool(OMTVALUE lev, u_int32_t UU(idx), void *vmp) {
+    LEAFENTRY le=lev;
     struct mempool *mp=vmp;
     assert(toku_mempool_inrange(mp, le, leafentry_memsize(le)));
     return 0;
@@ -355,7 +356,8 @@ static int insert_to_buffer_in_nonleaf (BRTNODE node, int childnum, DBT *k, DBT 
     return 0;
 }
 
-static int fill_buf (LEAFENTRY le, u_int32_t idx, void *varray) {
+static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
+    LEAFENTRY le=lev;
     LEAFENTRY *array=varray;
     array[idx]=le;
     return 0;
@@ -378,7 +380,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     toku_verify_all_in_mempool(node);
 
     u_int32_t n_leafentries = toku_omt_size(node->u.l.buffer);
-    LEAFENTRY *MALLOC_N(n_leafentries, leafentries);
+    OMTVALUE *MALLOC_N(n_leafentries, leafentries);
     assert(leafentries);
     toku_omt_iterate(node->u.l.buffer, fill_buf, leafentries);
     u_int32_t break_at = 0;
@@ -440,9 +442,10 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     //toku_verify_gpma(B->u.l.buffer);
     if (splitk) {
 	memset(splitk, 0, sizeof *splitk);
-	LEAFENTRY le;
-	r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &le);
+	OMTVALUE lev;
+	r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev);
 	assert(r==0); // that fetch should have worked.
+	LEAFENTRY le=lev;
 	if (node->flags&TOKU_DB_DUPSORT) {
 	    splitk->size = le_any_keylen(le)+le_any_vallen(le);
 	    splitk->data = kv_pair_malloc(le_any_key(le), le_any_keylen(le), le_any_val(le), le_any_vallen(le));
@@ -1109,7 +1112,8 @@ int leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
     return leafval_bessel_le_committed(klen, kval, plen, pval, be);
 }
 
-int toku_cmd_leafval_bessel (LEAFENTRY le, void *extra) {
+int toku_cmd_leafval_bessel (OMTVALUE lev, void *extra) {
+    LEAFENTRY le=lev;
     struct cmd_leafval_bessel_extra *be = extra;
     LESWITCHCALL(le, leafval_bessel, be);
 }
@@ -1358,6 +1362,8 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     FILENUM filenum = toku_cachefile_filenum(t->cf);
 
     LEAFENTRY storeddata;
+    OMTVALUE storeddatav;
+
     u_int32_t idx;
     int r;
     int compare_both = should_compare_both_keys(node, cmd);
@@ -1367,11 +1373,14 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
     case BRT_INSERT:
 	
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
-			       &storeddata, &idx);
+			       &storeddatav, &idx);
 	if (r==DB_NOTFOUND) {
 	    storeddata = 0;
-	} else if (r!=0)
+	} else if (r!=0) {
 	    return r;
+	} else {
+	    storeddata=storeddatav;
+	}
 	
 	r = brt_leaf_apply_cmd_once(t, node, cmd, logger, idx, storeddata);
 	if (r!=0) return r;
@@ -1382,9 +1391,10 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 
 	// Delete the one item
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel,  &be,
-			       &storeddata, &idx);
+			       &storeddatav, &idx);
 	if (r == DB_NOTFOUND) break;
 	if (r != 0) return r;
+	storeddata=storeddatav;
 
 	VERIFY_NODE(node);
 
@@ -1402,9 +1412,10 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	// Delete all the matches
 
 	r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_bessel, &be,
-			       &storeddata, &idx);
+			       &storeddatav, &idx);
 	if (r == DB_NOTFOUND) break;
 	if (r != 0) return r;
+	storeddata=storeddatav;
 	    
 	while (1) {
 	    int   vallen   = le_any_vallen(storeddata);
@@ -1418,10 +1429,11 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 	    BRT_CMD_S ncmd = { cmd->type, cmd->xid, .u.id={cmd->u.id.key, toku_fill_dbt(&valdbt, save_val, vallen)}};
 	    struct cmd_leafval_bessel_extra nbe = {t, &ncmd, 1};
 	    r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_bessel,  &nbe, +1,
-			      &storeddata, &idx);
+			      &storeddatav, &idx);
 	    
 	    toku_free(save_val);
 	    if (r!=0) break;
+	    storeddata=storeddatav;
 	    {   // Continue only if the next record that we found has the same key.
 		DBT adbt;
 		if (t->compare_fun(t->db,
@@ -2565,7 +2577,8 @@ int pair_leafval_bessel_le_provpair (TXNID xid __attribute__((__unused__)),
 }
 
 
-static int bessel_from_search_t (LEAFENTRY leafval, void *extra) {
+static int bessel_from_search_t (OMTVALUE lev, void *extra) {
+    LEAFENTRY leafval=lev;
     brt_search_t *search = extra;
     LESWITCHCALL(leafval, pair_leafval_bessel, search);
 }
@@ -2579,16 +2592,16 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
     }
     return EINVAL;  // This return and the goto are a hack to get both compile-time and run-time checking on enum
  ok: ;
-    LEAFENTRY data;
+    OMTVALUE datav;
     u_int32_t idx;
     int r = toku_omt_find(node->u.l.buffer,
 			  bessel_from_search_t,
 			  search,
 			  direction,
-			  &data, &idx);
+			  &datav, &idx);
     if (r!=0) return r;
 
-    LEAFENTRY le = data;
+    LEAFENTRY le = datav;
     if (le_is_provdel(le)) {
 	// Provisionally deleted stuff is gone.
 	// So we need to scan in the direction to see if we can find something
@@ -2604,9 +2617,9 @@ static int brt_search_leaf_node(BRT brt, BRTNODE node, brt_search_t *search, DBT
 		break;
 	    }
 	    if (idx>=toku_omt_size(node->u.l.buffer)) continue;
-	    r = toku_omt_fetch(node->u.l.buffer, idx, &data);
+	    r = toku_omt_fetch(node->u.l.buffer, idx, &datav);
 	    assert(r==0); // we just validated the index
-	    le = data;
+	    le = datav;
 	    if (!le_is_provdel(le)) goto got_a_good_value;
 	}
     }
@@ -3050,7 +3063,8 @@ struct omt_compressor_state {
     OMT omt;
 };
 
-static int move_it (LEAFENTRY le, u_int32_t idx, void *v) {
+static int move_it (OMTVALUE lev, u_int32_t idx, void *v) {
+    LEAFENTRY le=lev;
     struct omt_compressor_state *oc = v;
     u_int32_t size = leafentry_memsize(le);
     LEAFENTRY newdata = toku_mempool_malloc(oc->new_kvspace, size, 1);
