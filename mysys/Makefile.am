@@ -19,7 +19,7 @@ MYSQLBASEdir=		$(prefix)
 INCLUDES =		@ZLIB_INCLUDES@ -I$(top_builddir)/include \
 			-I$(top_srcdir)/include -I$(srcdir)
 LDADD =			$(top_builddir)/strings/libmystringslt.la \
-			$(top_builddir)/dbug/libdbuglt.la @M_LIBS@ @ZLIB_LIBS@
+			$(top_builddir)/dbug/libdbuglt.la @ZLIB_LIBS@
 
 
 pkglib_LTLIBRARIES =	libmysys.la
