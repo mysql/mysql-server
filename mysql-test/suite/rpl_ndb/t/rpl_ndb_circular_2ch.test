@@ -170,10 +170,9 @@ SELECT COUNT(*), SUM(a), b FROM t1 WHERE c = 3 GROUP BY b ORDER BY b;
 
 # Clean up
 --connection master
-DELETE FROM t1;
+DROP TABLE t1;
 --connection slave
-let $wait_condition= SELECT COUNT(*)=0 FROM t1;
---source include/wait_condition.inc
+DROP TABLE t1;
 --echo
 
 # End of test 5.1
