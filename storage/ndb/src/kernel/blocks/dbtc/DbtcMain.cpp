@@ -2737,6 +2737,8 @@ void Dbtc::execTCKEYREQ(Signal* signal)
   if (seizeCacheRecord(signal) != 0) {
     return;
   }//if
+
+  CRASH_INSERTION(8063);
   
   TcConnectRecord * const regTcPtr = tcConnectptr.p;
   CacheRecord * const regCachePtr = cachePtr.p;
@@ -4596,9 +4598,7 @@ void Dbtc::execCOMMITTED(Signal* signal)
     CLEAR_ERROR_INSERT_VALUE;
     return;
   }//if
-  if (ERROR_INSERTED(8030)) {
-    systemErrorLab(signal, __LINE__);
-  }//if
+  CRASH_INSERTION(8030);
   if (ERROR_INSERTED(8025)) {
     SET_ERROR_INSERT_VALUE(8026);
     return;
