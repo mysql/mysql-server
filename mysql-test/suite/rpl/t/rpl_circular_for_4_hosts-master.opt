@@ -1,0 +1,1 @@
+--slave-num=3 --log-slave-updates --innodb
