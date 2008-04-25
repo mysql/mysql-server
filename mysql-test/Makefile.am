@@ -38,6 +38,7 @@ nobase_test_DATA = lib/mtr_cases.pm \
 	lib/My/Config.pm \
 	lib/My/Find.pm \
 	lib/My/Options.pm \
+	lib/My/Test.pm \
 	lib/My/Platform.pm \
 	lib/My/SafeProcess.pm \
 	lib/My/File/Path.pm \
