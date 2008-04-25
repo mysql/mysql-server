@@ -1867,6 +1867,102 @@ runBug36276(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int 
+runBug36245(NDBT_Context* ctx, NDBT_Step* step)
+{ 
+  int result = NDBT_OK;
+  int loops = ctx->getNumLoops();
+  NdbRestarter res;
+  Ndb* pNdb = GETNDB(step);
+
+  if (res.getNumDbNodes() < 4)
+    return NDBT_OK;
+
+  /**
+   * Make sure master and nextMaster is in different node groups
+   */
+loop1:
+  int master = res.getMasterNodeId();
+  int nextMaster = res.getNextMasterNodeId(master);
+  
+  printf("master: %u nextMaster: %u", master, nextMaster);
+  if (res.getNodeGroup(master) == res.getNodeGroup(nextMaster))
+  {
+    ndbout_c(" -> restarting next master: %u", nextMaster);
+    res.restartOneDbNode(nextMaster,
+                         /** initial */ false, 
+                         /** nostart */ true,
+                         /** abort   */ true);
+    
+    res.waitNodesNoStart(&nextMaster, 1);
+    res.startNodes(&nextMaster, 1);
+    if (res.waitClusterStarted())
+    {
+      ndbout_c("cluster didnt restart!!");
+      return NDBT_FAILED;
+    }
+    goto loop1;
+  }
+  ndbout_c(" -> go go gadget skates");
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };    
+  res.dumpStateOneNode(master, val2, 2);
+  res.dumpStateOneNode(nextMaster, val2, 2);
+
+  res.insertErrorInNode(master, 8063);
+  res.insertErrorInNode(nextMaster, 936);
+
+
+  int err = 0;
+  HugoOperations hugoOps(*ctx->getTab());
+loop2:
+  if((err = hugoOps.startTransaction(pNdb)) != 0)
+  {
+    ndbout_c("failed to start transaction: %u", err);
+    return NDBT_FAILED;
+  }
+  
+  int victim = hugoOps.getTransaction()->getConnectedNodeId();
+  if (victim != master)
+  {
+    ndbout_c("transnode: %u != master: %u -> loop",
+             victim, master);
+    hugoOps.closeTransaction(pNdb);
+    goto loop2;
+  }
+
+  if((err = hugoOps.pkUpdateRecord(pNdb, 1)) != 0)
+  {
+    ndbout_c("failed to update: %u", err);
+    return NDBT_FAILED;
+  }
+  
+  if((err = hugoOps.execute_Commit(pNdb)) != 4010)
+  {
+    ndbout_c("incorrect error code: %u", err);
+    return NDBT_FAILED;
+  }
+  hugoOps.closeTransaction(pNdb);
+  
+  int nodes[2];
+  nodes[0] = master;
+  nodes[1] = nextMaster;
+  if (res.waitNodesNoStart(nodes, 2))
+  {
+    return NDBT_FAILED;
+  }
+  
+  if (res.startNodes(nodes, 2))
+  {
+    return NDBT_FAILED;
+  }
+  
+  if (res.waitClusterStarted())
+    return NDBT_FAILED;
+  
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -2230,6 +2326,11 @@ TESTCASE("Bug36247", ""){
 TESTCASE("Bug36276", ""){
   INITIALIZER(runLoadTable);
   STEP(runBug36276);
+  VERIFIER(runClearTable);
+}
+TESTCASE("Bug36245", ""){
+  INITIALIZER(runLoadTable);
+  STEP(runBug36245);
   VERIFIER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNodeRestart);
