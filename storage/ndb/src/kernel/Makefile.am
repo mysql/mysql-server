@@ -53,10 +53,10 @@ LDADD +=  \
               $(top_builddir)/storage/ndb/src/mgmapi/libmgmapi.la \
               $(top_builddir)/storage/ndb/src/common/portlib/libportlib.la      \
               $(top_builddir)/storage/ndb/src/common/util/libgeneral.la  \
-         $(top_builddir)/dbug/libdbuglt.la \
-         $(top_builddir)/mysys/libmysyslt.la \
-         $(top_builddir)/strings/libmystringslt.la \
-         $(top_builddir)/zlib/libzlt.la @NDB_SCI_LIBS@ 
+              $(top_builddir)/dbug/libdbuglt.la \
+              $(top_builddir)/mysys/libmysyslt.la \
+              $(top_builddir)/strings/libmystringslt.la \
+              $(top_builddir)/zlib/libzlt.la @M_LIBS@ @NDB_SCI_LIBS@ 
 
 windoze-dsp: ndbd.dsp
 
