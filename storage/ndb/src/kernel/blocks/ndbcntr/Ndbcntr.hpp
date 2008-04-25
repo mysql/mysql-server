@@ -47,6 +47,7 @@
 //------- OTHERS ---------------------------------------------
 #define ZSTARTUP  1
 #define ZSHUTDOWN 2
+#define ZBLOCK_STTOR 3
 
 #define ZSIZE_NDB_BLOCKS_REC 16 /* MAX BLOCKS IN NDB                    */
 #define ZSIZE_SYSTAB 2048
@@ -382,6 +383,10 @@ private:
   void execREAD_CONFIG_CONF(Signal*);
 
   friend struct UpgradeStartup;
+
+#ifdef ERROR_INSERT
+  Uint32 c_error_insert_extra;
+#endif
 };
 
 #endif
