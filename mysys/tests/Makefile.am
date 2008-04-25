@@ -46,7 +46,7 @@ test_io_cache_SOURCES = $(top_srcdir)/mysys/mf_iocache.c
 testhash_SOURCES = testhash.c
 test_gethwaddr_SOURCES = $(top_srcdir)/mysys/my_gethwaddr.c
 test_base64_SOURCES = $(top_srcdir)/mysys/base64.c
-test_base64_LDADD = @M_LIBS@ $(top_builddir)/mysys/libmysyslt.la $(top_builddir)/strings/libmystrings.la
+test_base64_LDADD = $(top_builddir)/mysys/libmysyslt.la $(top_builddir)/strings/libmystrings.la
 
 # Don't update the files from bitkeeper
 %::SCCS/s.%
