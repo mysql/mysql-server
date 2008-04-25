@@ -52,6 +52,7 @@ sub collect_option {
 }
 
 use File::Basename;
+use File::Spec::Functions qw / splitdir /;
 use IO::File();
 use My::Config;
 use My::Platform;
@@ -249,8 +250,12 @@ sub collect_one_suite($)
   my $suitedir= "$::glob_mysql_test_dir"; # Default
   if ( $suite ne "main" )
   {
-    if ( -d $suite ){
+    # Allow suite to be path to "some dir" if $suite has at least
+    # one directory part
+    if ( -d $suite and splitdir($suite) > 1 ){
       $suitedir= $suite;
+      mtr_report(" - from '$suitedir'");
+
     }
     else
     {
