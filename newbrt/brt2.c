@@ -828,8 +828,6 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_default_compare_fun;
     brt->dup_compare = toku_default_compare_fun;
-    int r = toku_omt_create(&brt->txns);
-    if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
     return 0;
 }
@@ -1105,7 +1103,6 @@ int toku_open_brt (const char *fname, const char *dbname, int is_create, BRT *ne
 
     r = toku_brt_open(brt, fname, fname, dbname, is_create, only_create, load_flags, cachetable, txn, db);
     if (r != 0) {
-	toku_omt_destroy(&brt->txns);
 	toku_free(brt);
         return r;
     }
@@ -1129,8 +1126,6 @@ int toku_close_brt (BRT brt) {
     if (brt->database_name) toku_free(brt->database_name);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }
-    assert(toku_omt_size(brt->txns)==0);
-    toku_omt_destroy(&brt->txns);
     toku_free(brt);
     return 0;
 }
