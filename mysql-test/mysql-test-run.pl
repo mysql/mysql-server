@@ -291,6 +291,7 @@ sub main {
   mtr_print_thick_line();
   mtr_print_header();
 
+  my $num_tests= @$tests;
   my $completed= run_test_server($server, $tests, $opt_parallel);
 
   # Send Ctrl-C to any children still running
@@ -306,6 +307,12 @@ sub main {
     else {
       delete $children{$ret_pid};
     }
+  }
+
+  if ( @$completed != $num_tests){
+    # Not all tests completed, failure
+    mtr_error("Test failed.",
+	      "To continue, re-run with '--force'");
   }
 
   mtr_verbose("Server exit\n");
