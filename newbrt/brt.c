@@ -1810,6 +1810,8 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_default_compare_fun;
     brt->dup_compare = toku_default_compare_fun;
+    int r = toku_omt_create(&brt->txns);
+    if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
     return 0;
 }
@@ -2114,6 +2116,10 @@ int toku_close_brt (BRT brt, TOKULOGGER logger) {
     if (brt->fname) toku_free(brt->fname);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }
+    assert(toku_omt_size(brt->txns)==0);
+    r=toku_txn_note_close_brt(brt);
+    assert(r==0);
+    toku_omt_destroy(&brt->txns);
     toku_free(brt);
     return 0;
 }
@@ -2284,6 +2290,8 @@ int toku_brt_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmdinsert(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
 	if (r!=0) return r;
+	r = toku_txn_note_brt(txn, brt);
+	if (r!=0) return r;
     }
     BRT_CMD_S brtcmd = { BRT_INSERT, toku_txn_get_txnid(txn), .u.id={key,val}};
     r = toku_brt_root_put_cmd(brt, &brtcmd, toku_txn_logger(txn));
@@ -2313,6 +2321,8 @@ int toku_brt_delete(BRT brt, DBT *key, TOKUTXN txn) {
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddelete(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs);
 	if (r!=0) return r;
+	r = toku_txn_note_brt(txn, brt);
+	if (r!=0) return r;
     }
     DBT val;
     BRT_CMD_S brtcmd = { BRT_DELETE_ANY, toku_txn_get_txnid(txn), .u.id={key, toku_init_dbt(&val)}};
@@ -2327,6 +2337,8 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
 	BYTESTRING databs = {val->size, toku_memdup(val->data, val->size)};
 	toku_cachefile_refup(brt->cf);
 	r = toku_logger_save_rollback_cmddeleteboth(txn, toku_txn_get_txnid(txn), toku_cachefile_filenum(brt->cf), keybs, databs);
+	if (r!=0) return r;
+	r = toku_txn_note_brt(txn, brt);
 	if (r!=0) return r;
     }
     BRT_CMD_S brtcmd = { BRT_DELETE_BOTH, toku_txn_get_txnid(txn), .u.id={key,val}};

@@ -165,4 +165,7 @@ int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn);
 int toku_commit_rollback_item (TOKUTXN txn, struct roll_entry *item);
 int toku_abort_rollback_item (TOKUTXN txn, struct roll_entry *item);
 
+int toku_txn_note_brt (TOKUTXN txn, BRT brt);
+int toku_txn_note_close_brt (BRT brt);
+
 #endif
