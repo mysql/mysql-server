@@ -839,14 +839,7 @@ AC_CHECK_HEADERS([xfs/xfs.h])
 # and defines HAVE_LIBM etc
 #--------------------------------------------------------------------
 
-dnl Save the current libs into _libs so we can use AC_CHECK_LIB but 
-dnl not have -lm go into the global libs list, since we don't need 
-dnl it for everything we build and will use M_LIBS instead
-_libs=${LIBS}
-LIBS=''
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
-M_LIBS=${LIBS}
-LIBS=${_libs}
 
 dnl Save the current libs into _libs so we can put this into NSL_LIBS
 _libs=${LIBS}
@@ -864,12 +857,7 @@ AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
 # Check if crypt() exists in libc or libcrypt, sets LIBS if needed
-dnl Save the current libs into _libs so we can put this into CRYPT_LIBS
-_libs=${LIBS}
-LIBS=''
 AC_SEARCH_LIBS(crypt, crypt, AC_DEFINE(HAVE_CRYPT, 1, [crypt]))
-CRYPT_LIBS=${LIBS}
-LIBS=${_libs}
 # See if we need a library for address lookup.
 AC_SEARCH_LIBS(inet_aton, [socket nsl resolv])
 
@@ -2696,8 +2684,6 @@ sql_client_dirs="$sql_client_dirs client"
 
 CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 
-AC_SUBST(M_LIBS)
-AC_SUBST(CRYPT_LIBS)
 AC_SUBST(NSL_LIBS)
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(CLIENT_THREAD_LIBS)
