@@ -92,7 +92,7 @@ struct tokutxn {
     char      *rollentry_filename;
     int        rollentry_fd;         // If we spill the roll_entries, we write them into this fd.
     off_t      rollentry_filesize;   // How many bytes are in the rollentry.
-    OMT        used_open_brtcachefile_pairs; // a collection of the brts that we touched and which are still open.
+    OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.
 };
 
 int toku_logger_finish (TOKULOGGER logger, struct logbytes *logbytes, struct wbuf *wbuf, int do_fsync);
