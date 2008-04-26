@@ -1404,8 +1404,8 @@ sub environment_setup {
 
   $ENV{'UDF_EXAMPLE_LIB'}=
     ($lib_udf_example ? basename($lib_udf_example) : "");
-  $ENV{'UDF_EXAMPLE_LIB_OPT'}=
-    ($lib_udf_example ? "--plugin_dir=" . dirname($lib_udf_example) : "");
+  $ENV{'UDF_EXAMPLE_LIB_OPT'}= "--plugin-dir=".
+    ($lib_udf_example ? dirname($lib_udf_example) : "");
 
   # --------------------------------------------------------------------------
   # Add the path where mysqld will find ha_example.so
@@ -1416,9 +1416,9 @@ sub environment_setup {
 		      "$basedir/storage/example/.libs/ha_example.so",);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
-    $ENV{'EXAMPLE_PLUGIN_OPT'}=
-      ($lib_example_plugin ?
-       "--plugin_dir=" . dirname($lib_example_plugin) : "");
+    $ENV{'EXAMPLE_PLUGIN_OPT'}= "--plugin-dir=".
+      ($lib_example_plugin ? dirname($lib_example_plugin) : "");
+
   }
 
   # --------------------------------------------------------------------------
