@@ -35,7 +35,7 @@ BINS=rth.o lth.o idlth.o db_id.o
 
 .PHONY: install logformat
 
-build: $(LT_BINS)
+build: $(LT_BINS) $(BINS)
 	cd tests; $(MAKE) build
 
 check:
