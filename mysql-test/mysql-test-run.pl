@@ -162,7 +162,7 @@ my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
-my $opt_parallel= 1;
+my $opt_parallel= 4;
 
 my $opt_strace_client;
 
