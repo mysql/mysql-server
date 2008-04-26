@@ -30,15 +30,18 @@ SHARED=-shared $(EXPORTMAP)
 RPATHNAME=
 endif
 
-build:
-	cd range_tree;$(MAKE) build
-	cd lock_tree;$(MAKE) build
+build: buildlocktrees
 	$(MAKE) $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
 	cd tests;$(MAKE) build
 	if ! diff $(LIBNAME).a ../lib/$(LIBNAME).a >/dev/null 2>&1; then cp $(LIBNAME).a ../lib/; fi
 	if ! diff $(LIBRARY)  ../lib/$(LIBRARY) > /dev/null 2>&1; then cp $(LIBRARY) ../lib/; fi
 	if ! diff $(TLIBNAME).a ../lib/$(TLIBNAME).a >/dev/null 2>&1; then cp $(TLIBNAME).a ../lib/; fi
 	if ! diff $(TLIBRARY)  ../lib/$(TLIBRARY) > /dev/null 2>&1; then cp $(TLIBRARY) ../lib/; fi
+
+.PHONY: buildlocktrees
+buildlocktrees:
+	cd range_tree;$(MAKE) build
+	cd lock_tree;$(MAKE) build
 
 local: $(LIBRARY) $(LIBNAME).a $(TLIBNAME).a $(TLIBRARY)
 
@@ -77,19 +80,18 @@ TDBBINS = tdbtrace.o $(patsubst ydb.o,ydbtrace.o,$(DBBINS))
 RANGETREE_BINS = range_tree/rangetree.o range_tree/tokuredblack.o
 LOCKTREE_BINS  = lock_tree/locktree.o lock_tree/rth.o lock_tree/lth.o lock_tree/idlth.o lock_tree/db_id.o $(RANGETREE_BINS)
 
+$(LIBRARY): $(DBBINS) | buildlocktrees
+	cc  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
-$(LIBRARY): $(DBBINS) $(LOCKTREE_BINS)
-	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
-
-$(LIBNAME).a: $(DBBINS) $(LOCKTREE_BINS)
-	$(AR) rv $@ $^
+$(LIBNAME).a: $(DBBINS) | buildlocktrees
+	$(AR) rv $@ $^  $(LOCKTREE_BINS)
 
 $(LIBNAME).a(ydb.o): ydb.o
 
-$(TLIBRARY): $(TDBBINS) $(LOCKTREE_BINS)
-	cc  $(CPPFLAGS) $^ $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
+$(TLIBRARY): $(TDBBINS) | buildlocktrees
+	cc  $(CPPFLAGS) $^ $(LOCKTREE_BINS) $(SHARED) -o $@ $(CFLAGS) -lz $(RPATHNAME)
 
-$(TLIBNAME).a: $(TDBBINS) $(LOCKTREE_BINS)
-	$(AR) rv $@ $^
+$(TLIBNAME).a: $(TDBBINS) | buildlocktrees
+	$(AR) rv $@ $^  $(LOCKTREE_BINS)
 
 $(TLIBNAME).a(ydbtrace.o): ydbtrace.o
