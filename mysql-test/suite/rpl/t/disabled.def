@@ -15,5 +15,4 @@ rpl_innodb_bug28430      : Bug #32247 2007-11-27 mats Test reports wrong value o
 rpl_view                   : Bug#32654: rpl_view.test fails randomly
 rpl_ndb_multi              : Bug#30751: rpl_ndb_multi missing row in output
 rpl_log_pos                : Bug#8693 Test 'rpl_log_pos' fails sometimes
-rpl_circular_for_4_hosts  : Needs updated config
 
