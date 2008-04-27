@@ -4,6 +4,7 @@ reset master;
 reset slave;
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
 start slave;
+call mtr.add_supression("Slave: Can\'t find record in \'user\' Error_code: 1032");
 reset master;
 SET @save_select_limit=@@session.sql_select_limit;
 SET @@session.sql_select_limit=10, @@session.pseudo_thread_id=100;
