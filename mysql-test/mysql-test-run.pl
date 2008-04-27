@@ -41,6 +41,7 @@ use Getopt::Long;
 use My::File::Path; # Patched version of File::Path
 use File::Basename;
 use File::Copy;
+use File::Find;
 use File::Temp qw / tempdir /;
 use File::Spec::Functions qw / splitdir /;
 use My::Platform;
@@ -197,10 +198,7 @@ our %mysqld_variables;
 my $source_dist= 0;
 
 my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
-my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
-
 my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
-my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -335,6 +333,9 @@ sub main {
 sub run_test_server {
   my ($server, $tests, $childs) = @_;
 
+  my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
+  my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
+
   # Scheduler variables
   my $max_ndb= $opt_parallel / 2;
   $max_ndb = 4 if $max_ndb > 4;
@@ -377,10 +378,54 @@ sub run_test_server {
 	  # Report test status
 	  mtr_report_test($result);
 
-	  if ($result->is_failed() and !$opt_force){
-	    # Test has failed, force is off
-	    push(@$completed, $result);
-	    return $completed;
+	  if ( $result->is_failed() ) {
+
+	    # Save the workers "savedir" in var/log
+	    my $worker_savedir= $result->{savedir};
+	    my $worker_savename= basename($worker_savedir);
+	    my $savedir= "$opt_vardir/log/$worker_savename";
+
+	    if ($opt_max_save_datadir > 0 &&
+		$num_saved_datadir >= $opt_max_save_datadir)
+	    {
+	      mtr_report(" - skipping '$worker_savedir/'");
+	      rmtree($worker_savedir);
+	    }
+	    else {
+	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
+	      rename($worker_savedir, $savedir);
+	    }
+	    $num_saved_datadir++;
+
+	    if ($opt_max_save_core > 0) {
+	      # Limit number of core files saved
+	      find({ no_chdir => 1,
+		     wanted => sub {
+		       my $core_file= $File::Find::name;
+		       my $core_name= basename($core_file);
+
+		       if ($core_name =~ "core*"){
+			 if ($num_saved_cores >= $opt_max_save_core) {
+			   mtr_report(" - deleting '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+			   unlink("$core_file");
+			 }
+			 else {
+			   mtr_report(" - found '$core_name'",
+				    "($num_saved_cores/$opt_max_save_core)");
+			 }
+			 ++$num_saved_cores;
+		       }
+		     }
+		   },
+		   $savedir);
+	    }
+
+	    if ( !$opt_force ) {
+	      # Test has failed, force is off
+	      push(@$completed, $result);
+	      return $completed;
+	    }
 	  }
 
 	  # Retry test run after test failure
@@ -3080,45 +3125,14 @@ sub clean_datadir {
 
 
 #
-# Limit number of core files saved
-#
-sub limit_cores_after_failure ($) {
-  my ($datadir)= @_;
-
-  # Look for core files
-  foreach my $core_file ( glob("$datadir/core*") )
-  {
-    my $core_name= basename($core_file);
-    if ($opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core) {
-      # Delete file to avoid saving it  when the datadir is later saved
-      mtr_report(" - deleting '$core_name'",
-		 "($num_saved_cores/$opt_max_save_core)");
-      unlink("$core_file");
-    }
-    else {
-      mtr_report(" - found '$core_name'",
-		 "($num_saved_cores/$opt_max_save_core)");
-    }
-    ++$num_saved_cores;
-  }
-}
-
-#
 # Save datadir before it's removed
 #
 sub save_datadir_after_failure($$) {
   my ($dir, $savedir)= @_;
 
-  if ($opt_max_save_datadir > 0 &&
-      $num_saved_datadir >= $opt_max_save_datadir)
-  {
-    mtr_report(" - skipping '$dir'");
-  }
-  else {
-    mtr_report(" - saving '$dir'");
-    my $dir_name= basename($dir);
-    rename("$dir", "$savedir/$dir_name");
-  }
+  mtr_report(" - saving '$dir'");
+  my $dir_name= basename($dir);
+  rename("$dir", "$savedir/$dir_name");
 }
 
 
@@ -3133,6 +3147,9 @@ sub after_failure ($) {
   $save_dir.= "-$tinfo->{combination}"
     if defined $tinfo->{combination};
 
+  # Save savedir  path for server
+  $tinfo->{savedir}= $save_dir;
+
   mkpath($save_dir) if ! -d $save_dir;
 
   # Save the used my.cnf file
@@ -3140,12 +3157,6 @@ sub after_failure ($) {
 
   if ( clusters() ) {
     foreach my $cluster ( clusters() ) {
-
-      foreach my $server ( ndbds($cluster), ndb_mgmds($cluster) ) {
-	my $data_dir= $server->value('DataDir');
-	limit_cores_after_failure($data_dir);
-      }
-
       my $cluster_dir= "$opt_vardir/".$cluster->{name};
       save_datadir_after_failure($cluster_dir, $save_dir);
     }
@@ -3153,29 +3164,43 @@ sub after_failure ($) {
   else {
     foreach my $mysqld ( mysqlds() ) {
       my $data_dir= $mysqld->value('datadir');
-      limit_cores_after_failure($data_dir);
       save_datadir_after_failure(dirname($data_dir), $save_dir);
     }
   }
-
-  $num_saved_datadir++;
-
-  clean_datadir();
 }
 
 
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
-  mtr_report_test_failed($tinfo, $path_current_testlog);
-
-  # Stop all servers that are known to be running
   stop_all_servers();
 
-  # Collect and clean files
+  $tinfo->{'result'}= 'MTR_RES_FAILED';
+
+  my $test_failures= $tinfo->{'failures'} || 0;
+  $tinfo->{'failures'}=  $test_failures + 1;
+
+
+  my $logfile= $path_current_testlog;
+  if ( $tinfo->{comment} )
+  {
+    # The test failure has been detected by mysql-test-run.pl
+    # when starting the servers or due to other error, the reason for
+    # failing the test is saved in "comment"
+    ;
+  }
+  elsif ( defined $logfile and -f $logfile )
+  {
+    # Test failure was detected by test tool and its report
+    # about what failed has been saved to file. Save the report
+    # in tinfo
+    $tinfo->{logfile}= mtr_fromfile($logfile);
+  }
+
   after_failure($tinfo);
 
-  mtr_report("Resuming tests...\n");
+  mtr_report_test($tinfo);
+
 }
 
 
