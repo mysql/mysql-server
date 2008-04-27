@@ -3006,7 +3006,7 @@ sub after_failure ($) {
   my $save_dir= "$opt_vardir/log/";
   $save_dir.= $tinfo->{name};
   # Add combination name if any
-  $save_dir.= "_$tinfo->{combination}"
+  $save_dir.= "-$tinfo->{combination}"
     if defined $tinfo->{combination};
 
   mkpath($save_dir) if ! -d $save_dir;
