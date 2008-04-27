@@ -2482,25 +2482,90 @@ sub do_before_run_mysqltest($)
 }
 
 
+#
+# Check all server for sideffects
+#
+# RETURN VALUE
+#  0 ok
+#  1 Check failed
+#  >1 Fatal errro
+
 sub check_testcase($$)
 {
   my ($tinfo, $mode)= @_;
-  my $result;
+  my $tname= $tinfo->{name};
 
-  # Parallell( mysqlds(), run_check_testcase, check_testcase_failed );
+  # Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during the check
+  my %started;
   foreach my $mysqld ( mysqlds() )
   {
     if ( defined $mysqld->{'proc'} )
     {
-      if (run_check_testcase($tinfo, $mode, $mysqld))
-      {
-	# Check failed, mark the test case with that info
-	$tinfo->{'check_testcase_failed'}= 1;
-	$result= 1;
-      }
+      my $proc= start_check_testcase($tinfo, $mode, $mysqld);
+      $started{$proc->pid()}= $proc;
     }
   }
-  return $result;
+
+  while (1){
+    my $result;
+    my $proc= My::SafeProcess->wait_any();
+    mtr_report("Got $proc");
+
+    if ( delete $started{$proc->pid()} ) {
+      # One check testcase process returned
+      my $res= $proc->exit_status();
+
+      if ( $res == 0){
+	# Check completed without problem
+
+	if ( keys(%started) == 0){
+	  # All checks completed
+	  return 0;
+	}
+	# Wait for next process to exit
+	next;
+      }
+      else
+      {
+	if ( $mode eq "after" and $res == 1 )
+	{
+	  # Test failed, grab the report mysqltest has created
+	  my $report= mtr_grab_file($proc->user_data());
+	  $tinfo->{check}.=
+	    "\nThe check of testcase '$tname' failed, this is the\n".
+	      "diff between before and after:\n";
+	  $tinfo->{check}.= $report;
+
+	  # Check failed, mark the test case with that info
+	  $tinfo->{'check_testcase_failed'}= 1;
+	  $result= 1;
+	}
+	elsif ( $res )
+	{
+	  my $report= mtr_grab_file($proc->user_data());
+	  $tinfo->{comment}.=
+	    "Could not execute 'check-testcase' $mode testcase '$tname':\n";
+	  $tinfo->{comment}.= $report;
+
+	  $result= 2;
+	}
+
+      }
+    }
+    else {
+      # Unknown process returned, most likley a crash, abort everything
+      $tinfo->{comment}=
+	"Unexpected process $proc returned during ".
+	"check testcase $mode test";
+      $result= 3;
+    }
+
+    # Kill any check processes still running
+    map($_->kill(), values(%started));
+
+    return $result;
+  }
 }
 
 
@@ -2668,9 +2733,10 @@ sub run_testcase ($) {
 
   do_before_run_mysqltest($tinfo);
 
-  if ( $opt_check_testcases )
-  {
-    check_testcase($tinfo, "before")
+  if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
+    # Failed to record state of server or server crashed
+    report_failure_and_restart($tinfo);
+    return 1;
   }
 
   my $test= start_mysqltest($tinfo);
@@ -2707,12 +2773,21 @@ sub run_testcase ($) {
 	  mtr_report_test_passed($tinfo, $opt_timer);
 	}
 
-	if ( $opt_check_testcases and check_testcase($tinfo, "after"))
+	my $check_res;
+	if ( $opt_check_testcases and
+	     $check_res= check_testcase($tinfo, "after"))
 	{
-	  # Stop all servers that are known to be running
-	  stop_all_servers();
-	  clean_datadir();
-	  mtr_report("Resuming tests...\n");
+	  if ($check_res == 1) {
+	    # Test case had sideeffects, not fatal error, just continue
+	    stop_all_servers();
+	    clean_datadir();
+	    mtr_report("Resuming tests...\n");
+	  }
+	  else {
+	    # Test case check failed fatally, probably a server crashed
+	    report_failure_and_restart($tinfo);
+	    return 1;
+	  }
 	}
       }
       elsif ( $res == 62 )
@@ -2818,7 +2893,7 @@ sub run_testcase ($) {
 #  0 OK
 #  1 Check failed
 #
-sub run_check_warnings ($$) {
+sub start_check_warnings ($$) {
   my $tinfo=    shift;
   my $mysqld=   shift;
 
@@ -2836,37 +2911,17 @@ sub run_check_warnings ($$) {
   mtr_add_arg($args, "--test-file=%s", "include/check-warnings.test");
 
   my $errfile= "$opt_vardir/tmp/$name.err";
-  my $res= My::SafeProcess->run
+  my $proc= My::SafeProcess->new
     (
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
      output        => $errfile,
      args          => \$args,
+     user_data     => $errfile,
     );
-
-  if ( $res == 0 )
-  {
-    my $report= mtr_grab_file($errfile);
-    # Log to var/log/warnings file
-    mtr_tofile("$opt_vardir/log/warnings",
-               $tname."\n",
-               $report);
-
-    $res= 1;
-    $tinfo->{'warnings'}.= $report;
-  }
-  elsif ( $res == 62 ) {
-    # Test case was ok and called "skip"
-    $res= 0;
-  }
-  elsif ( $res )
-  {
-    mtr_report("\nCould not execute 'check-warnings' for testcase '$tname':");
-    mtr_printfile($errfile);
-    $res= 0; # Ignore error
-  }
-  return $res;
+  mtr_verbose("Started $proc");
+  return $proc;
 }
 
 
@@ -2878,17 +2933,86 @@ sub check_warnings ($) {
   my ($tinfo)= @_;
   my $res= 0;
 
+  my $tname= $tinfo->{name};
+
   # Clear previous warnings
   delete($tinfo->{warnings});
 
-  # Parallell( mysqlds(), run_check_warning, check_warning_failed);
+  # Start the mysqltest processes in parallel to save time
+  # also makes it possible to wait for any process to exit during the check
+  my %started;
   foreach my $mysqld ( mysqlds() )
   {
-    if (run_check_warnings($tinfo, $mysqld)){
-      $res= 1;
-      mtr_report();
+    if ( defined $mysqld->{'proc'} )
+    {
+      my $proc= start_check_warnings($tinfo, $mysqld);
+      $started{$proc->pid()}= $proc;
     }
   }
+
+  while (1){
+    my $result= 0;
+    my $proc= My::SafeProcess->wait_any();
+    mtr_report("Got $proc");
+
+    if ( delete $started{$proc->pid()} ) {
+      # One check warning process returned
+      my $res= $proc->exit_status();
+
+      if ( $res == 0 or $res == 62 ){
+
+	if ( $res == 0 ) {
+	  # Check completed with problem
+	  my $report= mtr_grab_file($proc->user_data());
+	  # Log to var/log/warnings file
+	  mtr_tofile("$opt_vardir/log/warnings",
+		     $tname."\n".$report);
+
+	  $tinfo->{'warnings'}.= $report;
+	  $result= 1;
+	}
+
+	if ( $res == 62 ) {
+	  # Test case was ok and called "skip"
+	  ;
+	}
+
+	if ( keys(%started) == 0){
+	  # All checks completed
+	  return $result;
+	}
+	# Wait for next process to exit
+	next;
+      }
+      else
+      {
+	my $report= mtr_grab_file($proc->user_data());
+	$tinfo->{comment}.=
+	  "Could not execute 'check-warnings' for testcase '$tname':";
+	$tinfo->{comment}.= $report;
+
+	$result= 2;
+      }
+    }
+    else {
+      # Unknown process returned, most likley a crash, abort everything
+      $tinfo->{comment}=
+	"Unexpected process $proc returned during ".
+	"check warnings";
+      $result= 3;
+    }
+
+    # Kill any check processes still running
+    map($_->kill(), values(%started));
+
+    return $result;
+  }
+
+
+
+
+  return $res;
+
   return $res;
 }
 
@@ -3632,10 +3756,9 @@ sub start_servers($) {
 # After testcase, run and compare with the recorded file, they should be equal!
 #
 # RETURN VALUE
-#  0 OK
-#  1 Check failed
+#  The newly started process
 #
-sub run_check_testcase ($$$) {
+sub start_check_testcase ($$$) {
   my $tinfo=    shift;
   my $mode=     shift;
   my $mysqld=   shift;
@@ -3660,32 +3783,17 @@ sub run_check_testcase ($$$) {
     mtr_add_arg($args, "--record");
   }
   my $errfile= "$opt_vardir/tmp/$name.err";
-  my $res= My::SafeProcess->run
+  my $proc= My::SafeProcess->new
     (
      name          => $name,
      path          => $exe_mysqltest,
      error         => $errfile,
      args          => \$args,
+     user_data     => $errfile,
     );
 
-  if ( $mode eq "after" and $res == 1 )
-  {
-    # Test failed, grab the report mysqltest has created
-    my $report= mtr_grab_file($errfile);
-    $tinfo->{check}.=
-      "\nThe check of testcase '$tname' failed, this is the\n".
-	"diff between before and after:\n";
-    $tinfo->{check}.= $report;
-
-  }
-  elsif ( $res )
-  {
-    my $report= mtr_grab_file($errfile);
-    $tinfo->{'check'}.=
-      "\nCould not execute 'check-testcase' $mode testcase '$tname':\n";
-    $tinfo->{check}.= $report;
-  }
-  return $res;
+  mtr_report("Started $proc");
+  return $proc;
 }
 
 
