@@ -193,8 +193,11 @@ our %mysqld_variables;
 
 my $source_dist= 0;
 
-our $opt_max_save_core= 5;
+my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
 my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
+
+my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
+my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -351,6 +354,7 @@ sub command_line_setup {
 	     'client-debugger=s'        => \$opt_client_debugger,
              'strace-client:s'          => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
+             'max-save-datadir=i'       => \$opt_max_save_datadir,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
@@ -2325,6 +2329,10 @@ sub run_testcase ($) {
 
     if ( started(all_servers()) == 0 )
     {
+
+      # Remove old datadirs
+      clean_datadir();
+
       # Restore old ENV
       while (my ($option, $value)= each( %old_env )) {
 	if (defined $value){
@@ -2448,15 +2456,12 @@ sub run_testcase ($) {
 	  mtr_report_test_passed($tinfo, $opt_timer);
 	}
 
-	if ( $opt_check_testcases )
+	if ( $opt_check_testcases and check_testcase($tinfo, "after"))
 	{
-	  if (check_testcase($tinfo, "after"))
-	  {
-	    # Stop all servers that are known to be running
-	    stop_all_servers();
-	    after_test_failure($tinfo->{'name'});
-	    mtr_report("Resuming tests...\n");
-	  }
+	  # Stop all servers that are known to be running
+	  stop_all_servers();
+	  clean_datadir();
+	  mtr_report("Resuming tests...\n");
 	}
       }
       elsif ( $res == 62 )
@@ -2523,7 +2528,7 @@ sub run_testcase ($) {
     {
       # Server failed, probably crashed
       $tinfo->{comment}=
-	"Server failed during test run";
+	"Server $proc failed during test run";
 
       report_failure_and_restart($tinfo);
       return 1;
@@ -2667,57 +2672,24 @@ sub check_expected_crash_and_restart {
 }
 
 
-#
-# Save any interesting files in the data_dir
-# before the data dir is removed.
-#
-sub save_files_after_test_failure($$) {
-  my $test_name= shift;
-  my $data_dir= shift;
-  my $save_name= "$opt_vardir/log/$test_name";
+sub clean_datadir {
 
-  # Look for core files
-  foreach my $core_file ( glob("$data_dir/core*") )
+  mtr_verbose("Cleaning datadirs...");
+
+  foreach my $cluster ( clusters() )
   {
-    last if $opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core;
-    my $core_name= basename($core_file);
-    mtr_report(" - saving '$core_name'");
-    mkpath($save_name) if ! -d $save_name;
-    rename("$core_file", "$save_name/$core_name");
-    ++$num_saved_cores;
+    my $cluster_dir= "$opt_vardir/".$cluster->{name};
+    mtr_verbose(" - removing '$cluster_dir'");
+    rmtree($cluster_dir);
+
   }
-}
-
-
-sub after_test_failure ($) {
-  my $test_name= shift;
-
-  mtr_report("Cleaning datadirs...");
 
   foreach my $mysqld ( mysqlds() )
   {
-    my $data_dir= $mysqld->value('datadir');
-    my $name= basename($data_dir);
-    save_files_after_test_failure($test_name, $data_dir);
-    mtr_debug("Removing '$data_dir'");
-    rmtree($data_dir);
-  }
-
-  # Remove the ndb_*_fs dirs for all ndbd nodes
-  # forcing a clean start of ndb next time
-  foreach my $cluster ( clusters() )
-  {
-    foreach my $ndbd ( ndbds($cluster) )
-    {
-      my $data_dir= $ndbd->value('DataDir');
-      foreach my $fs_dir ( glob("$data_dir/ndb_*_fs") ) {
-	rmtree($fs_dir);
-	mtr_debug("Removing '$fs_dir'");
-      }
-
-      my $backup_dir= $ndbd->value('BackupDataDir');
-      rmtree("$backup_dir/BACKUP");
-      mtr_debug("Removing '$backup_dir'");
+    my $mysqld_dir= dirname($mysqld->value('datadir'));
+    if (-d $mysqld_dir ) {
+      mtr_verbose(" - removing '$mysqld_dir'");
+      rmtree($mysqld_dir);
     }
   }
 
@@ -2731,6 +2703,91 @@ sub after_test_failure ($) {
 }
 
 
+#
+# Limit number of core files saved
+#
+sub limit_cores_after_failure ($) {
+  my ($datadir)= @_;
+
+  # Look for core files
+  foreach my $core_file ( glob("$datadir/core*") )
+  {
+    my $core_name= basename($core_file);
+    if ($opt_max_save_core > 0 && $num_saved_cores >= $opt_max_save_core) {
+      # Delete file to avoid saving it  when the datadir is later saved
+      mtr_report(" - deleting '$core_name'",
+		 "($num_saved_cores/$opt_max_save_core)");
+      unlink("$core_file");
+    }
+    else {
+      mtr_report(" - found '$core_name'",
+		 "($num_saved_cores/$opt_max_save_core)");
+    }
+    ++$num_saved_cores;
+  }
+}
+
+#
+# Save datadir before it's removed
+#
+sub save_datadir_after_failure($$) {
+  my ($dir, $savedir)= @_;
+
+  if ($opt_max_save_datadir > 0 &&
+      $num_saved_datadir >= $opt_max_save_datadir)
+  {
+    mtr_report(" - skipping '$dir'");
+  }
+  else {
+    mtr_report(" - saving '$dir'");
+    my $dir_name= basename($dir);
+    rename("$dir", "$savedir/$dir_name");
+  }
+}
+
+
+sub after_failure ($) {
+  my ($tinfo)= @_;
+
+  mtr_report("Saving datadirs...");
+
+  my $save_dir= "$opt_vardir/log/";
+  $save_dir.= $tinfo->{name};
+  # Add combination name if any
+  $save_dir.= "_$tinfo->{combination}"
+    if defined $tinfo->{combination};
+
+  mkpath($save_dir) if ! -d $save_dir;
+
+  # Save the used my.cnf file
+  copy($path_config_file, $save_dir);
+
+  if ( clusters() ) {
+    foreach my $cluster ( clusters() ) {
+
+      foreach my $server ( ndbds($cluster), ndb_mgmds($cluster) ) {
+	my $data_dir= $server->value('DataDir');
+	limit_cores_after_failure($data_dir);
+      }
+
+      my $cluster_dir= "$opt_vardir/".$cluster->{name};
+      save_datadir_after_failure($cluster_dir, $save_dir);
+    }
+  }
+  else {
+    foreach my $mysqld ( mysqlds() ) {
+      my $data_dir= $mysqld->value('datadir');
+      limit_cores_after_failure($data_dir);
+      save_datadir_after_failure(dirname($data_dir), $save_dir);
+    }
+  }
+
+  $num_saved_datadir++;
+
+  clean_datadir();
+}
+
+
 sub report_failure_and_restart ($) {
   my $tinfo= shift;
 
@@ -2741,7 +2798,7 @@ sub report_failure_and_restart ($) {
     # Stop all servers that are known to be running
     stop_all_servers();
 
-    after_test_failure($tinfo->{'name'});
+    after_failure($tinfo);
     mtr_report("Resuming tests...\n");
     return;
   }
@@ -3849,7 +3906,12 @@ Options for debugging the product
                         Example: $0 --strace-client=ktrace
   max-save-core         Limit the number of core files saved (to avoid filling
                         up disks for heavily crashing server). Defaults to
-                        $opt_max_save_core, set to 0 for no limit.
+                        $opt_max_save_core, set to 0 for no limit. Set
+                        it's default with MTR_MAX_SAVE_CORE
+  max-save-datadir      Limit the number of datadir saved (to avoid filling
+                        up disks for heavily crashing server). Defaults to
+                        $opt_max_save_datadir, set to 0 for no limit. Set
+                        it's default with MTR_MAX_SAVE_DATDIR
 
 Options for valgrind
 
