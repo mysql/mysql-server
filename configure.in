@@ -841,18 +841,14 @@ AC_CHECK_HEADERS([xfs/xfs.h])
 
 AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 
-dnl Save the current libs into _libs so we can put this into NSL_LIBS
-_libs=${LIBS}
-LIBS=''
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
-AC_CHECK_FUNC(yp_get_default_domain, ,
-  AC_CHECK_LIB(nsl, yp_get_default_domain))
-NSL_LIBS=${LIBS}
-LIBS=${_libs}
+AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
+AC_CHECK_FUNC(yp_get_default_domain, ,
+  AC_CHECK_LIB(nsl, yp_get_default_domain))
 AC_CHECK_FUNC(p2open, , AC_CHECK_LIB(gen, p2open))
 # This may get things to compile even if bind-8 is installed
 AC_CHECK_FUNC(bind, , AC_CHECK_LIB(bind, bind))
@@ -2684,7 +2680,6 @@ sql_client_dirs="$sql_client_dirs client"
 
 CLIENT_LIBS="$NON_THREADED_LIBS $openssl_libs $ZLIB_LIBS $STATIC_NSS_FLAGS"
 
-AC_SUBST(NSL_LIBS)
 AC_SUBST(CLIENT_LIBS)
 AC_SUBST(CLIENT_THREAD_LIBS)
 AC_SUBST(NON_THREADED_LIBS)
