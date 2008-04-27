@@ -2100,6 +2100,12 @@ int toku_close_brt (BRT brt, TOKULOGGER logger) {
 	r=toku_brt_cursor_close(c);
 	if (r!=0) return r;
     }
+
+    // Must do this work before closing the cf
+    r=toku_txn_note_close_brt(brt);
+    assert(r==0);
+    toku_omt_destroy(&brt->txns);
+
     if (brt->cf) {
 	if (logger) {
 	    assert(brt->fname);
@@ -2116,10 +2122,6 @@ int toku_close_brt (BRT brt, TOKULOGGER logger) {
     if (brt->fname) toku_free(brt->fname);
     if (brt->skey) { toku_free(brt->skey); }
     if (brt->sval) { toku_free(brt->sval); }
-    assert(toku_omt_size(brt->txns)==0);
-    r=toku_txn_note_close_brt(brt);
-    assert(r==0);
-    toku_omt_destroy(&brt->txns);
     toku_free(brt);
     return 0;
 }
