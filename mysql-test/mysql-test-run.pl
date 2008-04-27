@@ -151,10 +151,10 @@ my $opt_mark_progress;
 
 my $opt_sleep;
 
-my $opt_testcase_timeout=    15; # 15 minutes
-my $opt_suite_timeout   =   180; # 3 hours
-my $opt_shutdown_timeout=    10; # 10 seconds
-my $opt_start_timeout   =    30; # 30 seconds
+my $opt_testcase_timeout=    15; # minutes
+my $opt_suite_timeout   =   180; # minutes
+my $opt_shutdown_timeout=    10; # seconds
+my $opt_start_timeout   =    30; # seconds
 
 my $opt_start;
 my $opt_start_dirty;
@@ -162,7 +162,7 @@ my $opt_repeat= 1;
 my $opt_retry= 3;
 my $opt_retry_failure= 2;
 
-my $opt_parallel= 4;
+my $opt_parallel;
 
 my $opt_strace_client;
 
@@ -216,6 +216,10 @@ sub main {
 
   Getopt::Long::Configure("pass_through");
   GetOptions('parallel=i' => \$opt_parallel) or usage("Can't read options");
+
+  if ( not defined $opt_parallel ){
+    $opt_parallel= 4; # Default
+  }
 
   # Create server socket on any free port
   my $server = new IO::Socket::INET
@@ -985,6 +989,11 @@ sub command_line_setup {
   }
 
   # --------------------------------------------------------------------------
+  # Set timeout values
+  # --------------------------------------------------------------------------
+  $opt_start_timeout*= $opt_parallel;
+
+  #
   # Check valgrind arguments
   # --------------------------------------------------------------------------
   if ( $opt_valgrind or $opt_valgrind_path or @valgrind_args)
