@@ -7,6 +7,20 @@
 #include "key.h"
 #include "brt-internal.h"
 
+void print_item (bytevec val, ITEMLEN len) {
+    printf("\"");
+    ITEMLEN i;
+    for (i=0; i<len; i++) {
+	unsigned char ch = ((unsigned char*)val)[i];
+	if (isprint(ch) && ch!='\\' && ch!='"') {
+	    printf("%c", ch);
+	} else {
+	    printf("\\%03o", ch);
+	}
+    }
+    printf("\"");
+}
+
 void dump_header (int f, struct brt_header **header) {
     struct brt_header *h;
     int r;
@@ -26,20 +40,30 @@ void dump_header (int f, struct brt_header **header) {
     }
     printf(" flags=%d\n", h->flags);
     *header = h;
-}
-
-void print_item (bytevec val, ITEMLEN len) {
-    printf("\"");
-    ITEMLEN i;
-    for (i=0; i<len; i++) {
-	unsigned char ch = ((unsigned char*)val)[i];
-	if (isprint(ch) && ch!='\\' && ch!='"') {
-	    printf("%c", ch);
-	} else {
-	    printf("\\%03o", ch);
-	}
-    }
-    printf("\"");
+    printf("Fifo:\n");
+    r = toku_deserialize_fifo_at(f, h->unused_memory, &h->fifo);
+    printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
+    FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
+		 ({
+		     printf(" ");
+		     switch (type) {
+		     case BRT_NONE: printf("NONE"); goto ok;
+		     case BRT_INSERT: printf("INSERT"); goto ok;
+		     case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
+		     case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
+		     case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+		     case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
+		     case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+		     case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
+		     }
+		     printf("huh?");
+		 ok:
+		     printf(" %lld ", (long long)xid);
+		     print_item(key, keylen);
+		     printf(" ");
+		     print_item(data, datalen);
+		     printf("\n");
+		 }));
 }
 
 void dump_node (int f, DISKOFF off) {
