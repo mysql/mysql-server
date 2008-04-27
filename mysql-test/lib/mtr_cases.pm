@@ -721,6 +721,16 @@ sub collect_one_test_case {
   # Add slave opts, list of extra option only for slave
   # ----------------------------------------------------------------------
   process_opts_file($tinfo, "$testdir/$tname-slave.opt", 'slave_opt');
+  
+  
+  #-----------------------------------------------------------------------
+  # Check for test specific config file
+  #-----------------------------------------------------------------------
+  my $test_cnf_file= "$testdir/$tname.cnf";
+  if ( -f $test_cnf_file) {
+    # Specifies the configuration file to use for this test
+    $tinfo->{'template_path'}= $test_cnf_file;
+  }
 
   # ----------------------------------------------------------------------
   # Check for test specific config file

@@ -18,7 +18,7 @@
 --source include/master-slave.inc
 
 #
-# Set up circular ring by schema A->B->C-D->A 
+# Set up circular ring by schema A->B->C->D->A 
 #
 
 --connection slave
