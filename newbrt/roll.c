@@ -43,17 +43,18 @@ static int find_brt_from_filenum (OMTVALUE v, void *filenumvp) {
     return 0;
 }
 
-int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYTESTRING key, BYTESTRING *data,TOKUTXN txn) {
     CACHEFILE cf;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
     int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
     assert(r==0);
 
     DBT key_dbt,data_dbt;
-    BRT_CMD_S brtcmd = { BRT_COMMIT_BOTH, xid,
+    BRT_CMD_S brtcmd = { type, xid,
 			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
-				toku_fill_dbt(&data_dbt, data.data, data.len)}};
-
+				data
+				? toku_fill_dbt(&data_dbt, data->data, data->len)
+				: toku_init_dbt(&data_dbt) }};
     OMTVALUE brtv;
     r = toku_omt_find_zero(txn->open_brts, find_brt_from_filenum, &filenum, &brtv, NULL);
 
@@ -66,57 +67,31 @@ int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING
 	r = toku_brt_root_put_cmd(brt, &brtcmd, txn->logger);
     }
     return toku_cachefile_close(&cf, toku_txn_logger(txn));
-	
+}
+
+
+int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
 }
 
 int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    CACHEFILE cf;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    assert(r==0);
-    //printf("%s:%d aborting insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    DBT key_dbt,data_dbt;
-    BRT_CMD_S brtcmd = { BRT_ABORT_BOTH, xid,
-			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
-				toku_fill_dbt(&data_dbt, data.data, data.len)}};
-    r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
-    if (r!=0) return r;
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return do_insertion (BRT_ABORT_BOTH, xid, filenum, key, &data, txn);
 }
 
 int toku_commit_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    return toku_commit_cmdinsert(xid, filenum, key, data, txn);
+    return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
 }
 
 int toku_rollback_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
-    return toku_rollback_cmdinsert(xid, filenum, key, data, txn);
+    return do_insertion (BRT_ABORT_BOTH, xid, filenum, key, &data, txn);
 }
 
 int toku_commit_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
-    CACHEFILE cf;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    assert(r==0);
-    //printf("%s:%d aborting delete %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    DBT key_dbt,data_dbt;
-    BRT_CMD_S brtcmd = { BRT_COMMIT_ANY, xid,
-			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
-				toku_init_dbt(&data_dbt)}};
-    r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
-    if (r!=0) return r;
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
 }
 
 int toku_rollback_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
-    CACHEFILE cf;
-    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
-    assert(r==0);
-    //printf("%s:%d aborting delete %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    DBT key_dbt,data_dbt;
-    BRT_CMD_S brtcmd = { BRT_ABORT_ANY, xid,
-			 .u.id={toku_fill_dbt(&key_dbt,  key.data,  key.len),
-				toku_init_dbt(&data_dbt)}};
-    r = toku_cachefile_root_put_cmd(cf, &brtcmd, toku_txn_logger(txn));
-    if (r!=0) return r;
-    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+    return do_insertion (BRT_ABORT_ANY, xid, filenum, key, 0, txn);
 }
 
 int toku_commit_fileentries (int fd, off_t filesize, TOKUTXN txn) {
