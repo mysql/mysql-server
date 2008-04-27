@@ -242,6 +242,12 @@ sub mtr_report_test ($) {
   {
     my $timer=  $tinfo->{timer} || "";
     mtr_report("[ pass ]   $timer");
+
+    # Show any problems check-testcase found
+    if ( defined $tinfo->{'check'} )
+    {
+      mtr_report($tinfo->{'check'});
+    }
   }
 
 }
