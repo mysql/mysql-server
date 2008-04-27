@@ -26,7 +26,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_print_header mtr_report mtr_report_stats
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
-		mtr_report_test_failed mtr_report_test_skipped
+		mtr_report_test_skipped
 		mtr_report_test);
 
 use mtr_match;
@@ -121,51 +121,6 @@ sub mtr_report_test_passed ($$) {
   if ( defined $tinfo->{'check'} )
   {
     mtr_report($tinfo->{'check'});
-  }
-}
-
-
-sub mtr_report_test_failed ($$) {
-  my ($tinfo, $logfile)= @_;
-  _mtr_report_test_name($tinfo);
-
-  $tinfo->{'result'}= 'MTR_RES_FAILED';
-  my $test_failures= $tinfo->{'failures'} || 0;
-  $tinfo->{'failures'}=  $test_failures + 1;
-  if ( defined $tinfo->{'warnings'} )
-  {
-    mtr_report("[ fail ]  Found warnings in server log file!");
-    mtr_report($tinfo->{'warnings'});
-    return;
-  }
-  elsif ( defined $tinfo->{'timeout'} )
-  {
-    mtr_report("[ fail ]  timeout");
-    return;
-  }
-  else
-  {
-    mtr_report("[ fail ]");
-  }
-
-  if ( $tinfo->{'comment'} )
-  {
-    # The test failure has been detected by mysql-test-run.pl
-    # when starting the servers or due to other error, the reason for
-    # failing the test is saved in "comment"
-    mtr_report("\nERROR: $tinfo->{'comment'}");
-  }
-  elsif ( defined $logfile and -f $logfile )
-  {
-    # Test failure was detected by test tool and its report
-    # about what failed has been saved to file. Display the report.
-    $tinfo->{logfile}= mtr_fromfile($logfile);
-  }
-  else
-  {
-    # Neither this script or the test tool has recorded info
-    # about why the test has failed. Should be debugged.
-    mtr_report("\nUnexpected termination, probably when starting mysqld");;
   }
 }
 
