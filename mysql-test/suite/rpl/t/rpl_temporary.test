@@ -16,6 +16,10 @@ source include/add_anonymous_users.inc;
 # (otherwise RESET MASTER may come too early).
 save_master_pos;
 connection slave;
+
+# Add supression for expected warning(s) in slaves error log
+call mtr.add_supression("Slave: Can\'t find record in \'user\' Error_code: 1032");
+
 sync_with_master;
 reset master;
 connection master;
