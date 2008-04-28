@@ -32,7 +32,8 @@ struct SchemaTransImplReq
     RT_COMMIT        = 0x5,
 
     RT_COMPLETE      = 0x6,// Not yet used
-    RT_FLUSH_SCHEMA  = 0x7 // Not yet used
+    RT_FLUSH_SCHEMA  = 0x7,// Not yet used
+    RT_END           = 0x8 // release... 
   };
 
   STATIC_CONST( SignalLength = 9 );
