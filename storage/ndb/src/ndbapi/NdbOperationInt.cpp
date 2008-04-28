@@ -58,12 +58,28 @@ NdbOperation::initInterpreter(){
   theTotalCurrAI_Len = AttrInfo::SectionSizeInfoLength;
 }
 
+bool
+NdbOperation::isNdbRecordOperation()
+{
+  /* All scans are 'NdbRecord'.  For PK and UK access
+   * check if we've got an m_attribute_record set 
+   */
+  return !(((m_type == PrimaryKeyAccess) ||
+            (m_type == UniqueIndexAccess)) &&
+           (m_attribute_record == NULL));
+}
+
 int
 NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
 {
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
-    if ((tNdbColumnImpl == NULL) ||
-        (theStatus == UseNdbRecord)) 
+    if (tNdbColumnImpl == NULL)
       goto inc_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() != true) ||
         (tNdbColumnImpl->m_pk != false) ||
@@ -90,11 +106,6 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
   return -1;
   
  inc_check_error1:
-  if (theStatus == UseNdbRecord) {
-    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-    setErrorCodeAbort(4537);
-    return -1;
-  }
   setErrorCodeAbort(4004);
   return -1;
   
@@ -118,9 +129,14 @@ NdbOperation::incCheck(const NdbColumnImpl* tNdbColumnImpl)
 int
 NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
 {
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
-    if ((tNdbColumnImpl == NULL) ||
-        (theStatus == UseNdbRecord)) 
+    if (tNdbColumnImpl == NULL)
       goto write_attr_check_error1;
     if ((tNdbColumnImpl->getInterpretableType() == false) ||
         (tNdbColumnImpl->m_pk))
@@ -143,11 +159,6 @@ NdbOperation::write_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   return -1;
 
 write_attr_check_error1:
-  if (theStatus == UseNdbRecord) {
-    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-    setErrorCodeAbort(4537);
-    return -1;
-  }
   setErrorCodeAbort(4004);
   return -1;
 
@@ -167,9 +178,14 @@ write_attr_check_error2:
 int
 NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
 {
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
-    if ((tNdbColumnImpl == NULL) ||
-        (theStatus == UseNdbRecord))
+    if (tNdbColumnImpl == NULL)
       goto read_attr_check_error1;
     if (tNdbColumnImpl->getInterpretableType() == false)
       goto read_attr_check_error2;
@@ -194,11 +210,6 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
   return -1;
   
  read_attr_check_error1:
-  if (theStatus == UseNdbRecord) {
-    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-    setErrorCodeAbort(4537);
-    return -1;
-  }
   setErrorCodeAbort(4004);
   return -1;
   
@@ -214,13 +225,18 @@ NdbOperation::read_attrCheck(const NdbColumnImpl* tNdbColumnImpl)
 int
 NdbOperation::initial_interpreterCheck()
 {
+  printf("initial_interpreterCheck(), theStatus=%u\n",
+         theStatus);
+
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
     if (theStatus == ExecInterpretedValue) {
-       return 0; // Simply continue with interpretation
-    } else if (theStatus == UseNdbRecord) {
-      /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-      setErrorCodeAbort(4537);
-      return -1;
+      return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
       theStatus = ExecInterpretedValue;
@@ -242,13 +258,15 @@ NdbOperation::initial_interpreterCheck()
 int
 NdbOperation::labelCheck()
 {
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
     if (theStatus == ExecInterpretedValue) {
-       return 0; // Simply continue with interpretation
-    } else if (theStatus == UseNdbRecord) {
-      /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-      setErrorCodeAbort(4537);
-      return -1;
+      return 0; // Simply continue with interpretation
     } else if (theStatus == GetValue) {
       theInitialReadSize = theTotalCurrAI_Len - AttrInfo::SectionSizeInfoLength;
       theStatus = ExecInterpretedValue;
@@ -272,13 +290,15 @@ NdbOperation::labelCheck()
 int
 NdbOperation::intermediate_interpreterCheck()
 {
+  if (isNdbRecordOperation()) {
+    /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
+    setErrorCodeAbort(4537);
+    return -1;
+  }
+
   if ((theInterpretIndicator == 1)) {
     if (theStatus == ExecInterpretedValue) {
-       return 0; // Simply continue with interpretation
-    } else if (theStatus == UseNdbRecord) {
-      /* Wrong API.  Use NdbInterpretedCode for NdbRecord operations */
-      setErrorCodeAbort(4537);
-      return -1;
+      return 0; // Simply continue with interpretation
     } else if (theStatus == SubroutineExec) {
        return 0; // Simply continue with interpretation
     } else {
