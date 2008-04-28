@@ -315,6 +315,14 @@ sub main {
   }
 
   if ( @$completed != $num_tests){
+
+    if ($opt_force){
+      # All test should have been run, print the completed list
+      foreach my $test ( @completed ){
+	$test->print_test();
+      }
+    }
+
     # Not all tests completed, failure
     mtr_report();
     mtr_report("After @$completed of $num_tests.");
