@@ -1154,6 +1154,12 @@ int ha_myisammrg::check(THD* thd, HA_CHECK_OPT* check_opt)
 }
 
 
+ha_rows ha_myisammrg::records()
+{
+  return myrg_records(file);
+}
+
+
 extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {
