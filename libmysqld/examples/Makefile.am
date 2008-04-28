@@ -37,7 +37,8 @@ INCLUDES =	-I$(top_builddir)/include -I$(top_srcdir)/include -I$(srcdir) \
 		-I$(top_srcdir) -I$(top_srcdir)/client -I$(top_srcdir)/regex \
 		$(openssl_includes)
 LIBS =		@LIBS@ @WRAPLIBS@ @CLIENT_LIBS@ $(yassl_libs)
-LDADD =		@CLIENT_EXTRA_LDFLAGS@ ../libmysqld.a @LIBDL@ $(CXXLDFLAGS) \
+LDADD =		@CLIENT_EXTRA_LDFLAGS@ $(top_srcdir)/libmysqld/libmysqld.a \
+		@LIBDL@ $(CXXLDFLAGS) \
                 @NDB_SCI_LIBS@
 
 mysqltest_embedded_LINK = $(CXXLINK)

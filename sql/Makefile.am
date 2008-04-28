@@ -33,9 +33,11 @@ noinst_LTLIBRARIES=	libndb.la \
 			udf_example.la
 
 SUPPORTING_LIBS =	$(top_builddir)/vio/libvio.a \
+			$(top_builddir)/mysys/libmysyswrap.la \
 			$(top_builddir)/mysys/libmysyslt.la \
 			$(top_builddir)/dbug/libdbuglt.la \
 			$(top_builddir)/regex/libregex.a \
+			$(top_builddir)/strings/libmystringsextra.la \
 			$(top_builddir)/strings/libmystringslt.la
 mysqld_DEPENDENCIES=	@mysql_plugin_libs@ $(SUPPORTING_LIBS) libndb.la
 LDADD = $(SUPPORTING_LIBS) @ZLIB_LIBS@ @NDB_SCI_LIBS@
