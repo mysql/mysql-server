@@ -23,7 +23,7 @@ DOT_FRM_VERSION=6
 # See the libtool docs for information on how to do shared lib versions.
 SHARED_LIB_MAJOR_VERSION=16
 SHARED_LIB_VERSION=$SHARED_LIB_MAJOR_VERSION:0:0
-NDB_SHARED_LIB_MAJOR_VERSION=3
+NDB_SHARED_LIB_MAJOR_VERSION=4
 NDB_SHARED_LIB_VERSION=$NDB_SHARED_LIB_MAJOR_VERSION:0:0
 
 # Set all version vars based on $VERSION. How do we do this more elegant ?
@@ -356,6 +356,7 @@ case "$target_os" in
     fi
   ;;
 esac
+
 AC_SUBST(CC)
 AC_SUBST(CFLAGS)
 AC_SUBST(CXX)
@@ -843,6 +844,7 @@ AC_CHECK_LIB(m, floor, [], AC_CHECK_LIB(m, __infinity))
 AC_CHECK_LIB(nsl_r, gethostbyname_r, [],
   AC_CHECK_LIB(nsl, gethostbyname_r))
 AC_CHECK_FUNC(gethostbyname_r)
+AC_CHECK_LIB(mtmalloc, malloc)
 
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
 AC_CHECK_FUNC(yp_get_default_domain, ,
@@ -2798,7 +2800,7 @@ if test -d "$srcdir/cmd-line-utils/readline" ; then
   AC_CONFIG_FILES(cmd-line-utils/readline/Makefile)
 fi
 
-AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile dnl
+AC_CONFIG_FILES(Makefile extra/Makefile mysys/Makefile mysys/tests/Makefile dnl
  unittest/Makefile unittest/mytap/Makefile unittest/mytap/t/Makefile dnl
  unittest/mysys/Makefile unittest/examples/Makefile dnl
  strings/Makefile regex/Makefile storage/Makefile dnl

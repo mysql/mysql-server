@@ -44,7 +44,7 @@
 #include <NdbTick.h>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 /******************************************************************************
  * int init( int aNrOfCon, int aNrOfOp );
@@ -743,8 +743,8 @@ Ndb::handleReceivedSignal(NdbApiSignal* aSignal, LinearSectionPtr ptr[3])
 
     if (unlikely(op == 0 || op->m_magic_number != NDB_EVENT_OP_MAGIC_NUMBER))
     {
-      g_eventLogger.error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
-			  "number");
+      g_eventLogger->error("dropped GSN_SUB_TABLE_DATA due to wrong magic "
+                           "number");
       return ;
     }
 
