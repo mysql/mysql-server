@@ -24,14 +24,17 @@ LDADD =			$(top_builddir)/strings/libmystringslt.la \
 
 pkglib_LTLIBRARIES =	libmysys.la
 libmysys_la_LDFLAGS = 	-static
-libmysys_la_SOURCES = 
+libmysys_la_SOURCES =   
 # This can't be listed here as $(top_builddir)/mysys/libmysyslt.la
 # or it breaks make's dependency track for -j builds
-libmysys_la_LIBADD =	libmysyslt.la
+libmysys_la_LIBADD =	libmysyslt.la libmysyswrap.la
 # Force C++ linking - dummy.cxx doesn't have to exist with EXTRA in the name
 nodist_EXTRA_libmysys_la_SOURCES = dummy.cxx
 
-noinst_LTLIBRARIES =	libmysyslt.la
+# We split out my_wrap because it's only used by mysqld and otherwise
+# creates an unneccesary linking dependency on -lwrap
+noinst_LTLIBRARIES =	libmysyslt.la libmysyswrap.la
+libmysyswrap_la_SOURCES = my_libwrap.c
 noinst_HEADERS =	mysys_priv.h my_static.h my_handler_errors.h
 libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			mf_path.c mf_loadpath.c my_file.c \
@@ -64,7 +67,7 @@ libmysyslt_la_SOURCES =	my_init.c my_getwd.c mf_getdate.c my_mmap.c \
 			my_gethostbyname.c rijndael.c my_aes.c sha1.c \
 			my_handler.c my_netware.c my_largepage.c \
 			my_memmem.c \
-			my_windac.c my_access.c base64.c my_libwrap.c \
+			my_windac.c my_access.c base64.c \
 			thr_alarm.c thr_lock.c my_pthread.c my_thr_init.c \
 			thr_mutex.c thr_rwlock.c \
 			mf_soundex.c \

@@ -34,21 +34,6 @@ noinst_PROGRAMS = conf_to_src
 target_sources = 	libmysql.c password.c manager.c \
 			get_password.c errmsg.c
 
-mystringsobjects =	strmov.lo strxmov.lo strxnmov.lo strnmov.lo \
-			strmake.lo strend.lo strtod.lo \
-			strnlen.lo strfill.lo is_prefix.lo \
-			int2str.lo str2int.lo strinstr.lo strcont.lo \
-			strcend.lo bcmp.lo ctype-latin1.lo \
-			bchange.lo bmove.lo bmove_upp.lo longlong2str.lo \
-			strtoull.lo strtoll.lo llstr.lo my_vsnprintf.lo \
-			ctype.lo ctype-simple.lo ctype-bin.lo ctype-mb.lo \
-			ctype-big5.lo ctype-czech.lo ctype-cp932.lo ctype-eucjpms.lo ctype-euc_kr.lo \
-			ctype-win1250ch.lo ctype-utf8.lo ctype-extra.lo \
-			ctype-ucs2.lo ctype-gb2312.lo ctype-gbk.lo \
-			ctype-sjis.lo ctype-tis620.lo ctype-ujis.lo \
-			ctype-uca.lo xml.lo my_strtoll10.lo str_alloc.lo 
-
-mystringsextra= 	strto.c
 dbugobjects =		dbug.lo # IT IS IN SAFEMALLOC.C sanity.lo
 mysysheaders =		mysys_priv.h my_static.h
 vioheaders =		vio_priv.h
@@ -75,8 +60,7 @@ sql_cmn_objects =	pack.lo client.lo my_time.lo
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo mf_qsort.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
-target_libadd =		$(mysysobjects) $(mystringsobjects) $(dbugobjects) \
- $(sql_cmn_objects) $(vio_objects) $(sqlobjects)
+target_libadd =		$(mysysobjects) $(dbugobjects) $(sql_cmn_objects) $(vio_objects) $(sqlobjects) $(top_srcdir)/strings/libmystringslt.la
 target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ 
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 
@@ -100,13 +84,12 @@ endif
 #bmove_upp.lo:		$(LTCHARSET_OBJS)
 
 clean-local:
-	rm -f `echo $(mystringsobjects) | sed "s;\.lo;.c;g"` \
-	      `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
+	rm -f `echo $(dbugobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(mysysobjects) | sed "s;\.lo;.c;g"` \
 	      `echo $(vio_objects) | sed "s;\.lo;.c;g"` \
 	      `echo $(sql_cmn_objects) | sed "s;\.lo;.c;g"` \
 	       $(CHARSET_SRCS) $(CHARSET_OBJS) \
-	       $(mystringsextra) $(mysysheaders) $(vioheaders) \
+	       $(mysysheaders) $(vioheaders) \
                net.c
 
 conf_to_src_SOURCES = conf_to_src.c
