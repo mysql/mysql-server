@@ -199,6 +199,7 @@ my $source_dist= 0;
 
 my $opt_max_save_core= $ENV{MTR_MAX_SAVE_CORE} || 5;
 my $opt_max_save_datadir= $ENV{MTR_MAX_SAVE_DATADIR} || 20;
+my $opt_max_test_fail= $ENV{MTR_MAX_TEST_FAIL} || 10;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
@@ -347,6 +348,7 @@ sub run_test_server {
 
   my $num_saved_cores= 0;  # Number of core files saved in vardir/log/ so far.
   my $num_saved_datadir= 0;  # Number of datadirs saved in vardir/log/ so far.
+  my $num_failed_test= 0; # Number of tests failed so far
 
   # Scheduler variables
   my $max_ndb= $opt_parallel / 2;
@@ -442,6 +444,14 @@ sub run_test_server {
 	      push(@$completed, $result);
 	      return $completed;
 	    }
+	    elsif ($num_failed_test > 0 and
+		   $num_failed_test >= $opt_max_test_fail) {
+	      $suite_timeout_proc->kill();
+	      mtr_report("Too many tests($num_failed_test) failed!",
+			 "Terminating...");
+	      return undef;
+	    }
+	    $num_failed_test++;
 	  }
 
 	  # Retry test run after test failure
@@ -719,6 +729,7 @@ sub command_line_setup {
              'strace-client:s'          => \$opt_strace_client,
              'max-save-core=i'          => \$opt_max_save_core,
              'max-save-datadir=i'       => \$opt_max_save_datadir,
+             'max-test-fail=i'          => \$opt_max_test_fail,
 
              # Coverage, profiling etc
              'gcov'                     => \$opt_gcov,
@@ -4340,6 +4351,10 @@ Options for debugging the product
                         up disks for heavily crashing server). Defaults to
                         $opt_max_save_datadir, set to 0 for no limit. Set
                         it's default with MTR_MAX_SAVE_DATDIR
+  max-test-fail         Limit the number of test failurs before aborting
+                        the current test run. Defaults to
+                        $opt_max_test_fail, set to 0 for no limit. Set
+                        it's default with MTR_MAX_TEST_FAIL
 
 Options for valgrind
 
