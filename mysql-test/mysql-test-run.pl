@@ -3190,6 +3190,9 @@ sub after_failure ($) {
   # Save the used my.cnf file
   copy($path_config_file, $save_dir);
 
+  # Copy the tmp dir
+  copytree("$opt_vardir/tmp/", "$save_dir/tmp/");
+
   if ( clusters() ) {
     foreach my $cluster ( clusters() ) {
       my $cluster_dir= "$opt_vardir/".$cluster->{name};
