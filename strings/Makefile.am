@@ -48,7 +48,6 @@ ASRCS		=
 CSRCS		= is_prefix.c strxmov.c bmove512.c bmove_upp.c strappend.c strcont.c strend.c strfill.c strcend.c strstr.c strinstr.c strmake.c strnmov.c strmov.c longlong2str.c bmove.c bchange.c strxnmov.c int2str.c str2int.c strtod.c bcmp.c strtoll.c strtoull.c llstr.c strnlen.c ctype.c ctype-simple.c ctype-mb.c ctype-big5.c ctype-cp932.c ctype-czech.c ctype-eucjpms.c ctype-euc_kr.c ctype-gb2312.c ctype-gbk.c ctype-sjis.c ctype-tis620.c ctype-ujis.c ctype-utf8.c ctype-ucs2.c ctype-uca.c ctype-win1250ch.c ctype-bin.c ctype-latin1.c ctype-extra.c my_vsnprintf.c xml.c decimal.c my_strtoll10.c str_alloc.c
 endif
 endif
-XSRCS 		= 
 
 libmystringslt_la_SOURCES = $(ASRCS) $(CSRCS)
 noinst_PROGRAMS = conf_to_src
