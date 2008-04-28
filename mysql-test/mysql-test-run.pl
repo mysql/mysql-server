@@ -316,6 +316,8 @@ sub main {
 
   if ( @$completed != $num_tests){
     # Not all tests completed, failure
+    mtr_report();
+    mtr_report("After @$completed of $num_tests.");
     mtr_error("Test failed.",
 	      "To continue, re-run with '--force'");
   }
