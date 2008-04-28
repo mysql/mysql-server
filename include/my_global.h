@@ -533,8 +533,12 @@ C_MODE_END
 #undef DBUG_OFF
 #endif
 
-#if defined(_lint) && !defined(DBUG_OFF)
-#define DBUG_OFF
+/* We might be forced to turn debug off, if not turned off already */
+#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
+#  define DBUG_OFF
+#  ifdef DBUG_ON
+#    undef DBUG_ON
+#  endif
 #endif
 
 #include <my_dbug.h>
