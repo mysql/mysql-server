@@ -989,7 +989,7 @@ sub command_line_setup {
   $opt_tmpdir =~ s,/+$,,;       # Remove ending slash if any
 
   # If more than one parallel run, use a subdir of the selected tmpdir
-  if ($thread_num && $opt_parallel > 1) {
+  if ($thread_num && $opt_parallel > 1 and $opt_tmpdir ne "$opt_vardir/tmp") {
     $opt_tmpdir.= "/".$thread_num;
    }
 
@@ -2597,11 +2597,19 @@ sub check_testcase($$)
     mtr_report("Got $proc");
 
     if ( delete $started{$proc->pid()} ) {
+
+      my $err_file= $proc->user_data();
+      my $base_file= mtr_match_extension($err_file, "err"); # Trim extension
+      unlink("$base_file.result");
+
       # One check testcase process returned
       my $res= $proc->exit_status();
 
       if ( $res == 0){
 	# Check completed without problem
+
+	# Remove the .err file the check generated
+	unlink($err_file);
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -2615,7 +2623,7 @@ sub check_testcase($$)
 	if ( $mode eq "after" and $res == 1 )
 	{
 	  # Test failed, grab the report mysqltest has created
-	  my $report= mtr_grab_file($proc->user_data());
+	  my $report= mtr_grab_file($err_file);
 	  $tinfo->{check}.=
 	    "\nThe check of testcase '$tname' failed, this is the\n".
 	      "diff between before and after:\n";
@@ -2627,13 +2635,16 @@ sub check_testcase($$)
 	}
 	elsif ( $res )
 	{
-	  my $report= mtr_grab_file($proc->user_data());
+	  my $report= mtr_grab_file($err_file);
 	  $tinfo->{comment}.=
 	    "Could not execute 'check-testcase' $mode testcase '$tname':\n";
 	  $tinfo->{comment}.= $report;
 
 	  $result= 2;
 	}
+
+	# Remove the .err file the check generated
+	unlink($err_file);
 
       }
     }
@@ -3038,12 +3049,13 @@ sub check_warnings ($) {
     if ( delete $started{$proc->pid()} ) {
       # One check warning process returned
       my $res= $proc->exit_status();
+      my $err_file= $proc->user_data();
 
       if ( $res == 0 or $res == 62 ){
 
 	if ( $res == 0 ) {
 	  # Check completed with problem
-	  my $report= mtr_grab_file($proc->user_data());
+	  my $report= mtr_grab_file($err_file);
 	  # Log to var/log/warnings file
 	  mtr_tofile("$opt_vardir/log/warnings",
 		     $tname."\n".$report);
@@ -3056,6 +3068,8 @@ sub check_warnings ($) {
 	  # Test case was ok and called "skip"
 	  ;
 	}
+	# Remove the .err file the check generated
+	unlink($err_file);
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -3066,13 +3080,15 @@ sub check_warnings ($) {
       }
       else
       {
-	my $report= mtr_grab_file($proc->user_data());
+	my $report= mtr_grab_file($err_file);
 	$tinfo->{comment}.=
 	  "Could not execute 'check-warnings' for testcase '$tname':";
 	$tinfo->{comment}.= $report;
 
 	$result= 2;
       }
+      # Remove the .err file the check generated
+      unlink($err_file);
     }
     else {
       # Unknown process returned, most likley a crash, abort everything
