@@ -2588,6 +2588,9 @@ sub check_testcase($$)
     }
   }
 
+  # Return immediately if no check proceess was started
+  return 0 unless ( keys %started );
+
   while (1){
     my $result;
     my $proc= My::SafeProcess->wait_any();
@@ -3023,6 +3026,9 @@ sub check_warnings ($) {
       $started{$proc->pid()}= $proc;
     }
   }
+
+  # Return immediately if no check proceess was started
+  return 0 unless ( keys %started );
 
   while (1){
     my $result= 0;
