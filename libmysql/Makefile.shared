@@ -60,7 +60,7 @@ sql_cmn_objects =	pack.lo client.lo my_time.lo
 # Not needed in the minimum library
 mysysobjects2 =		my_lib.lo mf_qsort.lo
 mysysobjects =		$(mysysobjects1) $(mysysobjects2)
-target_libadd =		$(mysysobjects) $(dbugobjects) $(sql_cmn_objects) $(vio_objects) $(sqlobjects) $(top_srcdir)/strings/libmystringslt.la
+target_libadd =		$(mysysobjects) $(dbugobjects) $(sql_cmn_objects) $(vio_objects) $(sqlobjects) $(top_builddir)/strings/libmystringslt.la
 target_ldflags = -version-info @SHARED_LIB_VERSION@ @LD_VERSION_SCRIPT@ 
 vio_objects= vio.lo viosocket.lo viossl.lo viosslfactories.lo
 
