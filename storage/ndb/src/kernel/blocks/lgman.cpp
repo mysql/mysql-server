@@ -547,6 +547,22 @@ Lgman::execCREATE_FILE_REQ(Signal* signal)
       break;
     }
     
+    if(ERROR_INSERTED(15000) ||
+       (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
+    {
+      jam();
+      if(signal->getNoOfSections())
+        releaseSections(signal);
+
+      CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
+      ref->senderData = senderData;
+      ref->senderRef = reference();
+      ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
+      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+                 CreateFileImplRef::SignalLength, JBB);
+      return;
+    }
+
     new (file_ptr.p) Undofile(req, ptr.i);
 
     Local_undofile_list tmp(m_file_pool, ptr.p->m_meta_files);
@@ -902,7 +918,7 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
     {
       Uint32 ptrI;
       Uint32 cnt = pages > 64 ? 64 : pages;
-      m_ctx.m_mm.alloc(&ptrI, &cnt, 1);
+      m_ctx.m_mm.alloc_pages(RG_DISK_OPERATIONS, &ptrI, &cnt, 1);
       if (cnt)
       {
 	Buffer_idx range;
@@ -1021,7 +1037,7 @@ Lgman::free_logbuffer_memory(Ptr<Logfile_group> ptr)
     ndbrequire(map.next(it));
     tmp[1] = *it.data;
     
-    m_ctx.m_mm.release(range.m_ptr_i, range.m_idx);
+    m_ctx.m_mm.release_pages(RG_DISK_OPERATIONS, range.m_ptr_i, range.m_idx);
     map.next(it);
   }
   map.release();

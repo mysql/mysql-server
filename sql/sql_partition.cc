@@ -3819,9 +3819,9 @@ bool mysql_unpack_partition(THD *thd,
 
   DBUG_PRINT("info", ("Successful parse"));
   part_info= lex.part_info;
-  DBUG_PRINT("info", ("default engine = %d, default_db_type = %d",
-             ha_legacy_type(part_info->default_engine_type),
-             ha_legacy_type(default_db_type)));
+  DBUG_PRINT("info", ("default engine = %s, default_db_type = %s",
+             ha_resolve_storage_engine_name(part_info->default_engine_type),
+             ha_resolve_storage_engine_name(default_db_type)));
   if (is_create_table_ind && old_lex->sql_command == SQLCOM_CREATE_TABLE)
   {
     if (old_lex->create_info.options & HA_LEX_CREATE_TABLE_LIKE)
@@ -3863,6 +3863,8 @@ bool mysql_unpack_partition(THD *thd,
   if (!part_info->default_engine_type)
     part_info->default_engine_type= default_db_type;
   DBUG_ASSERT(part_info->default_engine_type == default_db_type);
+  DBUG_ASSERT(part_info->default_engine_type->db_type != DB_TYPE_UNKNOWN);
+  DBUG_ASSERT(part_info->default_engine_type != partition_hton);
 
   {
   /*
@@ -3968,83 +3970,37 @@ static int fast_end_partition(THD *thd, ulonglong copied,
                               bool written_bin_log)
 {
   int error;
+  char tmp_name[80];
   DBUG_ENTER("fast_end_partition");
 
   thd->proc_info="end";
+
   if (!is_empty)
     query_cache_invalidate3(thd, table_list, 0);
-  error= ha_commit_stmt(thd);
-  if (ha_commit(thd))
+
+  error= ha_autocommit_or_rollback(thd, 0);
+  if (end_active_trans(thd))
     error= 1;
-  if (!error || is_empty)
+
+  if (error)
   {
-    char tmp_name[80];
-    if ((!is_empty) && (!written_bin_log) &&
-        (!thd->lex->no_write_to_binlog))
-      write_bin_log(thd, FALSE, thd->query, thd->query_length);
-    close_thread_tables(thd);
-    my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
-                (ulong) (copied + deleted),
-                (ulong) deleted,
-                (ulong) 0);
-    send_ok(thd, (ha_rows) (copied+deleted),0L,tmp_name);
-    DBUG_RETURN(FALSE);
-  }
-  table->file->print_error(error, MYF(0));
-  close_thread_tables(thd);
-  DBUG_RETURN(TRUE);
-}
-
-
-/*
-  Check engine mix that it is correct
-  SYNOPSIS
-    check_engine_condition()
-    p_elem                   Partition element
-    default_engine           Have user specified engine on table level
-    inout::engine_type       Current engine used
-    inout::first             Is it first partition
-  RETURN VALUE
-    TRUE                     Failed check
-    FALSE                    Ok
-  DESCRIPTION
-    (specified partition handler ) specified table handler
-    (NDB, NDB) NDB           OK
-    (MYISAM, MYISAM) -       OK
-    (MYISAM, -)      -       NOT OK
-    (MYISAM, -)    MYISAM    OK
-    (- , MYISAM)   -         NOT OK
-    (- , -)        MYISAM    OK
-    (-,-)          -         OK
-    (NDB, MYISAM) *          NOT OK
-*/
-
-static bool check_engine_condition(partition_element *p_elem,
-                                   bool default_engine,
-                                   handlerton **engine_type,
-                                   bool *first)
-{
-  DBUG_ENTER("check_engine_condition");
-
-  DBUG_PRINT("enter", ("def_eng = %u, first = %u", default_engine, *first));
-  if (*first && default_engine)
-  {
-    *engine_type= p_elem->engine_type;
-  }
-  *first= FALSE;
-  if ((!default_engine &&
-      (p_elem->engine_type != (*engine_type) &&
-       p_elem->engine_type)) ||
-      (default_engine &&
-       p_elem->engine_type != (*engine_type)))
-  {
+    /* If error during commit, no need to rollback, it's done. */
+    table->file->print_error(error, MYF(0));
     DBUG_RETURN(TRUE);
   }
-  else
-  {
-    DBUG_RETURN(FALSE);
-  }
+
+  if ((!is_empty) && (!written_bin_log) &&
+      (!thd->lex->no_write_to_binlog))
+    write_bin_log(thd, FALSE, thd->query, thd->query_length);
+
+  my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
+              (ulong) (copied + deleted),
+              (ulong) deleted,
+              (ulong) 0);
+  my_ok(thd, (ha_rows) (copied+deleted),0L, tmp_name);
+  DBUG_RETURN(FALSE);
 }
+
 
 /*
   We need to check if engine used by all partitions can handle
@@ -4070,52 +4026,30 @@ static bool check_engine_condition(partition_element *p_elem,
 static bool check_native_partitioned(HA_CREATE_INFO *create_info,bool *ret_val,
                                      partition_info *part_info, THD *thd)
 {
-  List_iterator<partition_element> part_it(part_info->partitions);
-  bool first= TRUE;
-  bool default_engine;
-  handlerton *engine_type= create_info->db_type;
+  bool table_engine_set;
+  handlerton *engine_type= part_info->default_engine_type;
   handlerton *old_engine_type= engine_type;
-  uint i= 0;
-  uint no_parts= part_info->partitions.elements;
   DBUG_ENTER("check_native_partitioned");
 
-  default_engine= (create_info->used_fields & HA_CREATE_USED_ENGINE) ?
-                   FALSE : TRUE;
-  DBUG_PRINT("info", ("engine_type = %u, default = %u",
-                       ha_legacy_type(engine_type),
-                       default_engine));
-  if (no_parts)
+  if (create_info->used_fields & HA_CREATE_USED_ENGINE)
   {
-    do
-    {
-      partition_element *part_elem= part_it++;
-      if (part_info->is_sub_partitioned() &&
-          part_elem->subpartitions.elements)
-      {
-        uint no_subparts= part_elem->subpartitions.elements;
-        uint j= 0;
-        List_iterator<partition_element> sub_it(part_elem->subpartitions);
-        do
-        {
-          partition_element *sub_elem= sub_it++;
-          if (check_engine_condition(sub_elem, default_engine,
-                                     &engine_type, &first))
-            goto error;
-        } while (++j < no_subparts);
-        /*
-          In case of subpartitioning and defaults we allow that only
-          subparts have specified engines, as long as the parts haven't
-          specified the wrong engine it's ok.
-        */
-        if (check_engine_condition(part_elem, FALSE,
-                                   &engine_type, &first))
-          goto error;
-      }
-      else if (check_engine_condition(part_elem, default_engine,
-                                      &engine_type, &first))
-        goto error;
-    } while (++i < no_parts);
+    table_engine_set= TRUE;
+    engine_type= create_info->db_type;
   }
+  else
+  {
+    table_engine_set= FALSE;
+    if (thd->lex->sql_command != SQLCOM_CREATE_TABLE)
+    {
+      table_engine_set= TRUE;
+      DBUG_ASSERT(engine_type && engine_type != partition_hton);
+    }
+  }
+  DBUG_PRINT("info", ("engine_type = %s, table_engine_set = %u",
+                       ha_resolve_storage_engine_name(engine_type),
+                       table_engine_set));
+  if (part_info->check_engine_mix(engine_type, table_engine_set))
+    goto error;
 
   /*
     All engines are of the same type. Check if this engine supports
@@ -4212,7 +4146,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
     }
-    if (alter_info->flags == ALTER_TABLE_REORG)
+    if (alter_info->flags & ALTER_TABLE_REORG)
     {
       uint new_part_no, curr_part_no;
       if (tab_part_info->part_type != HASH_PARTITION ||
@@ -4313,7 +4247,12 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       {
         my_error(ER_NO_BINLOG_ERROR, MYF(0));
         DBUG_RETURN(TRUE);
-      } 
+      }
+      if (tab_part_info->defined_max_value)
+      {
+        my_error(ER_PARTITION_MAXVALUE_ERROR, MYF(0));
+        DBUG_RETURN(TRUE);
+      }
       if (no_new_partitions == 0)
       {
         my_error(ER_ADD_PARTITION_NO_NEW_PARTITION, MYF(0));
@@ -4538,7 +4477,7 @@ that are reorganised.
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags == ALTER_DROP_PARTITION)
+    else if (alter_info->flags & ALTER_DROP_PARTITION)
     {
       /*
         Drop a partition from a range partition and list partitioning is
@@ -4742,7 +4681,7 @@ state of p1.
         tab_part_info->is_auto_partitioned= FALSE;
       }
     }
-    else if (alter_info->flags == ALTER_REORGANIZE_PARTITION)
+    else if (alter_info->flags & ALTER_REORGANIZE_PARTITION)
     {
       /*
         Reorganise partitions takes a number of partitions that are next
@@ -4923,8 +4862,8 @@ the generated partition syntax in a correct manner.
     }
     *partition_changed= TRUE;
     thd->work_part_info= tab_part_info;
-    if (alter_info->flags == ALTER_ADD_PARTITION ||
-        alter_info->flags == ALTER_REORGANIZE_PARTITION)
+    if (alter_info->flags & ALTER_ADD_PARTITION ||
+        alter_info->flags & ALTER_REORGANIZE_PARTITION)
     {
       if (tab_part_info->use_default_subpartitions &&
           !alt_part_info->use_default_subpartitions)
@@ -5051,13 +4990,21 @@ the generated partition syntax in a correct manner.
         DBUG_PRINT("info", ("partition changed"));
         *partition_changed= TRUE;
       }
-      if (create_info->db_type == partition_hton)
-      {
-        if (!part_info->default_engine_type)
-          part_info->default_engine_type= table->part_info->default_engine_type;
-      }
-      else
+      /*
+        Set up partition default_engine_type either from the create_info
+        or from the previus table
+      */
+      if (create_info->used_fields & HA_CREATE_USED_ENGINE)
         part_info->default_engine_type= create_info->db_type;
+      else
+      {
+        if (table->part_info)
+          part_info->default_engine_type= table->part_info->default_engine_type;
+        else
+          part_info->default_engine_type= create_info->db_type;
+      }
+      DBUG_ASSERT(part_info->default_engine_type &&
+                  part_info->default_engine_type != partition_hton);
       if (check_native_partitioned(create_info, &is_native_partitioned,
                                    part_info, thd))
       {
@@ -5838,31 +5785,41 @@ static void release_log_entries(partition_info *part_info)
 
 
 /*
-  Get a lock on table name to avoid that anyone can open the table in
-  a critical part of the ALTER TABLE.
-  SYNOPSIS
-    get_name_lock()
+  Final part of partition changes to handle things when under
+  LOCK TABLES.
+  SYNPOSIS
+    alter_partition_lock_handling()
     lpt                        Struct carrying parameters
   RETURN VALUES
-    FALSE                      Success
-    TRUE                       Failure
+    NONE
 */
-
-static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
+static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
-  int error= 0;
-  DBUG_ENTER("get_name_lock");
-
-  bzero(&lpt->table_list, sizeof(lpt->table_list));
-  lpt->table_list.db= (char*)lpt->db;
-  lpt->table_list.table= lpt->table;
-  lpt->table_list.table_name= (char*)lpt->table_name;
-  pthread_mutex_lock(&LOCK_open);
-  error= lock_table_name(lpt->thd, &lpt->table_list, FALSE);
-  pthread_mutex_unlock(&LOCK_open);
-  DBUG_RETURN(error);
+  int err;
+  if (lpt->thd->locked_tables)
+  {
+    /*
+      When we have the table locked, it is necessary to reopen the table
+      since all table objects were closed and removed as part of the
+      ALTER TABLE of partitioning structure.
+    */
+    pthread_mutex_lock(&LOCK_open);
+    lpt->thd->in_lock_tables= 1;
+    err= reopen_tables(lpt->thd, 1, 1);
+    lpt->thd->in_lock_tables= 0;
+    if (err)
+    {
+      /*
+       Issue a warning since we weren't able to regain the lock again.
+       We also need to unlink table from thread's open list and from
+       table_cache
+     */
+      unlink_open_table(lpt->thd, lpt->table, FALSE);
+      sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
+    }
+    pthread_mutex_unlock(&LOCK_open);
+  }
 }
-
 
 /*
   Unlock and close table before renaming and dropping partitions
@@ -5876,35 +5833,16 @@ static int get_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
 static int alter_close_tables(ALTER_PARTITION_PARAM_TYPE *lpt)
 {
   THD *thd= lpt->thd;
-  TABLE *table= lpt->table;
+  const char *db= lpt->db;
+  const char *table_name= lpt->table_name;
   DBUG_ENTER("alter_close_tables");
   /*
     We need to also unlock tables and close all handlers.
     We set lock to zero to ensure we don't do this twice
     and we set db_stat to zero to ensure we don't close twice.
   */
-  mysql_unlock_tables(thd, thd->lock);
-  thd->lock= 0;
-  table->file->close();
-  table->db_stat= 0;
-  DBUG_RETURN(0);
-}
-
-
-/*
-  Release a lock name
-  SYNOPSIS
-    release_name_lock()
-    lpt
-  RETURN VALUES
-    0
-*/
-
-static int release_name_lock(ALTER_PARTITION_PARAM_TYPE *lpt)
-{
-  DBUG_ENTER("release_name_lock");
   pthread_mutex_lock(&LOCK_open);
-  unlock_table_name(lpt->thd, &lpt->table_list);
+  close_data_files_and_morph_locks(thd, db, table_name);
   pthread_mutex_unlock(&LOCK_open);
   DBUG_RETURN(0);
 }
@@ -6113,7 +6051,19 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ((alter_info->flags & ALTER_REPAIR_PARTITION) &&
          (error= table->file->ha_repair_partitions(thd))))
     {
-      table->file->print_error(error, MYF(0));
+      if (error == HA_ADMIN_NOT_IMPLEMENTED) {
+        if (alter_info->flags & ALTER_OPTIMIZE_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "optimize partition");
+        else if (alter_info->flags & ALTER_ANALYZE_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "analyze partition");
+        else if (alter_info->flags & ALTER_CHECK_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "check partition");
+        else if (alter_info->flags & ALTER_REPAIR_PARTITION)
+          my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "repair partition");
+        else
+          table->file->print_error(error, MYF(0));
+      } else
+        table->file->print_error(error, MYF(0));
       goto err;
     }
   }
@@ -6164,7 +6114,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       goto err;
     }
   }
-  else if (alter_info->flags == ALTER_DROP_PARTITION)
+  else if (alter_info->flags & ALTER_DROP_PARTITION)
   {
     /*
       Now after all checks and setting state on dropped partitions we can
@@ -6202,7 +6152,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          name lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
-         get_name_lock call.
+         close_data_files_and_morph_locks call.
       6) We are now ready to release all locks we got in this thread.
       7) Write the bin log
          Unfortunately the writing of the binlog is not synchronised with
@@ -6219,8 +6169,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       9) Prepare handlers for drop of partitions
       10) Drop the partitions
       11) Remove entries from ddl log
-      12) Release name lock so that all other threads can access the table
-          again.
+      12) Reopen table if under lock tables
       13) Complete query
 
       We insert Error injections at all places where it could be interesting
@@ -6235,23 +6184,21 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_drop_partition_4") ||
-        get_name_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ((frm_install= TRUE), FALSE) ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
         ((frm_install= FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_8") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_7") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
+        ERROR_INJECT_CRASH("crash_drop_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_drop_partition_10") ||
-        (release_name_lock(lpt), FALSE)) 
+        ERROR_INJECT_CRASH("crash_drop_partition_9") ||
+        (alter_partition_lock_handling(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, TRUE, frm_install);
       goto err;
@@ -6283,7 +6230,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          name lock.
       5) Close all tables that have already been opened but didn't stumble on
          the abort locked previously. This is done as part of the
-         get_name_lock call.
+         close_data_files_and_morph_locks call.
       6) Close all table handlers and unlock all handlers but retain name lock
       7) Write binlog
       8) Now the change is completed except for the installation of the
@@ -6293,7 +6240,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
          added to the table.
       10)Wait until all accesses using the old frm file has completed
       11)Remove entries from ddl log
-      12)Release name lock
+      12)Reopen tables if under lock tables
       13)Complete query
     */
     if (write_log_add_change_partition(lpt) ||
@@ -6303,8 +6250,6 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         mysql_change_partitions(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_3") ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
-        ERROR_INJECT_CRASH("crash_add_partition_3") ||
-        get_name_lock(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_4") ||
         alter_close_tables(lpt) ||
         ERROR_INJECT_CRASH("crash_add_partition_5") ||
@@ -6320,7 +6265,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_CRASH("crash_add_partition_8") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
         ERROR_INJECT_CRASH("crash_add_partition_9") ||
-        (release_name_lock(lpt), FALSE)) 
+        (alter_partition_lock_handling(lpt), FALSE)) 
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;
@@ -6374,15 +6319,15 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
       7) Close all tables opened but not yet locked, after this call we are
          certain that no other thread is in the lock wait queue or has
          opened the table. The name lock will ensure that they are blocked
-         on the open call. This is achieved also by get_name_lock call.
+         on the open call.
+         This is achieved also by close_data_files_and_morph_locks call.
       8) Close all partitions opened by this thread, but retain name lock.
       9) Write bin log
       10) Prepare handlers for rename and delete of partitions
       11) Rename and drop the reorged partitions such that they are no
           longer used and rename those added to their real new names.
       12) Install the shadow frm file
-      13) Release the name lock to enable other threads to start using the
-          table again.
+      13) Reopen the table if under lock tables
       14) Complete query
     */
     if (write_log_add_change_partition(lpt) ||
@@ -6396,24 +6341,22 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         (not_completed= FALSE) ||
         abort_and_upgrade_lock(lpt) || /* Always returns 0 */
         ERROR_INJECT_CRASH("crash_change_partition_5") ||
-        get_name_lock(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         alter_close_tables(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_7") ||
+        ERROR_INJECT_CRASH("crash_change_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
                         thd->query, thd->query_length), FALSE)) ||
-        ERROR_INJECT_CRASH("crash_change_partition_8") ||
+        ERROR_INJECT_CRASH("crash_change_partition_7") ||
         mysql_write_frm(lpt, WFRM_INSTALL_SHADOW) ||
-        ERROR_INJECT_CRASH("crash_change_partition_9") ||
+        ERROR_INJECT_CRASH("crash_change_partition_8") ||
         mysql_drop_partitions(lpt) ||
-        ERROR_INJECT_CRASH("crash_change_partition_10") ||
+        ERROR_INJECT_CRASH("crash_change_partition_9") ||
         mysql_rename_partitions(lpt) ||
         ((frm_install= TRUE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        ERROR_INJECT_CRASH("crash_change_partition_10") ||
         (write_log_completed(lpt, FALSE), FALSE) ||
-        ERROR_INJECT_CRASH("crash_change_partition_12") ||
-        (release_name_lock(lpt), FALSE))
+        ERROR_INJECT_CRASH("crash_change_partition_11") ||
+        (alter_partition_lock_handling(lpt), FALSE))
     {
       handle_alter_part_error(lpt, not_completed, FALSE, frm_install);
       goto err;

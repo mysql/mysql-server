@@ -75,7 +75,7 @@ size_t my_pread(File Filedes, uchar *Buffer, size_t Count, my_off_t offset,
     if ((error= ((readbytes= pread(Filedes, Buffer, Count, offset)) != Count)))
     {
 #endif
-      my_errno= errno;
+      my_errno= errno ? errno : -1;
       if (errno == 0 || (readbytes != (size_t) -1 &&
                          (MyFlags & (MY_NABP | MY_FNABP))))
         my_errno= HA_ERR_FILE_TOO_SHORT;

@@ -1211,6 +1211,8 @@ int chk_data_link(HA_CHECK *param, MI_INFO *info, my_bool extend)
       param->glob_crc+= (*info->s->calc_check_checksum)(info,record);
       link_used+= (block_info.filepos - start_recpos);
       used+= (pos-start_recpos);
+    case BLOCK_RECORD:
+      assert(0);                                /* Impossible */
     } /* switch */
     if (! got_error)
     {
@@ -3644,8 +3646,10 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                                                            record));
       DBUG_RETURN(0);
     }
+  case BLOCK_RECORD:
+    assert(0);                                  /* Impossible */
   }
-  DBUG_RETURN(1);		/* Impossible */
+  DBUG_RETURN(1);                               /* Impossible */
 }
 
 
@@ -3756,6 +3760,8 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
       sort_param->filepos+=reclength+length;
       info->s->state.split++;
       break;
+    case BLOCK_RECORD:
+      assert(0);                                  /* Impossible */
     }
   }
   if (sort_param->master)

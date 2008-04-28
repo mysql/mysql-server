@@ -129,7 +129,7 @@ SignalLoggerManager::log(LogMode logMode, const char * params)
   const int count = getParameter(blocks, "BLOCK=", params);
   
   int cnt = 0;
-  if((count == 1 && blocks[0] == "ALL") ||
+  if((count == 1 && !strcmp(blocks[0], "ALL")) ||
      count == 0){
     
     for (int number = 0; number < NO_OF_BLOCKS; ++number){

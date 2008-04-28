@@ -17,6 +17,7 @@
 #include <my_dir.h>
 #include "mysys_err.h"
 #include <errno.h>
+#include <my_sys.h>
 #if defined(__WIN__)
 #include <share.h>
 #endif
@@ -34,7 +35,7 @@
 File my_create(const char *FileName, int CreateFlags, int access_flags,
 	       myf MyFlags)
 {
-  int fd;
+  int fd, rc;
   DBUG_ENTER("my_create");
   DBUG_PRINT("my",("Name: '%s' CreateFlags: %d  AccessFlags: %d  MyFlags: %d",
 		   FileName, CreateFlags, access_flags, MyFlags));
@@ -59,6 +60,20 @@ File my_create(const char *FileName, int CreateFlags, int access_flags,
     fd= -1;
   }
 
-  DBUG_RETURN(my_register_filename(fd, FileName, FILE_BY_CREATE,
-				   EE_CANTCREATEFILE, MyFlags));
+  rc= my_register_filename(fd, FileName, FILE_BY_CREATE,
+                           EE_CANTCREATEFILE, MyFlags);
+  /*
+    my_register_filename() may fail on some platforms even if the call to
+    *open() above succeeds. In this case, don't leave the stale file because
+    callers assume the file to not exist if my_create() fails, so they don't
+    do any cleanups.
+  */
+  if (unlikely(fd >= 0 && rc < 0))
+  {
+    int tmp= my_errno;
+    my_delete(FileName, MyFlags);
+    my_errno= tmp;
+  }
+  
+  DBUG_RETURN(rc);
 } /* my_create */

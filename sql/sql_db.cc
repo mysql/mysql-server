@@ -595,7 +595,7 @@ CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
 		In this case the entry should not be logged.
 
   SIDE-EFFECTS
-   1. Report back to client that command succeeded (send_ok)
+   1. Report back to client that command succeeded (my_ok)
    2. Report errors to client
    3. Log event to binary log
    (The 'silent' flags turns off 1 and 3.)
@@ -606,7 +606,7 @@ CHARSET_INFO *get_default_db_collation(THD *thd, const char *db_name)
 
 */
 
-bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
                      bool silent)
 {
   char	 path[FN_REFLEN+16];
@@ -660,7 +660,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
     if (!silent)
-      send_ok(thd);
+      my_ok(thd);
     error= 0;
     goto exit;
   }
@@ -749,7 +749,7 @@ bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       /* These DDL methods and logging protected with LOCK_mysql_create_db */
       mysql_bin_log.write(&qinfo);
     }
-    send_ok(thd, result);
+    my_ok(thd, result);
   }
 
 exit:
@@ -826,7 +826,7 @@ bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create_info)
     /* These DDL methods and logging protected with LOCK_mysql_create_db */
     mysql_bin_log.write(&qinfo);
   }
-  send_ok(thd, result);
+  my_ok(thd, result);
 
 exit:
   VOID(pthread_mutex_unlock(&LOCK_mysql_create_db));
@@ -960,7 +960,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     thd->clear_error();
     thd->server_status|= SERVER_STATUS_DB_DROPPED;
-    send_ok(thd, (ulong) deleted);
+    my_ok(thd, (ulong) deleted);
     thd->server_status&= ~SERVER_STATUS_DB_DROPPED;
   }
   else if (mysql_bin_log.is_open())
@@ -1111,12 +1111,17 @@ static long mysql_rm_known_files(THD *thd, MY_DIR *dirp, const char *db,
       /* Drop the table nicely */
       *extension= 0;			// Remove extension
       TABLE_LIST *table_list=(TABLE_LIST*)
-	thd->calloc(sizeof(*table_list)+ strlen(db)+strlen(file->name)+2);
+                              thd->calloc(sizeof(*table_list) + 
+                                          strlen(db) + 1 +
+                                          MYSQL50_TABLE_NAME_PREFIX_LENGTH + 
+                                          strlen(file->name) + 1);
+
       if (!table_list)
-	goto err;
+        goto err;
       table_list->db= (char*) (table_list+1);
       table_list->table_name= strmov(table_list->db, db) + 1;
       VOID(filename_to_tablename(file->name, table_list->table_name,
+                                 MYSQL50_TABLE_NAME_PREFIX_LENGTH +
                                  strlen(file->name) + 1));
       table_list->alias= table_list->table_name;	// If lower_case_table_names=2
       table_list->internal_tmp_table= is_prefix(file->name, tmp_file_prefix);

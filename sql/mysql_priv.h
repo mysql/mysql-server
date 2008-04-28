@@ -44,6 +44,19 @@
 #include "sql_plugin.h"
 #include "scheduler.h"
 
+/**
+  Query type constants.
+
+  QT_ORDINARY -- ordinary SQL query.
+  QT_IS -- SQL query to be shown in INFORMATION_SCHEMA (in utf8 and without
+  character set introducers).
+*/
+enum enum_query_type
+{
+  QT_ORDINARY,
+  QT_IS
+};
+
 /* TODO convert all these three maps to Bitmap classes */
 typedef ulonglong table_map;          /* Used for table bits in join */
 #if MAX_INDEXES <= 64
@@ -726,8 +739,8 @@ inline bool check_some_routine_access(THD *thd, const char *db,
 
 bool multi_update_precheck(THD *thd, TABLE_LIST *tables);
 bool multi_delete_precheck(THD *thd, TABLE_LIST *tables);
-bool mysql_multi_update_prepare(THD *thd);
-bool mysql_multi_delete_prepare(THD *thd);
+int mysql_multi_update_prepare(THD *thd);
+int mysql_multi_delete_prepare(THD *thd);
 bool mysql_insert_select_prepare(THD *thd);
 bool update_precheck(THD *thd, TABLE_LIST *tables);
 bool delete_precheck(THD *thd, TABLE_LIST *tables);
@@ -746,6 +759,7 @@ bool check_string_byte_length(LEX_STRING *str, const char *err_msg,
 bool check_string_char_length(LEX_STRING *str, const char *err_msg,
                               uint max_char_length, CHARSET_INFO *cs,
                               bool no_error);
+bool test_if_data_home_dir(const char *dir);
 
 bool parse_sql(THD *thd,
                class Lex_input_stream *lip,
@@ -959,10 +973,8 @@ void time_out_user_resource_limits(THD *thd, USER_CONN *uc);
 void decrease_user_connections(USER_CONN *uc);
 void thd_init_client_charset(THD *thd, uint cs_number);
 bool setup_connection_thread_globals(THD *thd);
-bool login_connection(THD *thd);
-void end_connection(THD *thd);
 
-bool mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
+int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create, bool silent);
 bool mysql_alter_db(THD *thd, const char *db, HA_CREATE_INFO *create);
 bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent);
 bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db);
@@ -1006,7 +1018,7 @@ void init_max_user_conn(void);
 void init_update_queries(void);
 void free_max_user_conn(void);
 pthread_handler_t handle_bootstrap(void *arg);
-bool mysql_execute_command(THD *thd);
+int mysql_execute_command(THD *thd);
 bool do_command(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
@@ -1032,8 +1044,7 @@ bool reload_acl_and_cache(THD *thd, ulong options, TABLE_LIST *tables,
 bool check_access(THD *thd, ulong access, const char *db, ulong *save_priv,
 		  bool no_grant, bool no_errors, bool schema_db);
 bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors);
-bool check_global_access(THD *thd, ulong want_access);
+			uint number, bool no_errors);
 #else
 inline bool check_access(THD *thd, ulong access, const char *db,
                          ulong *save_priv, bool no_grant, bool no_errors,
@@ -1044,11 +1055,15 @@ inline bool check_access(THD *thd, ulong access, const char *db,
   return false;
 }
 inline bool check_table_access(THD *thd, ulong want_access, TABLE_LIST *tables,
-			bool no_errors)
-{ return false; }
-inline bool check_global_access(THD *thd, ulong want_access)
+			uint number, bool no_errors)
 { return false; }
 #endif /*NO_EMBEDDED_ACCESS_CHECKS*/
+
+#endif /* MYSQL_SERVER */
+#if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
+bool check_global_access(THD *thd, ulong want_access);
+#endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
+#ifdef MYSQL_SERVER
 
 /*
   Support routine for SQL parser on partitioning syntax
@@ -1179,7 +1194,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
 int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list);
 void prepare_triggers_for_insert_stmt(TABLE *table);
-bool mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
+int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
 bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
                   SQL_LIST *order, ha_rows rows, ulonglong options,
                   bool reset_auto_increment);
@@ -1390,6 +1405,13 @@ SQL_SELECT *make_select(TABLE *head, table_map const_tables,
 extern Item **not_found_item;
 
 /*
+  A set of constants used for checking non aggregated fields and sum
+  functions mixture in the ONLY_FULL_GROUP_BY_MODE.
+*/
+#define NON_AGG_FIELD_USED  1
+#define SUM_FUNC_USED       2
+
+/*
   This enumeration type is used only by the function find_item_in_list
   to return the info on how an item has been resolved against a list
   of possibly aliased items.
@@ -1453,14 +1475,14 @@ void wait_for_condition(THD *thd, pthread_mutex_t *mutex,
                         pthread_cond_t *cond);
 int open_tables(THD *thd, TABLE_LIST **tables, uint *counter, uint flags);
 /* open_and_lock_tables with optional derived handling */
-bool open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
+int open_and_lock_tables_derived(THD *thd, TABLE_LIST *tables, bool derived);
 /* simple open_and_lock_tables without derived handling */
-inline bool simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
+inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, FALSE);
 }
 /* open_and_lock_tables with derived handling */
-inline bool open_and_lock_tables(THD *thd, TABLE_LIST *tables)
+inline int open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   return open_and_lock_tables_derived(thd, tables, TRUE);
 }
@@ -1633,6 +1655,7 @@ extern pthread_mutex_t LOCK_gdl;
 #define WFRM_WRITE_SHADOW 1
 #define WFRM_INSTALL_SHADOW 2
 #define WFRM_PACK_FRM 4
+#define WFRM_KEEP_SHARE 8
 bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags);
 int abort_and_upgrade_lock(ALTER_PARTITION_PARAM_TYPE *lpt);
 void close_open_tables_and_downgrade(ALTER_PARTITION_PARAM_TYPE *lpt);
@@ -1689,7 +1712,7 @@ inline TABLE_LIST *find_table_in_local_list(TABLE_LIST *table,
 bool eval_const_cond(COND *cond);
 
 /* sql_load.cc */
-bool mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
+int mysql_load(THD *thd, sql_exchange *ex, TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values_list,
                 enum enum_duplicates handle_duplicates, bool ignore,
@@ -1706,7 +1729,7 @@ bool mysql_manager_submit(void (*action)());
 
 /* sql_test.cc */
 #ifndef DBUG_OFF
-void print_where(COND *cond,const char *info);
+void print_where(COND *cond,const char *info, enum_query_type query_type);
 void print_cached_tables(void);
 void TEST_filesort(SORT_FIELD *sortorder,uint s_length);
 void print_plan(JOIN* join,uint idx, double record_count, double read_time,
@@ -1787,7 +1810,8 @@ extern time_t server_start_time, flush_status_time;
 #if defined MYSQL_SERVER || defined INNODB_COMPATIBILITY_HOOKS
 extern uint mysql_data_home_len;
 extern char *mysql_data_home,server_version[SERVER_VERSION_LENGTH],
-            mysql_real_data_home[];
+            mysql_real_data_home[], mysql_unpacked_real_data_home[];
+extern CHARSET_INFO *character_set_filesystem;
 #endif /* MYSQL_SERVER || INNODB_COMPATIBILITY_HOOKS */
 #ifdef MYSQL_SERVER
 extern char *opt_mysql_tmpdir, mysql_charsets_dir[],
@@ -1877,6 +1901,7 @@ extern bool opt_disable_networking, opt_skip_show_db;
 extern my_bool opt_character_set_client_handshake;
 extern bool volatile abort_loop, shutdown_in_progress;
 extern uint volatile thread_count, thread_running, global_read_lock;
+extern uint connection_count;
 extern my_bool opt_sql_bin_update, opt_safe_user_create, opt_no_mix_types;
 extern my_bool opt_safe_show_db, opt_local_infile, opt_myisam_use_mmap;
 extern my_bool opt_slave_compressed_protocol, use_temp_pool;
@@ -1915,7 +1940,8 @@ extern pthread_mutex_t LOCK_mysql_create_db,LOCK_Acl,LOCK_open, LOCK_lock_db,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager, LOCK_global_read_lock,
        LOCK_global_system_variables, LOCK_user_conn,
        LOCK_prepared_stmt_count,
-       LOCK_bytes_sent, LOCK_bytes_received, LOCK_uuid_short;
+       LOCK_bytes_sent, LOCK_bytes_received, LOCK_connection_count,
+       LOCK_uuid_short;
 #ifdef HAVE_OPENSSL
 extern pthread_mutex_t LOCK_des_key_file;
 #endif

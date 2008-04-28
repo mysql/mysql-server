@@ -9,6 +9,10 @@ SHOW CREATE VIEW v1|
 
 SHOW CREATE VIEW v2|
 
+--echo
+
+SHOW CREATE VIEW v3|
+
 #   - Check INFORMATION_SCHEMA;
 
 --echo
@@ -20,6 +24,10 @@ SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v1'|
 
 SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v2'|
 
+--echo
+
+SELECT * FROM INFORMATION_SCHEMA.VIEWS WHERE table_name = 'v3'|
+
 #   - Execute the views;
 
 --echo
@@ -30,3 +38,7 @@ SELECT COLLATION(c1), COLLATION(c2) FROM v1|
 --echo
 
 SELECT COLLATION(c1) FROM v2|
+
+--echo
+
+SELECT * FROM v3|

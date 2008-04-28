@@ -1627,3 +1627,26 @@ end loop label1;
 end loop;
 end|
 ERROR 42000: End-label label1 without match
+drop procedure if exists p1;
+create procedure p1()
+begin
+create table t1 (a int) type=MyISAM;
+drop table t1;
+end|
+Warnings:
+Warning	1287	The syntax 'TYPE=storage_engine' is deprecated and will be removed in MySQL 5.2. Please use 'ENGINE=storage_engine' instead
+call p1();
+call p1();
+drop procedure p1;
+drop procedure if exists proc_8759;
+create procedure proc_8759()
+begin
+declare should_be_illegal condition for sqlstate '00000';
+declare continue handler for should_be_illegal set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00000'
+create procedure proc_8759()
+begin
+declare continue handler for sqlstate '00000' set @x=0;
+end$$
+ERROR 42000: Bad SQLSTATE: '00000'

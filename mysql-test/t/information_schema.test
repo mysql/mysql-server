@@ -1090,8 +1090,6 @@ select column_default from information_schema.columns where table_name= 't1';
 show columns from t1;
 drop table t1;
 
---echo End of 5.0 tests.
-
 #
 # Bug#30079 A check for "hidden" I_S tables is flawed
 #
@@ -1099,6 +1097,32 @@ drop table t1;
 show fields from information_schema.table_names;
 --error 1109
 show keys from information_schema.table_names;
+
+#
+# Bug#34529: Crash on complex Falcon I_S select after ALTER .. PARTITION BY
+#
+USE information_schema;
+SET max_heap_table_size = 16384;
+
+CREATE TABLE test.t1( a INT );
+
+# What we need to create here is a bit of a corner case:
+# We need a star query with information_schema tables, where the first
+# branch of the star join produces zero rows, so that reading of the 
+# second branch never happens. At the same time we have to make sure
+# that data for at least the last table is swapped from MEMORY/HEAP to 
+# MyISAM. This and only this triggers the bug.
+SELECT *
+FROM tables ta
+JOIN collations co ON ( co.collation_name = ta.table_catalog )
+JOIN character_sets cs ON ( cs.character_set_name = ta.table_catalog );
+
+DROP TABLE test.t1;
+SET max_heap_table_size = DEFAULT;
+USE test;
+
+--echo End of 5.0 tests.
+
 #
 # Show engines
 #
@@ -1194,7 +1218,7 @@ select count(*) from INFORMATION_SCHEMA.TABLES where TABLE_SCHEMA='' AND TABLE_N
 #
 CREATE VIEW v1
 AS SELECT *
-FROM INFORMATION_SCHEMA.TABLES;
+FROM information_schema.tables;
 SELECT VIEW_DEFINITION FROM INFORMATION_SCHEMA.VIEWS where TABLE_NAME = 'v1';
 DROP VIEW v1;
 
@@ -1247,5 +1271,71 @@ show events;
 show events from information_schema;
 show events where Db= 'information_schema';
 use test;
+
+--echo #
+--echo # Bug#34166: Server crash in SHOW OPEN TABLES and prelocking
+--echo #
+--disable_warnings
+drop table if exists t1;
+drop function if exists f1;
+--enable_warnings
+create table t1 (a int);
+delimiter |;
+create function f1() returns int
+begin
+  insert into t1 (a) values (1);
+  return 0;
+end|
+delimiter ;|
+--disable_result_log
+show open tables where f1()=0;
+show open tables where f1()=0;
+--enable_result_log
+drop table t1;
+drop function f1;
+
+#
+# BUG#34656 - KILL a query = Assertion failed: m_status == DA_ERROR ||
+#             m_status == DA_OK
+#
+connect (conn1, localhost, root,,);
+connection conn1;
+let $ID= `select connection_id()`;
+send select * from information_schema.tables where 1=sleep(100000);
+connection default;
+let $wait_timeout= 10;
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='User sleep' and
+info='select * from information_schema.tables where 1=sleep(100000)';
+--source include/wait_condition.inc
+disable_query_log;
+eval kill $ID;
+enable_query_log;
+disconnect conn1;
+let $wait_timeout= 10;
+let $wait_condition=select count(*)=0 from information_schema.processlist
+where state='User sleep' and
+info='select * from information_schema.tables where 1=sleep(100000)';
+--source include/wait_condition.inc
+
+connect (conn1, localhost, root,,);
+connection conn1;
+let $ID= `select connection_id()`;
+send select * from information_schema.columns where 1=sleep(100000);
+connection default;
+let $wait_timeout= 10;
+let $wait_condition=select count(*)=1 from information_schema.processlist
+where state='User sleep' and
+info='select * from information_schema.columns where 1=sleep(100000)';
+--source include/wait_condition.inc
+disable_query_log;
+eval kill $ID;
+enable_query_log;
+disconnect conn1;
+let $wait_timeout= 10;
+let $wait_condition=select count(*)=0 from information_schema.processlist
+where state='User sleep' and
+info='select * from information_schema.columns where 1=sleep(100000)';
+--source include/wait_condition.inc
 
 --echo End of 5.1 tests.

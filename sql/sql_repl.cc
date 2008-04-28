@@ -252,7 +252,7 @@ bool purge_error_message(THD* thd, int res)
     my_message(errmsg, ER(errmsg), MYF(0));
     return TRUE;
   }
-  send_ok(thd);
+  my_ok(thd);
   return FALSE;
 }
 
@@ -262,7 +262,7 @@ bool purge_master_logs(THD* thd, const char* to_log)
   char search_file_name[FN_REFLEN];
   if (!mysql_bin_log.is_open())
   {
-    send_ok(thd);
+    my_ok(thd);
     return FALSE;
   }
 
@@ -277,7 +277,7 @@ bool purge_master_logs_before_date(THD* thd, time_t purge_time)
 {
   if (!mysql_bin_log.is_open())
   {
-    send_ok(thd);
+    my_ok(thd);
     return 0;
   }
   return purge_error_message(thd,
@@ -738,7 +738,7 @@ end:
   end_io_cache(&log);
   (void)my_close(file, MYF(MY_WME));
 
-  send_eof(thd);
+  my_eof(thd);
   thd_proc_info(thd, "Waiting to finalize termination");
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
@@ -884,7 +884,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
     DBUG_RETURN(1);
   }
   else if (net_report)
-    send_ok(thd);
+    my_ok(thd);
 
   DBUG_RETURN(0);
 }
@@ -936,7 +936,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
     DBUG_RETURN(1);
   }
   else if (net_report)
-    send_ok(thd);
+    my_ok(thd);
 
   DBUG_RETURN(0);
 }
@@ -1279,7 +1279,7 @@ bool change_master(THD* thd, Master_info* mi)
 
   unlock_slave_threads(mi);
   thd_proc_info(thd, 0);
-  send_ok(thd);
+  my_ok(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1453,7 +1453,7 @@ err:
     my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
              "SHOW BINLOG EVENTS", errmsg);
   else
-    send_eof(thd);
+    my_eof(thd);
 
   pthread_mutex_lock(&LOCK_thread_count);
   thd->current_linfo = 0;
@@ -1490,7 +1490,7 @@ bool show_binlog_info(THD* thd)
     if (protocol->write())
       DBUG_RETURN(TRUE);
   }
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 }
 
@@ -1572,7 +1572,7 @@ bool show_binlogs(THD* thd)
       goto err;
   }
   mysql_bin_log.unlock_index();
-  send_eof(thd);
+  my_eof(thd);
   DBUG_RETURN(FALSE);
 
 err:

@@ -231,9 +231,10 @@ void mysql_client_binlog_statement(THD* thd)
 
 
   DBUG_PRINT("info",("binlog base64 execution finished successfully"));
-  send_ok(thd);
+  my_ok(thd);
 
 end:
+  thd->rli_fake->clear_tables_to_lock();
   my_free(buf, MYF(MY_ALLOW_ZERO_PTR));
   DBUG_VOID_RETURN;
 }

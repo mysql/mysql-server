@@ -12,6 +12,11 @@
 
 -- source include/have_debug.inc
 
+# Disable concurrent inserts to avoid test failures when reading the
+# connection id which was inserted into a table by another thread.
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 connection con1;
@@ -34,7 +39,14 @@ send flush tables with read lock;
 connection con2;
 select ((@id := kill_id) - kill_id) from t1; 
 
---sleep 2 # leave time for FLUSH to block
+# Wait for the debug sync point, test won't run on non-debug
+# builds anyway.
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Waiting for all running commits to finish"
+  and info = "flush tables with read lock";
+--source include/wait_condition.inc
+
 kill connection @id;
 
 connection con1;
@@ -47,3 +59,7 @@ reap;
 
 connection con2;
 drop table t1;
+connection default;
+
+# Restore global concurrent_insert value
+set @@global.concurrent_insert= @old_concurrent_insert;

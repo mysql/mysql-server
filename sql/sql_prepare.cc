@@ -1280,7 +1280,7 @@ static int mysql_test_select(Prepared_statement *stmt,
   ulong privilege= lex->exchange ? SELECT_ACL | FILE_ACL : SELECT_ACL;
   if (tables)
   {
-    if (check_table_access(thd, privilege, tables,0))
+    if (check_table_access(thd, privilege, tables, UINT_MAX, FALSE))
       goto error;
   }
   else if (check_access(thd, privilege, any_db,0,0,0,0))
@@ -1349,7 +1349,7 @@ static bool mysql_test_do_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
 
   DBUG_ENTER("mysql_test_do_fields");
-  if (tables && check_table_access(thd, SELECT_ACL, tables, 0))
+  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE))
     DBUG_RETURN(TRUE);
 
   if (open_normal_and_derived_tables(thd, tables, 0))
@@ -1380,7 +1380,7 @@ static bool mysql_test_set_fields(Prepared_statement *stmt,
   THD *thd= stmt->thd;
   set_var_base *var;
 
-  if (tables && check_table_access(thd, SELECT_ACL, tables, 0) ||
+  if (tables && check_table_access(thd, SELECT_ACL, tables, UINT_MAX, FALSE) ||
       open_normal_and_derived_tables(thd, tables, 0))
     goto error;
 
@@ -1415,7 +1415,7 @@ error:
 */
 
 static bool select_like_stmt_test(Prepared_statement *stmt,
-                                  bool (*specific_prepare)(THD *thd),
+                                  int (*specific_prepare)(THD *thd),
                                   ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test");
@@ -1452,7 +1452,7 @@ static bool select_like_stmt_test(Prepared_statement *stmt,
 static bool
 select_like_stmt_test_with_open(Prepared_statement *stmt,
                                 TABLE_LIST *tables,
-                                bool (*specific_prepare)(THD *thd),
+                                int (*specific_prepare)(THD *thd),
                                 ulong setup_tables_done_option)
 {
   DBUG_ENTER("select_like_stmt_test_with_open");
@@ -1524,6 +1524,44 @@ static bool mysql_test_create_table(Prepared_statement *stmt)
 
 
 /**
+  @brief Validate and prepare for execution CREATE VIEW statement
+
+  @param stmt prepared statement
+
+  @note This function handles create view commands.
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
+*/
+
+static bool mysql_test_create_view(Prepared_statement *stmt)
+{
+  DBUG_ENTER("mysql_test_create_view");
+  THD *thd= stmt->thd;
+  LEX *lex= stmt->lex;
+  bool res= TRUE;
+  /* Skip first table, which is the view we are creating */
+  bool link_to_local;
+  TABLE_LIST *view= lex->unlink_first_table(&link_to_local);
+  TABLE_LIST *tables= lex->query_tables;
+
+  if (create_view_precheck(thd, tables, view, lex->create_view_mode))
+    goto err;
+
+  if (open_normal_and_derived_tables(thd, tables, 0))
+    goto err;
+
+  lex->view_prepare_mode= 1;
+  res= select_like_stmt_test(stmt, 0, 0);
+
+err:
+  /* put view back for PS rexecuting */
+  lex->link_first_table_back(view, link_to_local);
+  DBUG_RETURN(res);
+}
+
+
+/*
   Validate and prepare for execution a multi update statement.
 
   @param stmt               prepared statement
@@ -1600,7 +1638,7 @@ error:
     uses local tables lists.
 */
 
-static bool mysql_insert_select_prepare_tester(THD *thd)
+static int mysql_insert_select_prepare_tester(THD *thd)
 {
   SELECT_LEX *first_select= &thd->lex->select_lex;
   TABLE_LIST *second_table= ((TABLE_LIST*)first_select->table_list.first)->
@@ -1735,6 +1773,7 @@ static bool check_prepared_statement(Prepared_statement *stmt,
       my_message(ER_UNSUPPORTED_PS, ER(ER_UNSUPPORTED_PS), MYF(0));
       goto error;
     }
+    res= mysql_test_create_view(stmt);
     break;
   case SQLCOM_DO:
     res= mysql_test_do_fields(stmt, tables, lex->insert_list);
@@ -2111,7 +2150,7 @@ void mysql_sql_stmt_prepare(THD *thd)
     thd->stmt_map.erase(stmt);
   }
   else
-    send_ok(thd, 0L, 0L, "Statement prepared");
+    my_ok(thd, 0L, 0L, "Statement prepared");
 
   DBUG_VOID_RETURN;
 }
@@ -2493,7 +2532,9 @@ void mysql_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::PREPARED;
 
-  send_ok(thd);
+  general_log_print(thd, thd->command, NullS);
+
+  my_ok(thd);
 
   DBUG_VOID_RETURN;
 }
@@ -2513,6 +2554,8 @@ void mysql_stmt_close(THD *thd, char *packet)
   Prepared_statement *stmt;
   DBUG_ENTER("mysql_stmt_close");
 
+  thd->main_da.disable_status();
+
   if (!(stmt= find_prepared_statement(thd, stmt_id, "mysql_stmt_close")))
     DBUG_VOID_RETURN;
 
@@ -2522,8 +2565,7 @@ void mysql_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! (stmt->flags & (uint) Prepared_statement::IS_IN_USE));
   (void) stmt->deallocate();
-
-  thd->main_da.disable_status();
+  general_log_print(thd, thd->command, NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2556,7 +2598,7 @@ void mysql_sql_stmt_close(THD *thd)
   }
 
   if (stmt->deallocate() == 0)
-    send_ok(thd);
+    my_ok(thd);
 }
 
 /**
@@ -2629,6 +2671,9 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
     stmt->last_errno= ER_OUTOFMEMORY;
     sprintf(stmt->last_error, ER(ER_OUTOFMEMORY), 0);
   }
+
+  general_log_print(thd, thd->command, NullS);
+
   DBUG_VOID_RETURN;
 }
 
@@ -2661,7 +2706,7 @@ bool Select_fetch_protocol_binary::send_fields(List<Item> &list, uint flags)
 
 bool Select_fetch_protocol_binary::send_eof()
 {
-  ::send_eof(thd);
+  ::my_eof(thd);
   return FALSE;
 }
 

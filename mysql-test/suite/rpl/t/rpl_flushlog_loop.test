@@ -35,12 +35,41 @@ let $result_pattern= '%127.0.0.1%root%slave-bin.000001%slave-bin.000001%Yes%Yes%
 #
 #  Flush logs of slave
 #
-flush logs;
-sleep 5;
+# Create full loop by following way:
+# 1. Insert into t1 on master (1st).
+# 2. Insert into t1 on slave (2nd) when the event (1st) for t1 replicated.
+# 3. Master waits until the event (2nd) for t1 will be replicated.
+
+--disable_query_log
+CREATE TABLE t1 (a INT KEY) ENGINE= MyISAM;
+let $wait_binlog_event= CREATE TABLE t1;
+--source include/wait_for_binlog_event.inc
+sync_slave_with_master;
+
+connection master;
+INSERT INTO t1 VALUE(1);
+--enable_query_log
+FLUSH LOGS;
+let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
+
+connection slave;
+let $slave_param= Exec_Master_Log_Pos;
+source include/wait_for_slave_param.inc;
+
+--disable_query_log
+INSERT INTO t1 VALUE(2);
+let $slave_param_value= query_get_value(SHOW MASTER STATUS, Position, 1);
+--enable_query_log
+
+connection master;
+let $slave_param= Exec_Master_Log_Pos;
+source include/wait_for_slave_param.inc;
+
+--enable_query_log
 
 #
 #  Show status of slave
 #
---replace_result $SLAVE_MYPORT SLAVE_PORT
+--replace_result $SLAVE_MYPORT SLAVE_PORT $slave_param_value POSITION
 --replace_column 1 # 8 # 9 # 16 # 23 # 33 # 34 # 35 #
 --query_vertical SHOW SLAVE STATUS

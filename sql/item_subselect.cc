@@ -306,10 +306,10 @@ void Item_subselect::update_used_tables()
 }
 
 
-void Item_subselect::print(String *str)
+void Item_subselect::print(String *str, enum_query_type query_type)
 {
   str->append('(');
-  engine->print(str);
+  engine->print(str, query_type);
   str->append(')');
 }
 
@@ -391,10 +391,10 @@ void Item_maxmin_subselect::cleanup()
 }
 
 
-void Item_maxmin_subselect::print(String *str)
+void Item_maxmin_subselect::print(String *str, enum_query_type query_type)
 {
   str->append(max?"<max>":"<min>", 5);
-  Item_singlerow_subselect::print(str);
+  Item_singlerow_subselect::print(str, query_type);
 }
 
 
@@ -630,10 +630,10 @@ Item_exists_subselect::Item_exists_subselect(st_select_lex *select_lex):
 }
 
 
-void Item_exists_subselect::print(String *str)
+void Item_exists_subselect::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("exists"));
-  Item_subselect::print(str);
+  Item_subselect::print(str, query_type);
 }
 
 
@@ -1288,7 +1288,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     Item *item_having_part2= 0;
     for (uint i= 0; i < cols_num; i++)
     {
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
@@ -1362,7 +1366,11 @@ Item_in_subselect::row_value_transformer(JOIN *join)
     for (uint i= 0; i < cols_num; i++)
     {
       Item *item, *item_isnull;
-      DBUG_ASSERT(left_expr->fixed && select_lex->ref_pointer_array[i]->fixed);
+      DBUG_ASSERT(left_expr->fixed &&
+                  select_lex->ref_pointer_array[i]->fixed ||
+                  (select_lex->ref_pointer_array[i]->type() == REF_ITEM &&
+                   ((Item_ref*)(select_lex->ref_pointer_array[i]))->ref_type() ==
+                    Item_ref::OUTER_REF));
       if (select_lex->ref_pointer_array[i]->
           check_cols(left_expr->element_index(i)->cols()))
         DBUG_RETURN(RES_ERROR);
@@ -1490,6 +1498,19 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   DBUG_ENTER("Item_in_subselect::select_in_like_transformer");
 
+  {
+    /*
+      IN/SOME/ALL/ANY subqueries aren't support LIMIT clause. Without it
+      ORDER BY clause becomes meaningless thus we drop it here.
+    */
+    SELECT_LEX *sl= current->master_unit()->first_select();
+    for (; sl; sl= sl->next_select())
+    {
+      if (sl->join)
+        sl->join->order= 0;
+    }
+  }
+
   if (changed)
   {
     DBUG_RETURN(RES_OK);
@@ -1524,6 +1545,7 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 
   transformed= 1;
   arena= thd->activate_stmt_arena_if_needed(&backup);
+
   /*
     Both transformers call fix_fields() only for Items created inside them,
     and all that items do not make permanent changes in current item arena
@@ -1553,16 +1575,16 @@ err:
 }
 
 
-void Item_in_subselect::print(String *str)
+void Item_in_subselect::print(String *str, enum_query_type query_type)
 {
   if (transformed)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
-    left_expr->print(str);
+    left_expr->print(str, query_type);
     str->append(STRING_WITH_LEN(" in "));
   }
-  Item_subselect::print(str);
+  Item_subselect::print(str, query_type);
 }
 
 
@@ -1587,18 +1609,18 @@ Item_allany_subselect::select_transformer(JOIN *join)
 }
 
 
-void Item_allany_subselect::print(String *str)
+void Item_allany_subselect::print(String *str, enum_query_type query_type)
 {
   if (transformed)
     str->append(STRING_WITH_LEN("<exists>"));
   else
   {
-    left_expr->print(str);
+    left_expr->print(str, query_type);
     str->append(' ');
     str->append(func->symbol(all));
     str->append(all ? " all " : " any ", 5);
   }
-  Item_subselect::print(str);
+  Item_subselect::print(str, query_type);
 }
 
 
@@ -2384,22 +2406,24 @@ table_map subselect_union_engine::upper_select_const_tables()
 }
 
 
-void subselect_single_select_engine::print(String *str)
+void subselect_single_select_engine::print(String *str,
+                                           enum_query_type query_type)
 {
-  select_lex->print(thd, str);
+  select_lex->print(thd, str, query_type);
 }
 
 
-void subselect_union_engine::print(String *str)
+void subselect_union_engine::print(String *str, enum_query_type query_type)
 {
-  unit->print(str);
+  unit->print(str, query_type);
 }
 
 
-void subselect_uniquesubquery_engine::print(String *str)
+void subselect_uniquesubquery_engine::print(String *str,
+                                            enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("<primary_index_lookup>("));
-  tab->ref.items[0]->print(str);
+  tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
   str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
@@ -2408,16 +2432,17 @@ void subselect_uniquesubquery_engine::print(String *str)
   if (cond)
   {
     str->append(STRING_WITH_LEN(" where "));
-    cond->print(str);
+    cond->print(str, query_type);
   }
   str->append(')');
 }
 
 
-void subselect_indexsubquery_engine::print(String *str)
+void subselect_indexsubquery_engine::print(String *str,
+                                           enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("<index_lookup>("));
-  tab->ref.items[0]->print(str);
+  tab->ref.items[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" in "));
   str->append(tab->table->s->table_name.str, tab->table->s->table_name.length);
   KEY *key_info= tab->table->key_info+ tab->ref.key;
@@ -2428,12 +2453,12 @@ void subselect_indexsubquery_engine::print(String *str)
   if (cond)
   {
     str->append(STRING_WITH_LEN(" where "));
-    cond->print(str);
+    cond->print(str, query_type);
   }
   if (having)
   {
     str->append(STRING_WITH_LEN(" having "));
-    having->print(str);
+    having->print(str, query_type);
   }
   str->append(')');
 }

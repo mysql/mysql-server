@@ -148,6 +148,37 @@ enum enum_server_command
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
+/* Gather all possible capabilites (flags) supported by the server */
+#define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD | \
+                           CLIENT_FOUND_ROWS | \
+                           CLIENT_LONG_FLAG | \
+                           CLIENT_CONNECT_WITH_DB | \
+                           CLIENT_NO_SCHEMA | \
+                           CLIENT_COMPRESS | \
+                           CLIENT_ODBC | \
+                           CLIENT_LOCAL_FILES | \
+                           CLIENT_IGNORE_SPACE | \
+                           CLIENT_PROTOCOL_41 | \
+                           CLIENT_INTERACTIVE | \
+                           CLIENT_SSL | \
+                           CLIENT_IGNORE_SIGPIPE | \
+                           CLIENT_TRANSACTIONS | \
+                           CLIENT_RESERVED | \
+                           CLIENT_SECURE_CONNECTION | \
+                           CLIENT_MULTI_STATEMENTS | \
+                           CLIENT_MULTI_RESULTS | \
+                           CLIENT_SSL_VERIFY_SERVER_CERT | \
+                           CLIENT_REMEMBER_OPTIONS)
+
+/*
+  Switch off the flags that are optional and depending on build flags
+  If any of the optional flags is supported by the build it will be switched
+  on before sending to the client during the connection handshake.
+*/
+#define CLIENT_BASIC_FLAGS (((CLIENT_ALL_FLAGS & ~CLIENT_SSL) \
+                                               & ~CLIENT_COMPRESS) \
+                                               & ~CLIENT_SSL_VERIFY_SERVER_CERT)
+
 #define SERVER_STATUS_IN_TRANS     1	/* Transaction has started */
 #define SERVER_STATUS_AUTOCOMMIT   2	/* Server in auto_commit mode */
 #define SERVER_MORE_RESULTS_EXISTS 8    /* Multi query - next query exists */
@@ -217,12 +248,12 @@ typedef struct st_net {
     functions and methods to maintain proper locking.
   */
   unsigned char *query_cache_query;
-  unsigned int client_last_errno;
+  unsigned int last_errno;
   unsigned char error; 
   my_bool unused2; /* Please remove with the next incompatible ABI change. */
   my_bool return_errno;
   /** Client library error message buffer. Actually belongs to struct MYSQL. */
-  char client_last_error[MYSQL_ERRMSG_SIZE];
+  char last_error[MYSQL_ERRMSG_SIZE];
   /** Client library sqlstate buffer. Set along with the error message. */
   char sqlstate[SQLSTATE_LENGTH+1];
   void *extension;

@@ -38,6 +38,7 @@ SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c 
 IF(NOT SOURCE_SUBLIBS)
 
   ADD_LIBRARY(myisam ${MYISAM_SOURCES})
+  ADD_DEPENDENCIES(myisam GenError)
 
   ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
   TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys debug dbug strings zlib wsock32)

@@ -454,7 +454,7 @@ void _db_process_(const char *name)
 /*
  *  FUNCTION
  *
- *      ParseDbug  parse control string and set current debugger settings
+ *      DbugParse  parse control string and set current debugger settings
  *
  *  DESCRIPTION
  *
@@ -481,7 +481,7 @@ void _db_process_(const char *name)
  *      0 - a list of functions was not changed
  */
 
-int ParseDbug(CODE_STATE *cs, const char *control)
+int DbugParse(CODE_STATE *cs, const char *control)
 {
   const char *end;
   int rel, f_used=0;
@@ -834,7 +834,7 @@ void _db_set_(const char *control)
   uint old_fflags;
   get_code_state_or_return;
   old_fflags=fflags(cs);
-  if (ParseDbug(cs, control))
+  if (DbugParse(cs, control))
     FixTraceFlags(old_fflags, cs);
 }
 
@@ -863,7 +863,7 @@ void _db_push_(const char *control)
   get_code_state_or_return;
   old_fflags=fflags(cs);
   PushState(cs);
-  if (ParseDbug(cs, control))
+  if (DbugParse(cs, control))
     FixTraceFlags(old_fflags, cs);
 }
 
@@ -887,7 +887,7 @@ void _db_set_init_(const char *control)
   CODE_STATE tmp_cs;
   bzero((uchar*) &tmp_cs, sizeof(tmp_cs));
   tmp_cs.stack= &init_settings;
-  ParseDbug(&tmp_cs, control);
+  DbugParse(&tmp_cs, control);
 }
 
 /*

@@ -779,7 +779,7 @@ bool mysqld_help(THD *thd, const char *mask)
     if (send_variant_2_list(mem_root,protocol, &categories_list, "Y", 0))
       goto error;
   }
-  send_eof(thd);
+  my_eof(thd);
 
   close_system_tables(thd, &open_tables_state_backup);
   DBUG_RETURN(FALSE);

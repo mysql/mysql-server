@@ -128,7 +128,7 @@ grant show view on v6 to testdb_2@localhost;
 create table t2 (f1 char(4));
 create definer=`no_such_user`@`no_such_host` view v7 as select * from t2;
 Warnings:
-Note	1449	There is no 'no_such_user'@'no_such_host' registered
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show fields from testdb_1.v6;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
@@ -144,7 +144,7 @@ show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 Warnings:
-Note	1449	There is no 'no_such_user'@'no_such_host' registered
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 create table t3 (f1 char(4), f2 char(4));
 create view v3 as select f1,f2 from t3;
 grant insert(f1), insert(f2) on v3 to testdb_2@localhost;
@@ -164,7 +164,7 @@ show fields from testdb_1.v7;
 Field	Type	Null	Key	Default	Extra
 f1	char(4)	YES		NULL	
 Warnings:
-Note	1449	There is no 'no_such_user'@'no_such_host' registered
+Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
 v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
@@ -210,7 +210,7 @@ v2
 select view_definition from information_schema.views a 
 where a.table_name = 'v2';
 view_definition
-select f1 from testdb_1.v1
+select `v1`.`f1` AS `f1` from `testdb_1`.`v1`
 select view_definition from information_schema.views a 
 where a.table_name = 'testdb_1.v1';
 view_definition

@@ -10,13 +10,7 @@
 #
 ##############################################################################
 
-
-rpl_ndb_2innodb          : Bug #32648  	Test failure between NDB Cluster and other engines
-rpl_ndb_2myisam          : Bug #32648  	Test failure between NDB Cluster and other engines
-rpl_ndb_2other           : Bug #32648  	Test failure between NDB Cluster and other engines
-rpl_ndb_extraColMaster   : BUG#30854 : Tables name show as binary in slave err msg on vm-win2003-64-b and Solaris
-rpl_ndb_mix_innodb       : Bug #32720   Test rpl_ndb_mix_innodb fails on SPARC and PowerPC
+rpl_ndb_circular         : Bug#33849 COMMIT event missing in cluster circular replication.
+rpl_ndb_circular_simplex : Bug#33849 COMMIT event missing in cluster circular replication.
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
-
-#rpl_ndb_dd_advance	 : Bug#25913 rpl_ndb_dd_advance fails randomly

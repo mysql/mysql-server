@@ -314,6 +314,7 @@ ErrorBundle ErrorCodes[] = {
   { 242,  DMEC, AE, "Zero concurrency in scan"},
   { 244,  DMEC, AE, "Too high concurrency in scan"},
   { 269,  DMEC, AE, "No condition and attributes to read in scan"},
+  { 874,  DMEC, AE, "Too much attrinfo (e.g. scan filter) for scan in tuple manager" },
   { 4600, DMEC, AE, "Transaction is already started"},
   { 4601, DMEC, AE, "Transaction is not started"},
   { 4602, DMEC, AE, "You must call getNdbOperation before executeScan" },
@@ -426,6 +427,7 @@ ErrorBundle ErrorCodes[] = {
   { 1512, DMEC, SE, "File read error" },
   { 1513, DMEC, IE, "Filegroup not online" },
   { 1514, DMEC, SE, "Currently there is a limit of one logfile group" },
+  { 1515, DMEC, SE, "Currently there is a 4G limit of one undo/data-file in 32-bit host" },
   
   { 773,  DMEC, SE, "Out of string memory, please modify StringMemory config parameter" },
   { 775,  DMEC, SE, "Create file is not supported when Diskless=1" },
@@ -625,6 +627,8 @@ ErrorBundle ErrorCodes[] = {
   { 4274, DMEC, IE, "Corrupted main table PK in blob operation" },
   { 4275, DMEC, AE, "The blob method is incompatible with operation type or lock mode" },
   { 4294, DMEC, AE, "Scan filter is too large, discarded" },
+  { 2810, DMEC, TR, "No space left on the device" },
+  { 2815, DMEC, TR, "Error in reading files, please check file system" },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},

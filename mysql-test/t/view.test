@@ -3384,7 +3384,6 @@ SELECT profile.person_id AS person_id
 INSERT INTO  t1 VALUES
  (6,'Sw','A'), (-1136332546,'ols','e'), (0,'    *\n','0'),
  (-717462680,'ENTS Ta','0'), (-904346964,'ndard SQL\n','0');
-
 INSERT INTO t2 VALUES
   (1,3,6),(2,4,7),(3,5,8),(4,6,9),(5,1,6),(6,1,7),(7,1,8),(8,1,9),(9,1,10);
 
@@ -3468,7 +3467,98 @@ set @@sql_mode=@old_mode;
 drop view v1;
 drop table t1;
 
---echo End of 5.0 tests.
+#
+# Bug #33389: Selecting from a view into a table from within SP or trigger 
+#             crashes server
+#
+
+create table t1 (a int, key(a));
+create table t2 (c int);
+                   
+create view v1 as select a b from t1;
+create view v2 as select 1 a from t2, v1 where c in 
+                  (select 1 from t1 where b = a);
+                   
+insert into t1 values (1), (1);
+insert into t2 values (1), (1);
+                   
+prepare stmt from "select * from v2 where a = 1";
+execute stmt; 
+
+drop view v1, v2;
+drop table t1, t2;
+
+#
+# Bug #33049: Assert while running test-as3ap test(mysql-bench suite)
+#
+
+CREATE TABLE t1 (a INT);
+CREATE VIEW v1 AS SELECT p.a AS a FROM t1 p, t1 q;
+
+INSERT INTO t1 VALUES (1), (1);
+SELECT MAX(a), COUNT(DISTINCT a) FROM v1 GROUP BY a;
+
+DROP VIEW v1;
+DROP TABLE t1;
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#34337: Server crash when Altering a view using a table name.
+--echo # -----------------------------------------------------------------
+--echo
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+--echo
+
+CREATE TABLE t1(c1 INT);
+
+--echo
+
+SELECT * FROM t1;
+
+--error ER_WRONG_OBJECT
+ALTER ALGORITHM=TEMPTABLE SQL SECURITY INVOKER VIEW t1 (c2) AS SELECT (1);
+
+--echo
+
+DROP TABLE t1;
+
+--echo
+--echo # -- End of test case for Bug#34337.
+--echo
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#35193: VIEW query is rewritten without "FROM DUAL",
+--echo # --            causing syntax error
+--echo # -----------------------------------------------------------------
+--echo
+
+CREATE VIEW v1 AS SELECT 1 FROM DUAL WHERE 1;
+
+--echo
+
+SELECT * FROM v1;
+SHOW CREATE TABLE v1;
+
+--echo
+
+DROP VIEW v1;
+
+--echo
+--echo # -- End of test case for Bug#35193.
+--echo
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.0 tests.
+--echo # -----------------------------------------------------------------
 
 #
 # Bug#21370 View renaming lacks tablename_to_filename encoding
@@ -3540,4 +3630,88 @@ DROP TABLE t1;
 --echo # End of test case for Bug#26676.
 --echo
 
---echo End of 5.1 tests.
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#32538: View definition picks up character set, but not collation
+--echo # -----------------------------------------------------------------
+--echo
+
+--disable_warnings
+DROP VIEW IF EXISTS v1;
+--enable_warnings
+
+--echo
+
+SET collation_connection = latin1_general_ci;
+CREATE VIEW v1 AS SELECT _latin1 'text1' AS c1, 'text2' AS c2;
+
+--echo
+
+SELECT COLLATION(c1), COLLATION(c2) FROM v1;
+
+--echo
+
+SHOW CREATE VIEW v1;
+
+--echo
+
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM v1 WHERE c1 = 'text1';
+
+--echo
+
+SELECT * FROM v1 WHERE c2 = 'text2';
+
+--echo
+
+use test;
+SET names latin1;
+
+--echo
+
+SELECT COLLATION(c1), COLLATION(c2) FROM v1;
+
+--echo
+
+SELECT * FROM v1 WHERE c1 = 'text1';
+
+--echo
+
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM v1 WHERE c2 = 'text2';
+
+--echo
+
+DROP VIEW v1;
+
+--echo
+--echo # -- End of test case for Bug#32538.
+--echo
+
+#
+# Bug#34587 Creating a view inside a stored procedure leads to a server crash
+#
+
+--disable_warnings
+drop view if exists a;
+drop procedure if exists p;
+--enable_warnings
+
+delimiter |;
+create procedure p()
+begin
+  declare continue handler for sqlexception begin end;
+  create view a as select 1;
+end|
+delimiter ;|
+call p();
+call p();
+drop view a;
+drop procedure p;
+
+###########################################################################
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.1 tests.
+--echo # -----------------------------------------------------------------

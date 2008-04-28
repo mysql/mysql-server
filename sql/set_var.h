@@ -48,6 +48,22 @@ struct sys_var_chain
 class sys_var
 {
 public:
+
+  /**
+    Enumeration type to indicate for a system variable whether it will be written to the binlog or not.
+  */
+  enum Binlog_status_enum
+  {  
+    /* The variable value is not in the binlog. */
+    NOT_IN_BINLOG,
+    /* The value of the @@session variable is in the binlog. */
+    SESSION_VARIABLE_IN_BINLOG
+    /*
+      Currently, no @@global variable is ever in the binlog, so we
+      don't need an enumeration value for that.
+    */
+  };
+
   sys_var *next;
   struct my_option *option_limits;	/* Updated by by set_var_init() */
   uint name_length;			/* Updated by by set_var_init() */
@@ -55,9 +71,10 @@ public:
 
   sys_after_update_func after_update;
   bool no_support_one_shot;
-  sys_var(const char *name_arg,sys_after_update_func func= NULL)
-    :name(name_arg), after_update(func)
-    , no_support_one_shot(1)
+  sys_var(const char *name_arg, sys_after_update_func func= NULL,
+          Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :name(name_arg), after_update(func), no_support_one_shot(1),
+    binlog_status(binlog_status_arg)
   {}
   virtual ~sys_var() {}
   void chain_sys_var(sys_var_chain *chain_arg)
@@ -71,6 +88,11 @@ public:
   virtual bool check(THD *thd, set_var *var);
   bool check_enum(THD *thd, set_var *var, const TYPELIB *enum_names);
   bool check_set(THD *thd, set_var *var, TYPELIB *enum_names);
+  bool is_written_to_binlog(enum_var_type type)
+  {
+    return (type == OPT_SESSION || type == OPT_DEFAULT) &&
+      (binlog_status == SESSION_VARIABLE_IN_BINLOG);
+  }
   virtual bool update(THD *thd, set_var *var)=0;
   virtual void set_default(THD *thd_arg, enum_var_type type) {}
   virtual SHOW_TYPE show_type() { return SHOW_UNDEF; }
@@ -86,6 +108,9 @@ public:
   virtual bool is_struct() { return 0; }
   virtual bool is_readonly() const { return 0; }
   virtual sys_var_pluginvar *cast_pluginvar() { return 0; }
+
+private:
+  const Binlog_status_enum binlog_status;
 };
 
 
@@ -232,8 +257,9 @@ class sys_var_const_str :public sys_var
 {
 public:
   char *value;					// Pointer to const value
-  sys_var_const_str(sys_var_chain *chain, const char *name_arg, const char *value_arg)
-    :sys_var(name_arg),value((char*) value_arg)
+  sys_var_const_str(sys_var_chain *chain, const char *name_arg,
+                    const char *value_arg)
+    :sys_var(name_arg), value((char*) value_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
@@ -328,8 +354,9 @@ class sys_var_thd :public sys_var
 {
 public:
   sys_var_thd(const char *name_arg, 
-              sys_after_update_func func= NULL)
-    :sys_var(name_arg,func)
+              sys_after_update_func func= NULL,
+              Binlog_status_enum binlog_status= NOT_IN_BINLOG)
+    :sys_var(name_arg, func, binlog_status)
   {}
   bool check_type(enum_var_type type) { return 0; }
   bool check_default(enum_var_type type)
@@ -344,12 +371,13 @@ class sys_var_thd_ulong :public sys_var_thd
   sys_check_func check_func;
 public:
   ulong SV::*offset;
-  sys_var_thd_ulong(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg)
-    :sys_var_thd(name_arg), check_func(0), offset(offset_arg)
-  { chain_sys_var(chain); }
-  sys_var_thd_ulong(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
-		   sys_check_func c_func, sys_after_update_func au_func)
-    :sys_var_thd(name_arg,au_func), check_func(c_func), offset(offset_arg)
+  sys_var_thd_ulong(sys_var_chain *chain, const char *name_arg,
+                    ulong SV::*offset_arg,
+                    sys_check_func c_func= NULL,
+                    sys_after_update_func au_func= NULL,
+                    Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_thd(name_arg, au_func, binlog_status_arg), check_func(c_func),
+    offset(offset_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
@@ -440,22 +468,12 @@ protected:
   TYPELIB *enum_names;
   sys_check_func check_func;
 public:
-  sys_var_thd_enum(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
-		   TYPELIB *typelib)
-    :sys_var_thd(name_arg), offset(offset_arg), enum_names(typelib),
-    check_func(0)
-  { chain_sys_var(chain); }
-  sys_var_thd_enum(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
-		   TYPELIB *typelib,
-		   sys_after_update_func func)
-    :sys_var_thd(name_arg,func), offset(offset_arg), enum_names(typelib),
-    check_func(0)
-  { chain_sys_var(chain); }
-  sys_var_thd_enum(sys_var_chain *chain, const char *name_arg, ulong SV::*offset_arg,
-		   TYPELIB *typelib, sys_after_update_func func,
-                   sys_check_func check_arg)
-    :sys_var_thd(name_arg,func), offset(offset_arg), enum_names(typelib),
-    check_func(check_arg)
+  sys_var_thd_enum(sys_var_chain *chain, const char *name_arg,
+                   ulong SV::*offset_arg, TYPELIB *typelib,
+                   sys_after_update_func func= NULL,
+                   sys_check_func check= NULL)
+    :sys_var_thd(name_arg, func), offset(offset_arg),
+    enum_names(typelib), check_func(check)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var)
   {
@@ -480,7 +498,7 @@ public:
   sys_var_thd_sql_mode(sys_var_chain *chain, const char *name_arg, 
                        ulong SV::*offset_arg)
     :sys_var_thd_enum(chain, name_arg, offset_arg, &sql_mode_typelib,
-		      fix_sql_mode_var)
+                      fix_sql_mode_var)
   {}
   bool check(THD *thd, set_var *var)
   {
@@ -534,9 +552,10 @@ public:
   bool reverse;
   sys_var_thd_bit(sys_var_chain *chain, const char *name_arg,
                   sys_check_func c_func, sys_update_func u_func,
-                  ulonglong bit, bool reverse_arg=0)
-    :sys_var_thd(name_arg), check_func(c_func), update_func(u_func),
-    bit_flag(bit), reverse(reverse_arg)
+                  ulonglong bit, bool reverse_arg=0,
+                  Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_thd(name_arg, NULL, binlog_status_arg), check_func(c_func),
+    update_func(u_func), bit_flag(bit), reverse(reverse_arg)
   { chain_sys_var(chain); }
   bool check(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
@@ -567,8 +586,9 @@ public:
 class sys_var_timestamp :public sys_var
 {
 public:
-  sys_var_timestamp(sys_var_chain *chain, const char *name_arg)
-    :sys_var(name_arg)
+  sys_var_timestamp(sys_var_chain *chain, const char *name_arg,
+                    Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var(name_arg, NULL, binlog_status_arg)
   { chain_sys_var(chain); }
   bool update(THD *thd, set_var *var);
   void set_default(THD *thd, enum_var_type type);
@@ -582,8 +602,9 @@ public:
 class sys_var_last_insert_id :public sys_var
 {
 public:
-  sys_var_last_insert_id(sys_var_chain *chain, const char *name_arg)
-    :sys_var(name_arg)
+  sys_var_last_insert_id(sys_var_chain *chain, const char *name_arg,
+                         Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var(name_arg, NULL, binlog_status_arg)
   { chain_sys_var(chain); }
   bool update(THD *thd, set_var *var);
   bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }
@@ -608,8 +629,9 @@ public:
 class sys_var_rand_seed1 :public sys_var
 {
 public:
-  sys_var_rand_seed1(sys_var_chain *chain, const char *name_arg)
-    :sys_var(name_arg)
+  sys_var_rand_seed1(sys_var_chain *chain, const char *name_arg,
+                     Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var(name_arg, NULL, binlog_status_arg)
   { chain_sys_var(chain); }
   bool update(THD *thd, set_var *var);
   bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }
@@ -618,8 +640,9 @@ public:
 class sys_var_rand_seed2 :public sys_var
 {
 public:
-  sys_var_rand_seed2(sys_var_chain *chain, const char *name_arg)
-    :sys_var(name_arg)
+  sys_var_rand_seed2(sys_var_chain *chain, const char *name_arg,
+                     Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var(name_arg, NULL, binlog_status_arg)
   { chain_sys_var(chain); }
   bool update(THD *thd, set_var *var);
   bool check_type(enum_var_type type) { return type == OPT_GLOBAL; }
@@ -629,11 +652,12 @@ public:
 class sys_var_collation :public sys_var_thd
 {
 public:
-  sys_var_collation(const char *name_arg)
-    :sys_var_thd(name_arg)
-    {
+  sys_var_collation(const char *name_arg,
+                    Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_thd(name_arg, NULL, binlog_status_arg)
+  {
     no_support_one_shot= 0;
-    }
+  }
   bool check(THD *thd, set_var *var);
   SHOW_TYPE show_type() { return SHOW_CHAR; }
   bool check_update_type(Item_result type)
@@ -648,8 +672,9 @@ class sys_var_character_set :public sys_var_thd
 {
 public:
   bool nullable;
-  sys_var_character_set(const char *name_arg, bool is_nullable= 0) :
-    sys_var_thd(name_arg), nullable(is_nullable)
+  sys_var_character_set(const char *name_arg, bool is_nullable= 0,
+                        Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_thd(name_arg, NULL, binlog_status_arg), nullable(is_nullable)
   {
     /*
       In fact only almost all variables derived from sys_var_character_set
@@ -678,8 +703,9 @@ public:
   sys_var_character_set_sv(sys_var_chain *chain, const char *name_arg,
 			   CHARSET_INFO *SV::*offset_arg,
 			   CHARSET_INFO **global_default_arg,
-			   bool is_nullable= 0)
-    : sys_var_character_set(name_arg, is_nullable),
+                           bool is_nullable= 0,
+                           Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_character_set(name_arg, is_nullable, binlog_status_arg),
     offset(offset_arg), global_default(global_default_arg)
   { chain_sys_var(chain); }
   void set_default(THD *thd, enum_var_type type);
@@ -693,9 +719,9 @@ public:
   sys_var_character_set_client(sys_var_chain *chain, const char *name_arg,
                                CHARSET_INFO *SV::*offset_arg,
                                CHARSET_INFO **global_default_arg,
-                               bool is_nullable= 0)
+                               Binlog_status_enum binlog_status_arg)
     : sys_var_character_set_sv(chain, name_arg, offset_arg, global_default_arg,
-                               is_nullable)
+                               0, binlog_status_arg)
   { }
   bool check(THD *thd, set_var *var);
 };
@@ -704,8 +730,10 @@ public:
 class sys_var_character_set_database :public sys_var_character_set
 {
 public:
-  sys_var_character_set_database(sys_var_chain *chain, const char *name_arg) :
-    sys_var_character_set(name_arg)
+  sys_var_character_set_database(sys_var_chain *chain, const char *name_arg,
+                                 Binlog_status_enum binlog_status_arg=
+                                   NOT_IN_BINLOG)
+    : sys_var_character_set(name_arg, 0, binlog_status_arg)
   { chain_sys_var(chain); }
   void set_default(THD *thd, enum_var_type type);
   CHARSET_INFO **ci_ptr(THD *thd, enum_var_type type);
@@ -718,8 +746,9 @@ class sys_var_collation_sv :public sys_var_collation
 public:
   sys_var_collation_sv(sys_var_chain *chain, const char *name_arg,
 		       CHARSET_INFO *SV::*offset_arg,
-		       CHARSET_INFO **global_default_arg)
-    :sys_var_collation(name_arg),
+                       CHARSET_INFO **global_default_arg,
+                       Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_collation(name_arg, binlog_status_arg),
     offset(offset_arg), global_default(global_default_arg)
   {
     chain_sys_var(chain);
@@ -946,8 +975,9 @@ public:
 class sys_var_thd_time_zone :public sys_var_thd
 {
 public:
-  sys_var_thd_time_zone(sys_var_chain *chain, const char *name_arg):
-    sys_var_thd(name_arg) 
+  sys_var_thd_time_zone(sys_var_chain *chain, const char *name_arg,
+                        Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    :sys_var_thd(name_arg, NULL, binlog_status_arg)
   {
     no_support_one_shot= 0;
     chain_sys_var(chain);
@@ -1034,8 +1064,9 @@ public:
 class sys_var_thd_lc_time_names :public sys_var_thd
 {
 public:
-  sys_var_thd_lc_time_names(sys_var_chain *chain, const char *name_arg):
-    sys_var_thd(name_arg)
+  sys_var_thd_lc_time_names(sys_var_chain *chain, const char *name_arg,
+                            Binlog_status_enum binlog_status_arg= NOT_IN_BINLOG)
+    : sys_var_thd(name_arg, NULL, binlog_status_arg)
   {
 #if MYSQL_VERSION_ID < 50000
     no_support_one_shot= 0;
@@ -1079,9 +1110,8 @@ public:
   sys_var_thd_binlog_format(sys_var_chain *chain, const char *name_arg, 
                             ulong SV::*offset_arg)
     :sys_var_thd_enum(chain, name_arg, offset_arg,
-                      &binlog_format_typelib
-                      , fix_binlog_format_after_update
-                      )
+                      &binlog_format_typelib,
+                      fix_binlog_format_after_update)
   {};
   bool is_readonly() const;
 };

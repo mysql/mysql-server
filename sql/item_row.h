@@ -65,7 +65,7 @@ public:
   bool const_item() const { return const_item_cache; };
   enum Item_result result_type() const { return ROW_RESULT; }
   void update_used_tables();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);

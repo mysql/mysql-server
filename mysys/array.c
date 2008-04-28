@@ -63,7 +63,8 @@ my_bool init_dynamic_array2(DYNAMIC_ARRAY *array, uint element_size,
   array->size_of_element=element_size;
   if ((array->buffer= init_buffer))
     DBUG_RETURN(FALSE);
-  if (!(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc, MYF(MY_WME))))
+  if (!(array->buffer=(uchar*) my_malloc_ci(element_size*init_alloc,
+                                            MYF(MY_WME))))
   {
     array->max_element=0;
     DBUG_RETURN(TRUE);
@@ -236,7 +237,7 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
   if (max_elements >= array->max_element)
   {
     uint size;
-    char *new_ptr;
+    uchar *new_ptr;
     size= (max_elements + array->alloc_increment)/array->alloc_increment;
     size*= array->alloc_increment;
     if (array->buffer == (uchar *)(array + 1))
@@ -245,16 +246,16 @@ my_bool allocate_dynamic(DYNAMIC_ARRAY *array, uint max_elements)
          In this senerio, the buffer is statically preallocated,
          so we have to create an all-new malloc since we overflowed
        */
-       if (!(new_ptr= (char *) my_malloc(size *
-                                         array->size_of_element,
-                                         MYF(MY_WME))))
+       if (!(new_ptr= (uchar *) my_malloc(size *
+                                          array->size_of_element,
+                                          MYF(MY_WME))))
          DBUG_RETURN(0);
        memcpy(new_ptr, array->buffer,
               array->elements * array->size_of_element);
      }
-    else if (!(new_ptr= (char*) my_realloc(array->buffer,size*
-                                           array->size_of_element,
-                                           MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
+    else if (!(new_ptr= (uchar*) my_realloc(array->buffer,size*
+                                            array->size_of_element,
+                                            MYF(MY_WME | MY_ALLOW_ZERO_PTR))))
       DBUG_RETURN(TRUE);
     array->buffer= new_ptr;
     array->max_element= size;

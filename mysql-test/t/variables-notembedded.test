@@ -1,0 +1,30 @@
+# Tests that variables work correctly (setting and showing).  This
+# test is like the main.variables test, but for variables not
+# available in embedded mode.
+
+source include/not_embedded.inc;
+
+--echo ---- Init ----
+# Backup global variables so they can be restored at end of test.
+set @my_slave_net_timeout         =@@global.slave_net_timeout;
+
+--echo ---- Test ----
+set global slave_net_timeout=100;
+set global sql_slave_skip_counter=100;
+
+# End of 4.1 tests
+
+# BUG #7800: Add various-slave related variables to SHOW VARIABLES
+show variables like 'slave_compressed_protocol';
+--replace_column 2 SLAVE_LOAD_TMPDIR
+show variables like 'slave_load_tmpdir';
+# We just set some arbitrary values in variables-master.opt so we can test
+# that a list of values works correctly
+show variables like 'slave_skip_errors';
+
+--echo ---- Clean Up ----
+
+set global slave_net_timeout=default;
+# sql_slave_skip_counter is write-only, so we can't save previous
+# value and restore it here.  That's ok, because it's normally 0.
+set global sql_slave_skip_counter= 0;

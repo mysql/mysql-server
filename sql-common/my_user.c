@@ -15,7 +15,7 @@
 
 #include <my_user.h>
 #include <m_string.h>
-
+#include <mysql_com.h>
 
 /*
   Parse user value to user name and host name parts.
@@ -46,6 +46,12 @@ void parse_user(const char *user_id_str, size_t user_id_len,
   {
     *user_name_len= p - user_id_str;
     *host_name_len= user_id_len - *user_name_len - 1;
+
+    if (*user_name_len > USERNAME_LENGTH)
+      *user_name_len= USERNAME_LENGTH;
+
+    if (*host_name_len > HOSTNAME_LENGTH)
+      *host_name_len= HOSTNAME_LENGTH;
 
     memcpy(user_name_str, user_id_str, *user_name_len);
     memcpy(host_name_str, p + 1, *host_name_len);

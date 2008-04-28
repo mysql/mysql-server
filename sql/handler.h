@@ -271,6 +271,7 @@ enum legacy_db_type
   DB_TYPE_TABLE_FUNCTION,
   DB_TYPE_MEMCACHE,
   DB_TYPE_FALCON,
+  DB_TYPE_MARIA,
   DB_TYPE_FIRST_DYNAMIC=42,
   DB_TYPE_DEFAULT=127 // Must be last
 };
@@ -727,14 +728,14 @@ inline LEX_STRING *hton_name(const handlerton *hton)
 #define HTON_SUPPORT_LOG_TABLES      (1 << 7) //Engine supports log tables
 #define HTON_NO_PARTITION            (1 << 8) //You can not partition these tables
 
-typedef struct st_thd_trans
+class Ha_trx_info;
+
+struct THD_TRANS
 {
-  /* number of entries in the ht[] */
-  uint        nht;
   /* true is not all entries in the ht[] support 2pc */
   bool        no_2pc;
-  /* storage engines that registered themselves for this transaction */
-  handlerton *ht[MAX_HA];
+  /* storage engines that registered in this transaction */
+  Ha_trx_info *ha_list;
   /* 
     The purpose of this flag is to keep track of non-transactional
     tables that were modified in scope of:
@@ -764,7 +765,106 @@ typedef struct st_thd_trans
     saved value.
   */
   bool modified_non_trans_table;
-} THD_TRANS;
+
+  void reset() { no_2pc= FALSE; modified_non_trans_table= FALSE; }
+};
+
+
+/**
+  Either statement transaction or normal transaction - related
+  thread-specific storage engine data.
+
+  If a storage engine participates in a statement/transaction,
+  an instance of this class is present in
+  thd->transaction.{stmt|all}.ha_list. The addition to
+  {stmt|all}.ha_list is made by trans_register_ha().
+
+  When it's time to commit or rollback, each element of ha_list
+  is used to access storage engine's prepare()/commit()/rollback()
+  methods, and also to evaluate if a full two phase commit is
+  necessary.
+
+  @sa General description of transaction handling in handler.cc.
+*/
+
+class Ha_trx_info
+{
+public:
+  /** Register this storage engine in the given transaction context. */
+  void register_ha(THD_TRANS *trans, handlerton *ht_arg)
+  {
+    DBUG_ASSERT(m_flags == 0);
+    DBUG_ASSERT(m_ht == NULL);
+    DBUG_ASSERT(m_next == NULL);
+
+    m_ht= ht_arg;
+    m_flags= (int) TRX_READ_ONLY; /* Assume read-only at start. */
+
+    m_next= trans->ha_list;
+    trans->ha_list= this;
+  }
+
+  /** Clear, prepare for reuse. */
+  void reset()
+  {
+    m_next= NULL;
+    m_ht= NULL;
+    m_flags= 0;
+  }
+
+  Ha_trx_info() { reset(); }
+
+  void set_trx_read_write()
+  {
+    DBUG_ASSERT(is_started());
+    m_flags|= (int) TRX_READ_WRITE;
+  }
+  bool is_trx_read_write() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_flags & (int) TRX_READ_WRITE;
+  }
+  bool is_started() const { return m_ht != NULL; }
+  /** Mark this transaction read-write if the argument is read-write. */
+  void coalesce_trx_with(const Ha_trx_info *stmt_trx)
+  {
+    /*
+      Must be called only after the transaction has been started.
+      Can be called many times, e.g. when we have many
+      read-write statements in a transaction.
+    */
+    DBUG_ASSERT(is_started());
+    if (stmt_trx->is_trx_read_write())
+      set_trx_read_write();
+  }
+  Ha_trx_info *next() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_next;
+  }
+  handlerton *ht() const
+  {
+    DBUG_ASSERT(is_started());
+    return m_ht;
+  }
+private:
+  enum { TRX_READ_ONLY= 0, TRX_READ_WRITE= 1 };
+  /** Auxiliary, used for ha_list management */
+  Ha_trx_info *m_next;
+  /**
+    Although a given Ha_trx_info instance is currently always used
+    for the same storage engine, 'ht' is not-NULL only when the
+    corresponding storage is a part of a transaction.
+  */
+  handlerton *m_ht;
+  /**
+    Transaction flags related to this engine.
+    Not-null only if this instance is a part of transaction.
+    May assume a combination of enum values above.
+  */
+  uchar       m_flags;
+};
+
 
 enum enum_tx_isolation { ISO_READ_UNCOMMITTED, ISO_READ_COMMITTED,
 			 ISO_REPEATABLE_READ, ISO_SERIALIZABLE};
@@ -1651,8 +1751,15 @@ protected:
     provide useful functionality.
   */
   virtual int rename_table(const char *from, const char *to);
+  /**
+    Delete a table in the engine. Called for base as well as temporary
+    tables.
+  */
   virtual int delete_table(const char *name);
 
+private:
+  /* Private helpers */
+  inline void mark_trx_read_write();
 private:
   /*
     Low-level primitives for storage engines.  These should be
@@ -1789,7 +1896,7 @@ private:
   { return HA_ADMIN_NOT_IMPLEMENTED; }
   virtual int analyze(THD* thd, HA_CHECK_OPT* check_opt)
   { return HA_ADMIN_NOT_IMPLEMENTED; }
-  virtual bool check_and_repair(THD *thd) { return HA_ERR_WRONG_COMMAND; }
+  virtual bool check_and_repair(THD *thd) { return TRUE; }
   virtual int disable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int enable_indexes(uint mode) { return HA_ERR_WRONG_COMMAND; }
   virtual int discard_or_import_tablespace(my_bool discard)
@@ -1833,9 +1940,7 @@ extern TYPELIB tx_isolation_typelib;
 extern TYPELIB myisam_stats_method_typelib;
 extern ulong total_ha, total_ha_2pc;
 
-	/* Wrapper functions */
-#define ha_commit_stmt(thd) (ha_commit_trans((thd), FALSE))
-#define ha_rollback_stmt(thd) (ha_rollback_trans((thd), FALSE))
+       /* Wrapper functions */
 #define ha_commit(thd) (ha_commit_trans((thd), TRUE))
 #define ha_rollback(thd) (ha_rollback_trans((thd), TRUE))
 

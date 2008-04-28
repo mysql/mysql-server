@@ -110,7 +110,7 @@ static bool write_execute_load_query_log_event(THD *thd,
     TRUE - error / FALSE - success
 */
 
-bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
+int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values,
                 enum enum_duplicates handle_duplicates, bool ignore,
@@ -237,9 +237,11 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   while ((item= it++))
   {
-    if (item->type() == Item::FIELD_ITEM)
+    Item *real_item= item->real_item();
+
+    if (real_item->type() == Item::FIELD_ITEM)
     {
-      Field *field= ((Item_field*)item)->field;
+      Field *field= ((Item_field*)real_item)->field;
       if (field->flags & BLOB_FLAG)
       {
         use_blobs= 1;
@@ -248,7 +250,7 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       else
         tot_length+= field->field_length;
     }
-    else
+    else if (item->type() == Item::STRING_ITEM)
       use_vars= 1;
   }
   if (use_blobs && !ex->line_term->length() && !field_term->length())
@@ -470,9 +472,6 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       }
     }
 #endif /*!EMBEDDED_LIBRARY*/
-    if (transactional_table)
-      ha_autocommit_or_rollback(thd,error);
-
     error= -1;				// Error on read
     goto err;
   }
@@ -510,20 +509,13 @@ bool mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     }
   }
 #endif /*!EMBEDDED_LIBRARY*/
-  if (transactional_table)
-    error=ha_autocommit_or_rollback(thd,error);
 
   /* ok to client sent only after binlog write and engine commit */
-  send_ok(thd, info.copied + info.deleted, 0L, name);
+  my_ok(thd, info.copied + info.deleted, 0L, name);
 err:
   DBUG_ASSERT(transactional_table || !(info.copied || info.deleted) ||
               thd->transaction.stmt.modified_non_trans_table);
   table->file->ha_release_auto_increment();
-  if (thd->lock)
-  {
-    mysql_unlock_tables(thd, thd->lock);
-    thd->lock=0;
-  }
   table->auto_increment_field_not_null= FALSE;
   thd->abort_on_warning= 0;
   DBUG_RETURN(error);
@@ -711,6 +703,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     {
       uint length;
       uchar *pos;
+      Item *real_item;
 
       if (read_info.read_field())
 	break;
@@ -722,14 +715,17 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       pos=read_info.row_start;
       length=(uint) (read_info.row_end-pos);
 
+      real_item= item->real_item();
+
       if (!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
            !memcmp(pos, STRING_WITH_LEN("NULL"))) ||
 	  (length == 1 && read_info.found_null))
       {
-        if (item->type() == Item::FIELD_ITEM)
+
+        if (real_item->type() == Item::FIELD_ITEM)
         {
-          Field *field= ((Item_field *)item)->field;
+          Field *field= ((Item_field *)real_item)->field;
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
@@ -746,25 +742,39 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
 	}
-        else
+        else if (item->type() == Item::STRING_ITEM)
+        {
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
+        }
+        else
+        {
+          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
+          DBUG_RETURN(1);
+        }
+
 	continue;
       }
 
-      if (item->type() == Item::FIELD_ITEM)
+      if (real_item->type() == Item::FIELD_ITEM)
       {
-
-        Field *field= ((Item_field *)item)->field;
+        Field *field= ((Item_field *)real_item)->field;
         field->set_notnull();
         read_info.row_end[0]=0;			// Safe to change end marker
         if (field == table->next_number_field)
           table->auto_increment_field_not_null= TRUE;
         field->store((char*) pos, length, read_info.read_charset);
       }
-      else
+      else if (item->type() == Item::STRING_ITEM)
+      {
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
-                                                read_info.read_charset);
+                                                        read_info.read_charset);
+      }
+      else
+      {
+        my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
+        DBUG_RETURN(1);
+      }
     }
     if (read_info.error)
       break;
@@ -780,9 +790,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	break;
       for (; item ; item= it++)
       {
-        if (item->type() == Item::FIELD_ITEM)
+        Item *real_item= item->real_item();
+        if (real_item->type() == Item::FIELD_ITEM)
         {
-          Field *field= ((Item_field *)item)->field;
+          Field *field= ((Item_field *)real_item)->field;
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
@@ -802,9 +813,16 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS), thd->row_count);
         }
-        else
+        else if (item->type() == Item::STRING_ITEM)
+        {
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
+        }
+        else
+        {
+          my_error(ER_LOAD_DATA_INVALID_COLUMN, MYF(0), item->full_name());
+          DBUG_RETURN(1);
+        }
       }
     }
 

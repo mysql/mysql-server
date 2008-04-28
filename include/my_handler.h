@@ -20,6 +20,10 @@
 
 #include "myisampack.h"
 
+#ifdef	__cplusplus
+extern "C" {
+#endif
+
 /*
   There is a hard limit for the maximum number of keys as there are only
   8 bits in the index file header for the number of keys in a table.
@@ -118,5 +122,8 @@ extern void my_handler_error_unregister(void);
   this amount of bytes.
 */
 #define portable_sizeof_char_ptr 8
+#ifdef	__cplusplus
+}
+#endif
 
 #endif /* _my_handler_h */

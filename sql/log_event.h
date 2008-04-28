@@ -592,8 +592,9 @@ typedef struct st_print_event_info
 {
   /*
     Settings for database, sql_mode etc that comes from the last event
-    that was printed.
-   */
+    that was printed.  We cache these so that we don't have to print
+    them if they are unchanged.
+  */
   // TODO: have the last catalog here ??
   char db[FN_REFLEN+1]; // TODO: make this a LEX_STRING when thd->db is
   bool flags2_inited;
@@ -606,26 +607,10 @@ typedef struct st_print_event_info
   char time_zone_str[MAX_TIME_ZONE_NAME_LENGTH];
   uint lc_time_names_number;
   uint charset_database_number;
-  st_print_event_info()
-    :flags2_inited(0), sql_mode_inited(0),
-     auto_increment_increment(1),auto_increment_offset(1), charset_inited(0),
-     lc_time_names_number(0), charset_database_number(0),
-     base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE)
-    {
-      /*
-        Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
-        program's startup, but these explicit bzero() is for the day someone
-        creates dynamic instances.
-      */
-      bzero(db, sizeof(db));
-      bzero(charset, sizeof(charset));
-      bzero(time_zone_str, sizeof(time_zone_str));
-      delimiter[0]= ';';
-      delimiter[1]= 0;
-      myf const flags = MYF(MY_WME | MY_NABP);
-      open_cached_file(&head_cache, NULL, NULL, 0, flags);
-      open_cached_file(&body_cache, NULL, NULL, 0, flags);
-    }
+  uint thread_id;
+  bool thread_id_printed;
+
+  st_print_event_info();
 
   ~st_print_event_info() {
     close_cached_file(&head_cache);
@@ -670,18 +655,18 @@ typedef struct st_print_event_info
   Any @c Log_event saved on disk consists of the following three
   components.
 
-  * Common-Header
-  * Post-Header
-  * Body
+  - Common-Header
+  - Post-Header
+  - Body
 
   The Common-Header, documented in the table @ref Table_common_header
   "below", always has the same form and length within one version of
-  MySQL.  Each event type specifies a form and length of the
-  Post-Header common to all events of the type.  The Body may be of
-  different form and length even for different events of the same
-  type.  The binary formats of Post-Header and Body are documented
-  separately in each subclass.  The binary format of Common-Header is
-  as follows.
+  MySQL.  Each event type specifies a format and length of the
+  Post-Header.  The length of the Common-Header is the same for all
+  events of the same type.  The Body may be of different format and
+  length even for different events of the same type.  The binary
+  formats of Post-Header and Body are documented separately in each
+  subclass.  The binary format of Common-Header is as follows.
 
   <table>
   <caption>Common-Header</caption>
@@ -750,8 +735,8 @@ typedef struct st_print_event_info
   - Some events use a special format for efficient representation of
   unsigned integers, called Packed Integer.  A Packed Integer has the
   capacity of storing up to 8-byte integers, while small integers
-  still can use 1, 3, or 4 bytes.  The first byte indicates how many
-  bytes are used by the integer, according to the following table:
+  still can use 1, 3, or 4 bytes.  The value of the first byte
+  determines how to read the number, according to the following table:
 
   <table>
   <caption>Format of Packed Integer</caption>
@@ -763,7 +748,7 @@ typedef struct st_print_event_info
 
   <tr>
     <td>0-250</td>
-    <td>The first byte is the number (in range 0-250), and no more
+    <td>The first byte is the number (in the range 0-250), and no more
     bytes are used.</td>
   </tr>
 
@@ -1174,6 +1159,10 @@ protected:
 
   @section Query_log_event_binary_format Binary format
 
+  See @ref Log_event_binary_format "Binary format for log events" for
+  a general discussion and introduction to the binary format of binlog
+  events.
+
   The Post-Header has five components:
 
   <table>
@@ -1407,7 +1396,7 @@ protected:
     query "SELECT id, character_set_name, collation_name FROM
     COLLATIONS".
 
-    Cf. Q_CHARSET_DATABASE_NUMBER below.
+    Cf. Q_CHARSET_DATABASE_CODE below.
 
     This field is always written.
     </td>
@@ -1442,7 +1431,7 @@ protected:
 
   <tr>
     <td>charset_database_number</td>
-    <td>Q_CHARSET_DATABASE_NUMBER == 8</td>
+    <td>Q_CHARSET_DATABASE_CODE == 8</td>
     <td>2 byte integer</td>
 
     <td>The value of the collation_database system variable (in the
@@ -1457,11 +1446,11 @@ protected:
 
     In newer versions, "CREATE TABLE" has been changed to take the
     character set from the database of the created table, rather than
-    the database of the current database.  This makes a difference
-    when creating a table in another database than the current one.
-    "LOAD DATA INFILE" has not yet changed to do this, but there are
-    plans to eventually do it, and to make collation_database
-    read-only.
+    the character set of the current database.  This makes a
+    difference when creating a table in another database than the
+    current one.  "LOAD DATA INFILE" has not yet changed to do this,
+    but there are plans to eventually do it, and to make
+    collation_database read-only.
 
     This field is written if it is not 0.
     </td>
@@ -1480,7 +1469,7 @@ protected:
   Q_CATALOG_CODE will never be written by a new master, but can still
   be understood by a new slave.
 
-  * See Q_CHARSET_DATABASE_NUMBER in the table above.
+  * See Q_CHARSET_DATABASE_CODE in the table above.
 
 */
 class Query_log_event: public Log_event
@@ -1607,31 +1596,6 @@ public:        /* !!! Public in this patch to allow old usage */
                        const char *query_arg,
                        uint32 q_len_arg);
 #endif /* HAVE_REPLICATION */
-};
-
-
-/**
-  @class Muted_query_log_event
-
-  Pretends to log SQL queries, but doesn't actually do so.  This is
-  used internally only and never written to any binlog.
-
-  @section Muted_query_log_event_binary_format Binary Format
-
-  This log event is not stored, and thus the binary format is 0 bytes
-  long.  Note that not even the Common-Header is stored.
-*/
-class Muted_query_log_event: public Query_log_event
-{
-public:
-#ifndef MYSQL_CLIENT
-  Muted_query_log_event();
-
-  bool write(IO_CACHE* file) { return(false); };
-  virtual bool write_post_header_for_derived(IO_CACHE* file) { return FALSE; }
-#else
-  Muted_query_log_event() {}
-#endif
 };
 
 
@@ -1919,6 +1883,8 @@ private:
 
   @subsection Load_log_event_notes_on_previous_versions Notes on Previous Versions
 
+  This event type is understood by current versions, but only
+  generated by MySQL 3.23 and earlier.
 */
 class Load_log_event: public Log_event
 {

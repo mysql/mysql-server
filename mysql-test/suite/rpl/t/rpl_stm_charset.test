@@ -1,2 +1,0 @@
-let $engine_type=myisam;
--- source extra/rpl_tests/rpl_stm_charset.test

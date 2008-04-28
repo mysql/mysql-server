@@ -326,6 +326,41 @@ latin1_german2_ci	6109
 latin1_german2_ci	61
 latin1_german2_ci	6120
 drop table t1;
+drop table if exists t1;
+create table t1 as select repeat(' ', 64) as s1;
+select collation(s1) from t1;
+collation(s1)
+latin1_german2_ci
+delete from t1;
+insert into t1 values ('a'),('ae'),(_latin1 0xE4);
+insert into t1 values ('o'),('oe'),(_latin1 0xF6);
+insert into t1 values ('s'),('ss'),(_latin1 0xDF);
+insert into t1 values ('u'),('ue'),(_latin1 0xFC);
+select s1, hex(s1) from t1 order by s1, binary s1;
+s1	hex(s1)
+a	61
+ae	6165
+ä	E4
+o	6F
+oe	6F65
+ö	F6
+s	73
+ss	7373
+ß	DF
+u	75
+ue	7565
+ü	FC
+select group_concat(s1 order by binary s1) from t1 group by s1;
+group_concat(s1 order by binary s1)
+a
+ae,ä
+o
+oe,ö
+s
+ss,ß
+u
+ue,ü
+drop table t1;
 SET NAMES latin1;
 CREATE TABLE t1 (
 col1 varchar(255) NOT NULL default ''

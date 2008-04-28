@@ -17,6 +17,14 @@
 extern "C" {
 #endif
 
+#if HAVE_BACKTRACE && HAVE_BACKTRACE_SYMBOLS && HAVE_CXXABI_H && HAVE_ABI_CXA_DEMANGLE
+#define BACKTRACE_DEMANGLE 1
+#endif
+
+#if BACKTRACE_DEMANGLE
+char *my_demangle(const char *mangled_name, int *status);
+#endif
+
 #ifdef TARGET_OS_LINUX
 #if defined(HAVE_STACKTRACE) || (defined (__x86_64__) || defined (__i386__) || (defined(__alpha__) && defined(__GNUC__)))
 #undef HAVE_STACKTRACE
@@ -28,19 +36,33 @@ extern char* heap_start;
 #define init_stacktrace() do {                                 \
                             heap_start = (char*) &__bss_start; \
                           } while(0);
+void check_thread_lib(void);
+#endif /* defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
+#elif defined (__WIN__)
+#define HAVE_STACKTRACE
+extern void set_exception_pointers(EXCEPTION_POINTERS *ep);
+#define init_stacktrace() {}
+#endif
+
+#ifdef HAVE_STACKTRACE
 void print_stacktrace(uchar* stack_bottom, ulong thread_stack);
 void safe_print_str(const char* name, const char* val, int max_len);
-#endif /* (defined (__i386__) || (defined(__alpha__) && defined(__GNUC__))) */
-#endif /* TARGET_OS_LINUX */
-
+#else
 /* Define empty prototypes for functions that are not implemented */
-#ifndef HAVE_STACKTRACE
 #define init_stacktrace() {}
 #define print_stacktrace(A,B) {}
 #define safe_print_str(A,B,C) {}
 #endif /* HAVE_STACKTRACE */
 
+
+#if !defined(__NETWARE__)
+#define HAVE_WRITE_CORE
+#endif
+
+#ifdef HAVE_WRITE_CORE
 void write_core(int sig);
+#endif
+
 
 #ifdef	__cplusplus
 }

@@ -298,7 +298,7 @@ bool mysql_ha_open(THD *thd, TABLE_LIST *tables, bool reopen)
   tables->table->open_by_handler= 1;
 
   if (! reopen)
-    send_ok(thd);
+    my_ok(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 
@@ -350,7 +350,7 @@ bool mysql_ha_close(THD *thd, TABLE_LIST *tables)
     DBUG_RETURN(TRUE);
   }
 
-  send_ok(thd);
+  my_ok(thd);
   DBUG_PRINT("exit", ("OK"));
   DBUG_RETURN(FALSE);
 }
@@ -658,7 +658,7 @@ retry:
   }
 ok:
   mysql_unlock_tables(thd,lock);
-  send_eof(thd);
+  my_eof(thd);
   DBUG_PRINT("exit",("OK"));
   DBUG_RETURN(FALSE);
 

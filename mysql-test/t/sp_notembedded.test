@@ -1,7 +1,9 @@
 # Can't test with embedded server
 -- source include/not_embedded.inc
+# Disable concurrent inserts to avoid test failures
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
 
---sleep 2
 --disable_warnings
 drop table if exists t1,t3;
 --enable_warnings
@@ -39,10 +41,14 @@ create procedure bug4902_2()
 begin
   show processlist;
 end|
---replace_column 1 # 6 # 3 localhost
+--disable_result_log
 call bug4902_2()|
---replace_column 1 # 6 # 3 localhost
+--enable_result_log
+show warnings|
+--disable_result_log
 call bug4902_2()|
+--enable_result_log
+show warnings|
 drop procedure bug4902_2|
 
 #
@@ -331,3 +337,9 @@ disconnect rl_wait;
 drop procedure p1;
 drop table t1;
 set session low_priority_updates=default;
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;

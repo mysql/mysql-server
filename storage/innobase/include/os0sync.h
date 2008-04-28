@@ -112,9 +112,13 @@ os_event_set(
 	os_event_t	event);	/* in: event to set */
 /**************************************************************
 Resets an event semaphore to the nonsignaled state. Waiting threads will
-stop to wait for the event. */
+stop to wait for the event.
+The return value should be passed to os_even_wait_low() if it is desired
+that this thread should not wait in case of an intervening call to
+os_event_set() between this os_event_reset() and the
+os_event_wait_low() call. See comments for os_event_wait_low(). */
 
-void
+ib_longlong
 os_event_reset(
 /*===========*/
 	os_event_t	event);	/* in: event to reset */
@@ -125,16 +129,38 @@ void
 os_event_free(
 /*==========*/
 	os_event_t	event);	/* in: event to free */
+
 /**************************************************************
 Waits for an event object until it is in the signaled state. If
 srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS this also exits the
 waiting thread when the event becomes signaled (or immediately if the
-event is already in the signaled state). */
+event is already in the signaled state).
+
+Typically, if the event has been signalled after the os_event_reset()
+we'll return immediately because event->is_set == TRUE.
+There are, however, situations (e.g.: sync_array code) where we may
+lose this information. For example:
+
+thread A calls os_event_reset()
+thread B calls os_event_set()   [event->is_set == TRUE]
+thread C calls os_event_reset() [event->is_set == FALSE]
+thread A calls os_event_wait()  [infinite wait!]
+thread C calls os_event_wait()  [infinite wait!]
+
+Where such a scenario is possible, to avoid infinite wait, the
+value returned by os_event_reset() should be passed in as
+reset_sig_count. */
+
+#define os_event_wait(event) os_event_wait_low((event), 0)
 
 void
-os_event_wait(
-/*==========*/
-	os_event_t	event);	/* in: event to wait */
+os_event_wait_low(
+/*==============*/
+	os_event_t	event,		/* in: event to wait */
+	ib_longlong	reset_sig_count);/* in: zero or the value
+					returned by previous call of
+					os_event_reset(). */
+
 /**************************************************************
 Waits for an event object until it is in the signaled state or
 a timeout is exceeded. In Unix the timeout is always infinite. */

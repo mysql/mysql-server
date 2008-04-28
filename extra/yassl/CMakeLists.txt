@@ -24,4 +24,5 @@ SET(YASSL_SOURCES  src/buffer.cpp src/cert_wrapper.cpp src/crypto_wrapper.cpp sr
 				src/yassl_imp.cpp src/yassl_int.cpp)
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(yassl ${YASSL_SOURCES})
+  ADD_DEPENDENCIES(yassl GenError)
 ENDIF(NOT SOURCE_SUBLIBS)

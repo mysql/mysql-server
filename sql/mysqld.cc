@@ -122,6 +122,13 @@ extern "C" {					// Because of SCO 3.2V4.2
 #include <sys/mman.h>
 #endif
 
+#ifdef __WIN__ 
+#include <crtdbg.h>
+#define SIGNAL_FMT "exception 0x%x"
+#else
+#define SIGNAL_FMT "signal %d"
+#endif
+
 #ifdef __NETWARE__
 #define zVOLSTATE_ACTIVE 6
 #define zVOLSTATE_DEACTIVE 2
@@ -218,10 +225,16 @@ inline void set_proper_floating_point_mode()
 extern "C" int gethostname(char *name, int namelen);
 #endif
 
+extern "C" sig_handler handle_segfault(int sig);
 
 /* Constants */
 
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
+/*
+  WARNING: When adding new SQL modes don't forget to update the
+           tables definitions that stores it's value.
+           (ie: mysql.event, mysql.proc)
+*/
 static const char *sql_mode_names[]=
 {
   "REAL_AS_FLOAT", "PIPES_AS_CONCAT", "ANSI_QUOTES", "IGNORE_SPACE",
@@ -507,6 +520,7 @@ char mysql_real_data_home[FN_REFLEN],
      language[FN_REFLEN], reg_ext[FN_EXTLEN], mysql_charsets_dir[FN_REFLEN],
      *opt_init_file, *opt_tc_log_file,
      def_ft_boolean_syntax[sizeof(ft_boolean_syntax)];
+char mysql_unpacked_real_data_home[FN_REFLEN];
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -573,7 +587,8 @@ pthread_mutex_t LOCK_mysql_create_db, LOCK_Acl, LOCK_open, LOCK_thread_count,
 		LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
 		LOCK_crypt, LOCK_bytes_sent, LOCK_bytes_received,
 	        LOCK_global_system_variables,
-		LOCK_user_conn, LOCK_slave_list, LOCK_active_mi;
+                LOCK_user_conn, LOCK_slave_list, LOCK_active_mi,
+                LOCK_connection_count;
 /**
   The below lock protects access to two global server variables:
   max_prepared_stmt_count and prepared_stmt_count. These variables
@@ -709,6 +724,11 @@ char *des_key_file;
 struct st_VioSSLFd *ssl_acceptor_fd;
 #endif /* HAVE_OPENSSL */
 
+/**
+  Number of currently active user connections. The variable is protected by
+  LOCK_connection_count.
+*/
+uint connection_count= 0;
 
 /* Function declarations */
 
@@ -1082,9 +1102,7 @@ static void __cdecl kill_server(int sig_ptr)
 
   close_connections();
   if (sig != MYSQL_KILL_SIGNAL &&
-#ifdef __WIN__
       sig != SIGINT &&				/* Bug#18235 */
-#endif
       sig != 0)
     unireg_abort(1);				/* purecov: inspected */
   else
@@ -1334,6 +1352,7 @@ static void clean_up_mutexes()
   (void) pthread_mutex_destroy(&LOCK_bytes_sent);
   (void) pthread_mutex_destroy(&LOCK_bytes_received);
   (void) pthread_mutex_destroy(&LOCK_user_conn);
+  (void) pthread_mutex_destroy(&LOCK_connection_count);
   Events::destroy_mutexes();
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_destroy(&LOCK_des_key_file);
@@ -1654,8 +1673,7 @@ static void network_init(void)
 		      FORMAT_MESSAGE_FROM_SYSTEM,
 		      NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		      (LPTSTR) &lpMsgBuf, 0, NULL );
-	MessageBox(NULL, (LPTSTR) lpMsgBuf, "Error from CreateNamedPipe",
-		    MB_OK|MB_ICONINFORMATION);
+	sql_perror((char *)lpMsgBuf);
 	LocalFree(lpMsgBuf);
 	unireg_abort(1);
       }
@@ -1777,6 +1795,11 @@ void unlink_thd(THD *thd)
   DBUG_ENTER("unlink_thd");
   DBUG_PRINT("enter", ("thd: 0x%lx", (long) thd));
   thd->cleanup();
+
+  pthread_mutex_lock(&LOCK_connection_count);
+  --connection_count;
+  pthread_mutex_unlock(&LOCK_connection_count);
+
   (void) pthread_mutex_lock(&LOCK_thread_count);
   thread_count--;
   delete thd;
@@ -1867,9 +1890,9 @@ bool one_thread_per_connection_end(THD *thd, bool put_in_cache)
 
   /* It's safe to broadcast outside a lock (COND... is not deleted here) */
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
+  my_thread_end();
   (void) pthread_cond_broadcast(&COND_thread_count);
 
-  my_thread_end();
   pthread_exit(0);
   DBUG_RETURN(0);                               // Impossible
 }
@@ -1914,16 +1937,162 @@ extern "C" sig_handler abort_thread(int sig __attribute__((unused)))
 ******************************************************************************/
 
 #if defined(__WIN__)
+
+
+/*
+  On Windows, we use native SetConsoleCtrlHandler for handle events like Ctrl-C
+  with graceful shutdown.
+  Also, we do not use signal(), but SetUnhandledExceptionFilter instead - as it
+  provides possibility to pass the exception to just-in-time debugger, collect
+  dumps and potentially also the exception and thread context used to output
+  callstack.
+*/
+
+static BOOL WINAPI console_event_handler( DWORD type ) 
+{
+  DBUG_ENTER("console_event_handler");
+  if(type == CTRL_C_EVENT)
+  {
+     /*
+       Do not shutdown before startup is finished and shutdown
+       thread is initialized. Otherwise there is a race condition 
+       between main thread doing initialization and CTRL-C thread doing
+       cleanup, which can result into crash.
+     */
+     if(hEventShutdown)
+       kill_mysql();
+     else
+       sql_print_warning("CTRL-C ignored during startup");
+     DBUG_RETURN(TRUE);
+  }
+  DBUG_RETURN(FALSE);
+}
+
+
+/*
+  In Visual Studio 2005 and later, default SIGABRT handler will overwrite
+  any unhandled exception filter set by the application  and will try to
+  call JIT debugger. This is not what we want, this we calling __debugbreak
+  to stop in debugger, if process is being debugged or to generate 
+  EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
+*/
+
+#if (_MSC_VER >= 1400)
+static void my_sigabrt_handler(int sig)
+{
+  __debugbreak();
+}
+#endif /*_MSC_VER >=1400 */
+
+void win_install_sigabrt_handler(void)
+{
+#if (_MSC_VER >=1400)
+  /*abort() should not override our exception filter*/
+  _set_abort_behavior(0,_CALL_REPORTFAULT);
+  signal(SIGABRT,my_sigabrt_handler);
+#endif /* _MSC_VER >=1400 */
+}
+
+#ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
+#define DEBUGGER_ATTACH_TIMEOUT 120
+/*
+  Wait for debugger to attach and break into debugger. If debugger is not attached,
+  resume after timeout.
+*/
+static void wait_for_debugger(int timeout_sec)
+{
+   if(!IsDebuggerPresent())
+   {
+     int i;
+     printf("Waiting for debugger to attach, pid=%u\n",GetCurrentProcessId());
+     fflush(stdout);
+     for(i= 0; i < timeout_sec; i++)
+     {
+       Sleep(1000);
+       if(IsDebuggerPresent())
+       {
+         /* Break into debugger */
+         __debugbreak();
+         return;
+       }
+     }
+     printf("pid=%u, debugger not attached after %d seconds, resuming\n",GetCurrentProcessId(),
+       timeout_sec);
+     fflush(stdout);
+   }
+}
+#endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
+
+LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
+{
+   static BOOL first_time= TRUE;
+   if(!first_time)
+   {
+     /*
+       This routine can be called twice, typically
+       when detaching in JIT debugger.
+       Return EXCEPTION_EXECUTE_HANDLER to terminate process.
+     */
+     return EXCEPTION_EXECUTE_HANDLER;
+   }
+   first_time= FALSE;
+#ifdef DEBUG_UNHANDLED_EXCEPTION_FILTER
+   /*
+    Unfortunately there is no clean way to debug unhandled exception filters,
+    as debugger does not stop there(also documented in MSDN) 
+    To overcome, one could put a MessageBox, but this will not work in service.
+    Better solution is to print error message and sleep some minutes 
+    until debugger is attached
+  */
+  wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
+#endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
+  __try
+  {
+    set_exception_pointers(ex_pointers);
+    handle_segfault(ex_pointers->ExceptionRecord->ExceptionCode);
+  }
+  __except(EXCEPTION_EXECUTE_HANDLER)
+  {
+    DWORD written;
+    const char msg[] = "Got exception in exception handler!\n";
+    WriteFile(GetStdHandle(STD_OUTPUT_HANDLE),msg, sizeof(msg)-1, 
+      &written,NULL);
+  }
+  /*
+    Return EXCEPTION_CONTINUE_SEARCH to give JIT debugger
+    (drwtsn32 or vsjitdebugger) possibility to attach,
+    if JIT debugger is configured.
+    Windows Error reporting might generate a dump here.
+  */
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+
 static void init_signals(void)
 {
-  int signals[] = {SIGINT,SIGILL,SIGFPE,SIGSEGV,SIGTERM,SIGABRT } ;
-  for (uint i=0 ; i < sizeof(signals)/sizeof(int) ; i++)
-    signal(signals[i], kill_server) ;
-#if defined(__WIN__)
-  signal(SIGBREAK,SIG_IGN);	//ignore SIGBREAK for NT
-#else
-  signal(SIGBREAK, kill_server);
-#endif
+  win_install_sigabrt_handler();
+  if(opt_console)
+    SetConsoleCtrlHandler(console_event_handler,TRUE);
+  else
+  {
+    /* Avoid MessageBox()es*/
+   _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+   _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+   _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE);
+   _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+
+   /*
+     Do not use SEM_NOGPFAULTERRORBOX in the following SetErrorMode (),
+     because it would prevent JIT debugger and Windows error reporting
+     from working. We need WER or JIT-debugging, since our own unhandled
+     exception filter is not guaranteed to work in all situation
+     (like heap corruption or stack overflow)
+   */
+   SetErrorMode(SetErrorMode(0)|SEM_FAILCRITICALERRORS|SEM_NOOPENFILEERRORBOX);
+  }
+  SetUnhandledExceptionFilter(my_unhandler_exception_filter);
 }
 
 
@@ -2176,11 +2345,21 @@ static void check_data_home(const char *path)
 {
 }
 
-#else /* if ! __WIN__  */
+#endif /*__WIN__ || __NETWARE */
 
 #ifdef HAVE_LINUXTHREADS
 #define UNSAFE_DEFAULT_LINUX_THREADS 200
 #endif
+
+
+#if BACKTRACE_DEMANGLE
+#include <cxxabi.h>
+extern "C" char *my_demangle(const char *mangled_name, int *status)
+{
+  return abi::__cxa_demangle(mangled_name, NULL, NULL, status);
+}
+#endif
+
 
 extern "C" sig_handler handle_segfault(int sig)
 {
@@ -2196,7 +2375,7 @@ extern "C" sig_handler handle_segfault(int sig)
   */
   if (segfaulted)
   {
-    fprintf(stderr, "Fatal signal %d while backtracing\n", sig);
+    fprintf(stderr, "Fatal " SIGNAL_FMT " while backtracing\n", sig);
     exit(1);
   }
 
@@ -2206,7 +2385,7 @@ extern "C" sig_handler handle_segfault(int sig)
   localtime_r(&curr_time, &tm);
 
   fprintf(stderr,"\
-%02d%02d%02d %2d:%02d:%02d - mysqld got signal %d;\n\
+%02d%02d%02d %2d:%02d:%02d - mysqld got " SIGNAL_FMT " ;\n\
 This could be because you hit a bug. It is also possible that this binary\n\
 or one of the libraries it was linked against is corrupt, improperly built,\n\
 or misconfigured. This error can also be caused by malfunctioning hardware.\n",
@@ -2248,15 +2427,38 @@ the thread stack. Please read http://dev.mysql.com/doc/mysql/en/linux.html\n\n",
   if (!(test_flags & TEST_NO_STACKTRACE))
   {
     fprintf(stderr,"thd: 0x%lx\n",(long) thd);
+    fprintf(stderr,"\
+Attempting backtrace. You can use the following information to find out\n\
+where mysqld died. If you see no messages after this, something went\n\
+terribly wrong...\n");  
     print_stacktrace(thd ? (uchar*) thd->thread_stack : (uchar*) 0,
 		     my_thread_stack_size);
   }
   if (thd)
   {
+    const char *kreason= "UNKNOWN";
+    switch (thd->killed) {
+    case THD::NOT_KILLED:
+      kreason= "NOT_KILLED";
+      break;
+    case THD::KILL_BAD_DATA:
+      kreason= "KILL_BAD_DATA";
+      break;
+    case THD::KILL_CONNECTION:
+      kreason= "KILL_CONNECTION";
+      break;
+    case THD::KILL_QUERY:
+      kreason= "KILL_QUERY";
+      break;
+    case THD::KILLED_NO_VALUE:
+      kreason= "KILLED_NO_VALUE";
+      break;
+    }
     fprintf(stderr, "Trying to get some variables.\n\
 Some pointers may be invalid and cause the dump to abort...\n");
     safe_print_str("thd->query", thd->query, 1024);
     fprintf(stderr, "thd->thread_id=%lu\n", (ulong) thd->thread_id);
+    fprintf(stderr, "thd->killed=%s\n", kreason);
   }
   fprintf(stderr, "\
 The manual page at http://dev.mysql.com/doc/mysql/en/crashing.html contains\n\
@@ -2296,15 +2498,22 @@ of those buggy OS calls.  You should consider whether you really need the\n\
 bugs.\n");
   }
 
+#ifdef HAVE_WRITE_CORE
   if (test_flags & TEST_CORE_ON_SIGNAL)
   {
     fprintf(stderr, "Writing a core file\n");
     fflush(stderr);
     write_core(sig);
   }
+#endif
+
+#ifndef __WIN__
+  /* On Windows, do not terminate, but pass control to exception filter */
   exit(1);
+#endif
 }
 
+#if !defined(__WIN__) && !defined(__NETWARE__)
 #ifndef SA_RESETHAND
 #define SA_RESETHAND 0
 #endif
@@ -2356,7 +2565,6 @@ static void init_signals(void)
   (void) sigemptyset(&set);
   my_sigset(SIGPIPE,SIG_IGN);
   sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGINT);
 #ifndef IGNORE_SIGHUP_SIGQUIT
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2384,6 +2592,9 @@ static void init_signals(void)
     my_sigset(thr_kill_signal, end_thread_signal);
     my_sigset(SIGINT, end_thread_signal);
   }
+  else
+    sigaddset(&set,SIGINT);
+
   sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
@@ -2541,8 +2752,18 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 			     (TABLE_LIST*) 0, &not_used); // Flush logs
       }
       /* reenable logs after the options were reloaded */
-      logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_TABLE:LOG_NONE,
-                          opt_log ? LOG_TABLE:LOG_NONE);
+      if (log_output_options & LOG_NONE)
+      {
+        logger.set_handlers(LOG_FILE,
+                            opt_slow_log ? LOG_TABLE : LOG_NONE,
+                            opt_log ? LOG_TABLE : LOG_NONE);
+      }
+      else
+      {
+        logger.set_handlers(LOG_FILE,
+                            opt_slow_log ? log_output_options : LOG_NONE,
+                            opt_log ? log_output_options : LOG_NONE);
+      }
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:
@@ -2706,18 +2927,6 @@ pthread_handler_t handle_shutdown(void *arg)
 #endif /* EMBEDDED_LIBRARY */
      kill_server(MYSQL_KILL_SIGNAL);
   return 0;
-}
-
-
-int STDCALL handle_kill(ulong ctrl_type)
-{
-  if (ctrl_type == CTRL_CLOSE_EVENT ||
-      ctrl_type == CTRL_SHUTDOWN_EVENT)
-  {
-    kill_server(MYSQL_KILL_SIGNAL);
-    return TRUE;
-  }
-  return FALSE;
 }
 #endif
 
@@ -3285,6 +3494,7 @@ static int init_thread_environment()
   (void) pthread_mutex_init(&LOCK_global_read_lock, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_prepared_stmt_count, MY_MUTEX_INIT_FAST);
   (void) pthread_mutex_init(&LOCK_uuid_short, MY_MUTEX_INIT_FAST);
+  (void) pthread_mutex_init(&LOCK_connection_count, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   (void) pthread_mutex_init(&LOCK_des_key_file,MY_MUTEX_INIT_FAST);
 #ifndef HAVE_YASSL
@@ -4097,11 +4307,6 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     freopen(log_error_file,"a+",stderr);
     FreeConsole();				// Remove window
   }
-  else
-  {
-    /* Don't show error dialog box when on foreground: it stops the server */
-    SetErrorMode(SEM_NOOPENFILEERRORBOX | SEM_FAILCRITICALERRORS);
-  }
 #endif
 
   /*
@@ -4551,6 +4756,11 @@ void create_thread_to_handle_connection(THD *thd)
       thread_count--;
       thd->killed= THD::KILL_CONNECTION;			// Safety
       (void) pthread_mutex_unlock(&LOCK_thread_count);
+
+      pthread_mutex_lock(&LOCK_connection_count);
+      --connection_count;
+      pthread_mutex_unlock(&LOCK_connection_count);
+
       statistic_increment(aborted_connects,&LOCK_status);
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
@@ -4590,15 +4800,34 @@ static void create_new_thread(THD *thd)
   if (protocol_version > 9)
     net->return_errno=1;
 
-  /* don't allow too many connections */
-  if (thread_count - delayed_insert_threads >= max_connections+1 || abort_loop)
+  /*
+    Don't allow too many connections. We roughly check here that we allow
+    only (max_connections + 1) connections.
+  */
+
+  pthread_mutex_lock(&LOCK_connection_count);
+
+  if (connection_count >= max_connections + 1 || abort_loop)
   {
+    pthread_mutex_unlock(&LOCK_connection_count);
+
     DBUG_PRINT("error",("Too many connections"));
     close_connection(thd, ER_CON_COUNT_ERROR, 1);
     delete thd;
     DBUG_VOID_RETURN;
   }
+
+  ++connection_count;
+
+  if (connection_count > max_used_connections)
+    max_used_connections= connection_count;
+
+  pthread_mutex_unlock(&LOCK_connection_count);
+
+  /* Start a new thread to handle connection. */
+
   pthread_mutex_lock(&LOCK_thread_count);
+
   /*
     The initialization of thread_id is done in create_embedded_thd() for
     the embedded library.
@@ -4606,13 +4835,10 @@ static void create_new_thread(THD *thd)
   */
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
 
-  /* Start a new thread to handle connection */
   thread_count++;
 
-  if (thread_count - delayed_insert_threads > max_used_connections)
-    max_used_connections= thread_count - delayed_insert_threads;
-
   thread_scheduler.add_connection(thd);
+
   DBUG_VOID_RETURN;
 }
 #endif /* EMBEDDED_LIBRARY */
@@ -7061,6 +7287,7 @@ SHOW_VAR status_vars[]= {
   {"Open_tables",              (char*) &show_open_tables,       SHOW_FUNC},
   {"Opened_files",             (char*) &my_file_total_opened, SHOW_LONG_NOFLUSH},
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONG_STATUS},
+  {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
 #ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
@@ -8176,12 +8403,15 @@ static void fix_paths(void)
     pos[1]= 0;
   }
   convert_dirname(mysql_real_data_home,mysql_real_data_home,NullS);
+  (void) fn_format(buff, mysql_real_data_home, "", "",
+                   (MY_RETURN_REAL_PATH|MY_RESOLVE_SYMLINKS));
+  (void) unpack_dirname(mysql_unpacked_real_data_home, buff);
   convert_dirname(language,language,NullS);
   (void) my_load_path(mysql_home,mysql_home,""); // Resolve current dir
   (void) my_load_path(mysql_real_data_home,mysql_real_data_home,mysql_home);
   (void) my_load_path(pidfile_name,pidfile_name,mysql_real_data_home);
   (void) my_load_path(opt_plugin_dir, opt_plugin_dir_ptr ? opt_plugin_dir_ptr :
-                                      get_relative_path(LIBDIR), mysql_home);
+                                      get_relative_path(PLUGINDIR), mysql_home);
   opt_plugin_dir_ptr= opt_plugin_dir;
 
   char *sharedir=get_relative_path(SHAREDIR);

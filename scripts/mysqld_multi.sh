@@ -1,4 +1,4 @@
-#!@PERL@
+#!/usr/bin/perl
 
 use Getopt::Long;
 use POSIX qw(strftime);

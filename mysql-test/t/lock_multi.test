@@ -396,6 +396,9 @@ unlock tables;
 connection insert;
 --reap
 connection default;
+let $wait_condition=
+  select count(*) = 1 from t1;
+--source include/wait_condition.inc
 select * from t1;
 drop table t1;
 disconnect flush;
@@ -438,5 +441,35 @@ connection flush;
 connection default;
 disconnect flush;
 drop table t1;
+
+#
+# Bug#30331: Table_locks_waited shows inaccurate values
+#
+
+--disable_warnings
+drop table if exists t1,t2;
+--enable_warnings
+create table t1 (a int);
+flush status;
+lock tables t1 read;
+let $tlwa= `show status like 'Table_locks_waited'`;
+connect (waiter,localhost,root,,);
+connection waiter;
+--send insert into t1 values(1);
+connection default;
+let $wait_condition=
+  select count(*) = 1 from information_schema.processlist
+  where state = "Locked" and info = "insert into t1 values(1)";
+--source include/wait_condition.inc
+let $tlwb= `show status like 'Table_locks_waited'`;
+unlock tables;
+drop table t1;
+disconnect waiter;
+connection default;
+--disable_query_log
+eval SET @tlwa= SUBSTRING_INDEX('$tlwa', '	', -1);
+eval SET @tlwb= SUBSTRING_INDEX('$tlwb', '	', -1);
+--enable_query_log
+select @tlwa < @tlwb;
 
 --echo End of 5.1 tests

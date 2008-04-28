@@ -251,7 +251,7 @@ master-bin.000001	#	Query	#	#	use `test`; drop table t1,t2
 master-bin.000001	#	Query	#	#	use `test`; create temporary table ti (a int) engine=innodb
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; insert into ti values(1)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; create temporary table t1 (a int) engine=myisam
 master-bin.000001	#	Query	#	#	use `test`; insert t1 values (1)
 master-bin.000001	#	Query	#	#	use `test`; create table t0 (n int)
@@ -358,11 +358,11 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (8,8)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (9,9)
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE table t2
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 values (10,10)
 master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t2 values (100,100)
-master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	use `test`; COMMIT
 master-bin.000001	#	Query	#	#	use `test`; DROP TABLE t1,t2
 reset master;
 create table t1 (a int) engine=innodb;
@@ -549,10 +549,8 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 /* the output must denote there is the query */;
 select count(*) from t1 /* must be 4 */;
 count(*)
@@ -788,10 +786,8 @@ UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */;
 ERROR 23000: Duplicate entry '2' for key 'PRIMARY'
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; BEGIN
 master-bin.000001	#	Intvar	#	#	INSERT_ID=6
 master-bin.000001	#	Query	#	#	use `test`; UPDATE t4,t3 SET t4.a=t3.a + bug27417(1) /* top level non-ta table */
-master-bin.000001	#	Query	#	#	use `test`; ROLLBACK
 select count(*) from t1 /* must be 4 */;
 count(*)
 4

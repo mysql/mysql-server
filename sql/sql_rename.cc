@@ -178,7 +178,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   if (!silent && !error)
   {
     write_bin_log(thd, TRUE, thd->query, thd->query_length);
-    send_ok(thd);
+    my_ok(thd);
   }
 
   if (!error)

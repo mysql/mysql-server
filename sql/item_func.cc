@@ -375,37 +375,37 @@ table_map Item_func::not_null_tables() const
 }
 
 
-void Item_func::print(String *str)
+void Item_func::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
-  print_args(str, 0);
+  print_args(str, 0, query_type);
   str->append(')');
 }
 
 
-void Item_func::print_args(String *str, uint from)
+void Item_func::print_args(String *str, uint from, enum_query_type query_type)
 {
   for (uint i=from ; i < arg_count ; i++)
   {
     if (i != from)
       str->append(',');
-    args[i]->print(str);
+    args[i]->print(str, query_type);
   }
 }
 
 
-void Item_func::print_op(String *str)
+void Item_func::print_op(String *str, enum_query_type query_type)
 {
   str->append('(');
   for (uint i=0 ; i < arg_count-1 ; i++)
   {
-    args[i]->print(str);
+    args[i]->print(str, query_type);
     str->append(' ');
     str->append(func_name());
     str->append(' ');
   }
-  args[arg_count-1]->print(str);
+  args[arg_count-1]->print(str, query_type);
   str->append(')');
 }
 
@@ -884,10 +884,10 @@ my_decimal *Item_func_numhybrid::val_decimal(my_decimal *decimal_value)
 }
 
 
-void Item_func_signed::print(String *str)
+void Item_func_signed::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as signed)"));
 
 }
@@ -955,10 +955,10 @@ longlong Item_func_signed::val_int()
 }
 
 
-void Item_func_unsigned::print(String *str)
+void Item_func_unsigned::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as unsigned)"));
 
 }
@@ -1064,7 +1064,7 @@ err:
 }
 
 
-void Item_decimal_typecast::print(String *str)
+void Item_decimal_typecast::print(String *str, enum_query_type query_type)
 {
   char len_buf[20*3 + 1];
   char *end;
@@ -1072,7 +1072,7 @@ void Item_decimal_typecast::print(String *str)
   uint precision= my_decimal_length_to_precision(max_length, decimals,
                                                  unsigned_flag);
   str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(STRING_WITH_LEN(" as decimal("));
 
   end=int10_to_str(precision, len_buf,10);
@@ -1093,7 +1093,7 @@ double Item_func_plus::real_op()
   double value= args[0]->val_real() + args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1171,7 +1171,7 @@ double Item_func_minus::real_op()
   double value= args[0]->val_real() - args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1211,7 +1211,7 @@ double Item_func_mul::real_op()
   double value= args[0]->val_real() * args[1]->val_real();
   if ((null_value=args[0]->null_value || args[1]->null_value))
     return 0.0;
-  return value;
+  return fix_result(value);
 }
 
 
@@ -1269,7 +1269,7 @@ double Item_func_div::real_op()
     signal_divide_by_null();
     return 0.0;
   }
-  return value/val2;
+  return fix_result(value/val2);
 }
 
 
@@ -1643,7 +1643,7 @@ double Item_func_exp::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0; /* purecov: inspected */
-  return exp(value);
+  return fix_result(exp(value));
 }
 
 double Item_func_sqrt::val_real()
@@ -1662,7 +1662,7 @@ double Item_func_pow::val_real()
   double val2= args[1]->val_real();
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0.0; /* purecov: inspected */
-  return pow(value,val2);
+  return fix_result(pow(value,val2));
 }
 
 // Trigonometric functions
@@ -1674,7 +1674,7 @@ double Item_func_acos::val_real()
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
-  return fix_result(acos(value));
+  return acos(value);
 }
 
 double Item_func_asin::val_real()
@@ -1684,7 +1684,7 @@ double Item_func_asin::val_real()
   volatile double value= args[0]->val_real();
   if ((null_value=(args[0]->null_value || (value < -1.0 || value > 1.0))))
     return 0.0;
-  return fix_result(asin(value));
+  return asin(value);
 }
 
 double Item_func_atan::val_real()
@@ -1700,7 +1700,7 @@ double Item_func_atan::val_real()
       return 0.0;
     return fix_result(atan2(value,val2));
   }
-  return fix_result(atan(value));
+  return atan(value);
 }
 
 double Item_func_cos::val_real()
@@ -1709,7 +1709,7 @@ double Item_func_cos::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
-  return fix_result(cos(value));
+  return cos(value);
 }
 
 double Item_func_sin::val_real()
@@ -1718,7 +1718,7 @@ double Item_func_sin::val_real()
   double value= args[0]->val_real();
   if ((null_value=args[0]->null_value))
     return 0.0;
-  return fix_result(sin(value));
+  return sin(value);
 }
 
 double Item_func_tan::val_real()
@@ -2537,16 +2537,16 @@ longlong Item_func_locate::val_int()
 }
 
 
-void Item_func_locate::print(String *str)
+void Item_func_locate::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("locate("));
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(',');
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (arg_count == 3)
   {
     str->append(',');
-    args[2]->print(str);
+    args[2]->print(str, query_type);
   }
   str->append(')');
 }
@@ -3094,7 +3094,7 @@ void Item_udf_func::cleanup()
 }
 
 
-void Item_udf_func::print(String *str)
+void Item_udf_func::print(String *str, enum_query_type query_type)
 {
   str->append(func_name());
   str->append('(');
@@ -3102,7 +3102,7 @@ void Item_udf_func::print(String *str)
   {
     if (i != 0)
       str->append(',');
-    args[i]->print_item_w_name(str);
+    args[i]->print_item_w_name(str, query_type);
   }
   str->append(')');
 }
@@ -3645,18 +3645,28 @@ longlong Item_func_benchmark::val_int()
   String tmp(buff,sizeof(buff), &my_charset_bin);
   my_decimal tmp_decimal;
   THD *thd=current_thd;
-  ulong loop_count;
+  ulonglong loop_count;
 
-  loop_count= (ulong) args[0]->val_int();
+  loop_count= (ulonglong) args[0]->val_int();
 
-  if (args[0]->null_value)
+  if (args[0]->null_value ||
+      (!args[0]->unsigned_flag && (((longlong) loop_count) < 0)))
   {
+    if (!args[0]->null_value)
+    {
+      char buff[22];
+      llstr(((longlong) loop_count), buff);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
+                          ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
+                          "count", buff, "benchmark");
+    }
+
     null_value= 1;
     return 0;
   }
 
   null_value=0;
-  for (ulong loop=0 ; loop < loop_count && !thd->killed; loop++)
+  for (ulonglong loop=0 ; loop < loop_count && !thd->killed; loop++)
   {
     switch (args[1]->result_type()) {
     case REAL_RESULT:
@@ -3682,12 +3692,12 @@ longlong Item_func_benchmark::val_int()
 }
 
 
-void Item_func_benchmark::print(String *str)
+void Item_func_benchmark::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("benchmark("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(',');
-  args[1]->print(str);
+  args[1]->print(str, query_type);
   str->append(')');
 }
 
@@ -3704,11 +3714,24 @@ longlong Item_func_sleep::val_int()
   DBUG_ASSERT(fixed == 1);
 
   double time= args[0]->val_real();
+  /*
+    On 64-bit OSX pthread_cond_timedwait() waits forever
+    if passed abstime time has already been exceeded by 
+    the system time.
+    When given a very short timeout (< 10 mcs) just return 
+    immediately.
+    We assume that the lines between this test and the call 
+    to pthread_cond_timedwait() will be executed in less than 0.00001 sec.
+  */
+  if (time < 0.00001)
+    return 0;
+    
   set_timespec_nsec(abstime, (ulonglong)(time * ULL(1000000000)));
 
   pthread_cond_init(&cond, NULL);
   pthread_mutex_lock(&LOCK_user_locks);
 
+  thd_proc_info(thd, "User sleep");
   thd->mysys_var->current_mutex= &LOCK_user_locks;
   thd->mysys_var->current_cond=  &cond;
 
@@ -3720,6 +3743,7 @@ longlong Item_func_sleep::val_int()
       break;
     error= 0;
   }
+  thd_proc_info(thd, 0);
   pthread_mutex_unlock(&LOCK_user_locks);
   pthread_mutex_lock(&thd->mysys_var->mutex);
   thd->mysys_var->current_mutex= 0;
@@ -3981,7 +4005,7 @@ double user_var_entry::val_real(my_bool *null_value)
 
 /** Get the value of a variable as an integer. */
 
-longlong user_var_entry::val_int(my_bool *null_value)
+longlong user_var_entry::val_int(my_bool *null_value) const
 {
   if ((*null_value= (value == 0)))
     return LL(0);
@@ -4268,22 +4292,23 @@ my_decimal *Item_func_set_user_var::val_decimal_result(my_decimal *val)
 }
 
 
-void Item_func_set_user_var::print(String *str)
+void Item_func_set_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   str->append(name.str, name.length);
   str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
 
-void Item_func_set_user_var::print_as_stmt(String *str)
+void Item_func_set_user_var::print_as_stmt(String *str,
+                                           enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("set @"));
   str->append(name.str, name.length);
   str->append(STRING_WITH_LEN(":="));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   str->append(')');
 }
 
@@ -4656,7 +4681,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 }
 
 
-void Item_func_get_user_var::print(String *str)
+void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
   str->append(name.str,name.length);
@@ -4754,7 +4779,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 }
 
 
-void Item_user_var_as_out_param::print(String *str)
+void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
   str->append(name.str,name.length);
@@ -4789,6 +4814,12 @@ Item_func_get_system_var::fix_fields(THD *thd, Item **ref)
   thd->change_item_tree(ref, item);
 
   DBUG_RETURN(0);
+}
+
+
+bool Item_func_get_system_var::is_written_to_binlog()
+{
+  return var->is_written_to_binlog(var_type);
 }
 
 
@@ -5093,12 +5124,12 @@ double Item_func_match::val_real()
                                                  table->record[0], 0));
 }
 
-void Item_func_match::print(String *str)
+void Item_func_match::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(match "));
-  print_args(str, 1);
+  print_args(str, 1, query_type);
   str->append(STRING_WITH_LEN(" against ("));
-  args[0]->print(str);
+  args[0]->print(str, query_type);
   if (flags & FT_BOOL)
     str->append(STRING_WITH_LEN(" in boolean mode"));
   else if (flags & FT_EXPAND)
@@ -5493,6 +5524,8 @@ Item_func_sp::make_field(Send_field *tmp_field)
   DBUG_ENTER("Item_func_sp::make_field");
   DBUG_ASSERT(sp_result_field);
   sp_result_field->make_field(tmp_field);
+  if (name)
+    tmp_field->col_name= name;
   DBUG_VOID_RETURN;
 }
 
@@ -5509,7 +5542,7 @@ Item_result
 Item_func_sp::result_type() const
 {
   DBUG_ENTER("Item_func_sp::result_type");
-  DBUG_PRINT("info", ("m_sp = %p", m_sp));
+  DBUG_PRINT("info", ("m_sp = %p", (void *) m_sp));
   DBUG_ASSERT(sp_result_field);
   DBUG_RETURN(sp_result_field->result_type());
 }

@@ -29,4 +29,5 @@ SET(HEAP_SOURCES  _check.c _rectest.c hp_block.c hp_clear.c hp_close.c hp_create
 
 IF(NOT SOURCE_SUBLIBS)
   ADD_LIBRARY(heap ${HEAP_SOURCES})
+  ADD_DEPENDENCIES(heap GenError)
 ENDIF(NOT SOURCE_SUBLIBS)

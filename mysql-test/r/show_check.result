@@ -662,53 +662,44 @@ t1	NULL	NULL	NULL	NULL	#	#	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Incorrect
 show create table t1;
 ERROR HY000: Incorrect information in file: './test/t1.frm'
 drop table if exists t1;
-CREATE TABLE txt1(a int);
-CREATE TABLE tyt2(a int);
-CREATE TABLE urkunde(a int);
+
+# Bug#12183: SHOW OPEN TABLES behavior doesn't match grammar.
+
+DROP DATABASE IF EXISTS mysqltest1;
+CREATE DATABASE mysqltest1;
+use mysqltest1;
+
+CREATE TABLE t1(a INT);
+CREATE TABLE t2(a INT);
+
 FLUSH TABLES;
-SELECT 1 FROM mysql.db, mysql.proc, mysql.user, mysql.time_zone, mysql.time_zone_name, txt1, tyt2, urkunde LIMIT 0;
+
+SELECT 1 FROM t1;
 1
-SHOW OPEN TABLES;
+SELECT 1 FROM t2;
+1
+
+SHOW OPEN TABLES FROM mysqltest1;
 Database	Table	In_use	Name_locked
-mysql	db	0	0
-test	urkunde	0	0
-mysql	time_zone	0	0
-mysql	general_log	0	0
-test	txt1	0	0
-mysql	proc	0	0
-test	tyt2	0	0
-mysql	user	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES FROM mysql;
+mysqltest1	t1	0	0
+mysqltest1	t2	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 'z%';
 Database	Table	In_use	Name_locked
-mysql	db	0	0
-mysql	time_zone	0	0
-mysql	general_log	0	0
-mysql	proc	0	0
-mysql	user	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES FROM mysql LIKE 'u%';
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE 't1%';
 Database	Table	In_use	Name_locked
-mysql	user	0	0
-SHOW OPEN TABLES LIKE 't%';
+mysqltest1	t1	0	0
+
+SHOW OPEN TABLES FROM mysqltest1 LIKE '%1%';
 Database	Table	In_use	Name_locked
-mysql	time_zone	0	0
-test	txt1	0	0
-test	tyt2	0	0
-mysql	time_zone_name	0	0
-SHOW OPEN TABLES LIKE '%o%';
-Database	Table	In_use	Name_locked
-mysql	time_zone	0	0
-mysql	general_log	0	0
-mysql	proc	0	0
-mysql	time_zone_name	0	0
+mysqltest1	t1	0	0
+
 FLUSH TABLES;
-SHOW OPEN TABLES;
-Database	Table	In_use	Name_locked
-mysql	general_log	0	0
-DROP TABLE txt1;
-DROP TABLE tyt2;
-DROP TABLE urkunde;
+
+DROP DATABASE mysqltest1;
+use test;
+
 SHOW TABLES FROM non_existing_database;
 ERROR 42000: Unknown database 'non_existing_database'
 End of 4.1 tests
@@ -1075,7 +1066,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def			VIEWS	TABLE_CATALOG	TABLE_CATALOG	253	1536	0	Y	0	0	33
 def			VIEWS	TABLE_SCHEMA	TABLE_SCHEMA	253	192	4	N	1	0	33
 def			VIEWS	TABLE_NAME	TABLE_NAME	253	192	2	N	1	0	33
-def			VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	589815	8	N	17	0	33
+def			VIEWS	VIEW_DEFINITION	VIEW_DEFINITION	252	589815	15	N	17	0	33
 def			VIEWS	CHECK_OPTION	CHECK_OPTION	253	24	4	N	1	0	33
 def			VIEWS	IS_UPDATABLE	IS_UPDATABLE	253	9	2	N	1	0	33
 def			VIEWS	DEFINER	DEFINER	253	231	14	N	1	0	33
@@ -1083,7 +1074,7 @@ def			VIEWS	SECURITY_TYPE	SECURITY_TYPE	253	21	7	N	1	0	33
 def			VIEWS	CHARACTER_SET_CLIENT	CHARACTER_SET_CLIENT	253	96	6	N	1	0	33
 def			VIEWS	COLLATION_CONNECTION	COLLATION_CONNECTION	253	96	6	N	1	0	33
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION	CHECK_OPTION	IS_UPDATABLE	DEFINER	SECURITY_TYPE	CHARACTER_SET_CLIENT	COLLATION_CONNECTION
-NULL	test	v1	SELECT 1	NONE	NO	root@localhost	DEFINER	binary	binary
+NULL	test	v1	select 1 AS `1`	NONE	NO	root@localhost	DEFINER	binary	binary
 ----------------------------------------------------------------
 SHOW CREATE PROCEDURE p1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
@@ -1404,7 +1395,7 @@ CREATE EVENT ev1 ON SCHEDULE AT '2030-01-01 00:00:00' DO SELECT '����' AS test;
 set names utf8;
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _koi8r'тест' AS `test`	koi8r	koi8r_general_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'тест' AS `test`	koi8r	koi8r_general_ci
 SHOW CREATE PROCEDURE p1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
 p1		CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`()
@@ -1427,4 +1418,9 @@ DROP FUNCTION f1;
 DROP TABLE t1;
 DROP EVENT ev1;
 SHOW TABLE TYPES;
+CREATE USER test_u@localhost;
+GRANT PROCESS ON *.* TO test_u@localhost;
+SHOW ENGINE MYISAM MUTEX;
+SHOW ENGINE MYISAM STATUS;
+DROP USER test_u@localhost;
 End of 5.1 tests

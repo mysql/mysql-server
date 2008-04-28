@@ -106,7 +106,7 @@ int main(int argc, const char** argv){
   NDBT_ThreadSet ths(_threads);
 
   // create Ndb object for each thread
-  if (ths.connect(&con, "TEST_DB") == -1) {
+  if (ths.connect(&con, db ? db : "TEST_DB") == -1) {
     ndbout << "connect failed: err=" << ths.get_err() << endl;
     return NDBT_ProgramExit(NDBT_FAILED);
   }

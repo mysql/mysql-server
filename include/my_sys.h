@@ -286,9 +286,11 @@ enum flush_type
   FLUSH_KEEP,           /* flush block and keep it in the cache */
   FLUSH_RELEASE,        /* flush block and remove it from the cache */
   FLUSH_IGNORE_CHANGED, /* remove block from the cache */
-  /* as my_disable_flush_pagecache_blocks is always 0, it is
-     strictly equivalent to FLUSH_KEEP */
-  FLUSH_FORCE_WRITE,
+  /*
+    As my_disable_flush_pagecache_blocks is always 0, the following option
+    is strictly equivalent to FLUSH_KEEP
+  */
+  FLUSH_FORCE_WRITE
   /**
      @brief like FLUSH_KEEP but return immediately if file is already being
      flushed (even partially) by another thread; only for page cache,

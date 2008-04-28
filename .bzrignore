@@ -10,11 +10,14 @@
 *.core
 *.d
 *.da
+*.dll
 *.exe
+*.exp
 *.gcda
 *.gcno
 *.gcov
 *.idb
+*.ilk
 *.la
 *.lai
 *.lib
@@ -59,6 +62,7 @@
 ./mysql.sln
 ./mysql.suo
 ./prepare
+.DS_Store
 .defs.mk
 .depend
 .depend.mk
@@ -459,6 +463,7 @@ cmd-line-utils/readline/.deps/undo.Po
 cmd-line-utils/readline/.deps/util.Po
 cmd-line-utils/readline/.deps/vi_mode.Po
 cmd-line-utils/readline/.deps/xmalloc.Po
+comments
 comon.h
 comp_err/*.ds?
 comp_err/*.vcproj
@@ -494,6 +499,7 @@ dbug/factorial
 dbug/factorial.r
 dbug/main.r
 dbug/output*.r
+dbug/tests
 dbug/user.ps
 dbug/user.t
 debian/control
@@ -1180,6 +1186,7 @@ libmysqld/sql_parse.cc
 libmysqld/sql_partition.cc
 libmysqld/sql_plugin.cc
 libmysqld/sql_prepare.cc
+libmysqld/sql_profile.cc
 libmysqld/sql_rename.cc
 libmysqld/sql_repl.cc
 libmysqld/sql_select.cc
@@ -1221,7 +1228,10 @@ linked_server_sources
 linked_tools_sources
 locked
 ltmain.sh
+ma_test_recovery.output
 man/*.1
+maria-win.patch
+maria_log.00000*
 maria_log_control
 merge/*.ds?
 merge/*.vcproj
@@ -1282,6 +1292,9 @@ mysql-5.0.2-alpha.tar.gz
 mysql-max-4.0.2-alpha-pc-linux-gnu-i686.tar.gz
 mysql-test/*.ds?
 mysql-test/*.vcproj
+mysql-test/.DS_Store
+mysql-test/funcs_1.log
+mysql-test/funcs_1.tar
 mysql-test/gmon.out
 mysql-test/install_test_db
 mysql-test/lib/init_db.sql
@@ -1370,9 +1383,12 @@ mysql-test/r/symlink.log
 mysql-test/r/system_mysql_db.log
 mysql-test/r/tmp.result
 mysql-test/r/udf.log
+mysql-test/reg.log
 mysql-test/rpl.log
 mysql-test/share/mysql
 mysql-test/std_data/*.pem
+mysql-test/suite/funcs_1.tar.gz
+mysql-test/suite/funcs_1.tar.zip
 mysql-test/suite/funcs_1/r/innodb_trig_03e.warnings
 mysql-test/suite/funcs_1/r/innodb_views.warnings
 mysql-test/suite/funcs_1/r/memory_trig_03e.warnings
@@ -2443,6 +2459,7 @@ storage/maria/ma_test_all
 storage/maria/maria.log
 storage/maria/maria_chk
 storage/maria/maria_control
+storage/maria/maria_dump_log
 storage/maria/maria_ftdump
 storage/maria/maria_log
 storage/maria/maria_log.*
@@ -2471,6 +2488,7 @@ storage/maria/unittest/mf_pagecache_consist_64kWR-t-big
 storage/maria/unittest/mf_pagecache_single_64k-t-big
 storage/maria/unittest/page_cache_test_file_1
 storage/maria/unittest/pagecache_debug.log
+storage/maria/unittest/tmp/*
 storage/myisam/.deps/ft_boolean_search.Po
 storage/myisam/.deps/ft_nlq_search.Po
 storage/myisam/.deps/ft_parser.Po
@@ -2992,6 +3010,7 @@ test/tools/ndb_cpcc
 test/tools/restart
 test/tools/verify_index
 test1/*
+test?.MA?
 test_xml
 tests/*.ds?
 tests/*.vcproj
@@ -3042,6 +3061,7 @@ unittest/mytap/t/*.t
 unittest/mytap/t/.deps/basic-t.Po
 unittest/page_cache_test_file_1
 unittest/pagecache_debug.log
+unittest/tmp/*
 unittest/unit
 vi.h
 vio/*.ds?
@@ -3066,16 +3086,3 @@ win/vs8cache.txt
 ylwrap
 zlib/*.ds?
 zlib/*.vcproj
-libmysqld/sql_profile.cc
-*.dll
-*.ilk
-*.exp
-comments
-maria-win.patch
-storage/maria/maria_dump_log
-maria_log.00000*
-ma_test_recovery.output
-test?.MA?
-dbug/tests
-storage/maria/unittest/tmp/*
-unittest/tmp/*

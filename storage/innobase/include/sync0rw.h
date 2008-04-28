@@ -421,6 +421,18 @@ blocked by readers, a writer may queue for the lock by setting the writer
 field. Then no new readers are allowed in. */
 
 struct rw_lock_struct {
+	os_event_t	event;	/* Used by sync0arr.c for thread queueing */
+
+#ifdef __WIN__
+	os_event_t	wait_ex_event;	/* This windows specific event is
+				used by the thread which has set the
+				lock state to RW_LOCK_WAIT_EX. The
+				rw_lock design guarantees that this
+				thread will be the next one to proceed
+				once the current the event gets
+				signalled. See LEMMA 2 in sync0sync.c */
+#endif
+
 	ulint	reader_count;	/* Number of readers who have locked this
 				lock in the shared mode */
 	ulint	writer;		/* This field is set to RW_LOCK_EX if there

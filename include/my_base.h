@@ -188,15 +188,18 @@ enum ha_extra_function {
     executed. This condition is unset by HA_EXTRA_NO_IGNORE_DUP_KEY.
   */
   HA_EXTRA_INSERT_WITH_UPDATE,
+  /* Inform handler that we will do a rename */
+  HA_EXTRA_PREPARE_FOR_RENAME,
   /*
     Orders MERGE handler to attach or detach its child tables. Used at
     begin and end of a statement.
   */
   HA_EXTRA_ATTACH_CHILDREN,
-  HA_EXTRA_DETACH_CHILDREN,
-  /* Inform handler that we will do a rename */
-  HA_EXTRA_PREPARE_FOR_RENAME
+  HA_EXTRA_DETACH_CHILDREN
 };
+
+/* Compatible option, to be deleted in 6.0 */
+#define HA_EXTRA_PREPARE_FOR_DELETE HA_EXTRA_PREPARE_FOR_DROP
 
 	/* The following is parameter to ha_panic() */
 
@@ -414,8 +417,8 @@ enum ha_base_keytype {
 /* NULLs are not supported in spatial index */
 #define HA_ERR_NULL_IN_SPATIAL   158
 #define HA_ERR_TABLE_DEF_CHANGED 159  /* The table changed in storage engine */
-#define HA_ERR_NO_PARTITION_FOUND 160  /* There's no partition in table for
-                                          given value */
+/* There's no partition in table for given value */
+#define HA_ERR_NO_PARTITION_FOUND 160
 #define HA_ERR_RBR_LOGGING_FAILED 161  /* Row-based binlogging of row failed */
 #define HA_ERR_DROP_INDEX_FK      162  /* Index needed in foreign key constr */
 /*
@@ -434,14 +437,14 @@ enum ha_base_keytype {
 #define HA_ERR_RECORD_IS_THE_SAME 169
 /* It is not possible to log this statement */
 #define HA_ERR_LOGGING_IMPOSSIBLE 170
-#define HA_ERR_CORRUPT_EVENT      171    /* The event was corrupt, leading to */
-                                         /* illegal data being read */
+/* The event was corrupt, leading to illegal data being read */
+#define HA_ERR_CORRUPT_EVENT      171
 #define HA_ERR_NEW_FILE	          172	 /* New file format */
-#define HA_ERR_INITIALIZATION     173    /* Error during initialization */
-#define HA_ERR_FILE_TOO_SHORT	  174	 /* File too short */
-#define HA_ERR_WRONG_CRC	  175	 /* Wrong CRC on page */
-#define HA_ERR_ROWS_EVENT_APPLY   176    /* The event could not be processed */
-                                         /* no other hanlder error happened  */
+/* The event could not be processed no other handler error happened */
+#define HA_ERR_ROWS_EVENT_APPLY   173
+#define HA_ERR_INITIALIZATION     174    /* Error during initialization */
+#define HA_ERR_FILE_TOO_SHORT	  175	 /* File too short */
+#define HA_ERR_WRONG_CRC	  176	 /* Wrong CRC on page */
 #define HA_ERR_LAST               176    /* Copy of last error nr */
 
 /* Number of different errors */

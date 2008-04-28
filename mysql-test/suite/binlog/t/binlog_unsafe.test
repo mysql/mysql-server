@@ -1,17 +1,260 @@
-# Test to check that a warning is generated for unsafe statements
-# executed under statement mode logging.
+# ==== Purpose ====
+#
+# Some statements can not be written to the binlog in a safe manner
+# with statement-based replication, either because they rely on
+# features that are local to the server they are replicated from
+# (e.g., @@variables), or because they include nondeterministic
+# queries (e.g., LIMIT), or because the time at which the query is
+# executed cannot be determined (e.g., INSERT DELAYED).  Such
+# statements should be marked unsafe.  All unsafe statements should
+# give a warning.
+#
+# This test verifies that a warning is generated for statements that
+# should be unsafe, when they are executed under statement mode
+# logging.
+#
+# All variables should be unsafe, with some exceptions.  Therefore,
+# this test also verifies that the exceptions do *not* generare a
+# warning.
+#
+#
+# ==== Method ====
+#
+# We try an INSERT DELAYED statement and verify that a warning is
+# issued.
+#
+# We try to insert unsafe variables into a table in several ways:
+# directly with an INSERT statement, from a stored procedure, from a
+# stored function, from a trigger, from a prepared statement, and from
+# a complicated nesting of triggers, functions, procedures, and
+# prepared statements.  In all cases, a warning should be issued.
+#
+# We try to insert the variables that should not be unsafe into a
+# table, and verify that *no* warning is issued.
+#
+#
+# ==== Related bugs and worklogs ====
+#
+# WL#3339: Issue warnings when statement-based replication may fail
+# BUG#31168: @@hostname does not replicate
+# BUG#34732: mysqlbinlog does not print default values for auto_increment variables
+# BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
+#
+#
+# ==== Related test cases ====
+#
+# rpl.rpl_variables verifies that variables which cannot be replicated
+# safely in statement mode are replicated correctly in mixed or row
+# mode.
+#
+# rpl.rpl_variables_stm tests the small subset of variables that
+# actually can be replicated safely in statement mode.
+#
+#
+# ==== Todo ====
+#
+# There are several other ways to create unsafe statements: see, e.g.,
+# WL#3339, BUG#34768.
 
 source include/have_log_bin.inc;
+source include/have_binlog_format_statement.inc;
 
-SET BINLOG_FORMAT=STATEMENT;
-
-CREATE TABLE t1 (a CHAR(40));
-CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY);
-CREATE TABLE t3 (b INT AUTO_INCREMENT PRIMARY KEY);
-CREATE VIEW v1(a,b) AS SELECT a,b FROM t2,t3;
-
-INSERT INTO t1 SELECT UUID();
-query_vertical SHOW WARNINGS;
-
-DROP TABLE t1,t2,t3;
 DROP VIEW v1;
+--echo ==== Setup tables ====
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a CHAR(40));
+CREATE TABLE t3 (a INT AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE trigger_table (a CHAR(7));
+CREATE TABLE trigger_table2 (a INT);
+
+
+--echo ==== Non-deterministic statements ====
+
+INSERT DELAYED INTO t1 VALUES (5);
+
+
+--echo ==== Some variables that *should* be unsafe ====
+
+--echo ---- Insert directly ----
+
+INSERT INTO t1 VALUES (@@global.sync_binlog);
+INSERT INTO t1 VALUES (@@session.insert_id);
+INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+INSERT INTO t2 SELECT UUID();
+INSERT INTO t2 VALUES (@@session.sql_mode);
+INSERT INTO t2 VALUES (@@global.init_slave);
+INSERT INTO t2 VALUES (@@hostname);
+
+--echo ---- Insert from stored procedure ----
+
+DELIMITER |;
+CREATE PROCEDURE proc()
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+CALL proc();
+
+--echo ---- Insert from stored function ----
+
+DELIMITER |;
+CREATE FUNCTION func()
+RETURNS INT
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+  RETURN 0;
+END|
+DELIMITER ;|
+
+SELECT func();
+
+--echo ---- Insert from trigger ----
+
+DELIMITER |;
+CREATE TRIGGER trig
+BEFORE INSERT ON trigger_table
+FOR EACH ROW
+BEGIN
+  INSERT INTO t1 VALUES (@@global.sync_binlog);
+  INSERT INTO t1 VALUES (@@session.insert_id);
+  INSERT INTO t1 VALUES (@@global.auto_increment_increment);
+  INSERT INTO t2 SELECT UUID();
+  INSERT INTO t2 VALUES (@@session.sql_mode);
+  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@hostname);
+END|
+DELIMITER ;|
+
+INSERT INTO trigger_table VALUES ('bye.');
+
+--echo ---- Insert from prepared statement ----
+
+PREPARE p1 FROM 'INSERT INTO t1 VALUES (@@global.sync_binlog)';
+PREPARE p2 FROM 'INSERT INTO t1 VALUES (@@session.insert_id)';
+PREPARE p3 FROM 'INSERT INTO t1 VALUES (@@global.auto_increment_increment)';
+PREPARE p4 FROM 'INSERT INTO t2 SELECT UUID()';
+PREPARE p5 FROM 'INSERT INTO t2 VALUES (@@session.sql_mode)';
+PREPARE p6 FROM 'INSERT INTO t2 VALUES (@@global.init_slave)';
+PREPARE p7 FROM 'INSERT INTO t2 VALUES (@@hostname)';
+
+EXECUTE p1; EXECUTE p2; EXECUTE p3; EXECUTE p4; EXECUTE p5;
+EXECUTE p6; EXECUTE p7;
+
+--echo ---- Insert from nested call of triggers / functions / procedures ----
+
+DELIMITER |;
+
+# proc1: cause trigger 'trig' above to be triggered.
+CREATE PROCEDURE proc1()
+  INSERT INTO trigger_table VALUES ('ha!')|
+
+# func2: call proc1 above.
+CREATE FUNCTION func2()
+RETURNS INT
+BEGIN
+  CALL proc1();
+  RETURN 0;
+END|
+
+# trig3: call func2 above
+CREATE TRIGGER trig3
+BEFORE INSERT ON trigger_table2
+FOR EACH ROW
+BEGIN
+  DECLARE tmp INT;
+  SELECT func2() INTO tmp;
+END|
+
+# proc4: cause trig3 above to be triggered.
+CREATE PROCEDURE proc4()
+  INSERT INTO trigger_table2 VALUES (1)|
+
+# func5: call proc4 above.
+CREATE FUNCTION func5()
+RETURNS INT
+BEGIN
+  CALL proc4;
+  RETURN 0;
+END|
+
+# prep6: call func5() above.
+PREPARE prep6 FROM 'SELECT func5()'|
+
+DELIMITER ;|
+
+# try a complicated call path to trigger 'trig'.
+EXECUTE prep6;
+
+
+--echo ==== Variables that should *not* be unsafe ====
+
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.pseudo_thread_id);
+INSERT INTO t1 VALUES (@@session.foreign_key_checks);
+INSERT INTO t1 VALUES (@@session.sql_auto_is_null);
+INSERT INTO t1 VALUES (@@session.unique_checks);
+INSERT INTO t1 VALUES (@@session.auto_increment_increment);
+INSERT INTO t1 VALUES (@@session.auto_increment_offset);
+INSERT INTO t2 VALUES (@@session.character_set_client);
+INSERT INTO t2 VALUES (@@session.collation_connection);
+INSERT INTO t2 VALUES (@@session.collation_server);
+INSERT INTO t2 VALUES (@@session.time_zone);
+INSERT INTO t2 VALUES (@@session.lc_time_names);
+INSERT INTO t2 VALUES (@@session.collation_database);
+INSERT INTO t2 VALUES (@@session.timestamp);
+INSERT INTO t2 VALUES (@@session.last_insert_id);
+SET @my_var= 4711;
+INSERT INTO t1 VALUES (@my_var);
+
+# using insert_id implicitly should be ok.
+SET insert_id=12;
+INSERT INTO t3 VALUES (NULL);
+
+
+--echo ==== Clean up ====
+
+DROP PROCEDURE proc;
+DROP FUNCTION  func;
+DROP TRIGGER   trig;
+DROP PROCEDURE proc1;
+DROP FUNCTION  func2;
+DROP TRIGGER   trig3;
+DROP PROCEDURE proc4;
+DROP FUNCTION  func5;
+DROP PREPARE   prep6;
+DROP TABLE t1, t2, t3, trigger_table, trigger_table2;
+#
+# BUG#34768 - nondeterministic INSERT using LIMIT logged in stmt mode if
+#             binlog_format=mixed
+#
+CREATE TABLE t1(a INT, b INT, KEY(a), PRIMARY KEY(b));
+INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+UPDATE t1 SET a=1 LIMIT 1;
+DELETE FROM t1 LIMIT 1;
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  INSERT INTO t1 SELECT * FROM t1 LIMIT 1;
+  REPLACE INTO t1 SELECT * FROM t1 LIMIT 1;
+  UPDATE t1 SET a=1 LIMIT 1;
+  DELETE FROM t1 LIMIT 1;
+END|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;

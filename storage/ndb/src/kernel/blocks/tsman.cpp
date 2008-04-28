@@ -181,7 +181,6 @@ struct TsmanChunk
   Vector<Uint32> bitmask;
 };
 template class Vector<TsmanChunk>;
-template class Vector<Uint32>;
 #endif
 
 void
@@ -537,6 +536,22 @@ Tsman::execCREATE_FILE_REQ(Signal* signal){
       break;
     }
     
+    if(ERROR_INSERTED(16000) ||
+       (sizeof(void*) == 4 && req->file_size_hi & 0xFFFFFFFF))
+    {
+      jam();
+      if(signal->getNoOfSections())
+        releaseSections(signal);
+
+      CreateFileImplRef* ref= (CreateFileImplRef*)signal->getDataPtr();
+      ref->senderData = senderData;
+      ref->senderRef = reference();
+      ref->errorCode = CreateFileImplRef::FileSizeTooLarge;
+      sendSignal(senderRef, GSN_CREATE_FILE_REF, signal,
+                 CreateFileImplRef::SignalLength, JBB);
+      return;
+    }
+ 
     new (file_ptr.p) Datafile(req);
     Local_datafile_list tmp(m_file_pool, ptr.p->m_meta_files);
     tmp.add(file_ptr);

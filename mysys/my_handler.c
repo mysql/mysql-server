@@ -20,6 +20,7 @@
 #include <my_base.h>
 #include <my_handler.h>
 #include <my_sys.h>
+#include "my_handler_errors.h"
 
 int ha_compare_text(CHARSET_INFO *charset_info, const uchar *a, uint a_length,
 		    const uchar *b, uint b_length, my_bool part_key,
@@ -568,71 +569,6 @@ HA_KEYSEG *ha_find_null(HA_KEYSEG *keyseg, const uchar *a)
 
 
 /*
-  Errors a handler can give you
-*/
-
-static const char *handler_error_messages[]=
-{
-  "Didn't find key on read or update",
-  "Duplicate key on write or update",
-  "Internal (unspecified) error in handler",
-  "Someone has changed the row since it was read (while the table was locked to prevent it)",
-  "Wrong index given to function",
-  "Undefined handler error 125",
-  "Index file is crashed",
-  "Record file is crashed",
-  "Out of memory in engine",
-  "Undefined handler error 129",
-  "Incorrect file format",
-  "Command not supported by database",
-  "Old database file",
-  "No record read before update",
-  "Record was already deleted (or record file crashed)",
-  "No more room in record file",
-  "No more room in index file",
-  "No more records (read after end of file)",
-  "Unsupported extension used for table",
-  "Too big row",
-  "Wrong create options",
-  "Duplicate unique key or constraint on write or update",
-  "Unknown character set used in table",
-  "Conflicting table definitions in sub-tables of MERGE table",
-  "Table is crashed and last repair failed",
-  "Table was marked as crashed and should be repaired",
-  "Lock timed out; Retry transaction",
-  "Lock table is full;  Restart program with a larger locktable",
-  "Updates are not allowed under a read only transactions",
-  "Lock deadlock; Retry transaction",
-  "Foreign key constraint is incorrectly formed",
-  "Cannot add a child row",
-  "Cannot delete a parent row",
-  "No savepoint with that name",
-  "Non unique key block size",
-  "The table does not exist in engine",
-  "The table already existed in storage engine",
-  "Could not connect to storage engine",
-  "Unexpected null pointer found when using spatial index",
-  "The table changed in storage engine",
-  "There's no partition in table for the given value",
-  "Row-based binlogging of row failed",
-  "Index needed in foreign key constraint",
-  "Upholding foreign key constraints would lead to a duplicate key error in "
-  "some other table",
-  "Table needs to be upgraded before it can be used",
-  "Table is read only",
-  "Failed to get next auto increment value",
-  "Failed to set row auto increment value",
-  "Unknown (generic) error from engine",
-  "Record is the same",
-  "It is not possible to log this statement",
-  "The table is of a new format not supported by this version",
-  "Got a fatal error during initialzaction of handler",
-  "File to short; Expected more data in file",
-  "Read page with wrong checksum"
-};
-
-
-/*
   Register handler error messages for usage with my_error()
 
   NOTES
@@ -640,9 +576,16 @@ static const char *handler_error_messages[]=
     will ignore calls to register already registered error numbers.
 */
 
-
 void my_handler_error_register(void)
 {
+  /*
+    If you got compilation error here about compile_time_assert array, check
+    that every HA_ERR_xxx constant has a corresponding error message in
+    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    include/my_base.h).
+  */
+  compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==
+                      HA_ERR_LAST + 1);
   my_error_register(handler_error_messages, HA_ERR_FIRST,
                     HA_ERR_FIRST+ array_elements(handler_error_messages)-1);
 }

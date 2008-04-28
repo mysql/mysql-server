@@ -1266,6 +1266,28 @@ DROP DATABASE db27878;
 use test;
 DROP TABLE t1;
 
+#
+# Bug #33201 Crash occurs when granting update privilege on one column of a view
+#
+drop table if exists test;
+drop function if exists test_function;
+drop view if exists v1;
+create table test (col1 varchar(30));
+delimiter |;
+create function test_function() returns varchar(30)
+begin
+        declare tmp varchar(30);
+        select col1 from test limit 1 into tmp;
+        return '1';
+end|
+delimiter ;|
+create view v1 as select test.* from test where test.col1=test_function();
+grant update (col1) on v1 to 'greg'@'localhost';
+drop user 'greg'@'localhost';
+drop view v1;
+drop table test;
+drop function test_function;
+
 --echo End of 5.0 tests
 
 #
@@ -1374,7 +1396,70 @@ GRANT ALL PRIVILEGES ON test.* TO mysqltest_1@localhost;
 CALL mysqltest1.test();
 DROP DATABASE mysqltest1;
 RENAME TABLE mysql.procs_gone TO mysql.procs_priv;
+DROP USER mysqltest_1@localhost;
 FLUSH PRIVILEGES;
+
+
+#
+# Bug#33464: DROP FUNCTION caused a crash.
+#
+CREATE DATABASE dbbug33464;
+CREATE USER 'userbug33464'@'localhost';
+
+GRANT CREATE ROUTINE ON dbbug33464.* TO 'userbug33464'@'localhost';
+
+--replace_result $MASTER_MYPORT MYSQL_PORT $MASTER_MYSOCK MYSQL_SOCK
+connect (connbug33464, localhost, userbug33464, , dbbug33464);
+--source suite/funcs_1/include/show_connection.inc
+
+--disable_warnings
+DROP PROCEDURE IF EXISTS sp3;
+DROP FUNCTION IF EXISTS fn1;
+--enable_warnings
+
+delimiter //;
+CREATE PROCEDURE sp3(v1 char(20))
+BEGIN
+   SELECT * from dbbug33464.t6 where t6.f2= 'xyz';
+END//
+delimiter ;//
+
+delimiter //;
+CREATE FUNCTION fn1() returns char(50) SQL SECURITY INVOKER
+BEGIN
+   return 1;
+END//
+delimiter ;//
+
+delimiter //;
+CREATE FUNCTION fn2() returns char(50) SQL SECURITY DEFINER
+BEGIN
+   return 2;
+END//
+delimiter ;//
+
+disconnect connbug33464;
+
+# cleanup
+connection default;
+USE dbbug33464;
+--source suite/funcs_1/include/show_connection.inc
+
+SELECT fn1();
+SELECT fn2();
+
+--error 0, ER_CANNOT_USER
+DROP USER 'userbug33464'@'localhost';
+
+DROP FUNCTION fn1;
+DROP FUNCTION fn2;
+DROP PROCEDURE sp3;
+
+--error 0, ER_CANNOT_USER
+DROP USER 'userbug33464'@'localhost';
+
+use test;
+DROP DATABASE dbbug33464;
 
 
 --echo End of 5.1 tests

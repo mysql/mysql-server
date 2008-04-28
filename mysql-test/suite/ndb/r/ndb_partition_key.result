@@ -38,6 +38,23 @@ a	b	c
 1	10	3
 1	11	3
 1	12	3
+select max(b) from t1 where a = 1;
+max(b)
+12
+select b from t1 where a = 1 order by b desc;
+b
+12
+11
+10
+9
+8
+7
+6
+5
+4
+3
+2
+1
 DROP TABLE t1;
 CREATE TABLE t1 (a INT, b CHAR(10) COLLATE latin1_bin, c INT, d INT,
 PRIMARY KEY (a,b,c) USING HASH)
@@ -87,6 +104,12 @@ PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
 drop table t1;
 CREATE TABLE t1 (a int not null primary key);
+ALTER TABLE t1
+ENGINE = NDB
+PARTITION BY KEY(a)
+(PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
+drop table t1;
+CREATE TABLE t1 (a int not null primary key) ENGINE = NDB;
 ALTER TABLE t1
 PARTITION BY KEY(a)
 (PARTITION p0 ENGINE = NDB, PARTITION p1 ENGINE = NDB);
@@ -143,7 +166,6 @@ t1	CREATE TABLE `t1` (
 alter table t1
 partition by key(a)
 (partition p0 engine=ndb, partition p1);
-ERROR HY000: The mix of handlers in the partitions is not allowed in this version of MySQL
 alter table t1
 engine=ndb
 partition by key(a)

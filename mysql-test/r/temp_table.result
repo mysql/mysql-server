@@ -112,7 +112,7 @@ v1	CREATE TEMPORARY TABLE `v1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 show create view v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select _latin1'This is view' AS `A`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 'This is view' AS `A`	latin1	latin1_swedish_ci
 drop view v1;
 select * from v1;
 A
@@ -184,3 +184,14 @@ select * from t1;
 a
 42
 drop table t1;
+CREATE TEMPORARY TABLE t1(a INT, b VARCHAR(20));
+INSERT INTO t1 VALUES(1, 'val1'), (2, 'val2'), (3, 'val3');
+DELETE FROM t1 WHERE a=1;
+SELECT count(*) FROM t1;
+count(*)
+2
+DELETE FROM t1;
+SELECT * FROM t1;
+a	b
+DROP TABLE t1;
+End of 5.1 tests

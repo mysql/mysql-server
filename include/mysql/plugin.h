@@ -717,6 +717,16 @@ int mysql_tmpfile(const char *prefix);
 */
 int thd_killed(const MYSQL_THD thd);
 
+
+/**
+  Return the thread id of a user thread
+
+  @param thd  user thread connection handle
+  @return  thread id
+*/
+unsigned long thd_get_thread_id(const MYSQL_THD thd);
+
+
 /**
   Allocate memory in the connection's local memory pool
 

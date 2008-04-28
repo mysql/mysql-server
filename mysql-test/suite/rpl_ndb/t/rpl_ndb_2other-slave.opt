@@ -1,1 +1,1 @@
---innodb --log-slave-updates=0 
+--innodb --ndbcluster=0 --log-slave-updates=0

@@ -519,7 +519,7 @@ coercibility(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select charset(load_file(_latin1'MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `charset(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`,collation(load_file(_latin1'MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `collation(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`,coercibility(load_file(_latin1'MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `coercibility(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`
+Note	1003	select charset(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `charset(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`,collation(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `collation(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`,coercibility(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat')) AS `coercibility(load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat'))`
 update t1 set imagem=load_file('MYSQLTEST_VARDIR/std_data_ln/words.dat') where id=1;
 select if(imagem is null, "ERROR", "OK"),length(imagem) from t1 where id = 1;
 if(imagem is null, "ERROR", "OK")	length(imagem)

@@ -26,6 +26,9 @@ EXTRA_DIST =		mysql.spec.sh \
 			mysql-log-rotate.sh \
 			mysql.server.sh \
 			mysqld_multi.server.sh \
+                        config.huge.ini.sh \
+                        config.medium.ini.sh \
+                        config.small.ini.sh \
 			binary-configure.sh \
 			magic mysql.m4 \
 			MySQL-shared-compat.spec.sh \
@@ -41,6 +44,9 @@ pkgsupp_DATA =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
+                        config.huge.ini \
+                        config.medium.ini \
+                        config.small.ini \
 			my-innodb-heavy-4G.cnf \
 			mysql-log-rotate \
 			binary-configure \
@@ -59,6 +65,9 @@ CLEANFILES =		my-small.cnf \
 			my-medium.cnf \
 			my-large.cnf \
 			my-huge.cnf \
+                        config.huge.ini \
+                        config.medium.ini \
+                        config.small.ini \
 			my-innodb-heavy-4G.cnf \
 			mysql.spec \
 			mysql-@VERSION@.spec \

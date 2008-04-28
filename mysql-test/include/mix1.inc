@@ -1090,6 +1090,19 @@ SELECT * FROM t1 WHERE id=191 OR id IS NULL ORDER BY d;
 
 DROP TABLE t1;
 
+#
+# Bug #34223: Assertion failed: (optp->var_type & 127) == 8,
+#             file .\my_getopt.c, line 830
+#
+
+set @my_innodb_autoextend_increment=@@global.innodb_autoextend_increment;
+set global innodb_autoextend_increment=8;
+set global innodb_autoextend_increment=@my_innodb_autoextend_increment;
+
+set @my_innodb_commit_concurrency=@@global.innodb_commit_concurrency;
+set global innodb_commit_concurrency=0;
+set global innodb_commit_concurrency=@my_innodb_commit_concurrency;
+
 --echo End of 5.0 tests
 
 # Fix for BUG#19243 "wrong LAST_INSERT_ID() after ON DUPLICATE KEY
@@ -1408,6 +1421,35 @@ EXPLAIN SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
 SELECT * FROM t1 WHERE tid = 1 AND vid = 3 ORDER BY idx DESC;
 
+DROP TABLE t1;
+
+#
+# Bug#21704: Renaming column does not update FK definition.
+#
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+--enable_warnings
+
+CREATE TABLE t1(id INT PRIMARY KEY)
+  ENGINE=innodb;
+
+CREATE TABLE t2(
+  t1_id INT PRIMARY KEY,
+  CONSTRAINT fk1 FOREIGN KEY (t1_id) REFERENCES t1(id))
+  ENGINE=innodb;
+
+--echo
+
+--disable_result_log
+--error ER_ERROR_ON_RENAME
+ALTER TABLE t1 CHANGE id id2 INT;
+--enable_result_log
+
+--echo
+
+DROP TABLE t2;
 DROP TABLE t1;
 
 --echo End of 5.1 tests

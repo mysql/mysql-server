@@ -3,15 +3,18 @@ Next NDBCNTR 1002
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4029
-Next DBLQH 5047
+Next DBLQH 5050
 Next DBDICT 6008
 Next DBDIH 7195
-Next DBTC 8054
+Next DBTC 8058
 Next CMVMI 9000
 Next BACKUP 10038
 Next DBUTIL 11002
 Next DBTUX 12008
 Next SUMA 13034
+Next SUMA 13036
+Next LGMAN 15001
+Next TSMAN 16001
 
 TESTING NODE FAILURE, ARBITRATION
 ---------------------------------
@@ -260,6 +263,9 @@ Delay execution of ABORTCONF signal 2 seconds to generate time-out.
 
 8053: Crash in timeOutFoundLab, state CS_WAIT_COMMIT_CONF
 
+5048: Crash in execCOMMIT
+5049: SET_ERROR_INSERT_VALUE(5048)
+
 ERROR CODES FOR TESTING TIME-OUT HANDLING IN DBTC
 -------------------------------------------------
 
@@ -315,6 +321,8 @@ ABORT OF TCKEYREQ
 ------
 
 8038 : Simulate API disconnect just after SCAN_TAB_REQ
+
+8057 : Send only 1 COMMIT per timeslice
 
 8052 : Simulate failure of TransactionBufferMemory allocation for OI lookup
 
@@ -547,3 +555,11 @@ NDBCNTR:
 
 1000: Crash insertion on SystemError::CopyFragRef
 1001: Delay sending NODE_FAILREP (to own node), until error is cleared
+
+LGMAN:
+-----
+15000: Fail to create log file
+
+TSMAN:
+-----
+16000: Fail to create data file

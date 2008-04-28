@@ -76,18 +76,25 @@ let $wait_condition=select count(*) = 0 from information_schema.events
 where event_name='event_4' and status='enabled';
 --source include/wait_condition.inc
 
-# check the data
+# Wait for the events to fire and check the data afterwards
 
+let $wait_condition=SELECT SUM(a) >= 4 FROM table_1;
+source include/wait_condition.inc;
 SELECT IF(SUM(a) >= 4, 'OK', 'ERROR') FROM table_1;
+
+let $wait_condition=SELECT SUM(a) >= 5 FROM table_2;
+source include/wait_condition.inc;
 SELECT IF(SUM(a) >= 5, 'OK', 'ERROR') FROM table_2;
+
+let $wait_condition=SELECT SUM(a) >= 1 FROM table_3;
+source include/wait_condition.inc;
 SELECT IF(SUM(a) >= 1, 'OK', 'ERROR') FROM table_3;
+
+let $wait_condition=SELECT SUM(a) >= 1 FROM table_4;
+source include/wait_condition.inc;
 SELECT IF(SUM(a) >= 1, 'OK', 'ERROR') FROM table_4;
 
 SELECT IF(TIME_TO_SEC(TIMEDIFF(ENDS,STARTS))=6, 'OK', 'ERROR')
-FROM INFORMATION_SCHEMA.EVENTS
-WHERE EVENT_SCHEMA=DATABASE() AND EVENT_NAME='event_2';
-
-SELECT IF(LAST_EXECUTED-ENDS <= 0, 'OK', 'ERROR')
 FROM INFORMATION_SCHEMA.EVENTS
 WHERE EVENT_SCHEMA=DATABASE() AND EVENT_NAME='event_2';
 

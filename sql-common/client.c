@@ -112,6 +112,7 @@ uint		mysql_port=0;
 char		*mysql_unix_port= 0;
 const char	*unknown_sqlstate= "HY000";
 const char	*not_error_sqlstate= "00000";
+const char	*cant_connect_sqlstate= "08001";
 #ifdef HAVE_SMEM
 char		 *shared_memory_base_name= 0;
 const char 	*def_shared_memory_base_name= default_shared_memory_base_name;
@@ -126,6 +127,9 @@ static int wait_for_data(my_socket fd, uint timeout);
 
 CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
 
+/* Server error code and message */
+unsigned int mysql_server_last_errno;
+char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 
 /****************************************************************************
   A modified version of connect().  my_connect() allows you to specify
@@ -288,11 +292,18 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
   DBUG_PRINT("enter", ("error :%d '%s'", errcode, ER(errcode)));
   DBUG_ASSERT(mysql != 0);
 
-  net= &mysql->net;
-  net->client_last_errno= errcode;
-  strmov(net->client_last_error, ER(errcode));
-  strmov(net->sqlstate, sqlstate);
-
+  if (mysql)
+  {
+    net= &mysql->net;
+    net->last_errno= errcode;
+    strmov(net->last_error, ER(errcode));
+    strmov(net->sqlstate, sqlstate);
+  }
+  else
+  {
+    mysql_server_last_errno= errcode;
+    strmov(mysql_server_last_error, ER(errcode));
+  }
   DBUG_VOID_RETURN;
 }
 
@@ -304,8 +315,8 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
 
 void net_clear_error(NET *net)
 {
-  net->client_last_errno= 0;
-  net->client_last_error[0]= '\0';
+  net->last_errno= 0;
+  net->last_error[0]= '\0';
   strmov(net->sqlstate, not_error_sqlstate);
 }
 
@@ -331,9 +342,9 @@ static void set_mysql_extended_error(MYSQL *mysql, int errcode,
   DBUG_ASSERT(mysql != 0);
 
   net= &mysql->net;
-  net->client_last_errno= errcode;
+  net->last_errno= errcode;
   va_start(args, format);
-  my_vsnprintf(net->client_last_error, sizeof(net->client_last_error)-1,
+  my_vsnprintf(net->last_error, sizeof(net->last_error)-1,
                format, args);
   va_end(args);
   strmov(net->sqlstate, sqlstate);
@@ -667,7 +678,7 @@ cli_safe_read(MYSQL *mysql)
       return (packet_error);
 #endif /*MYSQL_SERVER*/
     end_server(mysql);
-    set_mysql_error(mysql, net->client_last_errno == ER_NET_PACKET_TOO_LARGE ?
+    set_mysql_error(mysql, net->last_errno == ER_NET_PACKET_TOO_LARGE ?
                     CR_NET_PACKET_TOO_LARGE: CR_SERVER_LOST, unknown_sqlstate);
     return (packet_error);
   }
@@ -676,7 +687,7 @@ cli_safe_read(MYSQL *mysql)
     if (len > 3)
     {
       char *pos=(char*) net->read_pos+1;
-      net->client_last_errno=uint2korr(pos);
+      net->last_errno=uint2korr(pos);
       pos+=2;
       len-=2;
       if (protocol_41(mysql) && pos[0] == '#')
@@ -684,8 +695,18 @@ cli_safe_read(MYSQL *mysql)
 	strmake(net->sqlstate, pos+1, SQLSTATE_LENGTH);
 	pos+= SQLSTATE_LENGTH+1;
       }
-      (void) strmake(net->client_last_error,(char*) pos,
-		     min((uint) len,(uint) sizeof(net->client_last_error)-1));
+      else
+      {
+        /*
+          The SQL state hasn't been received -- it should be reset to HY000
+          (unknown error sql state).
+        */
+
+        strmov(net->sqlstate, unknown_sqlstate);
+      }
+
+      (void) strmake(net->last_error,(char*) pos,
+		     min((uint) len,(uint) sizeof(net->last_error)-1));
     }
     else
       set_mysql_error(mysql, CR_UNKNOWN_ERROR, unknown_sqlstate);
@@ -701,9 +722,9 @@ cli_safe_read(MYSQL *mysql)
     mysql->server_status&= ~SERVER_MORE_RESULTS_EXISTS;
 
     DBUG_PRINT("error",("Got error: %d/%s (%s)",
-                        net->client_last_errno,
+                        net->last_errno,
                         net->sqlstate,
-                        net->client_last_error));
+                        net->last_error));
     return(packet_error);
   }
   return len;
@@ -722,11 +743,12 @@ my_bool
 cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 		     const uchar *header, ulong header_length,
 		     const uchar *arg, ulong arg_length, my_bool skip_check,
-                     MYSQL_STMT *stmt __attribute__((unused)))
+                     MYSQL_STMT *stmt)
 {
   NET *net= &mysql->net;
   my_bool result= 1;
   init_sigpipe_variables
+  my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
   DBUG_ENTER("cli_advanced_command");
 
   /* Don't give sigpipe errors if the client doesn't want them */
@@ -734,7 +756,7 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
 
   if (mysql->net.vio == 0)
   {						/* Do reconnect if possible */
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       DBUG_RETURN(1);
   }
   if (mysql->status != MYSQL_STATUS_READY ||
@@ -760,13 +782,13 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   {
     DBUG_PRINT("error",("Can't send command to server. Error: %d",
 			socket_errno));
-    if (net->client_last_errno == ER_NET_PACKET_TOO_LARGE)
+    if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
     {
       set_mysql_error(mysql, CR_NET_PACKET_TOO_LARGE, unknown_sqlstate);
       goto end;
     }
     end_server(mysql);
-    if (mysql_reconnect(mysql))
+    if (mysql_reconnect(mysql) || stmt_skip)
       goto end;
     if (net_write_command(net,(uchar) command, header, header_length,
 			  arg, arg_length))
@@ -845,7 +867,7 @@ static my_bool is_NT(void)
 
   @retval  0   success
   @retval  !0  network error or the server is not commercial.
-               Error code is saved in mysql->net.client_last_errno.
+               Error code is saved in mysql->net.last_errno.
 */
 
 static int check_license(MYSQL *mysql)
@@ -858,7 +880,7 @@ static int check_license(MYSQL *mysql)
 
   if (mysql_real_query(mysql, query, sizeof(query)-1))
   {
-    if (net->client_last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
+    if (net->last_errno == ER_UNKNOWN_SYSTEM_VARIABLE)
     {
       set_mysql_extended_error(mysql, CR_WRONG_LICENSE, unknown_sqlstate,
                                ER(CR_WRONG_LICENSE), required_license);
@@ -873,7 +895,7 @@ static int check_license(MYSQL *mysql)
     two is ever true for server variables now), or column value
     mismatch, set wrong license error.
   */
-  if (!net->client_last_errno &&
+  if (!net->last_errno &&
       (!row || !row[0] ||
        strncmp(row[0], required_license, sizeof(required_license))))
   {
@@ -881,7 +903,7 @@ static int check_license(MYSQL *mysql)
                              ER(CR_WRONG_LICENSE), required_license);
   }
   mysql_free_result(res);
-  return net->client_last_errno;
+  return net->last_errno;
 }
 #endif /* CHECK_LICENSE */
 
@@ -1489,7 +1511,10 @@ mysql_init(MYSQL *mysql)
   if (!mysql)
   {
     if (!(mysql=(MYSQL*) my_malloc(sizeof(*mysql),MYF(MY_WME | MY_ZEROFILL))))
+    {
+      set_mysql_error(NULL, CR_OUT_OF_MEMORY, unknown_sqlstate);
       return 0;
+    }
     mysql->free_me=1;
   }
   else
@@ -1897,7 +1922,13 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 		  (int) have_tcpip));
       if (mysql->options.protocol == MYSQL_PROTOCOL_MEMORY)
 	goto error;
-      /* Try also with PIPE or TCP/IP */
+
+      /*
+        Try also with PIPE or TCP/IP. Clear the error from
+        create_shared_memory().
+      */
+
+      net_clear_error(net);
     }
     else
     {
@@ -2090,7 +2121,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   if ((pkt_length=cli_safe_read(mysql)) == packet_error)
   {
-    if (mysql->net.client_last_errno == CR_SERVER_LOST)
+    if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER(CR_SERVER_LOST_EXTENDED),
                                "reading initial communication packet",
@@ -2324,7 +2355,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   if ((pkt_length=cli_safe_read(mysql)) == packet_error)
   {
-    if (mysql->net.client_last_errno == CR_SERVER_LOST)
+    if (mysql->net.last_errno == CR_SERVER_LOST)
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER(CR_SERVER_LOST_EXTENDED),
                                "reading authorization packet",
@@ -2352,7 +2383,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
     /* Read what server thinks about out new auth message report */
     if (cli_safe_read(mysql) == packet_error)
     {
-      if (mysql->net.client_last_errno == CR_SERVER_LOST)
+      if (mysql->net.last_errno == CR_SERVER_LOST)
         set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                  ER(CR_SERVER_LOST_EXTENDED),
                                  "reading final connect information",
@@ -2371,7 +2402,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   if (db && mysql_select_db(mysql, db))
   {
-    if (mysql->net.client_last_errno == CR_SERVER_LOST)
+    if (mysql->net.last_errno == CR_SERVER_LOST)
         set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
                                  ER(CR_SERVER_LOST_EXTENDED),
                                  "Setting intital database",
@@ -2415,9 +2446,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 error:
   reset_sigpipe(mysql);
   DBUG_PRINT("error",("message: %u/%s (%s)",
-                      net->client_last_errno,
+                      net->last_errno,
                       net->sqlstate,
-                      net->client_last_error));
+                      net->last_error));
   {
     /* Free alloced memory */
     end_server(mysql);
@@ -2475,8 +2506,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
 			  mysql->db, mysql->port, mysql->unix_socket,
 			  mysql->client_flag | CLIENT_REMEMBER_OPTIONS))
   {
-    mysql->net.client_last_errno= tmp_mysql.net.client_last_errno;
-    strmov(mysql->net.client_last_error, tmp_mysql.net.client_last_error);
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
@@ -2485,8 +2516,8 @@ my_bool mysql_reconnect(MYSQL *mysql)
     DBUG_PRINT("error", ("mysql_set_character_set() failed"));
     bzero((char*) &tmp_mysql.options,sizeof(tmp_mysql.options));
     mysql_close(&tmp_mysql);
-    mysql->net.client_last_errno= tmp_mysql.net.client_last_errno;
-    strmov(mysql->net.client_last_error, tmp_mysql.net.client_last_error);
+    mysql->net.last_errno= tmp_mysql.net.last_errno;
+    strmov(mysql->net.last_error, tmp_mysql.net.last_error);
     strmov(mysql->net.sqlstate, tmp_mysql.net.sqlstate);
     DBUG_RETURN(1);
   }
@@ -2507,6 +2538,9 @@ my_bool mysql_reconnect(MYSQL *mysql)
       if (stmt->state != MYSQL_STMT_INIT_DONE)
       {
         stmt->mysql= 0;
+        stmt->last_errno= CR_SERVER_LOST;
+        strmov(stmt->last_error, ER(CR_SERVER_LOST));
+        strmov(stmt->sqlstate, unknown_sqlstate);
       }
       else
       {
@@ -2736,7 +2770,15 @@ get_info:
 #ifdef MYSQL_CLIENT
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
-    int error=handle_local_infile(mysql,(char*) pos);
+    int error;
+
+    if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES))
+    {
+      set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+      DBUG_RETURN(1);
+    }   
+
+    error= handle_local_infile(mysql,(char*) pos);
     if ((length= cli_safe_read(mysql)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
@@ -3079,13 +3121,13 @@ unsigned int STDCALL mysql_num_fields(MYSQL_RES *res)
 
 uint STDCALL mysql_errno(MYSQL *mysql)
 {
-  return mysql->net.client_last_errno;
+  return mysql ? mysql->net.last_errno : mysql_server_last_errno;
 }
 
 
 const char * STDCALL mysql_error(MYSQL *mysql)
 {
-  return mysql->net.client_last_error;
+  return mysql ? mysql->net.last_error : mysql_server_last_error;
 }
 
 
@@ -3154,7 +3196,7 @@ int STDCALL mysql_set_character_set(MYSQL *mysql, const char *cs_name)
                              ER(CR_CANT_READ_CHARSET), cs_name, cs_dir_name);
   }
   charsets_dir= save_csdir;
-  return mysql->net.client_last_errno;
+  return mysql->net.last_errno;
 }
 
 

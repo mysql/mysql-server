@@ -935,6 +935,26 @@ DROP USER mysqltest_u1@localhost;
 --echo #####################################################################
 --echo
 
+#
+# Bug#32633 Can not create any routine if SQL_MODE=no_engine_substitution
+#
+# Ensure that when new SQL modes are introduced, they are also added to
+# the mysql.event table.
+#
+
+--disable_warnings
+drop procedure if exists p;
+--enable_warnings
+set @old_mode= @@sql_mode;
+set @@sql_mode= pow(2,32)-1;
+create event e1 on schedule every 1 day do select 1;
+select @@sql_mode;
+set @@sql_mode= @old_mode;
+# Rename SQL modes that differ in name between the server and the table definition.
+select replace(@full_mode, '?', 'NOT_USED') into @full_mode;
+select replace(@full_mode, 'ALLOW_INVALID_DATES', 'INVALID_DATES') into @full_mode;
+select name from mysql.event where name = 'p' and sql_mode = @full_mode;
+drop event e1;
 
 ###########################################################################
 # 

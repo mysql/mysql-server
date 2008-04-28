@@ -54,7 +54,8 @@ public:
                   NOT_FUNC, NOT_ALL_FUNC,
                   NOW_FUNC, TRIG_COND_FUNC,
                   SUSERVAR_FUNC, GUSERVAR_FUNC, COLLATE_FUNC,
-                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC };
+                  EXTRACT_FUNC, CHAR_TYPECAST_FUNC, FUNC_SP, UDF_FUNC,
+                  NEG_FUNC };
   enum optimize_type { OPTIMIZE_NONE,OPTIMIZE_KEY,OPTIMIZE_OP, OPTIMIZE_NULL,
                        OPTIMIZE_EQUAL };
   enum Type type() const { return FUNC_ITEM; }
@@ -140,9 +141,9 @@ public:
   inline uint argument_count() const { return arg_count; }
   inline void remove_arguments() { arg_count=0; }
   void split_sum_func(THD *thd, Item **ref_pointer_array, List<Item> &fields);
-  void print(String *str);
-  void print_op(String *str);
-  void print_args(String *str, uint from);
+  virtual void print(String *str, enum_query_type query_type);
+  void print_op(String *str, enum_query_type query_type);
+  void print_args(String *str, uint from, enum_query_type query_type);
   virtual void fix_num_length_and_dec();
   void count_only_length();
   void count_real_length();
@@ -192,6 +193,13 @@ public:
                      void * arg, traverse_order order);
   bool is_expensive_processor(uchar *arg);
   virtual bool is_expensive() { return 0; }
+  inline double fix_result(double value)
+  {
+    if (isfinite(value))
+      return value;
+    null_value=1;
+    return 0.0;
+  }
 };
 
 
@@ -293,10 +301,14 @@ class Item_num_op :public Item_func_numhybrid
  public:
   Item_num_op(Item *a,Item *b) :Item_func_numhybrid(a, b) {}
   virtual void result_precision()= 0;
-  void print(String *str) { print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    print_op(str, query_type);
+  }
+
   void find_num_type();
   String *str_op(String *str) { DBUG_ASSERT(0); return 0; }
-  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -339,7 +351,7 @@ public:
   longlong val_int_from_str(int *error);
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=0; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   uint decimal_precision() const { return args[0]->decimal_precision(); }
 };
 
@@ -352,7 +364,7 @@ public:
   void fix_length_and_dec()
   { max_length=args[0]->max_length; unsigned_flag=1; }
   longlong val_int();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -373,7 +385,7 @@ public:
   enum_field_types field_type() const { return MYSQL_TYPE_NEWDECIMAL; }
   void fix_length_and_dec() {};
   const char *func_name() const { return "decimal_typecast"; }
-  void print(String *);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -382,6 +394,7 @@ class Item_func_additive_op :public Item_num_op
 public:
   Item_func_additive_op(Item *a,Item *b) :Item_num_op(a,b) {}
   void result_precision();
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -416,6 +429,7 @@ public:
   double real_op();
   my_decimal *decimal_op(my_decimal *);
   void result_precision();
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -441,7 +455,12 @@ public:
   longlong val_int();
   const char *func_name() const { return "DIV"; }
   void fix_length_and_dec();
-  void print(String *str) { print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    print_op(str, query_type);
+  }
+
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
@@ -456,6 +475,7 @@ public:
   const char *func_name() const { return "%"; }
   void result_precision();
   void fix_length_and_dec();
+  bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
 
@@ -467,7 +487,7 @@ public:
   longlong int_op();
   my_decimal *decimal_op(my_decimal *);
   const char *func_name() const { return "-"; }
-  virtual bool basic_const_item() const { return args[0]->basic_const_item(); }
+  enum Functype functype() const   { return NEG_FUNC; }
   void fix_length_and_dec();
   void fix_num_length_and_dec();
   uint decimal_precision() const { return args[0]->decimal_precision(); }
@@ -498,18 +518,6 @@ class Item_dec_func :public Item_real_func
   {
     decimals=NOT_FIXED_DEC; max_length=float_length(decimals);
     maybe_null=1;
-  }
-  inline double fix_result(double value)
-  {
-#ifndef HAVE_FINITE
-    return value;
-#else
-    /* The following should be safe, even if we compare doubles */
-    if (finite(value) && value != POSTFIX_ERROR)
-      return value;
-    null_value=1;
-    return 0.0;
-#endif
   }
 };
 
@@ -843,7 +851,7 @@ public:
   const char *func_name() const { return "locate"; }
   longlong val_int();
   void fix_length_and_dec();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -900,7 +908,11 @@ public:
   Item_func_bit(Item *a, Item *b) :Item_int_func(a, b) {}
   Item_func_bit(Item *a) :Item_int_func(a) {}
   void fix_length_and_dec() { unsigned_flag= 1; }
-  void print(String *str) { print_op(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    print_op(str, query_type);
+  }
 };
 
 class Item_func_bit_or :public Item_func_bit
@@ -950,7 +962,11 @@ public:
   Item_func_bit_neg(Item *a) :Item_func_bit(a) {}
   longlong val_int();
   const char *func_name() const { return "~"; }
-  void print(String *str) { Item_func::print(str); }
+
+  virtual inline void print(String *str, enum_query_type query_type)
+  {
+    Item_func::print(str, query_type);
+  }
 };
 
 
@@ -979,7 +995,7 @@ public:
   longlong val_int();
   const char *func_name() const { return "benchmark"; }
   void fix_length_and_dec() { max_length=1; maybe_null=0; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -1076,7 +1092,7 @@ public:
   Item_result result_type () const { return udf.result_type(); }
   table_map not_null_tables() const { return 0; }
   bool is_expensive() { return 1; }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -1313,8 +1329,8 @@ public:
   enum Item_result result_type () const { return cached_result_type; }
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
-  void print(String *str);
-  void print_as_stmt(String *str);
+  virtual void print(String *str, enum_query_type query_type);
+  void print_as_stmt(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
   int save_in_field(Field *field, bool no_conversions,
                     bool can_use_result_field);
@@ -1344,7 +1360,7 @@ public:
   my_decimal *val_decimal(my_decimal*);
   String *val_str(String* str);
   void fix_length_and_dec();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   enum Item_result result_type() const;
   /*
     We must always return variables as strings to guard against selects of type
@@ -1389,7 +1405,7 @@ public:
   my_decimal *val_decimal(my_decimal *decimal_buffer);
   /* fix_fields() binds variable name with its entry structure */
   bool fix_fields(THD *thd, Item **ref);
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   void set_null_value(CHARSET_INFO* cs);
   void set_value(const char *str, uint length, CHARSET_INFO* cs);
 };
@@ -1417,6 +1433,15 @@ public:
   void fix_length_and_dec() { DBUG_ASSERT(0); }
   /* TODO: fix to support views */
   const char *func_name() const { return "get_system_var"; }
+  /**
+    Indicates whether this system variable is written to the binlog or not.
+
+    Variables are written to the binlog as part of "status_vars" in
+    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
+
+    @return true if the variable is written to the binlog, false otherwise.
+  */
+  bool is_written_to_binlog();
 };
 
 
@@ -1466,7 +1491,7 @@ public:
   /* The following should be safe, even if we compare doubles */
   longlong val_int() { DBUG_ASSERT(fixed == 1); return val_real() != 0.0; }
   double val_real();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
   void init_search(bool no_order);

@@ -6,6 +6,11 @@
 #
 -- source include/not_embedded.inc
 
+# Disable concurrent inserts to avoid test failures when reading the
+# connection id which was inserted into a table by another thread.
+set @old_concurrent_insert= @@global.concurrent_insert;
+set @@global.concurrent_insert= 0;
+
 connect (con1, localhost, root,,);
 connect (con2, localhost, root,,);
 
@@ -322,3 +327,9 @@ KILL CONNECTION_ID();
 --echo # of close of the connection socket
 --error 2013, 2006 
 SELECT 1;
+--connection default
+
+###########################################################################
+
+# Restore global concurrent_insert value. Keep in the end of the test file.
+set @@global.concurrent_insert= @old_concurrent_insert;

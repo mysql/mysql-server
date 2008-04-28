@@ -1279,6 +1279,189 @@ CHECK TABLE t1;
 DROP TABLE t1;
 
 #
+# Bug#33222 - myisam-table drops rows when column is added
+#             and a char-field > 128 exists
+#
+# Test #1 - CHECK TABLE sees wrong record, REPAR TABLE deletes it.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+#
+# Test #2 - same as test #1, but using EXTENDED.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+REPAIR TABLE t1 EXTENDED;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #3 - same as test #1, but using OPTIMIZE TABLE.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES(REPEAT("a",128), 'b');
+# Insert more rows and delete one in the middle to force optimize.
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+#
+# Test #4 - ALTER TABLE deletes rows.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+# Using an index which can be disabled during bulk insert.
+CREATE TABLE t1 (
+  c1 CHAR(130),
+  c2 VARCHAR(1),
+  KEY (c1)
+) ENGINE=MyISAM;
+#
+# Insert 100 rows. This turns bulk insert on during the copy phase of
+# ALTER TABLE. Bulk insert disables keys before the insert and re-enables
+# them by repair after the insert.
+--disable_query_log
+let $count= 100;
+--echo # Insert $count rows. Query log disabled.
+while ($count)
+{
+  INSERT INTO t1 VALUES ('a', 'b');
+  dec $count;
+}
+--enable_query_log
+#
+# Change most of the rows into long character values with > 127 characters.
+UPDATE t1 SET c1=REPEAT("a",128) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ENGINE=MyISAM;
+#
+# With bug present, this shows that all long rows are gone.
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #5 - same as test #1 but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+REPAIR TABLE t1;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+DROP TABLE t1;
+#
+# Test #6 - same as test #2, but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+REPAIR TABLE t1 EXTENDED;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+#
+# Test #7 - same as test #3, but UTF-8.
+# Using a CHAR column that can have > 127 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+# Using Tamil Letter A, Unicode U+0B85
+INSERT INTO t1 VALUES(REPEAT(_utf8 x'e0ae85',43), 'b');
+# Insert more rows and delete one in the middle to force optimize.
+INSERT INTO t1 VALUES('b', 'b');
+INSERT INTO t1 VALUES('c', 'b');
+DELETE FROM t1 WHERE c1='b';
+SELECT COUNT(*) FROM t1;
+OPTIMIZE TABLE t1;
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+#
+# Test #8 - same as test #4, but UTF-8.
+# Using a CHAR column that can have > 42 UTF-8 characters.
+# Using a VARCHAR to create a table with dynamic row format.
+# Using an index which can be disabled during bulk insert.
+CREATE TABLE t1 (
+  c1 CHAR(50),
+  c2 VARCHAR(1),
+  KEY (c1)
+) ENGINE=MyISAM DEFAULT CHARSET UTF8;
+#
+# Insert 100 rows. This turns bulk insert on during the copy phase of
+# ALTER TABLE. Bulk insert disables keys before the insert and re-enables
+# them by repair after the insert.
+--disable_query_log
+let $count= 100;
+--echo # Insert $count rows. Query log disabled.
+while ($count)
+{
+  INSERT INTO t1 VALUES ('a', 'b');
+  dec $count;
+}
+--enable_query_log
+#
+# Change most of the rows into long character values with > 42 characters.
+# Using Tamil Letter A, Unicode U+0B85
+UPDATE t1 SET c1=REPEAT(_utf8 x'e0ae85',43) LIMIT 90;
+SELECT COUNT(*) FROM t1;
+ALTER TABLE t1 ENGINE=MyISAM;
+#
+# With bug present, this shows that all long rows are gone.
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+CHECK TABLE t1 EXTENDED;
+DROP TABLE t1;
+
+#
+# Bug#29182 - MyISAMCHK reports wrong character set
+#
+CREATE TABLE t1 (
+  c1 VARCHAR(10) NOT NULL,
+  c2 CHAR(10) DEFAULT NULL,
+  c3 VARCHAR(10) NOT NULL,
+  KEY (c1),
+  KEY (c2)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 PACK_KEYS=0;
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--exec $MYISAMCHK -d $MYSQLTEST_VARDIR/master-data/test/t1
+DROP TABLE t1;
+
 # Test warnings with transactional=1 with MyISAM
 #
 create table t1 (n int not null, c char(1)) transactional=1;
@@ -1299,5 +1482,4 @@ checksum table t2;
 CREATE TABLE t3 select * from t1;
 checksum table t3;
 drop table t1,t2,t3;
-
 --echo End of 5.1 tests

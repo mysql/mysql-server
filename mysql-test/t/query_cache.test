@@ -1251,6 +1251,15 @@ disconnect user2;
 disconnect user3;
 
 #
+--echo #
+--echo # Bug#25132 disabled query cache: Qcache_free_blocks = 1
+--echo #
+set global query_cache_size=100000;
+set global query_cache_size=0;
+set global query_cache_type=0;
+show status like 'Qcache_free_blocks';
+
+--echo Restore default values.
 # Bug #28211 RENAME DATABASE and query cache don't play nicely together
 #
 # TODO: enable these tests when RENAME DATABASE is implemented.
@@ -1297,6 +1306,25 @@ set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;
+
+#
+# Bug#33756 - query cache with concurrent_insert=0 appears broken
+#
+FLUSH STATUS;
+SET GLOBAL query_cache_size=10*1024*1024;
+SET @save_concurrent_insert= @@concurrent_insert;
+SET GLOBAL concurrent_insert= 0;
+CREATE TABLE t1 (c1 INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 (c1) VALUES (1), (2);
+#
+SHOW GLOBAL VARIABLES LIKE 'concurrent_insert';
+SHOW STATUS LIKE 'Qcache_hits';
+SELECT * FROM t1;
+SELECT * FROM t1;
+SHOW STATUS LIKE 'Qcache_hits';
+DROP TABLE t1;
+SET GLOBAL concurrent_insert= @save_concurrent_insert;
+SET GLOBAL query_cache_size= default;
 
 --echo End of 5.0 tests
 

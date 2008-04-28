@@ -421,10 +421,10 @@ select * from t1 order by a;
 a
 1
 20
-21
 33
 34
 35
+65
 insert into t1 values (100);
 insert into t1 values (NULL);
 insert into t1 values (NULL);
@@ -432,11 +432,11 @@ select * from t1 order by a;
 a
 1
 20
-21
-22
 33
 34
 35
+65
+66
 100
 101
 set auto_increment_offset = @old_auto_increment_offset;

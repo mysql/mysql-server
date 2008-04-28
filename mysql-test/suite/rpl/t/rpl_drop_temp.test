@@ -6,19 +6,25 @@
 # to work around NDB's issue with temp tables
 ##############################################
 source include/master-slave.inc;
+source include/have_binlog_format_mixed_or_statement.inc;
+
 --disable_warnings
 create database if not exists mysqltest;
 --enable_warnings
 
 create temporary table mysqltest.t1 (n int)ENGINE=MyISAM;
 create temporary table mysqltest.t2 (n int)ENGINE=MyISAM;
-sync_slave_with_master;
+
 connection master;
 disconnect master;
-connection slave;
---real_sleep 3 # time for DROP to be written
-show status like 'Slave_open_temp_tables';
 
+connection master1;
+# Wait until drop of temp tables appears in binlog
+let $wait_binlog_event= DROP;
+source include/wait_for_binlog_event.inc;
+
+sync_slave_with_master;
+show status like 'Slave_open_temp_tables';
 # Cleanup
 connection default;
 drop database mysqltest;

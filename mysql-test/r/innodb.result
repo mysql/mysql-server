@@ -1062,6 +1062,19 @@ select count(*) from t2 /* must be 2 as restored after rollback caused by the er
 count(*)
 2
 drop table t1, t2;
+drop table if exists t1, t2;
+CREATE TABLE t1 (a int, PRIMARY KEY (a));
+CREATE TABLE t2 (a int, PRIMARY KEY (a)) ENGINE=InnoDB;
+create trigger trg_del_t2 after  delete on t2 for each row
+insert into t1 values (1);
+insert into t1 values (1);
+insert into t2 values (1),(2);
+delete t2 from t2;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select count(*) from t2 /* must be 2 as restored after rollback caused by the error */;
+count(*)
+2
+drop table t1, t2;
 create table t1 (a int, b int) engine=innodb;
 insert into t1 values(20,null);
 select t2.b, ifnull(t2.b,"this is null") from t1 as t2 left join t1 as t3 on
@@ -1727,10 +1740,10 @@ Variable_name	Value
 Innodb_page_size	16384
 show status like "Innodb_rows_deleted";
 Variable_name	Value
-Innodb_rows_deleted	70
+Innodb_rows_deleted	71
 show status like "Innodb_rows_inserted";
 Variable_name	Value
-Innodb_rows_inserted	1082
+Innodb_rows_inserted	1084
 show status like "Innodb_rows_updated";
 Variable_name	Value
 Innodb_rows_updated	885
@@ -1823,6 +1836,7 @@ set @a=repeat(' ',20);
 insert into t1 values (concat('+',@a),concat('+',@a),concat('+',@a));
 Warnings:
 Note	1265	Data truncated for column 'v' at row 1
+Note	1265	Data truncated for column 'c' at row 1
 select concat('*',v,'*',c,'*',t,'*') from t1;
 concat('*',v,'*',c,'*',t,'*')
 *+ *+*+ *
@@ -3218,3 +3232,35 @@ a
 2
 DROP TABLE t1;
 DROP TABLE t2;
+create table t1 (i int, j int) engine=innodb;
+insert into t1 (i, j) values (1, 1), (2, 2);
+update t1 set j = 2;
+affected rows: 1
+info: Rows matched: 2  Changed: 1  Warnings: 0
+drop table t1;
+create table t1 (id int) comment='this is a comment' engine=innodb;
+select table_comment, data_free > 0 as data_free_is_set
+from information_schema.tables
+where table_schema='test' and table_name = 't1';
+table_comment	data_free_is_set
+this is a comment	1
+drop table t1;
+CREATE TABLE t1 (
+c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+c2 VARCHAR(128) NOT NULL,
+PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=100;
+CREATE TABLE t2 (
+c1 INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+c2 INT(10) UNSIGNED DEFAULT NULL,
+PRIMARY KEY(c1)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 AUTO_INCREMENT=200;
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+AUTO_INCREMENT
+200
+ALTER TABLE t2 ADD CONSTRAINT t1_t2_1 FOREIGN KEY(c1) REFERENCES t1(c1);
+SELECT AUTO_INCREMENT FROM INFORMATION_SCHEMA.TABLES WHERE table_name = 't2';
+AUTO_INCREMENT
+200
+DROP TABLE t2;
+DROP TABLE t1;

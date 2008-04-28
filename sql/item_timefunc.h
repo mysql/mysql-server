@@ -694,7 +694,7 @@ public:
   longlong val_int();
   bool get_date(MYSQL_TIME *res, uint fuzzy_date);
   bool eq(const Item *item, bool binary_cmp) const;
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -711,7 +711,7 @@ class Item_extract :public Item_int_func
   const char *func_name() const { return "extract"; }
   void fix_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const;
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
@@ -735,7 +735,7 @@ public:
     max_length=args[0]->max_length;
   }
   virtual const char* cast_type() const= 0;
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -767,7 +767,7 @@ public:
   const char* cast_type() const { return "char"; };
   String *val_str(String *a);
   void fix_length_and_dec();
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -901,7 +901,7 @@ public:
   {
     return tmp_table_field_from_field_type(table, 0);
   }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
   const char *func_name() const { return "add_time"; }
   double val_real() { return val_real_from_decimal(); }
   my_decimal *val_decimal(my_decimal *decimal_value)
@@ -977,7 +977,7 @@ public:
     decimals=0;
     maybe_null=1;
   }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 
@@ -1001,7 +1001,7 @@ public:
     decimals=0;
     max_length=17*MY_CHARSET_BIN_MB_MAXLEN;
   }
-  void print(String *str);
+  virtual void print(String *str, enum_query_type query_type);
 };
 
 

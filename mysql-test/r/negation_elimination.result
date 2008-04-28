@@ -387,5 +387,5 @@ explain extended select a, not(not(a)), not(a <= 2 and not(a)), not(a not like "
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	a	5	NULL	5	100.00	Using where; Using index
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,(`test`.`t1`.`a` <> 0) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or `test`.`t1`.`a`) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like _latin1'1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where `test`.`t1`.`a` having `test`.`t1`.`a`
+Note	1003	select `test`.`t1`.`a` AS `a`,(`test`.`t1`.`a` <> 0) AS `not(not(a))`,((`test`.`t1`.`a` > 2) or `test`.`t1`.`a`) AS `not(a <= 2 and not(a))`,(`test`.`t1`.`a` like '1') AS `not(a not like "1")`,(`test`.`t1`.`a` in (1,2)) AS `not (a not in (1,2))`,(`test`.`t1`.`a` = 2) AS `not(a != 2)` from `test`.`t1` where `test`.`t1`.`a` having `test`.`t1`.`a`
 drop table t1;

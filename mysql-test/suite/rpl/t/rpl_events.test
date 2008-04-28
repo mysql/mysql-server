@@ -28,10 +28,12 @@ set binlog_format=statement;
 
 connection master;
 
+CREATE TABLE t28953 (a INT);
+
 DELIMITER |;
 CREATE EVENT event1 ON SCHEDULE EVERY 1 YEAR
 DO BEGIN
-	select * from t1;
+	select * from t28953;
 END;|
 DELIMITER ;|
 
@@ -45,3 +47,9 @@ DROP EVENT event2;
 
 sync_slave_with_master;
 
+# Doing cleanup of the table referred to in the event to guarantee
+# that there is no bad timing cauing it to try to access the table.
+
+connection master;
+DROP TABLE t28953;
+sync_slave_with_master;

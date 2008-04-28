@@ -730,8 +730,9 @@ warning will be given.  The DBUG_POP macro has no arguments.
 EX:\ \fCDBUG_POP\ ();\fR
 .SP 1
 .LI DBUG_SET\ 
-Modifies the current debugger state on top of the stack using the
-debug control string passed as the macro argument.  Unless
+Modifies the current debugger state on top of the stack or pushes
+a new state if the current is set to the initial settings, using
+the debug control string passed as the macro argument.  Unless
 .I incremental
 control string is used (see below), it's equivalent to a combination of
 DBUG_POP and DBUG_PUSH.

@@ -1,0 +1,9 @@
+#### suite/funcs_1/t/ndb_storedproc.test
+#
+
+--source include/have_ndb.inc
+let $engine_type= ndb;
+
+--source suite/funcs_1/storedproc/load_sp_tb.inc
+
+--source suite/funcs_1/storedproc/storedproc_master.inc

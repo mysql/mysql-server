@@ -33,12 +33,12 @@ Relay_log_info::Relay_log_info()
   :Slave_reporting_capability("SQL"),
    no_storage(FALSE), replicate_same_server_id(::replicate_same_server_id),
    info_fd(-1), cur_log_fd(-1), save_temporary_tables(0),
-   group_relay_log_pos(0), event_relay_log_pos(0),
 #if HAVE_purify
    is_fake(FALSE),
 #endif
-   cur_log_old_open_count(0), group_master_log_pos(0), log_space_total(0),
-   ignore_log_space_limit(0), last_master_timestamp(0), slave_skip_counter(0),
+   cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
+   group_master_log_pos(0), log_space_total(0), ignore_log_space_limit(0),
+   last_master_timestamp(0), slave_skip_counter(0),
    abort_pos_wait(0), slave_run_id(0), sql_thd(0),
    inited(0), abort_slave(0), slave_running(0), until_condition(UNTIL_NONE),
    until_log_pos(0), retried_trans(0),
@@ -615,7 +615,7 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
   DBUG_ENTER("Relay_log_info::wait_for_pos");
 
   if (!inited)
-    DBUG_RETURN(-1);
+    DBUG_RETURN(-2);
 
   DBUG_PRINT("enter",("log_name: '%s'  log_pos: %lu  timeout: %lu",
                       log_name->c_ptr(), (ulong) log_pos, (ulong) timeout));
@@ -955,6 +955,11 @@ err:
      Check if condition stated in UNTIL clause of START SLAVE is reached.
    SYNOPSYS
      Relay_log_info::is_until_satisfied()
+     master_beg_pos    position of the beginning of to be executed event
+                       (not log_pos member of the event that points to the
+                        beginning of the following event)
+
+
    DESCRIPTION
      Checks if UNTIL condition is reached. Uses caching result of last
      comparison of current log file name and target log file name. So cached
@@ -979,7 +984,7 @@ err:
      false - condition not met
 */
 
-bool Relay_log_info::is_until_satisfied()
+bool Relay_log_info::is_until_satisfied(my_off_t master_beg_pos)
 {
   const char *log_name;
   ulonglong log_pos;
@@ -990,7 +995,7 @@ bool Relay_log_info::is_until_satisfied()
   if (until_condition == UNTIL_MASTER_POS)
   {
     log_name= group_master_log_name;
-    log_pos= group_master_log_pos;
+    log_pos= master_beg_pos;
   }
   else
   { /* until_condition == UNTIL_RELAY_POS */

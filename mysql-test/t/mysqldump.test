@@ -1613,6 +1613,10 @@ DROP TABLE t1;
 #
 # Added for use-thread option
 #
+
+# THIS PART OF THE TEST IS DISABLED UNTIL BUG#32991 IS FIXED
+if ($bug32991_fixed) {
+
 create table t1 (a text , b text);
 create table t2 (a text , b text);
 insert t1 values ("Duck, Duck", "goose");
@@ -1649,6 +1653,8 @@ drop table t1;
 drop table t2;
 
 drop table words2;
+
+}
 
 --echo #
 --echo # BUG# 16853: mysqldump doesn't show events
@@ -1799,6 +1805,61 @@ create table test (a int);
 drop database `test-database`;
 use test;
 
+###########################################################################
+
+--echo
+--echo # -----------------------------------------------------------------
+--echo # -- Bug#30217: Views: changes in metadata behaviour between 5.0 and 5.1.
+--echo # -----------------------------------------------------------------
+--echo
+
+--disable_warnings
+DROP DATABASE IF EXISTS mysqldump_test_db;
+--enable_warnings
+
+CREATE DATABASE mysqldump_test_db;
+use mysqldump_test_db;
+
+--echo
+
+CREATE VIEW v1(x, y) AS SELECT 'a', 'a';
+
+--echo
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+
+--echo
+
+--echo ---> Dumping mysqldump_test_db to bug30217.sql
+--exec $MYSQL_DUMP --character-sets-dir=$CHARSETSDIR --databases mysqldump_test_db > $MYSQLTEST_VARDIR/tmp/bug30217.sql
+
+--echo
+
+DROP DATABASE mysqldump_test_db;
+use test;
+
+--echo
+
+--echo ---> Restoring mysqldump_test_db...
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/bug30217.sql
+
+--echo
+
+SELECT view_definition
+FROM INFORMATION_SCHEMA.VIEWS
+WHERE table_schema = 'mysqldump_test_db' AND table_name = 'v1';
+
+--echo
+
+DROP DATABASE mysqldump_test_db;
+
+--echo
+--echo # -- End of test case for Bug#32538.
+--echo
+
+###########################################################################
 
 --echo #
 --echo # End of 5.1 tests

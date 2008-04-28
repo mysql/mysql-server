@@ -62,6 +62,7 @@ use File::Path;
 use File::Basename;
 use File::Copy;
 use File::Temp qw /tempdir/;
+use File::Spec::Functions qw /splitdir/;
 use Cwd;
 use Getopt::Long;
 use IO::Socket;
@@ -134,14 +135,6 @@ our $default_vardir;
 our $opt_usage;
 our $opt_suites;
 our $opt_suites_default= "main,binlog,rpl,rpl_ndb,ndb"; # Default suites to run
-our @extra_suites=
-(
- ["mysql-5.1-new-ndb",   "ndb_team"],
- ["mysql-5.1-telco-6.2", "ndb_team"],
- ["mysql-5.1-telco-6.3", "ndb_team"],
-);
-
-
 our $opt_script_debug= 0;  # Script debugging, enable with --script-debug
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
 
@@ -412,14 +405,26 @@ sub main () {
     # Figure out which tests we are going to run
     if (!$opt_suites)
     {
-      # use default and add any extra_suites as defined
       $opt_suites= $opt_suites_default;
-      my $ddd= basename(dirname($glob_mysql_test_dir));
-      foreach my $extra_suite (@extra_suites)
+
+      # Check for any extra suites to enable based on the path name
+      my %extra_suites=
+	(
+	 "mysql-5.1-new-ndb"              => "ndb_team",
+	 "mysql-5.1-new-ndb-merge"        => "ndb_team",
+	 "mysql-5.1-telco-6.2"            => "ndb_team",
+	 "mysql-5.1-telco-6.2-merge"      => "ndb_team",
+	 "mysql-5.1-telco-6.3"            => "ndb_team",
+	 "mysql-6.0-ndb"                  => "ndb_team",
+	);
+
+      foreach my $dir ( reverse splitdir($glob_basedir) )
       {
-	if ($extra_suite->[0] eq "$ddd")
-	{
-	  $opt_suites= "$extra_suite->[1],$opt_suites";
+	my $extra_suite= $extra_suites{$dir};
+	if (defined $extra_suite){
+	  mtr_report("Found extra suite: $extra_suite");
+	  $opt_suites= "$extra_suite,$opt_suites";
+	  last;
 	}
       }
     }
@@ -3906,12 +3911,11 @@ sub mysqld_arguments ($$$$) {
 
 
   # When mysqld is run by a root user(euid is 0), it will fail
-  # to start unless we specify what user to run as. If not running
-  # as root it will be ignored, see BUG#30630
+  # to start unless we specify what user to run as, see BUG#30630
   my $euid= $>;
   if (!$glob_win32 and $euid == 0 and
       grep(/^--user/, @$extra_opt, @opt_extra_mysqld_opt) == 0) {
-    mtr_add_arg($args, "%s--user=root");
+    mtr_add_arg($args, "%s--user=root", $prefix);
   }
 
   if ( $opt_valgrind_mysqld )
