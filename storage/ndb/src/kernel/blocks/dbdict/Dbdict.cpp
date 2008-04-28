@@ -4927,6 +4927,7 @@ Dbdict::CreateTableRec::g_opInfo = {
   //
   &Dbdict::createTable_prepare,
   &Dbdict::createTable_commit,
+  &Dbdict::createTable_complete,
   //
   &Dbdict::createTable_abortParse,
   &Dbdict::createTable_abortPrepare
@@ -6005,6 +6006,15 @@ Dbdict::createTab_alterComplete(Signal* signal,
   sendTransConf(signal, op_ptr);
 }
 
+// CreateTable: COMPLETE
+
+void
+Dbdict::createTable_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 void
 Dbdict::createTable_abortParse(Signal* signal, SchemaOpPtr op_ptr)
 {
@@ -6301,6 +6311,7 @@ Dbdict::DropTableRec::g_opInfo = {
   //
   &Dbdict::dropTable_prepare,
   &Dbdict::dropTable_commit,
+  &Dbdict::dropTable_complete,
   //
   &Dbdict::dropTable_abortParse,
   &Dbdict::dropTable_abortPrepare
@@ -7021,6 +7032,15 @@ Dbdict::dropTab_writeSchemaConf(Signal* signal,
   sendTransConf(signal, trans_ptr);
 }
 
+// DropTable: COMPLETE
+
+void
+Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // DropTable: ABORT
 
 void
@@ -7091,6 +7111,7 @@ Dbdict::AlterTableRec::g_opInfo = {
   //
   &Dbdict::alterTable_prepare,
   &Dbdict::alterTable_commit,
+  &Dbdict::alterTable_complete,
   //
   &Dbdict::alterTable_abortParse,
   &Dbdict::alterTable_abortPrepare
@@ -7873,6 +7894,15 @@ Dbdict::alterTab_writeTableConf(Signal* signal,
   sendTransConf(signal, op_ptr);
 }
 
+// AlterTable: COMPLETE
+
+void
+Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // AlterTable: ABORT
 
 void
@@ -8599,6 +8629,7 @@ Dbdict::CreateIndexRec::g_opInfo = {
   //
   &Dbdict::createIndex_prepare,
   &Dbdict::createIndex_commit,
+  &Dbdict::createIndex_complete,
   //
   &Dbdict::createIndex_abortParse,
   &Dbdict::createIndex_abortPrepare
@@ -9243,6 +9274,15 @@ Dbdict::createIndex_commit(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
+// CreateIndex: COMPLETE
+
+void
+Dbdict::createIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // CreateIndex: ABORT
 
 void
@@ -9302,6 +9342,7 @@ Dbdict::DropIndexRec::g_opInfo = {
   //
   &Dbdict::dropIndex_prepare,
   &Dbdict::dropIndex_commit,
+  &Dbdict::dropIndex_complete,
   //
   &Dbdict::dropIndex_abortParse,
   &Dbdict::dropIndex_abortPrepare
@@ -9556,6 +9597,15 @@ Dbdict::dropIndex_commit(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
+// DropIndex: COMPLETE
+
+void
+Dbdict::dropIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // DropIndex: ABORT
 
 void
@@ -9729,6 +9779,7 @@ Dbdict::AlterIndexRec::g_opInfo = {
   //
   &Dbdict::alterIndex_prepare,
   &Dbdict::alterIndex_commit,
+  &Dbdict::alterIndex_complete,
   //
   &Dbdict::alterIndex_abortParse,
   &Dbdict::alterIndex_abortPrepare
@@ -10465,6 +10516,15 @@ Dbdict::alterIndex_commit(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
+// AlterIndex: COMPLETE
+
+void
+Dbdict::alterIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // AlterIndex: ABORT
 
 void
@@ -10619,6 +10679,7 @@ Dbdict::BuildIndexRec::g_opInfo = {
   //
   &Dbdict::buildIndex_prepare,
   &Dbdict::buildIndex_commit,
+  &Dbdict::buildIndex_complete,
   //
   &Dbdict::buildIndex_abortParse,
   &Dbdict::buildIndex_abortPrepare
@@ -11336,6 +11397,15 @@ Dbdict::buildIndex_fromLocalOnline(Signal* signal, Uint32 op_key, Uint32 ret)
   }
 }
 
+// BuildIndex: COMPLETE
+
+void
+Dbdict::buildIndex_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+  
 // BuildIndex: ABORT
 
 void
@@ -13735,6 +13805,7 @@ Dbdict::CreateTriggerRec::g_opInfo = {
   //
   &Dbdict::createTrigger_prepare,
   &Dbdict::createTrigger_commit,
+  &Dbdict::createTrigger_complete,
   //
   &Dbdict::createTrigger_abortParse,
   &Dbdict::createTrigger_abortPrepare
@@ -14306,6 +14377,15 @@ Dbdict::createTrigger_commit(Signal* signal, SchemaOpPtr op_ptr)
   sendTransConf(signal, op_ptr);
 }
 
+// CreateTrigger: COMPLETE
+
+void
+Dbdict::createTrigger_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
+}
+
 // CreateTrigger: ABORT
 
 void
@@ -14498,6 +14578,7 @@ Dbdict::DropTriggerRec::g_opInfo = {
   //
   &Dbdict::dropTrigger_prepare,
   &Dbdict::dropTrigger_commit,
+  &Dbdict::dropTrigger_complete,
   //
   &Dbdict::dropTrigger_abortParse,
   &Dbdict::dropTrigger_abortPrepare
@@ -15019,6 +15100,15 @@ Dbdict::send_drop_trig_req(Signal* signal, SchemaOpPtr op_ptr)
   BlockReference ref = dropTriggerPtr.p->m_block_list[0];
   sendSignal(ref, GSN_DROP_TRIG_IMPL_REQ, signal,
              DropTrigImplReq::SignalLength, JBB);
+}
+
+// DropTrigger: COMPLETE
+
+void
+Dbdict::dropTrigger_complete(Signal* signal, SchemaOpPtr op_ptr)
+{
+  jam();
+  sendTransConf(signal, op_ptr);
 }
 
 // DropTrigger: ABORT
@@ -19013,27 +19103,7 @@ Dbdict::trans_start_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
       /**
        * Abort before replying to client
        */
-      SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
-      req->senderRef = reference();
-      req->transKey = trans_ptr.p->trans_key;
-      req->opKey = RNIL;
-      req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
-      req->clientRef = trans_ptr.p->m_clientRef;
-      req->transId = trans_ptr.p->m_transId;
-      req->gsn = GSN_SCHEMA_TRANS_BEGIN_REQ;
-
-      trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
-      NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
-      nodes.bitANDC(trans_ptr.p->m_ref_nodes);
-      NodeReceiverGroup rg(DBDICT, nodes);
-      {
-        SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
-        bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
-        ndbrequire(ok);
-      }
-
-      sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-                 SchemaTransImplReq::SignalLength, JBB);
+      trans_end_start(signal, trans_ptr);
       return;
     }
     else
@@ -19393,7 +19463,9 @@ Dbdict::trans_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
   case SchemaTrans::TS_COMPLETING:
     trans_complete_recv_reply(signal, trans_ptr);
     return;
-
+  case SchemaTrans::TS_ENDING:
+    trans_end_recv_reply(signal, trans_ptr);
+    return;
   case SchemaTrans::TS_STARTED:   // These states are waiting for client
     jam();                        // And should not get a "internal" reply
   case SchemaTrans::TS_COMMITTED:
@@ -19746,7 +19818,7 @@ Dbdict::trans_abort_parse_done(Signal* signal, SchemaTransPtr trans_ptr)
   const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
   dict_lock_unlock(signal, &lockReq);
 
-  trans_complete_start(signal, trans_ptr);
+  trans_end_start(signal, trans_ptr);
 }
 
 void
@@ -20140,12 +20212,39 @@ Dbdict::trans_commit_mutex_unlocked(Signal* signal,
 void
 Dbdict::trans_complete_start(Signal * signal, SchemaTransPtr trans_ptr)
 {
+  jam();
   trans_ptr.p->m_state = SchemaTrans::TS_COMPLETING;
 
+  bool first = false;
+  SchemaOpPtr op_ptr;
+  {
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    first = list.first(op_ptr);
+  }
+
+  if (first)
+  {
+    jam();
+    trans_complete_next(signal, trans_ptr, op_ptr);
+  }
+  else
+  {
+    jam();
+    trans_complete_done(signal, trans_ptr);
+  }
+}
+
+void
+Dbdict::trans_complete_next(Signal* signal, 
+                            SchemaTransPtr trans_ptr, SchemaOpPtr op_ptr)
+{
+  op_ptr.p->m_state = SchemaOp::OS_COMPLETING;
+  trans_ptr.p->m_curr_op_ptr_i = op_ptr.i;
+  
   SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->transKey = trans_ptr.p->trans_key;
-  req->opKey = RNIL;
+  req->opKey = op_ptr.p->op_key;
   req->requestInfo = SchemaTransImplReq::RT_COMPLETE;
   req->clientRef = trans_ptr.p->m_clientRef;
   req->transId = trans_ptr.p->m_transId;
@@ -20161,20 +20260,83 @@ Dbdict::trans_complete_start(Signal * signal, SchemaTransPtr trans_ptr)
   }
 
   sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
-             SchemaTransImplReq::SignalLength, JBB);
+             SchemaTransImplReq::SignalLength, JBB);  
 }
 
 void
 Dbdict::trans_complete_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 {
-  trans_complete_done(signal, trans_ptr);
+  if (hasError(trans_ptr.p->m_error))
+  {
+    jam();
+    // kill nodes that failed COMMIT
+    ndbrequire(false);
+    return;
+  }
+
+  SchemaOpPtr op_ptr;
+  c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
+  op_ptr.p->m_state = SchemaOp::OS_COMPLETED;
+
+  bool next = false;
+  {
+    LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
+    next = list.next(op_ptr);
+  }
+  
+  if (next)
+  {
+    jam();
+    trans_complete_next(signal, trans_ptr, op_ptr);
+    return;
+  }
+  else
+  {
+    jam();
+    trans_complete_done(signal, trans_ptr);
+  }
+  return;
 }
 
 void
 Dbdict::trans_complete_done(Signal* signal, SchemaTransPtr trans_ptr)
 {
-  sendTransClientReply(signal, trans_ptr);
+  jam();
+  trans_end_start(signal, trans_ptr);
+}
 
+void
+Dbdict::trans_end_start(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  trans_ptr.p->m_state = SchemaTrans::TS_ENDING;
+
+  SchemaTransImplReq* req = (SchemaTransImplReq*)signal->getDataPtrSend();
+  req->senderRef = reference();
+  req->transKey = trans_ptr.p->trans_key;
+  req->opKey = RNIL;
+  req->requestInfo = SchemaTransImplReq::RT_END;
+  req->clientRef = trans_ptr.p->m_clientRef;
+  req->transId = trans_ptr.p->m_transId;
+  req->gsn = 0;
+
+  trans_ptr.p->m_nodes.bitAND(c_aliveNodes);
+  NdbNodeBitmask nodes = trans_ptr.p->m_nodes;
+  NodeReceiverGroup rg(DBDICT, nodes);
+  {
+    SafeCounter sc(c_counterMgr, trans_ptr.p->m_counter);
+    bool ok = sc.init<SchemaTransImplRef>(rg, trans_ptr.p->trans_key);
+    ndbrequire(ok);
+  }
+  
+  sendSignal(rg, GSN_SCHEMA_TRANS_IMPL_REQ, signal,
+             SchemaTransImplReq::SignalLength, JBB);  
+}
+
+void
+Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
+{
+  sendTransClientReply(signal, trans_ptr);
+  
   releaseSchemaTrans(trans_ptr);
 }
 
@@ -20219,9 +20381,9 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     jam();
     slave_run_parse(signal, trans_ptr, req);
     return;
-  case SchemaTransImplReq::RT_COMPLETE:
+  case SchemaTransImplReq::RT_END:
     jam();
-    slave_run_complete(signal, trans_ptr);
+    slave_run_end(signal, trans_ptr);
     return;
   case SchemaTransImplReq::RT_FLUSH_SCHEMA:
     jam();
@@ -20245,7 +20407,6 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     switch(rt){
     case SchemaTransImplReq::RT_START:
     case SchemaTransImplReq::RT_PARSE:
-    case SchemaTransImplReq::RT_COMPLETE:
     case SchemaTransImplReq::RT_FLUSH_SCHEMA:
       ndbrequire(false); // handled above
     case SchemaTransImplReq::RT_PREPARE:
@@ -20273,6 +20434,10 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
     case SchemaTransImplReq::RT_COMMIT:
       jam();
       (this->*(info.m_commit))(signal, op_ptr);
+      return;
+    case SchemaTransImplReq::RT_COMPLETE:
+      jam();
+      (this->*(info.m_complete))(signal, op_ptr);
       return;
     }
   }
@@ -20394,12 +20559,12 @@ void
 Dbdict::slave_flush_schema(Signal *signal,
 			   SchemaTransPtr trans_ptr)
 {
-
+  sendTransConf(signal, trans_ptr);
 }
 
 void
-Dbdict::slave_run_complete(Signal* signal,
-                           SchemaTransPtr trans_ptr)
+Dbdict::slave_run_end(Signal* signal,
+                      SchemaTransPtr trans_ptr)
 {
   sendTransConf(signal, trans_ptr);
   if (!trans_ptr.p->m_isMaster)
