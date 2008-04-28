@@ -17,9 +17,9 @@ ndbtools_PROGRAMS = ndb_print_sys_file
 ndb_print_sys_file_SOURCES = printSysfile.cpp
 ndb_print_sys_file_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-         $(top_builddir)/dbug/libdbug.a \
-         $(top_builddir)/mysys/libmysys.a \
-         $(top_builddir)/strings/libmystrings.a
+         $(top_builddir)/dbug/libdbuglt.la \
+         $(top_builddir)/mysys/libmysyslt.la \
+         $(top_builddir)/strings/libmystringslt.la
 
 
 include $(top_srcdir)/storage/ndb/config/common.mk.am

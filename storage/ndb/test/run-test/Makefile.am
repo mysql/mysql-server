@@ -33,9 +33,9 @@ atrt_SOURCES = main.cpp setup.cpp files.cpp db.cpp command.cpp
 INCLUDES_LOC = -I$(top_srcdir)/storage/ndb/test/include
 LDADD_LOC = $(top_builddir)/storage/ndb/test/src/libNDBT.a \
 	    $(top_builddir)/storage/ndb/src/libndbclient.la \
-            $(top_builddir)/dbug/libdbug.a \
-            $(top_builddir)/mysys/libmysys.a \
-            $(top_builddir)/strings/libmystrings.a @NDB_SCI_LIBS@ \
+            $(top_builddir)/dbug/libdbuglt.la \
+            $(top_builddir)/mysys/libmysyslt.la \
+            $(top_builddir)/strings/libmystringslt.la @NDB_SCI_LIBS@ \
             $(top_builddir)/libmysql_r/libmysqlclient_r.la
 
 atrt_CXXFLAGS = -I$(top_srcdir)/ndb/src/mgmapi \

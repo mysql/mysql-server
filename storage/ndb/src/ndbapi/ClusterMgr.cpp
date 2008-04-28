@@ -482,8 +482,11 @@ ClusterMgr::execNF_COMPLETEREP(const Uint32 * theData){
   const NodeId nodeId = nfComp->failedNodeId;
   assert(nodeId > 0 && nodeId < MAX_NDB_NODES);
   
-  theFacade.ReportNodeFailureComplete(nodeId);
-  theNodes[nodeId].nfCompleteRep = true;
+  if (theNodes[nodeId].nfCompleteRep == false)
+  {
+    theFacade.ReportNodeFailureComplete(nodeId);
+    theNodes[nodeId].nfCompleteRep = true;
+  }
 }
 
 void

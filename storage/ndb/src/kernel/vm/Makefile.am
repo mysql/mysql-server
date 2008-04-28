@@ -65,24 +65,24 @@ ndbd_malloc_impl_test_CXXFLAGS = -DUNIT_TEST
 ndbd_malloc_impl_test_SOURCES = ndbd_malloc_impl.cpp
 ndbd_malloc_impl_test_LDFLAGS = @ndb_bin_am_ldflags@ \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysys.a \
-  $(top_builddir)/dbug/libdbug.a \
-  $(top_builddir)/strings/libmystrings.a
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
 
 bench_pool_SOURCES = bench_pool.cpp
 bench_pool_LDFLAGS = @ndb_bin_am_ldflags@\
   libkernel.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysys.a \
-  $(top_builddir)/dbug/libdbug.a \
-  $(top_builddir)/strings/libmystrings.a
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
 
 testDynArr256_CXXFLAGS = -DUNIT_TEST
 testDynArr256_SOURCES = DynArr256.cpp
 testDynArr256_LDFLAGS = @ndb_bin_am_ldflags@ \
   libkernel.a ../error/liberror.a \
   $(top_builddir)/storage/ndb/src/libndbclient.la \
-  $(top_builddir)/mysys/libmysys.a \
-  $(top_builddir)/dbug/libdbug.a \
-  $(top_builddir)/strings/libmystrings.a
+  $(top_builddir)/mysys/libmysyslt.la \
+  $(top_builddir)/dbug/libdbuglt.la \
+  $(top_builddir)/strings/libmystringslt.la
 
