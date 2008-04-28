@@ -314,11 +314,15 @@ sub main {
     }
   }
 
+  if ( not defined @$completed ) {
+    mtr_error("Test suite aborted");
+  }
+
   if ( @$completed != $num_tests){
 
     if ($opt_force){
       # All test should have been run, print the completed list
-      foreach my $test ( @completed ){
+      foreach my $test ( @$completed ){
 	$test->print_test();
       }
     }
@@ -329,8 +333,6 @@ sub main {
     mtr_error("Test failed.",
 	      "To continue, re-run with '--force'");
   }
-
-  mtr_verbose("Server exit\n");
 
   mtr_print_line();
 
@@ -356,6 +358,8 @@ sub run_test_server {
   my %running;
   my $result;
 
+  my $suite_timeout_proc= My::SafeProcess->timer($opt_suite_timeout * 60);
+
   my $s= IO::Select->new();
   $s->add($server);
   while (1) {
@@ -375,6 +379,7 @@ sub run_test_server {
 	  mtr_verbose("Child closed socket");
 	  $s->remove($sock);
 	  if (--$childs == 0){
+	    $suite_timeout_proc->kill();
 	    return $completed;
 	  }
 	  next;
@@ -433,6 +438,7 @@ sub run_test_server {
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
+	      $suite_timeout_proc->kill();
 	      push(@$completed, $result);
 	      return $completed;
 	    }
@@ -548,6 +554,15 @@ sub run_test_server {
 	  print $sock "BYE\n";
 	}
       }
+    }
+
+    # ----------------------------------------------------
+    # Check if test suite timer expired
+    # ----------------------------------------------------
+    if ( ! $suite_timeout_proc->wait_one(0) )
+    {
+      mtr_report("Test suite timeout! Terminating...");
+      return undef;
     }
   }
 }
@@ -2771,7 +2786,6 @@ sub run_testcase ($) {
   # ----------------------------------------------------------------------
   if ( $opt_start or $opt_start_dirty )
   {
-# MASV    $suite_timeout_proc->kill();
     mtr_report("\nStarted", started(all_servers()));
     mtr_report("Waiting for server(s) to exit...");
     my $proc= My::SafeProcess->wait_any();
@@ -2929,16 +2943,6 @@ sub run_testcase ($) {
       report_failure_and_restart($tinfo);
       return 1;
     }
-
-    # ----------------------------------------------------
-    # Check if test suite timer expired
-    # ----------------------------------------------------
-# MASV
-#    if ( $proc eq $suite_timeout_proc )
-#    {
-#      mtr_report("Test suite timeout! Terminating...");
-#      exit(1);
-#    }
 
     mtr_error("Unhandled process $proc exited");
   }
