@@ -404,32 +404,32 @@ sub run_test_server {
 	    else {
 	      mtr_report(" - saving '$worker_savedir/' to '$savedir/'");
 	      rename($worker_savedir, $savedir);
+
+	      if ($opt_max_save_core > 0) {
+		# Limit number of core files saved
+		find({ no_chdir => 1,
+		       wanted => sub {
+			 my $core_file= $File::Find::name;
+			 my $core_name= basename($core_file);
+
+			 if ($core_name =~ "core*"){
+			   if ($num_saved_cores >= $opt_max_save_core) {
+			     mtr_report(" - deleting '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+			     unlink("$core_file");
+			   }
+			   else {
+			     mtr_report(" - found '$core_name'",
+				      "($num_saved_cores/$opt_max_save_core)");
+			   }
+			   ++$num_saved_cores;
+			 }
+		       }
+		     },
+		     $savedir);
+	      }
 	    }
 	    $num_saved_datadir++;
-
-	    if ($opt_max_save_core > 0) {
-	      # Limit number of core files saved
-	      find({ no_chdir => 1,
-		     wanted => sub {
-		       my $core_file= $File::Find::name;
-		       my $core_name= basename($core_file);
-
-		       if ($core_name =~ "core*"){
-			 if ($num_saved_cores >= $opt_max_save_core) {
-			   mtr_report(" - deleting '$core_name'",
-				      "($num_saved_cores/$opt_max_save_core)");
-			   unlink("$core_file");
-			 }
-			 else {
-			   mtr_report(" - found '$core_name'",
-				    "($num_saved_cores/$opt_max_save_core)");
-			 }
-			 ++$num_saved_cores;
-		       }
-		     }
-		   },
-		   $savedir);
-	    }
 
 	    if ( !$opt_force ) {
 	      # Test has failed, force is off
