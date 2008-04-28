@@ -2781,6 +2781,10 @@ sub run_testcase ($) {
   if ( $opt_check_testcases and check_testcase($tinfo, "before") ){
     # Failed to record state of server or server crashed
     report_failure_and_restart($tinfo);
+
+    # Stop the test case timer
+    $test_timeout_proc->kill();
+
     return 1;
   }
 
