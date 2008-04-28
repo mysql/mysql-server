@@ -36,7 +36,7 @@
 
 extern bool g_StopServer;
 extern bool g_RestartServer;
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 static const unsigned int MAX_READ_TIMEOUT = 1000 ;
 static const unsigned int MAX_WRITE_TIMEOUT = 100 ;
@@ -548,7 +548,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   m_allocated_resources->reserve_node(tmp, timeout*1000);
   
   if (name)
-    g_eventLogger.info("Node %d: %s", tmp, name);
+    g_eventLogger->info("Node %d: %s", tmp, name);
 
   return;
 }

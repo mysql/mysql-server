@@ -1253,3 +1253,18 @@ EventLogger::setFilterLevel(int filterLevel)
 {
   m_filterLevel = filterLevel;
 }
+
+
+EventLogger*
+create_event_logger()
+{
+  return new EventLogger();
+}
+
+void
+destroy_event_logger(class EventLogger ** g_eventLogger)
+{
+  delete *g_eventLogger;
+  *g_eventLogger = 0;
+}
+

@@ -43,7 +43,7 @@
 #include <SafeCounter.hpp>
 
 // Used here only to print event reports on stdout/console.
-EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 extern int simulate_error_during_shutdown;
 
 Cmvmi::Cmvmi(Block_context& ctx) :
@@ -241,8 +241,8 @@ void Cmvmi::execEVENT_REP(Signal* signal)
   }
 
   // Print the event info
-  g_eventLogger.log(eventReport->getEventType(), 
-		    signal->theData, signal->getLength(), 0, 0);
+  g_eventLogger->log(eventReport->getEventType(), 
+                     signal->theData, signal->getLength(), 0, 0);
   
   return;
 }//execEVENT_REP()
@@ -421,7 +421,7 @@ void Cmvmi::execSTTOR(Signal* signal)
     {
       int res = NdbMem_MemLockAll(0);
       if(res != 0){
-	g_eventLogger.warning("Failed to memlock pages");
+        g_eventLogger->warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
       }
     }
@@ -433,13 +433,26 @@ void Cmvmi::execSTTOR(Signal* signal)
     globalData.activateSendPacked = 1;
     sendSTTORRY(signal);
   } else if (theStartPhase == 8){
-    /*---------------------------------------------------*/
-    /* Open com to API + REP nodes                       */
-    /*---------------------------------------------------*/
-    signal->theData[0] = 0; // no answer
-    signal->theData[1] = 0; // no id
-    signal->theData[2] = NodeInfo::API;
-    execOPEN_COMREQ(signal);
+#ifdef ERROR_INSERT
+    if (ERROR_INSERTED(9004))
+    {
+      Uint32 len = signal->getLength();
+      Uint32 db = c_dbNodes.find(0);
+      if (db == getOwnNodeId())
+        db = c_dbNodes.find(db);
+      Uint32 i = c_error_9000_nodes_mask.find(0);
+      Uint32 tmp[25];
+      memcpy(tmp, signal->theData, sizeof(tmp));
+      signal->theData[0] = i;
+      sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
+      ndbout_c("stopping %u using %u", i, db);
+      CLEAR_ERROR_INSERT_VALUE;
+      memcpy(signal->theData, tmp, sizeof(tmp));
+      sendSignalWithDelay(reference(), GSN_STTOR,
+                          signal, 100, len);
+      return;
+    }
+#endif
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   }
@@ -502,14 +515,6 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 	   && c_error_9000_nodes_mask.get(tStartingNode)))
 #endif
     {
-      if (globalData.theStartLevel != NodeState::SL_STARTED &&
-          (getNodeInfo(tStartingNode).m_type != NodeInfo::DB &&
-           getNodeInfo(tStartingNode).m_type != NodeInfo::MGM))
-      {
-        jam();
-        goto done;
-      }
-
       globalTransporterRegistry.do_connect(tStartingNode);
       globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
       
@@ -534,7 +539,6 @@ void Cmvmi::execOPEN_COMREQ(Signal* signal)
 	    && c_error_9000_nodes_mask.get(i))
 	  continue;
 #endif
-	
 	globalTransporterRegistry.do_connect(i);
 	globalTransporterRegistry.setIOState(i, HaltIO);
 	
@@ -607,38 +611,17 @@ void Cmvmi::execCONNECT_REP(Signal *signal){
   globalData.m_nodeInfo[hostId].m_version = 0;
   globalData.m_nodeInfo[hostId].m_mysql_version = 0;
   
-  if(type == NodeInfo::DB || globalData.theStartLevel >= NodeState::SL_STARTED){
-    jam();
-    
-    /**
-     * Inform QMGR that client has connected
-     */
-
-    signal->theData[0] = hostId;
-    sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
-  } else if(globalData.theStartLevel == NodeState::SL_CMVMI ||
-            globalData.theStartLevel == NodeState::SL_STARTING) {
-    jam();
-    /**
-     * Someone connected before start was finished
-     */
-    if(type == NodeInfo::MGM){
-      jam();
-      signal->theData[0] = hostId;
-      sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
-    } else {
-      /**
-       * Dont allow api nodes to connect
-       */
-      ndbout_c("%d %d %d", hostId, type, globalData.theStartLevel);
-      abort();
-      globalTransporterRegistry.do_disconnect(hostId);
-    }
-  }
+  /**
+   * Inform QMGR that client has connected
+   */
   
+  signal->theData[0] = hostId;
+  sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
+
   /* Automatically subscribe events for MGM nodes.
    */
-  if(type == NodeInfo::MGM){
+  if(type == NodeInfo::MGM)
+  {
     jam();
     globalTransporterRegistry.setIOState(hostId, NoHalt);
   }
@@ -827,26 +810,16 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     return;
   }
   
-  if(globalData.theStartLevel == NodeState::SL_NOTHING){
+  if(globalData.theStartLevel == NodeState::SL_NOTHING)
+  {
     jam();
     globalData.theStartLevel = NodeState::SL_CMVMI;
-    /**
-     * Open connections to management servers
-     */
-    for(unsigned int i = 1; i < MAX_NODES; i++ ){
-      if (getNodeInfo(i).m_type == NodeInfo::MGM){ 
-        if(!globalTransporterRegistry.is_connected(i)){
-          globalTransporterRegistry.do_connect(i);
-          globalTransporterRegistry.setIOState(i, NoHalt);
-        }
-      }
-    }
-
     EXECUTE_DIRECT(QMGR, GSN_START_ORD, signal, 1);
     return ;
   }
   
-  if(globalData.theStartLevel == NodeState::SL_CMVMI){
+  if(globalData.theStartLevel == NodeState::SL_CMVMI)
+  {
     jam();
 
     if(m_ctx.m_config.lockPagesInMainMemory() == 2)
@@ -854,12 +827,12 @@ Cmvmi::execSTART_ORD(Signal* signal) {
       int res = NdbMem_MemLockAll(1);
       if(res != 0)
       {
-	g_eventLogger.warning("Failed to memlock pages");
+        g_eventLogger->warning("Failed to memlock pages");
 	warningEvent("Failed to memlock pages");
       }
       else
       {
-	g_eventLogger.info("Locked future allocations");
+        g_eventLogger->info("Locked future allocations");
       }
     }
     
@@ -874,8 +847,10 @@ Cmvmi::execSTART_ORD(Signal* signal) {
     // Disconnect all nodes as part of the system restart. 
     // We need to ensure that we are starting up
     // without any connected nodes.   
-    for(unsigned int i = 1; i < MAX_NODES; i++ ){
-      if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM){
+    for(unsigned int i = 1; i < MAX_NODES; i++ )
+    {
+      if (i != getOwnNodeId() && getNodeInfo(i).m_type != NodeInfo::MGM)
+      {
         globalTransporterRegistry.do_disconnect(i);
         globalTransporterRegistry.setIOState(i, HaltIO);
       }
@@ -1027,15 +1002,15 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   {
     SubscriberPtr ptr;
     subscribers.first(ptr);  
-    g_eventLogger.info("List subscriptions:");
+    g_eventLogger->info("List subscriptions:");
     while(ptr.i != RNIL)
     {
-      g_eventLogger.info("Subscription: %u, nodeId: %u, ref: 0x%x",
-                         ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
+      g_eventLogger->info("Subscription: %u, nodeId: %u, ref: 0x%x",
+                          ptr.i,  refToNode(ptr.p->blockRef), ptr.p->blockRef);
       for(Uint32 i = 0; i < LogLevel::LOGLEVEL_CATEGORIES; i++)
       {
         Uint32 level = ptr.p->logLevel.getLogLevel((LogLevel::EventCategory)i);
-        g_eventLogger.info("Category %u Level %u", i, level);
+        g_eventLogger->info("Category %u Level %u", i, level);
       }
       subscribers.next(ptr);
     }
@@ -1150,6 +1125,20 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       }
     }
     c_error_9000_nodes_mask.clear();
+  }
+
+  if (arg == 9004 && signal->getLength() == 2)
+  {
+    SET_ERROR_INSERT_VALUE(9004);
+    c_error_9000_nodes_mask.clear();
+    c_error_9000_nodes_mask.set(signal->theData[1]);
+  }
+
+  if (arg == 9004 && signal->getLength() == 2)
+  {
+    SET_ERROR_INSERT_VALUE(9004);
+    c_error_9000_nodes_mask.clear();
+    c_error_9000_nodes_mask.set(signal->theData[1]);
   }
 #endif
 

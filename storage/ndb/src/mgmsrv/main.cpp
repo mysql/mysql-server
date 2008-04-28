@@ -128,7 +128,7 @@ static MgmGlobals *glob= 0;
  */
 bool g_StopServer;
 bool g_RestartServer;
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 enum ndb_mgmd_options {
   OPT_INTERACTIVE = NDB_STD_OPTIONS_LAST,
@@ -317,14 +317,14 @@ start:
   BaseString::snprintf(msg, sizeof(msg),
 	   "NDB Cluster Management Server. %s", NDB_VERSION_STRING);
   ndbout_c(msg);
-  g_eventLogger.info(msg);
+  g_eventLogger->info(msg);
 
   BaseString::snprintf(msg, 256, "Id: %d, Command port: %s:%d",
                        glob->localNodeId, 
                        _bind_address ? _bind_address : "*",
                        glob->port);
   ndbout_c(msg);
-  g_eventLogger.info(msg);
+  g_eventLogger->info(msg);
   
   g_StopServer = false;
   g_RestartServer= false;
@@ -345,13 +345,13 @@ start:
   }
 
   if(g_RestartServer)
-    g_eventLogger.info("Restarting server...");
+    g_eventLogger->info("Restarting server...");
   else
-    g_eventLogger.info("Shutting down server...");
+    g_eventLogger->info("Shutting down server...");
   glob->socketServer->stopServer();
   // We disconnect from the ConfigRetreiver mgmd when we delete glob below
   glob->socketServer->stopSessions(true);
-  g_eventLogger.info("Shutdown complete");
+  g_eventLogger->info("Shutdown complete");
  the_end:
   delete glob;
   if(g_RestartServer)
