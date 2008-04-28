@@ -53,7 +53,7 @@
 #include <../dbdih/Dbdih.hpp>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 //#define HANDOVER_DEBUG
 //#define NODEFAIL_DEBUG
@@ -2607,9 +2607,13 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       c_subscriberPool.getPtr(ptr, subOpPtr.p->m_subscriberRef);
 
       Uint32 nodeId = refToNode(ptr.p->m_senderRef);
-      if (c_startup.m_restart_server_node_id ||
-          (c_failedApiNodes.get(nodeId) == false &&
-           c_connected_nodes.get(nodeId)))
+      bool startme = c_startup.m_restart_server_node_id;
+      bool handover = c_startup.m_wait_handover;
+      bool connected = 
+        c_failedApiNodes.get(nodeId) == false && 
+        c_connected_nodes.get(nodeId);
+
+      if (startme || handover || connected)
       {
         SubStartConf* conf = (SubStartConf*)signal->getDataPtrSend();
         conf->senderRef       = reference();
@@ -2636,8 +2640,9 @@ Suma::report_sub_start_conf(Signal* signal, Ptr<Subscription> subPtr)
       else
       {
         jam();
-        g_eventLogger.warning("Node %u failed in report_sub_start_conf",
-                              nodeId);
+        g_eventLogger->warning
+          ("Node %u failed in report_sub_start_conf(%u,%u,%u)",
+           nodeId, startme,handover,connected);
         sendSubStartRef(signal,
                         senderRef, senderData, SubStartRef::NodeDied);
 
@@ -3754,8 +3759,8 @@ Suma::execSUB_GCP_COMPLETE_REP(Signal* signal)
     {
       char buf[100];
       c_subscriber_nodes.getText(buf);
-      g_eventLogger.error("c_gcp_list.seize() failed: gci: %d nodes: %s",
-                          gci, buf);
+      g_eventLogger->error("c_gcp_list.seize() failed: gci: %d nodes: %s",
+                           gci, buf);
     }
   }
   
@@ -4009,9 +4014,9 @@ Suma::execSUB_GCP_COMPLETE_ACK(Signal* signal)
   
   if(gcp.isNull())
   {
-    g_eventLogger.warning("ACK wo/ gcp record (gci: %u/%u) ref: %.8x from: %.8x",
-                          Uint32(gci >> 32), Uint32(gci),
-                          senderRef, signal->getSendersBlockRef());
+    g_eventLogger->warning("ACK wo/ gcp record (gci: %u/%u) ref: %.8x from: %.8x",
+                           Uint32(gci >> 32), Uint32(gci),
+                           senderRef, signal->getSendersBlockRef());
   }
   else
   {

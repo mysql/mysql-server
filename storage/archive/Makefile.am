@@ -50,17 +50,17 @@ libarchive_a_SOURCES =	ha_archive.cc azio.c
 
 archive_test_SOURCES =	archive_test.c azio.c
 archive_test_CFLAGS =	$(AM_CFLAGS)
-archive_test_LDADD =	$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a \
+archive_test_LDADD =	$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la \
 			@ZLIB_LIBS@
 archive_test_LDFLAGS = @NOINST_LDFLAGS@
 
 archive_reader_SOURCES = archive_reader.c azio.c
 archive_reader_CFLAGS =	$(AM_CFLAGS)
-archive_reader_LDADD =	$(top_builddir)/mysys/libmysys.a \
-			$(top_builddir)/dbug/libdbug.a \
-			$(top_builddir)/strings/libmystrings.a \
+archive_reader_LDADD =	$(top_builddir)/mysys/libmysyslt.la \
+			$(top_builddir)/dbug/libdbuglt.la \
+			$(top_builddir)/strings/libmystringslt.la \
 			@ZLIB_LIBS@
 archive_reader_LDFLAGS = @NOINST_LDFLAGS@
 

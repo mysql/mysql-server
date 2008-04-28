@@ -159,6 +159,18 @@ void Ndbcntr::execCONTINUEB(Signal* signal)
     jam();
     c_stopRec.checkTimeout(signal);
     break;
+  case ZBLOCK_STTOR:
+    if (ERROR_INSERTED(1002))
+    {
+      signal->theData[0] = ZBLOCK_STTOR;
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 1);
+      return;
+    }
+    else
+    {
+      c_missra.sendNextSTTOR(signal);
+    }
+    return;
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -2084,6 +2096,21 @@ Ndbcntr::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 
+  if (arg == 71)
+  {
+#ifdef ERROR_INSERT
+    if (signal->getLength() == 2)
+    {
+      c_error_insert_extra = signal->theData[1];
+      SET_ERROR_INSERT_VALUE(1002);
+    }
+    else if (ERROR_INSERTED(1002))
+    {
+      CLEAR_ERROR_INSERT_VALUE;
+    }
+#endif
+  }
+
 }//Ndbcntr::execDUMP_STATE_ORD()
 
 void Ndbcntr::updateNodeState(Signal* signal, const NodeState& newState) const{
@@ -2880,6 +2907,16 @@ void Ndbcntr::Missra::sendNextSTTOR(Signal* signal){
   for(; currentStartPhase < 255 ;
       currentStartPhase++, g_currentStartPhase = currentStartPhase){
     jam();
+
+#ifdef ERROR_INSERT
+    if (cntr.cerrorInsert == 1002 &&
+        cntr.c_error_insert_extra == currentStartPhase)
+    {
+      signal->theData[0] = ZBLOCK_STTOR;
+      cntr.sendSignalWithDelay(cntr.reference(), GSN_CONTINUEB, signal, 100, 1);
+      return;
+    }
+#endif
     
     const Uint32 start = currentBlockIndex;
 

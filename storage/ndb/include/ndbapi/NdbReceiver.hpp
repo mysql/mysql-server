@@ -31,6 +31,7 @@ class NdbReceiver
   friend class NdbIndexOperation;
   friend class NdbIndexScanOperation;
   friend class NdbTransaction;
+
 public:
   enum ReceiverType	{ NDB_UNINITIALIZED,
 			  NDB_OPERATION = 1,
@@ -62,6 +63,7 @@ public:
   inline NdbReceiver* next() { return m_next; }
   
   void setErrorCode(int);
+
 private:
   Uint32 theMagicNumber;
   Ndb* m_ndb;

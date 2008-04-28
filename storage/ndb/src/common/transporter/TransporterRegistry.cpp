@@ -47,7 +47,7 @@ extern int g_ndb_shm_signum;
 #include <mgmapi/mgmapi_debug.h>
 
 #include <EventLogger.hpp>
-extern EventLogger g_eventLogger;
+extern EventLogger * g_eventLogger;
 
 struct in_addr
 TransporterRegistry::get_connect_address(NodeId node_id) const
@@ -241,8 +241,8 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
     {
       DBUG_PRINT("error", ("Transporter types mismatch this=%d remote=%d",
 			   t->m_type, remote_transporter_type));
-      g_eventLogger.error("Incompatible configuration: Transporter type "
-			  "mismatch with node %d", nodeId);
+      g_eventLogger->error("Incompatible configuration: Transporter type "
+                           "mismatch with node %d", nodeId);
 
       // wait for socket close for 1 second to let message arrive at client
       {
@@ -258,13 +258,18 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd)
   }
   else if (t->m_type == tt_SHM_TRANSPORTER)
   {
-    g_eventLogger.warning("Unable to verify transporter compatability with node %d", nodeId);
+    g_eventLogger->warning("Unable to verify transporter compatability with node %d", nodeId);
   }
 
   // setup transporter (transporter responsible for closing sockfd)
-  t->connect_server(sockfd);
+  bool res = t->connect_server(sockfd);
 
-  DBUG_RETURN(true);
+  if (res && performStates[nodeId] != TransporterRegistry::CONNECTING)
+  {
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(res);
 }
 
 bool
@@ -787,7 +792,7 @@ TransporterRegistry::poll_TCP(Uint32 timeOutMillis)
   
   tcpReadSelectReply = select(maxSocketValue, &tcpReadset, 0, 0, &timeout);  
   if(false && tcpReadSelectReply == -1 && errno == EINTR)
-    g_eventLogger.info("woke-up by signal");
+    g_eventLogger->info("woke-up by signal");
 
 #ifdef NDB_WIN32
   if(tcpReadSelectReply == SOCKET_ERROR)
@@ -1129,19 +1134,20 @@ TransporterRegistry::start_clients_thread()
 	      }
 	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {
-		g_eventLogger.info("Failed to get dynamic port to connect to: %d", res);
+                g_eventLogger->info("Failed to get dynamic port to connect to: %d", res);
 		ndb_mgm_disconnect(m_mgm_handle);
 	      }
 	      else
 	      {
-		g_eventLogger.info("Management server closed connection early. "
-			 "It is probably being shut down (or has problems). "
-			 "We will retry the connection. %d %s %s line: %d",
-                                   ndb_mgm_get_latest_error(m_mgm_handle),
-                                   ndb_mgm_get_latest_error_desc(m_mgm_handle),
-                                   ndb_mgm_get_latest_error_msg(m_mgm_handle),
-                                   ndb_mgm_get_latest_error_line(m_mgm_handle)
-                                   );
+                g_eventLogger->info
+                  ("Management server closed connection early. "
+                   "It is probably being shut down (or has problems). "
+                   "We will retry the connection. %d %s %s line: %d",
+                   ndb_mgm_get_latest_error(m_mgm_handle),
+                   ndb_mgm_get_latest_error_desc(m_mgm_handle),
+                   ndb_mgm_get_latest_error_msg(m_mgm_handle),
+                   ndb_mgm_get_latest_error_line(m_mgm_handle)
+                   );
 	      }
 	    }
 	    /** else
@@ -1235,7 +1241,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
   DBUG_ENTER("TransporterRegistry::start_service");
   if (m_transporter_interface.size() > 0 && !nodeIdSpecified)
   {
-    g_eventLogger.error("TransporterRegistry::startReceiving: localNodeId not specified");
+    g_eventLogger->error("TransporterRegistry::startReceiving: localNodeId not specified");
     DBUG_RETURN(false);
   }
 
@@ -1261,10 +1267,10 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 	 * If it wasn't a dynamically allocated port, or
 	 * our attempts at getting a new dynamic port failed
 	 */
-	g_eventLogger.error("Unable to setup transporter service port: %s:%d!\n"
-		 "Please check if the port is already used,\n"
-		 "(perhaps the node is already running)",
-		 t.m_interface ? t.m_interface : "*", t.m_s_service_port);
+        g_eventLogger->error("Unable to setup transporter service port: %s:%d!\n"
+                             "Please check if the port is already used,\n"
+                             "(perhaps the node is already running)",
+                             t.m_interface ? t.m_interface : "*", t.m_s_service_port);
 	delete transporter_service;
 	DBUG_RETURN(false);
       }
@@ -1306,9 +1312,9 @@ TransporterRegistry::startReceiving()
     if(ret != 0)
     {
       DBUG_PRINT("error",("Install failed"));
-      g_eventLogger.error("Failed to install signal handler for"
-			  " SHM transporter, signum %d, errno: %d (%s)",
-			  g_ndb_shm_signum, errno, strerror(errno));
+      g_eventLogger->error("Failed to install signal handler for"
+                           " SHM transporter, signum %d, errno: %d (%s)",
+                           g_ndb_shm_signum, errno, strerror(errno));
     }
   }
 #endif // NDB_SHM_TRANSPORTER
@@ -1358,13 +1364,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
 
   if(!mgm_nodeid)
   {
-    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
   Transporter * t = theTransporters[mgm_nodeid];
   if (!t)
   {
-    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return false;
   }
   DBUG_RETURN(t->connect_client(connect_ndb_mgmd(h)));
@@ -1380,7 +1386,7 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 
   if ( h==NULL || *h == NULL )
   {
-    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     return NDB_INVALID_SOCKET;
   }
 
@@ -1393,10 +1399,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
 				   m_transporter_interface[i].m_s_service_port,
 				   &mgm_reply) < 0)
     {
-      g_eventLogger.error("Error: %s: %d",
-	       ndb_mgm_get_latest_error_desc(*h),
-	       ndb_mgm_get_latest_error(*h));
-      g_eventLogger.error("%s: %d", __FILE__, __LINE__);
+      g_eventLogger->error("Error: %s: %d",
+                           ndb_mgm_get_latest_error_desc(*h),
+                           ndb_mgm_get_latest_error(*h));
+      g_eventLogger->error("%s: %d", __FILE__, __LINE__);
       ndb_mgm_destroy_handle(h);
       return NDB_INVALID_SOCKET;
     }
@@ -1408,10 +1414,10 @@ NDB_SOCKET_TYPE TransporterRegistry::connect_ndb_mgmd(NdbMgmHandle *h)
   NDB_SOCKET_TYPE sockfd= ndb_mgm_convert_to_transporter(h);
   if ( sockfd == NDB_INVALID_SOCKET)
   {
-    g_eventLogger.error("Error: %s: %d",
-	     ndb_mgm_get_latest_error_desc(*h),
-	     ndb_mgm_get_latest_error(*h));
-    g_eventLogger.error("%s: %d", __FILE__, __LINE__);
+    g_eventLogger->error("Error: %s: %d",
+                         ndb_mgm_get_latest_error_desc(*h),
+                         ndb_mgm_get_latest_error(*h));
+    g_eventLogger->error("%s: %d", __FILE__, __LINE__);
     ndb_mgm_destroy_handle(h);
   }
   return sockfd;
