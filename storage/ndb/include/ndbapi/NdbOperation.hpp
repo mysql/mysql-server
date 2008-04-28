@@ -1254,6 +1254,7 @@ protected:
   virtual void setErrorCode(int aErrorCode) const;
   virtual void setErrorCodeAbort(int aErrorCode) const;
 
+  bool        isNdbRecordOperation();
   int	      incCheck(const NdbColumnImpl* anAttrObject);
   int	      initial_interpreterCheck();
   int	      intermediate_interpreterCheck();

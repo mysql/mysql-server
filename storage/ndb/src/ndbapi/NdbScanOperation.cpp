@@ -121,6 +121,11 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_executed = false;
   m_scanUsingOldApi= false;
   m_interpretedCodeOldApi= NULL;
+
+  m_api_receivers_count = 0;
+  m_current_api_receiver = 0;
+  m_sent_receivers_count = 0;
+  m_conf_receivers_count = 0;
   return 0;
 }
 
