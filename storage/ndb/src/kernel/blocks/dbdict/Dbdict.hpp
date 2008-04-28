@@ -1264,9 +1264,7 @@ private:
     // run phases
     void (Dbdict::*m_prepare)(Signal*, SchemaOpPtr);
     void (Dbdict::*m_commit)(Signal*, SchemaOpPtr);
-#if wl3600_todo
     void (Dbdict::*m_complete)(Signal*, SchemaOpPtr);
-#endif
     // abort mode
     void (Dbdict::*m_abortParse)(Signal*, SchemaOpPtr);
     void (Dbdict::*m_abortPrepare)(Signal*, SchemaOpPtr);
@@ -1362,7 +1360,9 @@ private:
       OS_ABORTING_PARSE   = 8,
       //OS_ABORTED_PARSE    = 9,  // Not used, op released
       OS_COMMITTING       = 10,
-      OS_COMMITTED        = 11 // TODO: Not used, op released
+      OS_COMMITTED        = 11,
+      OS_COMPLETING       = 12,
+      OS_COMPLETED        = 13
     };
 
     Uint32 m_state;
@@ -1611,6 +1611,7 @@ private:
       TS_COMMITTING       = 10,// Committing
       TS_COMMITTED        = 11,// Committed
       TS_COMPLETING       = 12,// Completing
+      TS_ENDING           = 13
     };
 
     Uint32 m_state;
@@ -1737,8 +1738,12 @@ private:
   void trans_commit_mutex_unlocked(Signal*, Uint32, Uint32);
 
   void trans_complete_start(Signal* signal, SchemaTransPtr);
+  void trans_complete_next(Signal*, SchemaTransPtr, SchemaOpPtr);
   void trans_complete_recv_reply(Signal*, SchemaTransPtr);
   void trans_complete_done(Signal*, SchemaTransPtr);
+
+  void trans_end_start(Signal* signal, SchemaTransPtr);
+  void trans_end_recv_reply(Signal*, SchemaTransPtr);
 
   // participant
   void recvTransReq(Signal*);
@@ -1753,7 +1758,7 @@ private:
 
   void slave_run_start(Signal*, const SchemaTransImplReq*);
   void slave_run_parse(Signal*, SchemaTransPtr, const SchemaTransImplReq*);
-  void slave_run_complete(Signal*, SchemaTransPtr);
+  void slave_run_end(Signal*, SchemaTransPtr);
   void slave_flush_schema(Signal*, SchemaTransPtr);
 
   // reply to trans client for begin/end trans
@@ -2010,6 +2015,7 @@ private:
   //
   void createTable_prepare(Signal*, SchemaOpPtr);
   void createTable_commit(Signal*, SchemaOpPtr);
+  void createTable_complete(Signal*, SchemaOpPtr);
   //
   void createTable_abortParse(Signal*, SchemaOpPtr);
   void createTable_abortPrepare(Signal*, SchemaOpPtr);
@@ -2072,6 +2078,7 @@ private:
   //
   void dropTable_prepare(Signal*, SchemaOpPtr);
   void dropTable_commit(Signal*, SchemaOpPtr);
+  void dropTable_complete(Signal*, SchemaOpPtr);
   //
   void dropTable_abortParse(Signal*, SchemaOpPtr);
   void dropTable_abortPrepare(Signal*, SchemaOpPtr);
@@ -2160,6 +2167,7 @@ private:
   //
   void alterTable_prepare(Signal*, SchemaOpPtr);
   void alterTable_commit(Signal*, SchemaOpPtr);
+  void alterTable_complete(Signal*, SchemaOpPtr);
   //
   void alterTable_abortParse(Signal*, SchemaOpPtr);
   void alterTable_abortPrepare(Signal*, SchemaOpPtr);
@@ -2241,6 +2249,7 @@ private:
   //
   void createIndex_prepare(Signal*, SchemaOpPtr);
   void createIndex_commit(Signal*, SchemaOpPtr);
+  void createIndex_complete(Signal*, SchemaOpPtr);
   //
   void createIndex_abortParse(Signal*, SchemaOpPtr);
   void createIndex_abortPrepare(Signal*, SchemaOpPtr);
@@ -2293,6 +2302,7 @@ private:
   //
   void dropIndex_prepare(Signal*, SchemaOpPtr);
   void dropIndex_commit(Signal*, SchemaOpPtr);
+  void dropIndex_complete(Signal*, SchemaOpPtr);
   //
   void dropIndex_abortParse(Signal*, SchemaOpPtr);
   void dropIndex_abortPrepare(Signal*, SchemaOpPtr);
@@ -2365,6 +2375,7 @@ private:
   //
   void alterIndex_prepare(Signal*, SchemaOpPtr);
   void alterIndex_commit(Signal*, SchemaOpPtr);
+  void alterIndex_complete(Signal*, SchemaOpPtr);
   //
   void alterIndex_abortParse(Signal*, SchemaOpPtr);
   void alterIndex_abortPrepare(Signal*, SchemaOpPtr);
@@ -2441,6 +2452,7 @@ private:
   //
   void buildIndex_prepare(Signal*, SchemaOpPtr);
   void buildIndex_commit(Signal*, SchemaOpPtr);
+  void buildIndex_complete(Signal*, SchemaOpPtr);
   //
   void buildIndex_abortParse(Signal*, SchemaOpPtr);
   void buildIndex_abortPrepare(Signal*, SchemaOpPtr);
@@ -2637,6 +2649,7 @@ private:
   void createTrigger_prepare_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
   void createTrigger_commit(Signal*, SchemaOpPtr);
   void createTrigger_commit_fromLocal(Signal*, Uint32 op_key, Uint32 ret);
+  void createTrigger_complete(Signal*, SchemaOpPtr);
   //
   void createTrigger_abortParse(Signal*, SchemaOpPtr);
   void createTrigger_abortPrepare(Signal*, SchemaOpPtr);
@@ -2691,6 +2704,7 @@ private:
   void dropTrigger_prepare(Signal*, SchemaOpPtr);
   void dropTrigger_commit(Signal*, SchemaOpPtr);
   void dropTrigger_commit_fromLocal(Signal*, Uint32, Uint32);
+  void dropTrigger_complete(Signal*, SchemaOpPtr);
   //
   void dropTrigger_abortParse(Signal*, SchemaOpPtr);
   void dropTrigger_abortPrepare(Signal*, SchemaOpPtr);
