@@ -164,6 +164,7 @@ public:
     /*** Client info ***/
     Uint32 clientRef;
     Uint32 clientData;
+    Uint32 schemaTransId;
 
     /** 
      * SimpleProp sent in UTIL_PREPARE_REQ 
@@ -414,7 +415,7 @@ public:
   void reportSequence(Signal*, const Transaction *);
   void readPrepareProps(Signal* signal, 
 			SimpleProperties::Reader* reader, 
-			Uint32 senderData);
+			PreparePtr);
   void prepareOperation(Signal*, PreparePtr, SegmentedSectionPtr);
   void sendUtilPrepareRef(Signal*, UtilPrepareRef::ErrorCode, Uint32, Uint32);
   void sendUtilExecuteRef(Signal*, UtilExecuteRef::ErrorCode, 

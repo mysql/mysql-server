@@ -251,6 +251,7 @@ public:
   
   Uint32 pollReceive(Uint32 timeOutMillis);
   void performReceive();
+  void performSend(NodeId nodeId);
   void performSend();
   
   /**

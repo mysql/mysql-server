@@ -92,14 +92,16 @@ public:
   void execDI_FCOUNTCONF(Signal* signal);
   void execDIGETPRIMREF(Signal* signal);
   void execDIGETPRIMCONF(Signal* signal);
+  void execCHECKNODEGROUPSCONF(Signal *signal);
+  void execGCP_PREPARE(Signal *signal);
 
   /**
    * Trigger administration
    */
-  void execCREATE_TRIG_REF(Signal* signal);
-  void execCREATE_TRIG_CONF(Signal* signal);
-  void execDROP_TRIG_REF(Signal* signal);
-  void execDROP_TRIG_CONF(Signal* signal);
+  void execCREATE_TRIG_IMPL_REF(Signal* signal);
+  void execCREATE_TRIG_IMPL_CONF(Signal* signal);
+  void execDROP_TRIG_IMPL_REF(Signal* signal);
+  void execDROP_TRIG_IMPL_CONF(Signal* signal);
   
   /**
    * continueb
@@ -183,6 +185,7 @@ public:
     UintR &cerrorInsert;
 #endif
     BlockNumber number() const { return suma.number(); }
+    EmulatedJamBuffer *jamBuffer() const { return suma.jamBuffer(); }
     void progError(int line, int cause, const char * extra) { 
       suma.progError(line, cause, extra); 
     }
@@ -224,6 +227,7 @@ public:
     Uint32 m_subscriptionId;
     Uint32 m_subscriptionKey;
     Uint32 m_subscriptionType;
+    Uint32 m_schemaTransId;
     Uint16 m_options;
 
     enum Options {
@@ -327,6 +331,9 @@ public:
     bool equal(const Table& rec) const {
       return m_tableId == rec.m_tableId;
     }
+
+    // copy from Subscription
+    Uint32 m_schemaTransId;
   };
 
   /**
@@ -414,7 +421,6 @@ public:
    */
 
   void getNodeGroupMembers(Signal* signal);
-
   void execREAD_CONFIG_REQ(Signal* signal);
 
   void execSTTOR(Signal* signal);
@@ -640,6 +646,10 @@ private:
 #ifdef VM_TRACE
   Uint64 m_gcp_monitor;
 #endif
+
+  /* Buffer used in Suma::execALTER_TAB_REQ(). */
+  Uint32 b_dti_buf[MAX_WORDS_META_FILE];
+  Uint64 m_current_gci;
 
   Uint32 m_startphase;
   Uint32 m_typeOfStart;

@@ -3791,6 +3791,7 @@ void Qmgr::execCOMMIT_FAILREQ(Signal* signal)
       sendSignal(NDBCNTR_REF, GSN_NODE_FAILREP, signal, 
                  NodeFailRep::SignalLength, JBB);
     }
+
     guard0 = cnoCommitFailedNodes - 1;
     arrGuard(guard0, MAX_NDB_NODES);
     /**--------------------------------------------------------------------

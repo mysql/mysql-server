@@ -784,8 +784,9 @@ NdbEventOperationImpl::receive_event()
     {
       // Parse the new table definition and
       // create a table object
+      NdbDictInterface::Tx tx_unused;
       NdbError error;
-      NdbDictInterface dif(error);
+      NdbDictInterface dif(tx_unused, error);
       NdbTableImpl *at;
       m_change_mask = m_data_item->sdata->changeMask;
       error.code = dif.parseTableInfo(&at,

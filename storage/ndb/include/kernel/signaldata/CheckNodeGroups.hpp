@@ -41,6 +41,8 @@ public:
   NdbNodeBitmask mask;             /* set of NDB nodes, input for ArbitCheck,
         			   * output for GetNodeGroupMembers
 				   */
+  Uint32 senderData;            // Sender data, kept in return signal
+
   enum RequestType {
     Direct              = 0x1,
     ArbitCheck          = 0x2,
@@ -54,7 +56,7 @@ public:
     Partitioning = 3            // possible network partitioning
   };
 
-  STATIC_CONST( SignalLength = 3 + NdbNodeBitmask::Size );
+  STATIC_CONST( SignalLength = 4 + NdbNodeBitmask::Size );
 };
 
 #endif
