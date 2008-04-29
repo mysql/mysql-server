@@ -197,7 +197,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   TEST_NDBCLUSTER="--ndbcluster"
 
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
-  ndbcluster_libs="\$(top_builddir)/storage/ndb/src/libndbclient.la"
+  ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
   ndbcluster_system_libs=""
   ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
 
