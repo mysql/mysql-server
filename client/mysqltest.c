@@ -8094,8 +8094,6 @@ uint replace_len(char * str)
   uint len=0;
   while (*str)
   {
-    if (str[0] == '\\' && str[1])
-      str++;
     str++;
     len++;
   }
@@ -8194,35 +8192,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
     }
     for (pos=from[i], len=0; *pos ; pos++)
     {
-      if (*pos == '\\' && *(pos+1))
-      {
-	pos++;
-	switch (*pos) {
-	case 'b':
-	  follow_ptr->chr = SPACE_CHAR;
-	  break;
-	case '^':
-	  follow_ptr->chr = START_OF_LINE;
-	  break;
-	case '$':
-	  follow_ptr->chr = END_OF_LINE;
-	  break;
-	case 'r':
-	  follow_ptr->chr = '\r';
-	  break;
-	case 't':
-	  follow_ptr->chr = '\t';
-	  break;
-	case 'v':
-	  follow_ptr->chr = '\v';
-	  break;
-	default:
-	  follow_ptr->chr = (uchar) *pos;
-	  break;
-	}
-      }
-      else
-	follow_ptr->chr= (uchar) *pos;
+      follow_ptr->chr= (uchar) *pos;
       follow_ptr->table_offset=i;
       follow_ptr->len= ++len;
       follow_ptr++;
