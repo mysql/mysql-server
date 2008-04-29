@@ -54,40 +54,45 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
   esac
 
   AC_ARG_WITH([ndb-test],
-              [
-  --with-ndb-test       Include the NDB Cluster ndbapi test programs],
+              [AC_HELP_STRING([--with-ndb-test],
+                              [Include the NDB Cluster ndbapi test programs])],
               [ndb_test="$withval"],
               [ndb_test=no])
   AC_ARG_WITH([ndb-docs],
-              [
-  --with-ndb-docs       Include the NDB Cluster ndbapi and mgmapi documentation],
+              [AC_HELP_STRING([--with-ndb-docs],
+              [Include the NDB Cluster ndbapi and mgmapi documentation])],
               [ndb_docs="$withval"],
               [ndb_docs=no])
   AC_ARG_WITH([ndb-port],
-              [
-  --with-ndb-port       Port for NDB Cluster management server],
+              [AC_HELP_STRING([--with-ndb-port],
+                              [Port for NDB Cluster management server])],
               [ndb_port="$withval"],
               [ndb_port="default"])
   AC_ARG_WITH([ndb-port-base],
-              [
-  --with-ndb-port-base  Base port for NDB Cluster transporters],
+              [AC_HELP_STRING([--with-ndb-port-base],
+                              [Base port for NDB Cluster transporters])],
               [ndb_port_base="$withval"],
               [ndb_port_base="default"])
   AC_ARG_WITH([ndb-debug],
-              [
-  --without-ndb-debug   Disable special ndb debug features],
+              [AC_HELP_STRING([--without-ndb-debug],
+                              [Disable special ndb debug features])],
               [ndb_debug="$withval"],
               [ndb_debug="default"])
   AC_ARG_WITH([ndb-ccflags],
-              AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
-                           [Extra CFLAGS for ndb compile]),
+              [AC_HELP_STRING([--with-ndb-ccflags=CFLAGS],
+                              [Extra CFLAGS for ndb compile])],
               [ndb_ccflags=${withval}],
               [ndb_ccflags=""])
   AC_ARG_WITH([ndb-binlog],
-              [
-  --without-ndb-binlog       Disable ndb binlog],
+              [AC_HELP_STRING([--without-ndb-binlog],
+                              [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
+  AC_ARG_WITH([ndb-api-trace],
+              [AC_HELP_STRING([--with-ndb-api-trace],
+                              [Turn on NDB API Tracing])],
+              [ndb_api_trace=yes],
+              [ndb_api_trace=no])
 
   AC_ARG_WITH([ndbmtd],
               [
@@ -147,6 +152,7 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
       ;;
   esac
 
+
   AC_MSG_RESULT([done.])
 ])
 
@@ -191,7 +197,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   TEST_NDBCLUSTER="--ndbcluster"
 
   ndbcluster_includes="-I\$(top_builddir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include -I\$(top_srcdir)/storage/ndb/include/ndbapi -I\$(top_srcdir)/storage/ndb/include/mgmapi"
-  ndbcluster_libs="\$(top_builddir)/storage/ndb/src/.libs/libndbclient.a"
+  ndbcluster_libs="\$(top_builddir)/storage/ndb/src/libndbclient.la"
   ndbcluster_system_libs=""
   ndb_mgmclient_libs="\$(top_builddir)/storage/ndb/src/mgmclient/libndbmgmclient.la"
 
@@ -242,6 +248,13 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   else
     AC_MSG_RESULT([Not including Ndb Cluster Binlog])
   fi
+
+  if test X"$ndb_api_trace" = Xyes
+  then
+    AC_DEFINE([API_TRACE], [1],
+              [NDB API Tracing])
+    AC_MSG_RESULT([Enabling NDB API Tracing])
+  fi   
 
   ndb_transporter_opt_objs=""
   if test "$ac_cv_func_shmget" = "yes" &&
