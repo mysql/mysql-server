@@ -586,14 +586,9 @@ SELECT @var3, @var4;
 END begin2_label;
 SELECT @var1, @var2;
 END begin1_label//
-CALL sp1();
-@var3	@var4
-NULL	8
-@var1	@var2
-NULL	6
+ERROR 42000: Bad SQLSTATE: '00000'
 DROP PROCEDURE p1;
 DROP PROCEDURE h1;
-DROP PROCEDURE sp1;
 DROP TABLE res_t1;
 
 Testcase 3.1.2.50:
