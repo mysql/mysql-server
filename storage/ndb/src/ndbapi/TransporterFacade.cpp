@@ -1570,3 +1570,14 @@ SignalSender::sendSignal(Uint16 nodeId, const SimpleSignal * s){
 							nodeId, 
 							&s->ptr[0]);
 }
+
+/* These are dummy stubs for locking only necessary for multi-threaded ndbd. */
+void
+mt_send_lock(void *dummy, NodeId nodeId)
+{
+}
+
+void
+mt_send_unlock(void *dummy, NodeId nodeId)
+{
+}

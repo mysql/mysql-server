@@ -2019,7 +2019,7 @@ void Dbtup::sendLogAttrinfo(Signal* signal,
 
 inline
 Uint32 
-brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
+Dbtup::brancher(Uint32 TheInstruction, Uint32 TprogramCounter)
 {         
   Uint32 TbranchDirection= TheInstruction >> 31;
   Uint32 TbranchLength= (TheInstruction >> 16) & 0x7fff;

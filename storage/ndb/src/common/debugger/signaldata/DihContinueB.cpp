@@ -188,10 +188,6 @@ printCONTINUEB_DBDIH(FILE * output, const Uint32 * theData,
   case DihContinueB::WAIT_DROP_TAB_WRITING_TO_FILE:
     fprintf(output, " Wait drop tab writing to file TableId: %d\n", theData[1]);
     return true;
-  case DihContinueB::CHECK_WAIT_DROP_TAB_FAILED_LQH:
-    fprintf(output, " Wait drop tab FailedNodeId: %d TableId: %d\n", 
-	    theData[1], theData[2]);
-    return true;
   default:
     fprintf(output, " Default system error lab...\n");
     break;

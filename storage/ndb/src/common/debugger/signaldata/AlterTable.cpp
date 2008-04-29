@@ -15,23 +15,53 @@
 
 #include <signaldata/AlterTable.hpp>
 
-bool printALTER_TABLE_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TABLE_REQ(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterTableReq * const sig = (AlterTableReq *) theData;
-  
-  return false;
+  const AlterTableReq* sig = (const AlterTableReq*)theData;
+  fprintf(output, " clientRef: 0x%x", sig->clientRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, " transKey: %u", sig->transKey);
+  fprintf(output, " requestInfo: 0x%x", sig->requestInfo);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, " changeMask: 0x%x", sig->changeMask);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printALTER_TABLE_CONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TABLE_CONF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterTableConf * const sig = (AlterTableConf *) theData;
-  
-  return false;
+  const AlterTableConf* sig = (const AlterTableConf*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " tableId: %u", sig->tableId);
+  fprintf(output, " tableVersion: 0x%x", sig->tableVersion);
+  fprintf(output, " newTableVersion: 0x%x", sig->newTableVersion);
+  fprintf(output, "\n");
+  return true;
 }
 
-bool printALTER_TABLE_REF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 receiverBlockNo)
+bool
+printALTER_TABLE_REF(FILE* output, const Uint32* theData, Uint32 len, Uint16)
 {
-//  const AlterTableRef * const sig = (AlterTableRef *) theData;
-    
-  return false;
+  const AlterTableRef* sig = (const AlterTableRef*)theData;
+  fprintf(output, " senderRef: 0x%x", sig->senderRef);
+  fprintf(output, " clientData: %u", sig->clientData);
+  fprintf(output, " transId: 0x%x", sig->transId);
+  fprintf(output, "\n");
+  fprintf(output, " errorCode: %u", sig->errorCode);
+  fprintf(output, " errorLine: %u", sig-> errorLine);
+  fprintf(output, " errorNodeId: %u", sig->errorNodeId);
+  fprintf(output, " masterNodeId: %u", sig->masterNodeId);
+  fprintf(output, "\n");
+  fprintf(output, " errorStatus: %u", sig->errorStatus);
+  fprintf(output, " errorKey: %u", sig->errorKey);
+  fprintf(output, "\n");
+  return true;
 }

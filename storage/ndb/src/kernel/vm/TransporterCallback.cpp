@@ -60,6 +60,14 @@ const char *lookupConnectionError(Uint32 err)
   return connectionError[i].text;
 }
 
+#ifdef NDBD_MULTITHREADED
+#define MT_SECTION_LOCK mt_section_lock();
+#define MT_SECTION_UNLOCK mt_section_unlock();
+#else
+#define MT_SECTION_LOCK
+#define MT_SECTION_UNLOCK
+#endif
+
 bool
 import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   /**
@@ -69,9 +77,12 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
   Uint32 dummyPrev[4]; 
 
   first.p = 0;
+  MT_SECTION_LOCK
   if(g_sectionSegmentPool.seize(first)){
     ;
   } else {
+    MT_SECTION_UNLOCK
+    ndbout_c("here");
     return false;
   }
 
@@ -91,9 +102,12 @@ import(Ptr<SectionSegment> & first, const Uint32 * src, Uint32 len){
       ;
     } else {
       first.p->m_lastSegment = prevPtr.i;
+      MT_SECTION_LOCK
+      ndbout_c("hera");
       return false;
     }
   }
+  MT_SECTION_UNLOCK
 
   first.p->m_lastSegment = currPtr.i;
   currPtr.p->m_nextSegment = RNIL;
@@ -180,9 +194,11 @@ getSection(SegmentedSectionPtr & ptr, Uint32 i){
 
 void
 release(SegmentedSectionPtr & ptr){
+  MT_SECTION_LOCK
   g_sectionSegmentPool.releaseList(relSz(ptr.sz),
 				   ptr.i, 
 				   ptr.p->m_lastSegment);
+  MT_SECTION_UNLOCK
 }
 
 void
@@ -193,6 +209,7 @@ releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
   Uint32 tSz1 = ptr[1].sz;
   Uint32 tSec2 = ptr[2].i;
   Uint32 tSz2 = ptr[2].sz;
+  MT_SECTION_LOCK
   switch(secCount){
   case 3:
     g_sectionSegmentPool.releaseList(relSz(tSz2), tSec2, 
@@ -204,6 +221,7 @@ releaseSections(Uint32 secCount, SegmentedSectionPtr ptr[3]){
     g_sectionSegmentPool.releaseList(relSz(tSz0), tSec0, 
 				     ptr[0].p->m_lastSegment);
   case 0:
+    MT_SECTION_UNLOCK
     return;
   }
   char msg[40];
@@ -230,7 +248,7 @@ execute(void * callbackObj,
 	   getBlockName(refToBlock(header->theSendersBlockRef)),
 	   refToNode(header->theSendersBlockRef));
 #endif
-  
+
   bool ok = true;
   Ptr<SectionSegment> secPtr[3];
   switch(secCount){
@@ -256,23 +274,37 @@ execute(void * callbackObj,
     secPtrI[1] = secPtr[1].i;
     secPtrI[2] = secPtr[2].i;
 
+#ifndef NDBD_MULTITHREADED
     globalScheduler.execute(header, prio, theData, secPtrI);  
+#else
+    if (prio == JBB)
+      sendlocal(receiverThreadId, header->theReceiversBlockNumber,
+                header, theData, secPtrI);
+    else
+      sendprioa(receiverThreadId, header->theReceiversBlockNumber,
+                header, theData, secPtrI);
+
+#endif
     return;
   }
   
   /**
    * Out of memory
    */
+  MT_SECTION_LOCK
   for(Uint32 i = 0; i<secCount; i++){
     if(secPtr[i].p != 0){
       g_sectionSegmentPool.releaseList(relSz(ptr[i].sz), secPtr[i].i, 
 				       secPtr[i].p->m_lastSegment);
     }
   }
+  MT_SECTION_UNLOCK
+
+
+  SignalDroppedRep * rep = (SignalDroppedRep*)theData;
   Uint32 gsn = header->theVerId_signalNumber;
   Uint32 len = header->theLength;
   Uint32 newLen= (len > 22 ? 22 : len);
-  SignalDroppedRep * rep = (SignalDroppedRep*)theData;
   memmove(rep->originalData, theData, (4 * newLen));
   rep->originalGsn = gsn;
   rep->originalLength = len;
@@ -280,7 +312,17 @@ execute(void * callbackObj,
   header->theVerId_signalNumber = GSN_SIGNAL_DROPPED_REP;
   header->theLength = newLen + 3;
   header->m_noOfSections = 0;
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(header, prio, theData, secPtrI);    
+#else
+  if (prio == JBB)
+    sendlocal(receiverThreadId, header->theReceiversBlockNumber,
+              header, theData, NULL);
+  else
+    sendprioa(receiverThreadId, header->theReceiversBlockNumber,
+              header, theData, NULL);
+    
+#endif
 }
 
 NdbOut & 
@@ -323,7 +365,11 @@ checkJobBuffer() {
    * Check to see if jobbbuffers are starting to get full
    * and if so call doJob
    */
+#ifndef NDBD_MULTITHREADED
   return globalScheduler.checkDoJob();
+#else
+  return 0;
+#endif
 }
 
 void
@@ -389,7 +435,14 @@ reportError(void * callbackObj, NodeId nodeId,
   signal.header.theLength = 3;  
   signal.header.theSendersSignalId = 0;
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+#else
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+//  sendprioa(THREAD LOCAL STORAGE, signal.header.theReceiversBlockNumber, &signalT.header, signalT.theData);
+  assert(false);
+#endif
 
   DBUG_VOID_RETURN;
 }
@@ -411,7 +464,14 @@ reportSendLen(void * callbackObj,
   signal.theData[0] = NDB_LE_SendBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+#else
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+  sendprioa(senderThreadId, signal.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, NULL);
+#endif
 }
 
 /**
@@ -431,7 +491,14 @@ reportReceiveLen(void * callbackObj,
   signal.theData[0] = NDB_LE_ReceiveBytesStatistic;
   signal.theData[1] = nodeId;
   signal.theData[2] = (bytes/count);
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_EVENT_REP);
+#else
+  signal.header.theVerId_signalNumber = GSN_EVENT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+  sendprioa(receiverThreadId, signal.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, NULL);
+#endif
 }
 
 /**
@@ -450,7 +517,14 @@ reportConnect(void * callbackObj, NodeId nodeId){
   signal.header.theSendersBlockRef = numberToRef(0, globalData.ownId);
   signal.theData[0] = nodeId;
   
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_CONNECT_REP);
+#else
+  signal.header.theVerId_signalNumber = GSN_CONNECT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+  sendprioa(senderThreadId, signal.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, NULL);
+#endif
 }
 
 /**
@@ -474,7 +548,14 @@ reportDisconnect(void * callbackObj, NodeId nodeId, Uint32 errNo){
   rep->nodeId = nodeId;
   rep->err = errNo;
 
+#ifndef NDBD_MULTITHREADED
   globalScheduler.execute(&signal, JBA, CMVMI, GSN_DISCONNECT_REP);
+#else
+  signal.header.theVerId_signalNumber = GSN_DISCONNECT_REP;
+  signal.header.theReceiversBlockNumber = CMVMI;
+  sendlocal(0, signal.header.theReceiversBlockNumber,
+            &signalT.header, signalT.theData, NULL);
+#endif
 
   DBUG_VOID_RETURN;
 }
