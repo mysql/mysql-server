@@ -290,7 +290,7 @@ enum flush_type
     As my_disable_flush_pagecache_blocks is always 0, the following option
     is strictly equivalent to FLUSH_KEEP
   */
-  FLUSH_FORCE_WRITE
+  FLUSH_FORCE_WRITE,
   /**
      @brief like FLUSH_KEEP but return immediately if file is already being
      flushed (even partially) by another thread; only for page cache,

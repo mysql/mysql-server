@@ -937,7 +937,7 @@ int ha_prepare(THD *thd)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
-                            hton_name(*ht)->str);
+                            ha_resolve_storage_engine_name(ht));
       }
     }
   }
