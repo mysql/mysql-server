@@ -1124,6 +1124,9 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   return FALSE;
 }
 
+#if defined(_MSC_VER) && _MSC_VER < 1400
+#define vsnprintf _vsnprintf
+#endif
 
 int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
                        const char *format, va_list argsi)
