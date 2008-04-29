@@ -19700,7 +19700,6 @@ Dbdict::trans_prepare_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
     return;
   }
 
-  op_ptr.p->m_state = SchemaOp::OS_PREPARED;
   {
     LocalDLFifoList<SchemaOp> list(c_schemaOpPool, trans_ptr.p->m_op_list);
     if (list.next(op_ptr))
@@ -20154,7 +20153,6 @@ Dbdict::trans_commit_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   SchemaOpPtr op_ptr;
   c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
-  op_ptr.p->m_state = SchemaOp::OS_COMMITTED;
 
   bool next = false;
   {
@@ -20276,7 +20274,6 @@ Dbdict::trans_complete_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 
   SchemaOpPtr op_ptr;
   c_schemaOpPool.getPtr(op_ptr, trans_ptr.p->m_curr_op_ptr_i);
-  op_ptr.p->m_state = SchemaOp::OS_COMPLETED;
 
   bool next = false;
   {
@@ -20411,11 +20408,13 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       ndbrequire(false); // handled above
     case SchemaTransImplReq::RT_PREPARE:
       jam();
+      op_ptr.p->m_state = SchemaOp::OS_PREPARING;      
       (this->*(info.m_prepare))(signal, op_ptr);
       return;
     case SchemaTransImplReq::RT_ABORT_PARSE:
       jam();
       ndbrequire(op_ptr.p->nextList == RNIL);
+      op_ptr.p->m_state = SchemaOp::OS_ABORTING_PARSE;
       (this->*(info.m_abortParse))(signal, op_ptr);
       if (!trans_ptr.p->m_isMaster)
       {
@@ -20429,14 +20428,17 @@ Dbdict::execSCHEMA_TRANS_IMPL_REQ(Signal* signal)
       return;
     case SchemaTransImplReq::RT_ABORT_PREPARE:
       jam();
+      op_ptr.p->m_state = SchemaOp::OS_ABORTING_PREPARE;
       (this->*(info.m_abortPrepare))(signal, op_ptr);
       return;
     case SchemaTransImplReq::RT_COMMIT:
       jam();
+      op_ptr.p->m_state = SchemaOp::OS_COMMITTING;
       (this->*(info.m_commit))(signal, op_ptr);
       return;
     case SchemaTransImplReq::RT_COMPLETE:
       jam();
+      op_ptr.p->m_state = SchemaOp::OS_COMPLETING;
       (this->*(info.m_complete))(signal, op_ptr);
       return;
     }
@@ -20535,6 +20537,7 @@ Dbdict::slave_run_parse(Signal *signal,
       memcpy(dst, src, len << 2);
 
       addSchemaOp(trans_ptr, op_ptr);
+      op_ptr.p->m_state = SchemaOp::OS_PARSING;
       (this->*(info.m_parse))(signal, false, op_ptr, handle, error);
     } else {
       jam();
@@ -20575,10 +20578,47 @@ Dbdict::slave_run_end(Signal* signal,
 }
 
 void
+Dbdict::update_op_state(SchemaOpPtr op_ptr)
+{
+  switch(op_ptr.p->m_state){
+  case SchemaOp::OS_PARSE_MASTER:
+    break;
+  case SchemaOp::OS_PARSING:
+    op_ptr.p->m_state = SchemaOp::OS_PARSED;
+    break;
+  case SchemaOp::OS_PARSED:
+    ndbrequire(false);
+  case SchemaOp::OS_PREPARING:
+    op_ptr.p->m_state = SchemaOp::OS_PREPARED;
+    break;
+  case SchemaOp::OS_PREPARED:
+    ndbrequire(false);
+  case SchemaOp::OS_ABORTING_PREPARE:
+    op_ptr.p->m_state = SchemaOp::OS_ABORTED_PREPARE;
+    break;
+  case SchemaOp::OS_ABORTED_PREPARE:
+    ndbrequire(false);
+  case SchemaOp::OS_ABORTING_PARSE:
+    break;
+    //case SchemaOp::OS_ABORTED_PARSE:  // Not used, op released
+  case SchemaOp::OS_COMMITTING:
+    op_ptr.p->m_state = SchemaOp::OS_COMMITTED;
+    break;
+  case SchemaOp::OS_COMMITTED:
+    ndbrequire(false);
+  case SchemaOp::OS_COMPLETING:
+    op_ptr.p->m_state = SchemaOp::OS_COMPLETED;
+    break;
+  case SchemaOp::OS_COMPLETED:
+    ndbrequire(false);    
+  }
+}
+
+void
 Dbdict::sendTransConf(Signal* signal, SchemaOpPtr op_ptr)
 {
   SchemaTransPtr trans_ptr = op_ptr.p->m_trans_ptr;
-
+  update_op_state(op_ptr);
   sendTransConf(signal, trans_ptr);
 }
 
@@ -20621,6 +20661,9 @@ Dbdict::sendTransRef(Signal* signal, SchemaOpPtr op_ptr)
   // must have error and already propagated to trans
   ndbrequire(hasError(op_ptr.p->m_error));
   ndbrequire(hasError(trans_ptr.p->m_error));
+
+  update_op_state(op_ptr);
+
   sendTransRef(signal, trans_ptr);
 }
 

@@ -1751,6 +1751,7 @@ private:
                          Uint32 op_key, const OpInfo& info,
                          Uint32 requestInfo);
   void runTransSlave(Signal*, SchemaTransPtr);
+  void update_op_state(SchemaOpPtr);
   void sendTransConf(Signal*, SchemaOpPtr);
   void sendTransConf(Signal*, SchemaTransPtr);
   void sendTransRef(Signal*, SchemaOpPtr);
