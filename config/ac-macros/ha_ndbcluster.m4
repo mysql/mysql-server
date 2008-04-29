@@ -87,11 +87,6 @@ AC_DEFUN([MYSQL_CHECK_NDB_OPTIONS], [
                               [Disable ndb binlog])],
               [ndb_binlog="$withval"],
               [ndb_binlog="default"])
-  AC_ARG_WITH([ndb-api-trace],
-              [AC_HELP_STRING([--with-ndb-api-trace],
-                              [Turn on NDB API Tracing])],
-              [ndb_api_trace=yes],
-              [ndb_api_trace=no])
 
   case "$ndb_ccflags" in
     "yes")
@@ -209,7 +204,7 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
     NDB_DEFS="-DNDB_DEBUG -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
   elif test "$have_ndb_debug" = "full"
   then
-    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD"
+    NDB_DEFS="-DNDB_DEBUG_FULL -DVM_TRACE -DERROR_INSERT -DARRAY_GUARD -DAPI_TRACE"
   else
     # no extra ndb debug but still do asserts if debug version
     if test "$with_debug" = "yes" -o "$with_debug" = "full"
@@ -240,13 +235,6 @@ AC_DEFUN([MYSQL_SETUP_NDBCLUSTER], [
   else
     AC_MSG_RESULT([Not including Ndb Cluster Binlog])
   fi
-
-  if test X"$ndb_api_trace" = Xyes
-  then
-    AC_DEFINE([API_TRACE], [1],
-              [NDB API Tracing])
-    AC_MSG_RESULT([Enabling NDB API Tracing])
-  fi   
 
   ndb_transporter_opt_objs=""
   if test "$ac_cv_func_shmget" = "yes" &&
