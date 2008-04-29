@@ -121,6 +121,11 @@ NdbScanOperation::init(const NdbTableImpl* tab, NdbTransaction* myConnection)
   m_executed = false;
   m_scanUsingOldApi= false;
   m_interpretedCodeOldApi= NULL;
+
+  m_api_receivers_count = 0;
+  m_current_api_receiver = 0;
+  m_sent_receivers_count = 0;
+  m_conf_receivers_count = 0;
   return 0;
 }
 
@@ -650,6 +655,14 @@ NdbIndexScanOperation::setBound(const NdbRecord *key_record,
   {
     setErrorCodeAbort(4285);
     /* NULL NdbRecord pointer */
+    return -1;
+  }
+
+  if (((bound.low_key == NULL) && (bound.high_key == NULL)) ||
+      ((bound.low_key_count == 0) && (bound.high_key_count == 0)))
+  {
+    /* IndexBound passed has no bound information */
+    setErrorCodeAbort(4541);
     return -1;
   }
 
@@ -1713,12 +1726,24 @@ int NdbScanOperation::finaliseScanOldApi()
   {
     assert(theOperationType == OpenRangeScanRequest);
     NdbIndexScanOperation *isop = 
-      reinterpret_cast<NdbIndexScanOperation*>(this);
+      static_cast<NdbIndexScanOperation*>(this);
 
     /* Prepare a single bound if necessary */
     NdbIndexScanOperation::IndexBound ib;
-    if (isop->buildIndexBoundOldApi(ib) != 0)
+    NdbIndexScanOperation::IndexBound* ib_ptr= NULL;
+
+    switch (isop->buildIndexBoundOldApi(ib)) {
+    case 0:
+      /* Bound was specified */
+      ib_ptr= &ib;
+      break;
+    case 1:
+      /* No bound was specified */
+      ib_ptr= NULL; 
+      break;
+    default:
       return -1;
+    }
 
     /* If this is an ordered scan, then we need
      * the pk columns in the mask, otherwise we
@@ -1733,7 +1758,7 @@ int NdbScanOperation::finaliseScanOldApi()
                                 m_currentTable->m_ndbrecord,
                                 m_savedLockModeOldApi,
                                 resultMask,
-                                &ib,
+                                ib_ptr,
                                 &options,
                                 sizeof(ScanOptions));
 
@@ -2661,10 +2686,16 @@ NdbIndexScanOperation::setBound(const NdbColumnImpl* tAttrInfo,
 /* Method called just prior to scan execution to initialise
  * the passed in IndexBound for the scan using the information
  * stored by the old API's setBound() call.
+ * Return codes 
+ *  0 == bound present and built
+ *  1 == bound not present
+ * -1 == error
  */
 int
 NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
 {
+  int result= 1;
+
   if (lowBound.highestKey != 0)
   {
     /* Have a low bound 
@@ -2683,6 +2714,7 @@ NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
     ib.low_key= lowBound.keyRecAttr->aRef();
     ib.low_key_count= lowBound.highestKey;
     ib.low_inclusive= !lowBound.highestSoFarIsStrict;
+    result= 0;
   }
   else
   {
@@ -2708,6 +2740,7 @@ NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
     ib.high_key= highBound.keyRecAttr->aRef();
     ib.high_key_count= highBound.highestKey;
     ib.high_inclusive= !highBound.highestSoFarIsStrict;
+    result= 0;
   }
   else
   {
@@ -2718,7 +2751,7 @@ NdbIndexScanOperation::buildIndexBoundOldApi(IndexBound& ib)
 
   ib.range_no= 0;
 
-  return 0;
+  return result;
 }
 
 /* Method called to release any resources allocated by the old 
