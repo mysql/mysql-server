@@ -91,6 +91,7 @@ extern	ibool	srv_have_fullfsync;
 #endif
 
 extern	ibool	srv_is_being_started;
+extern	ibool	srv_was_started;
 extern	ibool	srv_startup_is_before_trx_rollback_phase;
 extern	ibool	srv_is_being_shut_down;
 
