@@ -294,4 +294,3 @@ main(int argc, const char** argv){
   return testSRBank.execute(argc, argv);
 }
 
-template class Vector<ndb_mgm_node_state*>;
