@@ -23,6 +23,7 @@ extern "C" {
 #include "buf0buddy.h" /* for i_s_cmpmem */
 #include "buf0buf.h" /* for buf_pool and PAGE_ZIP_MIN_SIZE */
 #include "ha_prototypes.h" /* for innobase_convert_name() */
+#include "srv0start.h" /* for srv_was_started */
 }
 
 static const char plugin_author[] = "Innobase Oy";
@@ -31,6 +32,17 @@ static const char plugin_author[] = "Innobase Oy";
 	if ((expr) != 0) {	\
 		DBUG_RETURN(1);	\
 	}
+
+#define FAIL_IF_INNODB_NOT_STARTED(plugin_name)			\
+do {								\
+	if (!srv_was_started) {					\
+		sql_print_error("InnoDB: Refusing to start the "\
+				plugin_name " plugin when the "	\
+				"InnoDB storage engine plugin "	\
+				"is not started.");		\
+		DBUG_RETURN(1);					\
+	}							\
+} while (0)
 
 #if !defined __STRICT_ANSI__ && defined __GNUC__ && (__GNUC__) > 2 && !defined __INTEL_COMPILER
 #define STRUCT_FLD(name, value)	name: value
@@ -360,6 +372,8 @@ innodb_trx_init(
 
 	DBUG_ENTER("innodb_trx_init");
 
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_TRX");
+
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_trx_fields_info;
@@ -640,6 +654,8 @@ innodb_locks_init(
 
 	DBUG_ENTER("innodb_locks_init");
 
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_LOCKS");
+
 	schema = (ST_SCHEMA_TABLE*) p;
 
 	schema->fields_info = innodb_locks_fields_info;
@@ -822,6 +838,8 @@ innodb_lock_waits_init(
 	ST_SCHEMA_TABLE*	schema;
 
 	DBUG_ENTER("innodb_lock_waits_init");
+
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_LOCK_WAITS");
 
 	schema = (ST_SCHEMA_TABLE*) p;
 
@@ -1135,6 +1153,8 @@ i_s_cmp_init(
 	DBUG_ENTER("i_s_cmp_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMP");
+
 	schema->fields_info = i_s_cmp_fields_info;
 	schema->fill_table = i_s_cmp_fill;
 
@@ -1152,6 +1172,8 @@ i_s_cmp_reset_init(
 {
 	DBUG_ENTER("i_s_cmp_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMP_RESET");
 
 	schema->fields_info = i_s_cmp_fields_info;
 	schema->fill_table = i_s_cmp_reset_fill;
@@ -1399,6 +1421,8 @@ i_s_cmpmem_init(
 	DBUG_ENTER("i_s_cmpmem_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
 
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMPMEM");
+
 	schema->fields_info = i_s_cmpmem_fields_info;
 	schema->fill_table = i_s_cmpmem_fill;
 
@@ -1416,6 +1440,8 @@ i_s_cmpmem_reset_init(
 {
 	DBUG_ENTER("i_s_cmpmem_reset_init");
 	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	FAIL_IF_INNODB_NOT_STARTED("INNODB_CMPMEM_RESET");
 
 	schema->fields_info = i_s_cmpmem_fields_info;
 	schema->fill_table = i_s_cmpmem_reset_fill;
