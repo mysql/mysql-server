@@ -18,10 +18,13 @@ let $query = "INSERT DELAYED INTO t1 VALUES (1, 'Dr. No'), (2, 'From Russia With
 
 # Wait until all the 5000 inserts has been inserted into the table
 let $wait_condition= SELECT COUNT(*) = 5000 FROM mysqlslap.t1;
---source include/wait_condition.inc
-
+source include/wait_condition.inc;
 SELECT COUNT(*) FROM mysqlslap.t1;
-sync_slave_with_master;
+
+connection slave;
+# Wait until all the 5000 inserts has been inserted into the table
+let $wait_condition= SELECT COUNT(*) = 5000 FROM mysqlslap.t1;
+source include/wait_condition.inc;
 SELECT COUNT(*) FROM mysqlslap.t1;
 
 --echo #

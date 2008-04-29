@@ -696,6 +696,7 @@ delimiter ;//
 CALL h1();
 
 
+--error ER_SP_BAD_SQLSTATE
 delimiter //;
 CREATE PROCEDURE sp1()
    begin1_label:BEGIN
@@ -710,12 +711,9 @@ CREATE PROCEDURE sp1()
    END begin1_label//
 delimiter ;//
 
-CALL sp1();
-
 # cleanup 3.1.2.45+50
 DROP PROCEDURE p1;
 DROP PROCEDURE h1;
-DROP PROCEDURE sp1;
 DROP TABLE res_t1;
 
 

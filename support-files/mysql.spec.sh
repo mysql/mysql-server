@@ -27,6 +27,16 @@
 %{?_with_yassl:%define YASSL_BUILD 1}
 %{!?_with_yassl:%define YASSL_BUILD 0}
 
+# use "rpmbuild --with cluster" or "rpm --define '_with_cluster 1'" (for RPM 3.x)
+# to build with cluster support (off by default)
+%{?_with_cluster:%define CLUSTER_BUILD 1}
+%{!?_with_cluster:%define CLUSTER_BUILD 0}
+
+# use "rpmbuild --with federated" or "rpm --define '_with_federated 1'" (for RPM 3.x)
+# to build with federated support (off by default)
+%{?_with_federated:%define FEDERATED_BUILD 1}
+%{!?_with_federated:%define FEDERATED_BUILD 0}
+
 %if %{STATIC_BUILD}
 %define release 0
 %else
@@ -134,6 +144,7 @@ This package contains the standard MySQL clients and administration tools.
 
 %{see_base}
 
+%if %{CLUSTER_BUILD}
 %package ndb-storage
 Summary:	MySQL - ndbcluster storage engine
 Group:		Applications/Databases
@@ -174,6 +185,7 @@ This package contains some extra ndbcluster storage engine tools for the advance
 They should be used with caution.
 
 %{see_base}
+%endif
 
 %package test
 Requires: %{name}-client perl-DBI perl
@@ -322,12 +334,19 @@ CXXFLAGS=`echo "${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno
 BuildMySQL "--enable-shared \
 		--with-debug \
 		--with-innodb \
+%if %{CLUSTER_BUILD}
 		--with-ndbcluster \
+%else
+		--without-ndbcluster \
+%endif
 		--with-archive-storage-engine \
 		--with-csv-storage-engine \
-		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
+%if %{FEDERATED_BUILD}
 		--with-federated-storage-engine \
+%else
+		--without-federated-storage-engine \
+%endif
 	        --with-partition \
 	        --with-big-tables \
 		--with-comment=\"MySQL Community Server - Debug (GPL)\"")
@@ -351,12 +370,19 @@ CFLAGS="${MYSQL_BUILD_CFLAGS:-$RPM_OPT_FLAGS} -g" \
 CXXFLAGS="${MYSQL_BUILD_CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti} -g" \
 BuildMySQL "--enable-shared \
 		--with-innodb \
+%if %{CLUSTER_BUILD}
 		--with-ndbcluster \
+%else
+		--without-ndbcluster \
+%endif
 		--with-archive-storage-engine \
 		--with-csv-storage-engine \
-		--with-example-storage-engine \
 		--with-blackhole-storage-engine \
+%if %{FEDERATED_BUILD}
 		--with-federated-storage-engine \
+%else
+		--without-federated-storage-engine \
+%endif
 	        --with-partition \
 		--with-embedded-server \
 	        --with-big-tables \
@@ -563,12 +589,13 @@ sleep 2
 #scheduled service packs and more.  Visit www.mysql.com/enterprise for more
 #information." 
 
+%if %{CLUSTER_BUILD}
 %post ndb-storage
 mysql_clusterdir=/var/lib/mysql-cluster
 
 # Create cluster directory if needed
 if test ! -d $mysql_clusterdir; then mkdir -m 755 $mysql_clusterdir; fi
-
+%endif
 
 %preun server
 if test $1 = 0
@@ -603,7 +630,9 @@ fi
 
 %doc mysql-release-%{mysql_version}/COPYING mysql-release-%{mysql_version}/README 
 %doc mysql-release-%{mysql_version}/support-files/my-*.cnf
+%if %{CLUSTER_BUILD}
 %doc mysql-release-%{mysql_version}/support-files/ndb-*.ini
+%endif
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -698,6 +727,7 @@ fi
 %postun shared
 /sbin/ldconfig
 
+%if %{CLUSTER_BUILD}
 %files ndb-storage
 %defattr(-,root,root,0755)
 %attr(755, root, root) %{_sbindir}/ndbd
@@ -745,6 +775,7 @@ fi
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_delete_all.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_index.1*
 %doc %attr(644, root, man) %{_mandir}/man1/ndb_drop_table.1*
+%endif
 
 %files devel
 %defattr(-, root, root, 0755)
@@ -767,8 +798,10 @@ fi
 %{_libdir}/mysql/libmysqlclient_r.la
 %{_libdir}/mysql/libmystrings.a
 %{_libdir}/mysql/libmysys.a
+%if %{CLUSTER_BUILD}
 %{_libdir}/mysql/libndbclient.a
 %{_libdir}/mysql/libndbclient.la
+%endif
 %{_libdir}/mysql/libvio.a
 %{_libdir}/mysql/libz.a
 %{_libdir}/mysql/libz.la
@@ -777,7 +810,9 @@ fi
 %defattr(-, root, root, 0755)
 # Shared libraries (omit for architectures that don't support them)
 %{_libdir}/libmysql*.so*
+%if %{CLUSTER_BUILD}
 %{_libdir}/libndb*.so*
+%endif
 
 %files test
 %defattr(-, root, root, 0755)
@@ -799,6 +834,11 @@ fi
 # itself - note that they must be ordered by date (important when
 # merging BK trees)
 %changelog
+* Mon Mar 31 2008 Kent Boortz <kent@mysql.com>
+
+- Made the "Federated" storage engine an option
+- Made the "Cluster" storage engine and sub packages an option
+
 * Wed Mar 19 2008 Joerg Bruehe <joerg@mysql.com>
 
 - Add the man pages for "ndbd" and "ndb_mgmd".
