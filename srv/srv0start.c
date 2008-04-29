@@ -70,9 +70,9 @@ UNIV_INTERN ibool	srv_start_raw_disk_in_use = FALSE;
 
 UNIV_INTERN ibool	srv_startup_is_before_trx_rollback_phase = FALSE;
 UNIV_INTERN ibool	srv_is_being_started = FALSE;
+UNIV_INTERN ibool	srv_was_started = FALSE;
 #ifndef UNIV_HOTBACKUP
 static ibool	srv_start_has_been_called = FALSE;
-static ibool	srv_was_started = FALSE;
 #endif /* !UNIV_HOTBACKUP */
 
 /* At a shutdown the value first climbs to SRV_SHUTDOWN_CLEANUP
@@ -1550,7 +1550,6 @@ innobase_start_or_create_for_mysql(void)
 	/* Create the thread which warns of long semaphore waits */
 	os_thread_create(&srv_error_monitor_thread, NULL,
 			 thread_ids + 3 + SRV_MAX_N_IO_THREADS);
-	srv_was_started = TRUE;
 	srv_is_being_started = FALSE;
 
 	if (trx_doublewrite == NULL) {
@@ -1735,6 +1734,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_file_per_table = srv_file_per_table_original_value;
+
+	srv_was_started = TRUE;
 
 	return((int) DB_SUCCESS);
 }
