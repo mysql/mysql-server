@@ -887,13 +887,13 @@ EXPLAIN SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t1
-type	index
+type	range
 possible_keys	bkey
-key	PRIMARY
-key_len	4
+key	bkey
+key_len	5
 ref	NULL
-rows	32
-Extra	Using where
+rows	16
+Extra	Using where; Using index; Using filesort
 SELECT * FROM t1 WHERE b BETWEEN 1 AND 2 ORDER BY a;
 a	b
 1	2
@@ -982,13 +982,13 @@ EXPLAIN SELECT * FROM t2 WHERE b=1 ORDER BY a;
 id	1
 select_type	SIMPLE
 table	t2
-type	index
+type	ref
 possible_keys	bkey
-key	PRIMARY
-key_len	4
-ref	NULL
-rows	16
-Extra	Using where; Using index
+key	bkey
+key_len	5
+ref	const
+rows	8
+Extra	Using where; Using index; Using filesort
 SELECT * FROM t2 WHERE b=1 ORDER BY a;
 a	b	c
 1	1	1
