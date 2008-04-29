@@ -1164,6 +1164,45 @@ runScanVariants(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBug36124(NDBT_Context* ctx, NDBT_Step* step){
+  Ndb * pNdb = GETNDB(step);
+  const NdbDictionary::Table*  pTab = ctx->getTab();
+
+  NdbTransaction* pCon = pNdb->startTransaction();
+  NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
+  if (pOp == NULL) {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+  
+  if( pOp->readTuples(NdbOperation::LM_Read) != 0) 
+  {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  if( pOp->getValue(NdbDictionary::Column::ROW_COUNT) == 0)
+  {
+    ERR(pCon->getNdbError());
+    return NDBT_FAILED;
+  }
+
+  /* Old style interpreted code api should fail when 
+   * we try to use it 
+   */
+  if( pOp->interpret_exit_last_row() == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  pOp->close();
+
+  pCon->close();
+
+  return NDBT_OK;
+}
+
+int
 runBug24447(NDBT_Context* ctx, NDBT_Step* step){
   int loops = 1; //ctx->getNumLoops();
   int records = ctx->getNumRecords();
@@ -1678,6 +1717,12 @@ TESTCASE("Bug24447",
 	 ""){
   INITIALIZER(runLoadTable);
   STEP(runBug24447);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug36124",
+         "Old interpreted Api usage"){
+  INITIALIZER(runLoadTable);
+  STEP(runBug36124);
   FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testScan);
