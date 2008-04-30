@@ -7,7 +7,7 @@
 #
 flush status;
 set query_cache_type=DEMAND;
-set global query_cache_size= 1024*1024*512;
+set global query_cache_size= 1024*768;
 --disable_warnings
 drop table if exists t1;
 --enable_warnings

@@ -713,7 +713,7 @@ static uchar *slave_get_report_port(THD *thd)
   return (uchar*) &thd->sys_var_tmp.long_value;
 }
 
-static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL, SHOW_INT, slave_get_report_port);
+static sys_var_readonly    sys_repl_report_port(&vars, "report_port", OPT_GLOBAL, SHOW_LONG, slave_get_report_port);
 
 #endif
 
