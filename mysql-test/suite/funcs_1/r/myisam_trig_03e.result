@@ -1214,7 +1214,7 @@ create definer=not_ex_user@localhost trigger trg1_0
 before INSERT on t1 for each row
 set new.f1 = 'trig 1_0-yes';
 Warnings:
-Note	1449	There is no 'not_ex_user'@'localhost' registered
+Note	1449	The user specified as a definer ('not_ex_user'@'localhost') does not exist
 drop trigger trg1_0;
 create definer=test_yesprivs@localhost trigger trg1_0
 before INSERT on t1 for each row

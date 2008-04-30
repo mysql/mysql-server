@@ -12,3 +12,4 @@
 
 rpl_ddl                  : BUG#26418 2007-03-01 mleich Slave out of sync after CREATE/DROP TEMPORARY TABLE + ROLLBACK on master
 rpl_innodb_bug28430      : Bug #32247 2007-11-27 mats Test reports wrong value of "AUTO_INCREMENT" (on a partitioned InnoDB table)
+rpl_redirect               : Failure is sporadic and and the test is superfluous (mats)
