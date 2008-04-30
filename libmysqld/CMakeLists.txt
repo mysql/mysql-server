@@ -187,7 +187,7 @@ SET(LIBMYSQLD_SOURCES emb_qcache.cc libmysqld.c lib_sql.cc
            ../sql/strfunc.cc ../sql/table.cc ../sql/thr_malloc.cc
            ../sql/time.cc ../sql/tztime.cc ../sql/uniques.cc ../sql/unireg.cc
            ../sql/partition_info.cc ../sql/sql_connect.cc 
-           ../sql/scheduler.cc
+           ../sql/scheduler.cc ../sql/stacktrace.c
            ${GEN_SOURCES}
            ${LIB_SOURCES})
 
