@@ -2420,13 +2420,7 @@ sub setup_vardir() {
   {
     # on windows, copy all files from std_data into var/std_data_ln
     mkpath("$opt_vardir/std_data_ln");
-    opendir(DIR, "$glob_mysql_test_dir/std_data")
-      or mtr_error("Can't find the std_data directory: $!");
-    for(readdir(DIR)) {
-      next if -d "$glob_mysql_test_dir/std_data/$_";
-      copy("$glob_mysql_test_dir/std_data/$_", "$opt_vardir/std_data_ln/$_");
-    }
-    closedir(DIR);
+    mtr_copy_dir("$glob_mysql_test_dir/std_data", "$opt_vardir/std_data_ln");
   }
 
   # Remove old log files
