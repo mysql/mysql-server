@@ -16,17 +16,17 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_C_BIGENDIAN
   case "$target_os" in
          lin*)
-           CFLAGS="-DUNIV_LINUX";;
+           CFLAGS="$CFLAGS -DUNIV_LINUX";;
          hpux10*)
-           CFLAGS="-DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX -DUNIV_HPUX10";;
          hp*)
-           CFLAGS="-DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE -DUNIV_HPUX";;
          aix*)
-           CFLAGS="-DUNIV_AIX";;
+           CFLAGS="$CFLAGS -DUNIV_AIX";;
          irix*|osf*|sysv5uw7*|openbsd*)
-           CFLAGS="-DUNIV_MUST_NOT_INLINE";;
+           CFLAGS="$CFLAGS -DUNIV_MUST_NOT_INLINE";;
          *solaris*|*SunOS*)
-           CFLAGS="-DUNIV_SOLARIS";;
+           CFLAGS="$CFLAGS -DUNIV_SOLARIS";;
   esac
   INNODB_DYNAMIC_CFLAGS="-DMYSQL_DYNAMIC_PLUGIN"
   case "$target_cpu" in
