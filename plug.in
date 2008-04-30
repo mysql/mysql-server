@@ -41,3 +41,4 @@ MYSQL_PLUGIN_ACTIONS(innobase,  [
   AC_SUBST(INNODB_DYNAMIC_CFLAGS)
   ])
 
+# vim: set ft=config:
