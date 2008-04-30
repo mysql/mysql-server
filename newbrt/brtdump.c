@@ -7,6 +7,8 @@
 #include "key.h"
 #include "brt-internal.h"
 
+static int dump_data = 1;
+
 void print_item (bytevec val, ITEMLEN len) {
     printf("\"");
     ITEMLEN i;
@@ -43,27 +45,29 @@ void dump_header (int f, struct brt_header **header) {
     printf("Fifo:\n");
     r = toku_deserialize_fifo_at(f, h->unused_memory, &h->fifo);
     printf(" fifo has %d entries\n", toku_fifo_n_entries(h->fifo));
-    FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
-		 ({
-		     printf(" ");
-		     switch (type) {
-		     case BRT_NONE: printf("NONE"); goto ok;
-		     case BRT_INSERT: printf("INSERT"); goto ok;
-		     case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-		     case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
-		     case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-		     case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
-		     case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-		     case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
-		     }
-		     printf("huh?");
-		 ok:
-		     printf(" %lld ", (long long)xid);
-		     print_item(key, keylen);
-		     printf(" ");
-		     print_item(data, datalen);
-		     printf("\n");
-		 }));
+    if (dump_data) {
+	FIFO_ITERATE(h->fifo, key, keylen, data, datalen, type, xid,
+		     ({
+			 printf(" ");
+			 switch (type) {
+			 case BRT_NONE: printf("NONE"); goto ok;
+			 case BRT_INSERT: printf("INSERT"); goto ok;
+			 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
+			 case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
+			 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+			 case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
+			 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+			 case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
+			 }
+			 printf("huh?");
+		     ok:
+			 printf(" %lld ", (long long)xid);
+			 print_item(key, keylen);
+			 printf(" ");
+			 print_item(data, datalen);
+			 printf("\n");
+		     }));
+    }
 }
 
 void dump_node (int f, DISKOFF off) {
@@ -93,6 +97,12 @@ void dump_node (int f, DISKOFF off) {
 	    printf("%08x", BNC_SUBTREE_FINGERPRINT(n, i));
 	}
 	printf("}\n");
+	printf(" subleafentry_estimates={");
+	for (i=0; i<n->u.n.n_children; i++) {
+	    if (i>0) printf(" ");
+	    printf("%lld", (unsigned long long)(BNC_SUBTREE_LEAFENTRY_ESTIMATE(n, i)));
+	}
+	printf("}\n");
 	printf(" pivots:\n");
 	for (i=0; i<n->u.n.n_children-1; i++) {
 	    struct kv_pair *piv = n->u.n.childkeys[i];
@@ -105,30 +115,32 @@ void dump_node (int f, DISKOFF off) {
 	for (i=0; i<n->u.n.n_children; i++) {
 	    printf("   child %d: %lld\n", i, BNC_DISKOFF(n, i));
 	    printf("   buffer contains %d bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
-	    FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
-			 ({
-			     printf("    TYPE=");
-			     switch ((enum brt_cmd_type)typ) {
-			     case BRT_NONE: printf("NONE"); goto ok;
-			     case BRT_INSERT: printf("INSERT"); goto ok;
-			     case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-			     case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
-			     case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-			     case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
-			     case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-			     case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
-			     }
-			     printf("HUH?");
-			 ok:
-			     printf(" xid=%"PRId64" ", xid);
-			     print_item(key, keylen);
-			     if (datalen>0) {
-				 printf(" ");
-				 print_item(data, datalen);
-			     }
-			     printf("\n");
-			 })
-			 );
+	    if (dump_data) {
+		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xid,
+			     ({
+				 printf("    TYPE=");
+				 switch ((enum brt_cmd_type)typ) {
+				 case BRT_NONE: printf("NONE"); goto ok;
+				 case BRT_INSERT: printf("INSERT"); goto ok;
+				 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
+				 case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
+				 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+				 case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
+				 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+				 case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
+				 }
+				 printf("HUH?");
+			     ok:
+				 printf(" xid=%"PRId64" ", xid);
+				 print_item(key, keylen);
+				 if (datalen>0) {
+				     printf(" ");
+				     print_item(data, datalen);
+				 }
+				 printf("\n");
+			     })
+			     );
+	    }
 	}
     } else {
 	printf(" n_bytes_in_buffer=%d\n", n->u.l.n_bytes_in_buffer);
@@ -139,13 +151,24 @@ void dump_node (int f, DISKOFF off) {
 	    printf("\n");
 	    return 0;
 	}
-	toku_omt_iterate(n->u.l.buffer, print_le, 0);
+	if (dump_data) toku_omt_iterate(n->u.l.buffer, print_le, 0);
     }
 }
 
 int main (int argc, const char *argv[]) {
-    assert(argc==2);
-    const char *n = argv[1];
+    const char *arg0 = argv[0];
+    argc--; argv++;
+    while (argc>1) {
+	if (strcmp(argv[0], "--nodata")==0) {
+	    dump_data = 0;
+	} else {
+	    printf("Usage: %s [--nodata] brtfilename\n", arg0);
+	    exit(1);
+	}
+	argc--; argv++;
+    }
+    assert(argc==1);
+    const char *n = argv[0];
     int f = open(n, O_RDONLY);  assert(f>=0);
     struct brt_header *h;
     dump_header(f, &h);

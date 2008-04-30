@@ -41,6 +41,8 @@ static void test_serialize(void) {
     BNC_DISKOFF(&sn, 1) = sn.nodesize*35;
     BNC_SUBTREE_FINGERPRINT(&sn, 0) = random();
     BNC_SUBTREE_FINGERPRINT(&sn, 1) = random();
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(&sn, 0) = random() + (((long long)random())<<32);
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(&sn, 1) = random() + (((long long)random())<<32);
     r = toku_fifo_create(&BNC_BUFFER(&sn,0)); assert(r==0);
     r = toku_fifo_create(&BNC_BUFFER(&sn,1)); assert(r==0);
     r = toku_fifo_enq(BNC_BUFFER(&sn,0), "a", 2, "aval", 5, BRT_NONE, (TXNID)0); assert(r==0);    sn.local_fingerprint += randval*toku_calccrc32_cmd(BRT_NONE, (TXNID)0, "a", 2, "aval", 5);
@@ -70,6 +72,7 @@ static void test_serialize(void) {
 	int i;
 	for (i=0; i<2; i++) {
 	    assert(BNC_SUBTREE_FINGERPRINT(dn, i)==BNC_SUBTREE_FINGERPRINT(&sn, i));
+	    assert(BNC_SUBTREE_LEAFENTRY_ESTIMATE(dn, i)==BNC_SUBTREE_LEAFENTRY_ESTIMATE(&sn, i));
 	}
 	assert(dn->local_fingerprint==sn.local_fingerprint);
     }

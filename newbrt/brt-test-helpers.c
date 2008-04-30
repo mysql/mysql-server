@@ -30,6 +30,7 @@ int toku_testsetup_nonleaf (BRT brt, int height, DISKOFF *diskoff, int n_childre
     int i;
     for (i=0; i<n_children; i++) {
 	node->u.n.childinfos[i] = (struct brtnode_nonleaf_childinfo){ .subtree_fingerprint = subtree_fingerprints[i],
+								      .leafentry_estimate  = 0,
 								      .diskoff             = children[i],
 								      .n_bytes_in_buffer   = 0 };
 	r = toku_fifo_create(&BNC_BUFFER(node,i)); if (r!=0) return r;

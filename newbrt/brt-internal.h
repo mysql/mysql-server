@@ -41,6 +41,7 @@ enum { BUFFER_HEADER_SIZE = (4 // height//
 
 struct brtnode_nonleaf_childinfo {
     u_int32_t    subtree_fingerprint;
+    u_int64_t    leafentry_estimate; // estimate how many leafentries are below us.
     DISKOFF      diskoff;
     FIFO         buffer;
     unsigned int n_bytes_in_buffer; /* How many bytes are in each buffer (including overheads for the disk-representation) */
@@ -77,6 +78,7 @@ struct brtnode {
 	    struct brtnode_nonleaf_childinfo *childinfos; /* One extra so we can grow */
 
 #define BNC_SUBTREE_FINGERPRINT(node,i) ((node)->u.n.childinfos[i].subtree_fingerprint)
+#define BNC_SUBTREE_LEAFENTRY_ESTIMATE(node,i) ((node)->u.n.childinfos[i].leafentry_estimate)
 #define BNC_DISKOFF(node,i) ((node)->u.n.childinfos[i].diskoff)
 #define BNC_BUFFER(node,i) ((node)->u.n.childinfos[i].buffer)
 #define BNC_NBYTESINBUF(node,i) ((node)->u.n.childinfos[i].n_bytes_in_buffer)
@@ -223,6 +225,7 @@ void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
 
 void toku_verify_all_in_mempool(BRTNODE node);
 
-#define BRT_LAYOUT_VERSION 5
+// Diff from 5 to 6:  Added leafentry_estimate
+#define BRT_LAYOUT_VERSION 6
 
 #endif

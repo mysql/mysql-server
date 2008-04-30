@@ -40,7 +40,7 @@ static unsigned int toku_serialize_brtnode_size_slow (BRTNODE node) {
 	for (i=0; i<node->u.n.n_children-1; i++) {
 	    csize+=toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
 	}
-	size+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
+	size+=(8+4+4+8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and the leafentry_estimate. */
 	int n_buffers = node->u.n.n_children;
         assert(0 <= n_buffers && n_buffers < TREE_FANOUT+1);
 	for (i=0; i< n_buffers; i++) {
@@ -79,7 +79,7 @@ unsigned int toku_serialize_brtnode_size (BRTNODE node) {
 	result+=4*(node->u.n.n_children-1); /* key lengths*/
         if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
-	result+=(8+4+4)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, and the subtree fingerprint. */
+	result+=(8+4+4+8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and the leafentry_estimate. */
 	result+=node->u.n.n_bytes_in_buffers;
     } else {
 	result+=4; /* n_entries in buffer table. */
@@ -140,6 +140,7 @@ void toku_serialize_brtnode_to (int fd, DISKOFF off, BRTNODE node) {
 	wbuf_int(&w, node->u.n.n_children);
 	for (i=0; i<node->u.n.n_children; i++) {
 	    wbuf_uint(&w, BNC_SUBTREE_FINGERPRINT(node, i));
+	    wbuf_ulonglong(&w, BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i));
 	}
 	//printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
 	for (i=0; i<node->u.n.n_children-1; i++) {
@@ -298,6 +299,7 @@ int toku_deserialize_brtnode_from (int fd, DISKOFF off, BRTNODE *brtnode) {
 	    u_int32_t childfp = rbuf_int(&rc);
 	    BNC_SUBTREE_FINGERPRINT(result, i)= childfp;
 	    check_subtree_fingerprint += childfp;
+	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(result, i)=rbuf_ulonglong(&rc);
 	}
 	for (i=0; i<result->u.n.n_children-1; i++) {
             if (result->flags & TOKU_DB_DUPSORT) {
