@@ -573,21 +573,6 @@ sub command_line_setup {
   {
     $opt_vardir= $default_vardir;
   }
-  elsif ( $mysql_version_id < 50000 and
-	  $opt_vardir ne $default_vardir)
-  {
-    # Version 4.1 and --vardir was specified
-    # Only supported as a symlink from var/
-    # by setting up $opt_mem that symlink will be created
-    if ( ! IS_WINDOWS )
-    {
-      # Only platforms that have native symlinks can use the vardir trick
-      $opt_mem= $opt_vardir;
-      mtr_report("Using 4.1 vardir trick");
-    }
-
-    $opt_vardir= $default_vardir;
-  }
 
   $path_vardir_trace= $opt_vardir;
   # Chop off any "c:", DBUG likes a unix path ex: c:/src/... => /src/...
