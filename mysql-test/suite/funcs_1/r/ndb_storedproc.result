@@ -14309,10 +14309,7 @@ declare continue handler for cond1 set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
-CALL sp1();
-@var2
-NULL
-DROP PROCEDURE sp1;
+ERROR 42000: Bad SQLSTATE: '00000'
 
 Testcase 4.2.45:
 --------------------------------------------------------------------------------
@@ -14387,10 +14384,7 @@ declare continue handler for sqlstate '00000'  set @var2 = 1;
 set @x=1;
 SELECT @var2;
 END//
-CALL sp1();
-@var2
-NULL
-DROP PROCEDURE sp1;
+ERROR 42000: Bad SQLSTATE: '00000'
 
 Testcase 4.2.52:
 --------------------------------------------------------------------------------
@@ -23495,6 +23489,7 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
 DROP PROCEDURE IF EXISTS h1;
 
 Testcase 4.11.40:
@@ -23532,9 +23527,9 @@ set x1 = 2;
 END;
 SELECT @x, x1;
 END//
+ERROR 42000: Bad SQLSTATE: '00000'
 CALL h1();
-@x	x1
-0	2
+ERROR 42000: PROCEDURE db_storedproc.h1 does not exist
 DROP PROCEDURE IF EXISTS h1;
 
 * Testcase 3.1.2.53 (4.11.42):
