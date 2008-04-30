@@ -846,6 +846,7 @@ JOIN::optimize()
                             "Impossible HAVING" : "Impossible WHERE"));
       zero_result_cause=  having_value == Item::COND_FALSE ?
                            "Impossible HAVING" : "Impossible WHERE";
+      tables= 0;
       error= 0;
       DBUG_RETURN(0);
     }
@@ -12966,6 +12967,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     uint tablenr= tab - join->join_tab;
     ha_rows table_records= table->file->stats.records;
     bool group= join->group && order == join->group_list;
+    ha_rows ref_key_quick_rows= HA_POS_ERROR;
     LINT_INIT(best_key_parts);
     LINT_INIT(best_key_direction);
     LINT_INIT(best_records); 
@@ -12998,6 +13000,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     }
     else
       keys= usable_keys;
+
+    if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+      ref_key_quick_rows= table->quick_rows[ref_key];
 
     read_time= join->best_positions[tablenr].read_time;
     for (uint i= tablenr+1; i < join->tables; i++)
@@ -13093,7 +13098,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
               index_scan_time < read_time)
           {
             ha_rows quick_records= table_records;
-            if (is_best_covering && !is_covering)
+            if (is_best_covering && !is_covering ||
+                is_covering && ref_key_quick_rows < select_limit)
               continue;
             if (table->quick_keys.is_set(nr))
               quick_records= table->quick_rows[nr];
