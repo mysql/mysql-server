@@ -39,7 +39,7 @@ SELECT COUNT(@@GLOBAL.myisam_use_mmap);
 ####################################################################
 
 #--error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.myisam_use_mmap=1;
+#SET @@GLOBAL.myisam_use_mmap=1;
 --ECHO "BUG:It should give error on setting this variable as it is readonly variable"
 --echo Expected error 'Read only variable'
 
