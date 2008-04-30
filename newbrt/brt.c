@@ -104,16 +104,21 @@ void toku_verify_all_in_mempool(BRTNODE node) {
 
 static void fixup_child_fingerprint(BRTNODE node, int childnum_of_node, BRTNODE child, BRT brt, TOKULOGGER logger) {
     u_int32_t old_fingerprint = BNC_SUBTREE_FINGERPRINT(node,childnum_of_node);
+    u_int64_t leafentry_estimate = 0;
     u_int32_t sum = child->local_fingerprint;
     if (child->height>0) {
 	int i;
 	for (i=0; i<child->u.n.n_children; i++) {
 	    sum += BNC_SUBTREE_FINGERPRINT(child,i);
+	    leafentry_estimate += BNC_SUBTREE_LEAFENTRY_ESTIMATE(child,i);
 	}
+    } else {
+	leafentry_estimate = toku_omt_size(child->u.l.buffer);
     }
     // Don't try to get fancy about not modifying the fingerprint if it didn't change.
     // We only call this function if we have reason to believe that the child's fingerprint did change.
     BNC_SUBTREE_FINGERPRINT(node,childnum_of_node)=sum;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node,childnum_of_node)=leafentry_estimate;
     node->dirty=1;
     toku_log_changechildfingerprint(logger, &node->log_lsn, 0, toku_cachefile_filenum(brt->cf), node->thisnodename, childnum_of_node, old_fingerprint, sum);
 }
@@ -509,6 +514,7 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	    if (r!=0) return r;
 	    BNC_NBYTESINBUF(B,i)=0;
 	    BNC_SUBTREE_FINGERPRINT(B,i)=0;
+	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(B,i)=0;
 	}
 
 	for (i=n_children_in_a; i<old_n_children; i++) {
@@ -574,6 +580,9 @@ static int brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *node
 	    
 	    BNC_SUBTREE_FINGERPRINT(B, targchild) = BNC_SUBTREE_FINGERPRINT(node, i);
 	    BNC_SUBTREE_FINGERPRINT(node, i) = 0;
+
+	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(B, targchild) = BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i);
+	    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, i) = 0;
 
 	    assert(BNC_NBYTESINBUF(node, i) == 0);
 	}
@@ -769,7 +778,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     REALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
     REALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
     // Slide the children over.
-    BNC_SUBTREE_FINGERPRINT(node, node->u.n.n_children+1)=0;
+    BNC_SUBTREE_FINGERPRINT       (node, node->u.n.n_children+1)=0;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, node->u.n.n_children+1)=0;
     for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
 	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
     }
@@ -779,7 +789,8 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
     assert(BNC_DISKOFF(node, childnum)==childa->thisnodename); // use the same child
     BNC_DISKOFF(node, childnum+1) = childb->thisnodename;
     // BNC_SUBTREE_FINGERPRINT(node, childnum)=0; // leave the subtreefingerprint alone for the child, so we can log the change
-    BNC_SUBTREE_FINGERPRINT(node, childnum+1)=0;
+    BNC_SUBTREE_FINGERPRINT       (node, childnum+1)=0;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum+1)=0;
     fixup_child_fingerprint(node, childnum,   childa, t, logger);
     fixup_child_fingerprint(node, childnum+1, childb, t, logger);
     r=toku_fifo_create(&BNC_BUFFER(node,childnum+1)); assert(r==0);
@@ -2177,6 +2188,8 @@ static int brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, 
     BNC_NBYTESINBUF(newroot, 1)=0;
     BNC_SUBTREE_FINGERPRINT(newroot, 0)=0; 
     BNC_SUBTREE_FINGERPRINT(newroot, 1)=0; 
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(newroot, 0)=0; 
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(newroot, 1)=0; 
     //verify_local_fingerprint_nonleaf(nodea);
     //verify_local_fingerprint_nonleaf(nodeb);
     r=toku_log_newbrtnode(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), newroot_diskoff, new_height, new_nodesize, (brt->flags&TOKU_DB_DUPSORT)!=0, newroot->rand4fingerprint);
