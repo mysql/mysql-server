@@ -307,15 +307,17 @@ static int my_strnxfrm_big5(CHARSET_INFO *cs __attribute__((unused)),
 {
   uint16 e;
   uint dstlen= len;
+  uchar *dest_end= dest + dstlen;
 
   len = srclen;
-  while (len--)
+  while (len-- && dest < dest_end)
   {
     if ((len > 0) && isbig5code(*src, *(src+1)))
     {
       e = big5strokexfrm((uint16) big5code(*src, *(src+1)));
       *dest++ = big5head(e);
-      *dest++ = big5tail(e);
+      if (dest < dest_end)
+        *dest++ = big5tail(e);
       src +=2;
       len--;
     } else
