@@ -848,7 +848,7 @@ void Protocol_text::remove_last_row()
 {
   MYSQL_DATA *data= thd->cur_data;
   MYSQL_ROWS **last_row_hook= &data->data;
-  uint count= data->rows;
+  my_ulonglong count= data->rows;
   DBUG_ENTER("Protocol_text::remove_last_row");
   while (--count)
     last_row_hook= &(*last_row_hook)->next;
