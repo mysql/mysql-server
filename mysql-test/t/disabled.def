@@ -16,6 +16,7 @@ ps_ddl               : Bug#12093 2007-12-14 pending WL#4165 / WL#4166
 csv_alter_table      : Bug#33696 2008-01-21 pcrews no .result file - bug allows NULL columns in CSV tables
 event_scheduler_basic: BUG#35997 server seems to crash.
 event_scheduler_func: BUG#35997 server seems to crash.
-thread_cache_size_func: BUG#35988 Due to not deterministic results
 query_cache_wlock_invalidate_func: Bug#35390 causes not deterministic results.
+thread_cache_size_func: BUG#35988 Due to not deterministic results
+user_limits     : Bug#23921 random failure of user_limits.test
 

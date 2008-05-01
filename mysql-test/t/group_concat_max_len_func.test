@@ -127,5 +127,5 @@ DISCONNECT test_con1;
 
 connection default;
 
-SET @@group_concat_max_len = @save;
+SET @@global.group_concat_max_len = @save;
 
