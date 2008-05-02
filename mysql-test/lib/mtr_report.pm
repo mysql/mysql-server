@@ -131,8 +131,6 @@ sub mtr_report_test ($) {
 
   if ($tinfo->{'result'} eq 'MTR_RES_FAILED'){
 
-    #my $test_failures= $tinfo->{'failures'} || 0;
-    #$tinfo->{'failures'}=  $test_failures + 1;
     if ( defined $tinfo->{'warnings'} )
     {
       mtr_report("[ fail ]  Found warnings in server log file!");
@@ -233,7 +231,7 @@ sub mtr_report_stats ($) {
       $tot_tests++;
       $tot_passed++;
     }
-    elsif ( $tinfo->{'result'} eq 'MTR_RES_FAILED' )
+    elsif ( $tinfo->{failures} )
     {
       $tot_tests++;
       $tot_failed++;
@@ -301,6 +299,14 @@ sub mtr_report_stats ($) {
   # Print a list of testcases that failed
   if ( $tot_failed != 0 )
   {
+
+    # Print each failed test, again
+    #foreach my $test ( @$tests ){
+    #  if ( $test->{result} eq 'MTR_RES_FAILED' ) {
+    #    mtr_report_test($test);
+    #  }
+    #}
+
     my $ratio=  $tot_passed * 100 / $tot_tests;
     print "Failed $tot_failed/$tot_tests tests, ";
     printf("%.2f", $ratio);

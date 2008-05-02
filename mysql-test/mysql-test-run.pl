@@ -322,15 +322,29 @@ sub main {
   if ( @$completed != $num_tests){
 
     if ($opt_force){
-      # All test should have been run, print the completed list
-      foreach my $test ( @$completed ){
-	$test->print_test();
+      # All test should have been run, print the ones that differs
+      my %tests= ();
+      foreach my $t (@$tests) { $tests{$t->key()}= 1; };
+      foreach my $done ( @$completed ){
+	if ($tests{$done->key()}) {
+	  mtr_report("Found one extra completed");
+	  $done->print_test();
+	}
       }
+      %tests= ();
+      foreach my $t (@$completed) { $tests{$t->key()}= 1; };
+      foreach my $done ( @$tests ){
+	if ($tests{$done->key()}) {
+	  mtr_report("Found one test not run");
+	  $done->print_test();
+	}
+      }
+
     }
 
     # Not all tests completed, failure
     mtr_report();
-    mtr_report("After @$completed of $num_tests.");
+    mtr_report(@$completed, " of $num_tests completed.");
     mtr_error("Test failed.",
 	      "To continue, re-run with '--force'");
   }
@@ -467,6 +481,7 @@ sub run_test_server {
 	    }
 	    else {
 	      mtr_report("\nRetrying test, attempt($retries/$opt_retry)...\n");
+	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
 	      next;
@@ -479,7 +494,7 @@ sub run_test_server {
 	  {
 	    $result->{retries}= 0;
 	    $result->{failures}= 0;
-
+	    delete($result->{result});
 	    $result->{repeat}= $repeat+1;
 	    $result->write_test($sock, 'TESTCASE');
 	    next;
@@ -1983,7 +1998,7 @@ sub ndbcluster_wait_started($$){
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
   mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
-  mtr_add_arg($args, "--timeout=60");
+  mtr_add_arg($args, "--timeout=%d", $opt_start_timeout);
 
   if ($ndb_waiter_extra_opt)
   {
@@ -2600,7 +2615,6 @@ sub check_testcase($$)
 
       my $err_file= $proc->user_data();
       my $base_file= mtr_match_extension($err_file, "err"); # Trim extension
-      unlink("$base_file.result");
 
       # One check testcase process returned
       my $res= $proc->exit_status();
@@ -2610,6 +2624,11 @@ sub check_testcase($$)
 
 	# Remove the .err file the check generated
 	unlink($err_file);
+
+	# Remove the .result file the check generated
+	if ( $mode eq 'after' ){
+	  unlink("$base_file.result");
+	}
 
 	if ( keys(%started) == 0){
 	  # All checks completed
@@ -2645,6 +2664,9 @@ sub check_testcase($$)
 
 	# Remove the .err file the check generated
 	unlink($err_file);
+
+	# Remove the .result file the check generated
+	unlink("$base_file.result");
 
       }
     }
