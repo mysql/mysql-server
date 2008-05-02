@@ -476,7 +476,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   if (key_pos != anc_buff+2+nod_flag && (keyinfo->flag &
 					 (HA_BINARY_PACK_KEY | HA_PACK_KEY)))
   {
-    DBUG_DUMP("prev_key",(byte*) key_buff,_mi_keylength(keyinfo,key_buff));
+    DBUG_DUMP("prev_key",(uchar*) key_buff,_mi_keylength(keyinfo,key_buff));
   }
   if (keyinfo->flag & HA_PACK_KEY)
   {
@@ -583,7 +583,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
   MI_KEY_PARAM s_temp;
   DBUG_ENTER("mi_split_page");
   LINT_INIT(after_key);
-  DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
 
   if (info->s->keyinfo+info->lastinx == keyinfo)
     info->page_changed=1;			/* Info->buff is used */
@@ -630,7 +630,7 @@ int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
   if (_mi_write_keypage(info,keyinfo,new_pos,DFLT_INIT_HITS,info->buff))
     DBUG_RETURN(-1);
-  DBUG_DUMP("key",(byte*) key,_mi_keylength(keyinfo,key));
+  DBUG_DUMP("key",(uchar*) key,_mi_keylength(keyinfo,key));
   DBUG_RETURN(2);				/* Middle key up */
 } /* _mi_split_page */
 
@@ -784,7 +784,7 @@ static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
 
   if (!_mi_fetch_keypage(info,keyinfo,next_page,DFLT_INIT_HITS,info->buff,0))
     goto err;
-  DBUG_DUMP("next",(byte*) info->buff,mi_getint(info->buff));
+  DBUG_DUMP("next",(uchar*) info->buff,mi_getint(info->buff));
 
 	/* Test if there is room to share keys */
 

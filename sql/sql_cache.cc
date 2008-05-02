@@ -315,13 +315,13 @@ TODO list:
 #define MUTEX_UNLOCK(M) {DBUG_PRINT("lock", ("mutex unlock 0x%lx",\
   (ulong)(M))); pthread_mutex_unlock(M);}
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
-  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")) \
+  if (!rw_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_RLOCK(M) {DBUG_PRINT("lock", ("rwlock rlock 0x%lx", (ulong)(M))); \
-  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")) \
+  if (!rw_rdlock(M)) DBUG_PRINT("lock", ("rwlock rlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
 #define RW_UNLOCK(M) {DBUG_PRINT("lock", ("rwlock unlock 0x%lx",(ulong)(M))); \
-  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")) \
+  if (!rw_unlock(M)) DBUG_PRINT("lock", ("rwlock unlock ok")); \
   else DBUG_PRINT("lock", ("rwlock unlock FAILED %d", errno)); }
 #define STRUCT_LOCK(M) {DBUG_PRINT("lock", ("%d struct lock...",__LINE__)); \
   pthread_mutex_lock(M);DBUG_PRINT("lock", ("struct lock OK"));}

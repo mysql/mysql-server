@@ -182,10 +182,33 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   TABLE_LIST decoy;
 
   memcpy (&decoy, view, sizeof (TABLE_LIST));
-  if (!open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE) &&
-      !decoy.view)
+
+  /*
+    Let's reset decoy.view before calling open_table(): when we start
+    supporting ALTER VIEW in PS/SP that may save us from a crash.
+  */
+
+  decoy.view= NULL;
+
+  /*
+    open_table() will return NULL if 'decoy' is idenitifying a view *and*
+    there is no TABLE object for that view in the table cache. However,
+    decoy.view will be set to 1.
+
+    If there is a TABLE-instance for the oject identified by 'decoy',
+    open_table() will return that instance no matter if it is a table or
+    a view.
+
+    Thus, there is no need to check for the return value of open_table(),
+    since the return value itself does not mean anything.
+  */
+
+  open_table(thd, &decoy, thd->mem_root, &not_used, OPEN_VIEW_NO_PARSE);
+
+  if (!decoy.view)
   {
-    /* It's a table */
+    /* It's a table. */
+    my_error(ER_WRONG_OBJECT, MYF(0), view->db, view->table_name, "VIEW");
     return TRUE;
   }
 
@@ -204,6 +227,143 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   return FALSE;
 }
 
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+
+/**
+  @brief CREATE VIEW privileges pre-check.
+
+  @param thd thread handler
+  @param tables tables used in the view
+  @param views views to create
+  @param mode VIEW_CREATE_NEW, VIEW_ALTER, VIEW_CREATE_OR_REPLACE
+
+  @retval FALSE Operation was a success.
+  @retval TRUE An error occured.
+*/
+
+bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
+                          enum_view_create_mode mode)
+{
+  LEX *lex= thd->lex;
+  /* first table in list is target VIEW name => cut off it */
+  TABLE_LIST *tbl;
+  SELECT_LEX *select_lex= &lex->select_lex;
+  SELECT_LEX *sl;
+  bool res= TRUE;
+  DBUG_ENTER("create_view_precheck");
+
+  /*
+    Privilege check for view creation:
+    - user has CREATE VIEW privilege on view table
+    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
+    VIEW
+    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
+    underlying tables used on top of SELECT list (because it can be
+    (theoretically) updated, so it is enough to have UPDATE privilege on
+    them, for example)
+    - user has SELECT privilege on columns used in expressions of VIEW select
+    - for columns of underly tables used on top of SELECT list also will be
+    checked that we have not more privileges on correspondent column of view
+    table (i.e. user will not get some privileges by view creation)
+  */
+  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
+                    0, 0, is_schema_db(view->db)) ||
+       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
+      (mode != VIEW_CREATE_NEW &&
+       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
+                     0, 0, is_schema_db(view->db)) ||
+        grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
+    goto err;
+
+  for (sl= select_lex; sl; sl= sl->next_select())
+  {
+    for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
+    {
+      /*
+        Ensure that we have some privileges on this table, more strict check
+        will be done on column level after preparation,
+      */
+      if (check_some_access(thd, VIEW_ANY_ACL, tbl))
+      {
+        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
+                 "ANY", thd->security_ctx->priv_user,
+                 thd->security_ctx->priv_host, tbl->table_name);
+        goto err;
+      }
+      /*
+        Mark this table as a table which will be checked after the prepare
+        phase
+      */
+      tbl->table_in_first_from_clause= 1;
+
+      /*
+        We need to check only SELECT_ACL for all normal fields, fields for
+        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
+        checked later
+      */
+      tbl->grant.want_privilege= SELECT_ACL;
+      /*
+        Make sure that all rights are loaded to the TABLE::grant field.
+
+        tbl->table_name will be correct name of table because VIEWs are
+        not opened yet.
+      */
+      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
+                                      tbl->table_name);
+    }
+  }
+
+  if (&lex->select_lex != lex->all_selects_list)
+  {
+    /* check tables of subqueries */
+    for (tbl= tables; tbl; tbl= tbl->next_global)
+    {
+      if (!tbl->table_in_first_from_clause)
+      {
+        if (check_access(thd, SELECT_ACL, tbl->db,
+                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
+            grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
+          goto err;
+      }
+    }
+  }
+  /*
+    Mark fields for special privilege check ("any" privilege)
+  */
+  for (sl= select_lex; sl; sl= sl->next_select())
+  {
+    List_iterator_fast<Item> it(sl->item_list);
+    Item *item;
+    while ((item= it++))
+    {
+      Item_field *field;
+      if ((field= item->filed_for_view_update()))
+      {
+        /*
+         any_privileges may be reset later by the Item_field::set_field
+         method in case of a system temporary table.
+        */
+        field->any_privileges= 1;
+      }
+    }
+  }
+
+  res= FALSE;
+
+err:
+  DBUG_RETURN(res || thd->net.report_error);
+}
+
+#else
+
+bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
+                          enum_view_create_mode mode)
+{
+  return FALSE;
+}
+
+#endif
+
 
 /**
   @brief Creating/altering VIEW procedure
@@ -218,7 +378,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   @retval TRUE An error occured.
 */
 
-bool mysql_create_view(THD *thd, TABLE_LIST *views, 
+bool mysql_create_view(THD *thd, TABLE_LIST *views,
                        enum_view_create_mode mode)
 {
   LEX *lex= thd->lex;
@@ -302,108 +462,10 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       }
     }
   }
-  /*
-    Privilege check for view creation:
-    - user has CREATE VIEW privilege on view table
-    - user has DROP privilege in case of ALTER VIEW or CREATE OR REPLACE
-    VIEW
-    - user has some (SELECT/UPDATE/INSERT/DELETE) privileges on columns of
-    underlying tables used on top of SELECT list (because it can be
-    (theoretically) updated, so it is enough to have UPDATE privilege on
-    them, for example)
-    - user has SELECT privilege on columns used in expressions of VIEW select
-    - for columns of underly tables used on top of SELECT list also will be
-    checked that we have not more privileges on correspondent column of view
-    table (i.e. user will not get some privileges by view creation)
-  */
-  if ((check_access(thd, CREATE_VIEW_ACL, view->db, &view->grant.privilege,
-                    0, 0, is_schema_db(view->db)) ||
-       grant_option && check_grant(thd, CREATE_VIEW_ACL, view, 0, 1, 0)) ||
-      (mode != VIEW_CREATE_NEW &&
-       (check_access(thd, DROP_ACL, view->db, &view->grant.privilege,
-                     0, 0, is_schema_db(view->db)) ||
-        grant_option && check_grant(thd, DROP_ACL, view, 0, 1, 0))))
-  {
-    res= TRUE;
-    goto err;
-  }
-  for (sl= select_lex; sl; sl= sl->next_select())
-  {
-    for (tbl= sl->get_table_list(); tbl; tbl= tbl->next_local)
-    {
-      /*
-        Ensure that we have some privileges on this table, more strict check
-        will be done on column level after preparation,
-      */
-      if (check_some_access(thd, VIEW_ANY_ACL, tbl))
-      {
-        my_error(ER_TABLEACCESS_DENIED_ERROR, MYF(0),
-                 "ANY", thd->security_ctx->priv_user,
-                 thd->security_ctx->priv_host, tbl->table_name);
-        res= TRUE;
-        goto err;
-      }
-      /*
-        Mark this table as a table which will be checked after the prepare
-        phase
-      */
-      tbl->table_in_first_from_clause= 1;
-
-      /*
-        We need to check only SELECT_ACL for all normal fields, fields for
-        which we need "any" (SELECT/UPDATE/INSERT/DELETE) privilege will be
-        checked later
-      */
-      tbl->grant.want_privilege= SELECT_ACL;
-      /*
-        Make sure that all rights are loaded to the TABLE::grant field.
-
-        tbl->table_name will be correct name of table because VIEWs are
-        not opened yet.
-      */
-      fill_effective_table_privileges(thd, &tbl->grant, tbl->db,
-                                      tbl->table_name);
-    }
-  }
-
-  if (&lex->select_lex != lex->all_selects_list)
-  {
-    /* check tables of subqueries */
-    for (tbl= tables; tbl; tbl= tbl->next_global)
-    {
-      if (!tbl->table_in_first_from_clause)
-      {
-        if (check_access(thd, SELECT_ACL, tbl->db,
-                         &tbl->grant.privilege, 0, 0, test(tbl->schema_table)) ||
-            grant_option && check_grant(thd, SELECT_ACL, tbl, 0, 1, 0))
-        {
-          res= TRUE;
-          goto err;
-        }
-      }
-    }
-  }
-  /*
-    Mark fields for special privilege check ("any" privilege)
-  */
-  for (sl= select_lex; sl; sl= sl->next_select())
-  {
-    List_iterator_fast<Item> it(sl->item_list);
-    Item *item;
-    while ((item= it++))
-    {
-      Item_field *field;
-      if ((field= item->filed_for_view_update()))
-      {
-        /*
-         any_privileges may be reset later by the Item_field::set_field
-         method in case of a system temporary table.
-        */
-        field->any_privileges= 1;
-      }
-    }
-  }
 #endif
+
+  if ((res= create_view_precheck(thd, tables, view, mode)))
+    goto err;
 
   if (open_and_lock_tables(thd, tables))
   {

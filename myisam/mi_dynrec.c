@@ -509,7 +509,7 @@ int _mi_write_part_record(MI_INFO *info,
     }
     length=	  *reclength+head_length;	/* Write only what is needed */
   }
-  DBUG_DUMP("header",(byte*) temp,head_length);
+  DBUG_DUMP("header",(uchar*) temp,head_length);
 
 	/* Make a long block for one write */
   record_end= *record+length-head_length;
@@ -1137,7 +1137,7 @@ err:
   my_errno= HA_ERR_WRONG_IN_RECORD;
   DBUG_PRINT("error",("to_end: 0x%lx -> 0x%lx  from_end: 0x%lx -> 0x%lx",
 		      (long) to, (long) to_end, (long) from, (long) from_end));
-  DBUG_DUMP("from",(byte*) info->rec_buff,info->s->base.min_pack_length);
+  DBUG_DUMP("from",(uchar*) info->rec_buff,info->s->base.min_pack_length);
   DBUG_RETURN(MY_FILE_ERROR);
 } /* _mi_rec_unpack */
 
@@ -1698,7 +1698,7 @@ uint _mi_get_block_info(MI_BLOCK_INFO *info, File file, my_off_t filepos)
 	sizeof(info->header))
       goto err;
   }
-  DBUG_DUMP("header",(byte*) header,MI_BLOCK_INFO_HEADER_LENGTH);
+  DBUG_DUMP("header",(uchar*) header,MI_BLOCK_INFO_HEADER_LENGTH);
   if (info->second_read)
   {
     if (info->header[0] <= 6 || info->header[0] == 13)

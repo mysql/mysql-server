@@ -126,7 +126,7 @@ int ha_myisammrg::open(const char *name, int mode, uint test_if_locked)
     DBUG_PRINT("info", ("ha_myisammrg::open exit %d", my_errno));
     return (my_errno ? my_errno : -1);
   }
-  DBUG_PRINT("info", ("ha_myisammrg::open myrg_extrafunc..."))
+  DBUG_PRINT("info", ("ha_myisammrg::open myrg_extrafunc..."));
   myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
@@ -602,6 +602,12 @@ void ha_myisammrg::append_create_info(String *packet)
     packet->append(STRING_WITH_LEN(" INSERT_METHOD="));
     packet->append(get_type(&merge_insert_method,file->merge_insert_method-1));
   }
+  /*
+    There is no sence adding UNION clause in case there is no underlying
+    tables specified.
+  */
+  if (file->open_tables == file->end_table)
+    return;
   packet->append(STRING_WITH_LEN(" UNION=("));
   MYRG_TABLE *open_table,*first;
 

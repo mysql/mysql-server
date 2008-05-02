@@ -458,10 +458,10 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %pure_parser					/* We have threads */
 /*
-  Currently there are 245 shift/reduce conflicts.
+  Currently there are 240 shift/reduce conflicts.
   We should not introduce new conflicts any more.
 */
-%expect 245
+%expect 240
 
 %token  END_OF_INPUT
 
@@ -1111,6 +1111,8 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 
 %type <interval_time_st> interval_time_st
 
+%type <interval_time_st> interval_time_stamp
+
 %type <db_type> storage_engines
 
 %type <row_type> row_types
@@ -1172,7 +1174,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 	single_multi table_wild_list table_wild_one opt_wild
 	union_clause union_list
 	precision subselect_start opt_and charset
-	subselect_end select_var_list select_var_list_init help opt_len
+	subselect_end select_var_list select_var_list_init help opt_field_length field_length
 	opt_extended_describe
         prepare prepare_src execute deallocate
 	statement sp_suid
@@ -2932,7 +2934,7 @@ create_table_option:
 	    my_error(ER_WARN_DEPRECATED_SYNTAX, MYF(0), "RAID_CHUNKSIZE", "PARTITION");
 	    MYSQL_YYABORT;
 	  }
-	| UNION_SYM opt_equal '(' table_list ')'
+	| UNION_SYM opt_equal '(' opt_table_list ')'
 	  {
 	    /* Move the union list to the merge_list */
 	    LEX *lex=Lex;
@@ -3045,15 +3047,15 @@ column_def:
 	;
 
 key_def:
-	key_type opt_ident key_alg '(' key_list ')'
+	key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
 	    LEX *lex=Lex;
-            Key *key= new Key($1, $2, $3, 0, lex->col_list);
+            Key *key= new Key($1, $2, $7 ? $7 : $3, 0, lex->col_list);
             lex->alter_info.key_list.push_back(key);
 
 	    lex->col_list.empty();		/* Alloced by sql_alloc */
 	  }
-	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')'
+	| opt_constraint constraint_key_type opt_ident key_alg '(' key_list ')' key_alg
 	  {
 	    LEX *lex=Lex;
 	    const char *key_name= $3 ? $3:$1;
@@ -3129,45 +3131,38 @@ field_spec:
 	};
 
 type:
-	int_type opt_len field_options	{ $$=$1; }
+	int_type opt_field_length field_options	{ $$=$1; }
 	| real_type opt_precision field_options { $$=$1; }
 	| FLOAT_SYM float_options field_options { $$=FIELD_TYPE_FLOAT; }
 	| BIT_SYM			{ Lex->length= (char*) "1";
 					  $$=FIELD_TYPE_BIT; }
-	| BIT_SYM '(' NUM ')'		{ Lex->length= $3.str;
-					  $$=FIELD_TYPE_BIT; }
+	| BIT_SYM field_length		{ $$=FIELD_TYPE_BIT; }
 	| BOOL_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
 	| BOOLEAN_SYM			{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_TINY; }
-	| char '(' NUM ')' opt_binary	{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_STRING; }
+	| char field_length opt_binary	{ $$=FIELD_TYPE_STRING; }
 	| char opt_binary		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING; }
-	| nchar '(' NUM ')' opt_bin_mod	{ Lex->length=$3.str;
-					  $$=FIELD_TYPE_STRING;
+	| nchar field_length opt_bin_mod { $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
 	| nchar opt_bin_mod		{ Lex->length=(char*) "1";
 					  $$=FIELD_TYPE_STRING;
 					  Lex->charset=national_charset_info; }
-	| BINARY '(' NUM ')'		{ Lex->length=$3.str;
-					  Lex->charset=&my_charset_bin;
+	| BINARY field_length		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
 	| BINARY			{ Lex->length= (char*) "1";
 					  Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_STRING; }
-	| varchar '(' NUM ')' opt_binary { Lex->length=$3.str;
-					  $$= MYSQL_TYPE_VARCHAR; }
-	| nvarchar '(' NUM ')' opt_bin_mod { Lex->length=$3.str;
-					  $$= MYSQL_TYPE_VARCHAR;
+	| varchar field_length opt_binary { $$= MYSQL_TYPE_VARCHAR; }
+	| nvarchar field_length opt_bin_mod { $$= MYSQL_TYPE_VARCHAR;
 					  Lex->charset=national_charset_info; }
-	| VARBINARY '(' NUM ')' 	{ Lex->length=$3.str;
-					  Lex->charset=&my_charset_bin;
+	| VARBINARY field_length 	{ Lex->charset=&my_charset_bin;
 					  $$= MYSQL_TYPE_VARCHAR; }
-	| YEAR_SYM opt_len field_options { $$=FIELD_TYPE_YEAR; }
+	| YEAR_SYM opt_field_length field_options { $$=FIELD_TYPE_YEAR; }
 	| DATE_SYM			{ $$=FIELD_TYPE_DATE; }
 	| TIME_SYM			{ $$=FIELD_TYPE_TIME; }
-	| TIMESTAMP opt_len
+	| TIMESTAMP opt_field_length
 	  {
 	    if (YYTHD->variables.sql_mode & MODE_MAXDB)
 	      $$=FIELD_TYPE_DATETIME;
@@ -3183,7 +3178,7 @@ type:
 	| DATETIME			{ $$=FIELD_TYPE_DATETIME; }
 	| TINYBLOB			{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_TINY_BLOB; }
-	| BLOB_SYM opt_len		{ Lex->charset=&my_charset_bin;
+	| BLOB_SYM opt_field_length		{ Lex->charset=&my_charset_bin;
 					  $$=FIELD_TYPE_BLOB; }
 	| spatial_type
           {
@@ -3205,7 +3200,7 @@ type:
 					  $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONG_SYM varchar opt_binary	{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| TINYTEXT opt_binary		{ $$=FIELD_TYPE_TINY_BLOB; }
-	| TEXT_SYM opt_len opt_binary	{ $$=FIELD_TYPE_BLOB; }
+	| TEXT_SYM opt_field_length opt_binary	{ $$=FIELD_TYPE_BLOB; }
 	| MEDIUMTEXT opt_binary		{ $$=FIELD_TYPE_MEDIUM_BLOB; }
 	| LONGTEXT opt_binary		{ $$=FIELD_TYPE_LONG_BLOB; }
 	| DECIMAL_SYM float_options field_options
@@ -3278,7 +3273,7 @@ real_type:
 
 float_options:
         /* empty */		{ Lex->dec=Lex->length= (char*)0; }
-        | '(' NUM ')'		{ Lex->length=$2.str; Lex->dec= (char*)0; }
+        | field_length		{ Lex->dec= (char*)0; }
 	| precision		{};
 
 precision:
@@ -3301,9 +3296,15 @@ field_option:
 	| UNSIGNED	{ Lex->type|= UNSIGNED_FLAG;}
 	| ZEROFILL	{ Lex->type|= UNSIGNED_FLAG | ZEROFILL_FLAG; };
 
-opt_len:
-	/* empty */	{ Lex->length=(char*) 0; } /* use default length */
-	| '(' NUM ')'	{ Lex->length= $2.str; };
+opt_field_length:
+        /* empty */             { Lex->length=(char*) NULL; } /* use default length */
+        | field_length          {};
+
+field_length:
+        '(' LONG_NUM ')'      { Lex->length= $2.str; }
+        | '(' ULONGLONG_NUM ')' { Lex->length= $2.str; }
+        | '(' DECIMAL_NUM ')'   { Lex->length= $2.str; }
+        | '(' NUM ')'           { Lex->length= $2.str; };
 
 opt_precision:
 	/* empty */	{}
@@ -5090,9 +5091,9 @@ simple_expr:
 	  { $$= new Item_datetime_typecast($3); }
 	| TIMESTAMP '(' expr ',' expr ')'
 	  { $$= new Item_func_add_time($3, $5, 1, 0); }
-	| TIMESTAMP_ADD '(' interval_time_st ',' expr ',' expr ')'
+	| TIMESTAMP_ADD '(' interval_time_stamp ',' expr ',' expr ')'
 	  { $$= new Item_date_add_interval($7,$5,$3,0); }
-	| TIMESTAMP_DIFF '(' interval_time_st ',' expr ',' expr ')'
+	| TIMESTAMP_DIFF '(' interval_time_stamp ',' expr ',' expr ')'
 	  { $$= new Item_func_timestamp_diff($5,$7,$3); }
 	| TRIM '(' expr ')'
 	  { $$= new Item_func_trim($3); }
@@ -5572,9 +5573,9 @@ in_sum_expr:
 	};
 
 cast_type:
-        BINARY opt_len		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
-        | CHAR_SYM opt_len opt_binary	{ $$=ITEM_CAST_CHAR; Lex->dec= 0; }
-	| NCHAR_SYM opt_len	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
+        BINARY opt_field_length		{ $$=ITEM_CAST_CHAR; Lex->charset= &my_charset_bin; Lex->dec= 0; }
+        | CHAR_SYM opt_field_length opt_binary	{ $$=ITEM_CAST_CHAR; Lex->dec= 0; }
+	| NCHAR_SYM opt_field_length	{ $$=ITEM_CAST_CHAR; Lex->charset= national_charset_info; Lex->dec=0; }
         | SIGNED_SYM		{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | SIGNED_SYM INT_SYM	{ $$=ITEM_CAST_SIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
         | UNSIGNED		{ $$=ITEM_CAST_UNSIGNED_INT; Lex->charset= NULL; Lex->dec=Lex->length= (char*)0; }
@@ -6068,21 +6069,40 @@ interval:
 	| HOUR_MICROSECOND_SYM	{ $$=INTERVAL_HOUR_MICROSECOND; }
 	| HOUR_MINUTE_SYM	{ $$=INTERVAL_HOUR_MINUTE; }
 	| HOUR_SECOND_SYM	{ $$=INTERVAL_HOUR_SECOND; }
-	| MICROSECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
 	| MINUTE_MICROSECOND_SYM	{ $$=INTERVAL_MINUTE_MICROSECOND; }
 	| MINUTE_SECOND_SYM	{ $$=INTERVAL_MINUTE_SECOND; }
 	| SECOND_MICROSECOND_SYM	{ $$=INTERVAL_SECOND_MICROSECOND; }
 	| YEAR_MONTH_SYM	{ $$=INTERVAL_YEAR_MONTH; };
 
+interval_time_stamp:
+	interval_time_st	{}
+	| FRAC_SECOND_SYM	{ 
+                                  $$=INTERVAL_MICROSECOND; 
+                                  /*
+                                    FRAC_SECOND was mistakenly implemented with
+                                    a wrong resolution. According to the ODBC
+                                    standard it should be nanoseconds, not
+                                    microseconds. Changing it to nanoseconds
+                                    in MySQL would mean making TIMESTAMPDIFF
+                                    and TIMESTAMPADD to return DECIMAL, since
+                                    the return value would be too big for BIGINT
+                                    Hence we just deprecate the incorrect
+                                    implementation without changing its
+                                    resolution.
+                                  */
+                                  WARN_DEPRECATED("FRAC_SECOND", "MICROSECOND"); // Will be removed in 6.2
+                                }
+	;
+
 interval_time_st:
 	DAY_SYM			{ $$=INTERVAL_DAY; }
 	| WEEK_SYM		{ $$=INTERVAL_WEEK; }
 	| HOUR_SYM		{ $$=INTERVAL_HOUR; }
-	| FRAC_SECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
 	| MINUTE_SYM		{ $$=INTERVAL_MINUTE; }
 	| MONTH_SYM		{ $$=INTERVAL_MONTH; }
 	| QUARTER_SYM		{ $$=INTERVAL_QUARTER; }
 	| SECOND_SYM		{ $$=INTERVAL_SECOND; }
+	| MICROSECOND_SYM	{ $$=INTERVAL_MICROSECOND; }
 	| YEAR_SYM		{ $$=INTERVAL_YEAR; }
         ;
 
@@ -6320,7 +6340,7 @@ limit_options:
 limit_option:
         param_marker
         {
-          ((Item_param *) $1)->set_strict_type(INT_RESULT);
+          ((Item_param *) $1)->limit_clause_param= TRUE;
         }
         | ULONGLONG_NUM { $$= new Item_uint($1.str, $1.length); }
         | LONG_NUM     { $$= new Item_uint($1.str, $1.length); }

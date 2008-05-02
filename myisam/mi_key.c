@@ -189,7 +189,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
   }
   _mi_dpointer(info,key,filepos);
   DBUG_PRINT("exit",("keynr: %d",keynr));
-  DBUG_DUMP("key",(byte*) start,(uint) (key-start)+keyseg->length);
+  DBUG_DUMP("key",(uchar*) start,(uint) (key-start)+keyseg->length);
   DBUG_EXECUTE("key",
 	       _mi_print_key(DBUG_FILE,info->s->keyinfo[keynr].seg,start,
 			     (uint) (key-start)););

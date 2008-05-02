@@ -1125,6 +1125,7 @@ int main(int argc,char *argv[])
   }
   if (mysql_server_init(emb_argc, emb_argv, (char**) server_default_groups))
   {
+    put_error(NULL);
     free_defaults(defaults_argv);
     my_end(0);
     exit(1);
@@ -1215,21 +1216,35 @@ sig_handler mysql_sigint(int sig)
   char kill_buffer[40];
   MYSQL *kill_mysql= NULL;
 
-  signal(SIGINT, mysql_sigint);
-
   /* terminate if no query being executed, or we already tried interrupting */
   if (!executing_query || interrupted_query++)
-    mysql_end(sig);
+    goto err;
 
   kill_mysql= mysql_init(kill_mysql);
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
-    mysql_end(sig);
+    goto err;
   /* kill_buffer is always big enough because max length of %lu is 15 */
   sprintf(kill_buffer, "KILL /*!50000 QUERY */ %lu", mysql_thread_id(&mysql));
   mysql_real_query(kill_mysql, kill_buffer, strlen(kill_buffer));
   mysql_close(kill_mysql);
   tee_fprintf(stdout, "Query aborted by Ctrl+C\n");
+
+  return;
+
+err:
+#ifdef _WIN32
+  /*
+   When SIGINT is raised on Windows, the OS creates a new thread to handle the
+   interrupt. Once that thread completes, the main thread continues running 
+   only to find that it's resources have already been free'd when the sigint 
+   handler called mysql_end(). 
+  */
+  mysql_thread_end();
+  return;
+#else
+  mysql_end(sig);
+#endif
 }
 
 sig_handler mysql_end(int sig)
@@ -1270,7 +1285,7 @@ sig_handler mysql_end(int sig)
   my_free(current_prompt,MYF(MY_ALLOW_ZERO_PTR));
   mysql_server_end();
   free_defaults(defaults_argv);
-  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : 0);
+  my_end(info_flag ? MY_CHECK_ERROR | MY_GIVE_INFO : MY_CHECK_ERROR);
   exit(status.exit_status);
 }
 
