@@ -2995,7 +2995,10 @@ void in_string::set(uint pos,Item *item)
   {
     if (res->uses_buffer_owned_by(str))
       res->copy();
-    *str= *res;
+    if (item->type() == Item::FUNC_ITEM)
+      str->copy(*res);
+    else
+      *str= *res;
   }
   if (!str->charset())
   {
@@ -4127,7 +4130,7 @@ longlong Item_is_not_null_test::val_int()
   }
   if (args[0]->is_null())
   {
-    DBUG_PRINT("info", ("null"))
+    DBUG_PRINT("info", ("null"));
     owner->was_null|= 1;
     DBUG_RETURN(0);
   }

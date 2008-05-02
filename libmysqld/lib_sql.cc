@@ -47,6 +47,8 @@ C_MODE_START
 #include <sql_common.h>
 #include "embedded_priv.h"
 
+extern unsigned int mysql_server_last_errno;
+extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
 
 
@@ -1084,3 +1086,11 @@ bool Protocol::net_store_data(const char *from, uint length)
   return false;
 }
 
+
+void vprint_msg_to_log(enum loglevel level __attribute__((unused)),
+                       const char *format, va_list argsi)
+{
+  vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
+           format, argsi);
+  mysql_server_last_errno= CR_UNKNOWN_ERROR;
+}

@@ -3756,9 +3756,9 @@ sub mysqld_arguments ($$$$) {
   {
     # By default, prevent the started mysqld to access files outside of vardir
     my $secure_file_dir= $opt_vardir;
-    if ( $opt_suite ne "main" )
+    if ( $opt_suite ne "main" and $opt_suite ne "funcs_1" )
     {
-      # When running a suite other than default allow the mysqld
+      # When running a suite other than default or funcs_1 allow the mysqld
       # access to subdirs of mysql-test/ in order to make it possible
       # to "load data" from the suites data/ directory.
       $secure_file_dir= $glob_mysql_test_dir;

@@ -109,6 +109,8 @@ static char  *opt_password=0,*current_user=0,
              *log_error_file= NULL;
 static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
+/* Server supports character_set_results session variable? */
+static my_bool server_supports_switching_charsets= TRUE;
 static ulong opt_compatible_mode= 0;
 #define MYSQL_OPT_MASTER_DATA_EFFECTIVE_SQL 1
 #define MYSQL_OPT_MASTER_DATA_COMMENTED_SQL 2
@@ -1011,10 +1013,26 @@ static int mysql_query_with_error_report(MYSQL *mysql_con, MYSQL_RES **res,
 }
 
 
+/**
+  Switch charset for results to some specified charset.  If the server does not
+  support character_set_results variable, nothing can be done here.  As for
+  whether something should be done here, future new callers of this function
+  should be aware that the server lacking the facility of switching charsets is
+  treated as success.
+
+  @note  If the server lacks support, then nothing is changed and no error
+         condition is returned.
+
+  @returns  whether there was an error or not
+*/
 static int switch_character_set_results(MYSQL *mysql, const char *cs_name)
 {
   char query_buffer[QUERY_LENGTH];
   size_t query_length;
+
+  /* Server lacks facility.  This is not an error, by arbitrary decision . */
+  if (!server_supports_switching_charsets)
+    return FALSE;
 
   query_length= my_snprintf(query_buffer,
                             sizeof (query_buffer),
@@ -1111,11 +1129,14 @@ static int connect_to_db(char *host, char *user,char *passwd)
     DB_error(&mysql_connection, "when trying to connect");
     DBUG_RETURN(1);
   }
-  /*
-    Don't dump SET NAMES with a pre-4.1 server (bug#7997).
-  */
   if (mysql_get_server_version(&mysql_connection) < 40100)
+  {
+    /* Don't dump SET NAMES with a pre-4.1 server (bug#7997).  */
     opt_set_charset= 0;
+
+    /* Don't switch charsets for 4.1 and earlier.  (bug#34192). */
+    server_supports_switching_charsets= FALSE;
+  } 
   /*
     As we're going to set SQL_MODE, it would be lost on reconnect, so we
     cannot reconnect.
@@ -3285,6 +3306,7 @@ static int do_show_master_status(MYSQL *mysql_con)
       my_printf_error(0, "Error: Binlogging on server not active",
                       MYF(0));
       mysql_free_result(master);
+      maybe_exit(EX_MYSQLERR);
       return 1;
     }
     mysql_free_result(master);

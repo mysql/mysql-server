@@ -741,7 +741,7 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
   char llbuff[22];
   uint diff_pos[2];
   DBUG_ENTER("chk_index");
-  DBUG_DUMP("buff",(byte*) buff,mi_getint(buff));
+  DBUG_DUMP("buff",(uchar*) buff,mi_getint(buff));
 
   /* TODO: implement appropriate check for RTree keys */
   if (keyinfo->flag & HA_SPATIAL)
@@ -799,9 +799,9 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 	(flag=ha_key_cmp(keyinfo->seg,info->lastkey,key,key_length,
 			 comp_flag, diff_pos)) >=0)
     {
-      DBUG_DUMP("old",(byte*) info->lastkey, info->lastkey_length);
-      DBUG_DUMP("new",(byte*) key, key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("old",(uchar*) info->lastkey, info->lastkey_length);
+      DBUG_DUMP("new",(uchar*) key, key_length);
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
 
       if (comp_flag & SEARCH_FIND && flag == 0)
 	mi_check_print_error(param,"Found duplicated key at page %s",llstr(page,llbuff));
@@ -870,8 +870,8 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
       DBUG_PRINT("test",("page: %s  record: %s  filelength: %s",
 			 llstr(page,llbuff),llstr(record,llbuff2),
 			 llstr(info->state->data_file_length,llbuff3)));
-      DBUG_DUMP("key",(byte*) key,key_length);
-      DBUG_DUMP("new_in_page",(char*) old_keypos,(uint) (keypos-old_keypos));
+      DBUG_DUMP("key",(uchar*) key,key_length);
+      DBUG_DUMP("new_in_page",(uchar*) old_keypos,(uint) (keypos-old_keypos));
       goto err;
     }
     param->record_checksum+=(ha_checksum) record;
@@ -1631,7 +1631,7 @@ int mi_repair(MI_CHECK *param, register MI_INFO *info,
     {
       if (my_errno != HA_ERR_FOUND_DUPP_KEY)
 	goto err;
-      DBUG_DUMP("record",(byte*) sort_param.record,share->base.pack_reclength);
+      DBUG_DUMP("record",(uchar*) sort_param.record,share->base.pack_reclength);
       mi_check_print_info(param,"Duplicate key %2d for record at %10s against new record at %10s",
 			  info->errkey+1,
 			  llstr(sort_param.start_recpos,llbuff),
@@ -1935,7 +1935,7 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, my_string name)
   for (key= 0,keyinfo= &share->keyinfo[0]; key < share->base.keys ;
        key++,keyinfo++)
     if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
-      return 0;
+      DBUG_RETURN(0);
 
   if (!(param->testflag & T_SILENT))
     printf("- Sorting index for MyISAM-table '%s'\n",name);
@@ -2062,7 +2062,7 @@ static int sort_one_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
 		     ("From page: %ld, keyoffset: %lu  used_length: %d",
 		      (ulong) pagepos, (ulong) (keypos - buff),
 		      (int) used_length));
-	  DBUG_DUMP("buff",(byte*) buff,used_length);
+	  DBUG_DUMP("buff",(uchar*) buff,used_length);
 	  goto err;
 	}
       }
@@ -4024,7 +4024,7 @@ static int sort_insert_key(MI_SORT_PARAM *sort_param,
   else if (my_pwrite(info->s->kfile,(byte*) anc_buff,
 		     (uint) keyinfo->block_length,filepos, param->myf_rw))
     DBUG_RETURN(1);
-  DBUG_DUMP("buff",(byte*) anc_buff,mi_getint(anc_buff));
+  DBUG_DUMP("buff",(uchar*) anc_buff,mi_getint(anc_buff));
 
 	/* Write separator-key to block in next level */
   if (sort_insert_key(sort_param,key_block+1,key_block->lastkey,filepos))
@@ -4129,7 +4129,7 @@ int flush_pending_blocks(MI_SORT_PARAM *sort_param)
     else if (my_pwrite(info->s->kfile,(byte*) key_block->buff,
 		       (uint) keyinfo->block_length,filepos, myf_rw))
       DBUG_RETURN(1);
-    DBUG_DUMP("buff",(byte*) key_block->buff,length);
+    DBUG_DUMP("buff",(uchar*) key_block->buff,length);
     nod_flag=1;
   }
   info->s->state.key_root[sort_param->key]=filepos; /* Last is root for tree */

@@ -821,4 +821,156 @@ LENGTH(c)	CHAR_LENGTH(c)
 65535	65535
 65535	65535
 DROP TABLE t;
+drop table if exists b15776;
+create table b15776 (data blob(2147483647));
+drop table b15776;
+create table b15776 (data blob(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+create table b15776 (data blob(2147483648));
+drop table b15776;
+create table b15776 (data blob(4294967294));
+drop table b15776;
+create table b15776 (data blob(4294967295));
+drop table b15776;
+create table b15776 (data blob(4294967296));
+ERROR 42000: Display width out of range for column 'data' (max = 4294967295)
+CREATE TABLE b15776 (a blob(2147483647), b blob(2147483648), c blob(4294967295), a1 text(2147483647), b1 text(2147483648), c1 text(4294967295) );
+show columns from b15776;
+Field	Type	Null	Key	Default	Extra
+a	longblob	YES		NULL	
+b	longblob	YES		NULL	
+c	longblob	YES		NULL	
+a1	longtext	YES		NULL	
+b1	longtext	YES		NULL	
+c1	longtext	YES		NULL	
+drop table b15776;
+CREATE TABLE b15776 (a blob(4294967296));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a text(4294967296));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a blob(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a text(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a int(0));
+INSERT INTO b15776 values (NULL), (1), (42), (654);
+SELECT * from b15776 ORDER BY a;
+a
+NULL
+1
+42
+654
+DROP TABLE b15776;
+CREATE TABLE b15776 (a int(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+CREATE TABLE b15776 (a int(255));
+DROP TABLE b15776;
+CREATE TABLE b15776 (a int(256));
+ERROR 42000: Display width out of range for column 'a' (max = 255)
+CREATE TABLE b15776 (data blob(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+CREATE TABLE b15776 (a char(2147483647));
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
+CREATE TABLE b15776 (a char(2147483648));
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
+CREATE TABLE b15776 (a char(4294967295));
+ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT instead
+CREATE TABLE b15776 (a char(4294967296));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a year(4294967295));
+INSERT INTO b15776 VALUES (42);
+SELECT * FROM b15776;
+a
+2042
+DROP TABLE b15776;
+CREATE TABLE b15776 (a year(4294967296));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a year(0));
+DROP TABLE b15776;
+CREATE TABLE b15776 (a year(-2));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2))' at line 1
+CREATE TABLE b15776 (a timestamp(4294967294));
+Warnings:
+Warning	1287	'TIMESTAMP(4294967294)' is deprecated; use 'TIMESTAMP' instead
+DROP TABLE b15776;
+CREATE TABLE b15776 (a timestamp(4294967295));
+Warnings:
+Warning	1287	'TIMESTAMP(4294967295)' is deprecated; use 'TIMESTAMP' instead
+DROP TABLE b15776;
+CREATE TABLE b15776 (a timestamp(4294967296));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a timestamp(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+CREATE TABLE b15776 (a timestamp(-2));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2))' at line 1
+CREATE TABLE b15776 (a int(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a year(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 (a timestamp(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+CREATE TABLE b15776 select cast(null as char(4294967295));
+show columns from b15776;
+Field	Type	Null	Key	Default	Extra
+cast(null as char(4294967295))	char(0)	YES		NULL	
+drop table b15776;
+CREATE TABLE b15776 select cast(null as nchar(4294967295));
+show columns from b15776;
+Field	Type	Null	Key	Default	Extra
+cast(null as nchar(4294967295))	char(0)	YES		NULL	
+drop table b15776;
+CREATE TABLE b15776 select cast(null as binary(4294967295));
+show columns from b15776;
+Field	Type	Null	Key	Default	Extra
+cast(null as binary(4294967295))	binary(0)	YES		NULL	
+drop table b15776;
+explain select cast(1 as char(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select cast(1 as nchar(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select cast(1 as binary(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select cast(1 as char(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select cast(1 as nchar(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select cast(1 as binary(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select cast(1 as decimal(-1));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1))' at line 1
+explain select cast(1 as decimal(64, 30));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select cast(1 as decimal(64, 999999999999999999999999999999));
+Got one of the listed errors
+explain select cast(1 as decimal(4294967296));
+Got one of the listed errors
+explain select cast(1 as decimal(999999999999999999999999999999999999));
+Got one of the listed errors
+explain select convert(1, char(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select convert(1, char(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select convert(1, char(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select convert(1, nchar(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select convert(1, nchar(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select convert(1, nchar(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select convert(1, binary(4294967295));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+explain select convert(1, binary(4294967296));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
+explain select convert(1, binary(999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999));
+ERROR 42000: Display width out of range for column 'cast as char' (max = 4294967295)
 End of 5.0 tests

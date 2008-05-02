@@ -873,10 +873,28 @@ public:
   virtual Field::geometry_type get_geometry_type() const
     { return Field::GEOM_GEOMETRY; };
   String *check_well_formed_result(String *str, bool send_error= 0);
+  bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
 };
 
 
 class sp_head;
+
+
+class Item_basic_constant :public Item
+{
+public:
+  /* to prevent drop fixed flag (no need parent cleanup call) */
+  void cleanup()
+  {
+    /*
+      Restore the original field name as it might not have been allocated
+      in the statement memory. If the name is auto generated, it must be
+      done again between subsequent executions of a prepared statement.
+    */
+    if (orig_name)
+      name= orig_name;
+  }
+};
 
 
 /*****************************************************************************
@@ -1113,14 +1131,7 @@ class Item_name_const : public Item
   Item *name_item;
   bool valid_args;
 public:
-  Item_name_const(Item *name_arg, Item *val):
-    value_item(val), name_item(name_arg)
-  {
-    if (!(valid_args= name_item->basic_const_item() & 
-                      value_item->basic_const_item()))
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
-    Item::maybe_null= TRUE;
-  }
+  Item_name_const(Item *name_arg, Item *val);
 
   bool fix_fields(THD *, Item **);
 
@@ -1161,7 +1172,7 @@ bool agg_item_charsets(DTCollation &c, const char *name,
                        Item **items, uint nitems, uint flags, int item_sep);
 
 
-class Item_num: public Item
+class Item_num: public Item_basic_constant
 {
 public:
   Item_num() {}                               /* Remove gcc warning */
@@ -1352,7 +1363,7 @@ public:
   friend class st_select_lex_unit;
 };
 
-class Item_null :public Item
+class Item_null :public Item_basic_constant
 {
 public:
   Item_null(char *name_par=0)
@@ -1374,8 +1385,6 @@ public:
   bool send(Protocol *protocol, String *str);
   enum Item_result result_type () const { return STRING_RESULT; }
   enum_field_types field_type() const   { return MYSQL_TYPE_NULL; }
-  /* to prevent drop fixed flag (no need parent cleanup call) */
-  void cleanup() {}
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_null(name); }
   bool is_null() { return 1; }
@@ -1402,8 +1411,6 @@ class Item_param :public Item
   char cnvbuf[MAX_FIELD_WIDTH];
   String cnvstr;
   Item *cnvitem;
-  bool strict_type;
-  enum Item_result required_result_type;
 
 public:
   enum enum_item_param_state
@@ -1533,11 +1540,8 @@ public:
     Otherwise return FALSE.
   */
   bool eq(const Item *item, bool binary_cmp) const;
-  void set_strict_type(enum Item_result result_type_arg)
-  {
-    strict_type= TRUE;
-    required_result_type= result_type_arg;
-  }
+  /** Item is a argument to a limit clause. */
+  bool limit_clause_param;
 };
 
 
@@ -1567,8 +1571,6 @@ public:
   int save_in_field(Field *field, bool no_conversions);
   bool basic_const_item() const { return 1; }
   Item *clone_item() { return new Item_int(name,value,max_length); }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   Item_num *neg() { value= -value; return this; }
   uint decimal_precision() const
@@ -1621,8 +1623,6 @@ public:
   {
     return new Item_decimal(name, &decimal_value, decimals, max_length);
   }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   Item_num *neg()
   {
@@ -1673,8 +1673,6 @@ public:
   String *val_str(String*);
   my_decimal *val_decimal(my_decimal *);
   bool basic_const_item() const { return 1; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   Item *clone_item()
   { return new Item_float(name, value, decimals, max_length); }
   Item_num *neg() { value= -value; return this; }
@@ -1696,7 +1694,7 @@ public:
 };
 
 
-class Item_string :public Item
+class Item_string :public Item_basic_constant
 {
 public:
   Item_string(const char *str,uint length,
@@ -1780,8 +1778,6 @@ public:
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   void print(String *str);
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
 };
 
 
@@ -1839,10 +1835,10 @@ public:
 };
 
 
-class Item_hex_string: public Item
+class Item_hex_string: public Item_basic_constant
 {
 public:
-  Item_hex_string(): Item() {}
+  Item_hex_string() {}
   Item_hex_string(const char *str,uint str_length);
   enum Type type() const { return VARBIN_ITEM; }
   double val_real()
@@ -1858,8 +1854,6 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   enum Item_result cast_to_int_type() const { return INT_RESULT; }
   enum_field_types field_type() const { return MYSQL_TYPE_VARCHAR; }
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(CHARSET_INFO *tocs);
@@ -1989,6 +1983,35 @@ public:
   Item_field *filed_for_view_update()
     { return (*ref)->filed_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
+
+  // Row emulation: forwarding of ROW-related calls to ref
+  uint cols()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->cols() : 1;
+  }
+  Item* element_index(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->element_index(i) : this;
+  }
+  Item** addr(uint i)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->addr(i) : 0;
+  }
+  bool check_cols(uint c)
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->check_cols(c) 
+                                              : Item::check_cols(c);
+  }
+  bool null_inside()
+  {
+    return ref && result_type() == ROW_RESULT ? (*ref)->null_inside() : 0;
+  }
+  void bring_value()
+  { 
+    if (ref && result_type() == ROW_RESULT)
+      (*ref)->bring_value();
+  }
+
 };
 
 
@@ -2449,7 +2472,7 @@ private:
 };
 
 
-class Item_cache: public Item
+class Item_cache: public Item_basic_constant
 {
 protected:
   Item *example;
@@ -2486,8 +2509,6 @@ public:
   static Item_cache* get_cache(const Item *item);
   table_map used_tables() const { return used_table_map; }
   virtual void keep_array() {}
-  // to prevent drop fixed flag (no need parent cleanup call)
-  void cleanup() {}
   void print(String *str);
   bool eq_def(Field *field) 
   { 

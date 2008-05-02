@@ -842,4 +842,32 @@ Pos	Instruction
 21	jump 3
 drop procedure proc_33618_h;
 drop procedure proc_33618_c;
+drop procedure if exists p_20906_a;
+drop procedure if exists p_20906_b;
+create procedure p_20906_a() SET @a=@a+1, @b=@b+1;
+show procedure code p_20906_a;
+Pos	Instruction
+0	stmt 32 "SET @a=@a+1"
+1	stmt 32 "SET  @b=@b+1"
+set @a=1;
+set @b=1;
+call p_20906_a();
+select @a, @b;
+@a	@b
+2	2
+create procedure p_20906_b() SET @a=@a+1, @b=@b+1, @c=@c+1;
+show procedure code p_20906_b;
+Pos	Instruction
+0	stmt 32 "SET @a=@a+1"
+1	stmt 32 "SET  @b=@b+1"
+2	stmt 32 "SET  @c=@c+1"
+set @a=1;
+set @b=1;
+set @c=1;
+call p_20906_b();
+select @a, @b, @c;
+@a	@b	@c
+2	2	2
+drop procedure p_20906_a;
+drop procedure p_20906_b;
 End of 5.0 tests.

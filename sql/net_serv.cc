@@ -394,7 +394,7 @@ my_net_write(NET *net,const char *packet,ulong len)
   if (net_write_buff(net,(char*) buff,NET_HEADER_SIZE))
     return 1;
 #ifndef DEBUG_DATA_PACKETS
-  DBUG_DUMP("packet_header",(char*) buff,NET_HEADER_SIZE);
+  DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
   return test(net_write_buff(net,packet,len));
 }
@@ -892,7 +892,7 @@ my_real_read(NET *net, ulong *complen)
       if (i == 0)
       {					/* First parts is packet length */
 	ulong helping;
-        DBUG_DUMP("packet_header",(char*) net->buff+net->where_b,
+        DBUG_DUMP("packet_header", net->buff+net->where_b,
                   NET_HEADER_SIZE);
 	if (net->buff[net->where_b + 3] != (uchar) net->pkt_nr)
 	{

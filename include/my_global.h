@@ -980,7 +980,7 @@ typedef int		myf;	/* Type of MyFlags in my_funcs */
 typedef char		byte;	/* Smallest addressable unit */
 #endif
 typedef char		my_bool; /* Small bool */
-#if !defined(bool) && !defined(bool_defined) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
+#if !defined(bool) && (!defined(HAVE_BOOL) || !defined(__cplusplus))
 typedef char		bool;	/* Ordinary boolean values 0 1 */
 #endif
 	/* Macros for converting *constants* to the right type */

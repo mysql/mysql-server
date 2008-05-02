@@ -158,4 +158,5 @@ void mi_change_key_cache(KEY_CACHE *old_key_cache,
   */
   multi_key_cache_change(old_key_cache, new_key_cache);
   pthread_mutex_unlock(&THR_LOCK_myisam);
+  DBUG_VOID_RETURN;
 }

@@ -117,7 +117,8 @@ void ndb_serialize_cond(const Item *item, void *arg)
           if (item->type() == Item::FUNC_ITEM)
           {
             Item_func *func_item= (Item_func *) item;
-            if (func_item->functype() == Item_func::UNKNOWN_FUNC &&
+            if ((func_item->functype() == Item_func::UNKNOWN_FUNC ||
+                 func_item->functype() == Item_func::NEG_FUNC) &&
                 func_item->const_item())
             {
               // Skip any arguments since we will evaluate function instead
@@ -369,8 +370,9 @@ void ndb_serialize_cond(const Item *item, void *arg)
         {
           Item_func *func_item= (Item_func *) item;
           // Check that we expect a function or functional expression here
-          if (context->expecting(Item::FUNC_ITEM) || 
-              func_item->functype() == Item_func::UNKNOWN_FUNC)
+          if (context->expecting(Item::FUNC_ITEM) ||
+              func_item->functype() == Item_func::UNKNOWN_FUNC ||
+              func_item->functype() == Item_func::NEG_FUNC)
             context->expect_nothing();
           else
           {
@@ -584,6 +586,7 @@ void ndb_serialize_cond(const Item *item, void *arg)
             context->expect(Item::FUNC_ITEM);
             break;
           }
+          case Item_func::NEG_FUNC:
           case Item_func::UNKNOWN_FUNC:
           {
             DBUG_PRINT("info", ("UNKNOWN_FUNC %s", 
@@ -1416,7 +1419,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbScanOperation *op,
     uint32 pack_len= field->pack_length();
     const byte* ptr= key;
     DBUG_PRINT("info", ("Filtering value for %s", field->field_name));
-    DBUG_DUMP("key", (char*)ptr, pack_len);
+    DBUG_DUMP("key", (uchar*)ptr, pack_len);
     if (key_part->null_bit)
     {
       DBUG_PRINT("info", ("Generating ISNULL filter"));

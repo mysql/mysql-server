@@ -26,8 +26,7 @@ set -e
 # NOTE: Pattern matching with "{..,..}" can't be used, not portable.
 # ----------------------------------------------------------------------
 
-# FIXME FIXME "debug", own build or handled here?
-# FIXME FIXME add way to copy from other builds executables
+# FIXME why "libmysql.dll" installed both in "bin" and "lib/opt"?
 
 usage()
 {
@@ -150,12 +149,15 @@ cp myisam/$TARGET/*.exe                                  $DESTDIR/bin/
 cp server-tools/instance-manager/$TARGET/*.{exe,map}     $DESTDIR/bin/
 if [ x"$TARGET" != x"release" ] ; then
   cp server-tools/instance-manager/$TARGET/*.pdb         $DESTDIR/bin/
+  cp client/$TARGET/mysql.pdb                            $DESTDIR/bin/
+  cp client/$TARGET/mysqladmin.pdb                       $DESTDIR/bin/
+  cp client/$TARGET/mysqlbinlog.pdb                      $DESTDIR/bin/
+  cp client/$TARGET/mysqldump.pdb                        $DESTDIR/bin/
+  cp client/$TARGET/mysqlimport.pdb                      $DESTDIR/bin/
+  cp client/$TARGET/mysqlshow.pdb                        $DESTDIR/bin/
 fi
 cp tests/$TARGET/*.exe                                   $DESTDIR/bin/
 cp libmysql/$TARGET/libmysql.dll                         $DESTDIR/bin/
-
-# FIXME really needed?!
-mv $DESTDIR/bin/comp_err.exe             $DESTDIR/bin/comp-err.exe
 
 if [ -f "sql/$TARGET/mysqld-nt.exe" ] ; then
   BASENAME="mysqld-nt"     # Old style non CMake build 
@@ -191,10 +193,6 @@ if [ -d win/data ] ; then
   cp -pR win/data $DESTDIR/
 fi
 
-# FIXME maybe a flag to define "release build", or do the
-# check from the calling script that all these are there,
-# and with the correct content.
-
 mkdir $DESTDIR/Docs
 cp Docs/INSTALL-BINARY    $DESTDIR/Docs/
 cp Docs/manual.chm        $DESTDIR/Docs/ || /bin/true
@@ -218,11 +216,13 @@ copy_embedded()
            $DESTDIR/include
   cp libmysqld/libmysqld.def           $DESTDIR/include/
   cp libmysqld/$TARGET/mysqlserver.lib $DESTDIR/Embedded/static/release/
-  cp libmysqld/$TARGET/mysqlserver.pdb $DESTDIR/Embedded/static/release/
   cp libmysqld/$TARGET/libmysqld.dll   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.exp   $DESTDIR/Embedded/DLL/release/
   cp libmysqld/$TARGET/libmysqld.lib   $DESTDIR/Embedded/DLL/release/
-  cp libmysqld/$TARGET/libmysqld.pdb   $DESTDIR/Embedded/DLL/release/
+  if [ x"$TARGET" != x"release" ] ; then
+    cp libmysqld/$TARGET/mysqlserver.pdb $DESTDIR/Embedded/static/release/
+    cp libmysqld/$TARGET/libmysqld.pdb   $DESTDIR/Embedded/DLL/release/
+  fi
 
   if [ x"$PACK_DEBUG" = x"" -a -f "libmysqld/debug/libmysqld.lib" -o \
        x"$PACK_DEBUG" = x"yes" ] ; then
@@ -287,7 +287,6 @@ cp include/mysql.h \
 
 # ----------------------------------------------------------------------
 # Client libraries, and other libraries
-# FIXME why "libmysql.dll" installed both in "bin" and "lib/opt"?
 # ----------------------------------------------------------------------
 
 mkdir -p $DESTDIR/lib/opt
@@ -299,16 +298,31 @@ cp libmysql/$TARGET/libmysql.dll \
    strings/$TARGET/strings.lib \
    zlib/$TARGET/zlib.lib $DESTDIR/lib/opt/
 
+if [ x"$TARGET" != x"release" ] ; then
+  cp libmysql/$TARGET/libmysql.pdb \
+     libmysql/$TARGET/mysqlclient.pdb \
+     mysys/$TARGET/mysys.pdb \
+     regex/$TARGET/regex.pdb \
+     strings/$TARGET/strings.pdb \
+     zlib/$TARGET/zlib.pdb $DESTDIR/lib/opt/
+fi
+
 if [ x"$PACK_DEBUG" = x"" -a -f "libmysql/debug/libmysql.lib" -o \
      x"$PACK_DEBUG" = x"yes" ] ; then
   mkdir -p $DESTDIR/lib/debug
   cp libmysql/debug/libmysql.dll \
      libmysql/debug/libmysql.lib \
+     libmysql/debug/libmysql.pdb \
      libmysql/debug/mysqlclient.lib \
+     libmysql/debug/mysqlclient.pdb \
      mysys/debug/mysys.lib \
+     mysys/debug/mysys.pdb \
      regex/debug/regex.lib \
+     regex/debug/regex.pdb \
      strings/debug/strings.lib \
-     zlib/debug/zlib.lib $DESTDIR/lib/debug/
+     strings/debug/strings.pdb \
+     zlib/debug/zlib.lib \
+     zlib/debug/zlib.pdb $DESTDIR/lib/debug/
 fi
 
 # ----------------------------------------------------------------------
@@ -337,6 +351,7 @@ mysql_explain_log.pl \
 mysql_install_db.pl \
 mysql_secure_installation.pl \
 mysql_tableinfo.pl \
+mysql_upgrade_shell.pl \
 mysqld_multi.pl \
 mysqldumpslow.pl \
 mysqlhotcopy.pl \

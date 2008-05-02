@@ -5,28 +5,12 @@
 # Set $engine_type
 let $engine_type= memory;
 
-# Decide, if the objects are to be (re)created
-#
-# - once at the beginning of a set of testcases ('$NO_REFRESH' <> '' --> TRUE)
-#   That means the current script must not (re)create any object.
-#   It can expect, that the objects already exist.
-#
-# - per every testscript/case ('$NO_REFRESH' = '' --> FALSE)
-#   That means all objects have to be (re)created within the current script.
+let $message= NOT YET IMPLEMENTED: bitdata tests;
+--source include/show_msg80.inc
+exit;
 
-eval SET @NO_REFRESH = IF( '$NO_REFRESH' = '', 0, 1);
-
-# FIXME Replace the following, when "if" for mysqltest is available
-let $run= `SELECT @NO_REFRESH = 0`;
-while ($run)
-{
-
-    # Create some objects needed in many testcases
-    USE test;
-    --source suite/funcs_1/include/memory_tb4.inc
-
-    let $run= 0;
-}
+# Create some objects needed in many testcases
+USE test;
+--source suite/funcs_1/include/memory_tb4.inc
 
 --source suite/funcs_1/bitdata/bitdata_master.test
-
