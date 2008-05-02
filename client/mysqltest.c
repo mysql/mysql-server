@@ -8107,7 +8107,6 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
 		      char * word_end_chars)
 {
   static const int SPACE_CHAR= 256;
-  static const int START_OF_LINE= 257;
   static const int END_OF_LINE= 258;
 
   uint i,j,states,set_nr,len,result_len,max_length,found_end,bits_set,bit_nr;
