@@ -1367,7 +1367,15 @@ sub datadir_list_setup () {
 
 sub collect_mysqld_features () {
   my $found_variable_list_start= 0;
-  my $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  my $tmpdir;
+  if ( $opt_tmpdir ) {
+    # Use the requested tmpdir
+    mkpath($opt_tmpdir) if (! -d $opt_tmpdir);
+    $tmpdir= $opt_tmpdir;
+  }
+  else {
+    $tmpdir= tempdir(CLEANUP => 0); # Directory removed by this function
+  }
 
   #
   # Execute "mysqld --no-defaults --help --verbose" to get a
@@ -1428,7 +1436,7 @@ sub collect_mysqld_features () {
       }
     }
   }
-  rmtree($tmpdir);
+  rmtree($tmpdir) if (!$opt_tmpdir);
   mtr_error("Could not find version of MySQL") unless $mysql_version_id;
   mtr_error("Could not find variabes list") unless $found_variable_list_start;
 
