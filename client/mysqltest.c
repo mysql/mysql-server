@@ -1345,23 +1345,21 @@ void show_diff(DYNAMIC_STRING* ds,
   if (init_dynamic_string(&ds_tmp, "", 256, 256))
     die("Out of memory");
 
-  /* First try with diff --help to see if the command exists at all */
+  /* First try with unified diff */
   if (run_tool("diff",
                &ds_tmp, /* Get output from diff in ds_tmp */
-               "--help",
+               "-u",
+               filename1,
+               filename2,
                "2>&1",
-               NULL) != 0) /* Most "diff --help" tools return 0 */
-  {
-    diff_failed= "You don't appear to have diff installed";
-  }
-  else
+               NULL) > 1) /* Most "diff" tools return >1 if error */
   {
     dynstr_set(&ds_tmp, "");
-    /* First try with unified diff */
 
+    /* Fallback to context diff with "diff -c" */
     if (run_tool("diff",
                  &ds_tmp, /* Get output from diff in ds_tmp */
-                 "-u",
+                 "-c",
                  filename1,
                  filename2,
                  "2>&1",
@@ -1369,17 +1367,17 @@ void show_diff(DYNAMIC_STRING* ds,
     {
       dynstr_set(&ds_tmp, "");
 
-      /* Fallback to context diff with "diff -c" */
+      /* Fallback to plain "diff" */
       if (run_tool("diff",
                    &ds_tmp, /* Get output from diff in ds_tmp */
-                   "-c",
                    filename1,
                    filename2,
                    "2>&1",
                    NULL) > 1) /* Most "diff" tools return >1 if error */
       {
         dynstr_set(&ds_tmp, "");
-        diff_failed= "Could not execute 'diff -u' or 'diff -c'";
+
+        diff_failed= "Could not execute 'diff -u', 'diff -c' or 'diff'";
       }
     }
   }
