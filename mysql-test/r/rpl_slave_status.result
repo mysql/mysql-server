@@ -53,3 +53,4 @@ Master_SSL_Cipher
 Master_SSL_Key	
 Seconds_Behind_Master	NULL
 drop table t1;
+drop table t1;

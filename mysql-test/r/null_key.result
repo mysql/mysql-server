@@ -429,3 +429,21 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	5
 DROP TABLE t1,t2,t3,t4;
+CREATE TABLE t1 (
+a int(11) default NULL,
+b int(11) default NULL,
+KEY a (a,b)
+);
+INSERT INTO t1 VALUES (0,10),(0,11),(0,12);
+CREATE TABLE t2 (
+a int(11) default NULL,
+b int(11) default NULL,
+KEY a (a)
+);
+INSERT INTO t2 VALUES (3,NULL),(3,11),(3,12);
+SELECT * FROM t2 inner join t1 WHERE ( t1.a = 0 OR t1.a IS NULL) AND t2.a = 3 AND t2.b = t1.b;
+a	b	a	b
+3	11	0	11
+3	12	0	12
+drop table t1, t2;
+End of 5.0 tests

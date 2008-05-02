@@ -3,6 +3,8 @@ SET @test_character_set= 'gb2312';
 SET @test_collation= 'gb2312_chinese_ci';
 SET @safe_character_set_server= @@character_set_server;
 SET @safe_collation_server= @@collation_server;
+SET @safe_character_set_client= @@character_set_client;
+SET @safe_character_set_results= @@character_set_results;
 SET character_set_server= @test_character_set;
 SET collation_server= @test_collation;
 CREATE DATABASE d1;
@@ -69,10 +71,27 @@ select 1 from t1 order by cast(a as char(1));
 1
 1
 drop table t1;
+set names utf8;
+create table t1 (
+name varchar(10),
+level smallint unsigned);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `name` varchar(10) default NULL,
+  `level` smallint(5) unsigned default NULL
+) ENGINE=MyISAM DEFAULT CHARSET=gb2312
+insert into t1 values ('string',1);
+select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
+concat(name,space(level))	concat(name, repeat(' ',level))
+string 	string 
+drop table t1;
 DROP DATABASE d1;
 USE test;
 SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
+SET character_set_client= @safe_character_set_client;
+SET character_set_results= @safe_character_set_results;
 SET NAMES gb2312;
 SET collation_connection='gb2312_chinese_ci';
 create table t1 select repeat('a',4000) a;
@@ -124,6 +143,23 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 SET collation_connection='gb2312_bin';
 create table t1 select repeat('a',4000) a;
 delete from t1;
@@ -174,6 +210,23 @@ select c1 as c2h from t1 where c1 like 'ab#_def' escape '#';
 c2h
 ab_def
 drop table t1;
+CREATE TABLE t1 AS
+SELECT 10 AS a, REPEAT('a',20) AS b, REPEAT('a',8) AS c, REPEAT('a',8) AS d;
+ALTER TABLE t1 ADD PRIMARY KEY(a), ADD KEY(b);
+INSERT INTO t1 (a, b) VALUES (1, repeat(0xF1F2,5));
+INSERT INTO t1 (a, b) VALUES (2, repeat(0xF1F2,10));
+INSERT INTO t1 (a, b) VALUES (3, repeat(0xF1F2,11));
+INSERT INTO t1 (a, b) VALUES (4, repeat(0xF1F2,12));
+SELECT hex(concat(repeat(0xF1F2, 10), '%'));
+hex(concat(repeat(0xF1F2, 10), '%'))
+F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F225
+3 rows expected
+SELECT a, hex(b), c FROM t1 WHERE b LIKE concat(repeat(0xF1F2,10), '%');
+a	hex(b)	c
+2	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+3	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+4	F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2F1F2	
+DROP TABLE t1;
 SET NAMES gb2312;
 CREATE TABLE t1 (a text) character set gb2312;
 INSERT INTO t1 VALUES (0xA2A1),(0xD7FE);

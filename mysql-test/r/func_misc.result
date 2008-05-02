@@ -207,6 +207,25 @@ test
 SELECT NAME_CONST('test', 'test');
 test
 test
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT NAME_CONST('flag',1)    * MAX(a) FROM t1;
+NAME_CONST('flag',1)    * MAX(a)
+3
+SELECT NAME_CONST('flag',1.5)  * MAX(a) FROM t1;
+NAME_CONST('flag',1.5)  * MAX(a)
+4.5
+SELECT NAME_CONST('flag',-1)   * MAX(a) FROM t1;
+NAME_CONST('flag',-1)   * MAX(a)
+-3
+SELECT NAME_CONST('flag',-1.5) * MAX(a) FROM t1;
+NAME_CONST('flag',-1.5) * MAX(a)
+-4.5
+SELECT NAME_CONST('flag', SQRT(4)) * MAX(a) FROM t1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+SELECT NAME_CONST('flag',-SQRT(4)) * MAX(a) FROM t1;
+ERROR HY000: Incorrect arguments to NAME_CONST
+DROP TABLE t1;
 CREATE TABLE t1 (a int);
 INSERT INTO t1 VALUES (5), (2);
 SELECT NAME_CONST(x,2) FROM (SELECT a x FROM t1) t;
@@ -225,4 +244,7 @@ select min(a) from t1 group by inet_ntoa(a);
 min(a)
 -2
 drop table t1;
+SELECT NAME_CONST('var', 'value') COLLATE latin1_general_cs;
+NAME_CONST('var', 'value') COLLATE latin1_general_cs
+value
 End of 5.0 tests

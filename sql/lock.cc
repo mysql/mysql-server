@@ -703,7 +703,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     {
       my_error(ER_WRONG_LOCK_OF_SYSTEM_TABLE, MYF(0), table_ptr[i]->s->db,
                table_ptr[i]->s->table_name);
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 

@@ -236,4 +236,86 @@ SELECT * FROM t1;
 remove_file $MYSQLTEST_VARDIR/tmp/t1;
 DROP TABLE t1;
 
+###########################################################################
+
+--echo
+--echo # --
+--echo # -- Bug#35469: server crash with LOAD DATA INFILE to a VIEW.
+--echo # --
+
+--echo
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+DROP VIEW IF EXISTS v1;
+DROP VIEW IF EXISTS v2;
+DROP VIEW IF EXISTS v3;
+--enable_warnings
+
+--echo
+CREATE TABLE t1(c1 INT, c2 VARCHAR(255));
+
+--echo
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE VIEW v2 AS SELECT 1 + 2 AS c0, c1, c2 FROM t1;
+CREATE VIEW v3 AS SELECT 1 AS d1, 2 AS d2;
+
+--echo
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v1
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c1, c2);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+SELECT * FROM v1;
+
+--echo
+DELETE FROM t1;
+
+--echo
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c1, c2);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+SELECT * FROM v2;
+
+--echo
+DELETE FROM t1;
+
+--echo
+--error ER_LOAD_DATA_INVALID_COLUMN
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v2
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (c0, c2);
+
+--echo
+--error ER_NON_UPDATABLE_TABLE
+LOAD DATA INFILE '../std_data_ln/bug35469.dat' INTO TABLE v3
+  FIELDS ESCAPED BY '\\'
+  TERMINATED BY ','
+  ENCLOSED BY '"'
+  LINES TERMINATED BY '\n' (d1, d2);
+
+--echo
+DROP TABLE t1;
+DROP VIEW v1;
+DROP VIEW v2;
+DROP VIEW v3;
+
+--echo
+--echo # -- End of Bug#35469.
+
+###########################################################################
+
 # End of 5.0 tests

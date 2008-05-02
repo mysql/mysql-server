@@ -92,6 +92,6 @@ int myrg_rkey(MYRG_INFO *info,byte *buf,int inx, const byte *key,
   mi->once_flags|= RRND_PRESERVE_LASTINX;
   DBUG_PRINT("info", ("using table no: %d",
                       (int) (info->current_table - info->open_tables + 1)));
-  DBUG_DUMP("result key", (byte*) mi->lastkey, mi->lastkey_length);
+  DBUG_DUMP("result key", (uchar*) mi->lastkey, mi->lastkey_length);
   DBUG_RETURN(_myrg_mi_read_record(mi,buf));
 }
