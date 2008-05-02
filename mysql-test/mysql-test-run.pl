@@ -1756,6 +1756,7 @@ sub mysql_upgrade_arguments()
   mtr_add_arg($args, "--socket=$master->[0]->{'path_sock'}");
   mtr_add_arg($args, "--datadir=$master->[0]->{'path_myddir'}");
   mtr_add_arg($args, "--basedir=$glob_basedir");
+  mtr_add_arg($args, "--tmpdir=$opt_tmpdir");
 
   if ( $opt_debug )
   {
