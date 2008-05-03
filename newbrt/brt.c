@@ -1153,12 +1153,21 @@ static int apply_cmd_to_le_committed (u_int32_t klen, void *kval,
     return 0;
 }
 
-static int apply_cmd_to_le_both (TXNID xid __attribute__((__unused__)),
+static int apply_cmd_to_le_both (TXNID xid,
 				 u_int32_t klen, void *kval,
 				 u_int32_t clen, void *cval,
 				 u_int32_t plen, void *pval,
 				 BRT_CMD cmd,
 				 u_int32_t *newlen, u_int32_t *disksize, LEAFENTRY *new_data) {
+    u_int32_t prev_len;
+    void     *prev_val;
+    if (xid==cmd->xid) {
+	// The xids match, so throw away the provisional value.
+	prev_len = clen;  prev_val = cval;
+    } else {
+	// If the xids don't match, then we are moving the provisional value to committed status.
+	prev_len = plen;  prev_val = pval;
+    }
     // keep the committed value for rollback.
     assert(cmd->u.id.key->size == klen);
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
@@ -1166,22 +1175,24 @@ static int apply_cmd_to_le_both (TXNID xid __attribute__((__unused__)),
     case BRT_INSERT:
 	return le_both(cmd->xid,
 		       klen, kval,
-		       clen, cval,
+		       prev_len, prev_val,
 		       cmd->u.id.val->size, cmd->u.id.val->data,
 		       newlen, disksize, new_data);
     case BRT_DELETE_ANY:
     case BRT_DELETE_BOTH:
 	return le_provdel(cmd->xid,
 			  klen, kval,
-			  clen, cval,
+			  prev_len, prev_val,
 			  newlen, disksize, new_data);
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
+	// I don't see how you could have an abort where the xids don't match.  But do it anyway.
 	return le_committed(klen, kval,
-			    clen, cval,
+			    prev_len, prev_val,
 			    newlen, disksize, new_data);
     case BRT_COMMIT_BOTH:
     case BRT_COMMIT_ANY:
+	// In the future we won't even have these commit messages.
 	return le_committed(klen, kval,
 			    plen, pval,
 			    newlen, disksize, new_data);
@@ -1190,7 +1201,8 @@ static int apply_cmd_to_le_both (TXNID xid __attribute__((__unused__)),
     assert(0);
     return 0;
 }
-static int apply_cmd_to_le_provdel (TXNID xid __attribute__((__unused__)),
+
+static int apply_cmd_to_le_provdel (TXNID xid,
 				    u_int32_t klen, void *kval,
 				    u_int32_t clen, void *cval,
 				    BRT_CMD cmd,
@@ -1200,21 +1212,36 @@ static int apply_cmd_to_le_provdel (TXNID xid __attribute__((__unused__)),
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
-	return le_both(cmd->xid,
-		       klen, kval,
-		       clen, cval,
-		       cmd->u.id.val->size, cmd->u.id.val->data,
-		       newlen, disksize, new_data);
+	if (cmd->xid == xid) {
+	    return le_both(cmd->xid,
+			   klen, kval,
+			   clen, cval,
+			   cmd->u.id.val->size, cmd->u.id.val->data,
+			   newlen, disksize, new_data);
+	} else {
+	    // It's an insert, but the committed value is deleted (since the xids don't match, we assume the delete took effect)
+	    return le_provpair(cmd->xid,
+			       klen, kval,
+			       cmd->u.id.val->size, cmd->u.id.val->data,
+			       newlen, disksize, new_data);
+	}
     case BRT_DELETE_ANY:
     case BRT_DELETE_BOTH:
-	// A delete of a delete could conceivably return the same item, but to simplify things we just reallocate it
-	// because othewise we have to notice not to free() the olditem.
-	return le_provdel(cmd->xid,
-			  klen, kval,
-			  clen, cval,
-			  newlen, disksize, new_data);
+	if (cmd->xid == xid) {
+	    // A delete of a delete could conceivably return the identical value, saving a malloc and a free, but to simplify things we just reallocate it
+	    // because othewise we have to notice not to free() the olditem.
+	    return le_provdel(cmd->xid,
+			      klen, kval,
+			      clen, cval,
+			      newlen, disksize, new_data);
+	} else {
+	    // The commited value is deleted, and we are deleting, so treat as a delete.
+	    *new_data = 0;
+	    return 0;
+	}
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
+	// I don't see how the xids could not match...
 	return le_committed(klen, kval,
 			    clen, cval,
 			    newlen, disksize, new_data);
@@ -1228,7 +1255,7 @@ static int apply_cmd_to_le_provdel (TXNID xid __attribute__((__unused__)),
     return 0;
 }
 
-static int apply_cmd_to_le_provpair (TXNID xid __attribute__((__unused__)),
+static int apply_cmd_to_le_provpair (TXNID xid,
 				     u_int32_t klen, void *kval,
 				     u_int32_t plen , void *pval,
 				     BRT_CMD cmd,
@@ -1237,16 +1264,36 @@ static int apply_cmd_to_le_provpair (TXNID xid __attribute__((__unused__)),
     assert(memcmp(cmd->u.id.key->data, kval, klen)==0);
     switch (cmd->type) {
     case BRT_INSERT:
-	// it's still a provpair (the old prov value is lost)
-	return le_provpair(cmd->xid,
+	if (cmd->xid == xid) {
+	    // it's still a provpair (the old prov value is lost)
+	    return le_provpair(cmd->xid,
+			       klen, kval,
+			       cmd->u.id.val->size, cmd->u.id.val->data,
+			       newlen, disksize, new_data);
+	} else {
+	    // the old prov was actually committed.
+	    return le_both(cmd->xid,
 			   klen, kval,
+			   plen, pval,
 			   cmd->u.id.val->size, cmd->u.id.val->data,
 			   newlen, disksize, new_data);
+	}
     case BRT_DELETE_BOTH:
     case BRT_DELETE_ANY:
+	if (cmd->xid == xid) {
+	    // A delete of a provisional pair is nothign
+	    *new_data = 0;
+	    return 0;
+	} else {
+	    // The prov pair is actually a committed value.
+	    return le_provdel(cmd->xid,
+			      klen, kval,
+			      plen, pval,
+			      newlen, disksize, new_data);
+	}
     case BRT_ABORT_BOTH:
     case BRT_ABORT_ANY:
-	// A delete or abort of a provisional pair is nothing.
+	// An abort of a provisional pair is nothing.
 	*new_data = 0;
 	return 0;
     case BRT_COMMIT_ANY:

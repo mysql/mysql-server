@@ -23,7 +23,7 @@ int main (int argc, const char *argv[]) {
     r=txn->commit(txn, 0);    CKERR(r);
 
     int i;
-    for (i=0; i<100; i++) {
+    for (i=0; i<200; i++) {
 	DBT key,data;
 	char hello[30],there[30];
 	snprintf(hello, sizeof(hello), "hello%d", i);
