@@ -150,7 +150,8 @@ static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum,L
     if (pair->brt) {
 	toku_free(pair->brt->h);
     }  else {
-	MALLOC(pair->brt);
+	r = toku_brt_create(&pair->brt);
+	assert(r==0);
 	pair->brt->cf = pair->cf;
 	pair->brt->database_name = 0; // Special case, we don't know or care what the database name is for recovery.
 	list_init(&pair->brt->cursors);
@@ -429,16 +430,16 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR, 0);
     assert(fd>=0);
-    BRT MALLOC(brt);
-    assert(errno==0 && brt!=0);
+    BRT brt;
+    int r = toku_brt_create(&brt);
+    assert(r==0);
     brt->fname = fixedfname;
     brt->database_name = 0;
     brt->h=0;
-    list_init(&brt->cursors);
     brt->compare_fun = 0;
     brt->dup_compare = 0;
     brt->db = 0;
-    int r = toku_cachetable_openfd(&cf, ct, fd, fixedfname);
+    r = toku_cachetable_openfd(&cf, ct, fd, fixedfname);
     assert(r==0);
     brt->skey = brt->sval = 0;
     brt->cf=cf;
