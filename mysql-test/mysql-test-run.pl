@@ -344,7 +344,7 @@ sub main {
 
     # Not all tests completed, failure
     mtr_report();
-    mtr_report(@$completed, " of $num_tests completed.");
+    mtr_report(int(@$completed), " of $num_tests completed.");
     mtr_error("Test failed.",
 	      "To continue, re-run with '--force'");
   }
