@@ -59,7 +59,7 @@ int toku_db_id_create(toku_db_id** pdbid, const char* path,
         goto cleanup;
     }
     char* tmp = (char*)toku_realloc(db_id->absolute_path,
-                             (strlen(db_id->absolute_path) + 1) * sizeof(char));
+				    (strlen(db_id->absolute_path) + 1) * sizeof(char));
     if (!tmp) { r = ENOMEM; goto cleanup; }
     db_id->absolute_path = tmp;
                     

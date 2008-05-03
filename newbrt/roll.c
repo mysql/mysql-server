@@ -70,7 +70,16 @@ static int do_insertion (enum brt_cmd_type type, TXNID xid, FILENUM filenum, BYT
 }
 
 
+static int do_nothing_with_filenum(TOKUTXN txn, FILENUM filenum) {
+    CACHEFILE cf;
+    int r = toku_cachefile_of_filenum(txn->logger->ct, filenum, &cf);
+    assert(r==0);
+    return toku_cachefile_close(&cf, toku_txn_logger(txn));
+}
+
+
 int toku_commit_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    return do_nothing_with_filenum(txn, filenum);
     return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
 }
 
@@ -79,6 +88,7 @@ int toku_rollback_cmdinsert (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRI
 }
 
 int toku_commit_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTESTRING data,TOKUTXN txn) {
+    return do_nothing_with_filenum(txn, filenum);
     return do_insertion (BRT_COMMIT_BOTH, xid, filenum, key, &data, txn);
 }
 
@@ -87,6 +97,7 @@ int toku_rollback_cmddeleteboth (TXNID xid, FILENUM filenum, BYTESTRING key,BYTE
 }
 
 int toku_commit_cmddelete (TXNID xid, FILENUM filenum, BYTESTRING key,TOKUTXN txn) {
+    return do_nothing_with_filenum(txn, filenum);
     return do_insertion (BRT_COMMIT_ANY, xid, filenum, key, 0, txn);
 }
 
