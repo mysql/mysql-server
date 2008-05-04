@@ -117,6 +117,7 @@ void toku_ydb_error_all_cases(const DB_ENV * env,
                               BOOL include_stderrstring, 
                               BOOL use_stderr_if_nothing_else, 
                               const char *fmt, va_list ap)
+    __attribute__((format (printf, 5, 0)))
     __attribute__((__visibility__("default"))); // this is needed by the C++ interface. 
 int toku_ydb_do_error (const DB_ENV *, int, const char *, ...);
 

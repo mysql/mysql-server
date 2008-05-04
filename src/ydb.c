@@ -911,6 +911,7 @@ int txn_commit(DB_TXN * txn, u_int32_t flags) {
 }
 #endif
 
+int log_compare(const DB_LSN * a, const DB_LSN * b) __attribute__((__noreturn__));
 int log_compare(const DB_LSN * a, const DB_LSN * b) {
     toku_ydb_lock();
     fprintf(stderr, "%s:%d log_compare(%p,%p)\n", __FILE__, __LINE__, a, b);

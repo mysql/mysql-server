@@ -1,0 +1,3 @@
+LOCKTREE_FILES = db_id rth lth idlth locktree
+
+LOCKTREE_HERE = $(ROOT)src/lock_tree
