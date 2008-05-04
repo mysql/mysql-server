@@ -36,10 +36,10 @@ static const char plugin_author[] = "Innobase Oy";
 #define FAIL_IF_INNODB_NOT_STARTED(plugin_name)			\
 do {								\
 	if (!srv_was_started) {					\
-		sql_print_error("InnoDB: Refusing to start the "\
-				plugin_name " plugin when the "	\
-				"InnoDB storage engine plugin "	\
-				"is not started.");		\
+		sql_print_error("InnoDB: Cannot install the "	\
+				plugin_name " plugin because "	\
+				"the InnoDB storage engine is "	\
+				"not installed.");		\
 		DBUG_RETURN(1);					\
 	}							\
 } while (0)
