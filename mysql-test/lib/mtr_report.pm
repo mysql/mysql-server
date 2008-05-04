@@ -222,22 +222,27 @@ sub mtr_report_stats ($) {
 
   foreach my $tinfo (@$tests)
   {
-    if ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
+    if ( $tinfo->{failures} )
     {
+      # Test has failed at least one time
+      $tot_tests++;
+      $tot_failed++;
+    }
+    elsif ( $tinfo->{'result'} eq 'MTR_RES_SKIPPED' )
+    {
+      # Test was skipped
       $tot_skiped++;
     }
     elsif ( $tinfo->{'result'} eq 'MTR_RES_PASSED' )
     {
+      # Test passed
       $tot_tests++;
       $tot_passed++;
     }
-    elsif ( $tinfo->{failures} )
-    {
-      $tot_tests++;
-      $tot_failed++;
-    }
+
     if ( $tinfo->{'restarted'} )
     {
+      # Servers was restarted
       $tot_restarts++;
     }
 
@@ -302,7 +307,7 @@ sub mtr_report_stats ($) {
 
     # Print each failed test, again
     #foreach my $test ( @$tests ){
-    #  if ( $test->{result} eq 'MTR_RES_FAILED' ) {
+    #  if ( $test->{failures} ) {
     #    mtr_report_test($test);
     #  }
     #}
@@ -320,7 +325,7 @@ sub mtr_report_stats ($) {
     foreach my $tinfo (@$tests)
     {
       my $tname= $tinfo->{'name'};
-      if ( $tinfo->{'result'} eq 'MTR_RES_FAILED' and ! $seen{$tname})
+      if ( $tinfo->{failures} and ! $seen{$tname})
       {
         print " $tname";
 	$seen{$tname}= 1;
