@@ -127,6 +127,7 @@ void toku_ydb_barf() {
 
 /** Prints a note with the point where it was generated
     \param fmt The format string for the note to be printed */
+#if 0
 void toku_ydb_notef(const char *fmt, ...) {
     fprintf(stderr, "YDB: Note %s:%d in %s, ", __FILE__, __LINE__, __func__); 
     va_list ap;
@@ -134,4 +135,5 @@ void toku_ydb_notef(const char *fmt, ...) {
     vfprintf(stderr, fmt, ap);
     va_end(ap);
 }
+#endif
 

@@ -1,0 +1,3 @@
+RANGETREE_FILES = linear log_nooverlap tokuredblack
+RANGETREE_HERE = $(ROOT)src/range_tree
+RANGETREE_HEADERS = rangetree rangetree-internal tokuredblack
