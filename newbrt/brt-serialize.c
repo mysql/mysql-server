@@ -1,8 +1,6 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#define _XOPEN_SOURCE 500
-
 #include "toku_assert.h"
 #include "brt-internal.h"
 #include "key.h"
@@ -680,7 +678,7 @@ int read_char (int fd, off_t *at, char *result) {
 }
 
 int read_uint64_t (int fd, off_t *at, u_int64_t *result) {
-    u_int32_t v1,v2;
+    u_int32_t v1=0,v2=0;
     int r;
     if ((r = read_int(fd, at, &v1))) return r;
     if ((r = read_int(fd, at, &v2))) return r;
@@ -704,14 +702,14 @@ int toku_deserialize_fifo_at (int fd, off_t at, FIFO *fifo) {
     FIFO result;
     int r = toku_fifo_create(&result);
     if (r) return r;
-    u_int32_t count;
+    u_int32_t count=0;
     if ((r=read_int(fd, &at, &count))) return r;
     u_int32_t i;
     for (i=0; i<count; i++) {
 	char type;
 	TXNID xid;
-	u_int32_t keylen, vallen;
-	char *key, *val;
+	u_int32_t keylen=0, vallen=0;
+	char *key=0, *val=0;
 	if ((r=read_char(fd, &at, &type))) return r;
 	if ((r=read_uint64_t(fd, &at, &xid))) return r;
 	if ((r=read_int(fd, &at, &keylen))) return r;

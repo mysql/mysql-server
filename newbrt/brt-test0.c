@@ -14,7 +14,7 @@ static void test0 (void) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="brt-test0.brt";
+    char fname[]= __FILE__ "0.brt";
     if (verbose) printf("%s:%d test0\n", __FILE__, __LINE__);
     toku_memory_check=1;
     toku_memory_check_all_free();

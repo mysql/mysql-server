@@ -109,7 +109,7 @@ static void test_chaining (void) {
     long i, trial;
     r = toku_create_cachetable(&ct, N_PRESENT_LIMIT, ZERO_LSN, NULL_LOGGER);    assert(r==0);
     for (i=0; i<N_FILES; i++) {
-	r = snprintf(fname[i], FILENAME_LEN, "cachetabletest2.%ld.dat", i);
+	r = snprintf(fname[i], FILENAME_LEN, __FILE__ ".%ld.dat", i);
 	assert(r>0 && r<FILENAME_LEN);
 	unlink(fname[i]);
 	r = toku_cachetable_openf(&f[i], ct, fname[i], O_RDWR|O_CREAT, 0777);   assert(r==0);

@@ -3,7 +3,7 @@
 #include <errno.h>
 #include <sys/types.h>
 
-typedef struct value *OMTVALUE;
+typedef void *OMTVALUE;
 #include "omt.h"
 #include "../newbrt/memory.h"
 #include "../newbrt/toku_assert.h"

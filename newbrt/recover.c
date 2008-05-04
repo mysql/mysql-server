@@ -267,10 +267,10 @@ void toku_recover_brtdeq (LSN lsn, FILENUM filenum, DISKOFF diskoff, u_int32_t c
     recover_setup_node(filenum, diskoff, &cf, &node);
     assert(node->height>0);
     //printf("deq: %lld expected_old_fingerprint=%08x actual=%08x new=%08x\n", diskoff, oldfingerprint, node->local_fingerprint, newfingerprint);
-    bytevec actual_key, actual_data;
-    ITEMLEN actual_keylen, actual_datalen;
-    u_int32_t actual_type;
-    TXNID   actual_xid;
+    bytevec actual_key=0, actual_data=0;
+    ITEMLEN actual_keylen=0, actual_datalen=0;
+    u_int32_t actual_type=0;
+    TXNID   actual_xid=0;
     assert(childnum<(u_int32_t)node->u.n.n_children);
     r = toku_fifo_peek(BNC_BUFFER(node, childnum), &actual_key, &actual_keylen, &actual_data, &actual_datalen, &actual_type, &actual_xid);
     assert(r==0);
@@ -430,7 +430,7 @@ void toku_recover_fopen (LSN UU(lsn), TXNID UU(txnid), BYTESTRING fname, FILENUM
     CACHEFILE cf;
     int fd = open(fixedfname, O_RDWR, 0);
     assert(fd>=0);
-    BRT brt;
+    BRT brt=0;
     int r = toku_brt_create(&brt);
     assert(r==0);
     brt->fname = fixedfname;

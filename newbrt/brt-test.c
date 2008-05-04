@@ -20,11 +20,12 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
+static char fname[] = __FILE__ ".brt";
+
 static void test_dump_empty_db (void) {
     BRT t;
     CACHETABLE ct;
     int r;
-    char fname[]="testbrt.brt";
     toku_memory_check=1;
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -39,8 +40,8 @@ static void test_dump_empty_db (void) {
 
 /* Test running multiple trees in different files */
 static void test_multiple_files_of_size (int size) {
-    const char *n0 = "test0.brt";
-    const char *n1 = "test1.brt";
+    const char *n0 = __FILE__ "test0.brt";
+    const char *n1 = __FILE__ "test1.brt";
     CACHETABLE ct;
     BRT t0,t1;
     int r,i;
@@ -106,8 +107,8 @@ static void test_multiple_files (void) {
 }
 
 static void test_multiple_dbs (void) {
-    const char *n0 = "test0.brt";
-    const char *n1 = "test1.brt";
+    const char *n0 = __FILE__ "test0.brt";
+    const char *n1 = __FILE__ "test1.brt";
     CACHETABLE ct;
     BRT t0,t1;
     int r;
@@ -163,7 +164,7 @@ static void test_multiple_dbs (void) {
 static void test_multiple_dbs_many (void) {
     enum { MANYN = 16 };
     int i, r;
-    const char *name = "test_mdbm.brt";
+    const char *name = __FILE__ "test_mdbm.brt";
     CACHETABLE ct;
     BRT trees[MANYN];
     if (verbose) printf("test_multiple_dbs_many:\n");
@@ -194,15 +195,14 @@ static void test_multiple_dbs_many (void) {
 static void test_multiple_brts_one_db_one_file (void) {
     enum { MANYN = 2 };
     int i, r;
-    const char *name = "test.brt";
     CACHETABLE ct;
     BRT trees[MANYN];
     if (verbose) printf("test_multiple_brts_one_db_one_file:");
     toku_memory_check_all_free();
-    unlink(name);
+    unlink(fname);
     r = toku_brt_create_cachetable(&ct, 32, ZERO_LSN, NULL_LOGGER); assert(r==0);
     for (i=0; i<MANYN; i++) {
-	r = toku_open_brt(name, 0, (i==0), &trees[i], 1<<12, ct, null_txn, toku_default_compare_fun, null_db);
+	r = toku_open_brt(fname, 0, (i==0), &trees[i], 1<<12, ct, null_txn, toku_default_compare_fun, null_db);
 	assert(r==0);
     }
     for (i=0; i<MANYN; i++) {
@@ -233,7 +233,6 @@ static void test_multiple_brts_one_db_one_file (void) {
 
 /* Check to see if data can be read that was written. */
 static void  test_read_what_was_written (void) {
-    const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
     int r;
@@ -241,11 +240,11 @@ static void  test_read_what_was_written (void) {
 
     if (verbose) printf("test_read_what_was_written(): "); fflush(stdout);
 
-    unlink(n);
+    unlink(fname);
     toku_memory_check_all_free();
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
-    r = toku_open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
+    r = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
     r = toku_close_brt(brt, 0); assert(r==0);
     r = toku_cachetable_close(&ct); assert(r==0);
 
@@ -253,7 +252,7 @@ static void  test_read_what_was_written (void) {
 
     /* Now see if we can read an empty tree in. */
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);     assert(r==0);
-    r = toku_open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
+    r = toku_open_brt(fname, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
 
     /* See if we can put something in it. */
     {
@@ -268,7 +267,7 @@ static void  test_read_what_was_written (void) {
 
     /* Now see if we can read it in and get the value. */
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
-    r = toku_open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(fname, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
 
     {
 	DBT k,v;
@@ -344,7 +343,7 @@ static void  test_read_what_was_written (void) {
     toku_memory_check_all_free();
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);    assert(r==0);
-    r = toku_open_brt(n, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
+    r = toku_open_brt(fname, 0, 0, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db); assert(r==0);
 
     {
 	DBT k,v;
@@ -378,19 +377,18 @@ static void  test_read_what_was_written (void) {
 
 /* Test c_get(DB_LAST) on an empty tree */
 static void test_cursor_last_empty(void) {
-    const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
     if (verbose) printf("%s", __FUNCTION__);
-    unlink(n);
+    unlink(fname);
     toku_memory_check_all_free();
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    r = toku_open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
+    r = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_brt_cursor(brt, &cursor, 0);            assert(r==0);
     toku_init_dbt(&kbt);
@@ -411,18 +409,17 @@ static void test_cursor_last_empty(void) {
 }
 
 static void test_cursor_next (void) {
-    const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
 
-    unlink(n);
+    unlink(fname);
     toku_memory_check_all_free();
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);       assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    r = toku_open_brt(n, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
+    r = toku_open_brt(fname, 0, 1, &brt, 1<<12, ct, null_txn, toku_default_compare_fun, null_db);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_brt_insert(brt, toku_fill_dbt(&kbt, "hello", 6), toku_fill_dbt(&vbt, "there", 6), null_txn);
     r = toku_brt_insert(brt, toku_fill_dbt(&kbt, "byebye", 7), toku_fill_dbt(&vbt, "byenow", 7), null_txn);
@@ -479,15 +476,14 @@ static int wrong_compare_fun(DB *db, const DBT *a, const DBT *b) {
 }
 
 static void test_wrongendian_compare (int wrong_p, unsigned int N) {
-    const char *n="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
     unsigned int i;
 
-    unlink(n);
+    unlink(fname);
     toku_memory_check_all_free();
 
     {
@@ -502,7 +498,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     //printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
 
     if (0) { // ???? Why is this commented out?
-    r = toku_open_brt(n, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : toku_default_compare_fun, &nonce_db);  assert(r==0);
+    r = toku_open_brt(fname, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : toku_default_compare_fun, &nonce_db);  assert(r==0);
     for (i=1; i<257; i+=255) {
 	unsigned char a[4],b[4];
 	b[3] = a[0] = i&255;
@@ -537,7 +533,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 
     {
 	toku_cachetable_verify(ct);
-	r = toku_open_brt(n, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : toku_default_compare_fun, &nonce_db);  assert(r==0);
+	r = toku_open_brt(fname, 0, 1, &brt, 1<<20, ct, null_txn, wrong_p ? wrong_compare_fun : toku_default_compare_fun, &nonce_db);  assert(r==0);
 	toku_cachetable_verify(ct);
 
 	for (i=0; i<N; i++) {
@@ -591,7 +587,6 @@ static void test_large_kv(int bsize, int ksize, int vsize) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
 
     if (verbose) printf("test_large_kv: %d %d %d\n", bsize, ksize, vsize);
 
@@ -640,7 +635,6 @@ static void test_brt_delete_empty() {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
@@ -668,7 +662,6 @@ static void test_brt_delete_present(int n) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
@@ -707,7 +700,7 @@ static void test_brt_delete_present(int n) {
     }
 
     /* cursor should not find anything */
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0);
     assert(r == 0);
@@ -730,7 +723,6 @@ static void test_brt_delete_not_present(int n) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
@@ -777,7 +769,6 @@ static void test_brt_delete_cursor_first(int n) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
@@ -834,7 +825,7 @@ static void test_brt_delete_cursor_first(int n) {
     }
 
     /* cursor should find the last key: n-1 */
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0);
     assert(r == 0);
@@ -869,7 +860,6 @@ static void test_insert_delete_lookup(int n) {
     BRT t;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER);
@@ -914,10 +904,9 @@ static void test_insert_delete_lookup(int n) {
 static void test_brt_delete_both(int n) {
     if (verbose) printf("test_brt_delete_both:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -958,7 +947,7 @@ static void test_brt_delete_both(int n) {
 #endif
 
     /* cursor should find only odd pairs */
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -999,7 +988,7 @@ static void test_brt_delete() {
 
 static void test_new_brt_cursor_create_close() {
     int r;
-    BRT brt;
+    BRT brt=0;
     int n = 8;
     BRT_CURSOR cursors[n];
 
@@ -1020,10 +1009,9 @@ static void test_new_brt_cursor_create_close() {
 static void test_new_brt_cursor_first(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_first:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -1041,7 +1029,7 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -1075,10 +1063,9 @@ static void test_new_brt_cursor_first(int n, int dup_mode) {
 static void test_new_brt_cursor_last(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_last:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -1096,7 +1083,7 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -1130,10 +1117,9 @@ static void test_new_brt_cursor_last(int n, int dup_mode) {
 static void test_new_brt_cursor_next(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_next:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -1154,7 +1140,7 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
     toku_init_dbt(&key); key.flags = DB_DBT_REALLOC;
     toku_init_dbt(&val); val.flags = DB_DBT_REALLOC;
 
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -1183,10 +1169,9 @@ static void test_new_brt_cursor_next(int n, int dup_mode) {
 static void test_new_brt_cursor_prev(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_prev:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -1204,7 +1189,7 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -1236,10 +1221,9 @@ static void test_new_brt_cursor_prev(int n, int dup_mode) {
 static void test_new_brt_cursor_current(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_current:%d\n", n);
 
-    BRT t;
+    BRT t=0;
     int r;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
     int i;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
@@ -1257,7 +1241,7 @@ static void test_new_brt_cursor_current(int n, int dup_mode) {
         r = toku_brt_insert(t, toku_fill_dbt(&key, &k, sizeof k), toku_fill_dbt(&val, &v, sizeof v), 0); assert(r == 0);
     }
 
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_cursor(t, &cursor, 0); assert(r == 0);
 
@@ -1318,10 +1302,9 @@ static void test_new_brt_cursor_set_range(int n, int dup_mode) {
     if (verbose) printf("test_brt_cursor_set_range:%d %d\n", n, dup_mode);
 
     int r;
-    char fname[]="testbrt.brt";
     CACHETABLE ct;
-    BRT brt;
-    BRT_CURSOR cursor;
+    BRT brt=0;
+    BRT_CURSOR cursor=0;
 
     r = toku_brt_create_cachetable(&ct, 0, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
@@ -1377,10 +1360,9 @@ static void test_new_brt_cursor_set(int n, int cursor_op, DB *db) {
     if (verbose) printf("test_brt_cursor_set:%d %d %p\n", n, cursor_op, db);
 
     int r;
-    char fname[]="testbrt.brt";
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     unlink(fname);
 
