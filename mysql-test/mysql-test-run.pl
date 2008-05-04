@@ -465,14 +465,14 @@ sub run_test_server {
 	  }
 
 	  # Retry test run after test failure
-	  my $retries= $result->{retries} || 1;
+	  my $retries= $result->{retries} || 2;
 	  my $test_has_failed= $result->{failures} || 0;
-	  if ($test_has_failed and $retries < $opt_retry){
+	  if ($test_has_failed and $retries <= $opt_retry){
 	    # Test should be run one more time unless it has failed
 	    # too many times already
 	    my $failures= $result->{failures};
 	    if ($opt_retry > 1 and $failures >= $opt_retry_failure){
-	      mtr_report("Test has failed $failures times,",
+	      mtr_report("\nTest has failed $failures times,",
 			 "no more retries!\n");
 	    }
 	    else {
