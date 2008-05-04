@@ -1146,8 +1146,8 @@ static inline int toku__lt_borderwrite_insert(toku_lock_tree* tree,
     /* Find predecessor and successors */
     toku_range pred;
     toku_range succ;
-    BOOL found_p;
-    BOOL found_s;
+    BOOL found_p = FALSE;
+    BOOL found_s = FALSE;
 
     r = toku__lt_get_border(tree, numfound == 0, &pred, &succ, 
                              &found_p, &found_s, to_insert);
@@ -1905,8 +1905,8 @@ static inline int toku__sweep_border(toku_lock_tree* tree, toku_range* range) {
     /* Find pred(s.ends.left), and succ(s.ends.right) */
     toku_range pred;
     toku_range succ;
-    BOOL found_p;
-    BOOL found_s;
+    BOOL found_p = FALSE;
+    BOOL found_s = FALSE;
 
     r = toku__lt_get_border(tree, TRUE, &pred, &succ, &found_p, &found_s,
                              &buf[0]);
