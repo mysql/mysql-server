@@ -3161,6 +3161,30 @@ sub check_expected_crash_and_restart {
 }
 
 
+# Remove all files and subdirectories of a directory
+sub clean_dir {
+  my ($dir)= @_;
+  finddepth(
+	  { no_chdir => 1,
+	    wanted => sub {
+	      if (-d $_){
+		# A dir
+		if ($_ eq $dir){
+		  # The dir to clean
+		  return;
+		} else {
+		  rmdir($_) or mtr_warning("rmdir failed: $!");
+		}
+	      } else {
+		# Hopefully a file
+		unlink($_) or mtr_warning("unlink failed: $!");
+	      }
+	    }
+	  },
+	    $dir);
+}
+
+
 sub clean_datadir {
 
   mtr_verbose("Cleaning datadirs...");
@@ -3183,11 +3207,9 @@ sub clean_datadir {
   }
 
   # Remove all files in tmp and var/tmp
-  rmtree("$opt_vardir/tmp");
-  mkpath("$opt_vardir/tmp");
+  clean_dir("$opt_vardir/tmp");
   if ($opt_tmpdir ne "$opt_vardir/tmp"){
-    rmtree($opt_tmpdir);
-    mkpath($opt_tmpdir);
+    clean_dir($opt_tmpdir);
   }
 }
 
