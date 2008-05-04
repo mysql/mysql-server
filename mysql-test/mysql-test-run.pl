@@ -789,6 +789,7 @@ sub command_line_setup {
              'shutdown-timeout=i'       => \$opt_shutdown_timeout,
              'warnings!'                => \$opt_warnings,
 	     'timestamp'                => \&report_option,
+	     'timediff'                 => \&report_option,
 
              'help|h'                   => \$opt_usage,
             ) or usage("Can't read options");
