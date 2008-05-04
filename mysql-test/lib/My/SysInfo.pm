@@ -21,7 +21,7 @@ use strict;
 use Carp;
 use My::Platform;
 
-
+use constant DEFAULT_BOGO_MIPS => 2000;
 
 sub _cpuinfo {
   my ($self)= @_;
@@ -59,7 +59,14 @@ sub _cpuinfo {
       }
     }
 
-    push(@{$self->{cpus}}, $cpuinfo);
+    # Make sure bogomips is set to some value
+    $cpuinfo->{bogomips} |= DEFAULT_BOGO_MIPS;
+
+    # Cpus reported once, but with 'cpu_count' set to the actual number
+    my $cpu_count= $cpuinfo->{cpu_count} || 1;
+    for(1..$cpu_count){
+      push(@{$self->{cpus}}, $cpuinfo);
+    }
   }
   $F= undef; # Close file
   return $self;
@@ -71,7 +78,7 @@ sub _kstat {
   while (1){
     my $instance_num= $self->{cpus} ? @{$self->{cpus}} : 0;
     my $list= `kstat -p -m cpu_info -i $instance_num`;
-    my @lines= split('\n', $list) or return undef;
+    my @lines= split('\n', $list) or last; # Break loop
 
     my $cpuinfo= {};
     foreach my $line (@lines)
@@ -82,14 +89,19 @@ sub _kstat {
       $cpuinfo->{$statistic}= $value;
     }
 
-    # Default value, the actual cpu values can be used to decrease it
+    # Default value, the actual cpu values can be used to decrease this
     # on slower cpus
-    $cpuinfo->{bogomips}= 2000;
+    $cpuinfo->{bogomips}= DEFAULT_BOGO_MIPS;
 
     push(@{$self->{cpus}}, $cpuinfo);
   }
 
-  return $self;
+  # At least one cpu should have been found
+  # if this method worked
+  if ( $self->{cpus} ) {
+    return $self;
+  }
+  return undef;
 }
 
 
@@ -122,7 +134,11 @@ sub new {
   }
 
   # Push a dummy cpu
-  push(@{$self->{cpus}}, {bogomips => 2000, model_name => "unknown"});
+  push(@{$self->{cpus}},
+     {
+      bogomips => DEFAULT_BOGO_MIPS,
+      model_name => "unknown",
+     });
 
   return $self;
 }
