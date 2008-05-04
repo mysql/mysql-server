@@ -168,8 +168,6 @@ my $opt_parallel;
 
 my $opt_strace_client;
 
-our $opt_timer= 1;
-
 our $opt_user;
 
 my $opt_valgrind= 0;
@@ -784,7 +782,7 @@ sub command_line_setup {
 	     'repeat=i'                 => \$opt_repeat,
 	     'retry=i'                  => \$opt_retry,
 	     'retry-failure=i'          => \$opt_retry_failure,
-             'timer!'                   => \$opt_timer,
+             'timer!'                   => \&report_option,
              'user=s'                   => \$opt_user,
              'testcase-timeout=i'       => \$opt_testcase_timeout,
              'suite-timeout=i'          => \$opt_suite_timeout,
@@ -2886,7 +2884,7 @@ sub run_testcase ($) {
 	}
 	else
 	{
-	  mtr_report_test_passed($tinfo, $opt_timer);
+	  mtr_report_test_passed($tinfo);
 	}
 
 	my $check_res;
@@ -3948,10 +3946,7 @@ sub start_mysqltest ($) {
     mtr_add_arg($args, "$exe_mysqltest");
   }
 
-  if ( $opt_timer )
-  {
-    mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
-  }
+  mtr_add_arg($args, "--timer-file=%s/log/timer", $opt_vardir);
 
   if ( $opt_compress )
   {
