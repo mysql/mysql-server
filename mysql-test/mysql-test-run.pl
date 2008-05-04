@@ -333,31 +333,16 @@ sub main {
   if ( @$completed != $num_tests){
 
     if ($opt_force){
-      # All test should have been run, print the ones that differs
-      my %tests= ();
-      foreach my $t (@$tests) { $tests{$t->key()}= 1; };
-      foreach my $done ( @$completed ){
-	if ($tests{$done->key()}) {
-	  mtr_report("Found one extra completed");
-	  $done->print_test();
-	}
+      # All test should have been run, print any that are still in $tests
+      foreach my $test ( @$tests ){
+	$test->print_test();
       }
-      %tests= ();
-      foreach my $t (@$completed) { $tests{$t->key()}= 1; };
-      foreach my $done ( @$tests ){
-	if ($tests{$done->key()}) {
-	  mtr_report("Found one test not run");
-	  $done->print_test();
-	}
-      }
-
     }
 
     # Not all tests completed, failure
     mtr_report();
-    mtr_report(int(@$completed), " of $num_tests completed.");
-    mtr_error("Test failed.",
-	      "To continue, re-run with '--force'");
+    mtr_report("Only ", int(@$completed), " of $num_tests completed.");
+    mtr_error("Not all tests completed");
   }
 
   mtr_print_line();
