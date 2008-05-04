@@ -49,6 +49,7 @@ use My::SafeProcess;
 use My::ConfigFactory;
 use My::Options;
 use My::Find;
+use My::SysInfo;
 use mtr_cases;
 use mtr_report;
 use mtr_match;
@@ -206,7 +207,9 @@ $| = 1; # Automatically flush STDOUT
 
 main();
 
+
 sub main {
+  report_option('verbose', 0);
 
   # This is needed for test log evaluation in "gen-build-status-page"
   # in all cases where the calling tool does not log the commands
@@ -216,8 +219,17 @@ sub main {
   Getopt::Long::Configure("pass_through");
   GetOptions('parallel=i' => \$opt_parallel) or usage("Can't read options");
 
-  if ( not defined $opt_parallel ){
-    $opt_parallel= 4; # Default
+  if ( not defined $opt_parallel ) {
+    # Try to find a suitable value for number of workers
+    my $sys_info= My::SysInfo->new();
+    $sys_info->print_info();
+
+    $opt_parallel= $sys_info->num_cpus();
+    for my $limit (2000, 1500, 1000, 500){
+      $opt_parallel-- if ($sys_info->min_bogomips() < $limit);
+    }
+    $opt_parallel= 1 if ($opt_parallel < 1);
+    mtr_report("Using parallel: $opt_parallel");
   }
 
   # Create server socket on any free port
@@ -241,7 +253,6 @@ sub main {
       exit(1);
     }
 
-    mtr_report("Started worker, pid: $child_pid");
     $children{$child_pid}= 1;
   }
 

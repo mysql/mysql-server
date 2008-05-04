@@ -42,6 +42,7 @@ nobase_test_DATA = lib/mtr_cases.pm \
 	lib/My/Platform.pm \
 	lib/My/SafeProcess.pm \
 	lib/My/File/Path.pm \
+	lib/My/SysInfo.pm \
 	lib/My/SafeProcess/Base.pm \
 	lib/My/SafeProcess/safe_process.pl
 
