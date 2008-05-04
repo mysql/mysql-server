@@ -52,7 +52,6 @@ sub report_option {
   #print $name, " setting $opt to ", (defined $value? $value : "undef") ,"\n";
 }
 
-sub SHOW_SUITE_NAME() { return  1; };
 
 sub _mtr_report_test_name ($) {
   my $tinfo= shift;
@@ -60,67 +59,40 @@ sub _mtr_report_test_name ($) {
 
   return unless defined $verbose;
 
-  # Remove suite part of name
-  $tname =~ s/.*\.// unless SHOW_SUITE_NAME;
-
   # Add combination name if any
   $tname.= " '$tinfo->{combination}'"
     if defined $tinfo->{combination};
 
   print $name, _timestamp();
-  printf "%-30s ", $tname;
+  printf "%-40s ", $tname;
 }
 
 
 sub mtr_report_test_skipped ($) {
-  my $tinfo= shift;
-  _mtr_report_test_name($tinfo);
-
+  my ($tinfo)= @_;
   $tinfo->{'result'}= 'MTR_RES_SKIPPED';
-  if ( $tinfo->{'disable'} )
-  {
-    mtr_report("[ disabled ]  $tinfo->{'comment'}");
-  }
-  elsif ( $tinfo->{'comment'} )
-  {
-    if ( $tinfo->{skip_detected_by_test} )
-    {
-      mtr_report("[ skip ].  $tinfo->{'comment'}");
-    }
-    else
-    {
-      mtr_report("[ skip ]  $tinfo->{'comment'}");
-    }
-  }
-  else
-  {
-    mtr_report("[ skip ]");
-  }
+
+  mtr_report_test($tinfo);
 }
 
 
 sub mtr_report_test_passed ($) {
   my ($tinfo)= @_;
-  _mtr_report_test_name($tinfo);
 
+  # Save the timer value
   my $timer_str=  "";
   if ( $timer and -f "$::opt_vardir/log/timer" )
   {
     $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
     $tinfo->{timer}= $timer_str;
   }
+
   # Set as passed unless already set
   if ( not defined $tinfo->{'result'} ){
     $tinfo->{'result'}= 'MTR_RES_PASSED';
   }
 
-  mtr_report("[ pass ]   ", sprintf("%12s", $timer_str));
-
-  # Show any problems check-testcase found
-  if ( defined $tinfo->{'check'} )
-  {
-    mtr_report($tinfo->{'check'});
-  }
+  mtr_report_test($tinfo);
 }
 
 
@@ -178,7 +150,7 @@ sub mtr_report_test ($) {
     {
       if ( $tinfo->{skip_detected_by_test} )
       {
-	mtr_report("[ skip ].  $tinfo->{'comment'}");
+	mtr_report("[ skip ]. $tinfo->{'comment'}");
       }
       else
       {
@@ -194,7 +166,7 @@ sub mtr_report_test ($) {
   {
     my $timer_str= $tinfo->{timer} || "";
     $tot_real_time += ($timer_str/1000);
-    mtr_report("[ pass ]   ", sprintf("%12s", $timer_str));
+    mtr_report("[ pass ] ", sprintf("%5s", $timer_str));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )
@@ -202,7 +174,6 @@ sub mtr_report_test ($) {
       mtr_report($tinfo->{'check'});
     }
   }
-
 }
 
 
@@ -372,14 +343,11 @@ sub mtr_print_thick_line {
 
 sub mtr_print_header () {
   print "\n";
-  if ( $::opt_timer )
-  {
-    print "TEST                            RESULT        TIME (ms)\n";
-  }
-  else
-  {
-    print "TEST                            RESULT\n";
-  }
+  printf "TEST";
+  print " " x 38;
+  print "RESULT   ";
+  print "TIME (ms)" if $timer;
+  print "\n";
   mtr_print_line();
   print "\n";
 }
