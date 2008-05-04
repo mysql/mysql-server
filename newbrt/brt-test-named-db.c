@@ -11,7 +11,7 @@ static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
 static void test_named_db (void) {
-    const char *n0 = "brt-test-named-db-0.brt";
+    const char *n0 = __FILE__ "0.brt";
     CACHETABLE ct;
     BRT t0;
     int r;

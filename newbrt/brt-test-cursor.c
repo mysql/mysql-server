@@ -29,7 +29,7 @@ static int test_brt_cursor_keycompare(DB *db __attribute__((unused)), const DBT 
 }
 
 static void assert_cursor_notfound(BRT brt, int position) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
 
@@ -46,7 +46,7 @@ static void assert_cursor_notfound(BRT brt, int position) {
 }
 
 static void assert_cursor_value(BRT brt, int position, long long value) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
     long long v;
@@ -72,7 +72,7 @@ static void assert_cursor_value(BRT brt, int position, long long value) {
 }
 
 static void assert_cursor_first_last(BRT brt, long long firstv, long long lastv) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     DBT kbt, vbt;
     long long v;
@@ -280,7 +280,7 @@ static void test_brt_cursor_rfirst(int n, DB *db) {
 }
 
 static void assert_cursor_walk(BRT brt, int n) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int i;
     int r;
 
@@ -352,7 +352,7 @@ static void test_brt_cursor_walk(int n, DB *db) {
 }
 
 static void assert_cursor_rwalk(BRT brt, int n) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int i;
     int r;
 
@@ -424,7 +424,7 @@ static void test_brt_cursor_rwalk(int n, DB *db) {
 }
 
 static void assert_cursor_walk_inorder(BRT brt, int n) {
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int i;
     int r;
     char *prevkey;
@@ -513,7 +513,7 @@ static void test_brt_cursor_rand(int n, DB *db) {
 static void test_brt_cursor_split(int n, DB *db) {
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
     int r;
     int keyseqnum;
     int i;
@@ -726,7 +726,7 @@ static void test_brt_cursor_set(int n, int cursor_op, DB *db) {
     int r;
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     unlink(fname);
 
@@ -798,7 +798,7 @@ static void test_brt_cursor_set_range(int n, DB *db) {
     int r;
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     unlink(fname);
 
@@ -864,7 +864,7 @@ static void test_brt_cursor_delete(int n, DB *db) {
     int error;
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     unlink(fname);
 
@@ -925,7 +925,7 @@ static void test_brt_cursor_get_both(int n, DB *db) {
     int error;
     CACHETABLE ct;
     BRT brt;
-    BRT_CURSOR cursor;
+    BRT_CURSOR cursor=0;
 
     unlink(fname);
 

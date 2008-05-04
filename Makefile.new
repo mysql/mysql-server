@@ -1,0 +1,41 @@
+# ROOT is the the name of the root of the tokudb make directory heirarchy, starting at the cwd
+ROOT =
+
+default: build
+
+VGRIND = valgrind
+OPTFLAGS = -O3
+CFLAGS = $(OPTFLAGS) -Wall -W -Wcast-align -Wbad-function-cast -Wextra -Wmissing-noreturn -Wmissing-format-attribute -g3 -ggdb3   -Werror -fPIC -Wshadow -fvisibility=hidden
+CPPFLAGS = -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D_XOPEN_SOURCE=500
+LDFLAGS = -lz
+
+DIRS = newbrt 
+ # src cxx utils db-benchmark-test db-benchmark-test-cxx
+include $(patsubst %,%/Makefile.include,$(DIRS))
+
+build: $(BINS)
+check: $(CHECKS)
+
+ifeq ($(VERBOSE),2)
+VERBVERBOSE=-v
+MAYBEATSIGN= 
+else
+ ifeq ($(VERBOSE),1)
+  VERBVERBOSE=-q
+  MAYBEATSIGN=
+ else
+  VERBVERBOSE=-q
+  MAYBEATSIGN=@
+ endif
+endif
+
+ifeq ($(CYGWIN),cygwin)
+else
+FPICFLAGS = -fPIC
+# valgrind is not present on cygwin
+VGRIND = valgrind --quiet --error-exitcode=1 --leak-check=yes
+endif
+
+%.check: %
+	$(VGRIND) ./$< $(VERBVERBOSE) 
+

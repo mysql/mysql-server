@@ -19,7 +19,7 @@ static void test5 (void) {
     int *values;
     int i;
     CACHETABLE ct;
-    char fname[]="testbrt.brt";
+    char fname[]= __FILE__ ".brt";
     toku_memory_check_all_free();
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;

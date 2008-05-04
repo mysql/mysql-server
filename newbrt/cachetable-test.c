@@ -80,7 +80,7 @@ static void test0 (void) {
     CACHETABLE t;
     CACHEFILE f;
     int r;
-    char fname[] = "test.dat";
+    char fname[] = __FILE__ "test.dat";
     r=toku_create_cachetable(&t, 5, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -204,7 +204,7 @@ static void test_nested_pin (void) {
     int i0, i1;
     int r;
     void *vv,*vv2;
-    char fname[] = "test_ct.dat";
+    char fname[] = __FILE__ "test_ct.dat";
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -262,9 +262,9 @@ static int add222_fetch (CACHEFILE cf __attribute__((__unused__)), CACHEKEY key,
 static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
-    char fname1[]="test_ct.dat";
-    char fname2[]="test2_ct.dat";
-    char fname3[]="test3_ct.dat";
+    char fname1[]= __FILE__ "test_ct.dat";
+    char fname2[]= __FILE__ "test2_ct.dat";
+    char fname3[]= __FILE__ "test3_ct.dat";
     int r;
     void *v;
     unlink(fname1);
@@ -318,7 +318,7 @@ static void test_dirty() {
     r = toku_create_cachetable(&t, 4, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = "test.dat";
+    char *fname = __FILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);   
     assert(r == 0);
@@ -426,7 +426,7 @@ static void test_size_resize() {
     r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = "test.dat";
+    char *fname = __FILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
     assert(r == 0);
@@ -477,7 +477,7 @@ static void test_size_flush() {
     r = toku_create_cachetable(&t, n*size, ZERO_LSN, NULL_LOGGER);
     assert(r == 0);
 
-    char *fname = "test.dat";
+    char *fname = __FILE__ "test.dat";
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);
     assert(r == 0);
@@ -567,7 +567,7 @@ static void test_rename (void) {
     CACHEFILE f;
     int i;
     int r;
-    const char fname[] = "ct-test-rename.dat";
+    const char fname[] = __FILE__ "rename.dat";
     r=toku_create_cachetable(&t, KEYLIMIT, ZERO_LSN, NULL_LOGGER); assert(r==0);
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, 0777);

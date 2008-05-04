@@ -434,7 +434,7 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
 
     toku_omt_destroy(&old_omt);
 
-    LSN lsn;
+    LSN lsn={0};
     r = toku_log_leafsplit(logger, &lsn, 0, filenum, node->thisnodename, B->thisnodename, n_leafentries, break_at, node->nodesize, B->rand4fingerprint, (t->flags&TOKU_DB_DUPSORT)!=0);
     if (logger) {
 	node->log_lsn = lsn;
@@ -1364,8 +1364,8 @@ int should_compare_both_keys (BRTNODE node, BRT_CMD cmd) {
 static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
 				    u_int32_t idx, LEAFENTRY le) {
     FILENUM filenum = toku_cachefile_filenum(t->cf);
-    u_int32_t newlen, newdisksize;
-    LEAFENTRY newdata;
+    u_int32_t newlen=0, newdisksize=0;
+    LEAFENTRY newdata=0;
     int r = apply_cmd_to_leaf(cmd, le, &newlen, &newdisksize, &newdata);
     if (r!=0) return r;
     if (newdata) assert(newdisksize == leafentry_disksize(newdata));
@@ -2398,9 +2398,7 @@ int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
     return r;
 }
 
-int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse, BRTNODE parent_brtnode);
-
-int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, BRTNODE parent_brtnode) {
+int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen) {
     int result=0;
     BRTNODE node;
     void *node_v;
@@ -2409,7 +2407,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
     assert(r==0);
     printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     node=node_v;
-    result=toku_verify_brtnode(brt, off, lorange, lolen, hirange, hilen, 0, parent_brtnode);
+    result=toku_verify_brtnode(brt, off, lorange, lolen, hirange, hilen, 0);
     printf("%*sNode=%p\n", depth, "", node);
     if (node->height>0) {
 	printf("%*sNode %lld nodesize=%d height=%d n_children=%d  n_bytes_in_buffers=%d keyrange=%s %s\n",
@@ -2436,8 +2434,7 @@ int toku_dump_brtnode (BRT brt, DISKOFF off, int depth, bytevec lorange, ITEMLEN
 				  (i==0) ? lorange : node->u.n.childkeys[i-1],
 				  (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
 				  (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i],
-				  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]),
-				  node
+				  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i])
 				  );
 	    }
 	}
@@ -2463,7 +2460,7 @@ int toku_dump_brt (BRT brt) {
     }
     rootp = toku_calculate_root_offset_pointer(brt);
     printf("split_count=%d\n", split_count);
-    if ((r = toku_dump_brtnode(brt, *rootp, 0, 0, 0, 0, 0, null_brtnode))) goto died0;
+    if ((r = toku_dump_brtnode(brt, *rootp, 0, 0, 0, 0, 0))) goto died0;
     if ((r = toku_unpin_brt_header(brt))!=0) return r;
     brt->h = prev_header;
     return 0;

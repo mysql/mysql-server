@@ -15,7 +15,7 @@ static void test2 (int memcheck, int limit) {
     int r;
     int i;
     CACHETABLE ct;
-    char fname[]="brt-test2.brt";
+    char fname[]= __FILE__ "2.brt";
     toku_memory_check=memcheck;
     if (verbose) printf("%s:%d checking\n", __FILE__, __LINE__);
     toku_memory_check_all_free();

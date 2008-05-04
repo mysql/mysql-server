@@ -8,7 +8,7 @@
 #include "fifo.h"
 #include "yerror.h"
 #include "brt.h"
-#include "crc.h"
+ #include "crc.h"
 #include "list.h"
 #include "mempool.h"
 #include "kv-pair.h"
@@ -224,6 +224,8 @@ int toku_omt_compress_kvspace (OMT omt, struct mempool *memp);
 void *mempool_malloc_from_omt(OMT omt, struct mempool *mp, size_t size);
 
 void toku_verify_all_in_mempool(BRTNODE node);
+
+int toku_verify_brtnode (BRT brt, DISKOFF off, bytevec lorange, ITEMLEN lolen, bytevec hirange, ITEMLEN hilen, int recurse) ;
 
 // Diff from 5 to 6:  Added leafentry_estimate
 #define BRT_LAYOUT_VERSION 6
