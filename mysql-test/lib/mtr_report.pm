@@ -39,7 +39,7 @@ our $timediff= 1;
 our $name;
 our $verbose;
 our $verbose_restart= 0;
-
+our $timer= 1;
 
 sub report_option {
   my ($opt, $value)= @_;
@@ -99,23 +99,22 @@ sub mtr_report_test_skipped ($) {
 }
 
 
-sub mtr_report_test_passed ($$) {
-  my ($tinfo, $use_timer)= @_;
+sub mtr_report_test_passed ($) {
+  my ($tinfo)= @_;
   _mtr_report_test_name($tinfo);
 
-  my $timer=  "";
-  if ( $use_timer and -f "$::opt_vardir/log/timer" )
+  my $timer_str=  "";
+  if ( $timer and -f "$::opt_vardir/log/timer" )
   {
-    $timer= mtr_fromfile("$::opt_vardir/log/timer");
-    $tot_real_time += ($timer/1000);
-    $timer= sprintf "%12s", $timer;
-    $tinfo->{timer}= $timer;
+    $timer_str= mtr_fromfile("$::opt_vardir/log/timer");
+    $tinfo->{timer}= $timer_str;
   }
   # Set as passed unless already set
   if ( not defined $tinfo->{'result'} ){
     $tinfo->{'result'}= 'MTR_RES_PASSED';
   }
-  mtr_report("[ pass ]   $timer");
+
+  mtr_report("[ pass ]   ", sprintf("%12s", $timer_str));
 
   # Show any problems check-testcase found
   if ( defined $tinfo->{'check'} )
@@ -193,8 +192,9 @@ sub mtr_report_test ($) {
   }
   elsif ($tinfo->{'result'} eq 'MTR_RES_PASSED')
   {
-    my $timer=  $tinfo->{timer} || "";
-    mtr_report("[ pass ]   $timer");
+    my $timer_str= $tinfo->{timer} || "";
+    $tot_real_time += ($timer_str/1000);
+    mtr_report("[ pass ]   ", sprintf("%12s", $timer_str));
 
     # Show any problems check-testcase found
     if ( defined $tinfo->{'check'} )
@@ -262,7 +262,7 @@ sub mtr_report_stats ($) {
   # ----------------------------------------------------------------------
   print "The servers were restarted $tot_restarts times\n";
 
-  if ( $::opt_timer )
+  if ( $timer )
   {
     use English;
 
@@ -343,7 +343,7 @@ sub mtr_report_stats ($) {
    }
   else
   {
-    print "All $tot_tests tests were successful.\n";
+    print "All $tot_tests tests were successful.\n\n";
   }
 
   if ( $tot_failed != 0 || $found_problems)
