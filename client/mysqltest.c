@@ -1536,7 +1536,7 @@ int dyn_string_cmp(DYNAMIC_STRING* ds, const char *fname)
   DBUG_ENTER("dyn_string_cmp");
   DBUG_PRINT("enter", ("fname: %s", fname));
 
-  if ((fd= create_temp_file(temp_file_path, NULL,
+  if ((fd= create_temp_file(temp_file_path, TMPDIR,
                             "tmp", O_CREAT | O_SHARE | O_RDWR,
                             MYF(MY_WME))) < 0)
     die("Failed to create temporary file for ds");
@@ -5464,6 +5464,7 @@ void init_win_path_patterns()
   const char* paths[] = { "$MYSQL_TEST_DIR",
                           "$MYSQL_TMP_DIR",
                           "$MYSQLTEST_VARDIR",
+                          "$MASTER_MYSOCK",
                           "./test/" };
   int num_paths= sizeof(paths)/sizeof(char*);
   int i;
