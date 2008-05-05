@@ -3164,6 +3164,7 @@ sub check_expected_crash_and_restart {
 # Remove all files and subdirectories of a directory
 sub clean_dir {
   my ($dir)= @_;
+  print "clean_dir: $dir\n";
   finddepth(
 	  { no_chdir => 1,
 	    wanted => sub {
@@ -3173,11 +3174,13 @@ sub clean_dir {
 		  # The dir to clean
 		  return;
 		} else {
-		  rmdir($_) or mtr_warning("rmdir failed: $!");
+		  print "rmdir: '$_'\n";
+		  rmdir($_) or mtr_warning("rmdir($_) failed: $!");
 		}
 	      } else {
 		# Hopefully a file
-		unlink($_) or mtr_warning("unlink failed: $!");
+		print "unlink: '$_'\n";
+		unlink($_) or mtr_warning("unlink($_) failed: $!");
 	      }
 	    }
 	  },
