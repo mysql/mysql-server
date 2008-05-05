@@ -1224,6 +1224,18 @@ sync_thread_reset_level(
 		}
 	}
 
+	if (((mutex_t*) latch)->magic_n != MUTEX_MAGIC_N) {
+		rw_lock_t*	rw_lock;
+
+		rw_lock = (rw_lock_t*) latch;
+
+		if (rw_lock->level == SYNC_LEVEL_VARYING) {
+			mutex_exit(&sync_thread_mutex);
+
+			return(TRUE);
+		}
+	}
+
 	ut_error;
 
 	mutex_exit(&sync_thread_mutex);
