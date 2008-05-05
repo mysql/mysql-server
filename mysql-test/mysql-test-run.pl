@@ -2895,7 +2895,6 @@ sub run_testcase ($) {
 	  if ($check_res == 1) {
 	    # Test case had sideeffects, not fatal error, just continue
 	    stop_all_servers();
-	    clean_datadir();
 	    mtr_report("Resuming tests...\n");
 	  }
 	  else {
@@ -3164,7 +3163,7 @@ sub check_expected_crash_and_restart {
 # Remove all files and subdirectories of a directory
 sub clean_dir {
   my ($dir)= @_;
-  print "clean_dir: $dir\n";
+  mtr_print("clean_dir: $dir");
   finddepth(
 	  { no_chdir => 1,
 	    wanted => sub {
@@ -3174,12 +3173,12 @@ sub clean_dir {
 		  # The dir to clean
 		  return;
 		} else {
-		  print "rmdir: '$_'\n";
+		  mtr_print("rmdir: '$_'");
 		  rmdir($_) or mtr_warning("rmdir($_) failed: $!");
 		}
 	      } else {
 		# Hopefully a file
-		print "unlink: '$_'\n";
+		mtr_print("unlink: '$_'");
 		unlink($_) or mtr_warning("unlink($_) failed: $!");
 	      }
 	    }
@@ -3192,10 +3191,14 @@ sub clean_datadir {
 
   mtr_verbose("Cleaning datadirs...");
 
+  if (started(all_servers()) != 0){
+    mtr_error("Trying to clean datadir before all servers stopped");
+  }
+
   foreach my $cluster ( clusters() )
   {
     my $cluster_dir= "$opt_vardir/".$cluster->{name};
-    mtr_verbose(" - removing '$cluster_dir'");
+    mtr_print(" - removing '$cluster_dir'");
     rmtree($cluster_dir);
 
   }
@@ -3204,7 +3207,7 @@ sub clean_datadir {
   {
     my $mysqld_dir= dirname($mysqld->value('datadir'));
     if (-d $mysqld_dir ) {
-      mtr_verbose(" - removing '$mysqld_dir'");
+      mtr_print(" - removing '$mysqld_dir'");
       rmtree($mysqld_dir);
     }
   }
@@ -3509,7 +3512,7 @@ sub mysqld_start ($$) {
 
 sub stop_all_servers () {
 
-  mtr_report("Stopping all servers...");
+  mtr_print("Stopping all servers...");
 
   # Kill all started servers
   My::SafeProcess::shutdown(0, # shutdown timeout 0 => kill

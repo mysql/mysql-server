@@ -26,7 +26,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_print_header mtr_report mtr_report_stats
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
-		mtr_report_test_skipped
+		mtr_report_test_skipped mtr_print
 		mtr_report_test);
 
 use mtr_match;
@@ -386,8 +386,13 @@ sub _timestamp {
 		 $tm->hour, $tm->min, $tm->sec, $diff);
 }
 
+# Always print message to screen
+sub mtr_print (@) {
+  print $name, join(" ", @_), "\n";
+}
 
-# Print message to screen
+
+# Print message to screen if verbose is defined
 sub mtr_report (@) {
   if (defined $verbose)
   {
