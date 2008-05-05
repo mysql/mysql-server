@@ -2231,7 +2231,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         error = HA_ERR_UNSUPPORTED;
         break;
     }
-    error = read_row(error, buf, active_index, &row, &last_key, find_flag != HA_READ_KEY_EXACT);
+    error = read_row(error, buf, active_index, &row, &last_key, 0);
     if (error && (tokudb_debug & TOKUDB_DEBUG_ERROR))
         TOKUDB_TRACE("error:%d:%d\n", error, find_flag);
     TOKUDB_DBUG_RETURN(error);
@@ -2363,7 +2363,7 @@ int ha_tokudb::index_last(uchar * buf) {
     DBT row;
     statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
     bzero((void *) &row, sizeof(row));
-    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 0));
+    TOKUDB_DBUG_RETURN(read_row(cursor->c_get(cursor, &last_key, &row, DB_LAST), buf, active_index, &row, &last_key, 1));
 }
 
 //
