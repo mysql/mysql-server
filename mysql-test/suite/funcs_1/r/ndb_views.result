@@ -22496,8 +22496,8 @@ f1	f2	f4	report
 2	NULL	<-- 10 -->	v1 2
 ALTER TABLE t1 CHANGE COLUMN f4 f4 CHAR(8);
 Warnings:
-Warning	1265	Data truncated for column 'f4' at row 2
-Warning	1265	Data truncated for column 'f4' at row 5
+Warning	1265	Data truncated for column 'f4' at row <some number>
+Warning	1265	Data truncated for column 'f4' at row <some number>
 INSERT INTO t1 SET f1 = 3, f4 = '<-- 10 -->', report = 't1 3';
 Warnings:
 Warning	1265	Data truncated for column 'f4' at row 1
