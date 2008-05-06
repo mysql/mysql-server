@@ -3816,6 +3816,10 @@ sub start_servers($) {
     mtr_error("Failed to copy system db to '$datadir'")
       unless -d $datadir;
 
+    # Create the servers tmpdir
+    my $tmpdir= $mysqld->value('tmpdir');
+    mkpath($tmpdir) unless -d $tmpdir;
+
     # Write start of testcase to log file
     mark_log($mysqld->value('log-error'), $tinfo);
 
